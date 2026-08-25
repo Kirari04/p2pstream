@@ -37,6 +37,7 @@ import {
   routeTargetName,
   trafficShaperBudgetSummary,
   trafficShaperKeySummary,
+  trafficShaperProtocolScopeLabel,
   trafficShaperRuleSummary,
   trafficShaperScopeLabel,
   wafActionLabel,
@@ -586,6 +587,7 @@ function trafficShaperSearchText(rule: PublicTrafficShaperRule): string {
     rule.priority.toString(),
     rule.enabled ? "enabled" : "disabled",
     trafficShaperScopeLabel(rule.budgetScope),
+    trafficShaperProtocolScopeLabel(rule.protocolScope),
     trafficShaperRuleSummary(rule),
     trafficShaperBudgetSummary(rule),
     trafficShaperKeySummary(rule),
@@ -1576,7 +1578,7 @@ async function deleteTrafficShaperRule(id: bigint) {
           size="small"
           clearable
           placeholder="Filter traffic-shaper rules"
-          :input-props="{ 'aria-label': 'Filter traffic-shaper rules by name, match, key, priority, budget, or warning' }"
+          :input-props="{ 'aria-label': 'Filter traffic-shaper rules by name, match, key, priority, budget, protocol scope, or warning' }"
         >
           <template #prefix><SearchIcon class="icon-sm" /></template>
         </NInput>
@@ -1626,6 +1628,7 @@ async function deleteTrafficShaperRule(id: bigint) {
                   <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
                   <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
                   <div><dt>Key</dt><dd dir="auto">{{ trafficShaperKeySummary(rule) }}</dd></div>
+                  <div><dt>Applies to</dt><dd dir="auto">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</dd></div>
                   <div><dt>Budget</dt><dd dir="auto">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</dd></div>
                 </dl>
               </details>
@@ -1637,7 +1640,10 @@ async function deleteTrafficShaperRule(id: bigint) {
             </div>
             <div class="policy-data-cell policy-grid-action" data-label="Budget & scope" role="cell">
               <span class="policy-data-label">Budget &amp; scope</span>
-              <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
+              <div class="policy-data-tags">
+                <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
+                <NTag size="small" :bordered="false">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</NTag>
+              </div>
               <p class="policy-data-secondary mono-text" :title="trafficShaperRuleSummary(rule)">{{ trafficShaperRuleSummary(rule) }}</p>
               <p class="policy-data-secondary" :title="trafficShaperBudgetSummary(rule)">{{ trafficShaperBudgetSummary(rule) }}</p>
             </div>

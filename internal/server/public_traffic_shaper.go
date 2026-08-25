@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -22,16 +23,19 @@ import (
 )
 
 const (
-	defaultTrafficShaperName                 = "traffic-shaper"
-	publicTrafficShaperBudgetScopePerKey     = "per_key"
-	publicTrafficShaperBudgetScopePerRequest = "per_request"
-	maxTrafficShaperBytesPerSecond           = int64(1 << 40)
-	maxTrafficShaperBurstBytes               = int64(1 << 30)
-	maxTrafficShaperExemptBytes              = int64(1 << 30)
-	maxTrafficShaperBucketsPerRule           = 10000
-	maxShapingReadChunkBytes                 = 32 * 1024
-	trafficShaperIdleStateTTL                = 15 * time.Minute
-	trafficShaperPruneInterval               = time.Minute
+	defaultTrafficShaperName                          = "traffic-shaper"
+	publicTrafficShaperBudgetScopePerKey              = "per_key"
+	publicTrafficShaperBudgetScopePerRequest          = "per_request"
+	publicTrafficShaperProtocolScopeAll               = "all"
+	publicTrafficShaperProtocolScopeWebSocketOnly     = "websocket_only"
+	publicTrafficShaperProtocolScopeWebSocketExcluded = "websocket_excluded"
+	maxTrafficShaperBytesPerSecond                    = int64(1 << 40)
+	maxTrafficShaperBurstBytes                        = int64(1 << 30)
+	maxTrafficShaperExemptBytes                       = int64(1 << 30)
+	maxTrafficShaperBucketsPerRule                    = 10000
+	maxShapingChunkBytes                              = 32 * 1024
+	trafficShaperIdleStateTTL                         = 15 * time.Minute
+	trafficShaperPruneInterval                        = time.Minute
 )
 
 type publicTrafficShaperRuleConfig struct {
@@ -40,6 +44,7 @@ type publicTrafficShaperRuleConfig struct {
 	Priority               int64
 	Enabled                bool
 	BudgetScope            string
+	ProtocolScope          string
 	UploadBytesPerSecond   int64
 	DownloadBytesPerSecond int64
 	BurstBytes             int64
@@ -57,6 +62,7 @@ type publicTrafficShaperRuleMutationInput struct {
 	Priority               int64
 	Enabled                int64
 	BudgetScope            string
+	ProtocolScope          string
 	UploadBytesPerSecond   int64
 	DownloadBytesPerSecond int64
 	BurstBytes             int64
@@ -103,6 +109,15 @@ type shapingReadCloser struct {
 	exemptRemaining int64
 }
 
+type shapingReadWriteCloser struct {
+	ctx                  context.Context
+	body                 io.ReadWriteCloser
+	readBucket           *byteTokenBucket
+	writeBucket          *byteTokenBucket
+	readExemptRemaining  int64
+	writeExemptRemaining int64
+}
+
 func newPublicTrafficShaper() *publicTrafficShaper {
 	return &publicTrafficShaper{rules: make(map[int64]*publicTrafficShaperRuleRuntime)}
 }
@@ -143,6 +158,10 @@ func (a *App) selectPublicTrafficShaper(listenerID int64, r *http.Request) (publ
 }
 
 func (a *App) selectPublicTrafficShaperWithSnapshot(snap *publicProxySnapshot, listenerID int64, r *http.Request) (publicTrafficShaperDecision, bool) {
+	return a.selectPublicTrafficShaperWithSnapshotForProtocol(snap, listenerID, r, isWebSocketHandshakeRequest(r))
+}
+
+func (a *App) selectPublicTrafficShaperWithSnapshotForProtocol(snap *publicProxySnapshot, listenerID int64, r *http.Request, isWebSocket bool) (publicTrafficShaperDecision, bool) {
 	if a == nil || a.TrafficShaper == nil {
 		return publicTrafficShaperDecision{}, false
 	}
@@ -153,15 +172,19 @@ func (a *App) selectPublicTrafficShaperWithSnapshot(snap *publicProxySnapshot, l
 	if !ok {
 		return publicTrafficShaperDecision{}, false
 	}
-	return a.TrafficShaper.evaluate(snap.TrafficShaperRules, listener, r, time.Now())
+	return a.TrafficShaper.evaluateForProtocol(snap.TrafficShaperRules, listener, r, isWebSocket, time.Now())
 }
 
 func (s *publicTrafficShaper) evaluate(rules []publicTrafficShaperRuleConfig, listener publicListenerConfig, r *http.Request, now time.Time) (publicTrafficShaperDecision, bool) {
+	return s.evaluateForProtocol(rules, listener, r, isWebSocketHandshakeRequest(r), now)
+}
+
+func (s *publicTrafficShaper) evaluateForProtocol(rules []publicTrafficShaperRuleConfig, listener publicListenerConfig, r *http.Request, isWebSocket bool, now time.Time) (publicTrafficShaperDecision, bool) {
 	if len(rules) == 0 {
 		return publicTrafficShaperDecision{}, false
 	}
 	for _, rule := range rules {
-		if !rule.Enabled || !rule.matches(listener, r) {
+		if !rule.Enabled || !rule.matchesForProtocol(listener, r, isWebSocket) {
 			continue
 		}
 		return s.decisionForRule(rule, listener, r, now), true
@@ -261,7 +284,55 @@ func evictOldestTrafficShaperBucket(buckets map[string]*byteTokenBucket) {
 }
 
 func (rule publicTrafficShaperRuleConfig) matches(listener publicListenerConfig, r *http.Request) bool {
+	return rule.matchesForProtocol(listener, r, isWebSocketHandshakeRequest(r))
+}
+
+func (rule publicTrafficShaperRuleConfig) matchesForProtocol(listener publicListenerConfig, r *http.Request, isWebSocket bool) bool {
+	switch normalizePublicTrafficShaperProtocolScope(rule.ProtocolScope) {
+	case publicTrafficShaperProtocolScopeWebSocketOnly:
+		if !isWebSocket {
+			return false
+		}
+	case publicTrafficShaperProtocolScopeWebSocketExcluded:
+		if isWebSocket {
+			return false
+		}
+	}
 	return publicRateLimitRuleConfig{Match: rule.Match}.matches(listener, r)
+}
+
+func (a *App) publicTrafficShaperForResponse(
+	snap *publicProxySnapshot,
+	listenerID int64,
+	r *http.Request,
+	statusCode int,
+	selected *publicTrafficShaperDecision,
+) *publicTrafficShaperDecision {
+	if statusCode == http.StatusSwitchingProtocols || !isWebSocketHandshakeRequest(r) {
+		return selected
+	}
+	decision, ok := a.selectPublicTrafficShaperWithSnapshotForProtocol(snap, listenerID, r, false)
+	if !ok {
+		return nil
+	}
+	return &decision
+}
+
+func isWebSocketHandshakeRequest(r *http.Request) bool {
+	if r == nil || !strings.EqualFold(r.Method, http.MethodGet) {
+		return false
+	}
+	if r.ContentLength != 0 || len(r.TransferEncoding) != 0 {
+		return false
+	}
+	if !headerHasToken(r.Header, "Connection", "upgrade") || !strings.EqualFold(strings.TrimSpace(r.Header.Get("Upgrade")), "websocket") {
+		return false
+	}
+	if strings.TrimSpace(r.Header.Get("Sec-WebSocket-Version")) != "13" {
+		return false
+	}
+	key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(r.Header.Get("Sec-WebSocket-Key")))
+	return err == nil && len(key) == 16
 }
 
 func (rule publicTrafficShaperRuleConfig) keyValues(listener publicListenerConfig, r *http.Request) []string {
@@ -349,6 +420,18 @@ func (b *byteTokenBucket) waitForSpend(ctx context.Context, bytes float64) error
 	}
 }
 
+func (b *byteTokenBucket) refund(bytes int) {
+	if b == nil || bytes <= 0 {
+		return
+	}
+	b.mu.Lock()
+	b.tokens += float64(bytes)
+	if b.tokens > b.burstBytes {
+		b.tokens = b.burstBytes
+	}
+	b.mu.Unlock()
+}
+
 func (b *byteTokenBucket) refillLocked(now time.Time) {
 	if now.Before(b.lastRefill) {
 		b.lastRefill = now
@@ -365,16 +448,16 @@ func (b *byteTokenBucket) refillLocked(now time.Time) {
 	b.lastRefill = now
 }
 
-func (b *byteTokenBucket) readChunkLimit() int {
+func (b *byteTokenBucket) chunkLimit() int {
 	if b == nil || b.burstBytes <= 0 {
-		return maxShapingReadChunkBytes
+		return maxShapingChunkBytes
 	}
 	limit := int(math.Ceil(b.burstBytes))
 	if limit < 1 {
 		limit = 1
 	}
-	if limit > maxShapingReadChunkBytes {
-		limit = maxShapingReadChunkBytes
+	if limit > maxShapingChunkBytes {
+		limit = maxShapingChunkBytes
 	}
 	return limit
 }
@@ -410,8 +493,29 @@ func (d publicTrafficShaperDecision) wrapDownloadBody(ctx context.Context, body 
 	return newShapingReadCloser(ctx, body, d.DownloadBucket, d.Rule.ResponseExemptBytes)
 }
 
+func (d publicTrafficShaperDecision) wrapUpgradeBody(ctx context.Context, body io.ReadCloser) io.ReadCloser {
+	if body == nil || (d.UploadBucket == nil && d.DownloadBucket == nil) {
+		return body
+	}
+	readWriteBody, ok := body.(io.ReadWriteCloser)
+	if !ok {
+		return body
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return &shapingReadWriteCloser{
+		ctx:                  ctx,
+		body:                 readWriteBody,
+		readBucket:           d.DownloadBucket,
+		writeBucket:          d.UploadBucket,
+		readExemptRemaining:  max(d.Rule.ResponseExemptBytes, 0),
+		writeExemptRemaining: max(d.Rule.RequestExemptBytes, 0),
+	}
+}
+
 func newShapingReadCloser(ctx context.Context, body io.ReadCloser, bucket *byteTokenBucket, exemptBytes int64) io.ReadCloser {
-	if body == nil || bucket == nil {
+	if body == nil || body == http.NoBody || bucket == nil {
 		return body
 	}
 	if ctx == nil {
@@ -424,8 +528,8 @@ func newShapingReadCloser(ctx context.Context, body io.ReadCloser, bucket *byteT
 }
 
 func (r *shapingReadCloser) Read(p []byte) (int, error) {
-	if len(p) > r.bucket.readChunkLimit() {
-		p = p[:r.bucket.readChunkLimit()]
+	if len(p) > r.bucket.chunkLimit() {
+		p = p[:r.bucket.chunkLimit()]
 	}
 	n, err := r.body.Read(p)
 	if n > 0 {
@@ -451,11 +555,121 @@ func (r *shapingReadCloser) Close() error {
 	return r.body.Close()
 }
 
+func (r *shapingReadWriteCloser) Read(p []byte) (int, error) {
+	if r.readBucket != nil && len(p) > r.readBucket.chunkLimit() {
+		p = p[:r.readBucket.chunkLimit()]
+	}
+	n, err := r.body.Read(p)
+	if waitErr := shapeTransferredBytes(r.ctx, r.readBucket, &r.readExemptRemaining, n); waitErr != nil && err == nil {
+		err = waitErr
+	}
+	return n, err
+}
+
+func (r *shapingReadWriteCloser) Write(p []byte) (int, error) {
+	written := 0
+	for len(p) > 0 {
+		chunk := p
+		if r.writeBucket != nil && len(chunk) > r.writeBucket.chunkLimit() {
+			chunk = chunk[:r.writeBucket.chunkLimit()]
+		}
+		reservation, err := reserveShapedBytes(r.ctx, r.writeBucket, &r.writeExemptRemaining, len(chunk))
+		if err != nil {
+			return written, err
+		}
+		n, err := r.body.Write(chunk)
+		if n < 0 || n > len(chunk) {
+			reservation.reconcile(0)
+			return written, fmt.Errorf("invalid upgraded connection write count %d", n)
+		}
+		reservation.reconcile(n)
+		if n > 0 {
+			written += n
+			p = p[n:]
+		}
+		if err != nil {
+			return written, err
+		}
+		if n == 0 {
+			return written, io.ErrNoProgress
+		}
+	}
+	return written, nil
+}
+
+func (r *shapingReadWriteCloser) Close() error {
+	return r.body.Close()
+}
+
+type shapedByteReservation struct {
+	bucket          *byteTokenBucket
+	exemptRemaining *int64
+	reserved        int
+	exempted        int
+	charged         int
+}
+
+func reserveShapedBytes(ctx context.Context, bucket *byteTokenBucket, exemptRemaining *int64, bytes int) (shapedByteReservation, error) {
+	reservation := shapedByteReservation{bucket: bucket, exemptRemaining: exemptRemaining, reserved: bytes}
+	if bytes <= 0 || bucket == nil {
+		return reservation, nil
+	}
+	if exemptRemaining != nil && *exemptRemaining > 0 {
+		reservation.exempted = bytes
+		if int64(reservation.exempted) > *exemptRemaining {
+			reservation.exempted = int(*exemptRemaining)
+		}
+	}
+	reservation.charged = bytes - reservation.exempted
+	if err := bucket.wait(ctx, reservation.charged); err != nil {
+		return shapedByteReservation{}, err
+	}
+	if exemptRemaining != nil {
+		*exemptRemaining -= int64(reservation.exempted)
+	}
+	return reservation, nil
+}
+
+func (r shapedByteReservation) reconcile(transferred int) {
+	if r.bucket == nil || r.reserved <= 0 {
+		return
+	}
+	if transferred < 0 {
+		transferred = 0
+	}
+	if transferred > r.reserved {
+		transferred = r.reserved
+	}
+	actualExempted := min(transferred, r.exempted)
+	if r.exemptRemaining != nil {
+		*r.exemptRemaining += int64(r.exempted - actualExempted)
+	}
+	actualCharged := transferred - actualExempted
+	r.bucket.refund(r.charged - actualCharged)
+}
+
+func shapeTransferredBytes(ctx context.Context, bucket *byteTokenBucket, exemptRemaining *int64, transferred int) error {
+	if transferred <= 0 || bucket == nil {
+		return nil
+	}
+	charge := transferred
+	if exemptRemaining != nil && *exemptRemaining > 0 {
+		exempted := int64(transferred)
+		if exempted > *exemptRemaining {
+			exempted = *exemptRemaining
+		}
+		*exemptRemaining -= exempted
+		charge -= int(exempted)
+	}
+	return bucket.wait(ctx, charge)
+}
+
 func validatePublicTrafficShaperRuleInput(
 	name string,
 	priority int64,
 	enabled bool,
 	budgetScope p2pstreamv1.PublicTrafficShaperBudgetScope,
+	protocolScope p2pstreamv1.PublicTrafficShaperProtocolScope,
 	uploadBytesPerSecond int64,
 	downloadBytesPerSecond int64,
 	burstBytes int64,
@@ -472,6 +686,10 @@ func validatePublicTrafficShaperRuleInput(
 		return publicTrafficShaperRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("traffic shaper rule name must be 1-64 alphanumeric, dot, dash, or underscore characters"))
 	}
 	scope, err := trafficShaperBudgetScopeStringFromProto(budgetScope)
+	if err != nil {
+		return publicTrafficShaperRuleMutationInput{}, err
+	}
+	protocol, err := trafficShaperProtocolScopeStringFromProto(protocolScope)
 	if err != nil {
 		return publicTrafficShaperRuleMutationInput{}, err
 	}
@@ -519,6 +737,7 @@ func validatePublicTrafficShaperRuleInput(
 		Priority:               priority,
 		Enabled:                boolInt(enabled),
 		BudgetScope:            scope,
+		ProtocolScope:          protocol,
 		UploadBytesPerSecond:   uploadBytesPerSecond,
 		DownloadBytesPerSecond: downloadBytesPerSecond,
 		BurstBytes:             burstBytes,
@@ -547,6 +766,7 @@ func publicTrafficShaperRuleRowToConfig(row db.PublicTrafficShaperRule) (publicT
 		Priority:               row.Priority,
 		Enabled:                row.Enabled != 0,
 		BudgetScope:            normalizePublicTrafficShaperBudgetScope(row.BudgetScope),
+		ProtocolScope:          normalizePublicTrafficShaperProtocolScope(row.ProtocolScope),
 		UploadBytesPerSecond:   row.UploadBytesPerSecond,
 		DownloadBytesPerSecond: row.DownloadBytesPerSecond,
 		BurstBytes:             row.BurstBytes,
@@ -583,6 +803,7 @@ func publicTrafficShaperRuleRowToConfig(row db.PublicTrafficShaperRule) (publicT
 func publicTrafficShaperRuleFingerprint(rule publicTrafficShaperRuleConfig) string {
 	type fingerprint struct {
 		BudgetScope            string
+		ProtocolScope          string
 		UploadBytesPerSecond   int64
 		DownloadBytesPerSecond int64
 		BurstBytes             int64
@@ -594,6 +815,7 @@ func publicTrafficShaperRuleFingerprint(rule publicTrafficShaperRuleConfig) stri
 	}
 	payload, _ := json.Marshal(fingerprint{
 		BudgetScope:            rule.BudgetScope,
+		ProtocolScope:          rule.ProtocolScope,
 		UploadBytesPerSecond:   rule.UploadBytesPerSecond,
 		DownloadBytesPerSecond: rule.DownloadBytesPerSecond,
 		BurstBytes:             rule.BurstBytes,
@@ -633,6 +855,42 @@ func protoTrafficShaperBudgetScopeFromString(scope string) p2pstreamv1.PublicTra
 	return p2pstreamv1.PublicTrafficShaperBudgetScope_PUBLIC_TRAFFIC_SHAPER_BUDGET_SCOPE_PER_KEY
 }
 
+func trafficShaperProtocolScopeStringFromProto(scope p2pstreamv1.PublicTrafficShaperProtocolScope) (string, error) {
+	switch scope {
+	case p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_UNSPECIFIED,
+		p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL:
+		return publicTrafficShaperProtocolScopeAll, nil
+	case p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_ONLY:
+		return publicTrafficShaperProtocolScopeWebSocketOnly, nil
+	case p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_EXCLUDED:
+		return publicTrafficShaperProtocolScopeWebSocketExcluded, nil
+	default:
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("traffic shaper protocol scope is invalid"))
+	}
+}
+
+func normalizePublicTrafficShaperProtocolScope(scope string) string {
+	switch scope {
+	case publicTrafficShaperProtocolScopeWebSocketOnly:
+		return publicTrafficShaperProtocolScopeWebSocketOnly
+	case publicTrafficShaperProtocolScopeWebSocketExcluded:
+		return publicTrafficShaperProtocolScopeWebSocketExcluded
+	default:
+		return publicTrafficShaperProtocolScopeAll
+	}
+}
+
+func protoTrafficShaperProtocolScopeFromString(scope string) p2pstreamv1.PublicTrafficShaperProtocolScope {
+	switch normalizePublicTrafficShaperProtocolScope(scope) {
+	case publicTrafficShaperProtocolScopeWebSocketOnly:
+		return p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_ONLY
+	case publicTrafficShaperProtocolScopeWebSocketExcluded:
+		return p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_EXCLUDED
+	default:
+		return p2pstreamv1.PublicTrafficShaperProtocolScope_PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL
+	}
+}
+
 func publicTrafficShaperRulesToProto(rows []db.PublicTrafficShaperRule) []*p2pstreamv1.PublicTrafficShaperRule {
 	resp := make([]*p2pstreamv1.PublicTrafficShaperRule, 0, len(rows))
 	for _, row := range rows {
@@ -652,6 +910,7 @@ func publicTrafficShaperConfigToProto(rule publicTrafficShaperRuleConfig) *p2pst
 		Priority:               rule.Priority,
 		Enabled:                rule.Enabled,
 		BudgetScope:            protoTrafficShaperBudgetScopeFromString(rule.BudgetScope),
+		ProtocolScope:          protoTrafficShaperProtocolScopeFromString(rule.ProtocolScope),
 		UploadBytesPerSecond:   rule.UploadBytesPerSecond,
 		DownloadBytesPerSecond: rule.DownloadBytesPerSecond,
 		BurstBytes:             rule.BurstBytes,
@@ -679,6 +938,7 @@ func (a *App) CreatePublicTrafficShaperRule(
 		req.Msg.Priority,
 		req.Msg.Enabled,
 		req.Msg.BudgetScope,
+		req.Msg.ProtocolScope,
 		req.Msg.UploadBytesPerSecond,
 		req.Msg.DownloadBytesPerSecond,
 		req.Msg.BurstBytes,
@@ -695,6 +955,7 @@ func (a *App) CreatePublicTrafficShaperRule(
 		Priority:               params.Priority,
 		Enabled:                params.Enabled,
 		BudgetScope:            params.BudgetScope,
+		ProtocolScope:          params.ProtocolScope,
 		UploadBytesPerSecond:   params.UploadBytesPerSecond,
 		DownloadBytesPerSecond: params.DownloadBytesPerSecond,
 		BurstBytes:             params.BurstBytes,
@@ -731,6 +992,7 @@ func (a *App) UpdatePublicTrafficShaperRule(
 		req.Msg.Priority,
 		req.Msg.Enabled,
 		req.Msg.BudgetScope,
+		req.Msg.ProtocolScope,
 		req.Msg.UploadBytesPerSecond,
 		req.Msg.DownloadBytesPerSecond,
 		req.Msg.BurstBytes,
@@ -748,6 +1010,7 @@ func (a *App) UpdatePublicTrafficShaperRule(
 		Priority:               params.Priority,
 		Enabled:                params.Enabled,
 		BudgetScope:            params.BudgetScope,
+		ProtocolScope:          params.ProtocolScope,
 		UploadBytesPerSecond:   params.UploadBytesPerSecond,
 		DownloadBytesPerSecond: params.DownloadBytesPerSecond,
 		BurstBytes:             params.BurstBytes,

@@ -34,6 +34,21 @@ func (b *retryTrackingReadCloser) Close() error {
 	return nil
 }
 
+type retryTrackingReadWriteCloser struct {
+	io.Reader
+	writes strings.Builder
+	closed bool
+}
+
+func (b *retryTrackingReadWriteCloser) Write(p []byte) (int, error) {
+	return b.writes.Write(p)
+}
+
+func (b *retryTrackingReadWriteCloser) Close() error {
+	b.closed = true
+	return nil
+}
+
 func newPublicRetryTestApp(t *testing.T) (*App, *publicProxySnapshot, publicRouteTargetConfig, *AgentConn, *AgentConn) {
 	t.Helper()
 	app := NewApp(nil, nil)
@@ -116,6 +131,47 @@ func TestPublicAgentRetryUsesDifferentAgentAfterDialFailure(t *testing.T) {
 	}
 	if result.RetryCount != 1 || result.Outcome != publicRetryOutcomeRecovered || result.FinalAgent != second || result.FirstFailedAgent != first {
 		t.Fatalf("retry result = %+v", result)
+	}
+}
+
+func TestPublicAgentRetryPreservesWebSocketUpgradeBody(t *testing.T) {
+	app, snapshot, target, first, _ := newPublicRetryTestApp(t)
+	body := &retryTrackingReadWriteCloser{Reader: strings.NewReader("pong")}
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		requestID: "websocket-request",
+		transportForAgent: func(*AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: http.StatusSwitchingProtocols, Body: body, Header: make(http.Header), Request: req}, nil
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/ws", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	upgraded, ok := resp.Body.(io.ReadWriteCloser)
+	if !ok {
+		t.Fatalf("upgrade body type %T does not implement io.ReadWriteCloser", resp.Body)
+	}
+	if _, err := upgraded.Write([]byte("ping")); err != nil {
+		t.Fatalf("write upgrade body: %v", err)
+	}
+	if body.writes.String() != "ping" {
+		t.Fatalf("upgrade write = %q, want ping", body.writes.String())
+	}
+	if err := upgraded.Close(); err != nil {
+		t.Fatalf("close upgrade body: %v", err)
+	}
+	if !body.closed {
+		t.Fatal("underlying upgrade body was not closed")
+	}
+	if first.ActiveRequests.Load() != 0 {
+		t.Fatalf("active requests after upgrade close = %d, want 0", first.ActiveRequests.Load())
 	}
 }
 

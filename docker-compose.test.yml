@@ -18,12 +18,12 @@ services:
     environment:
       MANAGEMENT_PORT: "8081"
       MANAGEMENT_BIND_ADDRESS: "0.0.0.0"
-      MANAGEMENT_SETUP_TOKEN: "docker-smoke-setup-token"
+      MANAGEMENT_SETUP_TOKEN: "docker-smoke-management-setup-token-2026"
       PORT: "8080"
       CONFIG_DIR: "/data"
       BOOTSTRAP_AGENT_ID: "docker-agent"
       BOOTSTRAP_AGENT_NAME: "Docker Smoke Agent"
-      BOOTSTRAP_AGENT_TOKEN: "docker-smoke-token"
+      BOOTSTRAP_AGENT_TOKEN: "docker-smoke-agent-token-2026-secure"
       MANAGEMENT_COOKIE_SECURE: "false"
     ports:
       - "18081:8081"
@@ -44,7 +44,8 @@ services:
       MANAGEMENT_URL: "https://server:8081"
       MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
       AGENT_ID: "docker-agent"
-      AGENT_TOKEN: "docker-smoke-token"
+      AGENT_TOKEN: "docker-smoke-agent-token-2026-secure"
+      AGENT_ALLOW_TARGETS: "upstream:9000"
     volumes:
       - p2pstream-data:/data:ro
     depends_on:
@@ -60,7 +61,7 @@ services:
     environment:
       MANAGEMENT_URL: "https://server:8081"
       MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
-      MANAGEMENT_SETUP_TOKEN: "docker-smoke-setup-token"
+      MANAGEMENT_SETUP_TOKEN: "docker-smoke-management-setup-token-2026"
       PUBLIC_DEFAULT_URL: "http://server:8080"
       PUBLIC_AGENT_URL: "http://server:8089"
       PUBLIC_STATIC_URL: "http://server:8088"

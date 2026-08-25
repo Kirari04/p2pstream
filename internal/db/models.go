@@ -513,6 +513,7 @@ type PublicTrafficShaperRule struct {
 	KeyPartsJson           string    `json:"key_parts_json"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
+	ProtocolScope          string    `json:"protocol_scope"`
 }
 
 type PublicTrustedProxySource struct {

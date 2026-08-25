@@ -11,6 +11,7 @@ In the management UI, choose **Traffic Policy -> Traffic Shaper**. Traffic shape
 | Name | `traffic-shaper` when empty | Operator label. |
 | Priority | `100` in database defaults | Lower numbers are evaluated first. |
 | Budget scope | `per_key` | `per_key` or `per_request`. |
+| Protocol scope | `all` | Apply to all requests, WebSocket handshakes only, or requests excluding WebSocket handshakes. |
 | Upload bytes per second | `0` | Request body throughput limit; `0` means unlimited. |
 | Download bytes per second | `0` | Response body throughput limit; `0` means unlimited. |
 | Burst bytes | `0` | Token bucket burst; defaults to the configured rate at runtime when unset. |
@@ -20,6 +21,8 @@ In the management UI, choose **Traffic Policy -> Traffic Shaper**. Traffic shape
 ## Validation Rules
 
 Traffic shapers use request-only CEL `match_rule` rules. Empty match rules match every request. See [CEL Policy Matching](./cel) for variables, helper functions, builder behavior, limits, and examples.
+
+Protocol scope is evaluated before CEL matching. **All requests** is the default and preserves the behavior of rules created by older versions. **WebSockets only** limits the rule to valid WebSocket handshake requests. **Exclude WebSockets** applies it to other HTTP requests. A WebSocket handshake must be a bodyless `GET` with `Connection: upgrade`, `Upgrade: websocket`, version `13`, and a valid 16-byte `Sec-WebSocket-Key`; an isolated or malformed upgrade header is treated as ordinary HTTP traffic. If a syntactically valid handshake receives a non-`101` response, p2pstream applies the first matching ordinary-HTTP shaper to that response so client-controlled headers cannot bypass shaping.
 
 Route data, target data, target health, and load-balancer state are not available inside shaper match CEL. p2pstream may perform a route-only path security match before traffic shapers, but traffic shapers still run before route target selection.
 
@@ -48,13 +51,15 @@ Byte rates and exempt bytes must be non-negative. Use realistic rates so operati
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper drawer showing match builder, budget scope, key parts, KiB bandwidth limits, burst KiB, and free KiB settings">
-  <figcaption>The shaper drawer configures the selected stream limits and the key used to share or isolate those limits across matching requests.</figcaption>
+  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream traffic shaper drawer showing request protocol scope, match builder, budget scope, key parts, KiB bandwidth limits, burst KiB, and free KiB settings">
+  <figcaption>The shaper drawer configures whether the rule applies to HTTP, WebSockets, or both, plus the selected stream limits and the key used to share or isolate those limits.</figcaption>
 </figure>
 
 ## Runtime Effects
 
 Traffic shapers run after WAF and rate-limit checks and before route/target forwarding. Shaping wraps streaming request and response bodies, so very small responses may finish before the limit is noticeable.
+
+After a successful `101 Switching Protocols` response, the same rule remains attached to the upgraded connection. Bytes read from the upstream WebSocket consume the download budget, and bytes written to it consume the upload budget. The proxy preserves the bidirectional stream while doing this; shaping does not replace the upgrade body with a read-only wrapper.
 
 `per_key` shares buckets for matching requests with the same key. `per_request` creates fresh buckets for each request. Editing a rule resets its in-memory buckets.
 
@@ -66,6 +71,7 @@ One MiB/s public download limit:
 Host pattern: files.example.com
 Path prefix: /download
 Budget scope: per_key
+Protocol scope: all
 Download bytes per second: 1048576
 Upload bytes per second: 0
 Response exempt bytes: 65536

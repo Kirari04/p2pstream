@@ -350,6 +350,10 @@ func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resol
 	if statusCode == 0 {
 		statusCode = int(defaultStaticStatusCode)
 	}
+	shaper = a.publicTrafficShaperForResponse(resolution.Snapshot, resolution.Listener.ID, r, statusCode, shaper)
+	if shaper != nil {
+		applyTrafficShaperResolutionFields(&resolution, *shaper)
+	}
 	errorKind := ""
 	defer func() {
 		if trace != nil {
@@ -546,14 +550,22 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				}
 			}
 			statusCode = resp.StatusCode
+			responseShaper := a.publicTrafficShaperForResponse(resolution.Snapshot, resolution.Listener.ID, r, resp.StatusCode, shaper)
+			if responseShaper != nil {
+				applyTrafficShaperResolutionFields(&resolution, *responseShaper)
+			}
 			if cacheDecision != nil && cacheDecision.Rule.AddCacheStatusHeader {
 				resp.Header.Set("X-p2pstream-Cache", "MISS")
 			}
 			if cacheDecision != nil && cacheDecision.Cacheable {
 				resp.Body = a.capturePublicCacheResponseBody(r.Context(), r, resolution, cacheDecision, resp, trace)
 			}
-			if shaper != nil {
-				resp.Body = shaper.wrapDownloadBody(r.Context(), resp.Body)
+			if responseShaper != nil {
+				if resp.StatusCode == http.StatusSwitchingProtocols {
+					resp.Body = responseShaper.wrapUpgradeBody(r.Context(), resp.Body)
+				} else {
+					resp.Body = responseShaper.wrapDownloadBody(r.Context(), resp.Body)
+				}
 			}
 			if trace != nil {
 				attributes := map[string]string{"handler": handler}

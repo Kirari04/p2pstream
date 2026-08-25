@@ -31,7 +31,17 @@ Use traffic shaping for large uploads, public file downloads, or protecting smal
    | Host patterns | `files.example.com` |
    | Path prefixes | `/download` |
 
-3. Choose budget scope:
+3. Choose which request protocols the rule applies to:
+
+   | Applies to | Use when |
+   | --- | --- |
+   | All requests | HTTP responses and upgraded WebSocket connections should use this rule. This is the default. |
+   | WebSockets only | Long-lived WebSocket traffic needs its own upload and download rates. |
+   | Exclude WebSockets | Ordinary HTTP traffic should be shaped while WebSockets use a separate rule. |
+
+   A WebSocket-only rule and a WebSocket-excluded rule can use different rates even when their CEL match is otherwise identical.
+
+4. Choose budget scope:
 
    | Scope | Use when |
    | --- | --- |
@@ -40,7 +50,7 @@ Use traffic shaping for large uploads, public file downloads, or protecting smal
 
    For public downloads, use per key and key by remote IP. For one-off large imports, per request may be simpler.
 
-4. Set the KiB budgets:
+5. Set the KiB budgets:
 
    | Field | Value |
    | --- | --- |
@@ -57,8 +67,8 @@ Use traffic shaping for large uploads, public file downloads, or protecting smal
    :::
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream Edit Traffic Shaper drawer showing per-key scope, KiB bandwidth budgets, CEL match, and key parts">
-  <figcaption>The traffic-shaper drawer defines which requests are slowed, whether budgets are shared per key or per request, and the upload, download, burst, and free-data amounts in KiB.</figcaption>
+  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream Edit Traffic Shaper drawer showing WebSocket request scope, per-key scope, KiB bandwidth budgets, CEL match, and key parts">
+  <figcaption>The traffic-shaper drawer defines which request protocols are slowed, whether budgets are shared per key or per request, and the upload, download, burst, and free-data amounts in KiB.</figcaption>
 </figure>
 
 ## Verification
@@ -71,6 +81,8 @@ Download a large matching file and watch transfer speed. Use **Monitor -> Traffi
 | --- | --- |
 | Small responses appear unshaped | They may fit within the configured free KiB or finish before the rate is visible. |
 | Clients share bandwidth unexpectedly | Review key parts and budget scope. |
+| WebSocket uses the HTTP rate | Add a higher-priority WebSockets-only rule and exclude WebSockets from the HTTP rule. |
+| WebSocket rule does not match | Confirm the request uses a valid version 13 handshake with `Connection`, `Upgrade`, and `Sec-WebSocket-Key` headers. |
 | Rule does not match | Confirm host, path, protocol, method, and priority. |
 
 ## Next Steps

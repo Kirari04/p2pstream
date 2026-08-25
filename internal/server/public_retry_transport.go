@@ -138,6 +138,11 @@ type activeAgentResponseBody struct {
 	release     func()
 }
 
+type activeAgentReadWriteResponseBody struct {
+	*activeAgentResponseBody
+	writer io.Writer
+}
+
 func (b *activeAgentResponseBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	if err != nil {
@@ -161,6 +166,22 @@ func (b *activeAgentResponseBody) releaseActiveRequest() {
 			b.release()
 		}
 	})
+}
+
+func (b *activeAgentReadWriteResponseBody) Write(p []byte) (int, error) {
+	n, err := b.writer.Write(p)
+	if err != nil {
+		b.releaseActiveRequest()
+	}
+	return n, err
+}
+
+func wrapActiveAgentResponseBody(body io.ReadCloser, release func()) io.ReadCloser {
+	active := &activeAgentResponseBody{ReadCloser: body, release: release}
+	if readWriteBody, ok := body.(io.ReadWriteCloser); ok {
+		return &activeAgentReadWriteResponseBody{activeAgentResponseBody: active, writer: readWriteBody}
+	}
+	return active
 }
 
 func preparePublicRetryRequestBody(app *App, req *http.Request, rule *publicRetryRuleConfig) (*publicRetryRequestBody, error) {
@@ -341,13 +362,10 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			if resp.Body == nil {
 				resp.Body = http.NoBody
 			}
-			resp.Body = &activeAgentResponseBody{
-				ReadCloser: resp.Body,
-				release: func() {
-					releaseActiveRequest()
-					body.close()
-				},
-			}
+			resp.Body = wrapActiveAgentResponseBody(resp.Body, func() {
+				releaseActiveRequest()
+				body.close()
+			})
 			responseOwnsRequestBody = true
 			if attempt > 1 {
 				rt.result.Outcome = publicRetryOutcomeRecovered
