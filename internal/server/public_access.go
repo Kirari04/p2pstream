@@ -27,13 +27,14 @@ const (
 type publicAccessPrincipalContextKey struct{}
 
 type publicAccessPrincipal struct {
-	ProviderID      int64
-	Subject         string
-	Username        string
-	Email           string
-	Groups          []string
-	HeaderNames     []string
-	ForwardedHeader http.Header
+	ProviderID         int64
+	Subject            string
+	Username           string
+	Email              string
+	Groups             []string
+	HeaderNames        []string
+	ForwardedHeader    http.Header
+	StripAuthorization bool
 }
 
 type publicForwardAuthResult struct {
@@ -68,24 +69,44 @@ func publicAccessControlStage(ctx *publicProxyContext) publicProxyStageResult {
 		return rejectPublicAccessConfiguration(ctx, policyID, "")
 	}
 	provider, ok := ctx.Snapshot.AccessProviders[policy.ProviderID]
-	if !ok || !provider.Enabled || provider.client == nil || provider.ParsedURL == nil {
+	if !ok || !provider.Enabled {
 		return rejectPublicAccessConfiguration(ctx, policy.ID, policy.Name)
 	}
 
-	result, err := checkPublicForwardAuth(ctx.Request.Context(), provider, ctx.RouteMatch.Listener, ctx.Request)
-	if err != nil {
-		return rejectPublicAccessProviderFailure(ctx, policy, provider, err)
+	var principal publicAccessPrincipal
+	switch provider.ProviderType {
+	case publicAccessProviderTypeForwardAuth:
+		if provider.client == nil || provider.ParsedURL == nil {
+			return rejectPublicAccessConfiguration(ctx, policy.ID, policy.Name)
+		}
+		result, err := checkPublicForwardAuth(ctx.Request.Context(), provider, ctx.RouteMatch.Listener, ctx.Request)
+		if err != nil {
+			return rejectPublicAccessProviderFailure(ctx, policy, provider, err)
+		}
+		copyPublicForwardAuthClientHeaders(ctx.ResponseWriter.Header(), result.Response.Header)
+		if result.StatusCode < 200 || result.StatusCode >= 300 {
+			return writePublicForwardAuthResponse(ctx, policy, provider, result)
+		}
+		principal = result.Principal
+	case publicAccessProviderTypeLocal:
+		var err error
+		var stage publicProxyStageResult
+		principal, stage, err = handlePublicLocalAccess(ctx, policy, provider)
+		if err != nil {
+			return rejectPublicAccessProviderFailure(ctx, policy, provider, err)
+		}
+		if stage == publicProxyStageDone {
+			return stage
+		}
+	default:
+		return rejectPublicAccessConfiguration(ctx, policy.ID, policy.Name)
 	}
-	copyPublicForwardAuthClientHeaders(ctx.ResponseWriter.Header(), result.Response.Header)
-	if result.StatusCode < 200 || result.StatusCode >= 300 {
-		return writePublicForwardAuthResponse(ctx, policy, provider, result)
-	}
-	if !publicAccessPolicyAllowsGroups(policy, result.Principal.Groups) {
+	if !publicAccessPolicyAllowsGroups(policy, principal.Groups) {
 		return rejectPublicAccessDenied(ctx, policy, provider, http.StatusForbidden, "access_denied")
 	}
-	result.Principal.HeaderNames = trustedHeaderNames
+	principal.HeaderNames = trustedHeaderNames
 	ctx.Request = ctx.Request.WithContext(context.WithValue(
-		ctx.Request.Context(), publicAccessPrincipalContextKey{}, result.Principal,
+		ctx.Request.Context(), publicAccessPrincipalContextKey{}, principal,
 	))
 	emitPublicAccessTrace(ctx, p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_ACCESS_GRANTED, policy, provider, 0, "")
 	return publicProxyStageContinue
@@ -257,6 +278,9 @@ func applyTrustedPublicAccessHeaders(outReq, inReq *http.Request) {
 	for _, name := range principal.HeaderNames {
 		outReq.Header.Del(name)
 	}
+	if principal.StripAuthorization {
+		outReq.Header.Del("Authorization")
+	}
 	for name, values := range principal.ForwardedHeader {
 		outReq.Header.Del(name)
 		for _, value := range values {
@@ -304,7 +328,7 @@ func rejectPublicAccessProviderFailure(ctx *publicProxyContext, policy publicAcc
 	log.Warn().Err(err).
 		Int64("access_policy_id", policy.ID).
 		Int64("access_provider_id", provider.ID).
-		Msg("forward-auth request failed")
+		Msg("access provider request failed")
 	http.Error(ctx.ResponseWriter, "Access provider unavailable", http.StatusServiceUnavailable)
 	emitPublicAccessTrace(ctx, p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_ACCESS_DENIED, policy, provider, http.StatusServiceUnavailable, "access_provider_error")
 	recordPublicAccessTerminal(ctx, http.StatusServiceUnavailable, "access_provider_error")

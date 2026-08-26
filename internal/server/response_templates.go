@@ -21,7 +21,7 @@ import (
 
 const (
 	maxGenericResponseTemplateBodyBytes = 64 * 1024
-	maxWafPageTemplateBodyBytes         = 128 * 1024
+	maxHTMLPageTemplateBodyBytes        = 128 * 1024
 )
 
 type publicResponseTemplateConfig struct {
@@ -123,6 +123,13 @@ var defaultPublicResponseTemplates = []defaultPublicResponseTemplateSeed{
 </html>
 `,
 	},
+	{
+		Name:        defaultLocalAccessLoginTemplateName,
+		Kind:        publicResponseTemplateKindLocalAccessLoginPage,
+		Description: "Default local-access sign-in and authentication error page.",
+		ContentType: defaultResponseTemplateContentType,
+		Body:        defaultLocalAccessLoginBody,
+	},
 }
 
 func (a *App) CreatePublicResponseTemplate(ctx context.Context, req *connect.Request[p2pstreamv1.CreatePublicResponseTemplateRequest]) (*connect.Response[p2pstreamv1.CreatePublicResponseTemplateResponse], error) {
@@ -213,7 +220,7 @@ func validatePublicResponseTemplateInput(name string, kind p2pstreamv1.PublicRes
 	}
 	limit := maxGenericResponseTemplateBodyBytes
 	if kindString != publicResponseTemplateKindGenericBody {
-		limit = maxWafPageTemplateBodyBytes
+		limit = maxHTMLPageTemplateBodyBytes
 	}
 	if len(body) > limit {
 		return publicResponseTemplateMutationInput{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("template body must be at most %d bytes", limit))
@@ -224,9 +231,9 @@ func validatePublicResponseTemplateInput(name string, kind p2pstreamv1.PublicRes
 			return publicResponseTemplateMutationInput{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("template content type is invalid: %w", err))
 		}
 		if !strings.EqualFold(mediaType, "text/html") && !strings.EqualFold(mediaType, "application/xhtml+xml") {
-			return publicResponseTemplateMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("WAF page templates must use an HTML content type"))
+			return publicResponseTemplateMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("page templates must use an HTML content type"))
 		}
-		if err := validateWafPageTemplate(kindString, body); err != nil {
+		if err := validatePublicHTMLPageTemplate(kindString, body); err != nil {
 			return publicResponseTemplateMutationInput{}, err
 		}
 	}
@@ -239,26 +246,30 @@ func validatePublicResponseTemplateInput(name string, kind p2pstreamv1.PublicRes
 	}, nil
 }
 
-func validateWafPageTemplate(kind string, body string) error {
+func validatePublicHTMLPageTemplate(kind string, body string) error {
 	tmpl, err := htmltemplate.New("response-template").Parse(body)
 	if err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("template HTML is invalid: %w", err))
 	}
 	fields := map[string]bool{}
-	collectTemplateFields(tmpl.Tree.Root, fields)
-	allowed := publicWafTemplateAllowedFields(kind)
+	for _, parsed := range tmpl.Templates() {
+		if parsed.Tree != nil {
+			collectTemplateFields(parsed.Tree.Root, fields)
+		}
+	}
+	allowed := publicHTMLPageTemplateAllowedFields(kind)
 	for field := range fields {
 		if !allowed[field] {
 			return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("template placeholder %q is not allowed for %s templates", field, kind))
 		}
 	}
-	for _, required := range publicWafTemplateRequiredFields(kind) {
+	for _, required := range publicHTMLPageTemplateRequiredFields(kind) {
 		if !fields[required] {
 			return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("template placeholder %q is required for %s templates", required, kind))
 		}
 	}
 	var rendered bytes.Buffer
-	if err := tmpl.Execute(&rendered, sampleWafTemplateData(kind)); err != nil {
+	if err := tmpl.Execute(&rendered, samplePublicHTMLPageTemplateData(kind)); err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("template sample render failed: %w", err))
 	}
 	return nil
@@ -308,37 +319,45 @@ func collectTemplateFields(node parse.Node, fields map[string]bool) {
 	}
 }
 
-func publicWafTemplateAllowedFields(kind string) map[string]bool {
-	fields := map[string]bool{
-		"host":         true,
-		"rule_name":    true,
-		"reference_id": true,
-		"page_title":   true,
-		"page_body":    true,
-		"status_url":   true,
-	}
+func publicHTMLPageTemplateAllowedFields(kind string) map[string]bool {
+	fields := make(map[string]bool)
 	switch kind {
 	case publicResponseTemplateKindWafCaptchaPage:
+		for _, field := range []string{"host", "rule_name", "reference_id", "page_title", "page_body", "status_url"} {
+			fields[field] = true
+		}
 		fields["captcha_element_html"] = true
 	case publicResponseTemplateKindWafWaitingRoomPage:
+		for _, field := range []string{"host", "rule_name", "reference_id", "page_title", "page_body", "status_url"} {
+			fields[field] = true
+		}
 		fields["queue_position"] = true
 		fields["retry_after_seconds"] = true
+	case publicResponseTemplateKindLocalAccessLoginPage:
+		for _, field := range []string{
+			"host", "page_title", "provider_name", "login_action", "csrf_field_name", "csrf_token",
+			"username_field_name", "password_field_name", "username", "error_message",
+		} {
+			fields[field] = true
+		}
 	}
 	return fields
 }
 
-func publicWafTemplateRequiredFields(kind string) []string {
+func publicHTMLPageTemplateRequiredFields(kind string) []string {
 	switch kind {
 	case publicResponseTemplateKindWafCaptchaPage:
 		return []string{"captcha_element_html"}
 	case publicResponseTemplateKindWafWaitingRoomPage:
 		return []string{"queue_position", "retry_after_seconds"}
+	case publicResponseTemplateKindLocalAccessLoginPage:
+		return []string{"login_action", "csrf_field_name", "csrf_token", "username_field_name", "password_field_name"}
 	default:
 		return nil
 	}
 }
 
-func sampleWafTemplateData(kind string) map[string]any {
+func samplePublicHTMLPageTemplateData(kind string) map[string]any {
 	data := map[string]any{
 		"host":         "app.example.test",
 		"rule_name":    "waf-rule",
@@ -354,6 +373,20 @@ func sampleWafTemplateData(kind string) map[string]any {
 		data["queue_position"] = "12"
 		data["retry_after_seconds"] = "5"
 	}
+	if kind == publicResponseTemplateKindLocalAccessLoginPage {
+		data = map[string]any{
+			"host":                "app.example.test",
+			"page_title":          "Private service",
+			"provider_name":       "Private service",
+			"login_action":        "?__p2pstream_access_login=1",
+			"csrf_field_name":     publicAccessCSRFField,
+			"csrf_token":          "preview-csrf-token",
+			"username_field_name": publicAccessUsernameField,
+			"password_field_name": publicAccessPasswordField,
+			"username":            "alice",
+			"error_message":       "The username or password is incorrect.",
+		}
+	}
 	return data
 }
 
@@ -365,6 +398,8 @@ func publicResponseTemplateKindStringFromProto(kind p2pstreamv1.PublicResponseTe
 		return publicResponseTemplateKindWafCaptchaPage, nil
 	case p2pstreamv1.PublicResponseTemplateKind_PUBLIC_RESPONSE_TEMPLATE_KIND_WAF_WAITING_ROOM_PAGE:
 		return publicResponseTemplateKindWafWaitingRoomPage, nil
+	case p2pstreamv1.PublicResponseTemplateKind_PUBLIC_RESPONSE_TEMPLATE_KIND_LOCAL_ACCESS_LOGIN_PAGE:
+		return publicResponseTemplateKindLocalAccessLoginPage, nil
 	default:
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("response template kind is invalid"))
 	}
@@ -378,6 +413,8 @@ func protoPublicResponseTemplateKind(kind string) p2pstreamv1.PublicResponseTemp
 		return p2pstreamv1.PublicResponseTemplateKind_PUBLIC_RESPONSE_TEMPLATE_KIND_WAF_CAPTCHA_PAGE
 	case publicResponseTemplateKindWafWaitingRoomPage:
 		return p2pstreamv1.PublicResponseTemplateKind_PUBLIC_RESPONSE_TEMPLATE_KIND_WAF_WAITING_ROOM_PAGE
+	case publicResponseTemplateKindLocalAccessLoginPage:
+		return p2pstreamv1.PublicResponseTemplateKind_PUBLIC_RESPONSE_TEMPLATE_KIND_LOCAL_ACCESS_LOGIN_PAGE
 	default:
 		return p2pstreamv1.PublicResponseTemplateKind_PUBLIC_RESPONSE_TEMPLATE_KIND_UNSPECIFIED
 	}
@@ -462,10 +499,19 @@ func (a *App) validateGenericResponseTemplateReference(ctx context.Context, mode
 }
 
 func (a *App) validatePublicResponseTemplateReference(ctx context.Context, templateID int64, kind string) (sql.NullInt64, error) {
+	return validatePublicResponseTemplateReference(ctx, a.DB, templateID, kind)
+}
+
+type publicResponseTemplateReader interface {
+	GetPublicResponseTemplate(ctx context.Context, id int64) (db.PublicResponseTemplate, error)
+	GetPublicResponseTemplateByName(ctx context.Context, name string) (db.PublicResponseTemplate, error)
+}
+
+func validatePublicResponseTemplateReference(ctx context.Context, reader publicResponseTemplateReader, templateID int64, kind string) (sql.NullInt64, error) {
 	if templateID <= 0 {
 		return sql.NullInt64{}, connect.NewError(connect.CodeInvalidArgument, errors.New("response template id is required"))
 	}
-	row, err := a.DB.GetPublicResponseTemplate(ctx, templateID)
+	row, err := reader.GetPublicResponseTemplate(ctx, templateID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return sql.NullInt64{}, connect.NewError(connect.CodeNotFound, errors.New("response template not found"))
@@ -476,6 +522,23 @@ func (a *App) validatePublicResponseTemplateReference(ctx context.Context, templ
 		return sql.NullInt64{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("response template %q has kind %s, want %s", row.Name, row.Kind, kind))
 	}
 	return sql.NullInt64{Int64: templateID, Valid: true}, nil
+}
+
+func resolveLocalAccessLoginTemplateReference(ctx context.Context, reader publicResponseTemplateReader, providerType string, templateID int64) (sql.NullInt64, error) {
+	if providerType != publicAccessProviderTypeLocal {
+		return sql.NullInt64{}, nil
+	}
+	if templateID <= 0 {
+		row, err := reader.GetPublicResponseTemplateByName(ctx, defaultLocalAccessLoginTemplateName)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return sql.NullInt64{}, connect.NewError(connect.CodeInvalidArgument, errors.New("choose a local access sign-in template"))
+			}
+			return sql.NullInt64{}, connect.NewError(connect.CodeInternal, err)
+		}
+		templateID = row.ID
+	}
+	return validatePublicResponseTemplateReference(ctx, reader, templateID, publicResponseTemplateKindLocalAccessLoginPage)
 }
 
 func effectiveGenericResponseBody(mode string, templateID sql.NullInt64, inlineBody string, templates map[int64]publicResponseTemplateConfig) (string, error) {
@@ -509,8 +572,8 @@ func optionalWafPageTemplate(templateID sql.NullInt64, kind string, templates ma
 	return template.Body, nil
 }
 
-func renderPublicWafHTMLTemplate(w io.Writer, body string, data map[string]any) error {
-	tmpl, err := htmltemplate.New("waf-response-template").Parse(body)
+func renderPublicHTMLTemplate(w io.Writer, body string, data map[string]any) error {
+	tmpl, err := htmltemplate.New("public-response-template").Parse(body)
 	if err != nil {
 		return err
 	}
@@ -544,6 +607,13 @@ func (a *App) ensureDefaultPublicResponseTemplates(ctx context.Context) (map[str
 			}
 		}
 		seeded[seed.Name] = row
+	}
+	defaultLogin, ok := seeded[defaultLocalAccessLoginTemplateName]
+	if !ok || defaultLogin.ID <= 0 {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("default local access login template is unavailable"))
+	}
+	if _, err := a.DB.AssignDefaultLocalAccessLoginTemplate(ctx, sql.NullInt64{Int64: defaultLogin.ID, Valid: true}); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return seeded, nil
 }

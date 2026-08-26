@@ -201,6 +201,15 @@ const (
 	// AgentManagementServiceDeletePublicAccessProviderProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicAccessProvider RPC.
 	AgentManagementServiceDeletePublicAccessProviderProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicAccessProvider"
+	// AgentManagementServiceCreatePublicAccessUserProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicAccessUser RPC.
+	AgentManagementServiceCreatePublicAccessUserProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicAccessUser"
+	// AgentManagementServiceUpdatePublicAccessUserProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicAccessUser RPC.
+	AgentManagementServiceUpdatePublicAccessUserProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicAccessUser"
+	// AgentManagementServiceDeletePublicAccessUserProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicAccessUser RPC.
+	AgentManagementServiceDeletePublicAccessUserProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicAccessUser"
 	// AgentManagementServiceCreatePublicAccessPolicyProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicAccessPolicy RPC.
 	AgentManagementServiceCreatePublicAccessPolicyProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicAccessPolicy"
@@ -369,6 +378,9 @@ type AgentManagementServiceClient interface {
 	CreatePublicAccessProvider(context.Context, *connect.Request[v1.CreatePublicAccessProviderRequest]) (*connect.Response[v1.CreatePublicAccessProviderResponse], error)
 	UpdatePublicAccessProvider(context.Context, *connect.Request[v1.UpdatePublicAccessProviderRequest]) (*connect.Response[v1.UpdatePublicAccessProviderResponse], error)
 	DeletePublicAccessProvider(context.Context, *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error)
+	CreatePublicAccessUser(context.Context, *connect.Request[v1.CreatePublicAccessUserRequest]) (*connect.Response[v1.CreatePublicAccessUserResponse], error)
+	UpdatePublicAccessUser(context.Context, *connect.Request[v1.UpdatePublicAccessUserRequest]) (*connect.Response[v1.UpdatePublicAccessUserResponse], error)
+	DeletePublicAccessUser(context.Context, *connect.Request[v1.DeletePublicAccessUserRequest]) (*connect.Response[v1.DeletePublicAccessUserResponse], error)
 	CreatePublicAccessPolicy(context.Context, *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error)
 	UpdatePublicAccessPolicy(context.Context, *connect.Request[v1.UpdatePublicAccessPolicyRequest]) (*connect.Response[v1.UpdatePublicAccessPolicyResponse], error)
 	DeletePublicAccessPolicy(context.Context, *connect.Request[v1.DeletePublicAccessPolicyRequest]) (*connect.Response[v1.DeletePublicAccessPolicyResponse], error)
@@ -754,6 +766,24 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessProvider")),
 			connect.WithClientOptions(opts...),
 		),
+		createPublicAccessUser: connect.NewClient[v1.CreatePublicAccessUserRequest, v1.CreatePublicAccessUserResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicAccessUserProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicAccessUser")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicAccessUser: connect.NewClient[v1.UpdatePublicAccessUserRequest, v1.UpdatePublicAccessUserResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicAccessUserProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicAccessUser")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicAccessUser: connect.NewClient[v1.DeletePublicAccessUserRequest, v1.DeletePublicAccessUserResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicAccessUserProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessUser")),
+			connect.WithClientOptions(opts...),
+		),
 		createPublicAccessPolicy: connect.NewClient[v1.CreatePublicAccessPolicyRequest, v1.CreatePublicAccessPolicyResponse](
 			httpClient,
 			baseURL+AgentManagementServiceCreatePublicAccessPolicyProcedure,
@@ -1031,6 +1061,9 @@ type agentManagementServiceClient struct {
 	createPublicAccessProvider           *connect.Client[v1.CreatePublicAccessProviderRequest, v1.CreatePublicAccessProviderResponse]
 	updatePublicAccessProvider           *connect.Client[v1.UpdatePublicAccessProviderRequest, v1.UpdatePublicAccessProviderResponse]
 	deletePublicAccessProvider           *connect.Client[v1.DeletePublicAccessProviderRequest, v1.DeletePublicAccessProviderResponse]
+	createPublicAccessUser               *connect.Client[v1.CreatePublicAccessUserRequest, v1.CreatePublicAccessUserResponse]
+	updatePublicAccessUser               *connect.Client[v1.UpdatePublicAccessUserRequest, v1.UpdatePublicAccessUserResponse]
+	deletePublicAccessUser               *connect.Client[v1.DeletePublicAccessUserRequest, v1.DeletePublicAccessUserResponse]
 	createPublicAccessPolicy             *connect.Client[v1.CreatePublicAccessPolicyRequest, v1.CreatePublicAccessPolicyResponse]
 	updatePublicAccessPolicy             *connect.Client[v1.UpdatePublicAccessPolicyRequest, v1.UpdatePublicAccessPolicyResponse]
 	deletePublicAccessPolicy             *connect.Client[v1.DeletePublicAccessPolicyRequest, v1.DeletePublicAccessPolicyResponse]
@@ -1364,6 +1397,21 @@ func (c *agentManagementServiceClient) DeletePublicAccessProvider(ctx context.Co
 	return c.deletePublicAccessProvider.CallUnary(ctx, req)
 }
 
+// CreatePublicAccessUser calls p2pstream.v1.AgentManagementService.CreatePublicAccessUser.
+func (c *agentManagementServiceClient) CreatePublicAccessUser(ctx context.Context, req *connect.Request[v1.CreatePublicAccessUserRequest]) (*connect.Response[v1.CreatePublicAccessUserResponse], error) {
+	return c.createPublicAccessUser.CallUnary(ctx, req)
+}
+
+// UpdatePublicAccessUser calls p2pstream.v1.AgentManagementService.UpdatePublicAccessUser.
+func (c *agentManagementServiceClient) UpdatePublicAccessUser(ctx context.Context, req *connect.Request[v1.UpdatePublicAccessUserRequest]) (*connect.Response[v1.UpdatePublicAccessUserResponse], error) {
+	return c.updatePublicAccessUser.CallUnary(ctx, req)
+}
+
+// DeletePublicAccessUser calls p2pstream.v1.AgentManagementService.DeletePublicAccessUser.
+func (c *agentManagementServiceClient) DeletePublicAccessUser(ctx context.Context, req *connect.Request[v1.DeletePublicAccessUserRequest]) (*connect.Response[v1.DeletePublicAccessUserResponse], error) {
+	return c.deletePublicAccessUser.CallUnary(ctx, req)
+}
+
 // CreatePublicAccessPolicy calls p2pstream.v1.AgentManagementService.CreatePublicAccessPolicy.
 func (c *agentManagementServiceClient) CreatePublicAccessPolicy(ctx context.Context, req *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error) {
 	return c.createPublicAccessPolicy.CallUnary(ctx, req)
@@ -1616,6 +1664,9 @@ type AgentManagementServiceHandler interface {
 	CreatePublicAccessProvider(context.Context, *connect.Request[v1.CreatePublicAccessProviderRequest]) (*connect.Response[v1.CreatePublicAccessProviderResponse], error)
 	UpdatePublicAccessProvider(context.Context, *connect.Request[v1.UpdatePublicAccessProviderRequest]) (*connect.Response[v1.UpdatePublicAccessProviderResponse], error)
 	DeletePublicAccessProvider(context.Context, *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error)
+	CreatePublicAccessUser(context.Context, *connect.Request[v1.CreatePublicAccessUserRequest]) (*connect.Response[v1.CreatePublicAccessUserResponse], error)
+	UpdatePublicAccessUser(context.Context, *connect.Request[v1.UpdatePublicAccessUserRequest]) (*connect.Response[v1.UpdatePublicAccessUserResponse], error)
+	DeletePublicAccessUser(context.Context, *connect.Request[v1.DeletePublicAccessUserRequest]) (*connect.Response[v1.DeletePublicAccessUserResponse], error)
 	CreatePublicAccessPolicy(context.Context, *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error)
 	UpdatePublicAccessPolicy(context.Context, *connect.Request[v1.UpdatePublicAccessPolicyRequest]) (*connect.Response[v1.UpdatePublicAccessPolicyResponse], error)
 	DeletePublicAccessPolicy(context.Context, *connect.Request[v1.DeletePublicAccessPolicyRequest]) (*connect.Response[v1.DeletePublicAccessPolicyResponse], error)
@@ -1997,6 +2048,24 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessProvider")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceCreatePublicAccessUserHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicAccessUserProcedure,
+		svc.CreatePublicAccessUser,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicAccessUser")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicAccessUserHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicAccessUserProcedure,
+		svc.UpdatePublicAccessUser,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicAccessUser")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicAccessUserHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicAccessUserProcedure,
+		svc.DeletePublicAccessUser,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicAccessUser")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceCreatePublicAccessPolicyHandler := connect.NewUnaryHandler(
 		AgentManagementServiceCreatePublicAccessPolicyProcedure,
 		svc.CreatePublicAccessPolicy,
@@ -2327,6 +2396,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceUpdatePublicAccessProviderHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicAccessProviderProcedure:
 			agentManagementServiceDeletePublicAccessProviderHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicAccessUserProcedure:
+			agentManagementServiceCreatePublicAccessUserHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicAccessUserProcedure:
+			agentManagementServiceUpdatePublicAccessUserHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicAccessUserProcedure:
+			agentManagementServiceDeletePublicAccessUserHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicAccessPolicyProcedure:
 			agentManagementServiceCreatePublicAccessPolicyHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicAccessPolicyProcedure:
@@ -2630,6 +2705,18 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicAccessProvider(con
 
 func (UnimplementedAgentManagementServiceHandler) DeletePublicAccessProvider(context.Context, *connect.Request[v1.DeletePublicAccessProviderRequest]) (*connect.Response[v1.DeletePublicAccessProviderResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicAccessProvider is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicAccessUser(context.Context, *connect.Request[v1.CreatePublicAccessUserRequest]) (*connect.Response[v1.CreatePublicAccessUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicAccessUser is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicAccessUser(context.Context, *connect.Request[v1.UpdatePublicAccessUserRequest]) (*connect.Response[v1.UpdatePublicAccessUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicAccessUser is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicAccessUser(context.Context, *connect.Request[v1.DeletePublicAccessUserRequest]) (*connect.Response[v1.DeletePublicAccessUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicAccessUser is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicAccessPolicy(context.Context, *connect.Request[v1.CreatePublicAccessPolicyRequest]) (*connect.Response[v1.CreatePublicAccessPolicyResponse], error) {

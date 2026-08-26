@@ -671,7 +671,32 @@ func (db *DB) migrateLegacyPublicAccessControl() error {
 			groups_header TEXT NOT NULL DEFAULT 'X-Auth-Request-Groups',
 			forwarded_headers_json TEXT NOT NULL DEFAULT '["X-Auth-Request-User","X-Auth-Request-Email","X-Auth-Request-Groups","X-Auth-Request-Preferred-Username"]',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			local_auth_mode TEXT NOT NULL DEFAULT 'form',
+			local_auth_session_duration_millis INTEGER NOT NULL DEFAULT 604800000,
+			local_auth_realm TEXT NOT NULL DEFAULT 'Restricted',
+			local_auth_login_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT
+		)`,
+		`CREATE TABLE IF NOT EXISTS public_access_users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			provider_id INTEGER NOT NULL REFERENCES public_access_providers(id) ON DELETE CASCADE,
+			username TEXT NOT NULL,
+			password_hash TEXT NOT NULL,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			groups_json TEXT NOT NULL DEFAULT '[]',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(provider_id, username)
+		)`,
+		`CREATE TABLE IF NOT EXISTS public_access_sessions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			provider_id INTEGER NOT NULL REFERENCES public_access_providers(id) ON DELETE CASCADE,
+			user_id INTEGER NOT NULL REFERENCES public_access_users(id) ON DELETE CASCADE,
+			token_hash TEXT NOT NULL UNIQUE,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			expires_at DATETIME NOT NULL,
+			revoked_at DATETIME
 		)`,
 		`CREATE TABLE IF NOT EXISTS public_access_policies (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -697,9 +722,34 @@ func (db *DB) migrateLegacyPublicAccessControl() error {
 		}
 	}
 
+	providerColumns, err := db.sqliteTableColumns("public_access_providers")
+	if err != nil {
+		return err
+	}
+	for _, column := range []struct {
+		name string
+		sql  string
+	}{
+		{name: "local_auth_mode", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_mode TEXT NOT NULL DEFAULT 'form'`},
+		{name: "local_auth_session_duration_millis", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_session_duration_millis INTEGER NOT NULL DEFAULT 604800000`},
+		{name: "local_auth_realm", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_realm TEXT NOT NULL DEFAULT 'Restricted'`},
+		{name: "local_auth_login_template_id", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_login_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`},
+	} {
+		if _, exists := providerColumns[column.name]; !exists {
+			if _, err := db.Exec(column.sql); err != nil {
+				return err
+			}
+		}
+	}
+
 	return db.execLegacyStatements(
 		`CREATE INDEX IF NOT EXISTS idx_public_routes_access_policy_id ON public_routes (access_policy_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_public_access_policies_provider_id ON public_access_policies (provider_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_access_providers_local_auth_login_template_id ON public_access_providers (local_auth_login_template_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_access_users_provider_id ON public_access_users (provider_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_access_sessions_provider_id ON public_access_sessions (provider_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_access_sessions_user_id ON public_access_sessions (user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_public_access_sessions_expires_at ON public_access_sessions (expires_at)`,
 	)
 }
 
