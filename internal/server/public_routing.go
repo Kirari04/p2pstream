@@ -539,6 +539,9 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			applyUpstreamTargetRequestConfig(proxyReq.Out, resolution.Target)
 			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In, resolution.Listener)
 			applyTrustedPublicAccessHeaders(proxyReq.Out, proxyReq.In)
+			if resolution.Target.UpstreamBasicAuth.Enabled {
+				proxyReq.Out.SetBasicAuth(resolution.Target.UpstreamBasicAuth.Username, resolution.Target.UpstreamBasicAuth.Password)
+			}
 			if shaper != nil && agent == nil {
 				proxyReq.Out.Body = shaper.wrapUploadBody(r.Context(), proxyReq.Out.Body)
 			}

@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	AssignDefaultLocalAccessLoginTemplate(ctx context.Context, localAuthLoginTemplateID sql.NullInt64) (int64, error)
 	BackfillAgentStatRollupMinutesRange(ctx context.Context, arg BackfillAgentStatRollupMinutesRangeParams) error
 	BackfillProxyRequestRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestRollupMinutesRangeParams) error
 	BackfillProxyRequestStatusRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestStatusRollupMinutesRangeParams) error
@@ -24,6 +25,8 @@ type Querier interface {
 	CreateManagementAccessToken(ctx context.Context, arg CreateManagementAccessTokenParams) (ManagementAccessToken, error)
 	CreatePublicAccessPolicy(ctx context.Context, arg CreatePublicAccessPolicyParams) (PublicAccessPolicy, error)
 	CreatePublicAccessProvider(ctx context.Context, arg CreatePublicAccessProviderParams) (PublicAccessProvider, error)
+	CreatePublicAccessSession(ctx context.Context, arg CreatePublicAccessSessionParams) (PublicAccessSession, error)
+	CreatePublicAccessUser(ctx context.Context, arg CreatePublicAccessUserParams) (PublicAccessUser, error)
 	CreatePublicCacheRule(ctx context.Context, arg CreatePublicCacheRuleParams) (PublicCacheRule, error)
 	CreatePublicListener(ctx context.Context, arg CreatePublicListenerParams) (PublicListener, error)
 	CreatePublicRateLimitRule(ctx context.Context, arg CreatePublicRateLimitRuleParams) (PublicRateLimitRule, error)
@@ -59,6 +62,7 @@ type Querier interface {
 	DeleteProxyRetryRollupsBefore(ctx context.Context, bucketUnixMillis int64) error
 	DeletePublicAccessPolicy(ctx context.Context, id int64) error
 	DeletePublicAccessProvider(ctx context.Context, id int64) error
+	DeletePublicAccessUser(ctx context.Context, id int64) error
 	DeletePublicCacheEntry(ctx context.Context, keyDigest string) error
 	DeletePublicCacheEntryGeneration(ctx context.Context, arg DeletePublicCacheEntryGenerationParams) (int64, error)
 	DeletePublicCacheRule(ctx context.Context, id int64) error
@@ -77,15 +81,18 @@ type Querier interface {
 	DeletePublicTrustedProxySource(ctx context.Context, id int64) error
 	DeletePublicWafCaptchaProvider(ctx context.Context, id int64) error
 	DeletePublicWafRule(ctx context.Context, id int64) error
+	DeleteStalePublicAccessSessions(ctx context.Context) (int64, error)
 	DeleteUserAgentLabelsByAgent(ctx context.Context, agentID int64) error
 	GetActiveConnection(ctx context.Context) (GetActiveConnectionRow, error)
 	GetActiveManagementAccessTokenByHash(ctx context.Context, tokenHash string) (ManagementAccessToken, error)
+	GetActivePublicAccessSession(ctx context.Context, arg GetActivePublicAccessSessionParams) (GetActivePublicAccessSessionRow, error)
 	GetActiveSessionByTokenHash(ctx context.Context, tokenHash string) (GetActiveSessionByTokenHashRow, error)
 	GetAgent(ctx context.Context, id int64) (Agent, error)
 	GetAgentByPublicID(ctx context.Context, publicID string) (Agent, error)
 	GetAgentStatsRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetAgentStatsRollupSummarySinceRow, error)
 	GetAgentStatsSummarySince(ctx context.Context, reportedAt time.Time) (GetAgentStatsSummarySinceRow, error)
 	GetConnectionSummarySince(ctx context.Context, connectedAt time.Time) (GetConnectionSummarySinceRow, error)
+	GetEnabledPublicAccessUserByProviderAndUsername(ctx context.Context, arg GetEnabledPublicAccessUserByProviderAndUsernameParams) (PublicAccessUser, error)
 	GetEnvironment(ctx context.Context, id int64) (Environment, error)
 	GetLatestAgentStat(ctx context.Context) (AgentStat, error)
 	GetLatestAgentStatByAgent(ctx context.Context, agentID sql.NullInt64) (AgentStat, error)
@@ -97,6 +104,7 @@ type Querier interface {
 	GetProxyRetryRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRetryRollupSummarySinceRow, error)
 	GetPublicAccessPolicy(ctx context.Context, id int64) (PublicAccessPolicy, error)
 	GetPublicAccessProvider(ctx context.Context, id int64) (PublicAccessProvider, error)
+	GetPublicAccessUser(ctx context.Context, id int64) (PublicAccessUser, error)
 	GetPublicCacheEntry(ctx context.Context, keyDigest string) (PublicCacheEntry, error)
 	GetPublicCacheRule(ctx context.Context, id int64) (PublicCacheRule, error)
 	GetPublicCacheSettings(ctx context.Context) (PublicCacheSetting, error)
@@ -148,6 +156,7 @@ type Querier interface {
 	ListProxyTrafficBucketsSince(ctx context.Context, arg ListProxyTrafficBucketsSinceParams) ([]ListProxyTrafficBucketsSinceRow, error)
 	ListPublicAccessPolicies(ctx context.Context) ([]PublicAccessPolicy, error)
 	ListPublicAccessProviders(ctx context.Context) ([]PublicAccessProvider, error)
+	ListPublicAccessUsers(ctx context.Context) ([]PublicAccessUser, error)
 	ListPublicCacheEntriesForCleanup(ctx context.Context, limit int64) ([]ListPublicCacheEntriesForCleanupRow, error)
 	ListPublicCacheEntryCandidates(ctx context.Context, arg ListPublicCacheEntryCandidatesParams) ([]PublicCacheEntry, error)
 	ListPublicCacheRules(ctx context.Context) ([]PublicCacheRule, error)
@@ -188,6 +197,9 @@ type Querier interface {
 	PurgeAllPublicCacheEntries(ctx context.Context) ([]PurgeAllPublicCacheEntriesRow, error)
 	PurgePublicCacheEntriesByHostPath(ctx context.Context, arg PurgePublicCacheEntriesByHostPathParams) ([]PurgePublicCacheEntriesByHostPathRow, error)
 	PurgePublicCacheEntriesByRule(ctx context.Context, ruleID int64) ([]PurgePublicCacheEntriesByRuleRow, error)
+	RevokePublicAccessProviderSessions(ctx context.Context, providerID int64) (int64, error)
+	RevokePublicAccessSessionByTokenHash(ctx context.Context, arg RevokePublicAccessSessionByTokenHashParams) error
+	RevokePublicAccessUserSessions(ctx context.Context, userID int64) (int64, error)
 	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
 	RevokeUserSessions(ctx context.Context, userID int64) (int64, error)
 	SetPublicGeoIpUpdateAttempt(ctx context.Context, lastUpdateAttemptAt sql.NullTime) (PublicGeoIpSetting, error)
@@ -200,6 +212,7 @@ type Querier interface {
 	SetPublicTrustedProxySourceRefreshSuccess(ctx context.Context, arg SetPublicTrustedProxySourceRefreshSuccessParams) (PublicTrustedProxySource, error)
 	SumPublicCacheBytes(ctx context.Context) (SumPublicCacheBytesRow, error)
 	TouchManagementAccessToken(ctx context.Context, id int64) error
+	TouchPublicAccessSession(ctx context.Context, id int64) error
 	TouchPublicCacheEntry(ctx context.Context, arg TouchPublicCacheEntryParams) error
 	TouchSession(ctx context.Context, id int64) error
 	TrustEnvironmentCertificate(ctx context.Context, arg TrustEnvironmentCertificateParams) (Environment, error)
@@ -212,6 +225,7 @@ type Querier interface {
 	UpdateEnvironmentObservedCertificate(ctx context.Context, arg UpdateEnvironmentObservedCertificateParams) (Environment, error)
 	UpdatePublicAccessPolicy(ctx context.Context, arg UpdatePublicAccessPolicyParams) (PublicAccessPolicy, error)
 	UpdatePublicAccessProvider(ctx context.Context, arg UpdatePublicAccessProviderParams) (PublicAccessProvider, error)
+	UpdatePublicAccessUser(ctx context.Context, arg UpdatePublicAccessUserParams) (PublicAccessUser, error)
 	UpdatePublicCacheRule(ctx context.Context, arg UpdatePublicCacheRuleParams) (PublicCacheRule, error)
 	UpdatePublicCacheSettings(ctx context.Context, arg UpdatePublicCacheSettingsParams) (PublicCacheSetting, error)
 	UpdatePublicGeoIpSettings(ctx context.Context, arg UpdatePublicGeoIpSettingsParams) (PublicGeoIpSetting, error)

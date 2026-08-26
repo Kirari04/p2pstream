@@ -276,7 +276,7 @@ func writeWaitingRoomPage(w http.ResponseWriter, r *http.Request, decision publi
 	}
 	if decision.Rule.WaitingRoomPageTemplateBody != "" {
 		var rendered bytes.Buffer
-		err := renderPublicWafHTMLTemplate(&rendered, decision.Rule.WaitingRoomPageTemplateBody, map[string]any{
+		err := renderPublicHTMLTemplate(&rendered, decision.Rule.WaitingRoomPageTemplateBody, map[string]any{
 			"queue_position":      strconv.FormatInt(decision.QueuePosition, 10),
 			"retry_after_seconds": strconv.Itoa(pollSeconds),
 			"host":                publicWafRequestHost(r),

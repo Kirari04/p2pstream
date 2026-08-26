@@ -33,6 +33,7 @@ const summaryCards = computed(() => [
   { label: "Generic", value: templates.value.filter((template) => template.kind === PublicResponseTemplateKind.GENERIC_BODY).length.toString(), detail: "static, rate-limit, WAF block" },
   { label: "Captcha", value: templates.value.filter((template) => template.kind === PublicResponseTemplateKind.WAF_CAPTCHA_PAGE).length.toString(), detail: "{{ .captcha_element_html }} required" },
   { label: "Waiting Room", value: templates.value.filter((template) => template.kind === PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE).length.toString(), detail: "queue placeholders required" },
+  { label: "Sign-in", value: templates.value.filter((template) => template.kind === PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE).length.toString(), detail: "local access pages" },
 ]);
 const templateUsageCounts = computed(() => {
   const counts = new Map<string, number>();
@@ -53,6 +54,9 @@ const templateUsageCounts = computed(() => {
     if (rule.captchaPageTemplateId) increment(rule.captchaPageTemplateId);
     if (rule.waitingRoomPageTemplateId) increment(rule.waitingRoomPageTemplateId);
   }
+  for (const provider of config.accessProviders) {
+    if (provider.localAuthLoginTemplateId > 0n) increment(provider.localAuthLoginTemplateId);
+  }
   return counts;
 });
 
@@ -64,6 +68,8 @@ function kindRank(kind: PublicResponseTemplateKind): number {
       return 2;
     case PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE:
       return 3;
+    case PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE:
+      return 4;
     default:
       return 9;
   }
@@ -77,6 +83,8 @@ function kindLabel(kind: PublicResponseTemplateKind): string {
       return "WAF captcha";
     case PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE:
       return "Waiting room";
+    case PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE:
+      return "Local sign-in";
     default:
       return "Unknown";
   }
@@ -88,6 +96,8 @@ function requiredPlaceholderLabel(kind: PublicResponseTemplateKind): string {
       return "{{ .captcha_element_html }}";
     case PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE:
       return "{{ .queue_position }}, {{ .retry_after_seconds }}";
+    case PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE:
+      return "action, CSRF, username, password";
     default:
       return "none";
   }
@@ -127,7 +137,7 @@ async function deleteTemplate(template: PublicResponseTemplate) {
     <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
       <div>
         <h3 class="margin-bottom-sm copy-xl weight-bold">Response Templates</h3>
-        <p class="copy-sm muted-text">Reusable static bodies and validated WAF HTML pages.</p>
+        <p class="copy-sm muted-text">Reusable response bodies, security pages, and local-access sign-in forms.</p>
       </div>
       <NButton type="primary" @click="openCreate()">
         <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
@@ -135,7 +145,7 @@ async function deleteTemplate(template: PublicResponseTemplate) {
       </NButton>
     </div>
 
-    <section class="layout-grid space-lg mq-sm-cols-two mq-xl-cols-four">
+    <section class="layout-grid space-lg mq-sm-cols-two mq-xl-cols-five">
       <div v-for="card in summaryCards" :key="card.label" class="surface-card pad-lg">
         <p class="copy-xs weight-semibold label-case letter-widest muted-text">{{ card.label }}</p>
         <p class="margin-top-sm copy-2xl weight-semibold base-text">{{ card.value }}</p>
@@ -147,7 +157,7 @@ async function deleteTemplate(template: PublicResponseTemplate) {
       <div class="template-table-toolbar">
         <div>
           <h4 class="copy-sm weight-semibold base-text">Templates</h4>
-          <p class="copy-xs muted-text">Reusable bodies and the policies that reference them.</p>
+          <p class="copy-xs muted-text">Reusable bodies and the configured objects that reference them.</p>
         </div>
         <span class="template-table-count copy-xs muted-text">{{ templates.length }} total</span>
       </div>
@@ -219,16 +229,17 @@ async function deleteTemplate(template: PublicResponseTemplate) {
       <EmptyState
         v-else
         title="No response templates"
-        description="Create reusable bodies for static targets, rate limits, WAF blocks, captcha pages, and waiting-room pages."
+        description="Create reusable bodies for static targets, rate limits, WAF pages, and local-access sign-in forms."
         action-label="Add Template"
         @action="openCreate()"
       />
     </section>
 
-    <section class="layout-grid space-md mq-sm-cols-three">
+    <section class="layout-grid space-md mq-sm-cols-two mq-xl-cols-four">
       <NButton secondary @click="openCreate(PublicResponseTemplateKind.GENERIC_BODY)">New Generic Body</NButton>
       <NButton secondary @click="openCreate(PublicResponseTemplateKind.WAF_CAPTCHA_PAGE)">New Captcha Page</NButton>
       <NButton secondary @click="openCreate(PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE)">New Waiting Room</NButton>
+      <NButton secondary @click="openCreate(PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE)">New Sign-in Page</NButton>
     </section>
 
     <PublicResponseTemplateEditorModal ref="editor" />

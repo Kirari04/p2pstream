@@ -22,6 +22,8 @@ const (
 	publicResponseTemplateKindGenericBody                     = "generic_body"
 	publicResponseTemplateKindWafCaptchaPage                  = "waf_captcha_page"
 	publicResponseTemplateKindWafWaitingRoomPage              = "waf_waiting_room_page"
+	publicResponseTemplateKindLocalAccessLoginPage            = "local_access_login_page"
+	defaultLocalAccessLoginTemplateName                       = "local-access-login-default"
 	defaultResponseTemplateContentType                        = "text/html; charset=utf-8"
 	publicRouteTargetTypeProxy                                = "proxy"
 	publicRouteTargetTypeStatic                               = "static"
@@ -76,6 +78,7 @@ var publicNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 
 type publicConfigRows struct {
 	AccessProviders            []db.PublicAccessProvider
+	AccessUsers                []db.PublicAccessUser
 	AccessPolicies             []db.PublicAccessPolicy
 	Agents                     []db.Agent
 	AgentLabels                []db.PublicAgentLabel

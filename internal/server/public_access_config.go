@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	htmltemplate "html/template"
 	"net/http"
 	"net/url"
 	"sort"
@@ -14,14 +15,20 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/http/httpguts"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/authutil"
 	"p2pstream/internal/db"
 )
 
 const (
 	publicAccessProviderTypeForwardAuth = "forward_auth"
+	publicAccessProviderTypeLocal       = "local"
+	publicAccessLocalAuthModeForm       = "form"
+	publicAccessLocalAuthModeBasic      = "basic"
+	publicAccessLocalAuthModeBoth       = "form_and_basic"
 	publicAccessGroupMatchAny           = "any"
 	publicAccessGroupMatchAll           = "all"
 	defaultPublicAccessTimeoutMillis    = int64(5000)
@@ -29,6 +36,9 @@ const (
 	maxPublicAccessTimeoutMillis        = int64(30000)
 	maxPublicAccessHeaders              = 16
 	maxPublicAccessGroups               = 64
+	defaultPublicAccessSessionMillis    = int64((7 * 24 * time.Hour) / time.Millisecond)
+	minPublicAccessSessionMillis        = int64((5 * time.Minute) / time.Millisecond)
+	maxPublicAccessSessionMillis        = int64((30 * 24 * time.Hour) / time.Millisecond)
 )
 
 var defaultPublicAccessForwardedHeaders = []string{
@@ -38,22 +48,46 @@ var defaultPublicAccessForwardedHeaders = []string{
 	"X-Auth-Request-Preferred-Username",
 }
 
+var localPublicAccessForwardedHeaders = []string{
+	"X-Auth-Request-Email",
+	"X-Auth-Request-Groups",
+	"X-Auth-Request-Preferred-Username",
+	"X-Auth-Request-User",
+}
+
 type publicAccessProviderConfig struct {
-	ID               int64
-	Name             string
-	ProviderType     string
-	Enabled          bool
-	ForwardAuthURL   string
-	ParsedURL        *url.URL
-	Timeout          time.Duration
-	TLSSkipVerify    bool
-	SubjectHeader    string
-	UserHeader       string
-	EmailHeader      string
-	GroupsHeader     string
-	ForwardedHeaders []string
-	client           HTTPClient
-	transport        idleConnectionsCloser
+	ID                                int64
+	Name                              string
+	ProviderType                      string
+	Enabled                           bool
+	ForwardAuthURL                    string
+	ParsedURL                         *url.URL
+	Timeout                           time.Duration
+	TLSSkipVerify                     bool
+	SubjectHeader                     string
+	UserHeader                        string
+	EmailHeader                       string
+	GroupsHeader                      string
+	ForwardedHeaders                  []string
+	LocalAuthMode                     string
+	SessionDuration                   time.Duration
+	LocalAuthRealm                    string
+	LocalAuthLoginTemplateID          int64
+	LocalAuthLoginTemplate            *htmltemplate.Template
+	LocalAuthLoginTemplateContentType string
+	LocalUsers                        map[string]publicAccessUserConfig
+	basicAuthCache                    *publicAccessBasicAuthCache
+	client                            HTTPClient
+	transport                         idleConnectionsCloser
+}
+
+type publicAccessUserConfig struct {
+	ID           int64
+	ProviderID   int64
+	Username     string
+	PasswordHash string
+	Enabled      bool
+	Groups       []string
 }
 
 type idleConnectionsCloser interface {
@@ -70,56 +104,140 @@ type publicAccessPolicyConfig struct {
 }
 
 func publicAccessProviderRowToConfig(row db.PublicAccessProvider) (publicAccessProviderConfig, error) {
-	parsed, err := parsePublicForwardAuthURL(row.ForwardAuthUrl)
-	if err != nil {
-		return publicAccessProviderConfig{}, err
-	}
-	headers, err := publicAccessStringListFromJSON(row.ForwardedHeadersJson)
-	if err != nil {
-		return publicAccessProviderConfig{}, fmt.Errorf("forwarded headers: %w", err)
-	}
-	headers, err = normalizePublicAccessHeaderList(headers, false)
-	if err != nil {
-		return publicAccessProviderConfig{}, err
-	}
-	timeout := row.TimeoutMillis
-	if timeout < minPublicAccessTimeoutMillis || timeout > maxPublicAccessTimeoutMillis {
-		return publicAccessProviderConfig{}, errors.New("timeout must be between 100 and 30000 milliseconds")
-	}
 	providerType := normalizePublicAccessProviderType(row.ProviderType)
-	if providerType != publicAccessProviderTypeForwardAuth {
+	config := publicAccessProviderConfig{
+		ID:            row.ID,
+		Name:          row.Name,
+		ProviderType:  providerType,
+		Enabled:       row.Enabled != 0,
+		SubjectHeader: http.CanonicalHeaderKey(row.SubjectHeader),
+		UserHeader:    http.CanonicalHeaderKey(row.UserHeader),
+		EmailHeader:   http.CanonicalHeaderKey(row.EmailHeader),
+		GroupsHeader:  http.CanonicalHeaderKey(row.GroupsHeader),
+	}
+	switch providerType {
+	case publicAccessProviderTypeForwardAuth:
+		parsed, err := parsePublicForwardAuthURL(row.ForwardAuthUrl)
+		if err != nil {
+			return publicAccessProviderConfig{}, err
+		}
+		headers, err := publicAccessStringListFromJSON(row.ForwardedHeadersJson)
+		if err != nil {
+			return publicAccessProviderConfig{}, fmt.Errorf("forwarded headers: %w", err)
+		}
+		headers, err = normalizePublicAccessHeaderList(headers, false)
+		if err != nil {
+			return publicAccessProviderConfig{}, err
+		}
+		timeout := row.TimeoutMillis
+		if timeout < minPublicAccessTimeoutMillis || timeout > maxPublicAccessTimeoutMillis {
+			return publicAccessProviderConfig{}, errors.New("timeout must be between 100 and 30000 milliseconds")
+		}
+		transport := newDirectPooledHTTPTransport(row.TlsSkipVerify != 0, time.Duration(timeout)*time.Millisecond, 32)
+		transport.MaxResponseHeaderBytes = maxPublicForwardAuthHeaderBytes
+		if transport.TLSClientConfig == nil {
+			transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		} else {
+			transport.TLSClientConfig.MinVersion = tls.VersionTLS12
+		}
+		config.ForwardAuthURL = parsed.String()
+		config.ParsedURL = parsed
+		config.Timeout = time.Duration(timeout) * time.Millisecond
+		config.TLSSkipVerify = row.TlsSkipVerify != 0
+		config.ForwardedHeaders = headers
+		config.client = &http.Client{
+			Transport: transport,
+			Timeout:   time.Duration(timeout) * time.Millisecond,
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+		config.transport = transport
+	case publicAccessProviderTypeLocal:
+		mode := normalizePublicAccessLocalAuthMode(row.LocalAuthMode)
+		if !validPublicAccessLocalAuthMode(mode) {
+			return publicAccessProviderConfig{}, errors.New("unsupported local authentication mode")
+		}
+		if row.LocalAuthSessionDurationMillis < minPublicAccessSessionMillis || row.LocalAuthSessionDurationMillis > maxPublicAccessSessionMillis {
+			return publicAccessProviderConfig{}, errors.New("local session duration must be between 5 minutes and 30 days")
+		}
+		realm, err := normalizePublicAccessLocalAuthRealm(row.LocalAuthRealm)
+		if err != nil {
+			return publicAccessProviderConfig{}, err
+		}
+		config.ForwardedHeaders = append([]string(nil), localPublicAccessForwardedHeaders...)
+		config.LocalAuthMode = mode
+		config.SessionDuration = time.Duration(row.LocalAuthSessionDurationMillis) * time.Millisecond
+		config.LocalAuthRealm = realm
+		config.LocalAuthLoginTemplateID = nullInt64Value(row.LocalAuthLoginTemplateID)
+		config.LocalUsers = make(map[string]publicAccessUserConfig)
+		config.basicAuthCache = newPublicAccessBasicAuthCache(1024)
+	default:
 		return publicAccessProviderConfig{}, errors.New("unsupported access provider type")
 	}
-	transport := newDirectPooledHTTPTransport(row.TlsSkipVerify != 0, time.Duration(timeout)*time.Millisecond, 32)
-	transport.MaxResponseHeaderBytes = maxPublicForwardAuthHeaderBytes
-	if transport.TLSClientConfig == nil {
-		transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
-	} else {
-		transport.TLSClientConfig.MinVersion = tls.VersionTLS12
+	return config, nil
+}
+
+func configurePublicAccessLocalLoginTemplate(provider *publicAccessProviderConfig, templates map[int64]publicResponseTemplateConfig) error {
+	if provider == nil || provider.ProviderType != publicAccessProviderTypeLocal {
+		return nil
 	}
-	client := &http.Client{
-		Transport: transport,
-		Timeout:   time.Duration(timeout) * time.Millisecond,
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+	selected := publicResponseTemplateConfig{
+		Name:        defaultLocalAccessLoginTemplateName,
+		Kind:        publicResponseTemplateKindLocalAccessLoginPage,
+		ContentType: defaultResponseTemplateContentType,
+		Body:        defaultLocalAccessLoginBody,
 	}
-	return publicAccessProviderConfig{
-		ID:               row.ID,
-		Name:             row.Name,
-		ProviderType:     providerType,
-		Enabled:          row.Enabled != 0,
-		ForwardAuthURL:   parsed.String(),
-		ParsedURL:        parsed,
-		Timeout:          time.Duration(timeout) * time.Millisecond,
-		TLSSkipVerify:    row.TlsSkipVerify != 0,
-		SubjectHeader:    http.CanonicalHeaderKey(row.SubjectHeader),
-		UserHeader:       http.CanonicalHeaderKey(row.UserHeader),
-		EmailHeader:      http.CanonicalHeaderKey(row.EmailHeader),
-		GroupsHeader:     http.CanonicalHeaderKey(row.GroupsHeader),
-		ForwardedHeaders: headers,
-		client:           client,
-		transport:        transport,
+	if provider.LocalAuthLoginTemplateID > 0 {
+		var ok bool
+		selected, ok = templates[provider.LocalAuthLoginTemplateID]
+		if !ok {
+			return fmt.Errorf("local access login template %d not found", provider.LocalAuthLoginTemplateID)
+		}
+		if selected.Kind != publicResponseTemplateKindLocalAccessLoginPage {
+			return fmt.Errorf("response template %q has kind %s, want %s", selected.Name, selected.Kind, publicResponseTemplateKindLocalAccessLoginPage)
+		}
+	}
+	if _, err := validatePublicResponseTemplateInput(
+		selected.Name,
+		p2pstreamv1.PublicResponseTemplateKind_PUBLIC_RESPONSE_TEMPLATE_KIND_LOCAL_ACCESS_LOGIN_PAGE,
+		selected.Description,
+		selected.ContentType,
+		selected.Body,
+	); err != nil {
+		return fmt.Errorf("local access login template %q: %w", selected.Name, err)
+	}
+	tmpl, err := htmltemplate.New("local-access-login").Parse(selected.Body)
+	if err != nil {
+		return fmt.Errorf("parse local access login template %q: %w", selected.Name, err)
+	}
+	provider.LocalAuthLoginTemplate = tmpl
+	provider.LocalAuthLoginTemplateContentType = selected.ContentType
+	return nil
+}
+
+func publicAccessUserRowToConfig(row db.PublicAccessUser) (publicAccessUserConfig, error) {
+	username := authutil.NormalizeUsername(row.Username)
+	if username != row.Username {
+		return publicAccessUserConfig{}, errors.New("username is not normalized")
+	}
+	if err := authutil.ValidateUsername(username); err != nil {
+		return publicAccessUserConfig{}, err
+	}
+	if _, err := bcrypt.Cost([]byte(row.PasswordHash)); err != nil {
+		return publicAccessUserConfig{}, errors.New("password hash is invalid")
+	}
+	groups, err := publicAccessStringListFromJSON(row.GroupsJson)
+	if err != nil {
+		return publicAccessUserConfig{}, fmt.Errorf("groups: %w", err)
+	}
+	groups, err = normalizePublicAccessGroups(groups)
+	if err != nil {
+		return publicAccessUserConfig{}, err
+	}
+	return publicAccessUserConfig{
+		ID: row.ID, ProviderID: row.ProviderID, Username: username,
+		PasswordHash: row.PasswordHash, Enabled: row.Enabled != 0, Groups: groups,
 	}, nil
 }
 
@@ -210,6 +328,10 @@ func validatePublicAccessProviderInput(
 	emailHeader string,
 	groupsHeader string,
 	forwardedHeaders []string,
+	localAuthMode p2pstreamv1.PublicAccessLocalAuthMode,
+	localAuthSessionDurationMillis int64,
+	localAuthRealm string,
+	localAuthLoginTemplateID int64,
 ) (db.UpdatePublicAccessProviderParams, error) {
 	name, err := normalizePublicName(name)
 	if err != nil {
@@ -218,16 +340,6 @@ func validatePublicAccessProviderInput(
 	typeString, err := publicAccessProviderTypeStringFromProto(providerType)
 	if err != nil {
 		return db.UpdatePublicAccessProviderParams{}, err
-	}
-	parsed, err := parsePublicForwardAuthURL(forwardAuthURL)
-	if err != nil {
-		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if timeoutMillis == 0 {
-		timeoutMillis = defaultPublicAccessTimeoutMillis
-	}
-	if timeoutMillis < minPublicAccessTimeoutMillis || timeoutMillis > maxPublicAccessTimeoutMillis {
-		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("forward-auth timeout must be between 100 and 30000 milliseconds"))
 	}
 	subjectHeader, err = normalizePublicAccessHeader(subjectHeader, "X-Auth-Request-Preferred-Username")
 	if err != nil {
@@ -245,29 +357,67 @@ func validatePublicAccessProviderInput(
 	if err != nil {
 		return db.UpdatePublicAccessProviderParams{}, err
 	}
-	if len(forwardedHeaders) == 0 {
-		forwardedHeaders = append([]string(nil), defaultPublicAccessForwardedHeaders...)
+	forwardAuthURL = strings.TrimSpace(forwardAuthURL)
+	if timeoutMillis == 0 {
+		timeoutMillis = defaultPublicAccessTimeoutMillis
 	}
-	forwardedHeaders, err = normalizePublicAccessHeaderList(forwardedHeaders, true)
+	localMode := publicAccessLocalAuthModeStringFromProto(localAuthMode)
+	if localAuthSessionDurationMillis == 0 {
+		localAuthSessionDurationMillis = defaultPublicAccessSessionMillis
+	}
+	localAuthRealm, err = normalizePublicAccessLocalAuthRealm(localAuthRealm)
 	if err != nil {
-		return db.UpdatePublicAccessProviderParams{}, err
+		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	switch typeString {
+	case publicAccessProviderTypeForwardAuth:
+		localAuthLoginTemplateID = 0
+		parsed, parseErr := parsePublicForwardAuthURL(forwardAuthURL)
+		if parseErr != nil {
+			return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, parseErr)
+		}
+		forwardAuthURL = parsed.String()
+		if timeoutMillis < minPublicAccessTimeoutMillis || timeoutMillis > maxPublicAccessTimeoutMillis {
+			return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("forward-auth timeout must be between 100 and 30000 milliseconds"))
+		}
+		if len(forwardedHeaders) == 0 {
+			forwardedHeaders = append([]string(nil), defaultPublicAccessForwardedHeaders...)
+		}
+		forwardedHeaders, err = normalizePublicAccessHeaderList(forwardedHeaders, true)
+		if err != nil {
+			return db.UpdatePublicAccessProviderParams{}, err
+		}
+	case publicAccessProviderTypeLocal:
+		forwardAuthURL = ""
+		tlsSkipVerify = false
+		forwardedHeaders = append([]string(nil), localPublicAccessForwardedHeaders...)
+		if !validPublicAccessLocalAuthMode(localMode) {
+			return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported local authentication mode"))
+		}
+		if localAuthSessionDurationMillis < minPublicAccessSessionMillis || localAuthSessionDurationMillis > maxPublicAccessSessionMillis {
+			return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("local session duration must be between 5 minutes and 30 days"))
+		}
 	}
 	forwardedJSON, err := json.Marshal(forwardedHeaders)
 	if err != nil {
 		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInternal, err)
 	}
 	return db.UpdatePublicAccessProviderParams{
-		Name:                 name,
-		ProviderType:         typeString,
-		Enabled:              boolInt(enabled),
-		ForwardAuthUrl:       parsed.String(),
-		TimeoutMillis:        timeoutMillis,
-		TlsSkipVerify:        boolInt(tlsSkipVerify),
-		SubjectHeader:        subjectHeader,
-		UserHeader:           userHeader,
-		EmailHeader:          emailHeader,
-		GroupsHeader:         groupsHeader,
-		ForwardedHeadersJson: string(forwardedJSON),
+		Name:                           name,
+		ProviderType:                   typeString,
+		Enabled:                        boolInt(enabled),
+		ForwardAuthUrl:                 forwardAuthURL,
+		TimeoutMillis:                  timeoutMillis,
+		TlsSkipVerify:                  boolInt(tlsSkipVerify),
+		SubjectHeader:                  subjectHeader,
+		UserHeader:                     userHeader,
+		EmailHeader:                    emailHeader,
+		GroupsHeader:                   groupsHeader,
+		ForwardedHeadersJson:           string(forwardedJSON),
+		LocalAuthMode:                  localMode,
+		LocalAuthSessionDurationMillis: localAuthSessionDurationMillis,
+		LocalAuthRealm:                 localAuthRealm,
+		LocalAuthLoginTemplateID:       sql.NullInt64{Int64: localAuthLoginTemplateID, Valid: localAuthLoginTemplateID > 0},
 	}, nil
 }
 
@@ -308,6 +458,46 @@ func validatePublicAccessPolicyInput(
 		Enabled:            boolInt(enabled),
 		RequiredGroupsJson: string(groupsJSON),
 		GroupMatch:         matchString,
+	}, nil
+}
+
+func validatePublicAccessUserInput(
+	username string,
+	password string,
+	enabled bool,
+	groups []string,
+	existingPasswordHash string,
+) (db.UpdatePublicAccessUserParams, error) {
+	username = authutil.NormalizeUsername(username)
+	if err := authutil.ValidateUsername(username); err != nil {
+		return db.UpdatePublicAccessUserParams{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	groups, err := normalizePublicAccessGroups(groups)
+	if err != nil {
+		return db.UpdatePublicAccessUserParams{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	passwordHash := existingPasswordHash
+	if password != "" {
+		if err := authutil.ValidatePassword(password); err != nil {
+			return db.UpdatePublicAccessUserParams{}, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		if len([]byte(password)) > 72 {
+			return db.UpdatePublicAccessUserParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("password must be at most 72 bytes"))
+		}
+		passwordHash, err = authutil.HashPassword(password)
+		if err != nil {
+			return db.UpdatePublicAccessUserParams{}, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	if passwordHash == "" {
+		return db.UpdatePublicAccessUserParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("password is required"))
+	}
+	groupsJSON, err := json.Marshal(groups)
+	if err != nil {
+		return db.UpdatePublicAccessUserParams{}, connect.NewError(connect.CodeInternal, err)
+	}
+	return db.UpdatePublicAccessUserParams{
+		Username: username, PasswordHash: passwordHash, Enabled: boolInt(enabled), GroupsJson: string(groupsJSON),
 	}, nil
 }
 
@@ -422,6 +612,39 @@ func normalizePublicAccessProviderType(value string) string {
 	return strings.TrimSpace(strings.ToLower(value))
 }
 
+func normalizePublicAccessLocalAuthMode(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return publicAccessLocalAuthModeForm
+	}
+	return value
+}
+
+func validPublicAccessLocalAuthMode(value string) bool {
+	switch normalizePublicAccessLocalAuthMode(value) {
+	case publicAccessLocalAuthModeForm, publicAccessLocalAuthModeBasic, publicAccessLocalAuthModeBoth:
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizePublicAccessLocalAuthRealm(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		value = "Restricted"
+	}
+	if len([]byte(value)) > 128 {
+		return "", errors.New("local authentication realm must be at most 128 bytes")
+	}
+	for _, char := range value {
+		if char < 0x20 || char == 0x7f {
+			return "", errors.New("local authentication realm must not contain control characters")
+		}
+	}
+	return value, nil
+}
+
 func normalizePublicAccessGroupMatch(value string) string {
 	value = strings.TrimSpace(strings.ToLower(value))
 	if value == "" {
@@ -432,11 +655,27 @@ func normalizePublicAccessGroupMatch(value string) string {
 
 func publicAccessProviderTypeStringFromProto(value p2pstreamv1.PublicAccessProviderType) (string, error) {
 	switch value {
+	case p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_LOCAL:
+		return publicAccessProviderTypeLocal, nil
 	case p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_FORWARD_AUTH,
 		p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_UNSPECIFIED:
 		return publicAccessProviderTypeForwardAuth, nil
 	default:
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported access provider type"))
+	}
+}
+
+func publicAccessLocalAuthModeStringFromProto(value p2pstreamv1.PublicAccessLocalAuthMode) string {
+	switch value {
+	case p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_BASIC:
+		return publicAccessLocalAuthModeBasic
+	case p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM_AND_BASIC:
+		return publicAccessLocalAuthModeBoth
+	case p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM,
+		p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_UNSPECIFIED:
+		return publicAccessLocalAuthModeForm
+	default:
+		return ""
 	}
 }
 
@@ -453,10 +692,25 @@ func publicAccessGroupMatchStringFromProto(value p2pstreamv1.PublicAccessGroupMa
 }
 
 func protoPublicAccessProviderType(value string) p2pstreamv1.PublicAccessProviderType {
-	if normalizePublicAccessProviderType(value) == publicAccessProviderTypeForwardAuth {
+	switch normalizePublicAccessProviderType(value) {
+	case publicAccessProviderTypeForwardAuth:
 		return p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_FORWARD_AUTH
+	case publicAccessProviderTypeLocal:
+		return p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_LOCAL
+	default:
+		return p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_UNSPECIFIED
 	}
-	return p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_UNSPECIFIED
+}
+
+func protoPublicAccessLocalAuthMode(value string) p2pstreamv1.PublicAccessLocalAuthMode {
+	switch normalizePublicAccessLocalAuthMode(value) {
+	case publicAccessLocalAuthModeBasic:
+		return p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_BASIC
+	case publicAccessLocalAuthModeBoth:
+		return p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM_AND_BASIC
+	default:
+		return p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM
+	}
 }
 
 func protoPublicAccessGroupMatch(value string) p2pstreamv1.PublicAccessGroupMatch {
@@ -469,21 +723,42 @@ func protoPublicAccessGroupMatch(value string) p2pstreamv1.PublicAccessGroupMatc
 func publicAccessProviderToProto(row db.PublicAccessProvider) *p2pstreamv1.PublicAccessProvider {
 	headers, _ := publicAccessStringListFromJSON(row.ForwardedHeadersJson)
 	return &p2pstreamv1.PublicAccessProvider{
-		Id:                  row.ID,
-		Name:                row.Name,
-		ProviderType:        protoPublicAccessProviderType(row.ProviderType),
-		Enabled:             row.Enabled != 0,
-		ForwardAuthUrl:      row.ForwardAuthUrl,
-		TimeoutMillis:       row.TimeoutMillis,
-		TlsSkipVerify:       row.TlsSkipVerify != 0,
-		SubjectHeader:       row.SubjectHeader,
-		UserHeader:          row.UserHeader,
-		EmailHeader:         row.EmailHeader,
-		GroupsHeader:        row.GroupsHeader,
-		ForwardedHeaders:    headers,
-		CreatedAtUnixMillis: row.CreatedAt.UnixMilli(),
-		UpdatedAtUnixMillis: row.UpdatedAt.UnixMilli(),
+		Id:                             row.ID,
+		Name:                           row.Name,
+		ProviderType:                   protoPublicAccessProviderType(row.ProviderType),
+		Enabled:                        row.Enabled != 0,
+		ForwardAuthUrl:                 row.ForwardAuthUrl,
+		TimeoutMillis:                  row.TimeoutMillis,
+		TlsSkipVerify:                  row.TlsSkipVerify != 0,
+		SubjectHeader:                  row.SubjectHeader,
+		UserHeader:                     row.UserHeader,
+		EmailHeader:                    row.EmailHeader,
+		GroupsHeader:                   row.GroupsHeader,
+		ForwardedHeaders:               headers,
+		LocalAuthMode:                  protoPublicAccessLocalAuthMode(row.LocalAuthMode),
+		LocalAuthSessionDurationMillis: row.LocalAuthSessionDurationMillis,
+		LocalAuthRealm:                 row.LocalAuthRealm,
+		LocalAuthLoginTemplateId:       nullInt64Value(row.LocalAuthLoginTemplateID),
+		CreatedAtUnixMillis:            row.CreatedAt.UnixMilli(),
+		UpdatedAtUnixMillis:            row.UpdatedAt.UnixMilli(),
 	}
+}
+
+func publicAccessUserToProto(row db.PublicAccessUser) *p2pstreamv1.PublicAccessUser {
+	groups, _ := publicAccessStringListFromJSON(row.GroupsJson)
+	return &p2pstreamv1.PublicAccessUser{
+		Id: row.ID, ProviderId: row.ProviderID, Username: row.Username,
+		Enabled: row.Enabled != 0, Groups: groups, PasswordSet: row.PasswordHash != "",
+		CreatedAtUnixMillis: row.CreatedAt.UnixMilli(), UpdatedAtUnixMillis: row.UpdatedAt.UnixMilli(),
+	}
+}
+
+func publicAccessUsersToProto(rows []db.PublicAccessUser) []*p2pstreamv1.PublicAccessUser {
+	result := make([]*p2pstreamv1.PublicAccessUser, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, publicAccessUserToProto(row))
+	}
+	return result
 }
 
 func publicAccessProvidersToProto(rows []db.PublicAccessProvider) []*p2pstreamv1.PublicAccessProvider {

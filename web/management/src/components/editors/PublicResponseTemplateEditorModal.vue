@@ -37,6 +37,7 @@ const kindOptions = [
   { label: "Generic body", value: PublicResponseTemplateKind.GENERIC_BODY },
   { label: "WAF captcha page", value: PublicResponseTemplateKind.WAF_CAPTCHA_PAGE },
   { label: "WAF waiting room", value: PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE },
+  { label: "Local access sign-in page", value: PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE },
 ];
 
 const modalTitle = computed(() => form.id ? "Edit Response Template" : "Add Response Template");
@@ -47,6 +48,8 @@ const requiredPlaceholders = computed(() => {
       return ["captcha_element_html"];
     case PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE:
       return ["queue_position", "retry_after_seconds"];
+    case PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE:
+      return ["login_action", "csrf_field_name", "csrf_token", "username_field_name", "password_field_name"];
     default:
       return [];
   }
@@ -132,6 +135,47 @@ function defaultBodyForKind(kind: PublicResponseTemplateKind): string {
     <p>Queue position: {{ .queue_position }}</p>
     <p>Next check: {{ .retry_after_seconds }} seconds</p>
     <footer>Reference ID: {{ .reference_id }}</footer>
+  </main>
+</body>
+</html>
+`;
+    case PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE:
+      return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · {{ .page_title }}</title>
+  <style>
+    :root { color-scheme: dark; --ink: #f4f0e8; --muted: #9aa3ad; --panel: #11171c; --line: #303942; --accent: #35d399; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 28px; background: #080b0e; color: var(--ink); font-family: "Trebuchet MS", Verdana, sans-serif; }
+    main { width: min(100%, 430px); border: 1px solid var(--line); background: var(--panel); box-shadow: 18px 18px 0 #050708; padding: 34px; }
+    h1 { margin: 0; font-size: 34px; letter-spacing: -0.035em; }
+    .sub { margin: 10px 0 28px; color: var(--muted); line-height: 1.55; }
+    .error { border-left: 3px solid #fb7185; background: #28151a; color: #fecdd3; padding: 11px 13px; line-height: 1.45; }
+    .error:empty { display: none; }
+    label { display: grid; gap: 8px; margin-top: 18px; color: #c7cdd3; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    input { width: 100%; border: 1px solid #3a4650; background: #090d10; color: var(--ink); padding: 13px 14px; font: inherit; font-size: 16px; }
+    input:focus { border-color: var(--accent); outline: 2px solid rgba(53, 211, 153, .16); }
+    button { width: 100%; margin-top: 24px; border: 0; background: var(--accent); color: #042218; padding: 14px 16px; cursor: pointer; font: inherit; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+    <p class="sub">Use your local account to continue to {{ .provider_name }}.</p>
+    <p class="error" role="alert">{{ .error_message }}</p>
+    <form method="post" action="{{ .login_action }}">
+      <input type="hidden" name="{{ .csrf_field_name }}" value="{{ .csrf_token }}">
+      <label>Username
+        <input name="{{ .username_field_name }}" value="{{ .username }}" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+      </label>
+      <label>Password
+        <input type="password" name="{{ .password_field_name }}" autocomplete="current-password" required>
+      </label>
+      <button type="submit">Continue</button>
+    </form>
   </main>
 </body>
 </html>

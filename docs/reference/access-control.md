@@ -1,10 +1,32 @@
 # Identity-Aware Access
 
-p2pstream can protect a public route with a reusable access policy. The first provider type is **forward auth**: p2pstream asks a separate identity service whether a request is allowed, optionally checks returned group membership, and forwards trusted identity headers to the selected upstream.
+p2pstream can protect a public route with a reusable access policy. Choose **Local users** for a self-contained setup, or **Forward auth** to delegate identity to an existing service. Both provider types feed the same optional group policy and trusted identity-header boundary.
 
 Manage providers and policies under **Traffic Policy -> Access**, then assign a policy in **Proxy -> Routes -> Access policy**.
 
-## Recommended Deployment
+## Built-In Local Users
+
+A local provider owns its own users and groups. Passwords are accepted only on create or explicit replacement, stored as bcrypt hashes, and never returned by the management API. Creating a provider does not create a default account: add at least one enabled user before assigning its policy to a route.
+
+Choose one login mode:
+
+| Mode | Behavior |
+| --- | --- |
+| Sign-in form | Unauthenticated browsers receive a p2pstream-hosted HTML form. Successful login creates an opaque, revocable, HTTP-only session cookie. |
+| HTTP Basic | Clients receive a standard `WWW-Authenticate: Basic` challenge and send credentials on each request. |
+| Form + Basic | Existing form sessions are accepted; requests that explicitly send Basic credentials can use them as well. Other visitors see the form. |
+
+Form submissions use a short-lived, host-only CSRF cookie, exact-origin validation for browser posts, and a size-limited form body. The session token is random; only its SHA-256 hash is stored. Session lookup checks the provider and user on every request. Editing or disabling a user revokes all of that user's sessions. Disabling a provider or changing its login mode or session lifetime revokes all provider sessions.
+
+Each local provider selects a **Sign-in page** from **Configure -> Templates**. The seeded `local-access-login-default` works immediately, while additional local sign-in templates can customize the full HTML and CSS, the form, and all authentication-error states. Required action, CSRF, username, and password placeholders keep the customized form wired to the server. Dynamic values are HTML-escaped, scripts are blocked, and the form is restricted to same-origin submission. See [Response templates](./response-templates) for every available placeholder.
+
+The form posts back to the protected URL using the reserved `__p2pstream_access_login=1` query parameter, then redirects to the same path with that parameter removed. `__p2pstream_access_logout=1` revokes the current session and redirects in the same way. Do not use these reserved query names for application behavior on a locally protected route.
+
+Local identities forward `X-Auth-Request-User`, `X-Auth-Request-Preferred-Username`, and, when present, `X-Auth-Request-Groups`. After Basic authentication, the proxy removes the credential-bearing `Authorization` header before contacting the protected upstream, so the password is not leaked to the application. Form-authenticated requests can still carry a separate application `Authorization` header. User groups are exact and case-sensitive.
+
+Local session lifetimes can be configured from 5 minutes through 30 days. Use HTTPS for every locally protected route: both form and Basic credentials are exposed on an unencrypted connection. Basic is useful for API clients, but the form is generally a better browser and password-manager experience.
+
+## Forward-Auth Deployment
 
 Use an identity-aware forward-auth service such as oauth2-proxy, Authelia, or Authentik in front of your OIDC/OAuth provider:
 
@@ -15,9 +37,9 @@ browser -> p2pstream -> forward-auth service -> OIDC identity provider
 
 The identity service owns browser login, OAuth/OIDC callbacks, session cookies, logout, MFA, and account lifecycle. p2pstream owns route matching, the allow/deny decision boundary, optional group authorization, and safe propagation of the resulting identity.
 
-Native OIDC clients and local end-user accounts are not part of this release. Keeping the first implementation provider-neutral avoids storing identity-provider secrets or duplicating session and MFA logic in the proxy. They can be added later as provider types without changing route assignments or policy semantics.
+Forward auth remains the recommended option when you need OIDC/OAuth, MFA, centralized account lifecycle, or identity shared with other services.
 
-## Request Contract
+## Forward-Auth Request Contract
 
 For a protected route, p2pstream sends a bodyless `GET` to the configured forward-auth URL. It copies only these browser headers:
 
@@ -40,7 +62,7 @@ It generates trusted request context in:
 
 The client cannot supply these forwarding values. Resolved client IP uses the listener's trusted-proxy configuration when present; otherwise it uses the direct peer.
 
-## Response Contract
+## Forward-Auth Response Contract
 
 | Auth response | Proxy behavior |
 | --- | --- |
@@ -52,7 +74,7 @@ The client cannot supply these forwarding values. Resolved client IP uses the li
 
 Forward-auth response bodies and headers are size-limited. Redirects are not followed by p2pstream.
 
-## Provider Fields
+## Forward-Auth Provider Fields
 
 | Field | Behavior |
 | --- | --- |
@@ -67,7 +89,7 @@ Authorization, cookie, request-framing, hop-by-hop, `Forwarded`, `X-Forwarded-*`
 
 ## Policy Fields
 
-Each policy selects one provider. With no required groups, any successful `2xx` identity check grants access. With required groups, matching is exact and case-sensitive:
+Each policy selects one provider. With no required groups, any authenticated identity grants access. With required groups, matching is exact and case-sensitive:
 
 - **Any listed group** grants access when at least one configured group is returned.
 - **Every listed group** grants access only when every configured group is returned.
@@ -99,4 +121,5 @@ Live traffic traces emit **Access granted** or **Access denied** stages with pol
 - [Routing rules](./routing-rules)
 - [Security hardening](../operations/security-hardening)
 - [Architecture](../concepts/architecture)
+- [Response templates](./response-templates)
 - [Trace live traffic](../guides/trace-live-traffic)

@@ -147,35 +147,37 @@ type App struct {
 
 	// These service fields remain public for package tests during the extraction stack.
 	// New construction should go through appServices so they can become private later.
-	AgentHub                    *agentHub
-	LoadBalancers               *loadBalancerRegistry
-	TargetHealth                *publicRouteTargetHealthMonitor
-	TrafficTracer               *trafficTracer
-	RateLimiter                 *publicRateLimiter
-	TrafficShaper               *publicTrafficShaper
-	PublicWAF                   *publicWAF
-	PublicCache                 *publicProxyCache
-	PublicACME                  *publicACMEManager
-	GeoConfigRefresher          PublicGeoConfigRefresher
-	publicConfig                *publicConfigService
-	proxyRuntime                *proxyRuntime
-	observabilityRecorder       *observabilityRecorder
-	auth                        *authService
-	AgentTransports             *agentTransportPool
-	DirectTransports            *directTransportPool
-	reverseProxyBuffers         httputil.BufferPool
-	DashboardCache              *dashboardResponseCache
-	LoginThrottle               *loginThrottle
-	clientLoginThrottle         *loginThrottle
-	agentAuthLocks              *agentAuthLockMap
-	agentProxyRequests          *tunnel.StreamLimiter
-	agentTunnelStreams          *tunnel.StreamLimiter
-	publicProxyRequests         *requestCapacityLimiter
-	publicTargetRequests        *keyedRequestCapacityLimiter
-	retryReplayBudget           *retryReplayBudget
-	managementClientIdentity    *ClientIdentityResolver
-	managementClientIdentityErr error
-	ManagementTLS               *ManagementTLSRuntime
+	AgentHub                        *agentHub
+	LoadBalancers                   *loadBalancerRegistry
+	TargetHealth                    *publicRouteTargetHealthMonitor
+	TrafficTracer                   *trafficTracer
+	RateLimiter                     *publicRateLimiter
+	TrafficShaper                   *publicTrafficShaper
+	PublicWAF                       *publicWAF
+	PublicCache                     *publicProxyCache
+	PublicACME                      *publicACMEManager
+	GeoConfigRefresher              PublicGeoConfigRefresher
+	publicConfig                    *publicConfigService
+	proxyRuntime                    *proxyRuntime
+	observabilityRecorder           *observabilityRecorder
+	auth                            *authService
+	AgentTransports                 *agentTransportPool
+	DirectTransports                *directTransportPool
+	reverseProxyBuffers             httputil.BufferPool
+	DashboardCache                  *dashboardResponseCache
+	LoginThrottle                   *loginThrottle
+	clientLoginThrottle             *loginThrottle
+	publicAccessLoginThrottle       *loginThrottle
+	publicAccessClientLoginThrottle *loginThrottle
+	agentAuthLocks                  *agentAuthLockMap
+	agentProxyRequests              *tunnel.StreamLimiter
+	agentTunnelStreams              *tunnel.StreamLimiter
+	publicProxyRequests             *requestCapacityLimiter
+	publicTargetRequests            *keyedRequestCapacityLimiter
+	retryReplayBudget               *retryReplayBudget
+	managementClientIdentity        *ClientIdentityResolver
+	managementClientIdentityErr     error
+	ManagementTLS                   *ManagementTLSRuntime
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
