@@ -29,6 +29,7 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 
 	return &p2pstreamv1.GetPublicProxyConfigResponse{
 		AccessProviders:     publicAccessProvidersToProto(rows.AccessProviders),
+		AccessUsers:         publicAccessUsersToProto(rows.AccessUsers),
 		AccessPolicies:      publicAccessPoliciesToProto(rows.AccessPolicies),
 		Listeners:           publicListenersToProto(rows.Listeners),
 		Routes:              publicRoutesToProto(rows.Routes, rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
@@ -238,6 +239,10 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
+	accessUsers, err := a.DB.ListPublicAccessUsers(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
 	responseTemplates, err := a.DB.ListPublicResponseTemplates(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
@@ -320,6 +325,7 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	}
 	return publicConfigRows{
 		AccessProviders:            accessProviders,
+		AccessUsers:                accessUsers,
 		AccessPolicies:             accessPolicies,
 		Agents:                     agents,
 		AgentLabels:                agentLabels,
@@ -368,7 +374,25 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("access provider %q is invalid: %w", row.Name, err))
 		}
+		if err := configurePublicAccessLocalLoginTemplate(&provider, snap.ResponseTemplates); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("access provider %q is invalid: %w", row.Name, err))
+		}
 		snap.AccessProviders[provider.ID] = provider
+	}
+	for _, row := range rows.AccessUsers {
+		user, err := publicAccessUserRowToConfig(row)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("access user %q is invalid: %w", row.Username, err))
+		}
+		provider, ok := snap.AccessProviders[user.ProviderID]
+		if !ok || provider.ProviderType != publicAccessProviderTypeLocal {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("access user %q references a non-local provider", row.Username))
+		}
+		if _, exists := provider.LocalUsers[user.Username]; exists {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("access provider %q has duplicate user %q", provider.Name, user.Username))
+		}
+		provider.LocalUsers[user.Username] = user
+		snap.AccessProviders[user.ProviderID] = provider
 	}
 	snap.AccessHeaderNames = publicAccessConfiguredHeaderNames(snap)
 	for _, row := range rows.AccessPolicies {

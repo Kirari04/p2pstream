@@ -33,6 +33,7 @@ enum PublicResponseTemplateKind {
   PUBLIC_RESPONSE_TEMPLATE_KIND_GENERIC_BODY = 1;
   PUBLIC_RESPONSE_TEMPLATE_KIND_WAF_CAPTCHA_PAGE = 2;
   PUBLIC_RESPONSE_TEMPLATE_KIND_WAF_WAITING_ROOM_PAGE = 3;
+  PUBLIC_RESPONSE_TEMPLATE_KIND_LOCAL_ACCESS_LOGIN_PAGE = 4;
 }
 
 enum PublicRouteTargetType {
@@ -83,6 +84,14 @@ enum PublicRouteTargetHealthTraceOutcome {
 enum PublicAccessProviderType {
   PUBLIC_ACCESS_PROVIDER_TYPE_UNSPECIFIED = 0;
   PUBLIC_ACCESS_PROVIDER_TYPE_FORWARD_AUTH = 1;
+  PUBLIC_ACCESS_PROVIDER_TYPE_LOCAL = 2;
+}
+
+enum PublicAccessLocalAuthMode {
+  PUBLIC_ACCESS_LOCAL_AUTH_MODE_UNSPECIFIED = 0;
+  PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM = 1;
+  PUBLIC_ACCESS_LOCAL_AUTH_MODE_BASIC = 2;
+  PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM_AND_BASIC = 3;
 }
 
 enum PublicAccessGroupMatch {
@@ -690,6 +699,21 @@ message PublicAccessProvider {
   repeated string forwarded_headers = 12;
   int64 created_at_unix_millis = 13;
   int64 updated_at_unix_millis = 14;
+  PublicAccessLocalAuthMode local_auth_mode = 15;
+  int64 local_auth_session_duration_millis = 16;
+  string local_auth_realm = 17;
+  int64 local_auth_login_template_id = 18;
+}
+
+message PublicAccessUser {
+  int64 id = 1;
+  int64 provider_id = 2;
+  string username = 3;
+  bool enabled = 4;
+  repeated string groups = 5;
+  bool password_set = 6;
+  int64 created_at_unix_millis = 7;
+  int64 updated_at_unix_millis = 8;
 }
 
 message PublicAccessPolicy {
@@ -964,6 +988,7 @@ message GetPublicProxyConfigResponse {
   repeated PublicAccessPolicy access_policies = 21;
   PublicCacheStorageStats cache_storage_stats = 22;
   repeated PublicRetryRule retry_rules = 23;
+  repeated PublicAccessUser access_users = 24;
 }
 
 message PublicRouteTargetHealthTrace {
@@ -1377,6 +1402,10 @@ message CreatePublicAccessProviderRequest {
   string email_header = 9;
   string groups_header = 10;
   repeated string forwarded_headers = 11;
+  PublicAccessLocalAuthMode local_auth_mode = 12;
+  int64 local_auth_session_duration_millis = 13;
+  string local_auth_realm = 14;
+  int64 local_auth_login_template_id = 15;
 }
 
 message CreatePublicAccessProviderResponse {
@@ -1396,6 +1425,10 @@ message UpdatePublicAccessProviderRequest {
   string email_header = 10;
   string groups_header = 11;
   repeated string forwarded_headers = 12;
+  PublicAccessLocalAuthMode local_auth_mode = 13;
+  int64 local_auth_session_duration_millis = 14;
+  string local_auth_realm = 15;
+  int64 local_auth_login_template_id = 16;
 }
 
 message UpdatePublicAccessProviderResponse {
@@ -1407,6 +1440,37 @@ message DeletePublicAccessProviderRequest {
 }
 
 message DeletePublicAccessProviderResponse {
+}
+
+message CreatePublicAccessUserRequest {
+  int64 provider_id = 1;
+  string username = 2;
+  string password = 3;
+  bool enabled = 4;
+  repeated string groups = 5;
+}
+
+message CreatePublicAccessUserResponse {
+  PublicAccessUser user = 1;
+}
+
+message UpdatePublicAccessUserRequest {
+  int64 id = 1;
+  string username = 2;
+  string password = 3;
+  bool enabled = 4;
+  repeated string groups = 5;
+}
+
+message UpdatePublicAccessUserResponse {
+  PublicAccessUser user = 1;
+}
+
+message DeletePublicAccessUserRequest {
+  int64 id = 1;
+}
+
+message DeletePublicAccessUserResponse {
 }
 
 message CreatePublicAccessPolicyRequest {
@@ -2414,6 +2478,17 @@ enum PublicRetryBodyMode {
   PUBLIC_RETRY_BODY_MODE_BUFFERED = 2;
 }
 
+enum PublicRetryResponseBodyMode {
+  PUBLIC_RETRY_RESPONSE_BODY_MODE_UNSPECIFIED = 0;
+  // Preserve normal reverse-proxy streaming. A failure after response headers
+  // reach the client cannot be retried safely.
+  PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM = 1;
+  // Hold bounded, non-streaming responses until their complete encoded body
+  // has arrived. Body-read failures can then retry on another agent before any
+  // response is committed downstream.
+  PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED = 2;
+}
+
 enum PublicTrafficShaperProtocolScope {
   PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_UNSPECIFIED = 0;
   PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL = 1;
@@ -2438,6 +2513,11 @@ message PublicRetryRule {
   int64 updated_at_unix_millis = 14;
   // Exact 400-599 upstream response statuses that trigger another attempt.
   repeated int64 retry_status_codes = 15;
+  PublicRetryResponseBodyMode response_body_mode = 16;
+  int64 max_buffered_response_body_bytes = 17;
+  // Maximum time spent waiting for a protected response to complete before
+  // falling back to normal streaming delivery.
+  int64 max_buffered_response_wait_millis = 18;
 }
 
 message CreatePublicRetryRuleRequest {
@@ -2453,11 +2533,14 @@ message CreatePublicRetryRuleRequest {
   repeated int64 target_ids = 10;
   PublicPolicyMatchRule match_rule = 11;
   // Required when the rule can retry after an upstream may have observed the
-  // request, when response statuses are retried, or when it includes methods
-  // with side effects.
+  // request, when response statuses or buffered response bodies are retried,
+  // or when it includes methods with side effects.
   bool duplicate_risk_acknowledged = 12;
   // Exact 400-599 upstream response statuses that trigger another attempt.
   repeated int64 retry_status_codes = 13;
+  PublicRetryResponseBodyMode response_body_mode = 14;
+  int64 max_buffered_response_body_bytes = 15;
+  int64 max_buffered_response_wait_millis = 16;
 }
 
 message CreatePublicRetryRuleResponse {
@@ -2478,11 +2561,14 @@ message UpdatePublicRetryRuleRequest {
   repeated int64 target_ids = 11;
   PublicPolicyMatchRule match_rule = 12;
   // Required when the rule can retry after an upstream may have observed the
-  // request, when response statuses are retried, or when it includes methods
-  // with side effects.
+  // request, when response statuses or buffered response bodies are retried,
+  // or when it includes methods with side effects.
   bool duplicate_risk_acknowledged = 13;
   // Exact 400-599 upstream response statuses that trigger another attempt.
   repeated int64 retry_status_codes = 14;
+  PublicRetryResponseBodyMode response_body_mode = 15;
+  int64 max_buffered_response_body_bytes = 16;
+  int64 max_buffered_response_wait_millis = 17;
 }
 
 message UpdatePublicRetryRuleResponse {
@@ -2553,6 +2639,9 @@ service AgentManagementService {
   rpc CreatePublicAccessProvider(CreatePublicAccessProviderRequest) returns (CreatePublicAccessProviderResponse) {}
   rpc UpdatePublicAccessProvider(UpdatePublicAccessProviderRequest) returns (UpdatePublicAccessProviderResponse) {}
   rpc DeletePublicAccessProvider(DeletePublicAccessProviderRequest) returns (DeletePublicAccessProviderResponse) {}
+  rpc CreatePublicAccessUser(CreatePublicAccessUserRequest) returns (CreatePublicAccessUserResponse) {}
+  rpc UpdatePublicAccessUser(UpdatePublicAccessUserRequest) returns (UpdatePublicAccessUserResponse) {}
+  rpc DeletePublicAccessUser(DeletePublicAccessUserRequest) returns (DeletePublicAccessUserResponse) {}
   rpc CreatePublicAccessPolicy(CreatePublicAccessPolicyRequest) returns (CreatePublicAccessPolicyResponse) {}
   rpc UpdatePublicAccessPolicy(UpdatePublicAccessPolicyRequest) returns (UpdatePublicAccessPolicyResponse) {}
   rpc DeletePublicAccessPolicy(DeletePublicAccessPolicyRequest) returns (DeletePublicAccessPolicyResponse) {}

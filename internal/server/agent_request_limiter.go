@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"net"
 	"sync"
 	"time"
@@ -20,20 +21,40 @@ func newAgentRequestLimiter(limit int64) *tunnel.StreamLimiter {
 // of a Yamux stream, including while an HTTP transport holds it idle.
 type agentTunnelStreamConn struct {
 	net.Conn
+	agent     *AgentConn
 	release   func()
 	readMu    sync.Mutex
 	closeOnce sync.Once
 	closeErr  error
 }
 
-func newAgentTunnelStreamConn(conn net.Conn, release func()) net.Conn {
-	return &agentTunnelStreamConn{Conn: conn, release: release}
+func newAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, release func()) net.Conn {
+	return &agentTunnelStreamConn{Conn: conn, agent: agent, release: release}
 }
 
 func (c *agentTunnelStreamConn) Read(p []byte) (int, error) {
 	c.readMu.Lock()
 	defer c.readMu.Unlock()
-	return c.Conn.Read(p)
+	n, err := c.Conn.Read(p)
+	if err != nil && agentConnectionEnded(c.agent) {
+		return n, errors.Join(errAgentDisconnected, err)
+	}
+	return n, err
+}
+
+func agentConnectionEnded(agent *AgentConn) bool {
+	if agent == nil {
+		return false
+	}
+	if agent.Session != nil && agent.Session.IsClosed() {
+		return true
+	}
+	select {
+	case <-agent.Done:
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *agentTunnelStreamConn) Close() error {

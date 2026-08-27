@@ -2,6 +2,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
+	"compress/zlib"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
@@ -19,6 +22,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/zstd"
 )
 
 const websocketGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -27,9 +33,10 @@ var retryAsset = &retryAssetState{attemptsByPath: make(map[string]int)}
 var retryStatus = &retryStatusState{attemptsByPath: make(map[string]int)}
 
 type retryAssetState struct {
-	mu             sync.Mutex
-	totalAttempts  int
-	attemptsByPath map[string]int
+	mu                    sync.Mutex
+	totalAttempts         int
+	responseBodiesStarted int
+	attemptsByPath        map[string]int
 }
 
 type retryStatusState struct {
@@ -51,6 +58,8 @@ func main() {
 	mux.HandleFunc("/slow-headers", slowHeadersHandler)
 	mux.HandleFunc("/close-early", closeEarlyHandler)
 	mux.HandleFunc("/retry-assets/", retryAssetHandler)
+	mux.HandleFunc("/retry-response-assets/", retryResponseAssetHandler)
+	mux.HandleFunc("/retry-close-delimited/", retryCloseDelimitedAssetHandler)
 	mux.HandleFunc("/retry-asset-status", retryAssetStatusHandler)
 	mux.HandleFunc("/retry-status/", retryStatusHandler)
 	mux.HandleFunc("/health", healthHandler)
@@ -174,6 +183,11 @@ func retryAssetHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	asset, ok := retryAssetFixture(strings.TrimPrefix(r.URL.Path, "/retry-assets/"))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
 
 	retryAsset.mu.Lock()
 	retryAsset.totalAttempts++
@@ -197,7 +211,181 @@ func retryAssetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("X-Smoke-Upstream-Attempt", strconv.Itoa(attempt))
-	_, _ = fmt.Fprintf(w, "%s recovered\n", strings.TrimPrefix(r.URL.Path, "/retry-assets/"))
+	_, _ = fmt.Fprintf(w, "%s recovered\n", asset)
+}
+
+func retryResponseAssetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	asset, ok := retryResponseAssetFixture(strings.TrimPrefix(r.URL.Path, "/retry-response-assets/"))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	retryAsset.mu.Lock()
+	retryAsset.totalAttempts++
+	retryAsset.attemptsByPath[r.URL.Path]++
+	attempt := retryAsset.attemptsByPath[r.URL.Path]
+	retryAsset.mu.Unlock()
+
+	payload := []byte(asset + " recovered\n")
+	contentType, contentEncoding, encoded, err := encodeRetryResponseAsset(asset, payload)
+	if err != nil {
+		http.Error(w, "encode response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", contentType)
+	if contentEncoding != "" {
+		w.Header().Set("Content-Encoding", contentEncoding)
+	}
+	chunked := strings.Contains(asset, ".chunked.")
+	if !chunked {
+		w.Header().Set("Content-Length", strconv.Itoa(len(encoded)))
+	}
+	trailers := strings.Contains(asset, ".trailers.")
+	if trailers {
+		w.Header().Add("Trailer", "X-Smoke-Trailer")
+	}
+	w.Header().Set("X-Smoke-Upstream-Attempt", strconv.Itoa(attempt))
+
+	if attempt == 1 {
+		partialLength := len(encoded) / 2
+		if partialLength < 1 {
+			partialLength = 1
+		}
+		_, _ = w.Write(encoded[:partialLength])
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		retryAsset.mu.Lock()
+		retryAsset.responseBodiesStarted++
+		retryAsset.mu.Unlock()
+		select {
+		case <-r.Context().Done():
+			return
+		case <-time.After(30 * time.Second):
+			return
+		}
+	}
+
+	_, _ = w.Write(encoded)
+	if trailers {
+		w.Header().Set("X-Smoke-Trailer", "complete")
+	}
+}
+
+func encodeRetryResponseAsset(asset string, payload []byte) (contentType string, contentEncoding string, encoded []byte, err error) {
+	contentType = "application/octet-stream"
+	if strings.HasSuffix(asset, ".html") {
+		contentType = "text/html; charset=utf-8"
+	}
+	encoded = payload
+	encodeGzip := func(input []byte) ([]byte, error) {
+		var compressed bytes.Buffer
+		writer := gzip.NewWriter(&compressed)
+		if _, err := writer.Write(input); err != nil {
+			return nil, err
+		}
+		if err := writer.Close(); err != nil {
+			return nil, err
+		}
+		return compressed.Bytes(), nil
+	}
+
+	switch {
+	case strings.Contains(asset, ".stacked."):
+		encoded, err = encodeGzip(payload)
+		if err == nil {
+			var encoder *zstd.Encoder
+			encoder, err = zstd.NewWriter(nil)
+			if err == nil {
+				encoded = encoder.EncodeAll(encoded, nil)
+				encoder.Close()
+			}
+		}
+		contentEncoding = "gzip, zstd"
+	case strings.Contains(asset, ".gzip."):
+		encoded, err = encodeGzip(payload)
+		contentEncoding = "gzip"
+	case strings.Contains(asset, ".deflate."):
+		var compressed bytes.Buffer
+		writer := zlib.NewWriter(&compressed)
+		if _, err = writer.Write(payload); err == nil {
+			err = writer.Close()
+		} else {
+			_ = writer.Close()
+		}
+		encoded = compressed.Bytes()
+		contentEncoding = "deflate"
+	case strings.Contains(asset, ".br."):
+		var compressed bytes.Buffer
+		writer := brotli.NewWriter(&compressed)
+		if _, err = writer.Write(payload); err == nil {
+			err = writer.Close()
+		} else {
+			_ = writer.Close()
+		}
+		encoded = compressed.Bytes()
+		contentEncoding = "br"
+	case strings.Contains(asset, ".zstd."):
+		var encoder *zstd.Encoder
+		encoder, err = zstd.NewWriter(nil)
+		if err == nil {
+			encoded = encoder.EncodeAll(payload, nil)
+			encoder.Close()
+		}
+		contentEncoding = "zstd"
+	}
+	return contentType, contentEncoding, encoded, err
+}
+
+func retryCloseDelimitedAssetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if strings.TrimPrefix(r.URL.Path, "/retry-close-delimited/") != "report.txt" {
+		http.NotFound(w, r)
+		return
+	}
+
+	retryAsset.mu.Lock()
+	retryAsset.totalAttempts++
+	retryAsset.attemptsByPath[r.URL.Path]++
+	attempt := retryAsset.attemptsByPath[r.URL.Path]
+	retryAsset.mu.Unlock()
+
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "hijack unsupported", http.StatusInternalServerError)
+		return
+	}
+	conn, rw, err := hijacker.Hijack()
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	payload := []byte("report.txt recovered\n")
+	_, _ = fmt.Fprintf(rw, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\nX-Smoke-Upstream-Attempt: %d\r\n\r\n", attempt)
+	if attempt == 1 {
+		partialLength := len(payload) / 2
+		if partialLength < 1 {
+			partialLength = 1
+		}
+		_, _ = rw.Write(payload[:partialLength])
+		_ = rw.Flush()
+		retryAsset.mu.Lock()
+		retryAsset.responseBodiesStarted++
+		retryAsset.mu.Unlock()
+		_ = conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		_, _ = rw.ReadByte()
+		return
+	}
+	_, _ = rw.Write(payload)
+	_ = rw.Flush()
 }
 
 func retryAssetStatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -207,8 +395,9 @@ func retryAssetStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	retryAsset.mu.Lock()
 	attempts := retryAsset.totalAttempts
+	responseBodiesStarted := retryAsset.responseBodiesStarted
 	retryAsset.mu.Unlock()
-	writeJSON(w, map[string]int{"attempts": attempts})
+	writeJSON(w, map[string]int{"attempts": attempts, "response_bodies_started": responseBodiesStarted})
 }
 
 func retryStatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -218,6 +407,11 @@ func retryStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	parts := strings.SplitN(strings.TrimPrefix(r.URL.Path, "/retry-status/"), "/", 2)
 	if len(parts) != 2 || parts[1] == "" {
+		http.NotFound(w, r)
+		return
+	}
+	asset, ok := retryStatusAssetFixture(parts[1])
+	if !ok {
 		http.NotFound(w, r)
 		return
 	}
@@ -237,12 +431,59 @@ func retryStatusHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("temporary upstream status %d", retryCode), retryCode)
 		return
 	}
-	if strings.HasSuffix(parts[1], ".css") {
+	if strings.HasSuffix(asset, ".css") {
 		w.Header().Set("Content-Type", "text/css")
 	} else {
 		w.Header().Set("Content-Type", "application/javascript")
 	}
-	_, _ = fmt.Fprintf(w, "%s recovered from %d\n", parts[1], retryCode)
+	_, _ = fmt.Fprintf(w, "%s recovered from %d\n", asset, retryCode)
+}
+
+func retryAssetFixture(asset string) (string, bool) {
+	switch asset {
+	case "app.js":
+		return "app.js", true
+	case "vendor.js":
+		return "vendor.js", true
+	case "site.css":
+		return "site.css", true
+	default:
+		return "", false
+	}
+}
+
+func retryResponseAssetFixture(asset string) (string, bool) {
+	switch asset {
+	case "document.html":
+		return "document.html", true
+	case "identity.chunked.html":
+		return "identity.chunked.html", true
+	case "archive.gzip.bin":
+		return "archive.gzip.bin", true
+	case "styles.deflate.bin":
+		return "styles.deflate.bin", true
+	case "font.br.bin":
+		return "font.br.bin", true
+	case "bundle.zstd.bin":
+		return "bundle.zstd.bin", true
+	case "combo.stacked.bin":
+		return "combo.stacked.bin", true
+	case "metadata.trailers.chunked.html":
+		return "metadata.trailers.chunked.html", true
+	default:
+		return "", false
+	}
+}
+
+func retryStatusAssetFixture(asset string) (string, bool) {
+	switch asset {
+	case "chunk.js":
+		return "chunk.js", true
+	case "theme.css":
+		return "theme.css", true
+	default:
+		return "", false
+	}
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

@@ -20,6 +20,7 @@ type PlaceholderInfo = {
   name: string;
   label: string;
   description: string;
+  availableFor: PublicResponseTemplateKind[];
   requiredFor: PublicResponseTemplateKind[];
   trustedHtml?: boolean;
 };
@@ -45,6 +46,7 @@ const placeholders: PlaceholderInfo[] = [
     name: "captcha_element_html",
     label: "{{ .captcha_element_html }}",
     description: "Server-generated captcha widget and submit form.",
+    availableFor: [PublicResponseTemplateKind.WAF_CAPTCHA_PAGE],
     requiredFor: [PublicResponseTemplateKind.WAF_CAPTCHA_PAGE],
     trustedHtml: true,
   },
@@ -52,34 +54,35 @@ const placeholders: PlaceholderInfo[] = [
     name: "queue_position",
     label: "{{ .queue_position }}",
     description: "Current queue position for waiting-room clients.",
+    availableFor: [PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE],
     requiredFor: [PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE],
   },
   {
     name: "retry_after_seconds",
     label: "{{ .retry_after_seconds }}",
     description: "Seconds until the browser should check again.",
+    availableFor: [PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE],
     requiredFor: [PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE],
   },
-  { name: "host", label: "{{ .host }}", description: "Request host shown to the visitor.", requiredFor: [] },
-  { name: "rule_name", label: "{{ .rule_name }}", description: "Name of the WAF rule rendering the page.", requiredFor: [] },
-  { name: "reference_id", label: "{{ .reference_id }}", description: "Short support reference for the WAF decision.", requiredFor: [] },
-  { name: "page_title", label: "{{ .page_title }}", description: "Configured page title.", requiredFor: [] },
-  { name: "page_body", label: "{{ .page_body }}", description: "Configured body copy.", requiredFor: [] },
-  { name: "status_url", label: "{{ .status_url }}", description: "Waiting-room status endpoint or captcha form endpoint.", requiredFor: [] },
+  { name: "host", label: "{{ .host }}", description: "Request host shown to the visitor.", availableFor: [PublicResponseTemplateKind.WAF_CAPTCHA_PAGE, PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE, PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE], requiredFor: [] },
+  { name: "rule_name", label: "{{ .rule_name }}", description: "Name of the WAF rule rendering the page.", availableFor: [PublicResponseTemplateKind.WAF_CAPTCHA_PAGE, PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE], requiredFor: [] },
+  { name: "reference_id", label: "{{ .reference_id }}", description: "Short support reference for the WAF decision.", availableFor: [PublicResponseTemplateKind.WAF_CAPTCHA_PAGE, PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE], requiredFor: [] },
+  { name: "page_title", label: "{{ .page_title }}", description: "Configured page or provider title.", availableFor: [PublicResponseTemplateKind.WAF_CAPTCHA_PAGE, PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE, PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE], requiredFor: [] },
+  { name: "page_body", label: "{{ .page_body }}", description: "Configured body copy.", availableFor: [PublicResponseTemplateKind.WAF_CAPTCHA_PAGE, PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE], requiredFor: [] },
+  { name: "status_url", label: "{{ .status_url }}", description: "Waiting-room status endpoint or captcha form endpoint.", availableFor: [PublicResponseTemplateKind.WAF_CAPTCHA_PAGE, PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE], requiredFor: [] },
+  { name: "provider_name", label: "{{ .provider_name }}", description: "Name of the local access provider.", availableFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE], requiredFor: [] },
+  { name: "login_action", label: "{{ .login_action }}", description: "Same-origin form action that preserves the requested URL.", availableFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE], requiredFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE] },
+  { name: "csrf_field_name", label: "{{ .csrf_field_name }}", description: "Server-defined CSRF field name.", availableFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE], requiredFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE] },
+  { name: "csrf_token", label: "{{ .csrf_token }}", description: "Per-page CSRF token for the hidden form field.", availableFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE], requiredFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE] },
+  { name: "username_field_name", label: "{{ .username_field_name }}", description: "Server-defined username input name.", availableFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE], requiredFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE] },
+  { name: "password_field_name", label: "{{ .password_field_name }}", description: "Server-defined password input name.", availableFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE], requiredFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE] },
+  { name: "username", label: "{{ .username }}", description: "Submitted username, retained after a failed sign-in.", availableFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE], requiredFor: [] },
+  { name: "error_message", label: "{{ .error_message }}", description: "Authentication error copy, empty on the initial page.", availableFor: [PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE], requiredFor: [] },
 ];
 
 const availablePlaceholders = computed(() => {
   if (props.kind === PublicResponseTemplateKind.GENERIC_BODY) return [];
-  return placeholders.filter((placeholder) => (
-    !placeholder.requiredFor.length ||
-    placeholder.requiredFor.includes(props.kind) ||
-    placeholder.name === "host" ||
-    placeholder.name === "rule_name" ||
-    placeholder.name === "reference_id" ||
-    placeholder.name === "page_title" ||
-    placeholder.name === "page_body" ||
-    placeholder.name === "status_url"
-  ));
+  return placeholders.filter((placeholder) => placeholder.availableFor.includes(props.kind));
 });
 
 const requiredPlaceholders = computed(() => placeholders.filter((placeholder) => placeholder.requiredFor.includes(props.kind)));
@@ -223,6 +226,14 @@ function samplePlaceholderValue(name: string, trustedHtml: boolean): string {
     queue_position: "12",
     retry_after_seconds: "5",
     status_url: "/.p2pstream/waf/waiting-room/status?rule_id=42",
+    provider_name: "Private services",
+    login_action: "?__p2pstream_access_login=1&next=%2Fdashboard",
+    csrf_field_name: "p2pstream_csrf",
+    csrf_token: "preview-csrf-token",
+    username_field_name: "username",
+    password_field_name: "password",
+    username: "alice",
+    error_message: "The username or password is incorrect.",
   };
   return escapeHTML(values[name] ?? "");
 }

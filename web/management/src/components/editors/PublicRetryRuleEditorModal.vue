@@ -34,6 +34,7 @@ import {
 import {
   PublicRetryBodyMode,
   PublicRetryFailureMode,
+  PublicRetryResponseBodyMode,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
   type GetPublicProxyConfigResponse,
@@ -83,6 +84,9 @@ const form = reactive({
   customStatusCodes: gatewayStatusCodes.map(String),
   bodyMode: PublicRetryBodyMode.NEVER,
   maxReplayBodyKiB: 256,
+  responseBodyMode: PublicRetryResponseBodyMode.STREAM,
+  maxBufferedResponseBodyKiB: 8192,
+  maxBufferedResponseWaitSeconds: 30,
   routeIds: [] as string[],
   targetIds: [] as string[],
   match: defaultPolicyMatchForm() as PolicyMatchForm,
@@ -117,6 +121,7 @@ const normalizedStatusCodes = computed(() => {
 const requiresRiskAcknowledgement = computed(() =>
   form.failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
   normalizedStatusCodes.value.length > 0 ||
+  form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED ||
   normalizedMethods.value.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method)),
 );
 const methodSummary = computed(() => normalizedMethods.value[0] === "*"
@@ -128,6 +133,9 @@ const attemptSummary = computed(() => `${(form.maxRetries + 1).toString()} total
 const statusSummary = computed(() => normalizedStatusCodes.value.length
   ? normalizedStatusCodes.value.join(", ")
   : "Transport failures only");
+const responseDeliverySummary = computed(() => form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED
+  ? `Best effort through ${form.maxBufferedResponseBodyKiB.toLocaleString()} KiB / ${form.maxBufferedResponseWaitSeconds.toLocaleString()}s`
+  : "Immediate streaming");
 
 const routeTransferOptions = computed<RetryTransferOption[]>(() => routes.value.map((route) => {
   const value = route.id.toString();
@@ -163,6 +171,12 @@ const submitDisabledReason = computed(() => {
   if (form.bodyMode === PublicRetryBodyMode.BUFFERED && (!Number.isInteger(form.maxReplayBodyKiB) || form.maxReplayBodyKiB < 1 || form.maxReplayBodyKiB > 4096)) {
     return "Replay body limit must be between 1 KiB and 4,096 KiB.";
   }
+  if (form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED && (!Number.isInteger(form.maxBufferedResponseBodyKiB) || form.maxBufferedResponseBodyKiB < 1 || form.maxBufferedResponseBodyKiB > 65536)) {
+    return "Protected response limit must be between 1 KiB and 65,536 KiB.";
+  }
+  if (form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED && (!Number.isInteger(form.maxBufferedResponseWaitSeconds) || form.maxBufferedResponseWaitSeconds < 1 || form.maxBufferedResponseWaitSeconds > 300)) {
+    return "Protected response wait must be between 1 and 300 seconds.";
+  }
   const matchError = policyMatchValidationReason(form.match);
   if (matchError) return matchError;
   if (requiresRiskAcknowledgement.value && !form.duplicateRiskAcknowledged) return "Acknowledge the duplicate-request risk.";
@@ -183,6 +197,9 @@ function resetForm() {
   form.customStatusCodes = gatewayStatusCodes.map(String);
   form.bodyMode = PublicRetryBodyMode.NEVER;
   form.maxReplayBodyKiB = 256;
+  form.responseBodyMode = PublicRetryResponseBodyMode.STREAM;
+  form.maxBufferedResponseBodyKiB = 8192;
+  form.maxBufferedResponseWaitSeconds = 30;
   form.routeIds = [];
   form.targetIds = [];
   form.match = defaultPolicyMatchForm();
@@ -210,10 +227,13 @@ function openEdit(ruleId: bigint | string) {
   form.customStatusCodes = retryStatusCodes.length ? retryStatusCodes.map(String) : gatewayStatusCodes.map(String);
   form.bodyMode = rule.bodyMode || PublicRetryBodyMode.NEVER;
   form.maxReplayBodyKiB = Math.max(1, Math.round(Number(rule.maxReplayBodyBytes || 262144n) / 1024));
+  form.responseBodyMode = rule.responseBodyMode || PublicRetryResponseBodyMode.STREAM;
+  form.maxBufferedResponseBodyKiB = Math.max(1, Math.round(Number(rule.maxBufferedResponseBodyBytes || 8388608n) / 1024));
+  form.maxBufferedResponseWaitSeconds = Math.max(1, Math.round(Number(rule.maxBufferedResponseWaitMillis || 30000n) / 1000));
   form.routeIds = rule.routeIds.map(String);
   form.targetIds = rule.targetIds.map(String);
   form.match = policyMatchFormFromProto(rule.matchRule);
-  form.duplicateRiskAcknowledged = requiresRiskFor(rule.methods, form.failureMode, retryStatusCodes);
+  form.duplicateRiskAcknowledged = requiresRiskFor(rule.methods, form.failureMode, retryStatusCodes, form.responseBodyMode);
   isOpen.value = true;
 }
 
@@ -246,9 +266,10 @@ function sameMethods(left: readonly string[], right: readonly string[]): boolean
   return leftSet.size === right.length && right.every((method) => leftSet.has(method));
 }
 
-function requiresRiskFor(methods: readonly string[], failureMode: PublicRetryFailureMode, retryStatusCodes: readonly number[]): boolean {
+function requiresRiskFor(methods: readonly string[], failureMode: PublicRetryFailureMode, retryStatusCodes: readonly number[], responseBodyMode: PublicRetryResponseBodyMode): boolean {
   return failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
     retryStatusCodes.length > 0 ||
+    responseBodyMode === PublicRetryResponseBodyMode.BUFFERED ||
     methods.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method));
 }
 
@@ -336,6 +357,13 @@ async function submitRule() {
       bodyMode: form.bodyMode,
       maxReplayBodyBytes: form.bodyMode === PublicRetryBodyMode.BUFFERED
         ? BigInt(form.maxReplayBodyKiB * 1024)
+        : 0n,
+      responseBodyMode: form.responseBodyMode,
+      maxBufferedResponseBodyBytes: form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED
+        ? BigInt(form.maxBufferedResponseBodyKiB * 1024)
+        : 0n,
+      maxBufferedResponseWaitMillis: form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED
+        ? BigInt(form.maxBufferedResponseWaitSeconds * 1000)
         : 0n,
       routeIds: form.routeIds.map(BigInt),
       targetIds: form.targetIds.map(BigInt),
@@ -485,6 +513,67 @@ defineExpose({ openCreate, openEdit, close });
             <NInputNumber v-model:value="form.maxReplayBodyKiB" :show-button="false" size="small" :min="1" :max="4096" />
             <span class="copy-xs weight-normal normal-text letter-normal muted-text">Bodies above this limit stream normally and are not retried after consumption. The server also enforces a 64 MiB global replay-memory budget.</span>
           </label>
+          <div class="response-completion-panel">
+            <div class="status-retry-heading">
+              <div>
+                <p class="panel-eyebrow">Response completion</p>
+                <h5 class="copy-sm weight-semibold base-text">Protect bounded responses from mid-transfer agent loss</h5>
+              </div>
+              <NTag size="small" :type="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED ? 'info' : 'default'" :bordered="false">
+                {{ responseDeliverySummary }}
+              </NTag>
+            </div>
+            <p class="copy-xs line-normal muted-text">
+              Protected responses are read completely before headers are sent to the client. If the agent disappears mid-body, the request can fail over without exposing partial content. Encoded bytes are preserved exactly—there is no decompression or recompression.
+            </p>
+            <div class="response-mode-grid" role="radiogroup" aria-label="Response completion mode">
+              <button
+                type="button"
+                role="radio"
+                class="response-mode-option"
+                :class="{ 'response-mode-option--active': form.responseBodyMode === PublicRetryResponseBodyMode.STREAM }"
+                :aria-checked="form.responseBodyMode === PublicRetryResponseBodyMode.STREAM"
+                @click="form.responseBodyMode = PublicRetryResponseBodyMode.STREAM"
+              >
+                <span class="weight-medium base-text">Stream immediately</span>
+                <span class="copy-xs line-normal muted-text">Lowest latency and memory use; a failure after headers cannot be retried.</span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                class="response-mode-option"
+                :class="{ 'response-mode-option--active': form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED }"
+                :aria-checked="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED"
+                @click="form.responseBodyMode = PublicRetryResponseBodyMode.BUFFERED"
+              >
+                <span class="weight-medium base-text">Buffer bounded responses</span>
+                <span class="copy-xs line-normal muted-text">Adds upstream completion latency and uses replay memory, but enables clean failover while protection remains available.</span>
+              </button>
+            </div>
+            <div v-if="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED" class="layout-grid space-lg mq-sm-cols-two">
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text replay-limit-field">
+                Maximum protected response KiB
+                <NInputNumber v-model:value="form.maxBufferedResponseBodyKiB" :show-button="false" size="small" :min="1" :max="65536" />
+                <span class="copy-xs weight-normal normal-text letter-normal muted-text">
+                  Larger responses fall back to streaming without dropping the request.
+                </span>
+              </label>
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text replay-limit-field">
+                Maximum completion wait seconds
+                <NInputNumber v-model:value="form.maxBufferedResponseWaitSeconds" :show-button="false" size="small" :min="1" :max="300" />
+                <span class="copy-xs weight-normal normal-text letter-normal muted-text">
+                  Slow or long-lived responses switch cleanly to streaming after this wait.
+                </span>
+              </label>
+            </div>
+            <p v-if="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED" class="copy-xs line-normal muted-text">
+              Protection is best effort. Request and response buffers share the server's 64 MiB replay-memory budget; budget-constrained responses stream normally and the skip reason is recorded in traffic traces.
+            </p>
+            <div class="response-exclusions copy-xs line-normal muted-text">
+              <strong>Always streamed:</strong>
+              WebSocket/upgrades, HEAD and bodyless responses, ranges and 206 responses, server-sent events, gRPC, multipart streams, and responses with <code>X-Accel-Buffering: no</code>.
+            </div>
+          </div>
         </section>
 
         <section v-if="requiresRiskAcknowledgement" class="risk-panel">
@@ -493,7 +582,7 @@ defineExpose({ openCreate, openEdit, close });
             <div>
               <h4 class="copy-sm weight-semibold base-text">Duplicate request risk</h4>
               <p class="margin-top-xs copy-xs line-normal muted-text">
-                The first agent can fail after the upstream has accepted the request, or return a configured retryable status. Retrying may repeat writes, payments, uploads, or other side effects even when the client sees only one response.
+                The first agent can fail after the upstream has accepted the request, return a configured retryable status, or lose its response body mid-transfer. Retrying may repeat writes, payments, uploads, or other side effects even when the client sees only one response.
               </p>
             </div>
             <NCheckbox v-model:checked="form.duplicateRiskAcknowledged">
@@ -662,6 +751,59 @@ defineExpose({ openCreate, openEdit, close });
   max-width: 28rem;
 }
 
+.response-completion-panel {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--app-border));
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--app-accent) 4%, var(--app-panel));
+}
+
+.response-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.response-mode-option {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.8rem;
+  border: 1px solid var(--app-border);
+  border-radius: 0.45rem;
+  color: inherit;
+  background: var(--app-panel);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.response-mode-option:hover {
+  border-color: color-mix(in srgb, var(--app-accent) 55%, var(--app-border));
+}
+
+.response-mode-option--active {
+  border-color: var(--app-accent);
+  box-shadow: inset 3px 0 0 var(--app-accent);
+  background: color-mix(in srgb, var(--app-accent) 8%, var(--app-panel));
+}
+
+.response-mode-option:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 2px;
+}
+
+.response-exclusions {
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--app-border);
+}
+
+.response-exclusions strong {
+  color: var(--text-color-2);
+  font-weight: 650;
+}
+
 .risk-panel {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -715,6 +857,7 @@ defineExpose({ openCreate, openEdit, close });
   .method-presets,
   .failure-mode-grid,
   .status-preset-grid,
+  .response-mode-grid,
   .target-grid {
     grid-template-columns: 1fr;
   }

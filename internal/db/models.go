@@ -233,20 +233,46 @@ type PublicAccessPolicy struct {
 }
 
 type PublicAccessProvider struct {
-	ID                   int64     `json:"id"`
-	Name                 string    `json:"name"`
-	ProviderType         string    `json:"provider_type"`
-	Enabled              int64     `json:"enabled"`
-	ForwardAuthUrl       string    `json:"forward_auth_url"`
-	TimeoutMillis        int64     `json:"timeout_millis"`
-	TlsSkipVerify        int64     `json:"tls_skip_verify"`
-	SubjectHeader        string    `json:"subject_header"`
-	UserHeader           string    `json:"user_header"`
-	EmailHeader          string    `json:"email_header"`
-	GroupsHeader         string    `json:"groups_header"`
-	ForwardedHeadersJson string    `json:"forwarded_headers_json"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                             int64         `json:"id"`
+	Name                           string        `json:"name"`
+	ProviderType                   string        `json:"provider_type"`
+	Enabled                        int64         `json:"enabled"`
+	ForwardAuthUrl                 string        `json:"forward_auth_url"`
+	TimeoutMillis                  int64         `json:"timeout_millis"`
+	TlsSkipVerify                  int64         `json:"tls_skip_verify"`
+	SubjectHeader                  string        `json:"subject_header"`
+	UserHeader                     string        `json:"user_header"`
+	EmailHeader                    string        `json:"email_header"`
+	GroupsHeader                   string        `json:"groups_header"`
+	ForwardedHeadersJson           string        `json:"forwarded_headers_json"`
+	CreatedAt                      time.Time     `json:"created_at"`
+	UpdatedAt                      time.Time     `json:"updated_at"`
+	LocalAuthMode                  string        `json:"local_auth_mode"`
+	LocalAuthSessionDurationMillis int64         `json:"local_auth_session_duration_millis"`
+	LocalAuthRealm                 string        `json:"local_auth_realm"`
+	LocalAuthLoginTemplateID       sql.NullInt64 `json:"local_auth_login_template_id"`
+}
+
+type PublicAccessSession struct {
+	ID         int64        `json:"id"`
+	ProviderID int64        `json:"provider_id"`
+	UserID     int64        `json:"user_id"`
+	TokenHash  string       `json:"token_hash"`
+	CreatedAt  time.Time    `json:"created_at"`
+	LastSeenAt time.Time    `json:"last_seen_at"`
+	ExpiresAt  time.Time    `json:"expires_at"`
+	RevokedAt  sql.NullTime `json:"revoked_at"`
+}
+
+type PublicAccessUser struct {
+	ID           int64     `json:"id"`
+	ProviderID   int64     `json:"provider_id"`
+	Username     string    `json:"username"`
+	PasswordHash string    `json:"password_hash"`
+	Enabled      int64     `json:"enabled"`
+	GroupsJson   string    `json:"groups_json"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type PublicAgentLabel struct {
@@ -372,21 +398,24 @@ type PublicResponseTemplate struct {
 }
 
 type PublicRetryRule struct {
-	ID                   int64     `json:"id"`
-	Name                 string    `json:"name"`
-	Priority             int64     `json:"priority"`
-	Enabled              int64     `json:"enabled"`
-	MethodsJson          string    `json:"methods_json"`
-	MaxRetries           int64     `json:"max_retries"`
-	FailureMode          string    `json:"failure_mode"`
-	BodyMode             string    `json:"body_mode"`
-	MaxReplayBodyBytes   int64     `json:"max_replay_body_bytes"`
-	RouteIdsJson         string    `json:"route_ids_json"`
-	TargetIdsJson        string    `json:"target_ids_json"`
-	MatchJson            string    `json:"match_json"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
-	RetryStatusCodesJson string    `json:"retry_status_codes_json"`
+	ID                            int64     `json:"id"`
+	Name                          string    `json:"name"`
+	Priority                      int64     `json:"priority"`
+	Enabled                       int64     `json:"enabled"`
+	MethodsJson                   string    `json:"methods_json"`
+	MaxRetries                    int64     `json:"max_retries"`
+	FailureMode                   string    `json:"failure_mode"`
+	BodyMode                      string    `json:"body_mode"`
+	MaxReplayBodyBytes            int64     `json:"max_replay_body_bytes"`
+	RouteIdsJson                  string    `json:"route_ids_json"`
+	TargetIdsJson                 string    `json:"target_ids_json"`
+	MatchJson                     string    `json:"match_json"`
+	CreatedAt                     time.Time `json:"created_at"`
+	UpdatedAt                     time.Time `json:"updated_at"`
+	RetryStatusCodesJson          string    `json:"retry_status_codes_json"`
+	ResponseBodyMode              string    `json:"response_body_mode"`
+	MaxBufferedResponseBodyBytes  int64     `json:"max_buffered_response_body_bytes"`
+	MaxBufferedResponseWaitMillis int64     `json:"max_buffered_response_wait_millis"`
 }
 
 type PublicRoute struct {

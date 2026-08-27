@@ -342,6 +342,11 @@ func TestPublicCacheResponseEligibilityTTLAndDenials(t *testing.T) {
 		t.Fatal("Set-Cookie response should not be cacheable")
 	}
 
+	resp = &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Trailer: http.Header{"Content-Digest": nil}}
+	if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
+		t.Fatal("response with declared trailers should not be cacheable")
+	}
+
 	resp = &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Vary": []string{"*"}}}
 	if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
 		t.Fatal("Vary:* response should not be cacheable")
@@ -362,6 +367,24 @@ func TestPublicCacheResponseEligibilityTTLAndDenials(t *testing.T) {
 		if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
 			t.Fatalf("Vary: %s response should not be cacheable", header)
 		}
+	}
+}
+
+func TestPublicCacheConfiguredVaryHeadersAlwaysIncludeAcceptEncoding(t *testing.T) {
+	vary, ok := publicCacheResponseVaryHeaders([]string{"Accept-Language"}, nil)
+	if !ok {
+		t.Fatal("safe configured vary headers were rejected")
+	}
+	contains := func(want string) bool {
+		for _, got := range vary {
+			if strings.EqualFold(got, want) {
+				return true
+			}
+		}
+		return false
+	}
+	if !contains("Accept-Encoding") || !contains("Accept-Language") {
+		t.Fatalf("vary headers = %#v, want Accept-Encoding and Accept-Language", vary)
 	}
 }
 
@@ -624,6 +647,58 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	fourthDecision := app.checkPublicCache(httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt?v=1", nil), resolution)
 	if fourthDecision.Status != publicCacheStatusMiss {
 		t.Fatalf("cache status after rejecting stale warmed generation = %q, want miss", fourthDecision.Status)
+	}
+}
+
+func TestPublicCacheNeverSharesEntriesAcrossAcceptEncoding(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "max-age=300")
+		w.Header().Set("Content-Type", "application/octet-stream")
+		if r.Header.Get("Accept-Encoding") == "br" {
+			w.Header().Set("Content-Encoding", "br")
+			_, _ = w.Write([]byte("brotli-wire-representation"))
+			return
+		}
+		_, _ = w.Write([]byte("identity-representation"))
+	}))
+	defer upstream.Close()
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	resolution.Target.ParsedURL = origin
+
+	requestVariant := func(encoding string) (*httptest.ResponseRecorder, publicCacheDecision) {
+		req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/variant.txt", nil)
+		req.Header.Set("Accept-Encoding", encoding)
+		decision := app.checkPublicCache(req, resolution)
+		recorder := httptest.NewRecorder()
+		if decision.Status == publicCacheStatusHit {
+			app.servePublicCacheHit(recorder, req, resolution, nil, nil, decision, proxyRequestObservability{})
+		} else {
+			app.proxyDirectTargetRequest(recorder, req, resolution, nil, nil, &decision, proxyRequestObservability{})
+		}
+		return recorder, decision
+	}
+
+	brFirst, brFirstDecision := requestVariant("br")
+	if brFirstDecision.Status != publicCacheStatusStored || brFirst.Header().Get("Content-Encoding") != "br" || brFirst.Body.String() != "brotli-wire-representation" {
+		t.Fatalf("first br variant = status %q encoding %q body %q", brFirstDecision.Status, brFirst.Header().Get("Content-Encoding"), brFirst.Body.String())
+	}
+	identityFirst, identityFirstDecision := requestVariant("identity")
+	if identityFirstDecision.Status != publicCacheStatusStored || identityFirst.Header().Get("Content-Encoding") != "" || identityFirst.Body.String() != "identity-representation" {
+		t.Fatalf("first identity variant = status %q encoding %q body %q", identityFirstDecision.Status, identityFirst.Header().Get("Content-Encoding"), identityFirst.Body.String())
+	}
+	brHit, brHitDecision := requestVariant("br")
+	identityHit, identityHitDecision := requestVariant("identity")
+	if brHitDecision.Status != publicCacheStatusHit || brHit.Header().Get("Content-Encoding") != "br" || brHit.Body.String() != "brotli-wire-representation" {
+		t.Fatalf("cached br variant = status %q encoding %q body %q", brHitDecision.Status, brHit.Header().Get("Content-Encoding"), brHit.Body.String())
+	}
+	if identityHitDecision.Status != publicCacheStatusHit || identityHit.Header().Get("Content-Encoding") != "" || identityHit.Body.String() != "identity-representation" {
+		t.Fatalf("cached identity variant = status %q encoding %q body %q", identityHitDecision.Status, identityHit.Header().Get("Content-Encoding"), identityHit.Body.String())
 	}
 }
 
