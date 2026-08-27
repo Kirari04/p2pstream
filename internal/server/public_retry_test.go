@@ -949,6 +949,33 @@ func TestValidatePublicRetryRuleStatusCodes(t *testing.T) {
 	}
 }
 
+func TestValidatePublicRetryRuleExplainsMissingScopeReferences(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	tests := []struct {
+		name      string
+		routeIDs  []int64
+		targetIDs []int64
+		want      string
+	}{
+		{name: "route", routeIDs: []int64{404}, want: "retry rule route 404 no longer exists"},
+		{name: "target", targetIDs: []int64{405}, want: "retry rule route target 405 no longer exists"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := app.validatePublicRetryRuleInput(
+				context.Background(), "stale-scope", 100, true, []string{http.MethodGet}, 1,
+				p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_CONNECTION_FAILURES,
+				p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
+				0, p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM, 0,
+				0, nil, tt.routeIDs, tt.targetIDs, nil, false,
+			)
+			if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("validation error = %v, want invalid argument containing %q", err, tt.want)
+			}
+		})
+	}
+}
+
 func TestValidatePublicRetryRuleBufferedResponseRequiresRiskAcknowledgementAndBound(t *testing.T) {
 	app := NewApp(nil, nil)
 	_, err := app.validatePublicRetryRuleInput(

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -467,12 +468,18 @@ func (a *App) validatePublicRetryRuleInput(
 	}
 	for _, id := range routeIDs {
 		if _, err := a.DB.GetPublicRoute(ctx, id); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("retry rule route %d no longer exists; remove it from the rule scope before saving", id))
+			}
 			return publicRetryRuleMutationInput{}, publicDBError(err)
 		}
 	}
 	for _, id := range targetIDs {
 		target, err := a.DB.GetPublicRouteTarget(ctx, id)
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("retry rule route target %d no longer exists; remove it from the rule scope before saving", id))
+			}
 			return publicRetryRuleMutationInput{}, publicDBError(err)
 		}
 		if normalizePublicRouteTargetType(target.TargetType) != publicRouteTargetTypeProxy || normalizePublicRouteTargetTransport(target.Transport) != publicRouteTargetTransportAgent {

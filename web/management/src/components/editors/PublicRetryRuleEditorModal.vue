@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import {
+  NAlert,
   NButton,
   NButtonGroup,
   NCheckbox,
@@ -31,6 +32,7 @@ import {
   routeTargetName,
   routeTargetTypeLabel,
 } from "@/lib/publicProxyLabels";
+import { unavailableSelectionIds } from "@/lib/scopeSelections";
 import {
   PublicRetryBodyMode,
   PublicRetryFailureMode,
@@ -137,25 +139,43 @@ const responseDeliverySummary = computed(() => form.responseBodyMode === PublicR
   ? `Best effort through ${form.maxBufferedResponseBodyKiB.toLocaleString()} KiB / ${form.maxBufferedResponseWaitSeconds.toLocaleString()}s`
   : "Immediate streaming");
 
-const routeTransferOptions = computed<RetryTransferOption[]>(() => routes.value.map((route) => {
-  const value = route.id.toString();
-  return {
-    label: `${routeLabel(route)} — ${routeDestinationLabel(route)}`,
+const unavailableRouteIds = computed(() => unavailableSelectionIds(form.routeIds, routes.value.map((route) => route.id)));
+const unavailableTargetIds = computed(() => unavailableSelectionIds(form.targetIds, agentTargets.value.map((target) => target.id)));
+const routeTransferOptions = computed<RetryTransferOption[]>(() => [
+  ...routes.value.map((route) => {
+    const value = route.id.toString();
+    return {
+      label: `${routeLabel(route)} — ${routeDestinationLabel(route)}`,
+      value,
+      searchText: `${routeLabel(route)} ${routeDestinationLabel(route)}`.toLowerCase(),
+      disabled: !form.routeIds.includes(value) && form.routeIds.length >= maxFilterItems,
+    };
+  }),
+  ...unavailableRouteIds.value.map((value) => ({
+    label: `#${value} unavailable route — remove before saving`,
     value,
-    searchText: `${routeLabel(route)} ${routeDestinationLabel(route)}`.toLowerCase(),
-    disabled: !form.routeIds.includes(value) && form.routeIds.length >= maxFilterItems,
-  };
-}));
-const targetTransferOptions = computed<RetryTransferOption[]>(() => agentTargets.value.map((target) => {
-  const value = target.id.toString();
-  const detail = `${routeTargetTypeLabel(target.targetType)} / ${target.url || "no upstream URL"}`;
-  return {
-    label: `#${value} ${routeTargetName(target)} — ${detail}`,
+    searchText: `#${value} unavailable missing route`,
+    disabled: false,
+  })),
+]);
+const targetTransferOptions = computed<RetryTransferOption[]>(() => [
+  ...agentTargets.value.map((target) => {
+    const value = target.id.toString();
+    const detail = `${routeTargetTypeLabel(target.targetType)} / ${target.url || "no upstream URL"}`;
+    return {
+      label: `#${value} ${routeTargetName(target)} — ${detail}`,
+      value,
+      searchText: `#${value} ${routeTargetName(target)} ${detail}`.toLowerCase(),
+      disabled: !form.targetIds.includes(value) && form.targetIds.length >= maxFilterItems,
+    };
+  }),
+  ...unavailableTargetIds.value.map((value) => ({
+    label: `#${value} unavailable target — remove before saving`,
     value,
-    searchText: `#${value} ${routeTargetName(target)} ${detail}`.toLowerCase(),
-    disabled: !form.targetIds.includes(value) && form.targetIds.length >= maxFilterItems,
-  };
-}));
+    searchText: `#${value} unavailable missing target`,
+    disabled: false,
+  })),
+]);
 
 const submitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
@@ -164,6 +184,8 @@ const submitDisabledReason = computed(() => {
   if (!Number.isInteger(form.maxRetries) || form.maxRetries < 1 || form.maxRetries > 3) return "Retries must be between 1 and 3.";
   if (form.routeIds.length > maxFilterItems) return `Select at most ${maxFilterItems.toString()} routes.`;
   if (form.targetIds.length > maxFilterItems) return `Select at most ${maxFilterItems.toString()} targets.`;
+  if (unavailableRouteIds.value.length) return `Remove unavailable route #${unavailableRouteIds.value[0]} from the saved scope.`;
+  if (unavailableTargetIds.value.length) return `Remove unavailable target #${unavailableTargetIds.value[0]} from the saved scope.`;
   const methodError = methodsValidationReason(normalizedMethods.value);
   if (methodError) return methodError;
   const statusError = statusCodesValidationReason();
@@ -596,6 +618,13 @@ defineExpose({ openCreate, openEdit, close });
             <h4 class="copy-sm weight-semibold base-text">Route and target scope</h4>
             <p class="margin-top-xs copy-xs line-normal muted-text">Empty filters match every agent-backed proxy target. Direct and static targets are not eligible.</p>
           </div>
+          <NAlert
+            v-if="unavailableRouteIds.length || unavailableTargetIds.length"
+            type="warning"
+            title="Saved scope contains unavailable entries"
+          >
+            One or more routes or targets were removed after this rule was saved. Remove the entries marked unavailable below before saving.
+          </NAlert>
           <div class="target-grid">
             <div class="target-panel">
               <div class="target-panel-head"><div><p class="panel-eyebrow">Routes</p><h5 class="panel-heading">{{ routeSummary }}</h5></div></div>

@@ -460,6 +460,17 @@ func TestPublicCacheRejectsSensitiveConfiguredVaryHeaders(t *testing.T) {
 	}
 }
 
+func TestPublicCacheScopeValidationExplainsMissingReferences(t *testing.T) {
+	app, _, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	if _, err := app.validatePublicCacheRouteIDs(context.Background(), []int64{404}); connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "cache rule route 404 no longer exists") {
+		t.Fatalf("missing route error = %v", err)
+	}
+	if _, err := app.validatePublicCacheTargetIDs(context.Background(), []int64{405}); connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "cache rule route target 405 no longer exists") {
+		t.Fatalf("missing target error = %v", err)
+	}
+}
+
 func TestPublicCacheGeneratedForwardedVaryHeadersAreCaseInsensitive(t *testing.T) {
 	rule := publicCacheRuleConfig{
 		TTL:              time.Hour,

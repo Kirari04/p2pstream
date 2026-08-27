@@ -123,6 +123,10 @@ func (a *App) CreatePublicAccessUser(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	params, err := validatePublicAccessUserInput(req.Msg.Username, req.Msg.Password, req.Msg.Enabled, req.Msg.Groups, "")
+	if err != nil {
+		return nil, err
+	}
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -135,10 +139,6 @@ func (a *App) CreatePublicAccessUser(
 	}
 	if normalizePublicAccessProviderType(provider.ProviderType) != publicAccessProviderTypeLocal {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("users can only be added to a local access provider"))
-	}
-	params, err := validatePublicAccessUserInput(req.Msg.Username, req.Msg.Password, req.Msg.Enabled, req.Msg.Groups, "")
-	if err != nil {
-		return nil, err
 	}
 	user, err := qtx.CreatePublicAccessUser(ctx, db.CreatePublicAccessUserParams{
 		ProviderID: req.Msg.ProviderId, Username: params.Username, PasswordHash: params.PasswordHash,
@@ -163,19 +163,26 @@ func (a *App) UpdatePublicAccessUser(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	tx, err := a.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	defer tx.Rollback()
-	qtx := a.DB.WithTx(tx)
-	existing, err := qtx.GetPublicAccessUser(ctx, req.Msg.Id)
+	existing, err := a.DB.GetPublicAccessUser(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
 	params, err := validatePublicAccessUserInput(req.Msg.Username, req.Msg.Password, req.Msg.Enabled, req.Msg.Groups, existing.PasswordHash)
 	if err != nil {
 		return nil, err
+	}
+	tx, err := a.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	defer tx.Rollback()
+	qtx := a.DB.WithTx(tx)
+	current, err := qtx.GetPublicAccessUser(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	if req.Msg.Password == "" {
+		params.PasswordHash = current.PasswordHash
 	}
 	params.ID = req.Msg.Id
 	user, err := qtx.UpdatePublicAccessUser(ctx, params)
