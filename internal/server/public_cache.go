@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/textproto"
@@ -2235,6 +2236,9 @@ func (a *App) validatePublicCacheRouteIDs(ctx context.Context, ids []int64) ([]i
 	}
 	for _, id := range ids {
 		if _, err := a.DB.GetPublicRoute(ctx, id); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("cache rule route %d no longer exists; remove it from the rule scope before saving", id))
+			}
 			return nil, publicDBError(err)
 		}
 	}
@@ -2248,6 +2252,9 @@ func (a *App) validatePublicCacheTargetIDs(ctx context.Context, ids []int64) ([]
 	}
 	for _, id := range ids {
 		if _, err := a.DB.GetPublicRouteTarget(ctx, id); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("cache rule route target %d no longer exists; remove it from the rule scope before saving", id))
+			}
 			return nil, publicDBError(err)
 		}
 	}

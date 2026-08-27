@@ -129,10 +129,79 @@ func TestPublicRouteUpdatePreservesMaskedSensitiveUpstreamHeaders(t *testing.T) 
 	if got := updateResp.Msg.Route.Targets[0].UpstreamRequestHeaders[0]; got.Value != "" || got.ValueSet {
 		t.Fatalf("updated sensitive header proto = %+v, want masked with value_set=false", got)
 	}
+	if got, want := updateResp.Msg.Route.Targets[0].Id, createResp.Msg.Route.Targets[0].Id; got != want {
+		t.Fatalf("updated target ID = %d, want preserved ID %d", got, want)
+	}
 	assertPublicRouteUpstreamHeaderValues(t, app.DB, updateResp.Msg.Route.Id, map[string]string{
 		"x-secret": "top-secret",
 		"cookie":   "session=abc",
 	})
+}
+
+func TestPublicRouteUpdateRejectsTargetIDFromAnotherRoute(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	header := createTestAdminSession(t, app)
+	listener := seedPublicConfigTestListener(t, app.DB)
+
+	firstReq := testPublicRouteRequest(listener.ID, "/first-target", nil)
+	firstReq.Header().Set("Cookie", header.Get("Cookie"))
+	firstResp, err := app.CreatePublicRoute(context.Background(), firstReq)
+	if err != nil {
+		t.Fatalf("create first route: %v", err)
+	}
+	secondReq := testPublicRouteRequest(listener.ID, "/second-target", nil)
+	secondReq.Header().Set("Cookie", header.Get("Cookie"))
+	secondResp, err := app.CreatePublicRoute(context.Background(), secondReq)
+	if err != nil {
+		t.Fatalf("create second route: %v", err)
+	}
+
+	forgedTarget := firstResp.Msg.Route.Targets[0]
+	updateReq := testPublicRouteUpdateRequest(secondResp.Msg.Route, "/second-target", []*p2pstreamv1.PublicRouteTarget{forgedTarget})
+	updateReq.Header().Set("Cookie", header.Get("Cookie"))
+	_, err = app.UpdatePublicRoute(context.Background(), updateReq)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("cross-route target update error = %v, want invalid argument", err)
+	}
+	stored, err := app.DB.GetPublicRouteTarget(context.Background(), secondResp.Msg.Route.Targets[0].Id)
+	if err != nil || stored.RouteID != secondResp.Msg.Route.Id {
+		t.Fatalf("second route target after rejected update = %+v, err %v", stored, err)
+	}
+}
+
+func TestPublicRouteUpdateReordersTargetsWithoutChangingIDs(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	header := createTestAdminSession(t, app)
+	listener := seedPublicConfigTestListener(t, app.DB)
+	createReq := testPublicRouteRequest(listener.ID, "/reorder-targets", nil)
+	createReq.Msg.Targets = append(createReq.Msg.Targets, &p2pstreamv1.PublicRouteTarget{
+		Name:       "target-2",
+		Enabled:    true,
+		TargetType: p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_PROXY,
+		Url:        "http://127.0.0.1:9001",
+		Transport:  p2pstreamv1.PublicRouteTargetTransport_PUBLIC_ROUTE_TARGET_TRANSPORT_DIRECT,
+		Weight:     100,
+	})
+	createReq.Header().Set("Cookie", header.Get("Cookie"))
+	created, err := app.CreatePublicRoute(context.Background(), createReq)
+	if err != nil {
+		t.Fatalf("create route: %v", err)
+	}
+	firstID := created.Msg.Route.Targets[0].Id
+	secondID := created.Msg.Route.Targets[1].Id
+
+	updateReq := testPublicRouteUpdateRequest(created.Msg.Route, "/reorder-targets", []*p2pstreamv1.PublicRouteTarget{
+		created.Msg.Route.Targets[1],
+		created.Msg.Route.Targets[0],
+	})
+	updateReq.Header().Set("Cookie", header.Get("Cookie"))
+	updated, err := app.UpdatePublicRoute(context.Background(), updateReq)
+	if err != nil {
+		t.Fatalf("reorder route targets: %v", err)
+	}
+	if got := updated.Msg.Route.Targets; len(got) != 2 || got[0].Id != secondID || got[1].Id != firstID {
+		t.Fatalf("reordered targets = %+v, want IDs [%d, %d]", got, secondID, firstID)
+	}
 }
 
 func TestPublicRouteUpdateRejectsMaskedSensitiveHeaderFromAnotherRoute(t *testing.T) {

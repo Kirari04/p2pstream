@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import { NButton, NCheckbox, NDrawer, NDrawerContent, NDynamicTags, NInput, NInputNumber, NRadioButton, NRadioGroup, NTransfer } from "naive-ui";
+import { NAlert, NButton, NCheckbox, NDrawer, NDrawerContent, NDynamicTags, NInput, NInputNumber, NRadioButton, NRadioGroup, NTransfer } from "naive-ui";
 import type { TransferOption } from "naive-ui";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
@@ -16,6 +16,7 @@ import {
   type PolicyMatchForm,
 } from "@/lib/publicPolicyMatch";
 import { cacheScopeLabel, routeDestinationLabel, routeTargetName, routeTargetTypeLabel } from "@/lib/publicProxyLabels";
+import { unavailableSelectionIds } from "@/lib/scopeSelections";
 import {
   PublicCacheQueryMode,
   PublicCacheScope,
@@ -90,8 +91,10 @@ const queryModeOptions = [
 ];
 
 const queryParamsEditorVisible = computed(() => queryModeUsesParams(form.queryMode));
-const routeTransferOptions = computed<CacheTransferOption[]>(() =>
-  routes.value.map((route) => {
+const unavailableRouteIds = computed(() => unavailableSelectionIds(form.routeIds, routes.value.map((route) => route.id)));
+const unavailableTargetIds = computed(() => unavailableSelectionIds(form.targetIds, proxyTargets.value.map((target) => target.id)));
+const routeTransferOptions = computed<CacheTransferOption[]>(() => [
+  ...routes.value.map((route) => {
     const value = route.id.toString();
     return {
       label: `${routeLabel(route)} - ${routeDetail(route)}`,
@@ -100,9 +103,15 @@ const routeTransferOptions = computed<CacheTransferOption[]>(() =>
       disabled: !form.routeIds.includes(value) && form.routeIds.length >= maxCacheListItems,
     };
   }),
-);
-const targetTransferOptions = computed<CacheTransferOption[]>(() =>
-  proxyTargets.value.map((target) => {
+  ...unavailableRouteIds.value.map((value) => ({
+    label: `#${value} unavailable route - remove before saving`,
+    value,
+    searchText: `#${value} unavailable missing route`,
+    disabled: false,
+  })),
+]);
+const targetTransferOptions = computed<CacheTransferOption[]>(() => [
+  ...proxyTargets.value.map((target) => {
     const value = target.id.toString();
     return {
       label: `#${target.id.toString()} ${routeTargetName(target)} - ${targetDetail(target)}`,
@@ -111,7 +120,13 @@ const targetTransferOptions = computed<CacheTransferOption[]>(() =>
       disabled: !form.targetIds.includes(value) && form.targetIds.length >= maxCacheListItems,
     };
   }),
-);
+  ...unavailableTargetIds.value.map((value) => ({
+    label: `#${value} unavailable target - remove before saving`,
+    value,
+    searchText: `#${value} unavailable missing target`,
+    disabled: false,
+  })),
+]);
 const routeSelectionSummary = computed(() => form.routeIds.length ? `${form.routeIds.length.toString()} selected` : "All routes");
 const targetSelectionSummary = computed(() => form.targetIds.length ? `${form.targetIds.length.toString()} selected` : "All proxy targets");
 const filterSelectionSummary = computed(() => `${routeSelectionSummary.value} / ${targetSelectionSummary.value}`);
@@ -119,12 +134,16 @@ const queryModeSummary = computed(() => queryModeOptions.find((option) => option
 const normalizedQueryParams = computed(() => normalizeUniqueStrings(form.queryParams));
 const normalizedVaryHeaders = computed(() => normalizeVaryHeaders(form.varyHeaders));
 const normalizedCacheStatusCodes = computed(() => normalizeStatusCodes(form.cacheStatusCodes));
-const routeSelectionValidationReason = computed(() =>
-  form.routeIds.length > maxCacheListItems ? `Cache rules can filter at most ${maxCacheListItems.toString()} routes.` : "",
-);
-const targetSelectionValidationReason = computed(() =>
-  form.targetIds.length > maxCacheListItems ? `Cache rules can filter at most ${maxCacheListItems.toString()} targets.` : "",
-);
+const routeSelectionValidationReason = computed(() => {
+  if (form.routeIds.length > maxCacheListItems) return `Cache rules can filter at most ${maxCacheListItems.toString()} routes.`;
+  if (unavailableRouteIds.value.length) return `Remove unavailable route #${unavailableRouteIds.value[0]} from the saved scope.`;
+  return "";
+});
+const targetSelectionValidationReason = computed(() => {
+  if (form.targetIds.length > maxCacheListItems) return `Cache rules can filter at most ${maxCacheListItems.toString()} targets.`;
+  if (unavailableTargetIds.value.length) return `Remove unavailable target #${unavailableTargetIds.value[0]} from the saved scope.`;
+  return "";
+});
 const queryParamsValidationReason = computed(() => {
   if (!queryParamsEditorVisible.value) return "";
   if (form.queryParams.length > maxCacheListItems) return `Cache rules can list at most ${maxCacheListItems.toString()} query parameters.`;
@@ -509,6 +528,14 @@ defineExpose({ openCreate, openEdit, close });
             <span class="cache-summary-chip">{{ cacheScopeLabel(form.scope) }}</span>
           </div>
         </div>
+
+        <NAlert
+          v-if="unavailableRouteIds.length || unavailableTargetIds.length"
+          type="warning"
+          title="Saved scope contains unavailable entries"
+        >
+          One or more routes or targets were removed after this rule was saved. Remove the entries marked unavailable below before saving.
+        </NAlert>
 
         <div class="target-grid">
           <div class="target-panel">
