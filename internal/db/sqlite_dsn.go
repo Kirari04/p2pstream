@@ -38,6 +38,10 @@ func applySQLitePragmas(values url.Values) {
 	values.Set("_journal_mode", "WAL")
 	values.Set("_synchronous", "NORMAL")
 	values.Set("_busy_timeout", "10000")
+	// Reserve the single SQLite writer when a write transaction begins. A
+	// deferred transaction can otherwise lose a read-to-write upgrade with
+	// SQLITE_BUSY without honoring the busy timeout.
+	values.Set("_txlock", "immediate")
 	values.Set("_fk", "1")
 	values.Set("cache", "private")
 }
