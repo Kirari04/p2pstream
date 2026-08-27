@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNormalizeSQLiteDSNForcesWALAndPrivateCache(t *testing.T) {
@@ -29,8 +30,67 @@ func TestNormalizeSQLiteDSNForcesWALAndPrivateCache(t *testing.T) {
 	if values.Get("_busy_timeout") != "10000" {
 		t.Fatalf("expected 10000 busy timeout, got %q", values.Get("_busy_timeout"))
 	}
+	if values.Get("_txlock") != "immediate" {
+		t.Fatalf("expected immediate transaction locking, got %q", values.Get("_txlock"))
+	}
 	if values.Get("cache") != "private" {
 		t.Fatalf("expected private cache, got %q", values.Get("cache"))
+	}
+}
+
+func TestOpenReadThenWriteTransactionDoesNotLoseToConcurrentWriter(t *testing.T) {
+	database, err := Open(filepath.Join(t.TempDir(), "transaction-lock-test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+	if _, err := database.Exec(`CREATE TABLE transaction_lock_test (id INTEGER PRIMARY KEY, value TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create test table: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	tx, err := database.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin transaction: %v", err)
+	}
+	defer tx.Rollback()
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM transaction_lock_test`).Scan(&count); err != nil {
+		t.Fatalf("establish read snapshot: %v", err)
+	}
+
+	writerDone := make(chan error, 1)
+	go func() {
+		_, err := database.ExecContext(ctx, `INSERT INTO transaction_lock_test (id, value) VALUES (2, 'concurrent')`)
+		writerDone <- err
+	}()
+
+	writerFinished := false
+	select {
+	case err := <-writerDone:
+		writerFinished = true
+		if err != nil {
+			t.Fatalf("concurrent writer: %v", err)
+		}
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	if _, err := tx.ExecContext(ctx, `INSERT INTO transaction_lock_test (id, value) VALUES (1, 'transaction')`); err != nil {
+		t.Fatalf("write after read snapshot: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit transaction: %v", err)
+	}
+	if !writerFinished {
+		select {
+		case err := <-writerDone:
+			if err != nil {
+				t.Fatalf("concurrent writer after commit: %v", err)
+			}
+		case <-ctx.Done():
+			t.Fatalf("concurrent writer did not finish: %v", ctx.Err())
+		}
 	}
 }
 

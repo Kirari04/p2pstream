@@ -333,6 +333,7 @@ func defaultDatabaseURL(dbPath string) string {
 	values.Set("_journal_mode", "WAL")
 	values.Set("_synchronous", "NORMAL")
 	values.Set("_busy_timeout", "10000")
+	values.Set("_txlock", "immediate")
 	values.Set("_fk", "1")
 	values.Set("cache", "private")
 	return "file:" + filepath.ToSlash(dbPath) + "?" + values.Encode()
