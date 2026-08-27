@@ -480,6 +480,7 @@ func assertSQLiteURL(t *testing.T, got, wantDBPath string) {
 		"_journal_mode": "WAL",
 		"_synchronous":  "NORMAL",
 		"_busy_timeout": "10000",
+		"_txlock":       "immediate",
 		"_fk":           "1",
 		"cache":         "private",
 	}

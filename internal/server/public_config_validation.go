@@ -130,9 +130,22 @@ func (a *App) validatePublicRouteTargets(
 	}
 	resp := make([]publicRouteTargetMutationInput, 0, len(targets))
 	enabledTargets := 0
+	seenTargetIDs := make(map[int64]struct{}, len(targets))
 	for idx, target := range targets {
 		if target == nil {
 			continue
+		}
+		if target.Id < 0 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route target ID cannot be negative"))
+		}
+		if target.Id > 0 {
+			if _, ok := existingSecrets.TargetIDs[target.Id]; !ok {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route target %d does not belong to this route", target.Id))
+			}
+			if _, ok := seenTargetIDs[target.Id]; ok {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("route target %d is duplicated", target.Id))
+			}
+			seenTargetIDs[target.Id] = struct{}{}
 		}
 		targetType, err := publicRouteTargetTypeStringFromProto(target.TargetType)
 		if err != nil {
@@ -257,6 +270,7 @@ func (a *App) validatePublicRouteTargets(
 			enabledTargets++
 		}
 		resp = append(resp, publicRouteTargetMutationInput{
+			ID:              target.Id,
 			Params:          params,
 			UpstreamHeaders: upstreamHeaders,
 			ResponseHeaders: responseHeaders,

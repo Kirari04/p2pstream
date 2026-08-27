@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"connectrpc.com/connect"
 
@@ -402,10 +403,12 @@ func (a *App) existingPublicRouteTargetSecrets(ctx context.Context, routeID int6
 		return existingPublicRouteTargetSecrets{}, err
 	}
 	secrets := existingPublicRouteTargetSecrets{
+		TargetIDs:          make(map[int64]struct{}, len(targets)),
 		UpstreamHeaders:    make(map[int64]existingSensitiveUpstreamHeaderValue),
 		BasicAuthPasswords: make(map[int64]string),
 	}
 	for _, target := range targets {
+		secrets.TargetIDs[target.ID] = struct{}{}
 		if target.UpstreamBasicAuthEnabled != 0 && target.UpstreamBasicAuthPassword != "" {
 			secrets.BasicAuthPasswords[target.ID] = target.UpstreamBasicAuthPassword
 		}
@@ -485,12 +488,70 @@ func (a *App) updatePublicRouteWithTargets(
 	if err != nil {
 		return db.PublicRoute{}, nil, err
 	}
-	if err := qtx.DeletePublicRouteTargets(ctx, params.ID); err != nil {
-		return db.PublicRoute{}, nil, err
-	}
-	storedTargets, err := insertPublicRouteTargets(ctx, qtx, params.ID, targets)
+	existingTargets, err := qtx.ListPublicRouteTargetsByRoute(ctx, params.ID)
 	if err != nil {
 		return db.PublicRoute{}, nil, err
+	}
+	existingIDs := make(map[int64]struct{}, len(existingTargets))
+	for _, target := range existingTargets {
+		existingIDs[target.ID] = struct{}{}
+	}
+	retainedIDs := make(map[int64]struct{}, len(targets))
+	for _, target := range targets {
+		if target.ID > 0 {
+			retainedIDs[target.ID] = struct{}{}
+		}
+	}
+	// Free final position values before applying the submitted order. Existing
+	// targets move to a route-local temporary range so swaps cannot collide with
+	// UNIQUE(route_id, position); omitted targets are replacements and can be
+	// removed before new rows are inserted.
+	for _, target := range existingTargets {
+		if _, retained := retainedIDs[target.ID]; !retained {
+			if err := qtx.DeletePublicRouteTarget(ctx, target.ID); err != nil {
+				return db.PublicRoute{}, nil, err
+			}
+			delete(existingIDs, target.ID)
+			continue
+		}
+		staged := publicRouteTargetStoredUpdateParams(target)
+		staged.Position = -target.ID
+		if _, err := qtx.UpdatePublicRouteTarget(ctx, staged); err != nil {
+			return db.PublicRoute{}, nil, err
+		}
+	}
+	storedTargets := make([]db.PublicRouteTarget, 0, len(targets))
+	for idx, target := range targets {
+		target.Params.RouteID = params.ID
+		target.Params.Position = int64(idx)
+		var stored db.PublicRouteTarget
+		if target.ID > 0 {
+			if _, ok := existingIDs[target.ID]; !ok {
+				return db.PublicRoute{}, nil, fmt.Errorf("route target %d does not belong to route %d", target.ID, params.ID)
+			}
+			stored, err = qtx.UpdatePublicRouteTarget(ctx, publicRouteTargetUpdateParams(target.ID, target.Params))
+			if err == nil {
+				err = qtx.DeletePublicRouteTargetUpstreamHeaders(ctx, target.ID)
+			}
+			if err == nil {
+				err = qtx.DeletePublicRouteTargetResponseHeaders(ctx, target.ID)
+			}
+			delete(existingIDs, target.ID)
+		} else {
+			stored, err = qtx.CreatePublicRouteTarget(ctx, target.Params)
+		}
+		if err != nil {
+			return db.PublicRoute{}, nil, err
+		}
+		if err := insertPublicRouteTargetHeaders(ctx, qtx, stored.ID, target); err != nil {
+			return db.PublicRoute{}, nil, err
+		}
+		storedTargets = append(storedTargets, stored)
+	}
+	for id := range existingIDs {
+		if err := qtx.DeletePublicRouteTarget(ctx, id); err != nil {
+			return db.PublicRoute{}, nil, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return db.PublicRoute{}, nil, err
@@ -513,30 +574,75 @@ func insertPublicRouteTargets(
 		if err != nil {
 			return nil, err
 		}
-		for headerIdx, header := range target.UpstreamHeaders {
-			if _, err := queries.CreatePublicRouteTargetUpstreamHeader(ctx, db.CreatePublicRouteTargetUpstreamHeaderParams{
-				TargetID:  stored.ID,
-				Position:  int64(headerIdx),
-				Name:      header.Name,
-				Value:     header.Value,
-				Sensitive: header.Sensitive,
-			}); err != nil {
-				return nil, err
-			}
-		}
-		for headerIdx, header := range target.ResponseHeaders {
-			if _, err := queries.CreatePublicRouteTargetResponseHeader(ctx, db.CreatePublicRouteTargetResponseHeaderParams{
-				TargetID: stored.ID,
-				Position: int64(headerIdx),
-				Name:     header.Name,
-				Value:    header.Value,
-			}); err != nil {
-				return nil, err
-			}
+		if err := insertPublicRouteTargetHeaders(ctx, queries, stored.ID, target); err != nil {
+			return nil, err
 		}
 		storedTargets = append(storedTargets, stored)
 	}
 	return storedTargets, nil
+}
+
+func insertPublicRouteTargetHeaders(ctx context.Context, queries *db.Queries, targetID int64, target publicRouteTargetMutationInput) error {
+	for headerIdx, header := range target.UpstreamHeaders {
+		if _, err := queries.CreatePublicRouteTargetUpstreamHeader(ctx, db.CreatePublicRouteTargetUpstreamHeaderParams{
+			TargetID:  targetID,
+			Position:  int64(headerIdx),
+			Name:      header.Name,
+			Value:     header.Value,
+			Sensitive: header.Sensitive,
+		}); err != nil {
+			return err
+		}
+	}
+	for headerIdx, header := range target.ResponseHeaders {
+		if _, err := queries.CreatePublicRouteTargetResponseHeader(ctx, db.CreatePublicRouteTargetResponseHeaderParams{
+			TargetID: targetID,
+			Position: int64(headerIdx),
+			Name:     header.Name,
+			Value:    header.Value,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func publicRouteTargetUpdateParams(id int64, params db.CreatePublicRouteTargetParams) db.UpdatePublicRouteTargetParams {
+	return db.UpdatePublicRouteTargetParams{
+		ID: id, RouteID: params.RouteID, Name: params.Name, Position: params.Position,
+		PriorityGroup: params.PriorityGroup, Weight: params.Weight, Enabled: params.Enabled,
+		TargetType: params.TargetType, Url: params.Url, Transport: params.Transport,
+		AgentSelectorJson: params.AgentSelectorJson, AgentLoadBalancing: params.AgentLoadBalancing,
+		TlsSkipVerify: params.TlsSkipVerify, UpstreamBasicAuthEnabled: params.UpstreamBasicAuthEnabled,
+		UpstreamBasicAuthUsername: params.UpstreamBasicAuthUsername, UpstreamBasicAuthPassword: params.UpstreamBasicAuthPassword,
+		UpstreamResponseHeaderTimeoutMillis: params.UpstreamResponseHeaderTimeoutMillis,
+		HealthCheckEnabled:                  params.HealthCheckEnabled, HealthCheckMethod: params.HealthCheckMethod,
+		HealthCheckPath: params.HealthCheckPath, HealthCheckIntervalMillis: params.HealthCheckIntervalMillis,
+		HealthCheckTimeoutMillis: params.HealthCheckTimeoutMillis, HealthCheckHealthyThreshold: params.HealthCheckHealthyThreshold,
+		HealthCheckUnhealthyThreshold: params.HealthCheckUnhealthyThreshold,
+		HealthCheckExpectedStatusMin:  params.HealthCheckExpectedStatusMin, HealthCheckExpectedStatusMax: params.HealthCheckExpectedStatusMax,
+		StaticStatusCode: params.StaticStatusCode, StaticResponseBody: params.StaticResponseBody,
+		StaticResponseBodyMode: params.StaticResponseBodyMode, StaticResponseTemplateID: params.StaticResponseTemplateID,
+	}
+}
+
+func publicRouteTargetStoredUpdateParams(target db.PublicRouteTarget) db.UpdatePublicRouteTargetParams {
+	return db.UpdatePublicRouteTargetParams{
+		ID: target.ID, RouteID: target.RouteID, Name: target.Name, Position: target.Position,
+		PriorityGroup: target.PriorityGroup, Weight: target.Weight, Enabled: target.Enabled,
+		TargetType: target.TargetType, Url: target.Url, Transport: target.Transport,
+		AgentSelectorJson: target.AgentSelectorJson, AgentLoadBalancing: target.AgentLoadBalancing,
+		TlsSkipVerify: target.TlsSkipVerify, UpstreamBasicAuthEnabled: target.UpstreamBasicAuthEnabled,
+		UpstreamBasicAuthUsername: target.UpstreamBasicAuthUsername, UpstreamBasicAuthPassword: target.UpstreamBasicAuthPassword,
+		UpstreamResponseHeaderTimeoutMillis: target.UpstreamResponseHeaderTimeoutMillis,
+		HealthCheckEnabled:                  target.HealthCheckEnabled, HealthCheckMethod: target.HealthCheckMethod,
+		HealthCheckPath: target.HealthCheckPath, HealthCheckIntervalMillis: target.HealthCheckIntervalMillis,
+		HealthCheckTimeoutMillis: target.HealthCheckTimeoutMillis, HealthCheckHealthyThreshold: target.HealthCheckHealthyThreshold,
+		HealthCheckUnhealthyThreshold: target.HealthCheckUnhealthyThreshold,
+		HealthCheckExpectedStatusMin:  target.HealthCheckExpectedStatusMin, HealthCheckExpectedStatusMax: target.HealthCheckExpectedStatusMax,
+		StaticStatusCode: target.StaticStatusCode, StaticResponseBody: target.StaticResponseBody,
+		StaticResponseBodyMode: target.StaticResponseBodyMode, StaticResponseTemplateID: target.StaticResponseTemplateID,
+	}
 }
 
 func (a *App) DeletePublicRoute(

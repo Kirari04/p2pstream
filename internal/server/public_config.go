@@ -127,11 +127,13 @@ type existingSensitiveUpstreamHeaderValue struct {
 }
 
 type existingPublicRouteTargetSecrets struct {
+	TargetIDs          map[int64]struct{}
 	UpstreamHeaders    map[int64]existingSensitiveUpstreamHeaderValue
 	BasicAuthPasswords map[int64]string
 }
 
 type publicRouteTargetMutationInput struct {
+	ID              int64
 	Params          db.CreatePublicRouteTargetParams
 	UpstreamHeaders []publicRouteTargetUpstreamHeaderInput
 	ResponseHeaders []publicRouteTargetResponseHeaderInput
