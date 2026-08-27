@@ -183,6 +183,11 @@ func retryAssetHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	asset, ok := retryAssetFixture(strings.TrimPrefix(r.URL.Path, "/retry-assets/"))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
 
 	retryAsset.mu.Lock()
 	retryAsset.totalAttempts++
@@ -206,12 +211,17 @@ func retryAssetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("X-Smoke-Upstream-Attempt", strconv.Itoa(attempt))
-	_, _ = fmt.Fprintf(w, "%s recovered\n", strings.TrimPrefix(r.URL.Path, "/retry-assets/"))
+	_, _ = fmt.Fprintf(w, "%s recovered\n", asset)
 }
 
 func retryResponseAssetHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	asset, ok := retryResponseAssetFixture(strings.TrimPrefix(r.URL.Path, "/retry-response-assets/"))
+	if !ok {
+		http.NotFound(w, r)
 		return
 	}
 
@@ -221,7 +231,6 @@ func retryResponseAssetHandler(w http.ResponseWriter, r *http.Request) {
 	attempt := retryAsset.attemptsByPath[r.URL.Path]
 	retryAsset.mu.Unlock()
 
-	asset := strings.TrimPrefix(r.URL.Path, "/retry-response-assets/")
 	payload := []byte(asset + " recovered\n")
 	contentType, contentEncoding, encoded, err := encodeRetryResponseAsset(asset, payload)
 	if err != nil {
@@ -338,6 +347,10 @@ func retryCloseDelimitedAssetHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if strings.TrimPrefix(r.URL.Path, "/retry-close-delimited/") != "report.txt" {
+		http.NotFound(w, r)
+		return
+	}
 
 	retryAsset.mu.Lock()
 	retryAsset.totalAttempts++
@@ -355,8 +368,7 @@ func retryCloseDelimitedAssetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
-	asset := strings.TrimPrefix(r.URL.Path, "/retry-close-delimited/")
-	payload := []byte(asset + " recovered\n")
+	payload := []byte("report.txt recovered\n")
 	_, _ = fmt.Fprintf(rw, "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\nX-Smoke-Upstream-Attempt: %d\r\n\r\n", attempt)
 	if attempt == 1 {
 		partialLength := len(payload) / 2
@@ -398,6 +410,11 @@ func retryStatusHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	asset, ok := retryStatusAssetFixture(parts[1])
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
 	retryCode, err := strconv.Atoi(parts[0])
 	if err != nil || retryCode < 400 || retryCode > 599 {
 		http.Error(w, "invalid retry status", http.StatusBadRequest)
@@ -414,12 +431,59 @@ func retryStatusHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("temporary upstream status %d", retryCode), retryCode)
 		return
 	}
-	if strings.HasSuffix(parts[1], ".css") {
+	if strings.HasSuffix(asset, ".css") {
 		w.Header().Set("Content-Type", "text/css")
 	} else {
 		w.Header().Set("Content-Type", "application/javascript")
 	}
-	_, _ = fmt.Fprintf(w, "%s recovered from %d\n", parts[1], retryCode)
+	_, _ = fmt.Fprintf(w, "%s recovered from %d\n", asset, retryCode)
+}
+
+func retryAssetFixture(asset string) (string, bool) {
+	switch asset {
+	case "app.js":
+		return "app.js", true
+	case "vendor.js":
+		return "vendor.js", true
+	case "site.css":
+		return "site.css", true
+	default:
+		return "", false
+	}
+}
+
+func retryResponseAssetFixture(asset string) (string, bool) {
+	switch asset {
+	case "document.html":
+		return "document.html", true
+	case "identity.chunked.html":
+		return "identity.chunked.html", true
+	case "archive.gzip.bin":
+		return "archive.gzip.bin", true
+	case "styles.deflate.bin":
+		return "styles.deflate.bin", true
+	case "font.br.bin":
+		return "font.br.bin", true
+	case "bundle.zstd.bin":
+		return "bundle.zstd.bin", true
+	case "combo.stacked.bin":
+		return "combo.stacked.bin", true
+	case "metadata.trailers.chunked.html":
+		return "metadata.trailers.chunked.html", true
+	default:
+		return "", false
+	}
+}
+
+func retryStatusAssetFixture(asset string) (string, bool) {
+	switch asset {
+	case "chunk.js":
+		return "chunk.js", true
+	case "theme.css":
+		return "theme.css", true
+	default:
+		return "", false
+	}
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
