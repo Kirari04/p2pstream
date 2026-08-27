@@ -72,7 +72,7 @@ import type {
   PublicWafCaptchaProvider,
   PublicWafRule,
 } from "@/gen/proto/p2pstream/v1/management_pb";
-import { PublicPolicyMatchRuleSchema, PublicRetryBodyMode, PublicRetryFailureMode } from "@/gen/proto/p2pstream/v1/management_pb";
+import { PublicPolicyMatchRuleSchema, PublicRetryBodyMode, PublicRetryFailureMode, PublicRetryResponseBodyMode } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const policySectionKeys = ["rate-limits", "waf", "access", "cache", "retries", "traffic-shaper"] as const;
 type PolicySectionKey = typeof policySectionKeys[number];
@@ -550,6 +550,12 @@ function retryBodyModeLabel(rule: PublicRetryRule): string {
   return `Replay ≤ ${bytesToKiB(rule.maxReplayBodyBytes).toLocaleString()} KiB`;
 }
 
+function retryResponseBodyModeLabel(rule: PublicRetryRule): string {
+  if (rule.responseBodyMode !== PublicRetryResponseBodyMode.BUFFERED) return "Response streaming";
+  const waitSeconds = Math.max(1, Math.round(Number(rule.maxBufferedResponseWaitMillis || 30000n) / 1000));
+  return `Protect response ≤ ${bytesToKiB(rule.maxBufferedResponseBodyBytes).toLocaleString()} KiB / ${waitSeconds.toLocaleString()} s`;
+}
+
 function retryStatusSummary(rule: PublicRetryRule): string {
   return rule.retryStatusCodes.length
     ? `HTTP ${rule.retryStatusCodes.map(String).join(", ")}`
@@ -571,6 +577,7 @@ function retryScopeSummary(rule: PublicRetryRule): string {
 function retryHasDuplicateRisk(rule: PublicRetryRule): boolean {
   return rule.failureMode === PublicRetryFailureMode.PRE_RESPONSE_FAILURES ||
     rule.retryStatusCodes.length > 0 ||
+    rule.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED ||
     rule.methods.some((method) => !["GET", "HEAD", "OPTIONS"].includes(method));
 }
 
@@ -583,6 +590,7 @@ function retrySearchText(rule: PublicRetryRule): string {
     retryFailureModeLabel(rule.failureMode),
     retryStatusSummary(rule),
     retryBodyModeLabel(rule),
+    retryResponseBodyModeLabel(rule),
     retryScopeSummary(rule),
     publicPolicyMatchSummary(rule),
     retryHasDuplicateRisk(rule) ? "duplicate risk" : "safe methods",
@@ -1418,7 +1426,7 @@ async function deleteTrafficShaperRule(id: bigint) {
             <div>
               <h2 id="retry-principles-title">One client request, bounded upstream attempts</h2>
               <p>
-                Retries use a different eligible agent chosen by the target's load balancer. They stay inside the selected target and can recover transport failures or explicitly selected HTTP error statuses before any response reaches the client.
+                Retries use a different eligible agent chosen by the target's load balancer. They stay inside the selected target and can recover transport failures, selected HTTP error statuses, and protected mid-response failures before any response reaches the client.
               </p>
             </div>
             <div class="retry-principles__facts" aria-label="Retry invariants">
@@ -1495,6 +1503,7 @@ async function deleteTrafficShaperRule(id: bigint) {
                         <div><dt>Failure mode</dt><dd>{{ retryFailureModeLabel(rule.failureMode) }}</dd></div>
                         <div><dt>Retry statuses</dt><dd>{{ retryStatusSummary(rule) }}</dd></div>
                         <div><dt>Body replay</dt><dd>{{ retryBodyModeLabel(rule) }}</dd></div>
+                        <div><dt>Response completion</dt><dd>{{ retryResponseBodyModeLabel(rule) }}</dd></div>
                       </dl>
                     </details>
                   </div>
@@ -1512,6 +1521,7 @@ async function deleteTrafficShaperRule(id: bigint) {
                     <p class="policy-data-secondary mono-text" :title="retryMethodSummary(rule)">{{ retryMethodSummary(rule) }}</p>
                     <p class="policy-data-secondary">{{ retryStatusSummary(rule) }}</p>
                     <p class="policy-data-secondary">{{ retryBodyModeLabel(rule) }}</p>
+                    <p class="policy-data-secondary">{{ retryResponseBodyModeLabel(rule) }}</p>
                   </div>
                   <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
                     <span class="policy-data-label">Order &amp; state</span>

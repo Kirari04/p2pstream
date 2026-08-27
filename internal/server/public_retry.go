@@ -21,57 +21,69 @@ const (
 	publicRetryFailureModePreResponseFailures = "pre_response_failures"
 	publicRetryBodyModeNever                  = "never"
 	publicRetryBodyModeBuffered               = "buffered"
+	publicRetryResponseBodyModeStream         = "stream"
+	publicRetryResponseBodyModeBuffered       = "buffered"
 	publicRetryOutcomeRecovered               = "recovered"
 	publicRetryOutcomeExhausted               = "exhausted"
 	publicRetryOutcomeSkipped                 = "skipped"
 
-	defaultPublicRetryMaxRetries        = int64(1)
-	maxPublicRetryMaxRetries            = int64(3)
-	maxPublicRetryMethods               = 32
-	maxPublicRetryFilters               = 64
-	maxPublicRetryStatusCodes           = 64
-	maxPublicRetryReplayBodyBytes       = int64(4 << 20)
-	defaultPublicRetryReplayBudgetBytes = int64(64 << 20)
+	defaultPublicRetryMaxRetries            = int64(1)
+	maxPublicRetryMaxRetries                = int64(3)
+	maxPublicRetryMethods                   = 32
+	maxPublicRetryFilters                   = 64
+	maxPublicRetryStatusCodes               = 64
+	maxPublicRetryReplayBodyBytes           = int64(4 << 20)
+	maxPublicRetryBufferedResponseBodyBytes = int64(64 << 20)
+	defaultPublicRetryResponseWaitMillis    = int64(30_000)
+	minPublicRetryResponseWaitMillis        = int64(1_000)
+	maxPublicRetryResponseWaitMillis        = int64(300_000)
+	defaultPublicRetryReplayBudgetBytes     = int64(64 << 20)
 )
 
 var defaultPublicRetryMethods = []string{http.MethodGet, http.MethodHead}
 
 type publicRetryRuleConfig struct {
-	ID                 int64
-	Name               string
-	Priority           int64
-	Enabled            bool
-	Methods            []string
-	methodSet          map[string]struct{}
-	AllMethods         bool
-	MaxRetries         int64
-	FailureMode        string
-	BodyMode           string
-	MaxReplayBodyBytes int64
-	RetryStatusCodes   []int64
-	retryStatusCodeSet map[int]struct{}
-	RouteIDs           []int64
-	routeIDSet         map[int64]struct{}
-	TargetIDs          []int64
-	targetIDSet        map[int64]struct{}
-	Match              publicPolicyMatchConfig
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ID                           int64
+	Name                         string
+	Priority                     int64
+	Enabled                      bool
+	Methods                      []string
+	methodSet                    map[string]struct{}
+	AllMethods                   bool
+	MaxRetries                   int64
+	FailureMode                  string
+	BodyMode                     string
+	MaxReplayBodyBytes           int64
+	ResponseBodyMode             string
+	MaxBufferedResponseBodyBytes int64
+	MaxBufferedResponseWait      time.Duration
+	RetryStatusCodes             []int64
+	retryStatusCodeSet           map[int]struct{}
+	RouteIDs                     []int64
+	routeIDSet                   map[int64]struct{}
+	TargetIDs                    []int64
+	targetIDSet                  map[int64]struct{}
+	Match                        publicPolicyMatchConfig
+	CreatedAt                    time.Time
+	UpdatedAt                    time.Time
 }
 
 type publicRetryRuleMutationInput struct {
-	Name               string
-	Priority           int64
-	Enabled            int64
-	MethodsJSON        string
-	MaxRetries         int64
-	FailureMode        string
-	BodyMode           string
-	MaxReplayBodyBytes int64
-	RetryStatusJSON    string
-	RouteIDsJSON       string
-	TargetIDsJSON      string
-	MatchJSON          string
+	Name                          string
+	Priority                      int64
+	Enabled                       int64
+	MethodsJSON                   string
+	MaxRetries                    int64
+	FailureMode                   string
+	BodyMode                      string
+	MaxReplayBodyBytes            int64
+	ResponseBodyMode              string
+	MaxBufferedResponseBodyBytes  int64
+	MaxBufferedResponseWaitMillis int64
+	RetryStatusJSON               string
+	RouteIDsJSON                  string
+	TargetIDsJSON                 string
+	MatchJSON                     string
 }
 
 func (rule publicRetryRuleConfig) matches(listener publicListenerConfig, r *http.Request, resolution publicRouteResolution) bool {
@@ -164,8 +176,8 @@ func normalizePublicRetryMethods(values []string) ([]string, error) {
 	return methods, nil
 }
 
-func publicRetryRequiresDuplicateRiskAcknowledgement(methods []string, failureMode string, retryStatusCodes []int64) bool {
-	if failureMode == publicRetryFailureModePreResponseFailures || len(retryStatusCodes) > 0 {
+func publicRetryRequiresDuplicateRiskAcknowledgement(methods []string, failureMode string, retryStatusCodes []int64, responseBodyMode string) bool {
+	if failureMode == publicRetryFailureModePreResponseFailures || len(retryStatusCodes) > 0 || normalizePublicRetryResponseBodyMode(responseBodyMode) == publicRetryResponseBodyModeBuffered {
 		return true
 	}
 	for _, method := range methods {
@@ -222,6 +234,13 @@ func normalizePublicRetryBodyMode(value string) string {
 	return publicRetryBodyModeNever
 }
 
+func normalizePublicRetryResponseBodyMode(value string) string {
+	if value == publicRetryResponseBodyModeBuffered {
+		return publicRetryResponseBodyModeBuffered
+	}
+	return publicRetryResponseBodyModeStream
+}
+
 func protoPublicRetryFailureMode(value string) p2pstreamv1.PublicRetryFailureMode {
 	if normalizePublicRetryFailureMode(value) == publicRetryFailureModePreResponseFailures {
 		return p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES
@@ -248,6 +267,20 @@ func publicRetryBodyModeFromProto(value p2pstreamv1.PublicRetryBodyMode) string 
 		return publicRetryBodyModeBuffered
 	}
 	return publicRetryBodyModeNever
+}
+
+func protoPublicRetryResponseBodyMode(value string) p2pstreamv1.PublicRetryResponseBodyMode {
+	if normalizePublicRetryResponseBodyMode(value) == publicRetryResponseBodyModeBuffered {
+		return p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED
+	}
+	return p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_STREAM
+}
+
+func publicRetryResponseBodyModeFromProto(value p2pstreamv1.PublicRetryResponseBodyMode) string {
+	if value == p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED {
+		return publicRetryResponseBodyModeBuffered
+	}
+	return publicRetryResponseBodyModeStream
 }
 
 func publicRetryRuleRowToConfig(row db.PublicRetryRule) (publicRetryRuleConfig, error) {
@@ -291,6 +324,20 @@ func publicRetryRuleRowToConfig(row db.PublicRetryRule) (publicRetryRuleConfig, 
 	if bodyMode == publicRetryBodyModeNever {
 		maxReplayBodyBytes = 0
 	}
+	responseBodyMode := normalizePublicRetryResponseBodyMode(row.ResponseBodyMode)
+	maxBufferedResponseBodyBytes := row.MaxBufferedResponseBodyBytes
+	maxBufferedResponseWaitMillis := row.MaxBufferedResponseWaitMillis
+	if responseBodyMode == publicRetryResponseBodyModeStream {
+		maxBufferedResponseBodyBytes = 0
+		maxBufferedResponseWaitMillis = 0
+	} else {
+		if maxBufferedResponseWaitMillis < minPublicRetryResponseWaitMillis {
+			maxBufferedResponseWaitMillis = defaultPublicRetryResponseWaitMillis
+		}
+		if maxBufferedResponseWaitMillis > maxPublicRetryResponseWaitMillis {
+			maxBufferedResponseWaitMillis = maxPublicRetryResponseWaitMillis
+		}
+	}
 	methodSet := make(map[string]struct{}, len(methods))
 	for _, method := range methods {
 		methodSet[method] = struct{}{}
@@ -312,7 +359,9 @@ func publicRetryRuleRowToConfig(row db.PublicRetryRule) (publicRetryRuleConfig, 
 		Methods: methods, methodSet: methodSet, AllMethods: len(methods) == 1 && methods[0] == "*",
 		MaxRetries: maxRetries, FailureMode: normalizePublicRetryFailureMode(row.FailureMode),
 		BodyMode: bodyMode, MaxReplayBodyBytes: maxReplayBodyBytes,
-		RetryStatusCodes: retryStatusCodes, retryStatusCodeSet: retryStatusCodeSet,
+		ResponseBodyMode: responseBodyMode, MaxBufferedResponseBodyBytes: maxBufferedResponseBodyBytes,
+		MaxBufferedResponseWait: time.Duration(maxBufferedResponseWaitMillis) * time.Millisecond,
+		RetryStatusCodes:        retryStatusCodes, retryStatusCodeSet: retryStatusCodeSet,
 		RouteIDs: routeIDs, routeIDSet: routeIDSet, TargetIDs: targetIDs, targetIDSet: targetIDSet,
 		Match: match, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 	}, nil
@@ -324,8 +373,11 @@ func publicRetryRuleConfigToProto(rule publicRetryRuleConfig) *p2pstreamv1.Publi
 		Methods: append([]string(nil), rule.Methods...), MaxRetries: rule.MaxRetries,
 		FailureMode: protoPublicRetryFailureMode(rule.FailureMode), BodyMode: protoPublicRetryBodyMode(rule.BodyMode),
 		MaxReplayBodyBytes: rule.MaxReplayBodyBytes, RouteIds: append([]int64(nil), rule.RouteIDs...),
-		RetryStatusCodes: append([]int64(nil), rule.RetryStatusCodes...),
-		TargetIds:        append([]int64(nil), rule.TargetIDs...), MatchRule: publicPolicyMatchRuleToProto(rule.Match),
+		ResponseBodyMode:              protoPublicRetryResponseBodyMode(rule.ResponseBodyMode),
+		MaxBufferedResponseBodyBytes:  rule.MaxBufferedResponseBodyBytes,
+		MaxBufferedResponseWaitMillis: rule.MaxBufferedResponseWait.Milliseconds(),
+		RetryStatusCodes:              append([]int64(nil), rule.RetryStatusCodes...),
+		TargetIds:                     append([]int64(nil), rule.TargetIDs...), MatchRule: publicPolicyMatchRuleToProto(rule.Match),
 		CreatedAtUnixMillis: rule.CreatedAt.UnixMilli(), UpdatedAtUnixMillis: rule.UpdatedAt.UnixMilli(),
 	}
 }
@@ -360,6 +412,9 @@ func (a *App) validatePublicRetryRuleInput(
 	failureMode p2pstreamv1.PublicRetryFailureMode,
 	bodyMode p2pstreamv1.PublicRetryBodyMode,
 	maxReplayBodyBytes int64,
+	responseBodyMode p2pstreamv1.PublicRetryResponseBodyMode,
+	maxBufferedResponseBodyBytes int64,
+	maxBufferedResponseWaitMillis int64,
 	retryStatusCodes []int64,
 	routeIDs []int64,
 	targetIDs []int64,
@@ -382,14 +437,28 @@ func (a *App) validatePublicRetryRuleInput(
 	if err != nil {
 		return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	if publicRetryRequiresDuplicateRiskAcknowledgement(methods, failureModeString, retryStatusCodes) && !duplicateRiskAcknowledged {
-		return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("duplicate request risk must be acknowledged for pre-response failures, retryable HTTP statuses, or methods with side effects"))
+	responseBodyModeString := publicRetryResponseBodyModeFromProto(responseBodyMode)
+	if publicRetryRequiresDuplicateRiskAcknowledgement(methods, failureModeString, retryStatusCodes, responseBodyModeString) && !duplicateRiskAcknowledged {
+		return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("duplicate request risk must be acknowledged for pre-response failures, retryable HTTP statuses, buffered response retries, or methods with side effects"))
 	}
 	bodyModeString := publicRetryBodyModeFromProto(bodyMode)
 	if bodyModeString == publicRetryBodyModeNever {
 		maxReplayBodyBytes = 0
 	} else if maxReplayBodyBytes < 1 || maxReplayBodyBytes > maxPublicRetryReplayBodyBytes {
 		return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("maximum replay body must be between 1 byte and %d bytes", maxPublicRetryReplayBodyBytes))
+	}
+	if responseBodyModeString == publicRetryResponseBodyModeStream {
+		maxBufferedResponseBodyBytes = 0
+		maxBufferedResponseWaitMillis = 0
+	} else if maxBufferedResponseBodyBytes < 1 || maxBufferedResponseBodyBytes > maxPublicRetryBufferedResponseBodyBytes {
+		return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("maximum buffered response body must be between 1 byte and %d bytes", maxPublicRetryBufferedResponseBodyBytes))
+	} else {
+		if maxBufferedResponseWaitMillis == 0 {
+			maxBufferedResponseWaitMillis = defaultPublicRetryResponseWaitMillis
+		}
+		if maxBufferedResponseWaitMillis < minPublicRetryResponseWaitMillis || maxBufferedResponseWaitMillis > maxPublicRetryResponseWaitMillis {
+			return publicRetryRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("maximum buffered response wait must be between %d and %d milliseconds", minPublicRetryResponseWaitMillis, maxPublicRetryResponseWaitMillis))
+		}
 	}
 	routeIDs = normalizePublicCacheInt64List(routeIDs)
 	targetIDs = normalizePublicCacheInt64List(targetIDs)
@@ -426,7 +495,9 @@ func (a *App) validatePublicRetryRuleInput(
 		Name: name, Priority: priority, Enabled: boolInt(enabled), MethodsJSON: string(methodsJSON),
 		MaxRetries: maxRetries, FailureMode: failureModeString, BodyMode: bodyModeString,
 		MaxReplayBodyBytes: maxReplayBodyBytes, RetryStatusJSON: string(retryStatusJSON), RouteIDsJSON: string(routeIDsJSON),
-		TargetIDsJSON: string(targetIDsJSON), MatchJSON: string(matchJSON),
+		ResponseBodyMode: responseBodyModeString, MaxBufferedResponseBodyBytes: maxBufferedResponseBodyBytes,
+		MaxBufferedResponseWaitMillis: maxBufferedResponseWaitMillis,
+		TargetIDsJSON:                 string(targetIDsJSON), MatchJSON: string(matchJSON),
 	}, nil
 }
 
@@ -434,7 +505,7 @@ func (a *App) CreatePublicRetryRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	input, err := a.validatePublicRetryRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Methods, req.Msg.MaxRetries, req.Msg.FailureMode, req.Msg.BodyMode, req.Msg.MaxReplayBodyBytes, req.Msg.RetryStatusCodes, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.MatchRule, req.Msg.DuplicateRiskAcknowledged)
+	input, err := a.validatePublicRetryRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Methods, req.Msg.MaxRetries, req.Msg.FailureMode, req.Msg.BodyMode, req.Msg.MaxReplayBodyBytes, req.Msg.ResponseBodyMode, req.Msg.MaxBufferedResponseBodyBytes, req.Msg.MaxBufferedResponseWaitMillis, req.Msg.RetryStatusCodes, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.MatchRule, req.Msg.DuplicateRiskAcknowledged)
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +513,9 @@ func (a *App) CreatePublicRetryRule(ctx context.Context, req *connect.Request[p2
 		Name: input.Name, Priority: input.Priority, Enabled: input.Enabled, MethodsJson: input.MethodsJSON,
 		MaxRetries: input.MaxRetries, FailureMode: input.FailureMode, BodyMode: input.BodyMode,
 		MaxReplayBodyBytes: input.MaxReplayBodyBytes, RetryStatusCodesJson: input.RetryStatusJSON, RouteIdsJson: input.RouteIDsJSON,
-		TargetIdsJson: input.TargetIDsJSON, MatchJson: input.MatchJSON,
+		ResponseBodyMode: input.ResponseBodyMode, MaxBufferedResponseBodyBytes: input.MaxBufferedResponseBodyBytes,
+		MaxBufferedResponseWaitMillis: input.MaxBufferedResponseWaitMillis,
+		TargetIdsJson:                 input.TargetIDsJSON, MatchJson: input.MatchJSON,
 	})
 	if err != nil {
 		return nil, publicDBError(err)
@@ -461,7 +534,7 @@ func (a *App) UpdatePublicRetryRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	input, err := a.validatePublicRetryRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Methods, req.Msg.MaxRetries, req.Msg.FailureMode, req.Msg.BodyMode, req.Msg.MaxReplayBodyBytes, req.Msg.RetryStatusCodes, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.MatchRule, req.Msg.DuplicateRiskAcknowledged)
+	input, err := a.validatePublicRetryRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.Methods, req.Msg.MaxRetries, req.Msg.FailureMode, req.Msg.BodyMode, req.Msg.MaxReplayBodyBytes, req.Msg.ResponseBodyMode, req.Msg.MaxBufferedResponseBodyBytes, req.Msg.MaxBufferedResponseWaitMillis, req.Msg.RetryStatusCodes, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.MatchRule, req.Msg.DuplicateRiskAcknowledged)
 	if err != nil {
 		return nil, err
 	}
@@ -469,8 +542,10 @@ func (a *App) UpdatePublicRetryRule(ctx context.Context, req *connect.Request[p2
 		ID: req.Msg.Id, Name: input.Name, Priority: input.Priority, Enabled: input.Enabled,
 		MethodsJson: input.MethodsJSON, MaxRetries: input.MaxRetries, FailureMode: input.FailureMode,
 		BodyMode: input.BodyMode, MaxReplayBodyBytes: input.MaxReplayBodyBytes,
-		RetryStatusCodesJson: input.RetryStatusJSON,
-		RouteIdsJson:         input.RouteIDsJSON, TargetIdsJson: input.TargetIDsJSON, MatchJson: input.MatchJSON,
+		ResponseBodyMode: input.ResponseBodyMode, MaxBufferedResponseBodyBytes: input.MaxBufferedResponseBodyBytes,
+		MaxBufferedResponseWaitMillis: input.MaxBufferedResponseWaitMillis,
+		RetryStatusCodesJson:          input.RetryStatusJSON,
+		RouteIdsJson:                  input.RouteIDsJSON, TargetIdsJson: input.TargetIDsJSON, MatchJson: input.MatchJSON,
 	})
 	if err != nil {
 		return nil, publicDBError(err)

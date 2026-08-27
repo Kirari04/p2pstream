@@ -19,7 +19,7 @@ The server runs the management UI/API, public proxy runtime, SQLite storage, pub
 | Management UI/API | Serves the Vue UI, ConnectRPC API, and authenticated agent Yamux tunnel on `MANAGEMENT_PORT`, default `8081`. |
 | Public listeners | Bind configured HTTP/HTTPS ports and receive public user traffic. |
 | WAF | Applies ordered block, captcha, and waiting-room rules before rate limits and routing. |
-| Access control | Uses a route-assigned forward-auth provider and optional group policy to protect public resources. |
+| Access control | Uses a route-assigned local-user or forward-auth provider and optional group policy to protect public resources. |
 | Router | Selects a route by listener, host, path prefix, and priority. |
 | Target executor | Forwards directly, returns static responses, redirects, or sends requests to a label-selected agent. |
 | SQLite | Stores users, sessions, agents, public proxy config, TLS metadata, and observability events. |

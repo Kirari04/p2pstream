@@ -4,6 +4,9 @@ package smoketest
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -26,6 +29,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/zstd"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
@@ -137,37 +142,78 @@ func TestDockerSmoke(t *testing.T) {
 		)
 		retryRule := createAgentDisconnectRetryRule(ctx, t, client, cookie, retryRoute.GetId())
 
-		assets := []string{"app.js", "vendor.js", "site.css"}
+		type retryAssetScenario struct {
+			path          string
+			asset         string
+			encoding      string
+			bodyStarted   bool
+			expectTrailer bool
+		}
+		assets := []retryAssetScenario{
+			{path: "/retry-assets/app.js", asset: "app.js"},
+			{path: "/retry-assets/vendor.js", asset: "vendor.js"},
+			{path: "/retry-assets/site.css", asset: "site.css"},
+			{path: "/retry-response-assets/document.html", asset: "document.html", bodyStarted: true},
+			{path: "/retry-response-assets/identity.chunked.html", asset: "identity.chunked.html", bodyStarted: true},
+			{path: "/retry-response-assets/archive.gzip.bin", asset: "archive.gzip.bin", encoding: "gzip", bodyStarted: true},
+			{path: "/retry-response-assets/styles.deflate.bin", asset: "styles.deflate.bin", encoding: "deflate", bodyStarted: true},
+			{path: "/retry-response-assets/font.br.bin", asset: "font.br.bin", encoding: "br", bodyStarted: true},
+			{path: "/retry-response-assets/bundle.zstd.bin", asset: "bundle.zstd.bin", encoding: "zstd", bodyStarted: true},
+			{path: "/retry-response-assets/combo.stacked.bin", asset: "combo.stacked.bin", encoding: "gzip, zstd", bodyStarted: true},
+			{path: "/retry-response-assets/metadata.trailers.chunked.html", asset: "metadata.trailers.chunked.html", bodyStarted: true, expectTrailer: true},
+			{path: "/retry-close-delimited/report.txt", asset: "report.txt", bodyStarted: true},
+		}
 		type requestResult struct {
-			asset   string
-			status  int
-			body    string
-			attempt string
-			err     error
+			scenario retryAssetScenario
+			status   int
+			body     []byte
+			encoding string
+			trailer  string
+			attempt  string
+			err      error
 		}
 		resultCh := make(chan requestResult, len(assets))
-		for _, asset := range assets {
-			go func() {
-				requestClient := httpClient()
-				requestClient.Timeout = 20 * time.Second
-				resp, err := requestClient.Get(smokeURL(publicAgentURL, "/retry-assets/"+asset))
+		for _, scenario := range assets {
+			go func(scenario retryAssetScenario) {
+				requestClient := &http.Client{
+					Timeout: 20 * time.Second,
+					Transport: &http.Transport{
+						DisableKeepAlives:  true,
+						DisableCompression: true,
+					},
+				}
+				req, err := http.NewRequest(http.MethodGet, smokeURL(publicAgentURL, scenario.path), nil)
 				if err != nil {
-					resultCh <- requestResult{asset: asset, err: err}
+					resultCh <- requestResult{scenario: scenario, err: err}
+					return
+				}
+				req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+				resp, err := requestClient.Do(req)
+				if err != nil {
+					resultCh <- requestResult{scenario: scenario, err: err}
 					return
 				}
 				defer resp.Body.Close()
 				body, readErr := io.ReadAll(resp.Body)
 				resultCh <- requestResult{
-					asset:   asset,
-					status:  resp.StatusCode,
-					body:    string(body),
-					attempt: resp.Header.Get("X-Smoke-Upstream-Attempt"),
-					err:     readErr,
+					scenario: scenario,
+					status:   resp.StatusCode,
+					body:     body,
+					encoding: resp.Header.Get("Content-Encoding"),
+					trailer:  resp.Trailer.Get("X-Smoke-Trailer"),
+					attempt:  resp.Header.Get("X-Smoke-Upstream-Attempt"),
+					err:      readErr,
 				}
-			}()
+			}(scenario)
 		}
 
-		waitRetryAssetAttempts(t, upstreamURL, len(assets))
+		startedBodies := 0
+		for _, scenario := range assets {
+			if scenario.bodyStarted {
+				startedBodies++
+			}
+		}
+		waitRetryAssetState(t, upstreamURL, len(assets), startedBodies)
 		startSmokeAgent(t, controlDir, "retry-backup")
 		waitAgentConnectionState(ctx, t, client, cookie, backup.GetPublicId(), true)
 		rotateSmokeAgentToken(ctx, t, client, cookie, primary.GetId())
@@ -180,20 +226,34 @@ func TestDockerSmoke(t *testing.T) {
 				t.Fatal("asset requests did not finish after primary agent disconnected")
 			}
 			if result.err != nil {
-				t.Fatalf("asset %q request after primary agent disconnect: %v", result.asset, result.err)
+				t.Fatalf("asset %q request after primary agent disconnect: %v", result.scenario.asset, result.err)
 			}
 			if result.status != http.StatusOK {
-				t.Fatalf("asset %q request status = %d, want 200; body=%q", result.asset, result.status, result.body)
+				t.Fatalf("asset %q request status = %d, want 200; body=%q", result.scenario.asset, result.status, result.body)
 			}
-			if wantBody := result.asset + " recovered\n"; result.body != wantBody {
-				t.Fatalf("asset %q request body = %q, want %q", result.asset, result.body, wantBody)
+			if result.encoding != result.scenario.encoding {
+				t.Fatalf("asset %q content encoding = %q, want %q", result.scenario.asset, result.encoding, result.scenario.encoding)
+			}
+			body, err := decodeSmokeContent(result.body, result.encoding)
+			if err != nil {
+				t.Fatalf("asset %q decode %q after failover: %v", result.scenario.asset, result.encoding, err)
+			}
+			if wantBody := result.scenario.asset + " recovered\n"; string(body) != wantBody {
+				t.Fatalf("asset %q request body = %q, want %q", result.scenario.asset, body, wantBody)
+			}
+			if result.scenario.expectTrailer && result.trailer != "complete" {
+				t.Fatalf("asset %q trailer = %q, want complete", result.scenario.asset, result.trailer)
+			}
+			if !result.scenario.expectTrailer && result.trailer != "" {
+				t.Fatalf("asset %q unexpected trailer = %q", result.scenario.asset, result.trailer)
 			}
 			if result.attempt != "2" {
-				t.Fatalf("asset %q response upstream attempt = %q, want 2", result.asset, result.attempt)
+				t.Fatalf("asset %q response upstream attempt = %q, want 2", result.scenario.asset, result.attempt)
 			}
 		}
-		waitRetryAssetAttempts(t, upstreamURL, 2*len(assets))
+		waitRetryAssetState(t, upstreamURL, 2*len(assets), startedBodies)
 		waitRetryRuleRecovered(ctx, t, client, cookie, retryRule.GetId(), int64(len(assets)))
+		waitRetryErrorKinds(ctx, t, client, cookie, "agent_disconnected_during_response")
 
 		updateAgentLabels(ctx, t, client, cookie, dockerAgent, retryLabels)
 		waitAgentConnectionState(ctx, t, client, cookie, dockerAgent.GetPublicId(), true)
@@ -279,16 +339,19 @@ func createAgentDisconnectRetryRule(
 ) *p2pstreamv1.PublicRetryRule {
 	t.Helper()
 	req := connect.NewRequest(&p2pstreamv1.CreatePublicRetryRuleRequest{
-		Name:                      "docker-agent-disconnect-retry",
-		Priority:                  1,
-		Enabled:                   true,
-		Methods:                   []string{http.MethodGet},
-		MaxRetries:                1,
-		FailureMode:               p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
-		BodyMode:                  p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
-		RetryStatusCodes:          []int64{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout},
-		RouteIds:                  []int64{routeID},
-		DuplicateRiskAcknowledged: true,
+		Name:                          "docker-agent-disconnect-retry",
+		Priority:                      1,
+		Enabled:                       true,
+		Methods:                       []string{http.MethodGet},
+		MaxRetries:                    1,
+		FailureMode:                   p2pstreamv1.PublicRetryFailureMode_PUBLIC_RETRY_FAILURE_MODE_PRE_RESPONSE_FAILURES,
+		BodyMode:                      p2pstreamv1.PublicRetryBodyMode_PUBLIC_RETRY_BODY_MODE_NEVER,
+		ResponseBodyMode:              p2pstreamv1.PublicRetryResponseBodyMode_PUBLIC_RETRY_RESPONSE_BODY_MODE_BUFFERED,
+		MaxBufferedResponseBodyBytes:  1024 * 1024,
+		MaxBufferedResponseWaitMillis: 30_000,
+		RetryStatusCodes:              []int64{http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout},
+		RouteIds:                      []int64{routeID},
+		DuplicateRiskAcknowledged:     true,
 	})
 	req.Header().Set("Cookie", cookie)
 	resp, err := client.CreatePublicRetryRule(ctx, req)
@@ -743,10 +806,11 @@ func waitAgentConnectionState(
 	t.Fatalf("agent %q connected = %t, want %t (found=%t)", publicID, lastConnected, wantConnected, found)
 }
 
-func waitRetryAssetAttempts(t *testing.T, upstreamURL string, want int) {
+func waitRetryAssetState(t *testing.T, upstreamURL string, wantAttempts int, wantResponseBodiesStarted int) {
 	t.Helper()
 	type retryStatus struct {
-		Attempts int `json:"attempts"`
+		Attempts              int `json:"attempts"`
+		ResponseBodiesStarted int `json:"response_bodies_started"`
 	}
 	client := httpClient()
 	var last retryStatus
@@ -770,12 +834,12 @@ func waitRetryAssetAttempts(t *testing.T, upstreamURL string, want int) {
 		} else {
 			lastErr = err
 		}
-		if last.Attempts >= want {
+		if last.Attempts >= wantAttempts && last.ResponseBodiesStarted >= wantResponseBodiesStarted {
 			return
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	t.Fatalf("retry asset attempts = %d, want at least %d; last error=%v", last.Attempts, want, lastErr)
+	t.Fatalf("retry asset state = attempts %d / response bodies started %d, want at least %d / %d; last error=%v", last.Attempts, last.ResponseBodiesStarted, wantAttempts, wantResponseBodiesStarted, lastErr)
 }
 
 func smokeRetryableStatus(t *testing.T, publicURL string, retryStatus int, asset string) {
@@ -798,6 +862,64 @@ func smokeRetryableStatus(t *testing.T, publicURL string, retryStatus int, asset
 	if want := fmt.Sprintf("%s recovered from %d\n", asset, retryStatus); string(body) != want {
 		t.Fatalf("retry HTTP status %d response body = %q, want %q", retryStatus, body, want)
 	}
+}
+
+func decodeSmokeContent(encoded []byte, contentEncoding string) ([]byte, error) {
+	decoded := encoded
+	codings := strings.Split(contentEncoding, ",")
+	for index := len(codings) - 1; index >= 0; index-- {
+		coding := strings.ToLower(strings.TrimSpace(codings[index]))
+		if coding == "" || coding == "identity" {
+			continue
+		}
+		switch coding {
+		case "gzip":
+			reader, err := gzip.NewReader(bytes.NewReader(decoded))
+			if err != nil {
+				return nil, err
+			}
+			decoded, err = io.ReadAll(reader)
+			closeErr := reader.Close()
+			if err != nil {
+				return nil, err
+			}
+			if closeErr != nil {
+				return nil, closeErr
+			}
+		case "deflate":
+			reader, err := zlib.NewReader(bytes.NewReader(decoded))
+			if err != nil {
+				return nil, err
+			}
+			decoded, err = io.ReadAll(reader)
+			closeErr := reader.Close()
+			if err != nil {
+				return nil, err
+			}
+			if closeErr != nil {
+				return nil, closeErr
+			}
+		case "br":
+			var err error
+			decoded, err = io.ReadAll(brotli.NewReader(bytes.NewReader(decoded)))
+			if err != nil {
+				return nil, err
+			}
+		case "zstd":
+			decoder, err := zstd.NewReader(nil)
+			if err != nil {
+				return nil, err
+			}
+			decoded, err = decoder.DecodeAll(decoded, nil)
+			decoder.Close()
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("unsupported content coding %q", coding)
+		}
+	}
+	return decoded, nil
 }
 
 func waitRetryRuleRecovered(
@@ -848,9 +970,24 @@ func waitRetryStatusErrorKinds(
 	statuses ...int,
 ) {
 	t.Helper()
-	want := make(map[string]struct{}, len(statuses))
+	labels := make([]string, 0, len(statuses))
 	for _, status := range statuses {
-		want[fmt.Sprintf("upstream_status_%d", status)] = struct{}{}
+		labels = append(labels, fmt.Sprintf("upstream_status_%d", status))
+	}
+	waitRetryErrorKinds(ctx, t, client, cookie, labels...)
+}
+
+func waitRetryErrorKinds(
+	ctx context.Context,
+	t *testing.T,
+	client p2pstreamv1connect.AgentManagementServiceClient,
+	cookie string,
+	labels ...string,
+) {
+	t.Helper()
+	want := make(map[string]struct{}, len(labels))
+	for _, label := range labels {
+		want[label] = struct{}{}
 	}
 	last := make(map[string]int64)
 	deadline := time.Now().Add(20 * time.Second)
@@ -876,7 +1013,7 @@ func waitRetryStatusErrorKinds(
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
-	t.Fatalf("dashboard retry error kinds = %+v, want statuses %+v", last, want)
+	t.Fatalf("dashboard retry error kinds = %+v, want labels %+v", last, want)
 }
 
 func waitDashboardHasProxyRequests(

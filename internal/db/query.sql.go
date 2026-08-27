@@ -11,6 +11,20 @@ import (
 	"time"
 )
 
+const assignDefaultLocalAccessLoginTemplate = `-- name: AssignDefaultLocalAccessLoginTemplate :execrows
+UPDATE public_access_providers
+SET local_auth_login_template_id = ?, updated_at = CURRENT_TIMESTAMP
+WHERE provider_type = 'local' AND local_auth_login_template_id IS NULL
+`
+
+func (q *Queries) AssignDefaultLocalAccessLoginTemplate(ctx context.Context, localAuthLoginTemplateID sql.NullInt64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, assignDefaultLocalAccessLoginTemplate, localAuthLoginTemplateID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const backfillAgentStatRollupMinutesRange = `-- name: BackfillAgentStatRollupMinutesRange :exec
 INSERT INTO agent_stat_rollup_minutes (
     bucket_unix_millis, samples, req_success, req_client_error, req_server_error, req_internal_error,
@@ -457,24 +471,29 @@ func (q *Queries) CreatePublicAccessPolicy(ctx context.Context, arg CreatePublic
 const createPublicAccessProvider = `-- name: CreatePublicAccessProvider :one
 INSERT INTO public_access_providers (
     name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify,
-    subject_header, user_header, email_header, groups_header, forwarded_headers_json
+    subject_header, user_header, email_header, groups_header, forwarded_headers_json,
+    local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
 `
 
 type CreatePublicAccessProviderParams struct {
-	Name                 string `json:"name"`
-	ProviderType         string `json:"provider_type"`
-	Enabled              int64  `json:"enabled"`
-	ForwardAuthUrl       string `json:"forward_auth_url"`
-	TimeoutMillis        int64  `json:"timeout_millis"`
-	TlsSkipVerify        int64  `json:"tls_skip_verify"`
-	SubjectHeader        string `json:"subject_header"`
-	UserHeader           string `json:"user_header"`
-	EmailHeader          string `json:"email_header"`
-	GroupsHeader         string `json:"groups_header"`
-	ForwardedHeadersJson string `json:"forwarded_headers_json"`
+	Name                           string        `json:"name"`
+	ProviderType                   string        `json:"provider_type"`
+	Enabled                        int64         `json:"enabled"`
+	ForwardAuthUrl                 string        `json:"forward_auth_url"`
+	TimeoutMillis                  int64         `json:"timeout_millis"`
+	TlsSkipVerify                  int64         `json:"tls_skip_verify"`
+	SubjectHeader                  string        `json:"subject_header"`
+	UserHeader                     string        `json:"user_header"`
+	EmailHeader                    string        `json:"email_header"`
+	GroupsHeader                   string        `json:"groups_header"`
+	ForwardedHeadersJson           string        `json:"forwarded_headers_json"`
+	LocalAuthMode                  string        `json:"local_auth_mode"`
+	LocalAuthSessionDurationMillis int64         `json:"local_auth_session_duration_millis"`
+	LocalAuthRealm                 string        `json:"local_auth_realm"`
+	LocalAuthLoginTemplateID       sql.NullInt64 `json:"local_auth_login_template_id"`
 }
 
 func (q *Queries) CreatePublicAccessProvider(ctx context.Context, arg CreatePublicAccessProviderParams) (PublicAccessProvider, error) {
@@ -490,6 +509,10 @@ func (q *Queries) CreatePublicAccessProvider(ctx context.Context, arg CreatePubl
 		arg.EmailHeader,
 		arg.GroupsHeader,
 		arg.ForwardedHeadersJson,
+		arg.LocalAuthMode,
+		arg.LocalAuthSessionDurationMillis,
+		arg.LocalAuthRealm,
+		arg.LocalAuthLoginTemplateID,
 	)
 	var i PublicAccessProvider
 	err := row.Scan(
@@ -505,6 +528,80 @@ func (q *Queries) CreatePublicAccessProvider(ctx context.Context, arg CreatePubl
 		&i.EmailHeader,
 		&i.GroupsHeader,
 		&i.ForwardedHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LocalAuthMode,
+		&i.LocalAuthSessionDurationMillis,
+		&i.LocalAuthRealm,
+		&i.LocalAuthLoginTemplateID,
+	)
+	return i, err
+}
+
+const createPublicAccessSession = `-- name: CreatePublicAccessSession :one
+INSERT INTO public_access_sessions (provider_id, user_id, token_hash, expires_at)
+VALUES (?, ?, ?, ?)
+RETURNING id, provider_id, user_id, token_hash, created_at, last_seen_at, expires_at, revoked_at
+`
+
+type CreatePublicAccessSessionParams struct {
+	ProviderID int64     `json:"provider_id"`
+	UserID     int64     `json:"user_id"`
+	TokenHash  string    `json:"token_hash"`
+	ExpiresAt  time.Time `json:"expires_at"`
+}
+
+func (q *Queries) CreatePublicAccessSession(ctx context.Context, arg CreatePublicAccessSessionParams) (PublicAccessSession, error) {
+	row := q.db.QueryRowContext(ctx, createPublicAccessSession,
+		arg.ProviderID,
+		arg.UserID,
+		arg.TokenHash,
+		arg.ExpiresAt,
+	)
+	var i PublicAccessSession
+	err := row.Scan(
+		&i.ID,
+		&i.ProviderID,
+		&i.UserID,
+		&i.TokenHash,
+		&i.CreatedAt,
+		&i.LastSeenAt,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+	)
+	return i, err
+}
+
+const createPublicAccessUser = `-- name: CreatePublicAccessUser :one
+INSERT INTO public_access_users (provider_id, username, password_hash, enabled, groups_json)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, provider_id, username, password_hash, enabled, groups_json, created_at, updated_at
+`
+
+type CreatePublicAccessUserParams struct {
+	ProviderID   int64  `json:"provider_id"`
+	Username     string `json:"username"`
+	PasswordHash string `json:"password_hash"`
+	Enabled      int64  `json:"enabled"`
+	GroupsJson   string `json:"groups_json"`
+}
+
+func (q *Queries) CreatePublicAccessUser(ctx context.Context, arg CreatePublicAccessUserParams) (PublicAccessUser, error) {
+	row := q.db.QueryRowContext(ctx, createPublicAccessUser,
+		arg.ProviderID,
+		arg.Username,
+		arg.PasswordHash,
+		arg.Enabled,
+		arg.GroupsJson,
+	)
+	var i PublicAccessUser
+	err := row.Scan(
+		&i.ID,
+		&i.ProviderID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Enabled,
+		&i.GroupsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -765,27 +862,32 @@ func (q *Queries) CreatePublicResponseTemplate(ctx context.Context, arg CreatePu
 const createPublicRetryRule = `-- name: CreatePublicRetryRule :one
 INSERT INTO public_retry_rules (
     name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-    max_replay_body_bytes, retry_status_codes_json, route_ids_json, target_ids_json, match_json
+    max_replay_body_bytes, retry_status_codes_json, route_ids_json, target_ids_json, match_json,
+    response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
+          response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 `
 
 type CreatePublicRetryRuleParams struct {
-	Name                 string `json:"name"`
-	Priority             int64  `json:"priority"`
-	Enabled              int64  `json:"enabled"`
-	MethodsJson          string `json:"methods_json"`
-	MaxRetries           int64  `json:"max_retries"`
-	FailureMode          string `json:"failure_mode"`
-	BodyMode             string `json:"body_mode"`
-	MaxReplayBodyBytes   int64  `json:"max_replay_body_bytes"`
-	RetryStatusCodesJson string `json:"retry_status_codes_json"`
-	RouteIdsJson         string `json:"route_ids_json"`
-	TargetIdsJson        string `json:"target_ids_json"`
-	MatchJson            string `json:"match_json"`
+	Name                          string `json:"name"`
+	Priority                      int64  `json:"priority"`
+	Enabled                       int64  `json:"enabled"`
+	MethodsJson                   string `json:"methods_json"`
+	MaxRetries                    int64  `json:"max_retries"`
+	FailureMode                   string `json:"failure_mode"`
+	BodyMode                      string `json:"body_mode"`
+	MaxReplayBodyBytes            int64  `json:"max_replay_body_bytes"`
+	RetryStatusCodesJson          string `json:"retry_status_codes_json"`
+	RouteIdsJson                  string `json:"route_ids_json"`
+	TargetIdsJson                 string `json:"target_ids_json"`
+	MatchJson                     string `json:"match_json"`
+	ResponseBodyMode              string `json:"response_body_mode"`
+	MaxBufferedResponseBodyBytes  int64  `json:"max_buffered_response_body_bytes"`
+	MaxBufferedResponseWaitMillis int64  `json:"max_buffered_response_wait_millis"`
 }
 
 func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRetryRuleParams) (PublicRetryRule, error) {
@@ -802,6 +904,9 @@ func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRet
 		arg.RouteIdsJson,
 		arg.TargetIdsJson,
 		arg.MatchJson,
+		arg.ResponseBodyMode,
+		arg.MaxBufferedResponseBodyBytes,
+		arg.MaxBufferedResponseWaitMillis,
 	)
 	var i PublicRetryRule
 	err := row.Scan(
@@ -820,6 +925,9 @@ func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRet
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RetryStatusCodesJson,
+		&i.ResponseBodyMode,
+		&i.MaxBufferedResponseBodyBytes,
+		&i.MaxBufferedResponseWaitMillis,
 	)
 	return i, err
 }
@@ -1859,6 +1967,16 @@ func (q *Queries) DeletePublicAccessProvider(ctx context.Context, id int64) erro
 	return err
 }
 
+const deletePublicAccessUser = `-- name: DeletePublicAccessUser :exec
+DELETE FROM public_access_users
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicAccessUser(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicAccessUser, id)
+	return err
+}
+
 const deletePublicCacheEntry = `-- name: DeletePublicCacheEntry :exec
 DELETE FROM public_cache_entries
 WHERE key_digest = ?
@@ -2055,6 +2173,19 @@ func (q *Queries) DeletePublicWafRule(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteStalePublicAccessSessions = `-- name: DeleteStalePublicAccessSessions :execrows
+DELETE FROM public_access_sessions
+WHERE revoked_at IS NOT NULL OR expires_at <= CURRENT_TIMESTAMP
+`
+
+func (q *Queries) DeleteStalePublicAccessSessions(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteStalePublicAccessSessions)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteUserAgentLabelsByAgent = `-- name: DeleteUserAgentLabelsByAgent :exec
 DELETE FROM public_agent_labels
 WHERE agent_id = ?
@@ -2108,6 +2239,60 @@ func (q *Queries) GetActiveManagementAccessTokenByHash(ctx context.Context, toke
 		&i.LastUsedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getActivePublicAccessSession = `-- name: GetActivePublicAccessSession :one
+SELECT
+    s.id AS session_id,
+    s.token_hash,
+    s.last_seen_at,
+    s.expires_at,
+    u.id AS user_id,
+    u.provider_id,
+    u.username,
+    u.groups_json
+FROM public_access_sessions s
+JOIN public_access_users u ON u.id = s.user_id AND u.provider_id = s.provider_id
+JOIN public_access_providers p ON p.id = s.provider_id
+WHERE s.provider_id = ?
+  AND s.token_hash = ?
+  AND s.revoked_at IS NULL
+  AND s.expires_at > CURRENT_TIMESTAMP
+  AND u.enabled = 1
+  AND p.enabled = 1
+  AND p.provider_type = 'local'
+`
+
+type GetActivePublicAccessSessionParams struct {
+	ProviderID int64  `json:"provider_id"`
+	TokenHash  string `json:"token_hash"`
+}
+
+type GetActivePublicAccessSessionRow struct {
+	SessionID  int64     `json:"session_id"`
+	TokenHash  string    `json:"token_hash"`
+	LastSeenAt time.Time `json:"last_seen_at"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	UserID     int64     `json:"user_id"`
+	ProviderID int64     `json:"provider_id"`
+	Username   string    `json:"username"`
+	GroupsJson string    `json:"groups_json"`
+}
+
+func (q *Queries) GetActivePublicAccessSession(ctx context.Context, arg GetActivePublicAccessSessionParams) (GetActivePublicAccessSessionRow, error) {
+	row := q.db.QueryRowContext(ctx, getActivePublicAccessSession, arg.ProviderID, arg.TokenHash)
+	var i GetActivePublicAccessSessionRow
+	err := row.Scan(
+		&i.SessionID,
+		&i.TokenHash,
+		&i.LastSeenAt,
+		&i.ExpiresAt,
+		&i.UserID,
+		&i.ProviderID,
+		&i.Username,
+		&i.GroupsJson,
 	)
 	return i, err
 }
@@ -2335,6 +2520,33 @@ func (q *Queries) GetConnectionSummarySince(ctx context.Context, connectedAt tim
 	row := q.db.QueryRowContext(ctx, getConnectionSummarySince, connectedAt)
 	var i GetConnectionSummarySinceRow
 	err := row.Scan(&i.TotalConnections, &i.LastConnectedAt, &i.LastDisconnectedAt)
+	return i, err
+}
+
+const getEnabledPublicAccessUserByProviderAndUsername = `-- name: GetEnabledPublicAccessUserByProviderAndUsername :one
+SELECT id, provider_id, username, password_hash, enabled, groups_json, created_at, updated_at
+FROM public_access_users
+WHERE provider_id = ? AND username = ? AND enabled = 1
+`
+
+type GetEnabledPublicAccessUserByProviderAndUsernameParams struct {
+	ProviderID int64  `json:"provider_id"`
+	Username   string `json:"username"`
+}
+
+func (q *Queries) GetEnabledPublicAccessUserByProviderAndUsername(ctx context.Context, arg GetEnabledPublicAccessUserByProviderAndUsernameParams) (PublicAccessUser, error) {
+	row := q.db.QueryRowContext(ctx, getEnabledPublicAccessUserByProviderAndUsername, arg.ProviderID, arg.Username)
+	var i PublicAccessUser
+	err := row.Scan(
+		&i.ID,
+		&i.ProviderID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Enabled,
+		&i.GroupsJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -2716,7 +2928,7 @@ func (q *Queries) GetPublicAccessPolicy(ctx context.Context, id int64) (PublicAc
 }
 
 const getPublicAccessProvider = `-- name: GetPublicAccessProvider :one
-SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
 FROM public_access_providers
 WHERE id = ?
 `
@@ -2737,6 +2949,32 @@ func (q *Queries) GetPublicAccessProvider(ctx context.Context, id int64) (Public
 		&i.EmailHeader,
 		&i.GroupsHeader,
 		&i.ForwardedHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LocalAuthMode,
+		&i.LocalAuthSessionDurationMillis,
+		&i.LocalAuthRealm,
+		&i.LocalAuthLoginTemplateID,
+	)
+	return i, err
+}
+
+const getPublicAccessUser = `-- name: GetPublicAccessUser :one
+SELECT id, provider_id, username, password_hash, enabled, groups_json, created_at, updated_at
+FROM public_access_users
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicAccessUser(ctx context.Context, id int64) (PublicAccessUser, error) {
+	row := q.db.QueryRowContext(ctx, getPublicAccessUser, id)
+	var i PublicAccessUser
+	err := row.Scan(
+		&i.ID,
+		&i.ProviderID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Enabled,
+		&i.GroupsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -2962,7 +3200,8 @@ func (q *Queries) GetPublicResponseTemplateByName(ctx context.Context, name stri
 
 const getPublicRetryRule = `-- name: GetPublicRetryRule :one
 SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
+       response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 FROM public_retry_rules
 WHERE id = ?
 `
@@ -2986,6 +3225,9 @@ func (q *Queries) GetPublicRetryRule(ctx context.Context, id int64) (PublicRetry
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RetryStatusCodesJson,
+		&i.ResponseBodyMode,
+		&i.MaxBufferedResponseBodyBytes,
+		&i.MaxBufferedResponseWaitMillis,
 	)
 	return i, err
 }
@@ -5058,7 +5300,7 @@ func (q *Queries) ListPublicAccessPolicies(ctx context.Context) ([]PublicAccessP
 }
 
 const listPublicAccessProviders = `-- name: ListPublicAccessProviders :many
-SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
 FROM public_access_providers
 ORDER BY name ASC, id ASC
 `
@@ -5085,6 +5327,48 @@ func (q *Queries) ListPublicAccessProviders(ctx context.Context) ([]PublicAccess
 			&i.EmailHeader,
 			&i.GroupsHeader,
 			&i.ForwardedHeadersJson,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LocalAuthMode,
+			&i.LocalAuthSessionDurationMillis,
+			&i.LocalAuthRealm,
+			&i.LocalAuthLoginTemplateID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicAccessUsers = `-- name: ListPublicAccessUsers :many
+SELECT id, provider_id, username, password_hash, enabled, groups_json, created_at, updated_at
+FROM public_access_users
+ORDER BY provider_id ASC, username ASC, id ASC
+`
+
+func (q *Queries) ListPublicAccessUsers(ctx context.Context) ([]PublicAccessUser, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicAccessUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicAccessUser
+	for rows.Next() {
+		var i PublicAccessUser
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProviderID,
+			&i.Username,
+			&i.PasswordHash,
+			&i.Enabled,
+			&i.GroupsJson,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -5394,7 +5678,8 @@ func (q *Queries) ListPublicResponseTemplates(ctx context.Context) ([]PublicResp
 
 const listPublicRetryRules = `-- name: ListPublicRetryRules :many
 SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
+       response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 FROM public_retry_rules
 ORDER BY priority ASC, id ASC
 `
@@ -5424,6 +5709,9 @@ func (q *Queries) ListPublicRetryRules(ctx context.Context) ([]PublicRetryRule, 
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.RetryStatusCodesJson,
+			&i.ResponseBodyMode,
+			&i.MaxBufferedResponseBodyBytes,
+			&i.MaxBufferedResponseWaitMillis,
 		); err != nil {
 			return nil, err
 		}
@@ -7100,6 +7388,50 @@ func (q *Queries) PurgePublicCacheEntriesByRule(ctx context.Context, ruleID int6
 	return items, nil
 }
 
+const revokePublicAccessProviderSessions = `-- name: RevokePublicAccessProviderSessions :execrows
+UPDATE public_access_sessions
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE provider_id = ? AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokePublicAccessProviderSessions(ctx context.Context, providerID int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokePublicAccessProviderSessions, providerID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const revokePublicAccessSessionByTokenHash = `-- name: RevokePublicAccessSessionByTokenHash :exec
+UPDATE public_access_sessions
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE provider_id = ? AND token_hash = ? AND revoked_at IS NULL
+`
+
+type RevokePublicAccessSessionByTokenHashParams struct {
+	ProviderID int64  `json:"provider_id"`
+	TokenHash  string `json:"token_hash"`
+}
+
+func (q *Queries) RevokePublicAccessSessionByTokenHash(ctx context.Context, arg RevokePublicAccessSessionByTokenHashParams) error {
+	_, err := q.db.ExecContext(ctx, revokePublicAccessSessionByTokenHash, arg.ProviderID, arg.TokenHash)
+	return err
+}
+
+const revokePublicAccessUserSessions = `-- name: RevokePublicAccessUserSessions :execrows
+UPDATE public_access_sessions
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE user_id = ? AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokePublicAccessUserSessions(ctx context.Context, userID int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokePublicAccessUserSessions, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const revokeSessionByTokenHash = `-- name: RevokeSessionByTokenHash :exec
 UPDATE sessions
 SET revoked_at = CURRENT_TIMESTAMP
@@ -7440,6 +7772,18 @@ WHERE id = ?
 
 func (q *Queries) TouchManagementAccessToken(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, touchManagementAccessToken, id)
+	return err
+}
+
+const touchPublicAccessSession = `-- name: TouchPublicAccessSession :exec
+UPDATE public_access_sessions
+SET last_seen_at = CURRENT_TIMESTAMP
+WHERE id = ?
+  AND last_seen_at < datetime('now', '-30 seconds')
+`
+
+func (q *Queries) TouchPublicAccessSession(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, touchPublicAccessSession, id)
 	return err
 }
 
@@ -7837,24 +8181,29 @@ func (q *Queries) UpdatePublicAccessPolicy(ctx context.Context, arg UpdatePublic
 const updatePublicAccessProvider = `-- name: UpdatePublicAccessProvider :one
 UPDATE public_access_providers
 SET name = ?, provider_type = ?, enabled = ?, forward_auth_url = ?, timeout_millis = ?, tls_skip_verify = ?,
-    subject_header = ?, user_header = ?, email_header = ?, groups_header = ?, forwarded_headers_json = ?, updated_at = CURRENT_TIMESTAMP
+    subject_header = ?, user_header = ?, email_header = ?, groups_header = ?, forwarded_headers_json = ?,
+    local_auth_mode = ?, local_auth_session_duration_millis = ?, local_auth_realm = ?, local_auth_login_template_id = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
 `
 
 type UpdatePublicAccessProviderParams struct {
-	Name                 string `json:"name"`
-	ProviderType         string `json:"provider_type"`
-	Enabled              int64  `json:"enabled"`
-	ForwardAuthUrl       string `json:"forward_auth_url"`
-	TimeoutMillis        int64  `json:"timeout_millis"`
-	TlsSkipVerify        int64  `json:"tls_skip_verify"`
-	SubjectHeader        string `json:"subject_header"`
-	UserHeader           string `json:"user_header"`
-	EmailHeader          string `json:"email_header"`
-	GroupsHeader         string `json:"groups_header"`
-	ForwardedHeadersJson string `json:"forwarded_headers_json"`
-	ID                   int64  `json:"id"`
+	Name                           string        `json:"name"`
+	ProviderType                   string        `json:"provider_type"`
+	Enabled                        int64         `json:"enabled"`
+	ForwardAuthUrl                 string        `json:"forward_auth_url"`
+	TimeoutMillis                  int64         `json:"timeout_millis"`
+	TlsSkipVerify                  int64         `json:"tls_skip_verify"`
+	SubjectHeader                  string        `json:"subject_header"`
+	UserHeader                     string        `json:"user_header"`
+	EmailHeader                    string        `json:"email_header"`
+	GroupsHeader                   string        `json:"groups_header"`
+	ForwardedHeadersJson           string        `json:"forwarded_headers_json"`
+	LocalAuthMode                  string        `json:"local_auth_mode"`
+	LocalAuthSessionDurationMillis int64         `json:"local_auth_session_duration_millis"`
+	LocalAuthRealm                 string        `json:"local_auth_realm"`
+	LocalAuthLoginTemplateID       sql.NullInt64 `json:"local_auth_login_template_id"`
+	ID                             int64         `json:"id"`
 }
 
 func (q *Queries) UpdatePublicAccessProvider(ctx context.Context, arg UpdatePublicAccessProviderParams) (PublicAccessProvider, error) {
@@ -7870,6 +8219,10 @@ func (q *Queries) UpdatePublicAccessProvider(ctx context.Context, arg UpdatePubl
 		arg.EmailHeader,
 		arg.GroupsHeader,
 		arg.ForwardedHeadersJson,
+		arg.LocalAuthMode,
+		arg.LocalAuthSessionDurationMillis,
+		arg.LocalAuthRealm,
+		arg.LocalAuthLoginTemplateID,
 		arg.ID,
 	)
 	var i PublicAccessProvider
@@ -7886,6 +8239,47 @@ func (q *Queries) UpdatePublicAccessProvider(ctx context.Context, arg UpdatePubl
 		&i.EmailHeader,
 		&i.GroupsHeader,
 		&i.ForwardedHeadersJson,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LocalAuthMode,
+		&i.LocalAuthSessionDurationMillis,
+		&i.LocalAuthRealm,
+		&i.LocalAuthLoginTemplateID,
+	)
+	return i, err
+}
+
+const updatePublicAccessUser = `-- name: UpdatePublicAccessUser :one
+UPDATE public_access_users
+SET username = ?, password_hash = ?, enabled = ?, groups_json = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, provider_id, username, password_hash, enabled, groups_json, created_at, updated_at
+`
+
+type UpdatePublicAccessUserParams struct {
+	Username     string `json:"username"`
+	PasswordHash string `json:"password_hash"`
+	Enabled      int64  `json:"enabled"`
+	GroupsJson   string `json:"groups_json"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicAccessUser(ctx context.Context, arg UpdatePublicAccessUserParams) (PublicAccessUser, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicAccessUser,
+		arg.Username,
+		arg.PasswordHash,
+		arg.Enabled,
+		arg.GroupsJson,
+		arg.ID,
+	)
+	var i PublicAccessUser
+	err := row.Scan(
+		&i.ID,
+		&i.ProviderID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Enabled,
+		&i.GroupsJson,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -8249,26 +8643,33 @@ SET name = ?,
     route_ids_json = ?,
     target_ids_json = ?,
     match_json = ?,
+    response_body_mode = ?,
+    max_buffered_response_body_bytes = ?,
+    max_buffered_response_wait_millis = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
+          response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 `
 
 type UpdatePublicRetryRuleParams struct {
-	Name                 string `json:"name"`
-	Priority             int64  `json:"priority"`
-	Enabled              int64  `json:"enabled"`
-	MethodsJson          string `json:"methods_json"`
-	MaxRetries           int64  `json:"max_retries"`
-	FailureMode          string `json:"failure_mode"`
-	BodyMode             string `json:"body_mode"`
-	MaxReplayBodyBytes   int64  `json:"max_replay_body_bytes"`
-	RetryStatusCodesJson string `json:"retry_status_codes_json"`
-	RouteIdsJson         string `json:"route_ids_json"`
-	TargetIdsJson        string `json:"target_ids_json"`
-	MatchJson            string `json:"match_json"`
-	ID                   int64  `json:"id"`
+	Name                          string `json:"name"`
+	Priority                      int64  `json:"priority"`
+	Enabled                       int64  `json:"enabled"`
+	MethodsJson                   string `json:"methods_json"`
+	MaxRetries                    int64  `json:"max_retries"`
+	FailureMode                   string `json:"failure_mode"`
+	BodyMode                      string `json:"body_mode"`
+	MaxReplayBodyBytes            int64  `json:"max_replay_body_bytes"`
+	RetryStatusCodesJson          string `json:"retry_status_codes_json"`
+	RouteIdsJson                  string `json:"route_ids_json"`
+	TargetIdsJson                 string `json:"target_ids_json"`
+	MatchJson                     string `json:"match_json"`
+	ResponseBodyMode              string `json:"response_body_mode"`
+	MaxBufferedResponseBodyBytes  int64  `json:"max_buffered_response_body_bytes"`
+	MaxBufferedResponseWaitMillis int64  `json:"max_buffered_response_wait_millis"`
+	ID                            int64  `json:"id"`
 }
 
 func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRetryRuleParams) (PublicRetryRule, error) {
@@ -8285,6 +8686,9 @@ func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRet
 		arg.RouteIdsJson,
 		arg.TargetIdsJson,
 		arg.MatchJson,
+		arg.ResponseBodyMode,
+		arg.MaxBufferedResponseBodyBytes,
+		arg.MaxBufferedResponseWaitMillis,
 		arg.ID,
 	)
 	var i PublicRetryRule
@@ -8304,6 +8708,9 @@ func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRet
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RetryStatusCodesJson,
+		&i.ResponseBodyMode,
+		&i.MaxBufferedResponseBodyBytes,
+		&i.MaxBufferedResponseWaitMillis,
 	)
 	return i, err
 }

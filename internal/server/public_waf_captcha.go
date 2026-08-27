@@ -392,7 +392,7 @@ func writeCaptchaChallenge(w http.ResponseWriter, r *http.Request, decision publ
 	referenceID := publicWafReferenceID(decision.Rule.ID)
 	if decision.Rule.CaptchaPageTemplateBody != "" {
 		var rendered bytes.Buffer
-		err := renderPublicWafHTMLTemplate(&rendered, decision.Rule.CaptchaPageTemplateBody, map[string]any{
+		err := renderPublicHTMLTemplate(&rendered, decision.Rule.CaptchaPageTemplateBody, map[string]any{
 			"captcha_element_html": htmltemplate.HTML(primaryHTML),
 			"host":                 host,
 			"rule_name":            decision.Rule.Name,

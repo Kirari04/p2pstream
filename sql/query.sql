@@ -1726,31 +1726,119 @@ WHERE id = ?;
 -- name: CreatePublicAccessProvider :one
 INSERT INTO public_access_providers (
     name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify,
-    subject_header, user_header, email_header, groups_header, forwarded_headers_json
+    subject_header, user_header, email_header, groups_header, forwarded_headers_json,
+    local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at;
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id;
 
 -- name: ListPublicAccessProviders :many
-SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
 FROM public_access_providers
 ORDER BY name ASC, id ASC;
 
 -- name: GetPublicAccessProvider :one
-SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
 FROM public_access_providers
 WHERE id = ?;
 
 -- name: UpdatePublicAccessProvider :one
 UPDATE public_access_providers
 SET name = ?, provider_type = ?, enabled = ?, forward_auth_url = ?, timeout_millis = ?, tls_skip_verify = ?,
-    subject_header = ?, user_header = ?, email_header = ?, groups_header = ?, forwarded_headers_json = ?, updated_at = CURRENT_TIMESTAMP
+    subject_header = ?, user_header = ?, email_header = ?, groups_header = ?, forwarded_headers_json = ?,
+    local_auth_mode = ?, local_auth_session_duration_millis = ?, local_auth_realm = ?, local_auth_login_template_id = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at;
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id;
+
+-- name: AssignDefaultLocalAccessLoginTemplate :execrows
+UPDATE public_access_providers
+SET local_auth_login_template_id = ?, updated_at = CURRENT_TIMESTAMP
+WHERE provider_type = 'local' AND local_auth_login_template_id IS NULL;
 
 -- name: DeletePublicAccessProvider :exec
 DELETE FROM public_access_providers
 WHERE id = ?;
+
+-- name: CreatePublicAccessUser :one
+INSERT INTO public_access_users (provider_id, username, password_hash, enabled, groups_json)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, provider_id, username, password_hash, enabled, groups_json, created_at, updated_at;
+
+-- name: ListPublicAccessUsers :many
+SELECT id, provider_id, username, password_hash, enabled, groups_json, created_at, updated_at
+FROM public_access_users
+ORDER BY provider_id ASC, username ASC, id ASC;
+
+-- name: GetPublicAccessUser :one
+SELECT id, provider_id, username, password_hash, enabled, groups_json, created_at, updated_at
+FROM public_access_users
+WHERE id = ?;
+
+-- name: GetEnabledPublicAccessUserByProviderAndUsername :one
+SELECT id, provider_id, username, password_hash, enabled, groups_json, created_at, updated_at
+FROM public_access_users
+WHERE provider_id = ? AND username = ? AND enabled = 1;
+
+-- name: UpdatePublicAccessUser :one
+UPDATE public_access_users
+SET username = ?, password_hash = ?, enabled = ?, groups_json = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, provider_id, username, password_hash, enabled, groups_json, created_at, updated_at;
+
+-- name: DeletePublicAccessUser :exec
+DELETE FROM public_access_users
+WHERE id = ?;
+
+-- name: CreatePublicAccessSession :one
+INSERT INTO public_access_sessions (provider_id, user_id, token_hash, expires_at)
+VALUES (?, ?, ?, ?)
+RETURNING id, provider_id, user_id, token_hash, created_at, last_seen_at, expires_at, revoked_at;
+
+-- name: GetActivePublicAccessSession :one
+SELECT
+    s.id AS session_id,
+    s.token_hash,
+    s.last_seen_at,
+    s.expires_at,
+    u.id AS user_id,
+    u.provider_id,
+    u.username,
+    u.groups_json
+FROM public_access_sessions s
+JOIN public_access_users u ON u.id = s.user_id AND u.provider_id = s.provider_id
+JOIN public_access_providers p ON p.id = s.provider_id
+WHERE s.provider_id = ?
+  AND s.token_hash = ?
+  AND s.revoked_at IS NULL
+  AND s.expires_at > CURRENT_TIMESTAMP
+  AND u.enabled = 1
+  AND p.enabled = 1
+  AND p.provider_type = 'local';
+
+-- name: TouchPublicAccessSession :exec
+UPDATE public_access_sessions
+SET last_seen_at = CURRENT_TIMESTAMP
+WHERE id = ?
+  AND last_seen_at < datetime('now', '-30 seconds');
+
+-- name: RevokePublicAccessSessionByTokenHash :exec
+UPDATE public_access_sessions
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE provider_id = ? AND token_hash = ? AND revoked_at IS NULL;
+
+-- name: RevokePublicAccessUserSessions :execrows
+UPDATE public_access_sessions
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE user_id = ? AND revoked_at IS NULL;
+
+-- name: RevokePublicAccessProviderSessions :execrows
+UPDATE public_access_sessions
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE provider_id = ? AND revoked_at IS NULL;
+
+-- name: DeleteStalePublicAccessSessions :execrows
+DELETE FROM public_access_sessions
+WHERE revoked_at IS NOT NULL OR expires_at <= CURRENT_TIMESTAMP;
 
 -- name: CreatePublicAccessPolicy :one
 INSERT INTO public_access_policies (name, provider_id, enabled, required_groups_json, group_match)
@@ -2408,25 +2496,29 @@ WHERE id = ?;
 
 -- name: ListPublicRetryRules :many
 SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
+       response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 FROM public_retry_rules
 ORDER BY priority ASC, id ASC;
 
 -- name: GetPublicRetryRule :one
 SELECT id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json
+       max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
+       response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 FROM public_retry_rules
 WHERE id = ?;
 
 -- name: CreatePublicRetryRule :one
 INSERT INTO public_retry_rules (
     name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-    max_replay_body_bytes, retry_status_codes_json, route_ids_json, target_ids_json, match_json
+    max_replay_body_bytes, retry_status_codes_json, route_ids_json, target_ids_json, match_json,
+    response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json;
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
+          response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis;
 
 -- name: UpdatePublicRetryRule :one
 UPDATE public_retry_rules
@@ -2442,10 +2534,14 @@ SET name = ?,
     route_ids_json = ?,
     target_ids_json = ?,
     match_json = ?,
+    response_body_mode = ?,
+    max_buffered_response_body_bytes = ?,
+    max_buffered_response_wait_millis = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
 RETURNING id, name, priority, enabled, methods_json, max_retries, failure_mode, body_mode,
-          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json;
+          max_replay_body_bytes, route_ids_json, target_ids_json, match_json, created_at, updated_at, retry_status_codes_json,
+          response_body_mode, max_buffered_response_body_bytes, max_buffered_response_wait_millis;
 
 -- name: DeletePublicRetryRule :exec
 DELETE FROM public_retry_rules

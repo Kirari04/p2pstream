@@ -16,6 +16,11 @@ import (
 //go:embed templates/default_welcome.html
 var defaultWelcomeBody string
 
+// defaultLocalAccessLoginBody is the editable seed for local access providers.
+//
+//go:embed templates/default_local_access_login.html
+var defaultLocalAccessLoginBody string
+
 func (a *App) ensurePublicProxySeeded(ctx context.Context) error {
 	defaultTemplates, err := a.ensureDefaultPublicResponseTemplates(ctx)
 	if err != nil {

@@ -431,6 +431,9 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		finalAgent := agent
 		if retryResult != nil {
 			retryResult.applyToResolution(&resolution)
+			if errorKind == "" && retryResult.TerminalErrorKind != "" {
+				errorKind = retryResult.TerminalErrorKind
+			}
 			if retryResult.FinalAgent != nil {
 				finalAgent = retryResult.FinalAgent
 				selectedAgentID = sql.NullInt64{Int64: finalAgent.AgentID, Valid: true}
@@ -536,6 +539,9 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			applyUpstreamTargetRequestConfig(proxyReq.Out, resolution.Target)
 			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In, resolution.Listener)
 			applyTrustedPublicAccessHeaders(proxyReq.Out, proxyReq.In)
+			if resolution.Target.UpstreamBasicAuth.Enabled {
+				proxyReq.Out.SetBasicAuth(resolution.Target.UpstreamBasicAuth.Username, resolution.Target.UpstreamBasicAuth.Password)
+			}
 			if shaper != nil && agent == nil {
 				proxyReq.Out.Body = shaper.wrapUploadBody(r.Context(), proxyReq.Out.Body)
 			}
@@ -625,6 +631,9 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			logger.Msg("Agent target proxy failed")
 			var message string
 			statusCode, errorKind, message = agentProxyHTTPFailure(err)
+			if retryResult != nil && retryResult.TerminalErrorKind != "" {
+				errorKind = retryResult.TerminalErrorKind
+			}
 			http.Error(w, message, statusCode)
 		},
 		Transport:  transport,
@@ -728,7 +737,7 @@ func (a *App) dialViaAgent(ctx context.Context, agent *AgentConn, network string
 			releaseStream()
 			return nil, err
 		}
-		return newAgentTunnelStreamConn(conn, releaseStream), nil
+		return newAgentTunnelStreamConn(conn, agent, releaseStream), nil
 	})
 	if openCh != nil {
 		// The Open callback now owns the slot. On failure it releases directly;
