@@ -35,18 +35,28 @@ const (
 	publicAccessCookieSameSiteLax       = "lax"
 	publicAccessCookieSameSiteNone      = "none"
 	// Keep local-auth cookies separate from the legacy forward-auth/session namespace.
-	defaultPublicAccessCookieName    = "p2pstream_local_auth"
-	publicAccessGroupMatchAny        = "any"
-	publicAccessGroupMatchAll        = "all"
-	defaultPublicAccessTimeoutMillis = int64(5000)
-	minPublicAccessTimeoutMillis     = int64(100)
-	maxPublicAccessTimeoutMillis     = int64(30000)
-	maxPublicAccessHeaders           = 16
-	maxPublicAccessGroups            = 64
-	maxPublicAccessAllowedHosts      = 64
-	defaultPublicAccessSessionMillis = int64((7 * 24 * time.Hour) / time.Millisecond)
-	minPublicAccessSessionMillis     = int64((5 * time.Minute) / time.Millisecond)
-	maxPublicAccessSessionMillis     = int64((30 * 24 * time.Hour) / time.Millisecond)
+	defaultPublicAccessCookieName               = "p2pstream_local_auth"
+	publicAccessGroupMatchAny                   = "any"
+	publicAccessGroupMatchAll                   = "all"
+	defaultPublicAccessTimeoutMillis            = int64(5000)
+	minPublicAccessTimeoutMillis                = int64(100)
+	maxPublicAccessTimeoutMillis                = int64(30000)
+	maxPublicAccessHeaders                      = 16
+	maxPublicAccessGroups                       = 64
+	maxPublicAccessAllowedHosts                 = 64
+	defaultPublicAccessSessionMillis            = int64((7 * 24 * time.Hour) / time.Millisecond)
+	minPublicAccessSessionMillis                = int64((5 * time.Minute) / time.Millisecond)
+	maxPublicAccessSessionMillis                = int64((30 * 24 * time.Hour) / time.Millisecond)
+	defaultPublicAccessLoginUsernameMaxFailures = int64(loginThrottleMaxFailures)
+	defaultPublicAccessLoginClientMaxFailures   = int64(loginThrottleClientMaxFailures)
+	defaultPublicAccessLoginWindowMillis        = int64(loginThrottleWindow / time.Millisecond)
+	defaultPublicAccessLoginBlockMillis         = int64(loginThrottleBlock / time.Millisecond)
+	maxPublicAccessLoginUsernameMaxFailures     = int64(100)
+	maxPublicAccessLoginClientMaxFailures       = int64(1000)
+	minPublicAccessLoginWindowMillis            = int64(time.Minute / time.Millisecond)
+	maxPublicAccessLoginWindowMillis            = int64((24 * time.Hour) / time.Millisecond)
+	minPublicAccessLoginBlockMillis             = int64(time.Minute / time.Millisecond)
+	maxPublicAccessLoginBlockMillis             = int64((7 * 24 * time.Hour) / time.Millisecond)
 )
 
 var defaultPublicAccessForwardedHeaders = []string{
@@ -88,6 +98,7 @@ type publicAccessProviderConfig struct {
 	LocalAuthCookieDomain             string
 	LocalAuthCookieSecure             bool
 	LocalAuthCookieName               string
+	LocalAuthLoginThrottle            loginThrottlePolicy
 	LocalUsers                        map[string]publicAccessUserConfig
 	basicAuthCache                    *publicAccessBasicAuthCache
 	client                            HTTPClient
@@ -198,6 +209,15 @@ func publicAccessProviderRowToConfig(row db.PublicAccessProvider) (publicAccessP
 		if err != nil {
 			return publicAccessProviderConfig{}, err
 		}
+		loginThrottle, err := normalizePublicAccessLoginThrottlePolicy(
+			row.LocalAuthLoginUsernameMaxFailures,
+			row.LocalAuthLoginClientMaxFailures,
+			row.LocalAuthLoginWindowMillis,
+			row.LocalAuthLoginBlockMillis,
+		)
+		if err != nil {
+			return publicAccessProviderConfig{}, err
+		}
 		config.ForwardedHeaders = append([]string(nil), localPublicAccessForwardedHeaders...)
 		config.LocalAuthMode = mode
 		config.SessionDuration = time.Duration(row.LocalAuthSessionDurationMillis) * time.Millisecond
@@ -208,6 +228,7 @@ func publicAccessProviderRowToConfig(row db.PublicAccessProvider) (publicAccessP
 		config.LocalAuthCookieDomain = cookieDomain
 		config.LocalAuthCookieSecure = row.LocalAuthCookieSecure != 0 || cookieSameSite == publicAccessCookieSameSiteNone
 		config.LocalAuthCookieName = cookieName
+		config.LocalAuthLoginThrottle = loginThrottle
 		config.LocalUsers = make(map[string]publicAccessUserConfig)
 		config.basicAuthCache = newPublicAccessBasicAuthCache(1024)
 	default:
@@ -375,6 +396,10 @@ func validatePublicAccessProviderInput(
 	localAuthCookieDomain string,
 	localAuthCookieSecure bool,
 	localAuthCookieName string,
+	localAuthLoginUsernameMaxFailures int64,
+	localAuthLoginClientMaxFailures int64,
+	localAuthLoginWindowMillis int64,
+	localAuthLoginBlockMillis int64,
 ) (db.UpdatePublicAccessProviderParams, error) {
 	name, err := normalizePublicName(name)
 	if err != nil {
@@ -437,6 +462,15 @@ func validatePublicAccessProviderInput(
 	if strings.HasPrefix(cookieName, "__Secure-") && !localAuthCookieSecure {
 		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("__Secure- cookie names require always-Secure cookies"))
 	}
+	loginThrottle, err := normalizePublicAccessLoginThrottlePolicy(
+		localAuthLoginUsernameMaxFailures,
+		localAuthLoginClientMaxFailures,
+		localAuthLoginWindowMillis,
+		localAuthLoginBlockMillis,
+	)
+	if err != nil {
+		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	switch typeString {
 	case publicAccessProviderTypeForwardAuth:
 		localAuthLoginTemplateID = 0
@@ -445,6 +479,7 @@ func validatePublicAccessProviderInput(
 		cookieDomain = ""
 		localAuthCookieSecure = false
 		cookieName = defaultPublicAccessCookieName
+		loginThrottle = defaultLoginThrottlePolicy
 		parsed, parseErr := parsePublicForwardAuthURL(forwardAuthURL)
 		if parseErr != nil {
 			return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, parseErr)
@@ -480,26 +515,30 @@ func validatePublicAccessProviderInput(
 		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInternal, err)
 	}
 	return db.UpdatePublicAccessProviderParams{
-		Name:                           name,
-		ProviderType:                   typeString,
-		Enabled:                        boolInt(enabled),
-		ForwardAuthUrl:                 forwardAuthURL,
-		TimeoutMillis:                  timeoutMillis,
-		TlsSkipVerify:                  boolInt(tlsSkipVerify),
-		SubjectHeader:                  subjectHeader,
-		UserHeader:                     userHeader,
-		EmailHeader:                    emailHeader,
-		GroupsHeader:                   groupsHeader,
-		ForwardedHeadersJson:           string(forwardedJSON),
-		LocalAuthMode:                  localMode,
-		LocalAuthSessionDurationMillis: localAuthSessionDurationMillis,
-		LocalAuthRealm:                 localAuthRealm,
-		LocalAuthLoginTemplateID:       sql.NullInt64{Int64: localAuthLoginTemplateID, Valid: localAuthLoginTemplateID > 0},
-		LocalAuthAllowedHostsJson:      string(allowedHostsJSON),
-		LocalAuthCookieSameSite:        cookieSameSite,
-		LocalAuthCookieDomain:          cookieDomain,
-		LocalAuthCookieSecure:          boolInt(localAuthCookieSecure),
-		LocalAuthCookieName:            cookieName,
+		Name:                              name,
+		ProviderType:                      typeString,
+		Enabled:                           boolInt(enabled),
+		ForwardAuthUrl:                    forwardAuthURL,
+		TimeoutMillis:                     timeoutMillis,
+		TlsSkipVerify:                     boolInt(tlsSkipVerify),
+		SubjectHeader:                     subjectHeader,
+		UserHeader:                        userHeader,
+		EmailHeader:                       emailHeader,
+		GroupsHeader:                      groupsHeader,
+		ForwardedHeadersJson:              string(forwardedJSON),
+		LocalAuthMode:                     localMode,
+		LocalAuthSessionDurationMillis:    localAuthSessionDurationMillis,
+		LocalAuthRealm:                    localAuthRealm,
+		LocalAuthLoginTemplateID:          sql.NullInt64{Int64: localAuthLoginTemplateID, Valid: localAuthLoginTemplateID > 0},
+		LocalAuthAllowedHostsJson:         string(allowedHostsJSON),
+		LocalAuthCookieSameSite:           cookieSameSite,
+		LocalAuthCookieDomain:             cookieDomain,
+		LocalAuthCookieSecure:             boolInt(localAuthCookieSecure),
+		LocalAuthCookieName:               cookieName,
+		LocalAuthLoginUsernameMaxFailures: int64(loginThrottle.UsernameMaxFailures),
+		LocalAuthLoginClientMaxFailures:   int64(loginThrottle.ClientMaxFailures),
+		LocalAuthLoginWindowMillis:        int64(loginThrottle.Window / time.Millisecond),
+		LocalAuthLoginBlockMillis:         int64(loginThrottle.Block / time.Millisecond),
 	}, nil
 }
 
@@ -838,6 +877,44 @@ func normalizePublicAccessCookieDomain(value string, allowedHosts []string) (str
 	return domain, nil
 }
 
+func normalizePublicAccessLoginThrottlePolicy(
+	usernameMaxFailures int64,
+	clientMaxFailures int64,
+	windowMillis int64,
+	blockMillis int64,
+) (loginThrottlePolicy, error) {
+	if usernameMaxFailures == 0 {
+		usernameMaxFailures = defaultPublicAccessLoginUsernameMaxFailures
+	}
+	if clientMaxFailures == 0 {
+		clientMaxFailures = defaultPublicAccessLoginClientMaxFailures
+	}
+	if windowMillis == 0 {
+		windowMillis = defaultPublicAccessLoginWindowMillis
+	}
+	if blockMillis == 0 {
+		blockMillis = defaultPublicAccessLoginBlockMillis
+	}
+	if usernameMaxFailures < 1 || usernameMaxFailures > maxPublicAccessLoginUsernameMaxFailures {
+		return loginThrottlePolicy{}, errors.New("local login account failure limit must be between 1 and 100")
+	}
+	if clientMaxFailures < usernameMaxFailures || clientMaxFailures > maxPublicAccessLoginClientMaxFailures {
+		return loginThrottlePolicy{}, errors.New("local login client failure limit must be between the account limit and 1000")
+	}
+	if windowMillis < minPublicAccessLoginWindowMillis || windowMillis > maxPublicAccessLoginWindowMillis {
+		return loginThrottlePolicy{}, errors.New("local login failure window must be between 1 minute and 24 hours")
+	}
+	if blockMillis < minPublicAccessLoginBlockMillis || blockMillis > maxPublicAccessLoginBlockMillis {
+		return loginThrottlePolicy{}, errors.New("local login block duration must be between 1 minute and 7 days")
+	}
+	return loginThrottlePolicy{
+		UsernameMaxFailures: int(usernameMaxFailures),
+		ClientMaxFailures:   int(clientMaxFailures),
+		Window:              time.Duration(windowMillis) * time.Millisecond,
+		Block:               time.Duration(blockMillis) * time.Millisecond,
+	}, nil
+}
+
 func publicAccessHostAllowed(host string, allowedHosts []string) bool {
 	if len(allowedHosts) == 0 {
 		return true
@@ -961,29 +1038,33 @@ func publicAccessProviderToProto(row db.PublicAccessProvider) *p2pstreamv1.Publi
 	headers, _ := publicAccessStringListFromJSON(row.ForwardedHeadersJson)
 	allowedHosts, _ := publicAccessStringListFromJSON(row.LocalAuthAllowedHostsJson)
 	return &p2pstreamv1.PublicAccessProvider{
-		Id:                             row.ID,
-		Name:                           row.Name,
-		ProviderType:                   protoPublicAccessProviderType(row.ProviderType),
-		Enabled:                        row.Enabled != 0,
-		ForwardAuthUrl:                 row.ForwardAuthUrl,
-		TimeoutMillis:                  row.TimeoutMillis,
-		TlsSkipVerify:                  row.TlsSkipVerify != 0,
-		SubjectHeader:                  row.SubjectHeader,
-		UserHeader:                     row.UserHeader,
-		EmailHeader:                    row.EmailHeader,
-		GroupsHeader:                   row.GroupsHeader,
-		ForwardedHeaders:               headers,
-		LocalAuthMode:                  protoPublicAccessLocalAuthMode(row.LocalAuthMode),
-		LocalAuthSessionDurationMillis: row.LocalAuthSessionDurationMillis,
-		LocalAuthRealm:                 row.LocalAuthRealm,
-		LocalAuthLoginTemplateId:       nullInt64Value(row.LocalAuthLoginTemplateID),
-		LocalAuthAllowedHosts:          allowedHosts,
-		LocalAuthCookieSameSite:        protoPublicAccessCookieSameSite(row.LocalAuthCookieSameSite),
-		LocalAuthCookieDomain:          row.LocalAuthCookieDomain,
-		LocalAuthCookieSecure:          row.LocalAuthCookieSecure != 0 || normalizePublicAccessCookieSameSite(row.LocalAuthCookieSameSite) == publicAccessCookieSameSiteNone,
-		LocalAuthCookieName:            row.LocalAuthCookieName,
-		CreatedAtUnixMillis:            row.CreatedAt.UnixMilli(),
-		UpdatedAtUnixMillis:            row.UpdatedAt.UnixMilli(),
+		Id:                                row.ID,
+		Name:                              row.Name,
+		ProviderType:                      protoPublicAccessProviderType(row.ProviderType),
+		Enabled:                           row.Enabled != 0,
+		ForwardAuthUrl:                    row.ForwardAuthUrl,
+		TimeoutMillis:                     row.TimeoutMillis,
+		TlsSkipVerify:                     row.TlsSkipVerify != 0,
+		SubjectHeader:                     row.SubjectHeader,
+		UserHeader:                        row.UserHeader,
+		EmailHeader:                       row.EmailHeader,
+		GroupsHeader:                      row.GroupsHeader,
+		ForwardedHeaders:                  headers,
+		LocalAuthMode:                     protoPublicAccessLocalAuthMode(row.LocalAuthMode),
+		LocalAuthSessionDurationMillis:    row.LocalAuthSessionDurationMillis,
+		LocalAuthRealm:                    row.LocalAuthRealm,
+		LocalAuthLoginTemplateId:          nullInt64Value(row.LocalAuthLoginTemplateID),
+		LocalAuthAllowedHosts:             allowedHosts,
+		LocalAuthCookieSameSite:           protoPublicAccessCookieSameSite(row.LocalAuthCookieSameSite),
+		LocalAuthCookieDomain:             row.LocalAuthCookieDomain,
+		LocalAuthCookieSecure:             row.LocalAuthCookieSecure != 0 || normalizePublicAccessCookieSameSite(row.LocalAuthCookieSameSite) == publicAccessCookieSameSiteNone,
+		LocalAuthCookieName:               row.LocalAuthCookieName,
+		LocalAuthLoginUsernameMaxFailures: row.LocalAuthLoginUsernameMaxFailures,
+		LocalAuthLoginClientMaxFailures:   row.LocalAuthLoginClientMaxFailures,
+		LocalAuthLoginWindowMillis:        row.LocalAuthLoginWindowMillis,
+		LocalAuthLoginBlockMillis:         row.LocalAuthLoginBlockMillis,
+		CreatedAtUnixMillis:               row.CreatedAt.UnixMilli(),
+		UpdatedAtUnixMillis:               row.UpdatedAt.UnixMilli(),
 	}
 }
 

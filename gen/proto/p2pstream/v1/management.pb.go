@@ -6095,32 +6095,36 @@ func (x *PublicRoute) GetAccessPolicyId() int64 {
 }
 
 type PublicAccessProvider struct {
-	state                          protoimpl.MessageState     `protogen:"open.v1"`
-	Id                             int64                      `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                           string                     `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	ProviderType                   PublicAccessProviderType   `protobuf:"varint,3,opt,name=provider_type,json=providerType,proto3,enum=p2pstream.v1.PublicAccessProviderType" json:"provider_type,omitempty"`
-	Enabled                        bool                       `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	ForwardAuthUrl                 string                     `protobuf:"bytes,5,opt,name=forward_auth_url,json=forwardAuthUrl,proto3" json:"forward_auth_url,omitempty"`
-	TimeoutMillis                  int64                      `protobuf:"varint,6,opt,name=timeout_millis,json=timeoutMillis,proto3" json:"timeout_millis,omitempty"`
-	TlsSkipVerify                  bool                       `protobuf:"varint,7,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
-	SubjectHeader                  string                     `protobuf:"bytes,8,opt,name=subject_header,json=subjectHeader,proto3" json:"subject_header,omitempty"`
-	UserHeader                     string                     `protobuf:"bytes,9,opt,name=user_header,json=userHeader,proto3" json:"user_header,omitempty"`
-	EmailHeader                    string                     `protobuf:"bytes,10,opt,name=email_header,json=emailHeader,proto3" json:"email_header,omitempty"`
-	GroupsHeader                   string                     `protobuf:"bytes,11,opt,name=groups_header,json=groupsHeader,proto3" json:"groups_header,omitempty"`
-	ForwardedHeaders               []string                   `protobuf:"bytes,12,rep,name=forwarded_headers,json=forwardedHeaders,proto3" json:"forwarded_headers,omitempty"`
-	CreatedAtUnixMillis            int64                      `protobuf:"varint,13,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
-	UpdatedAtUnixMillis            int64                      `protobuf:"varint,14,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
-	LocalAuthMode                  PublicAccessLocalAuthMode  `protobuf:"varint,15,opt,name=local_auth_mode,json=localAuthMode,proto3,enum=p2pstream.v1.PublicAccessLocalAuthMode" json:"local_auth_mode,omitempty"`
-	LocalAuthSessionDurationMillis int64                      `protobuf:"varint,16,opt,name=local_auth_session_duration_millis,json=localAuthSessionDurationMillis,proto3" json:"local_auth_session_duration_millis,omitempty"`
-	LocalAuthRealm                 string                     `protobuf:"bytes,17,opt,name=local_auth_realm,json=localAuthRealm,proto3" json:"local_auth_realm,omitempty"`
-	LocalAuthLoginTemplateId       int64                      `protobuf:"varint,18,opt,name=local_auth_login_template_id,json=localAuthLoginTemplateId,proto3" json:"local_auth_login_template_id,omitempty"`
-	LocalAuthAllowedHosts          []string                   `protobuf:"bytes,19,rep,name=local_auth_allowed_hosts,json=localAuthAllowedHosts,proto3" json:"local_auth_allowed_hosts,omitempty"`
-	LocalAuthCookieSameSite        PublicAccessCookieSameSite `protobuf:"varint,20,opt,name=local_auth_cookie_same_site,json=localAuthCookieSameSite,proto3,enum=p2pstream.v1.PublicAccessCookieSameSite" json:"local_auth_cookie_same_site,omitempty"`
-	LocalAuthCookieDomain          string                     `protobuf:"bytes,21,opt,name=local_auth_cookie_domain,json=localAuthCookieDomain,proto3" json:"local_auth_cookie_domain,omitempty"`
-	LocalAuthCookieSecure          bool                       `protobuf:"varint,22,opt,name=local_auth_cookie_secure,json=localAuthCookieSecure,proto3" json:"local_auth_cookie_secure,omitempty"`
-	LocalAuthCookieName            string                     `protobuf:"bytes,23,opt,name=local_auth_cookie_name,json=localAuthCookieName,proto3" json:"local_auth_cookie_name,omitempty"`
-	unknownFields                  protoimpl.UnknownFields
-	sizeCache                      protoimpl.SizeCache
+	state                             protoimpl.MessageState     `protogen:"open.v1"`
+	Id                                int64                      `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                              string                     `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	ProviderType                      PublicAccessProviderType   `protobuf:"varint,3,opt,name=provider_type,json=providerType,proto3,enum=p2pstream.v1.PublicAccessProviderType" json:"provider_type,omitempty"`
+	Enabled                           bool                       `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	ForwardAuthUrl                    string                     `protobuf:"bytes,5,opt,name=forward_auth_url,json=forwardAuthUrl,proto3" json:"forward_auth_url,omitempty"`
+	TimeoutMillis                     int64                      `protobuf:"varint,6,opt,name=timeout_millis,json=timeoutMillis,proto3" json:"timeout_millis,omitempty"`
+	TlsSkipVerify                     bool                       `protobuf:"varint,7,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
+	SubjectHeader                     string                     `protobuf:"bytes,8,opt,name=subject_header,json=subjectHeader,proto3" json:"subject_header,omitempty"`
+	UserHeader                        string                     `protobuf:"bytes,9,opt,name=user_header,json=userHeader,proto3" json:"user_header,omitempty"`
+	EmailHeader                       string                     `protobuf:"bytes,10,opt,name=email_header,json=emailHeader,proto3" json:"email_header,omitempty"`
+	GroupsHeader                      string                     `protobuf:"bytes,11,opt,name=groups_header,json=groupsHeader,proto3" json:"groups_header,omitempty"`
+	ForwardedHeaders                  []string                   `protobuf:"bytes,12,rep,name=forwarded_headers,json=forwardedHeaders,proto3" json:"forwarded_headers,omitempty"`
+	CreatedAtUnixMillis               int64                      `protobuf:"varint,13,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
+	UpdatedAtUnixMillis               int64                      `protobuf:"varint,14,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
+	LocalAuthMode                     PublicAccessLocalAuthMode  `protobuf:"varint,15,opt,name=local_auth_mode,json=localAuthMode,proto3,enum=p2pstream.v1.PublicAccessLocalAuthMode" json:"local_auth_mode,omitempty"`
+	LocalAuthSessionDurationMillis    int64                      `protobuf:"varint,16,opt,name=local_auth_session_duration_millis,json=localAuthSessionDurationMillis,proto3" json:"local_auth_session_duration_millis,omitempty"`
+	LocalAuthRealm                    string                     `protobuf:"bytes,17,opt,name=local_auth_realm,json=localAuthRealm,proto3" json:"local_auth_realm,omitempty"`
+	LocalAuthLoginTemplateId          int64                      `protobuf:"varint,18,opt,name=local_auth_login_template_id,json=localAuthLoginTemplateId,proto3" json:"local_auth_login_template_id,omitempty"`
+	LocalAuthAllowedHosts             []string                   `protobuf:"bytes,19,rep,name=local_auth_allowed_hosts,json=localAuthAllowedHosts,proto3" json:"local_auth_allowed_hosts,omitempty"`
+	LocalAuthCookieSameSite           PublicAccessCookieSameSite `protobuf:"varint,20,opt,name=local_auth_cookie_same_site,json=localAuthCookieSameSite,proto3,enum=p2pstream.v1.PublicAccessCookieSameSite" json:"local_auth_cookie_same_site,omitempty"`
+	LocalAuthCookieDomain             string                     `protobuf:"bytes,21,opt,name=local_auth_cookie_domain,json=localAuthCookieDomain,proto3" json:"local_auth_cookie_domain,omitempty"`
+	LocalAuthCookieSecure             bool                       `protobuf:"varint,22,opt,name=local_auth_cookie_secure,json=localAuthCookieSecure,proto3" json:"local_auth_cookie_secure,omitempty"`
+	LocalAuthCookieName               string                     `protobuf:"bytes,23,opt,name=local_auth_cookie_name,json=localAuthCookieName,proto3" json:"local_auth_cookie_name,omitempty"`
+	LocalAuthLoginUsernameMaxFailures int64                      `protobuf:"varint,24,opt,name=local_auth_login_username_max_failures,json=localAuthLoginUsernameMaxFailures,proto3" json:"local_auth_login_username_max_failures,omitempty"`
+	LocalAuthLoginClientMaxFailures   int64                      `protobuf:"varint,25,opt,name=local_auth_login_client_max_failures,json=localAuthLoginClientMaxFailures,proto3" json:"local_auth_login_client_max_failures,omitempty"`
+	LocalAuthLoginWindowMillis        int64                      `protobuf:"varint,26,opt,name=local_auth_login_window_millis,json=localAuthLoginWindowMillis,proto3" json:"local_auth_login_window_millis,omitempty"`
+	LocalAuthLoginBlockMillis         int64                      `protobuf:"varint,27,opt,name=local_auth_login_block_millis,json=localAuthLoginBlockMillis,proto3" json:"local_auth_login_block_millis,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *PublicAccessProvider) Reset() {
@@ -6312,6 +6316,34 @@ func (x *PublicAccessProvider) GetLocalAuthCookieName() string {
 		return x.LocalAuthCookieName
 	}
 	return ""
+}
+
+func (x *PublicAccessProvider) GetLocalAuthLoginUsernameMaxFailures() int64 {
+	if x != nil {
+		return x.LocalAuthLoginUsernameMaxFailures
+	}
+	return 0
+}
+
+func (x *PublicAccessProvider) GetLocalAuthLoginClientMaxFailures() int64 {
+	if x != nil {
+		return x.LocalAuthLoginClientMaxFailures
+	}
+	return 0
+}
+
+func (x *PublicAccessProvider) GetLocalAuthLoginWindowMillis() int64 {
+	if x != nil {
+		return x.LocalAuthLoginWindowMillis
+	}
+	return 0
+}
+
+func (x *PublicAccessProvider) GetLocalAuthLoginBlockMillis() int64 {
+	if x != nil {
+		return x.LocalAuthLoginBlockMillis
+	}
+	return 0
 }
 
 type PublicAccessUser struct {
@@ -12515,29 +12547,33 @@ func (*DeletePublicRouteResponse) Descriptor() ([]byte, []int) {
 }
 
 type CreatePublicAccessProviderRequest struct {
-	state                          protoimpl.MessageState     `protogen:"open.v1"`
-	Name                           string                     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	ProviderType                   PublicAccessProviderType   `protobuf:"varint,2,opt,name=provider_type,json=providerType,proto3,enum=p2pstream.v1.PublicAccessProviderType" json:"provider_type,omitempty"`
-	Enabled                        bool                       `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	ForwardAuthUrl                 string                     `protobuf:"bytes,4,opt,name=forward_auth_url,json=forwardAuthUrl,proto3" json:"forward_auth_url,omitempty"`
-	TimeoutMillis                  int64                      `protobuf:"varint,5,opt,name=timeout_millis,json=timeoutMillis,proto3" json:"timeout_millis,omitempty"`
-	TlsSkipVerify                  bool                       `protobuf:"varint,6,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
-	SubjectHeader                  string                     `protobuf:"bytes,7,opt,name=subject_header,json=subjectHeader,proto3" json:"subject_header,omitempty"`
-	UserHeader                     string                     `protobuf:"bytes,8,opt,name=user_header,json=userHeader,proto3" json:"user_header,omitempty"`
-	EmailHeader                    string                     `protobuf:"bytes,9,opt,name=email_header,json=emailHeader,proto3" json:"email_header,omitempty"`
-	GroupsHeader                   string                     `protobuf:"bytes,10,opt,name=groups_header,json=groupsHeader,proto3" json:"groups_header,omitempty"`
-	ForwardedHeaders               []string                   `protobuf:"bytes,11,rep,name=forwarded_headers,json=forwardedHeaders,proto3" json:"forwarded_headers,omitempty"`
-	LocalAuthMode                  PublicAccessLocalAuthMode  `protobuf:"varint,12,opt,name=local_auth_mode,json=localAuthMode,proto3,enum=p2pstream.v1.PublicAccessLocalAuthMode" json:"local_auth_mode,omitempty"`
-	LocalAuthSessionDurationMillis int64                      `protobuf:"varint,13,opt,name=local_auth_session_duration_millis,json=localAuthSessionDurationMillis,proto3" json:"local_auth_session_duration_millis,omitempty"`
-	LocalAuthRealm                 string                     `protobuf:"bytes,14,opt,name=local_auth_realm,json=localAuthRealm,proto3" json:"local_auth_realm,omitempty"`
-	LocalAuthLoginTemplateId       int64                      `protobuf:"varint,15,opt,name=local_auth_login_template_id,json=localAuthLoginTemplateId,proto3" json:"local_auth_login_template_id,omitempty"`
-	LocalAuthAllowedHosts          []string                   `protobuf:"bytes,16,rep,name=local_auth_allowed_hosts,json=localAuthAllowedHosts,proto3" json:"local_auth_allowed_hosts,omitempty"`
-	LocalAuthCookieSameSite        PublicAccessCookieSameSite `protobuf:"varint,17,opt,name=local_auth_cookie_same_site,json=localAuthCookieSameSite,proto3,enum=p2pstream.v1.PublicAccessCookieSameSite" json:"local_auth_cookie_same_site,omitempty"`
-	LocalAuthCookieDomain          string                     `protobuf:"bytes,18,opt,name=local_auth_cookie_domain,json=localAuthCookieDomain,proto3" json:"local_auth_cookie_domain,omitempty"`
-	LocalAuthCookieSecure          bool                       `protobuf:"varint,19,opt,name=local_auth_cookie_secure,json=localAuthCookieSecure,proto3" json:"local_auth_cookie_secure,omitempty"`
-	LocalAuthCookieName            string                     `protobuf:"bytes,20,opt,name=local_auth_cookie_name,json=localAuthCookieName,proto3" json:"local_auth_cookie_name,omitempty"`
-	unknownFields                  protoimpl.UnknownFields
-	sizeCache                      protoimpl.SizeCache
+	state                             protoimpl.MessageState     `protogen:"open.v1"`
+	Name                              string                     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ProviderType                      PublicAccessProviderType   `protobuf:"varint,2,opt,name=provider_type,json=providerType,proto3,enum=p2pstream.v1.PublicAccessProviderType" json:"provider_type,omitempty"`
+	Enabled                           bool                       `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	ForwardAuthUrl                    string                     `protobuf:"bytes,4,opt,name=forward_auth_url,json=forwardAuthUrl,proto3" json:"forward_auth_url,omitempty"`
+	TimeoutMillis                     int64                      `protobuf:"varint,5,opt,name=timeout_millis,json=timeoutMillis,proto3" json:"timeout_millis,omitempty"`
+	TlsSkipVerify                     bool                       `protobuf:"varint,6,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
+	SubjectHeader                     string                     `protobuf:"bytes,7,opt,name=subject_header,json=subjectHeader,proto3" json:"subject_header,omitempty"`
+	UserHeader                        string                     `protobuf:"bytes,8,opt,name=user_header,json=userHeader,proto3" json:"user_header,omitempty"`
+	EmailHeader                       string                     `protobuf:"bytes,9,opt,name=email_header,json=emailHeader,proto3" json:"email_header,omitempty"`
+	GroupsHeader                      string                     `protobuf:"bytes,10,opt,name=groups_header,json=groupsHeader,proto3" json:"groups_header,omitempty"`
+	ForwardedHeaders                  []string                   `protobuf:"bytes,11,rep,name=forwarded_headers,json=forwardedHeaders,proto3" json:"forwarded_headers,omitempty"`
+	LocalAuthMode                     PublicAccessLocalAuthMode  `protobuf:"varint,12,opt,name=local_auth_mode,json=localAuthMode,proto3,enum=p2pstream.v1.PublicAccessLocalAuthMode" json:"local_auth_mode,omitempty"`
+	LocalAuthSessionDurationMillis    int64                      `protobuf:"varint,13,opt,name=local_auth_session_duration_millis,json=localAuthSessionDurationMillis,proto3" json:"local_auth_session_duration_millis,omitempty"`
+	LocalAuthRealm                    string                     `protobuf:"bytes,14,opt,name=local_auth_realm,json=localAuthRealm,proto3" json:"local_auth_realm,omitempty"`
+	LocalAuthLoginTemplateId          int64                      `protobuf:"varint,15,opt,name=local_auth_login_template_id,json=localAuthLoginTemplateId,proto3" json:"local_auth_login_template_id,omitempty"`
+	LocalAuthAllowedHosts             []string                   `protobuf:"bytes,16,rep,name=local_auth_allowed_hosts,json=localAuthAllowedHosts,proto3" json:"local_auth_allowed_hosts,omitempty"`
+	LocalAuthCookieSameSite           PublicAccessCookieSameSite `protobuf:"varint,17,opt,name=local_auth_cookie_same_site,json=localAuthCookieSameSite,proto3,enum=p2pstream.v1.PublicAccessCookieSameSite" json:"local_auth_cookie_same_site,omitempty"`
+	LocalAuthCookieDomain             string                     `protobuf:"bytes,18,opt,name=local_auth_cookie_domain,json=localAuthCookieDomain,proto3" json:"local_auth_cookie_domain,omitempty"`
+	LocalAuthCookieSecure             bool                       `protobuf:"varint,19,opt,name=local_auth_cookie_secure,json=localAuthCookieSecure,proto3" json:"local_auth_cookie_secure,omitempty"`
+	LocalAuthCookieName               string                     `protobuf:"bytes,20,opt,name=local_auth_cookie_name,json=localAuthCookieName,proto3" json:"local_auth_cookie_name,omitempty"`
+	LocalAuthLoginUsernameMaxFailures int64                      `protobuf:"varint,21,opt,name=local_auth_login_username_max_failures,json=localAuthLoginUsernameMaxFailures,proto3" json:"local_auth_login_username_max_failures,omitempty"`
+	LocalAuthLoginClientMaxFailures   int64                      `protobuf:"varint,22,opt,name=local_auth_login_client_max_failures,json=localAuthLoginClientMaxFailures,proto3" json:"local_auth_login_client_max_failures,omitempty"`
+	LocalAuthLoginWindowMillis        int64                      `protobuf:"varint,23,opt,name=local_auth_login_window_millis,json=localAuthLoginWindowMillis,proto3" json:"local_auth_login_window_millis,omitempty"`
+	LocalAuthLoginBlockMillis         int64                      `protobuf:"varint,24,opt,name=local_auth_login_block_millis,json=localAuthLoginBlockMillis,proto3" json:"local_auth_login_block_millis,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *CreatePublicAccessProviderRequest) Reset() {
@@ -12710,6 +12746,34 @@ func (x *CreatePublicAccessProviderRequest) GetLocalAuthCookieName() string {
 	return ""
 }
 
+func (x *CreatePublicAccessProviderRequest) GetLocalAuthLoginUsernameMaxFailures() int64 {
+	if x != nil {
+		return x.LocalAuthLoginUsernameMaxFailures
+	}
+	return 0
+}
+
+func (x *CreatePublicAccessProviderRequest) GetLocalAuthLoginClientMaxFailures() int64 {
+	if x != nil {
+		return x.LocalAuthLoginClientMaxFailures
+	}
+	return 0
+}
+
+func (x *CreatePublicAccessProviderRequest) GetLocalAuthLoginWindowMillis() int64 {
+	if x != nil {
+		return x.LocalAuthLoginWindowMillis
+	}
+	return 0
+}
+
+func (x *CreatePublicAccessProviderRequest) GetLocalAuthLoginBlockMillis() int64 {
+	if x != nil {
+		return x.LocalAuthLoginBlockMillis
+	}
+	return 0
+}
+
 type CreatePublicAccessProviderResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Provider      *PublicAccessProvider  `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
@@ -12755,30 +12819,34 @@ func (x *CreatePublicAccessProviderResponse) GetProvider() *PublicAccessProvider
 }
 
 type UpdatePublicAccessProviderRequest struct {
-	state                          protoimpl.MessageState     `protogen:"open.v1"`
-	Id                             int64                      `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                           string                     `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	ProviderType                   PublicAccessProviderType   `protobuf:"varint,3,opt,name=provider_type,json=providerType,proto3,enum=p2pstream.v1.PublicAccessProviderType" json:"provider_type,omitempty"`
-	Enabled                        bool                       `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	ForwardAuthUrl                 string                     `protobuf:"bytes,5,opt,name=forward_auth_url,json=forwardAuthUrl,proto3" json:"forward_auth_url,omitempty"`
-	TimeoutMillis                  int64                      `protobuf:"varint,6,opt,name=timeout_millis,json=timeoutMillis,proto3" json:"timeout_millis,omitempty"`
-	TlsSkipVerify                  bool                       `protobuf:"varint,7,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
-	SubjectHeader                  string                     `protobuf:"bytes,8,opt,name=subject_header,json=subjectHeader,proto3" json:"subject_header,omitempty"`
-	UserHeader                     string                     `protobuf:"bytes,9,opt,name=user_header,json=userHeader,proto3" json:"user_header,omitempty"`
-	EmailHeader                    string                     `protobuf:"bytes,10,opt,name=email_header,json=emailHeader,proto3" json:"email_header,omitempty"`
-	GroupsHeader                   string                     `protobuf:"bytes,11,opt,name=groups_header,json=groupsHeader,proto3" json:"groups_header,omitempty"`
-	ForwardedHeaders               []string                   `protobuf:"bytes,12,rep,name=forwarded_headers,json=forwardedHeaders,proto3" json:"forwarded_headers,omitempty"`
-	LocalAuthMode                  PublicAccessLocalAuthMode  `protobuf:"varint,13,opt,name=local_auth_mode,json=localAuthMode,proto3,enum=p2pstream.v1.PublicAccessLocalAuthMode" json:"local_auth_mode,omitempty"`
-	LocalAuthSessionDurationMillis int64                      `protobuf:"varint,14,opt,name=local_auth_session_duration_millis,json=localAuthSessionDurationMillis,proto3" json:"local_auth_session_duration_millis,omitempty"`
-	LocalAuthRealm                 string                     `protobuf:"bytes,15,opt,name=local_auth_realm,json=localAuthRealm,proto3" json:"local_auth_realm,omitempty"`
-	LocalAuthLoginTemplateId       int64                      `protobuf:"varint,16,opt,name=local_auth_login_template_id,json=localAuthLoginTemplateId,proto3" json:"local_auth_login_template_id,omitempty"`
-	LocalAuthAllowedHosts          []string                   `protobuf:"bytes,17,rep,name=local_auth_allowed_hosts,json=localAuthAllowedHosts,proto3" json:"local_auth_allowed_hosts,omitempty"`
-	LocalAuthCookieSameSite        PublicAccessCookieSameSite `protobuf:"varint,18,opt,name=local_auth_cookie_same_site,json=localAuthCookieSameSite,proto3,enum=p2pstream.v1.PublicAccessCookieSameSite" json:"local_auth_cookie_same_site,omitempty"`
-	LocalAuthCookieDomain          string                     `protobuf:"bytes,19,opt,name=local_auth_cookie_domain,json=localAuthCookieDomain,proto3" json:"local_auth_cookie_domain,omitempty"`
-	LocalAuthCookieSecure          bool                       `protobuf:"varint,20,opt,name=local_auth_cookie_secure,json=localAuthCookieSecure,proto3" json:"local_auth_cookie_secure,omitempty"`
-	LocalAuthCookieName            string                     `protobuf:"bytes,21,opt,name=local_auth_cookie_name,json=localAuthCookieName,proto3" json:"local_auth_cookie_name,omitempty"`
-	unknownFields                  protoimpl.UnknownFields
-	sizeCache                      protoimpl.SizeCache
+	state                             protoimpl.MessageState     `protogen:"open.v1"`
+	Id                                int64                      `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                              string                     `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	ProviderType                      PublicAccessProviderType   `protobuf:"varint,3,opt,name=provider_type,json=providerType,proto3,enum=p2pstream.v1.PublicAccessProviderType" json:"provider_type,omitempty"`
+	Enabled                           bool                       `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	ForwardAuthUrl                    string                     `protobuf:"bytes,5,opt,name=forward_auth_url,json=forwardAuthUrl,proto3" json:"forward_auth_url,omitempty"`
+	TimeoutMillis                     int64                      `protobuf:"varint,6,opt,name=timeout_millis,json=timeoutMillis,proto3" json:"timeout_millis,omitempty"`
+	TlsSkipVerify                     bool                       `protobuf:"varint,7,opt,name=tls_skip_verify,json=tlsSkipVerify,proto3" json:"tls_skip_verify,omitempty"`
+	SubjectHeader                     string                     `protobuf:"bytes,8,opt,name=subject_header,json=subjectHeader,proto3" json:"subject_header,omitempty"`
+	UserHeader                        string                     `protobuf:"bytes,9,opt,name=user_header,json=userHeader,proto3" json:"user_header,omitempty"`
+	EmailHeader                       string                     `protobuf:"bytes,10,opt,name=email_header,json=emailHeader,proto3" json:"email_header,omitempty"`
+	GroupsHeader                      string                     `protobuf:"bytes,11,opt,name=groups_header,json=groupsHeader,proto3" json:"groups_header,omitempty"`
+	ForwardedHeaders                  []string                   `protobuf:"bytes,12,rep,name=forwarded_headers,json=forwardedHeaders,proto3" json:"forwarded_headers,omitempty"`
+	LocalAuthMode                     PublicAccessLocalAuthMode  `protobuf:"varint,13,opt,name=local_auth_mode,json=localAuthMode,proto3,enum=p2pstream.v1.PublicAccessLocalAuthMode" json:"local_auth_mode,omitempty"`
+	LocalAuthSessionDurationMillis    int64                      `protobuf:"varint,14,opt,name=local_auth_session_duration_millis,json=localAuthSessionDurationMillis,proto3" json:"local_auth_session_duration_millis,omitempty"`
+	LocalAuthRealm                    string                     `protobuf:"bytes,15,opt,name=local_auth_realm,json=localAuthRealm,proto3" json:"local_auth_realm,omitempty"`
+	LocalAuthLoginTemplateId          int64                      `protobuf:"varint,16,opt,name=local_auth_login_template_id,json=localAuthLoginTemplateId,proto3" json:"local_auth_login_template_id,omitempty"`
+	LocalAuthAllowedHosts             []string                   `protobuf:"bytes,17,rep,name=local_auth_allowed_hosts,json=localAuthAllowedHosts,proto3" json:"local_auth_allowed_hosts,omitempty"`
+	LocalAuthCookieSameSite           PublicAccessCookieSameSite `protobuf:"varint,18,opt,name=local_auth_cookie_same_site,json=localAuthCookieSameSite,proto3,enum=p2pstream.v1.PublicAccessCookieSameSite" json:"local_auth_cookie_same_site,omitempty"`
+	LocalAuthCookieDomain             string                     `protobuf:"bytes,19,opt,name=local_auth_cookie_domain,json=localAuthCookieDomain,proto3" json:"local_auth_cookie_domain,omitempty"`
+	LocalAuthCookieSecure             bool                       `protobuf:"varint,20,opt,name=local_auth_cookie_secure,json=localAuthCookieSecure,proto3" json:"local_auth_cookie_secure,omitempty"`
+	LocalAuthCookieName               string                     `protobuf:"bytes,21,opt,name=local_auth_cookie_name,json=localAuthCookieName,proto3" json:"local_auth_cookie_name,omitempty"`
+	LocalAuthLoginUsernameMaxFailures int64                      `protobuf:"varint,22,opt,name=local_auth_login_username_max_failures,json=localAuthLoginUsernameMaxFailures,proto3" json:"local_auth_login_username_max_failures,omitempty"`
+	LocalAuthLoginClientMaxFailures   int64                      `protobuf:"varint,23,opt,name=local_auth_login_client_max_failures,json=localAuthLoginClientMaxFailures,proto3" json:"local_auth_login_client_max_failures,omitempty"`
+	LocalAuthLoginWindowMillis        int64                      `protobuf:"varint,24,opt,name=local_auth_login_window_millis,json=localAuthLoginWindowMillis,proto3" json:"local_auth_login_window_millis,omitempty"`
+	LocalAuthLoginBlockMillis         int64                      `protobuf:"varint,25,opt,name=local_auth_login_block_millis,json=localAuthLoginBlockMillis,proto3" json:"local_auth_login_block_millis,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *UpdatePublicAccessProviderRequest) Reset() {
@@ -12956,6 +13024,34 @@ func (x *UpdatePublicAccessProviderRequest) GetLocalAuthCookieName() string {
 		return x.LocalAuthCookieName
 	}
 	return ""
+}
+
+func (x *UpdatePublicAccessProviderRequest) GetLocalAuthLoginUsernameMaxFailures() int64 {
+	if x != nil {
+		return x.LocalAuthLoginUsernameMaxFailures
+	}
+	return 0
+}
+
+func (x *UpdatePublicAccessProviderRequest) GetLocalAuthLoginClientMaxFailures() int64 {
+	if x != nil {
+		return x.LocalAuthLoginClientMaxFailures
+	}
+	return 0
+}
+
+func (x *UpdatePublicAccessProviderRequest) GetLocalAuthLoginWindowMillis() int64 {
+	if x != nil {
+		return x.LocalAuthLoginWindowMillis
+	}
+	return 0
+}
+
+func (x *UpdatePublicAccessProviderRequest) GetLocalAuthLoginBlockMillis() int64 {
+	if x != nil {
+		return x.LocalAuthLoginBlockMillis
+	}
+	return 0
 }
 
 type UpdatePublicAccessProviderResponse struct {
@@ -23169,7 +23265,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\atargets\x18\x15 \x03(\v2\x1f.p2pstream.v1.PublicRouteTargetR\atargets\x12W\n" +
 	"\x12path_security_mode\x18\x16 \x01(\x0e2).p2pstream.v1.PublicRoutePathSecurityModeR\x10pathSecurityMode\x12(\n" +
 	"\x10access_policy_id\x18\x17 \x01(\x03R\x0eaccessPolicyIdJ\x04\b\x06\x10\aJ\x04\b\x10\x10\x11J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13R\n" +
-	"backend_idR\x0eload_balancingR\x13backend_assignmentsR\x13fallback_backend_id\"\x90\t\n" +
+	"backend_idR\x0eload_balancingR\x13backend_assignmentsR\x13fallback_backend_id\"\xb8\v\n" +
 	"\x14PublicAccessProvider\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12K\n" +
@@ -23195,7 +23291,11 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x1blocal_auth_cookie_same_site\x18\x14 \x01(\x0e2(.p2pstream.v1.PublicAccessCookieSameSiteR\x17localAuthCookieSameSite\x127\n" +
 	"\x18local_auth_cookie_domain\x18\x15 \x01(\tR\x15localAuthCookieDomain\x127\n" +
 	"\x18local_auth_cookie_secure\x18\x16 \x01(\bR\x15localAuthCookieSecure\x123\n" +
-	"\x16local_auth_cookie_name\x18\x17 \x01(\tR\x13localAuthCookieName\"\x9e\x02\n" +
+	"\x16local_auth_cookie_name\x18\x17 \x01(\tR\x13localAuthCookieName\x12Q\n" +
+	"&local_auth_login_username_max_failures\x18\x18 \x01(\x03R!localAuthLoginUsernameMaxFailures\x12M\n" +
+	"$local_auth_login_client_max_failures\x18\x19 \x01(\x03R\x1flocalAuthLoginClientMaxFailures\x12B\n" +
+	"\x1elocal_auth_login_window_millis\x18\x1a \x01(\x03R\x1alocalAuthLoginWindowMillis\x12@\n" +
+	"\x1dlocal_auth_login_block_millis\x18\x1b \x01(\x03R\x19localAuthLoginBlockMillis\"\x9e\x02\n" +
 	"\x10PublicAccessUser\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\x03R\n" +
@@ -23742,7 +23842,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x05route\x18\x01 \x01(\v2\x19.p2pstream.v1.PublicRouteR\x05route\"*\n" +
 	"\x18DeletePublicRouteRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1b\n" +
-	"\x19DeletePublicRouteResponse\"\xa3\b\n" +
+	"\x19DeletePublicRouteResponse\"\xcb\n" +
+	"\n" +
 	"!CreatePublicAccessProviderRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12K\n" +
 	"\rprovider_type\x18\x02 \x01(\x0e2&.p2pstream.v1.PublicAccessProviderTypeR\fproviderType\x12\x18\n" +
@@ -23765,9 +23866,14 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x1blocal_auth_cookie_same_site\x18\x11 \x01(\x0e2(.p2pstream.v1.PublicAccessCookieSameSiteR\x17localAuthCookieSameSite\x127\n" +
 	"\x18local_auth_cookie_domain\x18\x12 \x01(\tR\x15localAuthCookieDomain\x127\n" +
 	"\x18local_auth_cookie_secure\x18\x13 \x01(\bR\x15localAuthCookieSecure\x123\n" +
-	"\x16local_auth_cookie_name\x18\x14 \x01(\tR\x13localAuthCookieName\"d\n" +
+	"\x16local_auth_cookie_name\x18\x14 \x01(\tR\x13localAuthCookieName\x12Q\n" +
+	"&local_auth_login_username_max_failures\x18\x15 \x01(\x03R!localAuthLoginUsernameMaxFailures\x12M\n" +
+	"$local_auth_login_client_max_failures\x18\x16 \x01(\x03R\x1flocalAuthLoginClientMaxFailures\x12B\n" +
+	"\x1elocal_auth_login_window_millis\x18\x17 \x01(\x03R\x1alocalAuthLoginWindowMillis\x12@\n" +
+	"\x1dlocal_auth_login_block_millis\x18\x18 \x01(\x03R\x19localAuthLoginBlockMillis\"d\n" +
 	"\"CreatePublicAccessProviderResponse\x12>\n" +
-	"\bprovider\x18\x01 \x01(\v2\".p2pstream.v1.PublicAccessProviderR\bprovider\"\xb3\b\n" +
+	"\bprovider\x18\x01 \x01(\v2\".p2pstream.v1.PublicAccessProviderR\bprovider\"\xdb\n" +
+	"\n" +
 	"!UpdatePublicAccessProviderRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12K\n" +
@@ -23791,7 +23897,11 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x1blocal_auth_cookie_same_site\x18\x12 \x01(\x0e2(.p2pstream.v1.PublicAccessCookieSameSiteR\x17localAuthCookieSameSite\x127\n" +
 	"\x18local_auth_cookie_domain\x18\x13 \x01(\tR\x15localAuthCookieDomain\x127\n" +
 	"\x18local_auth_cookie_secure\x18\x14 \x01(\bR\x15localAuthCookieSecure\x123\n" +
-	"\x16local_auth_cookie_name\x18\x15 \x01(\tR\x13localAuthCookieName\"d\n" +
+	"\x16local_auth_cookie_name\x18\x15 \x01(\tR\x13localAuthCookieName\x12Q\n" +
+	"&local_auth_login_username_max_failures\x18\x16 \x01(\x03R!localAuthLoginUsernameMaxFailures\x12M\n" +
+	"$local_auth_login_client_max_failures\x18\x17 \x01(\x03R\x1flocalAuthLoginClientMaxFailures\x12B\n" +
+	"\x1elocal_auth_login_window_millis\x18\x18 \x01(\x03R\x1alocalAuthLoginWindowMillis\x12@\n" +
+	"\x1dlocal_auth_login_block_millis\x18\x19 \x01(\x03R\x19localAuthLoginBlockMillis\"d\n" +
 	"\"UpdatePublicAccessProviderResponse\x12>\n" +
 	"\bprovider\x18\x01 \x01(\v2\".p2pstream.v1.PublicAccessProviderR\bprovider\"3\n" +
 	"!DeletePublicAccessProviderRequest\x12\x0e\n" +

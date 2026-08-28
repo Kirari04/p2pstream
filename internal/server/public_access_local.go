@@ -199,11 +199,11 @@ func handlePublicLocalAccess(
 	}
 
 	if publicAccessLocalBasicEnabled(provider.LocalAuthMode) && publicAccessRequestHasBasicAuthorization(ctx.Request) {
-		principal, ok, throttled := authenticatePublicLocalBasic(ctx, provider)
+		principal, ok, retryAfter := authenticatePublicLocalBasic(ctx, provider)
 		if ok {
 			return principal, publicProxyStageContinue, nil
 		}
-		return publicAccessPrincipal{}, writePublicLocalBasicChallenge(ctx, policy, provider, throttled), nil
+		return publicAccessPrincipal{}, writePublicLocalBasicChallenge(ctx, policy, provider, retryAfter), nil
 	}
 
 	if publicAccessLocalFormEnabled(provider.LocalAuthMode) {
@@ -217,14 +217,14 @@ func handlePublicLocalAccess(
 	}
 
 	if provider.LocalAuthMode == publicAccessLocalAuthModeBasic && len(ctx.Request.Header.Values("Authorization")) > 0 {
-		principal, ok, throttled := authenticatePublicLocalBasic(ctx, provider)
+		principal, ok, retryAfter := authenticatePublicLocalBasic(ctx, provider)
 		if ok {
 			return principal, publicProxyStageContinue, nil
 		}
-		return publicAccessPrincipal{}, writePublicLocalBasicChallenge(ctx, policy, provider, throttled), nil
+		return publicAccessPrincipal{}, writePublicLocalBasicChallenge(ctx, policy, provider, retryAfter), nil
 	}
 	if provider.LocalAuthMode == publicAccessLocalAuthModeBasic {
-		return publicAccessPrincipal{}, writePublicLocalBasicChallenge(ctx, policy, provider, false), nil
+		return publicAccessPrincipal{}, writePublicLocalBasicChallenge(ctx, policy, provider, 0), nil
 	}
 	if err := writePublicLocalLoginForm(ctx, provider, "", "", http.StatusUnauthorized); err != nil {
 		return publicAccessPrincipal{}, publicProxyStageDone, err
@@ -305,26 +305,26 @@ func publicAccessPrincipalFromLocalSession(ctx *publicProxyContext, provider pub
 	}), true, nil
 }
 
-func authenticatePublicLocalBasic(ctx *publicProxyContext, provider publicAccessProviderConfig) (publicAccessPrincipal, bool, bool) {
+func authenticatePublicLocalBasic(ctx *publicProxyContext, provider publicAccessProviderConfig) (publicAccessPrincipal, bool, time.Duration) {
 	values := ctx.Request.Header.Values("Authorization")
 	if len(values) != 1 || len(values[0]) > 1024 {
-		return publicAccessPrincipal{}, false, false
+		return publicAccessPrincipal{}, false, 0
 	}
 	if username, cached := provider.basicAuthCache.get(values[0], time.Now()); cached {
 		if user, found := provider.LocalUsers[username]; found && user.Enabled {
 			principal := publicAccessPrincipalFromLocalUser(provider, user)
 			principal.StripAuthorization = true
-			return principal, true, false
+			return principal, true, 0
 		}
 	}
 	username, password, ok := ctx.Request.BasicAuth()
 	if !ok {
-		return publicAccessPrincipal{}, false, false
+		return publicAccessPrincipal{}, false, 0
 	}
 	username = authutil.NormalizeUsername(username)
-	reservation, admitted := reservePublicAccessLoginAttempt(ctx, provider.ID, username)
+	reservation, admitted, retryAfter := reservePublicAccessLoginAttempt(ctx, provider, username)
 	if !admitted {
-		return publicAccessPrincipal{}, false, true
+		return publicAccessPrincipal{}, false, retryAfter
 	}
 	defer reservation.release()
 	user, found := provider.LocalUsers[username]
@@ -334,28 +334,43 @@ func authenticatePublicLocalBasic(ctx *publicProxyContext, provider publicAccess
 	}
 	if authutil.ComparePasswordHash(hash, password) != nil || !found || !user.Enabled {
 		reservation.recordFailure(time.Now())
-		return publicAccessPrincipal{}, false, false
+		return publicAccessPrincipal{}, false, 0
 	}
 	reservation.recordSuccess()
 	provider.basicAuthCache.put(values[0], username, time.Now())
 	principal := publicAccessPrincipalFromLocalUser(provider, user)
 	principal.StripAuthorization = true
-	return principal, true, false
+	return principal, true, 0
 }
 
-func reservePublicAccessLoginAttempt(ctx *publicProxyContext, providerID int64, username string) (*loginThrottleReservation, bool) {
+func reservePublicAccessLoginAttempt(ctx *publicProxyContext, provider publicAccessProviderConfig, username string) (*loginThrottleReservation, bool, time.Duration) {
 	clientIP := publicAccessRequestClientIP(ctx.Request)
 	if clientIP == "" {
 		clientIP = remoteAddrIP(ctx.Request.RemoteAddr)
 	}
-	peerKey := strconv.FormatInt(providerID, 10) + "@" + clientIP
-	return reserveLoginThrottleAttempt(
+	peerKey := strconv.FormatInt(provider.ID, 10) + "@" + clientIP
+	now := time.Now()
+	usernameKey := loginThrottleKey(peerKey, username)
+	clientKey := loginThrottleClientKey(peerKey)
+	reservation, admitted := reserveLoginThrottleAttemptWithPolicy(
 		ctx.App.publicAccessLoginThrottle,
 		ctx.App.publicAccessClientLoginThrottle,
-		loginThrottleKey(peerKey, username),
-		loginThrottleClientKey(peerKey),
-		time.Now(),
+		usernameKey,
+		clientKey,
+		now,
+		provider.LocalAuthLoginThrottle,
 	)
+	if admitted {
+		return reservation, true, 0
+	}
+	retryAfter := max(
+		ctx.App.publicAccessLoginThrottle.retryAfter(usernameKey, now),
+		ctx.App.publicAccessClientLoginThrottle.retryAfter(clientKey, now),
+	)
+	if retryAfter <= 0 {
+		retryAfter = time.Second
+	}
+	return nil, false, retryAfter
 }
 
 func handlePublicLocalFormLogin(
@@ -418,10 +433,10 @@ func handlePublicLocalFormLogin(
 		return publicAccessPrincipal{}, publicProxyStageDone, nil
 	}
 	username := authutil.NormalizeUsername(usernameValues[0])
-	reservation, admitted := reservePublicAccessLoginAttempt(ctx, provider.ID, username)
+	reservation, admitted, retryAfter := reservePublicAccessLoginAttempt(ctx, provider, username)
 	if !admitted {
-		ctx.ResponseWriter.Header().Set("Retry-After", "300")
-		if err := writePublicLocalLoginForm(ctx, provider, username, "Too many sign-in attempts. Try again in a few minutes.", http.StatusTooManyRequests); err != nil {
+		ctx.ResponseWriter.Header().Set("Retry-After", publicAccessRetryAfterSeconds(retryAfter))
+		if err := writePublicLocalLoginForm(ctx, provider, username, "Too many sign-in attempts. Please try again later.", http.StatusTooManyRequests); err != nil {
 			return publicAccessPrincipal{}, publicProxyStageDone, err
 		}
 		emitPublicAccessTrace(ctx, p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_ACCESS_DENIED, policy, provider, http.StatusTooManyRequests, "access_login_throttled")
@@ -575,15 +590,15 @@ func handlePublicLocalLogout(ctx *publicProxyContext, policy publicAccessPolicyC
 	return publicProxyStageDone, nil
 }
 
-func writePublicLocalBasicChallenge(ctx *publicProxyContext, policy publicAccessPolicyConfig, provider publicAccessProviderConfig, throttled bool) publicProxyStageResult {
+func writePublicLocalBasicChallenge(ctx *publicProxyContext, policy publicAccessPolicyConfig, provider publicAccessProviderConfig, retryAfter time.Duration) publicProxyStageResult {
 	status := http.StatusUnauthorized
 	errorKind := "access_unauthenticated"
 	body := "Authentication required\n"
-	if throttled {
+	if retryAfter > 0 {
 		status = http.StatusTooManyRequests
 		errorKind = "access_login_throttled"
 		body = "Too many authentication attempts\n"
-		ctx.ResponseWriter.Header().Set("Retry-After", "300")
+		ctx.ResponseWriter.Header().Set("Retry-After", publicAccessRetryAfterSeconds(retryAfter))
 	} else {
 		realm := strings.NewReplacer("\\", "\\\\", "\"", "\\\"").Replace(provider.LocalAuthRealm)
 		ctx.ResponseWriter.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`", charset="UTF-8"`)
@@ -597,6 +612,11 @@ func writePublicLocalBasicChallenge(ctx *publicProxyContext, policy publicAccess
 	emitPublicAccessTrace(ctx, p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_ACCESS_DENIED, policy, provider, status, errorKind)
 	recordPublicAccessTerminal(ctx, status, errorKind)
 	return publicProxyStageDone
+}
+
+func publicAccessRetryAfterSeconds(retryAfter time.Duration) string {
+	seconds := int64((retryAfter + time.Second - 1) / time.Second)
+	return strconv.FormatInt(max(int64(1), seconds), 10)
 }
 
 func writePublicLocalLoginForm(ctx *publicProxyContext, provider publicAccessProviderConfig, username string, message string, status int) error {

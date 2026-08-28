@@ -715,6 +715,10 @@ message PublicAccessProvider {
   string local_auth_cookie_domain = 21;
   bool local_auth_cookie_secure = 22;
   string local_auth_cookie_name = 23;
+  int64 local_auth_login_username_max_failures = 24;
+  int64 local_auth_login_client_max_failures = 25;
+  int64 local_auth_login_window_millis = 26;
+  int64 local_auth_login_block_millis = 27;
 }
 
 message PublicAccessUser {
@@ -1423,6 +1427,10 @@ message CreatePublicAccessProviderRequest {
   string local_auth_cookie_domain = 18;
   bool local_auth_cookie_secure = 19;
   string local_auth_cookie_name = 20;
+  int64 local_auth_login_username_max_failures = 21;
+  int64 local_auth_login_client_max_failures = 22;
+  int64 local_auth_login_window_millis = 23;
+  int64 local_auth_login_block_millis = 24;
 }
 
 message CreatePublicAccessProviderResponse {
@@ -1451,6 +1459,10 @@ message UpdatePublicAccessProviderRequest {
   string local_auth_cookie_domain = 19;
   bool local_auth_cookie_secure = 20;
   string local_auth_cookie_name = 21;
+  int64 local_auth_login_username_max_failures = 22;
+  int64 local_auth_login_client_max_failures = 23;
+  int64 local_auth_login_window_millis = 24;
+  int64 local_auth_login_block_millis = 25;
 }
 
 message UpdatePublicAccessProviderResponse {

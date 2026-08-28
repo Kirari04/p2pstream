@@ -90,6 +90,10 @@ const providerForm = reactive({
   localAuthCookieDomain: "",
   localAuthCookieSecure: false,
   localAuthCookieName: "p2pstream_local_auth",
+  localAuthLoginUsernameMaxFailures: 5,
+  localAuthLoginClientMaxFailures: 25,
+  localAuthLoginWindowMinutes: 15,
+  localAuthLoginBlockMinutes: 5,
 });
 const userForm = reactive({
   id: "",
@@ -192,6 +196,10 @@ const providerSaveDisabledReason = computed(() => {
     if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/.test(providerForm.localAuthCookieName.trim())) return "Cookie name must be 1–64 HTTP token characters.";
     if (providerForm.localAuthCookieName.startsWith("__Host-") && (cookieDomain || !providerForm.localAuthCookieSecure)) return "__Host- cookie names require host-only, always-Secure cookies.";
     if (providerForm.localAuthCookieName.startsWith("__Secure-") && !providerForm.localAuthCookieSecure) return "__Secure- cookie names require always-Secure cookies.";
+    if (providerForm.localAuthLoginUsernameMaxFailures < 1 || providerForm.localAuthLoginUsernameMaxFailures > 100) return "Account failure limit must be between 1 and 100.";
+    if (providerForm.localAuthLoginClientMaxFailures < providerForm.localAuthLoginUsernameMaxFailures || providerForm.localAuthLoginClientMaxFailures > 1000) return "Client failure limit must be between the account limit and 1000.";
+    if (providerForm.localAuthLoginWindowMinutes < 1 || providerForm.localAuthLoginWindowMinutes > 1440) return "Failure window must be between 1 minute and 24 hours.";
+    if (providerForm.localAuthLoginBlockMinutes < 1 || providerForm.localAuthLoginBlockMinutes > 10080) return "Block duration must be between 1 minute and 7 days.";
   }
   return "";
 });
@@ -311,6 +319,10 @@ function resetProviderForm() {
     localAuthCookieDomain: "",
     localAuthCookieSecure: false,
     localAuthCookieName: "p2pstream_local_auth",
+    localAuthLoginUsernameMaxFailures: 5,
+    localAuthLoginClientMaxFailures: 25,
+    localAuthLoginWindowMinutes: 15,
+    localAuthLoginBlockMinutes: 5,
   });
 }
 
@@ -344,6 +356,10 @@ function openEditProvider(provider: PublicAccessProvider) {
     localAuthCookieDomain: provider.localAuthCookieDomain,
     localAuthCookieSecure: provider.localAuthCookieSecure,
     localAuthCookieName: provider.localAuthCookieName || "p2pstream_local_auth",
+    localAuthLoginUsernameMaxFailures: Number(provider.localAuthLoginUsernameMaxFailures || 5n),
+    localAuthLoginClientMaxFailures: Number(provider.localAuthLoginClientMaxFailures || 25n),
+    localAuthLoginWindowMinutes: Number(provider.localAuthLoginWindowMillis || 900000n) / 60_000,
+    localAuthLoginBlockMinutes: Number(provider.localAuthLoginBlockMillis || 300000n) / 60_000,
   });
   providerEditorOpen.value = true;
 }
@@ -439,6 +455,10 @@ async function saveProvider() {
     localAuthCookieDomain: normalizeCookieDomain(providerForm.localAuthCookieDomain),
     localAuthCookieSecure: providerForm.localAuthCookieSecure || providerForm.localAuthCookieSameSite === PublicAccessCookieSameSite.NONE,
     localAuthCookieName: providerForm.localAuthCookieName.trim(),
+    localAuthLoginUsernameMaxFailures: BigInt(Math.round(providerForm.localAuthLoginUsernameMaxFailures)),
+    localAuthLoginClientMaxFailures: BigInt(Math.round(providerForm.localAuthLoginClientMaxFailures)),
+    localAuthLoginWindowMillis: BigInt(Math.round(providerForm.localAuthLoginWindowMinutes * 60_000)),
+    localAuthLoginBlockMillis: BigInt(Math.round(providerForm.localAuthLoginBlockMinutes * 60_000)),
   };
   const ok = await run(async () => {
     if (providerForm.id) {
@@ -640,6 +660,7 @@ function groupSummary(policy: PublicAccessPolicy): string {
             <template v-if="isLocalProvider(provider)">
               <p class="copy-xs muted-text">{{ localAuthModeLabel(provider.localAuthMode) }} · {{ localUserCount(provider.id).toString() }} {{ localUserCount(provider.id) === 1 ? 'user' : 'users' }} · {{ Math.round(Number(provider.localAuthSessionDurationMillis) / 3_600_000).toString() }} hour sessions</p>
               <p class="copy-xs muted-text">Sign-in page · {{ localAccessLoginTemplateName(provider.localAuthLoginTemplateId) }}</p>
+              <p class="copy-xs muted-text">Login protection · {{ (provider.localAuthLoginUsernameMaxFailures || 5n).toString() }}/account · {{ (provider.localAuthLoginClientMaxFailures || 25n).toString() }}/client · {{ Math.round(Number(provider.localAuthLoginBlockMillis || 300000n) / 60_000).toString() }} min block</p>
               <p class="copy-xs muted-text">{{ provider.localAuthAllowedHosts.length ? provider.localAuthAllowedHosts.join(' · ') : 'Any routed host' }} · SameSite {{ cookieSameSiteLabel(provider.localAuthCookieSameSite) }}{{ provider.localAuthCookieDomain ? ` · Domain ${provider.localAuthCookieDomain}` : '' }} · {{ provider.localAuthCookieName }}</p>
             </template>
             <template v-else>
@@ -823,6 +844,39 @@ function groupSummary(policy: PublicAccessPolicy): string {
                 HTTP Basic realm
                 <NInput v-model:value="providerForm.localAuthRealm" size="small" :maxlength="128" placeholder="Restricted" />
               </label>
+            </div>
+          </section>
+          <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+            <div>
+              <h3 class="copy-sm weight-semibold">Login protection</h3>
+              <p class="margin-top-xs copy-xs line-normal muted-text">Bound password guessing by account and client address. These limits always apply to both the sign-in form and HTTP Basic.</p>
+            </div>
+            <div class="layout-grid space-lg mq-sm-cols-two">
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Failures per account
+                <NInputNumber v-model:value="providerForm.localAuthLoginUsernameMaxFailures" :show-button="false" size="small" :min="1" :max="100" />
+                <span class="normal-text letter-normal weight-normal line-normal muted-text">Per username and client address.</span>
+              </label>
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Failures per client
+                <NInputNumber v-model:value="providerForm.localAuthLoginClientMaxFailures" :show-button="false" size="small" :min="providerForm.localAuthLoginUsernameMaxFailures" :max="1000" />
+                <span class="normal-text letter-normal weight-normal line-normal muted-text">Across every username attempted by one client.</span>
+              </label>
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Failure window (minutes)
+                <NInputNumber v-model:value="providerForm.localAuthLoginWindowMinutes" :show-button="false" size="small" :min="1" :max="1440" />
+                <span class="normal-text letter-normal weight-normal line-normal muted-text">The failure count resets after this window ends.</span>
+              </label>
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Block duration (minutes)
+                <NInputNumber v-model:value="providerForm.localAuthLoginBlockMinutes" :show-button="false" size="small" :min="1" :max="10080" />
+                <span class="normal-text letter-normal weight-normal line-normal muted-text">Returned through Retry-After when the limit is reached.</span>
+              </label>
+            </div>
+            <div class="layout-row wrap-items space-sm" aria-label="Fixed login protections">
+              <NTag size="small" :bordered="false" type="success">Account + client buckets</NTag>
+              <NTag size="small" :bordered="false" type="success">Concurrent attempts counted</NTag>
+              <NTag size="small" :bordered="false" type="success">Cannot be disabled</NTag>
             </div>
           </section>
           <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">

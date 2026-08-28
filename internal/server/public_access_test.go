@@ -117,11 +117,15 @@ func TestPublicAccessLocalUserManagementHashesSecretsAndRevokesSessions(t *testi
 		Name: "family", ProviderType: p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_LOCAL,
 		Enabled: true, LocalAuthMode: p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM_AND_BASIC,
 		LocalAuthSessionDurationMillis: defaultPublicAccessSessionMillis, LocalAuthRealm: "Family services",
-		LocalAuthAllowedHosts:   []string{"LOGIN.EXAMPLE.TEST.", "*.apps.example.test"},
-		LocalAuthCookieSameSite: p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT,
-		LocalAuthCookieDomain:   ".example.test",
-		LocalAuthCookieSecure:   true,
-		LocalAuthCookieName:     "family_access",
+		LocalAuthAllowedHosts:             []string{"LOGIN.EXAMPLE.TEST.", "*.apps.example.test"},
+		LocalAuthCookieSameSite:           p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT,
+		LocalAuthCookieDomain:             ".example.test",
+		LocalAuthCookieSecure:             true,
+		LocalAuthCookieName:               "family_access",
+		LocalAuthLoginUsernameMaxFailures: 3,
+		LocalAuthLoginClientMaxFailures:   12,
+		LocalAuthLoginWindowMillis:        int64((2 * time.Minute) / time.Millisecond),
+		LocalAuthLoginBlockMillis:         int64((10 * time.Minute) / time.Millisecond),
 	})
 	providerReq.Header().Set("Cookie", header.Get("Cookie"))
 	providerResp, err := app.CreatePublicAccessProvider(ctx, providerReq)
@@ -139,6 +143,13 @@ func TestPublicAccessLocalUserManagementHashesSecretsAndRevokesSessions(t *testi
 		provider.LocalAuthCookieSameSite != p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT ||
 		provider.LocalAuthCookieDomain != "example.test" || !provider.LocalAuthCookieSecure || provider.LocalAuthCookieName != "family_access" {
 		t.Fatalf("local provider browser boundary = hosts %q SameSite %v domain %q secure %v name %q", got, provider.LocalAuthCookieSameSite, provider.LocalAuthCookieDomain, provider.LocalAuthCookieSecure, provider.LocalAuthCookieName)
+	}
+	if provider.LocalAuthLoginUsernameMaxFailures != 3 || provider.LocalAuthLoginClientMaxFailures != 12 ||
+		provider.LocalAuthLoginWindowMillis != int64((2*time.Minute)/time.Millisecond) ||
+		provider.LocalAuthLoginBlockMillis != int64((10*time.Minute)/time.Millisecond) {
+		t.Fatalf("local provider login protection = account %d client %d window %d block %d",
+			provider.LocalAuthLoginUsernameMaxFailures, provider.LocalAuthLoginClientMaxFailures,
+			provider.LocalAuthLoginWindowMillis, provider.LocalAuthLoginBlockMillis)
 	}
 
 	userReq := connect.NewRequest(&p2pstreamv1.CreatePublicAccessUserRequest{
@@ -404,6 +415,46 @@ func TestPublicAccessLocalFormLoginCreatesRevocableSession(t *testing.T) {
 	}
 }
 
+func TestPublicAccessLocalFormLoginUsesProviderThrottlePolicy(t *testing.T) {
+	database := newServerTestDB(t)
+	providerRow, userRow := createTestPublicLocalAccessIdentity(t, database, publicAccessLocalAuthModeForm)
+	providerRow.LocalAuthLoginUsernameMaxFailures = 1
+	providerRow.LocalAuthLoginClientMaxFailures = 10
+	providerRow.LocalAuthLoginWindowMillis = int64((2 * time.Minute) / time.Millisecond)
+	providerRow.LocalAuthLoginBlockMillis = int64((2 * time.Minute) / time.Millisecond)
+	handler := newTestPublicLocalAccessProxy(t, database, "http://127.0.0.1:1", providerRow, userRow)
+
+	login := func() *httptest.ResponseRecorder {
+		form := url.Values{
+			publicAccessUsernameField: {userRow.Username},
+			publicAccessPasswordField: {"incorrect password"},
+			publicAccessCSRFField:     {strings.Repeat("a", 43)},
+		}
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"http://app.example/private?"+publicAccessLoginQueryKey+"=1",
+			strings.NewReader(form.Encode()),
+		)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", "http://app.example")
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, req)
+		return recorder
+	}
+
+	first := login()
+	if first.Code != http.StatusUnauthorized {
+		t.Fatalf("first invalid login = %d, want 401", first.Code)
+	}
+	blocked := login()
+	if blocked.Code != http.StatusTooManyRequests {
+		t.Fatalf("login after provider failure limit = %d body %q, want 429", blocked.Code, blocked.Body.String())
+	}
+	if got := blocked.Header().Get("Retry-After"); got != "120" {
+		t.Fatalf("Retry-After = %q, want configured 120-second block", got)
+	}
+}
+
 func TestPublicAccessLocalLoginReferencesCannotEscapeOrigin(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "http://app.example//evil.example/collect?next=1", nil)
 	if got := publicAccessLoginAction(req); got != "?__p2pstream_access_login=1&next=1" {
@@ -593,6 +644,52 @@ func TestNormalizePublicAccessCookieDomain(t *testing.T) {
 	}
 }
 
+func TestNormalizePublicAccessLoginThrottlePolicy(t *testing.T) {
+	defaults, err := normalizePublicAccessLoginThrottlePolicy(0, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("default login throttle policy: %v", err)
+	}
+	if defaults != defaultLoginThrottlePolicy {
+		t.Fatalf("default login throttle policy = %+v, want %+v", defaults, defaultLoginThrottlePolicy)
+	}
+
+	custom, err := normalizePublicAccessLoginThrottlePolicy(3, 12, 2*60*1000, 10*60*1000)
+	if err != nil {
+		t.Fatalf("custom login throttle policy: %v", err)
+	}
+	if custom.UsernameMaxFailures != 3 || custom.ClientMaxFailures != 12 || custom.Window != 2*time.Minute || custom.Block != 10*time.Minute {
+		t.Fatalf("custom login throttle policy = %+v", custom)
+	}
+
+	for _, test := range []struct {
+		name                string
+		usernameMaxFailures int64
+		clientMaxFailures   int64
+		windowMillis        int64
+		blockMillis         int64
+	}{
+		{name: "account limit too low", usernameMaxFailures: -1, clientMaxFailures: 25, windowMillis: 900000, blockMillis: 300000},
+		{name: "account limit too high", usernameMaxFailures: 101, clientMaxFailures: 101, windowMillis: 900000, blockMillis: 300000},
+		{name: "client below account", usernameMaxFailures: 10, clientMaxFailures: 9, windowMillis: 900000, blockMillis: 300000},
+		{name: "client limit too high", usernameMaxFailures: 5, clientMaxFailures: 1001, windowMillis: 900000, blockMillis: 300000},
+		{name: "window too short", usernameMaxFailures: 5, clientMaxFailures: 25, windowMillis: 59999, blockMillis: 300000},
+		{name: "window too long", usernameMaxFailures: 5, clientMaxFailures: 25, windowMillis: 86400001, blockMillis: 300000},
+		{name: "block too short", usernameMaxFailures: 5, clientMaxFailures: 25, windowMillis: 900000, blockMillis: 59999},
+		{name: "block too long", usernameMaxFailures: 5, clientMaxFailures: 25, windowMillis: 900000, blockMillis: 604800001},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := normalizePublicAccessLoginThrottlePolicy(
+				test.usernameMaxFailures,
+				test.clientMaxFailures,
+				test.windowMillis,
+				test.blockMillis,
+			); err == nil {
+				t.Fatal("invalid login throttle policy succeeded")
+			}
+		})
+	}
+}
+
 func TestPublicAccessLocalFormLoginRejectsCrossOriginSubmission(t *testing.T) {
 	database := newServerTestDB(t)
 	providerRow, userRow := createTestPublicLocalAccessIdentity(t, database, publicAccessLocalAuthModeForm)
@@ -709,6 +806,36 @@ func TestPublicAccessLocalBasicUsesUsersAndStripsCredentials(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("upstream request was not received")
+	}
+}
+
+func TestPublicAccessLocalBasicUsesProviderThrottlePolicy(t *testing.T) {
+	database := newServerTestDB(t)
+	providerRow, userRow := createTestPublicLocalAccessIdentity(t, database, publicAccessLocalAuthModeBasic)
+	providerRow.LocalAuthLoginUsernameMaxFailures = 1
+	providerRow.LocalAuthLoginClientMaxFailures = 10
+	providerRow.LocalAuthLoginWindowMillis = int64((2 * time.Minute) / time.Millisecond)
+	providerRow.LocalAuthLoginBlockMillis = int64((2 * time.Minute) / time.Millisecond)
+	handler := newTestPublicLocalAccessProxy(t, database, "http://127.0.0.1:1", providerRow, userRow)
+
+	request := func(password string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "http://app.example/private", nil)
+		req.SetBasicAuth(userRow.Username, password)
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, req)
+		return recorder
+	}
+
+	first := request("incorrect password")
+	if first.Code != http.StatusUnauthorized {
+		t.Fatalf("first invalid Basic login = %d, want 401", first.Code)
+	}
+	blocked := request("incorrect password")
+	if blocked.Code != http.StatusTooManyRequests {
+		t.Fatalf("Basic login after provider failure limit = %d body %q, want 429", blocked.Code, blocked.Body.String())
+	}
+	if got := blocked.Header().Get("Retry-After"); got != "120" {
+		t.Fatalf("Basic Retry-After = %q, want configured 120-second block", got)
 	}
 }
 
@@ -1032,13 +1159,17 @@ func createTestPublicLocalAccessIdentity(t *testing.T, database *db.DB, mode str
 		ForwardAuthUrl: "", TimeoutMillis: defaultPublicAccessTimeoutMillis, TlsSkipVerify: 0,
 		SubjectHeader: "X-Auth-Request-Preferred-Username", UserHeader: "X-Auth-Request-User",
 		EmailHeader: "X-Auth-Request-Email", GroupsHeader: "X-Auth-Request-Groups",
-		ForwardedHeadersJson:           `["X-Auth-Request-Groups","X-Auth-Request-Preferred-Username","X-Auth-Request-User"]`,
-		LocalAuthMode:                  mode,
-		LocalAuthSessionDurationMillis: defaultPublicAccessSessionMillis,
-		LocalAuthRealm:                 "Private test",
-		LocalAuthAllowedHostsJson:      "[]",
-		LocalAuthCookieSameSite:        publicAccessCookieSameSiteLax,
-		LocalAuthCookieName:            defaultPublicAccessCookieName,
+		ForwardedHeadersJson:              `["X-Auth-Request-Groups","X-Auth-Request-Preferred-Username","X-Auth-Request-User"]`,
+		LocalAuthMode:                     mode,
+		LocalAuthSessionDurationMillis:    defaultPublicAccessSessionMillis,
+		LocalAuthRealm:                    "Private test",
+		LocalAuthAllowedHostsJson:         "[]",
+		LocalAuthCookieSameSite:           publicAccessCookieSameSiteLax,
+		LocalAuthCookieName:               defaultPublicAccessCookieName,
+		LocalAuthLoginUsernameMaxFailures: defaultPublicAccessLoginUsernameMaxFailures,
+		LocalAuthLoginClientMaxFailures:   defaultPublicAccessLoginClientMaxFailures,
+		LocalAuthLoginWindowMillis:        defaultPublicAccessLoginWindowMillis,
+		LocalAuthLoginBlockMillis:         defaultPublicAccessLoginBlockMillis,
 	})
 	if err != nil {
 		t.Fatalf("create local access provider: %v", err)

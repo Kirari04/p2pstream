@@ -233,29 +233,33 @@ type PublicAccessPolicy struct {
 }
 
 type PublicAccessProvider struct {
-	ID                             int64         `json:"id"`
-	Name                           string        `json:"name"`
-	ProviderType                   string        `json:"provider_type"`
-	Enabled                        int64         `json:"enabled"`
-	ForwardAuthUrl                 string        `json:"forward_auth_url"`
-	TimeoutMillis                  int64         `json:"timeout_millis"`
-	TlsSkipVerify                  int64         `json:"tls_skip_verify"`
-	SubjectHeader                  string        `json:"subject_header"`
-	UserHeader                     string        `json:"user_header"`
-	EmailHeader                    string        `json:"email_header"`
-	GroupsHeader                   string        `json:"groups_header"`
-	ForwardedHeadersJson           string        `json:"forwarded_headers_json"`
-	CreatedAt                      time.Time     `json:"created_at"`
-	UpdatedAt                      time.Time     `json:"updated_at"`
-	LocalAuthMode                  string        `json:"local_auth_mode"`
-	LocalAuthSessionDurationMillis int64         `json:"local_auth_session_duration_millis"`
-	LocalAuthRealm                 string        `json:"local_auth_realm"`
-	LocalAuthLoginTemplateID       sql.NullInt64 `json:"local_auth_login_template_id"`
-	LocalAuthAllowedHostsJson      string        `json:"local_auth_allowed_hosts_json"`
-	LocalAuthCookieSameSite        string        `json:"local_auth_cookie_same_site"`
-	LocalAuthCookieDomain          string        `json:"local_auth_cookie_domain"`
-	LocalAuthCookieSecure          int64         `json:"local_auth_cookie_secure"`
-	LocalAuthCookieName            string        `json:"local_auth_cookie_name"`
+	ID                                int64         `json:"id"`
+	Name                              string        `json:"name"`
+	ProviderType                      string        `json:"provider_type"`
+	Enabled                           int64         `json:"enabled"`
+	ForwardAuthUrl                    string        `json:"forward_auth_url"`
+	TimeoutMillis                     int64         `json:"timeout_millis"`
+	TlsSkipVerify                     int64         `json:"tls_skip_verify"`
+	SubjectHeader                     string        `json:"subject_header"`
+	UserHeader                        string        `json:"user_header"`
+	EmailHeader                       string        `json:"email_header"`
+	GroupsHeader                      string        `json:"groups_header"`
+	ForwardedHeadersJson              string        `json:"forwarded_headers_json"`
+	CreatedAt                         time.Time     `json:"created_at"`
+	UpdatedAt                         time.Time     `json:"updated_at"`
+	LocalAuthMode                     string        `json:"local_auth_mode"`
+	LocalAuthSessionDurationMillis    int64         `json:"local_auth_session_duration_millis"`
+	LocalAuthRealm                    string        `json:"local_auth_realm"`
+	LocalAuthLoginTemplateID          sql.NullInt64 `json:"local_auth_login_template_id"`
+	LocalAuthAllowedHostsJson         string        `json:"local_auth_allowed_hosts_json"`
+	LocalAuthCookieSameSite           string        `json:"local_auth_cookie_same_site"`
+	LocalAuthCookieDomain             string        `json:"local_auth_cookie_domain"`
+	LocalAuthCookieSecure             int64         `json:"local_auth_cookie_secure"`
+	LocalAuthCookieName               string        `json:"local_auth_cookie_name"`
+	LocalAuthLoginUsernameMaxFailures int64         `json:"local_auth_login_username_max_failures"`
+	LocalAuthLoginClientMaxFailures   int64         `json:"local_auth_login_client_max_failures"`
+	LocalAuthLoginWindowMillis        int64         `json:"local_auth_login_window_millis"`
+	LocalAuthLoginBlockMillis         int64         `json:"local_auth_login_block_millis"`
 }
 
 type PublicAccessSession struct {

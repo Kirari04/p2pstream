@@ -234,7 +234,11 @@ CREATE TABLE IF NOT EXISTS public_access_providers (
     local_auth_cookie_same_site TEXT NOT NULL DEFAULT 'lax',
     local_auth_cookie_domain TEXT NOT NULL DEFAULT '',
     local_auth_cookie_secure INTEGER NOT NULL DEFAULT 0,
-    local_auth_cookie_name TEXT NOT NULL DEFAULT 'p2pstream_local_auth'
+    local_auth_cookie_name TEXT NOT NULL DEFAULT 'p2pstream_local_auth',
+    local_auth_login_username_max_failures INTEGER NOT NULL DEFAULT 5,
+    local_auth_login_client_max_failures INTEGER NOT NULL DEFAULT 25,
+    local_auth_login_window_millis INTEGER NOT NULL DEFAULT 900000,
+    local_auth_login_block_millis INTEGER NOT NULL DEFAULT 300000
 );
 
 CREATE INDEX IF NOT EXISTS idx_public_access_providers_local_auth_login_template_id ON public_access_providers (local_auth_login_template_id);

@@ -15,6 +15,36 @@ const (
 	defaultLoginThrottleMaxKeys    = 50000
 )
 
+type loginThrottlePolicy struct {
+	UsernameMaxFailures int
+	ClientMaxFailures   int
+	Window              time.Duration
+	Block               time.Duration
+}
+
+var defaultLoginThrottlePolicy = loginThrottlePolicy{
+	UsernameMaxFailures: loginThrottleMaxFailures,
+	ClientMaxFailures:   loginThrottleClientMaxFailures,
+	Window:              loginThrottleWindow,
+	Block:               loginThrottleBlock,
+}
+
+func normalizedLoginThrottlePolicy(policy loginThrottlePolicy) loginThrottlePolicy {
+	if policy.UsernameMaxFailures <= 0 {
+		policy.UsernameMaxFailures = loginThrottleMaxFailures
+	}
+	if policy.ClientMaxFailures <= 0 {
+		policy.ClientMaxFailures = loginThrottleClientMaxFailures
+	}
+	if policy.Window <= 0 {
+		policy.Window = loginThrottleWindow
+	}
+	if policy.Block <= 0 {
+		policy.Block = loginThrottleBlock
+	}
+	return policy
+}
+
 // newLoginThrottleBuckets keeps username and client address accounting
 // independent. Otherwise a single small bounded map lets each new username
 // evict the address-wide defence before it reaches its higher failure limit.
@@ -36,6 +66,7 @@ type loginThrottleEntry struct {
 	failures     int
 	inFlight     int
 	windowStart  time.Time
+	window       time.Duration
 	blockedUntil time.Time
 }
 
@@ -44,6 +75,7 @@ type loginThrottleReservation struct {
 	clientThrottle   *loginThrottle
 	usernameKey      string
 	clientKey        string
+	policy           loginThrottlePolicy
 	settled          bool
 }
 
@@ -67,7 +99,7 @@ func (t *loginThrottle) retryAfter(key string, now time.Time) time.Duration {
 	if !entry.blockedUntil.IsZero() && now.Before(entry.blockedUntil) {
 		return entry.blockedUntil.Sub(now)
 	}
-	if now.Sub(entry.windowStart) > loginThrottleWindow {
+	if loginThrottleEntryExpired(entry, now) {
 		delete(t.entries, key)
 	}
 	return 0
@@ -80,16 +112,29 @@ func reserveLoginThrottleAttempt(
 	clientKey string,
 	now time.Time,
 ) (*loginThrottleReservation, bool) {
-	if !usernameThrottle.tryReserveWithLimit(usernameKey, now, loginThrottleMaxFailures) {
+	return reserveLoginThrottleAttemptWithPolicy(usernameThrottle, clientThrottle, usernameKey, clientKey, now, defaultLoginThrottlePolicy)
+}
+
+func reserveLoginThrottleAttemptWithPolicy(
+	usernameThrottle *loginThrottle,
+	clientThrottle *loginThrottle,
+	usernameKey string,
+	clientKey string,
+	now time.Time,
+	policy loginThrottlePolicy,
+) (*loginThrottleReservation, bool) {
+	policy = normalizedLoginThrottlePolicy(policy)
+	if !usernameThrottle.tryReserveWithPolicy(usernameKey, now, policy.UsernameMaxFailures, policy.Window) {
 		return nil, false
 	}
 	if usernameThrottle != nil && clientThrottle == usernameThrottle {
 		return &loginThrottleReservation{
 			usernameThrottle: usernameThrottle,
 			usernameKey:      usernameKey,
+			policy:           policy,
 		}, true
 	}
-	if !clientThrottle.tryReserveWithLimit(clientKey, now, loginThrottleClientMaxFailures) {
+	if !clientThrottle.tryReserveWithPolicy(clientKey, now, policy.ClientMaxFailures, policy.Window) {
 		usernameThrottle.releaseReservation(usernameKey)
 		return nil, false
 	}
@@ -98,15 +143,23 @@ func reserveLoginThrottleAttempt(
 		clientThrottle:   clientThrottle,
 		usernameKey:      usernameKey,
 		clientKey:        clientKey,
+		policy:           policy,
 	}, true
 }
 
 func (t *loginThrottle) tryReserveWithLimit(key string, now time.Time, maxFailures int) bool {
+	return t.tryReserveWithPolicy(key, now, maxFailures, loginThrottleWindow)
+}
+
+func (t *loginThrottle) tryReserveWithPolicy(key string, now time.Time, maxFailures int, window time.Duration) bool {
 	if t == nil || key == "" {
 		return true
 	}
 	if maxFailures <= 0 {
 		maxFailures = loginThrottleMaxFailures
+	}
+	if window <= 0 {
+		window = loginThrottleWindow
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -120,6 +173,9 @@ func (t *loginThrottle) tryReserveWithLimit(key string, now time.Time, maxFailur
 		entry.blockedUntil = time.Time{}
 		entry.windowStart = now
 	}
+	if entry != nil {
+		entry.window = window
+	}
 	if entry != nil && entry.inFlight == 0 && loginThrottleEntryExpired(entry, now) {
 		delete(t.entries, key)
 		entry = nil
@@ -129,7 +185,7 @@ func (t *loginThrottle) tryReserveWithLimit(key string, now time.Time, maxFailur
 		if len(t.entries) >= t.maxEntries && !t.evictOldestUnlockedEntryLocked(now) {
 			return false
 		}
-		entry = &loginThrottleEntry{windowStart: now}
+		entry = &loginThrottleEntry{windowStart: now, window: window}
 		t.entries[key] = entry
 	}
 	if entry.failures+entry.inFlight >= maxFailures {
@@ -178,11 +234,21 @@ func (t *loginThrottle) clearReservedFailures(key string) {
 }
 
 func (t *loginThrottle) recordReservedFailureWithLimit(key string, now time.Time, maxFailures int) {
+	t.recordReservedFailureWithPolicy(key, now, maxFailures, loginThrottleWindow, loginThrottleBlock)
+}
+
+func (t *loginThrottle) recordReservedFailureWithPolicy(key string, now time.Time, maxFailures int, window time.Duration, block time.Duration) {
 	if t == nil || key == "" {
 		return
 	}
 	if maxFailures <= 0 {
 		maxFailures = loginThrottleMaxFailures
+	}
+	if window <= 0 {
+		window = loginThrottleWindow
+	}
+	if block <= 0 {
+		block = loginThrottleBlock
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -192,15 +258,16 @@ func (t *loginThrottle) recordReservedFailureWithLimit(key string, now time.Time
 		if len(t.entries) >= t.maxEntries && !t.evictOldestUnlockedEntryLocked(now) {
 			return
 		}
-		entry = &loginThrottleEntry{windowStart: now}
+		entry = &loginThrottleEntry{windowStart: now, window: window}
 		t.entries[key] = entry
 	}
+	entry.window = window
 	if entry.inFlight > 0 {
 		entry.inFlight--
 	}
 	entry.failures++
 	if entry.failures >= maxFailures {
-		entry.blockedUntil = now.Add(loginThrottleBlock)
+		entry.blockedUntil = now.Add(block)
 	}
 }
 
@@ -218,8 +285,9 @@ func (r *loginThrottleReservation) recordFailure(now time.Time) {
 		return
 	}
 	r.settled = true
-	r.usernameThrottle.recordReservedFailureWithLimit(r.usernameKey, now, loginThrottleMaxFailures)
-	r.clientThrottle.recordReservedFailureWithLimit(r.clientKey, now, loginThrottleClientMaxFailures)
+	policy := normalizedLoginThrottlePolicy(r.policy)
+	r.usernameThrottle.recordReservedFailureWithPolicy(r.usernameKey, now, policy.UsernameMaxFailures, policy.Window, policy.Block)
+	r.clientThrottle.recordReservedFailureWithPolicy(r.clientKey, now, policy.ClientMaxFailures, policy.Window, policy.Block)
 }
 
 func (r *loginThrottleReservation) recordSuccess() {
@@ -236,11 +304,21 @@ func (t *loginThrottle) recordFailure(key string, now time.Time) {
 }
 
 func (t *loginThrottle) recordFailureWithLimit(key string, now time.Time, maxFailures int) {
+	t.recordFailureWithPolicy(key, now, maxFailures, loginThrottleWindow, loginThrottleBlock)
+}
+
+func (t *loginThrottle) recordFailureWithPolicy(key string, now time.Time, maxFailures int, window time.Duration, block time.Duration) {
 	if t == nil || key == "" {
 		return
 	}
 	if maxFailures <= 0 {
 		maxFailures = loginThrottleMaxFailures
+	}
+	if window <= 0 {
+		window = loginThrottleWindow
+	}
+	if block <= 0 {
+		block = loginThrottleBlock
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -252,12 +330,13 @@ func (t *loginThrottle) recordFailureWithLimit(key string, now time.Time, maxFai
 				return
 			}
 		}
-		entry = &loginThrottleEntry{windowStart: now}
+		entry = &loginThrottleEntry{windowStart: now, window: window}
 		t.entries[key] = entry
 	}
+	entry.window = window
 	entry.failures++
 	if entry.failures >= maxFailures {
-		entry.blockedUntil = now.Add(loginThrottleBlock)
+		entry.blockedUntil = now.Add(block)
 	}
 }
 
@@ -302,7 +381,14 @@ func loginThrottleEntryBlocked(entry *loginThrottleEntry, now time.Time) bool {
 }
 
 func loginThrottleEntryExpired(entry *loginThrottleEntry, now time.Time) bool {
-	return entry == nil || now.Sub(entry.windowStart) > loginThrottleWindow
+	if entry == nil {
+		return true
+	}
+	window := entry.window
+	if window <= 0 {
+		window = loginThrottleWindow
+	}
+	return now.Sub(entry.windowStart) > window
 }
 
 func (t *loginThrottle) recordSuccess(key string) {

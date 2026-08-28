@@ -24,6 +24,8 @@ func (a *App) CreatePublicAccessProvider(
 		req.Msg.LocalAuthMode, req.Msg.LocalAuthSessionDurationMillis, req.Msg.LocalAuthRealm,
 		req.Msg.LocalAuthLoginTemplateId, req.Msg.LocalAuthAllowedHosts, req.Msg.LocalAuthCookieSameSite,
 		req.Msg.LocalAuthCookieDomain, req.Msg.LocalAuthCookieSecure, req.Msg.LocalAuthCookieName,
+		req.Msg.LocalAuthLoginUsernameMaxFailures, req.Msg.LocalAuthLoginClientMaxFailures,
+		req.Msg.LocalAuthLoginWindowMillis, req.Msg.LocalAuthLoginBlockMillis,
 	)
 	if err != nil {
 		return nil, err
@@ -49,7 +51,11 @@ func (a *App) CreatePublicAccessProvider(
 		LocalAuthRealm: params.LocalAuthRealm, LocalAuthLoginTemplateID: params.LocalAuthLoginTemplateID,
 		LocalAuthAllowedHostsJson: params.LocalAuthAllowedHostsJson, LocalAuthCookieSameSite: params.LocalAuthCookieSameSite,
 		LocalAuthCookieDomain: params.LocalAuthCookieDomain, LocalAuthCookieSecure: params.LocalAuthCookieSecure,
-		LocalAuthCookieName: params.LocalAuthCookieName,
+		LocalAuthCookieName:               params.LocalAuthCookieName,
+		LocalAuthLoginUsernameMaxFailures: params.LocalAuthLoginUsernameMaxFailures,
+		LocalAuthLoginClientMaxFailures:   params.LocalAuthLoginClientMaxFailures,
+		LocalAuthLoginWindowMillis:        params.LocalAuthLoginWindowMillis,
+		LocalAuthLoginBlockMillis:         params.LocalAuthLoginBlockMillis,
 	})
 	if err != nil {
 		return nil, publicDBError(err)
@@ -74,6 +80,8 @@ func (a *App) UpdatePublicAccessProvider(
 		req.Msg.LocalAuthMode, req.Msg.LocalAuthSessionDurationMillis, req.Msg.LocalAuthRealm,
 		req.Msg.LocalAuthLoginTemplateId, req.Msg.LocalAuthAllowedHosts, req.Msg.LocalAuthCookieSameSite,
 		req.Msg.LocalAuthCookieDomain, req.Msg.LocalAuthCookieSecure, req.Msg.LocalAuthCookieName,
+		req.Msg.LocalAuthLoginUsernameMaxFailures, req.Msg.LocalAuthLoginClientMaxFailures,
+		req.Msg.LocalAuthLoginWindowMillis, req.Msg.LocalAuthLoginBlockMillis,
 	)
 	if err != nil {
 		return nil, err
