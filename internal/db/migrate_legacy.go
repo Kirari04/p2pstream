@@ -675,7 +675,16 @@ func (db *DB) migrateLegacyPublicAccessControl() error {
 			local_auth_mode TEXT NOT NULL DEFAULT 'form',
 			local_auth_session_duration_millis INTEGER NOT NULL DEFAULT 604800000,
 			local_auth_realm TEXT NOT NULL DEFAULT 'Restricted',
-			local_auth_login_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT
+			local_auth_login_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
+			local_auth_allowed_hosts_json TEXT NOT NULL DEFAULT '[]',
+			local_auth_cookie_same_site TEXT NOT NULL DEFAULT 'lax',
+			local_auth_cookie_domain TEXT NOT NULL DEFAULT '',
+			local_auth_cookie_secure INTEGER NOT NULL DEFAULT 0,
+			local_auth_cookie_name TEXT NOT NULL DEFAULT 'p2pstream_local_auth',
+			local_auth_login_username_max_failures INTEGER NOT NULL DEFAULT 5,
+			local_auth_login_client_max_failures INTEGER NOT NULL DEFAULT 25,
+			local_auth_login_window_millis INTEGER NOT NULL DEFAULT 900000,
+			local_auth_login_block_millis INTEGER NOT NULL DEFAULT 300000
 		)`,
 		`CREATE TABLE IF NOT EXISTS public_access_users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -734,6 +743,15 @@ func (db *DB) migrateLegacyPublicAccessControl() error {
 		{name: "local_auth_session_duration_millis", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_session_duration_millis INTEGER NOT NULL DEFAULT 604800000`},
 		{name: "local_auth_realm", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_realm TEXT NOT NULL DEFAULT 'Restricted'`},
 		{name: "local_auth_login_template_id", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_login_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT`},
+		{name: "local_auth_allowed_hosts_json", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_allowed_hosts_json TEXT NOT NULL DEFAULT '[]'`},
+		{name: "local_auth_cookie_same_site", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_cookie_same_site TEXT NOT NULL DEFAULT 'lax'`},
+		{name: "local_auth_cookie_domain", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_cookie_domain TEXT NOT NULL DEFAULT ''`},
+		{name: "local_auth_cookie_secure", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_cookie_secure INTEGER NOT NULL DEFAULT 0`},
+		{name: "local_auth_cookie_name", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_cookie_name TEXT NOT NULL DEFAULT 'p2pstream_local_auth'`},
+		{name: "local_auth_login_username_max_failures", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_login_username_max_failures INTEGER NOT NULL DEFAULT 5`},
+		{name: "local_auth_login_client_max_failures", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_login_client_max_failures INTEGER NOT NULL DEFAULT 25`},
+		{name: "local_auth_login_window_millis", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_login_window_millis INTEGER NOT NULL DEFAULT 900000`},
+		{name: "local_auth_login_block_millis", sql: `ALTER TABLE public_access_providers ADD COLUMN local_auth_login_block_millis INTEGER NOT NULL DEFAULT 300000`},
 	} {
 		if _, exists := providerColumns[column.name]; !exists {
 			if _, err := db.Exec(column.sql); err != nil {

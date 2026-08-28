@@ -18,6 +18,7 @@ import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import {
+  PublicAccessCookieSameSite,
   PublicAccessGroupMatch,
   PublicAccessLocalAuthMode,
   PublicAccessProviderType,
@@ -84,6 +85,15 @@ const providerForm = reactive({
   localAuthSessionHours: 168,
   localAuthRealm: "Restricted",
   localAuthLoginTemplateId: "",
+  localAuthAllowedHosts: [] as string[],
+  localAuthCookieSameSite: PublicAccessCookieSameSite.LAX,
+  localAuthCookieDomain: "",
+  localAuthCookieSecure: false,
+  localAuthCookieName: "p2pstream_local_auth",
+  localAuthLoginUsernameMaxFailures: 5,
+  localAuthLoginClientMaxFailures: 25,
+  localAuthLoginWindowMinutes: 15,
+  localAuthLoginBlockMinutes: 5,
 });
 const userForm = reactive({
   id: "",
@@ -118,6 +128,12 @@ const localAuthModeOptions = [
   { label: "HTTP Basic only", value: PublicAccessLocalAuthMode.BASIC },
 ];
 
+const localAuthCookieSameSiteOptions = [
+  { label: "Lax · recommended", value: PublicAccessCookieSameSite.LAX },
+  { label: "Strict · same-site only", value: PublicAccessCookieSameSite.STRICT },
+  { label: "None · cross-site", value: PublicAccessCookieSameSite.NONE },
+];
+
 const managedProvider = computed(() => providers.value.find((provider) => provider.id.toString() === managedProviderId.value) ?? null);
 const managedUsers = computed(() => users.value.filter((user) => user.providerId.toString() === managedProviderId.value));
 const suggestedUserGroups = computed(() => normalizedGroupValues(managedUsers.value.flatMap((user) => user.groups)));
@@ -148,6 +164,10 @@ const policyGroupHint = computed(() => {
   }
   return `Search ${suggestedPolicyGroups.value.length.toString()} ${suggestedPolicyGroups.value.length === 1 ? "group" : "groups"} assigned to this provider's users, or type a new exact group and press Enter.`;
 });
+const localAuthHostOptions = computed(() => normalizedHostValues([
+  ...(props.config?.routes ?? []).map((route) => route.hostPattern),
+  ...providerForm.localAuthAllowedHosts,
+]).map((host) => ({ label: host, value: host })));
 
 const providerSaveDisabledReason = computed(() => {
   if (isBusy.value) return BUSY_REASON;
@@ -166,6 +186,20 @@ const providerSaveDisabledReason = computed(() => {
     if (providerForm.localAuthSessionHours < 1 || providerForm.localAuthSessionHours > 720) return "Session lifetime must be between 1 and 720 hours.";
     if (!providerForm.localAuthRealm.trim() || utf8Length(providerForm.localAuthRealm.trim()) > 128) return "The login realm must be 1–128 bytes.";
     if (!providerForm.localAuthLoginTemplateId) return "Choose a sign-in page template.";
+    const allowedHosts = normalizedHostValues(providerForm.localAuthAllowedHosts);
+    if (allowedHosts.length > 64) return "At most 64 allowed hosts can be configured.";
+    if (allowedHosts.some((host) => !validAllowedHost(host))) return "Allowed hosts must be exact hostnames, IP addresses, or *.example.com wildcards without ports.";
+    const cookieDomain = normalizeCookieDomain(providerForm.localAuthCookieDomain);
+    if (providerForm.localAuthCookieDomain.trim() && !validCookieDomain(cookieDomain)) return "Cookie domain must be a multi-label DNS hostname such as example.com.";
+    if (cookieDomain && !allowedHosts.length) return "Set an explicit allowed-host list before sharing cookies across a domain.";
+    if (cookieDomain && allowedHosts.some((host) => !hostWithinCookieDomain(host, cookieDomain))) return "Every allowed host must be inside the configured cookie domain.";
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/.test(providerForm.localAuthCookieName.trim())) return "Cookie name must be 1–64 HTTP token characters.";
+    if (providerForm.localAuthCookieName.startsWith("__Host-") && (cookieDomain || !providerForm.localAuthCookieSecure)) return "__Host- cookie names require host-only, always-Secure cookies.";
+    if (providerForm.localAuthCookieName.startsWith("__Secure-") && !providerForm.localAuthCookieSecure) return "__Secure- cookie names require always-Secure cookies.";
+    if (providerForm.localAuthLoginUsernameMaxFailures < 1 || providerForm.localAuthLoginUsernameMaxFailures > 100) return "Account failure limit must be between 1 and 100.";
+    if (providerForm.localAuthLoginClientMaxFailures < providerForm.localAuthLoginUsernameMaxFailures || providerForm.localAuthLoginClientMaxFailures > 1000) return "Client failure limit must be between the account limit and 1000.";
+    if (providerForm.localAuthLoginWindowMinutes < 1 || providerForm.localAuthLoginWindowMinutes > 1440) return "Failure window must be between 1 minute and 24 hours.";
+    if (providerForm.localAuthLoginBlockMinutes < 1 || providerForm.localAuthLoginBlockMinutes > 10080) return "Block duration must be between 1 minute and 7 days.";
   }
   return "";
 });
@@ -212,6 +246,31 @@ function normalizedGroupValues(values: readonly string[]): string[] {
     .sort((left, right) => left.localeCompare(right));
 }
 
+function normalizedHostValues(values: readonly string[]): string[] {
+  return [...new Set(values.map((item) => item.trim().toLowerCase().replace(/\.$/, "")).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function validAllowedHost(value: string): boolean {
+  const host = value.startsWith("*.") ? value.slice(2) : value;
+  if (!host || host.length > 253 || /[/?#@]/.test(host)) return false;
+  if (host.includes(":")) return !value.startsWith("*.") && /^\[?[0-9a-f:]+\]?$/.test(host);
+  return host.split(".").every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label));
+}
+
+function normalizeCookieDomain(value: string): string {
+  return value.trim().toLowerCase().replace(/^\./, "").replace(/\.$/, "");
+}
+
+function validCookieDomain(value: string): boolean {
+  return value.includes(".") && validAllowedHost(value) && !value.startsWith("*.") && !value.includes(":");
+}
+
+function hostWithinCookieDomain(value: string, domain: string): boolean {
+  const host = value.replace(/^\*\./, "").replace(/^\[/, "").replace(/\]$/, "");
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
 function validForwardAuthURL(value: string): boolean {
   try {
     const parsed = new URL(value.trim());
@@ -255,6 +314,15 @@ function resetProviderForm() {
     localAuthSessionHours: 168,
     localAuthRealm: "Restricted",
     localAuthLoginTemplateId: defaultLocalAccessLoginTemplateId.value,
+    localAuthAllowedHosts: [],
+    localAuthCookieSameSite: PublicAccessCookieSameSite.LAX,
+    localAuthCookieDomain: "",
+    localAuthCookieSecure: false,
+    localAuthCookieName: "p2pstream_local_auth",
+    localAuthLoginUsernameMaxFailures: 5,
+    localAuthLoginClientMaxFailures: 25,
+    localAuthLoginWindowMinutes: 15,
+    localAuthLoginBlockMinutes: 5,
   });
 }
 
@@ -283,6 +351,15 @@ function openEditProvider(provider: PublicAccessProvider) {
     localAuthLoginTemplateId: provider.localAuthLoginTemplateId > 0n
       ? provider.localAuthLoginTemplateId.toString()
       : defaultLocalAccessLoginTemplateId.value,
+    localAuthAllowedHosts: [...provider.localAuthAllowedHosts],
+    localAuthCookieSameSite: provider.localAuthCookieSameSite || PublicAccessCookieSameSite.LAX,
+    localAuthCookieDomain: provider.localAuthCookieDomain,
+    localAuthCookieSecure: provider.localAuthCookieSecure,
+    localAuthCookieName: provider.localAuthCookieName || "p2pstream_local_auth",
+    localAuthLoginUsernameMaxFailures: Number(provider.localAuthLoginUsernameMaxFailures || 5n),
+    localAuthLoginClientMaxFailures: Number(provider.localAuthLoginClientMaxFailures || 25n),
+    localAuthLoginWindowMinutes: Number(provider.localAuthLoginWindowMillis || 900000n) / 60_000,
+    localAuthLoginBlockMinutes: Number(provider.localAuthLoginBlockMillis || 300000n) / 60_000,
   });
   providerEditorOpen.value = true;
 }
@@ -373,10 +450,23 @@ async function saveProvider() {
     localAuthSessionDurationMillis: BigInt(Math.round(providerForm.localAuthSessionHours * 3_600_000)),
     localAuthRealm: providerForm.localAuthRealm.trim(),
     localAuthLoginTemplateId: providerForm.localAuthLoginTemplateId ? BigInt(providerForm.localAuthLoginTemplateId) : 0n,
+    localAuthAllowedHosts: normalizedHostValues(providerForm.localAuthAllowedHosts),
+    localAuthCookieSameSite: providerForm.localAuthCookieSameSite,
+    localAuthCookieDomain: normalizeCookieDomain(providerForm.localAuthCookieDomain),
+    localAuthCookieSecure: providerForm.localAuthCookieSecure || providerForm.localAuthCookieSameSite === PublicAccessCookieSameSite.NONE,
+    localAuthCookieName: providerForm.localAuthCookieName.trim(),
+    localAuthLoginUsernameMaxFailures: BigInt(Math.round(providerForm.localAuthLoginUsernameMaxFailures)),
+    localAuthLoginClientMaxFailures: BigInt(Math.round(providerForm.localAuthLoginClientMaxFailures)),
+    localAuthLoginWindowMillis: BigInt(Math.round(providerForm.localAuthLoginWindowMinutes * 60_000)),
+    localAuthLoginBlockMillis: BigInt(Math.round(providerForm.localAuthLoginBlockMinutes * 60_000)),
   };
   const ok = await run(async () => {
     if (providerForm.id) {
-      await managementClient.updatePublicAccessProvider({ id: BigInt(providerForm.id), ...payload });
+      await managementClient.updatePublicAccessProvider({
+        id: BigInt(providerForm.id),
+        ...payload,
+        localAuthSecuritySettingsPresent: true,
+      });
     } else {
       await managementClient.createPublicAccessProvider(payload);
     }
@@ -475,6 +565,12 @@ function localAuthModeLabel(mode: PublicAccessLocalAuthMode): string {
   return "Sign-in form";
 }
 
+function cookieSameSiteLabel(value: PublicAccessCookieSameSite): string {
+  if (value === PublicAccessCookieSameSite.STRICT) return "Strict";
+  if (value === PublicAccessCookieSameSite.NONE) return "None";
+  return "Lax";
+}
+
 function localAccessLoginTemplateName(templateId: bigint): string {
   return localAccessLoginTemplates.value.find((template) => template.id === templateId)?.name ?? "Sign-in template unavailable";
 }
@@ -568,6 +664,8 @@ function groupSummary(policy: PublicAccessPolicy): string {
             <template v-if="isLocalProvider(provider)">
               <p class="copy-xs muted-text">{{ localAuthModeLabel(provider.localAuthMode) }} · {{ localUserCount(provider.id).toString() }} {{ localUserCount(provider.id) === 1 ? 'user' : 'users' }} · {{ Math.round(Number(provider.localAuthSessionDurationMillis) / 3_600_000).toString() }} hour sessions</p>
               <p class="copy-xs muted-text">Sign-in page · {{ localAccessLoginTemplateName(provider.localAuthLoginTemplateId) }}</p>
+              <p class="copy-xs muted-text">Login protection · {{ (provider.localAuthLoginUsernameMaxFailures || 5n).toString() }}/account · {{ (provider.localAuthLoginClientMaxFailures || 25n).toString() }}/client · {{ Math.round(Number(provider.localAuthLoginBlockMillis || 300000n) / 60_000).toString() }} min block</p>
+              <p class="copy-xs muted-text">{{ provider.localAuthAllowedHosts.length ? provider.localAuthAllowedHosts.join(' · ') : 'Any routed host' }} · SameSite {{ cookieSameSiteLabel(provider.localAuthCookieSameSite) }}{{ provider.localAuthCookieDomain ? ` · Domain ${provider.localAuthCookieDomain}` : '' }} · {{ provider.localAuthCookieName }}</p>
             </template>
             <template v-else>
               <p class="copy-xs mono-text wrap-anywhere muted-text">{{ provider.forwardAuthUrl }}</p>
@@ -750,6 +848,91 @@ function groupSummary(policy: PublicAccessPolicy): string {
                 HTTP Basic realm
                 <NInput v-model:value="providerForm.localAuthRealm" size="small" :maxlength="128" placeholder="Restricted" />
               </label>
+            </div>
+          </section>
+          <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+            <div>
+              <h3 class="copy-sm weight-semibold">Login protection</h3>
+              <p class="margin-top-xs copy-xs line-normal muted-text">Bound password guessing by account and client address. These limits always apply to both the sign-in form and HTTP Basic.</p>
+            </div>
+            <div class="layout-grid space-lg mq-sm-cols-two">
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Failures per account
+                <NInputNumber v-model:value="providerForm.localAuthLoginUsernameMaxFailures" :show-button="false" size="small" :min="1" :max="100" />
+                <span class="normal-text letter-normal weight-normal line-normal muted-text">Per username and client address.</span>
+              </label>
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Failures per client
+                <NInputNumber v-model:value="providerForm.localAuthLoginClientMaxFailures" :show-button="false" size="small" :min="providerForm.localAuthLoginUsernameMaxFailures" :max="1000" />
+                <span class="normal-text letter-normal weight-normal line-normal muted-text">Across every username attempted by one client.</span>
+              </label>
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Failure window (minutes)
+                <NInputNumber v-model:value="providerForm.localAuthLoginWindowMinutes" :show-button="false" size="small" :min="1" :max="1440" />
+                <span class="normal-text letter-normal weight-normal line-normal muted-text">The failure count resets after this window ends.</span>
+              </label>
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Block duration (minutes)
+                <NInputNumber v-model:value="providerForm.localAuthLoginBlockMinutes" :show-button="false" size="small" :min="1" :max="10080" />
+                <span class="normal-text letter-normal weight-normal line-normal muted-text">Returned through Retry-After when the limit is reached.</span>
+              </label>
+            </div>
+            <div class="layout-row wrap-items space-sm" aria-label="Fixed login protections">
+              <NTag size="small" :bordered="false" type="success">Account + client buckets</NTag>
+              <NTag size="small" :bordered="false" type="success">Concurrent attempts counted</NTag>
+              <NTag size="small" :bordered="false" type="success">Cannot be disabled</NTag>
+            </div>
+          </section>
+          <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+            <div>
+              <h3 class="copy-sm weight-semibold">Browser boundary</h3>
+              <p class="margin-top-xs copy-xs line-normal muted-text">Limit where this provider can authenticate and control how its short-lived CSRF and session cookies travel.</p>
+            </div>
+            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+              Allowed hosts
+              <AccessibleSelect
+                v-model:value="providerForm.localAuthAllowedHosts"
+                accessible-label="Allowed local authentication hosts"
+                :options="localAuthHostOptions"
+                multiple
+                filterable
+                tag
+                clearable
+                max-tag-count="responsive"
+                size="small"
+                placeholder="Search or add hosts"
+              />
+              <span class="normal-text letter-normal weight-normal line-normal muted-text">Exact hosts and leading wildcards are supported, for example <span class="mono-text">localhost</span> or <span class="mono-text">*.example.com</span>. Empty allows every host already matched by an assigned route.</span>
+            </label>
+            <div class="layout-grid space-lg mq-sm-cols-two">
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                SameSite policy
+                <NSelect v-model:value="providerForm.localAuthCookieSameSite" size="small" :options="localAuthCookieSameSiteOptions" />
+              </label>
+              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Cookie domain
+                <NInput v-model:value="providerForm.localAuthCookieDomain" size="small" class="mono-text" placeholder="Host-only (recommended)" />
+              </label>
+            </div>
+            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+              Cookie name prefix
+              <NInput v-model:value="providerForm.localAuthCookieName" size="small" class="mono-text" :maxlength="64" placeholder="p2pstream_local_auth" />
+              <span class="normal-text letter-normal weight-normal line-normal muted-text">Rotate this value to recover from stale or conflicting browser cookies. Provider and CSRF suffixes are added automatically.</span>
+            </label>
+            <NCheckbox v-model:checked="providerForm.localAuthCookieSecure" :disabled="providerForm.localAuthCookieSameSite === PublicAccessCookieSameSite.NONE">
+              Always mark cookies Secure
+            </NCheckbox>
+            <p class="copy-xs line-normal muted-text">HTTPS listeners enable Secure automatically. Force it when an external TLS layer makes the browser-facing request HTTPS.</p>
+            <NAlert v-if="providerForm.localAuthCookieSameSite === PublicAccessCookieSameSite.NONE" type="warning" :show-icon="false">
+              SameSite=None is only accepted by browsers with Secure cookies and therefore requires HTTPS. Browser-source validation and the one-time form nonce still apply.
+            </NAlert>
+            <NAlert v-else-if="providerForm.localAuthCookieDomain" type="warning" :show-icon="false">
+              A cookie domain shares the session with every matching subdomain. Keep the allowed-host list narrow and prefer host-only cookies unless cross-subdomain sign-in is intentional.
+            </NAlert>
+            <div class="layout-row wrap-items space-sm" aria-label="Fixed cookie protections">
+              <NTag size="small" :bordered="false" type="success">HttpOnly always on</NTag>
+              <NTag size="small" :bordered="false" type="success">Browser source checked</NTag>
+              <NTag size="small" :bordered="false" type="success">One-time form nonce</NTag>
             </div>
           </section>
           <NAlert type="warning" :show-icon="false">

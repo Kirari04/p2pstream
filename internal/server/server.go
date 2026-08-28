@@ -169,6 +169,7 @@ type App struct {
 	clientLoginThrottle             *loginThrottle
 	publicAccessLoginThrottle       *loginThrottle
 	publicAccessClientLoginThrottle *loginThrottle
+	publicAccessLoginNonces         *publicAccessLoginNonceStore
 	agentAuthLocks                  *agentAuthLockMap
 	agentProxyRequests              *tunnel.StreamLimiter
 	agentTunnelStreams              *tunnel.StreamLimiter
