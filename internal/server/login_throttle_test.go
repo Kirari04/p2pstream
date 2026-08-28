@@ -273,6 +273,58 @@ func TestLoginThrottleReservationRecordsFailuresAndBlocks(t *testing.T) {
 	}
 }
 
+func TestLoginThrottleReservationUsesCustomPolicy(t *testing.T) {
+	usernameThrottle, clientThrottle := newLoginThrottleBuckets(100)
+	now := time.Unix(1, 0)
+	usernameKey := loginThrottleKey("198.51.100.10", "admin")
+	clientKey := loginThrottleClientKey("198.51.100.10")
+	policy := loginThrottlePolicy{
+		UsernameMaxFailures: 2,
+		ClientMaxFailures:   8,
+		Window:              2 * time.Minute,
+		Block:               7 * time.Minute,
+	}
+
+	for i := 0; i < policy.UsernameMaxFailures; i++ {
+		reservation, admitted := reserveLoginThrottleAttemptWithPolicy(
+			usernameThrottle,
+			clientThrottle,
+			usernameKey,
+			clientKey,
+			now.Add(time.Duration(i)*time.Second),
+			policy,
+		)
+		if !admitted {
+			t.Fatalf("custom-policy attempt %d rejected early", i+1)
+		}
+		reservation.recordFailure(now.Add(time.Duration(i) * time.Second))
+	}
+	blockedAt := now.Add(2 * time.Second)
+	if _, admitted := reserveLoginThrottleAttemptWithPolicy(
+		usernameThrottle,
+		clientThrottle,
+		usernameKey,
+		clientKey,
+		blockedAt,
+		policy,
+	); admitted {
+		t.Fatal("custom account failure limit did not block the next attempt")
+	}
+	if got := usernameThrottle.retryAfter(usernameKey, blockedAt); got != 7*time.Minute-time.Second {
+		t.Fatalf("custom block retry-after = %v, want %v", got, 7*time.Minute-time.Second)
+	}
+	if _, admitted := reserveLoginThrottleAttemptWithPolicy(
+		usernameThrottle,
+		clientThrottle,
+		usernameKey,
+		clientKey,
+		now.Add(7*time.Minute+2*time.Second),
+		policy,
+	); !admitted {
+		t.Fatal("attempt remained blocked after the custom block duration")
+	}
+}
+
 func TestLoginThrottleReservationSupportsLegacySharedTracker(t *testing.T) {
 	throttle := newLoginThrottle(1)
 	reservation, admitted := reserveLoginThrottleAttempt(

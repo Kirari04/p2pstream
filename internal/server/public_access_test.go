@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"io"
@@ -116,6 +117,15 @@ func TestPublicAccessLocalUserManagementHashesSecretsAndRevokesSessions(t *testi
 		Name: "family", ProviderType: p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_LOCAL,
 		Enabled: true, LocalAuthMode: p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM_AND_BASIC,
 		LocalAuthSessionDurationMillis: defaultPublicAccessSessionMillis, LocalAuthRealm: "Family services",
+		LocalAuthAllowedHosts:             []string{"LOGIN.EXAMPLE.TEST.", "*.apps.example.test"},
+		LocalAuthCookieSameSite:           p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT,
+		LocalAuthCookieDomain:             ".example.test",
+		LocalAuthCookieSecure:             true,
+		LocalAuthCookieName:               "family_access",
+		LocalAuthLoginUsernameMaxFailures: 3,
+		LocalAuthLoginClientMaxFailures:   12,
+		LocalAuthLoginWindowMillis:        int64((2 * time.Minute) / time.Millisecond),
+		LocalAuthLoginBlockMillis:         int64((10 * time.Minute) / time.Millisecond),
 	})
 	providerReq.Header().Set("Cookie", header.Get("Cookie"))
 	providerResp, err := app.CreatePublicAccessProvider(ctx, providerReq)
@@ -128,6 +138,40 @@ func TestPublicAccessLocalUserManagementHashesSecretsAndRevokesSessions(t *testi
 	}
 	if provider.LocalAuthLoginTemplateId <= 0 {
 		t.Fatalf("local provider login template = %d, want seeded default", provider.LocalAuthLoginTemplateId)
+	}
+	if got := strings.Join(provider.LocalAuthAllowedHosts, ","); got != "*.apps.example.test,login.example.test" ||
+		provider.LocalAuthCookieSameSite != p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT ||
+		provider.LocalAuthCookieDomain != "example.test" || !provider.LocalAuthCookieSecure || provider.LocalAuthCookieName != "family_access" {
+		t.Fatalf("local provider browser boundary = hosts %q SameSite %v domain %q secure %v name %q", got, provider.LocalAuthCookieSameSite, provider.LocalAuthCookieDomain, provider.LocalAuthCookieSecure, provider.LocalAuthCookieName)
+	}
+	if provider.LocalAuthLoginUsernameMaxFailures != 3 || provider.LocalAuthLoginClientMaxFailures != 12 ||
+		provider.LocalAuthLoginWindowMillis != int64((2*time.Minute)/time.Millisecond) ||
+		provider.LocalAuthLoginBlockMillis != int64((10*time.Minute)/time.Millisecond) {
+		t.Fatalf("local provider login protection = account %d client %d window %d block %d",
+			provider.LocalAuthLoginUsernameMaxFailures, provider.LocalAuthLoginClientMaxFailures,
+			provider.LocalAuthLoginWindowMillis, provider.LocalAuthLoginBlockMillis)
+	}
+
+	legacyUpdateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicAccessProviderRequest{
+		Id: provider.Id, Name: "family-updated",
+		ProviderType: p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_LOCAL,
+		Enabled:      true, LocalAuthMode: p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM_AND_BASIC,
+		LocalAuthSessionDurationMillis: defaultPublicAccessSessionMillis, LocalAuthRealm: "Family services",
+		LocalAuthLoginTemplateId: provider.LocalAuthLoginTemplateId,
+	})
+	legacyUpdateReq.Header().Set("Cookie", header.Get("Cookie"))
+	legacyUpdateResp, err := app.UpdatePublicAccessProvider(ctx, legacyUpdateReq)
+	if err != nil {
+		t.Fatalf("legacy-schema local provider update: %v", err)
+	}
+	provider = legacyUpdateResp.Msg.Provider
+	if got := strings.Join(provider.LocalAuthAllowedHosts, ","); got != "*.apps.example.test,login.example.test" ||
+		provider.LocalAuthCookieSameSite != p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT ||
+		provider.LocalAuthCookieDomain != "example.test" || !provider.LocalAuthCookieSecure || provider.LocalAuthCookieName != "family_access" ||
+		provider.LocalAuthLoginUsernameMaxFailures != 3 || provider.LocalAuthLoginClientMaxFailures != 12 ||
+		provider.LocalAuthLoginWindowMillis != int64((2*time.Minute)/time.Millisecond) ||
+		provider.LocalAuthLoginBlockMillis != int64((10*time.Minute)/time.Millisecond) {
+		t.Fatalf("legacy-schema update replaced local security settings: %+v", provider)
 	}
 
 	userReq := connect.NewRequest(&p2pstreamv1.CreatePublicAccessUserRequest{
@@ -326,7 +370,11 @@ func TestPublicAccessLocalFormLoginCreatesRevocableSession(t *testing.T) {
 	if got := first.Header().Get("WWW-Authenticate"); got != "" {
 		t.Fatalf("form login unexpectedly sent WWW-Authenticate: %q", got)
 	}
+	if got := first.Header().Get("Referrer-Policy"); got != "same-origin" {
+		t.Fatalf("form login Referrer-Policy = %q, want same-origin for exact Origin validation", got)
+	}
 	csrfCookie := responseCookieNamed(t, first.Result(), publicAccessCSRFCookieName(providerRow.ID))
+	assertPublicAccessCookieAttributes(t, csrfCookie, false, 600)
 
 	form := url.Values{
 		publicAccessUsernameField: {userRow.Username},
@@ -339,7 +387,9 @@ func TestPublicAccessLocalFormLoginCreatesRevocableSession(t *testing.T) {
 		strings.NewReader(form.Encode()),
 	)
 	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	loginReq.AddCookie(csrfCookie)
+	loginReq.Header.Set("Origin", "null")
+	// The one-time server nonce covers a user agent that sends an opaque Origin
+	// and rejects the CSRF cookie from the 401 login-page response.
 	login := httptest.NewRecorder()
 	handler.ServeHTTP(login, loginReq)
 	if login.Code != http.StatusSeeOther || login.Header().Get("Location") != "?next=1" {
@@ -348,6 +398,18 @@ func TestPublicAccessLocalFormLoginCreatesRevocableSession(t *testing.T) {
 	sessionCookie := responseCookieNamed(t, login.Result(), publicAccessSessionCookieName(providerRow.ID))
 	if sessionCookie.Value == "" {
 		t.Fatal("login did not issue a session cookie")
+	}
+	replayReq := httptest.NewRequest(
+		http.MethodPost,
+		"http://app.example/private?next=1&"+publicAccessLoginQueryKey+"=1",
+		strings.NewReader(form.Encode()),
+	)
+	replayReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	replayReq.Header.Set("Origin", "null")
+	replay := httptest.NewRecorder()
+	handler.ServeHTTP(replay, replayReq)
+	if replay.Code != http.StatusBadRequest {
+		t.Fatalf("replayed form nonce response = %d, want 400", replay.Code)
 	}
 
 	authedReq := httptest.NewRequest(http.MethodGet, "http://app.example/private", nil)
@@ -372,6 +434,46 @@ func TestPublicAccessLocalFormLoginCreatesRevocableSession(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("upstream request was not received")
+	}
+}
+
+func TestPublicAccessLocalFormLoginUsesProviderThrottlePolicy(t *testing.T) {
+	database := newServerTestDB(t)
+	providerRow, userRow := createTestPublicLocalAccessIdentity(t, database, publicAccessLocalAuthModeForm)
+	providerRow.LocalAuthLoginUsernameMaxFailures = 1
+	providerRow.LocalAuthLoginClientMaxFailures = 10
+	providerRow.LocalAuthLoginWindowMillis = int64((2 * time.Minute) / time.Millisecond)
+	providerRow.LocalAuthLoginBlockMillis = int64((2 * time.Minute) / time.Millisecond)
+	handler := newTestPublicLocalAccessProxy(t, database, "http://127.0.0.1:1", providerRow, userRow)
+
+	login := func() *httptest.ResponseRecorder {
+		form := url.Values{
+			publicAccessUsernameField: {userRow.Username},
+			publicAccessPasswordField: {"incorrect password"},
+			publicAccessCSRFField:     {strings.Repeat("a", 43)},
+		}
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"http://app.example/private?"+publicAccessLoginQueryKey+"=1",
+			strings.NewReader(form.Encode()),
+		)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", "http://app.example")
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, req)
+		return recorder
+	}
+
+	first := login()
+	if first.Code != http.StatusUnauthorized {
+		t.Fatalf("first invalid login = %d, want 401", first.Code)
+	}
+	blocked := login()
+	if blocked.Code != http.StatusTooManyRequests {
+		t.Fatalf("login after provider failure limit = %d body %q, want 429", blocked.Code, blocked.Body.String())
+	}
+	if got := blocked.Header().Get("Retry-After"); got != "120" {
+		t.Fatalf("Retry-After = %q, want configured 120-second block", got)
 	}
 }
 
@@ -414,25 +516,276 @@ func TestPublicAccessLocalFormOriginValidation(t *testing.T) {
 	}
 }
 
-func TestPublicAccessLocalFormLoginRejectsMissingCSRF(t *testing.T) {
+func TestPublicAccessLocalFormBrowserSourceValidation(t *testing.T) {
+	listener := publicListenerConfig{Protocol: publicListenerProtocolHTTPS, Port: 8443}
+	tests := []struct {
+		name     string
+		origins  []string
+		referers []string
+		want     publicAccessFormSourceStatus
+	}{
+		{name: "exact origin", origins: []string{"https://app.example:8443"}, want: publicAccessFormSourceTrusted},
+		{name: "null origin exact referer", origins: []string{"null"}, referers: []string{"https://app.example:8443/private?next=1"}, want: publicAccessFormSourceTrusted},
+		{name: "missing origin exact referer", referers: []string{"https://app.example:8443/private"}, want: publicAccessFormSourceTrusted},
+		{name: "null origin without referer", origins: []string{"null"}, want: publicAccessFormSourceOpaque},
+		{name: "null origin cross-site referer", origins: []string{"null"}, referers: []string{"https://evil.example:8443/"}, want: publicAccessFormSourceInvalid},
+		{name: "cross-site origin ignores exact referer", origins: []string{"https://evil.example:8443"}, referers: []string{"https://app.example:8443/private"}, want: publicAccessFormSourceInvalid},
+		{name: "source-less client", want: publicAccessFormSourceAbsent},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "https://app.example:8443/private", nil)
+			for _, origin := range test.origins {
+				req.Header.Add("Origin", origin)
+			}
+			for _, referer := range test.referers {
+				req.Header.Add("Referer", referer)
+			}
+			if got := publicAccessFormBrowserSource(req, listener); got != test.want {
+				t.Fatalf("source validation = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestPublicAccessLoginNonceStoreIsBoundedAndOneTime(t *testing.T) {
+	store := newPublicAccessLoginNonceStore(1)
+	now := time.Now()
+	first := publicAccessLoginNonce{
+		providerID: 1,
+		host:       sha256.Sum256([]byte("app.example")),
+		clientIP:   sha256.Sum256([]byte("192.0.2.1")),
+		userAgent:  sha256.Sum256([]byte("browser")),
+	}
+	store.issue(strings.Repeat("a", 43), first, now)
+	store.issue(strings.Repeat("b", 43), first, now.Add(time.Second))
+	if store.consume(strings.Repeat("a", 43), first, now.Add(2*time.Second)) {
+		t.Fatal("evicted login nonce remained valid")
+	}
+	otherClient := first
+	otherClient.clientIP = sha256.Sum256([]byte("192.0.2.2"))
+	if store.consume(strings.Repeat("b", 43), otherClient, now.Add(2*time.Second)) {
+		t.Fatal("login nonce accepted a different client binding")
+	}
+	if store.consume(strings.Repeat("b", 43), first, now.Add(2*time.Second)) {
+		t.Fatal("mismatched login nonce attempt did not consume the nonce")
+	}
+	store.issue(strings.Repeat("c", 43), first, now.Add(3*time.Second))
+	if !store.consume(strings.Repeat("c", 43), first, now.Add(4*time.Second)) {
+		t.Fatal("exact login nonce binding was rejected")
+	}
+	if store.consume(strings.Repeat("c", 43), first, now.Add(4*time.Second)) {
+		t.Fatal("login nonce was accepted more than once")
+	}
+}
+
+func TestPublicAccessLocalHostAllowlist(t *testing.T) {
+	tests := []struct {
+		name    string
+		host    string
+		allowed []string
+		want    bool
+	}{
+		{name: "empty allows routed host", host: "anything.example", want: true},
+		{name: "exact host", host: "login.example.com", allowed: []string{"login.example.com"}, want: true},
+		{name: "wildcard subdomain", host: "admin.apps.example.com", allowed: []string{"*.apps.example.com"}, want: true},
+		{name: "wildcard excludes apex", host: "apps.example.com", allowed: []string{"*.apps.example.com"}},
+		{name: "sibling denied", host: "evil.example.com", allowed: []string{"login.example.com"}},
+		{name: "ip literal", host: "127.0.0.1", allowed: []string{"127.0.0.1"}, want: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := publicAccessHostAllowed(test.host, test.allowed); got != test.want {
+				t.Fatalf("publicAccessHostAllowed(%q, %q) = %v, want %v", test.host, test.allowed, got, test.want)
+			}
+		})
+	}
+}
+
+func TestPublicAccessLocalDisallowedHostFailsClosed(t *testing.T) {
+	database := newServerTestDB(t)
+	providerRow, userRow := createTestPublicLocalAccessIdentity(t, database, publicAccessLocalAuthModeForm)
+	providerRow.LocalAuthAllowedHostsJson = `["private.example"]`
+	handler := newTestPublicLocalAccessProxy(t, database, "http://127.0.0.1:1", providerRow, userRow)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "http://app.example/private", nil))
+	if recorder.Code != http.StatusMisdirectedRequest {
+		t.Fatalf("disallowed host status = %d, want %d", recorder.Code, http.StatusMisdirectedRequest)
+	}
+}
+
+func TestPublicAccessLocalCookiePolicy(t *testing.T) {
+	provider := publicAccessProviderConfig{
+		ID: 42, LocalAuthCookieSameSite: publicAccessCookieSameSiteStrict,
+		LocalAuthCookieDomain: "example.test", LocalAuthCookieSecure: true,
+		LocalAuthCookieName: "private_gateway",
+	}
+	cookie := publicAccessCSRFCookie(provider, strings.Repeat("a", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTP})
+	if cookie.SameSite != http.SameSiteStrictMode || !cookie.Secure || cookie.Domain != "example.test" || !cookie.HttpOnly {
+		t.Fatalf("configured CSRF cookie = %+v", cookie)
+	}
+	if cookie.Name != "private_gateway_csrf_42" {
+		t.Fatalf("configured CSRF cookie name = %q, want private_gateway_csrf_42", cookie.Name)
+	}
+	provider.LocalAuthCookieSameSite = publicAccessCookieSameSiteNone
+	provider.LocalAuthCookieSecure = false
+	cookie = publicAccessCSRFCookie(provider, strings.Repeat("b", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTP})
+	if cookie.SameSite != http.SameSiteNoneMode || !cookie.Secure {
+		t.Fatalf("SameSite=None cookie = %+v, want forced Secure", cookie)
+	}
+	provider.LocalAuthCookieSameSite = publicAccessCookieSameSiteLax
+	cookie = publicAccessCSRFCookie(provider, strings.Repeat("c", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTP})
+	if cookie.Secure {
+		t.Fatal("plain HTTP cookie Secure = true, want provider setting to remain authoritative")
+	}
+	cookie = publicAccessCSRFCookie(provider, strings.Repeat("d", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTPS})
+	if !cookie.Secure {
+		t.Fatal("HTTPS cookie Secure = false, want automatic Secure")
+	}
+}
+
+func TestNormalizePublicAccessCookieDomain(t *testing.T) {
+	if got, err := normalizePublicAccessCookieDomain(".Example.Test.", []string{"login.example.test", "*.apps.example.test"}); err != nil || got != "example.test" {
+		t.Fatalf("normalized cookie domain = %q, %v", got, err)
+	}
+	for _, test := range []struct {
+		name    string
+		domain  string
+		allowed []string
+	}{
+		{name: "requires allowlist", domain: "example.test"},
+		{name: "rejects public suffix", domain: "co.uk", allowed: []string{"app.co.uk"}},
+		{name: "rejects outside host", domain: "example.test", allowed: []string{"other.test"}},
+		{name: "rejects localhost", domain: "localhost", allowed: []string{"localhost"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := normalizePublicAccessCookieDomain(test.domain, test.allowed); err == nil {
+				t.Fatalf("normalizePublicAccessCookieDomain(%q, %q) succeeded", test.domain, test.allowed)
+			}
+		})
+	}
+}
+
+func TestNormalizePublicAccessLoginThrottlePolicy(t *testing.T) {
+	defaults, err := normalizePublicAccessLoginThrottlePolicy(0, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("default login throttle policy: %v", err)
+	}
+	if defaults != defaultLoginThrottlePolicy {
+		t.Fatalf("default login throttle policy = %+v, want %+v", defaults, defaultLoginThrottlePolicy)
+	}
+
+	custom, err := normalizePublicAccessLoginThrottlePolicy(3, 12, 2*60*1000, 10*60*1000)
+	if err != nil {
+		t.Fatalf("custom login throttle policy: %v", err)
+	}
+	if custom.UsernameMaxFailures != 3 || custom.ClientMaxFailures != 12 || custom.Window != 2*time.Minute || custom.Block != 10*time.Minute {
+		t.Fatalf("custom login throttle policy = %+v", custom)
+	}
+
+	for _, test := range []struct {
+		name                string
+		usernameMaxFailures int64
+		clientMaxFailures   int64
+		windowMillis        int64
+		blockMillis         int64
+	}{
+		{name: "account limit too low", usernameMaxFailures: -1, clientMaxFailures: 25, windowMillis: 900000, blockMillis: 300000},
+		{name: "account limit too high", usernameMaxFailures: 101, clientMaxFailures: 101, windowMillis: 900000, blockMillis: 300000},
+		{name: "client below account", usernameMaxFailures: 10, clientMaxFailures: 9, windowMillis: 900000, blockMillis: 300000},
+		{name: "client limit too high", usernameMaxFailures: 5, clientMaxFailures: 1001, windowMillis: 900000, blockMillis: 300000},
+		{name: "window too short", usernameMaxFailures: 5, clientMaxFailures: 25, windowMillis: 59999, blockMillis: 300000},
+		{name: "window too long", usernameMaxFailures: 5, clientMaxFailures: 25, windowMillis: 86400001, blockMillis: 300000},
+		{name: "block too short", usernameMaxFailures: 5, clientMaxFailures: 25, windowMillis: 900000, blockMillis: 59999},
+		{name: "block too long", usernameMaxFailures: 5, clientMaxFailures: 25, windowMillis: 900000, blockMillis: 604800001},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := normalizePublicAccessLoginThrottlePolicy(
+				test.usernameMaxFailures,
+				test.clientMaxFailures,
+				test.windowMillis,
+				test.blockMillis,
+			); err == nil {
+				t.Fatal("invalid login throttle policy succeeded")
+			}
+		})
+	}
+}
+
+func TestPublicAccessLocalFormLoginRejectsCrossOriginSubmission(t *testing.T) {
 	database := newServerTestDB(t)
 	providerRow, userRow := createTestPublicLocalAccessIdentity(t, database, publicAccessLocalAuthModeForm)
 	handler := newTestPublicLocalAccessProxy(t, database, "http://127.0.0.1:1", providerRow, userRow)
+	token := strings.Repeat("a", 43)
 	form := url.Values{
 		publicAccessUsernameField: {userRow.Username},
 		publicAccessPasswordField: {"correct horse battery staple"},
-		publicAccessCSRFField:     {"attacker-controlled-token-without-cookie-000"},
+		publicAccessCSRFField:     {token},
 	}
 	req := httptest.NewRequest(http.MethodPost, "http://app.example/private?"+publicAccessLoginQueryKey+"=1", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Origin", "http://attacker.example")
+	req.AddCookie(publicAccessCSRFCookie(publicAccessProviderConfig{ID: providerRow.ID}, token, publicListenerConfig{Protocol: publicListenerProtocolHTTP}))
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
 	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), "expired") {
-		t.Fatalf("response = %d %q, want CSRF rejection", recorder.Code, recorder.Body.String())
+		t.Fatalf("response = %d %q, want cross-origin CSRF rejection", recorder.Code, recorder.Body.String())
 	}
 	if cookie := findResponseCookie(recorder.Result(), publicAccessSessionCookieName(providerRow.ID)); cookie != nil && cookie.Value != "" {
-		t.Fatal("CSRF rejection issued a session cookie")
+		t.Fatal("cross-origin CSRF rejection issued a session cookie")
 	}
+}
+
+func TestPublicAccessLocalFormLoginRejectsMissingOrMismatchedCSRF(t *testing.T) {
+	database := newServerTestDB(t)
+	providerRow, userRow := createTestPublicLocalAccessIdentity(t, database, publicAccessLocalAuthModeForm)
+	handler := newTestPublicLocalAccessProxy(t, database, "http://127.0.0.1:1", providerRow, userRow)
+	token := strings.Repeat("a", 43)
+	for _, test := range []struct {
+		name         string
+		cookieValues []string
+	}{
+		{name: "missing cookie"},
+		{name: "mismatched cookie", cookieValues: []string{strings.Repeat("b", 43)}},
+		{name: "duplicate cookies without browser origin", cookieValues: []string{strings.Repeat("b", 43), token}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			form := url.Values{
+				publicAccessUsernameField: {userRow.Username},
+				publicAccessPasswordField: {"correct horse battery staple"},
+				publicAccessCSRFField:     {token},
+			}
+			req := httptest.NewRequest(http.MethodPost, "http://app.example/private?"+publicAccessLoginQueryKey+"=1", strings.NewReader(form.Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			for _, cookieValue := range test.cookieValues {
+				req.AddCookie(&http.Cookie{Name: publicAccessCSRFCookieName(providerRow.ID), Value: cookieValue})
+			}
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), "expired") {
+				t.Fatalf("response = %d %q, want CSRF rejection", recorder.Code, recorder.Body.String())
+			}
+			if cookie := findResponseCookie(recorder.Result(), publicAccessSessionCookieName(providerRow.ID)); cookie != nil && cookie.Value != "" {
+				t.Fatal("CSRF rejection issued a session cookie")
+			}
+		})
+	}
+
+	t.Run("malformed token with browser origin", func(t *testing.T) {
+		form := url.Values{
+			publicAccessUsernameField: {userRow.Username},
+			publicAccessPasswordField: {"correct horse battery staple"},
+			publicAccessCSRFField:     {"not-a-rendered-form-token"},
+		}
+		req := httptest.NewRequest(http.MethodPost, "http://app.example/private?"+publicAccessLoginQueryKey+"=1", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", "http://app.example")
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), "expired") {
+			t.Fatalf("response = %d %q, want malformed form-token rejection", recorder.Code, recorder.Body.String())
+		}
+	})
 }
 
 func TestPublicAccessLocalBasicUsesUsersAndStripsCredentials(t *testing.T) {
@@ -475,6 +828,36 @@ func TestPublicAccessLocalBasicUsesUsersAndStripsCredentials(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("upstream request was not received")
+	}
+}
+
+func TestPublicAccessLocalBasicUsesProviderThrottlePolicy(t *testing.T) {
+	database := newServerTestDB(t)
+	providerRow, userRow := createTestPublicLocalAccessIdentity(t, database, publicAccessLocalAuthModeBasic)
+	providerRow.LocalAuthLoginUsernameMaxFailures = 1
+	providerRow.LocalAuthLoginClientMaxFailures = 10
+	providerRow.LocalAuthLoginWindowMillis = int64((2 * time.Minute) / time.Millisecond)
+	providerRow.LocalAuthLoginBlockMillis = int64((2 * time.Minute) / time.Millisecond)
+	handler := newTestPublicLocalAccessProxy(t, database, "http://127.0.0.1:1", providerRow, userRow)
+
+	request := func(password string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "http://app.example/private", nil)
+		req.SetBasicAuth(userRow.Username, password)
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, req)
+		return recorder
+	}
+
+	first := request("incorrect password")
+	if first.Code != http.StatusUnauthorized {
+		t.Fatalf("first invalid Basic login = %d, want 401", first.Code)
+	}
+	blocked := request("incorrect password")
+	if blocked.Code != http.StatusTooManyRequests {
+		t.Fatalf("Basic login after provider failure limit = %d body %q, want 429", blocked.Code, blocked.Body.String())
+	}
+	if got := blocked.Header().Get("Retry-After"); got != "120" {
+		t.Fatalf("Basic Retry-After = %q, want configured 120-second block", got)
 	}
 }
 
@@ -798,10 +1181,17 @@ func createTestPublicLocalAccessIdentity(t *testing.T, database *db.DB, mode str
 		ForwardAuthUrl: "", TimeoutMillis: defaultPublicAccessTimeoutMillis, TlsSkipVerify: 0,
 		SubjectHeader: "X-Auth-Request-Preferred-Username", UserHeader: "X-Auth-Request-User",
 		EmailHeader: "X-Auth-Request-Email", GroupsHeader: "X-Auth-Request-Groups",
-		ForwardedHeadersJson:           `["X-Auth-Request-Groups","X-Auth-Request-Preferred-Username","X-Auth-Request-User"]`,
-		LocalAuthMode:                  mode,
-		LocalAuthSessionDurationMillis: defaultPublicAccessSessionMillis,
-		LocalAuthRealm:                 "Private test",
+		ForwardedHeadersJson:              `["X-Auth-Request-Groups","X-Auth-Request-Preferred-Username","X-Auth-Request-User"]`,
+		LocalAuthMode:                     mode,
+		LocalAuthSessionDurationMillis:    defaultPublicAccessSessionMillis,
+		LocalAuthRealm:                    "Private test",
+		LocalAuthAllowedHostsJson:         "[]",
+		LocalAuthCookieSameSite:           publicAccessCookieSameSiteLax,
+		LocalAuthCookieName:               defaultPublicAccessCookieName,
+		LocalAuthLoginUsernameMaxFailures: defaultPublicAccessLoginUsernameMaxFailures,
+		LocalAuthLoginClientMaxFailures:   defaultPublicAccessLoginClientMaxFailures,
+		LocalAuthLoginWindowMillis:        defaultPublicAccessLoginWindowMillis,
+		LocalAuthLoginBlockMillis:         defaultPublicAccessLoginBlockMillis,
 	})
 	if err != nil {
 		t.Fatalf("create local access provider: %v", err)
@@ -873,6 +1263,25 @@ func responseCookieNamed(t *testing.T, response *http.Response, name string) *ht
 		t.Fatalf("response did not include cookie %q", name)
 	}
 	return cookie
+}
+
+func assertPublicAccessCookieAttributes(t *testing.T, cookie *http.Cookie, wantSecure bool, wantMaxAge int) {
+	t.Helper()
+	if cookie.Secure != wantSecure {
+		t.Fatalf("cookie %q Secure = %v, want %v", cookie.Name, cookie.Secure, wantSecure)
+	}
+	if !cookie.HttpOnly {
+		t.Fatalf("cookie %q HttpOnly = false, want true", cookie.Name)
+	}
+	if cookie.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("cookie %q SameSite = %v, want %v", cookie.Name, cookie.SameSite, http.SameSiteLaxMode)
+	}
+	if cookie.Path != "/" {
+		t.Fatalf("cookie %q Path = %q, want /", cookie.Name, cookie.Path)
+	}
+	if cookie.MaxAge != wantMaxAge {
+		t.Fatalf("cookie %q MaxAge = %d, want %d", cookie.Name, cookie.MaxAge, wantMaxAge)
+	}
 }
 
 func findResponseCookie(response *http.Response, name string) *http.Cookie {
