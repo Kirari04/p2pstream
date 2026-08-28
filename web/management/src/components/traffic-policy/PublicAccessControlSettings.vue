@@ -462,7 +462,11 @@ async function saveProvider() {
   };
   const ok = await run(async () => {
     if (providerForm.id) {
-      await managementClient.updatePublicAccessProvider({ id: BigInt(providerForm.id), ...payload });
+      await managementClient.updatePublicAccessProvider({
+        id: BigInt(providerForm.id),
+        ...payload,
+        localAuthSecuritySettingsPresent: true,
+      });
     } else {
       await managementClient.createPublicAccessProvider(payload);
     }

@@ -152,6 +152,28 @@ func TestPublicAccessLocalUserManagementHashesSecretsAndRevokesSessions(t *testi
 			provider.LocalAuthLoginWindowMillis, provider.LocalAuthLoginBlockMillis)
 	}
 
+	legacyUpdateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicAccessProviderRequest{
+		Id: provider.Id, Name: "family-updated",
+		ProviderType: p2pstreamv1.PublicAccessProviderType_PUBLIC_ACCESS_PROVIDER_TYPE_LOCAL,
+		Enabled:      true, LocalAuthMode: p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM_AND_BASIC,
+		LocalAuthSessionDurationMillis: defaultPublicAccessSessionMillis, LocalAuthRealm: "Family services",
+		LocalAuthLoginTemplateId: provider.LocalAuthLoginTemplateId,
+	})
+	legacyUpdateReq.Header().Set("Cookie", header.Get("Cookie"))
+	legacyUpdateResp, err := app.UpdatePublicAccessProvider(ctx, legacyUpdateReq)
+	if err != nil {
+		t.Fatalf("legacy-schema local provider update: %v", err)
+	}
+	provider = legacyUpdateResp.Msg.Provider
+	if got := strings.Join(provider.LocalAuthAllowedHosts, ","); got != "*.apps.example.test,login.example.test" ||
+		provider.LocalAuthCookieSameSite != p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT ||
+		provider.LocalAuthCookieDomain != "example.test" || !provider.LocalAuthCookieSecure || provider.LocalAuthCookieName != "family_access" ||
+		provider.LocalAuthLoginUsernameMaxFailures != 3 || provider.LocalAuthLoginClientMaxFailures != 12 ||
+		provider.LocalAuthLoginWindowMillis != int64((2*time.Minute)/time.Millisecond) ||
+		provider.LocalAuthLoginBlockMillis != int64((10*time.Minute)/time.Millisecond) {
+		t.Fatalf("legacy-schema update replaced local security settings: %+v", provider)
+	}
+
 	userReq := connect.NewRequest(&p2pstreamv1.CreatePublicAccessUserRequest{
 		ProviderId: provider.Id, Username: "Alice", Password: "correct horse battery staple",
 		Enabled: true, Groups: []string{"operators", "engineering"},
@@ -598,7 +620,7 @@ func TestPublicAccessLocalCookiePolicy(t *testing.T) {
 		LocalAuthCookieDomain: "example.test", LocalAuthCookieSecure: true,
 		LocalAuthCookieName: "private_gateway",
 	}
-	cookie := publicAccessCSRFCookie(provider, strings.Repeat("a", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTP}, "login.example.test")
+	cookie := publicAccessCSRFCookie(provider, strings.Repeat("a", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTP})
 	if cookie.SameSite != http.SameSiteStrictMode || !cookie.Secure || cookie.Domain != "example.test" || !cookie.HttpOnly {
 		t.Fatalf("configured CSRF cookie = %+v", cookie)
 	}
@@ -607,16 +629,16 @@ func TestPublicAccessLocalCookiePolicy(t *testing.T) {
 	}
 	provider.LocalAuthCookieSameSite = publicAccessCookieSameSiteNone
 	provider.LocalAuthCookieSecure = false
-	cookie = publicAccessCSRFCookie(provider, strings.Repeat("b", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTP}, "login.example.test")
+	cookie = publicAccessCSRFCookie(provider, strings.Repeat("b", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTP})
 	if cookie.SameSite != http.SameSiteNoneMode || !cookie.Secure {
 		t.Fatalf("SameSite=None cookie = %+v, want forced Secure", cookie)
 	}
 	provider.LocalAuthCookieSameSite = publicAccessCookieSameSiteLax
-	cookie = publicAccessCSRFCookie(provider, strings.Repeat("c", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTP}, "localhost:8089")
+	cookie = publicAccessCSRFCookie(provider, strings.Repeat("c", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTP})
 	if cookie.Secure {
 		t.Fatal("plain HTTP cookie Secure = true, want provider setting to remain authoritative")
 	}
-	cookie = publicAccessCSRFCookie(provider, strings.Repeat("d", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTPS}, "login.example.test")
+	cookie = publicAccessCSRFCookie(provider, strings.Repeat("d", 43), publicListenerConfig{Protocol: publicListenerProtocolHTTPS})
 	if !cookie.Secure {
 		t.Fatal("HTTPS cookie Secure = false, want automatic Secure")
 	}
@@ -703,7 +725,7 @@ func TestPublicAccessLocalFormLoginRejectsCrossOriginSubmission(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "http://app.example/private?"+publicAccessLoginQueryKey+"=1", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Origin", "http://attacker.example")
-	req.AddCookie(publicAccessCSRFCookie(publicAccessProviderConfig{ID: providerRow.ID}, token, publicListenerConfig{Protocol: publicListenerProtocolHTTP}, "app.example"))
+	req.AddCookie(publicAccessCSRFCookie(publicAccessProviderConfig{ID: providerRow.ID}, token, publicListenerConfig{Protocol: publicListenerProtocolHTTP}))
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
 	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), "expired") {

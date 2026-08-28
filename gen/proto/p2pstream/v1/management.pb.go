@@ -12845,6 +12845,7 @@ type UpdatePublicAccessProviderRequest struct {
 	LocalAuthLoginClientMaxFailures   int64                      `protobuf:"varint,23,opt,name=local_auth_login_client_max_failures,json=localAuthLoginClientMaxFailures,proto3" json:"local_auth_login_client_max_failures,omitempty"`
 	LocalAuthLoginWindowMillis        int64                      `protobuf:"varint,24,opt,name=local_auth_login_window_millis,json=localAuthLoginWindowMillis,proto3" json:"local_auth_login_window_millis,omitempty"`
 	LocalAuthLoginBlockMillis         int64                      `protobuf:"varint,25,opt,name=local_auth_login_block_millis,json=localAuthLoginBlockMillis,proto3" json:"local_auth_login_block_millis,omitempty"`
+	LocalAuthSecuritySettingsPresent  bool                       `protobuf:"varint,26,opt,name=local_auth_security_settings_present,json=localAuthSecuritySettingsPresent,proto3" json:"local_auth_security_settings_present,omitempty"`
 	unknownFields                     protoimpl.UnknownFields
 	sizeCache                         protoimpl.SizeCache
 }
@@ -13052,6 +13053,13 @@ func (x *UpdatePublicAccessProviderRequest) GetLocalAuthLoginBlockMillis() int64
 		return x.LocalAuthLoginBlockMillis
 	}
 	return 0
+}
+
+func (x *UpdatePublicAccessProviderRequest) GetLocalAuthSecuritySettingsPresent() bool {
+	if x != nil {
+		return x.LocalAuthSecuritySettingsPresent
+	}
+	return false
 }
 
 type UpdatePublicAccessProviderResponse struct {
@@ -23872,8 +23880,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x1elocal_auth_login_window_millis\x18\x17 \x01(\x03R\x1alocalAuthLoginWindowMillis\x12@\n" +
 	"\x1dlocal_auth_login_block_millis\x18\x18 \x01(\x03R\x19localAuthLoginBlockMillis\"d\n" +
 	"\"CreatePublicAccessProviderResponse\x12>\n" +
-	"\bprovider\x18\x01 \x01(\v2\".p2pstream.v1.PublicAccessProviderR\bprovider\"\xdb\n" +
-	"\n" +
+	"\bprovider\x18\x01 \x01(\v2\".p2pstream.v1.PublicAccessProviderR\bprovider\"\xab\v\n" +
 	"!UpdatePublicAccessProviderRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12K\n" +
@@ -23901,7 +23908,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"&local_auth_login_username_max_failures\x18\x16 \x01(\x03R!localAuthLoginUsernameMaxFailures\x12M\n" +
 	"$local_auth_login_client_max_failures\x18\x17 \x01(\x03R\x1flocalAuthLoginClientMaxFailures\x12B\n" +
 	"\x1elocal_auth_login_window_millis\x18\x18 \x01(\x03R\x1alocalAuthLoginWindowMillis\x12@\n" +
-	"\x1dlocal_auth_login_block_millis\x18\x19 \x01(\x03R\x19localAuthLoginBlockMillis\"d\n" +
+	"\x1dlocal_auth_login_block_millis\x18\x19 \x01(\x03R\x19localAuthLoginBlockMillis\x12N\n" +
+	"$local_auth_security_settings_present\x18\x1a \x01(\bR localAuthSecuritySettingsPresent\"d\n" +
 	"\"UpdatePublicAccessProviderResponse\x12>\n" +
 	"\bprovider\x18\x01 \x01(\v2\".p2pstream.v1.PublicAccessProviderR\bprovider\"3\n" +
 	"!DeletePublicAccessProviderRequest\x12\x0e\n" +

@@ -147,10 +147,6 @@ func reserveLoginThrottleAttemptWithPolicy(
 	}, true
 }
 
-func (t *loginThrottle) tryReserveWithLimit(key string, now time.Time, maxFailures int) bool {
-	return t.tryReserveWithPolicy(key, now, maxFailures, loginThrottleWindow)
-}
-
 func (t *loginThrottle) tryReserveWithPolicy(key string, now time.Time, maxFailures int, window time.Duration) bool {
 	if t == nil || key == "" {
 		return true

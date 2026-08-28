@@ -273,7 +273,7 @@ func publicAccessPrincipalFromLocalSession(ctx *publicProxyContext, provider pub
 		return publicAccessPrincipal{}, false, nil
 	}
 	if len(cookies) != 1 || len(cookies[0].Value) < 32 || len(cookies[0].Value) > 128 {
-		ctx.ResponseWriter.Header().Add("Set-Cookie", clearPublicAccessCookie(provider, false, ctx.RouteMatch.Listener, ctx.Request.Host).String())
+		ctx.ResponseWriter.Header().Add("Set-Cookie", clearPublicAccessCookie(provider, false, ctx.RouteMatch.Listener).String())
 		return publicAccessPrincipal{}, false, nil
 	}
 	tokenHash := hashSessionToken(cookies[0].Value)
@@ -282,7 +282,7 @@ func publicAccessPrincipalFromLocalSession(ctx *publicProxyContext, provider pub
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			ctx.ResponseWriter.Header().Add("Set-Cookie", clearPublicAccessCookie(provider, false, ctx.RouteMatch.Listener, ctx.Request.Host).String())
+			ctx.ResponseWriter.Header().Add("Set-Cookie", clearPublicAccessCookie(provider, false, ctx.RouteMatch.Listener).String())
 			return publicAccessPrincipal{}, false, nil
 		}
 		return publicAccessPrincipal{}, false, err
@@ -476,8 +476,8 @@ func handlePublicLocalFormLogin(
 	}); err != nil {
 		return publicAccessPrincipal{}, publicProxyStageDone, err
 	}
-	ctx.ResponseWriter.Header().Add("Set-Cookie", publicAccessSessionCookie(provider, token, expiresAt, ctx.RouteMatch.Listener, ctx.Request.Host).String())
-	ctx.ResponseWriter.Header().Add("Set-Cookie", clearPublicAccessCookie(provider, true, ctx.RouteMatch.Listener, ctx.Request.Host).String())
+	ctx.ResponseWriter.Header().Add("Set-Cookie", publicAccessSessionCookie(provider, token, expiresAt, ctx.RouteMatch.Listener).String())
+	ctx.ResponseWriter.Header().Add("Set-Cookie", clearPublicAccessCookie(provider, true, ctx.RouteMatch.Listener).String())
 	ctx.ResponseWriter.Header().Set("Cache-Control", "no-store")
 	ctx.ResponseWriter.Header().Set("Location", publicAccessReturnURI(ctx.Request))
 	ctx.ResponseWriter.WriteHeader(http.StatusSeeOther)
@@ -580,8 +580,8 @@ func handlePublicLocalLogout(ctx *publicProxyContext, policy publicAccessPolicyC
 			return publicProxyStageDone, err
 		}
 	}
-	ctx.ResponseWriter.Header().Add("Set-Cookie", clearPublicAccessCookie(provider, false, ctx.RouteMatch.Listener, ctx.Request.Host).String())
-	ctx.ResponseWriter.Header().Add("Set-Cookie", clearPublicAccessCookie(provider, true, ctx.RouteMatch.Listener, ctx.Request.Host).String())
+	ctx.ResponseWriter.Header().Add("Set-Cookie", clearPublicAccessCookie(provider, false, ctx.RouteMatch.Listener).String())
+	ctx.ResponseWriter.Header().Add("Set-Cookie", clearPublicAccessCookie(provider, true, ctx.RouteMatch.Listener).String())
 	ctx.ResponseWriter.Header().Set("Cache-Control", "no-store")
 	ctx.ResponseWriter.Header().Set("Location", publicAccessReturnURI(ctx.Request))
 	ctx.ResponseWriter.WriteHeader(http.StatusSeeOther)
@@ -655,7 +655,7 @@ func writePublicLocalLoginForm(ctx *publicProxyContext, provider publicAccessPro
 	if contentType == "" {
 		contentType = defaultResponseTemplateContentType
 	}
-	ctx.ResponseWriter.Header().Add("Set-Cookie", publicAccessCSRFCookie(provider, csrfToken, ctx.RouteMatch.Listener, ctx.Request.Host).String())
+	ctx.ResponseWriter.Header().Add("Set-Cookie", publicAccessCSRFCookie(provider, csrfToken, ctx.RouteMatch.Listener).String())
 	ctx.ResponseWriter.Header().Set("Cache-Control", "no-store")
 	ctx.ResponseWriter.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
 	ctx.ResponseWriter.Header().Set("Content-Type", contentType)
@@ -689,7 +689,6 @@ func publicAccessSessionCookieName(providerID int64) string {
 
 func publicAccessCSRFCookieName(providerID int64) string {
 	return defaultPublicAccessCookieName + "_csrf_" + strconv.FormatInt(providerID, 10)
-
 }
 
 func publicAccessSessionCookieNameForProvider(provider publicAccessProviderConfig) string {
@@ -707,35 +706,35 @@ func publicAccessCookieNamePrefix(provider publicAccessProviderConfig) string {
 	return provider.LocalAuthCookieName
 }
 
-func publicAccessSessionCookie(provider publicAccessProviderConfig, token string, expiresAt time.Time, listener publicListenerConfig, requestHost string) *http.Cookie {
+func publicAccessSessionCookie(provider publicAccessProviderConfig, token string, expiresAt time.Time, listener publicListenerConfig) *http.Cookie {
 	return &http.Cookie{
 		Name: publicAccessSessionCookieNameForProvider(provider), Value: token, Path: "/", Expires: expiresAt,
-		Domain: provider.LocalAuthCookieDomain, HttpOnly: true, Secure: publicAccessCookieSecure(provider, listener, requestHost),
+		Domain: provider.LocalAuthCookieDomain, HttpOnly: true, Secure: publicAccessCookieSecure(provider, listener),
 		SameSite: publicAccessCookieSameSiteMode(provider.LocalAuthCookieSameSite),
 	}
 }
 
-func publicAccessCSRFCookie(provider publicAccessProviderConfig, token string, listener publicListenerConfig, requestHost string) *http.Cookie {
+func publicAccessCSRFCookie(provider publicAccessProviderConfig, token string, listener publicListenerConfig) *http.Cookie {
 	return &http.Cookie{
 		Name: publicAccessCSRFCookieNameForProvider(provider), Value: token, Path: "/", MaxAge: 600,
-		Domain: provider.LocalAuthCookieDomain, HttpOnly: true, Secure: publicAccessCookieSecure(provider, listener, requestHost),
+		Domain: provider.LocalAuthCookieDomain, HttpOnly: true, Secure: publicAccessCookieSecure(provider, listener),
 		SameSite: publicAccessCookieSameSiteMode(provider.LocalAuthCookieSameSite),
 	}
 }
 
-func clearPublicAccessCookie(provider publicAccessProviderConfig, csrf bool, listener publicListenerConfig, requestHost string) *http.Cookie {
+func clearPublicAccessCookie(provider publicAccessProviderConfig, csrf bool, listener publicListenerConfig) *http.Cookie {
 	name := publicAccessSessionCookieNameForProvider(provider)
 	if csrf {
 		name = publicAccessCSRFCookieNameForProvider(provider)
 	}
 	return &http.Cookie{
 		Name: name, Value: "", Path: "/", Expires: time.Unix(0, 0), MaxAge: -1,
-		Domain: provider.LocalAuthCookieDomain, HttpOnly: true, Secure: publicAccessCookieSecure(provider, listener, requestHost),
+		Domain: provider.LocalAuthCookieDomain, HttpOnly: true, Secure: publicAccessCookieSecure(provider, listener),
 		SameSite: publicAccessCookieSameSiteMode(provider.LocalAuthCookieSameSite),
 	}
 }
 
-func publicAccessCookieSecure(provider publicAccessProviderConfig, listener publicListenerConfig, requestHost string) bool {
+func publicAccessCookieSecure(provider publicAccessProviderConfig, listener publicListenerConfig) bool {
 	return provider.LocalAuthCookieSecure || provider.LocalAuthCookieSameSite == publicAccessCookieSameSiteNone ||
 		listener.Protocol == publicListenerProtocolHTTPS
 }

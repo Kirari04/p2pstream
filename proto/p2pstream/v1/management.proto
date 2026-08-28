@@ -1463,6 +1463,7 @@ message UpdatePublicAccessProviderRequest {
   int64 local_auth_login_client_max_failures = 23;
   int64 local_auth_login_window_millis = 24;
   int64 local_auth_login_block_millis = 25;
+  bool local_auth_security_settings_present = 26;
 }
 
 message UpdatePublicAccessProviderResponse {
