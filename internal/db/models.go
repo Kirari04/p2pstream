@@ -251,6 +251,11 @@ type PublicAccessProvider struct {
 	LocalAuthSessionDurationMillis int64         `json:"local_auth_session_duration_millis"`
 	LocalAuthRealm                 string        `json:"local_auth_realm"`
 	LocalAuthLoginTemplateID       sql.NullInt64 `json:"local_auth_login_template_id"`
+	LocalAuthAllowedHostsJson      string        `json:"local_auth_allowed_hosts_json"`
+	LocalAuthCookieSameSite        string        `json:"local_auth_cookie_same_site"`
+	LocalAuthCookieDomain          string        `json:"local_auth_cookie_domain"`
+	LocalAuthCookieSecure          int64         `json:"local_auth_cookie_secure"`
+	LocalAuthCookieName            string        `json:"local_auth_cookie_name"`
 }
 
 type PublicAccessSession struct {

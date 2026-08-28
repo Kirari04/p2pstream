@@ -9,6 +9,7 @@ import (
 	"fmt"
 	htmltemplate "html/template"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"sort"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"connectrpc.com/connect"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/http/httpguts"
+	"golang.org/x/net/publicsuffix"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/authutil"
@@ -29,16 +31,22 @@ const (
 	publicAccessLocalAuthModeForm       = "form"
 	publicAccessLocalAuthModeBasic      = "basic"
 	publicAccessLocalAuthModeBoth       = "form_and_basic"
-	publicAccessGroupMatchAny           = "any"
-	publicAccessGroupMatchAll           = "all"
-	defaultPublicAccessTimeoutMillis    = int64(5000)
-	minPublicAccessTimeoutMillis        = int64(100)
-	maxPublicAccessTimeoutMillis        = int64(30000)
-	maxPublicAccessHeaders              = 16
-	maxPublicAccessGroups               = 64
-	defaultPublicAccessSessionMillis    = int64((7 * 24 * time.Hour) / time.Millisecond)
-	minPublicAccessSessionMillis        = int64((5 * time.Minute) / time.Millisecond)
-	maxPublicAccessSessionMillis        = int64((30 * 24 * time.Hour) / time.Millisecond)
+	publicAccessCookieSameSiteStrict    = "strict"
+	publicAccessCookieSameSiteLax       = "lax"
+	publicAccessCookieSameSiteNone      = "none"
+	// Keep local-auth cookies separate from the legacy forward-auth/session namespace.
+	defaultPublicAccessCookieName    = "p2pstream_local_auth"
+	publicAccessGroupMatchAny        = "any"
+	publicAccessGroupMatchAll        = "all"
+	defaultPublicAccessTimeoutMillis = int64(5000)
+	minPublicAccessTimeoutMillis     = int64(100)
+	maxPublicAccessTimeoutMillis     = int64(30000)
+	maxPublicAccessHeaders           = 16
+	maxPublicAccessGroups            = 64
+	maxPublicAccessAllowedHosts      = 64
+	defaultPublicAccessSessionMillis = int64((7 * 24 * time.Hour) / time.Millisecond)
+	minPublicAccessSessionMillis     = int64((5 * time.Minute) / time.Millisecond)
+	maxPublicAccessSessionMillis     = int64((30 * 24 * time.Hour) / time.Millisecond)
 )
 
 var defaultPublicAccessForwardedHeaders = []string{
@@ -75,6 +83,11 @@ type publicAccessProviderConfig struct {
 	LocalAuthLoginTemplateID          int64
 	LocalAuthLoginTemplate            *htmltemplate.Template
 	LocalAuthLoginTemplateContentType string
+	LocalAuthAllowedHosts             []string
+	LocalAuthCookieSameSite           string
+	LocalAuthCookieDomain             string
+	LocalAuthCookieSecure             bool
+	LocalAuthCookieName               string
 	LocalUsers                        map[string]publicAccessUserConfig
 	basicAuthCache                    *publicAccessBasicAuthCache
 	client                            HTTPClient
@@ -165,11 +178,36 @@ func publicAccessProviderRowToConfig(row db.PublicAccessProvider) (publicAccessP
 		if err != nil {
 			return publicAccessProviderConfig{}, err
 		}
+		allowedHosts, err := publicAccessStringListFromJSON(row.LocalAuthAllowedHostsJson)
+		if err != nil {
+			return publicAccessProviderConfig{}, fmt.Errorf("local allowed hosts: %w", err)
+		}
+		allowedHosts, err = normalizePublicAccessAllowedHosts(allowedHosts)
+		if err != nil {
+			return publicAccessProviderConfig{}, err
+		}
+		cookieSameSite := normalizePublicAccessCookieSameSite(row.LocalAuthCookieSameSite)
+		if !validPublicAccessCookieSameSite(cookieSameSite) {
+			return publicAccessProviderConfig{}, errors.New("unsupported local cookie SameSite policy")
+		}
+		cookieDomain, err := normalizePublicAccessCookieDomain(row.LocalAuthCookieDomain, allowedHosts)
+		if err != nil {
+			return publicAccessProviderConfig{}, err
+		}
+		cookieName, err := normalizePublicAccessCookieName(row.LocalAuthCookieName)
+		if err != nil {
+			return publicAccessProviderConfig{}, err
+		}
 		config.ForwardedHeaders = append([]string(nil), localPublicAccessForwardedHeaders...)
 		config.LocalAuthMode = mode
 		config.SessionDuration = time.Duration(row.LocalAuthSessionDurationMillis) * time.Millisecond
 		config.LocalAuthRealm = realm
 		config.LocalAuthLoginTemplateID = nullInt64Value(row.LocalAuthLoginTemplateID)
+		config.LocalAuthAllowedHosts = allowedHosts
+		config.LocalAuthCookieSameSite = cookieSameSite
+		config.LocalAuthCookieDomain = cookieDomain
+		config.LocalAuthCookieSecure = row.LocalAuthCookieSecure != 0 || cookieSameSite == publicAccessCookieSameSiteNone
+		config.LocalAuthCookieName = cookieName
 		config.LocalUsers = make(map[string]publicAccessUserConfig)
 		config.basicAuthCache = newPublicAccessBasicAuthCache(1024)
 	default:
@@ -332,6 +370,11 @@ func validatePublicAccessProviderInput(
 	localAuthSessionDurationMillis int64,
 	localAuthRealm string,
 	localAuthLoginTemplateID int64,
+	localAuthAllowedHosts []string,
+	localAuthCookieSameSite p2pstreamv1.PublicAccessCookieSameSite,
+	localAuthCookieDomain string,
+	localAuthCookieSecure bool,
+	localAuthCookieName string,
 ) (db.UpdatePublicAccessProviderParams, error) {
 	name, err := normalizePublicName(name)
 	if err != nil {
@@ -369,9 +412,39 @@ func validatePublicAccessProviderInput(
 	if err != nil {
 		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	allowedHosts, err := normalizePublicAccessAllowedHosts(localAuthAllowedHosts)
+	if err != nil {
+		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	cookieSameSite := publicAccessCookieSameSiteStringFromProto(localAuthCookieSameSite)
+	if !validPublicAccessCookieSameSite(cookieSameSite) {
+		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported local cookie SameSite policy"))
+	}
+	cookieDomain, err := normalizePublicAccessCookieDomain(localAuthCookieDomain, allowedHosts)
+	if err != nil {
+		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if cookieSameSite == publicAccessCookieSameSiteNone {
+		localAuthCookieSecure = true
+	}
+	cookieName, err := normalizePublicAccessCookieName(localAuthCookieName)
+	if err != nil {
+		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if strings.HasPrefix(cookieName, "__Host-") && (cookieDomain != "" || !localAuthCookieSecure) {
+		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("__Host- cookie names require host-only, always-Secure cookies"))
+	}
+	if strings.HasPrefix(cookieName, "__Secure-") && !localAuthCookieSecure {
+		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, errors.New("__Secure- cookie names require always-Secure cookies"))
+	}
 	switch typeString {
 	case publicAccessProviderTypeForwardAuth:
 		localAuthLoginTemplateID = 0
+		allowedHosts = nil
+		cookieSameSite = publicAccessCookieSameSiteLax
+		cookieDomain = ""
+		localAuthCookieSecure = false
+		cookieName = defaultPublicAccessCookieName
 		parsed, parseErr := parsePublicForwardAuthURL(forwardAuthURL)
 		if parseErr != nil {
 			return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInvalidArgument, parseErr)
@@ -402,6 +475,10 @@ func validatePublicAccessProviderInput(
 	if err != nil {
 		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInternal, err)
 	}
+	allowedHostsJSON, err := json.Marshal(allowedHosts)
+	if err != nil {
+		return db.UpdatePublicAccessProviderParams{}, connect.NewError(connect.CodeInternal, err)
+	}
 	return db.UpdatePublicAccessProviderParams{
 		Name:                           name,
 		ProviderType:                   typeString,
@@ -418,6 +495,11 @@ func validatePublicAccessProviderInput(
 		LocalAuthSessionDurationMillis: localAuthSessionDurationMillis,
 		LocalAuthRealm:                 localAuthRealm,
 		LocalAuthLoginTemplateID:       sql.NullInt64{Int64: localAuthLoginTemplateID, Valid: localAuthLoginTemplateID > 0},
+		LocalAuthAllowedHostsJson:      string(allowedHostsJSON),
+		LocalAuthCookieSameSite:        cookieSameSite,
+		LocalAuthCookieDomain:          cookieDomain,
+		LocalAuthCookieSecure:          boolInt(localAuthCookieSecure),
+		LocalAuthCookieName:            cookieName,
 	}, nil
 }
 
@@ -645,6 +727,136 @@ func normalizePublicAccessLocalAuthRealm(value string) (string, error) {
 	return value, nil
 }
 
+func normalizePublicAccessAllowedHosts(values []string) ([]string, error) {
+	if len(values) > maxPublicAccessAllowedHosts {
+		return nil, errors.New("at most 64 local authentication hosts may be configured")
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		host, err := normalizePublicAccessAllowedHost(value)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := seen[host]; ok {
+			continue
+		}
+		seen[host] = struct{}{}
+		result = append(result, host)
+	}
+	sort.Strings(result)
+	return result, nil
+}
+
+func normalizePublicAccessAllowedHost(value string) (string, error) {
+	value = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(value), "."))
+	wildcard := strings.HasPrefix(value, "*.")
+	host := value
+	if wildcard {
+		host = strings.TrimPrefix(host, "*.")
+	}
+	if host == "" || len(host) > 253 || strings.ContainsAny(host, "/?#@") {
+		return "", fmt.Errorf("invalid local authentication host %q", value)
+	}
+	if address, err := netip.ParseAddr(strings.Trim(host, "[]")); err == nil {
+		if wildcard {
+			return "", fmt.Errorf("IP address %q cannot use a wildcard", value)
+		}
+		return address.String(), nil
+	}
+	for _, label := range strings.Split(host, ".") {
+		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return "", fmt.Errorf("invalid local authentication host %q", value)
+		}
+		for _, char := range label {
+			if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' {
+				return "", fmt.Errorf("invalid local authentication host %q", value)
+			}
+		}
+	}
+	if wildcard {
+		return "*." + host, nil
+	}
+	return host, nil
+}
+
+func normalizePublicAccessCookieSameSite(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return publicAccessCookieSameSiteLax
+	}
+	return value
+}
+
+func normalizePublicAccessCookieName(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		value = defaultPublicAccessCookieName
+	}
+	if len(value) > 64 {
+		return "", errors.New("local authentication cookie name must be at most 64 bytes")
+	}
+	if err := (&http.Cookie{Name: value, Value: "x"}).Valid(); err != nil {
+		return "", errors.New("local authentication cookie name contains unsupported characters")
+	}
+	return value, nil
+}
+
+func validPublicAccessCookieSameSite(value string) bool {
+	switch normalizePublicAccessCookieSameSite(value) {
+	case publicAccessCookieSameSiteStrict, publicAccessCookieSameSiteLax, publicAccessCookieSameSiteNone:
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizePublicAccessCookieDomain(value string, allowedHosts []string) (string, error) {
+	value = strings.ToLower(strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(value), "."), "."))
+	if value == "" {
+		return "", nil
+	}
+	domain, err := normalizePublicAccessAllowedHost(value)
+	if err != nil || strings.HasPrefix(domain, "*.") {
+		return "", errors.New("local authentication cookie domain must be a valid DNS hostname")
+	}
+	if _, err := netip.ParseAddr(domain); err == nil || !strings.Contains(domain, ".") {
+		return "", errors.New("local authentication cookie domain must be a multi-label DNS hostname")
+	}
+	if suffix, _ := publicsuffix.PublicSuffix(domain); suffix == domain {
+		return "", errors.New("local authentication cookie domain must not be a public suffix")
+	}
+	if len(allowedHosts) == 0 {
+		return "", errors.New("local authentication cookie domain requires an explicit allowed-host list")
+	}
+	for _, allowed := range allowedHosts {
+		host := strings.TrimPrefix(allowed, "*.")
+		if host != domain && !strings.HasSuffix(host, "."+domain) {
+			return "", fmt.Errorf("allowed host %q is outside cookie domain %q", allowed, domain)
+		}
+	}
+	return domain, nil
+}
+
+func publicAccessHostAllowed(host string, allowedHosts []string) bool {
+	if len(allowedHosts) == 0 {
+		return true
+	}
+	normalized, err := normalizePublicAccessAllowedHost(host)
+	if err != nil || strings.HasPrefix(normalized, "*.") {
+		return false
+	}
+	for _, allowed := range allowedHosts {
+		if normalized == allowed {
+			return true
+		}
+		if base := strings.TrimPrefix(allowed, "*."); base != allowed && normalized != base && strings.HasSuffix(normalized, "."+base) {
+			return true
+		}
+	}
+	return false
+}
+
 func normalizePublicAccessGroupMatch(value string) string {
 	value = strings.TrimSpace(strings.ToLower(value))
 	if value == "" {
@@ -674,6 +886,20 @@ func publicAccessLocalAuthModeStringFromProto(value p2pstreamv1.PublicAccessLoca
 	case p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM,
 		p2pstreamv1.PublicAccessLocalAuthMode_PUBLIC_ACCESS_LOCAL_AUTH_MODE_UNSPECIFIED:
 		return publicAccessLocalAuthModeForm
+	default:
+		return ""
+	}
+}
+
+func publicAccessCookieSameSiteStringFromProto(value p2pstreamv1.PublicAccessCookieSameSite) string {
+	switch value {
+	case p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT:
+		return publicAccessCookieSameSiteStrict
+	case p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_NONE:
+		return publicAccessCookieSameSiteNone
+	case p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_LAX,
+		p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_UNSPECIFIED:
+		return publicAccessCookieSameSiteLax
 	default:
 		return ""
 	}
@@ -713,6 +939,17 @@ func protoPublicAccessLocalAuthMode(value string) p2pstreamv1.PublicAccessLocalA
 	}
 }
 
+func protoPublicAccessCookieSameSite(value string) p2pstreamv1.PublicAccessCookieSameSite {
+	switch normalizePublicAccessCookieSameSite(value) {
+	case publicAccessCookieSameSiteStrict:
+		return p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT
+	case publicAccessCookieSameSiteNone:
+		return p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_NONE
+	default:
+		return p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_LAX
+	}
+}
+
 func protoPublicAccessGroupMatch(value string) p2pstreamv1.PublicAccessGroupMatch {
 	if normalizePublicAccessGroupMatch(value) == publicAccessGroupMatchAll {
 		return p2pstreamv1.PublicAccessGroupMatch_PUBLIC_ACCESS_GROUP_MATCH_ALL
@@ -722,6 +959,7 @@ func protoPublicAccessGroupMatch(value string) p2pstreamv1.PublicAccessGroupMatc
 
 func publicAccessProviderToProto(row db.PublicAccessProvider) *p2pstreamv1.PublicAccessProvider {
 	headers, _ := publicAccessStringListFromJSON(row.ForwardedHeadersJson)
+	allowedHosts, _ := publicAccessStringListFromJSON(row.LocalAuthAllowedHostsJson)
 	return &p2pstreamv1.PublicAccessProvider{
 		Id:                             row.ID,
 		Name:                           row.Name,
@@ -739,6 +977,11 @@ func publicAccessProviderToProto(row db.PublicAccessProvider) *p2pstreamv1.Publi
 		LocalAuthSessionDurationMillis: row.LocalAuthSessionDurationMillis,
 		LocalAuthRealm:                 row.LocalAuthRealm,
 		LocalAuthLoginTemplateId:       nullInt64Value(row.LocalAuthLoginTemplateID),
+		LocalAuthAllowedHosts:          allowedHosts,
+		LocalAuthCookieSameSite:        protoPublicAccessCookieSameSite(row.LocalAuthCookieSameSite),
+		LocalAuthCookieDomain:          row.LocalAuthCookieDomain,
+		LocalAuthCookieSecure:          row.LocalAuthCookieSecure != 0 || normalizePublicAccessCookieSameSite(row.LocalAuthCookieSameSite) == publicAccessCookieSameSiteNone,
+		LocalAuthCookieName:            row.LocalAuthCookieName,
 		CreatedAtUnixMillis:            row.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:            row.UpdatedAt.UnixMilli(),
 	}

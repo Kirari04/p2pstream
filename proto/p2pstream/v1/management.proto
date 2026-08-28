@@ -94,6 +94,13 @@ enum PublicAccessLocalAuthMode {
   PUBLIC_ACCESS_LOCAL_AUTH_MODE_FORM_AND_BASIC = 3;
 }
 
+enum PublicAccessCookieSameSite {
+  PUBLIC_ACCESS_COOKIE_SAME_SITE_UNSPECIFIED = 0;
+  PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT = 1;
+  PUBLIC_ACCESS_COOKIE_SAME_SITE_LAX = 2;
+  PUBLIC_ACCESS_COOKIE_SAME_SITE_NONE = 3;
+}
+
 enum PublicAccessGroupMatch {
   PUBLIC_ACCESS_GROUP_MATCH_UNSPECIFIED = 0;
   PUBLIC_ACCESS_GROUP_MATCH_ANY = 1;
@@ -703,6 +710,11 @@ message PublicAccessProvider {
   int64 local_auth_session_duration_millis = 16;
   string local_auth_realm = 17;
   int64 local_auth_login_template_id = 18;
+  repeated string local_auth_allowed_hosts = 19;
+  PublicAccessCookieSameSite local_auth_cookie_same_site = 20;
+  string local_auth_cookie_domain = 21;
+  bool local_auth_cookie_secure = 22;
+  string local_auth_cookie_name = 23;
 }
 
 message PublicAccessUser {
@@ -1406,6 +1418,11 @@ message CreatePublicAccessProviderRequest {
   int64 local_auth_session_duration_millis = 13;
   string local_auth_realm = 14;
   int64 local_auth_login_template_id = 15;
+  repeated string local_auth_allowed_hosts = 16;
+  PublicAccessCookieSameSite local_auth_cookie_same_site = 17;
+  string local_auth_cookie_domain = 18;
+  bool local_auth_cookie_secure = 19;
+  string local_auth_cookie_name = 20;
 }
 
 message CreatePublicAccessProviderResponse {
@@ -1429,6 +1446,11 @@ message UpdatePublicAccessProviderRequest {
   int64 local_auth_session_duration_millis = 14;
   string local_auth_realm = 15;
   int64 local_auth_login_template_id = 16;
+  repeated string local_auth_allowed_hosts = 17;
+  PublicAccessCookieSameSite local_auth_cookie_same_site = 18;
+  string local_auth_cookie_domain = 19;
+  bool local_auth_cookie_secure = 20;
+  string local_auth_cookie_name = 21;
 }
 
 message UpdatePublicAccessProviderResponse {

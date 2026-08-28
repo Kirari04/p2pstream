@@ -28,6 +28,7 @@ type appServices struct {
 	clientLoginThrottle             *loginThrottle
 	publicAccessLoginThrottle       *loginThrottle
 	publicAccessClientLoginThrottle *loginThrottle
+	publicAccessLoginNonces         *publicAccessLoginNonceStore
 	agentAuthLocks                  *agentAuthLockMap
 }
 
@@ -51,6 +52,7 @@ func newAppServices(cfg *config.Config, app *App) appServices {
 		clientLoginThrottle:             clientThrottle,
 		publicAccessLoginThrottle:       publicAccessUsernameThrottle,
 		publicAccessClientLoginThrottle: publicAccessClientThrottle,
+		publicAccessLoginNonces:         newPublicAccessLoginNonceStore(8192),
 		agentAuthLocks:                  newAgentAuthLockMap(),
 	}
 	services.agentHub.onDisconnect = func(conn *AgentConn) {
@@ -88,5 +90,6 @@ func (a *App) applyServices(services appServices) {
 	a.clientLoginThrottle = services.clientLoginThrottle
 	a.publicAccessLoginThrottle = services.publicAccessLoginThrottle
 	a.publicAccessClientLoginThrottle = services.publicAccessClientLoginThrottle
+	a.publicAccessLoginNonces = services.publicAccessLoginNonces
 	a.agentAuthLocks = services.agentAuthLocks
 }

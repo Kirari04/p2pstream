@@ -229,7 +229,12 @@ CREATE TABLE IF NOT EXISTS public_access_providers (
     local_auth_mode TEXT NOT NULL DEFAULT 'form',
     local_auth_session_duration_millis INTEGER NOT NULL DEFAULT 604800000,
     local_auth_realm TEXT NOT NULL DEFAULT 'Restricted',
-    local_auth_login_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT
+    local_auth_login_template_id INTEGER REFERENCES public_response_templates(id) ON DELETE RESTRICT,
+    local_auth_allowed_hosts_json TEXT NOT NULL DEFAULT '[]',
+    local_auth_cookie_same_site TEXT NOT NULL DEFAULT 'lax',
+    local_auth_cookie_domain TEXT NOT NULL DEFAULT '',
+    local_auth_cookie_secure INTEGER NOT NULL DEFAULT 0,
+    local_auth_cookie_name TEXT NOT NULL DEFAULT 'p2pstream_local_auth'
 );
 
 CREATE INDEX IF NOT EXISTS idx_public_access_providers_local_auth_login_template_id ON public_access_providers (local_auth_login_template_id);

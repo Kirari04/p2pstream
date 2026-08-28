@@ -1727,18 +1727,19 @@ WHERE id = ?;
 INSERT INTO public_access_providers (
     name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify,
     subject_header, user_header, email_header, groups_header, forwarded_headers_json,
-    local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
+    local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id,
+    local_auth_allowed_hosts_json, local_auth_cookie_same_site, local_auth_cookie_domain, local_auth_cookie_secure, local_auth_cookie_name
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id;
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id, local_auth_allowed_hosts_json, local_auth_cookie_same_site, local_auth_cookie_domain, local_auth_cookie_secure, local_auth_cookie_name;
 
 -- name: ListPublicAccessProviders :many
-SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id, local_auth_allowed_hosts_json, local_auth_cookie_same_site, local_auth_cookie_domain, local_auth_cookie_secure, local_auth_cookie_name
 FROM public_access_providers
 ORDER BY name ASC, id ASC;
 
 -- name: GetPublicAccessProvider :one
-SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id, local_auth_allowed_hosts_json, local_auth_cookie_same_site, local_auth_cookie_domain, local_auth_cookie_secure, local_auth_cookie_name
 FROM public_access_providers
 WHERE id = ?;
 
@@ -1746,9 +1747,10 @@ WHERE id = ?;
 UPDATE public_access_providers
 SET name = ?, provider_type = ?, enabled = ?, forward_auth_url = ?, timeout_millis = ?, tls_skip_verify = ?,
     subject_header = ?, user_header = ?, email_header = ?, groups_header = ?, forwarded_headers_json = ?,
-    local_auth_mode = ?, local_auth_session_duration_millis = ?, local_auth_realm = ?, local_auth_login_template_id = ?, updated_at = CURRENT_TIMESTAMP
+    local_auth_mode = ?, local_auth_session_duration_millis = ?, local_auth_realm = ?, local_auth_login_template_id = ?,
+    local_auth_allowed_hosts_json = ?, local_auth_cookie_same_site = ?, local_auth_cookie_domain = ?, local_auth_cookie_secure = ?, local_auth_cookie_name = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id;
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id, local_auth_allowed_hosts_json, local_auth_cookie_same_site, local_auth_cookie_domain, local_auth_cookie_secure, local_auth_cookie_name;
 
 -- name: AssignDefaultLocalAccessLoginTemplate :execrows
 UPDATE public_access_providers

@@ -22,7 +22,8 @@ func (a *App) CreatePublicAccessProvider(
 		req.Msg.TimeoutMillis, req.Msg.TlsSkipVerify, req.Msg.SubjectHeader,
 		req.Msg.UserHeader, req.Msg.EmailHeader, req.Msg.GroupsHeader, req.Msg.ForwardedHeaders,
 		req.Msg.LocalAuthMode, req.Msg.LocalAuthSessionDurationMillis, req.Msg.LocalAuthRealm,
-		req.Msg.LocalAuthLoginTemplateId,
+		req.Msg.LocalAuthLoginTemplateId, req.Msg.LocalAuthAllowedHosts, req.Msg.LocalAuthCookieSameSite,
+		req.Msg.LocalAuthCookieDomain, req.Msg.LocalAuthCookieSecure, req.Msg.LocalAuthCookieName,
 	)
 	if err != nil {
 		return nil, err
@@ -46,6 +47,9 @@ func (a *App) CreatePublicAccessProvider(
 		GroupsHeader: params.GroupsHeader, ForwardedHeadersJson: params.ForwardedHeadersJson,
 		LocalAuthMode: params.LocalAuthMode, LocalAuthSessionDurationMillis: params.LocalAuthSessionDurationMillis,
 		LocalAuthRealm: params.LocalAuthRealm, LocalAuthLoginTemplateID: params.LocalAuthLoginTemplateID,
+		LocalAuthAllowedHostsJson: params.LocalAuthAllowedHostsJson, LocalAuthCookieSameSite: params.LocalAuthCookieSameSite,
+		LocalAuthCookieDomain: params.LocalAuthCookieDomain, LocalAuthCookieSecure: params.LocalAuthCookieSecure,
+		LocalAuthCookieName: params.LocalAuthCookieName,
 	})
 	if err != nil {
 		return nil, publicDBError(err)
@@ -68,7 +72,8 @@ func (a *App) UpdatePublicAccessProvider(
 		req.Msg.TimeoutMillis, req.Msg.TlsSkipVerify, req.Msg.SubjectHeader,
 		req.Msg.UserHeader, req.Msg.EmailHeader, req.Msg.GroupsHeader, req.Msg.ForwardedHeaders,
 		req.Msg.LocalAuthMode, req.Msg.LocalAuthSessionDurationMillis, req.Msg.LocalAuthRealm,
-		req.Msg.LocalAuthLoginTemplateId,
+		req.Msg.LocalAuthLoginTemplateId, req.Msg.LocalAuthAllowedHosts, req.Msg.LocalAuthCookieSameSite,
+		req.Msg.LocalAuthCookieDomain, req.Msg.LocalAuthCookieSecure, req.Msg.LocalAuthCookieName,
 	)
 	if err != nil {
 		return nil, err
@@ -102,7 +107,12 @@ func (a *App) UpdatePublicAccessProvider(
 	if normalizePublicAccessProviderType(existing.ProviderType) == publicAccessProviderTypeLocal &&
 		(normalizePublicAccessProviderType(provider.ProviderType) != publicAccessProviderTypeLocal ||
 			provider.Enabled == 0 || existing.LocalAuthMode != provider.LocalAuthMode ||
-			existing.LocalAuthSessionDurationMillis != provider.LocalAuthSessionDurationMillis) {
+			existing.LocalAuthSessionDurationMillis != provider.LocalAuthSessionDurationMillis ||
+			existing.LocalAuthAllowedHostsJson != provider.LocalAuthAllowedHostsJson ||
+			existing.LocalAuthCookieSameSite != provider.LocalAuthCookieSameSite ||
+			existing.LocalAuthCookieDomain != provider.LocalAuthCookieDomain ||
+			existing.LocalAuthCookieSecure != provider.LocalAuthCookieSecure ||
+			existing.LocalAuthCookieName != provider.LocalAuthCookieName) {
 		if _, err := qtx.RevokePublicAccessProviderSessions(ctx, provider.ID); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
