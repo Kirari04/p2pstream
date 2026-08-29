@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"connectrpc.com/connect"
 
@@ -22,7 +23,10 @@ func (a *App) CreatePublicAccessProvider(
 		req.Msg.TimeoutMillis, req.Msg.TlsSkipVerify, req.Msg.SubjectHeader,
 		req.Msg.UserHeader, req.Msg.EmailHeader, req.Msg.GroupsHeader, req.Msg.ForwardedHeaders,
 		req.Msg.LocalAuthMode, req.Msg.LocalAuthSessionDurationMillis, req.Msg.LocalAuthRealm,
-		req.Msg.LocalAuthLoginTemplateId,
+		req.Msg.LocalAuthLoginTemplateId, req.Msg.LocalAuthAllowedHosts, req.Msg.LocalAuthCookieSameSite,
+		req.Msg.LocalAuthCookieDomain, req.Msg.LocalAuthCookieSecure, req.Msg.LocalAuthCookieName,
+		req.Msg.LocalAuthLoginUsernameMaxFailures, req.Msg.LocalAuthLoginClientMaxFailures,
+		req.Msg.LocalAuthLoginWindowMillis, req.Msg.LocalAuthLoginBlockMillis,
 	)
 	if err != nil {
 		return nil, err
@@ -46,6 +50,13 @@ func (a *App) CreatePublicAccessProvider(
 		GroupsHeader: params.GroupsHeader, ForwardedHeadersJson: params.ForwardedHeadersJson,
 		LocalAuthMode: params.LocalAuthMode, LocalAuthSessionDurationMillis: params.LocalAuthSessionDurationMillis,
 		LocalAuthRealm: params.LocalAuthRealm, LocalAuthLoginTemplateID: params.LocalAuthLoginTemplateID,
+		LocalAuthAllowedHostsJson: params.LocalAuthAllowedHostsJson, LocalAuthCookieSameSite: params.LocalAuthCookieSameSite,
+		LocalAuthCookieDomain: params.LocalAuthCookieDomain, LocalAuthCookieSecure: params.LocalAuthCookieSecure,
+		LocalAuthCookieName:               params.LocalAuthCookieName,
+		LocalAuthLoginUsernameMaxFailures: params.LocalAuthLoginUsernameMaxFailures,
+		LocalAuthLoginClientMaxFailures:   params.LocalAuthLoginClientMaxFailures,
+		LocalAuthLoginWindowMillis:        params.LocalAuthLoginWindowMillis,
+		LocalAuthLoginBlockMillis:         params.LocalAuthLoginBlockMillis,
 	})
 	if err != nil {
 		return nil, publicDBError(err)
@@ -63,16 +74,6 @@ func (a *App) UpdatePublicAccessProvider(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	params, err := validatePublicAccessProviderInput(
-		req.Msg.Name, req.Msg.ProviderType, req.Msg.Enabled, req.Msg.ForwardAuthUrl,
-		req.Msg.TimeoutMillis, req.Msg.TlsSkipVerify, req.Msg.SubjectHeader,
-		req.Msg.UserHeader, req.Msg.EmailHeader, req.Msg.GroupsHeader, req.Msg.ForwardedHeaders,
-		req.Msg.LocalAuthMode, req.Msg.LocalAuthSessionDurationMillis, req.Msg.LocalAuthRealm,
-		req.Msg.LocalAuthLoginTemplateId,
-	)
-	if err != nil {
-		return nil, err
-	}
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -82,6 +83,44 @@ func (a *App) UpdatePublicAccessProvider(
 	existing, err := qtx.GetPublicAccessProvider(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, publicDBError(err)
+	}
+
+	localAuthAllowedHosts := req.Msg.LocalAuthAllowedHosts
+	localAuthCookieSameSite := req.Msg.LocalAuthCookieSameSite
+	localAuthCookieDomain := req.Msg.LocalAuthCookieDomain
+	localAuthCookieSecure := req.Msg.LocalAuthCookieSecure
+	localAuthCookieName := req.Msg.LocalAuthCookieName
+	localAuthLoginUsernameMaxFailures := req.Msg.LocalAuthLoginUsernameMaxFailures
+	localAuthLoginClientMaxFailures := req.Msg.LocalAuthLoginClientMaxFailures
+	localAuthLoginWindowMillis := req.Msg.LocalAuthLoginWindowMillis
+	localAuthLoginBlockMillis := req.Msg.LocalAuthLoginBlockMillis
+	if normalizePublicAccessProviderType(existing.ProviderType) == publicAccessProviderTypeLocal && !req.Msg.LocalAuthSecuritySettingsPresent {
+		localAuthAllowedHosts, err = publicAccessStringListFromJSON(existing.LocalAuthAllowedHostsJson)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read existing local authentication hosts: %w", err))
+		}
+		localAuthCookieSameSite = protoPublicAccessCookieSameSite(existing.LocalAuthCookieSameSite)
+		localAuthCookieDomain = existing.LocalAuthCookieDomain
+		localAuthCookieSecure = existing.LocalAuthCookieSecure != 0
+		localAuthCookieName = existing.LocalAuthCookieName
+		localAuthLoginUsernameMaxFailures = existing.LocalAuthLoginUsernameMaxFailures
+		localAuthLoginClientMaxFailures = existing.LocalAuthLoginClientMaxFailures
+		localAuthLoginWindowMillis = existing.LocalAuthLoginWindowMillis
+		localAuthLoginBlockMillis = existing.LocalAuthLoginBlockMillis
+	}
+
+	params, err := validatePublicAccessProviderInput(
+		req.Msg.Name, req.Msg.ProviderType, req.Msg.Enabled, req.Msg.ForwardAuthUrl,
+		req.Msg.TimeoutMillis, req.Msg.TlsSkipVerify, req.Msg.SubjectHeader,
+		req.Msg.UserHeader, req.Msg.EmailHeader, req.Msg.GroupsHeader, req.Msg.ForwardedHeaders,
+		req.Msg.LocalAuthMode, req.Msg.LocalAuthSessionDurationMillis, req.Msg.LocalAuthRealm,
+		req.Msg.LocalAuthLoginTemplateId, localAuthAllowedHosts, localAuthCookieSameSite,
+		localAuthCookieDomain, localAuthCookieSecure, localAuthCookieName,
+		localAuthLoginUsernameMaxFailures, localAuthLoginClientMaxFailures,
+		localAuthLoginWindowMillis, localAuthLoginBlockMillis,
+	)
+	if err != nil {
+		return nil, err
 	}
 	if normalizePublicAccessProviderType(existing.ProviderType) != params.ProviderType {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("access provider type cannot be changed; create a new provider instead"))
@@ -102,7 +141,12 @@ func (a *App) UpdatePublicAccessProvider(
 	if normalizePublicAccessProviderType(existing.ProviderType) == publicAccessProviderTypeLocal &&
 		(normalizePublicAccessProviderType(provider.ProviderType) != publicAccessProviderTypeLocal ||
 			provider.Enabled == 0 || existing.LocalAuthMode != provider.LocalAuthMode ||
-			existing.LocalAuthSessionDurationMillis != provider.LocalAuthSessionDurationMillis) {
+			existing.LocalAuthSessionDurationMillis != provider.LocalAuthSessionDurationMillis ||
+			existing.LocalAuthAllowedHostsJson != provider.LocalAuthAllowedHostsJson ||
+			existing.LocalAuthCookieSameSite != provider.LocalAuthCookieSameSite ||
+			existing.LocalAuthCookieDomain != provider.LocalAuthCookieDomain ||
+			existing.LocalAuthCookieSecure != provider.LocalAuthCookieSecure ||
+			existing.LocalAuthCookieName != provider.LocalAuthCookieName) {
 		if _, err := qtx.RevokePublicAccessProviderSessions(ctx, provider.ID); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}

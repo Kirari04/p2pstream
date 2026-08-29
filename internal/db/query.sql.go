@@ -472,28 +472,39 @@ const createPublicAccessProvider = `-- name: CreatePublicAccessProvider :one
 INSERT INTO public_access_providers (
     name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify,
     subject_header, user_header, email_header, groups_header, forwarded_headers_json,
-    local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
+    local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id,
+    local_auth_allowed_hosts_json, local_auth_cookie_same_site, local_auth_cookie_domain, local_auth_cookie_secure, local_auth_cookie_name,
+    local_auth_login_username_max_failures, local_auth_login_client_max_failures, local_auth_login_window_millis, local_auth_login_block_millis
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id, local_auth_allowed_hosts_json, local_auth_cookie_same_site, local_auth_cookie_domain, local_auth_cookie_secure, local_auth_cookie_name, local_auth_login_username_max_failures, local_auth_login_client_max_failures, local_auth_login_window_millis, local_auth_login_block_millis
 `
 
 type CreatePublicAccessProviderParams struct {
-	Name                           string        `json:"name"`
-	ProviderType                   string        `json:"provider_type"`
-	Enabled                        int64         `json:"enabled"`
-	ForwardAuthUrl                 string        `json:"forward_auth_url"`
-	TimeoutMillis                  int64         `json:"timeout_millis"`
-	TlsSkipVerify                  int64         `json:"tls_skip_verify"`
-	SubjectHeader                  string        `json:"subject_header"`
-	UserHeader                     string        `json:"user_header"`
-	EmailHeader                    string        `json:"email_header"`
-	GroupsHeader                   string        `json:"groups_header"`
-	ForwardedHeadersJson           string        `json:"forwarded_headers_json"`
-	LocalAuthMode                  string        `json:"local_auth_mode"`
-	LocalAuthSessionDurationMillis int64         `json:"local_auth_session_duration_millis"`
-	LocalAuthRealm                 string        `json:"local_auth_realm"`
-	LocalAuthLoginTemplateID       sql.NullInt64 `json:"local_auth_login_template_id"`
+	Name                              string        `json:"name"`
+	ProviderType                      string        `json:"provider_type"`
+	Enabled                           int64         `json:"enabled"`
+	ForwardAuthUrl                    string        `json:"forward_auth_url"`
+	TimeoutMillis                     int64         `json:"timeout_millis"`
+	TlsSkipVerify                     int64         `json:"tls_skip_verify"`
+	SubjectHeader                     string        `json:"subject_header"`
+	UserHeader                        string        `json:"user_header"`
+	EmailHeader                       string        `json:"email_header"`
+	GroupsHeader                      string        `json:"groups_header"`
+	ForwardedHeadersJson              string        `json:"forwarded_headers_json"`
+	LocalAuthMode                     string        `json:"local_auth_mode"`
+	LocalAuthSessionDurationMillis    int64         `json:"local_auth_session_duration_millis"`
+	LocalAuthRealm                    string        `json:"local_auth_realm"`
+	LocalAuthLoginTemplateID          sql.NullInt64 `json:"local_auth_login_template_id"`
+	LocalAuthAllowedHostsJson         string        `json:"local_auth_allowed_hosts_json"`
+	LocalAuthCookieSameSite           string        `json:"local_auth_cookie_same_site"`
+	LocalAuthCookieDomain             string        `json:"local_auth_cookie_domain"`
+	LocalAuthCookieSecure             int64         `json:"local_auth_cookie_secure"`
+	LocalAuthCookieName               string        `json:"local_auth_cookie_name"`
+	LocalAuthLoginUsernameMaxFailures int64         `json:"local_auth_login_username_max_failures"`
+	LocalAuthLoginClientMaxFailures   int64         `json:"local_auth_login_client_max_failures"`
+	LocalAuthLoginWindowMillis        int64         `json:"local_auth_login_window_millis"`
+	LocalAuthLoginBlockMillis         int64         `json:"local_auth_login_block_millis"`
 }
 
 func (q *Queries) CreatePublicAccessProvider(ctx context.Context, arg CreatePublicAccessProviderParams) (PublicAccessProvider, error) {
@@ -513,6 +524,15 @@ func (q *Queries) CreatePublicAccessProvider(ctx context.Context, arg CreatePubl
 		arg.LocalAuthSessionDurationMillis,
 		arg.LocalAuthRealm,
 		arg.LocalAuthLoginTemplateID,
+		arg.LocalAuthAllowedHostsJson,
+		arg.LocalAuthCookieSameSite,
+		arg.LocalAuthCookieDomain,
+		arg.LocalAuthCookieSecure,
+		arg.LocalAuthCookieName,
+		arg.LocalAuthLoginUsernameMaxFailures,
+		arg.LocalAuthLoginClientMaxFailures,
+		arg.LocalAuthLoginWindowMillis,
+		arg.LocalAuthLoginBlockMillis,
 	)
 	var i PublicAccessProvider
 	err := row.Scan(
@@ -534,6 +554,15 @@ func (q *Queries) CreatePublicAccessProvider(ctx context.Context, arg CreatePubl
 		&i.LocalAuthSessionDurationMillis,
 		&i.LocalAuthRealm,
 		&i.LocalAuthLoginTemplateID,
+		&i.LocalAuthAllowedHostsJson,
+		&i.LocalAuthCookieSameSite,
+		&i.LocalAuthCookieDomain,
+		&i.LocalAuthCookieSecure,
+		&i.LocalAuthCookieName,
+		&i.LocalAuthLoginUsernameMaxFailures,
+		&i.LocalAuthLoginClientMaxFailures,
+		&i.LocalAuthLoginWindowMillis,
+		&i.LocalAuthLoginBlockMillis,
 	)
 	return i, err
 }
@@ -2928,7 +2957,7 @@ func (q *Queries) GetPublicAccessPolicy(ctx context.Context, id int64) (PublicAc
 }
 
 const getPublicAccessProvider = `-- name: GetPublicAccessProvider :one
-SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id, local_auth_allowed_hosts_json, local_auth_cookie_same_site, local_auth_cookie_domain, local_auth_cookie_secure, local_auth_cookie_name, local_auth_login_username_max_failures, local_auth_login_client_max_failures, local_auth_login_window_millis, local_auth_login_block_millis
 FROM public_access_providers
 WHERE id = ?
 `
@@ -2955,6 +2984,15 @@ func (q *Queries) GetPublicAccessProvider(ctx context.Context, id int64) (Public
 		&i.LocalAuthSessionDurationMillis,
 		&i.LocalAuthRealm,
 		&i.LocalAuthLoginTemplateID,
+		&i.LocalAuthAllowedHostsJson,
+		&i.LocalAuthCookieSameSite,
+		&i.LocalAuthCookieDomain,
+		&i.LocalAuthCookieSecure,
+		&i.LocalAuthCookieName,
+		&i.LocalAuthLoginUsernameMaxFailures,
+		&i.LocalAuthLoginClientMaxFailures,
+		&i.LocalAuthLoginWindowMillis,
+		&i.LocalAuthLoginBlockMillis,
 	)
 	return i, err
 }
@@ -5300,7 +5338,7 @@ func (q *Queries) ListPublicAccessPolicies(ctx context.Context) ([]PublicAccessP
 }
 
 const listPublicAccessProviders = `-- name: ListPublicAccessProviders :many
-SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
+SELECT id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id, local_auth_allowed_hosts_json, local_auth_cookie_same_site, local_auth_cookie_domain, local_auth_cookie_secure, local_auth_cookie_name, local_auth_login_username_max_failures, local_auth_login_client_max_failures, local_auth_login_window_millis, local_auth_login_block_millis
 FROM public_access_providers
 ORDER BY name ASC, id ASC
 `
@@ -5333,6 +5371,15 @@ func (q *Queries) ListPublicAccessProviders(ctx context.Context) ([]PublicAccess
 			&i.LocalAuthSessionDurationMillis,
 			&i.LocalAuthRealm,
 			&i.LocalAuthLoginTemplateID,
+			&i.LocalAuthAllowedHostsJson,
+			&i.LocalAuthCookieSameSite,
+			&i.LocalAuthCookieDomain,
+			&i.LocalAuthCookieSecure,
+			&i.LocalAuthCookieName,
+			&i.LocalAuthLoginUsernameMaxFailures,
+			&i.LocalAuthLoginClientMaxFailures,
+			&i.LocalAuthLoginWindowMillis,
+			&i.LocalAuthLoginBlockMillis,
 		); err != nil {
 			return nil, err
 		}
@@ -8182,28 +8229,39 @@ const updatePublicAccessProvider = `-- name: UpdatePublicAccessProvider :one
 UPDATE public_access_providers
 SET name = ?, provider_type = ?, enabled = ?, forward_auth_url = ?, timeout_millis = ?, tls_skip_verify = ?,
     subject_header = ?, user_header = ?, email_header = ?, groups_header = ?, forwarded_headers_json = ?,
-    local_auth_mode = ?, local_auth_session_duration_millis = ?, local_auth_realm = ?, local_auth_login_template_id = ?, updated_at = CURRENT_TIMESTAMP
+    local_auth_mode = ?, local_auth_session_duration_millis = ?, local_auth_realm = ?, local_auth_login_template_id = ?,
+    local_auth_allowed_hosts_json = ?, local_auth_cookie_same_site = ?, local_auth_cookie_domain = ?, local_auth_cookie_secure = ?, local_auth_cookie_name = ?,
+    local_auth_login_username_max_failures = ?, local_auth_login_client_max_failures = ?, local_auth_login_window_millis = ?, local_auth_login_block_millis = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id
+RETURNING id, name, provider_type, enabled, forward_auth_url, timeout_millis, tls_skip_verify, subject_header, user_header, email_header, groups_header, forwarded_headers_json, created_at, updated_at, local_auth_mode, local_auth_session_duration_millis, local_auth_realm, local_auth_login_template_id, local_auth_allowed_hosts_json, local_auth_cookie_same_site, local_auth_cookie_domain, local_auth_cookie_secure, local_auth_cookie_name, local_auth_login_username_max_failures, local_auth_login_client_max_failures, local_auth_login_window_millis, local_auth_login_block_millis
 `
 
 type UpdatePublicAccessProviderParams struct {
-	Name                           string        `json:"name"`
-	ProviderType                   string        `json:"provider_type"`
-	Enabled                        int64         `json:"enabled"`
-	ForwardAuthUrl                 string        `json:"forward_auth_url"`
-	TimeoutMillis                  int64         `json:"timeout_millis"`
-	TlsSkipVerify                  int64         `json:"tls_skip_verify"`
-	SubjectHeader                  string        `json:"subject_header"`
-	UserHeader                     string        `json:"user_header"`
-	EmailHeader                    string        `json:"email_header"`
-	GroupsHeader                   string        `json:"groups_header"`
-	ForwardedHeadersJson           string        `json:"forwarded_headers_json"`
-	LocalAuthMode                  string        `json:"local_auth_mode"`
-	LocalAuthSessionDurationMillis int64         `json:"local_auth_session_duration_millis"`
-	LocalAuthRealm                 string        `json:"local_auth_realm"`
-	LocalAuthLoginTemplateID       sql.NullInt64 `json:"local_auth_login_template_id"`
-	ID                             int64         `json:"id"`
+	Name                              string        `json:"name"`
+	ProviderType                      string        `json:"provider_type"`
+	Enabled                           int64         `json:"enabled"`
+	ForwardAuthUrl                    string        `json:"forward_auth_url"`
+	TimeoutMillis                     int64         `json:"timeout_millis"`
+	TlsSkipVerify                     int64         `json:"tls_skip_verify"`
+	SubjectHeader                     string        `json:"subject_header"`
+	UserHeader                        string        `json:"user_header"`
+	EmailHeader                       string        `json:"email_header"`
+	GroupsHeader                      string        `json:"groups_header"`
+	ForwardedHeadersJson              string        `json:"forwarded_headers_json"`
+	LocalAuthMode                     string        `json:"local_auth_mode"`
+	LocalAuthSessionDurationMillis    int64         `json:"local_auth_session_duration_millis"`
+	LocalAuthRealm                    string        `json:"local_auth_realm"`
+	LocalAuthLoginTemplateID          sql.NullInt64 `json:"local_auth_login_template_id"`
+	LocalAuthAllowedHostsJson         string        `json:"local_auth_allowed_hosts_json"`
+	LocalAuthCookieSameSite           string        `json:"local_auth_cookie_same_site"`
+	LocalAuthCookieDomain             string        `json:"local_auth_cookie_domain"`
+	LocalAuthCookieSecure             int64         `json:"local_auth_cookie_secure"`
+	LocalAuthCookieName               string        `json:"local_auth_cookie_name"`
+	LocalAuthLoginUsernameMaxFailures int64         `json:"local_auth_login_username_max_failures"`
+	LocalAuthLoginClientMaxFailures   int64         `json:"local_auth_login_client_max_failures"`
+	LocalAuthLoginWindowMillis        int64         `json:"local_auth_login_window_millis"`
+	LocalAuthLoginBlockMillis         int64         `json:"local_auth_login_block_millis"`
+	ID                                int64         `json:"id"`
 }
 
 func (q *Queries) UpdatePublicAccessProvider(ctx context.Context, arg UpdatePublicAccessProviderParams) (PublicAccessProvider, error) {
@@ -8223,6 +8281,15 @@ func (q *Queries) UpdatePublicAccessProvider(ctx context.Context, arg UpdatePubl
 		arg.LocalAuthSessionDurationMillis,
 		arg.LocalAuthRealm,
 		arg.LocalAuthLoginTemplateID,
+		arg.LocalAuthAllowedHostsJson,
+		arg.LocalAuthCookieSameSite,
+		arg.LocalAuthCookieDomain,
+		arg.LocalAuthCookieSecure,
+		arg.LocalAuthCookieName,
+		arg.LocalAuthLoginUsernameMaxFailures,
+		arg.LocalAuthLoginClientMaxFailures,
+		arg.LocalAuthLoginWindowMillis,
+		arg.LocalAuthLoginBlockMillis,
 		arg.ID,
 	)
 	var i PublicAccessProvider
@@ -8245,6 +8312,15 @@ func (q *Queries) UpdatePublicAccessProvider(ctx context.Context, arg UpdatePubl
 		&i.LocalAuthSessionDurationMillis,
 		&i.LocalAuthRealm,
 		&i.LocalAuthLoginTemplateID,
+		&i.LocalAuthAllowedHostsJson,
+		&i.LocalAuthCookieSameSite,
+		&i.LocalAuthCookieDomain,
+		&i.LocalAuthCookieSecure,
+		&i.LocalAuthCookieName,
+		&i.LocalAuthLoginUsernameMaxFailures,
+		&i.LocalAuthLoginClientMaxFailures,
+		&i.LocalAuthLoginWindowMillis,
+		&i.LocalAuthLoginBlockMillis,
 	)
 	return i, err
 }
