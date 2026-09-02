@@ -33,6 +33,29 @@ func TestPublicRequestAdmissionRejectsDeclaredOversizeBody(t *testing.T) {
 	}
 }
 
+func TestEffectivePublicRequestCapacities(t *testing.T) {
+	tests := []struct {
+		name          string
+		global        int64
+		perTarget     int64
+		wantGlobal    int64
+		wantPerTarget int64
+	}{
+		{name: "zero values use the global default", wantGlobal: 2048, wantPerTarget: 2048},
+		{name: "automatic target follows configured global", global: 4096, wantGlobal: 4096, wantPerTarget: 4096},
+		{name: "explicit target is retained", global: 4096, perTarget: 512, wantGlobal: 4096, wantPerTarget: 512},
+		{name: "invalid direct construction stays globally bounded", global: 8, perTarget: 9, wantGlobal: 8, wantPerTarget: 8},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotGlobal, gotPerTarget := effectivePublicRequestCapacities(test.global, test.perTarget)
+			if gotGlobal != test.wantGlobal || gotPerTarget != test.wantPerTarget {
+				t.Fatalf("effective capacities = %d/%d, want %d/%d", gotGlobal, gotPerTarget, test.wantGlobal, test.wantPerTarget)
+			}
+		})
+	}
+}
+
 func TestPublicProxyRejectsOversizeChunkedBody(t *testing.T) {
 	app, handler := newPublicBodyLimitTestProxy(t, 4, 30*time.Second)
 	request := httptest.NewRequest(http.MethodPost, "http://public.test/upload", strings.NewReader("12345"))
