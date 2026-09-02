@@ -154,6 +154,8 @@ function agent(id: bigint, publicId: string): Agent {
     commit: "",
     advertisedMaxConcurrentStreams: 0n,
     negotiatedMaxConcurrentStreams: 0n,
+    tunnelCapacityAdaptive: false,
+    currentTunnelAdmissionLimit: 0n,
   };
 }
 

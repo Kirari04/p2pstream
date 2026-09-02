@@ -3059,23 +3059,37 @@ func (x *ManagementTrustUpdate) GetManagementHostname() string {
 }
 
 type AgentStatsRequest struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	MemorySysMb           int64                  `protobuf:"varint,1,opt,name=memory_sys_mb,json=memorySysMb,proto3" json:"memory_sys_mb,omitempty"`
-	NumGoroutine          int64                  `protobuf:"varint,2,opt,name=num_goroutine,json=numGoroutine,proto3" json:"num_goroutine,omitempty"`
-	ReqSuccess            int64                  `protobuf:"varint,3,opt,name=req_success,json=reqSuccess,proto3" json:"req_success,omitempty"`
-	ReqClientError        int64                  `protobuf:"varint,4,opt,name=req_client_error,json=reqClientError,proto3" json:"req_client_error,omitempty"`
-	ReqServerError        int64                  `protobuf:"varint,5,opt,name=req_server_error,json=reqServerError,proto3" json:"req_server_error,omitempty"`
-	ReqInternalError      int64                  `protobuf:"varint,6,opt,name=req_internal_error,json=reqInternalError,proto3" json:"req_internal_error,omitempty"`
-	BytesReceived         uint64                 `protobuf:"varint,7,opt,name=bytes_received,json=bytesReceived,proto3" json:"bytes_received,omitempty"`
-	BytesSent             uint64                 `protobuf:"varint,8,opt,name=bytes_sent,json=bytesSent,proto3" json:"bytes_sent,omitempty"`
-	ActiveRequests        int32                  `protobuf:"varint,9,opt,name=active_requests,json=activeRequests,proto3" json:"active_requests,omitempty"`
-	AgentPublicId         string                 `protobuf:"bytes,10,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
-	CpuPercent            float64                `protobuf:"fixed64,11,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
-	ManagementTrustStatus *ManagementTrustStatus `protobuf:"bytes,12,opt,name=management_trust_status,json=managementTrustStatus,proto3" json:"management_trust_status,omitempty"`
-	AgentVersion          string                 `protobuf:"bytes,13,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
-	AgentCommit           string                 `protobuf:"bytes,14,opt,name=agent_commit,json=agentCommit,proto3" json:"agent_commit,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state                      protoimpl.MessageState `protogen:"open.v1"`
+	MemorySysMb                int64                  `protobuf:"varint,1,opt,name=memory_sys_mb,json=memorySysMb,proto3" json:"memory_sys_mb,omitempty"`
+	NumGoroutine               int64                  `protobuf:"varint,2,opt,name=num_goroutine,json=numGoroutine,proto3" json:"num_goroutine,omitempty"`
+	ReqSuccess                 int64                  `protobuf:"varint,3,opt,name=req_success,json=reqSuccess,proto3" json:"req_success,omitempty"`
+	ReqClientError             int64                  `protobuf:"varint,4,opt,name=req_client_error,json=reqClientError,proto3" json:"req_client_error,omitempty"`
+	ReqServerError             int64                  `protobuf:"varint,5,opt,name=req_server_error,json=reqServerError,proto3" json:"req_server_error,omitempty"`
+	ReqInternalError           int64                  `protobuf:"varint,6,opt,name=req_internal_error,json=reqInternalError,proto3" json:"req_internal_error,omitempty"`
+	BytesReceived              uint64                 `protobuf:"varint,7,opt,name=bytes_received,json=bytesReceived,proto3" json:"bytes_received,omitempty"`
+	BytesSent                  uint64                 `protobuf:"varint,8,opt,name=bytes_sent,json=bytesSent,proto3" json:"bytes_sent,omitempty"`
+	ActiveRequests             int32                  `protobuf:"varint,9,opt,name=active_requests,json=activeRequests,proto3" json:"active_requests,omitempty"`
+	AgentPublicId              string                 `protobuf:"bytes,10,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
+	CpuPercent                 float64                `protobuf:"fixed64,11,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
+	ManagementTrustStatus      *ManagementTrustStatus `protobuf:"bytes,12,opt,name=management_trust_status,json=managementTrustStatus,proto3" json:"management_trust_status,omitempty"`
+	AgentVersion               string                 `protobuf:"bytes,13,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
+	AgentCommit                string                 `protobuf:"bytes,14,opt,name=agent_commit,json=agentCommit,proto3" json:"agent_commit,omitempty"`
+	TunnelCapacityAdaptive     bool                   `protobuf:"varint,15,opt,name=tunnel_capacity_adaptive,json=tunnelCapacityAdaptive,proto3" json:"tunnel_capacity_adaptive,omitempty"`
+	TunnelAdmissionLimit       int64                  `protobuf:"varint,16,opt,name=tunnel_admission_limit,json=tunnelAdmissionLimit,proto3" json:"tunnel_admission_limit,omitempty"`
+	TunnelStreamsInUse         int64                  `protobuf:"varint,17,opt,name=tunnel_streams_in_use,json=tunnelStreamsInUse,proto3" json:"tunnel_streams_in_use,omitempty"`
+	MemoryPressure             string                 `protobuf:"bytes,18,opt,name=memory_pressure,json=memoryPressure,proto3" json:"memory_pressure,omitempty"`
+	MemoryUsageBytes           int64                  `protobuf:"varint,19,opt,name=memory_usage_bytes,json=memoryUsageBytes,proto3" json:"memory_usage_bytes,omitempty"`
+	MemoryLimitBytes           int64                  `protobuf:"varint,20,opt,name=memory_limit_bytes,json=memoryLimitBytes,proto3" json:"memory_limit_bytes,omitempty"`
+	MemorySource               string                 `protobuf:"bytes,21,opt,name=memory_source,json=memorySource,proto3" json:"memory_source,omitempty"`
+	TunnelPressureRejections   uint64                 `protobuf:"varint,22,opt,name=tunnel_pressure_rejections,json=tunnelPressureRejections,proto3" json:"tunnel_pressure_rejections,omitempty"`
+	TunnelLimitRejections      uint64                 `protobuf:"varint,23,opt,name=tunnel_limit_rejections,json=tunnelLimitRejections,proto3" json:"tunnel_limit_rejections,omitempty"`
+	FileDescriptorsUsed        int64                  `protobuf:"varint,24,opt,name=file_descriptors_used,json=fileDescriptorsUsed,proto3" json:"file_descriptors_used,omitempty"`
+	FileDescriptorsLimit       int64                  `protobuf:"varint,25,opt,name=file_descriptors_limit,json=fileDescriptorsLimit,proto3" json:"file_descriptors_limit,omitempty"`
+	ResourcePressureReason     string                 `protobuf:"bytes,26,opt,name=resource_pressure_reason,json=resourcePressureReason,proto3" json:"resource_pressure_reason,omitempty"`
+	ResourceSampleError        string                 `protobuf:"bytes,27,opt,name=resource_sample_error,json=resourceSampleError,proto3" json:"resource_sample_error,omitempty"`
+	ResourceLastGoodUnixMillis int64                  `protobuf:"varint,28,opt,name=resource_last_good_unix_millis,json=resourceLastGoodUnixMillis,proto3" json:"resource_last_good_unix_millis,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *AgentStatsRequest) Reset() {
@@ -3204,6 +3218,104 @@ func (x *AgentStatsRequest) GetAgentCommit() string {
 		return x.AgentCommit
 	}
 	return ""
+}
+
+func (x *AgentStatsRequest) GetTunnelCapacityAdaptive() bool {
+	if x != nil {
+		return x.TunnelCapacityAdaptive
+	}
+	return false
+}
+
+func (x *AgentStatsRequest) GetTunnelAdmissionLimit() int64 {
+	if x != nil {
+		return x.TunnelAdmissionLimit
+	}
+	return 0
+}
+
+func (x *AgentStatsRequest) GetTunnelStreamsInUse() int64 {
+	if x != nil {
+		return x.TunnelStreamsInUse
+	}
+	return 0
+}
+
+func (x *AgentStatsRequest) GetMemoryPressure() string {
+	if x != nil {
+		return x.MemoryPressure
+	}
+	return ""
+}
+
+func (x *AgentStatsRequest) GetMemoryUsageBytes() int64 {
+	if x != nil {
+		return x.MemoryUsageBytes
+	}
+	return 0
+}
+
+func (x *AgentStatsRequest) GetMemoryLimitBytes() int64 {
+	if x != nil {
+		return x.MemoryLimitBytes
+	}
+	return 0
+}
+
+func (x *AgentStatsRequest) GetMemorySource() string {
+	if x != nil {
+		return x.MemorySource
+	}
+	return ""
+}
+
+func (x *AgentStatsRequest) GetTunnelPressureRejections() uint64 {
+	if x != nil {
+		return x.TunnelPressureRejections
+	}
+	return 0
+}
+
+func (x *AgentStatsRequest) GetTunnelLimitRejections() uint64 {
+	if x != nil {
+		return x.TunnelLimitRejections
+	}
+	return 0
+}
+
+func (x *AgentStatsRequest) GetFileDescriptorsUsed() int64 {
+	if x != nil {
+		return x.FileDescriptorsUsed
+	}
+	return 0
+}
+
+func (x *AgentStatsRequest) GetFileDescriptorsLimit() int64 {
+	if x != nil {
+		return x.FileDescriptorsLimit
+	}
+	return 0
+}
+
+func (x *AgentStatsRequest) GetResourcePressureReason() string {
+	if x != nil {
+		return x.ResourcePressureReason
+	}
+	return ""
+}
+
+func (x *AgentStatsRequest) GetResourceSampleError() string {
+	if x != nil {
+		return x.ResourceSampleError
+	}
+	return ""
+}
+
+func (x *AgentStatsRequest) GetResourceLastGoodUnixMillis() int64 {
+	if x != nil {
+		return x.ResourceLastGoodUnixMillis
+	}
+	return 0
 }
 
 type AgentStatsResponse struct {
@@ -4559,20 +4671,34 @@ func (*GetStatusRequest) Descriptor() ([]byte, []int) {
 }
 
 type AgentStatsSnapshot struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	MemorySysMb          int64                  `protobuf:"varint,1,opt,name=memory_sys_mb,json=memorySysMb,proto3" json:"memory_sys_mb,omitempty"`
-	NumGoroutine         int64                  `protobuf:"varint,2,opt,name=num_goroutine,json=numGoroutine,proto3" json:"num_goroutine,omitempty"`
-	ReqSuccess           int64                  `protobuf:"varint,3,opt,name=req_success,json=reqSuccess,proto3" json:"req_success,omitempty"`
-	ReqClientError       int64                  `protobuf:"varint,4,opt,name=req_client_error,json=reqClientError,proto3" json:"req_client_error,omitempty"`
-	ReqServerError       int64                  `protobuf:"varint,5,opt,name=req_server_error,json=reqServerError,proto3" json:"req_server_error,omitempty"`
-	ReqInternalError     int64                  `protobuf:"varint,6,opt,name=req_internal_error,json=reqInternalError,proto3" json:"req_internal_error,omitempty"`
-	BytesReceived        uint64                 `protobuf:"varint,7,opt,name=bytes_received,json=bytesReceived,proto3" json:"bytes_received,omitempty"`
-	BytesSent            uint64                 `protobuf:"varint,8,opt,name=bytes_sent,json=bytesSent,proto3" json:"bytes_sent,omitempty"`
-	ActiveRequests       int32                  `protobuf:"varint,9,opt,name=active_requests,json=activeRequests,proto3" json:"active_requests,omitempty"`
-	ReportedAtUnixMillis int64                  `protobuf:"varint,10,opt,name=reported_at_unix_millis,json=reportedAtUnixMillis,proto3" json:"reported_at_unix_millis,omitempty"`
-	CpuPercent           float64                `protobuf:"fixed64,11,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                      protoimpl.MessageState `protogen:"open.v1"`
+	MemorySysMb                int64                  `protobuf:"varint,1,opt,name=memory_sys_mb,json=memorySysMb,proto3" json:"memory_sys_mb,omitempty"`
+	NumGoroutine               int64                  `protobuf:"varint,2,opt,name=num_goroutine,json=numGoroutine,proto3" json:"num_goroutine,omitempty"`
+	ReqSuccess                 int64                  `protobuf:"varint,3,opt,name=req_success,json=reqSuccess,proto3" json:"req_success,omitempty"`
+	ReqClientError             int64                  `protobuf:"varint,4,opt,name=req_client_error,json=reqClientError,proto3" json:"req_client_error,omitempty"`
+	ReqServerError             int64                  `protobuf:"varint,5,opt,name=req_server_error,json=reqServerError,proto3" json:"req_server_error,omitempty"`
+	ReqInternalError           int64                  `protobuf:"varint,6,opt,name=req_internal_error,json=reqInternalError,proto3" json:"req_internal_error,omitempty"`
+	BytesReceived              uint64                 `protobuf:"varint,7,opt,name=bytes_received,json=bytesReceived,proto3" json:"bytes_received,omitempty"`
+	BytesSent                  uint64                 `protobuf:"varint,8,opt,name=bytes_sent,json=bytesSent,proto3" json:"bytes_sent,omitempty"`
+	ActiveRequests             int32                  `protobuf:"varint,9,opt,name=active_requests,json=activeRequests,proto3" json:"active_requests,omitempty"`
+	ReportedAtUnixMillis       int64                  `protobuf:"varint,10,opt,name=reported_at_unix_millis,json=reportedAtUnixMillis,proto3" json:"reported_at_unix_millis,omitempty"`
+	CpuPercent                 float64                `protobuf:"fixed64,11,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
+	TunnelCapacityAdaptive     bool                   `protobuf:"varint,12,opt,name=tunnel_capacity_adaptive,json=tunnelCapacityAdaptive,proto3" json:"tunnel_capacity_adaptive,omitempty"`
+	TunnelAdmissionLimit       int64                  `protobuf:"varint,13,opt,name=tunnel_admission_limit,json=tunnelAdmissionLimit,proto3" json:"tunnel_admission_limit,omitempty"`
+	TunnelStreamsInUse         int64                  `protobuf:"varint,14,opt,name=tunnel_streams_in_use,json=tunnelStreamsInUse,proto3" json:"tunnel_streams_in_use,omitempty"`
+	MemoryPressure             string                 `protobuf:"bytes,15,opt,name=memory_pressure,json=memoryPressure,proto3" json:"memory_pressure,omitempty"`
+	MemoryUsageBytes           int64                  `protobuf:"varint,16,opt,name=memory_usage_bytes,json=memoryUsageBytes,proto3" json:"memory_usage_bytes,omitempty"`
+	MemoryLimitBytes           int64                  `protobuf:"varint,17,opt,name=memory_limit_bytes,json=memoryLimitBytes,proto3" json:"memory_limit_bytes,omitempty"`
+	MemorySource               string                 `protobuf:"bytes,18,opt,name=memory_source,json=memorySource,proto3" json:"memory_source,omitempty"`
+	TunnelPressureRejections   uint64                 `protobuf:"varint,19,opt,name=tunnel_pressure_rejections,json=tunnelPressureRejections,proto3" json:"tunnel_pressure_rejections,omitempty"`
+	TunnelLimitRejections      uint64                 `protobuf:"varint,20,opt,name=tunnel_limit_rejections,json=tunnelLimitRejections,proto3" json:"tunnel_limit_rejections,omitempty"`
+	FileDescriptorsUsed        int64                  `protobuf:"varint,21,opt,name=file_descriptors_used,json=fileDescriptorsUsed,proto3" json:"file_descriptors_used,omitempty"`
+	FileDescriptorsLimit       int64                  `protobuf:"varint,22,opt,name=file_descriptors_limit,json=fileDescriptorsLimit,proto3" json:"file_descriptors_limit,omitempty"`
+	ResourcePressureReason     string                 `protobuf:"bytes,23,opt,name=resource_pressure_reason,json=resourcePressureReason,proto3" json:"resource_pressure_reason,omitempty"`
+	ResourceSampleError        string                 `protobuf:"bytes,24,opt,name=resource_sample_error,json=resourceSampleError,proto3" json:"resource_sample_error,omitempty"`
+	ResourceLastGoodUnixMillis int64                  `protobuf:"varint,25,opt,name=resource_last_good_unix_millis,json=resourceLastGoodUnixMillis,proto3" json:"resource_last_good_unix_millis,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *AgentStatsSnapshot) Reset() {
@@ -4678,6 +4804,104 @@ func (x *AgentStatsSnapshot) GetReportedAtUnixMillis() int64 {
 func (x *AgentStatsSnapshot) GetCpuPercent() float64 {
 	if x != nil {
 		return x.CpuPercent
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetTunnelCapacityAdaptive() bool {
+	if x != nil {
+		return x.TunnelCapacityAdaptive
+	}
+	return false
+}
+
+func (x *AgentStatsSnapshot) GetTunnelAdmissionLimit() int64 {
+	if x != nil {
+		return x.TunnelAdmissionLimit
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetTunnelStreamsInUse() int64 {
+	if x != nil {
+		return x.TunnelStreamsInUse
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetMemoryPressure() string {
+	if x != nil {
+		return x.MemoryPressure
+	}
+	return ""
+}
+
+func (x *AgentStatsSnapshot) GetMemoryUsageBytes() int64 {
+	if x != nil {
+		return x.MemoryUsageBytes
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetMemoryLimitBytes() int64 {
+	if x != nil {
+		return x.MemoryLimitBytes
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetMemorySource() string {
+	if x != nil {
+		return x.MemorySource
+	}
+	return ""
+}
+
+func (x *AgentStatsSnapshot) GetTunnelPressureRejections() uint64 {
+	if x != nil {
+		return x.TunnelPressureRejections
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetTunnelLimitRejections() uint64 {
+	if x != nil {
+		return x.TunnelLimitRejections
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetFileDescriptorsUsed() int64 {
+	if x != nil {
+		return x.FileDescriptorsUsed
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetFileDescriptorsLimit() int64 {
+	if x != nil {
+		return x.FileDescriptorsLimit
+	}
+	return 0
+}
+
+func (x *AgentStatsSnapshot) GetResourcePressureReason() string {
+	if x != nil {
+		return x.ResourcePressureReason
+	}
+	return ""
+}
+
+func (x *AgentStatsSnapshot) GetResourceSampleError() string {
+	if x != nil {
+		return x.ResourceSampleError
+	}
+	return ""
+}
+
+func (x *AgentStatsSnapshot) GetResourceLastGoodUnixMillis() int64 {
+	if x != nil {
+		return x.ResourceLastGoodUnixMillis
 	}
 	return 0
 }
@@ -5312,6 +5536,8 @@ type Agent struct {
 	Commit                         string                 `protobuf:"bytes,14,opt,name=commit,proto3" json:"commit,omitempty"`
 	AdvertisedMaxConcurrentStreams int64                  `protobuf:"varint,15,opt,name=advertised_max_concurrent_streams,json=advertisedMaxConcurrentStreams,proto3" json:"advertised_max_concurrent_streams,omitempty"`
 	NegotiatedMaxConcurrentStreams int64                  `protobuf:"varint,16,opt,name=negotiated_max_concurrent_streams,json=negotiatedMaxConcurrentStreams,proto3" json:"negotiated_max_concurrent_streams,omitempty"`
+	TunnelCapacityAdaptive         bool                   `protobuf:"varint,17,opt,name=tunnel_capacity_adaptive,json=tunnelCapacityAdaptive,proto3" json:"tunnel_capacity_adaptive,omitempty"`
+	CurrentTunnelAdmissionLimit    int64                  `protobuf:"varint,18,opt,name=current_tunnel_admission_limit,json=currentTunnelAdmissionLimit,proto3" json:"current_tunnel_admission_limit,omitempty"`
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
@@ -5454,6 +5680,20 @@ func (x *Agent) GetAdvertisedMaxConcurrentStreams() int64 {
 func (x *Agent) GetNegotiatedMaxConcurrentStreams() int64 {
 	if x != nil {
 		return x.NegotiatedMaxConcurrentStreams
+	}
+	return 0
+}
+
+func (x *Agent) GetTunnelCapacityAdaptive() bool {
+	if x != nil {
+		return x.TunnelCapacityAdaptive
+	}
+	return false
+}
+
+func (x *Agent) GetCurrentTunnelAdmissionLimit() int64 {
+	if x != nil {
+		return x.CurrentTunnelAdmissionLimit
 	}
 	return 0
 }
@@ -23047,17 +23287,37 @@ type AgentStreamCapacitySummary struct {
 	Released                    uint64                 `protobuf:"varint,21,opt,name=released,proto3" json:"released,omitempty"`
 	// Admission misses include recoverable pooled misses; they are not all
 	// terminal customer-visible failures.
-	AdmissionMissesByConstraint map[string]uint64 `protobuf:"bytes,22,rep,name=admission_misses_by_constraint,json=admissionMissesByConstraint,proto3" json:"admission_misses_by_constraint,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	WaitersByConstraint         map[string]int64  `protobuf:"bytes,23,rep,name=waiters_by_constraint,json=waitersByConstraint,proto3" json:"waiters_by_constraint,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	ReclaimAttempts             uint64            `protobuf:"varint,24,opt,name=reclaim_attempts,json=reclaimAttempts,proto3" json:"reclaim_attempts,omitempty"`
-	ReclaimSuccesses            uint64            `protobuf:"varint,25,opt,name=reclaim_successes,json=reclaimSuccesses,proto3" json:"reclaim_successes,omitempty"`
-	ReclaimNoCandidate          uint64            `protobuf:"varint,26,opt,name=reclaim_no_candidate,json=reclaimNoCandidate,proto3" json:"reclaim_no_candidate,omitempty"`
-	FallbackAttempts            uint64            `protobuf:"varint,27,opt,name=fallback_attempts,json=fallbackAttempts,proto3" json:"fallback_attempts,omitempty"`
-	FallbackRecovered           uint64            `protobuf:"varint,28,opt,name=fallback_recovered,json=fallbackRecovered,proto3" json:"fallback_recovered,omitempty"`
-	FallbackFailed              uint64            `protobuf:"varint,29,opt,name=fallback_failed,json=fallbackFailed,proto3" json:"fallback_failed,omitempty"`
-	TerminalCapacityFailures    uint64            `protobuf:"varint,30,opt,name=terminal_capacity_failures,json=terminalCapacityFailures,proto3" json:"terminal_capacity_failures,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	AdmissionMissesByConstraint      map[string]uint64 `protobuf:"bytes,22,rep,name=admission_misses_by_constraint,json=admissionMissesByConstraint,proto3" json:"admission_misses_by_constraint,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	WaitersByConstraint              map[string]int64  `protobuf:"bytes,23,rep,name=waiters_by_constraint,json=waitersByConstraint,proto3" json:"waiters_by_constraint,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	ReclaimAttempts                  uint64            `protobuf:"varint,24,opt,name=reclaim_attempts,json=reclaimAttempts,proto3" json:"reclaim_attempts,omitempty"`
+	ReclaimSuccesses                 uint64            `protobuf:"varint,25,opt,name=reclaim_successes,json=reclaimSuccesses,proto3" json:"reclaim_successes,omitempty"`
+	ReclaimNoCandidate               uint64            `protobuf:"varint,26,opt,name=reclaim_no_candidate,json=reclaimNoCandidate,proto3" json:"reclaim_no_candidate,omitempty"`
+	FallbackAttempts                 uint64            `protobuf:"varint,27,opt,name=fallback_attempts,json=fallbackAttempts,proto3" json:"fallback_attempts,omitempty"`
+	FallbackRecovered                uint64            `protobuf:"varint,28,opt,name=fallback_recovered,json=fallbackRecovered,proto3" json:"fallback_recovered,omitempty"`
+	FallbackFailed                   uint64            `protobuf:"varint,29,opt,name=fallback_failed,json=fallbackFailed,proto3" json:"fallback_failed,omitempty"`
+	TerminalCapacityFailures         uint64            `protobuf:"varint,30,opt,name=terminal_capacity_failures,json=terminalCapacityFailures,proto3" json:"terminal_capacity_failures,omitempty"`
+	Adaptive                         bool              `protobuf:"varint,31,opt,name=adaptive,proto3" json:"adaptive,omitempty"`
+	AdaptiveAdmissionLimit           int64             `protobuf:"varint,32,opt,name=adaptive_admission_limit,json=adaptiveAdmissionLimit,proto3" json:"adaptive_admission_limit,omitempty"`
+	MemoryPressure                   string            `protobuf:"bytes,33,opt,name=memory_pressure,json=memoryPressure,proto3" json:"memory_pressure,omitempty"`
+	MemoryUsedBytes                  int64             `protobuf:"varint,34,opt,name=memory_used_bytes,json=memoryUsedBytes,proto3" json:"memory_used_bytes,omitempty"`
+	MemoryLimitBytes                 int64             `protobuf:"varint,35,opt,name=memory_limit_bytes,json=memoryLimitBytes,proto3" json:"memory_limit_bytes,omitempty"`
+	MemorySource                     string            `protobuf:"bytes,36,opt,name=memory_source,json=memorySource,proto3" json:"memory_source,omitempty"`
+	MemoryHeadroomToHardBytes        int64             `protobuf:"varint,37,opt,name=memory_headroom_to_hard_bytes,json=memoryHeadroomToHardBytes,proto3" json:"memory_headroom_to_hard_bytes,omitempty"`
+	FileDescriptorsUsed              int64             `protobuf:"varint,38,opt,name=file_descriptors_used,json=fileDescriptorsUsed,proto3" json:"file_descriptors_used,omitempty"`
+	FileDescriptorsLimit             int64             `protobuf:"varint,39,opt,name=file_descriptors_limit,json=fileDescriptorsLimit,proto3" json:"file_descriptors_limit,omitempty"`
+	ResourcePressureReason           string            `protobuf:"bytes,40,opt,name=resource_pressure_reason,json=resourcePressureReason,proto3" json:"resource_pressure_reason,omitempty"`
+	ResourceSampleError              string            `protobuf:"bytes,41,opt,name=resource_sample_error,json=resourceSampleError,proto3" json:"resource_sample_error,omitempty"`
+	ResourceLastGoodUnixMillis       int64             `protobuf:"varint,42,opt,name=resource_last_good_unix_millis,json=resourceLastGoodUnixMillis,proto3" json:"resource_last_good_unix_millis,omitempty"`
+	AdaptiveRawAdmissionLimit        int64             `protobuf:"varint,43,opt,name=adaptive_raw_admission_limit,json=adaptiveRawAdmissionLimit,proto3" json:"adaptive_raw_admission_limit,omitempty"`
+	AdaptivePublicAdmissionLimit     int64             `protobuf:"varint,44,opt,name=adaptive_public_admission_limit,json=adaptivePublicAdmissionLimit,proto3" json:"adaptive_public_admission_limit,omitempty"`
+	AdaptiveExternalBytes            int64             `protobuf:"varint,45,opt,name=adaptive_external_bytes,json=adaptiveExternalBytes,proto3" json:"adaptive_external_bytes,omitempty"`
+	AdaptiveExternalFileDescriptors  int64             `protobuf:"varint,46,opt,name=adaptive_external_file_descriptors,json=adaptiveExternalFileDescriptors,proto3" json:"adaptive_external_file_descriptors,omitempty"`
+	PublicConnections                int64             `protobuf:"varint,47,opt,name=public_connections,json=publicConnections,proto3" json:"public_connections,omitempty"`
+	PublicConnectionLimitRejected    uint64            `protobuf:"varint,48,opt,name=public_connection_limit_rejected,json=publicConnectionLimitRejected,proto3" json:"public_connection_limit_rejected,omitempty"`
+	PublicConnectionResourceRejected uint64            `protobuf:"varint,49,opt,name=public_connection_resource_rejected,json=publicConnectionResourceRejected,proto3" json:"public_connection_resource_rejected,omitempty"`
+	PublicClientRequestRejected      uint64            `protobuf:"varint,50,opt,name=public_client_request_rejected,json=publicClientRequestRejected,proto3" json:"public_client_request_rejected,omitempty"`
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
 }
 
 func (x *AgentStreamCapacitySummary) Reset() {
@@ -23300,6 +23560,146 @@ func (x *AgentStreamCapacitySummary) GetTerminalCapacityFailures() uint64 {
 	return 0
 }
 
+func (x *AgentStreamCapacitySummary) GetAdaptive() bool {
+	if x != nil {
+		return x.Adaptive
+	}
+	return false
+}
+
+func (x *AgentStreamCapacitySummary) GetAdaptiveAdmissionLimit() int64 {
+	if x != nil {
+		return x.AdaptiveAdmissionLimit
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetMemoryPressure() string {
+	if x != nil {
+		return x.MemoryPressure
+	}
+	return ""
+}
+
+func (x *AgentStreamCapacitySummary) GetMemoryUsedBytes() int64 {
+	if x != nil {
+		return x.MemoryUsedBytes
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetMemoryLimitBytes() int64 {
+	if x != nil {
+		return x.MemoryLimitBytes
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetMemorySource() string {
+	if x != nil {
+		return x.MemorySource
+	}
+	return ""
+}
+
+func (x *AgentStreamCapacitySummary) GetMemoryHeadroomToHardBytes() int64 {
+	if x != nil {
+		return x.MemoryHeadroomToHardBytes
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetFileDescriptorsUsed() int64 {
+	if x != nil {
+		return x.FileDescriptorsUsed
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetFileDescriptorsLimit() int64 {
+	if x != nil {
+		return x.FileDescriptorsLimit
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetResourcePressureReason() string {
+	if x != nil {
+		return x.ResourcePressureReason
+	}
+	return ""
+}
+
+func (x *AgentStreamCapacitySummary) GetResourceSampleError() string {
+	if x != nil {
+		return x.ResourceSampleError
+	}
+	return ""
+}
+
+func (x *AgentStreamCapacitySummary) GetResourceLastGoodUnixMillis() int64 {
+	if x != nil {
+		return x.ResourceLastGoodUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetAdaptiveRawAdmissionLimit() int64 {
+	if x != nil {
+		return x.AdaptiveRawAdmissionLimit
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetAdaptivePublicAdmissionLimit() int64 {
+	if x != nil {
+		return x.AdaptivePublicAdmissionLimit
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetAdaptiveExternalBytes() int64 {
+	if x != nil {
+		return x.AdaptiveExternalBytes
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetAdaptiveExternalFileDescriptors() int64 {
+	if x != nil {
+		return x.AdaptiveExternalFileDescriptors
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetPublicConnections() int64 {
+	if x != nil {
+		return x.PublicConnections
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetPublicConnectionLimitRejected() uint64 {
+	if x != nil {
+		return x.PublicConnectionLimitRejected
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetPublicConnectionResourceRejected() uint64 {
+	if x != nil {
+		return x.PublicConnectionResourceRejected
+	}
+	return 0
+}
+
+func (x *AgentStreamCapacitySummary) GetPublicClientRequestRejected() uint64 {
+	if x != nil {
+		return x.PublicClientRequestRejected
+	}
+	return 0
+}
+
 var File_proto_p2pstream_v1_management_proto protoreflect.FileDescriptor
 
 const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
@@ -23321,7 +23721,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\rca_bundle_pem\x18\x02 \x01(\tR\vcaBundlePem\x12#\n" +
 	"\rbundle_sha256\x18\x03 \x01(\tR\fbundleSha256\x124\n" +
 	"\x16server_certificate_pem\x18\x04 \x01(\tR\x14serverCertificatePem\x12/\n" +
-	"\x13management_hostname\x18\x05 \x01(\tR\x12managementHostname\"\xdc\x04\n" +
+	"\x13management_hostname\x18\x05 \x01(\tR\x12managementHostname\"\xbb\n" +
+	"\n" +
 	"\x11AgentStatsRequest\x12\"\n" +
 	"\rmemory_sys_mb\x18\x01 \x01(\x03R\vmemorySysMb\x12#\n" +
 	"\rnum_goroutine\x18\x02 \x01(\x03R\fnumGoroutine\x12\x1f\n" +
@@ -23340,7 +23741,21 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"cpuPercent\x12[\n" +
 	"\x17management_trust_status\x18\f \x01(\v2#.p2pstream.v1.ManagementTrustStatusR\x15managementTrustStatus\x12#\n" +
 	"\ragent_version\x18\r \x01(\tR\fagentVersion\x12!\n" +
-	"\fagent_commit\x18\x0e \x01(\tR\vagentCommit\"q\n" +
+	"\fagent_commit\x18\x0e \x01(\tR\vagentCommit\x128\n" +
+	"\x18tunnel_capacity_adaptive\x18\x0f \x01(\bR\x16tunnelCapacityAdaptive\x124\n" +
+	"\x16tunnel_admission_limit\x18\x10 \x01(\x03R\x14tunnelAdmissionLimit\x121\n" +
+	"\x15tunnel_streams_in_use\x18\x11 \x01(\x03R\x12tunnelStreamsInUse\x12'\n" +
+	"\x0fmemory_pressure\x18\x12 \x01(\tR\x0ememoryPressure\x12,\n" +
+	"\x12memory_usage_bytes\x18\x13 \x01(\x03R\x10memoryUsageBytes\x12,\n" +
+	"\x12memory_limit_bytes\x18\x14 \x01(\x03R\x10memoryLimitBytes\x12#\n" +
+	"\rmemory_source\x18\x15 \x01(\tR\fmemorySource\x12<\n" +
+	"\x1atunnel_pressure_rejections\x18\x16 \x01(\x04R\x18tunnelPressureRejections\x126\n" +
+	"\x17tunnel_limit_rejections\x18\x17 \x01(\x04R\x15tunnelLimitRejections\x122\n" +
+	"\x15file_descriptors_used\x18\x18 \x01(\x03R\x13fileDescriptorsUsed\x124\n" +
+	"\x16file_descriptors_limit\x18\x19 \x01(\x03R\x14fileDescriptorsLimit\x128\n" +
+	"\x18resource_pressure_reason\x18\x1a \x01(\tR\x16resourcePressureReason\x122\n" +
+	"\x15resource_sample_error\x18\x1b \x01(\tR\x13resourceSampleError\x12B\n" +
+	"\x1eresource_last_good_unix_millis\x18\x1c \x01(\x03R\x1aresourceLastGoodUnixMillis\"q\n" +
 	"\x12AgentStatsResponse\x12[\n" +
 	"\x17management_trust_update\x18\x01 \x01(\v2#.p2pstream.v1.ManagementTrustUpdateR\x15managementTrustUpdate\"\x93\x02\n" +
 	"\x1fManagementTlsCertificateSummary\x12\x16\n" +
@@ -23429,7 +23844,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12*\n" +
 	"\x04role\x18\x03 \x01(\x0e2\x16.p2pstream.v1.UserRoleR\x04role\"\x12\n" +
-	"\x10GetStatusRequest\"\xc7\x03\n" +
+	"\x10GetStatusRequest\"\xa6\t\n" +
 	"\x12AgentStatsSnapshot\x12\"\n" +
 	"\rmemory_sys_mb\x18\x01 \x01(\x03R\vmemorySysMb\x12#\n" +
 	"\rnum_goroutine\x18\x02 \x01(\x03R\fnumGoroutine\x12\x1f\n" +
@@ -23445,7 +23860,21 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x17reported_at_unix_millis\x18\n" +
 	" \x01(\x03R\x14reportedAtUnixMillis\x12\x1f\n" +
 	"\vcpu_percent\x18\v \x01(\x01R\n" +
-	"cpuPercent\"\xd3\x02\n" +
+	"cpuPercent\x128\n" +
+	"\x18tunnel_capacity_adaptive\x18\f \x01(\bR\x16tunnelCapacityAdaptive\x124\n" +
+	"\x16tunnel_admission_limit\x18\r \x01(\x03R\x14tunnelAdmissionLimit\x121\n" +
+	"\x15tunnel_streams_in_use\x18\x0e \x01(\x03R\x12tunnelStreamsInUse\x12'\n" +
+	"\x0fmemory_pressure\x18\x0f \x01(\tR\x0ememoryPressure\x12,\n" +
+	"\x12memory_usage_bytes\x18\x10 \x01(\x03R\x10memoryUsageBytes\x12,\n" +
+	"\x12memory_limit_bytes\x18\x11 \x01(\x03R\x10memoryLimitBytes\x12#\n" +
+	"\rmemory_source\x18\x12 \x01(\tR\fmemorySource\x12<\n" +
+	"\x1atunnel_pressure_rejections\x18\x13 \x01(\x04R\x18tunnelPressureRejections\x126\n" +
+	"\x17tunnel_limit_rejections\x18\x14 \x01(\x04R\x15tunnelLimitRejections\x122\n" +
+	"\x15file_descriptors_used\x18\x15 \x01(\x03R\x13fileDescriptorsUsed\x124\n" +
+	"\x16file_descriptors_limit\x18\x16 \x01(\x03R\x14fileDescriptorsLimit\x128\n" +
+	"\x18resource_pressure_reason\x18\x17 \x01(\tR\x16resourcePressureReason\x122\n" +
+	"\x15resource_sample_error\x18\x18 \x01(\tR\x13resourceSampleError\x12B\n" +
+	"\x1eresource_last_good_unix_millis\x18\x19 \x01(\x03R\x1aresourceLastGoodUnixMillis\"\xd3\x02\n" +
 	"\x11GetStatusResponse\x12#\n" +
 	"\rproxy_running\x18\x01 \x01(\bR\fproxyRunning\x12(\n" +
 	"\x10proxy_last_error\x18\x02 \x01(\tR\x0eproxyLastError\x12'\n" +
@@ -23501,7 +23930,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\n" +
 	"last_error\x18\x05 \x01(\tR\tlastError\x12L\n" +
 	"#passive_unhealthy_until_unix_millis\x18\x06 \x01(\x03R\x1fpassiveUnhealthyUntilUnixMillis\x12'\n" +
-	"\x0factive_requests\x18\a \x01(\x03R\x0eactiveRequests\"\x9e\x06\n" +
+	"\x0factive_requests\x18\a \x01(\x03R\x0eactiveRequests\"\x9d\a\n" +
 	"\x05Agent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tpublic_id\x18\x02 \x01(\tR\bpublicId\x12\x12\n" +
@@ -23519,7 +23948,9 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\aversion\x18\r \x01(\tR\aversion\x12\x16\n" +
 	"\x06commit\x18\x0e \x01(\tR\x06commit\x12I\n" +
 	"!advertised_max_concurrent_streams\x18\x0f \x01(\x03R\x1eadvertisedMaxConcurrentStreams\x12I\n" +
-	"!negotiated_max_concurrent_streams\x18\x10 \x01(\x03R\x1enegotiatedMaxConcurrentStreams\x1a9\n" +
+	"!negotiated_max_concurrent_streams\x18\x10 \x01(\x03R\x1enegotiatedMaxConcurrentStreams\x128\n" +
+	"\x18tunnel_capacity_adaptive\x18\x11 \x01(\bR\x16tunnelCapacityAdaptive\x12C\n" +
+	"\x1ecurrent_tunnel_admission_limit\x18\x12 \x01(\x03R\x1bcurrentTunnelAdmissionLimit\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xac\x01\n" +
@@ -25134,7 +25565,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x04rule\x18\x01 \x01(\v2\x1d.p2pstream.v1.PublicRetryRuleR\x04rule\".\n" +
 	"\x1cDeletePublicRetryRuleRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1f\n" +
-	"\x1dDeletePublicRetryRuleResponse\"\xc2\f\n" +
+	"\x1dDeletePublicRetryRuleResponse\"\xb7\x15\n" +
 	"\x1aAgentStreamCapacitySummary\x12%\n" +
 	"\x0etotal_capacity\x18\x01 \x01(\x03R\rtotalCapacity\x12 \n" +
 	"\ftotal_in_use\x18\x02 \x01(\x03R\n" +
@@ -25167,7 +25598,27 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x11fallback_attempts\x18\x1b \x01(\x04R\x10fallbackAttempts\x12-\n" +
 	"\x12fallback_recovered\x18\x1c \x01(\x04R\x11fallbackRecovered\x12'\n" +
 	"\x0ffallback_failed\x18\x1d \x01(\x04R\x0efallbackFailed\x12<\n" +
-	"\x1aterminal_capacity_failures\x18\x1e \x01(\x04R\x18terminalCapacityFailures\x1aN\n" +
+	"\x1aterminal_capacity_failures\x18\x1e \x01(\x04R\x18terminalCapacityFailures\x12\x1a\n" +
+	"\badaptive\x18\x1f \x01(\bR\badaptive\x128\n" +
+	"\x18adaptive_admission_limit\x18  \x01(\x03R\x16adaptiveAdmissionLimit\x12'\n" +
+	"\x0fmemory_pressure\x18! \x01(\tR\x0ememoryPressure\x12*\n" +
+	"\x11memory_used_bytes\x18\" \x01(\x03R\x0fmemoryUsedBytes\x12,\n" +
+	"\x12memory_limit_bytes\x18# \x01(\x03R\x10memoryLimitBytes\x12#\n" +
+	"\rmemory_source\x18$ \x01(\tR\fmemorySource\x12@\n" +
+	"\x1dmemory_headroom_to_hard_bytes\x18% \x01(\x03R\x19memoryHeadroomToHardBytes\x122\n" +
+	"\x15file_descriptors_used\x18& \x01(\x03R\x13fileDescriptorsUsed\x124\n" +
+	"\x16file_descriptors_limit\x18' \x01(\x03R\x14fileDescriptorsLimit\x128\n" +
+	"\x18resource_pressure_reason\x18( \x01(\tR\x16resourcePressureReason\x122\n" +
+	"\x15resource_sample_error\x18) \x01(\tR\x13resourceSampleError\x12B\n" +
+	"\x1eresource_last_good_unix_millis\x18* \x01(\x03R\x1aresourceLastGoodUnixMillis\x12?\n" +
+	"\x1cadaptive_raw_admission_limit\x18+ \x01(\x03R\x19adaptiveRawAdmissionLimit\x12E\n" +
+	"\x1fadaptive_public_admission_limit\x18, \x01(\x03R\x1cadaptivePublicAdmissionLimit\x126\n" +
+	"\x17adaptive_external_bytes\x18- \x01(\x03R\x15adaptiveExternalBytes\x12K\n" +
+	"\"adaptive_external_file_descriptors\x18. \x01(\x03R\x1fadaptiveExternalFileDescriptors\x12-\n" +
+	"\x12public_connections\x18/ \x01(\x03R\x11publicConnections\x12G\n" +
+	" public_connection_limit_rejected\x180 \x01(\x04R\x1dpublicConnectionLimitRejected\x12M\n" +
+	"#public_connection_resource_rejected\x181 \x01(\x04R publicConnectionResourceRejected\x12C\n" +
+	"\x1epublic_client_request_rejected\x182 \x01(\x04R\x1bpublicClientRequestRejected\x1aN\n" +
 	" AdmissionMissesByConstraintEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\x1aF\n" +

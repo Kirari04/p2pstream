@@ -114,6 +114,18 @@ func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult
 		}
 		ctx.deferCleanup(release)
 	}
+	if ctx.App != nil && ctx.App.publicClientRequests != nil {
+		dynamicLimit := int64(-1)
+		if limit, adaptive := ctx.App.agentStreamCapacity.adaptivePublicClientRequestLimit(); adaptive {
+			dynamicLimit = limit
+		}
+		release, ok := ctx.App.publicClientRequests.tryAcquire(remoteIPForRateLimit(ctx.Request), dynamicLimit)
+		if !ok {
+			ctx.App.publicClientRequestRejected.Add(1)
+			return rejectPublicRequestCapacity(ctx, "public_client_request_capacity", "Public client capacity reached")
+		}
+		ctx.deferCleanup(release)
+	}
 	if ctx.Request != nil && ctx.Request.ContentLength > publicRequestBodyLimit(ctx.App) {
 		return rejectPublicRequestBodyTooLarge(ctx)
 	}

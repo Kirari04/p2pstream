@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"p2pstream/internal/tunnel"
 )
 
 func TestSplitAgentAllowTargets(t *testing.T) {
@@ -17,6 +19,34 @@ func TestSplitAgentAllowTargets(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("splitAgentAllowTargets() = %#v, want %#v", got, want)
+	}
+}
+
+func TestAgentTunnelCapacityDefaultsToAdaptiveWhenLimitIsAbsent(t *testing.T) {
+	t.Setenv("TUNNEL_MAX_CONCURRENT_REQUESTS", "")
+	command := &cobra.Command{}
+	command.Flags().Int64("tunnel-max-concurrent-requests", tunnel.DefaultMaxConcurrentAgentRequests, "")
+
+	got, err := agentTunnelMaxConcurrentRequests(command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != tunnel.MaxConcurrentAgentRequestsLimit || !agentTunnelCapacityAdaptive(command) {
+		t.Fatalf("default capacity = %d adaptive=%t, want old-peer-safe %d adaptive", got, agentTunnelCapacityAdaptive(command), tunnel.MaxConcurrentAgentRequestsLimit)
+	}
+}
+
+func TestAgentTunnelCapacityExplicitValueRemainsFixed(t *testing.T) {
+	t.Setenv("TUNNEL_MAX_CONCURRENT_REQUESTS", "512")
+	command := &cobra.Command{}
+	command.Flags().Int64("tunnel-max-concurrent-requests", tunnel.DefaultMaxConcurrentAgentRequests, "")
+
+	got, err := agentTunnelMaxConcurrentRequests(command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 512 || agentTunnelCapacityAdaptive(command) {
+		t.Fatalf("explicit capacity = %d adaptive=%t, want 512 fixed", got, agentTunnelCapacityAdaptive(command))
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/db"
+	"p2pstream/internal/tunnel"
 )
 
 func TestPublicRouteTargetHealthCheckURLPreservesSchemeHostAndPort(t *testing.T) {
@@ -489,6 +490,38 @@ func TestAgentActiveHealthCheckServerCapacityIsSkippedWithoutChangingHealthyStat
 		trace.StatusBefore != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY ||
 		trace.StatusAfter != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY {
 		t.Fatalf("capacity-skipped health trace = %+v", trace)
+	}
+}
+
+func TestAgentActiveHealthCheckResourcePressureIsSkippedWithoutUnhealthyStreak(t *testing.T) {
+	app := NewApp(nil, nil)
+	backend := testHealthTarget(t, 107, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
+	backend.HealthCheck.UnhealthyThreshold = 1
+	agent, fake := newFakeYamuxAgent(t, 7, "agent-7")
+	fake.openResponse = func(tunnel.OpenRequest) tunnel.OpenResponse {
+		return tunnel.OpenResponse{OK: false, ErrorKind: "agent_resource_pressure", Error: "memory pressure is critical"}
+	}
+	if err := app.AgentHub.connect(agent); err != nil {
+		t.Fatalf("connect agent: %v", err)
+	}
+	defer app.AgentHub.disconnect(agent)
+
+	snap := testHealthSnapshot(backend)
+	snap.Agents[7] = publicAgentConfig{ID: 7, PublicID: "agent-7", Name: "Agent Seven", Enabled: true}
+	app.TargetHealth.reconcile(app, snap, false)
+	defer app.TargetHealth.reconcile(app, nil, false)
+
+	attempt := app.runPublicRouteTargetHealthCheckViaAgent(context.Background(), backend, agent)
+	if !attempt.Skipped || attempt.ErrorKind != "agent_resource_pressure" {
+		t.Fatalf("resource-pressure attempt skipped=%v errorKind=%q err=%v", attempt.Skipped, attempt.ErrorKind, attempt.Err)
+	}
+	app.TargetHealth.recordAgentExplicitCheck(backend.ID, agent.AgentID, attempt)
+
+	app.TargetHealth.mu.Lock()
+	state := app.TargetHealth.states[backend.ID].agentStates[agent.AgentID].state
+	app.TargetHealth.mu.Unlock()
+	if state.unhealthyStreak != 0 || state.explicitStatus != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_UNKNOWN {
+		t.Fatalf("state after resource-pressure skip = %+v, want no unhealthy streak and UNKNOWN", state)
 	}
 }
 

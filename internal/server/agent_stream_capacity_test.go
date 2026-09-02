@@ -338,7 +338,7 @@ func TestAgentStreamCapacityCancellationGrantRaceDoesNotLeak(t *testing.T) {
 	}
 }
 
-func TestAgentStreamCapacityReservesHeadroomForAnotherRegisteredSession(t *testing.T) {
+func TestAgentStreamCapacityBorrowsIdleHeadroomAndYieldsToWaitingSession(t *testing.T) {
 	manager := newTestAgentStreamCapacityManager(t, agentStreamCapacityConfig{
 		Total: 8, Public: 8, Pooled: 8,
 		MaxWaiters: 8, MaxWaitersPerKey: 4, MaxOpeningPerSession: 8,
@@ -363,7 +363,7 @@ func TestAgentStreamCapacityReservesHeadroomForAnotherRegisteredSession(t *testi
 
 	manager.registerSession("session-b")
 	leases = leases[:0]
-	for index := 0; index < 6; index++ {
+	for index := 0; index < 8; index++ {
 		lease, err := manager.tryAcquire(agentStreamCapacityPublicPooled, "route-a", "session-a")
 		if err != nil {
 			t.Fatalf("contended session acquire %d: %v", index, err)
@@ -373,15 +373,17 @@ func TestAgentStreamCapacityReservesHeadroomForAnotherRegisteredSession(t *testi
 		}
 		leases = append(leases, lease)
 	}
-	if _, err := manager.tryAcquire(agentStreamCapacityPublicPooled, "route-a", "session-a"); !errors.Is(err, errAgentStreamCapacitySessionBudget) {
-		t.Fatalf("seventh contended session acquire = %v, want session budget", err)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	waiting := acquireAgentStreamAsync(manager, ctx, agentStreamCapacityPublicPooled, "route-b", "session-b")
+	waitForAgentStreamCapacityWaiters(t, manager, 1)
+	leases[0].release()
+	other := receiveAgentStreamResult(t, waiting)
+	if other.err != nil || other.lease == nil {
+		t.Fatalf("waiting session did not receive released capacity: %+v", other)
 	}
-	other, err := manager.tryAcquire(agentStreamCapacityPublicPooled, "route-b", "session-b")
-	if err != nil {
-		t.Fatalf("reserved capacity unavailable to second session: %v", err)
-	}
-	other.release()
-	for _, lease := range leases {
+	other.lease.release()
+	for _, lease := range leases[1:] {
 		lease.release()
 	}
 	assertAgentStreamCapacityClean(t, manager)

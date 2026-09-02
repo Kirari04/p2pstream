@@ -381,6 +381,20 @@ message AgentStatsRequest {
   ManagementTrustStatus management_trust_status = 12;
   string agent_version = 13;
   string agent_commit = 14;
+  bool tunnel_capacity_adaptive = 15;
+  int64 tunnel_admission_limit = 16;
+  int64 tunnel_streams_in_use = 17;
+  string memory_pressure = 18;
+  int64 memory_usage_bytes = 19;
+  int64 memory_limit_bytes = 20;
+  string memory_source = 21;
+  uint64 tunnel_pressure_rejections = 22;
+  uint64 tunnel_limit_rejections = 23;
+  int64 file_descriptors_used = 24;
+  int64 file_descriptors_limit = 25;
+  string resource_pressure_reason = 26;
+  string resource_sample_error = 27;
+  int64 resource_last_good_unix_millis = 28;
 }
 
 message AgentStatsResponse {
@@ -523,6 +537,20 @@ message AgentStatsSnapshot {
   int32 active_requests = 9;
   int64 reported_at_unix_millis = 10;
   double cpu_percent = 11;
+  bool tunnel_capacity_adaptive = 12;
+  int64 tunnel_admission_limit = 13;
+  int64 tunnel_streams_in_use = 14;
+  string memory_pressure = 15;
+  int64 memory_usage_bytes = 16;
+  int64 memory_limit_bytes = 17;
+  string memory_source = 18;
+  uint64 tunnel_pressure_rejections = 19;
+  uint64 tunnel_limit_rejections = 20;
+  int64 file_descriptors_used = 21;
+  int64 file_descriptors_limit = 22;
+  string resource_pressure_reason = 23;
+  string resource_sample_error = 24;
+  int64 resource_last_good_unix_millis = 25;
 }
 
 message GetStatusResponse {
@@ -611,6 +639,8 @@ message Agent {
   string commit = 14;
   int64 advertised_max_concurrent_streams = 15;
   int64 negotiated_max_concurrent_streams = 16;
+  bool tunnel_capacity_adaptive = 17;
+  int64 current_tunnel_admission_limit = 18;
 }
 
 message PublicAgentSelector {
@@ -2660,6 +2690,26 @@ message AgentStreamCapacitySummary {
   uint64 fallback_recovered = 28;
   uint64 fallback_failed = 29;
   uint64 terminal_capacity_failures = 30;
+  bool adaptive = 31;
+  int64 adaptive_admission_limit = 32;
+  string memory_pressure = 33;
+  int64 memory_used_bytes = 34;
+  int64 memory_limit_bytes = 35;
+  string memory_source = 36;
+  int64 memory_headroom_to_hard_bytes = 37;
+  int64 file_descriptors_used = 38;
+  int64 file_descriptors_limit = 39;
+  string resource_pressure_reason = 40;
+  string resource_sample_error = 41;
+  int64 resource_last_good_unix_millis = 42;
+  int64 adaptive_raw_admission_limit = 43;
+  int64 adaptive_public_admission_limit = 44;
+  int64 adaptive_external_bytes = 45;
+  int64 adaptive_external_file_descriptors = 46;
+  int64 public_connections = 47;
+  uint64 public_connection_limit_rejected = 48;
+  uint64 public_connection_resource_rejected = 49;
+  uint64 public_client_request_rejected = 50;
 }
 
 service AgentManagementService {

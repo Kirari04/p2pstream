@@ -23,6 +23,7 @@ import (
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 	"p2pstream/internal/tunnel"
+	"p2pstream/stats"
 )
 
 func TestRandomAgentPublicIDFormatAndUniqueness(t *testing.T) {
@@ -158,6 +159,83 @@ func TestAgentProtoReportsLiveNegotiatedTunnelCapacity(t *testing.T) {
 	got := app.agentToProto(context.Background(), agent)
 	if got.AdvertisedMaxConcurrentStreams != 512 || got.NegotiatedMaxConcurrentStreams != 256 {
 		t.Fatalf("reported capacity = advertised %d negotiated %d, want 512/256", got.AdvertisedMaxConcurrentStreams, got.NegotiatedMaxConcurrentStreams)
+	}
+}
+
+func TestAgentProtoDoesNotReusePreConnectionCapacityHeartbeat(t *testing.T) {
+	app := NewApp(nil, nil)
+	connectedAt := time.Now()
+	conn := &AgentConn{AgentID: 77, PublicID: "reconnected", Done: make(chan struct{}), ConnectedAt: connectedAt, AdaptiveCapacity: true}
+	if err := app.AgentHub.connect(conn); err != nil {
+		t.Fatal(err)
+	}
+	defer app.AgentHub.disconnect(conn)
+	app.storeLatestAgentStats(conn.AgentID, stats.AgentStats{
+		Timestamp:              connectedAt.Add(-time.Minute),
+		TunnelCapacityAdaptive: false,
+		TunnelAdmissionLimit:   64,
+		MemoryPressure:         "healthy",
+	})
+	agent := db.Agent{ID: conn.AgentID, PublicID: conn.PublicID, CreatedAt: connectedAt, UpdatedAt: connectedAt}
+	if got := app.agentToProto(context.Background(), agent); got.LatestStats != nil {
+		t.Fatalf("pre-connection heartbeat leaked into new adaptive session: %+v", got.LatestStats)
+	}
+
+	app.storeLatestAgentStats(conn.AgentID, stats.AgentStats{
+		Timestamp:              connectedAt.Add(time.Second),
+		TunnelCapacityAdaptive: true,
+		TunnelAdmissionLimit:   512,
+		MemoryPressure:         "healthy",
+	})
+	if got := app.agentToProto(context.Background(), agent); got.LatestStats == nil || got.LatestStats.TunnelAdmissionLimit != 512 {
+		t.Fatalf("current-session heartbeat missing: %+v", got.LatestStats)
+	}
+}
+
+func TestReportStatsPublishesAdaptivePressureWithoutChangingNegotiatedGuard(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-adaptive-report", "Adaptive Reporter", "adaptive-token")
+	conn := agentRegistryTestConn(agent)
+	conn.AdvertisedMaxConcurrentStreams = tunnel.MaxConcurrentAgentRequestsLimit
+	conn.NegotiatedMaxConcurrentStreams = tunnel.MaxAdaptiveConcurrentStreamsLimit
+	conn.AdaptiveCapacity = true
+	conn.CurrentAdmissionLimit.Store(tunnel.MaxAdaptiveConcurrentStreamsLimit)
+	if err := app.AgentHub.connect(conn); err != nil {
+		t.Fatalf("connect agent: %v", err)
+	}
+	t.Cleanup(func() { app.AgentHub.disconnect(conn) })
+
+	req := connect.NewRequest(&p2pstreamv1.AgentStatsRequest{
+		AgentPublicId:              agent.PublicID,
+		TunnelCapacityAdaptive:     true,
+		TunnelAdmissionLimit:       300,
+		TunnelStreamsInUse:         200,
+		MemoryPressure:             "critical",
+		MemoryUsageBytes:           470 << 20,
+		MemoryLimitBytes:           512 << 20,
+		MemorySource:               "cgroup_v2",
+		TunnelPressureRejections:   7,
+		FileDescriptorsUsed:        480,
+		FileDescriptorsLimit:       512,
+		ResourcePressureReason:     "file_descriptors",
+		ResourceSampleError:        "/attacker/controlled/path: unavailable",
+		ResourceLastGoodUnixMillis: time.Now().Add(-time.Minute).UnixMilli(),
+	})
+	req.Header().Set("Authorization", "Bearer adaptive-token")
+	if _, err := app.ReportStats(context.Background(), req); err != nil {
+		t.Fatalf("report adaptive stats: %v", err)
+	}
+
+	got := app.agentToProto(context.Background(), agent)
+	if !got.TunnelCapacityAdaptive || got.NegotiatedMaxConcurrentStreams != tunnel.MaxAdaptiveConcurrentStreamsLimit || got.CurrentTunnelAdmissionLimit != 0 {
+		t.Fatalf("adaptive agent proto = %+v", got)
+	}
+	if got.LatestStats == nil || got.LatestStats.MemoryPressure != "critical" || got.LatestStats.TunnelStreamsInUse != 200 || got.LatestStats.TunnelPressureRejections != 7 {
+		t.Fatalf("adaptive latest stats = %+v", got.LatestStats)
+	}
+	if got.LatestStats.FileDescriptorsUsed != 480 || got.LatestStats.FileDescriptorsLimit != 512 || got.LatestStats.ResourcePressureReason != "file_descriptors" || got.LatestStats.ResourceSampleError != "unavailable" || got.LatestStats.ResourceLastGoodUnixMillis <= 0 {
+		t.Fatalf("adaptive resource telemetry = %+v", got.LatestStats)
 	}
 }
 
@@ -827,6 +905,58 @@ func TestAgentTunnelNegotiatesAdvertisedCapacity(t *testing.T) {
 	}
 }
 
+func TestExplicitFixedServerCapacityUsesResourceCoveredYamuxWindow(t *testing.T) {
+	cfg := &config.Config{
+		ServerTunnelMaxConcurrentStreams: 256,
+		TunnelMaxStreamWindowBytes:       tunnel.DefaultMaxStreamWindowSizeBytes,
+		ServerTunnelEstimatedStreamBytes: tunnel.DefaultAdaptiveStreamChargeBytes,
+	}
+	got, err := effectiveServerTunnelStreamWindowBytes(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := tunnel.DefaultAdaptiveStreamChargeBytes - tunnel.AdaptivePerStreamOverheadBytes
+	if got != want {
+		t.Fatalf("fixed-mode Yamux receive window = %d, want resource-covered %d", got, want)
+	}
+}
+
+func TestAgentTunnelNegotiatesAdaptiveCapacityAtProtocolGuard(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(&config.Config{
+		ManagementUIDisabled:             true,
+		ServerTunnelMaxConcurrentStreams: tunnel.MaxServerConcurrentStreamsLimit,
+		ServerTunnelCapacityAuto:         true,
+	}, database)
+	agentRow := createAgentRegistryTestAgent(t, database, "agent-tunnel-adaptive", "Adaptive", "token")
+	mux := http.NewServeMux()
+	app.RegisterManagementRoutes(mux)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	session, conn, err := dialAgentRegistryTestTunnelWithCapacityMode(
+		server.URL,
+		agentRow.PublicID,
+		"token",
+		tunnel.MaxConcurrentAgentRequestsLimit,
+		tunnel.TunnelCapacityModeAdaptive,
+	)
+	if err != nil {
+		t.Fatalf("dial adaptive tunnel: %v", err)
+	}
+	defer conn.Close()
+	defer session.Close()
+	waitForAgentHubConnection(t, app, agentRow.ID, true)
+
+	connected := app.AgentHub.connectedByID(agentRow.ID)
+	if connected == nil || !connected.AdaptiveCapacity {
+		t.Fatalf("adaptive tunnel connection = %#v", connected)
+	}
+	if connected.NegotiatedMaxConcurrentStreams != tunnel.MaxAdaptiveConcurrentStreamsLimit || connected.CurrentAdmissionLimit.Load() != 0 {
+		t.Fatalf("adaptive capacity = negotiated %d current %d", connected.NegotiatedMaxConcurrentStreams, connected.CurrentAdmissionLimit.Load())
+	}
+}
+
 func TestAgentTunnelOldPeerGetsLegacySessionCapacity(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(&config.Config{ManagementUIDisabled: true, ServerTunnelMaxConcurrentStreams: 777}, database)
@@ -1177,6 +1307,10 @@ func dialAgentRegistryTestTunnel(serverURL string, publicID string, token string
 }
 
 func dialAgentRegistryTestTunnelWithCapacity(serverURL string, publicID string, token string, advertisedCapacity int64) (*yamux.Session, net.Conn, error) {
+	return dialAgentRegistryTestTunnelWithCapacityMode(serverURL, publicID, token, advertisedCapacity, "")
+}
+
+func dialAgentRegistryTestTunnelWithCapacityMode(serverURL string, publicID string, token string, advertisedCapacity int64, capacityMode string) (*yamux.Session, net.Conn, error) {
 	parsed, err := url.Parse(serverURL)
 	if err != nil {
 		return nil, nil, err
@@ -1189,13 +1323,18 @@ func dialAgentRegistryTestTunnelWithCapacity(serverURL string, publicID string, 
 	if advertisedCapacity > 0 {
 		capacityHeader = fmt.Sprintf("%s: %d\r\n", tunnel.TunnelMaxConcurrentStreamsHeader, advertisedCapacity)
 	}
+	capacityModeHeader := ""
+	if capacityMode != "" {
+		capacityModeHeader = fmt.Sprintf("%s: %s\r\n", tunnel.TunnelCapacityModeHeader, capacityMode)
+	}
 	req := fmt.Sprintf(
-		"GET %s HTTP/1.1\r\nHost: %s\r\nConnection: Upgrade\r\nUpgrade: %s\r\n%s: 1\r\n%sX-P2PStream-Agent-ID: %s\r\nAuthorization: Bearer %s\r\n\r\n",
+		"GET %s HTTP/1.1\r\nHost: %s\r\nConnection: Upgrade\r\nUpgrade: %s\r\n%s: 1\r\n%s%sX-P2PStream-Agent-ID: %s\r\nAuthorization: Bearer %s\r\n\r\n",
 		tunnel.BootstrapPath,
 		parsed.Host,
 		tunnel.UpgradeToken,
 		tunnel.TunnelVersionHeader,
 		capacityHeader,
+		capacityModeHeader,
 		publicID,
 		token,
 	)
