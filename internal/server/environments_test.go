@@ -678,9 +678,9 @@ func TestAgentEnvironmentProxyDiscoversAndPinsCertificate(t *testing.T) {
 	if _, err := proxyClient.GetPublicProxyConfig(ctx, publicConfigReq); err != nil {
 		t.Fatalf("trusted agent environment proxy GetPublicProxyConfig: %v", err)
 	}
-	fake.waitOpenRequestCount(t, proxyOpenCount+1)
-	if got := localApp.AgentTransports.len(); got != 1 {
-		t.Fatalf("environment agent transport pool len = %d, want 1", got)
+	fake.waitOpenRequestCount(t, proxyOpenCount+2)
+	if got := localApp.AgentTransports.len(); got != 0 {
+		t.Fatalf("environment agent transport pool len = %d, want 0 for one-shot requests", got)
 	}
 
 	retrustReq := connect.NewRequest(&p2pstreamv1.TrustEnvironmentCertificateRequest{

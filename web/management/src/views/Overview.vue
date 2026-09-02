@@ -49,6 +49,7 @@ const windowLabels = ["5m", "1h", "24h", "30d"];
 const dashboardValue = computed(() => dashboard?.value ?? null);
 const config = computed(() => publicProxyConfig?.value ?? null);
 const status = computed(() => dashboardValue.value?.status ?? null);
+const agentStreamCapacity = computed(() => dashboardValue.value?.agentStreamCapacity ?? null);
 const generatedAt = computed(() => dashboardValue.value?.generatedAtUnixMillis ?? BigInt(Date.now()));
 const selectedWindow = computed(() => windowByLabel(dashboardValue.value, selectedWindowLabel.value));
 const allWindows = computed(() => dashboardValue.value?.windows ?? []);
@@ -303,6 +304,15 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
           <dt>Agents</dt>
           <dd>{{ connectedAgents }}/{{ enabledAgents }}</dd>
           <small>{{ agentsMetricSubline() }}</small>
+        </div>
+        <div>
+          <dt>Tunnel streams</dt>
+          <dd>{{ formatNumber(agentStreamCapacity?.totalInUse) }}/{{ formatNumber(agentStreamCapacity?.totalCapacity) }}</dd>
+          <small>
+            pooled {{ formatNumber(agentStreamCapacity?.pooledInUse) }}/{{ formatNumber(agentStreamCapacity?.pooledCapacity) }}
+            · {{ formatNumber(agentStreamCapacity?.closing) }} closing
+            · {{ formatNumber(agentStreamCapacity?.waiters) }} waiting
+          </small>
         </div>
       </dl>
     </section>

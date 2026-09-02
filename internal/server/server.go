@@ -172,7 +172,7 @@ type App struct {
 	publicAccessLoginNonces         *publicAccessLoginNonceStore
 	agentAuthLocks                  *agentAuthLockMap
 	agentProxyRequests              *tunnel.StreamLimiter
-	agentTunnelStreams              *tunnel.StreamLimiter
+	agentStreamCapacity             *agentStreamCapacityManager
 	publicProxyRequests             *requestCapacityLimiter
 	publicTargetRequests            *keyedRequestCapacityLimiter
 	retryReplayBudget               *retryReplayBudget
@@ -260,7 +260,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
 		agentProxyRequests:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
-		agentTunnelStreams:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
+		agentStreamCapacity: mustNewDefaultAgentStreamCapacityManager(cfg.TunnelMaxConcurrentRequests),
 		publicProxyRequests: newRequestCapacityLimiter(cfg.PublicMaxConcurrentRequests, defaultPublicMaxConcurrentRequests),
 		publicTargetRequests: newKeyedRequestCapacityLimiter(
 			cfg.PublicMaxConcurrentPerTarget,
@@ -632,8 +632,17 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			log.Warn().Err(err).Msg("Failed to insert connection into DB")
 		}
 	}
+	sessionCapacityKey := agentStreamCapacitySessionKey(agent, session)
+	if a.agentStreamCapacity != nil {
+		// Register before publishing through AgentHub so a selected connection
+		// can never receive the unregistered single-session allowance.
+		a.agentStreamCapacity.registerSession(sessionCapacityKey)
+	}
 	displaced, err := a.AgentHub.replace(agent)
 	if err != nil {
+		if a.agentStreamCapacity != nil {
+			a.agentStreamCapacity.unregisterSession(sessionCapacityKey)
+		}
 		_ = session.Close()
 		if a.DB != nil && agent.ConnectionDBID > 0 {
 			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
@@ -686,6 +695,9 @@ func (a *App) cleanupAgentConnection(agent *AgentConn) bool {
 	if a.AgentHub != nil {
 		disconnected = a.AgentHub.disconnect(agent)
 	}
+	if a.agentStreamCapacity != nil && agent.Session != nil {
+		a.agentStreamCapacity.unregisterSession(agentStreamCapacitySessionKey(agent, agent.Session))
+	}
 	if hook := a.agentDisconnectAfterHubRemoval; hook != nil {
 		hook(agent, disconnected)
 	}
@@ -715,6 +727,9 @@ func (a *App) retireDisplacedAgentConnection(agent *AgentConn) {
 		Msg("Replacing existing agent tunnel with newer authenticated connection")
 	if a.AgentTransports != nil {
 		a.AgentTransports.closeAgentConnection(agent)
+	}
+	if a.agentStreamCapacity != nil && agent.Session != nil {
+		a.agentStreamCapacity.unregisterSession(agentStreamCapacitySessionKey(agent, agent.Session))
 	}
 	agent.signalDone()
 	if agent.Session != nil {
