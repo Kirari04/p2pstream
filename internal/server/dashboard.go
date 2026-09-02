@@ -399,6 +399,7 @@ func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstre
 		StatusClasses:          statusClasses,
 		TrafficBuckets:         trafficBuckets,
 		ManagementSecurity:     a.managementSecurity(),
+		AgentStreamCapacity:    a.dashboardAgentStreamCapacitySummary(),
 		AgentUptimeSummaries:   agentUptimeSummaries,
 		RecentAgentConnections: recentAgentConnections,
 	}

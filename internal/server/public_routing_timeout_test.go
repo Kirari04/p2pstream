@@ -90,7 +90,7 @@ func TestAgentProxyRelaysThroughYamuxTunnel(t *testing.T) {
 	}
 }
 
-func TestAgentProxyRequestCapacityRejectsBeforeOpeningStream(t *testing.T) {
+func TestAgentProxyLogicalRequestCapacityRejectsBeforeOpeningStream(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Error("capacity-rejected request unexpectedly reached upstream")
 	}))
@@ -100,37 +100,54 @@ func TestAgentProxyRequestCapacityRejectsBeforeOpeningStream(t *testing.T) {
 	app.agentProxyRequests = newAgentRequestLimiter(1)
 	release, ok := app.agentProxyRequests.TryAcquire()
 	if !ok {
-		t.Fatal("failed to occupy the only agent request slot")
+		t.Fatal("failed to occupy the only logical agent request slot")
 	}
 	defer release()
-	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
-		t.Fatal("agent was unavailable before capacity rejection")
-	}
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "http://public.test/at-capacity", nil)
-	proxyAgentTargetForTest(app, rec, req, target, agent)
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("capacity response = status %d body %q, want 503", rec.Code, rec.Body.String())
+	proxyAgentTargetForTest(app, rec, httptest.NewRequest(http.MethodGet, "http://public.test/at-capacity", nil), target, agent)
+	if rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Retry-After") != "1" {
+		t.Fatalf("capacity response = status %d retry-after %q body %q, want 503/1", rec.Code, rec.Header().Get("Retry-After"), rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "Agent tunnel capacity reached") {
-		t.Fatalf("capacity response body = %q, want capacity error", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "Agent request capacity reached") {
+		t.Fatalf("capacity response body = %q, want logical capacity error", rec.Body.String())
 	}
-	fake.mu.Lock()
-	openRequests := fake.openRequests
-	fake.mu.Unlock()
-	if openRequests != 0 || app.agentTunnelStreams.InUse() != 0 {
-		t.Fatalf("capacity rejection opened tunnel state = requests %d/streams %d, want 0/0", openRequests, app.agentTunnelStreams.InUse())
-	}
-	if got := agent.ActiveRequests.Load(); got != 0 {
-		t.Fatalf("agent active requests after capacity rejection = %d, want 0", got)
+	if fake.openRequestCount() != 0 || app.agentStreamCapacity.snapshot().Total.InUse != 0 || agent.ActiveRequests.Load() != 0 {
+		t.Fatalf("logical rejection opened tunnel state: opens=%d snapshot=%+v active=%d", fake.openRequestCount(), app.agentStreamCapacity.snapshot(), agent.ActiveRequests.Load())
 	}
 	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
-		t.Fatal("local request capacity rejection changed passive agent health")
+		t.Fatal("local logical capacity rejection changed passive agent health")
 	}
-	traces, _ := app.TargetHealth.listHealthTraces(target.ID, agent.AgentID, 10, false)
-	if len(traces) != 0 {
-		t.Fatalf("capacity rejection recorded passive health traces: %+v", traces)
+}
+
+func TestAgentProxyPhysicalCapacityReturnsRetryAfterWithoutHealthPenalty(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("capacity-rejected request unexpectedly reached upstream")
+	}))
+	defer upstream.Close()
+
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	app.agentStreamCapacity = newOneStreamPublicCapacityManager(t)
+	holder := acquireAgentStreamForTest(t, app.agentStreamCapacity, agentStreamCapacityPublicOneShot, "holder", "other-session")
+	if !holder.markLive() {
+		t.Fatal("capacity holder did not become live")
+	}
+	defer holder.release()
+
+	rec := httptest.NewRecorder()
+	proxyAgentTargetForTest(app, rec, httptest.NewRequest(http.MethodGet, "http://public.test/at-capacity", nil), target, agent)
+	if rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Retry-After") != "1" {
+		t.Fatalf("physical capacity response = status %d retry-after %q body %q, want 503/1", rec.Code, rec.Header().Get("Retry-After"), rec.Body.String())
+	}
+	if fake.openRequestCount() != 0 || agent.ActiveRequests.Load() != 0 {
+		t.Fatalf("physical rejection opened request state: opens=%d active=%d", fake.openRequestCount(), agent.ActiveRequests.Load())
+	}
+	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
+		t.Fatal("local physical capacity rejection changed passive agent health")
+	}
+	stats := app.AgentTransports.stats()
+	if stats.FallbackAttempts != 0 || stats.FallbackRecovered != 0 || stats.FallbackFailed != 0 || stats.TerminalCapacityFailure != 1 {
+		t.Fatalf("terminal capacity stats = %+v, want one direct terminal failure", stats)
 	}
 }
 
@@ -143,14 +160,14 @@ func TestDialViaAgentStreamCapacityFollowsConnectionLifetime(t *testing.T) {
 	}
 
 	app := NewApp(nil, nil)
-	app.agentTunnelStreams = newAgentRequestLimiter(1)
+	app.agentStreamCapacity = newOneStreamPublicCapacityManager(t)
 	agent, fake := newFakeYamuxAgent(t, 7, "agent-stream-capacity-test")
 
 	first, err := app.dialViaAgent(context.Background(), agent, "tcp", origin.Host, "first")
 	if err != nil {
 		t.Fatalf("first dialViaAgent() error = %v", err)
 	}
-	if got := app.agentTunnelStreams.InUse(); got != 1 {
+	if got := app.agentStreamCapacity.snapshot().Total.InUse; got != 1 {
 		t.Fatalf("stream slots after first dial = %d, want 1", got)
 	}
 
@@ -171,25 +188,25 @@ func TestDialViaAgentStreamCapacityFollowsConnectionLifetime(t *testing.T) {
 	if err := first.Close(); err != nil {
 		t.Fatalf("close first connection again: %v", err)
 	}
-	waitForAgentTunnelStreams(t, app, 0)
+	waitForAgentStreamCapacityUsage(t, app, 0)
 
 	third, err := app.dialViaAgent(context.Background(), agent, "tcp", origin.Host, "third")
 	if err != nil {
 		t.Fatalf("third dialViaAgent() after release error = %v", err)
 	}
 	fake.waitOpenRequestCount(t, 2)
-	if got := app.agentTunnelStreams.InUse(); got != 1 {
+	if got := app.agentStreamCapacity.snapshot().Total.InUse; got != 1 {
 		t.Fatalf("stream slots after third dial = %d, want 1", got)
 	}
 	if err := third.Close(); err != nil {
 		t.Fatalf("close third connection: %v", err)
 	}
-	waitForAgentTunnelStreams(t, app, 0)
+	waitForAgentStreamCapacityUsage(t, app, 0)
 }
 
 func TestDialViaAgentReleasesStreamCapacityAfterHandshakeFailure(t *testing.T) {
 	app := NewApp(nil, nil)
-	app.agentTunnelStreams = newAgentRequestLimiter(1)
+	app.agentStreamCapacity = newOneStreamPublicCapacityManager(t)
 	agent, _ := newFakeYamuxAgent(t, 7, "agent-stream-failure-test")
 
 	conn, err := app.dialViaAgent(context.Background(), agent, "tcp", "127.0.0.1:0", "failed")
@@ -201,7 +218,7 @@ func TestDialViaAgentReleasesStreamCapacityAfterHandshakeFailure(t *testing.T) {
 	if !errors.As(err, &dialErr) || dialErr.Kind != "dial_failed" {
 		t.Fatalf("failed dial error = %v, want dial_failed", err)
 	}
-	waitForAgentTunnelStreams(t, app, 0)
+	waitForAgentStreamCapacityUsage(t, app, 0)
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	defer upstream.Close()
@@ -216,7 +233,7 @@ func TestDialViaAgentReleasesStreamCapacityAfterHandshakeFailure(t *testing.T) {
 	if err := conn.Close(); err != nil {
 		t.Fatalf("close recovered connection: %v", err)
 	}
-	waitForAgentTunnelStreams(t, app, 0)
+	waitForAgentStreamCapacityUsage(t, app, 0)
 }
 
 func TestAgentProxyClientCancelBeforeFirstResponseDoesNotMarkPassiveFailure(t *testing.T) {
@@ -314,7 +331,7 @@ func TestAgentDialCanceledDelayedOpenRetainsCapacityUntilPeerFIN(t *testing.T) {
 	defer session.Close()
 
 	app := NewApp(nil, nil)
-	app.agentTunnelStreams = newAgentRequestLimiter(1)
+	app.agentStreamCapacity = newOneStreamPublicCapacityManager(t)
 	agent := &AgentConn{
 		AgentID:     7,
 		PublicID:    "agent-cancel-delayed-open",
@@ -333,14 +350,8 @@ func TestAgentDialCanceledDelayedOpenRetainsCapacityUntilPeerFIN(t *testing.T) {
 		errCh <- err
 	}()
 
-	deadline := time.Now().Add(2 * time.Second)
-	for len(agent.streamOpenAdmissionGate()) != 1 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
-	if got := len(agent.streamOpenAdmissionGate()); got != 1 {
-		t.Fatalf("open admission permits in use = %d, want 1", got)
-	}
-	if got := app.agentTunnelStreams.InUse(); got != 1 {
+	waitForAgentStreamCapacityState(t, app, agentStreamLeaseOpening, 1)
+	if got := app.agentStreamCapacity.snapshot().Total.InUse; got != 1 {
 		t.Fatalf("stream slots while Open is blocked = %d, want 1", got)
 	}
 
@@ -353,7 +364,7 @@ func TestAgentDialCanceledDelayedOpenRetainsCapacityUntilPeerFIN(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for cancelled dial")
 	}
-	if got := app.agentTunnelStreams.InUse(); got != 1 {
+	if got := app.agentStreamCapacity.snapshot().Total.InUse; got != 1 {
 		t.Fatalf("stream slots after caller cancellation = %d, want blocked Open to retain 1", got)
 	}
 
@@ -388,13 +399,13 @@ func TestAgentDialCanceledDelayedOpenRetainsCapacityUntilPeerFIN(t *testing.T) {
 	if _, err := peerStream.Read(buf[:]); !errors.Is(err, io.EOF) {
 		t.Fatalf("read delayed abandoned stream = %v, want EOF from local FIN", err)
 	}
-	if got := app.agentTunnelStreams.InUse(); got != 1 {
+	if got := app.agentStreamCapacity.snapshot().Total.InUse; got != 1 {
 		t.Fatalf("stream slots after local FIN = %d, want 1 until peer FIN", got)
 	}
 	if err := peerStream.Close(); err != nil {
 		t.Fatalf("close delayed peer stream: %v", err)
 	}
-	waitForAgentTunnelStreams(t, app, 0)
+	waitForAgentStreamCapacityUsage(t, app, 0)
 }
 
 func TestAgentStreamOpenDelayedSuccessAfterCancelClosesStream(t *testing.T) {
@@ -1063,16 +1074,38 @@ func waitForAgentActiveRequests(t *testing.T, agent *AgentConn, want int64) {
 	t.Fatalf("agent active requests = %d, want %d", agent.ActiveRequests.Load(), want)
 }
 
-func waitForAgentTunnelStreams(t *testing.T, app *App, want int) {
+func newOneStreamPublicCapacityManager(t *testing.T) *agentStreamCapacityManager {
+	t.Helper()
+	manager, err := newAgentStreamCapacityManager(agentStreamCapacityConfig{
+		Total: 1, Public: 1, Pooled: 0, Control: 0,
+		MaxWaiters: 1, MaxWaitersPerKey: 1, MaxOpeningPerSession: 1,
+	})
+	if err != nil {
+		t.Fatalf("new one-stream public capacity manager: %v", err)
+	}
+	return manager
+}
+
+func waitForAgentStreamCapacityState(t *testing.T, app *App, state agentStreamLeaseState, want int) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if got := app.agentTunnelStreams.InUse(); got == want {
+		snapshot := app.agentStreamCapacity.snapshot()
+		got := 0
+		switch state {
+		case agentStreamLeaseOpening:
+			got = snapshot.States.Opening
+		case agentStreamLeaseLive:
+			got = snapshot.States.Live
+		case agentStreamLeaseClosing:
+			got = snapshot.States.Closing
+		}
+		if got == want {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("agent tunnel streams = %d, want %d", app.agentTunnelStreams.InUse(), want)
+	t.Fatalf("agent stream states = %+v, want %s=%d", app.agentStreamCapacity.snapshot().States, state, want)
 }
 
 func withTrustedHTTPDefaultTransport(t *testing.T, cert *x509.Certificate) {

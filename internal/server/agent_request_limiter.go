@@ -21,15 +21,25 @@ func newAgentRequestLimiter(limit int64) *tunnel.StreamLimiter {
 // of a Yamux stream, including while an HTTP transport holds it idle.
 type agentTunnelStreamConn struct {
 	net.Conn
-	agent     *AgentConn
-	release   func()
-	readMu    sync.Mutex
-	closeOnce sync.Once
-	closeErr  error
+	agent       *AgentConn
+	markClosing func()
+	release     func()
+	readMu      sync.Mutex
+	closeOnce   sync.Once
+	closeErr    error
 }
 
 func newAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, release func()) net.Conn {
 	return &agentTunnelStreamConn{Conn: conn, agent: agent, release: release}
+}
+
+func newCapacityManagedAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, lease *agentStreamCapacityLease) net.Conn {
+	return &agentTunnelStreamConn{
+		Conn:        conn,
+		agent:       agent,
+		markClosing: func() { lease.markClosing() },
+		release:     func() { lease.release() },
+	}
 }
 
 func (c *agentTunnelStreamConn) Read(p []byte) (int, error) {
@@ -59,6 +69,9 @@ func agentConnectionEnded(agent *AgentConn) bool {
 
 func (c *agentTunnelStreamConn) Close() error {
 	c.closeOnce.Do(func() {
+		if c.markClosing != nil {
+			c.markClosing()
+		}
 		c.closeErr = c.Conn.Close()
 		if c.release != nil {
 			go c.releaseAfterStreamClosed()

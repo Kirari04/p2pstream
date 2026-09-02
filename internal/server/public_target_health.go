@@ -540,7 +540,7 @@ func (a *App) checkPublicTargetHealthViaAgent(parent context.Context, target pub
 
 func (a *App) runPublicRouteTargetHealthCheckViaAgent(parent context.Context, target publicRouteTargetHealthConfig, agent *AgentConn) publicRouteTargetHealthCheckAttempt {
 	attempt := newPublicRouteTargetHealthCheckAttempt(target)
-	attempt.DebugAttributes["transport"] = "agent_pool"
+	attempt.DebugAttributes["transport"] = "agent_health_one_shot"
 	defer finishPublicRouteTargetHealthCheckAttempt(&attempt)
 
 	if a == nil {
@@ -586,13 +586,15 @@ func (a *App) runPublicRouteTargetHealthCheckViaAgent(parent context.Context, ta
 
 	healthBackend := target
 	healthBackend.UpstreamResponseHeaderTimeout = timeout
-	client := &http.Client{Transport: a.agentTargetTransport(agent, publicRouteTargetConfigFromHealthTarget(healthBackend))}
+	client := &http.Client{Transport: a.agentTargetHealthTransport(agent, publicRouteTargetConfigFromHealthTarget(healthBackend))}
 	resp, err := client.Do(req)
 	if err != nil {
 		var dialErr agentDialError
 		switch {
 		case errors.Is(err, errAgentDisconnected):
 			attempt.fail("agent_disconnected", err)
+		case errors.As(err, &dialErr) && agentDialErrorIsLocalCapacity(dialErr):
+			attempt.skip(agentProxyErrorKind(err), err)
 		case errors.As(err, &dialErr):
 			kind := "agent_dial_failed"
 			if dialErr.Kind != "" {
@@ -811,7 +813,7 @@ func (m *publicRouteTargetHealthMonitor) recordAgentActiveCheckSkipped(targetID 
 	attempt.AgentID = agentID
 	attempt.ErrorKind = errorKind
 	attempt.Err = err
-	attempt.DebugAttributes["transport"] = "agent_pool"
+	attempt.DebugAttributes["transport"] = "agent_health_one_shot"
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	state := m.states[targetID]
