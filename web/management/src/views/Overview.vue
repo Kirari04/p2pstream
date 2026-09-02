@@ -349,7 +349,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
           <h3>No urgent signals</h3>
           <p>The proxy, enabled listeners, connected agents, and traffic policy checks look healthy.</p>
         </div>
-        <router-link to="/monitor/diagnostics" class="attention-row__action">
+        <router-link to="/monitor/diagnostics/overview" class="attention-row__action">
           Open diagnostics
           <ArrowRightIcon aria-hidden="true" />
         </router-link>
@@ -402,7 +402,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
             <p>Selected window plus last-hour error kinds.</p>
           </div>
           <div class="panel-actions">
-            <router-link to="/monitor/diagnostics" class="diagnostics-link">View diagnostics</router-link>
+            <router-link to="/monitor/diagnostics/overview" class="diagnostics-link">View diagnostics</router-link>
             <span class="signal-pill" :class="selectedWindow?.proxySlowRequests ? 'warn' : ''">
               {{ formatNumber(selectedWindow?.proxySlowRequests) }} slow
             </span>

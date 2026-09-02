@@ -15,7 +15,7 @@ const monitorSections = [
   {
     key: "diagnostics",
     label: "Diagnostics",
-    path: "/monitor/diagnostics",
+    path: "/monitor/diagnostics/overview",
   },
 ] as const;
 
@@ -39,6 +39,7 @@ async function selectSection(value: string | number) {
       type="line"
       animated
       :value="activeSection"
+      aria-label="Monitor sections"
       @update:value="selectSection"
     >
       <NTab

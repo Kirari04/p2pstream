@@ -979,8 +979,11 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 
 		errorKind := agentProxyErrorKind(attemptErr)
 		var localCapacityErr agentDialError
-		if errors.As(attemptErr, &localCapacityErr) && agentDialErrorIsLocalCapacity(localCapacityErr) && rt.app.AgentTransports != nil {
-			rt.app.AgentTransports.recordTerminalCapacityFailure()
+		if errors.As(attemptErr, &localCapacityErr) && agentDialErrorIsLocalCapacity(localCapacityErr) {
+			rt.app.logTerminalAgentStreamCapacityFailure(attemptErr, agent, rt.resolution.Target, rt.requestID)
+			if rt.app.AgentTransports != nil {
+				rt.app.AgentTransports.recordTerminalCapacityFailure()
+			}
 		}
 		rt.result.LastErrorKind = errorKind
 		if rt.result.FirstErrorKind == "" {

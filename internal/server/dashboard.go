@@ -202,6 +202,7 @@ func (a *App) GetDashboardDiagnostics(
 		RetryRules:            dashboardRetryRuleSummaries(retryRuleRows),
 		RetryFailedAgents:     dashboardRetryFailedAgentSummaries(retryAgentRows),
 		RetryErrorKinds:       dashboardRetryErrorKindSummaries(retryErrorRows),
+		AgentStreamCapacity:   a.dashboardAgentStreamCapacitySummary(),
 	}
 	return connect.NewResponse(resp), nil
 }

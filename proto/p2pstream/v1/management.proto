@@ -609,6 +609,8 @@ message Agent {
   map<string, string> labels = 12;
   string version = 13;
   string commit = 14;
+  int64 advertised_max_concurrent_streams = 15;
+  int64 negotiated_max_concurrent_streams = 16;
 }
 
 message PublicAgentSelector {
@@ -1108,6 +1110,10 @@ message UpdateAgentRequest {
   string name = 3;
   bool enabled = 4;
   map<string, string> labels = 5;
+  // Explicitly replaces user labels, including replacing them with an empty
+  // set. When false and labels is empty, existing labels are preserved so
+  // lifecycle-only updates cannot erase route selectors.
+  bool replace_labels = 6;
 }
 
 message UpdateAgentResponse {
@@ -2218,6 +2224,9 @@ message GetDashboardDiagnosticsResponse {
   repeated DashboardRetryRuleSummary retry_rules = 14;
   repeated DashboardRetryFailureSummary retry_failed_agents = 15;
   repeated DashboardRetryFailureSummary retry_error_kinds = 16;
+  // Live capacity state at generation time. Unlike the other diagnostics
+  // fields, this is not aggregated over the selected time window.
+  AgentStreamCapacitySummary agent_stream_capacity = 17;
 }
 
 message TrafficTraceSettings {

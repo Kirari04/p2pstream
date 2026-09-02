@@ -69,11 +69,11 @@ test("routes monitor traffic and diagnostics subpages", async ({ page }, testInf
   await expect(page.locator(".traffic-flow-shell")).toBeVisible();
 
   await page.locator(".monitor-tabs").getByText("Diagnostics", { exact: true }).click();
-  await expect(page).toHaveURL(/#\/monitor\/diagnostics$/);
+  await expect(page).toHaveURL(/#\/monitor\/diagnostics\/overview$/);
   await expect(monitorNav).toHaveClass(/app-nav__link--active/);
   await expect(page.getByRole("heading", { name: "Diagnostics", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Status Codes", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Recent Samples", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose an investigation lane", exact: true })).toBeVisible();
 });
 
 test("removed legacy traffic and diagnostics URLs show not found", async ({ page }, testInfo) => {
@@ -101,9 +101,9 @@ test("keeps traffic and diagnostics workflows contained on mobile", async ({ pag
   await expect(page.getByText(/Keyboard node list/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
-  await page.goto("/#/monitor/diagnostics");
+  await page.goto("/#/monitor/diagnostics/samples");
   await expect(page.getByRole("group", { name: "Diagnostics window" })).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Sample limit" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Recent Samples", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Loaded diagnostic sample limit" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Request samples", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

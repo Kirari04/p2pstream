@@ -29,7 +29,7 @@ describe("overviewAttention", () => {
     });
 
     expect(items.map((item) => item.key)).toEqual(["proxy-error", "listener-errors"]);
-    expect(items[0]?.actionRoute).toBe("/monitor/diagnostics");
+    expect(items[0]?.actionRoute).toBe("/monitor/diagnostics/overview");
     expect(items[0]?.severity).toBe("error");
     expect(items[0]?.detail.length).toBeLessThanOrEqual(280);
     expect(items[0]?.detail).not.toContain("\u202e");
