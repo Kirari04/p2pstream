@@ -4,8 +4,9 @@ import "p2pstream/internal/tunnel"
 
 const (
 	defaultAgentStreamCapacityControlStreams = 4
-	defaultAgentStreamCapacityWaiters        = 64
-	defaultAgentStreamCapacityWaitersPerKey  = 16
+	minimumAgentStreamCapacityWaiters        = 64
+	maximumAgentStreamCapacityWaiters        = 4096
+	maximumAgentStreamCapacityWaitersPerKey  = 512
 )
 
 // defaultAgentStreamCapacityConfig derives the server-side stream budgets from
@@ -14,8 +15,8 @@ const (
 // one-shot headroom, and public work can never consume the trusted health
 // reserve.
 func defaultAgentStreamCapacityConfig(total int64) agentStreamCapacityConfig {
-	if total < 1 || total > tunnel.MaxConcurrentAgentRequestsLimit {
-		total = tunnel.DefaultMaxConcurrentAgentRequests
+	if total < 1 || total > tunnel.MaxServerConcurrentStreamsLimit {
+		total = tunnel.DefaultServerMaxConcurrentStreams
 	}
 	totalStreams := int(total)
 	controlStreams := 0
@@ -24,8 +25,15 @@ func defaultAgentStreamCapacityConfig(total int64) agentStreamCapacityConfig {
 		if controlStreams < 1 {
 			controlStreams = 1
 		}
-		if controlStreams > defaultAgentStreamCapacityControlStreams {
-			controlStreams = defaultAgentStreamCapacityControlStreams
+		maximumControlStreams := totalStreams / 64
+		if maximumControlStreams < defaultAgentStreamCapacityControlStreams {
+			maximumControlStreams = defaultAgentStreamCapacityControlStreams
+		}
+		if maximumControlStreams > 64 {
+			maximumControlStreams = 64
+		}
+		if controlStreams > maximumControlStreams {
+			controlStreams = maximumControlStreams
 		}
 	}
 	publicStreams := totalStreams - controlStreams
@@ -36,8 +44,20 @@ func defaultAgentStreamCapacityConfig(total int64) agentStreamCapacityConfig {
 		pooledStreams = publicStreams - reservedOneShot
 		reservedPublicForOtherSessions = reservedOneShot
 	}
-	maxWaiters := defaultAgentStreamCapacityWaiters
-	maxWaitersPerKey := defaultAgentStreamCapacityWaitersPerKey
+	maxWaiters := totalStreams
+	if maxWaiters < minimumAgentStreamCapacityWaiters {
+		maxWaiters = minimumAgentStreamCapacityWaiters
+	}
+	if maxWaiters > maximumAgentStreamCapacityWaiters {
+		maxWaiters = maximumAgentStreamCapacityWaiters
+	}
+	maxWaitersPerKey := totalStreams / 4
+	if maxWaitersPerKey < 16 {
+		maxWaitersPerKey = 16
+	}
+	if maxWaitersPerKey > maximumAgentStreamCapacityWaitersPerKey {
+		maxWaitersPerKey = maximumAgentStreamCapacityWaitersPerKey
+	}
 	if maxWaitersPerKey > maxWaiters {
 		maxWaitersPerKey = maxWaiters
 	}
@@ -63,7 +83,7 @@ func mustNewDefaultAgentStreamCapacityManager(total int64) *agentStreamCapacityM
 		// The derived configuration is entirely internal and validated by unit
 		// tests. Keep construction total for embedded/test callers with an empty
 		// Config, matching the legacy limiter's behavior.
-		manager, _ = newAgentStreamCapacityManager(defaultAgentStreamCapacityConfig(tunnel.DefaultMaxConcurrentAgentRequests))
+		manager, _ = newAgentStreamCapacityManager(defaultAgentStreamCapacityConfig(tunnel.DefaultServerMaxConcurrentStreams))
 	}
 	return manager
 }

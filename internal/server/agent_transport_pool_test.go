@@ -295,7 +295,7 @@ func TestAgentTransportPoolIdleStreamUsesPooledBudgetAndOneShotHeadroom(t *testi
 	fake.waitOpenRequestCount(t, 3)
 }
 
-func TestAgentTransportPoolDefaultReservedHeadroomKeepsColdTargetAvailableAcrossFourAgents(t *testing.T) {
+func TestAgentTransportPoolReservedHeadroomKeepsColdTargetAvailableAcrossFourAgents(t *testing.T) {
 	suppressInfoLogsForTest(t)
 	releaseUpstream := make(chan struct{})
 	var releaseOnce sync.Once
@@ -309,6 +309,11 @@ func TestAgentTransportPoolDefaultReservedHeadroomKeepsColdTargetAvailableAcross
 	defer upstream.Close()
 
 	app, firstTarget, firstAgent, firstFake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
+	// Exercise the partition and cold-target fallback at the supported 64-stream
+	// floor. The production default is larger and is covered by the sustained
+	// 100 rps regression without making this exhaustive fill test four times
+	// slower.
+	app.agentStreamCapacity = mustNewDefaultAgentStreamCapacityManager(tunnel.DefaultMaxConcurrentAgentRequests)
 	agents := []*AgentConn{firstAgent}
 	fakes := []*fakeYamuxAgent{firstFake}
 	for index := 1; index < 4; index++ {
@@ -324,8 +329,9 @@ func TestAgentTransportPoolDefaultReservedHeadroomKeepsColdTargetAvailableAcross
 
 	initialCapacity := app.agentStreamCapacity.snapshot()
 	requestCount := initialCapacity.Public.Capacity
-	if requestCount != 60 || initialCapacity.Total.Capacity != int(tunnel.DefaultMaxConcurrentAgentRequests) || initialCapacity.Pooled.Capacity != 45 || initialCapacity.Control.Capacity != 4 {
-		t.Fatalf("default stream budgets = total=%d public=%d pooled=%d control=%d, want 64/60/45/4", initialCapacity.Total.Capacity, requestCount, initialCapacity.Pooled.Capacity, initialCapacity.Control.Capacity)
+	wantConfig := defaultAgentStreamCapacityConfig(tunnel.DefaultMaxConcurrentAgentRequests)
+	if requestCount != wantConfig.Public || initialCapacity.Total.Capacity != wantConfig.Total || initialCapacity.Pooled.Capacity != wantConfig.Pooled || initialCapacity.Control.Capacity != wantConfig.Control {
+		t.Fatalf("default stream budgets = total=%d public=%d pooled=%d control=%d, want %d/%d/%d/%d", initialCapacity.Total.Capacity, requestCount, initialCapacity.Pooled.Capacity, initialCapacity.Control.Capacity, wantConfig.Total, wantConfig.Public, wantConfig.Pooled, wantConfig.Control)
 	}
 	if requestCount%len(agents) != 0 {
 		t.Fatalf("request count %d is not divisible across %d agents", requestCount, len(agents))

@@ -65,6 +65,32 @@ func TestAgentStreamCapacityNestedBudgetsAndLifecycle(t *testing.T) {
 	assertAgentStreamCapacityClean(t, manager)
 }
 
+func TestAgentStreamCapacityEnforcesNegotiatedSessionLimit(t *testing.T) {
+	manager := newTestAgentStreamCapacityManager(t, agentStreamCapacityConfig{
+		Total: 8, Public: 7, Pooled: 5, Control: 1,
+		MaxWaiters: 8, MaxWaitersPerKey: 4, MaxOpeningPerSession: 8,
+	})
+	manager.registerSessionWithLimit("limited-session", 2)
+
+	first := acquireAgentStreamForTest(t, manager, agentStreamCapacityPublicOneShot, "first", "limited-session")
+	second := acquireAgentStreamForTest(t, manager, agentStreamCapacityTrustedHealth, "health", "limited-session")
+	if _, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "blocked", "limited-session"); !errors.Is(err, errAgentStreamCapacitySessionBudget) {
+		t.Fatalf("third acquire error = %v, want negotiated session budget", err)
+	}
+	snapshot := manager.snapshot()
+	if snapshot.TotalBySession["limited-session"] != 2 || snapshot.SessionLimits["limited-session"] != 2 {
+		t.Fatalf("negotiated session snapshot = %+v", snapshot)
+	}
+	if err := manager.validateInvariants(); err != nil {
+		t.Fatalf("negotiated session invariants: %v", err)
+	}
+
+	first.release()
+	second.release()
+	manager.unregisterSession("limited-session")
+	assertAgentStreamCapacityClean(t, manager)
+}
+
 func TestAgentStreamCapacityOneShotBorrowsUnusedPooledCapacity(t *testing.T) {
 	manager := newTestAgentStreamCapacityManager(t, agentStreamCapacityConfig{
 		Total: 5, Public: 4, Pooled: 2, Control: 1,

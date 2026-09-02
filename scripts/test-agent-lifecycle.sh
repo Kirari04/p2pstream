@@ -697,11 +697,6 @@ test_validation_failures() {
   fi
   assert_contains "${TEST_DIR}/window.err" "TUNNEL_MAX_STREAM_WINDOW_BYTES must be at least 262144"
 
-  if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" TUNNEL_MAX_STREAM_WINDOW_BYTES="67108864" TUNNEL_MAX_CONCURRENT_REQUESTS="9" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/aggregate.err"; then
-    fail "oversized aggregate tunnel window should fail"
-  fi
-  assert_contains "${TEST_DIR}/aggregate.err" "TUNNEL_MAX_STREAM_WINDOW_BYTES times TUNNEL_MAX_CONCURRENT_REQUESTS must be at most 536870912"
-
   if run_installer MANAGEMENT_URL="https://mgmt.example.test:8081" AGENT_ALLOW_TARGETS="myapp.internal:443" AGENT_CLEAR_ALLOW_TARGETS="true" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/allow-targets.err"; then
     fail "conflicting allow-target inputs should fail"
   fi

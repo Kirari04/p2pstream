@@ -14,6 +14,8 @@ const (
 	MaxStreamWindowSizeBytesLimit      = int64(64 * 1024 * 1024)
 	DefaultMaxConcurrentAgentRequests  = int64(64)
 	MaxConcurrentAgentRequestsLimit    = int64(2048)
+	DefaultServerMaxConcurrentStreams  = int64(256)
+	MaxServerConcurrentStreamsLimit    = int64(65536)
 	MaxAggregateStreamWindowBytesLimit = int64(512 * 1024 * 1024)
 )
 

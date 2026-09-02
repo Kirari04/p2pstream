@@ -244,14 +244,14 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 		}
 	})
 
-	t.Run("aggregate tunnel window budget rejected", func(t *testing.T) {
+	t.Run("large aggregate tunnel window allowed with explicit concurrency", func(t *testing.T) {
 		workDir := isolatedConfigTestDir(t)
 		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
 		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "67108864")
 		t.Setenv("TUNNEL_MAX_CONCURRENT_REQUESTS", "9")
 
-		if _, err := Load(); err == nil {
-			t.Fatal("expected aggregate tunnel receive-window budget to fail")
+		if _, err := Load(); err != nil {
+			t.Fatalf("explicit aggregate tunnel capacity rejected: %v", err)
 		}
 	})
 }
@@ -438,6 +438,9 @@ func isolatedConfigTestDir(t *testing.T) string {
 	unsetEnv(t, "PUBLIC_MAX_CONCURRENT_REQUESTS")
 	unsetEnv(t, "PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET")
 	unsetEnv(t, "PUBLIC_MAX_CONNECTIONS_PER_TARGET")
+	unsetEnv(t, "SERVER_TUNNEL_MAX_CONCURRENT_STREAMS")
+	unsetEnv(t, "SERVER_TUNNEL_MEMORY_PERCENT")
+	unsetEnv(t, "SERVER_TUNNEL_MEMORY_RESERVE_BYTES")
 	unsetEnv(t, "BOOTSTRAP_AGENT_ID")
 	unsetEnv(t, "BOOTSTRAP_AGENT_NAME")
 	unsetEnv(t, "BOOTSTRAP_AGENT_TOKEN")
