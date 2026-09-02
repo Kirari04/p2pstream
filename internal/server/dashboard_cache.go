@@ -159,11 +159,65 @@ func (a *App) emptyDashboardResponse(now time.Time) *p2pstreamv1.GetDashboardRes
 func (a *App) overlayDashboardLive(resp *p2pstreamv1.GetDashboardResponse, now time.Time) {
 	resp.Status = a.statusResponse()
 	resp.ManagementSecurity = a.managementSecurity()
+	resp.AgentStreamCapacity = a.dashboardAgentStreamCapacitySummary()
 	if resp.AgentConnections == nil {
 		resp.AgentConnections = &p2pstreamv1.AgentConnectionSummary{}
 	}
 	resp.AgentConnections.Connected = a.AgentHub.connectedCount() > 0
 	a.overlayDashboardAgentUptimeLive(resp, now.UTC())
+}
+
+func (a *App) dashboardAgentStreamCapacitySummary() *p2pstreamv1.AgentStreamCapacitySummary {
+	if a == nil || a.agentStreamCapacity == nil {
+		return &p2pstreamv1.AgentStreamCapacitySummary{}
+	}
+	snapshot := a.agentStreamCapacity.snapshot()
+	waitersByConstraint := make(map[string]int64, len(snapshot.WaitersByConstraint))
+	for constraint, count := range snapshot.WaitersByConstraint {
+		waitersByConstraint[constraint] = int64(count)
+	}
+	admissionMissesByConstraint := make(map[string]uint64, len(snapshot.AdmissionMissesByConstraint))
+	for constraint, count := range snapshot.AdmissionMissesByConstraint {
+		admissionMissesByConstraint[constraint] = count
+	}
+	pooledShards := 0
+	poolStats := agentTransportPoolStats{}
+	if a.AgentTransports != nil {
+		pooledShards = a.AgentTransports.len()
+		poolStats = a.AgentTransports.stats()
+	}
+	return &p2pstreamv1.AgentStreamCapacitySummary{
+		TotalCapacity:               int64(snapshot.Total.Capacity),
+		TotalInUse:                  int64(snapshot.Total.InUse),
+		PublicCapacity:              int64(snapshot.Public.Capacity),
+		PublicInUse:                 int64(snapshot.Public.InUse),
+		PooledCapacity:              int64(snapshot.Pooled.Capacity),
+		PooledInUse:                 int64(snapshot.Pooled.InUse),
+		HealthCapacity:              int64(snapshot.Control.Capacity),
+		HealthInUse:                 int64(snapshot.Control.InUse),
+		Opening:                     int64(snapshot.States.Opening),
+		Live:                        int64(snapshot.States.Live),
+		Closing:                     int64(snapshot.States.Closing),
+		Waiters:                     int64(snapshot.Waiters),
+		PublicWaiters:               int64(snapshot.WaitersByClass[agentStreamCapacityPublicPooled] + snapshot.WaitersByClass[agentStreamCapacityPublicOneShot]),
+		HealthWaiters:               int64(snapshot.WaitersByClass[agentStreamCapacityTrustedHealth]),
+		RegisteredSessions:          int64(snapshot.RegisteredSessions),
+		PooledTransportShards:       int64(pooledShards),
+		MaxSessionPublicInUse:       int64(snapshot.MaxSessionPublicInUse),
+		ContendedSessionPublicLimit: int64(snapshot.ContendedSessionPublicLimit),
+		OldestClosingAgeMillis:      snapshot.OldestClosingAgeMillis,
+		Granted:                     snapshot.Granted,
+		Released:                    snapshot.Released,
+		AdmissionMissesByConstraint: admissionMissesByConstraint,
+		WaitersByConstraint:         waitersByConstraint,
+		ReclaimAttempts:             poolStats.ReclaimAttempts,
+		ReclaimSuccesses:            poolStats.ReclaimSuccesses,
+		ReclaimNoCandidate:          poolStats.ReclaimNoCandidate,
+		FallbackAttempts:            poolStats.FallbackAttempts,
+		FallbackRecovered:           poolStats.FallbackRecovered,
+		FallbackFailed:              poolStats.FallbackFailed,
+		TerminalCapacityFailures:    poolStats.TerminalCapacityFailure,
+	}
 }
 
 func (a *App) overlayDashboardAgentUptimeLive(resp *p2pstreamv1.GetDashboardResponse, now time.Time) {

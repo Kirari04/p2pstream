@@ -59,6 +59,9 @@ func newAppServices(cfg *config.Config, app *App) appServices {
 		if app != nil && app.AgentTransports != nil {
 			app.AgentTransports.closeAgent(conn.AgentID)
 		}
+		if app != nil && app.agentStreamCapacity != nil && conn != nil && conn.Session != nil {
+			app.agentStreamCapacity.unregisterSession(agentStreamCapacitySessionKey(conn, conn.Session))
+		}
 	}
 	services.publicACME = newPublicACMEManager(app)
 	services.publicConfig = newPublicConfigService(app, app.DB, services.targetHealth, appPublicConfigRuntime{app: app})

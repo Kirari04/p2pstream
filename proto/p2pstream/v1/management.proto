@@ -2104,6 +2104,7 @@ message GetDashboardResponse {
   repeated AgentUptimeSummary agent_uptime_summaries = 14;
   repeated AgentConnectionSession recent_agent_connections = 15;
   repeated DashboardProxyDimensionSummary top_route_targets = 16;
+  AgentStreamCapacitySummary agent_stream_capacity = 17;
 }
 
 message GetDashboardDiagnosticsRequest {
@@ -2615,6 +2616,41 @@ message DeletePublicRetryRuleRequest {
 }
 
 message DeletePublicRetryRuleResponse {
+}
+
+message AgentStreamCapacitySummary {
+  int64 total_capacity = 1;
+  int64 total_in_use = 2;
+  int64 public_capacity = 3;
+  int64 public_in_use = 4;
+  int64 pooled_capacity = 5;
+  int64 pooled_in_use = 6;
+  int64 health_capacity = 7;
+  int64 health_in_use = 8;
+  int64 opening = 9;
+  int64 live = 10;
+  int64 closing = 11;
+  int64 waiters = 12;
+  int64 public_waiters = 13;
+  int64 health_waiters = 14;
+  int64 registered_sessions = 15;
+  int64 pooled_transport_shards = 16;
+  int64 max_session_public_in_use = 17;
+  int64 contended_session_public_limit = 18;
+  int64 oldest_closing_age_millis = 19;
+  uint64 granted = 20;
+  uint64 released = 21;
+  // Admission misses include recoverable pooled misses; they are not all
+  // terminal customer-visible failures.
+  map<string, uint64> admission_misses_by_constraint = 22;
+  map<string, int64> waiters_by_constraint = 23;
+  uint64 reclaim_attempts = 24;
+  uint64 reclaim_successes = 25;
+  uint64 reclaim_no_candidate = 26;
+  uint64 fallback_attempts = 27;
+  uint64 fallback_recovered = 28;
+  uint64 fallback_failed = 29;
+  uint64 terminal_capacity_failures = 30;
 }
 
 service AgentManagementService {
