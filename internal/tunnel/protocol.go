@@ -4,18 +4,35 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 )
 
 const (
 	ProtocolVersion = 1
 
-	BootstrapPath       = "/agent/tunnel"
-	UpgradeToken        = "p2pstream-yamux"
-	TunnelVersionHeader = "X-P2PStream-Tunnel-Version"
+	BootstrapPath                    = "/agent/tunnel"
+	UpgradeToken                     = "p2pstream-yamux"
+	TunnelVersionHeader              = "X-P2PStream-Tunnel-Version"
+	TunnelMaxConcurrentStreamsHeader = "X-P2PStream-Tunnel-Max-Concurrent-Streams"
 
 	MaxControlFrameBytes = 16 * 1024
 )
+
+// ParseOptionalMaxConcurrentStreams parses the optional capacity extension on
+// the HTTP upgrade handshake. An absent header is intentionally distinct from
+// a zero value so new peers remain compatible with protocol-v1 releases.
+func ParseOptionalMaxConcurrentStreams(value string, maximum int64) (int64, bool, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, false, nil
+	}
+	streams, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || streams < 1 || streams > maximum {
+		return 0, true, fmt.Errorf("invalid tunnel max concurrent streams %q: must be between 1 and %d", value, maximum)
+	}
+	return streams, true, nil
+}
 
 var (
 	ErrUnsupportedVersion = errors.New("unsupported tunnel protocol version")

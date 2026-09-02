@@ -34,6 +34,14 @@ var serverCmd = &cobra.Command{
 		}
 
 		logger.Init(cfg.Env)
+		log.Info().
+			Int64("max_concurrent_streams", cfg.ServerTunnelMaxConcurrentStreams).
+			Bool("automatic", cfg.ServerTunnelCapacityAuto).
+			Int64("detected_memory_bytes", cfg.ServerTunnelDetectedMemoryBytes).
+			Int64("stream_window_bytes", cfg.TunnelMaxStreamWindowBytes).
+			Int64("memory_percent", cfg.ServerTunnelMemoryPercent).
+			Int64("memory_reserve_bytes", cfg.ServerTunnelMemoryReserveBytes).
+			Msg("Configured server tunnel capacity")
 
 		database, err := db.Open(cfg.DatabaseURL)
 		if err != nil {

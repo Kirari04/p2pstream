@@ -218,7 +218,10 @@ func validateOptions(opts Options) error {
 	if parsed.Scheme != "https" && (hasClientCert || strings.TrimSpace(opts.ManagementCAFile) != "" || strings.TrimSpace(opts.ManagementCAPEMBase64) != "") {
 		return fmt.Errorf("agent TLS files require an https management URL")
 	}
-	if err := tunnel.ValidateAggregateStreamWindowBudget(opts.TunnelMaxStreamWindowBytes, opts.TunnelMaxConcurrentRequests); err != nil {
+	if _, err := tunnel.NormalizeMaxStreamWindowSizeBytes(opts.TunnelMaxStreamWindowBytes); err != nil {
+		return err
+	}
+	if _, err := tunnel.NormalizeMaxConcurrentAgentRequests(opts.TunnelMaxConcurrentRequests); err != nil {
 		return err
 	}
 	if _, err := newAgentDestinationPolicy(opts.AllowTargets, opts.AllowAnyTarget); err != nil {
@@ -707,6 +710,11 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	normalizedMaxConcurrentRequests, err := tunnel.NormalizeMaxConcurrentAgentRequests(maxConcurrentRequests)
+	if err != nil {
+		return fmt.Errorf("invalid tunnel request limit: %w", err)
+	}
+	maxConcurrentRequests = normalizedMaxConcurrentRequests
 	serveCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -720,6 +728,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", tunnel.UpgradeToken)
 	req.Header.Set(tunnel.TunnelVersionHeader, strconv.Itoa(tunnel.ProtocolVersion))
+	req.Header.Set(tunnel.TunnelMaxConcurrentStreamsHeader, strconv.FormatInt(maxConcurrentRequests, 10))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -741,6 +750,16 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = resp.Body.Close()
 		return fmt.Errorf("agent tunnel upgrade response header = %q", got)
 	}
+	negotiatedMaxConcurrentRequests := maxConcurrentRequests
+	if negotiated, present, err := tunnel.ParseOptionalMaxConcurrentStreams(
+		resp.Header.Get(tunnel.TunnelMaxConcurrentStreamsHeader),
+		tunnel.MaxConcurrentAgentRequestsLimit,
+	); err != nil {
+		_ = resp.Body.Close()
+		return fmt.Errorf("invalid agent tunnel negotiated capacity: %w", err)
+	} else if present && negotiated < negotiatedMaxConcurrentRequests {
+		negotiatedMaxConcurrentRequests = negotiated
+	}
 	rwc, ok := resp.Body.(io.ReadWriteCloser)
 	if !ok {
 		_ = resp.Body.Close()
@@ -758,14 +777,17 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	}
 	defer session.Close()
 
-	log.Info().Msg("Connected tunnel successfully")
+	log.Info().
+		Int64("advertised_max_streams", maxConcurrentRequests).
+		Int64("negotiated_max_streams", negotiatedMaxConcurrentRequests).
+		Msg("Connected tunnel successfully")
 
 	go func() {
 		<-serveCtx.Done()
 		_ = session.Close()
 	}()
 
-	if err := serveTunnelSessionWithPolicyAndLimit(serveCtx, session, destinationPolicy, maxConcurrentRequests); err != nil {
+	if err := serveTunnelSessionWithPolicyAndLimit(serveCtx, session, destinationPolicy, negotiatedMaxConcurrentRequests); err != nil {
 		log.Debug().Err(err).Msg("Tunnel session ended")
 		return err
 	}

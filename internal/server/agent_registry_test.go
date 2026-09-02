@@ -699,6 +699,84 @@ func TestAgentTunnelRejectsWrongVersion(t *testing.T) {
 	}
 }
 
+func TestAgentTunnelRejectsInvalidAdvertisedCapacity(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-tunnel-invalid-capacity", "Invalid Capacity", "token")
+
+	req := httptest.NewRequest(http.MethodGet, tunnel.BootstrapPath, nil)
+	req.Header.Set("X-P2PStream-Agent-ID", agent.PublicID)
+	req.Header.Set("Authorization", "Bearer token")
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", tunnel.UpgradeToken)
+	req.Header.Set(tunnel.TunnelVersionHeader, "1")
+	req.Header.Set(tunnel.TunnelMaxConcurrentStreamsHeader, "0")
+	rec := httptest.NewRecorder()
+	app.agentTunnelHandler(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid advertised capacity status = %d, want 400", rec.Code)
+	}
+}
+
+func TestAgentTunnelNegotiatesAdvertisedCapacity(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(&config.Config{ManagementUIDisabled: true, ServerTunnelMaxConcurrentStreams: 777}, database)
+	agentRow := createAgentRegistryTestAgent(t, database, "agent-tunnel-capacity", "Capacity", "token")
+	mux := http.NewServeMux()
+	app.RegisterManagementRoutes(mux)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	session, conn, err := dialAgentRegistryTestTunnelWithCapacity(server.URL, agentRow.PublicID, "token", 999)
+	if err != nil {
+		t.Fatalf("dial capacity tunnel: %v", err)
+	}
+	defer conn.Close()
+	defer session.Close()
+	waitForAgentHubConnection(t, app, agentRow.ID, true)
+
+	connected := app.AgentHub.connectedByID(agentRow.ID)
+	if connected == nil {
+		t.Fatal("capacity tunnel was not registered")
+	}
+	if connected.AdvertisedMaxConcurrentStreams != 999 || connected.NegotiatedMaxConcurrentStreams != 777 {
+		t.Fatalf("capacity negotiation = advertised %d negotiated %d, want 999/777", connected.AdvertisedMaxConcurrentStreams, connected.NegotiatedMaxConcurrentStreams)
+	}
+	snapshot := app.agentStreamCapacity.snapshot()
+	if len(snapshot.SessionLimits) != 1 {
+		t.Fatalf("negotiated session limits = %+v, want one entry", snapshot.SessionLimits)
+	}
+	for _, limit := range snapshot.SessionLimits {
+		if limit != 777 {
+			t.Fatalf("negotiated manager limit = %d, want 777", limit)
+		}
+	}
+}
+
+func TestAgentTunnelOldPeerGetsLegacySessionCapacity(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(&config.Config{ManagementUIDisabled: true, ServerTunnelMaxConcurrentStreams: 777}, database)
+	agentRow := createAgentRegistryTestAgent(t, database, "agent-tunnel-legacy-capacity", "Legacy Capacity", "token")
+	mux := http.NewServeMux()
+	app.RegisterManagementRoutes(mux)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	session, conn, err := dialAgentRegistryTestTunnel(server.URL, agentRow.PublicID, "token")
+	if err != nil {
+		t.Fatalf("dial legacy tunnel: %v", err)
+	}
+	defer conn.Close()
+	defer session.Close()
+	waitForAgentHubConnection(t, app, agentRow.ID, true)
+
+	connected := app.AgentHub.connectedByID(agentRow.ID)
+	if connected == nil || connected.AdvertisedMaxConcurrentStreams != tunnel.DefaultMaxConcurrentAgentRequests || connected.NegotiatedMaxConcurrentStreams != tunnel.DefaultMaxConcurrentAgentRequests {
+		t.Fatalf("legacy capacity negotiation = %#v, want %d", connected, tunnel.DefaultMaxConcurrentAgentRequests)
+	}
+}
+
 func TestAgentTunnelReplacesDuplicateConnection(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
@@ -1022,6 +1100,10 @@ func agentRegistryTestConn(agent db.Agent) *AgentConn {
 }
 
 func dialAgentRegistryTestTunnel(serverURL string, publicID string, token string) (*yamux.Session, net.Conn, error) {
+	return dialAgentRegistryTestTunnelWithCapacity(serverURL, publicID, token, 0)
+}
+
+func dialAgentRegistryTestTunnelWithCapacity(serverURL string, publicID string, token string, advertisedCapacity int64) (*yamux.Session, net.Conn, error) {
 	parsed, err := url.Parse(serverURL)
 	if err != nil {
 		return nil, nil, err
@@ -1030,12 +1112,17 @@ func dialAgentRegistryTestTunnel(serverURL string, publicID string, token string
 	if err != nil {
 		return nil, nil, err
 	}
+	capacityHeader := ""
+	if advertisedCapacity > 0 {
+		capacityHeader = fmt.Sprintf("%s: %d\r\n", tunnel.TunnelMaxConcurrentStreamsHeader, advertisedCapacity)
+	}
 	req := fmt.Sprintf(
-		"GET %s HTTP/1.1\r\nHost: %s\r\nConnection: Upgrade\r\nUpgrade: %s\r\n%s: 1\r\nX-P2PStream-Agent-ID: %s\r\nAuthorization: Bearer %s\r\n\r\n",
+		"GET %s HTTP/1.1\r\nHost: %s\r\nConnection: Upgrade\r\nUpgrade: %s\r\n%s: 1\r\n%sX-P2PStream-Agent-ID: %s\r\nAuthorization: Bearer %s\r\n\r\n",
 		tunnel.BootstrapPath,
 		parsed.Host,
 		tunnel.UpgradeToken,
 		tunnel.TunnelVersionHeader,
+		capacityHeader,
 		publicID,
 		token,
 	)
