@@ -13,6 +13,7 @@ import (
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/buildinfo"
+	"p2pstream/internal/sysmetrics"
 )
 
 type fakeAgentStatsReportClient struct {
@@ -37,6 +38,32 @@ func TestAgentStatsRequestIncludesBuildIdentity(t *testing.T) {
 	req := buildAgentStatsRequest("agent-build-test", nil)
 	if req.AgentVersion != buildinfo.Version || req.AgentCommit != buildinfo.Commit {
 		t.Fatalf("agent build identity = %q/%q, want %q/%q", req.AgentVersion, req.AgentCommit, buildinfo.Version, buildinfo.Commit)
+	}
+}
+
+func TestAgentStatsRequestIncludesAdaptiveCapacityAndRealMemorySignal(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "cgroup_v2"}
+	controller, err := sysmetrics.NewAdaptiveMemoryController(
+		sysmetrics.DefaultAdaptiveMemoryConfig(),
+		sysmetrics.MemoryUsageSamplerFunc(func() (sysmetrics.MemoryUsage, error) { return usage, nil }),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capacity := newAgentTunnelCapacityRuntime(2048, true, controller)
+	capacity.forceRefresh()
+	release, _, ok := capacity.tryAcquire()
+	if !ok {
+		t.Fatal("healthy adaptive capacity rejected test lease")
+	}
+	defer release()
+
+	req := buildAgentStatsRequestWithCapacity("agent-adaptive-stats", nil, nil, capacity)
+	if !req.TunnelCapacityAdaptive || req.TunnelAdmissionLimit <= 1 || req.TunnelStreamsInUse != 1 || req.MemoryPressure != "healthy" {
+		t.Fatalf("adaptive stats = %+v", req)
+	}
+	if req.MemoryUsageBytes != usage.UsedBytes || req.MemoryLimitBytes != usage.LimitBytes || req.MemorySource != usage.Source {
+		t.Fatalf("adaptive memory stats = used %d limit %d source %q", req.MemoryUsageBytes, req.MemoryLimitBytes, req.MemorySource)
 	}
 }
 

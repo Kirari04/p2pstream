@@ -66,6 +66,50 @@ type keyedRequestCapacityLimiter struct {
 	entries  map[int64]*requestCapacityLimiter
 }
 
+type keyedStringRequestCapacityLimiter struct {
+	mu       sync.Mutex
+	capacity int64
+	inUse    map[string]int64
+}
+
+func newKeyedStringRequestCapacityLimiter(capacity int64) *keyedStringRequestCapacityLimiter {
+	return &keyedStringRequestCapacityLimiter{capacity: capacity, inUse: make(map[string]int64)}
+}
+
+// tryAcquire applies the configured hard guard and, when non-negative, a
+// smaller live resource-derived fair share. Entries disappear at zero so
+// attacker-controlled client identities cannot grow the map permanently.
+func (l *keyedStringRequestCapacityLimiter) tryAcquire(key string, dynamicLimit int64) (func(), bool) {
+	if l == nil || l.capacity <= 0 {
+		return func() {}, true
+	}
+	limit := l.capacity
+	if dynamicLimit >= 0 && dynamicLimit < limit {
+		limit = dynamicLimit
+	}
+	if key == "" {
+		key = rateLimitMissingValue
+	}
+	l.mu.Lock()
+	if limit <= 0 || l.inUse[key] >= limit {
+		l.mu.Unlock()
+		return nil, false
+	}
+	l.inUse[key]++
+	l.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			l.mu.Lock()
+			l.inUse[key]--
+			if l.inUse[key] == 0 {
+				delete(l.inUse, key)
+			}
+			l.mu.Unlock()
+		})
+	}, true
+}
+
 func effectivePublicRequestCapacities(global, perTarget int64) (int64, int64) {
 	if global <= 0 {
 		global = defaultPublicMaxConcurrentRequests

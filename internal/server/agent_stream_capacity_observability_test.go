@@ -8,21 +8,13 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 func TestTerminalAgentStreamCapacityFailureLogReportsConstraintAndRateLimits(t *testing.T) {
 	var output bytes.Buffer
-	previousLogger := log.Logger
-	previousLevel := zerolog.GlobalLevel()
-	log.Logger = zerolog.New(&output)
-	zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	t.Cleanup(func() {
-		log.Logger = previousLogger
-		zerolog.SetGlobalLevel(previousLevel)
-	})
-
 	app := NewApp(nil, nil)
+	logger := zerolog.New(&output).Level(zerolog.WarnLevel)
+	app.agentCapacityLogger = &logger
 	agent := &AgentConn{
 		AgentID:                        17,
 		PublicID:                       "agent-safe-id",

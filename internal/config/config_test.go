@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"p2pstream/internal/tunnel"
 )
 
 func TestLoadDerivesDatabaseURLFromConfigDir(t *testing.T) {
@@ -98,6 +100,41 @@ func TestLoadSupportsDisablingManagementUI(t *testing.T) {
 	}
 }
 
+func TestLoadNarrowsNewFairnessDefaultsUnderExistingGlobalLimits(t *testing.T) {
+	workDir := isolatedConfigTestDir(t)
+	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+	t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS", "100")
+	t.Setenv("PUBLIC_MAX_CONCURRENT_CONNECTIONS", "80")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.PublicMaxConcurrentPerClient != 100 {
+		t.Fatalf("automatic per-client limit = %d, want global request limit 100", cfg.PublicMaxConcurrentPerClient)
+	}
+	if cfg.PublicMaxConnectionsPerPeer != 80 {
+		t.Fatalf("automatic per-peer limit = %d, want global connection limit 80", cfg.PublicMaxConnectionsPerPeer)
+	}
+}
+
+func TestLoadRejectsExplicitFairnessLimitsAboveGlobalLimits(t *testing.T) {
+	workDir := isolatedConfigTestDir(t)
+	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+	t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS", "100")
+	t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT", "101")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT") {
+		t.Fatalf("explicit per-client limit error = %v", err)
+	}
+
+	t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT", "100")
+	t.Setenv("PUBLIC_MAX_CONCURRENT_CONNECTIONS", "80")
+	t.Setenv("PUBLIC_MAX_CONNECTIONS_PER_PEER", "81")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "PUBLIC_MAX_CONNECTIONS_PER_PEER") {
+		t.Fatalf("explicit per-peer limit error = %v", err)
+	}
+}
+
 func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
@@ -133,8 +170,20 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if cfg.PublicMaxConcurrentRequests != 2048 || cfg.PublicMaxConcurrentPerTarget != 2048 || cfg.PublicMaxConnectionsPerTarget != 256 {
 		t.Fatalf("public capacity defaults = %d/%d/%d, want 2048/2048/256", cfg.PublicMaxConcurrentRequests, cfg.PublicMaxConcurrentPerTarget, cfg.PublicMaxConnectionsPerTarget)
 	}
+	if cfg.PublicMaxConcurrentPerClient != 512 {
+		t.Fatalf("PublicMaxConcurrentPerClient = %d, want 512", cfg.PublicMaxConcurrentPerClient)
+	}
+	if cfg.PublicMaxConcurrentConnections != 0 || cfg.PublicMaxConnectionsPerPeer != 256 {
+		t.Fatalf("public connection guards = %d/%d, want resource-governed global and 256 per peer", cfg.PublicMaxConcurrentConnections, cfg.PublicMaxConnectionsPerPeer)
+	}
 	if !cfg.PublicMaxConcurrentPerTargetAuto {
 		t.Fatal("PublicMaxConcurrentPerTargetAuto = false, want automatic default")
+	}
+	if !cfg.ServerTunnelCapacityAuto || cfg.ServerTunnelMaxConcurrentStreams != tunnel.MaxServerConcurrentStreamsLimit {
+		t.Fatalf("server adaptive capacity = automatic %t guard %d", cfg.ServerTunnelCapacityAuto, cfg.ServerTunnelMaxConcurrentStreams)
+	}
+	if cfg.ServerTunnelMemorySoftPercent != 80 || cfg.ServerTunnelMemoryHardPercent != 90 || cfg.ServerTunnelMemoryRecoveryPercent != 75 || cfg.ServerTunnelMemorySampleMillis != 100 || cfg.ServerTunnelEstimatedStreamBytes != tunnel.DefaultAdaptiveStreamChargeBytes {
+		t.Fatalf("server adaptive memory defaults = soft %d hard %d recovery %d sample %d estimate %d", cfg.ServerTunnelMemorySoftPercent, cfg.ServerTunnelMemoryHardPercent, cfg.ServerTunnelMemoryRecoveryPercent, cfg.ServerTunnelMemorySampleMillis, cfg.ServerTunnelEstimatedStreamBytes)
 	}
 }
 
@@ -229,6 +278,15 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 		t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET", "-1")
 		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "PER_TARGET") {
 			t.Fatalf("Load() error = %v, want negative per-target capacity rejection", err)
+		}
+	})
+
+	t.Run("adaptive stream charge below Yamux initial credit rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("SERVER_TUNNEL_ESTIMATED_STREAM_BYTES", "1048575")
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "1048576") {
+			t.Fatalf("Load() error = %v, want minimum adaptive stream charge rejection", err)
 		}
 	})
 
@@ -483,6 +541,11 @@ func isolatedConfigTestDir(t *testing.T) string {
 	unsetEnv(t, "SERVER_TUNNEL_MAX_CONCURRENT_STREAMS")
 	unsetEnv(t, "SERVER_TUNNEL_MEMORY_PERCENT")
 	unsetEnv(t, "SERVER_TUNNEL_MEMORY_RESERVE_BYTES")
+	unsetEnv(t, "SERVER_TUNNEL_MEMORY_SOFT_PERCENT")
+	unsetEnv(t, "SERVER_TUNNEL_MEMORY_HARD_PERCENT")
+	unsetEnv(t, "SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT")
+	unsetEnv(t, "SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS")
+	unsetEnv(t, "SERVER_TUNNEL_ESTIMATED_STREAM_BYTES")
 	unsetEnv(t, "BOOTSTRAP_AGENT_ID")
 	unsetEnv(t, "BOOTSTRAP_AGENT_NAME")
 	unsetEnv(t, "BOOTSTRAP_AGENT_TOKEN")

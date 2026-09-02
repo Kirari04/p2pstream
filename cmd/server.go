@@ -39,9 +39,17 @@ var serverCmd = &cobra.Command{
 			Bool("automatic", cfg.ServerTunnelCapacityAuto).
 			Int64("detected_memory_bytes", cfg.ServerTunnelDetectedMemoryBytes).
 			Int64("stream_window_bytes", cfg.TunnelMaxStreamWindowBytes).
-			Int64("memory_percent", cfg.ServerTunnelMemoryPercent).
-			Int64("memory_reserve_bytes", cfg.ServerTunnelMemoryReserveBytes).
+			Int64("memory_soft_percent", cfg.ServerTunnelMemorySoftPercent).
+			Int64("memory_hard_percent", cfg.ServerTunnelMemoryHardPercent).
+			Int64("memory_recovery_percent", cfg.ServerTunnelMemoryRecoveryPercent).
+			Int64("memory_sample_millis", cfg.ServerTunnelMemorySampleMillis).
 			Msg("Configured server tunnel capacity")
+		if _, legacyPercent := os.LookupEnv("SERVER_TUNNEL_MEMORY_PERCENT"); legacyPercent {
+			log.Warn().Msg("SERVER_TUNNEL_MEMORY_PERCENT is deprecated; adaptive admission uses SERVER_TUNNEL_MEMORY_SOFT_PERCENT and SERVER_TUNNEL_MEMORY_HARD_PERCENT")
+		}
+		if _, legacyReserve := os.LookupEnv("SERVER_TUNNEL_MEMORY_RESERVE_BYTES"); legacyReserve {
+			log.Warn().Msg("SERVER_TUNNEL_MEMORY_RESERVE_BYTES is deprecated; adaptive admission uses actual live memory pressure")
+		}
 		log.Info().
 			Int64("max_concurrent_requests", cfg.PublicMaxConcurrentRequests).
 			Int64("max_concurrent_requests_per_target", cfg.PublicMaxConcurrentPerTarget).
@@ -106,6 +114,7 @@ var serverCmd = &cobra.Command{
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		app.StartAdaptiveTunnelCapacity(ctx)
 		app.StartObservabilityMaintenance(ctx)
 		app.StartPublicGeoMaintenance(ctx)
 

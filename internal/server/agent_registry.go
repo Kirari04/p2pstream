@@ -490,10 +490,13 @@ func (a *App) agentToProtoWithLatestStats(ctx context.Context, agent db.Agent, u
 		resp.ActiveRequests = conn.ActiveRequests.Load()
 		resp.AdvertisedMaxConcurrentStreams = conn.AdvertisedMaxConcurrentStreams
 		resp.NegotiatedMaxConcurrentStreams = conn.NegotiatedMaxConcurrentStreams
+		resp.TunnelCapacityAdaptive = conn.AdaptiveCapacity
+		resp.CurrentTunnelAdmissionLimit = conn.CurrentAdmissionLimit.Load()
 	}
-	if latest, ok := a.latestAgentStatsSnapshot(agent.ID); ok {
+	if latest, ok := a.latestAgentStatsSnapshot(agent.ID); ok &&
+		(conn == nil || conn.ConnectedAt.IsZero() || latest.ReportedAtUnixMillis >= conn.ConnectedAt.UnixMilli()) {
 		resp.LatestStats = latest
-	} else if useDBFallback && a.DB != nil {
+	} else if conn == nil && useDBFallback && a.DB != nil {
 		latest, err := a.DB.GetLatestAgentStatByAgent(ctx, sql.NullInt64{Int64: agent.ID, Valid: true})
 		if err == nil {
 			resp.LatestStats = agentStatRowToProto(latest)

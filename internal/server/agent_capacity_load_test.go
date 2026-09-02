@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"p2pstream/internal/config"
+	"p2pstream/internal/sysmetrics"
 	"p2pstream/internal/tunnel"
 )
 
@@ -40,6 +41,7 @@ func TestAgentProxySustains100RPSAcrossFourLegacyAgents(t *testing.T) {
 	run := func(t *testing.T, totalStreams int64) (okResponses, unavailableResponses int64) {
 		t.Helper()
 		app := NewApp(&config.Config{ServerTunnelMaxConcurrentStreams: totalStreams}, nil)
+		installDeterministicServerResourceController(t, app)
 		t.Cleanup(app.CloseAgentTransports)
 		target := publicRouteTargetConfig{
 			ID:                            991,
@@ -148,11 +150,15 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 		latencyForRequest func(int) time.Duration,
 	) (okResponses, routeTargetUnavailable, agentCapacityUnavailable, otherResponses int64) {
 		t.Helper()
+		adaptive := serverStreamCapacity == tunnel.MaxServerConcurrentStreamsLimit
 		app := NewApp(&config.Config{
 			PublicMaxConcurrentRequests:      2048,
 			PublicMaxConcurrentPerTarget:     perTargetLimit,
+			PublicMaxConcurrentPerClient:     512,
 			ServerTunnelMaxConcurrentStreams: serverStreamCapacity,
+			ServerTunnelCapacityAuto:         adaptive,
 		}, nil)
+		installDeterministicServerResourceController(t, app)
 		t.Cleanup(app.CloseAgentTransports)
 
 		target := publicRouteTargetConfig{
@@ -307,6 +313,19 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 		t.Logf("served %d/%d requests at %d req/s with per-request latency cycling from 800ms to 2500ms", okResponses, requestCount, requestRate)
 	})
 
+	t.Run("adaptive one-agent mode sustains 100 rps with 800ms to 2500ms latency", func(t *testing.T) {
+		const (
+			requestCount = 500
+			requestRate  = 100
+		)
+		okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses := run(t, 0, tunnel.MaxServerConcurrentStreamsLimit, int(tunnel.MaxConcurrentAgentRequestsLimit), 1, requestCount, requestRate, func(index int) time.Duration {
+			return time.Duration(800+(index%18)*100) * time.Millisecond
+		})
+		if okResponses != requestCount || targetCapacityFailures != 0 || agentCapacityFailures != 0 || otherResponses != 0 {
+			t.Fatalf("adaptive one-agent results: 200=%d route-target-503=%d agent-capacity-503=%d other=%d, want %d/0/0/0", okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses, requestCount)
+		}
+	})
+
 	t.Run("v0.1.49 negotiated agents sustain the geo-latency profile at the 256 stream fallback", func(t *testing.T) {
 		const (
 			requestCount = 500
@@ -362,4 +381,18 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 		}
 		t.Logf("served %d/%d through one 256-stream agent at %d req/s with 800ms-2500ms latency", okResponses, requestCount, requestRate)
 	})
+}
+
+func installDeterministicServerResourceController(t testing.TB, app *App) {
+	t.Helper()
+	controller, err := sysmetrics.NewAdaptiveMemoryController(
+		sysmetrics.DefaultAdaptiveMemoryConfig(),
+		sysmetrics.MemoryUsageSamplerFunc(func() (sysmetrics.MemoryUsage, error) {
+			return sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}, nil
+		}),
+	)
+	if err != nil {
+		t.Fatalf("deterministic server resource controller: %v", err)
+	}
+	app.agentStreamCapacity.enableAdaptiveMemory(controller)
 }

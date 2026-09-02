@@ -68,6 +68,18 @@ func TestParseOptionalMaxConcurrentStreams(t *testing.T) {
 	}
 }
 
+func TestParseOptionalCapacityMode(t *testing.T) {
+	if mode, present, err := ParseOptionalCapacityMode(""); err != nil || present || mode != "" {
+		t.Fatalf("absent capacity mode = %q/%t/%v", mode, present, err)
+	}
+	if mode, present, err := ParseOptionalCapacityMode(" Adaptive "); err != nil || !present || mode != TunnelCapacityModeAdaptive {
+		t.Fatalf("adaptive capacity mode = %q/%t/%v", mode, present, err)
+	}
+	if _, present, err := ParseOptionalCapacityMode("unlimited"); err == nil || !present {
+		t.Fatalf("invalid capacity mode present=%t err=%v", present, err)
+	}
+}
+
 func TestDefaultYamuxConfig(t *testing.T) {
 	cfg := DefaultYamuxConfig(nil)
 	if cfg.AcceptBacklog != 256 {
@@ -100,6 +112,24 @@ func TestNewYamuxConfigMaxStreamWindowSizeOverride(t *testing.T) {
 	}
 	if cfg.MaxStreamWindowSize != 16*1024*1024 {
 		t.Fatalf("MaxStreamWindowSize = %d, want 16777216", cfg.MaxStreamWindowSize)
+	}
+}
+
+func TestAdaptiveMaxStreamWindowSizeIsCoveredByLifetimeCharge(t *testing.T) {
+	got, err := AdaptiveMaxStreamWindowSizeBytes(DefaultMaxStreamWindowSizeBytes, DefaultAdaptiveStreamChargeBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := DefaultAdaptiveStreamChargeBytes - AdaptivePerStreamOverheadBytes
+	if got != want {
+		t.Fatalf("adaptive stream window = %d, want covered %d", got, want)
+	}
+	if _, err := AdaptiveMaxStreamWindowSizeBytes(DefaultMaxStreamWindowSizeBytes, MinimumAdaptiveStreamChargeBytes-1); err == nil {
+		t.Fatal("adaptive stream window accepted a charge without per-stream overhead")
+	}
+	got, err = AdaptiveMaxStreamWindowSizeBytes(InitialStreamWindowSizeBytes, DefaultMaxStreamWindowSizeBytes)
+	if err != nil || got != InitialStreamWindowSizeBytes {
+		t.Fatalf("configured smaller adaptive window = %d, err=%v", got, err)
 	}
 }
 
