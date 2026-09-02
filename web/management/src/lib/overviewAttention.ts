@@ -93,7 +93,7 @@ export function deriveOverviewAttention(input: OverviewAttentionInput): Overview
       title: "Proxy runtime reported an error",
       detail: proxyError ? `Latest error: ${proxyError}` : "The proxy entered an error state.",
       actionLabel: "Open diagnostics",
-      actionRoute: "/monitor/diagnostics",
+      actionRoute: "/monitor/diagnostics/overview",
     }));
   } else if (proxy?.state === ProxyState.STOPPED || (
     input.status !== null && input.status !== undefined &&
@@ -176,8 +176,8 @@ export function deriveOverviewAttention(input: OverviewAttentionInput): Overview
       severity: "error",
       title: "Proxy requests are failing internally",
       detail: `${formatCount(proxyFailures)} internal ${proxyFailures === 1n ? "failure" : "failures"} in the selected window.`,
-      actionLabel: "Open diagnostics",
-      actionRoute: "/monitor/diagnostics",
+      actionLabel: "Open failure map",
+      actionRoute: "/monitor/diagnostics/failures",
     }));
   }
 
