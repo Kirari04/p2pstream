@@ -253,20 +253,21 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		cfg = &config.Config{}
 	}
 	managementIdentity, managementIdentityErr := newManagementClientIdentityResolver(cfg)
+	publicMaxRequests, publicMaxRequestsPerTarget := effectivePublicRequestCapacities(
+		cfg.PublicMaxConcurrentRequests,
+		cfg.PublicMaxConcurrentPerTarget,
+	)
 	app := &App{
-		Config:              cfg,
-		DB:                  database,
-		StartedAt:           time.Now(),
-		latestAgentStats:    make(map[int64]stats.AgentStats),
-		latestAgentBuilds:   make(map[int64]agentBuildIdentity),
-		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
-		publicListenerState: make(map[int64]*publicListenerRuntime),
-		agentStreamCapacity: mustNewDefaultAgentStreamCapacityManager(cfg.ServerTunnelMaxConcurrentStreams),
-		publicProxyRequests: newRequestCapacityLimiter(cfg.PublicMaxConcurrentRequests, defaultPublicMaxConcurrentRequests),
-		publicTargetRequests: newKeyedRequestCapacityLimiter(
-			cfg.PublicMaxConcurrentPerTarget,
-			defaultPublicMaxConcurrentRequestsPerTarget,
-		),
+		Config:                      cfg,
+		DB:                          database,
+		StartedAt:                   time.Now(),
+		latestAgentStats:            make(map[int64]stats.AgentStats),
+		latestAgentBuilds:           make(map[int64]agentBuildIdentity),
+		proxyState:                  p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
+		publicListenerState:         make(map[int64]*publicListenerRuntime),
+		agentStreamCapacity:         mustNewDefaultAgentStreamCapacityManager(cfg.ServerTunnelMaxConcurrentStreams),
+		publicProxyRequests:         newRequestCapacityLimiter(publicMaxRequests, defaultPublicMaxConcurrentRequests),
+		publicTargetRequests:        newKeyedRequestCapacityLimiter(publicMaxRequestsPerTarget, publicMaxRequests),
 		retryReplayBudget:           newRetryReplayBudget(defaultPublicRetryReplayBudgetBytes),
 		managementClientIdentity:    managementIdentity,
 		managementClientIdentityErr: managementIdentityErr,
