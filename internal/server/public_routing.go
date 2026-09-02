@@ -553,6 +553,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				}
 			}
 			statusCode = resp.StatusCode
+			// A completed upstream HTTP response is not a tunnel transport error,
+			// but a 5xx response is still an upstream failure that operators must be
+			// able to distinguish from a locally generated gateway/capacity response.
+			// Keep the existing bounded status-specific vocabulary used by retry
+			// telemetry so the failure map and request samples expose the origin.
+			errorKind = upstreamServerStatusErrorKind(resp.StatusCode)
 			responseShaper := a.publicTrafficShaperForResponse(resolution.Snapshot, resolution.Listener.ID, r, resp.StatusCode, shaper)
 			if responseShaper != nil {
 				applyTrafficShaperResolutionFields(&resolution, *responseShaper)
@@ -580,7 +586,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 					&resolution,
 					finalAgent,
 					resp.StatusCode,
-					"",
+					errorKind,
 					resp.Header,
 					attributes,
 				)
@@ -640,6 +646,13 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		BufferPool: a.reverseProxyBufferPool(),
 	}
 	proxy.ServeHTTP(w, r)
+}
+
+func upstreamServerStatusErrorKind(statusCode int) string {
+	if statusCode < http.StatusInternalServerError || statusCode > 599 {
+		return ""
+	}
+	return fmt.Sprintf("upstream_status_%d", statusCode)
 }
 
 func agentProxyCapacityErrorKind(errorKind string) bool {
