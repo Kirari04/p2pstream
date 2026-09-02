@@ -258,10 +258,6 @@ func TestManagementHTTPClientValidation(t *testing.T) {
 			name: "excessive concurrent tunnel requests",
 			opts: Options{ManagementURL: "https://example.test", TunnelMaxConcurrentRequests: 2049},
 		},
-		{
-			name: "aggregate tunnel receive window",
-			opts: Options{ManagementURL: "https://example.test", TunnelMaxStreamWindowBytes: 64 * 1024 * 1024, TunnelMaxConcurrentRequests: 9},
-		},
 	}
 
 	for _, tt := range tests {

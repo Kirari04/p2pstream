@@ -43,7 +43,7 @@ p2pstream agent [flags]
 | `--tls-key-file` | `AGENT_TLS_KEY_FILE` | Client private key for management mTLS. |
 | `--allow-insecure-management` | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Permit HTTP management URL. |
 | `--tunnel-max-stream-window-bytes` | `TUNNEL_MAX_STREAM_WINDOW_BYTES` | Maximum Yamux receive window per tunnel stream. |
-| `--tunnel-max-concurrent-requests` | `TUNNEL_MAX_CONCURRENT_REQUESTS` | Maximum concurrent requests handled by the agent tunnel. |
+| `--tunnel-max-concurrent-requests` | `TUNNEL_MAX_CONCURRENT_REQUESTS` | Maximum concurrent requests handled by the agent tunnel. When omitted, it is derived from the process memory limit. |
 | `--allow-target` | `AGENT_ALLOW_TARGETS` | Opt-in destination allowlist entry. Repeat the flag, or separate env entries with commas/whitespace. |
 | `--allow-any-target` | `AGENT_ALLOW_ANY_TARGET` | Explicitly permit any destination reachable by the agent. |
 
@@ -55,7 +55,6 @@ p2pstream agent [flags]
 - Agent HTTP management URLs are rejected unless `--allow-insecure-management` or `AGENT_ALLOW_INSECURE_MANAGEMENT` is set.
 - `--tunnel-max-stream-window-bytes` must be at least `262144` and at most `67108864`.
 - `--tunnel-max-concurrent-requests` must be between `1` and `2048`.
-- The stream window multiplied by `--tunnel-max-concurrent-requests` cannot exceed `536870912` bytes.
 - When neither an allowlist nor `--allow-any-target`/`AGENT_ALLOW_ANY_TARGET=true` is set, the agent permits only IPv4 and IPv6 loopback destinations.
 - `--allow-any-target` cannot be combined with `--allow-target` entries.
 - Allow target entries are exact hostnames, IP literals, or CIDR prefixes with optional ports or port ranges, such as `myapp.internal:443`, `10.0.5.0/24:8080`, or `metrics.internal:9000-9010`. IPv6 entries with ports must use brackets, for example `[2001:db8::/64]:8443`.

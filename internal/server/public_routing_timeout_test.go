@@ -90,36 +90,6 @@ func TestAgentProxyRelaysThroughYamuxTunnel(t *testing.T) {
 	}
 }
 
-func TestAgentProxyLogicalRequestCapacityRejectsBeforeOpeningStream(t *testing.T) {
-	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		t.Error("capacity-rejected request unexpectedly reached upstream")
-	}))
-	defer upstream.Close()
-
-	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
-	app.agentProxyRequests = newAgentRequestLimiter(1)
-	release, ok := app.agentProxyRequests.TryAcquire()
-	if !ok {
-		t.Fatal("failed to occupy the only logical agent request slot")
-	}
-	defer release()
-
-	rec := httptest.NewRecorder()
-	proxyAgentTargetForTest(app, rec, httptest.NewRequest(http.MethodGet, "http://public.test/at-capacity", nil), target, agent)
-	if rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Retry-After") != "1" {
-		t.Fatalf("capacity response = status %d retry-after %q body %q, want 503/1", rec.Code, rec.Header().Get("Retry-After"), rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), "Agent request capacity reached") {
-		t.Fatalf("capacity response body = %q, want logical capacity error", rec.Body.String())
-	}
-	if fake.openRequestCount() != 0 || app.agentStreamCapacity.snapshot().Total.InUse != 0 || agent.ActiveRequests.Load() != 0 {
-		t.Fatalf("logical rejection opened tunnel state: opens=%d snapshot=%+v active=%d", fake.openRequestCount(), app.agentStreamCapacity.snapshot(), agent.ActiveRequests.Load())
-	}
-	if !app.TargetHealth.agentAvailable(target.ID, agent.AgentID) {
-		t.Fatal("local logical capacity rejection changed passive agent health")
-	}
-}
-
 func TestAgentProxyPhysicalCapacityReturnsRetryAfterWithoutHealthPenalty(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Error("capacity-rejected request unexpectedly reached upstream")

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"p2pstream/internal/config"
 	"p2pstream/internal/tunnel"
 )
 
@@ -102,11 +103,26 @@ func TestDefaultAgentStreamCapacityConfigSupportsSmallLegacyTotals(t *testing.T)
 }
 
 func TestDefaultAgentStreamCapacityConfigFallsBackForInvalidTotal(t *testing.T) {
-	for _, total := range []int64{0, -1, tunnel.MaxConcurrentAgentRequestsLimit + 1} {
+	for _, total := range []int64{0, -1, tunnel.MaxServerConcurrentStreamsLimit + 1} {
 		config := defaultAgentStreamCapacityConfig(total)
-		if config.Total != int(tunnel.DefaultMaxConcurrentAgentRequests) {
-			t.Fatalf("invalid total %d normalized to %d, want %d", total, config.Total, tunnel.DefaultMaxConcurrentAgentRequests)
+		if config.Total != int(tunnel.DefaultServerMaxConcurrentStreams) {
+			t.Fatalf("invalid total %d normalized to %d, want %d", total, config.Total, tunnel.DefaultServerMaxConcurrentStreams)
 		}
+	}
+}
+
+func TestNewAppUsesDedicatedServerStreamCapacity(t *testing.T) {
+	app := NewApp(nil, nil)
+	if got := app.agentStreamCapacity.snapshot().Total.Capacity; got != int(tunnel.DefaultServerMaxConcurrentStreams) {
+		t.Fatalf("default server stream capacity = %d, want %d", got, tunnel.DefaultServerMaxConcurrentStreams)
+	}
+
+	app = NewApp(&config.Config{
+		TunnelMaxConcurrentRequests:      7,
+		ServerTunnelMaxConcurrentStreams: 777,
+	}, nil)
+	if got := app.agentStreamCapacity.snapshot().Total.Capacity; got != 777 {
+		t.Fatalf("dedicated server stream capacity = %d, want 777", got)
 	}
 }
 

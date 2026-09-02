@@ -35,7 +35,7 @@ var (
 	errAgentStreamCapacityPublicBudget        = errors.New("agent stream public budget is full")
 	errAgentStreamCapacityPooledBudget        = errors.New("agent stream pooled budget is full")
 	errAgentStreamCapacityControlBudget       = errors.New("agent stream control budget is full")
-	errAgentStreamCapacitySessionBudget       = errors.New("agent session public stream budget is full")
+	errAgentStreamCapacitySessionBudget       = errors.New("agent session stream budget is full")
 	errAgentStreamCapacitySessionOpeningLimit = errors.New("agent session stream-opening limit is full")
 	errAgentStreamCapacityWaitTurn            = errors.New("agent stream capacity waiter is waiting for its fair turn")
 	errAgentStreamCapacityQueueFull           = errors.New("agent stream capacity waiter queue is full")
@@ -104,7 +104,9 @@ type agentStreamCapacityManager struct {
 	openingBySession            map[string]int
 	publicOpeningBySession      map[string]int
 	publicBySession             map[string]int
+	totalBySession              map[string]int
 	registeredSessions          map[string]struct{}
+	sessionLimits               map[string]int
 	activeLeases                map[uint64]*agentStreamCapacityLease
 	nextLeaseID                 uint64
 	granted                     uint64
@@ -170,6 +172,8 @@ type agentStreamCapacitySnapshot struct {
 	OpeningBySession            map[string]int
 	PublicOpeningBySession      map[string]int
 	PublicBySession             map[string]int
+	TotalBySession              map[string]int
+	SessionLimits               map[string]int
 	RegisteredSessions          int
 	WaitersByKey                map[string]int
 	Waiters                     int
@@ -246,7 +250,9 @@ func newAgentStreamCapacityManager(config agentStreamCapacityConfig) (*agentStre
 		openingBySession:            make(map[string]int),
 		publicOpeningBySession:      make(map[string]int),
 		publicBySession:             make(map[string]int),
+		totalBySession:              make(map[string]int),
 		registeredSessions:          make(map[string]struct{}),
+		sessionLimits:               make(map[string]int),
 		activeLeases:                make(map[uint64]*agentStreamCapacityLease),
 		admissionMissesByConstraint: make(map[string]uint64),
 		queues:                      make(map[string][]*agentStreamCapacityWaiter),
@@ -491,7 +497,9 @@ func (m *agentStreamCapacityManager) classEnabledLocked(class agentStreamCapacit
 }
 
 func (m *agentStreamCapacityManager) canGrantLocked(class agentStreamCapacityClass, sessionKey string) bool {
-	if m.usedTotal >= m.config.Total || m.openingBySession[sessionKey] >= m.config.MaxOpeningPerSession {
+	if m.usedTotal >= m.config.Total ||
+		m.totalBySession[sessionKey] >= m.sessionLimitLocked(sessionKey) ||
+		m.openingBySession[sessionKey] >= m.config.MaxOpeningPerSession {
 		return false
 	}
 	switch class {
@@ -514,6 +522,9 @@ func (m *agentStreamCapacityManager) canGrantLocked(class agentStreamCapacityCla
 func (m *agentStreamCapacityManager) blockingConstraintLocked(class agentStreamCapacityClass, sessionKey string) error {
 	if m.usedTotal >= m.config.Total {
 		return errAgentStreamCapacityTotalBudget
+	}
+	if m.totalBySession[sessionKey] >= m.sessionLimitLocked(sessionKey) {
+		return errAgentStreamCapacitySessionBudget
 	}
 	switch class {
 	case agentStreamCapacityPublicPooled:
@@ -577,6 +588,7 @@ func (m *agentStreamCapacityManager) grantLocked(
 		stateChangedAt: time.Now(),
 	}
 	m.usedTotal++
+	m.totalBySession[sessionKey]++
 	switch class {
 	case agentStreamCapacityPublicPooled:
 		m.usedPublic++
@@ -780,6 +792,7 @@ func (l *agentStreamCapacityLease) release() bool {
 	}
 	m.stateByClass[l.class][l.state]--
 	m.usedTotal--
+	m.releaseSessionTotalLocked(l.sessionKey)
 	switch l.class {
 	case agentStreamCapacityPublicPooled:
 		m.usedPublic--
@@ -841,6 +854,22 @@ func (m *agentStreamCapacityManager) releaseSessionPublicLocked(sessionKey strin
 	m.publicBySession[sessionKey] = usage - 1
 }
 
+func (m *agentStreamCapacityManager) releaseSessionTotalLocked(sessionKey string) {
+	usage := m.totalBySession[sessionKey]
+	if usage <= 1 {
+		delete(m.totalBySession, sessionKey)
+		return
+	}
+	m.totalBySession[sessionKey] = usage - 1
+}
+
+func (m *agentStreamCapacityManager) sessionLimitLocked(sessionKey string) int {
+	if limit := m.sessionLimits[sessionKey]; limit > 0 && limit < m.config.Total {
+		return limit
+	}
+	return m.config.Total
+}
+
 func (m *agentStreamCapacityManager) publicSessionLimitLocked(sessionKey string) int {
 	limit := m.config.Public
 	if m.config.ReservedPublicForOtherSessions <= 0 || len(m.registeredSessions) <= 1 {
@@ -869,11 +898,25 @@ func (m *agentStreamCapacityManager) publicOpeningLimitPerSessionLocked() int {
 }
 
 func (m *agentStreamCapacityManager) registerSession(sessionKey string) {
+	if m == nil {
+		return
+	}
+	m.registerSessionWithLimit(sessionKey, m.config.Total)
+}
+
+func (m *agentStreamCapacityManager) registerSessionWithLimit(sessionKey string, limit int) {
 	if m == nil || sessionKey == "" {
 		return
 	}
+	if limit < 1 {
+		limit = 1
+	}
+	if limit > m.config.Total {
+		limit = m.config.Total
+	}
 	m.mu.Lock()
 	m.registeredSessions[sessionKey] = struct{}{}
+	m.sessionLimits[sessionKey] = limit
 	m.dispatchLocked()
 	m.mu.Unlock()
 }
@@ -884,6 +927,7 @@ func (m *agentStreamCapacityManager) unregisterSession(sessionKey string) {
 	}
 	m.mu.Lock()
 	delete(m.registeredSessions, sessionKey)
+	delete(m.sessionLimits, sessionKey)
 	m.dispatchLocked()
 	m.mu.Unlock()
 }
@@ -909,6 +953,8 @@ func (m *agentStreamCapacityManager) snapshotLocked() agentStreamCapacitySnapsho
 		OpeningBySession:            make(map[string]int, len(m.openingBySession)),
 		PublicOpeningBySession:      make(map[string]int, len(m.publicOpeningBySession)),
 		PublicBySession:             make(map[string]int, len(m.publicBySession)),
+		TotalBySession:              make(map[string]int, len(m.totalBySession)),
+		SessionLimits:               make(map[string]int, len(m.sessionLimits)),
 		RegisteredSessions:          len(m.registeredSessions),
 		WaitersByKey:                make(map[string]int, len(m.queues)),
 		Waiters:                     m.waiters,
@@ -942,6 +988,12 @@ func (m *agentStreamCapacityManager) snapshotLocked() agentStreamCapacitySnapsho
 		if usage > snapshot.MaxSessionPublicInUse {
 			snapshot.MaxSessionPublicInUse = usage
 		}
+	}
+	for sessionKey, usage := range m.totalBySession {
+		snapshot.TotalBySession[sessionKey] = usage
+	}
+	for sessionKey, limit := range m.sessionLimits {
+		snapshot.SessionLimits[sessionKey] = limit
 	}
 	for constraint, count := range m.admissionMissesByConstraint {
 		snapshot.AdmissionMissesByConstraint[constraint] = count
@@ -1057,6 +1109,27 @@ func (m *agentStreamCapacityManager) validateInvariantsLocked() error {
 	}
 	if publicBySessionSum != m.usedPublic {
 		return fmt.Errorf("session public count %d != public usage %d", publicBySessionSum, m.usedPublic)
+	}
+	totalBySessionSum := 0
+	for sessionKey, usage := range m.totalBySession {
+		if sessionKey == "" || usage < 1 || usage > m.config.Total {
+			return fmt.Errorf("invalid total count %d for session %q", usage, sessionKey)
+		}
+		if _, registered := m.registeredSessions[sessionKey]; registered && usage > m.sessionLimitLocked(sessionKey) {
+			return fmt.Errorf("session %q usage %d exceeds negotiated limit %d", sessionKey, usage, m.sessionLimitLocked(sessionKey))
+		}
+		totalBySessionSum += usage
+	}
+	if totalBySessionSum != m.usedTotal {
+		return fmt.Errorf("session total count %d != total usage %d", totalBySessionSum, m.usedTotal)
+	}
+	for sessionKey, limit := range m.sessionLimits {
+		if sessionKey == "" || limit < 1 || limit > m.config.Total {
+			return fmt.Errorf("invalid negotiated limit %d for session %q", limit, sessionKey)
+		}
+		if _, registered := m.registeredSessions[sessionKey]; !registered {
+			return fmt.Errorf("negotiated limit exists for unregistered session %q", sessionKey)
+		}
 	}
 
 	var leaseStates [agentStreamCapacityClassCount][agentStreamLeaseReleased]int

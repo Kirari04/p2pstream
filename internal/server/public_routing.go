@@ -489,15 +489,6 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		}
 		selectedAgentID = sql.NullInt64{Int64: agent.AgentID, Valid: true}
 		resolution.AgentID = selectedAgentID
-		releaseAgentRequest, ok := a.agentProxyRequests.TryAcquire()
-		if !ok {
-			statusCode = http.StatusServiceUnavailable
-			errorKind = "agent_request_capacity"
-			w.Header().Set("Retry-After", "1")
-			http.Error(w, "Agent request capacity reached", http.StatusServiceUnavailable)
-			return
-		}
-		defer releaseAgentRequest()
 	}
 
 	id := uuid.Nil
