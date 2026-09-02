@@ -124,6 +124,9 @@ func TestNewAppUsesDedicatedServerStreamCapacity(t *testing.T) {
 	if got := app.agentStreamCapacity.snapshot().Total.Capacity; got != 777 {
 		t.Fatalf("dedicated server stream capacity = %d, want 777", got)
 	}
+	if !app.agentStreamCapacity.snapshot().Adaptive {
+		t.Fatal("explicit stream ceiling disabled public socket memory/FD safety accounting")
+	}
 }
 
 func TestBlockedHealthWaiterDoesNotDisablePooledOrOneShotPublicAdmission(t *testing.T) {

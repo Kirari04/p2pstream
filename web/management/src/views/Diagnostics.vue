@@ -72,8 +72,16 @@ const capacityHasPressure = computed(() => {
   const capacity = streamCapacity.value;
   if (!capacity) return false;
   return capacity.waiters > 0n
-    || (capacity.totalCapacity > 0n && capacity.totalInUse >= capacity.totalCapacity)
-    || (capacity.publicCapacity > 0n && capacity.publicInUse >= capacity.publicCapacity);
+    || capacity.memoryPressure === "soft"
+    || capacity.memoryPressure === "critical"
+    || (capacity.adaptive && capacity.memoryPressure === "unknown")
+    || capacity.resourceSampleError !== ""
+    || (capacity.adaptive
+      ? capacity.adaptiveAdmissionLimit > 0n && capacity.totalInUse >= capacity.adaptiveAdmissionLimit
+      : capacity.totalCapacity > 0n && capacity.totalInUse >= capacity.totalCapacity)
+    || (capacity.adaptive
+      ? capacity.adaptivePublicAdmissionLimit > 0n && capacity.publicInUse >= capacity.adaptivePublicAdmissionLimit
+      : capacity.publicCapacity > 0n && capacity.publicInUse >= capacity.publicCapacity);
 });
 const statusCodes = computed(() => diagnostics.value?.statusCodes ?? []);
 const recentSamples = computed(() => diagnostics.value?.recentSamples ?? []);
@@ -530,20 +538,47 @@ function capacityConstraintLabel(constraint: string): string {
             <h4>Tunnel capacity</h4>
             <p>Current physical-stream pressure. These values are live at refresh time and are not scoped to the selected incident window.</p>
           </div>
-          <NTag size="small" :bordered="false" :type="capacityHasPressure ? 'warning' : 'success'">
-            {{ capacityHasPressure ? "At capacity now" : "Headroom available" }}
+          <NTag size="small" :bordered="false" :type="streamCapacity.memoryPressure === 'critical' ? 'error' : capacityHasPressure ? 'warning' : 'success'">
+            {{ streamCapacity.adaptive && streamCapacity.memoryPressure === "unknown" ? "Adaptive · sensor degraded" : streamCapacity.adaptive ? `Adaptive · ${streamCapacity.memoryPressure}` : capacityHasPressure ? "At capacity now" : "Headroom available" }}
           </NTag>
         </div>
         <dl class="capacity-observatory__meters">
           <div>
-            <dt>Total streams</dt>
-            <dd>{{ formatNumber(streamCapacity.totalInUse) }} / {{ formatNumber(streamCapacity.totalCapacity) }}</dd>
-            <small>{{ formatNumber(streamCapacity.opening) }} opening · {{ formatNumber(streamCapacity.live) }} live · {{ formatNumber(streamCapacity.closing) }} closing</small>
+            <dt>{{ streamCapacity.adaptive ? "Adaptive allowance" : "Total streams" }}</dt>
+            <dd>{{ formatNumber(streamCapacity.totalInUse) }} / {{ formatNumber(streamCapacity.adaptive ? streamCapacity.adaptiveAdmissionLimit : streamCapacity.totalCapacity) }}</dd>
+            <small>{{ formatNumber(streamCapacity.opening) }} opening · {{ formatNumber(streamCapacity.live) }} live · {{ formatNumber(streamCapacity.closing) }} closing<span v-if="streamCapacity.adaptive"> · guard {{ formatNumber(streamCapacity.totalCapacity) }}</span></small>
+          </div>
+          <div v-if="streamCapacity.adaptive">
+            <dt>Memory pressure</dt>
+            <dd>{{ streamCapacity.memoryLimitBytes > 0n ? `${((Number(streamCapacity.memoryUsedBytes) / Number(streamCapacity.memoryLimitBytes)) * 100).toFixed(1)}%` : "Unknown" }}</dd>
+            <small v-if="streamCapacity.memoryLimitBytes > 0n">{{ formatBytes(streamCapacity.memoryUsedBytes) }} / {{ formatBytes(streamCapacity.memoryLimitBytes) }} · {{ streamCapacity.memorySource }}</small>
+            <small v-else>No finite cgroup, Go, or host memory signal</small>
+          </div>
+          <div v-if="streamCapacity.adaptive">
+            <dt>File descriptors</dt>
+            <dd>{{ streamCapacity.fileDescriptorsLimit > 0n ? `${formatNumber(streamCapacity.fileDescriptorsUsed)} / ${formatNumber(streamCapacity.fileDescriptorsLimit)}` : "Unknown" }}</dd>
+            <small v-if="streamCapacity.fileDescriptorsLimit > 0n">{{ ((Number(streamCapacity.fileDescriptorsUsed) / Number(streamCapacity.fileDescriptorsLimit)) * 100).toFixed(1) }}% used<span v-if="streamCapacity.resourcePressureReason"> · limiting signal {{ streamCapacity.resourcePressureReason }}</span></small>
+            <small v-else>Descriptor pressure signal unavailable</small>
+          </div>
+          <div v-if="streamCapacity.adaptive">
+            <dt>Pre-stream reservations</dt>
+            <dd>{{ formatBytes(streamCapacity.adaptiveExternalBytes) }}</dd>
+            <small>{{ formatNumber(streamCapacity.adaptiveExternalFileDescriptors) }} descriptors · raw allowance {{ formatNumber(streamCapacity.adaptiveRawAdmissionLimit) }}</small>
+          </div>
+          <div>
+            <dt>Public connections</dt>
+            <dd>{{ formatNumber(streamCapacity.publicConnections) }}</dd>
+            <small>{{ formatNumber(streamCapacity.publicConnectionLimitRejected) }} peer/hard socket rejects · {{ formatNumber(streamCapacity.publicConnectionResourceRejected) }} resource rejects · {{ formatNumber(streamCapacity.publicClientRequestRejected) }} client request rejects</small>
+          </div>
+          <div v-if="streamCapacity.resourceSampleError">
+            <dt>Resource sensor</dt>
+            <dd>Degraded</dd>
+            <small>{{ streamCapacity.resourceLastGoodUnixMillis > 0n ? `Last good sample ${formatSampleTime(streamCapacity.resourceLastGoodUnixMillis)}` : "New stream admission is paused until sensing recovers" }}</small>
           </div>
           <div>
             <dt>Public lane</dt>
-            <dd>{{ formatNumber(streamCapacity.publicInUse) }} / {{ formatNumber(streamCapacity.publicCapacity) }}</dd>
-            <small>{{ formatNumber(streamCapacity.publicWaiters) }} waiting</small>
+            <dd>{{ formatNumber(streamCapacity.publicInUse) }} / {{ formatNumber(streamCapacity.adaptive ? streamCapacity.adaptivePublicAdmissionLimit : streamCapacity.publicCapacity) }}</dd>
+            <small>{{ formatNumber(streamCapacity.publicWaiters) }} waiting<span v-if="streamCapacity.adaptive"> · structural guard {{ formatNumber(streamCapacity.publicCapacity) }}</span></small>
           </div>
           <div>
             <dt>Reusable lane</dt>

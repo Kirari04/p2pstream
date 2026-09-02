@@ -15,9 +15,25 @@ const (
 	UpgradeToken                     = "p2pstream-yamux"
 	TunnelVersionHeader              = "X-P2PStream-Tunnel-Version"
 	TunnelMaxConcurrentStreamsHeader = "X-P2PStream-Tunnel-Max-Concurrent-Streams"
+	TunnelCapacityModeHeader         = "X-P2PStream-Tunnel-Capacity-Mode"
+	TunnelCapacityModeAdaptive       = "adaptive"
+	TunnelCapacityModeFixed          = "fixed"
 
 	MaxControlFrameBytes = 16 * 1024
 )
+
+func ParseOptionalCapacityMode(value string) (string, bool, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "", false, nil
+	}
+	switch value {
+	case TunnelCapacityModeAdaptive, TunnelCapacityModeFixed:
+		return value, true, nil
+	default:
+		return "", true, fmt.Errorf("invalid tunnel capacity mode %q", value)
+	}
+}
 
 // ParseOptionalMaxConcurrentStreams parses the optional capacity extension on
 // the HTTP upgrade handshake. An absent header is intentionally distinct from

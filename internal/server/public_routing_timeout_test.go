@@ -52,6 +52,24 @@ func TestDirectProxyResponseHeaderTimeoutReturnsGatewayTimeout(t *testing.T) {
 	}
 }
 
+func TestRoutingResourcePressureExpiryDoesNotDeleteConcurrentRenewal(t *testing.T) {
+	var pressure sync.Map
+	const agentID int64 = 42
+	now := time.Unix(1000, 0)
+	oldUntil := now.Add(-time.Second).UnixNano()
+	newUntil := now.Add(time.Second).UnixNano()
+	pressure.Store(agentID, oldUntil)
+	active := routingResourcePressureActive(&pressure, agentID, now, func() {
+		pressure.Store(agentID, newUntil)
+	})
+	if !active {
+		t.Fatal("concurrent resource-pressure renewal was lost at the expiry boundary")
+	}
+	if got, ok := pressure.Load(agentID); !ok || got != newUntil {
+		t.Fatalf("stored cooldown = %v/%v, want renewed %d", got, ok, newUntil)
+	}
+}
+
 func TestAgentProxyRelaysThroughYamuxTunnel(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
@@ -118,6 +136,23 @@ func TestAgentProxyPhysicalCapacityReturnsRetryAfterWithoutHealthPenalty(t *test
 	stats := app.AgentTransports.stats()
 	if stats.FallbackAttempts != 0 || stats.FallbackRecovered != 0 || stats.FallbackFailed != 0 || stats.TerminalCapacityFailure != 1 {
 		t.Fatalf("terminal capacity stats = %+v, want one direct terminal failure", stats)
+	}
+}
+
+func TestAgentProxyCapacityErrorKindsRequestRetryGuidance(t *testing.T) {
+	for _, kind := range []string{
+		"agent_capacity",
+		"agent_resource_pressure",
+		"agent_server_capacity",
+		"agent_server_health_capacity",
+		"agent_server_pooled_capacity",
+	} {
+		if !agentProxyCapacityErrorKind(kind) {
+			t.Fatalf("capacity error kind %q did not request retry guidance", kind)
+		}
+	}
+	if agentProxyCapacityErrorKind("agent_dial_failed") {
+		t.Fatal("ordinary dial failure was classified as capacity pressure")
 	}
 }
 

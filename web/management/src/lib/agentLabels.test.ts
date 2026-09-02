@@ -96,9 +96,11 @@ function agent(overrides: Partial<Agent> = {}): Agent {
     lastDisconnectedAtUnixMillis: 0n,
     labels: {},
     advertisedMaxConcurrentStreams: 0n,
-    negotiatedMaxConcurrentStreams: 0n,
-    ...overrides,
-    version: overrides.version ?? "",
-    commit: overrides.commit ?? "",
+	negotiatedMaxConcurrentStreams: 0n,
+	...overrides,
+	version: overrides.version ?? "",
+	commit: overrides.commit ?? "",
+	tunnelCapacityAdaptive: overrides.tunnelCapacityAdaptive ?? false,
+	currentTunnelAdmissionLimit: overrides.currentTunnelAdmissionLimit ?? 0n,
   };
 }

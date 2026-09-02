@@ -42,8 +42,8 @@ p2pstream agent [flags]
 | `--tls-cert-file` | `AGENT_TLS_CERT_FILE` | Client certificate for management mTLS. |
 | `--tls-key-file` | `AGENT_TLS_KEY_FILE` | Client private key for management mTLS. |
 | `--allow-insecure-management` | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Permit HTTP management URL. |
-| `--tunnel-max-stream-window-bytes` | `TUNNEL_MAX_STREAM_WINDOW_BYTES` | Maximum Yamux receive window per tunnel stream. |
-| `--tunnel-max-concurrent-requests` | `TUNNEL_MAX_CONCURRENT_REQUESTS` | Maximum concurrent requests handled by the agent tunnel. When omitted, it is derived from the process memory limit. |
+| `--tunnel-max-stream-window-bytes` | `TUNNEL_MAX_STREAM_WINDOW_BYTES` | Maximum Yamux receive window per tunnel stream; adaptive mode may lower it to the lifetime stream charge. |
+| `--tunnel-max-concurrent-requests` | `TUNNEL_MAX_CONCURRENT_REQUESTS` | Optional fixed request limit. When omitted, local nested-cgroup/host/Go memory and file-descriptor pressure control admission dynamically. |
 | `--allow-target` | `AGENT_ALLOW_TARGETS` | Opt-in destination allowlist entry. Repeat the flag, or separate env entries with commas/whitespace. |
 | `--allow-any-target` | `AGENT_ALLOW_ANY_TARGET` | Explicitly permit any destination reachable by the agent. |
 

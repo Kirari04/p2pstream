@@ -14,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"p2pstream/internal/agent"
-	"p2pstream/internal/config"
 	"p2pstream/internal/tunnel"
 )
 
@@ -113,6 +112,7 @@ var agentCmd = &cobra.Command{
 			AllowAnyTarget:              allowAnyTarget,
 			TunnelMaxStreamWindowBytes:  tunnelMaxStreamWindowBytes,
 			TunnelMaxConcurrentRequests: tunnelMaxConcurrentRequests,
+			TunnelCapacityAdaptive:      agentTunnelCapacityAdaptive(cmd),
 		}); err != nil && ctx.Err() == nil {
 			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
 			os.Exit(1)
@@ -146,7 +146,7 @@ func init() {
 	agentCmd.Flags().String("tls-key-file", "", "PEM private key for management mTLS")
 	agentCmd.Flags().Bool("allow-insecure-management", false, "Allow an insecure HTTP management URL")
 	agentCmd.Flags().Int64("tunnel-max-stream-window-bytes", tunnel.DefaultMaxStreamWindowSizeBytes, "Maximum Yamux receive window per tunnel stream in bytes")
-	agentCmd.Flags().Int64("tunnel-max-concurrent-requests", 0, "Maximum concurrent requests served through the agent tunnel (default: automatic from available memory)")
+	agentCmd.Flags().Int64("tunnel-max-concurrent-requests", 0, "Optional fixed concurrent tunnel request limit (default: adaptive local resource pressure)")
 	agentCmd.Flags().StringArray("allow-target", nil, "Opt-in tunnel destination allowlist entry; repeat for CIDR/IP/hostname with optional port or port range")
 	agentCmd.Flags().Bool("allow-any-target", false, "Explicitly allow management to dial any destination reachable by this agent")
 }
@@ -237,17 +237,18 @@ func agentTunnelMaxConcurrentRequests(cmd *cobra.Command) (int64, error) {
 	}
 	raw := strings.TrimSpace(os.Getenv("TUNNEL_MAX_CONCURRENT_REQUESTS"))
 	if raw == "" {
-		windowBytes, err := agentTunnelMaxStreamWindowBytes(cmd)
-		if err != nil {
-			return 0, err
-		}
-		return config.RecommendedAgentTunnelConcurrentRequests(windowBytes, config.DetectProcessMemoryLimitBytes())
+		return tunnel.MaxConcurrentAgentRequestsLimit, nil
 	}
 	value, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid TUNNEL_MAX_CONCURRENT_REQUESTS %q: %w", raw, err)
 	}
 	return value, nil
+}
+
+func agentTunnelCapacityAdaptive(cmd *cobra.Command) bool {
+	return !cmd.Flags().Changed("tunnel-max-concurrent-requests") &&
+		strings.TrimSpace(os.Getenv("TUNNEL_MAX_CONCURRENT_REQUESTS")) == ""
 }
 
 func splitAgentAllowTargets(value string) []string {

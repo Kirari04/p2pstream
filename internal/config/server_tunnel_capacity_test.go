@@ -6,17 +6,17 @@ import (
 	"p2pstream/internal/tunnel"
 )
 
-func TestResolveServerTunnelCapacityUsesAvailableMemory(t *testing.T) {
+func TestResolveServerTunnelCapacityUsesAdaptiveImplementationGuard(t *testing.T) {
 	tests := []struct {
 		name        string
 		memory      int64
 		wantStreams int64
 	}{
-		{name: "unknown uses production fallback", memory: 0, wantStreams: 256},
-		{name: "half gibibyte keeps production floor", memory: 512 << 20, wantStreams: 256},
-		{name: "one gibibyte", memory: 1 << 30, wantStreams: 256},
-		{name: "two gibibytes", memory: 2 << 30, wantStreams: 512},
-		{name: "eight gibibytes", memory: 8 << 30, wantStreams: 2048},
+		{name: "unknown", memory: 0, wantStreams: tunnel.MaxServerConcurrentStreamsLimit},
+		{name: "half gibibyte", memory: 512 << 20, wantStreams: tunnel.MaxServerConcurrentStreamsLimit},
+		{name: "one gibibyte", memory: 1 << 30, wantStreams: tunnel.MaxServerConcurrentStreamsLimit},
+		{name: "two gibibytes", memory: 2 << 30, wantStreams: tunnel.MaxServerConcurrentStreamsLimit},
+		{name: "eight gibibytes", memory: 8 << 30, wantStreams: tunnel.MaxServerConcurrentStreamsLimit},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -50,14 +50,14 @@ func TestResolveServerTunnelCapacityHonorsExplicitOverride(t *testing.T) {
 	}
 }
 
-func TestRecommendedAgentTunnelConcurrentRequestsUsesAvailableMemory(t *testing.T) {
+func TestRecommendedAgentTunnelConcurrentRequestsUsesAdaptiveProtocolGuard(t *testing.T) {
 	for _, tt := range []struct {
 		memory int64
 		want   int64
 	}{
-		{memory: 0, want: 256},
-		{memory: 512 << 20, want: 256},
-		{memory: 2 << 30, want: 512},
+		{memory: 0, want: tunnel.MaxConcurrentAgentRequestsLimit},
+		{memory: 512 << 20, want: tunnel.MaxConcurrentAgentRequestsLimit},
+		{memory: 2 << 30, want: tunnel.MaxConcurrentAgentRequestsLimit},
 		{memory: 16 << 30, want: tunnel.MaxConcurrentAgentRequestsLimit},
 	} {
 		got, err := RecommendedAgentTunnelConcurrentRequests(tunnel.DefaultMaxStreamWindowSizeBytes, tt.memory)

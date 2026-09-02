@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -630,7 +631,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			if retryResult != nil && retryResult.TerminalErrorKind != "" {
 				errorKind = retryResult.TerminalErrorKind
 			}
-			if statusCode == http.StatusServiceUnavailable && strings.HasPrefix(errorKind, "agent_server_") {
+			if statusCode == http.StatusServiceUnavailable && agentProxyCapacityErrorKind(errorKind) {
 				w.Header().Set("Retry-After", "1")
 			}
 			http.Error(w, message, statusCode)
@@ -639,6 +640,15 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		BufferPool: a.reverseProxyBufferPool(),
 	}
 	proxy.ServeHTTP(w, r)
+}
+
+func agentProxyCapacityErrorKind(errorKind string) bool {
+	switch errorKind {
+	case "agent_capacity", "agent_resource_pressure", "agent_server_capacity", "agent_server_health_capacity", "agent_server_pooled_capacity":
+		return true
+	default:
+		return false
+	}
 }
 
 type agentDialError struct {
@@ -1032,6 +1042,8 @@ func (a *App) eligibleTargetAgentCandidatesFromSnapshot(snap *publicProxySnapsho
 		return nil
 	}
 	candidates := make([]backendAgentCandidate, 0, len(snap.Agents))
+	pressuredCandidates := make([]backendAgentCandidate, 0, len(snap.Agents))
+	now := time.Now()
 	for agentID, agentConfig := range snap.Agents {
 		if !agentConfig.Enabled || !agentSelectorMatchesLabels(target.AgentSelector, agentConfig.Labels) {
 			continue
@@ -1043,14 +1055,89 @@ func (a *App) eligibleTargetAgentCandidatesFromSnapshot(snap *publicProxySnapsho
 		if a.TargetHealth != nil && !a.TargetHealth.agentAvailable(target.ID, agentID) {
 			continue
 		}
-		candidates = append(candidates, backendAgentCandidate{
+		candidate := backendAgentCandidate{
 			Conn:     conn,
 			AgentID:  agentID,
 			Position: agentID,
 			Weight:   100,
-		})
+		}
+		if a.agentHasRoutingResourcePressure(agentID, now) {
+			pressuredCandidates = append(pressuredCandidates, candidate)
+			continue
+		}
+		candidates = append(candidates, candidate)
+	}
+	// Prefer every non-pressured candidate, but retain pressured agents as a
+	// last-resort selection. Returning none here would erase the real capacity
+	// condition into a generic no-route error. The actual Open response remains
+	// authoritative and produces agent_resource_pressure plus Retry-After.
+	if len(candidates) == 0 {
+		return pressuredCandidates
 	}
 	return candidates
+}
+
+const agentResourcePressureRoutingCooldown = time.Second
+
+func (a *App) markAgentRoutingResourcePressure(agentID int64, now time.Time) {
+	if a == nil || agentID <= 0 {
+		return
+	}
+	a.agentResourcePressureUntil.Store(agentID, now.Add(agentResourcePressureRoutingCooldown).UnixNano())
+}
+
+func (a *App) agentHasRoutingResourcePressure(agentID int64, now time.Time) bool {
+	if a == nil || agentID <= 0 {
+		return false
+	}
+	if a.agentHasFreshCriticalMemoryPressure(agentID, now) {
+		return true
+	}
+	return routingResourcePressureActive(&a.agentResourcePressureUntil, agentID, now, nil)
+}
+
+func routingResourcePressureActive(pressure *sync.Map, agentID int64, now time.Time, beforeExpiryDelete func()) bool {
+	if pressure == nil {
+		return false
+	}
+	for {
+		value, ok := pressure.Load(agentID)
+		if !ok {
+			return false
+		}
+		until, valid := value.(int64)
+		if valid && now.UnixNano() < until {
+			return true
+		}
+		if beforeExpiryDelete != nil {
+			beforeExpiryDelete()
+			beforeExpiryDelete = nil
+		}
+		if pressure.CompareAndDelete(agentID, value) {
+			return false
+		}
+		// A concurrent pressure response replaced the observed expiry. Re-read
+		// instead of deleting or ignoring that newer cooldown generation.
+	}
+}
+
+func (a *App) selectUnpressuredTargetAgentExcludingFromSnapshot(snap *publicProxySnapshot, target publicRouteTargetConfig, excluded map[int64]struct{}) *AgentConn {
+	candidates := a.eligibleTargetAgentCandidatesFromSnapshot(snap, target)
+	now := time.Now()
+	filtered := candidates[:0]
+	for _, candidate := range candidates {
+		if _, skip := excluded[candidate.AgentID]; skip || a.agentHasRoutingResourcePressure(candidate.AgentID, now) {
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
+	if len(filtered) == 0 {
+		return nil
+	}
+	if a.LoadBalancers == nil {
+		return filtered[0].Conn
+	}
+	return a.LoadBalancers.selectTargetAgent(target, filtered)
 }
 
 func agentSelectorMatchesLabels(selector publicAgentSelectorConfig, labels map[string]string) bool {
@@ -1083,7 +1170,7 @@ func shouldMarkAgentPassiveFailure(requestCtx context.Context, err error) bool {
 		return false
 	}
 	var dialErr agentDialError
-	if errors.As(err, &dialErr) && (dialErr.Kind == "agent_capacity" || agentDialErrorIsLocalCapacity(dialErr) || dialErr.Kind == "dial_forbidden") {
+	if errors.As(err, &dialErr) && (dialErr.Kind == "agent_capacity" || dialErr.Kind == "agent_resource_pressure" || agentDialErrorIsLocalCapacity(dialErr) || dialErr.Kind == "dial_forbidden") {
 		return false
 	}
 	return !requestContextCanceled(requestCtx, err)
@@ -1095,6 +1182,15 @@ func agentDialErrorIsLocalCapacity(err agentDialError) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func agentDialErrorIsAdmissionPressure(err agentDialError) bool {
+	switch err.Kind {
+	case "agent_capacity", "agent_resource_pressure":
+		return true
+	default:
+		return agentDialErrorIsLocalCapacity(err)
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"p2pstream/internal/config"
+	"p2pstream/internal/sysmetrics"
 )
 
 func TestPublicRequestAdmissionRejectsDeclaredOversizeBody(t *testing.T) {
@@ -125,6 +126,80 @@ func TestPublicRequestAdmissionRejectsAtCapacityAndRecovers(t *testing.T) {
 		t.Fatal("capacity was not released")
 	} else {
 		releaseAgain()
+	}
+}
+
+func TestPublicRequestAdmissionLimitsResolvedClientAcrossConnections(t *testing.T) {
+	app := NewApp(&config.Config{
+		PublicMaxRequestBodyBytes:    1024,
+		PublicRequestBodyIdleMillis:  30_000,
+		PublicMaxConcurrentRequests:  8,
+		PublicMaxConcurrentPerClient: 1,
+		PublicMaxConcurrentPerTarget: 8,
+	}, nil)
+	release, ok := app.publicClientRequests.tryAcquire("192.0.2.20", -1)
+	if !ok {
+		t.Fatal("failed to reserve client request capacity")
+	}
+	request := httptest.NewRequest(http.MethodGet, "http://public.test/", nil)
+	request.RemoteAddr = "192.0.2.20:1234"
+	recorder := httptest.NewRecorder()
+	app.publicProxyHandler(1)(recorder, request)
+	if recorder.Code != http.StatusServiceUnavailable || recorder.Header().Get("Retry-After") != "1" {
+		t.Fatalf("client capacity response = %d retry-after %q", recorder.Code, recorder.Header().Get("Retry-After"))
+	}
+	if app.publicClientRequestRejected.Load() != 1 {
+		t.Fatalf("client request rejections = %d, want 1", app.publicClientRequestRejected.Load())
+	}
+	release()
+	if releaseAgain, acquired := app.publicClientRequests.tryAcquire("192.0.2.20", -1); !acquired {
+		t.Fatal("client capacity was not released")
+	} else {
+		releaseAgain()
+	}
+}
+
+func TestPublicRequestAdmissionAppliesAdaptiveClientShareAcrossHTTP2Work(t *testing.T) {
+	app := NewApp(&config.Config{
+		PublicMaxRequestBodyBytes:    1024,
+		PublicRequestBodyIdleMillis:  30_000,
+		PublicMaxConcurrentRequests:  2048,
+		PublicMaxConcurrentPerClient: 512,
+		PublicMaxConcurrentPerTarget: 2048,
+	}, nil)
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 65_536, &usage)
+	resourceConfig := sysmetrics.DefaultAdaptiveMemoryConfig()
+	manager.publishAdaptiveCapacity(sysmetrics.AdaptiveMemorySnapshot{
+		Generation:       100,
+		Level:            sysmetrics.MemoryPressureHealthy,
+		AdmissionLimit:   40,
+		Maximum:          65_536,
+		Usage:            usage,
+		StreamChargeByte: resourceConfig.EstimatedBytesPerAdmission,
+	})
+	app.agentStreamCapacity = manager
+	dynamicLimit, adaptive := manager.adaptivePublicClientRequestLimit()
+	if !adaptive || dynamicLimit <= 0 || dynamicLimit >= app.Config.PublicMaxConcurrentPerClient {
+		t.Fatalf("adaptive client limit = %d adaptive=%t", dynamicLimit, adaptive)
+	}
+	releases := make([]func(), 0, dynamicLimit)
+	for range dynamicLimit {
+		release, ok := app.publicClientRequests.tryAcquire("192.0.2.30", dynamicLimit)
+		if !ok {
+			t.Fatalf("failed to fill adaptive client share at %d/%d", len(releases), dynamicLimit)
+		}
+		releases = append(releases, release)
+	}
+	request := httptest.NewRequest(http.MethodGet, "http://public.test/", nil)
+	request.RemoteAddr = "192.0.2.30:1234"
+	recorder := httptest.NewRecorder()
+	app.publicProxyHandler(1)(recorder, request)
+	if recorder.Code != http.StatusServiceUnavailable || recorder.Header().Get("Retry-After") != "1" {
+		t.Fatalf("adaptive client capacity response = %d retry-after %q", recorder.Code, recorder.Header().Get("Retry-After"))
+	}
+	for _, release := range releases {
+		release()
 	}
 }
 
