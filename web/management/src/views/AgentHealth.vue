@@ -33,6 +33,7 @@ import {
 import {
   agentUptimeSummaryById,
   fleetUptimePercent,
+  formatBytes,
   formatLongDuration,
   formatPercent,
   recentDisconnectCount,
@@ -43,6 +44,7 @@ import { messageFromError } from "@/lib/errors";
 import { sessionForAvailabilitySegment } from "@/lib/agentAvailability";
 import type { AvailabilitySegment, AvailabilityWindow } from "@/lib/agentAvailability";
 import { agentBuildStatus, shortBuildCommit, type AgentBuildState } from "@/lib/agentVersion";
+import { summarizeAgentCapacity } from "@/lib/agentCapacity";
 import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 import type {
   Agent,
@@ -309,7 +311,10 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
         class: "agent-cell__id mono-text",
         title: diagnosticInspectionText(agent.publicId),
       }, [h("bdi", { dir: "ltr" }, diagnosticInspectionText(agent.publicId))]),
-      h("div", { class: "agent-cell__mobile-build" }, [renderAgentVersion(agent, true)]),
+      h("div", { class: "agent-cell__mobile-build" }, [
+        renderAgentVersion(agent, true),
+        renderAgentCapacity(agent, true),
+      ]),
       h("details", { class: "agent-exact-details" }, [
         h("summary", {
           "aria-label": agentActionLabel("Show exact identity and selectors for", agent),
@@ -365,21 +370,10 @@ const agentColumns = computed<DataTableColumns<Agent>>(() => [
     ]),
   },
   {
-    title: "Load",
-    key: "runtime",
-    width: 150,
-    render: (agent) => h("div", { class: "agent-compact-stack" }, [
-      h("p", { class: "agent-metric-line" }, [
-        h("span", { class: "muted-text" }, "Requests"),
-        h("strong", { class: "mono-text base-text" }, agent.activeRequests.toString()),
-      ]),
-      agent.latestStats
-        ? h("p", { class: "agent-metric-line" }, [
-            h("span", { class: "muted-text" }, "Memory"),
-            h("strong", { class: "mono-text base-text" }, `${bigIntLabel(agent.latestStats.memorySysMb)} MB`),
-          ])
-        : h("p", { class: "copy-xs muted-text" }, "No runtime sample"),
-    ]),
+    title: "Capacity",
+    key: "capacity",
+    width: 270,
+    render: (agent) => renderAgentCapacity(agent),
   },
   {
     title: "Version",
@@ -613,13 +607,9 @@ function renderAgentVersion(agent: Agent, compact = false) {
   const version = agent.version ? diagnosticExcerpt(agent.version, 32).text : "Unknown";
   const commit = shortBuildCommit(agent.commit);
   const serverVersion = diagnosticExcerpt(status.value?.version ?? "", 24).text;
-  const tunnelCapacity = agent.connected && agent.negotiatedMaxConcurrentStreams > 0n
-    ? `tunnel ${agent.negotiatedMaxConcurrentStreams.toString()} negotiated / ${agent.advertisedMaxConcurrentStreams.toString()} advertised`
-    : "";
   const details = [
     commit ? `build ${diagnosticInspectionText(commit)}` : "",
     status.value?.version ? `server ${serverVersion}` : "",
-    tunnelCapacity,
   ].filter(Boolean).join(" · ");
   return h("div", { class: ["agent-version-cell", compact && "agent-version-cell--compact"] }, [
     h("div", { class: "agent-version-cell__header" }, [
@@ -634,6 +624,82 @@ function renderAgentVersion(agent: Agent, compact = false) {
       }, { default: () => build.label }),
     ]),
     compact ? null : h("p", { class: "agent-version-cell__detail mono-text muted-text" }, details || "Waiting for a compatible heartbeat"),
+  ]);
+}
+
+function renderAgentCapacity(agent: Agent, compact = false) {
+  const capacity = summarizeAgentCapacity(agent);
+  if (capacity.state === "offline") {
+    return h("div", { class: ["agent-capacity-cell", compact && "agent-capacity-cell--compact"] }, [
+      h("div", { class: "agent-capacity-cell__header" }, [
+        h("strong", { class: "agent-capacity-cell__value" }, "Tunnel offline"),
+        h(NTag, { size: "small", bordered: false, type: "default" }, { default: () => "Unavailable" }),
+      ]),
+      compact ? null : h("p", { class: "agent-subline muted-text" }, "Capacity is negotiated when the agent reconnects."),
+    ]);
+  }
+  if (capacity.state === "unreported") {
+    return h("div", { class: ["agent-capacity-cell", compact && "agent-capacity-cell--compact"] }, [
+      h("div", { class: "agent-capacity-cell__header" }, [
+        h("strong", { class: "agent-capacity-cell__value" }, "Not reported"),
+        h(NTag, { size: "small", bordered: false, type: "warning" }, { default: () => "Legacy agent" }),
+      ]),
+      compact ? null : h("p", { class: "agent-subline warning-text" }, "Update this agent to expose tunnel capacity."),
+    ]);
+  }
+
+  const stateLabel = capacity.state === "pressured"
+    ? capacity.pressure === "critical" ? "Critical pressure" : "Throttling"
+    : capacity.state === "degraded" ? "Sensor degraded"
+    : capacity.adaptive ? capacity.pressure === "healthy" ? "Healthy" : "Adaptive"
+    : capacity.state === "server_capped" ? "Server capped" : "Fixed";
+  const stateType = capacity.state === "pressured"
+    ? capacity.pressure === "critical" ? "error" : "warning"
+    : capacity.state === "degraded" ? "warning"
+    : capacity.adaptive ? "success"
+    : capacity.state === "server_capped" ? "warning" : "info";
+  const memory = capacity.memoryUsageBytes !== undefined && capacity.memoryLimitBytes !== undefined && capacity.memoryLimitBytes > 0n
+    ? `${formatBytes(capacity.memoryUsageBytes)} / ${formatBytes(capacity.memoryLimitBytes)}${capacity.memoryPercent === undefined ? "" : ` · ${capacity.memoryPercent.toFixed(1)}%`}`
+    : capacity.memorySysMb === undefined ? "No sample" : `${bigIntLabel(capacity.memorySysMb)} MB process`;
+  const headline = capacity.adaptive ? "Adaptive admission" : `${capacity.negotiated.toString()} streams`;
+  const fileDescriptors = capacity.fileDescriptorsUsed !== undefined && capacity.fileDescriptorsLimit !== undefined && capacity.fileDescriptorsLimit > 0n
+    ? `${capacity.fileDescriptorsUsed.toString()} / ${capacity.fileDescriptorsLimit.toString()}${capacity.fileDescriptorsPercent === undefined ? "" : ` · ${capacity.fileDescriptorsPercent.toFixed(1)}%`}`
+    : "No sample";
+  return h("div", { class: ["agent-capacity-cell", compact && "agent-capacity-cell--compact"] }, [
+    h("div", { class: "agent-capacity-cell__header" }, [
+      h("strong", { class: "agent-capacity-cell__value" }, headline),
+      h(NTag, { size: "small", bordered: false, type: stateType }, { default: () => stateLabel }),
+    ]),
+    h("p", { class: "agent-capacity-cell__summary mono-text" }, `${capacity.active.toString()} active · ${capacity.headroom.toString()} immediately available`),
+    compact ? null : h("div", {
+      class: "agent-capacity-meter",
+      role: "progressbar",
+      "aria-label": "Tunnel stream utilization",
+      "aria-valuemin": 0,
+      "aria-valuemax": 100,
+      "aria-valuenow": capacity.utilizationPercent,
+    }, [h("span", { style: { transform: `scaleX(${capacity.utilizationPercent / 100})` } })]),
+    compact ? null : h("div", { class: "agent-capacity-cell__details" }, [
+      h("p", { class: "agent-metric-line" }, [
+        h("span", { class: "muted-text" }, capacity.adaptive ? "Current allowance" : "Advertised"),
+        h("strong", { class: "mono-text base-text" }, capacity.adaptive ? capacity.admissionLimit.toString() : capacity.advertised.toString()),
+      ]),
+      h("p", { class: "agent-metric-line" }, [
+        h("span", { class: "muted-text" }, capacity.adaptive ? `Memory${capacity.memorySource ? ` · ${capacity.memorySource}` : ""}` : "Process memory"),
+        h("strong", { class: "mono-text base-text" }, memory),
+      ]),
+      capacity.adaptive ? h("p", { class: "agent-metric-line" }, [
+        h("span", { class: "muted-text" }, "File descriptors"),
+        h("strong", { class: "mono-text base-text" }, fileDescriptors),
+      ]) : null,
+      capacity.sensorDegraded ? h("p", { class: "agent-subline warning-text" }, capacity.lastGoodUnixMillis
+        ? `Resource sensor unavailable · last good ${formatDate(capacity.lastGoodUnixMillis)}`
+        : "Resource sensor unavailable · new streams are paused") : null,
+      capacity.adaptive ? h("p", { class: "agent-metric-line" }, [
+        h("span", { class: "muted-text" }, "Protocol guard"),
+        h("strong", { class: "mono-text base-text" }, capacity.negotiated.toString()),
+      ]) : null,
+    ]),
   ]);
 }
 
@@ -1513,6 +1579,19 @@ async function copyUninstallSnippet() {
           <NInput v-model:value="setupManagementUrl" size="small" required />
         </label>
 
+        <div class="round-md framed frame-standard muted-bg pad-md">
+          <div class="layout-row align-center space-sm">
+            <NTag size="small" :bordered="false" type="success">Adaptive capacity</NTag>
+            <span class="copy-xs weight-semibold base-text">Default for this setup command</span>
+          </div>
+          <p class="margin-top-xs copy-xs line-normal muted-text">
+            No <code>TUNNEL_MAX_CONCURRENT_REQUESTS</code> value is written. The agent uses available memory normally, begins gradual admission control at 80%, and pauses new streams at 90%.
+          </p>
+          <p v-if="setupIsRotation && setupTab === 'install'" class="margin-top-xs copy-xs line-normal muted-text">
+            A Linux reinstall preserves an existing explicit value in <code>/etc/p2pstream/agent.env</code>; remove that line to return an older fixed installation to adaptive mode.
+          </p>
+        </div>
+
         <details class="agent-advanced-options" :open="setupAdvancedOpen" @toggle="handleSetupAdvancedToggle">
           <summary>
             <span>Advanced setup options</span>
@@ -2021,6 +2100,65 @@ async function copyUninstallSnippet() {
   display: grid;
   gap: 0.35rem;
   min-width: 0;
+}
+
+.agent-capacity-cell {
+  display: grid;
+  min-width: 0;
+  gap: 0.42rem;
+  border-left: 2px solid color-mix(in srgb, var(--app-info) 55%, var(--app-border));
+  padding-left: 0.7rem;
+}
+
+.agent-capacity-cell__header {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.agent-capacity-cell__value {
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+}
+
+.agent-capacity-cell__summary {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.agent-capacity-meter {
+  position: relative;
+  height: 0.3rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-border) 68%, transparent);
+}
+
+.agent-capacity-meter > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--app-info), var(--app-success));
+  transform-origin: left center;
+  transition: transform 180ms ease-out;
+}
+
+.agent-capacity-cell__details {
+  display: grid;
+  gap: 0.22rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 0.38rem;
+}
+
+.agent-capacity-cell--compact {
+  gap: 0.2rem;
+  margin-top: 0.35rem;
 }
 
 .agent-version-cell {

@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
+
+	"p2pstream/internal/sysmetrics"
+	"p2pstream/internal/tunnel"
 )
 
 type agentStreamCapacityClass uint8
@@ -40,6 +44,7 @@ var (
 	errAgentStreamCapacityWaitTurn            = errors.New("agent stream capacity waiter is waiting for its fair turn")
 	errAgentStreamCapacityQueueFull           = errors.New("agent stream capacity waiter queue is full")
 	errAgentStreamCapacityKeyQueueFull        = errors.New("agent stream capacity per-key waiter queue is full")
+	errAgentStreamCapacityResourcePressure    = errors.New("server resource pressure is limiting new agent streams")
 )
 
 type agentStreamCapacityAcquireError struct {
@@ -93,12 +98,19 @@ type agentStreamCapacityConfig struct {
 type agentStreamCapacityManager struct {
 	mu sync.Mutex
 
-	config agentStreamCapacityConfig
+	config           agentStreamCapacityConfig
+	adaptiveMemory   *sysmetrics.AdaptiveMemoryController
+	resourceSnapshot sysmetrics.AdaptiveMemorySnapshot
 
 	usedTotal   int
 	usedPublic  int
 	usedPooled  int
 	usedControl int
+	// adaptiveExternal* is the single resource ledger shared by stream
+	// admission, pre-admission replay buffers, and accepted public sockets.
+	// Values are released only when the corresponding owner closes.
+	adaptiveExternalBytes int64
+	adaptiveExternalFDs   int64
 
 	stateByClass                [agentStreamCapacityClassCount][agentStreamLeaseReleased]int
 	openingBySession            map[string]int
@@ -184,6 +196,22 @@ type agentStreamCapacitySnapshot struct {
 	OldestClosingAgeMillis      int64
 	MaxSessionPublicInUse       int
 	ContendedSessionPublicLimit int
+	Adaptive                    bool
+	AdaptiveAdmissionLimit      int
+	AdaptiveRawAdmissionLimit   int
+	AdaptivePublicLimit         int
+	AdaptiveExternalBytes       int64
+	AdaptiveExternalFDs         int64
+	MemoryPressure              string
+	MemoryUsedBytes             int64
+	MemoryLimitBytes            int64
+	MemorySource                string
+	MemoryHeadroomToHardBytes   int64
+	FileDescriptorsUsed         int64
+	FileDescriptorsLimit        int64
+	ResourcePressureReason      string
+	ResourceSampleError         string
+	ResourceLastGoodAt          time.Time
 }
 
 func (c agentStreamCapacityClass) String() string {
@@ -236,6 +264,8 @@ func agentStreamCapacityConstraintName(err error) string {
 		return "key_queue_full"
 	case errors.Is(err, errAgentStreamCapacityClassDisabled):
 		return "class_disabled"
+	case errors.Is(err, errAgentStreamCapacityResourcePressure):
+		return "resource_pressure"
 	default:
 		return "unknown"
 	}
@@ -247,6 +277,7 @@ func newAgentStreamCapacityManager(config agentStreamCapacityConfig) (*agentStre
 	}
 	return &agentStreamCapacityManager{
 		config:                      config,
+		resourceSnapshot:            sysmetrics.AdaptiveMemorySnapshot{Level: sysmetrics.MemoryPressureUnknown, AdmissionLimit: config.Total, Maximum: config.Total},
 		openingBySession:            make(map[string]int),
 		publicOpeningBySession:      make(map[string]int),
 		publicBySession:             make(map[string]int),
@@ -257,6 +288,64 @@ func newAgentStreamCapacityManager(config agentStreamCapacityConfig) (*agentStre
 		admissionMissesByConstraint: make(map[string]uint64),
 		queues:                      make(map[string][]*agentStreamCapacityWaiter),
 	}, nil
+}
+
+func (m *agentStreamCapacityManager) enableAdaptiveMemory(controller *sysmetrics.AdaptiveMemoryController) {
+	if m == nil || controller == nil {
+		return
+	}
+	m.mu.Lock()
+	m.adaptiveMemory = controller
+	m.mu.Unlock()
+	m.refreshAdaptiveCapacity(true)
+}
+
+func (m *agentStreamCapacityManager) refreshAdaptiveCapacity(force bool) sysmetrics.AdaptiveMemorySnapshot {
+	if m == nil {
+		return sysmetrics.AdaptiveMemorySnapshot{}
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	controller := m.adaptiveMemory
+	// Resource accounting is independent of an operator's structural stream
+	// ceiling. Sampling with a small fixed ceiling would let accepted sockets
+	// and replay buffers consume that ceiling before any stream opens, even on
+	// an otherwise idle host. The structural total is enforced separately by
+	// canGrantLocked; the controller always measures the full implementation
+	// envelope and lowers it only for real memory/FD pressure.
+	maximum := int(tunnel.MaxAdaptiveConcurrentStreamsLimit)
+	inUse := m.usedTotal
+	current := m.resourceSnapshot
+	if controller == nil {
+		return current
+	}
+	var next sysmetrics.AdaptiveMemorySnapshot
+	if force {
+		next = controller.ForceRefresh(maximum, inUse)
+	} else {
+		next = controller.Snapshot(maximum, inUse)
+	}
+	if next.Generation >= m.resourceSnapshot.Generation {
+		m.resourceSnapshot = next
+		m.dispatchLocked()
+		return next
+	}
+	return m.resourceSnapshot
+}
+
+func (m *agentStreamCapacityManager) publishAdaptiveCapacity(next sysmetrics.AdaptiveMemorySnapshot) sysmetrics.AdaptiveMemorySnapshot {
+	if m == nil {
+		return next
+	}
+	m.mu.Lock()
+	if next.Generation >= m.resourceSnapshot.Generation {
+		m.resourceSnapshot = next
+		m.dispatchLocked()
+	} else {
+		next = m.resourceSnapshot
+	}
+	m.mu.Unlock()
+	return next
 }
 
 func validateAgentStreamCapacityConfig(config agentStreamCapacityConfig) error {
@@ -310,6 +399,7 @@ func (m *agentStreamCapacityManager) acquire(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	m.refreshAdaptiveCapacity(false)
 
 	m.mu.Lock()
 	if !m.classEnabledLocked(class) {
@@ -428,6 +518,7 @@ func (m *agentStreamCapacityManager) tryAcquire(
 	if sessionKey == "" {
 		return nil, fmt.Errorf("%w: session key is empty", errAgentStreamCapacityInvalidRequest)
 	}
+	m.refreshAdaptiveCapacity(false)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -497,7 +588,10 @@ func (m *agentStreamCapacityManager) classEnabledLocked(class agentStreamCapacit
 }
 
 func (m *agentStreamCapacityManager) canGrantLocked(class agentStreamCapacityClass, sessionKey string) bool {
-	if m.usedTotal >= m.config.Total ||
+	if (m.adaptiveMemory != nil && (m.resourceSnapshot.RejectNew ||
+		m.usedTotal >= m.adaptiveEffectiveAdmissionLimitLocked() ||
+		(class != agentStreamCapacityTrustedHealth && m.usedPublic >= m.adaptivePublicLimitLocked()))) ||
+		m.usedTotal >= m.config.Total ||
 		m.totalBySession[sessionKey] >= m.sessionLimitLocked(sessionKey) ||
 		m.openingBySession[sessionKey] >= m.config.MaxOpeningPerSession {
 		return false
@@ -520,6 +614,15 @@ func (m *agentStreamCapacityManager) canGrantLocked(class agentStreamCapacityCla
 }
 
 func (m *agentStreamCapacityManager) blockingConstraintLocked(class agentStreamCapacityClass, sessionKey string) error {
+	if m.adaptiveMemory != nil {
+		adaptiveTotal := m.adaptiveEffectiveAdmissionLimitLocked()
+		adaptivePublic := m.adaptivePublicLimitLocked()
+		if m.resourceSnapshot.RejectNew ||
+			(adaptiveTotal < m.config.Total && m.usedTotal >= adaptiveTotal) ||
+			(class != agentStreamCapacityTrustedHealth && adaptivePublic < m.config.Public && m.usedPublic >= adaptivePublic) {
+			return errAgentStreamCapacityResourcePressure
+		}
+	}
 	if m.usedTotal >= m.config.Total {
 		return errAgentStreamCapacityTotalBudget
 	}
@@ -561,6 +664,155 @@ func (m *agentStreamCapacityManager) blockingConstraintLocked(class agentStreamC
 		}
 	}
 	return errAgentStreamCapacityWaitTurn
+}
+
+func (m *agentStreamCapacityManager) adaptivePublicLimitLocked() int {
+	limit := m.adaptiveEffectiveAdmissionLimitLocked() - m.adaptiveProtectedControlLocked()
+	if limit < 0 {
+		return 0
+	}
+	if limit > m.config.Public {
+		return m.config.Public
+	}
+	return limit
+}
+
+// adaptiveProtectedControlLocked is the work-conserving resource reserve for
+// trusted health probes. The structural control concurrency may be much larger
+// than the amount of capacity worth withholding from public work when a small
+// cgroup is the binding constraint.
+func (m *agentStreamCapacityManager) adaptiveProtectedControlLocked() int {
+	protected := m.config.Control
+	if protected > defaultAgentStreamCapacityControlStreams {
+		protected = defaultAgentStreamCapacityControlStreams
+	}
+	effective := m.adaptiveEffectiveAdmissionLimitLocked()
+	if protected > effective {
+		protected = effective
+	}
+	return protected
+}
+
+func (m *agentStreamCapacityManager) adaptiveEffectiveAdmissionLimitLocked() int {
+	limit := m.resourceSnapshot.AdmissionLimit
+	charge := m.resourceSnapshot.StreamChargeByte
+	if charge <= 0 {
+		return limit
+	}
+	memorySlots := ceilPositiveInt64(m.adaptiveExternalBytes, charge)
+	// The controller charges two descriptors per stream for Happy Eyeballs.
+	fdSlots := ceilPositiveInt64(m.adaptiveExternalFDs, 2)
+	if fdSlots > memorySlots {
+		memorySlots = fdSlots
+	}
+	if memorySlots >= int64(limit) {
+		return 0
+	}
+	return limit - int(memorySlots)
+}
+
+func (m *agentStreamCapacityManager) adaptiveStreamAdmissionLimitLocked() int {
+	limit := m.adaptiveEffectiveAdmissionLimitLocked()
+	if limit > m.config.Total {
+		return m.config.Total
+	}
+	return limit
+}
+
+const adaptivePublicFairSharePercent = int64(90)
+
+// adaptiveExternalPeerLimits bounds one direct peer's pre-header lifetime
+// reservations to ninety percent of the resource envelope that public work
+// can actually use. Subtracting live streams and the remaining protected
+// control reserve is essential: a percentage of the raw total could otherwise
+// still equal all public capacity when the controller's live allowance is
+// small. Setting the configured peer guard to zero disables this policy for a
+// trusted L4 proxy that represents many downstream clients.
+func (m *agentStreamCapacityManager) adaptiveExternalPeerLimits() (memoryBytes, fileDescriptors int64, adaptive bool) {
+	if m == nil {
+		return 0, 0, false
+	}
+	m.refreshAdaptiveCapacity(false)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.adaptiveMemory == nil || m.resourceSnapshot.StreamChargeByte <= 0 {
+		return 0, 0, false
+	}
+	availableSlots := m.resourceSnapshot.AdmissionLimit - m.usedTotal
+	protectedControl := m.adaptiveProtectedControlLocked() - m.usedControl
+	if protectedControl > 0 {
+		availableSlots -= protectedControl
+	}
+	if availableSlots <= 0 {
+		return 0, 0, true
+	}
+	// Floor in whole admission slots before converting back to bytes/FDs. If
+	// the percentage were applied after conversion, the global ledger's ceil
+	// could round a peer's fractional share back up to the entire envelope.
+	fairSlots := int(percentageInt64(int64(availableSlots), adaptivePublicFairSharePercent))
+	if fairSlots < 1 {
+		fairSlots = 1
+	}
+	if availableSlots > 1 && fairSlots >= availableSlots {
+		fairSlots = availableSlots - 1
+	}
+	total := saturatingMultiplyInt64(int64(fairSlots), m.resourceSnapshot.StreamChargeByte)
+	// Each stream is charged two descriptors because an opening Happy Eyeballs
+	// dial can temporarily own two sockets. Accepted public connections own one
+	// descriptor, so enforce the same fair share in both resource dimensions.
+	totalFDs := saturatingMultiplyInt64(int64(fairSlots), 2)
+	return total, totalFDs, true
+}
+
+// adaptivePublicClientRequestLimit prevents one resolved public client from
+// consuming every resource-backed stream slot, including when many logical
+// requests arrive over one HTTP/2 connection. This is intentionally derived
+// from the resource envelope rather than an operator's smaller fixed stream
+// ceiling: HTTP/2 reuse can safely carry more logical requests than physical
+// streams, while real pressure must still leave headroom for another client.
+func (m *agentStreamCapacityManager) adaptivePublicClientRequestLimit() (int64, bool) {
+	if m == nil {
+		return 0, false
+	}
+	m.refreshAdaptiveCapacity(false)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.adaptiveMemory == nil {
+		return 0, false
+	}
+	publicEnvelope := m.adaptiveEffectiveAdmissionLimitLocked() - m.adaptiveProtectedControlLocked()
+	if publicEnvelope <= 0 {
+		return 0, true
+	}
+	limit := percentageInt64(int64(publicEnvelope), adaptivePublicFairSharePercent)
+	if limit < 1 {
+		limit = 1
+	}
+	return limit, true
+}
+
+func saturatingMultiplyInt64(left, right int64) int64 {
+	if left <= 0 || right <= 0 {
+		return 0
+	}
+	if left > math.MaxInt64/right {
+		return math.MaxInt64
+	}
+	return left * right
+}
+
+func percentageInt64(value, percent int64) int64 {
+	if value <= 0 || percent <= 0 {
+		return 0
+	}
+	return value/100*percent + value%100*percent/100
+}
+
+func ceilPositiveInt64(value, divisor int64) int64 {
+	if value <= 0 || divisor <= 0 {
+		return 0
+	}
+	return 1 + (value-1)/divisor
 }
 
 func newAgentStreamCapacityAcquireError(cause, constraint error, queueKey, sessionKey string) error {
@@ -872,13 +1124,25 @@ func (m *agentStreamCapacityManager) sessionLimitLocked(sessionKey string) int {
 
 func (m *agentStreamCapacityManager) publicSessionLimitLocked(sessionKey string) int {
 	limit := m.config.Public
-	if m.config.ReservedPublicForOtherSessions <= 0 || len(m.registeredSessions) <= 1 {
+	if m.config.ReservedPublicForOtherSessions <= 0 || len(m.registeredSessions) <= 1 || !m.hasPublicWaiterForOtherSessionLocked(sessionKey) {
 		return limit
 	}
 	if _, registered := m.registeredSessions[sessionKey]; !registered {
 		return limit
 	}
 	return limit - m.config.ReservedPublicForOtherSessions
+}
+
+func (m *agentStreamCapacityManager) hasPublicWaiterForOtherSessionLocked(sessionKey string) bool {
+	for _, queue := range m.queues {
+		for _, waiter := range queue {
+			if waiter == nil || waiter.sessionKey == sessionKey || waiter.class == agentStreamCapacityTrustedHealth {
+				continue
+			}
+			return true
+		}
+	}
+	return false
 }
 
 // publicOpeningLimitPerSessionLocked protects trusted health from a public
@@ -891,6 +1155,9 @@ func (m *agentStreamCapacityManager) publicOpeningLimitPerSessionLocked() int {
 		return limit
 	}
 	reserve := m.config.Control
+	if reserve > defaultAgentStreamCapacityControlStreams {
+		reserve = defaultAgentStreamCapacityControlStreams
+	}
 	if reserve >= limit {
 		reserve = limit - 1
 	}
@@ -936,9 +1203,75 @@ func (m *agentStreamCapacityManager) snapshot() agentStreamCapacitySnapshot {
 	if m == nil {
 		return agentStreamCapacitySnapshot{}
 	}
+	m.refreshAdaptiveCapacity(false)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.snapshotLocked()
+}
+
+// tryReserveAdaptiveExternal atomically places pre-stream memory/descriptor
+// owners (replay buffers and accepted public sockets) in the same ledger used
+// by tunnel leases. constrained reports whether adaptive accounting applied.
+func (m *agentStreamCapacityManager) tryReserveAdaptiveExternal(memoryBytes, fileDescriptors int64) (release func(), ok, constrained bool) {
+	if m == nil {
+		return func() {}, true, false
+	}
+	m.refreshAdaptiveCapacity(false)
+	m.mu.Lock()
+	if m.adaptiveMemory == nil {
+		m.mu.Unlock()
+		return func() {}, true, false
+	}
+	if memoryBytes < 0 || fileDescriptors < 0 || m.resourceSnapshot.RejectNew || !m.resourceSnapshot.Usage.Valid() || m.resourceSnapshot.StreamChargeByte <= 0 {
+		m.mu.Unlock()
+		return nil, false, true
+	}
+	proposedBytes := saturatingAddInt64(m.adaptiveExternalBytes, memoryBytes)
+	proposedFDs := saturatingAddInt64(m.adaptiveExternalFDs, fileDescriptors)
+	memorySlots := ceilPositiveInt64(proposedBytes, m.resourceSnapshot.StreamChargeByte)
+	fdSlots := ceilPositiveInt64(proposedFDs, 2)
+	if fdSlots > memorySlots {
+		memorySlots = fdSlots
+	}
+	limit := m.resourceSnapshot.AdmissionLimit - int(memorySlots)
+	protectedControl := m.adaptiveProtectedControlLocked() - m.usedControl
+	if protectedControl < 0 {
+		protectedControl = 0
+	}
+	if limit < m.usedTotal+protectedControl {
+		m.mu.Unlock()
+		return nil, false, true
+	}
+	m.adaptiveExternalBytes = proposedBytes
+	m.adaptiveExternalFDs = proposedFDs
+	m.mu.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			m.mu.Lock()
+			m.adaptiveExternalBytes -= memoryBytes
+			m.adaptiveExternalFDs -= fileDescriptors
+			if m.adaptiveExternalBytes < 0 {
+				m.adaptiveExternalBytes = 0
+			}
+			if m.adaptiveExternalFDs < 0 {
+				m.adaptiveExternalFDs = 0
+			}
+			m.dispatchLocked()
+			m.mu.Unlock()
+		})
+	}, true, true
+}
+
+func saturatingAddInt64(left, right int64) int64 {
+	if right <= 0 {
+		return left
+	}
+	if left > math.MaxInt64-right {
+		return math.MaxInt64
+	}
+	return left + right
 }
 
 func (m *agentStreamCapacityManager) snapshotLocked() agentStreamCapacitySnapshot {
@@ -962,6 +1295,22 @@ func (m *agentStreamCapacityManager) snapshotLocked() agentStreamCapacitySnapsho
 		Granted:                     m.granted,
 		Released:                    m.released,
 		AdmissionMissesByConstraint: make(map[string]uint64, len(m.admissionMissesByConstraint)),
+		Adaptive:                    m.adaptiveMemory != nil,
+		AdaptiveAdmissionLimit:      m.adaptiveStreamAdmissionLimitLocked(),
+		AdaptiveRawAdmissionLimit:   m.resourceSnapshot.AdmissionLimit,
+		AdaptivePublicLimit:         m.adaptivePublicLimitLocked(),
+		AdaptiveExternalBytes:       m.adaptiveExternalBytes,
+		AdaptiveExternalFDs:         m.adaptiveExternalFDs,
+		MemoryPressure:              m.resourceSnapshot.Level.String(),
+		MemoryUsedBytes:             m.resourceSnapshot.Usage.UsedBytes,
+		MemoryLimitBytes:            m.resourceSnapshot.Usage.LimitBytes,
+		MemorySource:                m.resourceSnapshot.Usage.Source,
+		MemoryHeadroomToHardBytes:   m.resourceSnapshot.HeadroomToHardByte,
+		FileDescriptorsUsed:         m.resourceSnapshot.FDUsed,
+		FileDescriptorsLimit:        m.resourceSnapshot.FDLimit,
+		ResourcePressureReason:      m.resourceSnapshot.PressureReason,
+		ResourceSampleError:         m.resourceSnapshot.SampleError,
+		ResourceLastGoodAt:          m.resourceSnapshot.LastGoodSampleAt,
 	}
 	if m.config.Public > 0 {
 		snapshot.ContendedSessionPublicLimit = m.config.Public - m.config.ReservedPublicForOtherSessions

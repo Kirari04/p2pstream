@@ -35,7 +35,11 @@ func (a *App) logTerminalAgentStreamCapacityFailure(
 		return
 	}
 
-	event := log.Warn().
+	logger := log.Logger
+	if a.agentCapacityLogger != nil {
+		logger = *a.agentCapacityLogger
+	}
+	event := logger.Warn().
 		Str("error_kind", agentProxyErrorKind(err)).
 		Str("constraint", agentStreamCapacityConstraintName(err)).
 		Int64("route_target_id", target.ID).
@@ -67,7 +71,25 @@ func (a *App) logTerminalAgentStreamCapacityFailure(
 			Int("closing_streams", snapshot.States.Closing).
 			Int("capacity_waiters", snapshot.Waiters).
 			Int("registered_sessions", snapshot.RegisteredSessions).
-			Int64("oldest_closing_age_ms", snapshot.OldestClosingAgeMillis)
+			Int64("oldest_closing_age_ms", snapshot.OldestClosingAgeMillis).
+			Bool("adaptive_capacity", snapshot.Adaptive).
+			Int("adaptive_admission_limit", snapshot.AdaptiveAdmissionLimit).
+			Int("adaptive_raw_admission_limit", snapshot.AdaptiveRawAdmissionLimit).
+			Int("adaptive_public_limit", snapshot.AdaptivePublicLimit).
+			Int64("adaptive_external_bytes", snapshot.AdaptiveExternalBytes).
+			Int64("adaptive_external_fds", snapshot.AdaptiveExternalFDs).
+			Int64("public_connections", a.publicConnections.inUse()).
+			Uint64("public_connection_limit_rejected", a.publicConnectionLimitRejected.Load()).
+			Uint64("public_connection_resource_rejected", a.publicConnectionResourceReject.Load()).
+			Uint64("public_client_request_rejected", a.publicClientRequestRejected.Load()).
+			Str("memory_pressure", snapshot.MemoryPressure).
+			Str("memory_source", snapshot.MemorySource).
+			Int64("memory_used_bytes", snapshot.MemoryUsedBytes).
+			Int64("memory_limit_bytes", snapshot.MemoryLimitBytes).
+			Int64("file_descriptors_used", snapshot.FileDescriptorsUsed).
+			Int64("file_descriptors_limit", snapshot.FileDescriptorsLimit).
+			Str("resource_pressure_reason", snapshot.ResourcePressureReason).
+			Bool("resource_sensor_degraded", snapshot.ResourceSampleError != "")
 		if sessionKey != "" {
 			event = event.
 				Int("selected_session_public_in_use", snapshot.PublicBySession[sessionKey]).

@@ -15,6 +15,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/hashicorp/yamux"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
@@ -39,6 +40,8 @@ type AgentConn struct {
 	streamOpenAdmissionLimit       int
 	AdvertisedMaxConcurrentStreams int64
 	NegotiatedMaxConcurrentStreams int64
+	AdaptiveCapacity               bool
+	CurrentAdmissionLimit          atomic.Int64
 	ActiveRequests                 atomic.Int64
 	ConnectedAt                    time.Time
 	ConnectionDBID                 int64
@@ -176,10 +179,17 @@ type App struct {
 	agentAuthLocks                  *agentAuthLockMap
 	agentStreamCapacity             *agentStreamCapacityManager
 	publicProxyRequests             *requestCapacityLimiter
+	publicClientRequests            *keyedStringRequestCapacityLimiter
+	publicConnections               *publicConnectionCapacityLimiter
 	publicTargetRequests            *keyedRequestCapacityLimiter
 	retryReplayBudget               *retryReplayBudget
+	agentResourcePressureUntil      sync.Map // agent ID -> UnixNano routing cooldown
 	agentCapacityLogLastUnixNano    atomic.Int64
 	agentCapacityLogSuppressed      atomic.Uint64
+	agentCapacityLogger             *zerolog.Logger
+	publicConnectionLimitRejected   atomic.Uint64
+	publicConnectionResourceReject  atomic.Uint64
+	publicClientRequestRejected     atomic.Uint64
 	managementClientIdentity        *ClientIdentityResolver
 	managementClientIdentityErr     error
 	ManagementTLS                   *ManagementTLSRuntime
@@ -269,10 +279,15 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		publicListenerState:         make(map[int64]*publicListenerRuntime),
 		agentStreamCapacity:         mustNewDefaultAgentStreamCapacityManager(cfg.ServerTunnelMaxConcurrentStreams),
 		publicProxyRequests:         newRequestCapacityLimiter(publicMaxRequests, defaultPublicMaxConcurrentRequests),
+		publicClientRequests:        newKeyedStringRequestCapacityLimiter(cfg.PublicMaxConcurrentPerClient),
+		publicConnections:           newPublicConnectionCapacityLimiter(cfg.PublicMaxConcurrentConnections, cfg.PublicMaxConnectionsPerPeer),
 		publicTargetRequests:        newKeyedRequestCapacityLimiter(publicMaxRequestsPerTarget, publicMaxRequests),
 		retryReplayBudget:           newRetryReplayBudget(defaultPublicRetryReplayBudgetBytes),
 		managementClientIdentity:    managementIdentity,
 		managementClientIdentityErr: managementIdentityErr,
+	}
+	if cfg.ServerTunnelCapacityAuto || cfg.ServerTunnelMaxConcurrentStreams > 0 {
+		app.agentStreamCapacity.enableAdaptiveMemory(newServerAdaptiveMemoryController(cfg))
 	}
 	configDir := strings.TrimSpace(cfg.ConfigDir)
 	if configDir == "" {
@@ -332,25 +347,79 @@ func (a *App) ReportStats(
 	}
 
 	payload := req.Msg
+	admissionLimit := payload.TunnelAdmissionLimit
+	if admissionLimit < 0 {
+		admissionLimit = 0
+	}
+	if admissionLimit > tunnel.MaxAdaptiveConcurrentStreamsLimit {
+		admissionLimit = tunnel.MaxAdaptiveConcurrentStreamsLimit
+	}
+	streamsInUse := payload.TunnelStreamsInUse
+	if streamsInUse < 0 {
+		streamsInUse = 0
+	}
+	if streamsInUse > tunnel.MaxAdaptiveConcurrentStreamsLimit {
+		streamsInUse = tunnel.MaxAdaptiveConcurrentStreamsLimit
+	}
+	memoryUsageBytes := payload.MemoryUsageBytes
+	if memoryUsageBytes < 0 {
+		memoryUsageBytes = 0
+	}
+	memoryLimitBytes := payload.MemoryLimitBytes
+	if memoryLimitBytes < 0 {
+		memoryLimitBytes = 0
+	}
+	memoryPressure := normalizedAgentMemoryPressure(payload.MemoryPressure)
+	memorySource := normalizedAgentMemorySource(payload.MemorySource)
+	fileDescriptorsUsed := nonNegativeAgentResourceMetric(payload.FileDescriptorsUsed)
+	fileDescriptorsLimit := nonNegativeAgentResourceMetric(payload.FileDescriptorsLimit)
+	resourcePressureReason := normalizedAgentResourcePressureReason(payload.ResourcePressureReason)
+	resourceSampleError := normalizedAgentResourceSampleError(payload.ResourceSampleError)
+	reportedAt := time.Now().UTC()
+	resourceLastGoodAt := normalizedAgentResourceTimestamp(payload.ResourceLastGoodUnixMillis, reportedAt)
 	build := agentBuildIdentityFromStats(payload)
 	a.storeLatestAgentBuild(agentRow.ID, build)
 
 	s := stats.AgentStats{
-		Timestamp:        time.Now(),
-		NumGoroutine:     int(payload.NumGoroutine),
-		MemorySysMB:      uint64(payload.MemorySysMb),
-		ActiveRequests:   payload.ActiveRequests,
-		CPUPercent:       payload.CpuPercent,
-		ReqSuccess:       int32(payload.ReqSuccess),
-		ReqClientError:   int32(payload.ReqClientError),
-		ReqServerError:   int32(payload.ReqServerError),
-		ReqInternalError: int32(payload.ReqInternalError),
-		BytesReceived:    payload.BytesReceived,
-		BytesSent:        payload.BytesSent,
+		Timestamp:                reportedAt,
+		NumGoroutine:             int(payload.NumGoroutine),
+		MemorySysMB:              uint64(payload.MemorySysMb),
+		ActiveRequests:           payload.ActiveRequests,
+		CPUPercent:               payload.CpuPercent,
+		TunnelCapacityAdaptive:   payload.TunnelCapacityAdaptive,
+		TunnelAdmissionLimit:     admissionLimit,
+		TunnelStreamsInUse:       streamsInUse,
+		MemoryPressure:           memoryPressure,
+		MemoryUsageBytes:         memoryUsageBytes,
+		MemoryLimitBytes:         memoryLimitBytes,
+		MemorySource:             memorySource,
+		TunnelPressureRejections: payload.TunnelPressureRejections,
+		TunnelLimitRejections:    payload.TunnelLimitRejections,
+		FileDescriptorsUsed:      fileDescriptorsUsed,
+		FileDescriptorsLimit:     fileDescriptorsLimit,
+		ResourcePressureReason:   resourcePressureReason,
+		ResourceSampleError:      resourceSampleError,
+		ResourceLastGoodAt:       resourceLastGoodAt,
+		ReqSuccess:               int32(payload.ReqSuccess),
+		ReqClientError:           int32(payload.ReqClientError),
+		ReqServerError:           int32(payload.ReqServerError),
+		ReqInternalError:         int32(payload.ReqInternalError),
+		BytesReceived:            payload.BytesReceived,
+		BytesSent:                payload.BytesSent,
 	}
 
 	a.LatestAgentStats.Store(&s)
 	a.storeLatestAgentStats(agentRow.ID, s)
+	if conn := a.AgentHub.connectedByID(agentRow.ID); conn != nil && conn.AdaptiveCapacity && payload.TunnelCapacityAdaptive {
+		remoteLimit := admissionLimit
+		if memoryPressure == "critical" {
+			remoteLimit = 0
+		}
+		if remoteLimit > conn.NegotiatedMaxConcurrentStreams {
+			remoteLimit = conn.NegotiatedMaxConcurrentStreams
+		}
+		conn.CurrentAdmissionLimit.Store(remoteLimit)
+	}
 
 	log.Debug().
 		Str("agent", agentRow.PublicID).
@@ -368,7 +437,6 @@ func (a *App) ReportStats(
 		}); err != nil {
 			log.Error().Err(err).Str("agent", agentRow.PublicID).Msg("Failed to record agent build identity")
 		}
-		reportedAt := time.Now().UTC()
 		err := a.insertAgentStatWithRollup(ctx, db.InsertAgentStatAtParams{
 			ReportedAt:       reportedAt,
 			AgentID:          sql.NullInt64{Int64: agentRow.ID, Valid: true},
@@ -399,6 +467,61 @@ func (a *App) ReportStats(
 		}
 	}
 	return connect.NewResponse(response), nil
+}
+
+func normalizedAgentMemoryPressure(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "healthy", "soft", "critical", "unknown":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return "unknown"
+	}
+}
+
+func normalizedAgentMemorySource(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "cgroup_v1", "cgroup_v2", "go", "host", "test", "benchmark":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return ""
+	}
+}
+
+func normalizedAgentResourcePressureReason(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "memory", "file_descriptors", "sensor":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return ""
+	}
+}
+
+// Resource sample errors originate on a remotely authenticated but still
+// untrusted agent. Preserve the state without storing arbitrary error text or
+// host paths in server logs/API responses.
+func normalizedAgentResourceSampleError(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	return "unavailable"
+}
+
+func nonNegativeAgentResourceMetric(value int64) int64 {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func normalizedAgentResourceTimestamp(value int64, now time.Time) time.Time {
+	if value <= 0 {
+		return time.Time{}
+	}
+	parsed := time.UnixMilli(value).UTC()
+	if parsed.After(now) {
+		return now
+	}
+	return parsed
 }
 
 func (a *App) storeLatestAgentStats(agentID int64, stat stats.AgentStats) {
@@ -463,20 +586,57 @@ func (a *App) latestAgentStatsSnapshot(agentID int64) (*p2pstreamv1.AgentStatsSn
 	return agentStatsSnapshotFromRuntime(stat), true
 }
 
+func (a *App) agentHasFreshCriticalMemoryPressure(agentID int64, now time.Time) bool {
+	if a == nil {
+		return false
+	}
+	a.latestAgentStatsMu.RLock()
+	stat, ok := a.latestAgentStats[agentID]
+	a.latestAgentStatsMu.RUnlock()
+	if !ok || stat.MemoryPressure != "critical" || stat.Timestamp.IsZero() {
+		return false
+	}
+	if conn := a.AgentHub.connectedByID(agentID); conn != nil && !conn.ConnectedAt.IsZero() && stat.Timestamp.Before(conn.ConnectedAt) {
+		return false
+	}
+	return now.Sub(stat.Timestamp) >= 0 && now.Sub(stat.Timestamp) <= 15*time.Second
+}
+
 func agentStatsSnapshotFromRuntime(stat stats.AgentStats) *p2pstreamv1.AgentStatsSnapshot {
 	return &p2pstreamv1.AgentStatsSnapshot{
-		MemorySysMb:          int64(stat.MemorySysMB),
-		NumGoroutine:         int64(stat.NumGoroutine),
-		ReqSuccess:           int64(stat.ReqSuccess),
-		ReqClientError:       int64(stat.ReqClientError),
-		ReqServerError:       int64(stat.ReqServerError),
-		ReqInternalError:     int64(stat.ReqInternalError),
-		BytesReceived:        stat.BytesReceived,
-		BytesSent:            stat.BytesSent,
-		ActiveRequests:       stat.ActiveRequests,
-		CpuPercent:           stat.CPUPercent,
-		ReportedAtUnixMillis: stat.Timestamp.UnixMilli(),
+		MemorySysMb:                int64(stat.MemorySysMB),
+		NumGoroutine:               int64(stat.NumGoroutine),
+		ReqSuccess:                 int64(stat.ReqSuccess),
+		ReqClientError:             int64(stat.ReqClientError),
+		ReqServerError:             int64(stat.ReqServerError),
+		ReqInternalError:           int64(stat.ReqInternalError),
+		BytesReceived:              stat.BytesReceived,
+		BytesSent:                  stat.BytesSent,
+		ActiveRequests:             stat.ActiveRequests,
+		CpuPercent:                 stat.CPUPercent,
+		TunnelCapacityAdaptive:     stat.TunnelCapacityAdaptive,
+		TunnelAdmissionLimit:       stat.TunnelAdmissionLimit,
+		TunnelStreamsInUse:         stat.TunnelStreamsInUse,
+		MemoryPressure:             stat.MemoryPressure,
+		MemoryUsageBytes:           stat.MemoryUsageBytes,
+		MemoryLimitBytes:           stat.MemoryLimitBytes,
+		MemorySource:               stat.MemorySource,
+		TunnelPressureRejections:   stat.TunnelPressureRejections,
+		TunnelLimitRejections:      stat.TunnelLimitRejections,
+		FileDescriptorsUsed:        stat.FileDescriptorsUsed,
+		FileDescriptorsLimit:       stat.FileDescriptorsLimit,
+		ResourcePressureReason:     stat.ResourcePressureReason,
+		ResourceSampleError:        stat.ResourceSampleError,
+		ResourceLastGoodUnixMillis: unixMillisOrZero(stat.ResourceLastGoodAt),
+		ReportedAtUnixMillis:       stat.Timestamp.UnixMilli(),
 	}
+}
+
+func unixMillisOrZero(value time.Time) int64 {
+	if value.IsZero() {
+		return 0
+	}
+	return value.UnixMilli()
 }
 
 // GetStatus implements the ConnectRPC AgentManagementService status endpoint.
@@ -545,12 +705,20 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	if !advertised {
 		advertisedStreams = tunnel.DefaultMaxConcurrentAgentRequests
 	}
+	capacityMode, _, err := tunnel.ParseOptionalCapacityMode(r.Header.Get(tunnel.TunnelCapacityModeHeader))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	adaptiveCapacity := capacityMode == tunnel.TunnelCapacityModeAdaptive
 	serverStreams := tunnel.DefaultServerMaxConcurrentStreams
 	if a.agentStreamCapacity != nil {
 		serverStreams = int64(a.agentStreamCapacity.snapshot().Total.Capacity)
 	}
 	negotiatedStreams := advertisedStreams
-	if negotiatedStreams > serverStreams {
+	if adaptiveCapacity {
+		negotiatedStreams = serverStreams
+	} else if negotiatedStreams > serverStreams {
 		negotiatedStreams = serverStreams
 	}
 	// A tunnel session is capped far below MaxInt32, but keep the conversion
@@ -598,9 +766,24 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		Done:                           make(chan struct{}),
 		AdvertisedMaxConcurrentStreams: advertisedStreams,
 		NegotiatedMaxConcurrentStreams: negotiatedStreams,
+		AdaptiveCapacity:               adaptiveCapacity,
 		ConnectedAt:                    time.Now(),
 	}
-	yamuxConfig, err := tunnel.NewYamuxConfig(nil, a.Config.TunnelMaxStreamWindowBytes)
+	if adaptiveCapacity {
+		// The negotiated value is only a protocol guard. Do not present it as a
+		// live allowance until the newly connected agent reports a resource
+		// snapshot for this connection generation.
+		agent.CurrentAdmissionLimit.Store(0)
+	} else {
+		agent.CurrentAdmissionLimit.Store(negotiatedStreams)
+	}
+	effectiveStreamWindowBytes, err := effectiveServerTunnelStreamWindowBytes(a.Config)
+	if err != nil {
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Invalid resource-accounted agent tunnel yamux configuration")
+		http.Error(w, "invalid agent tunnel resource configuration", http.StatusInternalServerError)
+		return
+	}
+	yamuxConfig, err := tunnel.NewYamuxConfig(nil, effectiveStreamWindowBytes)
 	if err != nil {
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Invalid agent tunnel yamux configuration")
 		http.Error(w, "invalid agent tunnel configuration", http.StatusInternalServerError)
@@ -623,6 +806,9 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = rw.WriteString("Upgrade: " + tunnel.UpgradeToken + "\r\n")
 	_, _ = rw.WriteString(tunnel.TunnelVersionHeader + ": " + version + "\r\n")
 	_, _ = rw.WriteString(tunnel.TunnelMaxConcurrentStreamsHeader + ": " + strconv.FormatInt(negotiatedStreams, 10) + "\r\n")
+	if adaptiveCapacity {
+		_, _ = rw.WriteString(tunnel.TunnelCapacityModeHeader + ": " + tunnel.TunnelCapacityModeAdaptive + "\r\n")
+	}
 	_, _ = rw.WriteString("\r\n")
 	if err := rw.Flush(); err != nil {
 		_ = rawConn.Close()
@@ -702,6 +888,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		Int("tunnel_version", tunnel.ProtocolVersion).
 		Int64("advertised_max_streams", advertisedStreams).
 		Int64("negotiated_max_streams", negotiatedStreams).
+		Bool("adaptive_capacity", adaptiveCapacity).
 		Msg("Agent tunnel connected successfully")
 
 	go func() {
@@ -717,6 +904,24 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			Int64("active_requests", agent.ActiveRequests.Load()).
 			Msg("Agent tunnel disconnected")
 	}()
+}
+
+// effectiveServerTunnelStreamWindowBytes keeps the Yamux receive credit within
+// the per-stream lifetime charge whenever the server resource ledger is active.
+// An explicit stream count is only an additional ceiling; it must not disable
+// the memory/FD safety model used for automatic capacity.
+func effectiveServerTunnelStreamWindowBytes(cfg *config.Config) (int64, error) {
+	if cfg == nil {
+		return tunnel.DefaultMaxStreamWindowSizeBytes, nil
+	}
+	if cfg.ServerTunnelCapacityAuto || cfg.ServerTunnelMaxConcurrentStreams > 0 {
+		return tunnel.AdaptiveMaxStreamWindowSizeBytes(
+			cfg.TunnelMaxStreamWindowBytes,
+			cfg.ServerTunnelEstimatedStreamBytes,
+		)
+	}
+	window, err := tunnel.NormalizeMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes)
+	return int64(window), err
 }
 
 func (a *App) cleanupAgentConnection(agent *AgentConn) bool {

@@ -593,7 +593,7 @@ func (a *App) runPublicRouteTargetHealthCheckViaAgent(parent context.Context, ta
 		switch {
 		case errors.Is(err, errAgentDisconnected):
 			attempt.fail("agent_disconnected", err)
-		case errors.As(err, &dialErr) && agentDialErrorIsLocalCapacity(dialErr):
+		case errors.As(err, &dialErr) && agentDialErrorIsAdmissionPressure(dialErr):
 			attempt.skip(agentProxyErrorKind(err), err)
 		case errors.As(err, &dialErr):
 			kind := "agent_dial_failed"

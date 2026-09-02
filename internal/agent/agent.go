@@ -82,6 +82,7 @@ type Options struct {
 	AllowAnyTarget              bool
 	TunnelMaxStreamWindowBytes  int64
 	TunnelMaxConcurrentRequests int64
+	TunnelCapacityAdaptive      bool
 }
 
 // Run is the main entry point to start the agent loop
@@ -120,11 +121,23 @@ func RunContext(ctx context.Context, opts Options) error {
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	capacityRuntime := newAgentTunnelCapacityRuntime(
+		opts.TunnelMaxConcurrentRequests,
+		opts.TunnelCapacityAdaptive,
+		nil,
+	)
+	// Establish a real local resource snapshot before advertising or accepting
+	// adaptive work. If the host signal is unavailable, the runtime preserves
+	// existing work but fails closed for new streams instead of momentarily
+	// opening the protocol guard.
+	if opts.TunnelCapacityAdaptive {
+		capacityRuntime.forceRefresh()
+	}
 
 	statsDone := make(chan struct{})
 	go func() {
 		defer close(statsDone)
-		startStatsReporter(runCtx, managementClient, opts.ManagementURL, opts.PublicID, opts.Token, trustStore)
+		startStatsReporterWithCapacity(runCtx, managementClient, opts.ManagementURL, opts.PublicID, opts.Token, trustStore, capacityRuntime)
 	}()
 	defer func() {
 		cancel()
@@ -149,6 +162,8 @@ func RunContext(ctx context.Context, opts Options) error {
 			destinationPolicy,
 			opts.TunnelMaxStreamWindowBytes,
 			opts.TunnelMaxConcurrentRequests,
+			opts.TunnelCapacityAdaptive,
+			capacityRuntime,
 		)
 		if err != nil {
 			if runCtx.Err() != nil {
@@ -706,7 +721,7 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
 	}, nil
 }
 
-func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, destinationPolicy *agentDestinationPolicy, maxStreamWindowSizeBytes int64, maxConcurrentRequests int64) error {
+func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, destinationPolicy *agentDestinationPolicy, maxStreamWindowSizeBytes int64, maxConcurrentRequests int64, adaptiveCapacity bool, capacityRuntime *agentTunnelCapacityRuntime) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -729,6 +744,11 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	req.Header.Set("Upgrade", tunnel.UpgradeToken)
 	req.Header.Set(tunnel.TunnelVersionHeader, strconv.Itoa(tunnel.ProtocolVersion))
 	req.Header.Set(tunnel.TunnelMaxConcurrentStreamsHeader, strconv.FormatInt(maxConcurrentRequests, 10))
+	if adaptiveCapacity {
+		req.Header.Set(tunnel.TunnelCapacityModeHeader, tunnel.TunnelCapacityModeAdaptive)
+	} else {
+		req.Header.Set(tunnel.TunnelCapacityModeHeader, tunnel.TunnelCapacityModeFixed)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -750,22 +770,33 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = resp.Body.Close()
 		return fmt.Errorf("agent tunnel upgrade response header = %q", got)
 	}
-	negotiatedMaxConcurrentRequests := maxConcurrentRequests
-	if negotiated, present, err := tunnel.ParseOptionalMaxConcurrentStreams(
-		resp.Header.Get(tunnel.TunnelMaxConcurrentStreamsHeader),
-		tunnel.MaxConcurrentAgentRequestsLimit,
-	); err != nil {
+	negotiatedMaxConcurrentRequests, err := negotiatedAgentTunnelCapacity(resp.Header, maxConcurrentRequests, adaptiveCapacity)
+	if err != nil {
 		_ = resp.Body.Close()
-		return fmt.Errorf("invalid agent tunnel negotiated capacity: %w", err)
-	} else if present && negotiated < negotiatedMaxConcurrentRequests {
-		negotiatedMaxConcurrentRequests = negotiated
+		return err
+	}
+	if capacityRuntime == nil {
+		capacityRuntime = newAgentTunnelCapacityRuntime(negotiatedMaxConcurrentRequests, adaptiveCapacity, nil)
+	} else {
+		capacityRuntime.setMaximum(negotiatedMaxConcurrentRequests)
 	}
 	rwc, ok := resp.Body.(io.ReadWriteCloser)
 	if !ok {
 		_ = resp.Body.Close()
 		return fmt.Errorf("agent tunnel response body is %T, want io.ReadWriteCloser", resp.Body)
 	}
-	yamuxConfig, err := tunnel.NewYamuxConfig(nil, maxStreamWindowSizeBytes)
+	effectiveStreamWindowBytes := maxStreamWindowSizeBytes
+	if adaptiveCapacity {
+		effectiveStreamWindowBytes, err = tunnel.AdaptiveMaxStreamWindowSizeBytes(
+			maxStreamWindowSizeBytes,
+			sysmetrics.DefaultAdaptiveMemoryConfig().EstimatedBytesPerAdmission,
+		)
+		if err != nil {
+			_ = rwc.Close()
+			return fmt.Errorf("invalid adaptive tunnel yamux configuration: %w", err)
+		}
+	}
+	yamuxConfig, err := tunnel.NewYamuxConfig(nil, effectiveStreamWindowBytes)
 	if err != nil {
 		_ = rwc.Close()
 		return fmt.Errorf("invalid tunnel yamux configuration: %w", err)
@@ -780,6 +811,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	log.Info().
 		Int64("advertised_max_streams", maxConcurrentRequests).
 		Int64("negotiated_max_streams", negotiatedMaxConcurrentRequests).
+		Bool("adaptive_capacity", adaptiveCapacity).
 		Msg("Connected tunnel successfully")
 
 	go func() {
@@ -787,12 +819,40 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = session.Close()
 	}()
 
-	if err := serveTunnelSessionWithPolicyAndLimit(serveCtx, session, destinationPolicy, negotiatedMaxConcurrentRequests); err != nil {
+	if err := serveTunnelSessionWithPolicyAndCapacity(serveCtx, session, destinationPolicy, capacityRuntime); err != nil {
 		log.Debug().Err(err).Msg("Tunnel session ended")
 		return err
 	}
 	log.Debug().Msg("Tunnel session ended")
 	return nil
+}
+
+func negotiatedAgentTunnelCapacity(headers http.Header, advertised int64, adaptiveRequested bool) (int64, error) {
+	responseMode, _, err := tunnel.ParseOptionalCapacityMode(headers.Get(tunnel.TunnelCapacityModeHeader))
+	if err != nil {
+		return 0, fmt.Errorf("invalid agent tunnel negotiated capacity mode: %w", err)
+	}
+	adaptiveAcknowledged := adaptiveRequested && responseMode == tunnel.TunnelCapacityModeAdaptive
+	parseMaximum := tunnel.MaxConcurrentAgentRequestsLimit
+	if adaptiveAcknowledged {
+		parseMaximum = tunnel.MaxAdaptiveConcurrentStreamsLimit
+	}
+	negotiated, present, err := tunnel.ParseOptionalMaxConcurrentStreams(
+		headers.Get(tunnel.TunnelMaxConcurrentStreamsHeader),
+		parseMaximum,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("invalid agent tunnel negotiated capacity: %w", err)
+	}
+	if !present {
+		return advertised, nil
+	}
+	if adaptiveAcknowledged || negotiated < advertised {
+		return negotiated, nil
+	}
+	// An old or non-adaptive server cannot raise a fixed client limit merely by
+	// returning a header. This keeps one-version rolling upgrades safe.
+	return advertised, nil
 }
 
 func serveTunnelSession(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy) error {
@@ -804,9 +864,21 @@ func serveTunnelSessionWithLimit(ctx context.Context, session *yamux.Session, ma
 }
 
 func serveTunnelSessionWithPolicyAndLimit(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy, maxConcurrentRequests int64) error {
-	limiter, err := tunnel.NewStreamLimiter(maxConcurrentRequests)
+	maxConcurrentRequests, err := tunnel.NormalizeMaxConcurrentAgentRequests(maxConcurrentRequests)
 	if err != nil {
 		return fmt.Errorf("invalid tunnel request limit: %w", err)
+	}
+	return serveTunnelSessionWithPolicyAndCapacity(
+		ctx,
+		session,
+		destinationPolicy,
+		newAgentTunnelCapacityRuntime(maxConcurrentRequests, false, nil),
+	)
+}
+
+func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy, capacity *agentTunnelCapacityRuntime) error {
+	if capacity == nil {
+		capacity = newAgentTunnelCapacityRuntime(tunnel.DefaultMaxConcurrentAgentRequests, false, nil)
 	}
 	var handlers sync.WaitGroup
 	defer func() {
@@ -823,22 +895,53 @@ func serveTunnelSessionWithPolicyAndLimit(ctx context.Context, session *yamux.Se
 			log.Debug().Err(err).Msg("Tunnel stream accept loop stopped")
 			return fmt.Errorf("accept tunnel stream: %w", err)
 		}
-		release, ok := limiter.TryAcquire()
+		release, capacitySnapshot, ok := capacity.tryAcquire()
 		if !ok {
 			reqServerError.Add(1)
-			rejectTunnelStreamAtCapacity(stream)
+			kind := "agent_capacity"
+			message := "agent tunnel request capacity reached"
+			if capacitySnapshot.Adaptive {
+				kind = "agent_resource_pressure"
+				message = "agent is temporarily limiting new tunnel requests to its live resource allowance"
+			}
+			rejectTunnelStreamAtCapacityKind(stream, kind, message)
 			continue
 		}
 		handlers.Add(1)
 		go func(stream net.Conn) {
 			defer handlers.Done()
-			defer release()
 			handleTunnelStream(ctx, stream, destinationPolicy)
+			releaseAgentTunnelCapacityAfterPeerClose(stream, release)
 		}(stream)
 	}
 }
 
+func releaseAgentTunnelCapacityAfterPeerClose(stream net.Conn, release func()) {
+	if release == nil {
+		return
+	}
+	defer release()
+	if stream == nil {
+		return
+	}
+	// yamux Close sends the local FIN, but its receive window and stream state
+	// remain resident until the peer FIN arrives (or StreamCloseTimeout forces
+	// cleanup). Keep the lifetime reservation through that drain so rapid
+	// upstream closes cannot accumulate uncharged closing streams.
+	_ = stream.SetReadDeadline(time.Time{})
+	var buffer [4 * 1024]byte
+	for {
+		if _, err := stream.Read(buffer[:]); err != nil {
+			return
+		}
+	}
+}
+
 func rejectTunnelStreamAtCapacity(stream net.Conn) {
+	rejectTunnelStreamAtCapacityKind(stream, "agent_capacity", "agent tunnel request capacity reached")
+}
+
+func rejectTunnelStreamAtCapacityKind(stream net.Conn, kind, message string) {
 	defer stream.Close()
 	_ = stream.SetDeadline(time.Now().Add(agentCapacityResponseTimeout))
 	if _, err := tunnel.ReadOpenRequest(stream); err != nil {
@@ -846,8 +949,8 @@ func rejectTunnelStreamAtCapacity(stream net.Conn) {
 	}
 	_ = tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{
 		OK:        false,
-		ErrorKind: "agent_capacity",
-		Error:     "agent tunnel request capacity reached",
+		ErrorKind: kind,
+		Error:     message,
 	})
 }
 
@@ -954,7 +1057,26 @@ func dialTunnelDestination(ctx context.Context, network string, address string, 
 
 func dialTunnelNetwork(ctx context.Context, network string, address string) (net.Conn, error) {
 	dialer := agentTunnelDialer()
-	return dialer.DialContext(ctx, network, address)
+	conn, err := dialer.DialContext(ctx, network, address)
+	if err != nil {
+		return nil, err
+	}
+	if tcpConn, ok := conn.(*net.TCPConn); ok {
+		// Keep kernel socket buffering within the adaptive per-stream overhead
+		// reservation. Linux may double these requested values internally; the
+		// controller reserves substantially more than both buffers plus relay
+		// allocations.
+		const socketBufferBytes = 64 * 1024
+		if err := tcpConn.SetReadBuffer(socketBufferBytes); err != nil {
+			_ = conn.Close()
+			return nil, fmt.Errorf("bound upstream TCP read buffer: %w", err)
+		}
+		if err := tcpConn.SetWriteBuffer(socketBufferBytes); err != nil {
+			_ = conn.Close()
+			return nil, fmt.Errorf("bound upstream TCP write buffer: %w", err)
+		}
+	}
+	return conn, nil
 }
 
 func agentTunnelDialer() net.Dialer {
@@ -1051,6 +1173,14 @@ func isTimeoutError(err error) bool {
 }
 
 func startStatsReporter(ctx context.Context, httpClient *http.Client, mgmtURL string, agentPublicID string, agentToken string, trustStores ...*managementTrustStore) {
+	var trustStore *managementTrustStore
+	if len(trustStores) > 0 {
+		trustStore = trustStores[0]
+	}
+	startStatsReporterWithCapacity(ctx, httpClient, mgmtURL, agentPublicID, agentToken, trustStore, nil)
+}
+
+func startStatsReporterWithCapacity(ctx context.Context, httpClient *http.Client, mgmtURL string, agentPublicID string, agentToken string, trustStore *managementTrustStore, capacity *agentTunnelCapacityRuntime) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1059,10 +1189,18 @@ func startStatsReporter(ctx context.Context, httpClient *http.Client, mgmtURL st
 		mgmtURL,
 		connect.WithGRPC(), // We can use gRPC or Connect protocol, let's use default Connect or GRPC
 	)
-	runStatsReporter(ctx, client, agentPublicID, agentToken, sysmetrics.NewProcessCPUSampler(), trustStores...)
+	runStatsReporterWithCapacity(ctx, client, agentPublicID, agentToken, sysmetrics.NewProcessCPUSampler(), trustStore, capacity)
 }
 
 func runStatsReporter(ctx context.Context, client agentStatsReportClient, agentPublicID string, agentToken string, cpuSampler *sysmetrics.ProcessCPUSampler, trustStores ...*managementTrustStore) {
+	var trustStore *managementTrustStore
+	if len(trustStores) > 0 {
+		trustStore = trustStores[0]
+	}
+	runStatsReporterWithCapacity(ctx, client, agentPublicID, agentToken, cpuSampler, trustStore, nil)
+}
+
+func runStatsReporterWithCapacity(ctx context.Context, client agentStatsReportClient, agentPublicID string, agentToken string, cpuSampler *sysmetrics.ProcessCPUSampler, trustStore *managementTrustStore, capacity *agentTunnelCapacityRuntime) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1073,14 +1211,34 @@ func runStatsReporter(ctx context.Context, client agentStatsReportClient, agentP
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+	var pressureTicker *time.Ticker
+	var pressureTick <-chan time.Time
+	lastPressure := sysmetrics.MemoryPressureUnknown
+	if capacity != nil && capacity.adaptive {
+		pressureTicker = time.NewTicker(250 * time.Millisecond)
+		pressureTick = pressureTicker.C
+		lastPressure = capacity.snapshot().Pressure
+		defer pressureTicker.Stop()
+	}
+	lastTransitionReport := time.Time{}
+	report := func() {
+		if err := reportAgentStatsWithCapacity(ctx, client, agentPublicID, agentToken, cpuSampler, trustStore, capacity); err != nil && ctx.Err() == nil {
+			log.Debug().Err(err).Msg("Failed to report stats")
+		}
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := reportAgentStats(ctx, client, agentPublicID, agentToken, cpuSampler, trustStores...); err != nil && ctx.Err() == nil {
-				log.Debug().Err(err).Msg("Failed to report stats")
+			report()
+		case now := <-pressureTick:
+			pressure := capacity.snapshot().Pressure
+			if pressure != lastPressure && (lastTransitionReport.IsZero() || now.Sub(lastTransitionReport) >= time.Second) {
+				lastPressure = pressure
+				lastTransitionReport = now
+				report()
 			}
 		}
 	}
@@ -1097,7 +1255,17 @@ func reportAgentStats(ctx context.Context, client agentStatsReportClient, agentP
 	if len(trustStores) > 0 {
 		trustStore = trustStores[0]
 	}
-	req := buildAgentStatsRequest(agentPublicID, cpuSampler, trustStore)
+	return reportAgentStatsWithCapacity(ctx, client, agentPublicID, agentToken, cpuSampler, trustStore, nil)
+}
+
+func reportAgentStatsWithCapacity(ctx context.Context, client agentStatsReportClient, agentPublicID string, agentToken string, cpuSampler *sysmetrics.ProcessCPUSampler, trustStore *managementTrustStore, capacity *agentTunnelCapacityRuntime) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req := buildAgentStatsRequestWithCapacity(agentPublicID, cpuSampler, trustStore, capacity)
 
 	connectReq := connect.NewRequest(req)
 	connectReq.Header().Set("Authorization", "Bearer "+agentToken)
@@ -1122,6 +1290,14 @@ func reportAgentStats(ctx context.Context, client agentStatsReportClient, agentP
 }
 
 func buildAgentStatsRequest(agentPublicID string, cpuSampler *sysmetrics.ProcessCPUSampler, trustStores ...*managementTrustStore) *p2pstreamv1.AgentStatsRequest {
+	var trustStore *managementTrustStore
+	if len(trustStores) > 0 {
+		trustStore = trustStores[0]
+	}
+	return buildAgentStatsRequestWithCapacity(agentPublicID, cpuSampler, trustStore, nil)
+}
+
+func buildAgentStatsRequestWithCapacity(agentPublicID string, cpuSampler *sysmetrics.ProcessCPUSampler, trustStore *managementTrustStore, capacity *agentTunnelCapacityRuntime) *p2pstreamv1.AgentStatsRequest {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 	cpuPercent := 0.0
@@ -1146,8 +1322,27 @@ func buildAgentStatsRequest(agentPublicID string, cpuSampler *sysmetrics.Process
 		AgentVersion:     buildinfo.Version,
 		AgentCommit:      buildinfo.Commit,
 	}
-	if len(trustStores) > 0 && trustStores[0] != nil {
-		request.ManagementTrustStatus = trustStores[0].snapshot()
+	if capacity != nil {
+		snapshot := capacity.snapshot()
+		request.TunnelCapacityAdaptive = snapshot.Adaptive
+		request.TunnelAdmissionLimit = int64(snapshot.AdmissionLimit)
+		request.TunnelStreamsInUse = int64(snapshot.InUse)
+		request.MemoryPressure = snapshot.Pressure.String()
+		request.MemoryUsageBytes = snapshot.MemoryUsedBytes
+		request.MemoryLimitBytes = snapshot.MemoryLimitBytes
+		request.MemorySource = snapshot.MemorySource
+		request.TunnelPressureRejections = snapshot.RejectedPressure
+		request.TunnelLimitRejections = snapshot.RejectedFixedLimit
+		request.FileDescriptorsUsed = snapshot.FileDescriptorsUsed
+		request.FileDescriptorsLimit = snapshot.FileDescriptorsLimit
+		request.ResourcePressureReason = snapshot.PressureReason
+		request.ResourceSampleError = snapshot.SampleError
+		if !snapshot.LastGoodSampleAt.IsZero() {
+			request.ResourceLastGoodUnixMillis = snapshot.LastGoodSampleAt.UnixMilli()
+		}
+	}
+	if trustStore != nil {
+		request.ManagementTrustStatus = trustStore.snapshot()
 	}
 	return request
 }

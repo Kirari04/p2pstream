@@ -19,7 +19,59 @@ import (
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
+	"p2pstream/internal/sysmetrics"
+	"p2pstream/stats"
 )
+
+func TestRetryReplayBudgetSharesAdaptiveMemoryHeadroom(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 80 << 20, LimitBytes: 100 << 20, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 64, &usage)
+	manager.registerSessionWithLimit("session", 64)
+	defer manager.unregisterSession("session")
+	app := &App{
+		agentStreamCapacity: manager,
+		retryReplayBudget:   newRetryReplayBudget(defaultPublicRetryReplayBudgetBytes),
+	}
+
+	leases := make([]*agentStreamCapacityLease, 0, 4)
+	for index := range 4 {
+		lease, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "route", "session")
+		if err != nil {
+			t.Fatalf("stream reservation %d: %v", index, err)
+		}
+		lease.markLive()
+		leases = append(leases, lease)
+	}
+	// The 90 MiB hard watermark leaves 10 MiB. Four stream reservations plus
+	// the protected health slot leave enough room for a 1 MiB replay payload,
+	// charged at 3 MiB for io.ReadAll growth and its final copy. The buffer and
+	// stream grants share one atomic ledger, so another stream cannot spend the
+	// same remaining headroom.
+	release, ok := app.tryAcquireRetryReplayBudget(1 << 20)
+	if !ok {
+		t.Fatal("replay reservation within adaptive headroom was rejected")
+	}
+	if got := manager.snapshot(); got.AdaptiveExternalBytes != 3<<20 {
+		t.Fatalf("adaptive replay charge = %d, want %d", got.AdaptiveExternalBytes, 3<<20)
+	}
+	if _, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "blocked", "session"); !errors.Is(err, errAgentStreamCapacityResourcePressure) {
+		t.Fatalf("stream double-spent replay headroom: %v", err)
+	}
+	release()
+	recovered, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "recovered", "session")
+	if err != nil {
+		t.Fatalf("stream after replay release: %v", err)
+	}
+	recovered.release()
+	for _, lease := range leases {
+		lease.release()
+	}
+	usage.UsedBytes = 91 << 20
+	manager.refreshAdaptiveCapacity(true)
+	if _, ok := app.tryAcquireRetryReplayBudget(1); ok {
+		t.Fatal("replay reservation was admitted during critical memory pressure")
+	}
+}
 
 type retryRoundTripFunc func(*http.Request) (*http.Response, error)
 
@@ -155,6 +207,94 @@ func TestPublicAgentRetryUsesDifferentAgentAfterDialFailure(t *testing.T) {
 	}
 	if result.RetryCount != 1 || result.Outcome != publicRetryOutcomeRecovered || result.FinalAgent != second || result.FirstFailedAgent != first {
 		t.Fatalf("retry result = %+v", result)
+	}
+}
+
+func TestPublicAgentAutomaticallyFailsOverResourcePressureBeforeBodyRead(t *testing.T) {
+	app, snapshot, target, first, second := newPublicRetryTestApp(t)
+	var attempts []int64
+	result := &publicRetryAttemptResult{}
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		requestID: "request-pressure-failover", result: result,
+		transportForAgent: func(agent *AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts = append(attempts, agent.AgentID)
+				if agent.AgentID == first.AgentID {
+					return nil, agentDialError{Kind: "agent_resource_pressure", Err: "temporary local pressure"}
+				}
+				payload, err := io.ReadAll(req.Body)
+				if err != nil {
+					t.Fatalf("read failover body: %v", err)
+				}
+				if string(payload) != "payload" {
+					t.Fatalf("failover body = %q, want payload", payload)
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Header: make(http.Header), Request: req}, nil
+			})
+		},
+	}
+	body := &retryTrackingReadCloser{Reader: strings.NewReader("payload")}
+	req, err := http.NewRequest(http.MethodPost, "http://proxy.test/upload", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("automatic resource-pressure failover: %v", err)
+	}
+	_ = resp.Body.Close()
+	if len(attempts) != 2 || attempts[0] != first.AgentID || attempts[1] != second.AgentID {
+		t.Fatalf("attempts = %v, want [%d %d]", attempts, first.AgentID, second.AgentID)
+	}
+	if result.RetryCount != 1 || result.Outcome != publicRetryOutcomeRecovered || result.FinalAgent != second {
+		t.Fatalf("result = %+v, want automatic recovery", result)
+	}
+}
+
+func TestPublicAgentPressureCooldownAvoidsFleetWideRetryAmplification(t *testing.T) {
+	app, snapshot, target, first, _ := newPublicRetryTestApp(t)
+	run := func(initial *AgentConn) (int, error) {
+		attempts := 0
+		rt := &publicAgentAttemptRoundTripper{
+			app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: initial,
+			requestID: "fleet-pressure", result: &publicRetryAttemptResult{},
+			transportForAgent: func(*AgentConn) http.RoundTripper {
+				return retryRoundTripFunc(func(*http.Request) (*http.Response, error) {
+					attempts++
+					return nil, agentDialError{Kind: "agent_resource_pressure", Err: "critical"}
+				})
+			},
+		}
+		req, err := http.NewRequest(http.MethodGet, "http://proxy.test/asset", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = rt.RoundTrip(req)
+		return attempts, err
+	}
+	firstAttempts, err := run(first)
+	if agentProxyErrorKind(err) != "agent_resource_pressure" || firstAttempts != 2 {
+		t.Fatalf("first fleet-pressure request attempts=%d err=%v, want two discovery attempts", firstAttempts, err)
+	}
+	initial := app.selectTargetAgentFromSnapshot(snapshot, target)
+	if initial == nil {
+		t.Fatal("all pressured candidates disappeared instead of preserving a structured response")
+	}
+	secondAttempts, err := run(initial)
+	if agentProxyErrorKind(err) != "agent_resource_pressure" || secondAttempts != 1 {
+		t.Fatalf("cooldown request attempts=%d err=%v, want one authoritative attempt", secondAttempts, err)
+	}
+}
+
+func TestEligibleAgentsRetainAllCriticalCandidatesForStructuredPressure(t *testing.T) {
+	app, snapshot, target, first, second := newPublicRetryTestApp(t)
+	now := time.Now()
+	app.storeLatestAgentStats(first.AgentID, stats.AgentStats{Timestamp: now, MemoryPressure: "critical"})
+	app.storeLatestAgentStats(second.AgentID, stats.AgentStats{Timestamp: now, MemoryPressure: "critical"})
+	candidates := app.eligibleTargetAgentCandidatesFromSnapshot(snapshot, target)
+	if len(candidates) != 2 {
+		t.Fatalf("critical candidates = %d, want 2 retained for structured pressure", len(candidates))
 	}
 }
 

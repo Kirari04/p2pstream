@@ -24,45 +24,53 @@ const (
 )
 
 type Config struct {
-	ManagementPort                   string `env:"MANAGEMENT_PORT" envDefault:"8081"`
-	ManagementBindAddress            string `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"0.0.0.0"`
-	ConfigDir                        string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
-	DatabaseURL                      string `env:"DATABASE_URL"`
-	Env                              string `env:"ENV" envDefault:"development"` // development or production
-	ManagementUIDisabled             bool   `env:"MANAGEMENT_UI_DISABLED" envDefault:"false"`
-	ManagementUIDevProxy             string `env:"MANAGEMENT_UI_DEV_PROXY"`
-	ManagementUIDistDir              string `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
-	ManagementCookieSecure           bool   `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
-	ManagementTLSCertFile            string `env:"MANAGEMENT_TLS_CERT_FILE"`
-	ManagementTLSKeyFile             string `env:"MANAGEMENT_TLS_KEY_FILE"`
-	ManagementTLSClientCAFile        string `env:"MANAGEMENT_TLS_CLIENT_CA_FILE"`
-	ManagementTLSMode                string `env:"MANAGEMENT_TLS_MODE" envDefault:"auto"`
-	ManagementAllowInsecureHTTP      bool   `env:"MANAGEMENT_ALLOW_INSECURE_HTTP" envDefault:"false"`
-	ManagementPublicURL              string `env:"MANAGEMENT_PUBLIC_URL"`
-	ManagementSetupToken             string `env:"MANAGEMENT_SETUP_TOKEN"`
-	ManagementTrustedProxyCIDRs      string `env:"MANAGEMENT_TRUSTED_PROXY_CIDRS"`
-	ManagementClientIPHeader         string `env:"MANAGEMENT_CLIENT_IP_HEADER" envDefault:"X-Forwarded-For"`
-	ManagementClientIPMode           string `env:"MANAGEMENT_CLIENT_IP_MODE" envDefault:"trusted_chain"`
-	ManagementAdvertiseHost          string `env:"MANAGEMENT_ADVERTISE_HOST"`
-	ManagementTLSExtraHosts          string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
-	PublicCacheDir                   string `env:"PUBLIC_CACHE_DIR"`
-	PublicMaxHeaderBytes             int    `env:"PUBLIC_MAX_HEADER_BYTES" envDefault:"65536"`
-	PublicMaxRequestBodyBytes        int64  `env:"PUBLIC_MAX_REQUEST_BODY_BYTES" envDefault:"1073741824"`
-	PublicRequestBodyIdleMillis      int64  `env:"PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS" envDefault:"30000"`
-	PublicMaxConcurrentRequests      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS" envDefault:"2048"`
-	PublicMaxConcurrentPerTarget     int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET" envDefault:"0"`
-	PublicMaxConnectionsPerTarget    int    `env:"PUBLIC_MAX_CONNECTIONS_PER_TARGET" envDefault:"256"`
-	BootstrapAgentID                 string `env:"BOOTSTRAP_AGENT_ID"`
-	BootstrapAgentName               string `env:"BOOTSTRAP_AGENT_NAME"`
-	BootstrapAgentToken              string `env:"BOOTSTRAP_AGENT_TOKEN"`
-	ObservabilityRetentionDays       int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
-	ObservabilityMaxRows             int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
-	LoginThrottleMaxKeys             int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
-	TunnelMaxStreamWindowBytes       int64  `env:"TUNNEL_MAX_STREAM_WINDOW_BYTES" envDefault:"2097152"`
-	TunnelMaxConcurrentRequests      int64  `env:"TUNNEL_MAX_CONCURRENT_REQUESTS" envDefault:"64"`
-	ServerTunnelMaxConcurrentStreams int64  `env:"SERVER_TUNNEL_MAX_CONCURRENT_STREAMS" envDefault:"0"`
-	ServerTunnelMemoryPercent        int64  `env:"SERVER_TUNNEL_MEMORY_PERCENT" envDefault:"50"`
-	ServerTunnelMemoryReserveBytes   int64  `env:"SERVER_TUNNEL_MEMORY_RESERVE_BYTES" envDefault:"536870912"`
+	ManagementPort                    string `env:"MANAGEMENT_PORT" envDefault:"8081"`
+	ManagementBindAddress             string `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"0.0.0.0"`
+	ConfigDir                         string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
+	DatabaseURL                       string `env:"DATABASE_URL"`
+	Env                               string `env:"ENV" envDefault:"development"` // development or production
+	ManagementUIDisabled              bool   `env:"MANAGEMENT_UI_DISABLED" envDefault:"false"`
+	ManagementUIDevProxy              string `env:"MANAGEMENT_UI_DEV_PROXY"`
+	ManagementUIDistDir               string `env:"MANAGEMENT_UI_DIST_DIR" envDefault:"web/management/dist"`
+	ManagementCookieSecure            bool   `env:"MANAGEMENT_COOKIE_SECURE" envDefault:"false"`
+	ManagementTLSCertFile             string `env:"MANAGEMENT_TLS_CERT_FILE"`
+	ManagementTLSKeyFile              string `env:"MANAGEMENT_TLS_KEY_FILE"`
+	ManagementTLSClientCAFile         string `env:"MANAGEMENT_TLS_CLIENT_CA_FILE"`
+	ManagementTLSMode                 string `env:"MANAGEMENT_TLS_MODE" envDefault:"auto"`
+	ManagementAllowInsecureHTTP       bool   `env:"MANAGEMENT_ALLOW_INSECURE_HTTP" envDefault:"false"`
+	ManagementPublicURL               string `env:"MANAGEMENT_PUBLIC_URL"`
+	ManagementSetupToken              string `env:"MANAGEMENT_SETUP_TOKEN"`
+	ManagementTrustedProxyCIDRs       string `env:"MANAGEMENT_TRUSTED_PROXY_CIDRS"`
+	ManagementClientIPHeader          string `env:"MANAGEMENT_CLIENT_IP_HEADER" envDefault:"X-Forwarded-For"`
+	ManagementClientIPMode            string `env:"MANAGEMENT_CLIENT_IP_MODE" envDefault:"trusted_chain"`
+	ManagementAdvertiseHost           string `env:"MANAGEMENT_ADVERTISE_HOST"`
+	ManagementTLSExtraHosts           string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
+	PublicCacheDir                    string `env:"PUBLIC_CACHE_DIR"`
+	PublicMaxHeaderBytes              int    `env:"PUBLIC_MAX_HEADER_BYTES" envDefault:"65536"`
+	PublicMaxRequestBodyBytes         int64  `env:"PUBLIC_MAX_REQUEST_BODY_BYTES" envDefault:"1073741824"`
+	PublicRequestBodyIdleMillis       int64  `env:"PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS" envDefault:"30000"`
+	PublicMaxConcurrentRequests       int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS" envDefault:"2048"`
+	PublicMaxConcurrentPerTarget      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET" envDefault:"0"`
+	PublicMaxConcurrentPerClient      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT" envDefault:"512"`
+	PublicMaxConcurrentConnections    int64  `env:"PUBLIC_MAX_CONCURRENT_CONNECTIONS" envDefault:"0"`
+	PublicMaxConnectionsPerPeer       int64  `env:"PUBLIC_MAX_CONNECTIONS_PER_PEER" envDefault:"256"`
+	PublicMaxConnectionsPerTarget     int    `env:"PUBLIC_MAX_CONNECTIONS_PER_TARGET" envDefault:"256"`
+	BootstrapAgentID                  string `env:"BOOTSTRAP_AGENT_ID"`
+	BootstrapAgentName                string `env:"BOOTSTRAP_AGENT_NAME"`
+	BootstrapAgentToken               string `env:"BOOTSTRAP_AGENT_TOKEN"`
+	ObservabilityRetentionDays        int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
+	ObservabilityMaxRows              int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
+	LoginThrottleMaxKeys              int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
+	TunnelMaxStreamWindowBytes        int64  `env:"TUNNEL_MAX_STREAM_WINDOW_BYTES" envDefault:"2097152"`
+	TunnelMaxConcurrentRequests       int64  `env:"TUNNEL_MAX_CONCURRENT_REQUESTS" envDefault:"64"`
+	ServerTunnelMaxConcurrentStreams  int64  `env:"SERVER_TUNNEL_MAX_CONCURRENT_STREAMS" envDefault:"0"`
+	ServerTunnelMemoryPercent         int64  `env:"SERVER_TUNNEL_MEMORY_PERCENT" envDefault:"50"`
+	ServerTunnelMemoryReserveBytes    int64  `env:"SERVER_TUNNEL_MEMORY_RESERVE_BYTES" envDefault:"536870912"`
+	ServerTunnelMemorySoftPercent     int64  `env:"SERVER_TUNNEL_MEMORY_SOFT_PERCENT" envDefault:"80"`
+	ServerTunnelMemoryHardPercent     int64  `env:"SERVER_TUNNEL_MEMORY_HARD_PERCENT" envDefault:"90"`
+	ServerTunnelMemoryRecoveryPercent int64  `env:"SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT" envDefault:"75"`
+	ServerTunnelMemorySampleMillis    int64  `env:"SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS" envDefault:"100"`
+	ServerTunnelEstimatedStreamBytes  int64  `env:"SERVER_TUNNEL_ESTIMATED_STREAM_BYTES" envDefault:"1310720"`
 
 	CertsDir                         string `env:"-"`
 	ManagementTLSEnabled             bool   `env:"-"`
@@ -82,10 +90,21 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	_, explicitDatabaseURL := os.LookupEnv("DATABASE_URL")
+	_, explicitPublicClientLimit := os.LookupEnv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT")
+	_, explicitPublicPeerLimit := os.LookupEnv("PUBLIC_MAX_CONNECTIONS_PER_PEER")
 
 	cfg := &Config{}
 	if err := env.Parse(cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
+	}
+	// New fairness defaults must not make an existing lower global limit fail
+	// startup after an upgrade. Only automatic defaults are narrowed; explicit
+	// contradictory values still fail validation below.
+	if !explicitPublicClientLimit && cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests {
+		cfg.PublicMaxConcurrentPerClient = cfg.PublicMaxConcurrentRequests
+	}
+	if !explicitPublicPeerLimit && cfg.PublicMaxConcurrentConnections > 0 && cfg.PublicMaxConnectionsPerPeer > cfg.PublicMaxConcurrentConnections {
+		cfg.PublicMaxConnectionsPerPeer = cfg.PublicMaxConcurrentConnections
 	}
 	if err := resolveServerTunnelCapacity(cfg, DetectProcessMemoryLimitBytes()); err != nil {
 		return nil, err
@@ -150,6 +169,18 @@ func validateManagementTLSConfig(cfg *Config) error {
 		cfg.PublicMaxConcurrentPerTarget = cfg.PublicMaxConcurrentRequests
 		cfg.PublicMaxConcurrentPerTargetAuto = true
 	}
+	if cfg.PublicMaxConcurrentPerClient < 0 || cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests {
+		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT must be 0 or between 1 and PUBLIC_MAX_CONCURRENT_REQUESTS")
+	}
+	if cfg.PublicMaxConcurrentConnections < 0 || cfg.PublicMaxConcurrentConnections > 1_000_000 {
+		return errors.New("PUBLIC_MAX_CONCURRENT_CONNECTIONS must be 0 or between 1 and 1000000")
+	}
+	if cfg.PublicMaxConnectionsPerPeer < 0 || cfg.PublicMaxConnectionsPerPeer > 1_000_000 {
+		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_PEER must be 0 or between 1 and 1000000")
+	}
+	if cfg.PublicMaxConcurrentConnections > 0 && cfg.PublicMaxConnectionsPerPeer > cfg.PublicMaxConcurrentConnections {
+		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_PEER must not exceed PUBLIC_MAX_CONCURRENT_CONNECTIONS")
+	}
 	if cfg.PublicMaxConnectionsPerTarget < 1 || cfg.PublicMaxConnectionsPerTarget > 65535 {
 		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_TARGET must be between 1 and 65535")
 	}
@@ -161,6 +192,24 @@ func validateManagementTLSConfig(cfg *Config) error {
 	}
 	if cfg.ServerTunnelMaxConcurrentStreams < 1 || cfg.ServerTunnelMaxConcurrentStreams > tunnel.MaxServerConcurrentStreamsLimit {
 		return fmt.Errorf("SERVER_TUNNEL_MAX_CONCURRENT_STREAMS must be between 1 and %d", tunnel.MaxServerConcurrentStreamsLimit)
+	}
+	if cfg.ServerTunnelMemoryRecoveryPercent < 1 || cfg.ServerTunnelMemoryRecoveryPercent >= cfg.ServerTunnelMemorySoftPercent {
+		return errors.New("SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT must be positive and below SERVER_TUNNEL_MEMORY_SOFT_PERCENT")
+	}
+	if cfg.ServerTunnelMemorySoftPercent < 1 || cfg.ServerTunnelMemorySoftPercent >= cfg.ServerTunnelMemoryHardPercent {
+		return errors.New("SERVER_TUNNEL_MEMORY_SOFT_PERCENT must be positive and below SERVER_TUNNEL_MEMORY_HARD_PERCENT")
+	}
+	if cfg.ServerTunnelMemoryHardPercent > 99 {
+		return errors.New("SERVER_TUNNEL_MEMORY_HARD_PERCENT must be at most 99")
+	}
+	if cfg.ServerTunnelMemorySampleMillis < 10 || cfg.ServerTunnelMemorySampleMillis > 10000 {
+		return errors.New("SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS must be between 10 and 10000")
+	}
+	if cfg.ServerTunnelEstimatedStreamBytes < tunnel.MinimumAdaptiveStreamChargeBytes || cfg.ServerTunnelEstimatedStreamBytes > tunnel.MaxStreamWindowSizeBytesLimit {
+		return fmt.Errorf("SERVER_TUNNEL_ESTIMATED_STREAM_BYTES must be between %d and %d", tunnel.MinimumAdaptiveStreamChargeBytes, tunnel.MaxStreamWindowSizeBytesLimit)
+	}
+	if _, err := tunnel.AdaptiveMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes, cfg.ServerTunnelEstimatedStreamBytes); err != nil {
+		return err
 	}
 	cfg.ManagementTLSCertFile = strings.TrimSpace(cfg.ManagementTLSCertFile)
 	cfg.ManagementTLSKeyFile = strings.TrimSpace(cfg.ManagementTLSKeyFile)

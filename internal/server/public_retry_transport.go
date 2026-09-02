@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"mime"
 	"net/http"
 	"net/http/httptrace"
@@ -53,6 +54,39 @@ func (b *retryReplayBudget) tryAcquire(size int64) (func(), bool) {
 			}, true
 		}
 	}
+}
+
+func (a *App) tryAcquireRetryReplayBudget(size int64) (func(), bool) {
+	if a == nil || a.retryReplayBudget == nil {
+		return nil, false
+	}
+	budgetRelease, ok := a.retryReplayBudget.tryAcquire(size)
+	if !ok {
+		return nil, false
+	}
+	// io.ReadAll's growing chunks and final exact copy can coexist briefly.
+	// Charge three bytes of the shared adaptive resource ledger for every
+	// buffered payload byte so the peak allocation cannot spend stream
+	// headroom that has already been granted elsewhere.
+	if size > math.MaxInt64/3 {
+		budgetRelease()
+		return nil, false
+	}
+	resourceRelease, resourceOK, constrained := a.agentStreamCapacity.tryReserveAdaptiveExternal(size*3, 0)
+	if constrained && !resourceOK {
+		budgetRelease()
+		return nil, false
+	}
+	if resourceRelease == nil {
+		resourceRelease = func() {}
+	}
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			resourceRelease()
+			budgetRelease()
+		})
+	}, true
 }
 
 type publicRetryAttemptResult struct {
@@ -412,7 +446,7 @@ func preparePublicRetryRequestBody(app *App, req *http.Request, rule *publicRetr
 	if req.ContentLength > 0 {
 		reservationBytes = req.ContentLength
 	}
-	release, ok := app.retryReplayBudget.tryAcquire(reservationBytes)
+	release, ok := app.tryAcquireRetryReplayBudget(reservationBytes)
 	if !ok {
 		return source, nil
 	}
@@ -490,7 +524,7 @@ func preparePublicRetryResponseBody(app *App, req *http.Request, resp *http.Resp
 	if resp.ContentLength >= 0 {
 		reservationBytes = resp.ContentLength
 	}
-	release, ok := app.retryReplayBudget.tryAcquire(reservationBytes)
+	release, ok := app.tryAcquireRetryReplayBudget(reservationBytes)
 	if !ok {
 		return publicRetryPreparedResponseBody{body: resp.Body, skipReason: "response_buffer_budget_exhausted"}, nil
 	}
@@ -793,6 +827,12 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 	maxAttempts := int64(1)
 	if rt.rule != nil {
 		maxAttempts += rt.rule.MaxRetries
+	} else {
+		// Agent resource pressure is an admission decision made before request
+		// bytes are accepted. A small built-in failover budget prevents one hot
+		// agent from producing avoidable 503s without enabling general retries or
+		// weakening the no-duplicate-body guarantees below.
+		maxAttempts = 4
 	}
 	attemptedAgents := make(map[int64]struct{}, maxAttempts)
 	agent := rt.initial
@@ -995,20 +1035,31 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 		if shouldMarkAgentPassiveFailure(req.Context(), attemptErr) {
 			rt.app.markPublicRouteTargetAgentPassiveFailure(rt.resolution.Target.ID, agent.AgentID, attemptErr)
 		}
-		if attempt >= maxAttempts || rt.rule == nil {
+		automaticPressureFailover := rt.rule == nil &&
+			agentDialErrorHasKind(attemptErr, "agent_resource_pressure") &&
+			attemptCtx.Err() == nil && !wroteRequest.Load() && bodyRead.Load() == 0
+		if automaticPressureFailover {
+			rt.app.markAgentRoutingResourcePressure(agent.AgentID, time.Now())
+		}
+		if attempt >= maxAttempts || (rt.rule == nil && !automaticPressureFailover) {
 			if attempt > 1 {
 				rt.result.Outcome = publicRetryOutcomeExhausted
 			}
 			rt.result.RetryCount = attempt - 1
 			return nil, attemptErr
 		}
-		if !publicRetryAttemptErrorAllowed(req, attemptErr, rt.rule, wroteRequest.Load(), bodyRead.Load(), body.replayable || body.bodyless) {
+		if !automaticPressureFailover && !publicRetryAttemptErrorAllowed(req, attemptErr, rt.rule, wroteRequest.Load(), bodyRead.Load(), body.replayable || body.bodyless) {
 			rt.result.Outcome = publicRetryOutcomeSkipped
 			rt.result.ReplaySkippedReason = publicRetrySkipReason(req, attemptErr, wroteRequest.Load(), bodyRead.Load(), body.replayable || body.bodyless)
 			rt.result.RetryCount = attempt - 1
 			return nil, attemptErr
 		}
-		next := rt.app.selectTargetAgentExcludingFromSnapshot(rt.snapshot, rt.resolution.Target, attemptedAgents)
+		var next *AgentConn
+		if automaticPressureFailover {
+			next = rt.app.selectUnpressuredTargetAgentExcludingFromSnapshot(rt.snapshot, rt.resolution.Target, attemptedAgents)
+		} else {
+			next = rt.app.selectTargetAgentExcludingFromSnapshot(rt.snapshot, rt.resolution.Target, attemptedAgents)
+		}
 		if next == nil {
 			rt.result.Outcome = publicRetryOutcomeExhausted
 			rt.result.RetryCount = attempt - 1
@@ -1081,7 +1132,7 @@ func retryableAgentTransportError(err error) bool {
 	var dialErr agentDialError
 	if errors.As(err, &dialErr) {
 		switch dialErr.Kind {
-		case "dial_failed", "dial_timeout", "agent_capacity":
+		case "dial_failed", "dial_timeout", "agent_capacity", "agent_resource_pressure":
 			return true
 		default:
 			return false
@@ -1150,6 +1201,8 @@ func agentProxyErrorKind(err error) string {
 			return "agent_dial_timeout"
 		case "agent_capacity":
 			return "agent_capacity"
+		case "agent_resource_pressure":
+			return "agent_resource_pressure"
 		case "server_capacity":
 			return "agent_server_capacity"
 		case "server_health_capacity":
@@ -1171,7 +1224,7 @@ func agentProxyHTTPFailure(err error) (int, string, string) {
 	switch kind {
 	case "agent_dial_timeout", "upstream_response_header_timeout":
 		return http.StatusGatewayTimeout, kind, "Gateway Timeout"
-	case "agent_capacity", "agent_server_capacity", "agent_server_health_capacity", "agent_server_pooled_capacity":
+	case "agent_capacity", "agent_resource_pressure", "agent_server_capacity", "agent_server_health_capacity", "agent_server_pooled_capacity":
 		return http.StatusServiceUnavailable, kind, "Service Unavailable"
 	default:
 		return http.StatusBadGateway, kind, "Bad Gateway"

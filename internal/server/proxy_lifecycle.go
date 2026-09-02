@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"sync"
+	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
@@ -29,6 +31,214 @@ type publicListenerRuntime struct {
 	StartedAt    time.Time
 	StoppedAt    time.Time
 	BoundAddress string
+}
+
+type resourceBoundedPublicListener struct {
+	net.Listener
+	acquire func(net.Conn) (func(), bool)
+}
+
+func (l resourceBoundedPublicListener) Accept() (net.Conn, error) {
+	for {
+		conn, err := l.Listener.Accept()
+		if err != nil {
+			return nil, err
+		}
+		tcpConn, ok := conn.(*net.TCPConn)
+		if !ok {
+			if release, ok := l.acquireConnection(conn); ok {
+				return &resourceBoundedPublicConn{Conn: conn, release: release}, nil
+			}
+			_ = conn.Close()
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		// Bound attacker-controlled public socket queues so the adaptive
+		// per-stream overhead reservation remains meaningful for slow uploads
+		// and downloads. Linux can double the requested values; the reservation
+		// includes both directions plus relay/allocator slack.
+		const socketBufferBytes = 64 * 1024
+		if err := tcpConn.SetReadBuffer(socketBufferBytes); err == nil {
+			if err = tcpConn.SetWriteBuffer(socketBufferBytes); err == nil {
+				if release, ok := l.acquireConnection(conn); ok {
+					tracked := &resourceBoundedPublicConn{Conn: conn, release: release}
+					return &resourceBoundedPublicTCPConn{resourceBoundedPublicConn: tracked, tcp: tcpConn}, nil
+				}
+			}
+		}
+		_ = conn.Close()
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func (l resourceBoundedPublicListener) acquireConnection(conn net.Conn) (func(), bool) {
+	if l.acquire == nil {
+		return func() {}, true
+	}
+	return l.acquire(conn)
+}
+
+// publicConnectionCapacityLimiter is an implementation guard, not a normal
+// operating ceiling. Adaptive memory/FD accounting remains the binding global
+// limit; the per-client guard prevents one direct peer from monopolizing every
+// accepted keep-alive connection while doing no concurrent work.
+type publicConnectionCapacityLimiter struct {
+	mu          sync.Mutex
+	global      int64
+	perClient   int64
+	total       int64
+	clients     map[string]int64
+	clientBytes map[string]int64
+}
+
+func newPublicConnectionCapacityLimiter(global, perClient int64) *publicConnectionCapacityLimiter {
+	if global < 0 {
+		global = 0
+	}
+	if perClient < 0 {
+		perClient = 0
+	}
+	return &publicConnectionCapacityLimiter{
+		global: global, perClient: perClient, clients: make(map[string]int64), clientBytes: make(map[string]int64),
+	}
+}
+
+func (l *publicConnectionCapacityLimiter) tryAcquire(remote net.Addr, memoryBytes, peerMemoryLimit, peerFDLimit int64) (func(), bool) {
+	if l == nil {
+		return func() {}, true
+	}
+	client := publicConnectionClientKey(remote)
+	l.mu.Lock()
+	peerMemoryExceeded := l.perClient > 0 && peerMemoryLimit >= 0 &&
+		(memoryBytes > peerMemoryLimit-l.clientBytes[client])
+	peerFDExceeded := l.perClient > 0 && peerFDLimit >= 0 &&
+		(1 > peerFDLimit-l.clients[client])
+	if (l.global > 0 && l.total >= l.global) || (l.perClient > 0 && l.clients[client] >= l.perClient) || peerMemoryExceeded || peerFDExceeded {
+		l.mu.Unlock()
+		return nil, false
+	}
+	l.total++
+	l.clients[client]++
+	l.clientBytes[client] = saturatingAddInt64(l.clientBytes[client], memoryBytes)
+	l.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			l.mu.Lock()
+			l.total--
+			l.clients[client]--
+			l.clientBytes[client] -= memoryBytes
+			if l.clients[client] == 0 {
+				delete(l.clients, client)
+				delete(l.clientBytes, client)
+			}
+			l.mu.Unlock()
+		})
+	}, true
+}
+
+func (l *publicConnectionCapacityLimiter) inUse() int64 {
+	if l == nil {
+		return 0
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.total
+}
+
+func (l *publicConnectionCapacityLimiter) peerGuardEnabled() bool {
+	return l != nil && l.perClient > 0
+}
+
+func publicConnectionClientKey(remote net.Addr) string {
+	if remote == nil {
+		return "unknown"
+	}
+	host, _, err := net.SplitHostPort(remote.String())
+	if err == nil && host != "" {
+		return host
+	}
+	return remote.String()
+}
+
+type resourceBoundedPublicConn struct {
+	net.Conn
+	release func()
+	once    sync.Once
+}
+
+func (c *resourceBoundedPublicConn) Close() error {
+	defer c.once.Do(func() {
+		if c.release != nil {
+			c.release()
+		}
+	})
+	return c.Conn.Close()
+}
+
+type resourceBoundedPublicTCPConn struct {
+	*resourceBoundedPublicConn
+	tcp *net.TCPConn
+}
+
+func (c *resourceBoundedPublicTCPConn) CloseRead() error {
+	return c.tcp.CloseRead()
+}
+
+func (c *resourceBoundedPublicTCPConn) CloseWrite() error {
+	return c.tcp.CloseWrite()
+}
+
+func (c *resourceBoundedPublicTCPConn) SyscallConn() (syscall.RawConn, error) {
+	return c.tcp.SyscallConn()
+}
+
+func (a *App) tryReservePublicConnection(conn net.Conn) (func(), bool) {
+	if a == nil {
+		return nil, false
+	}
+	var remote net.Addr
+	if conn != nil {
+		remote = conn.RemoteAddr()
+	}
+	maxHeaderBytes := defaultPublicMaxHeaderBytes
+	if a.Config != nil && a.Config.PublicMaxHeaderBytes > 0 {
+		maxHeaderBytes = a.Config.PublicMaxHeaderBytes
+	}
+	// TCP queues, TLS/parser state, and the configured maximum attacker-owned
+	// header all exist before request admission. Header parsing can transiently
+	// hold input plus parsed strings, so charge it twice on top of 512 KiB of
+	// socket/runtime slack for the connection lifetime.
+	resourceBytes := int64(512*1024) + int64(maxHeaderBytes)*2
+	peerMemoryLimit := int64(-1)
+	peerFDLimit := int64(-1)
+	if a.publicConnections.peerGuardEnabled() {
+		if memoryLimit, fdLimit, adaptive := a.agentStreamCapacity.adaptiveExternalPeerLimits(); adaptive {
+			peerMemoryLimit = memoryLimit
+			peerFDLimit = fdLimit
+		}
+	}
+	connectionRelease, ok := a.publicConnections.tryAcquire(remote, resourceBytes, peerMemoryLimit, peerFDLimit)
+	if !ok {
+		a.publicConnectionLimitRejected.Add(1)
+		return nil, false
+	}
+	resourceRelease, resourceOK, constrained := a.agentStreamCapacity.tryReserveAdaptiveExternal(resourceBytes, 1)
+	if constrained && !resourceOK {
+		a.publicConnectionResourceReject.Add(1)
+		connectionRelease()
+		return nil, false
+	}
+	if resourceRelease == nil {
+		resourceRelease = func() {}
+	}
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			resourceRelease()
+			connectionRelease()
+		})
+	}, true
 }
 
 func (a *App) StartProxy(ctx context.Context, req *connect.Request[p2pstreamv1.StartProxyRequest]) (*connect.Response[p2pstreamv1.StartProxyResponse], error) {
@@ -360,6 +570,7 @@ func (a *App) startPublicListenerFromSnapshot(listener publicListenerConfig, sna
 		log.Error().Err(err).Str("addr", addr).Str("listener", listener.Name).Msg("Public listener failed to listen")
 		return a.getPublicListenerStatus(listener.ID), nil
 	}
+	ln = resourceBoundedPublicListener{Listener: ln, acquire: a.tryReservePublicConnection}
 
 	a.proxyMu.Lock()
 	runtime := a.ensureListenerStateLocked(listener.ID)

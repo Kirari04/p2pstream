@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"net/http"
 	"testing"
 	"time"
 
@@ -38,6 +39,47 @@ func TestAgentReconnectBackoffBounds(t *testing.T) {
 		if got < 8*time.Second || got > 12*time.Second {
 			t.Fatalf("jittered backoff = %s, want within +/-20%%", got)
 		}
+	}
+}
+
+func TestNegotiatedAgentTunnelCapacityRollingCompatibility(t *testing.T) {
+	tests := []struct {
+		name              string
+		adaptiveRequested bool
+		responseMode      string
+		responseLimit     string
+		want              int64
+		wantErr           bool
+	}{
+		{name: "new agent new server", adaptiveRequested: true, responseMode: tunnel.TunnelCapacityModeAdaptive, responseLimit: "65536", want: 65536},
+		{name: "new agent old server", adaptiveRequested: true, responseLimit: "256", want: 256},
+		{name: "new agent rejects unacknowledged adaptive limit", adaptiveRequested: true, responseLimit: "4096", wantErr: true},
+		{name: "fixed agent rejects adaptive limit", responseMode: tunnel.TunnelCapacityModeAdaptive, responseLimit: "65536", wantErr: true},
+		{name: "missing old server response header", adaptiveRequested: true, want: tunnel.MaxConcurrentAgentRequestsLimit},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			headers := make(http.Header)
+			if tt.responseMode != "" {
+				headers.Set(tunnel.TunnelCapacityModeHeader, tt.responseMode)
+			}
+			if tt.responseLimit != "" {
+				headers.Set(tunnel.TunnelMaxConcurrentStreamsHeader, tt.responseLimit)
+			}
+			got, err := negotiatedAgentTunnelCapacity(headers, tunnel.MaxConcurrentAgentRequestsLimit, tt.adaptiveRequested)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("negotiated capacity = %d, want error", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Fatalf("negotiated capacity = %d, want %d", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -151,6 +193,97 @@ func TestTunnelSessionBoundsConcurrentRequests(t *testing.T) {
 	}
 	if resp, err := tunnel.ReadOpenResponse(third); err != nil || !resp.OK {
 		t.Fatalf("third open response = %+v, err=%v, want capacity to recover", resp, err)
+	}
+}
+
+func TestTunnelCapacityLeaseWaitsForPeerFIN(t *testing.T) {
+	upstream, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upstream.Close()
+	go func() {
+		conn, acceptErr := upstream.Accept()
+		if acceptErr == nil {
+			_ = conn.Close()
+		}
+	}()
+
+	clientConn, serverConn := net.Pipe()
+	config := tunnel.DefaultYamuxConfig(nil)
+	config.StreamCloseTimeout = 2 * time.Second
+	agentSession, err := yamux.Client(clientConn, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverSession, err := yamux.Server(serverConn, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer agentSession.Close()
+	defer serverSession.Close()
+	capacity := newAgentTunnelCapacityRuntime(1, false, nil)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- serveTunnelSessionWithPolicyAndCapacity(ctx, agentSession, nil, capacity) }()
+
+	first, err := serverSession.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tunnel.WriteOpenRequest(first, tunnel.NewOpenRequest("fin-1", "tcp", upstream.Addr().String())); err != nil {
+		t.Fatal(err)
+	}
+	if response, readErr := tunnel.ReadOpenResponse(first); readErr != nil || !response.OK {
+		t.Fatalf("first response = %+v err=%v", response, readErr)
+	}
+	deadline := time.Now().Add(time.Second)
+	for capacity.snapshot().InUse != 1 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	// Wait until the agent has locally closed after the upstream EOF, while
+	// intentionally withholding the server peer FIN.
+	_ = first.SetReadDeadline(time.Now().Add(time.Second))
+	var one [1]byte
+	if _, readErr := first.Read(one[:]); readErr == nil {
+		t.Fatal("first stream did not reach local FIN")
+	}
+	if got := capacity.snapshot().InUse; got != 1 {
+		t.Fatalf("capacity in use before peer FIN = %d, want 1", got)
+	}
+
+	second, err := serverSession.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tunnel.WriteOpenRequest(second, tunnel.NewOpenRequest("fin-2", "tcp", upstream.Addr().String())); err != nil {
+		t.Fatal(err)
+	}
+	_ = second.SetReadDeadline(time.Now().Add(time.Second))
+	response, err := tunnel.ReadOpenResponse(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.OK || response.ErrorKind != "agent_capacity" {
+		t.Fatalf("response before peer FIN = %+v, want agent_capacity", response)
+	}
+	_ = second.Close()
+
+	_ = first.Close()
+	deadline = time.Now().Add(time.Second)
+	for capacity.snapshot().InUse != 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := capacity.snapshot().InUse; got != 0 {
+		t.Fatalf("capacity after peer FIN = %d, want 0", got)
+	}
+	cancel()
+	_ = serverSession.Close()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("agent session did not stop")
 	}
 }
 

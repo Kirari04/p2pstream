@@ -10,14 +10,55 @@ import (
 )
 
 const (
+	// InitialStreamWindowSizeBytes is the receive credit Yamux grants to every
+	// stream before it has observed any traffic. Keep this in sync with
+	// hashicorp/yamux's initialStreamWindow. The upstream value is not exported.
+	InitialStreamWindowSizeBytes = int64(256 * 1024)
+	// AdaptivePerStreamOverheadBytes covers bounded TCP socket buffers, relay
+	// copy buffers, Yamux stream metadata, and allocator slack beyond receive
+	// credit itself. The stream charge is held until the stream lease closes.
+	AdaptivePerStreamOverheadBytes     = int64(768 * 1024)
+	DefaultAdaptiveStreamChargeBytes   = int64(1280 * 1024)
+	MinimumAdaptiveStreamChargeBytes   = InitialStreamWindowSizeBytes + AdaptivePerStreamOverheadBytes
 	DefaultMaxStreamWindowSizeBytes    = int64(2 * 1024 * 1024)
 	MaxStreamWindowSizeBytesLimit      = int64(64 * 1024 * 1024)
 	DefaultMaxConcurrentAgentRequests  = int64(64)
 	MaxConcurrentAgentRequestsLimit    = int64(2048)
 	DefaultServerMaxConcurrentStreams  = int64(256)
 	MaxServerConcurrentStreamsLimit    = int64(65536)
+	MaxAdaptiveConcurrentStreamsLimit  = MaxServerConcurrentStreamsLimit
 	MaxAggregateStreamWindowBytesLimit = int64(512 * 1024 * 1024)
 )
+
+// AdaptiveMaxStreamWindowSizeBytes returns the largest receive window that is
+// fully covered by the adaptive controller's lifetime charge for one stream.
+// A stream may grow its Yamux receive buffer up to MaxStreamWindowSize, so an
+// adaptive session must never grant more credit than it reserves.
+func AdaptiveMaxStreamWindowSizeBytes(configuredBytes, chargedBytes int64) (int64, error) {
+	configured, err := NormalizeMaxStreamWindowSizeBytes(configuredBytes)
+	if err != nil {
+		return 0, err
+	}
+	if chargedBytes == 0 {
+		chargedBytes = DefaultAdaptiveStreamChargeBytes
+	}
+	if chargedBytes < MinimumAdaptiveStreamChargeBytes {
+		return 0, fmt.Errorf(
+			"adaptive stream charge must be at least %d bytes (%d-byte Yamux initial window plus %d bytes of per-stream overhead)",
+			MinimumAdaptiveStreamChargeBytes,
+			InitialStreamWindowSizeBytes,
+			AdaptivePerStreamOverheadBytes,
+		)
+	}
+	if chargedBytes > MaxStreamWindowSizeBytesLimit {
+		return 0, fmt.Errorf("adaptive stream charge must be at most %d bytes", MaxStreamWindowSizeBytesLimit)
+	}
+	coveredWindow := chargedBytes - AdaptivePerStreamOverheadBytes
+	if coveredWindow < int64(configured) {
+		return coveredWindow, nil
+	}
+	return int64(configured), nil
+}
 
 func DefaultYamuxConfig(logger yamux.Logger) *yamux.Config {
 	cfg, _ := NewYamuxConfig(logger, 0)
