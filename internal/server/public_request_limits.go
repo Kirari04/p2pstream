@@ -12,10 +12,9 @@ import (
 )
 
 const (
-	defaultPublicMaxConcurrentRequests          = int64(2048)
-	defaultPublicMaxConcurrentRequestsPerTarget = int64(256)
-	defaultPublicMaxRequestBodyBytes            = int64(1 << 30)
-	defaultPublicRequestBodyIdleTimeout         = 30 * time.Second
+	defaultPublicMaxConcurrentRequests  = int64(2048)
+	defaultPublicMaxRequestBodyBytes    = int64(1 << 30)
+	defaultPublicRequestBodyIdleTimeout = 30 * time.Second
 )
 
 var errPublicRequestBodyIdleTimeout = errors.New("public request body idle timeout")
@@ -65,6 +64,16 @@ type keyedRequestCapacityLimiter struct {
 	mu       sync.Mutex
 	capacity int64
 	entries  map[int64]*requestCapacityLimiter
+}
+
+func effectivePublicRequestCapacities(global, perTarget int64) (int64, int64) {
+	if global <= 0 {
+		global = defaultPublicMaxConcurrentRequests
+	}
+	if perTarget <= 0 || perTarget > global {
+		perTarget = global
+	}
+	return global, perTarget
 }
 
 func newKeyedRequestCapacityLimiter(capacity, fallback int64) *keyedRequestCapacityLimiter {

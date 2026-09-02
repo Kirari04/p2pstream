@@ -68,6 +68,10 @@ Use this page after the quickstart when you need to change ports, understand wha
    docker compose logs -f p2pstream
    ```
 
+:::warning Upgrading a Compose file from v0.1.49 or earlier
+Older Compose files inject `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=256`, even when the setting is absent from `.env`. Change that Compose default to `0`, or add `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=0` to `.env`, before recreating the container. A value of `0` lets a single busy target use the server-wide request ceiling instead of rejecting requests at the old 256-request quarter-cap.
+:::
+
 ## Runtime Effects
 
 | Setting | Effect |
