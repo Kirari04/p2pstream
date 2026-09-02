@@ -13,7 +13,11 @@ import (
 )
 
 const (
-	minimumServerTunnelConcurrentStreams = int64(64)
+	// Automatic sizing must never regress below the production fallback. The
+	// Yamux receive window is a credit ceiling, not an eagerly resident
+	// allocation per stream; treating the full window as committed memory left
+	// small but otherwise capable hosts stuck at the legacy 64/128 boundary.
+	minimumServerTunnelConcurrentStreams = tunnel.DefaultServerMaxConcurrentStreams
 )
 
 func resolveServerTunnelCapacity(cfg *Config, memoryLimitBytes int64) error {
@@ -76,8 +80,8 @@ func RecommendedAgentTunnelConcurrentRequests(windowBytes int64, memoryLimitByte
 		budget = memoryLimitBytes - reserve
 	}
 	streams := budget / int64(window)
-	if streams < tunnel.DefaultMaxConcurrentAgentRequests {
-		streams = tunnel.DefaultMaxConcurrentAgentRequests
+	if streams < tunnel.DefaultServerMaxConcurrentStreams {
+		streams = tunnel.DefaultServerMaxConcurrentStreams
 	}
 	if streams > tunnel.MaxConcurrentAgentRequestsLimit {
 		streams = tunnel.MaxConcurrentAgentRequestsLimit

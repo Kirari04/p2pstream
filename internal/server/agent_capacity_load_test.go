@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -139,15 +140,18 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 	run := func(
 		t *testing.T,
 		perTargetLimit int64,
+		serverStreamCapacity int64,
+		sessionStreamCapacity int,
+		agentCount int,
 		requestCount int,
 		requestRate int,
 		latencyForRequest func(int) time.Duration,
-	) (okResponses, routeTargetUnavailable, otherResponses int64) {
+	) (okResponses, routeTargetUnavailable, agentCapacityUnavailable, otherResponses int64) {
 		t.Helper()
 		app := NewApp(&config.Config{
 			PublicMaxConcurrentRequests:      2048,
 			PublicMaxConcurrentPerTarget:     perTargetLimit,
-			ServerTunnelMaxConcurrentStreams: 2048,
+			ServerTunnelMaxConcurrentStreams: serverStreamCapacity,
 		}, nil)
 		t.Cleanup(app.CloseAgentTransports)
 
@@ -181,9 +185,9 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 				Targets:          []publicRouteTargetConfig{target},
 			}}},
 			RouteTargets: map[int64]publicRouteTargetConfig{targetID: target},
-			Agents:       make(map[int64]publicAgentConfig, 4),
+			Agents:       make(map[int64]publicAgentConfig, agentCount),
 		}
-		for index := range 4 {
+		for index := range agentCount {
 			agentID := int64(index + 1)
 			publicID := fmt.Sprintf("full-pipeline-agent-%d", index+1)
 			agent, _ := newFakeYamuxAgent(t, agentID, publicID)
@@ -192,7 +196,7 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 			}
 			t.Cleanup(func() { app.AgentHub.disconnect(agent) })
 			sessionKey := agentStreamCapacitySessionKey(agent, agent.Session)
-			app.agentStreamCapacity.registerSessionWithLimit(sessionKey, int(tunnel.MaxConcurrentAgentRequestsLimit))
+			app.agentStreamCapacity.registerSessionWithLimit(sessionKey, sessionStreamCapacity)
 			t.Cleanup(func() { app.agentStreamCapacity.unregisterSession(sessionKey) })
 			snapshot.Agents[agentID] = publicAgentConfig{
 				ID:       agentID,
@@ -217,6 +221,7 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 
 		var successes atomic.Int64
 		var targetCapacityFailures atomic.Int64
+		var agentCapacityFailures atomic.Int64
 		var other atomic.Int64
 		var wg sync.WaitGroup
 		interval := time.Second / time.Duration(requestRate)
@@ -253,6 +258,8 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 					successes.Add(1)
 				case response.StatusCode == http.StatusServiceUnavailable && strings.Contains(string(body), "Route target capacity reached"):
 					targetCapacityFailures.Add(1)
+				case response.StatusCode == http.StatusServiceUnavailable && strings.Contains(string(body), "Service Unavailable"):
+					agentCapacityFailures.Add(1)
 				default:
 					other.Add(1)
 				}
@@ -262,26 +269,26 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 		if err := app.agentStreamCapacity.validateInvariants(); err != nil {
 			t.Fatalf("capacity invariants after full-pipeline load: %v", err)
 		}
-		return successes.Load(), targetCapacityFailures.Load(), other.Load()
+		return successes.Load(), targetCapacityFailures.Load(), agentCapacityFailures.Load(), other.Load()
 	}
 
 	t.Run("legacy fixed 256 reproduces route target capacity failures", func(t *testing.T) {
 		const requestCount = 270
-		okResponses, targetCapacityFailures, otherResponses := run(t, 256, requestCount, 100, func(int) time.Duration {
+		okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses := run(t, 256, 2048, 2048, 4, requestCount, 100, func(int) time.Duration {
 			return 3 * time.Second
 		})
 		if targetCapacityFailures == 0 {
-			t.Fatalf("legacy route-target capacity unexpectedly served all requests: 200=%d route-target-503=%d other=%d", okResponses, targetCapacityFailures, otherResponses)
+			t.Fatalf("legacy route-target capacity unexpectedly served all requests: 200=%d route-target-503=%d agent-capacity-503=%d other=%d", okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses)
 		}
 	})
 
 	t.Run("automatic per-target capacity follows global ceiling", func(t *testing.T) {
 		const requestCount = 270
-		okResponses, targetCapacityFailures, otherResponses := run(t, 0, requestCount, 100, func(int) time.Duration {
+		okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses := run(t, 0, 2048, 2048, 4, requestCount, 100, func(int) time.Duration {
 			return 3 * time.Second
 		})
-		if okResponses != requestCount || targetCapacityFailures != 0 || otherResponses != 0 {
-			t.Fatalf("automatic route-target capacity results: 200=%d route-target-503=%d other=%d, want %d/0/0", okResponses, targetCapacityFailures, otherResponses, requestCount)
+		if okResponses != requestCount || targetCapacityFailures != 0 || agentCapacityFailures != 0 || otherResponses != 0 {
+			t.Fatalf("automatic route-target capacity results: 200=%d route-target-503=%d agent-capacity-503=%d other=%d, want %d/0/0/0", okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses, requestCount)
 		}
 	})
 
@@ -290,13 +297,69 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 			requestCount = 500
 			requestRate  = 100
 		)
-		okResponses, targetCapacityFailures, otherResponses := run(t, 0, requestCount, requestRate, func(index int) time.Duration {
+		okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses := run(t, 0, 2048, 2048, 4, requestCount, requestRate, func(index int) time.Duration {
 			// Cycle through every 100 ms step, including both requested bounds.
 			return time.Duration(800+(index%18)*100) * time.Millisecond
 		})
-		if okResponses != requestCount || targetCapacityFailures != 0 || otherResponses != 0 {
-			t.Fatalf("geo-latency load results: 200=%d route-target-503=%d other=%d, want %d/0/0", okResponses, targetCapacityFailures, otherResponses, requestCount)
+		if okResponses != requestCount || targetCapacityFailures != 0 || agentCapacityFailures != 0 || otherResponses != 0 {
+			t.Fatalf("geo-latency load results: 200=%d route-target-503=%d agent-capacity-503=%d other=%d, want %d/0/0/0", okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses, requestCount)
 		}
 		t.Logf("served %d/%d requests at %d req/s with per-request latency cycling from 800ms to 2500ms", okResponses, requestCount, requestRate)
+	})
+
+	t.Run("v0.1.49 negotiated agents sustain the geo-latency profile at the 256 stream fallback", func(t *testing.T) {
+		const (
+			requestCount = 500
+			requestRate  = 100
+		)
+		okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses := run(t, 0, 256, 256, 4, requestCount, requestRate, func(index int) time.Duration {
+			return time.Duration(800+(index%18)*100) * time.Millisecond
+		})
+		if okResponses != requestCount || targetCapacityFailures != 0 || agentCapacityFailures != 0 || otherResponses != 0 {
+			t.Fatalf("v0.1.49-compatible capacity results: 200=%d route-target-503=%d agent-capacity-503=%d other=%d, want %d/0/0/0", okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses, requestCount)
+		}
+	})
+
+	t.Run("one negotiated agent needs enough streams for the geo-latency concurrency", func(t *testing.T) {
+		const (
+			requestCount = 300
+			requestRate  = 100
+		)
+		okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses := run(t, 0, 256, 256, 1, requestCount, requestRate, func(index int) time.Duration {
+			return time.Duration(800+(index%18)*100) * time.Millisecond
+		})
+		if okResponses != requestCount || targetCapacityFailures != 0 || agentCapacityFailures != 0 || otherResponses != 0 {
+			t.Fatalf("single-agent negotiated capacity results: 200=%d route-target-503=%d agent-capacity-503=%d other=%d, want %d/0/0/0", okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses, requestCount)
+		}
+	})
+
+	t.Run("one agent negotiated at legacy 64 reproduces 50-rps agent server capacity", func(t *testing.T) {
+		const (
+			requestCount = 300
+			requestRate  = 50
+		)
+		okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses := run(t, 0, 256, 64, 1, requestCount, requestRate, func(index int) time.Duration {
+			return time.Duration(800+(index%18)*100) * time.Millisecond
+		})
+		if agentCapacityFailures == 0 || targetCapacityFailures != 0 || otherResponses != 0 {
+			t.Fatalf("64-stream reproduction results: 200=%d route-target-503=%d agent-capacity-503=%d other=%d, want some agent-capacity failures only", okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses)
+		}
+	})
+
+	t.Run("single-agent 3000-request 50-rps geo-latency soak", func(t *testing.T) {
+		if os.Getenv("P2PSTREAM_RUN_SOAK") != "1" {
+			t.Skip("set P2PSTREAM_RUN_SOAK=1 to run the 60-second production-profile soak")
+		}
+		const (
+			requestCount = 3000
+			requestRate  = 50
+		)
+		okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses := run(t, 0, 256, 256, 1, requestCount, requestRate, func(index int) time.Duration {
+			return time.Duration(800+(index%18)*100) * time.Millisecond
+		})
+		if okResponses != requestCount || targetCapacityFailures != 0 || agentCapacityFailures != 0 || otherResponses != 0 {
+			t.Fatalf("single-agent soak results: 200=%d route-target-503=%d agent-capacity-503=%d other=%d, want %d/0/0/0", okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses, requestCount)
+		}
+		t.Logf("served %d/%d through one 256-stream agent at %d req/s with 800ms-2500ms latency", okResponses, requestCount, requestRate)
 	})
 }

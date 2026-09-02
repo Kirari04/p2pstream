@@ -24,7 +24,12 @@ const routes = [
     redirect: '/monitor/traffic',
     children: [
       { path: 'traffic', name: 'monitor-traffic', component: Traffic },
-      { path: 'diagnostics', name: 'monitor-diagnostics', component: Diagnostics },
+      { path: 'diagnostics', redirect: '/monitor/diagnostics/overview' },
+      {
+        path: 'diagnostics/:section(overview|retries|failures|samples)',
+        name: 'monitor-diagnostics',
+        component: Diagnostics,
+      },
       { path: ':pathMatch(.*)*', redirect: '/monitor/traffic' },
     ],
   },

@@ -73,7 +73,7 @@ When tunnel window or concurrency values are supplied to the installer, they are
 | `AGENT_TLS_KEY_FILE`              | Optional client private key for management mTLS.                     |
 | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Allows HTTP management URL when truthy.                              |
 | `TUNNEL_MAX_STREAM_WINDOW_BYTES`  | Maximum Yamux receive window per tunnel stream. Defaults to `2097152`. |
-| `TUNNEL_MAX_CONCURRENT_REQUESTS`  | Maximum concurrent requests handled by this agent. When unset, the agent derives it from available process/cgroup memory (fallback `256`, maximum `2048`). |
+| `TUNNEL_MAX_CONCURRENT_REQUESTS`  | Maximum concurrent requests handled by this agent. When unset, the agent derives it from available process/cgroup memory (minimum/fallback `256`, maximum `2048`). |
 | `AGENT_ALLOW_TARGETS`             | Tunnel destination allowlist entries separated by commas or whitespace. When unset, only IPv4/IPv6 loopback destinations are allowed. |
 | `AGENT_ALLOW_ANY_TARGET`          | Explicitly permit any destination reachable by the agent. Defaults to `false` and cannot be combined with `AGENT_ALLOW_TARGETS`. |
 
@@ -106,7 +106,7 @@ Set these as environment variables before running the Linux agent installer scri
 - Proxy target URLs are origins only: `http://` or `https://` plus host and optional port. Configure upstream authentication separately; paths, queries, fragments, and URL credentials are rejected.
 - `TUNNEL_MAX_STREAM_WINDOW_BYTES` must be at least `262144` and at most `67108864`.
 - `TUNNEL_MAX_CONCURRENT_REQUESTS` must be between `1` and `2048` when explicitly set on an agent. New agents advertise this capability during the tunnel upgrade; the server negotiates the lower of the agent capability and its aggregate limit. Older agents omit the extension and are treated as `64`, so four old agents can contribute up to `256` streams instead of sharing one server-wide limit.
-- Automatic server capacity uses the smallest visible Go, cgroup, or host memory limit. Half is available to tunnel receive windows while `536870912` bytes remain reserved for the rest of the process; the no-memory-information fallback is `256`. `SERVER_TUNNEL_MEMORY_PERCENT` and `SERVER_TUNNEL_MEMORY_RESERVE_BYTES` tune the formula, while `SERVER_TUNNEL_MAX_CONCURRENT_STREAMS` is an explicit override.
+- Automatic server capacity uses the smallest visible Go, cgroup, or host memory limit. Half is available to tunnel receive-window credit while `536870912` bytes remain reserved for the rest of the process; automatic sizing has a production floor of `256` because Yamux window credit is not eagerly allocated resident memory. `SERVER_TUNNEL_MEMORY_PERCENT` and `SERVER_TUNNEL_MEMORY_RESERVE_BYTES` tune the formula above that floor, while `SERVER_TUNNEL_MAX_CONCURRENT_STREAMS` is an explicit override.
 - At the `256` fallback, four streams are reserved for trusted health checks, public traffic can use `252`, and at most `189` public streams may remain pool-eligible. The remaining `63` public slots are structural cold-target/burst headroom. Queued work is round-robin across routes, and each session is independently capped by its negotiated agent capability. If the configured total exceeds Yamux's per-session open backlog, the server also reserves the health share inside that backlog so a public opening burst cannot consume every pending-open position.
 - Bootstrap agent ID, name, and token must all be set together.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.

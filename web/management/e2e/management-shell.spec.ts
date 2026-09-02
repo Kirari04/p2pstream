@@ -234,7 +234,7 @@ test("opens complete mobile navigation, restores focus, and closes after navigat
 
   await menuButton.click();
   await sidebar.getByRole("link", { name: "Diagnostics", exact: true }).click();
-  await expect(page).toHaveURL(/#\/monitor\/diagnostics$/);
+  await expect(page).toHaveURL(/#\/monitor\/diagnostics\/overview$/);
   await expect(sidebar).toBeHidden();
   await expect(menuButton).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#management-main")).toBeFocused();

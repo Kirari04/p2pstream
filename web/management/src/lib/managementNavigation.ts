@@ -36,7 +36,12 @@ export const MANAGEMENT_NAVIGATION: readonly ManagementNavigationGroup[] = [
         activePrefix: "/monitor",
         children: [
           { key: "monitor-traffic", label: "Traffic", path: "/monitor/traffic" },
-          { key: "monitor-diagnostics", label: "Diagnostics", path: "/monitor/diagnostics" },
+          {
+            key: "monitor-diagnostics",
+            label: "Diagnostics",
+            path: "/monitor/diagnostics/overview",
+            activePrefix: "/monitor/diagnostics",
+          },
         ],
       },
     ],

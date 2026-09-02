@@ -41,9 +41,9 @@ describe("managementNavigation", () => {
     const monitor = MANAGEMENT_NAVIGATION[0]?.items[1];
     const traffic = monitor?.children?.[0];
     const diagnostics = monitor?.children?.[1];
-    expect(monitor && isManagementNavigationItemActive(monitor, "/monitor/diagnostics")).toBe(true);
-    expect(traffic && isManagementNavigationItemActive(traffic, "/monitor/diagnostics")).toBe(false);
-    expect(diagnostics && isManagementNavigationItemActive(diagnostics, "/monitor/diagnostics")).toBe(true);
+    expect(monitor && isManagementNavigationItemActive(monitor, "/monitor/diagnostics/samples")).toBe(true);
+    expect(traffic && isManagementNavigationItemActive(traffic, "/monitor/diagnostics/samples")).toBe(false);
+    expect(diagnostics && isManagementNavigationItemActive(diagnostics, "/monitor/diagnostics/samples")).toBe(true);
   });
 
   test("creates group, parent, and leaf breadcrumbs", () => {
@@ -55,6 +55,11 @@ describe("managementNavigation", () => {
     expect(managementBreadcrumbsForPath("/agent/activity")).toEqual([
       { key: "configure", label: "Configure" },
       { key: "agents", label: "Agents", path: "/agent" },
+    ]);
+    expect(managementBreadcrumbsForPath("/monitor/diagnostics/samples")).toEqual([
+      { key: "observe", label: "Observe" },
+      { key: "monitor", label: "Monitor", path: "/monitor/traffic" },
+      { key: "monitor-diagnostics", label: "Diagnostics", path: "/monitor/diagnostics/overview" },
     ]);
   });
 

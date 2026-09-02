@@ -13,6 +13,7 @@ func TestResolveServerTunnelCapacityUsesAvailableMemory(t *testing.T) {
 		wantStreams int64
 	}{
 		{name: "unknown uses production fallback", memory: 0, wantStreams: 256},
+		{name: "half gibibyte keeps production floor", memory: 512 << 20, wantStreams: 256},
 		{name: "one gibibyte", memory: 1 << 30, wantStreams: 256},
 		{name: "two gibibytes", memory: 2 << 30, wantStreams: 512},
 		{name: "eight gibibytes", memory: 8 << 30, wantStreams: 2048},
@@ -55,7 +56,7 @@ func TestRecommendedAgentTunnelConcurrentRequestsUsesAvailableMemory(t *testing.
 		want   int64
 	}{
 		{memory: 0, want: 256},
-		{memory: 512 << 20, want: 128},
+		{memory: 512 << 20, want: 256},
 		{memory: 2 << 30, want: 512},
 		{memory: 16 << 30, want: tunnel.MaxConcurrentAgentRequestsLimit},
 	} {

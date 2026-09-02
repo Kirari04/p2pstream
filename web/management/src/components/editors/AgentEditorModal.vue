@@ -94,6 +94,7 @@ async function submitAgent() {
         name: agentForm.name,
         enabled: agentForm.enabled,
         labels,
+        replaceLabels: true,
       });
     } else {
       const resp = await managementClient.createAgent({

@@ -72,6 +72,7 @@ test("exposes window state and safely discloses exact public-request samples", a
 
   await authenticate(page, testInfo.project.use.baseURL as string);
   await page.goto("/#/monitor/diagnostics");
+  await expect(page).toHaveURL(/#\/monitor\/diagnostics\/overview$/);
 
   const group = page.getByRole("group", { name: "Diagnostics window" });
   await expect(group.getByRole("button")).toHaveCount(4);
@@ -81,7 +82,8 @@ test("exposes window state and safely discloses exact public-request samples", a
       label === "1h" ? "true" : "false",
     );
   }
-  await expect(page.getByRole("combobox", { name: "Sample limit" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose an investigation lane", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Loaded diagnostic sample limit" })).toHaveCount(0);
 
   const request24h = page.waitForRequest((request) => (
     request.url().endsWith("/GetDashboardDiagnostics")
@@ -92,7 +94,21 @@ test("exposes window state and safely discloses exact public-request samples", a
   await expect(group.getByRole("button", { name: "24h", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(group.getByRole("button", { name: "1h", exact: true })).toHaveAttribute("aria-pressed", "false");
 
+  await page.getByRole("tab", { name: "Failure map", exact: true }).click();
+  await expect(page).toHaveURL(/#\/monitor\/diagnostics\/failures$/);
+
+  const dimension = page.getByRole("button", { name: new RegExp("direct_proxy_failed") });
+  const dimensionValue = dimension.locator("bdi.dimension-name");
+  await expect(dimensionValue).toHaveText(diagnosticExcerpt(errorKind, 56).text);
+  await expect(dimensionValue).toHaveCSS("unicode-bidi", "isolate");
+  await dimension.click();
+  await expect(page).toHaveURL(/#\/monitor\/diagnostics\/samples$/);
+  await expect(page.getByText("Exact filter · Error kinds", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 1 loaded samples", { exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Loaded diagnostic sample limit" })).toBeVisible();
+
   const view = page.getByRole("button", { name: /^View diagnostic sample from / });
+  await expect(view).toHaveCount(1);
   const row = view.locator("xpath=ancestor::tr");
   const excerpts = row.locator(".diagnostic-request-stack bdi.diagnostic-attacker-excerpt");
   await expect(excerpts).toHaveCount(2);
@@ -104,15 +120,6 @@ test("exposes window state and safely discloses exact public-request samples", a
     expect(Array.from((await excerpt.textContent()) ?? "").length).toBeLessThanOrEqual(DIAGNOSTIC_EXCERPT_LIMIT);
   }
   await expect(row.locator("img, script")).toHaveCount(0);
-
-  const dimension = page.getByRole("button", { name: new RegExp("direct_proxy_failed") });
-  const dimensionValue = dimension.locator("bdi.dimension-name");
-  await expect(dimensionValue).toHaveText(diagnosticExcerpt(errorKind, 56).text);
-  await expect(dimensionValue).toHaveCSS("unicode-bidi", "isolate");
-  await dimension.click();
-  await expect(dimension).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByText("Filtered by Error kinds", { exact: true })).toBeVisible();
-  await expect(view).toHaveCount(1);
 
   await view.click();
   const drawer = page.getByRole("dialog", { name: "Diagnostic sample details" });

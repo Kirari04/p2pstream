@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref, watch } from "vue";
-import { NAlert, NButton, NButtonGroup, NDataTable, NDrawer, NDrawerContent, NEmpty, NSkeleton } from "naive-ui";
+import { useRoute, useRouter } from "vue-router";
+import { NAlert, NButton, NButtonGroup, NDataTable, NDrawer, NDrawerContent, NEmpty, NSkeleton, NTab, NTabs, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import RetryHealthPanel from "@/components/RetryHealthPanel.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
@@ -19,14 +20,23 @@ import {
   statusTone,
 } from "@/lib/dashboardStats";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
+import {
+  DIAGNOSTICS_SECTIONS,
+  filterDiagnosticSamples,
+  normalizeDiagnosticsSection,
+  type DiagnosticDimensionFilter,
+  type DiagnosticDimensionKey,
+  type DiagnosticsSectionKey,
+} from "@/lib/diagnosticsWorkbench";
 import { editorDrawerWidth } from "@/lib/naiveUi";
 
 type WindowLabel = "5m" | "1h" | "24h" | "30d";
-type DimensionKey = "error" | "listener" | "route" | "target" | "agent" | "retry-error" | "retry-agent";
-type DimensionFilter = Readonly<{ key: DimensionKey; label: string; title: string }>;
 
 const managementClient = useManagementClient();
+const route = useRoute();
+const router = useRouter();
 const windowLabels: WindowLabel[] = ["5m", "1h", "24h", "30d"];
+const diagnosticsSections = DIAGNOSTICS_SECTIONS;
 const sampleOptions = [25, 50, 100];
 const sampleSelectOptions = sampleOptions.map((option) => ({
   label: `${option.toString()} samples`,
@@ -40,16 +50,37 @@ const isLoading = ref(false);
 const error = ref("");
 const selectedSample = ref<DashboardDiagnosticsSample | null>(null);
 const isSampleDetailsOpen = ref(false);
-const selectedDimension = ref<DimensionFilter | null>(null);
+const selectedDimension = ref<DiagnosticDimensionFilter | null>(null);
 let requestSequence = 0;
 
+const activeDiagnosticsSection = computed<DiagnosticsSectionKey>(() => normalizeDiagnosticsSection(route.params.section));
+const activeDiagnosticsSectionMeta = computed(() =>
+  diagnosticsSections.find((section) => section.key === activeDiagnosticsSection.value) ?? diagnosticsSections[0],
+);
 const outcome = computed(() => diagnostics.value?.outcome);
+const streamCapacity = computed(() => diagnostics.value?.agentStreamCapacity);
+const capacityConstraintRows = computed(() => Object.entries(streamCapacity.value?.admissionMissesByConstraint ?? {})
+  .filter(([, count]) => count > 0n)
+  .sort((left, right) => left[1] === right[1] ? left[0].localeCompare(right[0]) : left[1] > right[1] ? -1 : 1)
+  .map(([constraint, count]) => ({
+    constraint,
+    label: capacityConstraintLabel(constraint),
+    count,
+    waiting: streamCapacity.value?.waitersByConstraint[constraint] ?? 0n,
+  })));
+const capacityHasPressure = computed(() => {
+  const capacity = streamCapacity.value;
+  if (!capacity) return false;
+  return capacity.waiters > 0n
+    || (capacity.totalCapacity > 0n && capacity.totalInUse >= capacity.totalCapacity)
+    || (capacity.publicCapacity > 0n && capacity.publicInUse >= capacity.publicCapacity);
+});
 const statusCodes = computed(() => diagnostics.value?.statusCodes ?? []);
 const recentSamples = computed(() => diagnostics.value?.recentSamples ?? []);
-const filteredRecentSamples = computed(() => {
-  const filter = selectedDimension.value;
-  if (!filter) return recentSamples.value;
-  return recentSamples.value.filter((sample) => sampleDimensionValue(sample, filter.key) === filter.label);
+const filteredRecentSamples = computed(() => filterDiagnosticSamples(recentSamples.value, selectedDimension.value));
+const sampleFilterSummary = computed(() => {
+  if (!selectedDimension.value) return `${recentSamples.value.length.toString()} loaded samples`;
+  return `${filteredRecentSamples.value.length.toString()} of ${recentSamples.value.length.toString()} loaded samples`;
 });
 const isInitialLoading = computed(() => isLoading.value && !diagnostics.value);
 const generatedAtLabel = computed(() => diagnostics.value ? formatSampleTime(diagnostics.value.generatedAtUnixMillis) : "Not loaded");
@@ -214,8 +245,12 @@ async function loadDiagnostics(clearCurrent = false) {
   }
 }
 
-watch([selectedWindowLabel, sampleLimit], () => {
+watch(selectedWindowLabel, () => {
   selectedDimension.value = null;
+  void loadDiagnostics(true);
+});
+
+watch(sampleLimit, () => {
   void loadDiagnostics(true);
 });
 
@@ -267,30 +302,25 @@ function openSampleDetails(sample: DashboardDiagnosticsSample) {
   isSampleDetailsOpen.value = true;
 }
 
-function selectDimension(key: DimensionKey, row: DashboardProxyDimensionSummary, title: string) {
-  selectDimensionLabel(key, row.label, title);
+async function selectDiagnosticsSection(value: string | number) {
+  const section = diagnosticsSections.find((item) => item.key === value);
+  if (!section || section.key === activeDiagnosticsSection.value) return;
+  await router.push(section.path);
 }
 
-function selectDimensionLabel(key: DimensionKey, label: string, title: string) {
-  const next = { key, label, title };
-  const current = selectedDimension.value;
-  selectedDimension.value = current?.key === next.key && current.label === next.label ? null : next;
+async function inspectDimension(key: DiagnosticDimensionKey, row: DashboardProxyDimensionSummary, title: string) {
+  await inspectDimensionLabel(key, row.label, title);
 }
 
-function dimensionSelected(key: DimensionKey, label: string): boolean {
-  return selectedDimension.value?.key === key && selectedDimension.value.label === label;
-}
-
-function sampleDimensionValue(sample: DashboardDiagnosticsSample, key: DimensionKey): string {
-  switch (key) {
-    case "error": return sample.errorKind;
-    case "listener": return sample.listenerLabel;
-    case "route": return sample.routeLabel;
-    case "target": return sample.routeTargetLabel;
-    case "agent": return sample.agentLabel;
-    case "retry-error": return sample.retryErrorKind;
-    case "retry-agent": return sample.retryFailedAgentLabel;
+async function inspectDimensionLabel(key: DiagnosticDimensionKey, label: string, title: string) {
+  selectedDimension.value = { key, label, title };
+  if (activeDiagnosticsSection.value !== "samples") {
+    await router.push("/monitor/diagnostics/samples");
   }
+}
+
+function dimensionSelected(key: DiagnosticDimensionKey, label: string): boolean {
+  return selectedDimension.value?.key === key && selectedDimension.value.label === label;
 }
 
 function attackerCell(value: string, limit = 72) {
@@ -361,6 +391,22 @@ function sampleRowBaseKey(sample: DashboardDiagnosticsSample): string {
 function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   return recentSampleRowKeys.value.get(sample) ?? sampleRowBaseKey(sample);
 }
+
+function capacityConstraintLabel(constraint: string): string {
+  switch (constraint) {
+    case "total_budget": return "Server total full";
+    case "public_budget": return "Public stream lane full";
+    case "pooled_budget": return "Reusable stream lane full";
+    case "control_budget": return "Health-check lane full";
+    case "session_budget": return "Selected agent session full";
+    case "session_opening_limit": return "Agent stream-opening backlog full";
+    case "fair_turn": return "Waiting for fair admission turn";
+    case "queue_full": return "Global admission queue full";
+    case "key_queue_full": return "Route admission queue full";
+    case "class_disabled": return "Admission lane disabled";
+    default: return constraint || "Unknown constraint";
+  }
+}
 </script>
 
 <template>
@@ -368,7 +414,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
     <section class="diagnostics-header">
       <div>
         <h3>Diagnostics</h3>
-        <p>Proxy outcomes, response distribution, failure dimensions, and recent failure or retry samples.</p>
+        <p>{{ activeDiagnosticsSectionMeta.description }}</p>
       </div>
       <div class="header-controls">
         <NButtonGroup class="window-tabs" role="group" aria-label="Diagnostics window" size="small">
@@ -383,18 +429,26 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
             {{ label }}
           </NButton>
         </NButtonGroup>
-        <AccessibleSelect
-          v-model:value="sampleLimit"
-          accessible-label="Sample limit"
-          class="sample-select"
-          size="small"
-          :options="sampleSelectOptions"
-        />
         <NButton secondary size="small" attr-type="button" :loading="isLoading && Boolean(diagnostics)" @click="loadDiagnostics(false)">
           Refresh
         </NButton>
       </div>
     </section>
+
+    <NTabs
+      class="diagnostics-section-tabs"
+      type="line"
+      :value="activeDiagnosticsSection"
+      aria-label="Diagnostics sections"
+      @update:value="selectDiagnosticsSection"
+    >
+      <NTab
+        v-for="section in diagnosticsSections"
+        :key="section.key"
+        :name="section.key"
+        :tab="section.label"
+      />
+    </NTabs>
 
     <NAlert v-if="error" :type="diagnostics ? 'warning' : 'error'" :show-icon="false">
       <div class="diagnostics-alert">
@@ -431,7 +485,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
       <p v-if="isLoading" class="diagnostics-refresh-state" role="status">
         Refreshing from the server. Values below remain the snapshot generated {{ generatedAtLabel }} until a new response arrives.
       </p>
-      <section class="incident-summary" :aria-busy="isLoading">
+      <section v-if="activeDiagnosticsSection === 'overview'" class="incident-summary" :aria-busy="isLoading">
         <div class="incident-summary__lead">
           <div class="incident-summary__eyebrow">
             <span>Incident snapshot</span>
@@ -469,7 +523,63 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
         </dl>
       </section>
 
+      <section v-if="activeDiagnosticsSection === 'overview' && streamCapacity" class="capacity-observatory" :class="{ 'capacity-observatory--pressure': capacityHasPressure }">
+        <div class="capacity-observatory__heading">
+          <div>
+            <span class="capacity-observatory__kicker">Live admission state</span>
+            <h4>Tunnel capacity</h4>
+            <p>Current physical-stream pressure. These values are live at refresh time and are not scoped to the selected incident window.</p>
+          </div>
+          <NTag size="small" :bordered="false" :type="capacityHasPressure ? 'warning' : 'success'">
+            {{ capacityHasPressure ? "At capacity now" : "Headroom available" }}
+          </NTag>
+        </div>
+        <dl class="capacity-observatory__meters">
+          <div>
+            <dt>Total streams</dt>
+            <dd>{{ formatNumber(streamCapacity.totalInUse) }} / {{ formatNumber(streamCapacity.totalCapacity) }}</dd>
+            <small>{{ formatNumber(streamCapacity.opening) }} opening · {{ formatNumber(streamCapacity.live) }} live · {{ formatNumber(streamCapacity.closing) }} closing</small>
+          </div>
+          <div>
+            <dt>Public lane</dt>
+            <dd>{{ formatNumber(streamCapacity.publicInUse) }} / {{ formatNumber(streamCapacity.publicCapacity) }}</dd>
+            <small>{{ formatNumber(streamCapacity.publicWaiters) }} waiting</small>
+          </div>
+          <div>
+            <dt>Reusable lane</dt>
+            <dd>{{ formatNumber(streamCapacity.pooledInUse) }} / {{ formatNumber(streamCapacity.pooledCapacity) }}</dd>
+            <small>{{ formatNumber(streamCapacity.pooledTransportShards) }} transport shards</small>
+          </div>
+          <div>
+            <dt>Busiest agent session</dt>
+            <dd>{{ formatNumber(streamCapacity.maxSessionPublicInUse) }}</dd>
+            <small v-if="streamCapacity.contendedSessionPublicLimit > 0n">shared-pressure limit {{ formatNumber(streamCapacity.contendedSessionPublicLimit) }}</small>
+            <small v-else>{{ formatNumber(streamCapacity.registeredSessions) }} registered sessions</small>
+          </div>
+          <div>
+            <dt>Terminal rejections</dt>
+            <dd>{{ formatNumber(streamCapacity.terminalCapacityFailures) }}</dd>
+            <small>customer-visible capacity failures since server start</small>
+          </div>
+        </dl>
+        <div class="capacity-observatory__constraints">
+          <div>
+            <strong>Exact admission constraints</strong>
+            <p>Admission misses are cumulative since server start and include pooled misses recovered by fallback.</p>
+          </div>
+          <ol v-if="capacityConstraintRows.length">
+            <li v-for="row in capacityConstraintRows" :key="row.constraint">
+              <span><bdi dir="ltr">{{ row.label }}</bdi><code>{{ row.constraint }}</code></span>
+              <strong>{{ formatNumber(row.count) }}</strong>
+              <small v-if="row.waiting > 0n">{{ formatNumber(row.waiting) }} waiting now</small>
+            </li>
+          </ol>
+          <NEmpty v-else size="small" description="No capacity admission misses since server start." />
+        </div>
+      </section>
+
       <RetryHealthPanel
+        v-if="activeDiagnosticsSection === 'retries'"
         :retry-health="diagnostics.retryHealth"
         :retry-trend="diagnostics.retryTrend"
         :retry-rules="diagnostics.retryRules"
@@ -478,10 +588,10 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
         :generated-at-unix-millis="diagnostics.generatedAtUnixMillis"
         :window-label="selectedWindowLabel"
         :selected-filter="selectedDimension"
-        @select-dimension="selectDimensionLabel"
+        @select-dimension="inspectDimensionLabel"
       />
 
-      <section class="diagnostics-panel">
+      <section v-if="activeDiagnosticsSection === 'overview'" class="diagnostics-panel">
         <div class="panel-heading">
           <div>
             <h4>Status Codes</h4>
@@ -508,11 +618,58 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
         <NEmpty v-else size="small" description="No status codes in this window." />
       </section>
 
-      <section class="breakdown-section" aria-labelledby="failure-dimensions-heading">
+      <section v-if="activeDiagnosticsSection === 'overview'" class="investigation-section" aria-labelledby="investigation-lanes-heading">
+        <div class="panel-heading">
+          <div>
+            <h4 id="investigation-lanes-heading">Choose an investigation lane</h4>
+            <p>Each workspace has one job and keeps its own controls close to the evidence they affect.</p>
+          </div>
+        </div>
+        <div class="investigation-grid">
+          <RouterLink class="investigation-lane investigation-lane--retry" to="/monitor/diagnostics/retries">
+            <span class="investigation-lane__index">01</span>
+            <div>
+              <strong>Retry health</strong>
+              <p>Decide whether retries recovered transport failures or merely delayed exhaustion.</p>
+            </div>
+            <dl>
+              <div><dt>Matched</dt><dd>{{ formatNumber(diagnostics.retryHealth?.matchedRequests) }}</dd></div>
+              <div><dt>Exhausted</dt><dd>{{ formatNumber(diagnostics.retryHealth?.exhaustedRequests) }}</dd></div>
+            </dl>
+            <span class="investigation-lane__action">Open retry health →</span>
+          </RouterLink>
+          <RouterLink class="investigation-lane investigation-lane--failures" to="/monitor/diagnostics/failures">
+            <span class="investigation-lane__index">02</span>
+            <div>
+              <strong>Failure map</strong>
+              <p>Rank the exact errors, listeners, routes, targets, and agents involved.</p>
+            </div>
+            <dl>
+              <div><dt>Proxy failures</dt><dd>{{ formatNumber(outcome?.proxyFailure) }}</dd></div>
+              <div><dt>Error kinds</dt><dd>{{ diagnostics.errorKinds.length.toString() }}</dd></div>
+            </dl>
+            <span class="investigation-lane__action">Explore dimensions →</span>
+          </RouterLink>
+          <RouterLink class="investigation-lane investigation-lane--samples" to="/monitor/diagnostics/samples">
+            <span class="investigation-lane__index">03</span>
+            <div>
+              <strong>Request samples</strong>
+              <p>Inspect concrete request evidence after the aggregate signal points somewhere.</p>
+            </div>
+            <dl>
+              <div><dt>Loaded</dt><dd>{{ recentSamples.length.toString() }}</dd></div>
+              <div><dt>Window</dt><dd>{{ selectedWindowLabel }}</dd></div>
+            </dl>
+            <span class="investigation-lane__action">Inspect requests →</span>
+          </RouterLink>
+        </div>
+      </section>
+
+      <section v-if="activeDiagnosticsSection === 'failures'" class="breakdown-section" aria-labelledby="failure-dimensions-heading">
         <div class="panel-heading">
           <div>
             <h4 id="failure-dimensions-heading">Ranked failure dimensions</h4>
-            <p>Select a row to filter the request samples by that exact value.</p>
+            <p>Select a row to open request samples filtered by that exact value.</p>
           </div>
         </div>
         <div class="breakdown-grid">
@@ -527,7 +684,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
                   class="dimension-row"
                   :class="{ 'dimension-row--selected': dimensionSelected(section.key, row.label) }"
                   :aria-pressed="dimensionSelected(section.key, row.label)"
-                  @click="selectDimension(section.key, row, section.title)"
+                  @click="inspectDimension(section.key, row, section.title)"
                 >
                   <span class="dimension-rank">{{ index + 1 }}</span>
                   <bdi class="dimension-name" dir="ltr" :title="inspectionValue(row.label)">{{ diagnosticExcerpt(row.label, 56).text }}</bdi>
@@ -536,6 +693,7 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
                     <span>{{ formatNumber(dimensionNonSuccess(row)) }} non-success</span>
                     <span>{{ formatNumber(dimensionProxyFailures(row)) }} failures</span>
                   </span>
+                  <span class="dimension-action">Inspect samples →</span>
                 </button>
               </li>
             </ol>
@@ -544,17 +702,31 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
         </div>
       </section>
 
-      <section class="diagnostics-panel diagnostics-panel--table">
+      <section v-if="activeDiagnosticsSection === 'samples'" class="diagnostics-panel diagnostics-panel--table">
         <div class="panel-heading diagnostics-samples-heading">
           <div>
-            <h4>Recent Samples</h4>
-            <p>Newest non-success responses, proxy failures, and requests with retry activity.</p>
+            <h4>Request samples</h4>
+            <p>Newest retained non-success, proxy-failure, and retry requests. Filters are exact matches against this loaded sample set; they do not change the server-wide aggregates.</p>
           </div>
-          <div v-if="selectedDimension" class="sample-filter">
-            <span>Filtered by {{ selectedDimension.title }}</span>
-            <bdi dir="ltr">{{ inspectionValue(selectedDimension.label) }}</bdi>
-            <NButton quaternary size="small" attr-type="button" @click="selectedDimension = null">Clear filter</NButton>
+          <div class="sample-controls">
+            <NTag size="small" :bordered="false" :type="selectedDimension ? 'info' : 'default'">{{ sampleFilterSummary }}</NTag>
+            <AccessibleSelect
+              v-model:value="sampleLimit"
+              accessible-label="Loaded diagnostic sample limit"
+              class="sample-select"
+              size="small"
+              :options="sampleSelectOptions"
+            />
           </div>
+        </div>
+        <div v-if="selectedDimension" class="sample-filter" role="status">
+          <span>Exact filter · {{ selectedDimension.title }}</span>
+          <bdi dir="ltr">{{ inspectionValue(selectedDimension.label) }}</bdi>
+          <NButton quaternary size="small" attr-type="button" @click="selectedDimension = null">Show all loaded samples</NButton>
+        </div>
+        <div v-else class="sample-filter-guide">
+          <span>No exact-match filter is active.</span>
+          <p>Open <RouterLink to="/monitor/diagnostics/failures">Failure map</RouterLink> or <RouterLink to="/monitor/diagnostics/retries">Retry health</RouterLink>, then choose a dimension to inspect its matching samples here.</p>
         </div>
         <div v-if="filteredRecentSamples.length" class="diagnostics-table-shell">
           <NDataTable
@@ -636,10 +808,28 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 .header-controls {
   display: grid;
-  grid-template-columns: auto 11rem auto;
+  grid-template-columns: auto auto;
   align-items: center;
   gap: 0.5rem;
   justify-content: end;
+}
+
+.diagnostics-section-tabs {
+  min-width: 0;
+  margin-top: -0.5rem;
+}
+
+.diagnostics-section-tabs :deep(.n-tabs-nav) {
+  margin-bottom: 0;
+}
+
+.diagnostics-section-tabs :deep(.n-tabs-tab) {
+  padding: 0.625rem 0.125rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.diagnostics-section-tabs :deep(.n-tabs-tab + .n-tabs-tab) {
+  margin-left: 1.25rem;
 }
 
 .window-tabs {
@@ -657,6 +847,122 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 .sample-select {
   width: 11rem;
+}
+
+.investigation-section {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.investigation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.investigation-lane {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: 0.85rem;
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-panel-muted);
+  padding: 1rem;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.investigation-lane::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--lane-accent, var(--app-accent));
+  content: "";
+}
+
+.investigation-lane--retry {
+  --lane-accent: var(--app-warning);
+}
+
+.investigation-lane--failures {
+  --lane-accent: var(--app-error);
+}
+
+.investigation-lane--samples {
+  --lane-accent: var(--app-accent);
+}
+
+.investigation-lane:hover,
+.investigation-lane:focus-visible {
+  border-color: color-mix(in srgb, var(--lane-accent) 58%, var(--app-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lane-accent) 22%, transparent);
+  transform: translateY(-1px);
+}
+
+.investigation-lane:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+
+.investigation-lane__index {
+  color: var(--lane-accent);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+.investigation-lane strong {
+  color: var(--app-text);
+  font-size: 0.95rem;
+}
+
+.investigation-lane p {
+  margin-top: 0.25rem;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.investigation-lane dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  border-block: 1px solid var(--app-border-subtle);
+  padding-block: 0.6rem;
+}
+
+.investigation-lane dl > div {
+  min-width: 0;
+}
+
+.investigation-lane dl > div + div {
+  border-left: 1px solid var(--app-border-subtle);
+  padding-left: 0.65rem;
+}
+
+.investigation-lane dt {
+  color: var(--app-text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.investigation-lane dd {
+  margin: 0.2rem 0 0;
+  color: var(--app-text);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.investigation-lane__action {
+  color: var(--lane-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .breakdown-grid {
@@ -798,6 +1104,153 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   color: var(--app-text);
   font-size: 1rem;
   font-weight: 700;
+}
+
+.capacity-observatory {
+  --capacity-accent: var(--app-success);
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+  border: 1px solid color-mix(in srgb, var(--capacity-accent) 34%, var(--app-border));
+  border-left: 3px solid var(--capacity-accent);
+  border-radius: 6px;
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--capacity-accent) 5%, transparent), transparent 42%),
+    var(--app-panel-muted);
+  padding: 1rem;
+}
+
+.capacity-observatory--pressure {
+  --capacity-accent: var(--app-warning);
+}
+
+.capacity-observatory__heading {
+  display: flex;
+  min-width: 0;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.capacity-observatory__heading > div {
+  min-width: 0;
+}
+
+.capacity-observatory__kicker,
+.capacity-observatory dt {
+  color: var(--app-text-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.capacity-observatory__heading h4 {
+  margin-top: 0.2rem;
+  color: var(--app-text);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.capacity-observatory__heading p,
+.capacity-observatory__constraints p {
+  margin-top: 0.2rem;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.capacity-observatory__meters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  border-block: 1px solid var(--app-border-subtle);
+  padding-block: 0.75rem;
+}
+
+.capacity-observatory__meters > div {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.15rem;
+  padding-inline: 0.75rem;
+}
+
+.capacity-observatory__meters > div:first-child {
+  padding-left: 0;
+}
+
+.capacity-observatory__meters > div + div {
+  border-left: 1px solid var(--app-border-subtle);
+}
+
+.capacity-observatory__meters dd {
+  margin: 0;
+  color: var(--app-text);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.capacity-observatory__meters small {
+  color: var(--app-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.capacity-observatory__constraints {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.75fr) minmax(0, 1.25fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.capacity-observatory__constraints > div > strong {
+  color: var(--app-text);
+  font-size: 0.78rem;
+}
+
+.capacity-observatory__constraints ol {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.capacity-observatory__constraints li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.15rem 0.75rem;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 4px;
+  padding: 0.5rem 0.625rem;
+}
+
+.capacity-observatory__constraints li > span {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  color: var(--app-text);
+  font-size: 0.75rem;
+}
+
+.capacity-observatory__constraints code {
+  color: var(--app-text-muted);
+  font-size: 0.67rem;
+}
+
+.capacity-observatory__constraints li > strong {
+  color: var(--capacity-accent);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.capacity-observatory__constraints li > small {
+  grid-column: 1 / -1;
+  color: var(--app-warning);
+  font-size: 0.67rem;
 }
 
 
@@ -1004,6 +1457,14 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   font-size: 0.72rem;
 }
 
+.dimension-action {
+  grid-column: 2;
+  margin-top: 0.1rem;
+  color: var(--app-accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
 .dimension-list {
   margin: 0;
   padding: 0;
@@ -1029,6 +1490,13 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 .diagnostics-samples-heading {
   align-items: center;
+}
+
+.sample-controls {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .sample-filter {
@@ -1062,6 +1530,30 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 .sample-filter :deep(.n-button) {
   grid-column: 2;
   grid-row: 1 / span 2;
+}
+
+.sample-filter-guide {
+  display: grid;
+  gap: 0.2rem;
+  border-left: 3px solid var(--app-border);
+  background: var(--app-panel);
+  padding: 0.6rem 0.75rem;
+}
+
+.sample-filter-guide > span {
+  color: var(--app-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sample-filter-guide p {
+  color: var(--app-text-muted);
+  font-size: 0.72rem;
+}
+
+.sample-filter-guide a {
+  color: var(--app-accent);
+  font-weight: 700;
 }
 
 .diagnostic-request-stack,
@@ -1227,6 +1719,10 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
     width: 100%;
   }
 
+  .investigation-grid {
+    grid-template-columns: 1fr;
+  }
+
   .status-row {
     grid-template-columns: 1fr;
   }
@@ -1237,9 +1733,20 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   }
 
   .incident-facts,
+  .capacity-observatory__meters,
   .diagnostics-skeleton__facts,
   .diagnostics-skeleton__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .capacity-observatory__meters > div {
+    border-left: 0 !important;
+    border-top: 1px solid var(--app-border-subtle);
+    padding: 0.65rem 0;
+  }
+
+  .capacity-observatory__constraints {
+    grid-template-columns: 1fr;
   }
 
   .incident-facts > div {
@@ -1252,6 +1759,12 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
     display: grid;
   }
 
+  .sample-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
   .sample-filter {
     width: 100%;
   }
@@ -1260,9 +1773,14 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 @media (max-width: 520px) {
   .incident-facts,
+  .capacity-observatory__meters,
   .diagnostics-skeleton__facts,
   .diagnostics-skeleton__grid {
     grid-template-columns: 1fr;
+  }
+
+  .capacity-observatory__heading {
+    display: grid;
   }
 
   .window-tabs :deep(.n-button) {
@@ -1278,6 +1796,11 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   .sample-filter :deep(.n-button),
   .diagnostics-table-shell :deep(.n-button),
   .diagnostic-sample-drawer :deep(.n-base-close) {
+    min-height: 44px;
+  }
+
+  .diagnostics-section-tabs :deep(.n-tabs-tab),
+  .investigation-lane {
     min-height: 44px;
   }
 }
