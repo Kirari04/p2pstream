@@ -376,11 +376,28 @@ func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
 	}
 	defer app.AgentHub.disconnect(agent)
 	defer fake.close()
+	capacity, err := newAgentStreamCapacityManager(agentStreamCapacityConfig{
+		Total: 2, Public: 1, Pooled: 1, Control: 1,
+		MaxWaiters: 2, MaxWaitersPerKey: 1, MaxOpeningPerSession: 2,
+	})
+	if err != nil {
+		t.Fatalf("new stream capacity manager: %v", err)
+	}
+	app.agentStreamCapacity = capacity
+	sessionKey := agentStreamCapacitySessionKey(agent, agent.Session)
+	publicOpening, err := capacity.tryAcquire(agentStreamCapacityPublicPooled, "occupied-public", sessionKey)
+	if err != nil {
+		t.Fatalf("occupy public capacity: %v", err)
+	}
+	defer publicOpening.release()
 	snap := testHealthSnapshot(backend)
 	snap.Agents[7] = publicAgentConfig{ID: 7, PublicID: "agent-7", Name: "Agent Seven", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
 	app.TargetHealth.reconcile(app, snap, false)
 
 	attempt := app.runPublicRouteTargetHealthCheckViaAgent(context.Background(), backend, agent)
+	if capacity.snapshot().Public.InUse != 1 {
+		t.Fatalf("public capacity changed while protected health check ran: %+v", capacity.snapshot())
+	}
 	app.TargetHealth.recordAgentExplicitCheck(backend.ID, 7, attempt)
 	traces, retained := app.TargetHealth.listHealthTraces(backend.ID, 7, 100, false)
 	if retained != 1 || len(traces) != 1 {
@@ -392,8 +409,86 @@ func TestAgentHealthTraceRecordsSuccessAndDebugAttributes(t *testing.T) {
 		trace.AgentPublicId != "agent-7" ||
 		trace.AgentName != "Agent Seven" ||
 		trace.DebugAttributes["agent_request_id"] == "" ||
-		trace.DebugAttributes["transport"] != "agent_pool" {
+		trace.DebugAttributes["transport"] != "agent_health_one_shot" {
 		t.Fatalf("agent trace = %+v", trace)
+	}
+}
+
+func TestAgentActiveHealthCheckServerCapacityIsSkippedWithoutChangingHealthyState(t *testing.T) {
+	app := NewApp(nil, nil)
+	backend := testHealthTarget(t, 106, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
+	backend.AgentAssignments = []publicRouteTargetAgentAssignment{{TargetID: backend.ID, AgentID: 7, Position: 0, Weight: 100, Enabled: true}}
+	snap := testHealthSnapshot(backend)
+	snap.Agents[7] = publicAgentConfig{ID: 7, PublicID: "agent-7", Name: "Agent Seven", Enabled: true, Labels: map[string]string{"pool": "health-test"}}
+	app.TargetHealth.reconcile(app, snap, false)
+	t.Cleanup(func() { app.TargetHealth.reconcile(app, nil, false) })
+
+	agent, fake := newFakeYamuxAgent(t, 7, "agent-7")
+	agent.Name = "Agent Seven"
+	if err := app.AgentHub.connect(agent); err != nil {
+		t.Fatalf("connect agent: %v", err)
+	}
+	t.Cleanup(func() { app.AgentHub.disconnect(agent) })
+	t.Cleanup(fake.close)
+
+	healthyAttempt := newPublicRouteTargetHealthCheckAttempt(backend)
+	healthyAttempt.AgentID = agent.AgentID
+	healthyAttempt.AgentPublicID = agent.PublicID
+	healthyAttempt.AgentName = agent.Name
+	healthyAttempt.StatusCode = http.StatusOK
+	finishPublicRouteTargetHealthCheckAttempt(&healthyAttempt)
+	app.TargetHealth.recordAgentExplicitCheck(backend.ID, agent.AgentID, healthyAttempt)
+	if !app.TargetHealth.agentAvailable(backend.ID, agent.AgentID) {
+		t.Fatal("healthy agent-target was unavailable before local capacity pressure")
+	}
+
+	capacity, err := newAgentStreamCapacityManager(agentStreamCapacityConfig{
+		Total: 2, Public: 1, Pooled: 0, Control: 1,
+		MaxWaiters: 2, MaxWaitersPerKey: 1, MaxOpeningPerSession: 1,
+	})
+	if err != nil {
+		t.Fatalf("new stream capacity manager: %v", err)
+	}
+	app.agentStreamCapacity = capacity
+	healthLease, err := capacity.tryAcquire(agentStreamCapacityTrustedHealth, "occupied-health", "occupied-session")
+	if err != nil {
+		t.Fatalf("occupy trusted health capacity: %v", err)
+	}
+	if !healthLease.markLive() {
+		t.Fatal("mark occupied health capacity live")
+	}
+	defer healthLease.release()
+
+	attempt := app.runPublicRouteTargetHealthCheckViaAgent(context.Background(), backend, agent)
+	if !attempt.Skipped || attempt.ErrorKind != "agent_server_health_capacity" {
+		t.Fatalf("capacity attempt skipped=%v errorKind=%q err=%v, want skipped agent_server_health_capacity", attempt.Skipped, attempt.ErrorKind, attempt.Err)
+	}
+	app.TargetHealth.recordAgentExplicitCheck(backend.ID, agent.AgentID, attempt)
+
+	app.TargetHealth.mu.Lock()
+	state := app.TargetHealth.states[backend.ID].agentStates[agent.AgentID].state
+	app.TargetHealth.mu.Unlock()
+	if state.unhealthyStreak != 0 || state.healthyStreak != 1 || state.explicitStatus != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY {
+		t.Fatalf("state after local capacity skip = %+v, want healthy streak 1, unhealthy streak 0, HEALTHY", state)
+	}
+	if !app.TargetHealth.agentAvailable(backend.ID, agent.AgentID) || !app.TargetHealth.available(backend) {
+		t.Fatal("local server capacity made the healthy agent-target unavailable")
+	}
+	if got := fake.openRequestCount(); got != 0 {
+		t.Fatalf("capacity-skipped health check opened %d agent streams, want 0", got)
+	}
+
+	traces, retained := app.TargetHealth.listHealthTraces(backend.ID, agent.AgentID, 10, false)
+	if retained != 2 || len(traces) != 2 {
+		t.Fatalf("health trace count = retained %d len %d, want 2", retained, len(traces))
+	}
+	trace := traces[0]
+	if trace.Outcome != p2pstreamv1.PublicRouteTargetHealthTraceOutcome_PUBLIC_ROUTE_TARGET_HEALTH_TRACE_OUTCOME_SKIPPED ||
+		trace.ErrorKind != "agent_server_health_capacity" ||
+		trace.UnhealthyStreakBefore != 0 || trace.UnhealthyStreakAfter != 0 ||
+		trace.StatusBefore != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY ||
+		trace.StatusAfter != p2pstreamv1.PublicRouteTargetHealthStatus_PUBLIC_ROUTE_TARGET_HEALTH_STATUS_HEALTHY {
+		t.Fatalf("capacity-skipped health trace = %+v", trace)
 	}
 }
 

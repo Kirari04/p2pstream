@@ -158,6 +158,42 @@ func TestPublicAgentRetryUsesDifferentAgentAfterDialFailure(t *testing.T) {
 	}
 }
 
+func TestPublicAgentRetrySkipsServerCapacityWithoutTryingAlternateAgent(t *testing.T) {
+	app, snapshot, target, first, second := newPublicRetryTestApp(t)
+	var attempts []int64
+	result := &publicRetryAttemptResult{}
+	rt := &publicAgentAttemptRoundTripper{
+		app: app, snapshot: snapshot, resolution: publicRouteResolution{Snapshot: snapshot, Target: target}, initial: first,
+		rule:      &publicRetryRuleConfig{ID: 1, Name: "reads", MaxRetries: 1, FailureMode: publicRetryFailureModeConnectionFailures, BodyMode: publicRetryBodyModeNever},
+		requestID: "request-server-capacity", result: result,
+		transportForAgent: func(agent *AgentConn) http.RoundTripper {
+			return retryRoundTripFunc(func(*http.Request) (*http.Response, error) {
+				attempts = append(attempts, agent.AgentID)
+				return nil, agentDialError{Kind: "server_capacity", Err: "server tunnel stream capacity reached"}
+			})
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://proxy.test/asset", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	if _, err := rt.RoundTrip(req); agentProxyErrorKind(err) != "agent_server_capacity" {
+		t.Fatalf("round trip error = %v, want agent_server_capacity", err)
+	}
+	if len(attempts) != 1 || attempts[0] != first.AgentID {
+		t.Fatalf("attempted agents = %v, want only agent %d (not alternate %d)", attempts, first.AgentID, second.AgentID)
+	}
+	if result.RetryCount != 0 || result.Outcome != publicRetryOutcomeSkipped || result.ReplaySkippedReason != "failure_not_retryable" {
+		t.Fatalf("retry result = %+v", result)
+	}
+	if result.FirstErrorKind != "agent_server_capacity" || result.FirstFailedAgent != nil || result.FinalAgent != first {
+		t.Fatalf("retry attribution = %+v", result)
+	}
+	if first.ActiveRequests.Load() != 0 || second.ActiveRequests.Load() != 0 {
+		t.Fatalf("active requests after capacity skip = [%d %d], want [0 0]", first.ActiveRequests.Load(), second.ActiveRequests.Load())
+	}
+}
+
 func TestPublicAgentRetryUsesDifferentAgentAfterRetryableStatus(t *testing.T) {
 	app, snapshot, target, first, second := newPublicRetryTestApp(t)
 	var attempts []int64

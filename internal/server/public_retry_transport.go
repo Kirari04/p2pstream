@@ -856,6 +856,38 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			transport = rt.transportForAgent(agent)
 		}
 		resp, attemptErr := transport.RoundTrip(attemptReq)
+		fallbackAttempted := false
+		if rt.transportForAgent == nil &&
+			agentDialErrorHasKind(attemptErr, "server_pooled_capacity") &&
+			agentStreamCapacityAllowsPooledHandoff(attemptErr) &&
+			attemptCtx.Err() == nil && !wroteRequest.Load() && bodyRead.Load() == 0 {
+			fallbackAttempted = true
+			// The pooled class could not admit a new connection before any request
+			// bytes or body bytes were consumed. Retire one known-idle shard, then
+			// rebuild the body wrapper because net/http may close Request.Body on
+			// any error. nonClosingReadCloser keeps a non-replayable original safe
+			// for this exact pre-consumption handoff. This is local admission
+			// recovery on the same agent, not a policy retry.
+			if agentStreamCapacityRequiresIdleReclaim(attemptErr) {
+				rt.app.reclaimIdleAgentTransportFor(agent, agentStreamCapacityAllowsCrossSessionReclaim(attemptErr))
+			}
+			_ = attemptReq.Body.Close()
+			fallbackBody, fallbackOK := body.next()
+			if fallbackOK {
+				if rt.shaper != nil {
+					shaper := *rt.shaper
+					if attempt > 1 {
+						shaper.Rule.RequestExemptBytes = 0
+					}
+					fallbackBody = shaper.wrapUploadBody(req.Context(), fallbackBody)
+				}
+				fallbackBody = &countedAttemptBody{ReadCloser: fallbackBody, read: &bodyRead}
+				attemptReq = req.Clone(attemptCtx)
+				attemptReq.Body = fallbackBody
+				attemptReq.GetBody = nil
+				resp, attemptErr = rt.app.agentTargetOneShotTransport(agent, rt.resolution.Target).RoundTrip(attemptReq)
+			}
+		}
 		if attemptErr != nil {
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()
@@ -864,6 +896,9 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 		} else if resp == nil {
 			releaseActiveRequest()
 			attemptErr = errors.New("agent transport returned no response")
+		}
+		if fallbackAttempted && rt.app.AgentTransports != nil {
+			rt.app.AgentTransports.recordFallbackResult(attemptErr == nil && resp != nil)
 		}
 		if attemptErr == nil {
 			outcome := ""
@@ -943,10 +978,16 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 		}
 
 		errorKind := agentProxyErrorKind(attemptErr)
+		var localCapacityErr agentDialError
+		if errors.As(attemptErr, &localCapacityErr) && agentDialErrorIsLocalCapacity(localCapacityErr) && rt.app.AgentTransports != nil {
+			rt.app.AgentTransports.recordTerminalCapacityFailure()
+		}
 		rt.result.LastErrorKind = errorKind
 		if rt.result.FirstErrorKind == "" {
 			rt.result.FirstErrorKind = errorKind
-			rt.result.FirstFailedAgent = agent
+			if agentProxyFailureAttributedToAgent(attemptErr) {
+				rt.result.FirstFailedAgent = agent
+			}
 		}
 		if shouldMarkAgentPassiveFailure(req.Context(), attemptErr) {
 			rt.app.markPublicRouteTargetAgentPassiveFailure(rt.resolution.Target.ID, agent.AgentID, attemptErr)
@@ -1053,6 +1094,22 @@ func retryableAgentTransportError(err error) bool {
 	return true
 }
 
+func agentDialErrorHasKind(err error, kind string) bool {
+	if err == nil {
+		return false
+	}
+	var dialErr agentDialError
+	return errors.As(err, &dialErr) && dialErr.Kind == kind
+}
+
+func agentProxyFailureAttributedToAgent(err error) bool {
+	if err == nil {
+		return false
+	}
+	var dialErr agentDialError
+	return !errors.As(err, &dialErr) || !agentDialErrorIsLocalCapacity(dialErr)
+}
+
 func publicRetrySkipReason(req *http.Request, err error, wroteRequest bool, bodyBytesRead int64, replayable bool) string {
 	if req != nil && requestContextCanceled(req.Context(), err) {
 		return "client_cancelled"
@@ -1092,6 +1149,10 @@ func agentProxyErrorKind(err error) string {
 			return "agent_capacity"
 		case "server_capacity":
 			return "agent_server_capacity"
+		case "server_health_capacity":
+			return "agent_server_health_capacity"
+		case "server_pooled_capacity":
+			return "agent_server_pooled_capacity"
 		default:
 			return "agent_" + dialErr.Kind
 		}
@@ -1107,7 +1168,7 @@ func agentProxyHTTPFailure(err error) (int, string, string) {
 	switch kind {
 	case "agent_dial_timeout", "upstream_response_header_timeout":
 		return http.StatusGatewayTimeout, kind, "Gateway Timeout"
-	case "agent_capacity", "agent_server_capacity":
+	case "agent_capacity", "agent_server_capacity", "agent_server_health_capacity", "agent_server_pooled_capacity":
 		return http.StatusServiceUnavailable, kind, "Service Unavailable"
 	default:
 		return http.StatusBadGateway, kind, "Bad Gateway"

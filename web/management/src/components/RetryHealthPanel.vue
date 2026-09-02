@@ -270,7 +270,7 @@ function toNumber(value: bigint): number {
           <div class="retry-detail-card__heading">
             <div>
               <h5>First-failed agents</h5>
-              <p>The agent that caused the retry decision.</p>
+              <p>The agent whose upstream attempt failed. Local proxy failures are not attributed.</p>
             </div>
           </div>
           <ol v-if="retryFailedAgents?.length" class="retry-failure-list">
@@ -283,7 +283,11 @@ function toNumber(value: bigint): number {
               >
                 <bdi dir="ltr" :title="inspectionValue(row.label)">{{ diagnosticExcerpt(row.label, 42).text }}</bdi>
                 <strong>{{ formatNumber(row.affectedRequests) }}</strong>
-                <span>{{ optionalPercent(failureRecoveryRate(row)) }} recovered · {{ formatNumber(row.exhaustedRequests) }} exhausted</span>
+                <span>
+                  {{ optionalPercent(failureRecoveryRate(row)) }} recovered ·
+                  {{ formatNumber(row.skippedRequests) }} skipped ·
+                  {{ formatNumber(row.exhaustedRequests) }} exhausted
+                </span>
               </button>
             </li>
           </ol>
@@ -294,7 +298,7 @@ function toNumber(value: bigint): number {
           <div class="retry-detail-card__heading">
             <div>
               <h5>First error kinds</h5>
-              <p>Transport condition that initiated retry handling.</p>
+              <p>First transport condition recorded for traffic matched by a retry rule.</p>
             </div>
           </div>
           <ol v-if="retryErrorKinds?.length" class="retry-failure-list">
@@ -307,7 +311,11 @@ function toNumber(value: bigint): number {
               >
                 <bdi dir="ltr" :title="inspectionValue(row.label)">{{ diagnosticExcerpt(row.label, 42).text }}</bdi>
                 <strong>{{ formatNumber(row.affectedRequests) }}</strong>
-                <span>{{ formatNumber(row.retryAttempts) }} attempts · {{ formatNumber(row.exhaustedRequests) }} exhausted</span>
+                <span>
+                  {{ formatNumber(row.retryAttempts) }} extra attempts ·
+                  {{ formatNumber(row.skippedRequests) }} skipped ·
+                  {{ formatNumber(row.exhaustedRequests) }} exhausted
+                </span>
               </button>
             </li>
           </ol>
