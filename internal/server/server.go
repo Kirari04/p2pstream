@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -27,18 +28,20 @@ import (
 )
 
 type AgentConn struct {
-	AgentID                  int64
-	PublicID                 string
-	Name                     string
-	Session                  *yamux.Session
-	Done                     chan struct{}
-	doneOnce                 sync.Once
-	streamOpenMu             sync.Mutex
-	streamOpenGate           chan struct{}
-	streamOpenAdmissionLimit int
-	ActiveRequests           atomic.Int64
-	ConnectedAt              time.Time
-	ConnectionDBID           int64
+	AgentID                        int64
+	PublicID                       string
+	Name                           string
+	Session                        *yamux.Session
+	Done                           chan struct{}
+	doneOnce                       sync.Once
+	streamOpenMu                   sync.Mutex
+	streamOpenGate                 chan struct{}
+	streamOpenAdmissionLimit       int
+	AdvertisedMaxConcurrentStreams int64
+	NegotiatedMaxConcurrentStreams int64
+	ActiveRequests                 atomic.Int64
+	ConnectedAt                    time.Time
+	ConnectionDBID                 int64
 }
 
 type agentTunnelReadGateConn struct {
@@ -171,7 +174,6 @@ type App struct {
 	publicAccessClientLoginThrottle *loginThrottle
 	publicAccessLoginNonces         *publicAccessLoginNonceStore
 	agentAuthLocks                  *agentAuthLockMap
-	agentProxyRequests              *tunnel.StreamLimiter
 	agentStreamCapacity             *agentStreamCapacityManager
 	publicProxyRequests             *requestCapacityLimiter
 	publicTargetRequests            *keyedRequestCapacityLimiter
@@ -259,8 +261,7 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		latestAgentBuilds:   make(map[int64]agentBuildIdentity),
 		proxyState:          p2pstreamv1.ProxyState_PROXY_STATE_STOPPED,
 		publicListenerState: make(map[int64]*publicListenerRuntime),
-		agentProxyRequests:  newAgentRequestLimiter(cfg.TunnelMaxConcurrentRequests),
-		agentStreamCapacity: mustNewDefaultAgentStreamCapacityManager(cfg.TunnelMaxConcurrentRequests),
+		agentStreamCapacity: mustNewDefaultAgentStreamCapacityManager(cfg.ServerTunnelMaxConcurrentStreams),
 		publicProxyRequests: newRequestCapacityLimiter(cfg.PublicMaxConcurrentRequests, defaultPublicMaxConcurrentRequests),
 		publicTargetRequests: newKeyedRequestCapacityLimiter(
 			cfg.PublicMaxConcurrentPerTarget,
@@ -530,6 +531,32 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unsupported tunnel version", http.StatusUpgradeRequired)
 		return
 	}
+	advertisedStreams, advertised, err := tunnel.ParseOptionalMaxConcurrentStreams(
+		r.Header.Get(tunnel.TunnelMaxConcurrentStreamsHeader),
+		tunnel.MaxConcurrentAgentRequestsLimit,
+	)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !advertised {
+		advertisedStreams = tunnel.DefaultMaxConcurrentAgentRequests
+	}
+	serverStreams := tunnel.DefaultServerMaxConcurrentStreams
+	if a.agentStreamCapacity != nil {
+		serverStreams = int64(a.agentStreamCapacity.snapshot().Total.Capacity)
+	}
+	negotiatedStreams := advertisedStreams
+	if negotiatedStreams > serverStreams {
+		negotiatedStreams = serverStreams
+	}
+	// A tunnel session is capped far below MaxInt32, but keep the conversion
+	// locally and mechanically safe on every architecture.
+	if negotiatedStreams < 1 || negotiatedStreams > math.MaxInt32 {
+		http.Error(w, "negotiated tunnel capacity is unsupported on this architecture", http.StatusInternalServerError)
+		return
+	}
+	negotiatedStreamLimit := int(negotiatedStreams)
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
 		http.Error(w, "agent tunnel requires HTTP/1.1 hijack support", http.StatusInternalServerError)
@@ -562,11 +589,13 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	agentRow = finalAgentRow
 
 	agent := &AgentConn{
-		AgentID:     agentRow.ID,
-		PublicID:    agentRow.PublicID,
-		Name:        agentRow.Name,
-		Done:        make(chan struct{}),
-		ConnectedAt: time.Now(),
+		AgentID:                        agentRow.ID,
+		PublicID:                       agentRow.PublicID,
+		Name:                           agentRow.Name,
+		Done:                           make(chan struct{}),
+		AdvertisedMaxConcurrentStreams: advertisedStreams,
+		NegotiatedMaxConcurrentStreams: negotiatedStreams,
+		ConnectedAt:                    time.Now(),
 	}
 	yamuxConfig, err := tunnel.NewYamuxConfig(nil, a.Config.TunnelMaxStreamWindowBytes)
 	if err != nil {
@@ -590,6 +619,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = rw.WriteString("Connection: Upgrade\r\n")
 	_, _ = rw.WriteString("Upgrade: " + tunnel.UpgradeToken + "\r\n")
 	_, _ = rw.WriteString(tunnel.TunnelVersionHeader + ": " + version + "\r\n")
+	_, _ = rw.WriteString(tunnel.TunnelMaxConcurrentStreamsHeader + ": " + strconv.FormatInt(negotiatedStreams, 10) + "\r\n")
 	_, _ = rw.WriteString("\r\n")
 	if err := rw.Flush(); err != nil {
 		_ = rawConn.Close()
@@ -636,7 +666,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	if a.agentStreamCapacity != nil {
 		// Register before publishing through AgentHub so a selected connection
 		// can never receive the unregistered single-session allowance.
-		a.agentStreamCapacity.registerSession(sessionCapacityKey)
+		a.agentStreamCapacity.registerSessionWithLimit(sessionCapacityKey, negotiatedStreamLimit)
 	}
 	displaced, err := a.AgentHub.replace(agent)
 	if err != nil {
@@ -667,6 +697,8 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		Str("remote_addr", r.RemoteAddr).
 		Str("agent", agent.PublicID).
 		Int("tunnel_version", tunnel.ProtocolVersion).
+		Int64("advertised_max_streams", advertisedStreams).
+		Int64("negotiated_max_streams", negotiatedStreams).
 		Msg("Agent tunnel connected successfully")
 
 	go func() {

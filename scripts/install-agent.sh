@@ -13,13 +13,10 @@ readonly AGENT_STATE_DIR="${P2PSTREAM_AGENT_STATE_DIR:-/var/lib/p2pstream-agent}
 readonly MANAGEMENT_TRUST_FILE="${AGENT_STATE_DIR}/management-ca.pem"
 readonly SERVICE_USER="p2pstream"
 readonly SERVICE_GROUP="p2pstream"
-readonly DEFAULT_TUNNEL_MAX_STREAM_WINDOW_BYTES="2097152"
 readonly MIN_TUNNEL_MAX_STREAM_WINDOW_BYTES="262144"
 readonly MAX_TUNNEL_MAX_STREAM_WINDOW_BYTES="67108864"
-readonly DEFAULT_TUNNEL_MAX_CONCURRENT_REQUESTS="64"
 readonly MIN_TUNNEL_MAX_CONCURRENT_REQUESTS="1"
 readonly MAX_TUNNEL_MAX_CONCURRENT_REQUESTS="2048"
-readonly MAX_TUNNEL_AGGREGATE_WINDOW_BYTES="536870912"
 INSTALL_TMP_DIR=""
 EXISTING_AGENT_ENV_ASSIGNMENT=""
 
@@ -256,7 +253,6 @@ load_existing_tunnel_settings() {
 preflight_tunnel_settings() {
   local need_window="false"
   local need_concurrency="false"
-  local effective_window effective_concurrency
 
   if [[ -n "${TUNNEL_MAX_STREAM_WINDOW_BYTES:-}" ]]; then
     TUNNEL_MAX_STREAM_WINDOW_BYTES="$(validate_tunnel_setting \
@@ -277,11 +273,6 @@ preflight_tunnel_settings() {
     load_existing_tunnel_settings "$need_window" "$need_concurrency"
   fi
 
-  effective_window="${TUNNEL_MAX_STREAM_WINDOW_BYTES:-$DEFAULT_TUNNEL_MAX_STREAM_WINDOW_BYTES}"
-  effective_concurrency="${TUNNEL_MAX_CONCURRENT_REQUESTS:-$DEFAULT_TUNNEL_MAX_CONCURRENT_REQUESTS}"
-  if ((effective_window * effective_concurrency > MAX_TUNNEL_AGGREGATE_WINDOW_BYTES)); then
-    fail "TUNNEL_MAX_STREAM_WINDOW_BYTES times TUNNEL_MAX_CONCURRENT_REQUESTS must be at most ${MAX_TUNNEL_AGGREGATE_WINDOW_BYTES}"
-  fi
 }
 
 write_optional_agent_env() {

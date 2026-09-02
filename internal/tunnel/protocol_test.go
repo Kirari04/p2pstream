@@ -54,6 +54,20 @@ func TestOpenRequestValidate(t *testing.T) {
 	}
 }
 
+func TestParseOptionalMaxConcurrentStreams(t *testing.T) {
+	if value, present, err := ParseOptionalMaxConcurrentStreams("", MaxConcurrentAgentRequestsLimit); err != nil || present || value != 0 {
+		t.Fatalf("absent capacity = %d/%v/%v, want 0/false/nil", value, present, err)
+	}
+	if value, present, err := ParseOptionalMaxConcurrentStreams(" 512 ", MaxConcurrentAgentRequestsLimit); err != nil || !present || value != 512 {
+		t.Fatalf("parsed capacity = %d/%v/%v, want 512/true/nil", value, present, err)
+	}
+	for _, raw := range []string{"0", "-1", "2049", "not-a-number"} {
+		if _, present, err := ParseOptionalMaxConcurrentStreams(raw, MaxConcurrentAgentRequestsLimit); err == nil || !present {
+			t.Fatalf("invalid capacity %q = present %v error %v, want true/non-nil", raw, present, err)
+		}
+	}
+}
+
 func TestDefaultYamuxConfig(t *testing.T) {
 	cfg := DefaultYamuxConfig(nil)
 	if cfg.AcceptBacklog != 256 {
