@@ -143,6 +143,24 @@ func TestCreateAgentStoresSystemAndUserLabels(t *testing.T) {
 	}
 }
 
+func TestAgentProtoReportsLiveNegotiatedTunnelCapacity(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-capacity-report", "Capacity Reporter", "capacity-token")
+	conn := agentRegistryTestConn(agent)
+	conn.AdvertisedMaxConcurrentStreams = 512
+	conn.NegotiatedMaxConcurrentStreams = 256
+	if err := app.AgentHub.connect(conn); err != nil {
+		t.Fatalf("connect agent: %v", err)
+	}
+	t.Cleanup(func() { app.AgentHub.disconnect(conn) })
+
+	got := app.agentToProto(context.Background(), agent)
+	if got.AdvertisedMaxConcurrentStreams != 512 || got.NegotiatedMaxConcurrentStreams != 256 {
+		t.Fatalf("reported capacity = advertised %d negotiated %d, want 512/256", got.AdvertisedMaxConcurrentStreams, got.NegotiatedMaxConcurrentStreams)
+	}
+}
+
 func TestReportStatsRecordsAgentBuildIdentity(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
 	app := NewApp(nil, database)
@@ -244,6 +262,61 @@ func TestUpdateAgentReplacesUserLabelsAndPreservesSystemLabel(t *testing.T) {
 	}
 	if _, ok := labels["role"]; ok {
 		t.Fatalf("role label was not replaced: %+v", labels)
+	}
+}
+
+func TestUpdateAgentLifecycleChangePreservesLabelsUntilReplacementIsExplicit(t *testing.T) {
+	database := newAgentRegistryTestDB(t)
+	app := NewApp(nil, database)
+	header := createTestAdminSession(t, app)
+
+	createReq := connect.NewRequest(&p2pstreamv1.CreateAgentRequest{
+		Name:    "Lifecycle Labels",
+		Enabled: true,
+		Labels:  map[string]string{"site": "edge", "role": "proxy"},
+	})
+	createReq.Header().Set("Cookie", header.Get("Cookie"))
+	createResp, err := app.CreateAgent(context.Background(), createReq)
+	if err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	agentID := createResp.Msg.Agent.Id
+
+	// This is the shape used by the enable/disable action: labels are omitted.
+	disableReq := connect.NewRequest(&p2pstreamv1.UpdateAgentRequest{
+		Id:      agentID,
+		Name:    "Lifecycle Labels",
+		Enabled: false,
+	})
+	disableReq.Header().Set("Cookie", header.Get("Cookie"))
+	if _, err := app.UpdateAgent(context.Background(), disableReq); err != nil {
+		t.Fatalf("disable agent: %v", err)
+	}
+	labels := agentLabelsForTest(t, database, agentID)
+	if labels["site"] != "edge" || labels["role"] != "proxy" {
+		t.Fatalf("lifecycle update erased user labels: %+v", labels)
+	}
+
+	clearReq := connect.NewRequest(&p2pstreamv1.UpdateAgentRequest{
+		Id:            agentID,
+		Name:          "Lifecycle Labels",
+		Enabled:       false,
+		Labels:        map[string]string{},
+		ReplaceLabels: true,
+	})
+	clearReq.Header().Set("Cookie", header.Get("Cookie"))
+	if _, err := app.UpdateAgent(context.Background(), clearReq); err != nil {
+		t.Fatalf("clear agent labels: %v", err)
+	}
+	labels = agentLabelsForTest(t, database, agentID)
+	if _, ok := labels["site"]; ok {
+		t.Fatalf("explicit replacement retained site label: %+v", labels)
+	}
+	if _, ok := labels["role"]; ok {
+		t.Fatalf("explicit replacement retained role label: %+v", labels)
+	}
+	if labels[agentIDSystemLabelKey] != createResp.Msg.Agent.PublicId {
+		t.Fatalf("explicit replacement removed system label: %+v", labels)
 	}
 }
 
