@@ -16,6 +16,10 @@ Use this when moving to a new container tag, updating a binary/systemd install, 
 
 ## Steps
 
+:::warning Upgrading a Compose file from v0.1.49 or earlier
+Older Compose files inject `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=256`, even when the setting is absent from `.env`. Before recreating the container, change that Compose default to `0` or add `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=0` to `.env`. This lets a busy target use the server-wide request ceiling and avoids the legacy quarter-cap.
+:::
+
 1. For Docker Compose, pull and restart:
 
    ```bash

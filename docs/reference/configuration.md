@@ -38,7 +38,7 @@ Set these on the server process via `.env` or environment. They control manageme
 | `PUBLIC_MAX_REQUEST_BODY_BYTES`  | `1073741824`                 | Maximum public request body bytes; range `1`–`1099511627776` (1 TiB).                        |
 | `PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS` | `30000`            | Sliding public request-body idle timeout; range `5000`–`600000`. Active uploads may run longer. |
 | `PUBLIC_MAX_CONCURRENT_REQUESTS` | `2048`                       | Server-wide in-flight public request ceiling; range `1`–`100000`.                            |
-| `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET` | `256`             | Per-target in-flight proxy request ceiling; range `1`–the global ceiling.                    |
+| `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET` | `0`               | Per-target in-flight proxy request ceiling. `0` uses the global request ceiling; explicit range `1`–the global ceiling. |
 | `PUBLIC_MAX_CONNECTIONS_PER_TARGET` | `256`                    | Per-origin direct-upstream connection ceiling; range `1`–`65535`.                            |
 | `BOOTSTRAP_AGENT_ID`             | empty                        | Bootstrap agent public ID. Must be set with name and token.                                  |
 | `BOOTSTRAP_AGENT_NAME`           | empty                        | Bootstrap agent display name.                                                                |

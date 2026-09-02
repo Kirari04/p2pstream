@@ -130,8 +130,11 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if cfg.PublicRequestBodyIdleMillis != 30_000 {
 		t.Fatalf("PublicRequestBodyIdleMillis = %d, want 30000", cfg.PublicRequestBodyIdleMillis)
 	}
-	if cfg.PublicMaxConcurrentRequests != 2048 || cfg.PublicMaxConcurrentPerTarget != 256 || cfg.PublicMaxConnectionsPerTarget != 256 {
-		t.Fatalf("public capacity defaults = %d/%d/%d, want 2048/256/256", cfg.PublicMaxConcurrentRequests, cfg.PublicMaxConcurrentPerTarget, cfg.PublicMaxConnectionsPerTarget)
+	if cfg.PublicMaxConcurrentRequests != 2048 || cfg.PublicMaxConcurrentPerTarget != 2048 || cfg.PublicMaxConnectionsPerTarget != 256 {
+		t.Fatalf("public capacity defaults = %d/%d/%d, want 2048/2048/256", cfg.PublicMaxConcurrentRequests, cfg.PublicMaxConcurrentPerTarget, cfg.PublicMaxConnectionsPerTarget)
+	}
+	if !cfg.PublicMaxConcurrentPerTargetAuto {
+		t.Fatal("PublicMaxConcurrentPerTargetAuto = false, want automatic default")
 	}
 }
 
@@ -187,6 +190,45 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 		t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET", "9")
 		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "PER_TARGET") {
 			t.Fatalf("Load() error = %v, want per-target capacity rejection", err)
+		}
+	})
+
+	t.Run("automatic per-target capacity follows the configured global ceiling", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS", "4096")
+		t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET", "0")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.PublicMaxConcurrentPerTarget != 4096 || !cfg.PublicMaxConcurrentPerTargetAuto {
+			t.Fatalf("per-target capacity = %d automatic=%t, want 4096/true", cfg.PublicMaxConcurrentPerTarget, cfg.PublicMaxConcurrentPerTargetAuto)
+		}
+	})
+
+	t.Run("explicit per-target capacity remains fixed", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS", "4096")
+		t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET", "512")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.PublicMaxConcurrentPerTarget != 512 || cfg.PublicMaxConcurrentPerTargetAuto {
+			t.Fatalf("per-target capacity = %d automatic=%t, want 512/false", cfg.PublicMaxConcurrentPerTarget, cfg.PublicMaxConcurrentPerTargetAuto)
+		}
+	})
+
+	t.Run("negative per-target capacity rejected", func(t *testing.T) {
+		workDir := isolatedConfigTestDir(t)
+		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+		t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET", "-1")
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "PER_TARGET") {
+			t.Fatalf("Load() error = %v, want negative per-target capacity rejection", err)
 		}
 	})
 
