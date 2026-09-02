@@ -152,6 +152,8 @@ function agent(id: bigint, publicId: string): Agent {
     labels: {},
     version: "",
     commit: "",
+    advertisedMaxConcurrentStreams: 0n,
+    negotiatedMaxConcurrentStreams: 0n,
   };
 }
 

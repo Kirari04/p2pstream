@@ -178,6 +178,8 @@ type App struct {
 	publicProxyRequests             *requestCapacityLimiter
 	publicTargetRequests            *keyedRequestCapacityLimiter
 	retryReplayBudget               *retryReplayBudget
+	agentCapacityLogLastUnixNano    atomic.Int64
+	agentCapacityLogSuppressed      atomic.Uint64
 	managementClientIdentity        *ClientIdentityResolver
 	managementClientIdentityErr     error
 	ManagementTLS                   *ManagementTLSRuntime

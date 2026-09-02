@@ -58,6 +58,23 @@ const activeDiagnosticsSectionMeta = computed(() =>
   diagnosticsSections.find((section) => section.key === activeDiagnosticsSection.value) ?? diagnosticsSections[0],
 );
 const outcome = computed(() => diagnostics.value?.outcome);
+const streamCapacity = computed(() => diagnostics.value?.agentStreamCapacity);
+const capacityConstraintRows = computed(() => Object.entries(streamCapacity.value?.admissionMissesByConstraint ?? {})
+  .filter(([, count]) => count > 0n)
+  .sort((left, right) => left[1] === right[1] ? left[0].localeCompare(right[0]) : left[1] > right[1] ? -1 : 1)
+  .map(([constraint, count]) => ({
+    constraint,
+    label: capacityConstraintLabel(constraint),
+    count,
+    waiting: streamCapacity.value?.waitersByConstraint[constraint] ?? 0n,
+  })));
+const capacityHasPressure = computed(() => {
+  const capacity = streamCapacity.value;
+  if (!capacity) return false;
+  return capacity.waiters > 0n
+    || (capacity.totalCapacity > 0n && capacity.totalInUse >= capacity.totalCapacity)
+    || (capacity.publicCapacity > 0n && capacity.publicInUse >= capacity.publicCapacity);
+});
 const statusCodes = computed(() => diagnostics.value?.statusCodes ?? []);
 const recentSamples = computed(() => diagnostics.value?.recentSamples ?? []);
 const filteredRecentSamples = computed(() => filterDiagnosticSamples(recentSamples.value, selectedDimension.value));
@@ -374,6 +391,22 @@ function sampleRowBaseKey(sample: DashboardDiagnosticsSample): string {
 function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   return recentSampleRowKeys.value.get(sample) ?? sampleRowBaseKey(sample);
 }
+
+function capacityConstraintLabel(constraint: string): string {
+  switch (constraint) {
+    case "total_budget": return "Server total full";
+    case "public_budget": return "Public stream lane full";
+    case "pooled_budget": return "Reusable stream lane full";
+    case "control_budget": return "Health-check lane full";
+    case "session_budget": return "Selected agent session full";
+    case "session_opening_limit": return "Agent stream-opening backlog full";
+    case "fair_turn": return "Waiting for fair admission turn";
+    case "queue_full": return "Global admission queue full";
+    case "key_queue_full": return "Route admission queue full";
+    case "class_disabled": return "Admission lane disabled";
+    default: return constraint || "Unknown constraint";
+  }
+}
 </script>
 
 <template>
@@ -488,6 +521,61 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
             <small>max {{ formatDuration(outcome?.maxDurationMs) }}</small>
           </div>
         </dl>
+      </section>
+
+      <section v-if="activeDiagnosticsSection === 'overview' && streamCapacity" class="capacity-observatory" :class="{ 'capacity-observatory--pressure': capacityHasPressure }">
+        <div class="capacity-observatory__heading">
+          <div>
+            <span class="capacity-observatory__kicker">Live admission state</span>
+            <h4>Tunnel capacity</h4>
+            <p>Current physical-stream pressure. These values are live at refresh time and are not scoped to the selected incident window.</p>
+          </div>
+          <NTag size="small" :bordered="false" :type="capacityHasPressure ? 'warning' : 'success'">
+            {{ capacityHasPressure ? "At capacity now" : "Headroom available" }}
+          </NTag>
+        </div>
+        <dl class="capacity-observatory__meters">
+          <div>
+            <dt>Total streams</dt>
+            <dd>{{ formatNumber(streamCapacity.totalInUse) }} / {{ formatNumber(streamCapacity.totalCapacity) }}</dd>
+            <small>{{ formatNumber(streamCapacity.opening) }} opening · {{ formatNumber(streamCapacity.live) }} live · {{ formatNumber(streamCapacity.closing) }} closing</small>
+          </div>
+          <div>
+            <dt>Public lane</dt>
+            <dd>{{ formatNumber(streamCapacity.publicInUse) }} / {{ formatNumber(streamCapacity.publicCapacity) }}</dd>
+            <small>{{ formatNumber(streamCapacity.publicWaiters) }} waiting</small>
+          </div>
+          <div>
+            <dt>Reusable lane</dt>
+            <dd>{{ formatNumber(streamCapacity.pooledInUse) }} / {{ formatNumber(streamCapacity.pooledCapacity) }}</dd>
+            <small>{{ formatNumber(streamCapacity.pooledTransportShards) }} transport shards</small>
+          </div>
+          <div>
+            <dt>Busiest agent session</dt>
+            <dd>{{ formatNumber(streamCapacity.maxSessionPublicInUse) }}</dd>
+            <small v-if="streamCapacity.contendedSessionPublicLimit > 0n">shared-pressure limit {{ formatNumber(streamCapacity.contendedSessionPublicLimit) }}</small>
+            <small v-else>{{ formatNumber(streamCapacity.registeredSessions) }} registered sessions</small>
+          </div>
+          <div>
+            <dt>Terminal rejections</dt>
+            <dd>{{ formatNumber(streamCapacity.terminalCapacityFailures) }}</dd>
+            <small>customer-visible capacity failures since server start</small>
+          </div>
+        </dl>
+        <div class="capacity-observatory__constraints">
+          <div>
+            <strong>Exact admission constraints</strong>
+            <p>Admission misses are cumulative since server start and include pooled misses recovered by fallback.</p>
+          </div>
+          <ol v-if="capacityConstraintRows.length">
+            <li v-for="row in capacityConstraintRows" :key="row.constraint">
+              <span><bdi dir="ltr">{{ row.label }}</bdi><code>{{ row.constraint }}</code></span>
+              <strong>{{ formatNumber(row.count) }}</strong>
+              <small v-if="row.waiting > 0n">{{ formatNumber(row.waiting) }} waiting now</small>
+            </li>
+          </ol>
+          <NEmpty v-else size="small" description="No capacity admission misses since server start." />
+        </div>
       </section>
 
       <RetryHealthPanel
@@ -1018,6 +1106,153 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   font-weight: 700;
 }
 
+.capacity-observatory {
+  --capacity-accent: var(--app-success);
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+  border: 1px solid color-mix(in srgb, var(--capacity-accent) 34%, var(--app-border));
+  border-left: 3px solid var(--capacity-accent);
+  border-radius: 6px;
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--capacity-accent) 5%, transparent), transparent 42%),
+    var(--app-panel-muted);
+  padding: 1rem;
+}
+
+.capacity-observatory--pressure {
+  --capacity-accent: var(--app-warning);
+}
+
+.capacity-observatory__heading {
+  display: flex;
+  min-width: 0;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.capacity-observatory__heading > div {
+  min-width: 0;
+}
+
+.capacity-observatory__kicker,
+.capacity-observatory dt {
+  color: var(--app-text-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.capacity-observatory__heading h4 {
+  margin-top: 0.2rem;
+  color: var(--app-text);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.capacity-observatory__heading p,
+.capacity-observatory__constraints p {
+  margin-top: 0.2rem;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.capacity-observatory__meters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  border-block: 1px solid var(--app-border-subtle);
+  padding-block: 0.75rem;
+}
+
+.capacity-observatory__meters > div {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.15rem;
+  padding-inline: 0.75rem;
+}
+
+.capacity-observatory__meters > div:first-child {
+  padding-left: 0;
+}
+
+.capacity-observatory__meters > div + div {
+  border-left: 1px solid var(--app-border-subtle);
+}
+
+.capacity-observatory__meters dd {
+  margin: 0;
+  color: var(--app-text);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.capacity-observatory__meters small {
+  color: var(--app-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.capacity-observatory__constraints {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.75fr) minmax(0, 1.25fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.capacity-observatory__constraints > div > strong {
+  color: var(--app-text);
+  font-size: 0.78rem;
+}
+
+.capacity-observatory__constraints ol {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.capacity-observatory__constraints li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.15rem 0.75rem;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 4px;
+  padding: 0.5rem 0.625rem;
+}
+
+.capacity-observatory__constraints li > span {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  color: var(--app-text);
+  font-size: 0.75rem;
+}
+
+.capacity-observatory__constraints code {
+  color: var(--app-text-muted);
+  font-size: 0.67rem;
+}
+
+.capacity-observatory__constraints li > strong {
+  color: var(--capacity-accent);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.capacity-observatory__constraints li > small {
+  grid-column: 1 / -1;
+  color: var(--app-warning);
+  font-size: 0.67rem;
+}
+
 
 .diagnostics-panel {
   display: grid;
@@ -1498,9 +1733,20 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
   }
 
   .incident-facts,
+  .capacity-observatory__meters,
   .diagnostics-skeleton__facts,
   .diagnostics-skeleton__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .capacity-observatory__meters > div {
+    border-left: 0 !important;
+    border-top: 1px solid var(--app-border-subtle);
+    padding: 0.65rem 0;
+  }
+
+  .capacity-observatory__constraints {
+    grid-template-columns: 1fr;
   }
 
   .incident-facts > div {
@@ -1527,9 +1773,14 @@ function sampleRowKey(sample: DashboardDiagnosticsSample): string {
 
 @media (max-width: 520px) {
   .incident-facts,
+  .capacity-observatory__meters,
   .diagnostics-skeleton__facts,
   .diagnostics-skeleton__grid {
     grid-template-columns: 1fr;
+  }
+
+  .capacity-observatory__heading {
+    display: grid;
   }
 
   .window-tabs :deep(.n-button) {

@@ -121,11 +121,23 @@ func (a *App) UpdateAgent(
 	if err := ensureAgentSystemLabelTx(ctx, qtx, existing); err != nil {
 		return nil, err
 	}
-	if err := replaceAgentUserLabelsTx(ctx, qtx, agent.ID, labels); err != nil {
-		return nil, err
+	// Proto maps do not preserve presence: an omitted map and an explicitly
+	// empty map both arrive as len == 0. Preserve labels for lifecycle-only
+	// updates unless the caller explicitly requests replacement. Retain
+	// compatibility with older clients that send non-empty label maps.
+	if req.Msg.ReplaceLabels || len(labels) > 0 {
+		if err := replaceAgentUserLabelsTx(ctx, qtx, agent.ID, labels); err != nil {
+			return nil, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, publicDBError(err)
+	}
+	if req.Msg.ReplaceLabels || len(labels) > 0 {
+		log.Info().
+			Int64("agent_id", agent.ID).
+			Int("user_label_count", len(labels)).
+			Msg("Agent user labels replaced")
 	}
 	if a.AgentTransports != nil {
 		a.AgentTransports.closeAgent(req.Msg.Id)
@@ -476,6 +488,8 @@ func (a *App) agentToProtoWithLatestStats(ctx context.Context, agent db.Agent, u
 	}
 	if conn != nil {
 		resp.ActiveRequests = conn.ActiveRequests.Load()
+		resp.AdvertisedMaxConcurrentStreams = conn.AdvertisedMaxConcurrentStreams
+		resp.NegotiatedMaxConcurrentStreams = conn.NegotiatedMaxConcurrentStreams
 	}
 	if latest, ok := a.latestAgentStatsSnapshot(agent.ID); ok {
 		resp.LatestStats = latest

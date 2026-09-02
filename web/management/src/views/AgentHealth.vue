@@ -613,9 +613,13 @@ function renderAgentVersion(agent: Agent, compact = false) {
   const version = agent.version ? diagnosticExcerpt(agent.version, 32).text : "Unknown";
   const commit = shortBuildCommit(agent.commit);
   const serverVersion = diagnosticExcerpt(status.value?.version ?? "", 24).text;
+  const tunnelCapacity = agent.connected && agent.negotiatedMaxConcurrentStreams > 0n
+    ? `tunnel ${agent.negotiatedMaxConcurrentStreams.toString()} negotiated / ${agent.advertisedMaxConcurrentStreams.toString()} advertised`
+    : "";
   const details = [
     commit ? `build ${diagnosticInspectionText(commit)}` : "",
     status.value?.version ? `server ${serverVersion}` : "",
+    tunnelCapacity,
   ].filter(Boolean).join(" · ");
   return h("div", { class: ["agent-version-cell", compact && "agent-version-cell--compact"] }, [
     h("div", { class: "agent-version-cell__header" }, [

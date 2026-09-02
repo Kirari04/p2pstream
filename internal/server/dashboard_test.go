@@ -148,6 +148,10 @@ func TestGetDashboardDiagnosticsAggregatesStatusesFailuresAndSamples(t *testing.
 	if outcome.NonSuccess != 4 || outcome.ProxyFailure != 3 {
 		t.Fatalf("non-success/proxy failure = %d/%d, want 4/3", outcome.NonSuccess, outcome.ProxyFailure)
 	}
+	capacity := resp.Msg.AgentStreamCapacity
+	if capacity == nil || capacity.TotalCapacity != 256 || capacity.PublicCapacity != 252 || capacity.PooledCapacity != 189 {
+		t.Fatalf("diagnostics live stream capacity = %+v, want total/public/pooled 256/252/189", capacity)
+	}
 
 	statuses := diagnosticsStatusCounts(resp.Msg.StatusCodes)
 	for _, status := range []int64{200, 404, 429, 502, 504} {
