@@ -16,7 +16,7 @@ Use this advanced path for a systemd-managed host install, custom networking, or
 
 ## Steps
 
-1. Download and verify the archive:
+1. Download and integrity-check the archive:
 
    ```bash
    curl -fLO https://github.com/Kirari04/p2pstream/releases/download/vX.Y.Z/p2pstream_vX.Y.Z_linux_amd64.tar.gz
@@ -27,6 +27,14 @@ Use this advanced path for a systemd-managed host install, custom networking, or
    ```
 
    Use `linux_arm64` on ARM hosts.
+
+   `checksums.txt` detects an incomplete or corrupted download. Stable and
+   staging releases also include a canonical update manifest whose
+   `release_assets` inventory binds the exact name, size, and SHA-256 of the
+   archive, source bundle, checksum file, raw binaries, and OCI descriptors.
+   GitHub Releases is the authenticated distribution source; pin an exact
+   version and verify its downloaded files against the manifest before
+   installation.
 
 2. Install the binary:
 

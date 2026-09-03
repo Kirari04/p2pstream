@@ -15,7 +15,8 @@ import {
 } from "@/lib/agentLabels";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { editorDrawerWidth } from "@/lib/naiveUi";
-import type { Agent, GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
+import type { GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
+import type { CreatedAgentSetup } from "@/types/agentSetup";
 
 const managementClient = useManagementClient();
 
@@ -26,7 +27,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (event: "created-agent", payload: { agent: Agent | null; token: string }): void;
+  (event: "created-agent", payload: CreatedAgentSetup): void;
   (event: "saved"): void;
 }>();
 
@@ -85,7 +86,7 @@ async function run(action: () => Promise<void>): Promise<boolean> {
 }
 
 async function submitAgent() {
-  let createdPayload: { agent: Agent | null; token: string } | null = null;
+  let createdPayload: CreatedAgentSetup | null = null;
   const ok = await run(async () => {
     const labels = agentLabelRowsToRecord(agentForm.labels);
     if (agentForm.id) {
@@ -102,7 +103,16 @@ async function submitAgent() {
         enabled: agentForm.enabled,
         labels,
       });
-      createdPayload = { agent: resp.agent ?? null, token: resp.token };
+      createdPayload = {
+        agent: resp.agent ?? null,
+        token: resp.token,
+        updaterEnrollmentToken: resp.updaterEnrollmentToken,
+        updaterEnrollmentExpiresAtUnixMillis: resp.updaterEnrollmentExpiresAtUnixMillis,
+        updaterPinnedRepository: resp.updaterPinnedRepository,
+        updaterManagementAuthorityPublicKeyBase64: bytesToBase64(resp.updaterManagementAuthority?.publicKey ?? new Uint8Array()),
+        updaterManagementAuthorityKeyId: resp.updaterManagementAuthority?.keyId ?? "",
+        updaterManagementAuthorityEpoch: resp.updaterManagementAuthority?.epoch ?? 0n,
+      };
     }
   });
   if (ok) {
@@ -112,6 +122,12 @@ async function submitAgent() {
     }
     emit("saved");
   }
+}
+
+function bytesToBase64(value: Uint8Array): string {
+  let binary = "";
+  for (const byte of value) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 
 function addLabel() {

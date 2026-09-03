@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/rs/zerolog/log"
@@ -46,6 +47,19 @@ func (a *App) CreateAgent(
 	if err != nil {
 		return nil, err
 	}
+	updaterBootstrap, bootstrapErr := a.loadAgentUpdateBootstrap(ctx)
+	var updaterAuthority *p2pstreamv1.AgentUpdateManagementAuthority
+	if bootstrapErr == nil && updaterBootstrap.PinnedRepository != "" {
+		if _, identity, authorityErr := a.requireAgentUpdateAuthority(); authorityErr == nil {
+			updaterAuthority = agentUpdateAuthorityProto(identity)
+		}
+	}
+	if updaterAuthority == nil {
+		// CreateAgent is independent of the optional updater control plane. Do
+		// not return a partial bootstrap bundle that cannot be paired with a
+		// signed enrollment receipt from the current management authority.
+		updaterBootstrap = agentUpdateBootstrap{}
+	}
 	token, tokenHash, err := newAgentToken()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -67,15 +81,36 @@ func (a *App) CreateAgent(
 	if err := replaceAgentUserLabelsTx(ctx, qtx, agent.ID, labels); err != nil {
 		return nil, err
 	}
+	var updaterToken string
+	var updaterTokenExpiresAt time.Time
+	if updaterAuthority != nil {
+		var updaterTokenHash string
+		var updaterTokenCreatedAt time.Time
+		updaterToken, updaterTokenHash, updaterTokenCreatedAt, updaterTokenExpiresAt, err = newAgentUpdaterEnrollmentToken(agentUpdaterEnrollmentTokenTTL)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_updater_enrollment_tokens (agent_id,token_hash,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,expires_at,created_at) VALUES (?,?,?,?,?,?,?,?)`, agent.ID, updaterTokenHash, updaterBootstrap.PinnedRepository, updaterAuthority.KeyId, int64(updaterAuthority.Epoch), 1, updaterTokenExpiresAt, updaterTokenCreatedAt); err != nil {
+			return nil, publicDBError(err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
+	var updaterTokenExpiresAtUnixMillis int64
+	if !updaterTokenExpiresAt.IsZero() {
+		updaterTokenExpiresAtUnixMillis = updaterTokenExpiresAt.UnixMilli()
+	}
 	return connect.NewResponse(&p2pstreamv1.CreateAgentResponse{
-		Agent: a.agentToProto(ctx, agent),
-		Token: token,
+		Agent:                                a.agentToProto(ctx, agent),
+		Token:                                token,
+		UpdaterEnrollmentToken:               updaterToken,
+		UpdaterEnrollmentExpiresAtUnixMillis: updaterTokenExpiresAtUnixMillis,
+		UpdaterPinnedRepository:              updaterBootstrap.PinnedRepository,
+		UpdaterManagementAuthority:           updaterAuthority,
 	}), nil
 }
 
@@ -485,7 +520,14 @@ func (a *App) agentToProtoWithLatestStats(ctx context.Context, agent db.Agent, u
 		} else if !errors.Is(err, sql.ErrNoRows) {
 			log.Debug().Err(err).Int64("agent_id", agent.ID).Msg("Failed to load agent labels")
 		}
+		var updaterEnabled int64
+		if err := a.DB.QueryRowContext(ctx, `SELECT enabled,updater_version FROM agent_updater_identities WHERE agent_id=?`, agent.ID).Scan(&updaterEnabled, &resp.UpdaterVersion); err == nil {
+			resp.UpdaterEnrolled = updaterEnabled == 1
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			log.Debug().Err(err).Int64("agent_id", agent.ID).Msg("Failed to load agent updater identity")
+		}
 	}
+	resp.UpdateCordoned = a.isAgentUpdateCordoned(agent.ID)
 	if conn != nil {
 		resp.ActiveRequests = conn.ActiveRequests.Load()
 		resp.AdvertisedMaxConcurrentStreams = conn.AdvertisedMaxConcurrentStreams

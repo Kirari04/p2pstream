@@ -16,6 +16,7 @@ var (
 	Version    = "dev"
 	Commit     = ""
 	Repository = DefaultRepository
+	Channel    = "development"
 )
 
 func RepositorySlug() string {

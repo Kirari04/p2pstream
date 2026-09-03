@@ -564,6 +564,7 @@ message GetStatusResponse {
   ProxyStatus proxy = 6;
   string version = 7;
   string commit = 8;
+  string release_channel = 9;
 }
 
 message ProxyStatus {
@@ -641,6 +642,9 @@ message Agent {
   int64 negotiated_max_concurrent_streams = 16;
   bool tunnel_capacity_adaptive = 17;
   int64 current_tunnel_admission_limit = 18;
+  bool updater_enrolled = 19;
+  string updater_version = 20;
+  bool update_cordoned = 21;
 }
 
 message PublicAgentSelector {
@@ -1128,8 +1132,15 @@ message CreateAgentRequest {
 }
 
 message CreateAgentResponse {
+  reserved 5, 7, 8;
+  reserved "updater_trusted_root_metadata_base64", "updater_trusted_root_sha256", "updater_trusted_root_version";
   Agent agent = 1;
   string token = 2;
+  // Independent from the tunnel bearer and disclosed only once.
+  string updater_enrollment_token = 3;
+  int64 updater_enrollment_expires_at_unix_millis = 4;
+  string updater_pinned_repository = 6;
+  AgentUpdateManagementAuthority updater_management_authority = 9;
 }
 
 message UpdateAgentRequest {
@@ -2712,6 +2723,358 @@ message AgentStreamCapacitySummary {
   uint64 public_client_request_rejected = 50;
 }
 
+// Managed updates are desired-state only. The server never sends executable
+// commands or mutable download URLs to an updater.
+enum AgentUpdateCampaignState {
+  AGENT_UPDATE_CAMPAIGN_STATE_UNSPECIFIED = 0;
+  AGENT_UPDATE_CAMPAIGN_STATE_RUNNING = 1;
+  AGENT_UPDATE_CAMPAIGN_STATE_PAUSED = 2;
+  AGENT_UPDATE_CAMPAIGN_STATE_CANCELLED = 3;
+  AGENT_UPDATE_CAMPAIGN_STATE_COMPLETED = 4;
+}
+
+enum AgentUpdateAssignmentState {
+  AGENT_UPDATE_ASSIGNMENT_STATE_UNSPECIFIED = 0;
+  AGENT_UPDATE_ASSIGNMENT_STATE_PENDING = 1;
+  AGENT_UPDATE_ASSIGNMENT_STATE_STAGING = 2;
+  AGENT_UPDATE_ASSIGNMENT_STATE_STAGED = 3;
+  AGENT_UPDATE_ASSIGNMENT_STATE_CORDONED = 4;
+  AGENT_UPDATE_ASSIGNMENT_STATE_ACTIVATING = 5;
+  AGENT_UPDATE_ASSIGNMENT_STATE_AWAITING_TUNNEL = 6;
+  AGENT_UPDATE_ASSIGNMENT_STATE_HEALTHY_DWELL = 7;
+  AGENT_UPDATE_ASSIGNMENT_STATE_SUCCEEDED = 8;
+  AGENT_UPDATE_ASSIGNMENT_STATE_FAILED = 9;
+  AGENT_UPDATE_ASSIGNMENT_STATE_CANCELLED = 10;
+  AGENT_UPDATE_ASSIGNMENT_STATE_BLOCKED = 11;
+}
+
+enum AgentUpdateDesiredAction {
+  AGENT_UPDATE_DESIRED_ACTION_UNSPECIFIED = 0;
+  AGENT_UPDATE_DESIRED_ACTION_NONE = 1;
+  AGENT_UPDATE_DESIRED_ACTION_STAGE = 2;
+  AGENT_UPDATE_DESIRED_ACTION_ACTIVATE = 3;
+  AGENT_UPDATE_DESIRED_ACTION_ROLLBACK = 4;
+}
+
+enum AgentUpdaterReportState {
+  AGENT_UPDATER_REPORT_STATE_UNSPECIFIED = 0;
+  AGENT_UPDATER_REPORT_STATE_DOWNLOADING = 1;
+  AGENT_UPDATER_REPORT_STATE_STAGED = 2;
+  AGENT_UPDATER_REPORT_STATE_ACTIVATED = 3;
+  AGENT_UPDATER_REPORT_STATE_HEALTHY = 4;
+  AGENT_UPDATER_REPORT_STATE_FAILED = 5;
+  AGENT_UPDATER_REPORT_STATE_ROLLED_BACK = 6;
+}
+
+enum AgentUpdateRootActionResultKind {
+  AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED = 0;
+  AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_RELEASE = 1;
+  AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP = 2;
+}
+
+message AgentUpdateManagementAuthority {
+  string key_id = 1;
+  uint64 epoch = 2;
+  bytes public_key = 3;
+}
+
+message AgentUpdateArtifact {
+  string os = 1;
+  string arch = 2;
+  string sha256 = 3;
+  int64 size_bytes = 4;
+  string name = 5;
+}
+
+message AgentUpdateTarget {
+  reserved 10;
+  reserved "root_version";
+  string version = 1;
+  string commit = 2;
+  string manifest_sha256 = 3;
+  int64 release_sequence = 4;
+  int64 minimum_tunnel_protocol = 5;
+  int64 maximum_tunnel_protocol = 6;
+  repeated AgentUpdateArtifact artifacts = 7;
+  int64 security_epoch = 8;
+  string minimum_updater_version = 9;
+}
+
+// The structured fields let both sides validate policy without parsing an
+// ad-hoc wire format. canonical_payload is the exact domain-separated byte
+// string produced by internal/agentupdateauth and signature authenticates
+// those bytes. Receivers must reconstruct and compare canonical_payload before
+// accepting or persisting the record.
+message AgentUpdaterEnrollmentReceipt {
+  reserved 9, 10;
+  reserved "trusted_root_sha256", "trusted_root_version";
+  string agent_public_id = 1;
+  string updater_key_id = 2;
+  string updater_public_key_sha256 = 3;
+  string activator_key_id = 4;
+  string activator_public_key_sha256 = 5;
+  string os = 6;
+  string arch = 7;
+  string updater_version = 8;
+  string pinned_repository = 11;
+  string authority_key_id = 12;
+  uint64 authority_epoch = 13;
+  int64 enrolled_at_unix_millis = 14;
+  int64 expires_at_unix_millis = 15;
+  uint64 generation = 16;
+  bytes canonical_payload = 17;
+  bytes signature = 18;
+}
+
+message AgentUpdateAssignmentAuthorization {
+  reserved 13;
+  reserved "root_version";
+  string agent_public_id = 1;
+  int64 assignment_id = 2;
+  int64 campaign_id = 3;
+  int64 generation = 4;
+  AgentUpdateDesiredAction action = 5;
+  uint64 command_sequence = 6;
+  bytes nonce = 7;
+  int64 issued_at_unix_millis = 8;
+  int64 expires_at_unix_millis = 9;
+  string authority_key_id = 10;
+  uint64 authority_epoch = 11;
+  string server_version = 12;
+  string manifest_sha256 = 14;
+  string target_version = 15;
+  string target_commit = 16;
+  uint64 release_sequence = 17;
+  uint64 security_epoch = 18;
+  string os = 19;
+  string arch = 20;
+  string artifact_name = 21;
+  int64 artifact_size = 22;
+  string artifact_sha256 = 23;
+  bytes canonical_payload = 24;
+  bytes signature = 25;
+}
+
+message AgentUpdateRootActionReceipt {
+  reserved 15;
+  reserved "result_root_version";
+  string agent_public_id = 1;
+  int64 assignment_id = 2;
+  int64 campaign_id = 3;
+  int64 generation = 4;
+  AgentUpdateDesiredAction action = 5;
+  uint64 command_sequence = 6;
+  string authorization_sha256 = 7;
+  bytes authorization_nonce = 8;
+  string authority_key_id = 9;
+  uint64 authority_epoch = 10;
+  string activator_key_id = 11;
+  uint64 root_action_counter = 12;
+  int64 completed_at_unix_millis = 13;
+  AgentUpdateRootActionResultKind result_kind = 14;
+  string result_manifest_sha256 = 16;
+  string result_version = 17;
+  string result_commit = 18;
+  uint64 result_release_sequence = 19;
+  uint64 result_security_epoch = 20;
+  string result_os = 21;
+  string result_arch = 22;
+  string result_artifact_name = 23;
+  int64 result_artifact_size = 24;
+  string result_artifact_sha256 = 25;
+  bytes canonical_payload = 26;
+  bytes signature = 27;
+}
+
+message AgentUpdatePolicy {
+  int64 max_unavailable = 1;
+  int64 minimum_eligible_agents_per_route = 2;
+  int64 canary_count = 3;
+  int64 wave_size = 4;
+  int64 healthy_dwell_millis = 5;
+}
+
+message AgentUpdatePreviewAgent {
+  int64 agent_id = 1;
+  string agent_public_id = 2;
+  string name = 3;
+  bool enrolled = 4;
+  bool eligible = 5;
+  repeated string blockers = 6;
+}
+
+message PreviewAgentUpdateCampaignRequest {
+  repeated int64 agent_ids = 1;
+  AgentUpdateTarget target = 2;
+  AgentUpdatePolicy policy = 3;
+}
+
+message PreviewAgentUpdateCampaignResponse {
+  repeated AgentUpdatePreviewAgent agents = 1;
+  int64 eligible_count = 2;
+  int64 blocked_count = 3;
+}
+
+message AgentUpdateAssignment {
+  int64 id = 1;
+  int64 campaign_id = 2;
+  int64 agent_id = 3;
+  string agent_public_id = 4;
+  string agent_name = 5;
+  AgentUpdateAssignmentState state = 6;
+  AgentUpdateDesiredAction desired_action = 7;
+  int64 generation = 8;
+  bool cordoned = 9;
+  string failure_code = 10;
+  string failure_detail = 11;
+  string attested_manifest_sha256 = 12;
+  string attested_binary_sha256 = 13;
+  int64 activated_at_unix_millis = 14;
+  int64 fresh_tunnel_at_unix_millis = 15;
+  int64 healthy_at_unix_millis = 16;
+  int64 updated_at_unix_millis = 17;
+  string observed_version = 18;
+  string observed_commit = 19;
+}
+
+message AgentUpdateCampaign {
+  int64 id = 1;
+  string name = 2;
+  AgentUpdateCampaignState state = 3;
+  int64 generation = 4;
+  AgentUpdateTarget target = 5;
+  AgentUpdatePolicy policy = 6;
+  repeated AgentUpdateAssignment assignments = 7;
+  int64 created_at_unix_millis = 8;
+  int64 updated_at_unix_millis = 9;
+}
+
+message AgentUpdateOverviewAgent {
+  int64 agent_id = 1;
+  string agent_public_id = 2;
+  string name = 3;
+  bool updater_enrolled = 4;
+  string updater_version = 5;
+  bool connected = 6;
+  bool cordoned = 7;
+  int64 active_assignment_id = 8;
+  AgentUpdateAssignmentState assignment_state = 9;
+  // Build currently observed on the live tunnel. This is deliberately
+  // separate from updater_version, which describes the pinned rescue runner.
+  string tunnel_version = 10;
+  string tunnel_commit = 11;
+  int64 updater_last_seen_at_unix_millis = 12;
+}
+
+message GetAgentUpdateOverviewRequest {}
+message GetAgentUpdateOverviewResponse {
+  repeated AgentUpdateTarget trusted_targets = 1;
+  repeated AgentUpdateOverviewAgent agents = 2;
+  AgentUpdateManagementAuthority management_authority = 3;
+  string management_authority_warning = 4;
+}
+
+message GenerateAgentUpdaterEnrollmentTokenRequest {
+  int64 agent_id = 1;
+  int64 ttl_millis = 2;
+}
+
+message GenerateAgentUpdaterEnrollmentTokenResponse {
+  reserved 3, 5, 6;
+  reserved "trusted_root_metadata_base64", "trusted_root_sha256", "trusted_root_version";
+  string token = 1;
+  int64 expires_at_unix_millis = 2;
+  string pinned_repository = 4;
+  AgentUpdateManagementAuthority management_authority = 7;
+}
+
+message EnrollAgentUpdaterRequest {
+  string token = 1;
+  string agent_public_id = 2;
+  bytes updater_public_key = 3;
+  bytes activator_public_key = 4;
+  string os = 5;
+  string arch = 6;
+  string updater_version = 7;
+}
+
+message EnrollAgentUpdaterResponse {
+  string updater_key_id = 1;
+  string activator_key_id = 2;
+  int64 enrolled_at_unix_millis = 3;
+  AgentUpdaterEnrollmentReceipt receipt = 4;
+}
+
+message CreateAgentUpdateCampaignRequest {
+  string name = 1;
+  repeated int64 agent_ids = 2;
+  AgentUpdateTarget target = 3;
+  AgentUpdatePolicy policy = 4;
+}
+
+message CreateAgentUpdateCampaignResponse { AgentUpdateCampaign campaign = 1; }
+message ListAgentUpdateCampaignsRequest { int64 limit = 1; }
+message ListAgentUpdateCampaignsResponse { repeated AgentUpdateCampaign campaigns = 1; }
+
+message ChangeAgentUpdateCampaignStateRequest {
+  int64 campaign_id = 1;
+  int64 expected_generation = 2;
+}
+
+message ChangeAgentUpdateCampaignStateResponse { AgentUpdateCampaign campaign = 1; }
+
+message RetryAgentUpdateAssignmentsRequest {
+  int64 campaign_id = 1;
+  repeated int64 assignment_ids = 2;
+  int64 expected_campaign_generation = 3;
+}
+
+message RetryAgentUpdateAssignmentsResponse { AgentUpdateCampaign campaign = 1; }
+
+message CheckAgentUpdateRequest {
+  string agent_public_id = 1;
+  uint64 counter = 2;
+  bytes signature = 3;
+}
+
+message CheckAgentUpdateResponse {
+  int64 assignment_id = 1;
+  int64 campaign_id = 2;
+  int64 generation = 3;
+  AgentUpdateDesiredAction desired_action = 4;
+  AgentUpdateTarget target = 5;
+  AgentUpdateArtifact artifact = 6;
+  int64 retry_after_millis = 7;
+  string server_version = 8;
+  AgentUpdateAssignmentAuthorization authorization = 9;
+}
+
+message ReportAgentUpdateRequest {
+  string agent_public_id = 1;
+  uint64 counter = 2;
+  bytes signature = 3;
+  int64 assignment_id = 4;
+  int64 generation = 5;
+  AgentUpdaterReportState state = 6;
+  string manifest_sha256 = 7;
+  string binary_sha256 = 8;
+  string running_version = 9;
+  string running_commit = 10;
+  string failure_code = 11;
+  string failure_detail = 12;
+  uint64 activation_counter = 13;
+  bytes activation_nonce = 14;
+  bytes activator_signature = 15;
+  AgentUpdateRootActionReceipt root_action_receipt = 16;
+}
+
+message ReportAgentUpdateResponse {
+  AgentUpdateAssignmentState state = 1;
+  AgentUpdateDesiredAction desired_action = 2;
+  int64 generation = 3;
+  int64 retry_after_millis = 4;
+}
+
 service AgentManagementService {
   rpc ReportStats(AgentStatsRequest) returns (AgentStatsResponse) {}
   rpc GetManagementTlsRotation(GetManagementTlsRotationRequest) returns (GetManagementTlsRotationResponse) {}
@@ -2746,6 +3109,18 @@ service AgentManagementService {
   rpc UpdateAgent(UpdateAgentRequest) returns (UpdateAgentResponse) {}
   rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse) {}
   rpc RotateAgentToken(RotateAgentTokenRequest) returns (RotateAgentTokenResponse) {}
+  rpc GenerateAgentUpdaterEnrollmentToken(GenerateAgentUpdaterEnrollmentTokenRequest) returns (GenerateAgentUpdaterEnrollmentTokenResponse) {}
+  rpc EnrollAgentUpdater(EnrollAgentUpdaterRequest) returns (EnrollAgentUpdaterResponse) {}
+  rpc PreviewAgentUpdateCampaign(PreviewAgentUpdateCampaignRequest) returns (PreviewAgentUpdateCampaignResponse) {}
+  rpc GetAgentUpdateOverview(GetAgentUpdateOverviewRequest) returns (GetAgentUpdateOverviewResponse) {}
+  rpc CreateAgentUpdateCampaign(CreateAgentUpdateCampaignRequest) returns (CreateAgentUpdateCampaignResponse) {}
+  rpc ListAgentUpdateCampaigns(ListAgentUpdateCampaignsRequest) returns (ListAgentUpdateCampaignsResponse) {}
+  rpc PauseAgentUpdateCampaign(ChangeAgentUpdateCampaignStateRequest) returns (ChangeAgentUpdateCampaignStateResponse) {}
+  rpc ResumeAgentUpdateCampaign(ChangeAgentUpdateCampaignStateRequest) returns (ChangeAgentUpdateCampaignStateResponse) {}
+  rpc CancelAgentUpdateCampaign(ChangeAgentUpdateCampaignStateRequest) returns (ChangeAgentUpdateCampaignStateResponse) {}
+  rpc RetryAgentUpdateAssignments(RetryAgentUpdateAssignmentsRequest) returns (RetryAgentUpdateAssignmentsResponse) {}
+  rpc CheckAgentUpdate(CheckAgentUpdateRequest) returns (CheckAgentUpdateResponse) {}
+  rpc ReportAgentUpdate(ReportAgentUpdateRequest) returns (ReportAgentUpdateResponse) {}
   rpc CreateManagementAccessToken(CreateManagementAccessTokenRequest) returns (CreateManagementAccessTokenResponse) {}
   rpc ListManagementAccessTokens(ListManagementAccessTokensRequest) returns (ListManagementAccessTokensResponse) {}
   rpc DeleteManagementAccessToken(DeleteManagementAccessTokenRequest) returns (DeleteManagementAccessTokenResponse) {}

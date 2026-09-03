@@ -1,0 +1,33 @@
+[Unit]
+Description=p2pstream unprivileged update staging worker
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/p2pstream-updater/enrolled.json
+ConditionPathExists=/etc/p2pstream-updater/root.json
+ConditionPathExists=/etc/p2pstream-updater/management-authority.json
+
+[Service]
+Type=oneshot
+User=p2pstream-updater
+Group=p2pstream-updater
+ExecStart=/opt/p2pstream-agent/updater/p2pstream updater stage
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/p2pstream-updater/worker /var/lib/p2pstream-updater/staging

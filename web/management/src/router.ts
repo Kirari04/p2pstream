@@ -5,6 +5,7 @@ const Diagnostics = () => import('./views/Diagnostics.vue');
 const Traffic = () => import('./views/Traffic.vue');
 const Monitor = () => import('./views/Monitor.vue');
 const AgentHealth = () => import('./views/AgentHealth.vue');
+const AgentUpdates = () => import('./views/AgentUpdates.vue');
 const Settings = () => import('./views/Settings.vue');
 const SettingsApiTokens = () => import('./views/SettingsApiTokens.vue');
 const SettingsEnvironments = () => import('./views/SettingsEnvironments.vue');
@@ -33,6 +34,7 @@ const routes = [
       { path: ':pathMatch(.*)*', redirect: '/monitor/traffic' },
     ],
   },
+  { path: '/agent/updates', name: 'agent-updates', component: AgentUpdates },
   { path: '/agent/:section(fleet|activity)?', name: 'agent', component: AgentHealth },
   {
     path: '/settings',

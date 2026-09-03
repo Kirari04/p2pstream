@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"math"
 	"net"
 	"net/http"
@@ -45,6 +46,8 @@ type AgentConn struct {
 	ActiveRequests                 atomic.Int64
 	ConnectedAt                    time.Time
 	ConnectionDBID                 int64
+	BuildVersion                   string
+	BuildCommit                    string
 }
 
 type agentTunnelReadGateConn struct {
@@ -193,6 +196,27 @@ type App struct {
 	managementClientIdentity        *ClientIdentityResolver
 	managementClientIdentityErr     error
 	ManagementTLS                   *ManagementTLSRuntime
+	// TrustedAgentUpdates resolves only manifests already verified against the
+	// configured release trust root. Managed campaigns fail closed when unset.
+	TrustedAgentUpdates           TrustedAgentUpdateCatalog
+	AgentUpdateBootstrap          AgentUpdateBootstrapProvider
+	AgentUpdateAuthority          AgentUpdateManagementAuthority
+	AgentUpdateAuthorityWarning   string
+	agentUpdatesMu                sync.Mutex
+	agentUpdateTrafficMu          sync.RWMutex
+	agentUpdateCordoned           atomic.Pointer[map[int64]struct{}] // immutable agent ID set
+	agentUpdateFreshTunnelWrite   func(context.Context, string, ...any) (sql.Result, error)
+	agentUpdateCatalogWarningOnce sync.Once
+	agentUpdateRequestGate        chan struct{}
+	agentUpdatePeerRequests       *keyedStringRequestCapacityLimiter
+	agentUpdateIdentityRequests   *keyedRequestCapacityLimiter
+	agentUpdateGlobalRate         *agentUpdateRateLimiter
+	agentUpdatePeerRate           *agentUpdateRateLimiter
+	agentUpdateIdentityRate       *agentUpdateRateLimiter
+	agentUpdateDrainReady         func(int64) bool
+	agentUpdateRouteBlockersHook  func(int64, int64) []string
+	agentUpdateBeforeSuccessCAS   func()
+	agentUpdateMaintenanceStarted atomic.Bool
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -228,6 +252,8 @@ type App struct {
 	publicTLSSelectorRefreshBeforePublish func(uint64)
 }
 
+const managementRPCMaxMessageBytes = 8 << 20
+
 type agentAuthLockMap struct {
 	mu    sync.Mutex
 	locks map[int64]*sync.Mutex
@@ -261,6 +287,16 @@ func (a *App) lockAgentAuth(agentID int64) func() {
 }
 
 func NewApp(cfg *config.Config, database *db.DB) *App {
+	app, err := NewAppWithError(cfg, database)
+	if err != nil {
+		panic(fmt.Sprintf("initialize server application: %v", err))
+	}
+	return app
+}
+
+// NewAppWithError constructs the production application and reports failures
+// that would make persisted routing safety state unavailable.
+func NewAppWithError(cfg *config.Config, database *db.DB) (*App, error) {
 	if cfg == nil {
 		cfg = &config.Config{}
 	}
@@ -283,6 +319,15 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		publicConnections:           newPublicConnectionCapacityLimiter(cfg.PublicMaxConcurrentConnections, cfg.PublicMaxConnectionsPerPeer),
 		publicTargetRequests:        newKeyedRequestCapacityLimiter(publicMaxRequestsPerTarget, publicMaxRequests),
 		retryReplayBudget:           newRetryReplayBudget(defaultPublicRetryReplayBudgetBytes),
+		agentUpdateRequestGate:      make(chan struct{}, 64),
+		agentUpdatePeerRequests:     newKeyedStringRequestCapacityLimiter(8),
+		agentUpdateIdentityRequests: newKeyedRequestCapacityLimiter(1, 1),
+		// A 1,000-agent fleet polling every 30 seconds generates roughly 2,000
+		// checks/minute before reports. These guards absorb abuse without turning
+		// normal shared-egress fleets into an update outage.
+		agentUpdateGlobalRate:       newAgentUpdateRateLimiter(60_000, time.Minute, 1024, 1),
+		agentUpdatePeerRate:         newAgentUpdateRateLimiter(6_000, time.Minute, 128, 4096),
+		agentUpdateIdentityRate:     newAgentUpdateRateLimiter(30, time.Minute, 8, agentUpdateMaxAgents),
 		managementClientIdentity:    managementIdentity,
 		managementClientIdentityErr: managementIdentityErr,
 	}
@@ -301,8 +346,11 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		app.closeStaleAgentConnections(context.Background(), time.Now().UTC())
 		app.initializeSetupToken(context.Background())
 		app.ensureBootstrapAgent(context.Background())
+		if err := app.loadAgentUpdateCordons(context.Background()); err != nil {
+			return nil, fmt.Errorf("load managed-update cordons: %w", err)
+		}
 	}
-	return app
+	return app, nil
 }
 
 func (a *App) closeStaleAgentConnections(ctx context.Context, now time.Time) {
@@ -327,10 +375,11 @@ func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
 	mux.HandleFunc(tunnel.BootstrapPath, a.agentTunnelHandler)
 	mux.Handle(environmentProxyPrefix, a.environmentProxyHandler())
 	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a,
+		connect.WithReadMaxBytes(managementRPCMaxMessageBytes),
 		connect.WithCodec(strictProtoJSONCodec{name: "json"}),
 		connect.WithCodec(strictProtoJSONCodec{name: "json; charset=utf-8"}),
 	)
-	mux.Handle(path, handler)
+	mux.Handle(path, a.agentUpdateHTTPAdmission(handler))
 	if !a.Config.ManagementUIDisabled {
 		mux.Handle("/", managementui.NewHandler(a.Config.ManagementUIDevProxy, a.Config.ManagementUIDistDir))
 	}
@@ -379,6 +428,7 @@ func (a *App) ReportStats(
 	resourceLastGoodAt := normalizedAgentResourceTimestamp(payload.ResourceLastGoodUnixMillis, reportedAt)
 	build := agentBuildIdentityFromStats(payload)
 	a.storeLatestAgentBuild(agentRow.ID, build)
+	a.recordAgentUpdateObservedBuild(agentRow.ID, build)
 
 	s := stats.AgentStats{
 		Timestamp:                reportedAt,
@@ -664,6 +714,7 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 		Proxy:          a.proxyStatus(),
 		Version:        buildinfo.Version,
 		Commit:         buildinfo.Commit,
+		ReleaseChannel: buildinfo.Channel,
 	}
 
 	if latest := a.LatestAgentStats.Load(); latest != nil {
@@ -768,6 +819,8 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		NegotiatedMaxConcurrentStreams: negotiatedStreams,
 		AdaptiveCapacity:               adaptiveCapacity,
 		ConnectedAt:                    time.Now(),
+		BuildVersion:                   truncateProxyRequestContextValue(r.Header.Get(tunnel.TunnelAgentVersionHeader), 128),
+		BuildCommit:                    truncateProxyRequestContextValue(r.Header.Get(tunnel.TunnelAgentCommitHeader), 128),
 	}
 	if adaptiveCapacity {
 		// The negotiated value is only a protocol guard. Do not present it as a
@@ -880,6 +933,10 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	if a.TargetHealth != nil {
 		a.TargetHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
 	}
+	// A campaign only accepts a tunnel established after the attested
+	// activation edge. Run persistence asynchronously after the tunnel is
+	// published so database latency cannot delay tunnel admission.
+	go a.recordAgentUpdateFreshTunnel(agent)
 	unlockAgentAuth()
 
 	log.Info().

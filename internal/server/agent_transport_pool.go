@@ -514,6 +514,26 @@ func (p *agentTransportPool) closeAgent(agentID int64) {
 	})
 }
 
+func (p *agentTransportPool) inFlightForAgent(agentID int64) int {
+	if p == nil || agentID <= 0 {
+		return 0
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	total := 0
+	for key, entry := range p.entries {
+		if key.AgentID == agentID && entry != nil {
+			total += entry.inFlight
+		}
+	}
+	for entry := range p.draining {
+		if entry != nil && entry.key.AgentID == agentID {
+			total += entry.inFlight
+		}
+	}
+	return total
+}
+
 func (p *agentTransportPool) closeAgentConnection(agent *AgentConn) {
 	if agent == nil {
 		return

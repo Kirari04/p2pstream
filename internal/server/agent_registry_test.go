@@ -894,6 +894,9 @@ func TestAgentTunnelNegotiatesAdvertisedCapacity(t *testing.T) {
 	if connected.AdvertisedMaxConcurrentStreams != 999 || connected.NegotiatedMaxConcurrentStreams != 777 {
 		t.Fatalf("capacity negotiation = advertised %d negotiated %d, want 999/777", connected.AdvertisedMaxConcurrentStreams, connected.NegotiatedMaxConcurrentStreams)
 	}
+	if connected.BuildVersion != "v9.8.7" || connected.BuildCommit != strings.Repeat("c", 40) {
+		t.Fatalf("tunnel-bound build identity = %s/%s", connected.BuildVersion, connected.BuildCommit)
+	}
 	snapshot := app.agentStreamCapacity.snapshot()
 	if len(snapshot.SessionLimits) != 1 {
 		t.Fatalf("negotiated session limits = %+v, want one entry", snapshot.SessionLimits)
@@ -1328,11 +1331,14 @@ func dialAgentRegistryTestTunnelWithCapacityMode(serverURL string, publicID stri
 		capacityModeHeader = fmt.Sprintf("%s: %s\r\n", tunnel.TunnelCapacityModeHeader, capacityMode)
 	}
 	req := fmt.Sprintf(
-		"GET %s HTTP/1.1\r\nHost: %s\r\nConnection: Upgrade\r\nUpgrade: %s\r\n%s: 1\r\n%s%sX-P2PStream-Agent-ID: %s\r\nAuthorization: Bearer %s\r\n\r\n",
+		"GET %s HTTP/1.1\r\nHost: %s\r\nConnection: Upgrade\r\nUpgrade: %s\r\n%s: 1\r\n%s: v9.8.7\r\n%s: %s\r\n%s%sX-P2PStream-Agent-ID: %s\r\nAuthorization: Bearer %s\r\n\r\n",
 		tunnel.BootstrapPath,
 		parsed.Host,
 		tunnel.UpgradeToken,
 		tunnel.TunnelVersionHeader,
+		tunnel.TunnelAgentVersionHeader,
+		tunnel.TunnelAgentCommitHeader,
+		strings.Repeat("c", 40),
 		capacityHeader,
 		capacityModeHeader,
 		publicID,

@@ -1,0 +1,209 @@
+package agentupdate
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestVerifyManifestAndArtifact(t *testing.T) {
+	manifestJSON, artifactBytes := testBundle(t, "stable")
+	verified, err := Verify(manifestJSON, testPolicy())
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	if verified.Version != "v1.2.3" || verified.Sequence != 10203 || verified.SecurityEpoch != 2 {
+		t.Fatalf("unexpected verified release: %+v", verified)
+	}
+	manifestDigest := sha256.Sum256(manifestJSON)
+	if verified.ManifestSHA256 != hex.EncodeToString(manifestDigest[:]) {
+		t.Fatalf("manifest digest = %q", verified.ManifestSHA256)
+	}
+	if verified.Artifact.Name != "p2pstream_v1.2.3_linux_amd64" {
+		t.Fatalf("artifact = %+v", verified.Artifact)
+	}
+	if err := VerifyArtifact(bytes.NewReader(artifactBytes), verified.Artifact); err != nil {
+		t.Fatalf("VerifyArtifact: %v", err)
+	}
+}
+
+func TestVerifyCatalogPreservesAllArtifactsAndDigest(t *testing.T) {
+	manifestJSON, artifactBytes := testBundle(t, "stable")
+	manifest, err := ParseManifest(manifestJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(artifactBytes)
+	manifest.Artifacts = append(manifest.Artifacts, Artifact{
+		OS: "linux", Arch: "arm64", Name: "p2pstream_v1.2.3_linux_arm64",
+		Size: uint64(len(artifactBytes)), SHA256: hex.EncodeToString(digest[:]),
+	})
+	manifestJSON, err = CanonicalManifest(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verified, err := VerifyCatalog(manifestJSON, CatalogVerifyPolicy{
+		Now:                       time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC),
+		CurrentSequence:           10203,
+		CurrentSecurityEpoch:      2,
+		CurrentMinimumSafeVersion: "v1.0.0",
+		ServerVersion:             "v1.5.0",
+		ProtocolVersion:           1,
+	})
+	if err != nil {
+		t.Fatalf("VerifyCatalog: %v", err)
+	}
+	if len(verified.Manifest.Artifacts) != 2 {
+		t.Fatalf("catalog artifacts = %d", len(verified.Manifest.Artifacts))
+	}
+	wantDigest := sha256.Sum256(manifestJSON)
+	if verified.ManifestSHA256 != hex.EncodeToString(wantDigest[:]) {
+		t.Fatalf("catalog digest = %q", verified.ManifestSHA256)
+	}
+}
+
+func TestVerifyRejectsDowngradesAndIncompatibleRuntime(t *testing.T) {
+	manifestJSON, _ := testBundle(t, "stable")
+	tests := []struct {
+		name   string
+		mutate func(*VerifyPolicy)
+		want   string
+	}{
+		{"sequence", func(p *VerifyPolicy) { p.CurrentSequence = 10203 }, "sequence"},
+		{"security epoch", func(p *VerifyPolicy) { p.CurrentSecurityEpoch = 3 }, "security epoch"},
+		{"minimum safe version", func(p *VerifyPolicy) { p.CurrentMinimumSafeVersion = "v1.1.0" }, "minimum safe"},
+		{"installed version", func(p *VerifyPolicy) { p.CurrentVersion = "v1.2.3" }, "installed version"},
+		{"server", func(p *VerifyPolicy) { p.ServerVersion = "v2.0.1" }, "server version"},
+		{"updater", func(p *VerifyPolicy) { p.UpdaterVersion = "v0.9.9" }, "updater version"},
+		{"protocol", func(p *VerifyPolicy) { p.ProtocolVersion = 3 }, "protocol version"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			policy := testPolicy()
+			test.mutate(&policy)
+			if _, err := Verify(manifestJSON, policy); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("Verify error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
+func TestVerifyBootstrapFloorsDoNotDisableManifestFloors(t *testing.T) {
+	manifestJSON, _ := testBundle(t, "stable")
+	policy := testPolicy()
+	policy.CurrentSequence = 0
+	policy.CurrentSecurityEpoch = 0
+	policy.CurrentMinimumSafeVersion = ""
+	if _, err := Verify(manifestJSON, policy); err != nil {
+		t.Fatalf("Verify bootstrap: %v", err)
+	}
+
+	manifest, err := ParseManifest(manifestJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.SecurityEpoch = 0
+	if _, err := CanonicalManifest(manifest); err == nil || !strings.Contains(err.Error(), "security epoch") {
+		t.Fatalf("CanonicalManifest error = %v, want positive security epoch rejection", err)
+	}
+}
+
+func TestReleaseChannels(t *testing.T) {
+	manifestJSON, _ := testBundle(t, "staging")
+	if _, err := Verify(manifestJSON, testPolicy()); err == nil || !strings.Contains(err.Error(), "channel") {
+		t.Fatalf("stable policy error = %v, want channel rejection", err)
+	}
+	policy := testPolicy()
+	policy.RequiredChannel = "staging"
+	policy.CurrentVersion = "v1.2.2-staging.99"
+	policy.ServerVersion = "v1.2.3-staging.1"
+	policy.UpdaterVersion = "v1.1.0-staging.1"
+	verified, err := Verify(manifestJSON, policy)
+	if err != nil {
+		t.Fatalf("Verify staging: %v", err)
+	}
+	if verified.Version != "v1.2.3-staging.1" {
+		t.Fatalf("verified staging release = %+v", verified)
+	}
+}
+
+func TestStrictCanonicalParsingRejectsUnknownURLAndWhitespace(t *testing.T) {
+	manifestJSON, _ := testBundle(t, "stable")
+	withURL := bytes.Replace(manifestJSON, []byte(`"size":14`), []byte(`"url":"https://attacker.invalid/a","size":14`), 1)
+	if _, err := ParseManifest(withURL); err == nil {
+		t.Fatal("ParseManifest accepted an artifact URL")
+	}
+	if _, err := ParseManifest(append(manifestJSON, '\n')); err == nil || !strings.Contains(err.Error(), "canonical") {
+		t.Fatalf("ParseManifest error = %v, want canonical rejection", err)
+	}
+	if _, err := ParseManifest(bytes.Repeat([]byte("x"), MaxManifestBytes+1)); err == nil || !strings.Contains(err.Error(), "limit") {
+		t.Fatalf("ParseManifest error = %v, want size limit", err)
+	}
+}
+
+func TestVerifyRejectsExpiredMetadata(t *testing.T) {
+	manifestJSON, _ := testBundle(t, "stable")
+	policy := testPolicy()
+	policy.Now = time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := Verify(manifestJSON, policy); err == nil || !strings.Contains(err.Error(), "manifest is expired") {
+		t.Fatalf("Verify manifest expiry error = %v", err)
+	}
+}
+
+func TestVerifyArtifactRejectsSizeAndDigestMismatch(t *testing.T) {
+	_, artifactBytes := testBundle(t, "stable")
+	digest := sha256.Sum256(artifactBytes)
+	artifact := Artifact{Size: uint64(len(artifactBytes)), SHA256: hex.EncodeToString(digest[:])}
+	if err := VerifyArtifact(bytes.NewReader(append(append([]byte{}, artifactBytes...), 'x')), artifact); err == nil || !strings.Contains(err.Error(), "size") {
+		t.Fatalf("VerifyArtifact long error = %v", err)
+	}
+	if err := VerifyArtifact(bytes.NewReader(artifactBytes[:len(artifactBytes)-1]), artifact); err == nil || !strings.Contains(err.Error(), "size") {
+		t.Fatalf("VerifyArtifact short error = %v", err)
+	}
+	artifact.SHA256 = strings.Repeat("0", 64)
+	if err := VerifyArtifact(bytes.NewReader(artifactBytes), artifact); err == nil || !strings.Contains(err.Error(), "SHA-256") {
+		t.Fatalf("VerifyArtifact digest error = %v", err)
+	}
+}
+
+func testBundle(t *testing.T, channel string) ([]byte, []byte) {
+	t.Helper()
+	artifactBytes := []byte("binary payload")
+	digest := sha256.Sum256(artifactBytes)
+	version := "v1.2.3"
+	if channel == "staging" {
+		version = "v1.2.3-staging.1"
+	}
+	manifest := Manifest{
+		SchemaVersion: SchemaVersion, Channel: channel, Version: version,
+		Commit: strings.Repeat("a", 40), Sequence: 10203,
+		PublishedAt: "2026-01-01T00:00:00Z", ExpiresAt: "2026-02-01T00:00:00Z",
+		MinimumSafeVersion: "v1.0.0", SecurityEpoch: 2,
+		Compatibility: Compatibility{
+			Server:   VersionRange{Min: "v1.0.0", Max: "v2.0.0"},
+			Protocol: ProtocolRange{Min: 1, Max: 2},
+			Updater:  VersionRange{Min: "v1.0.0", Max: "v2.0.0"},
+		},
+		Artifacts: []Artifact{{
+			OS: "linux", Arch: "amd64", Name: "p2pstream_" + version + "_linux_amd64",
+			Size: uint64(len(artifactBytes)), SHA256: hex.EncodeToString(digest[:]),
+		}},
+	}
+	manifestJSON, err := CanonicalManifest(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return manifestJSON, artifactBytes
+}
+
+func testPolicy() VerifyPolicy {
+	return VerifyPolicy{
+		Now: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), CurrentSequence: 10202,
+		CurrentSecurityEpoch: 2, CurrentMinimumSafeVersion: "v1.0.0", CurrentVersion: "v1.2.2",
+		ServerVersion: "v1.5.0", UpdaterVersion: "v1.1.0", ProtocolVersion: 1,
+		GOOS: "linux", GOARCH: "amd64",
+	}
+}

@@ -553,6 +553,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				}
 			}
 			statusCode = resp.StatusCode
+			// A completed upstream HTTP response is not a tunnel transport error,
+			// but a 5xx response is still an upstream failure that operators must be
+			// able to distinguish from a locally generated gateway/capacity response.
+			// Keep the existing bounded status-specific vocabulary used by retry
+			// telemetry so the failure map and request samples expose the origin.
+			errorKind = upstreamServerStatusErrorKind(resp.StatusCode)
 			responseShaper := a.publicTrafficShaperForResponse(resolution.Snapshot, resolution.Listener.ID, r, resp.StatusCode, shaper)
 			if responseShaper != nil {
 				applyTrafficShaperResolutionFields(&resolution, *responseShaper)
@@ -580,7 +586,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 					&resolution,
 					finalAgent,
 					resp.StatusCode,
-					"",
+					errorKind,
 					resp.Header,
 					attributes,
 				)
@@ -642,9 +648,16 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 	proxy.ServeHTTP(w, r)
 }
 
+func upstreamServerStatusErrorKind(statusCode int) string {
+	if statusCode < http.StatusInternalServerError || statusCode > 599 {
+		return ""
+	}
+	return fmt.Sprintf("upstream_status_%d", statusCode)
+}
+
 func agentProxyCapacityErrorKind(errorKind string) bool {
 	switch errorKind {
-	case "agent_capacity", "agent_resource_pressure", "agent_server_capacity", "agent_server_health_capacity", "agent_server_pooled_capacity":
+	case "agent_capacity", "agent_resource_pressure", "agent_server_capacity", "agent_server_health_capacity", "agent_server_pooled_capacity", "agent_update_cordoned":
 		return true
 	default:
 		return false
@@ -771,6 +784,9 @@ func (a *App) dialViaAgentWithCapacity(
 	class agentStreamCapacityClass,
 	queueKey string,
 ) (net.Conn, error) {
+	if agent != nil && a.isAgentUpdateCordoned(agent.AgentID) {
+		return nil, errAgentUpdateCordoned
+	}
 	if agent == nil || agent.Session == nil || agent.Session.IsClosed() {
 		return nil, errAgentDisconnected
 	}
@@ -794,6 +810,10 @@ func (a *App) dialViaAgentWithCapacity(
 	}
 	if err != nil {
 		return nil, agentStreamCapacityDialError(ctx, class, err)
+	}
+	if a.isAgentUpdateCordoned(agent.AgentID) {
+		lease.release()
+		return nil, errAgentUpdateCordoned
 	}
 
 	openCh := startCapacityManagedAgentStreamOpen(ctx, agent, func() (net.Conn, error) {
@@ -1048,6 +1068,9 @@ func (a *App) eligibleTargetAgentCandidatesFromSnapshot(snap *publicProxySnapsho
 		if !agentConfig.Enabled || !agentSelectorMatchesLabels(target.AgentSelector, agentConfig.Labels) {
 			continue
 		}
+		if a.isAgentUpdateCordoned(agentID) {
+			continue
+		}
 		conn := a.AgentHub.connectedByID(agentID)
 		if conn == nil {
 			continue
@@ -1272,6 +1295,9 @@ func (a *App) targetHasEligibleAgent(snap *publicProxySnapshot, target publicRou
 	}
 	for agentID, agentConfig := range snap.Agents {
 		if !agentConfig.Enabled || !agentSelectorMatchesLabels(target.AgentSelector, agentConfig.Labels) {
+			continue
+		}
+		if a.isAgentUpdateCordoned(agentID) {
 			continue
 		}
 		if a.AgentHub.connectedByID(agentID) != nil {

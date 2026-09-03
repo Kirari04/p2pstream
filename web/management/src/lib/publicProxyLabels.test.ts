@@ -156,6 +156,9 @@ function agent(id: bigint, publicId: string): Agent {
     negotiatedMaxConcurrentStreams: 0n,
     tunnelCapacityAdaptive: false,
     currentTunnelAdmissionLimit: 0n,
+    updaterEnrolled: false,
+    updaterVersion: "",
+    updateCordoned: false,
   };
 }
 
