@@ -24,6 +24,8 @@ nightly-sha-abcdef0
 
 Stable releases publish `latest`, a version tag such as `vX.Y.Z`, and a commit tag such as `sha-abcdef0` from the `main` branch. The mutable `staging` tags are pre-release images built from the `staging` branch and are intended for validation before a stable release. The `nightly` tags are Docker-only development images built from the `dev` branch; use them for testing unreleased changes, not for repeatable production deployments.
 
+The stable release manifest threshold-signs the exact multi-platform OCI index digest and its Linux `amd64`/`arm64` child descriptors. Pin that published digest, rather than a mutable tag, when the deployment must retain the same content identity. Docker itself does not verify p2pstream's agent-update signature, so higher-assurance environments should also enforce the signed digest through their registry or admission policy.
+
 The runtime image:
 
 | Runtime detail           | Value                      |

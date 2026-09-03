@@ -60,7 +60,17 @@ export const MANAGEMENT_NAVIGATION: readonly ManagementNavigationGroup[] = [
           { key: "proxy-listeners", label: "Listeners", path: "/proxy/listeners" },
         ],
       },
-      { key: "agents", label: "Agents", path: "/agent", activePrefix: "/agent" },
+      {
+        key: "agents",
+        label: "Agents",
+        path: "/agent",
+        activePrefix: "/agent",
+        children: [
+          { key: "agents-fleet", label: "Fleet", path: "/agent" },
+          { key: "agents-activity", label: "Activity", path: "/agent/activity" },
+          { key: "agents-updates", label: "Updates", path: "/agent/updates" },
+        ],
+      },
       {
         key: "traffic-policy",
         label: "Traffic Policy",

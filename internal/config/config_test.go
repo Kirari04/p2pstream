@@ -100,6 +100,44 @@ func TestLoadSupportsDisablingManagementUI(t *testing.T) {
 	}
 }
 
+func TestLoadAgentUpdateCatalogDefaultsToDisabledAndPinnedRepository(t *testing.T) {
+	workDir := isolatedConfigTestDir(t)
+	configDir := filepath.Join(workDir, "data")
+	t.Setenv("CONFIG_DIR", configDir)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.AgentUpdatesEnabled {
+		t.Fatal("AgentUpdatesEnabled = true, want explicit opt-in")
+	}
+	if cfg.AgentUpdateRepository != "Kirari04/p2pstream" {
+		t.Fatalf("AgentUpdateRepository = %q", cfg.AgentUpdateRepository)
+	}
+	if cfg.AgentUpdateCatalogStateFile != filepath.Join(configDir, "agent-update-catalog-state.json") {
+		t.Fatalf("AgentUpdateCatalogStateFile = %q", cfg.AgentUpdateCatalogStateFile)
+	}
+	if cfg.AgentUpdateAuthorityKeyFile != filepath.Join(configDir, "agent-update-management-authority.json") {
+		t.Fatalf("AgentUpdateAuthorityKeyFile = %q", cfg.AgentUpdateAuthorityKeyFile)
+	}
+}
+
+func TestLoadAgentUpdateCatalogRequiresPinnedTrustRoot(t *testing.T) {
+	workDir := isolatedConfigTestDir(t)
+	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+	t.Setenv("AGENT_UPDATES_ENABLED", "true")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENT_UPDATE_ROOT_FILE") {
+		t.Fatalf("missing trust root error = %v", err)
+	}
+
+	t.Setenv("AGENT_UPDATE_ROOT_FILE", "/etc/p2pstream-updater/root.json")
+	t.Setenv("AGENT_UPDATE_REPOSITORY", "attacker.invalid/repo;curl")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENT_UPDATE_REPOSITORY") {
+		t.Fatalf("unsafe repository error = %v", err)
+	}
+}
+
 func TestLoadNarrowsNewFairnessDefaultsUnderExistingGlobalLimits(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))

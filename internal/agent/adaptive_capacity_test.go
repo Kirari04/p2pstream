@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 
+	"p2pstream/internal/buildinfo"
 	"p2pstream/internal/sysmetrics"
 	"p2pstream/internal/tunnel"
 )
@@ -147,7 +148,9 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 	sessionReady := make(chan *yamux.Session, 1)
 	management := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(tunnel.TunnelCapacityModeHeader) != tunnel.TunnelCapacityModeAdaptive ||
-			r.Header.Get(tunnel.TunnelMaxConcurrentStreamsHeader) != strconv.FormatInt(tunnel.MaxConcurrentAgentRequestsLimit, 10) {
+			r.Header.Get(tunnel.TunnelMaxConcurrentStreamsHeader) != strconv.FormatInt(tunnel.MaxConcurrentAgentRequestsLimit, 10) ||
+			r.Header.Get(tunnel.TunnelAgentVersionHeader) != buildinfo.Version ||
+			r.Header.Get(tunnel.TunnelAgentCommitHeader) != buildinfo.Commit {
 			http.Error(w, "adaptive capacity headers missing", http.StatusBadRequest)
 			return
 		}

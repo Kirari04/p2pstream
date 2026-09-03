@@ -22,6 +22,8 @@ import { dashboardKey, isBusyKey, publicProxyConfigKey, runManagementActionKey }
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { AGENT_ID_SYSTEM_LABEL_KEY, userAgentLabelPairs } from "@/lib/agentLabels";
 import {
+  DEFAULT_LOCAL_AGENT_BINARY_PATH,
+  DEFAULT_LOCAL_INSTALLER_PATH,
   FALLBACK_RELEASE_REPOSITORY,
   cliSnippet as buildCliSnippet,
   dockerComposeSnippet as buildDockerComposeSnippet,
@@ -52,6 +54,7 @@ import type {
   AgentUptimeSummary,
   GetAgentAvailabilityResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+import type { CreatedAgentSetup } from "@/types/agentSetup";
 
 const managementClient = useManagementClient();
 const route = useRoute();
@@ -69,6 +72,12 @@ const agentSections = [
     label: "Activity",
     path: "/agent/activity",
     description: "Runtime pressure, process metrics, and recent connection sessions.",
+  },
+  {
+    key: "updates",
+    label: "Updates",
+    path: "/agent/updates",
+    description: "Trusted releases, rollout safety, and managed agent update campaigns.",
   },
 ] as const;
 
@@ -218,6 +227,14 @@ const openAgentActionMenuId = ref("");
 const rotateAgentToConfirm = ref<Agent | null>(null);
 const issuedToken = ref("");
 const issuedAgent = ref<Agent | null>(null);
+const issuedUpdaterEnrollmentToken = ref("");
+const issuedUpdaterRootBase64 = ref("");
+const issuedUpdaterRootSha256 = ref("");
+const issuedUpdaterRootVersion = ref(0n);
+const issuedUpdaterAuthorityPublicKeyBase64 = ref("");
+const issuedUpdaterAuthorityKeyId = ref("");
+const issuedUpdaterAuthorityEpoch = ref(0n);
+const setupManagedUpdates = ref(false);
 const setupContext = ref<"create" | "rotate">("create");
 const setupManagementUrl = ref(defaultManagementUrl());
 const setupManagementCAFile = ref("");
@@ -228,11 +245,17 @@ const setupAgentAllowTargets = ref("");
 const setupAgentAllowAnyTarget = ref(false);
 const setupReleaseRepository = ref(defaultReleaseRepository());
 const setupReleaseVersion = ref(defaultReleaseVersion());
+const setupInstallerPath = ref(DEFAULT_LOCAL_INSTALLER_PATH);
+const setupAgentBinaryPath = ref(DEFAULT_LOCAL_AGENT_BINARY_PATH);
 const setupDockerImage = ref(defaultDockerImage(setupReleaseRepository.value, setupReleaseVersion.value));
 const setupDockerImageTouched = ref(false);
 const setupTab = ref<"install" | "docker" | "cli">("install");
 const setupCopyLabel = ref("Copy");
 const setupSnippetWasCopied = ref(false);
+const issuedTokenWasCopied = ref(false);
+const issuedUpdaterTokenWasCopied = ref(false);
+const issuedTokenCopyLabel = ref("Copy token");
+const issuedUpdaterTokenCopyLabel = ref("Copy token");
 const setupAdvancedOpen = ref(false);
 const uninstallAgent = ref<Agent | null>(null);
 const uninstallReleaseRepository = ref(defaultReleaseRepository());
@@ -246,6 +269,10 @@ const normalizedManagementUrl = computed(() => normalizeSetupManagementUrl(setup
 const managementUsesTLS = computed(() => normalizedManagementUrl.value.toLowerCase().startsWith("https://"));
 const agentClientCertificateRequired = computed(() => Boolean(managementSecurity.value?.agentClientCertificateRequired));
 const setupIsRotation = computed(() => setupContext.value === "rotate");
+const setupCredentialCopyComplete = computed(() => setupTab.value !== "install" || (
+  issuedTokenWasCopied.value && (!setupManagedUpdates.value || !issuedUpdaterEnrollmentToken.value || issuedUpdaterTokenWasCopied.value)
+));
+const setupHandoffComplete = computed(() => setupSnippetWasCopied.value && setupCredentialCopyComplete.value);
 const setupModalTitle = computed(() => setupIsRotation.value ? "Agent Reinstall" : "Agent Setup");
 const setupLinuxTabLabel = computed(() => setupIsRotation.value ? "Linux reinstall" : "Linux install");
 const setupTabOptions = computed<Array<{ value: "install" | "docker" | "cli"; label: string }>>(() => [
@@ -1052,28 +1079,53 @@ async function deleteAgent(agent: Agent) {
 function clearIssuedToken() {
   issuedToken.value = "";
   issuedAgent.value = null;
+  issuedUpdaterEnrollmentToken.value = "";
+  issuedUpdaterRootBase64.value = "";
+  issuedUpdaterRootSha256.value = "";
+  issuedUpdaterRootVersion.value = 0n;
+  issuedUpdaterAuthorityPublicKeyBase64.value = "";
+  issuedUpdaterAuthorityKeyId.value = "";
+  issuedUpdaterAuthorityEpoch.value = 0n;
+  setupManagedUpdates.value = false;
   setupContext.value = "create";
   setupSnippetWasCopied.value = false;
+  issuedTokenWasCopied.value = false;
+  issuedUpdaterTokenWasCopied.value = false;
+  issuedTokenCopyLabel.value = "Copy token";
+  issuedUpdaterTokenCopyLabel.value = "Copy token";
   setupAdvancedOpen.value = false;
   setupCopyLabel.value = setupCopyActionLabel();
 }
 
 async function requestClearIssuedToken() {
-  if (issuedToken.value && !setupSnippetWasCopied.value) {
+	if (issuedToken.value && !setupHandoffComplete.value) {
+		const missing = [
+			!setupSnippetWasCopied.value ? "setup command" : "",
+			setupTab.value === "install" && !issuedTokenWasCopied.value ? "agent token" : "",
+			setupTab.value === "install" && setupManagedUpdates.value && issuedUpdaterEnrollmentToken.value && !issuedUpdaterTokenWasCopied.value ? "updater token" : "",
+		].filter(Boolean).join(", ");
     const confirmed = await discardSetupDialog.confirm(
       "Close Without Copying?",
-      "This setup command contains a one-time token that cannot be shown again. Closing now will permanently discard it.",
-      "Discard Token",
+			`The ${missing} ${missing.includes(",") ? "have" : "has"} not been copied. Closing now permanently discards the one-time credentials.`,
+			"Discard Credentials",
     );
     if (!confirmed) return;
   }
   clearIssuedToken();
 }
 
-function openSetupModal(agent: Agent | null, token: string, context: "create" | "rotate" = "create") {
+function openSetupModal(agent: Agent | null, token: string, context: "create" | "rotate" = "create", updater?: Pick<CreatedAgentSetup, "updaterEnrollmentToken" | "updaterTrustedRootMetadataBase64" | "updaterPinnedRepository" | "updaterTrustedRootSha256" | "updaterTrustedRootVersion" | "updaterManagementAuthorityPublicKeyBase64" | "updaterManagementAuthorityKeyId" | "updaterManagementAuthorityEpoch">) {
   if (!agent || !token) return;
   issuedAgent.value = agent;
   issuedToken.value = token;
+  issuedUpdaterEnrollmentToken.value = updater?.updaterEnrollmentToken ?? "";
+  issuedUpdaterRootBase64.value = updater?.updaterTrustedRootMetadataBase64 ?? "";
+  issuedUpdaterRootSha256.value = updater?.updaterTrustedRootSha256 ?? "";
+  issuedUpdaterRootVersion.value = updater?.updaterTrustedRootVersion ?? 0n;
+  issuedUpdaterAuthorityPublicKeyBase64.value = updater?.updaterManagementAuthorityPublicKeyBase64 ?? "";
+  issuedUpdaterAuthorityKeyId.value = updater?.updaterManagementAuthorityKeyId ?? "";
+  issuedUpdaterAuthorityEpoch.value = updater?.updaterManagementAuthorityEpoch ?? 0n;
+  setupManagedUpdates.value = Boolean(issuedUpdaterEnrollmentToken.value && issuedUpdaterRootBase64.value && issuedUpdaterAuthorityPublicKeyBase64.value && issuedUpdaterAuthorityKeyId.value && issuedUpdaterAuthorityEpoch.value > 0n && context === "create");
   setupContext.value = context;
   setupManagementUrl.value = defaultManagementUrl();
   setupManagementCAFile.value = "";
@@ -1082,18 +1134,24 @@ function openSetupModal(agent: Agent | null, token: string, context: "create" | 
   setupAllowInsecureManagement.value = false;
   setupAgentAllowTargets.value = "";
   setupAgentAllowAnyTarget.value = false;
-  setupReleaseRepository.value = defaultReleaseRepository();
+  setupReleaseRepository.value = updater?.updaterPinnedRepository || defaultReleaseRepository();
   setupReleaseVersion.value = defaultReleaseVersion();
+  setupInstallerPath.value = DEFAULT_LOCAL_INSTALLER_PATH;
+  setupAgentBinaryPath.value = DEFAULT_LOCAL_AGENT_BINARY_PATH;
   setupDockerImage.value = defaultDockerImage(setupReleaseRepository.value, setupReleaseVersion.value);
   setupDockerImageTouched.value = false;
   setupTab.value = "install";
   setupSnippetWasCopied.value = false;
+  issuedTokenWasCopied.value = false;
+  issuedUpdaterTokenWasCopied.value = false;
+  issuedTokenCopyLabel.value = "Copy token";
+  issuedUpdaterTokenCopyLabel.value = "Copy token";
   setupAdvancedOpen.value = !managementUsesTLS.value || agentClientCertificateRequired.value;
   setupCopyLabel.value = setupCopyActionLabel();
 }
 
-function handleAgentCreated(payload: { agent: Agent | null; token: string }) {
-  openSetupModal(payload.agent, payload.token);
+function handleAgentCreated(payload: CreatedAgentSetup) {
+  openSetupModal(payload.agent, payload.token, "create", payload);
 }
 
 function defaultManagementUrl(): string {
@@ -1118,11 +1176,12 @@ function defaultReleaseRepository(): string {
 
 function defaultReleaseVersion(): string {
   const configured = import.meta.env.VITE_RELEASE_REF;
-  if (typeof configured !== "string") return "latest";
-  const version = configured.trim();
+  const version = typeof configured === "string" ? configured.trim() : "";
   if (version === "staging" || /^v\d+\.\d+\.\d+$/.test(version)) {
     return version;
   }
+  const runningVersion = status.value?.version?.trim() ?? "";
+  if (/^v\d+\.\d+\.\d+$/.test(runningVersion)) return runningVersion;
   return "latest";
 }
 
@@ -1163,10 +1222,18 @@ function setupSnippetInput() {
     managementUrl: normalizedManagementUrl.value,
     agentId: issuedAgent.value?.publicId ?? "",
     agentToken: issuedToken.value,
+    updaterEnrollmentToken: issuedUpdaterEnrollmentToken.value,
+    agentUpdateRootBase64: issuedUpdaterRootBase64.value,
+    agentUpdateAuthorityPublicKeyBase64: issuedUpdaterAuthorityPublicKeyBase64.value,
+    agentUpdateAuthorityKeyId: issuedUpdaterAuthorityKeyId.value,
+    agentUpdateAuthorityEpoch: issuedUpdaterAuthorityEpoch.value,
+    enableManagedUpdates: setupManagedUpdates.value && setupTab.value === "install",
     repository: setupReleaseRepository.value,
     version: setupReleaseVersion.value,
     scriptRef: installerScriptRef(),
     dockerImage: setupDockerImage.value,
+    installerPath: setupInstallerPath.value,
+    agentBinaryPath: setupAgentBinaryPath.value,
     allowTargets: setupAgentAllowAnyTarget.value ? [] : splitSetupAgentAllowTargets(setupAgentAllowTargets.value),
     allowAnyTarget: setupAgentAllowAnyTarget.value,
     tls: {
@@ -1197,6 +1264,27 @@ async function copySetupSnippet() {
   } catch {
     setupCopyLabel.value = "Select command";
     setupSnippetWasCopied.value = false;
+  }
+}
+
+async function copyIssuedCredential(value: string, kind: "agent" | "updater") {
+  try {
+    await navigator.clipboard.writeText(value);
+    if (kind === "agent") {
+      issuedTokenWasCopied.value = true;
+      issuedTokenCopyLabel.value = "Copied";
+    } else {
+      issuedUpdaterTokenWasCopied.value = true;
+      issuedUpdaterTokenCopyLabel.value = "Copied";
+    }
+  } catch {
+    if (kind === "agent") {
+      issuedTokenWasCopied.value = false;
+      issuedTokenCopyLabel.value = "Select token";
+    } else {
+      issuedUpdaterTokenWasCopied.value = false;
+      issuedUpdaterTokenCopyLabel.value = "Select token";
+    }
   }
 }
 
@@ -1556,16 +1644,23 @@ async function copyUninstallSnippet() {
           </div>
         </div>
 
-        <NAlert :type="setupSnippetWasCopied ? 'success' : 'warning'" :show-icon="false">
-          {{ setupSnippetWasCopied
-            ? 'Setup command copied. Keep it secure; it contains the one-time token.'
-            : 'This token is shown once. Copy the setup command before closing this dialog.' }}
+		<NAlert :type="setupHandoffComplete ? 'success' : 'warning'" :show-icon="false">
+		  {{ setupHandoffComplete
+            ? setupTab === 'install'
+			  ? 'Command and required credentials copied. Run the command, then paste each token only into its matching hidden prompt.'
+              : 'Setup command copied. Keep it secure; this configuration contains one-time credentials.'
+			: setupTab === 'install'
+			  ? 'These credentials are shown once. Copy the command and every required token before closing this dialog.'
+			  : 'This setup is shown once. Copy it before closing this dialog.' }}
         </NAlert>
 
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          One-Time Token
-          <code class="flow-box wrap-anywhere round-md framed frame-standard muted-bg pad-md mono-text copy-xs base-text">{{ issuedToken }}</code>
-        </label>
+		<div class="layout-grid space-xs">
+		  <div class="agent-credential-heading layout-row align-center space-sm">
+			<span class="copy-xs weight-medium label-case letter-wide muted-text">One-Time Agent Token</span>
+			<NButton size="tiny" secondary attr-type="button" @click="copyIssuedCredential(issuedToken, 'agent')">{{ issuedTokenCopyLabel }}</NButton>
+		  </div>
+		  <code class="flow-box wrap-anywhere round-md framed frame-standard muted-bg pad-md mono-text copy-xs base-text">{{ issuedToken }}</code>
+		</div>
 
         <div v-if="setupIsRotation" class="round-md framed frame-standard muted-bg pad-md copy-xs line-normal base-text">
           <p class="weight-semibold label-case letter-wide">Existing Linux agent</p>
@@ -1590,6 +1685,32 @@ async function copyUninstallSnippet() {
           <p v-if="setupIsRotation && setupTab === 'install'" class="margin-top-xs copy-xs line-normal muted-text">
             A Linux reinstall preserves an existing explicit value in <code>/etc/p2pstream/agent.env</code>; remove that line to return an older fixed installation to adaptive mode.
           </p>
+        </div>
+
+        <div v-if="issuedUpdaterEnrollmentToken && issuedUpdaterRootBase64 && !setupIsRotation" class="round-md framed frame-standard muted-bg pad-md">
+          <div class="layout-row align-center space-sm">
+            <NTag size="small" :bordered="false" :type="setupManagedUpdates ? 'success' : 'default'">Managed updates</NTag>
+            <span class="copy-xs weight-semibold base-text">Linux/systemd only</span>
+          </div>
+          <NCheckbox v-model:checked="setupManagedUpdates" class="margin-top-md">
+            Enroll this host for signed route-aware updates
+          </NCheckbox>
+          <p class="margin-top-xs copy-xs line-normal muted-text">
+            Uses a separate single-use updater identity. The tunnel token cannot approve updates, and future releases do not require token rotation.
+          </p>
+          <p class="margin-top-xs copy-xs line-normal muted-text">
+            Pinned root v{{ issuedUpdaterRootVersion }} · <code>{{ issuedUpdaterRootSha256.slice(0, 12) }}…{{ issuedUpdaterRootSha256.slice(-10) }}</code>
+          </p>
+          <p class="margin-top-xs copy-xs line-normal muted-text">
+            Management authority epoch {{ issuedUpdaterAuthorityEpoch }} · <code>{{ issuedUpdaterAuthorityKeyId.slice(0, 12) }}…{{ issuedUpdaterAuthorityKeyId.slice(-10) }}</code>
+          </p>
+		  <div v-if="setupManagedUpdates" class="layout-grid space-xs margin-top-md">
+			<div class="agent-credential-heading layout-row align-center space-sm">
+			  <span class="copy-xs weight-medium label-case letter-wide muted-text">Updater Enrollment Token</span>
+			  <NButton size="tiny" secondary attr-type="button" @click="copyIssuedCredential(issuedUpdaterEnrollmentToken, 'updater')">{{ issuedUpdaterTokenCopyLabel }}</NButton>
+			</div>
+			<code class="flow-box wrap-anywhere round-md framed frame-standard base-bg pad-md mono-text copy-xs base-text">{{ issuedUpdaterEnrollmentToken }}</code>
+		  </div>
         </div>
 
         <details class="agent-advanced-options" :open="setupAdvancedOpen" @toggle="handleSetupAdvancedToggle">
@@ -1633,7 +1754,16 @@ async function copyUninstallSnippet() {
               </label>
               <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Release Version
-                <NInput v-model:value="setupReleaseVersion" size="small" placeholder="latest, staging, or vX.Y.Z" required />
+                <NInput v-model:value="setupReleaseVersion" size="small" placeholder="vX.Y.Z" required />
+                <small v-if="setupTab === 'install'" class="normal-text line-normal letter-normal">Linux requires an exact stable vX.Y.Z; latest and staging are rejected.</small>
+              </label>
+              <label v-if="setupTab === 'install'" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Pinned Installer File
+                <NInput v-model:value="setupInstallerPath" size="small" placeholder="/path/to/p2pstream-install-agent.sh" required />
+              </label>
+              <label v-if="setupTab === 'install'" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+                Pinned Raw Agent Binary
+                <NInput v-model:value="setupAgentBinaryPath" size="small" placeholder="/path/to/p2pstream-agent-vX.Y.Z-linux-amd64" required />
               </label>
               <label v-if="setupTab === 'docker'" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Docker Image
@@ -1692,11 +1822,15 @@ async function copyUninstallSnippet() {
           />
         </NTabs>
 
+        <p v-if="setupTab === 'install'" class="copy-xs line-normal muted-text">
+          Linux setup runs only a locally supplied, independently pinned installer and raw binary. Remote scripts are never piped into root, and the displayed token is entered through a hidden prompt instead of shell arguments.
+        </p>
+
         <p v-if="setupSnippetError" class="error-panel pad-md copy-xs line-normal">{{ setupSnippetError }}</p>
         <pre v-else class="max-height-md scroll-any round-md framed frame-standard muted-bg pad-lg copy-xs line-normal base-text"><code>{{ setupSnippet }}</code></pre>
 
         <p class="visually-hidden" aria-live="polite">
-          {{ setupSnippetWasCopied ? 'Setup command copied.' : '' }}
+		  {{ setupHandoffComplete ? 'Setup command and required credentials copied.' : '' }}
         </p>
         <div class="layout-row layout-column-reverse space-md mq-sm-row mq-sm-end">
           <NButton secondary attr-type="button" @click="requestClearIssuedToken">Done</NButton>
@@ -1708,6 +1842,10 @@ async function copyUninstallSnippet() {
 </template>
 
 <style>
+.agent-credential-heading {
+  justify-content: space-between;
+}
+
 .agent-page__header {
   display: flex;
   flex-direction: column;

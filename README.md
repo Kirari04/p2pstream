@@ -109,6 +109,10 @@ Full self-hosting and operations documentation is available at <https://kirari04
 
 Create an agent from **Agents** in the management UI. The **Agent Setup** modal gives you an `AGENT_ID` and one-time `AGENT_TOKEN`, then provides Linux install, Docker Compose, and CLI snippets.
 
+Linux setup requires an exact stable `vX.Y.Z`, a locally supplied versioned installer, and a locally supplied raw agent binary. Verify those files independently before running the generated command; the installer never pipes mutable repository code into root or downloads executable content.
+
+Linux/systemd agents can also enroll in **Agents → Updates**. Enrollment uses a separate short-lived updater token and does not rotate or expose the tunnel token. Managed campaigns verify threshold-signed immutable releases, stage without draining traffic, preserve route quorum while activating, require a root-helper artifact attestation plus a fresh exact-build tunnel, and automatically roll back locally when activation fails. See [Managed agent updates](docs/operations/managed-agent-updates.md).
+
 Agents connect through `MANAGEMENT_URL`, usually `https://your-server:8081`. The server's `MANAGEMENT_PUBLIC_URL` supplies that URL to generated setup snippets. If p2pstream generated the management TLS certificate, use the CA material from the **Agent Setup** modal so the agent can verify management HTTPS.
 
 For shell-installed agents, uninstall and full-purge commands are documented in the [systemd operations guide](https://kirari04.github.io/p2pstream/operations/systemd#uninstall-agent).
@@ -132,7 +136,7 @@ Development happens on the `dev` branch. Open normal feature and dependency PRs 
 
 ## Releases
 
-GitHub Actions verifies the project and publishes release artifacts by channel. The `staging` branch updates the mutable `staging` GitHub prerelease, Linux `amd64` and `arm64` binary archives, checksums, source archive, and `ghcr.io/kirari04/p2pstream:staging` image tags. The `main` branch is release-only; merging `staging` into `main` rebuilds the final stable release, creates the next patch tag, publishes `latest`, and attaches stable Linux binary archives plus `checksums.txt`.
+GitHub Actions verifies the project and publishes release artifacts by channel. The `staging` branch updates the mutable `staging` GitHub prerelease, Linux `amd64` and `arm64` binary archives, checksums, source archive, and `ghcr.io/kirari04/p2pstream:staging` image tags. Stable publishing from `main` is a manual prepare/sign/publish ceremony: CI prepares one exact draft and candidate image, independent offline keys threshold-sign the complete artifact inventory and content-addressed OCI index, and a protected publish phase verifies the unchanged candidate before creating immutable version/commit aliases and finally moving `latest`. Production signing private keys never enter GitHub Actions.
 
 A scheduled nightly workflow builds the current `dev` branch and publishes the Docker-only `ghcr.io/kirari04/p2pstream:nightly` tag. Nightly images are for development validation and should not be used as repeatable production pins.
 

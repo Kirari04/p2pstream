@@ -68,7 +68,34 @@ var serverCmd = &cobra.Command{
 		}
 		defer database.Close()
 
-		app := server.NewApp(cfg, database)
+		app, err := server.NewAppWithError(cfg, database)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize server application")
+		}
+		if cfg.AgentUpdatesEnabled {
+			authority, authorityErr := server.InitializeAgentUpdateManagementAuthority(context.Background(), database, cfg.AgentUpdateAuthorityKeyFile)
+			app.SetAgentUpdateManagementAuthority(authority, authorityErr)
+			if authorityErr != nil {
+				log.Error().Err(authorityErr).Msg("Managed update authority unavailable; reverse proxy remains available but managed update enrollment and progression are disabled")
+			}
+		}
+		updateCatalog, err := newAgentUpdateCatalog(cfg)
+		if err != nil {
+			// Release trust is an update-control dependency, not a reverse-proxy
+			// dependency. Keep serving existing traffic while every managed-update
+			// entry point remains fail closed without a catalog/bootstrap provider.
+			log.Error().Err(err).Msg("Trusted agent update catalog unavailable; reverse proxy remains available but managed update enrollment and campaign creation are disabled")
+			updateCatalog = nil
+		}
+		app.TrustedAgentUpdates = updateCatalog
+		app.AgentUpdateBootstrap = updateCatalog
+		if updateCatalog != nil {
+			primeCtx, cancelPrime := context.WithTimeout(context.Background(), time.Duration(cfg.AgentUpdateHTTPTimeoutMillis)*time.Millisecond)
+			if err := primeAgentUpdateCatalog(primeCtx, updateCatalog); err != nil {
+				log.Warn().Err(err).Msg("Trusted agent update catalog is temporarily unavailable; campaign creation remains fail-closed")
+			}
+			cancelPrime()
+		}
 		defer app.CloseAgentTransports()
 		defer func() {
 			if err := app.ClosePublicGeoRuntime(); err != nil {
@@ -115,6 +142,7 @@ var serverCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		app.StartAdaptiveTunnelCapacity(ctx)
+		app.StartAgentUpdateMaintenance(ctx)
 		app.StartObservabilityMaintenance(ctx)
 		app.StartPublicGeoMaintenance(ctx)
 

@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"p2pstream/internal/db/migrations"
 )
 
 // migrate runs Goose migrations before this file is reached, then applies legacy compatibility fixes.
@@ -25,6 +27,7 @@ type legacyMigrationStep struct {
 func (db *DB) runLegacyCompatibilityMigrations() error {
 	steps := []legacyMigrationStep{
 		{name: "base schema", run: db.ensureLegacyBaseSchema},
+		{name: "managed agent updates", run: db.migrateLegacyManagedAgentUpdates},
 		{name: "agent stats", run: db.migrateLegacyAgentStats},
 		{name: "observability", run: db.migrateLegacyObservability},
 		{name: "public TLS", run: db.migrateLegacyPublicTLS},
@@ -42,6 +45,27 @@ func (db *DB) runLegacyCompatibilityMigrations() error {
 		}
 	}
 	return nil
+}
+
+func (db *DB) migrateLegacyManagedAgentUpdates() error {
+	var exists int64
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='agent_updater_identities'`).Scan(&exists); err != nil {
+		return err
+	}
+	if exists > 0 {
+		return nil
+	}
+	data, err := migrations.FS.ReadFile("00016_managed_agent_updates.sql")
+	if err != nil {
+		return err
+	}
+	up := string(data)
+	up = strings.TrimPrefix(up, "-- +goose Up\n")
+	if index := strings.Index(up, "-- +goose Down"); index >= 0 {
+		up = up[:index]
+	}
+	_, err = db.Exec(up)
+	return err
 }
 
 func (db *DB) ensureLegacyBaseSchema() error {
