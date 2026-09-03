@@ -73,6 +73,7 @@ func runVerifyRelease(arguments []string) error {
 	expectedVersion := flags.String("expected-version", "", "exact expected release version")
 	expectedCommit := flags.String("expected-commit", "", "exact expected release commit")
 	expectedSequence := flags.Uint64("expected-sequence", 0, "exact expected release sequence")
+	expectedChannel := flags.String("expected-channel", "stable", "exact expected release channel")
 	serverVersion := flags.String("server-version", "", "management server version used for compatibility verification")
 	protocolVersion := flags.Uint("protocol-version", 0, "tunnel protocol used for compatibility verification")
 	verificationTime := flags.String("now", "", "verification time as RFC3339; defaults to current UTC time")
@@ -113,7 +114,7 @@ func runVerifyRelease(arguments []string) error {
 	}
 	verified, err := agentupdate.VerifyCatalog(manifestJSON, signatureJSON, root, agentupdate.CatalogVerifyPolicy{
 		Now:             now,
-		RequiredChannel: "stable",
+		RequiredChannel: *expectedChannel,
 		ServerVersion:   *serverVersion,
 		ProtocolVersion: uint32(*protocolVersion),
 	})

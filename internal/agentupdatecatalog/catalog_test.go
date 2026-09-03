@@ -66,6 +66,40 @@ func TestCatalogAuthenticatesPersistsAndUsesBoundedStaleFallback(t *testing.T) {
 	}
 }
 
+func TestStagingCatalogPinsTheRunningImmutablePrerelease(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	bundle := newCatalogBundle(t, now, "v1.3.0-staging.17", 10300017)
+	server := newCatalogServer(t, bundle)
+	defer server.Close()
+
+	catalog, err := New(Options{
+		Repository: "owner/repo", Channel: "staging", Root: bundle.root,
+		StatePath: filepath.Join(t.TempDir(), "catalog-state.json"), RefreshInterval: 10 * time.Second,
+		HTTPClient: server.Client(), ServerVersion: bundle.tag, ProtocolVersion: 1,
+		Now: func() time.Time { return now }, APIBaseURL: server.URL, DownloadBaseURL: server.URL,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	verified, err := catalog.Latest(context.Background())
+	if err != nil {
+		t.Fatalf("Latest staging: %v", err)
+	}
+	if verified.Manifest.Channel != "staging" || verified.Manifest.Version != bundle.tag {
+		t.Fatalf("verified staging release = %+v", verified.Manifest)
+	}
+	floor, err := readFloor(catalog.options.StatePath)
+	if err != nil || floor.Channel != "staging" {
+		t.Fatalf("persisted staging floor = %+v, err=%v", floor, err)
+	}
+	if _, err := New(Options{
+		Repository: "owner/repo", Channel: "stable", Root: bundle.root, StatePath: catalog.options.StatePath,
+		RefreshInterval: 10 * time.Second, HTTPClient: server.Client(),
+	}); err == nil || !strings.Contains(err.Error(), "different release channel") {
+		t.Fatalf("cross-channel state error = %v", err)
+	}
+}
+
 func TestCatalogRejectsRollbackAcrossRestartAndInvalidLatestTag(t *testing.T) {
 	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 	statePath := filepath.Join(t.TempDir(), "catalog-state.json")
@@ -213,8 +247,12 @@ func newCatalogBundleWithKeys(t *testing.T, now time.Time, version string, seque
 			Size: uint64(len(payload)), SHA256: hex.EncodeToString(digest[:]),
 		})
 	}
+	channel := "stable"
+	if strings.Contains(version, "-") {
+		channel = "staging"
+	}
 	manifest, err := agentupdate.CanonicalManifest(agentupdate.Manifest{
-		SchemaVersion: agentupdate.SchemaVersion, Channel: "stable", RootVersion: root.Version,
+		SchemaVersion: agentupdate.SchemaVersion, Channel: channel, RootVersion: root.Version,
 		Version: version, Commit: strings.Repeat("a", 40), Sequence: sequence,
 		PublishedAt: now.Add(-time.Minute).Format(time.RFC3339), ExpiresAt: expiresAt.Format(time.RFC3339),
 		MinimumSafeVersion: "v1.0.0", SecurityEpoch: 1,
@@ -261,6 +299,8 @@ func newCatalogServer(t *testing.T, bundle catalogBundle) *catalogServer {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/releases/latest"):
 			fmt.Fprintf(w, `{"tag_name":%q}`, server.tag)
+		case strings.Contains(r.URL.Path, "/releases/tags/"):
+			fmt.Fprintf(w, `{"tag_name":%q,"draft":false,"prerelease":true}`, server.tag)
 		case strings.HasSuffix(r.URL.Path, "/p2pstream_agent_update_manifest.json"):
 			w.Write(server.manifest)
 		case strings.HasSuffix(r.URL.Path, "/p2pstream_agent_update_manifest.signatures.json"):

@@ -1,8 +1,19 @@
-name: Release
+name: Release channels
 
 on:
+  push:
+    branches:
+      - staging
   workflow_dispatch:
     inputs:
+      channel:
+        description: "Release channel. Staging must be dispatched from the staging branch; stable from main."
+        required: true
+        type: choice
+        default: stable
+        options:
+          - stable
+          - staging
       phase:
         description: "Prepare an unsigned draft, or publish it after offline threshold signing."
         required: true
@@ -11,8 +22,8 @@ on:
           - prepare
           - publish
       version:
-        description: "Exact immutable release tag, for example v0.1.50."
-        required: true
+        description: "Exact immutable tag (vX.Y.Z or vX.Y.Z-staging.N). Pushes to staging derive this automatically."
+        required: false
         type: string
 
 permissions:
@@ -20,7 +31,7 @@ permissions:
   packages: read
 
 concurrency:
-  group: release-${{ inputs.version }}
+  group: release-${{ github.event_name == 'push' && 'staging' || inputs.channel }}
   cancel-in-progress: false
 
 env:
@@ -28,8 +39,7 @@ env:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main'
-    name: Verify and resolve version
+    name: Verify and resolve release identity
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.image.outputs.image }}
@@ -37,6 +47,8 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       sequence: ${{ steps.version.outputs.sequence }}
       release_is_draft: ${{ steps.version.outputs.release_is_draft }}
+      channel: ${{ steps.version.outputs.channel }}
+      phase: ${{ steps.version.outputs.phase }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -86,21 +98,60 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          REQUESTED_CHANNEL: ${{ inputs.channel }}
+          REQUESTED_PHASE: ${{ inputs.phase }}
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
           set -Eeuo pipefail
 
           git fetch --tags --force
-          tag="${{ inputs.version }}"
-
-          if [[ ! "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "Resolved release tag is not canonical vX.Y.Z: ${tag}" >&2
+          channel="${REQUESTED_CHANNEL}"
+          phase="${REQUESTED_PHASE}"
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            channel=staging
+            phase=prepare
+          fi
+          expected_ref="refs/heads/main"
+          if [[ "$channel" == "staging" ]]; then
+            expected_ref="refs/heads/staging"
+          elif [[ "$channel" != "stable" ]]; then
+            echo "Release channel must be stable or staging" >&2
+            exit 1
+          fi
+          if [[ "$GITHUB_REF" != "$expected_ref" ]]; then
+            echo "${channel} releases must run from ${expected_ref}, not ${GITHUB_REF}" >&2
+            exit 1
+          fi
+          if [[ "$phase" != "prepare" && "$phase" != "publish" ]]; then
+            echo "Release phase must be prepare or publish" >&2
             exit 1
           fi
 
-          phase="${{ inputs.phase }}"
+          tag="${REQUESTED_VERSION}"
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            latest_tag="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | head -n 1 || true)"
+            if [[ -z "$latest_tag" ]]; then
+              echo "Cannot derive a staging prerelease without an existing stable SemVer tag" >&2
+              exit 1
+            fi
+            IFS=. read -r latest_major latest_minor latest_patch <<<"${latest_tag#v}"
+            base="v${latest_major}.${latest_minor}.$((latest_patch + 1))"
+            tag="${base}-staging.${GITHUB_RUN_NUMBER}"
+          fi
+
+          if [[ "$channel" == "stable" ]]; then
+            version_pattern='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          else
+            version_pattern='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-staging\.([1-9][0-9]*)$'
+          fi
+          if [[ ! "$tag" =~ $version_pattern ]]; then
+            echo "Resolved ${channel} tag has the wrong immutable SemVer form: ${tag}" >&2
+            exit 1
+          fi
+
           if [[ "$phase" == "prepare" ]]; then
             if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
-              echo "Stable tag ${tag} already exists; stable releases are immutable" >&2
+              echo "Release tag ${tag} already exists; releases are immutable" >&2
               exit 1
             fi
             if gh release view "${tag}" >/dev/null 2>&1; then
@@ -129,6 +180,7 @@ jobs:
           fi
 
           version="${tag#v}"
+          version="${version%%-*}"
           IFS=. read -r major minor patch <<<"$version"
           for component in "$major" "$minor" "$patch"; do
             if (( ${#component} > 6 )); then
@@ -140,11 +192,28 @@ jobs:
               exit 1
             fi
           done
-          sequence=$((major * 1000000000000 + minor * 1000000 + patch + 1))
+          if [[ "$channel" == "stable" ]]; then
+            sequence=$((major * 1000000000000 + minor * 1000000 + patch + 1))
+          else
+            ordinal="${tag##*.}"
+            for component in "$major" "$minor" "$patch"; do
+              if (( component > 9999 )); then
+                echo "Staging SemVer components must not exceed 9999" >&2
+                exit 1
+              fi
+            done
+            if (( ordinal > 99999 )); then
+              echo "Staging prerelease ordinal must not exceed 99999" >&2
+              exit 1
+            fi
+            sequence=$(((((major * 10000 + minor) * 10000 + patch) * 100000) + ordinal))
+          fi
 
           echo "tag=${tag}" >>"$GITHUB_OUTPUT"
           echo "sequence=${sequence}" >>"$GITHUB_OUTPUT"
           echo "short_sha=${GITHUB_SHA::7}" >>"$GITHUB_OUTPUT"
+          echo "channel=${channel}" >>"$GITHUB_OUTPUT"
+          echo "phase=${phase}" >>"$GITHUB_OUTPUT"
 
       - name: Set image name
         id: image
@@ -152,7 +221,7 @@ jobs:
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >>"$GITHUB_OUTPUT"
 
   binary:
-    if: github.ref == 'refs/heads/main' && inputs.phase == 'prepare'
+    if: needs.verify.outputs.phase == 'prepare'
     name: Build Linux ${{ matrix.arch }} binary
     needs: verify
     runs-on: ${{ matrix.runner }}
@@ -183,12 +252,13 @@ jobs:
         shell: bash
         env:
           TAG: ${{ needs.verify.outputs.tag }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
           ARCH: ${{ matrix.arch }}
           SOURCE_REPOSITORY: ${{ github.repository }}
         run: |
           set -Eeuo pipefail
           mkdir -p dist
-          go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${TAG} -X p2pstream/internal/buildinfo.Commit=${GITHUB_SHA} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY}" -o dist/p2pstream main.go
+          go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${TAG} -X p2pstream/internal/buildinfo.Commit=${GITHUB_SHA} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY} -X p2pstream/internal/buildinfo.Channel=${CHANNEL}" -o dist/p2pstream main.go
           chmod +x dist/p2pstream
           cp dist/p2pstream "p2pstream_${TAG}_linux_${ARCH}"
           VERSION="${TAG}" COMMIT="${GITHUB_SHA}" SOURCE_REPOSITORY="${SOURCE_REPOSITORY}" make legal-notices
@@ -207,7 +277,7 @@ jobs:
           if-no-files-found: error
 
   image:
-    if: github.ref == 'refs/heads/main' && inputs.phase == 'prepare'
+    if: needs.verify.outputs.phase == 'prepare'
     name: Build Linux ${{ matrix.arch }} image
     needs: verify
     runs-on: ${{ matrix.runner }}
@@ -249,6 +319,7 @@ jobs:
             VERSION=${{ needs.verify.outputs.tag }}
             COMMIT=${{ github.sha }}
             SOURCE_REPOSITORY=${{ github.repository }}
+            RELEASE_CHANNEL=${{ needs.verify.outputs.channel }}
             VITE_RELEASE_REPOSITORY=${{ github.repository }}
             VITE_RELEASE_REF=${{ needs.verify.outputs.tag }}
           tags: |
@@ -275,7 +346,7 @@ jobs:
           if-no-files-found: error
 
   prepare:
-    if: github.ref == 'refs/heads/main' && inputs.phase == 'prepare'
+    if: needs.verify.outputs.phase == 'prepare'
     name: Prepare unsigned draft release
     needs:
       - verify
@@ -323,6 +394,7 @@ jobs:
         shell: bash
         env:
           TAG: ${{ needs.verify.outputs.tag }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
         run: |
           set -Eeuo pipefail
           mkdir -p dist/assets
@@ -414,7 +486,7 @@ jobs:
           (cd dist/assets && sha256sum p2pstream_* >checksums.txt)
 
           go run ./cmd/agentupdate-manifest create \
-            --channel stable \
+            --channel "${CHANNEL}" \
             --root "${root}" \
             --version "${TAG}" \
             --commit "${GITHUB_SHA}" \
@@ -449,12 +521,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.verify.outputs.tag }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
           SHORT_SHA: ${{ needs.verify.outputs.short_sha }}
         run: |
           set -Eeuo pipefail
 
           printf -v notes '%s\n\n%s\n\n%s' \
-            "Unsigned p2pstream release candidate ${TAG} for commit ${SHORT_SHA}." \
+            "Unsigned p2pstream ${CHANNEL} release candidate ${TAG} for commit ${SHORT_SHA}." \
             "This draft is not a trusted agent update until independent offline signers approve the exact manifest and the publish phase verifies their threshold envelope." \
             "p2pstream is licensed under AGPL-3.0-or-later. Corresponding source is available in the p2pstream_${TAG}_source.tar.gz release asset and from the matching Git commit."
           if gh release view "$TAG" >/dev/null 2>&1; then
@@ -464,7 +537,7 @@ jobs:
           gh release create "$TAG" dist/assets/* --draft --target "${GITHUB_SHA}" --title "$TAG" --notes "$notes"
 
   publish:
-    if: github.ref == 'refs/heads/main' && inputs.phase == 'publish'
+    if: needs.verify.outputs.phase == 'publish'
     name: Verify offline quorum and publish
     needs:
       - verify
@@ -488,6 +561,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.verify.outputs.tag }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
         run: |
           set -Eeuo pipefail
           mkdir -p dist/assets
@@ -570,6 +644,7 @@ jobs:
         shell: bash
         env:
           TAG: ${{ needs.verify.outputs.tag }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
           RELEASE_SEQUENCE: ${{ needs.verify.outputs.sequence }}
           GH_TOKEN: ${{ github.token }}
           ROOT_METADATA_BASE64: ${{ vars.AGENT_UPDATE_ROOT_METADATA_BASE64 }}
@@ -590,6 +665,7 @@ jobs:
             --root dist/assets/p2pstream_agent_update_root.json \
             --signatures dist/assets/p2pstream_agent_update_manifest.signatures.json \
             --expected-version "${TAG}" \
+            --expected-channel "${CHANNEL}" \
             --expected-commit "${target_commit}" \
             --expected-sequence "${RELEASE_SEQUENCE}" \
             --server-version "${TAG}" \
@@ -627,6 +703,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           IMAGE: ${{ needs.verify.outputs.image }}
           TAG: ${{ needs.verify.outputs.tag }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
         run: |
           set -Eeuo pipefail
           target_commit="$(gh release view "${TAG}" --json targetCommitish --jq .targetCommitish)"
@@ -653,35 +730,49 @@ jobs:
               || { echo "Published image alias ${IMAGE}:${alias} did not resolve to signed ${expected}" >&2; exit 1; }
           }
           ensure_alias "${TAG}-linux-amd64" "${amd64_digest}" false
-          ensure_alias "sha-${short_sha}-linux-amd64" "${amd64_digest}" false
           ensure_alias "${TAG}-linux-arm64" "${arm64_digest}" false
-          ensure_alias "sha-${short_sha}-linux-arm64" "${arm64_digest}" false
           ensure_alias "${TAG}" "${index_digest}" true
-          ensure_alias "sha-${short_sha}" "${index_digest}" true
+          if [[ "${CHANNEL}" == "stable" ]]; then
+            ensure_alias "sha-${short_sha}-linux-amd64" "${amd64_digest}" false
+            ensure_alias "sha-${short_sha}-linux-arm64" "${arm64_digest}" false
+            ensure_alias "sha-${short_sha}" "${index_digest}" true
+          else
+            ensure_alias "staging-sha-${short_sha}-linux-amd64" "${amd64_digest}" false
+            ensure_alias "staging-sha-${short_sha}-linux-arm64" "${arm64_digest}" false
+            ensure_alias "staging-sha-${short_sha}" "${index_digest}" true
+          fi
 
-      - name: Publish immutable stable release
+      - name: Publish immutable release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.verify.outputs.tag }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
           RELEASE_IS_DRAFT: ${{ needs.verify.outputs.release_is_draft }}
         run: |
           set -Eeuo pipefail
-          if [[ "${RELEASE_IS_DRAFT}" == "true" ]]; then
+          if [[ "${CHANNEL}" == "staging" ]]; then
+            gh release edit "${TAG}" --draft=false --prerelease
+          elif [[ "${RELEASE_IS_DRAFT}" == "true" ]]; then
             gh release edit "${TAG}" --draft=false --latest
           else
             gh release edit "${TAG}" --latest
           fi
 
-      - name: Move latest image alias to the published release
+      - name: Move channel image alias to the published release
         shell: bash
         env:
           IMAGE: ${{ needs.verify.outputs.image }}
           TAG: ${{ needs.verify.outputs.tag }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
         run: |
           set -Eeuo pipefail
           index_digest="sha256:$(sha256sum dist/registry-image-index.json | cut -d' ' -f1)"
-          docker buildx imagetools create -t "${IMAGE}:latest" "${IMAGE}@${index_digest}"
-          latest_digest="$(docker buildx imagetools inspect "${IMAGE}:latest" --format '{{json .Manifest}}' | jq -er '.digest')"
-          [[ "${latest_digest}" == "${index_digest}" ]] \
-            || { echo "Latest image alias did not resolve to the published signed index" >&2; exit 1; }
+          alias=latest
+          if [[ "${CHANNEL}" == "staging" ]]; then
+            alias=staging
+          fi
+          docker buildx imagetools create -t "${IMAGE}:${alias}" "${IMAGE}@${index_digest}"
+          alias_digest="$(docker buildx imagetools inspect "${IMAGE}:${alias}" --format '{{json .Manifest}}' | jq -er '.digest')"
+          [[ "${alias_digest}" == "${index_digest}" ]] \
+            || { echo "Channel image alias did not resolve to the published signed index" >&2; exit 1; }

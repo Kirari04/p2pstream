@@ -564,6 +564,7 @@ message GetStatusResponse {
   ProxyStatus proxy = 6;
   string version = 7;
   string commit = 8;
+  string release_channel = 9;
 }
 
 message ProxyStatus {

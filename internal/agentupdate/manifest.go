@@ -16,9 +16,10 @@ import (
 	"io"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
+
+	"p2pstream/internal/releaseversion"
 )
 
 const (
@@ -38,12 +39,11 @@ const (
 const signatureDomain = "p2pstream-agent-update-manifest-v1\x00"
 
 var (
-	stableVersionRE = regexp.MustCompile(`^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
-	commitRE        = regexp.MustCompile(`^[0-9a-f]{40}$`)
-	tokenRE         = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,31}$`)
-	assetNameRE     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
-	keyIDRE         = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	digestRE        = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	commitRE    = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	tokenRE     = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,31}$`)
+	assetNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
+	keyIDRE     = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	digestRE    = regexp.MustCompile(`^[0-9a-f]{64}$`)
 )
 
 // RootMetadata is an out-of-band trust anchor. Version lets callers enforce a
@@ -466,7 +466,7 @@ func validateManifest(manifest Manifest) error {
 	if manifest.RootVersion == 0 {
 		return errors.New("root version must be positive")
 	}
-	if err := validateStableVersion(manifest.Version); err != nil {
+	if err := validateChannelVersion(manifest.Version, manifest.Channel); err != nil {
 		return fmt.Errorf("invalid version: %w", err)
 	}
 	if !commitRE.MatchString(manifest.Commit) {
@@ -489,7 +489,7 @@ func validateManifest(manifest Manifest) error {
 	if err := validateStableVersion(manifest.MinimumSafeVersion); err != nil {
 		return fmt.Errorf("invalid minimum safe version: %w", err)
 	}
-	if compareStableVersions(manifest.Version, manifest.MinimumSafeVersion) < 0 {
+	if releaseversion.Compare(manifest.Version, manifest.MinimumSafeVersion) < 0 {
 		return errors.New("version is below minimum safe version")
 	}
 	if manifest.SecurityEpoch == 0 {
@@ -623,38 +623,27 @@ func validateVersionRange(versionRange VersionRange) error {
 	if err := validateStableVersion(versionRange.Max); err != nil {
 		return err
 	}
-	if compareStableVersions(versionRange.Min, versionRange.Max) > 0 {
+	if releaseversion.Compare(versionRange.Min, versionRange.Max) > 0 {
 		return errors.New("minimum version exceeds maximum version")
 	}
 	return nil
 }
 
 func validateStableVersion(version string) error {
-	if len(version) > 32 || !stableVersionRE.MatchString(version) {
+	if !releaseversion.Stable(version) {
 		return errors.New("version must be canonical vX.Y.Z")
-	}
-	for _, component := range stableVersionRE.FindStringSubmatch(version)[1:] {
-		if _, err := strconv.ParseUint(component, 10, 64); err != nil {
-			return errors.New("version component overflows uint64")
-		}
 	}
 	return nil
 }
 
-func compareStableVersions(a, b string) int {
-	aParts := stableVersionRE.FindStringSubmatch(a)
-	bParts := stableVersionRE.FindStringSubmatch(b)
-	for index := 1; index <= 3; index++ {
-		aValue, _ := strconv.ParseUint(aParts[index], 10, 64)
-		bValue, _ := strconv.ParseUint(bParts[index], 10, 64)
-		if aValue < bValue {
-			return -1
-		}
-		if aValue > bValue {
-			return 1
-		}
+func validateChannelVersion(version, channel string) error {
+	if releaseversion.ValidForChannel(version, channel) {
+		return nil
 	}
-	return 0
+	if channel == releaseversion.ChannelStaging {
+		return errors.New("staging version must be a canonical SemVer prerelease")
+	}
+	return errors.New("stable version must be canonical vX.Y.Z")
 }
 
 func parseTimestamp(value string) (time.Time, error) {

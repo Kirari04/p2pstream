@@ -89,6 +89,10 @@ var updaterBootstrapHostCmd = &cobra.Command{
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		channel := os.Getenv("P2PSTREAM_AGENT_UPDATE_CHANNEL")
+		if channel == "" {
+			channel = "stable"
+		}
 		origin, err := updater.ManagementOrigin(os.Getenv("MANAGEMENT_URL"))
 		if err != nil {
 			return err
@@ -110,7 +114,7 @@ var updaterBootstrapHostCmd = &cobra.Command{
 			UpdaterUser: updater.DefaultUpdaterUser,
 			Config: updater.HostConfig{
 				Repository: os.Getenv("P2PSTREAM_REPOSITORY"), ManagementOrigin: origin,
-				AgentPublicID: os.Getenv("AGENT_ID"), Channel: "stable",
+				AgentPublicID: os.Getenv("AGENT_ID"), Channel: channel,
 			},
 			EnrollmentToken:       os.Getenv("P2PSTREAM_UPDATER_ENROLLMENT_TOKEN"),
 			TrustedRootJSON:       trustedRoot,

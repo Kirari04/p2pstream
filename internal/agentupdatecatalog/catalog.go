@@ -1,5 +1,6 @@
-// Package agentupdatecatalog resolves the latest stable agent release from a
-// fixed GitHub repository and authenticates it against an out-of-band root.
+// Package agentupdatecatalog resolves the release selected by a pinned update
+// channel from a fixed GitHub repository and authenticates it against an
+// out-of-band root.
 // Network responses can select only signed metadata; they can never introduce
 // a download URL, command, or artifact digest.
 package agentupdatecatalog
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"p2pstream/internal/agentupdate"
+	"p2pstream/internal/releaseversion"
 )
 
 const (
@@ -29,12 +31,12 @@ const (
 
 var (
 	repositoryRE = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
-	versionRE    = regexp.MustCompile(`^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 	digestRE     = regexp.MustCompile(`^[0-9a-f]{64}$`)
 )
 
 type Options struct {
 	Repository      string
+	Channel         string
 	Root            agentupdate.RootMetadata
 	StatePath       string
 	RefreshInterval time.Duration
@@ -62,6 +64,7 @@ type persistedFloor struct {
 	MinimumSafeVersion string `json:"minimum_safe_version"`
 	ManifestSHA256     string `json:"manifest_sha256"`
 	Version            string `json:"version"`
+	Channel            string `json:"channel,omitempty"`
 }
 
 type Catalog struct {
@@ -86,6 +89,12 @@ func New(options Options) (*Catalog, error) {
 	if options.HTTPClient == nil {
 		return nil, errors.New("agent update catalog HTTP client is required")
 	}
+	if options.Channel == "" {
+		options.Channel = releaseversion.ChannelStable
+	}
+	if options.Channel != releaseversion.ChannelStable && options.Channel != releaseversion.ChannelStaging {
+		return nil, errors.New("agent update catalog channel must be stable or staging")
+	}
 	if options.Now == nil {
 		options.Now = time.Now
 	}
@@ -106,6 +115,15 @@ func New(options Options) (*Catalog, error) {
 	floor, err := readFloor(options.StatePath)
 	if err != nil {
 		return nil, err
+	}
+	if floor.Sequence != 0 {
+		floorChannel := floor.Channel
+		if floorChannel == "" {
+			floorChannel = releaseversion.ChannelStable
+		}
+		if floorChannel != options.Channel {
+			return nil, errors.New("agent update catalog state belongs to a different release channel")
+		}
 	}
 	catalog.floor = floor
 	return catalog, nil
@@ -151,7 +169,7 @@ func (c *Catalog) Snapshot() Snapshot {
 }
 
 func (c *Catalog) refreshLocked(ctx context.Context, now time.Time) (*agentupdate.VerifiedCatalog, error) {
-	tag, err := c.fetchLatestTag(ctx)
+	tag, err := c.fetchTargetTag(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +183,7 @@ func (c *Catalog) refreshLocked(ctx context.Context, now time.Time) (*agentupdat
 	}
 	verified, err := agentupdate.VerifyCatalog(manifestJSON, signatureJSON, c.options.Root, agentupdate.CatalogVerifyPolicy{
 		Now:                       now,
-		RequiredChannel:           "stable",
+		RequiredChannel:           c.options.Channel,
 		MinimumRootVersion:        c.floor.RootVersion,
 		CurrentSequence:           c.floor.Sequence,
 		CurrentSecurityEpoch:      c.floor.SecurityEpoch,
@@ -191,6 +209,7 @@ func (c *Catalog) refreshLocked(ctx context.Context, now time.Time) (*agentupdat
 		MinimumSafeVersion: verified.Manifest.MinimumSafeVersion,
 		ManifestSHA256:     verified.ManifestSHA256,
 		Version:            verified.Manifest.Version,
+		Channel:            c.options.Channel,
 	}
 	if err := writeFloor(c.options.StatePath, nextFloor); err != nil {
 		return nil, fmt.Errorf("persist agent update catalog floor: %w", err)
@@ -204,20 +223,38 @@ func (c *Catalog) refreshLocked(ctx context.Context, now time.Time) (*agentupdat
 	return verified, nil
 }
 
-func (c *Catalog) fetchLatestTag(ctx context.Context) (string, error) {
-	url := c.options.APIBaseURL + "/repos/" + c.options.Repository + "/releases/latest"
-	data, err := c.fetch(ctx, url, latestResponseLimit, "application/vnd.github+json")
+func (c *Catalog) fetchTargetTag(ctx context.Context) (string, error) {
+	endpoint := c.options.APIBaseURL + "/repos/" + c.options.Repository + "/releases/latest"
+	if c.options.Channel == releaseversion.ChannelStaging {
+		if !releaseversion.Prerelease(c.options.ServerVersion) {
+			return "", errors.New("staging catalog requires a SemVer prerelease server build")
+		}
+		endpoint = c.options.APIBaseURL + "/repos/" + c.options.Repository + "/releases/tags/" + url.PathEscape(c.options.ServerVersion)
+	}
+	data, err := c.fetch(ctx, endpoint, latestResponseLimit, "application/vnd.github+json")
 	if err != nil {
-		return "", fmt.Errorf("fetch latest stable release: %w", err)
+		return "", fmt.Errorf("fetch %s release: %w", c.options.Channel, err)
 	}
 	var response struct {
-		TagName string `json:"tag_name"`
+		TagName    string `json:"tag_name"`
+		Draft      bool   `json:"draft"`
+		Prerelease bool   `json:"prerelease"`
 	}
 	if err := json.Unmarshal(data, &response); err != nil {
-		return "", fmt.Errorf("decode latest stable release: %w", err)
+		return "", fmt.Errorf("decode %s release: %w", c.options.Channel, err)
 	}
-	if !versionRE.MatchString(response.TagName) {
-		return "", errors.New("latest stable release returned an invalid tag")
+	if !releaseversion.ValidForChannel(response.TagName, c.options.Channel) {
+		return "", fmt.Errorf("%s release returned an invalid tag", c.options.Channel)
+	}
+	if response.Draft {
+		return "", errors.New("update catalog release is still a draft")
+	}
+	if c.options.Channel == releaseversion.ChannelStaging {
+		if !response.Prerelease || response.TagName != c.options.ServerVersion {
+			return "", errors.New("staging catalog release does not exactly match the running prerelease")
+		}
+	} else if response.Prerelease {
+		return "", errors.New("stable catalog selected a prerelease")
 	}
 	return response.TagName, nil
 }
@@ -303,7 +340,12 @@ func readFloor(path string) (persistedFloor, error) {
 	if err := requireJSONEOF(decoder); err != nil {
 		return persistedFloor{}, fmt.Errorf("decode agent update catalog state: %w", err)
 	}
-	if floor.SchemaVersion != stateSchemaVersion || floor.RootVersion == 0 || floor.Sequence == 0 || floor.SecurityEpoch == 0 || !versionRE.MatchString(floor.Version) || !digestRE.MatchString(floor.ManifestSHA256) {
+	floorChannel := floor.Channel
+	if floorChannel == "" {
+		floorChannel = releaseversion.ChannelStable
+	}
+	if floor.SchemaVersion != stateSchemaVersion || floor.RootVersion == 0 || floor.Sequence == 0 || floor.SecurityEpoch == 0 ||
+		!releaseversion.ValidForChannel(floor.Version, floorChannel) || !digestRE.MatchString(floor.ManifestSHA256) {
 		return persistedFloor{}, errors.New("agent update catalog state is invalid")
 	}
 	return floor, nil

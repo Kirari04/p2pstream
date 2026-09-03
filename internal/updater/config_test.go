@@ -31,12 +31,21 @@ func TestHostConfigRejectsArbitraryOriginsAndPaths(t *testing.T) {
 		{Repository: "owner/repo", ManagementOrigin: "http://management.example", AgentPublicID: "agent-a", Channel: "stable"},
 		{Repository: "owner/repo", ManagementOrigin: "https://management.example/path", AgentPublicID: "agent-a", Channel: "stable"},
 		{Repository: "owner/repo", ManagementOrigin: "https://user@management.example", AgentPublicID: "agent-a", Channel: "stable"},
-		{Repository: "owner/repo", ManagementOrigin: "https://management.example", AgentPublicID: "agent-a", Channel: "staging"},
+		{Repository: "owner/repo", ManagementOrigin: "https://management.example", AgentPublicID: "agent-a", Channel: "nightly"},
 		{Repository: "owner/repo", ManagementOrigin: "https://management.example", AgentPublicID: "../agent", Channel: "stable"},
 	}
 	for i, config := range tests {
 		if err := config.Validate(); err == nil {
 			t.Fatalf("config %d accepted: %+v", i, config)
+		}
+	}
+}
+
+func TestHostConfigAcceptsIsolatedReleaseChannels(t *testing.T) {
+	for _, channel := range []string{"stable", "staging"} {
+		config := HostConfig{Repository: "owner/repo", ManagementOrigin: "https://management.example", AgentPublicID: "agent-a", Channel: channel}
+		if err := config.Validate(); err != nil {
+			t.Fatalf("channel %q rejected: %v", channel, err)
 		}
 	}
 }

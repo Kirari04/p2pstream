@@ -115,11 +115,43 @@ func TestLoadAgentUpdateCatalogDefaultsToDisabledAndPinnedRepository(t *testing.
 	if cfg.AgentUpdateRepository != "Kirari04/p2pstream" {
 		t.Fatalf("AgentUpdateRepository = %q", cfg.AgentUpdateRepository)
 	}
+	if cfg.AgentUpdateChannel != "stable" {
+		t.Fatalf("AgentUpdateChannel = %q, want stable development fallback", cfg.AgentUpdateChannel)
+	}
 	if cfg.AgentUpdateCatalogStateFile != filepath.Join(configDir, "agent-update-catalog-state.json") {
 		t.Fatalf("AgentUpdateCatalogStateFile = %q", cfg.AgentUpdateCatalogStateFile)
 	}
 	if cfg.AgentUpdateAuthorityKeyFile != filepath.Join(configDir, "agent-update-management-authority.json") {
 		t.Fatalf("AgentUpdateAuthorityKeyFile = %q", cfg.AgentUpdateAuthorityKeyFile)
+	}
+}
+
+func TestLoadAcceptsExplicitStagingAgentUpdateChannel(t *testing.T) {
+	workDir := isolatedConfigTestDir(t)
+	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+	t.Setenv("AGENT_UPDATE_CHANNEL", "staging")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AgentUpdateChannel != "staging" {
+		t.Fatalf("AgentUpdateChannel = %q", cfg.AgentUpdateChannel)
+	}
+	if cfg.AgentUpdateCatalogStateFile != filepath.Join(workDir, "data", "agent-update-catalog-state-staging.json") {
+		t.Fatalf("staging state path = %q", cfg.AgentUpdateCatalogStateFile)
+	}
+	t.Setenv("AGENT_UPDATE_CHANNEL", "nightly")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENT_UPDATE_CHANNEL") {
+		t.Fatalf("invalid channel error = %v", err)
+	}
+}
+
+func TestReleaseBuildRejectsCrossChannelCatalog(t *testing.T) {
+	if channel, err := resolveAgentUpdateChannel("", "staging"); err != nil || channel != "staging" {
+		t.Fatalf("compiled staging default = %q, %v", channel, err)
+	}
+	if _, err := resolveAgentUpdateChannel("stable", "staging"); err == nil || !strings.Contains(err.Error(), "compiled release channel") {
+		t.Fatalf("cross-channel error = %v", err)
 	}
 }
 

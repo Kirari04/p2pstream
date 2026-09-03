@@ -5213,6 +5213,7 @@ type GetStatusResponse struct {
 	Proxy            *ProxyStatus           `protobuf:"bytes,6,opt,name=proxy,proto3" json:"proxy,omitempty"`
 	Version          string                 `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
 	Commit           string                 `protobuf:"bytes,8,opt,name=commit,proto3" json:"commit,omitempty"`
+	ReleaseChannel   string                 `protobuf:"bytes,9,opt,name=release_channel,json=releaseChannel,proto3" json:"release_channel,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -5292,6 +5293,13 @@ func (x *GetStatusResponse) GetVersion() string {
 func (x *GetStatusResponse) GetCommit() string {
 	if x != nil {
 		return x.Commit
+	}
+	return ""
+}
+
+func (x *GetStatusResponse) GetReleaseChannel() string {
+	if x != nil {
+		return x.ReleaseChannel
 	}
 	return ""
 }
@@ -27096,7 +27104,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x16file_descriptors_limit\x18\x16 \x01(\x03R\x14fileDescriptorsLimit\x128\n" +
 	"\x18resource_pressure_reason\x18\x17 \x01(\tR\x16resourcePressureReason\x122\n" +
 	"\x15resource_sample_error\x18\x18 \x01(\tR\x13resourceSampleError\x12B\n" +
-	"\x1eresource_last_good_unix_millis\x18\x19 \x01(\x03R\x1aresourceLastGoodUnixMillis\"\xd3\x02\n" +
+	"\x1eresource_last_good_unix_millis\x18\x19 \x01(\x03R\x1aresourceLastGoodUnixMillis\"\xfc\x02\n" +
 	"\x11GetStatusResponse\x12#\n" +
 	"\rproxy_running\x18\x01 \x01(\bR\fproxyRunning\x12(\n" +
 	"\x10proxy_last_error\x18\x02 \x01(\tR\x0eproxyLastError\x12'\n" +
@@ -27104,7 +27112,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x12latest_agent_stats\x18\x05 \x01(\v2 .p2pstream.v1.AgentStatsSnapshotR\x10latestAgentStats\x12/\n" +
 	"\x05proxy\x18\x06 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\x12\x18\n" +
 	"\aversion\x18\a \x01(\tR\aversion\x12\x16\n" +
-	"\x06commit\x18\b \x01(\tR\x06commitJ\x04\b\x04\x10\x05R\rtarget_origin\"\x88\x02\n" +
+	"\x06commit\x18\b \x01(\tR\x06commit\x12'\n" +
+	"\x0frelease_channel\x18\t \x01(\tR\x0ereleaseChannelJ\x04\b\x04\x10\x05R\rtarget_origin\"\x88\x02\n" +
 	"\vProxyStatus\x12.\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x18.p2pstream.v1.ProxyStateR\x05state\x12\x1d\n" +
 	"\n" +

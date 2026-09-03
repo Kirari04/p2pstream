@@ -15,10 +15,10 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/unix"
+	"p2pstream/internal/releaseversion"
 )
 
 var (
-	versionPattern          = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z][0-9A-Za-z.-]{0,63})?$`)
 	assetPattern            = regexp.MustCompile(`^p2pstream_[v0-9A-Za-z.-]+_linux_(?:amd64|arm64)$`)
 	agentIDPattern          = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$`)
 	commitPattern           = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -26,7 +26,11 @@ var (
 	bootstrapVersionPattern = regexp.MustCompile(`^bootstrap-[0-9a-f]{16}$`)
 )
 
-func validVersion(version string) bool { return versionPattern.MatchString(version) }
+func validVersion(version string) bool { return releaseversion.Valid(version) }
+
+func validVersionForChannel(version, channel string) bool {
+	return releaseversion.ValidForChannel(version, channel)
+}
 
 func validateArtifact(a Artifact) error {
 	if !assetPattern.MatchString(a.Name) || filepath.Base(a.Name) != a.Name {

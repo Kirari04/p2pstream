@@ -39,13 +39,13 @@ Older Compose files inject `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=256`, even
    image: ghcr.io/kirari04/p2pstream:vX.Y.Z
    ```
 
-4. Use the mutable `staging` tag only for pre-release validation:
+4. Prefer an immutable staging prerelease for repeatable pre-release validation:
 
    ```yaml
-   image: ghcr.io/kirari04/p2pstream:staging
+   image: ghcr.io/kirari04/p2pstream:vX.Y.Z-staging.N
    ```
 
-   `staging` is rebuilt from the `staging` branch and can change before the final release. Staging management UIs generate matching staging Linux agent installer commands.
+   Every staging branch build receives a unique SemVer prerelease, matching signed Linux agent assets, and an immutable image tag. The convenience `staging` alias moves only when one of those signed prereleases is published. Staging management UIs identify their channel clearly and generate matching pinned Linux agent installer commands.
 
 5. Use the Docker-only `nightly` tag only for development validation:
 

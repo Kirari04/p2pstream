@@ -119,6 +119,7 @@ jobs:
             VERSION=nightly
             COMMIT=${{ needs.verify.outputs.commit_sha }}
             SOURCE_REPOSITORY=${{ github.repository }}
+            RELEASE_CHANNEL=development
             VITE_RELEASE_REPOSITORY=${{ github.repository }}
             VITE_RELEASE_REF=${{ needs.verify.outputs.commit_sha }}
           tags: |

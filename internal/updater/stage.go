@@ -61,7 +61,7 @@ func Stage(ctx context.Context, options StageOptions) (Result, error) {
 		return Result{}, errors.New("updater source and verifier are required")
 	}
 	if !validVersion(options.Policy.ServerVersion) {
-		return Result{}, errors.New("a stable management server version is required for update verification")
+		return Result{}, errors.New("a semantic management server version is required for update verification")
 	}
 	if options.Policy.Now.IsZero() {
 		options.Policy.Now = time.Now().UTC()

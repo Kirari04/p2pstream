@@ -93,8 +93,8 @@ func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 	if err := requireBootstrapRootLifetime(trustedRoot.ExpiresAt, time.Now().UTC()); err != nil {
 		return PublicIdentities{}, err
 	}
-	if !versionPattern.MatchString(options.CurrentVersion) || strings.Contains(options.CurrentVersion, "-") {
-		return PublicIdentities{}, errors.New("managed updater current version must be stable vX.Y.Z")
+	if !validVersionForChannel(options.CurrentVersion, options.Config.Channel) {
+		return PublicIdentities{}, fmt.Errorf("managed updater current version must match the %s release channel", options.Config.Channel)
 	}
 	if options.CurrentVersion != buildinfo.Version {
 		return PublicIdentities{}, errors.New("managed updater current version does not match the executing agent binary")
@@ -102,7 +102,7 @@ func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 	if (options.ExistingTunnelVersion == "") != (options.ExistingTunnelCommit == "") {
 		return PublicIdentities{}, errors.New("existing tunnel build version and commit must be supplied together")
 	}
-	if options.ExistingTunnelVersion != "" && (!versionPattern.MatchString(options.ExistingTunnelVersion) || strings.Contains(options.ExistingTunnelVersion, "-") || !commitPattern.MatchString(options.ExistingTunnelCommit)) {
+	if options.ExistingTunnelVersion != "" && (!validVersion(options.ExistingTunnelVersion) || !commitPattern.MatchString(options.ExistingTunnelCommit)) {
 		return PublicIdentities{}, errors.New("existing tunnel build identity is invalid")
 	}
 	account, err := user.Lookup(options.UpdaterUser)

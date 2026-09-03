@@ -714,6 +714,7 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 		Proxy:          a.proxyStatus(),
 		Version:        buildinfo.Version,
 		Commit:         buildinfo.Commit,
+		ReleaseChannel: buildinfo.Channel,
 	}
 
 	if latest := a.LatestAgentStats.Load(); latest != nil {

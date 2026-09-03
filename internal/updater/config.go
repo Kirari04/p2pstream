@@ -30,8 +30,8 @@ func (c HostConfig) Validate() error {
 		origin.Path != "" || origin.RawPath != "" || origin.RawQuery != "" || origin.Fragment != "" {
 		return errors.New("updater management origin must be an HTTPS origin without credentials, path, query, or fragment")
 	}
-	if c.Channel != "stable" {
-		return errors.New("managed updates require the stable channel")
+	if c.Channel != "stable" && c.Channel != "staging" {
+		return errors.New("managed update channel must be stable or staging")
 	}
 	return nil
 }

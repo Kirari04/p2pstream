@@ -1,6 +1,7 @@
 ARG VERSION=dev
 ARG COMMIT=""
 ARG SOURCE_REPOSITORY=Kirari04/p2pstream
+ARG RELEASE_CHANNEL=development
 ARG VITE_RELEASE_REPOSITORY=""
 ARG VITE_RELEASE_REF=""
 
@@ -8,8 +9,10 @@ FROM oven/bun:1.2.18 AS frontend
 WORKDIR /app/web/management
 ARG VITE_RELEASE_REF
 ARG VITE_RELEASE_REPOSITORY=""
+ARG RELEASE_CHANNEL
 ENV VITE_RELEASE_REPOSITORY=$VITE_RELEASE_REPOSITORY
 ENV VITE_RELEASE_REF=$VITE_RELEASE_REF
+ENV VITE_RELEASE_CHANNEL=$RELEASE_CHANNEL
 COPY web/management/package.json web/management/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY web/management/ ./
@@ -20,10 +23,11 @@ WORKDIR /src
 ARG VERSION
 ARG COMMIT
 ARG SOURCE_REPOSITORY
+ARG RELEASE_CHANNEL
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${VERSION} -X p2pstream/internal/buildinfo.Commit=${COMMIT} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY}" -o /out/p2pstream main.go
+RUN go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${VERSION} -X p2pstream/internal/buildinfo.Commit=${COMMIT} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY} -X p2pstream/internal/buildinfo.Channel=${RELEASE_CHANNEL}" -o /out/p2pstream main.go
 
 FROM scratch AS binary
 COPY --from=backend /out/p2pstream /p2pstream
