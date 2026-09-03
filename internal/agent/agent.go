@@ -744,6 +744,8 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	req.Header.Set("Upgrade", tunnel.UpgradeToken)
 	req.Header.Set(tunnel.TunnelVersionHeader, strconv.Itoa(tunnel.ProtocolVersion))
 	req.Header.Set(tunnel.TunnelMaxConcurrentStreamsHeader, strconv.FormatInt(maxConcurrentRequests, 10))
+	req.Header.Set(tunnel.TunnelAgentVersionHeader, buildinfo.Version)
+	req.Header.Set(tunnel.TunnelAgentCommitHeader, buildinfo.Commit)
 	if adaptiveCapacity {
 		req.Header.Set(tunnel.TunnelCapacityModeHeader, tunnel.TunnelCapacityModeAdaptive)
 	} else {

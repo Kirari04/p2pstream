@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodically check for an assigned p2pstream agent update
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+RandomizedDelaySec=30s
+AccuracySec=5s
+Persistent=true
+Unit=p2pstream-updater.service
+
+[Install]
+WantedBy=timers.target

@@ -842,9 +842,19 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 		}
 		attemptedAgents[agent.AgentID] = struct{}{}
 		rt.result.FinalAgent = agent
+		releaseActiveRequest, admitted := rt.app.beginAgentUpdateProtectedRequest(agent)
+		if !admitted {
+			next := rt.app.selectTargetAgentExcludingFromSnapshot(rt.snapshot, rt.resolution.Target, attemptedAgents)
+			if next == nil {
+				return nil, errAgentUpdateCordoned
+			}
+			agent = next
+			continue
+		}
 
 		attemptBody, ok := body.next()
 		if !ok {
+			releaseActiveRequest()
 			rt.result.Outcome = publicRetryOutcomeSkipped
 			rt.result.ReplaySkippedReason = "request_body_not_replayable"
 			break
@@ -889,8 +899,6 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			Str("agent", agent.PublicID).
 			Msg("Proxying request through agent target")
 
-		agent.ActiveRequests.Add(1)
-		releaseActiveRequest := func() { agent.ActiveRequests.Add(-1) }
 		transport := rt.app.agentTargetTransport(agent, rt.resolution.Target)
 		if rt.transportForAgent != nil {
 			transport = rt.transportForAgent(agent)
@@ -1192,6 +1200,9 @@ func agentProxyErrorKind(err error) string {
 	if errors.Is(err, errAgentDisconnected) {
 		return "agent_disconnected"
 	}
+	if errors.Is(err, errAgentUpdateCordoned) {
+		return "agent_update_cordoned"
+	}
 	var dialErr agentDialError
 	if errors.As(err, &dialErr) {
 		switch dialErr.Kind {
@@ -1224,7 +1235,7 @@ func agentProxyHTTPFailure(err error) (int, string, string) {
 	switch kind {
 	case "agent_dial_timeout", "upstream_response_header_timeout":
 		return http.StatusGatewayTimeout, kind, "Gateway Timeout"
-	case "agent_capacity", "agent_resource_pressure", "agent_server_capacity", "agent_server_health_capacity", "agent_server_pooled_capacity":
+	case "agent_capacity", "agent_resource_pressure", "agent_server_capacity", "agent_server_health_capacity", "agent_server_pooled_capacity", "agent_update_cordoned":
 		return http.StatusServiceUnavailable, kind, "Service Unavailable"
 	default:
 		return http.StatusBadGateway, kind, "Bad Gateway"

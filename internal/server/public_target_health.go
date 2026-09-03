@@ -364,6 +364,13 @@ func (m *publicRouteTargetHealthMonitor) agentHealthLoop(ctx context.Context, ap
 		if !ok {
 			return
 		}
+		if app != nil && app.isAgentUpdateCordoned(agentID) {
+			m.recordAgentActiveCheckSkipped(targetID, agentID, target, "agent_update_cordoned", errors.New("agent cordoned for managed update"))
+			if !waitPublicTargetHealthInterval(ctx, target.HealthCheck.Interval) {
+				return
+			}
+			continue
+		}
 		agent := (*AgentConn)(nil)
 		if app != nil && app.AgentHub != nil {
 			agent = app.AgentHub.connectedByID(agentID)
@@ -1284,6 +1291,9 @@ func (m *publicRouteTargetHealthMonitor) backendAgentPoolAvailable(target public
 		if !assignment.Enabled {
 			continue
 		}
+		if m.app != nil && m.app.isAgentUpdateCordoned(assignment.AgentID) {
+			continue
+		}
 		if !m.agentConnectedLocked(assignment.AgentID) && m.app != nil {
 			continue
 		}
@@ -1297,6 +1307,9 @@ func (m *publicRouteTargetHealthMonitor) backendAgentPoolAvailable(target public
 func (m *publicRouteTargetHealthMonitor) agentAvailable(targetID int64, agentID int64) bool {
 	if m == nil || targetID <= 0 || agentID <= 0 {
 		return true
+	}
+	if m.app != nil && m.app.isAgentUpdateCordoned(agentID) {
+		return false
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()

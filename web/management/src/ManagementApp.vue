@@ -84,6 +84,14 @@ const sourceOfferTitle = computed(() => {
   if (repository && ref) return `View source for ${repository}@${ref}`;
   return "View source and license";
 });
+const releaseChannel = computed(() => {
+  const configured = import.meta.env.VITE_RELEASE_CHANNEL?.trim().toLowerCase();
+  return configured || dashboard.value?.status?.releaseChannel?.trim().toLowerCase() || "development";
+});
+const releaseReference = computed(() =>
+  import.meta.env.VITE_RELEASE_REF?.trim() || dashboard.value?.status?.version?.trim() || "unversioned",
+);
+const showStagingIdentity = computed(() => releaseChannel.value === "staging");
 
 const refreshDisabledReason = computed(() => {
   if (isRefreshing.value) return "Dashboard refresh is already running.";
@@ -333,6 +341,16 @@ watch(() => route.fullPath, async () => {
           </router-link>
 
           <div class="app-header__actions">
+            <span
+              v-if="showStagingIdentity"
+              class="app-release-channel"
+              data-testid="release-channel"
+              :title="`Staging prerelease ${releaseReference}`"
+            >
+              <span class="app-release-channel__signal" aria-hidden="true" />
+              Staging
+              <code>{{ releaseReference }}</code>
+            </span>
             <label v-if="currentUser" class="app-env-label">
               <span>Environment</span>
               <AccessibleSelect

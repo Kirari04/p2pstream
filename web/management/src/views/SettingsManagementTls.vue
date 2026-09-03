@@ -15,7 +15,7 @@ import {
   type ManagementTlsRotation,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import { messageFromError } from "@/lib/errors";
-import { FALLBACK_RELEASE_REPOSITORY, isValidScriptRef, normalizeRepository } from "@/lib/agentSetupSnippets";
+import { DEFAULT_LOCAL_INSTALLER_PATH } from "@/lib/agentSetupSnippets";
 import { diagnosticExcerpt } from "@/lib/diagnosticText";
 import { managementCertificateExpiryWarning, managementTlsAgentDetail, summarizeManagementTlsFleet } from "@/lib/managementTlsPresentation";
 
@@ -47,10 +47,7 @@ const repairCommand = computed(() => {
   const pem = rotation.value?.repairCaBundlePem ?? "";
   if (!pem) return "";
   const encoded = btoa(pem);
-  const repository = normalizeRepository(import.meta.env.VITE_RELEASE_REPOSITORY || FALLBACK_RELEASE_REPOSITORY);
-  const configuredRef = typeof import.meta.env.VITE_RELEASE_REF === "string" ? import.meta.env.VITE_RELEASE_REF.trim() : "";
-  const scriptRef = isValidScriptRef(configuredRef) ? configuredRef : "main";
-  return `curl -fsSL 'https://raw.githubusercontent.com/${repository}/${scriptRef}/scripts/install-agent.sh' | sudo env P2PSTREAM_REPAIR_TRUST=true MANAGEMENT_CA_PEM_BASE64='${encoded}' bash`;
+  return `sudo env P2PSTREAM_REPAIR_TRUST=true MANAGEMENT_CA_PEM_BASE64='${encoded}' bash '${DEFAULT_LOCAL_INSTALLER_PATH}'`;
 });
 
 const agentColumns: DataTableColumns<ManagementTlsAgentRollout> = [

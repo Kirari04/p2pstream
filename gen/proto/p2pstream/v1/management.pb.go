@@ -2890,6 +2890,304 @@ func (PublicTrafficShaperProtocolScope) EnumDescriptor() ([]byte, []int) {
 	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{52}
 }
 
+// Managed updates are desired-state only. The server never sends executable
+// commands or mutable download URLs to an updater.
+type AgentUpdateCampaignState int32
+
+const (
+	AgentUpdateCampaignState_AGENT_UPDATE_CAMPAIGN_STATE_UNSPECIFIED AgentUpdateCampaignState = 0
+	AgentUpdateCampaignState_AGENT_UPDATE_CAMPAIGN_STATE_RUNNING     AgentUpdateCampaignState = 1
+	AgentUpdateCampaignState_AGENT_UPDATE_CAMPAIGN_STATE_PAUSED      AgentUpdateCampaignState = 2
+	AgentUpdateCampaignState_AGENT_UPDATE_CAMPAIGN_STATE_CANCELLED   AgentUpdateCampaignState = 3
+	AgentUpdateCampaignState_AGENT_UPDATE_CAMPAIGN_STATE_COMPLETED   AgentUpdateCampaignState = 4
+)
+
+// Enum value maps for AgentUpdateCampaignState.
+var (
+	AgentUpdateCampaignState_name = map[int32]string{
+		0: "AGENT_UPDATE_CAMPAIGN_STATE_UNSPECIFIED",
+		1: "AGENT_UPDATE_CAMPAIGN_STATE_RUNNING",
+		2: "AGENT_UPDATE_CAMPAIGN_STATE_PAUSED",
+		3: "AGENT_UPDATE_CAMPAIGN_STATE_CANCELLED",
+		4: "AGENT_UPDATE_CAMPAIGN_STATE_COMPLETED",
+	}
+	AgentUpdateCampaignState_value = map[string]int32{
+		"AGENT_UPDATE_CAMPAIGN_STATE_UNSPECIFIED": 0,
+		"AGENT_UPDATE_CAMPAIGN_STATE_RUNNING":     1,
+		"AGENT_UPDATE_CAMPAIGN_STATE_PAUSED":      2,
+		"AGENT_UPDATE_CAMPAIGN_STATE_CANCELLED":   3,
+		"AGENT_UPDATE_CAMPAIGN_STATE_COMPLETED":   4,
+	}
+)
+
+func (x AgentUpdateCampaignState) Enum() *AgentUpdateCampaignState {
+	p := new(AgentUpdateCampaignState)
+	*p = x
+	return p
+}
+
+func (x AgentUpdateCampaignState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AgentUpdateCampaignState) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[53].Descriptor()
+}
+
+func (AgentUpdateCampaignState) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[53]
+}
+
+func (x AgentUpdateCampaignState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AgentUpdateCampaignState.Descriptor instead.
+func (AgentUpdateCampaignState) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{53}
+}
+
+type AgentUpdateAssignmentState int32
+
+const (
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_UNSPECIFIED     AgentUpdateAssignmentState = 0
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_PENDING         AgentUpdateAssignmentState = 1
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_STAGING         AgentUpdateAssignmentState = 2
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_STAGED          AgentUpdateAssignmentState = 3
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_CORDONED        AgentUpdateAssignmentState = 4
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_ACTIVATING      AgentUpdateAssignmentState = 5
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_AWAITING_TUNNEL AgentUpdateAssignmentState = 6
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_HEALTHY_DWELL   AgentUpdateAssignmentState = 7
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_SUCCEEDED       AgentUpdateAssignmentState = 8
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_FAILED          AgentUpdateAssignmentState = 9
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_CANCELLED       AgentUpdateAssignmentState = 10
+	AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_BLOCKED         AgentUpdateAssignmentState = 11
+)
+
+// Enum value maps for AgentUpdateAssignmentState.
+var (
+	AgentUpdateAssignmentState_name = map[int32]string{
+		0:  "AGENT_UPDATE_ASSIGNMENT_STATE_UNSPECIFIED",
+		1:  "AGENT_UPDATE_ASSIGNMENT_STATE_PENDING",
+		2:  "AGENT_UPDATE_ASSIGNMENT_STATE_STAGING",
+		3:  "AGENT_UPDATE_ASSIGNMENT_STATE_STAGED",
+		4:  "AGENT_UPDATE_ASSIGNMENT_STATE_CORDONED",
+		5:  "AGENT_UPDATE_ASSIGNMENT_STATE_ACTIVATING",
+		6:  "AGENT_UPDATE_ASSIGNMENT_STATE_AWAITING_TUNNEL",
+		7:  "AGENT_UPDATE_ASSIGNMENT_STATE_HEALTHY_DWELL",
+		8:  "AGENT_UPDATE_ASSIGNMENT_STATE_SUCCEEDED",
+		9:  "AGENT_UPDATE_ASSIGNMENT_STATE_FAILED",
+		10: "AGENT_UPDATE_ASSIGNMENT_STATE_CANCELLED",
+		11: "AGENT_UPDATE_ASSIGNMENT_STATE_BLOCKED",
+	}
+	AgentUpdateAssignmentState_value = map[string]int32{
+		"AGENT_UPDATE_ASSIGNMENT_STATE_UNSPECIFIED":     0,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_PENDING":         1,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_STAGING":         2,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_STAGED":          3,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_CORDONED":        4,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_ACTIVATING":      5,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_AWAITING_TUNNEL": 6,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_HEALTHY_DWELL":   7,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_SUCCEEDED":       8,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_FAILED":          9,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_CANCELLED":       10,
+		"AGENT_UPDATE_ASSIGNMENT_STATE_BLOCKED":         11,
+	}
+)
+
+func (x AgentUpdateAssignmentState) Enum() *AgentUpdateAssignmentState {
+	p := new(AgentUpdateAssignmentState)
+	*p = x
+	return p
+}
+
+func (x AgentUpdateAssignmentState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AgentUpdateAssignmentState) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[54].Descriptor()
+}
+
+func (AgentUpdateAssignmentState) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[54]
+}
+
+func (x AgentUpdateAssignmentState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AgentUpdateAssignmentState.Descriptor instead.
+func (AgentUpdateAssignmentState) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{54}
+}
+
+type AgentUpdateDesiredAction int32
+
+const (
+	AgentUpdateDesiredAction_AGENT_UPDATE_DESIRED_ACTION_UNSPECIFIED AgentUpdateDesiredAction = 0
+	AgentUpdateDesiredAction_AGENT_UPDATE_DESIRED_ACTION_NONE        AgentUpdateDesiredAction = 1
+	AgentUpdateDesiredAction_AGENT_UPDATE_DESIRED_ACTION_STAGE       AgentUpdateDesiredAction = 2
+	AgentUpdateDesiredAction_AGENT_UPDATE_DESIRED_ACTION_ACTIVATE    AgentUpdateDesiredAction = 3
+	AgentUpdateDesiredAction_AGENT_UPDATE_DESIRED_ACTION_ROLLBACK    AgentUpdateDesiredAction = 4
+)
+
+// Enum value maps for AgentUpdateDesiredAction.
+var (
+	AgentUpdateDesiredAction_name = map[int32]string{
+		0: "AGENT_UPDATE_DESIRED_ACTION_UNSPECIFIED",
+		1: "AGENT_UPDATE_DESIRED_ACTION_NONE",
+		2: "AGENT_UPDATE_DESIRED_ACTION_STAGE",
+		3: "AGENT_UPDATE_DESIRED_ACTION_ACTIVATE",
+		4: "AGENT_UPDATE_DESIRED_ACTION_ROLLBACK",
+	}
+	AgentUpdateDesiredAction_value = map[string]int32{
+		"AGENT_UPDATE_DESIRED_ACTION_UNSPECIFIED": 0,
+		"AGENT_UPDATE_DESIRED_ACTION_NONE":        1,
+		"AGENT_UPDATE_DESIRED_ACTION_STAGE":       2,
+		"AGENT_UPDATE_DESIRED_ACTION_ACTIVATE":    3,
+		"AGENT_UPDATE_DESIRED_ACTION_ROLLBACK":    4,
+	}
+)
+
+func (x AgentUpdateDesiredAction) Enum() *AgentUpdateDesiredAction {
+	p := new(AgentUpdateDesiredAction)
+	*p = x
+	return p
+}
+
+func (x AgentUpdateDesiredAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AgentUpdateDesiredAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[55].Descriptor()
+}
+
+func (AgentUpdateDesiredAction) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[55]
+}
+
+func (x AgentUpdateDesiredAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AgentUpdateDesiredAction.Descriptor instead.
+func (AgentUpdateDesiredAction) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{55}
+}
+
+type AgentUpdaterReportState int32
+
+const (
+	AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_UNSPECIFIED AgentUpdaterReportState = 0
+	AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_DOWNLOADING AgentUpdaterReportState = 1
+	AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_STAGED      AgentUpdaterReportState = 2
+	AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_ACTIVATED   AgentUpdaterReportState = 3
+	AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_HEALTHY     AgentUpdaterReportState = 4
+	AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_FAILED      AgentUpdaterReportState = 5
+	AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_ROLLED_BACK AgentUpdaterReportState = 6
+)
+
+// Enum value maps for AgentUpdaterReportState.
+var (
+	AgentUpdaterReportState_name = map[int32]string{
+		0: "AGENT_UPDATER_REPORT_STATE_UNSPECIFIED",
+		1: "AGENT_UPDATER_REPORT_STATE_DOWNLOADING",
+		2: "AGENT_UPDATER_REPORT_STATE_STAGED",
+		3: "AGENT_UPDATER_REPORT_STATE_ACTIVATED",
+		4: "AGENT_UPDATER_REPORT_STATE_HEALTHY",
+		5: "AGENT_UPDATER_REPORT_STATE_FAILED",
+		6: "AGENT_UPDATER_REPORT_STATE_ROLLED_BACK",
+	}
+	AgentUpdaterReportState_value = map[string]int32{
+		"AGENT_UPDATER_REPORT_STATE_UNSPECIFIED": 0,
+		"AGENT_UPDATER_REPORT_STATE_DOWNLOADING": 1,
+		"AGENT_UPDATER_REPORT_STATE_STAGED":      2,
+		"AGENT_UPDATER_REPORT_STATE_ACTIVATED":   3,
+		"AGENT_UPDATER_REPORT_STATE_HEALTHY":     4,
+		"AGENT_UPDATER_REPORT_STATE_FAILED":      5,
+		"AGENT_UPDATER_REPORT_STATE_ROLLED_BACK": 6,
+	}
+)
+
+func (x AgentUpdaterReportState) Enum() *AgentUpdaterReportState {
+	p := new(AgentUpdaterReportState)
+	*p = x
+	return p
+}
+
+func (x AgentUpdaterReportState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AgentUpdaterReportState) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[56].Descriptor()
+}
+
+func (AgentUpdaterReportState) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[56]
+}
+
+func (x AgentUpdaterReportState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AgentUpdaterReportState.Descriptor instead.
+func (AgentUpdaterReportState) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{56}
+}
+
+type AgentUpdateRootActionResultKind int32
+
+const (
+	AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED    AgentUpdateRootActionResultKind = 0
+	AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE AgentUpdateRootActionResultKind = 1
+	AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP      AgentUpdateRootActionResultKind = 2
+)
+
+// Enum value maps for AgentUpdateRootActionResultKind.
+var (
+	AgentUpdateRootActionResultKind_name = map[int32]string{
+		0: "AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED",
+		1: "AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE",
+		2: "AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP",
+	}
+	AgentUpdateRootActionResultKind_value = map[string]int32{
+		"AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED":    0,
+		"AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE": 1,
+		"AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP":      2,
+	}
+)
+
+func (x AgentUpdateRootActionResultKind) Enum() *AgentUpdateRootActionResultKind {
+	p := new(AgentUpdateRootActionResultKind)
+	*p = x
+	return p
+}
+
+func (x AgentUpdateRootActionResultKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AgentUpdateRootActionResultKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_p2pstream_v1_management_proto_enumTypes[57].Descriptor()
+}
+
+func (AgentUpdateRootActionResultKind) Type() protoreflect.EnumType {
+	return &file_proto_p2pstream_v1_management_proto_enumTypes[57]
+}
+
+func (x AgentUpdateRootActionResultKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AgentUpdateRootActionResultKind.Descriptor instead.
+func (AgentUpdateRootActionResultKind) EnumDescriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{57}
+}
+
 type ManagementTrustStatus struct {
 	state                 protoimpl.MessageState      `protogen:"open.v1"`
 	InstalledGeneration   uint64                      `protobuf:"varint,1,opt,name=installed_generation,json=installedGeneration,proto3" json:"installed_generation,omitempty"`
@@ -4915,6 +5213,7 @@ type GetStatusResponse struct {
 	Proxy            *ProxyStatus           `protobuf:"bytes,6,opt,name=proxy,proto3" json:"proxy,omitempty"`
 	Version          string                 `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
 	Commit           string                 `protobuf:"bytes,8,opt,name=commit,proto3" json:"commit,omitempty"`
+	ReleaseChannel   string                 `protobuf:"bytes,9,opt,name=release_channel,json=releaseChannel,proto3" json:"release_channel,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -4994,6 +5293,13 @@ func (x *GetStatusResponse) GetVersion() string {
 func (x *GetStatusResponse) GetCommit() string {
 	if x != nil {
 		return x.Commit
+	}
+	return ""
+}
+
+func (x *GetStatusResponse) GetReleaseChannel() string {
+	if x != nil {
+		return x.ReleaseChannel
 	}
 	return ""
 }
@@ -5538,6 +5844,9 @@ type Agent struct {
 	NegotiatedMaxConcurrentStreams int64                  `protobuf:"varint,16,opt,name=negotiated_max_concurrent_streams,json=negotiatedMaxConcurrentStreams,proto3" json:"negotiated_max_concurrent_streams,omitempty"`
 	TunnelCapacityAdaptive         bool                   `protobuf:"varint,17,opt,name=tunnel_capacity_adaptive,json=tunnelCapacityAdaptive,proto3" json:"tunnel_capacity_adaptive,omitempty"`
 	CurrentTunnelAdmissionLimit    int64                  `protobuf:"varint,18,opt,name=current_tunnel_admission_limit,json=currentTunnelAdmissionLimit,proto3" json:"current_tunnel_admission_limit,omitempty"`
+	UpdaterEnrolled                bool                   `protobuf:"varint,19,opt,name=updater_enrolled,json=updaterEnrolled,proto3" json:"updater_enrolled,omitempty"`
+	UpdaterVersion                 string                 `protobuf:"bytes,20,opt,name=updater_version,json=updaterVersion,proto3" json:"updater_version,omitempty"`
+	UpdateCordoned                 bool                   `protobuf:"varint,21,opt,name=update_cordoned,json=updateCordoned,proto3" json:"update_cordoned,omitempty"`
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
@@ -5696,6 +6005,27 @@ func (x *Agent) GetCurrentTunnelAdmissionLimit() int64 {
 		return x.CurrentTunnelAdmissionLimit
 	}
 	return 0
+}
+
+func (x *Agent) GetUpdaterEnrolled() bool {
+	if x != nil {
+		return x.UpdaterEnrolled
+	}
+	return false
+}
+
+func (x *Agent) GetUpdaterVersion() string {
+	if x != nil {
+		return x.UpdaterVersion
+	}
+	return ""
+}
+
+func (x *Agent) GetUpdateCordoned() bool {
+	if x != nil {
+		return x.UpdateCordoned
+	}
+	return false
 }
 
 type PublicAgentSelector struct {
@@ -9835,11 +10165,19 @@ func (x *CreateAgentRequest) GetLabels() map[string]string {
 }
 
 type CreateAgentResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Agent         *Agent                 `protobuf:"bytes,1,opt,name=agent,proto3" json:"agent,omitempty"`
-	Token         string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Agent *Agent                 `protobuf:"bytes,1,opt,name=agent,proto3" json:"agent,omitempty"`
+	Token string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	// Independent from the tunnel bearer and disclosed only once.
+	UpdaterEnrollmentToken               string                          `protobuf:"bytes,3,opt,name=updater_enrollment_token,json=updaterEnrollmentToken,proto3" json:"updater_enrollment_token,omitempty"`
+	UpdaterEnrollmentExpiresAtUnixMillis int64                           `protobuf:"varint,4,opt,name=updater_enrollment_expires_at_unix_millis,json=updaterEnrollmentExpiresAtUnixMillis,proto3" json:"updater_enrollment_expires_at_unix_millis,omitempty"`
+	UpdaterTrustedRootMetadataBase64     string                          `protobuf:"bytes,5,opt,name=updater_trusted_root_metadata_base64,json=updaterTrustedRootMetadataBase64,proto3" json:"updater_trusted_root_metadata_base64,omitempty"`
+	UpdaterPinnedRepository              string                          `protobuf:"bytes,6,opt,name=updater_pinned_repository,json=updaterPinnedRepository,proto3" json:"updater_pinned_repository,omitempty"`
+	UpdaterTrustedRootSha256             string                          `protobuf:"bytes,7,opt,name=updater_trusted_root_sha256,json=updaterTrustedRootSha256,proto3" json:"updater_trusted_root_sha256,omitempty"`
+	UpdaterTrustedRootVersion            int64                           `protobuf:"varint,8,opt,name=updater_trusted_root_version,json=updaterTrustedRootVersion,proto3" json:"updater_trusted_root_version,omitempty"`
+	UpdaterManagementAuthority           *AgentUpdateManagementAuthority `protobuf:"bytes,9,opt,name=updater_management_authority,json=updaterManagementAuthority,proto3" json:"updater_management_authority,omitempty"`
+	unknownFields                        protoimpl.UnknownFields
+	sizeCache                            protoimpl.SizeCache
 }
 
 func (x *CreateAgentResponse) Reset() {
@@ -9884,6 +10222,55 @@ func (x *CreateAgentResponse) GetToken() string {
 		return x.Token
 	}
 	return ""
+}
+
+func (x *CreateAgentResponse) GetUpdaterEnrollmentToken() string {
+	if x != nil {
+		return x.UpdaterEnrollmentToken
+	}
+	return ""
+}
+
+func (x *CreateAgentResponse) GetUpdaterEnrollmentExpiresAtUnixMillis() int64 {
+	if x != nil {
+		return x.UpdaterEnrollmentExpiresAtUnixMillis
+	}
+	return 0
+}
+
+func (x *CreateAgentResponse) GetUpdaterTrustedRootMetadataBase64() string {
+	if x != nil {
+		return x.UpdaterTrustedRootMetadataBase64
+	}
+	return ""
+}
+
+func (x *CreateAgentResponse) GetUpdaterPinnedRepository() string {
+	if x != nil {
+		return x.UpdaterPinnedRepository
+	}
+	return ""
+}
+
+func (x *CreateAgentResponse) GetUpdaterTrustedRootSha256() string {
+	if x != nil {
+		return x.UpdaterTrustedRootSha256
+	}
+	return ""
+}
+
+func (x *CreateAgentResponse) GetUpdaterTrustedRootVersion() int64 {
+	if x != nil {
+		return x.UpdaterTrustedRootVersion
+	}
+	return 0
+}
+
+func (x *CreateAgentResponse) GetUpdaterManagementAuthority() *AgentUpdateManagementAuthority {
+	if x != nil {
+		return x.UpdaterManagementAuthority
+	}
+	return nil
 }
 
 type UpdateAgentRequest struct {
@@ -23700,6 +24087,2849 @@ func (x *AgentStreamCapacitySummary) GetPublicClientRequestRejected() uint64 {
 	return 0
 }
 
+type AgentUpdateManagementAuthority struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	KeyId         string                 `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
+	Epoch         uint64                 `protobuf:"varint,2,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	PublicKey     []byte                 `protobuf:"bytes,3,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentUpdateManagementAuthority) Reset() {
+	*x = AgentUpdateManagementAuthority{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[258]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdateManagementAuthority) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdateManagementAuthority) ProtoMessage() {}
+
+func (x *AgentUpdateManagementAuthority) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[258]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdateManagementAuthority.ProtoReflect.Descriptor instead.
+func (*AgentUpdateManagementAuthority) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{258}
+}
+
+func (x *AgentUpdateManagementAuthority) GetKeyId() string {
+	if x != nil {
+		return x.KeyId
+	}
+	return ""
+}
+
+func (x *AgentUpdateManagementAuthority) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *AgentUpdateManagementAuthority) GetPublicKey() []byte {
+	if x != nil {
+		return x.PublicKey
+	}
+	return nil
+}
+
+type AgentUpdateArtifact struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Os            string                 `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty"`
+	Arch          string                 `protobuf:"bytes,2,opt,name=arch,proto3" json:"arch,omitempty"`
+	Sha256        string                 `protobuf:"bytes,3,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	SizeBytes     int64                  `protobuf:"varint,4,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	Name          string                 `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentUpdateArtifact) Reset() {
+	*x = AgentUpdateArtifact{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[259]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdateArtifact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdateArtifact) ProtoMessage() {}
+
+func (x *AgentUpdateArtifact) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[259]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdateArtifact.ProtoReflect.Descriptor instead.
+func (*AgentUpdateArtifact) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{259}
+}
+
+func (x *AgentUpdateArtifact) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *AgentUpdateArtifact) GetArch() string {
+	if x != nil {
+		return x.Arch
+	}
+	return ""
+}
+
+func (x *AgentUpdateArtifact) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *AgentUpdateArtifact) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *AgentUpdateArtifact) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type AgentUpdateTarget struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Version               string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	Commit                string                 `protobuf:"bytes,2,opt,name=commit,proto3" json:"commit,omitempty"`
+	ManifestSha256        string                 `protobuf:"bytes,3,opt,name=manifest_sha256,json=manifestSha256,proto3" json:"manifest_sha256,omitempty"`
+	ReleaseSequence       int64                  `protobuf:"varint,4,opt,name=release_sequence,json=releaseSequence,proto3" json:"release_sequence,omitempty"`
+	MinimumTunnelProtocol int64                  `protobuf:"varint,5,opt,name=minimum_tunnel_protocol,json=minimumTunnelProtocol,proto3" json:"minimum_tunnel_protocol,omitempty"`
+	MaximumTunnelProtocol int64                  `protobuf:"varint,6,opt,name=maximum_tunnel_protocol,json=maximumTunnelProtocol,proto3" json:"maximum_tunnel_protocol,omitempty"`
+	Artifacts             []*AgentUpdateArtifact `protobuf:"bytes,7,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	SecurityEpoch         int64                  `protobuf:"varint,8,opt,name=security_epoch,json=securityEpoch,proto3" json:"security_epoch,omitempty"`
+	MinimumUpdaterVersion string                 `protobuf:"bytes,9,opt,name=minimum_updater_version,json=minimumUpdaterVersion,proto3" json:"minimum_updater_version,omitempty"`
+	RootVersion           int64                  `protobuf:"varint,10,opt,name=root_version,json=rootVersion,proto3" json:"root_version,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AgentUpdateTarget) Reset() {
+	*x = AgentUpdateTarget{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[260]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdateTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdateTarget) ProtoMessage() {}
+
+func (x *AgentUpdateTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[260]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdateTarget.ProtoReflect.Descriptor instead.
+func (*AgentUpdateTarget) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{260}
+}
+
+func (x *AgentUpdateTarget) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentUpdateTarget) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
+func (x *AgentUpdateTarget) GetManifestSha256() string {
+	if x != nil {
+		return x.ManifestSha256
+	}
+	return ""
+}
+
+func (x *AgentUpdateTarget) GetReleaseSequence() int64 {
+	if x != nil {
+		return x.ReleaseSequence
+	}
+	return 0
+}
+
+func (x *AgentUpdateTarget) GetMinimumTunnelProtocol() int64 {
+	if x != nil {
+		return x.MinimumTunnelProtocol
+	}
+	return 0
+}
+
+func (x *AgentUpdateTarget) GetMaximumTunnelProtocol() int64 {
+	if x != nil {
+		return x.MaximumTunnelProtocol
+	}
+	return 0
+}
+
+func (x *AgentUpdateTarget) GetArtifacts() []*AgentUpdateArtifact {
+	if x != nil {
+		return x.Artifacts
+	}
+	return nil
+}
+
+func (x *AgentUpdateTarget) GetSecurityEpoch() int64 {
+	if x != nil {
+		return x.SecurityEpoch
+	}
+	return 0
+}
+
+func (x *AgentUpdateTarget) GetMinimumUpdaterVersion() string {
+	if x != nil {
+		return x.MinimumUpdaterVersion
+	}
+	return ""
+}
+
+func (x *AgentUpdateTarget) GetRootVersion() int64 {
+	if x != nil {
+		return x.RootVersion
+	}
+	return 0
+}
+
+// The structured fields let both sides validate policy without parsing an
+// ad-hoc wire format. canonical_payload is the exact domain-separated byte
+// string produced by internal/agentupdateauth and signature authenticates
+// those bytes. Receivers must reconstruct and compare canonical_payload before
+// accepting or persisting the record.
+type AgentUpdaterEnrollmentReceipt struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	AgentPublicId            string                 `protobuf:"bytes,1,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
+	UpdaterKeyId             string                 `protobuf:"bytes,2,opt,name=updater_key_id,json=updaterKeyId,proto3" json:"updater_key_id,omitempty"`
+	UpdaterPublicKeySha256   string                 `protobuf:"bytes,3,opt,name=updater_public_key_sha256,json=updaterPublicKeySha256,proto3" json:"updater_public_key_sha256,omitempty"`
+	ActivatorKeyId           string                 `protobuf:"bytes,4,opt,name=activator_key_id,json=activatorKeyId,proto3" json:"activator_key_id,omitempty"`
+	ActivatorPublicKeySha256 string                 `protobuf:"bytes,5,opt,name=activator_public_key_sha256,json=activatorPublicKeySha256,proto3" json:"activator_public_key_sha256,omitempty"`
+	Os                       string                 `protobuf:"bytes,6,opt,name=os,proto3" json:"os,omitempty"`
+	Arch                     string                 `protobuf:"bytes,7,opt,name=arch,proto3" json:"arch,omitempty"`
+	UpdaterVersion           string                 `protobuf:"bytes,8,opt,name=updater_version,json=updaterVersion,proto3" json:"updater_version,omitempty"`
+	TrustedRootSha256        string                 `protobuf:"bytes,9,opt,name=trusted_root_sha256,json=trustedRootSha256,proto3" json:"trusted_root_sha256,omitempty"`
+	TrustedRootVersion       uint64                 `protobuf:"varint,10,opt,name=trusted_root_version,json=trustedRootVersion,proto3" json:"trusted_root_version,omitempty"`
+	PinnedRepository         string                 `protobuf:"bytes,11,opt,name=pinned_repository,json=pinnedRepository,proto3" json:"pinned_repository,omitempty"`
+	AuthorityKeyId           string                 `protobuf:"bytes,12,opt,name=authority_key_id,json=authorityKeyId,proto3" json:"authority_key_id,omitempty"`
+	AuthorityEpoch           uint64                 `protobuf:"varint,13,opt,name=authority_epoch,json=authorityEpoch,proto3" json:"authority_epoch,omitempty"`
+	EnrolledAtUnixMillis     int64                  `protobuf:"varint,14,opt,name=enrolled_at_unix_millis,json=enrolledAtUnixMillis,proto3" json:"enrolled_at_unix_millis,omitempty"`
+	ExpiresAtUnixMillis      int64                  `protobuf:"varint,15,opt,name=expires_at_unix_millis,json=expiresAtUnixMillis,proto3" json:"expires_at_unix_millis,omitempty"`
+	Generation               uint64                 `protobuf:"varint,16,opt,name=generation,proto3" json:"generation,omitempty"`
+	CanonicalPayload         []byte                 `protobuf:"bytes,17,opt,name=canonical_payload,json=canonicalPayload,proto3" json:"canonical_payload,omitempty"`
+	Signature                []byte                 `protobuf:"bytes,18,opt,name=signature,proto3" json:"signature,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) Reset() {
+	*x = AgentUpdaterEnrollmentReceipt{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[261]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdaterEnrollmentReceipt) ProtoMessage() {}
+
+func (x *AgentUpdaterEnrollmentReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[261]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdaterEnrollmentReceipt.ProtoReflect.Descriptor instead.
+func (*AgentUpdaterEnrollmentReceipt) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{261}
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetAgentPublicId() string {
+	if x != nil {
+		return x.AgentPublicId
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetUpdaterKeyId() string {
+	if x != nil {
+		return x.UpdaterKeyId
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetUpdaterPublicKeySha256() string {
+	if x != nil {
+		return x.UpdaterPublicKeySha256
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetActivatorKeyId() string {
+	if x != nil {
+		return x.ActivatorKeyId
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetActivatorPublicKeySha256() string {
+	if x != nil {
+		return x.ActivatorPublicKeySha256
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetArch() string {
+	if x != nil {
+		return x.Arch
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetUpdaterVersion() string {
+	if x != nil {
+		return x.UpdaterVersion
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetTrustedRootSha256() string {
+	if x != nil {
+		return x.TrustedRootSha256
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetTrustedRootVersion() uint64 {
+	if x != nil {
+		return x.TrustedRootVersion
+	}
+	return 0
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetPinnedRepository() string {
+	if x != nil {
+		return x.PinnedRepository
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetAuthorityKeyId() string {
+	if x != nil {
+		return x.AuthorityKeyId
+	}
+	return ""
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetAuthorityEpoch() uint64 {
+	if x != nil {
+		return x.AuthorityEpoch
+	}
+	return 0
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetEnrolledAtUnixMillis() int64 {
+	if x != nil {
+		return x.EnrolledAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetExpiresAtUnixMillis() int64 {
+	if x != nil {
+		return x.ExpiresAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetGeneration() uint64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetCanonicalPayload() []byte {
+	if x != nil {
+		return x.CanonicalPayload
+	}
+	return nil
+}
+
+func (x *AgentUpdaterEnrollmentReceipt) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+type AgentUpdateAssignmentAuthorization struct {
+	state               protoimpl.MessageState   `protogen:"open.v1"`
+	AgentPublicId       string                   `protobuf:"bytes,1,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
+	AssignmentId        int64                    `protobuf:"varint,2,opt,name=assignment_id,json=assignmentId,proto3" json:"assignment_id,omitempty"`
+	CampaignId          int64                    `protobuf:"varint,3,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	Generation          int64                    `protobuf:"varint,4,opt,name=generation,proto3" json:"generation,omitempty"`
+	Action              AgentUpdateDesiredAction `protobuf:"varint,5,opt,name=action,proto3,enum=p2pstream.v1.AgentUpdateDesiredAction" json:"action,omitempty"`
+	CommandSequence     uint64                   `protobuf:"varint,6,opt,name=command_sequence,json=commandSequence,proto3" json:"command_sequence,omitempty"`
+	Nonce               []byte                   `protobuf:"bytes,7,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	IssuedAtUnixMillis  int64                    `protobuf:"varint,8,opt,name=issued_at_unix_millis,json=issuedAtUnixMillis,proto3" json:"issued_at_unix_millis,omitempty"`
+	ExpiresAtUnixMillis int64                    `protobuf:"varint,9,opt,name=expires_at_unix_millis,json=expiresAtUnixMillis,proto3" json:"expires_at_unix_millis,omitempty"`
+	AuthorityKeyId      string                   `protobuf:"bytes,10,opt,name=authority_key_id,json=authorityKeyId,proto3" json:"authority_key_id,omitempty"`
+	AuthorityEpoch      uint64                   `protobuf:"varint,11,opt,name=authority_epoch,json=authorityEpoch,proto3" json:"authority_epoch,omitempty"`
+	ServerVersion       string                   `protobuf:"bytes,12,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
+	RootVersion         uint64                   `protobuf:"varint,13,opt,name=root_version,json=rootVersion,proto3" json:"root_version,omitempty"`
+	ManifestSha256      string                   `protobuf:"bytes,14,opt,name=manifest_sha256,json=manifestSha256,proto3" json:"manifest_sha256,omitempty"`
+	TargetVersion       string                   `protobuf:"bytes,15,opt,name=target_version,json=targetVersion,proto3" json:"target_version,omitempty"`
+	TargetCommit        string                   `protobuf:"bytes,16,opt,name=target_commit,json=targetCommit,proto3" json:"target_commit,omitempty"`
+	ReleaseSequence     uint64                   `protobuf:"varint,17,opt,name=release_sequence,json=releaseSequence,proto3" json:"release_sequence,omitempty"`
+	SecurityEpoch       uint64                   `protobuf:"varint,18,opt,name=security_epoch,json=securityEpoch,proto3" json:"security_epoch,omitempty"`
+	Os                  string                   `protobuf:"bytes,19,opt,name=os,proto3" json:"os,omitempty"`
+	Arch                string                   `protobuf:"bytes,20,opt,name=arch,proto3" json:"arch,omitempty"`
+	ArtifactName        string                   `protobuf:"bytes,21,opt,name=artifact_name,json=artifactName,proto3" json:"artifact_name,omitempty"`
+	ArtifactSize        int64                    `protobuf:"varint,22,opt,name=artifact_size,json=artifactSize,proto3" json:"artifact_size,omitempty"`
+	ArtifactSha256      string                   `protobuf:"bytes,23,opt,name=artifact_sha256,json=artifactSha256,proto3" json:"artifact_sha256,omitempty"`
+	CanonicalPayload    []byte                   `protobuf:"bytes,24,opt,name=canonical_payload,json=canonicalPayload,proto3" json:"canonical_payload,omitempty"`
+	Signature           []byte                   `protobuf:"bytes,25,opt,name=signature,proto3" json:"signature,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *AgentUpdateAssignmentAuthorization) Reset() {
+	*x = AgentUpdateAssignmentAuthorization{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[262]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdateAssignmentAuthorization) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdateAssignmentAuthorization) ProtoMessage() {}
+
+func (x *AgentUpdateAssignmentAuthorization) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[262]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdateAssignmentAuthorization.ProtoReflect.Descriptor instead.
+func (*AgentUpdateAssignmentAuthorization) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{262}
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetAgentPublicId() string {
+	if x != nil {
+		return x.AgentPublicId
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetAssignmentId() int64 {
+	if x != nil {
+		return x.AssignmentId
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetCampaignId() int64 {
+	if x != nil {
+		return x.CampaignId
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetGeneration() int64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetAction() AgentUpdateDesiredAction {
+	if x != nil {
+		return x.Action
+	}
+	return AgentUpdateDesiredAction_AGENT_UPDATE_DESIRED_ACTION_UNSPECIFIED
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetCommandSequence() uint64 {
+	if x != nil {
+		return x.CommandSequence
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetNonce() []byte {
+	if x != nil {
+		return x.Nonce
+	}
+	return nil
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetIssuedAtUnixMillis() int64 {
+	if x != nil {
+		return x.IssuedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetExpiresAtUnixMillis() int64 {
+	if x != nil {
+		return x.ExpiresAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetAuthorityKeyId() string {
+	if x != nil {
+		return x.AuthorityKeyId
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetAuthorityEpoch() uint64 {
+	if x != nil {
+		return x.AuthorityEpoch
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetServerVersion() string {
+	if x != nil {
+		return x.ServerVersion
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetRootVersion() uint64 {
+	if x != nil {
+		return x.RootVersion
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetManifestSha256() string {
+	if x != nil {
+		return x.ManifestSha256
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetTargetVersion() string {
+	if x != nil {
+		return x.TargetVersion
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetTargetCommit() string {
+	if x != nil {
+		return x.TargetCommit
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetReleaseSequence() uint64 {
+	if x != nil {
+		return x.ReleaseSequence
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetSecurityEpoch() uint64 {
+	if x != nil {
+		return x.SecurityEpoch
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetArch() string {
+	if x != nil {
+		return x.Arch
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetArtifactName() string {
+	if x != nil {
+		return x.ArtifactName
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetArtifactSize() int64 {
+	if x != nil {
+		return x.ArtifactSize
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetArtifactSha256() string {
+	if x != nil {
+		return x.ArtifactSha256
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetCanonicalPayload() []byte {
+	if x != nil {
+		return x.CanonicalPayload
+	}
+	return nil
+}
+
+func (x *AgentUpdateAssignmentAuthorization) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+type AgentUpdateRootActionReceipt struct {
+	state                 protoimpl.MessageState          `protogen:"open.v1"`
+	AgentPublicId         string                          `protobuf:"bytes,1,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
+	AssignmentId          int64                           `protobuf:"varint,2,opt,name=assignment_id,json=assignmentId,proto3" json:"assignment_id,omitempty"`
+	CampaignId            int64                           `protobuf:"varint,3,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	Generation            int64                           `protobuf:"varint,4,opt,name=generation,proto3" json:"generation,omitempty"`
+	Action                AgentUpdateDesiredAction        `protobuf:"varint,5,opt,name=action,proto3,enum=p2pstream.v1.AgentUpdateDesiredAction" json:"action,omitempty"`
+	CommandSequence       uint64                          `protobuf:"varint,6,opt,name=command_sequence,json=commandSequence,proto3" json:"command_sequence,omitempty"`
+	AuthorizationSha256   string                          `protobuf:"bytes,7,opt,name=authorization_sha256,json=authorizationSha256,proto3" json:"authorization_sha256,omitempty"`
+	AuthorizationNonce    []byte                          `protobuf:"bytes,8,opt,name=authorization_nonce,json=authorizationNonce,proto3" json:"authorization_nonce,omitempty"`
+	AuthorityKeyId        string                          `protobuf:"bytes,9,opt,name=authority_key_id,json=authorityKeyId,proto3" json:"authority_key_id,omitempty"`
+	AuthorityEpoch        uint64                          `protobuf:"varint,10,opt,name=authority_epoch,json=authorityEpoch,proto3" json:"authority_epoch,omitempty"`
+	ActivatorKeyId        string                          `protobuf:"bytes,11,opt,name=activator_key_id,json=activatorKeyId,proto3" json:"activator_key_id,omitempty"`
+	RootActionCounter     uint64                          `protobuf:"varint,12,opt,name=root_action_counter,json=rootActionCounter,proto3" json:"root_action_counter,omitempty"`
+	CompletedAtUnixMillis int64                           `protobuf:"varint,13,opt,name=completed_at_unix_millis,json=completedAtUnixMillis,proto3" json:"completed_at_unix_millis,omitempty"`
+	ResultKind            AgentUpdateRootActionResultKind `protobuf:"varint,14,opt,name=result_kind,json=resultKind,proto3,enum=p2pstream.v1.AgentUpdateRootActionResultKind" json:"result_kind,omitempty"`
+	ResultRootVersion     uint64                          `protobuf:"varint,15,opt,name=result_root_version,json=resultRootVersion,proto3" json:"result_root_version,omitempty"`
+	ResultManifestSha256  string                          `protobuf:"bytes,16,opt,name=result_manifest_sha256,json=resultManifestSha256,proto3" json:"result_manifest_sha256,omitempty"`
+	ResultVersion         string                          `protobuf:"bytes,17,opt,name=result_version,json=resultVersion,proto3" json:"result_version,omitempty"`
+	ResultCommit          string                          `protobuf:"bytes,18,opt,name=result_commit,json=resultCommit,proto3" json:"result_commit,omitempty"`
+	ResultReleaseSequence uint64                          `protobuf:"varint,19,opt,name=result_release_sequence,json=resultReleaseSequence,proto3" json:"result_release_sequence,omitempty"`
+	ResultSecurityEpoch   uint64                          `protobuf:"varint,20,opt,name=result_security_epoch,json=resultSecurityEpoch,proto3" json:"result_security_epoch,omitempty"`
+	ResultOs              string                          `protobuf:"bytes,21,opt,name=result_os,json=resultOs,proto3" json:"result_os,omitempty"`
+	ResultArch            string                          `protobuf:"bytes,22,opt,name=result_arch,json=resultArch,proto3" json:"result_arch,omitempty"`
+	ResultArtifactName    string                          `protobuf:"bytes,23,opt,name=result_artifact_name,json=resultArtifactName,proto3" json:"result_artifact_name,omitempty"`
+	ResultArtifactSize    int64                           `protobuf:"varint,24,opt,name=result_artifact_size,json=resultArtifactSize,proto3" json:"result_artifact_size,omitempty"`
+	ResultArtifactSha256  string                          `protobuf:"bytes,25,opt,name=result_artifact_sha256,json=resultArtifactSha256,proto3" json:"result_artifact_sha256,omitempty"`
+	CanonicalPayload      []byte                          `protobuf:"bytes,26,opt,name=canonical_payload,json=canonicalPayload,proto3" json:"canonical_payload,omitempty"`
+	Signature             []byte                          `protobuf:"bytes,27,opt,name=signature,proto3" json:"signature,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AgentUpdateRootActionReceipt) Reset() {
+	*x = AgentUpdateRootActionReceipt{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[263]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdateRootActionReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdateRootActionReceipt) ProtoMessage() {}
+
+func (x *AgentUpdateRootActionReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[263]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdateRootActionReceipt.ProtoReflect.Descriptor instead.
+func (*AgentUpdateRootActionReceipt) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{263}
+}
+
+func (x *AgentUpdateRootActionReceipt) GetAgentPublicId() string {
+	if x != nil {
+		return x.AgentPublicId
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetAssignmentId() int64 {
+	if x != nil {
+		return x.AssignmentId
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetCampaignId() int64 {
+	if x != nil {
+		return x.CampaignId
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetGeneration() int64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetAction() AgentUpdateDesiredAction {
+	if x != nil {
+		return x.Action
+	}
+	return AgentUpdateDesiredAction_AGENT_UPDATE_DESIRED_ACTION_UNSPECIFIED
+}
+
+func (x *AgentUpdateRootActionReceipt) GetCommandSequence() uint64 {
+	if x != nil {
+		return x.CommandSequence
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetAuthorizationSha256() string {
+	if x != nil {
+		return x.AuthorizationSha256
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetAuthorizationNonce() []byte {
+	if x != nil {
+		return x.AuthorizationNonce
+	}
+	return nil
+}
+
+func (x *AgentUpdateRootActionReceipt) GetAuthorityKeyId() string {
+	if x != nil {
+		return x.AuthorityKeyId
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetAuthorityEpoch() uint64 {
+	if x != nil {
+		return x.AuthorityEpoch
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetActivatorKeyId() string {
+	if x != nil {
+		return x.ActivatorKeyId
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetRootActionCounter() uint64 {
+	if x != nil {
+		return x.RootActionCounter
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetCompletedAtUnixMillis() int64 {
+	if x != nil {
+		return x.CompletedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultKind() AgentUpdateRootActionResultKind {
+	if x != nil {
+		return x.ResultKind
+	}
+	return AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultRootVersion() uint64 {
+	if x != nil {
+		return x.ResultRootVersion
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultManifestSha256() string {
+	if x != nil {
+		return x.ResultManifestSha256
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultVersion() string {
+	if x != nil {
+		return x.ResultVersion
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultCommit() string {
+	if x != nil {
+		return x.ResultCommit
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultReleaseSequence() uint64 {
+	if x != nil {
+		return x.ResultReleaseSequence
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultSecurityEpoch() uint64 {
+	if x != nil {
+		return x.ResultSecurityEpoch
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultOs() string {
+	if x != nil {
+		return x.ResultOs
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultArch() string {
+	if x != nil {
+		return x.ResultArch
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultArtifactName() string {
+	if x != nil {
+		return x.ResultArtifactName
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultArtifactSize() int64 {
+	if x != nil {
+		return x.ResultArtifactSize
+	}
+	return 0
+}
+
+func (x *AgentUpdateRootActionReceipt) GetResultArtifactSha256() string {
+	if x != nil {
+		return x.ResultArtifactSha256
+	}
+	return ""
+}
+
+func (x *AgentUpdateRootActionReceipt) GetCanonicalPayload() []byte {
+	if x != nil {
+		return x.CanonicalPayload
+	}
+	return nil
+}
+
+func (x *AgentUpdateRootActionReceipt) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+type AgentUpdatePolicy struct {
+	state                         protoimpl.MessageState `protogen:"open.v1"`
+	MaxUnavailable                int64                  `protobuf:"varint,1,opt,name=max_unavailable,json=maxUnavailable,proto3" json:"max_unavailable,omitempty"`
+	MinimumEligibleAgentsPerRoute int64                  `protobuf:"varint,2,opt,name=minimum_eligible_agents_per_route,json=minimumEligibleAgentsPerRoute,proto3" json:"minimum_eligible_agents_per_route,omitempty"`
+	CanaryCount                   int64                  `protobuf:"varint,3,opt,name=canary_count,json=canaryCount,proto3" json:"canary_count,omitempty"`
+	WaveSize                      int64                  `protobuf:"varint,4,opt,name=wave_size,json=waveSize,proto3" json:"wave_size,omitempty"`
+	HealthyDwellMillis            int64                  `protobuf:"varint,5,opt,name=healthy_dwell_millis,json=healthyDwellMillis,proto3" json:"healthy_dwell_millis,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
+}
+
+func (x *AgentUpdatePolicy) Reset() {
+	*x = AgentUpdatePolicy{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[264]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdatePolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdatePolicy) ProtoMessage() {}
+
+func (x *AgentUpdatePolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[264]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdatePolicy.ProtoReflect.Descriptor instead.
+func (*AgentUpdatePolicy) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{264}
+}
+
+func (x *AgentUpdatePolicy) GetMaxUnavailable() int64 {
+	if x != nil {
+		return x.MaxUnavailable
+	}
+	return 0
+}
+
+func (x *AgentUpdatePolicy) GetMinimumEligibleAgentsPerRoute() int64 {
+	if x != nil {
+		return x.MinimumEligibleAgentsPerRoute
+	}
+	return 0
+}
+
+func (x *AgentUpdatePolicy) GetCanaryCount() int64 {
+	if x != nil {
+		return x.CanaryCount
+	}
+	return 0
+}
+
+func (x *AgentUpdatePolicy) GetWaveSize() int64 {
+	if x != nil {
+		return x.WaveSize
+	}
+	return 0
+}
+
+func (x *AgentUpdatePolicy) GetHealthyDwellMillis() int64 {
+	if x != nil {
+		return x.HealthyDwellMillis
+	}
+	return 0
+}
+
+type AgentUpdatePreviewAgent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentId       int64                  `protobuf:"varint,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	AgentPublicId string                 `protobuf:"bytes,2,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Enrolled      bool                   `protobuf:"varint,4,opt,name=enrolled,proto3" json:"enrolled,omitempty"`
+	Eligible      bool                   `protobuf:"varint,5,opt,name=eligible,proto3" json:"eligible,omitempty"`
+	Blockers      []string               `protobuf:"bytes,6,rep,name=blockers,proto3" json:"blockers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentUpdatePreviewAgent) Reset() {
+	*x = AgentUpdatePreviewAgent{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[265]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdatePreviewAgent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdatePreviewAgent) ProtoMessage() {}
+
+func (x *AgentUpdatePreviewAgent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[265]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdatePreviewAgent.ProtoReflect.Descriptor instead.
+func (*AgentUpdatePreviewAgent) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{265}
+}
+
+func (x *AgentUpdatePreviewAgent) GetAgentId() int64 {
+	if x != nil {
+		return x.AgentId
+	}
+	return 0
+}
+
+func (x *AgentUpdatePreviewAgent) GetAgentPublicId() string {
+	if x != nil {
+		return x.AgentPublicId
+	}
+	return ""
+}
+
+func (x *AgentUpdatePreviewAgent) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AgentUpdatePreviewAgent) GetEnrolled() bool {
+	if x != nil {
+		return x.Enrolled
+	}
+	return false
+}
+
+func (x *AgentUpdatePreviewAgent) GetEligible() bool {
+	if x != nil {
+		return x.Eligible
+	}
+	return false
+}
+
+func (x *AgentUpdatePreviewAgent) GetBlockers() []string {
+	if x != nil {
+		return x.Blockers
+	}
+	return nil
+}
+
+type PreviewAgentUpdateCampaignRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentIds      []int64                `protobuf:"varint,1,rep,packed,name=agent_ids,json=agentIds,proto3" json:"agent_ids,omitempty"`
+	Target        *AgentUpdateTarget     `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	Policy        *AgentUpdatePolicy     `protobuf:"bytes,3,opt,name=policy,proto3" json:"policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreviewAgentUpdateCampaignRequest) Reset() {
+	*x = PreviewAgentUpdateCampaignRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[266]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewAgentUpdateCampaignRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewAgentUpdateCampaignRequest) ProtoMessage() {}
+
+func (x *PreviewAgentUpdateCampaignRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[266]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewAgentUpdateCampaignRequest.ProtoReflect.Descriptor instead.
+func (*PreviewAgentUpdateCampaignRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{266}
+}
+
+func (x *PreviewAgentUpdateCampaignRequest) GetAgentIds() []int64 {
+	if x != nil {
+		return x.AgentIds
+	}
+	return nil
+}
+
+func (x *PreviewAgentUpdateCampaignRequest) GetTarget() *AgentUpdateTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *PreviewAgentUpdateCampaignRequest) GetPolicy() *AgentUpdatePolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+type PreviewAgentUpdateCampaignResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Agents        []*AgentUpdatePreviewAgent `protobuf:"bytes,1,rep,name=agents,proto3" json:"agents,omitempty"`
+	EligibleCount int64                      `protobuf:"varint,2,opt,name=eligible_count,json=eligibleCount,proto3" json:"eligible_count,omitempty"`
+	BlockedCount  int64                      `protobuf:"varint,3,opt,name=blocked_count,json=blockedCount,proto3" json:"blocked_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreviewAgentUpdateCampaignResponse) Reset() {
+	*x = PreviewAgentUpdateCampaignResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[267]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewAgentUpdateCampaignResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewAgentUpdateCampaignResponse) ProtoMessage() {}
+
+func (x *PreviewAgentUpdateCampaignResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[267]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewAgentUpdateCampaignResponse.ProtoReflect.Descriptor instead.
+func (*PreviewAgentUpdateCampaignResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{267}
+}
+
+func (x *PreviewAgentUpdateCampaignResponse) GetAgents() []*AgentUpdatePreviewAgent {
+	if x != nil {
+		return x.Agents
+	}
+	return nil
+}
+
+func (x *PreviewAgentUpdateCampaignResponse) GetEligibleCount() int64 {
+	if x != nil {
+		return x.EligibleCount
+	}
+	return 0
+}
+
+func (x *PreviewAgentUpdateCampaignResponse) GetBlockedCount() int64 {
+	if x != nil {
+		return x.BlockedCount
+	}
+	return 0
+}
+
+type AgentUpdateAssignment struct {
+	state                   protoimpl.MessageState     `protogen:"open.v1"`
+	Id                      int64                      `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	CampaignId              int64                      `protobuf:"varint,2,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	AgentId                 int64                      `protobuf:"varint,3,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	AgentPublicId           string                     `protobuf:"bytes,4,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
+	AgentName               string                     `protobuf:"bytes,5,opt,name=agent_name,json=agentName,proto3" json:"agent_name,omitempty"`
+	State                   AgentUpdateAssignmentState `protobuf:"varint,6,opt,name=state,proto3,enum=p2pstream.v1.AgentUpdateAssignmentState" json:"state,omitempty"`
+	DesiredAction           AgentUpdateDesiredAction   `protobuf:"varint,7,opt,name=desired_action,json=desiredAction,proto3,enum=p2pstream.v1.AgentUpdateDesiredAction" json:"desired_action,omitempty"`
+	Generation              int64                      `protobuf:"varint,8,opt,name=generation,proto3" json:"generation,omitempty"`
+	Cordoned                bool                       `protobuf:"varint,9,opt,name=cordoned,proto3" json:"cordoned,omitempty"`
+	FailureCode             string                     `protobuf:"bytes,10,opt,name=failure_code,json=failureCode,proto3" json:"failure_code,omitempty"`
+	FailureDetail           string                     `protobuf:"bytes,11,opt,name=failure_detail,json=failureDetail,proto3" json:"failure_detail,omitempty"`
+	AttestedManifestSha256  string                     `protobuf:"bytes,12,opt,name=attested_manifest_sha256,json=attestedManifestSha256,proto3" json:"attested_manifest_sha256,omitempty"`
+	AttestedBinarySha256    string                     `protobuf:"bytes,13,opt,name=attested_binary_sha256,json=attestedBinarySha256,proto3" json:"attested_binary_sha256,omitempty"`
+	ActivatedAtUnixMillis   int64                      `protobuf:"varint,14,opt,name=activated_at_unix_millis,json=activatedAtUnixMillis,proto3" json:"activated_at_unix_millis,omitempty"`
+	FreshTunnelAtUnixMillis int64                      `protobuf:"varint,15,opt,name=fresh_tunnel_at_unix_millis,json=freshTunnelAtUnixMillis,proto3" json:"fresh_tunnel_at_unix_millis,omitempty"`
+	HealthyAtUnixMillis     int64                      `protobuf:"varint,16,opt,name=healthy_at_unix_millis,json=healthyAtUnixMillis,proto3" json:"healthy_at_unix_millis,omitempty"`
+	UpdatedAtUnixMillis     int64                      `protobuf:"varint,17,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
+	ObservedVersion         string                     `protobuf:"bytes,18,opt,name=observed_version,json=observedVersion,proto3" json:"observed_version,omitempty"`
+	ObservedCommit          string                     `protobuf:"bytes,19,opt,name=observed_commit,json=observedCommit,proto3" json:"observed_commit,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *AgentUpdateAssignment) Reset() {
+	*x = AgentUpdateAssignment{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[268]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdateAssignment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdateAssignment) ProtoMessage() {}
+
+func (x *AgentUpdateAssignment) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[268]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdateAssignment.ProtoReflect.Descriptor instead.
+func (*AgentUpdateAssignment) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{268}
+}
+
+func (x *AgentUpdateAssignment) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignment) GetCampaignId() int64 {
+	if x != nil {
+		return x.CampaignId
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignment) GetAgentId() int64 {
+	if x != nil {
+		return x.AgentId
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignment) GetAgentPublicId() string {
+	if x != nil {
+		return x.AgentPublicId
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignment) GetAgentName() string {
+	if x != nil {
+		return x.AgentName
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignment) GetState() AgentUpdateAssignmentState {
+	if x != nil {
+		return x.State
+	}
+	return AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_UNSPECIFIED
+}
+
+func (x *AgentUpdateAssignment) GetDesiredAction() AgentUpdateDesiredAction {
+	if x != nil {
+		return x.DesiredAction
+	}
+	return AgentUpdateDesiredAction_AGENT_UPDATE_DESIRED_ACTION_UNSPECIFIED
+}
+
+func (x *AgentUpdateAssignment) GetGeneration() int64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignment) GetCordoned() bool {
+	if x != nil {
+		return x.Cordoned
+	}
+	return false
+}
+
+func (x *AgentUpdateAssignment) GetFailureCode() string {
+	if x != nil {
+		return x.FailureCode
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignment) GetFailureDetail() string {
+	if x != nil {
+		return x.FailureDetail
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignment) GetAttestedManifestSha256() string {
+	if x != nil {
+		return x.AttestedManifestSha256
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignment) GetAttestedBinarySha256() string {
+	if x != nil {
+		return x.AttestedBinarySha256
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignment) GetActivatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.ActivatedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignment) GetFreshTunnelAtUnixMillis() int64 {
+	if x != nil {
+		return x.FreshTunnelAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignment) GetHealthyAtUnixMillis() int64 {
+	if x != nil {
+		return x.HealthyAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignment) GetUpdatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.UpdatedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentUpdateAssignment) GetObservedVersion() string {
+	if x != nil {
+		return x.ObservedVersion
+	}
+	return ""
+}
+
+func (x *AgentUpdateAssignment) GetObservedCommit() string {
+	if x != nil {
+		return x.ObservedCommit
+	}
+	return ""
+}
+
+type AgentUpdateCampaign struct {
+	state               protoimpl.MessageState   `protogen:"open.v1"`
+	Id                  int64                    `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                string                   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	State               AgentUpdateCampaignState `protobuf:"varint,3,opt,name=state,proto3,enum=p2pstream.v1.AgentUpdateCampaignState" json:"state,omitempty"`
+	Generation          int64                    `protobuf:"varint,4,opt,name=generation,proto3" json:"generation,omitempty"`
+	Target              *AgentUpdateTarget       `protobuf:"bytes,5,opt,name=target,proto3" json:"target,omitempty"`
+	Policy              *AgentUpdatePolicy       `protobuf:"bytes,6,opt,name=policy,proto3" json:"policy,omitempty"`
+	Assignments         []*AgentUpdateAssignment `protobuf:"bytes,7,rep,name=assignments,proto3" json:"assignments,omitempty"`
+	CreatedAtUnixMillis int64                    `protobuf:"varint,8,opt,name=created_at_unix_millis,json=createdAtUnixMillis,proto3" json:"created_at_unix_millis,omitempty"`
+	UpdatedAtUnixMillis int64                    `protobuf:"varint,9,opt,name=updated_at_unix_millis,json=updatedAtUnixMillis,proto3" json:"updated_at_unix_millis,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *AgentUpdateCampaign) Reset() {
+	*x = AgentUpdateCampaign{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[269]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdateCampaign) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdateCampaign) ProtoMessage() {}
+
+func (x *AgentUpdateCampaign) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[269]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdateCampaign.ProtoReflect.Descriptor instead.
+func (*AgentUpdateCampaign) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{269}
+}
+
+func (x *AgentUpdateCampaign) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *AgentUpdateCampaign) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AgentUpdateCampaign) GetState() AgentUpdateCampaignState {
+	if x != nil {
+		return x.State
+	}
+	return AgentUpdateCampaignState_AGENT_UPDATE_CAMPAIGN_STATE_UNSPECIFIED
+}
+
+func (x *AgentUpdateCampaign) GetGeneration() int64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *AgentUpdateCampaign) GetTarget() *AgentUpdateTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *AgentUpdateCampaign) GetPolicy() *AgentUpdatePolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+func (x *AgentUpdateCampaign) GetAssignments() []*AgentUpdateAssignment {
+	if x != nil {
+		return x.Assignments
+	}
+	return nil
+}
+
+func (x *AgentUpdateCampaign) GetCreatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMillis
+	}
+	return 0
+}
+
+func (x *AgentUpdateCampaign) GetUpdatedAtUnixMillis() int64 {
+	if x != nil {
+		return x.UpdatedAtUnixMillis
+	}
+	return 0
+}
+
+type AgentUpdateOverviewAgent struct {
+	state              protoimpl.MessageState     `protogen:"open.v1"`
+	AgentId            int64                      `protobuf:"varint,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	AgentPublicId      string                     `protobuf:"bytes,2,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
+	Name               string                     `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	UpdaterEnrolled    bool                       `protobuf:"varint,4,opt,name=updater_enrolled,json=updaterEnrolled,proto3" json:"updater_enrolled,omitempty"`
+	UpdaterVersion     string                     `protobuf:"bytes,5,opt,name=updater_version,json=updaterVersion,proto3" json:"updater_version,omitempty"`
+	Connected          bool                       `protobuf:"varint,6,opt,name=connected,proto3" json:"connected,omitempty"`
+	Cordoned           bool                       `protobuf:"varint,7,opt,name=cordoned,proto3" json:"cordoned,omitempty"`
+	ActiveAssignmentId int64                      `protobuf:"varint,8,opt,name=active_assignment_id,json=activeAssignmentId,proto3" json:"active_assignment_id,omitempty"`
+	AssignmentState    AgentUpdateAssignmentState `protobuf:"varint,9,opt,name=assignment_state,json=assignmentState,proto3,enum=p2pstream.v1.AgentUpdateAssignmentState" json:"assignment_state,omitempty"`
+	// Build currently observed on the live tunnel. This is deliberately
+	// separate from updater_version, which describes the pinned rescue runner.
+	TunnelVersion               string `protobuf:"bytes,10,opt,name=tunnel_version,json=tunnelVersion,proto3" json:"tunnel_version,omitempty"`
+	TunnelCommit                string `protobuf:"bytes,11,opt,name=tunnel_commit,json=tunnelCommit,proto3" json:"tunnel_commit,omitempty"`
+	UpdaterLastSeenAtUnixMillis int64  `protobuf:"varint,12,opt,name=updater_last_seen_at_unix_millis,json=updaterLastSeenAtUnixMillis,proto3" json:"updater_last_seen_at_unix_millis,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
+}
+
+func (x *AgentUpdateOverviewAgent) Reset() {
+	*x = AgentUpdateOverviewAgent{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[270]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdateOverviewAgent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdateOverviewAgent) ProtoMessage() {}
+
+func (x *AgentUpdateOverviewAgent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[270]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdateOverviewAgent.ProtoReflect.Descriptor instead.
+func (*AgentUpdateOverviewAgent) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{270}
+}
+
+func (x *AgentUpdateOverviewAgent) GetAgentId() int64 {
+	if x != nil {
+		return x.AgentId
+	}
+	return 0
+}
+
+func (x *AgentUpdateOverviewAgent) GetAgentPublicId() string {
+	if x != nil {
+		return x.AgentPublicId
+	}
+	return ""
+}
+
+func (x *AgentUpdateOverviewAgent) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AgentUpdateOverviewAgent) GetUpdaterEnrolled() bool {
+	if x != nil {
+		return x.UpdaterEnrolled
+	}
+	return false
+}
+
+func (x *AgentUpdateOverviewAgent) GetUpdaterVersion() string {
+	if x != nil {
+		return x.UpdaterVersion
+	}
+	return ""
+}
+
+func (x *AgentUpdateOverviewAgent) GetConnected() bool {
+	if x != nil {
+		return x.Connected
+	}
+	return false
+}
+
+func (x *AgentUpdateOverviewAgent) GetCordoned() bool {
+	if x != nil {
+		return x.Cordoned
+	}
+	return false
+}
+
+func (x *AgentUpdateOverviewAgent) GetActiveAssignmentId() int64 {
+	if x != nil {
+		return x.ActiveAssignmentId
+	}
+	return 0
+}
+
+func (x *AgentUpdateOverviewAgent) GetAssignmentState() AgentUpdateAssignmentState {
+	if x != nil {
+		return x.AssignmentState
+	}
+	return AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_UNSPECIFIED
+}
+
+func (x *AgentUpdateOverviewAgent) GetTunnelVersion() string {
+	if x != nil {
+		return x.TunnelVersion
+	}
+	return ""
+}
+
+func (x *AgentUpdateOverviewAgent) GetTunnelCommit() string {
+	if x != nil {
+		return x.TunnelCommit
+	}
+	return ""
+}
+
+func (x *AgentUpdateOverviewAgent) GetUpdaterLastSeenAtUnixMillis() int64 {
+	if x != nil {
+		return x.UpdaterLastSeenAtUnixMillis
+	}
+	return 0
+}
+
+type GetAgentUpdateOverviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentUpdateOverviewRequest) Reset() {
+	*x = GetAgentUpdateOverviewRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[271]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentUpdateOverviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentUpdateOverviewRequest) ProtoMessage() {}
+
+func (x *GetAgentUpdateOverviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[271]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentUpdateOverviewRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentUpdateOverviewRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{271}
+}
+
+type GetAgentUpdateOverviewResponse struct {
+	state                      protoimpl.MessageState          `protogen:"open.v1"`
+	TrustedTargets             []*AgentUpdateTarget            `protobuf:"bytes,1,rep,name=trusted_targets,json=trustedTargets,proto3" json:"trusted_targets,omitempty"`
+	Agents                     []*AgentUpdateOverviewAgent     `protobuf:"bytes,2,rep,name=agents,proto3" json:"agents,omitempty"`
+	ManagementAuthority        *AgentUpdateManagementAuthority `protobuf:"bytes,3,opt,name=management_authority,json=managementAuthority,proto3" json:"management_authority,omitempty"`
+	ManagementAuthorityWarning string                          `protobuf:"bytes,4,opt,name=management_authority_warning,json=managementAuthorityWarning,proto3" json:"management_authority_warning,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
+}
+
+func (x *GetAgentUpdateOverviewResponse) Reset() {
+	*x = GetAgentUpdateOverviewResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[272]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentUpdateOverviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentUpdateOverviewResponse) ProtoMessage() {}
+
+func (x *GetAgentUpdateOverviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[272]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentUpdateOverviewResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentUpdateOverviewResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{272}
+}
+
+func (x *GetAgentUpdateOverviewResponse) GetTrustedTargets() []*AgentUpdateTarget {
+	if x != nil {
+		return x.TrustedTargets
+	}
+	return nil
+}
+
+func (x *GetAgentUpdateOverviewResponse) GetAgents() []*AgentUpdateOverviewAgent {
+	if x != nil {
+		return x.Agents
+	}
+	return nil
+}
+
+func (x *GetAgentUpdateOverviewResponse) GetManagementAuthority() *AgentUpdateManagementAuthority {
+	if x != nil {
+		return x.ManagementAuthority
+	}
+	return nil
+}
+
+func (x *GetAgentUpdateOverviewResponse) GetManagementAuthorityWarning() string {
+	if x != nil {
+		return x.ManagementAuthorityWarning
+	}
+	return ""
+}
+
+type GenerateAgentUpdaterEnrollmentTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentId       int64                  `protobuf:"varint,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	TtlMillis     int64                  `protobuf:"varint,2,opt,name=ttl_millis,json=ttlMillis,proto3" json:"ttl_millis,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenRequest) Reset() {
+	*x = GenerateAgentUpdaterEnrollmentTokenRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[273]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateAgentUpdaterEnrollmentTokenRequest) ProtoMessage() {}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[273]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateAgentUpdaterEnrollmentTokenRequest.ProtoReflect.Descriptor instead.
+func (*GenerateAgentUpdaterEnrollmentTokenRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{273}
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenRequest) GetAgentId() int64 {
+	if x != nil {
+		return x.AgentId
+	}
+	return 0
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenRequest) GetTtlMillis() int64 {
+	if x != nil {
+		return x.TtlMillis
+	}
+	return 0
+}
+
+type GenerateAgentUpdaterEnrollmentTokenResponse struct {
+	state                     protoimpl.MessageState          `protogen:"open.v1"`
+	Token                     string                          `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	ExpiresAtUnixMillis       int64                           `protobuf:"varint,2,opt,name=expires_at_unix_millis,json=expiresAtUnixMillis,proto3" json:"expires_at_unix_millis,omitempty"`
+	TrustedRootMetadataBase64 string                          `protobuf:"bytes,3,opt,name=trusted_root_metadata_base64,json=trustedRootMetadataBase64,proto3" json:"trusted_root_metadata_base64,omitempty"`
+	PinnedRepository          string                          `protobuf:"bytes,4,opt,name=pinned_repository,json=pinnedRepository,proto3" json:"pinned_repository,omitempty"`
+	TrustedRootSha256         string                          `protobuf:"bytes,5,opt,name=trusted_root_sha256,json=trustedRootSha256,proto3" json:"trusted_root_sha256,omitempty"`
+	TrustedRootVersion        int64                           `protobuf:"varint,6,opt,name=trusted_root_version,json=trustedRootVersion,proto3" json:"trusted_root_version,omitempty"`
+	ManagementAuthority       *AgentUpdateManagementAuthority `protobuf:"bytes,7,opt,name=management_authority,json=managementAuthority,proto3" json:"management_authority,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenResponse) Reset() {
+	*x = GenerateAgentUpdaterEnrollmentTokenResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[274]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateAgentUpdaterEnrollmentTokenResponse) ProtoMessage() {}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[274]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateAgentUpdaterEnrollmentTokenResponse.ProtoReflect.Descriptor instead.
+func (*GenerateAgentUpdaterEnrollmentTokenResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{274}
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetExpiresAtUnixMillis() int64 {
+	if x != nil {
+		return x.ExpiresAtUnixMillis
+	}
+	return 0
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetTrustedRootMetadataBase64() string {
+	if x != nil {
+		return x.TrustedRootMetadataBase64
+	}
+	return ""
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetPinnedRepository() string {
+	if x != nil {
+		return x.PinnedRepository
+	}
+	return ""
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetTrustedRootSha256() string {
+	if x != nil {
+		return x.TrustedRootSha256
+	}
+	return ""
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetTrustedRootVersion() int64 {
+	if x != nil {
+		return x.TrustedRootVersion
+	}
+	return 0
+}
+
+func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetManagementAuthority() *AgentUpdateManagementAuthority {
+	if x != nil {
+		return x.ManagementAuthority
+	}
+	return nil
+}
+
+type EnrollAgentUpdaterRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Token              string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	AgentPublicId      string                 `protobuf:"bytes,2,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
+	UpdaterPublicKey   []byte                 `protobuf:"bytes,3,opt,name=updater_public_key,json=updaterPublicKey,proto3" json:"updater_public_key,omitempty"`
+	ActivatorPublicKey []byte                 `protobuf:"bytes,4,opt,name=activator_public_key,json=activatorPublicKey,proto3" json:"activator_public_key,omitempty"`
+	Os                 string                 `protobuf:"bytes,5,opt,name=os,proto3" json:"os,omitempty"`
+	Arch               string                 `protobuf:"bytes,6,opt,name=arch,proto3" json:"arch,omitempty"`
+	UpdaterVersion     string                 `protobuf:"bytes,7,opt,name=updater_version,json=updaterVersion,proto3" json:"updater_version,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *EnrollAgentUpdaterRequest) Reset() {
+	*x = EnrollAgentUpdaterRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[275]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnrollAgentUpdaterRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnrollAgentUpdaterRequest) ProtoMessage() {}
+
+func (x *EnrollAgentUpdaterRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[275]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnrollAgentUpdaterRequest.ProtoReflect.Descriptor instead.
+func (*EnrollAgentUpdaterRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{275}
+}
+
+func (x *EnrollAgentUpdaterRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *EnrollAgentUpdaterRequest) GetAgentPublicId() string {
+	if x != nil {
+		return x.AgentPublicId
+	}
+	return ""
+}
+
+func (x *EnrollAgentUpdaterRequest) GetUpdaterPublicKey() []byte {
+	if x != nil {
+		return x.UpdaterPublicKey
+	}
+	return nil
+}
+
+func (x *EnrollAgentUpdaterRequest) GetActivatorPublicKey() []byte {
+	if x != nil {
+		return x.ActivatorPublicKey
+	}
+	return nil
+}
+
+func (x *EnrollAgentUpdaterRequest) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *EnrollAgentUpdaterRequest) GetArch() string {
+	if x != nil {
+		return x.Arch
+	}
+	return ""
+}
+
+func (x *EnrollAgentUpdaterRequest) GetUpdaterVersion() string {
+	if x != nil {
+		return x.UpdaterVersion
+	}
+	return ""
+}
+
+type EnrollAgentUpdaterResponse struct {
+	state                protoimpl.MessageState         `protogen:"open.v1"`
+	UpdaterKeyId         string                         `protobuf:"bytes,1,opt,name=updater_key_id,json=updaterKeyId,proto3" json:"updater_key_id,omitempty"`
+	ActivatorKeyId       string                         `protobuf:"bytes,2,opt,name=activator_key_id,json=activatorKeyId,proto3" json:"activator_key_id,omitempty"`
+	EnrolledAtUnixMillis int64                          `protobuf:"varint,3,opt,name=enrolled_at_unix_millis,json=enrolledAtUnixMillis,proto3" json:"enrolled_at_unix_millis,omitempty"`
+	Receipt              *AgentUpdaterEnrollmentReceipt `protobuf:"bytes,4,opt,name=receipt,proto3" json:"receipt,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *EnrollAgentUpdaterResponse) Reset() {
+	*x = EnrollAgentUpdaterResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[276]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnrollAgentUpdaterResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnrollAgentUpdaterResponse) ProtoMessage() {}
+
+func (x *EnrollAgentUpdaterResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[276]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnrollAgentUpdaterResponse.ProtoReflect.Descriptor instead.
+func (*EnrollAgentUpdaterResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{276}
+}
+
+func (x *EnrollAgentUpdaterResponse) GetUpdaterKeyId() string {
+	if x != nil {
+		return x.UpdaterKeyId
+	}
+	return ""
+}
+
+func (x *EnrollAgentUpdaterResponse) GetActivatorKeyId() string {
+	if x != nil {
+		return x.ActivatorKeyId
+	}
+	return ""
+}
+
+func (x *EnrollAgentUpdaterResponse) GetEnrolledAtUnixMillis() int64 {
+	if x != nil {
+		return x.EnrolledAtUnixMillis
+	}
+	return 0
+}
+
+func (x *EnrollAgentUpdaterResponse) GetReceipt() *AgentUpdaterEnrollmentReceipt {
+	if x != nil {
+		return x.Receipt
+	}
+	return nil
+}
+
+type CreateAgentUpdateCampaignRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	AgentIds      []int64                `protobuf:"varint,2,rep,packed,name=agent_ids,json=agentIds,proto3" json:"agent_ids,omitempty"`
+	Target        *AgentUpdateTarget     `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
+	Policy        *AgentUpdatePolicy     `protobuf:"bytes,4,opt,name=policy,proto3" json:"policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAgentUpdateCampaignRequest) Reset() {
+	*x = CreateAgentUpdateCampaignRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[277]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAgentUpdateCampaignRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAgentUpdateCampaignRequest) ProtoMessage() {}
+
+func (x *CreateAgentUpdateCampaignRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[277]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAgentUpdateCampaignRequest.ProtoReflect.Descriptor instead.
+func (*CreateAgentUpdateCampaignRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{277}
+}
+
+func (x *CreateAgentUpdateCampaignRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateAgentUpdateCampaignRequest) GetAgentIds() []int64 {
+	if x != nil {
+		return x.AgentIds
+	}
+	return nil
+}
+
+func (x *CreateAgentUpdateCampaignRequest) GetTarget() *AgentUpdateTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *CreateAgentUpdateCampaignRequest) GetPolicy() *AgentUpdatePolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+type CreateAgentUpdateCampaignResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Campaign      *AgentUpdateCampaign   `protobuf:"bytes,1,opt,name=campaign,proto3" json:"campaign,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAgentUpdateCampaignResponse) Reset() {
+	*x = CreateAgentUpdateCampaignResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[278]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAgentUpdateCampaignResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAgentUpdateCampaignResponse) ProtoMessage() {}
+
+func (x *CreateAgentUpdateCampaignResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[278]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAgentUpdateCampaignResponse.ProtoReflect.Descriptor instead.
+func (*CreateAgentUpdateCampaignResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{278}
+}
+
+func (x *CreateAgentUpdateCampaignResponse) GetCampaign() *AgentUpdateCampaign {
+	if x != nil {
+		return x.Campaign
+	}
+	return nil
+}
+
+type ListAgentUpdateCampaignsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int64                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentUpdateCampaignsRequest) Reset() {
+	*x = ListAgentUpdateCampaignsRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[279]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentUpdateCampaignsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentUpdateCampaignsRequest) ProtoMessage() {}
+
+func (x *ListAgentUpdateCampaignsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[279]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentUpdateCampaignsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentUpdateCampaignsRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{279}
+}
+
+func (x *ListAgentUpdateCampaignsRequest) GetLimit() int64 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListAgentUpdateCampaignsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Campaigns     []*AgentUpdateCampaign `protobuf:"bytes,1,rep,name=campaigns,proto3" json:"campaigns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentUpdateCampaignsResponse) Reset() {
+	*x = ListAgentUpdateCampaignsResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[280]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentUpdateCampaignsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentUpdateCampaignsResponse) ProtoMessage() {}
+
+func (x *ListAgentUpdateCampaignsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[280]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentUpdateCampaignsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentUpdateCampaignsResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{280}
+}
+
+func (x *ListAgentUpdateCampaignsResponse) GetCampaigns() []*AgentUpdateCampaign {
+	if x != nil {
+		return x.Campaigns
+	}
+	return nil
+}
+
+type ChangeAgentUpdateCampaignStateRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	CampaignId         int64                  `protobuf:"varint,1,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	ExpectedGeneration int64                  `protobuf:"varint,2,opt,name=expected_generation,json=expectedGeneration,proto3" json:"expected_generation,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ChangeAgentUpdateCampaignStateRequest) Reset() {
+	*x = ChangeAgentUpdateCampaignStateRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[281]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangeAgentUpdateCampaignStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangeAgentUpdateCampaignStateRequest) ProtoMessage() {}
+
+func (x *ChangeAgentUpdateCampaignStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[281]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangeAgentUpdateCampaignStateRequest.ProtoReflect.Descriptor instead.
+func (*ChangeAgentUpdateCampaignStateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{281}
+}
+
+func (x *ChangeAgentUpdateCampaignStateRequest) GetCampaignId() int64 {
+	if x != nil {
+		return x.CampaignId
+	}
+	return 0
+}
+
+func (x *ChangeAgentUpdateCampaignStateRequest) GetExpectedGeneration() int64 {
+	if x != nil {
+		return x.ExpectedGeneration
+	}
+	return 0
+}
+
+type ChangeAgentUpdateCampaignStateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Campaign      *AgentUpdateCampaign   `protobuf:"bytes,1,opt,name=campaign,proto3" json:"campaign,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChangeAgentUpdateCampaignStateResponse) Reset() {
+	*x = ChangeAgentUpdateCampaignStateResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[282]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangeAgentUpdateCampaignStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangeAgentUpdateCampaignStateResponse) ProtoMessage() {}
+
+func (x *ChangeAgentUpdateCampaignStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[282]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangeAgentUpdateCampaignStateResponse.ProtoReflect.Descriptor instead.
+func (*ChangeAgentUpdateCampaignStateResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{282}
+}
+
+func (x *ChangeAgentUpdateCampaignStateResponse) GetCampaign() *AgentUpdateCampaign {
+	if x != nil {
+		return x.Campaign
+	}
+	return nil
+}
+
+type RetryAgentUpdateAssignmentsRequest struct {
+	state                      protoimpl.MessageState `protogen:"open.v1"`
+	CampaignId                 int64                  `protobuf:"varint,1,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	AssignmentIds              []int64                `protobuf:"varint,2,rep,packed,name=assignment_ids,json=assignmentIds,proto3" json:"assignment_ids,omitempty"`
+	ExpectedCampaignGeneration int64                  `protobuf:"varint,3,opt,name=expected_campaign_generation,json=expectedCampaignGeneration,proto3" json:"expected_campaign_generation,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
+}
+
+func (x *RetryAgentUpdateAssignmentsRequest) Reset() {
+	*x = RetryAgentUpdateAssignmentsRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[283]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryAgentUpdateAssignmentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryAgentUpdateAssignmentsRequest) ProtoMessage() {}
+
+func (x *RetryAgentUpdateAssignmentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[283]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryAgentUpdateAssignmentsRequest.ProtoReflect.Descriptor instead.
+func (*RetryAgentUpdateAssignmentsRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{283}
+}
+
+func (x *RetryAgentUpdateAssignmentsRequest) GetCampaignId() int64 {
+	if x != nil {
+		return x.CampaignId
+	}
+	return 0
+}
+
+func (x *RetryAgentUpdateAssignmentsRequest) GetAssignmentIds() []int64 {
+	if x != nil {
+		return x.AssignmentIds
+	}
+	return nil
+}
+
+func (x *RetryAgentUpdateAssignmentsRequest) GetExpectedCampaignGeneration() int64 {
+	if x != nil {
+		return x.ExpectedCampaignGeneration
+	}
+	return 0
+}
+
+type RetryAgentUpdateAssignmentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Campaign      *AgentUpdateCampaign   `protobuf:"bytes,1,opt,name=campaign,proto3" json:"campaign,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetryAgentUpdateAssignmentsResponse) Reset() {
+	*x = RetryAgentUpdateAssignmentsResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[284]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryAgentUpdateAssignmentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryAgentUpdateAssignmentsResponse) ProtoMessage() {}
+
+func (x *RetryAgentUpdateAssignmentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[284]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryAgentUpdateAssignmentsResponse.ProtoReflect.Descriptor instead.
+func (*RetryAgentUpdateAssignmentsResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{284}
+}
+
+func (x *RetryAgentUpdateAssignmentsResponse) GetCampaign() *AgentUpdateCampaign {
+	if x != nil {
+		return x.Campaign
+	}
+	return nil
+}
+
+type CheckAgentUpdateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentPublicId string                 `protobuf:"bytes,1,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
+	Counter       uint64                 `protobuf:"varint,2,opt,name=counter,proto3" json:"counter,omitempty"`
+	Signature     []byte                 `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckAgentUpdateRequest) Reset() {
+	*x = CheckAgentUpdateRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[285]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckAgentUpdateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckAgentUpdateRequest) ProtoMessage() {}
+
+func (x *CheckAgentUpdateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[285]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckAgentUpdateRequest.ProtoReflect.Descriptor instead.
+func (*CheckAgentUpdateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{285}
+}
+
+func (x *CheckAgentUpdateRequest) GetAgentPublicId() string {
+	if x != nil {
+		return x.AgentPublicId
+	}
+	return ""
+}
+
+func (x *CheckAgentUpdateRequest) GetCounter() uint64 {
+	if x != nil {
+		return x.Counter
+	}
+	return 0
+}
+
+func (x *CheckAgentUpdateRequest) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+type CheckAgentUpdateResponse struct {
+	state            protoimpl.MessageState              `protogen:"open.v1"`
+	AssignmentId     int64                               `protobuf:"varint,1,opt,name=assignment_id,json=assignmentId,proto3" json:"assignment_id,omitempty"`
+	CampaignId       int64                               `protobuf:"varint,2,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	Generation       int64                               `protobuf:"varint,3,opt,name=generation,proto3" json:"generation,omitempty"`
+	DesiredAction    AgentUpdateDesiredAction            `protobuf:"varint,4,opt,name=desired_action,json=desiredAction,proto3,enum=p2pstream.v1.AgentUpdateDesiredAction" json:"desired_action,omitempty"`
+	Target           *AgentUpdateTarget                  `protobuf:"bytes,5,opt,name=target,proto3" json:"target,omitempty"`
+	Artifact         *AgentUpdateArtifact                `protobuf:"bytes,6,opt,name=artifact,proto3" json:"artifact,omitempty"`
+	RetryAfterMillis int64                               `protobuf:"varint,7,opt,name=retry_after_millis,json=retryAfterMillis,proto3" json:"retry_after_millis,omitempty"`
+	ServerVersion    string                              `protobuf:"bytes,8,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
+	Authorization    *AgentUpdateAssignmentAuthorization `protobuf:"bytes,9,opt,name=authorization,proto3" json:"authorization,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CheckAgentUpdateResponse) Reset() {
+	*x = CheckAgentUpdateResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[286]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckAgentUpdateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckAgentUpdateResponse) ProtoMessage() {}
+
+func (x *CheckAgentUpdateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[286]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckAgentUpdateResponse.ProtoReflect.Descriptor instead.
+func (*CheckAgentUpdateResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{286}
+}
+
+func (x *CheckAgentUpdateResponse) GetAssignmentId() int64 {
+	if x != nil {
+		return x.AssignmentId
+	}
+	return 0
+}
+
+func (x *CheckAgentUpdateResponse) GetCampaignId() int64 {
+	if x != nil {
+		return x.CampaignId
+	}
+	return 0
+}
+
+func (x *CheckAgentUpdateResponse) GetGeneration() int64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *CheckAgentUpdateResponse) GetDesiredAction() AgentUpdateDesiredAction {
+	if x != nil {
+		return x.DesiredAction
+	}
+	return AgentUpdateDesiredAction_AGENT_UPDATE_DESIRED_ACTION_UNSPECIFIED
+}
+
+func (x *CheckAgentUpdateResponse) GetTarget() *AgentUpdateTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *CheckAgentUpdateResponse) GetArtifact() *AgentUpdateArtifact {
+	if x != nil {
+		return x.Artifact
+	}
+	return nil
+}
+
+func (x *CheckAgentUpdateResponse) GetRetryAfterMillis() int64 {
+	if x != nil {
+		return x.RetryAfterMillis
+	}
+	return 0
+}
+
+func (x *CheckAgentUpdateResponse) GetServerVersion() string {
+	if x != nil {
+		return x.ServerVersion
+	}
+	return ""
+}
+
+func (x *CheckAgentUpdateResponse) GetAuthorization() *AgentUpdateAssignmentAuthorization {
+	if x != nil {
+		return x.Authorization
+	}
+	return nil
+}
+
+type ReportAgentUpdateRequest struct {
+	state              protoimpl.MessageState        `protogen:"open.v1"`
+	AgentPublicId      string                        `protobuf:"bytes,1,opt,name=agent_public_id,json=agentPublicId,proto3" json:"agent_public_id,omitempty"`
+	Counter            uint64                        `protobuf:"varint,2,opt,name=counter,proto3" json:"counter,omitempty"`
+	Signature          []byte                        `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
+	AssignmentId       int64                         `protobuf:"varint,4,opt,name=assignment_id,json=assignmentId,proto3" json:"assignment_id,omitempty"`
+	Generation         int64                         `protobuf:"varint,5,opt,name=generation,proto3" json:"generation,omitempty"`
+	State              AgentUpdaterReportState       `protobuf:"varint,6,opt,name=state,proto3,enum=p2pstream.v1.AgentUpdaterReportState" json:"state,omitempty"`
+	ManifestSha256     string                        `protobuf:"bytes,7,opt,name=manifest_sha256,json=manifestSha256,proto3" json:"manifest_sha256,omitempty"`
+	BinarySha256       string                        `protobuf:"bytes,8,opt,name=binary_sha256,json=binarySha256,proto3" json:"binary_sha256,omitempty"`
+	RunningVersion     string                        `protobuf:"bytes,9,opt,name=running_version,json=runningVersion,proto3" json:"running_version,omitempty"`
+	RunningCommit      string                        `protobuf:"bytes,10,opt,name=running_commit,json=runningCommit,proto3" json:"running_commit,omitempty"`
+	FailureCode        string                        `protobuf:"bytes,11,opt,name=failure_code,json=failureCode,proto3" json:"failure_code,omitempty"`
+	FailureDetail      string                        `protobuf:"bytes,12,opt,name=failure_detail,json=failureDetail,proto3" json:"failure_detail,omitempty"`
+	ActivationCounter  uint64                        `protobuf:"varint,13,opt,name=activation_counter,json=activationCounter,proto3" json:"activation_counter,omitempty"`
+	ActivationNonce    []byte                        `protobuf:"bytes,14,opt,name=activation_nonce,json=activationNonce,proto3" json:"activation_nonce,omitempty"`
+	ActivatorSignature []byte                        `protobuf:"bytes,15,opt,name=activator_signature,json=activatorSignature,proto3" json:"activator_signature,omitempty"`
+	RootActionReceipt  *AgentUpdateRootActionReceipt `protobuf:"bytes,16,opt,name=root_action_receipt,json=rootActionReceipt,proto3" json:"root_action_receipt,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ReportAgentUpdateRequest) Reset() {
+	*x = ReportAgentUpdateRequest{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[287]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportAgentUpdateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportAgentUpdateRequest) ProtoMessage() {}
+
+func (x *ReportAgentUpdateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[287]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportAgentUpdateRequest.ProtoReflect.Descriptor instead.
+func (*ReportAgentUpdateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{287}
+}
+
+func (x *ReportAgentUpdateRequest) GetAgentPublicId() string {
+	if x != nil {
+		return x.AgentPublicId
+	}
+	return ""
+}
+
+func (x *ReportAgentUpdateRequest) GetCounter() uint64 {
+	if x != nil {
+		return x.Counter
+	}
+	return 0
+}
+
+func (x *ReportAgentUpdateRequest) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+func (x *ReportAgentUpdateRequest) GetAssignmentId() int64 {
+	if x != nil {
+		return x.AssignmentId
+	}
+	return 0
+}
+
+func (x *ReportAgentUpdateRequest) GetGeneration() int64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *ReportAgentUpdateRequest) GetState() AgentUpdaterReportState {
+	if x != nil {
+		return x.State
+	}
+	return AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_UNSPECIFIED
+}
+
+func (x *ReportAgentUpdateRequest) GetManifestSha256() string {
+	if x != nil {
+		return x.ManifestSha256
+	}
+	return ""
+}
+
+func (x *ReportAgentUpdateRequest) GetBinarySha256() string {
+	if x != nil {
+		return x.BinarySha256
+	}
+	return ""
+}
+
+func (x *ReportAgentUpdateRequest) GetRunningVersion() string {
+	if x != nil {
+		return x.RunningVersion
+	}
+	return ""
+}
+
+func (x *ReportAgentUpdateRequest) GetRunningCommit() string {
+	if x != nil {
+		return x.RunningCommit
+	}
+	return ""
+}
+
+func (x *ReportAgentUpdateRequest) GetFailureCode() string {
+	if x != nil {
+		return x.FailureCode
+	}
+	return ""
+}
+
+func (x *ReportAgentUpdateRequest) GetFailureDetail() string {
+	if x != nil {
+		return x.FailureDetail
+	}
+	return ""
+}
+
+func (x *ReportAgentUpdateRequest) GetActivationCounter() uint64 {
+	if x != nil {
+		return x.ActivationCounter
+	}
+	return 0
+}
+
+func (x *ReportAgentUpdateRequest) GetActivationNonce() []byte {
+	if x != nil {
+		return x.ActivationNonce
+	}
+	return nil
+}
+
+func (x *ReportAgentUpdateRequest) GetActivatorSignature() []byte {
+	if x != nil {
+		return x.ActivatorSignature
+	}
+	return nil
+}
+
+func (x *ReportAgentUpdateRequest) GetRootActionReceipt() *AgentUpdateRootActionReceipt {
+	if x != nil {
+		return x.RootActionReceipt
+	}
+	return nil
+}
+
+type ReportAgentUpdateResponse struct {
+	state            protoimpl.MessageState     `protogen:"open.v1"`
+	State            AgentUpdateAssignmentState `protobuf:"varint,1,opt,name=state,proto3,enum=p2pstream.v1.AgentUpdateAssignmentState" json:"state,omitempty"`
+	DesiredAction    AgentUpdateDesiredAction   `protobuf:"varint,2,opt,name=desired_action,json=desiredAction,proto3,enum=p2pstream.v1.AgentUpdateDesiredAction" json:"desired_action,omitempty"`
+	Generation       int64                      `protobuf:"varint,3,opt,name=generation,proto3" json:"generation,omitempty"`
+	RetryAfterMillis int64                      `protobuf:"varint,4,opt,name=retry_after_millis,json=retryAfterMillis,proto3" json:"retry_after_millis,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ReportAgentUpdateResponse) Reset() {
+	*x = ReportAgentUpdateResponse{}
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[288]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportAgentUpdateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportAgentUpdateResponse) ProtoMessage() {}
+
+func (x *ReportAgentUpdateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_p2pstream_v1_management_proto_msgTypes[288]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportAgentUpdateResponse.ProtoReflect.Descriptor instead.
+func (*ReportAgentUpdateResponse) Descriptor() ([]byte, []int) {
+	return file_proto_p2pstream_v1_management_proto_rawDescGZIP(), []int{288}
+}
+
+func (x *ReportAgentUpdateResponse) GetState() AgentUpdateAssignmentState {
+	if x != nil {
+		return x.State
+	}
+	return AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_UNSPECIFIED
+}
+
+func (x *ReportAgentUpdateResponse) GetDesiredAction() AgentUpdateDesiredAction {
+	if x != nil {
+		return x.DesiredAction
+	}
+	return AgentUpdateDesiredAction_AGENT_UPDATE_DESIRED_ACTION_UNSPECIFIED
+}
+
+func (x *ReportAgentUpdateResponse) GetGeneration() int64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *ReportAgentUpdateResponse) GetRetryAfterMillis() int64 {
+	if x != nil {
+		return x.RetryAfterMillis
+	}
+	return 0
+}
+
 var File_proto_p2pstream_v1_management_proto protoreflect.FileDescriptor
 
 const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
@@ -23874,7 +27104,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x16file_descriptors_limit\x18\x16 \x01(\x03R\x14fileDescriptorsLimit\x128\n" +
 	"\x18resource_pressure_reason\x18\x17 \x01(\tR\x16resourcePressureReason\x122\n" +
 	"\x15resource_sample_error\x18\x18 \x01(\tR\x13resourceSampleError\x12B\n" +
-	"\x1eresource_last_good_unix_millis\x18\x19 \x01(\x03R\x1aresourceLastGoodUnixMillis\"\xd3\x02\n" +
+	"\x1eresource_last_good_unix_millis\x18\x19 \x01(\x03R\x1aresourceLastGoodUnixMillis\"\xfc\x02\n" +
 	"\x11GetStatusResponse\x12#\n" +
 	"\rproxy_running\x18\x01 \x01(\bR\fproxyRunning\x12(\n" +
 	"\x10proxy_last_error\x18\x02 \x01(\tR\x0eproxyLastError\x12'\n" +
@@ -23882,7 +27112,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x12latest_agent_stats\x18\x05 \x01(\v2 .p2pstream.v1.AgentStatsSnapshotR\x10latestAgentStats\x12/\n" +
 	"\x05proxy\x18\x06 \x01(\v2\x19.p2pstream.v1.ProxyStatusR\x05proxy\x12\x18\n" +
 	"\aversion\x18\a \x01(\tR\aversion\x12\x16\n" +
-	"\x06commit\x18\b \x01(\tR\x06commitJ\x04\b\x04\x10\x05R\rtarget_origin\"\x88\x02\n" +
+	"\x06commit\x18\b \x01(\tR\x06commit\x12'\n" +
+	"\x0frelease_channel\x18\t \x01(\tR\x0ereleaseChannelJ\x04\b\x04\x10\x05R\rtarget_origin\"\x88\x02\n" +
 	"\vProxyStatus\x12.\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x18.p2pstream.v1.ProxyStateR\x05state\x12\x1d\n" +
 	"\n" +
@@ -23930,7 +27161,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\n" +
 	"last_error\x18\x05 \x01(\tR\tlastError\x12L\n" +
 	"#passive_unhealthy_until_unix_millis\x18\x06 \x01(\x03R\x1fpassiveUnhealthyUntilUnixMillis\x12'\n" +
-	"\x0factive_requests\x18\a \x01(\x03R\x0eactiveRequests\"\x9d\a\n" +
+	"\x0factive_requests\x18\a \x01(\x03R\x0eactiveRequests\"\x9a\b\n" +
 	"\x05Agent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tpublic_id\x18\x02 \x01(\tR\bpublicId\x12\x12\n" +
@@ -23950,7 +27181,10 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"!advertised_max_concurrent_streams\x18\x0f \x01(\x03R\x1eadvertisedMaxConcurrentStreams\x12I\n" +
 	"!negotiated_max_concurrent_streams\x18\x10 \x01(\x03R\x1enegotiatedMaxConcurrentStreams\x128\n" +
 	"\x18tunnel_capacity_adaptive\x18\x11 \x01(\bR\x16tunnelCapacityAdaptive\x12C\n" +
-	"\x1ecurrent_tunnel_admission_limit\x18\x12 \x01(\x03R\x1bcurrentTunnelAdmissionLimit\x1a9\n" +
+	"\x1ecurrent_tunnel_admission_limit\x18\x12 \x01(\x03R\x1bcurrentTunnelAdmissionLimit\x12)\n" +
+	"\x10updater_enrolled\x18\x13 \x01(\bR\x0fupdaterEnrolled\x12'\n" +
+	"\x0fupdater_version\x18\x14 \x01(\tR\x0eupdaterVersion\x12'\n" +
+	"\x0fupdate_cordoned\x18\x15 \x01(\bR\x0eupdateCordoned\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xac\x01\n" +
@@ -24393,10 +27627,17 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x06labels\x18\x04 \x03(\v2,.p2pstream.v1.CreateAgentRequest.LabelsEntryR\x06labels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\x01\x10\x02R\tpublic_id\"V\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\x01\x10\x02R\tpublic_id\"\xe5\x04\n" +
 	"\x13CreateAgentResponse\x12)\n" +
 	"\x05agent\x18\x01 \x01(\v2\x13.p2pstream.v1.AgentR\x05agent\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token\"\x8b\x02\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\x128\n" +
+	"\x18updater_enrollment_token\x18\x03 \x01(\tR\x16updaterEnrollmentToken\x12W\n" +
+	")updater_enrollment_expires_at_unix_millis\x18\x04 \x01(\x03R$updaterEnrollmentExpiresAtUnixMillis\x12N\n" +
+	"$updater_trusted_root_metadata_base64\x18\x05 \x01(\tR updaterTrustedRootMetadataBase64\x12:\n" +
+	"\x19updater_pinned_repository\x18\x06 \x01(\tR\x17updaterPinnedRepository\x12=\n" +
+	"\x1bupdater_trusted_root_sha256\x18\a \x01(\tR\x18updaterTrustedRootSha256\x12?\n" +
+	"\x1cupdater_trusted_root_version\x18\b \x01(\x03R\x19updaterTrustedRootVersion\x12n\n" +
+	"\x1cupdater_management_authority\x18\t \x01(\v2,.p2pstream.v1.AgentUpdateManagementAuthorityR\x1aupdaterManagementAuthority\"\x8b\x02\n" +
 	"\x12UpdateAgentRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x18\n" +
@@ -25624,7 +28865,288 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\x1aF\n" +
 	"\x18WaitersByConstraintEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01*:\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"l\n" +
+	"\x1eAgentUpdateManagementAuthority\x12\x15\n" +
+	"\x06key_id\x18\x01 \x01(\tR\x05keyId\x12\x14\n" +
+	"\x05epoch\x18\x02 \x01(\x04R\x05epoch\x12\x1d\n" +
+	"\n" +
+	"public_key\x18\x03 \x01(\fR\tpublicKey\"\x84\x01\n" +
+	"\x13AgentUpdateArtifact\x12\x0e\n" +
+	"\x02os\x18\x01 \x01(\tR\x02os\x12\x12\n" +
+	"\x04arch\x18\x02 \x01(\tR\x04arch\x12\x16\n" +
+	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x04 \x01(\x03R\tsizeBytes\x12\x12\n" +
+	"\x04name\x18\x05 \x01(\tR\x04name\"\xcc\x03\n" +
+	"\x11AgentUpdateTarget\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\x12\x16\n" +
+	"\x06commit\x18\x02 \x01(\tR\x06commit\x12'\n" +
+	"\x0fmanifest_sha256\x18\x03 \x01(\tR\x0emanifestSha256\x12)\n" +
+	"\x10release_sequence\x18\x04 \x01(\x03R\x0freleaseSequence\x126\n" +
+	"\x17minimum_tunnel_protocol\x18\x05 \x01(\x03R\x15minimumTunnelProtocol\x126\n" +
+	"\x17maximum_tunnel_protocol\x18\x06 \x01(\x03R\x15maximumTunnelProtocol\x12?\n" +
+	"\tartifacts\x18\a \x03(\v2!.p2pstream.v1.AgentUpdateArtifactR\tartifacts\x12%\n" +
+	"\x0esecurity_epoch\x18\b \x01(\x03R\rsecurityEpoch\x126\n" +
+	"\x17minimum_updater_version\x18\t \x01(\tR\x15minimumUpdaterVersion\x12!\n" +
+	"\froot_version\x18\n" +
+	" \x01(\x03R\vrootVersion\"\x97\x06\n" +
+	"\x1dAgentUpdaterEnrollmentReceipt\x12&\n" +
+	"\x0fagent_public_id\x18\x01 \x01(\tR\ragentPublicId\x12$\n" +
+	"\x0eupdater_key_id\x18\x02 \x01(\tR\fupdaterKeyId\x129\n" +
+	"\x19updater_public_key_sha256\x18\x03 \x01(\tR\x16updaterPublicKeySha256\x12(\n" +
+	"\x10activator_key_id\x18\x04 \x01(\tR\x0eactivatorKeyId\x12=\n" +
+	"\x1bactivator_public_key_sha256\x18\x05 \x01(\tR\x18activatorPublicKeySha256\x12\x0e\n" +
+	"\x02os\x18\x06 \x01(\tR\x02os\x12\x12\n" +
+	"\x04arch\x18\a \x01(\tR\x04arch\x12'\n" +
+	"\x0fupdater_version\x18\b \x01(\tR\x0eupdaterVersion\x12.\n" +
+	"\x13trusted_root_sha256\x18\t \x01(\tR\x11trustedRootSha256\x120\n" +
+	"\x14trusted_root_version\x18\n" +
+	" \x01(\x04R\x12trustedRootVersion\x12+\n" +
+	"\x11pinned_repository\x18\v \x01(\tR\x10pinnedRepository\x12(\n" +
+	"\x10authority_key_id\x18\f \x01(\tR\x0eauthorityKeyId\x12'\n" +
+	"\x0fauthority_epoch\x18\r \x01(\x04R\x0eauthorityEpoch\x125\n" +
+	"\x17enrolled_at_unix_millis\x18\x0e \x01(\x03R\x14enrolledAtUnixMillis\x123\n" +
+	"\x16expires_at_unix_millis\x18\x0f \x01(\x03R\x13expiresAtUnixMillis\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x10 \x01(\x04R\n" +
+	"generation\x12+\n" +
+	"\x11canonical_payload\x18\x11 \x01(\fR\x10canonicalPayload\x12\x1c\n" +
+	"\tsignature\x18\x12 \x01(\fR\tsignature\"\xe1\a\n" +
+	"\"AgentUpdateAssignmentAuthorization\x12&\n" +
+	"\x0fagent_public_id\x18\x01 \x01(\tR\ragentPublicId\x12#\n" +
+	"\rassignment_id\x18\x02 \x01(\x03R\fassignmentId\x12\x1f\n" +
+	"\vcampaign_id\x18\x03 \x01(\x03R\n" +
+	"campaignId\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x04 \x01(\x03R\n" +
+	"generation\x12>\n" +
+	"\x06action\x18\x05 \x01(\x0e2&.p2pstream.v1.AgentUpdateDesiredActionR\x06action\x12)\n" +
+	"\x10command_sequence\x18\x06 \x01(\x04R\x0fcommandSequence\x12\x14\n" +
+	"\x05nonce\x18\a \x01(\fR\x05nonce\x121\n" +
+	"\x15issued_at_unix_millis\x18\b \x01(\x03R\x12issuedAtUnixMillis\x123\n" +
+	"\x16expires_at_unix_millis\x18\t \x01(\x03R\x13expiresAtUnixMillis\x12(\n" +
+	"\x10authority_key_id\x18\n" +
+	" \x01(\tR\x0eauthorityKeyId\x12'\n" +
+	"\x0fauthority_epoch\x18\v \x01(\x04R\x0eauthorityEpoch\x12%\n" +
+	"\x0eserver_version\x18\f \x01(\tR\rserverVersion\x12!\n" +
+	"\froot_version\x18\r \x01(\x04R\vrootVersion\x12'\n" +
+	"\x0fmanifest_sha256\x18\x0e \x01(\tR\x0emanifestSha256\x12%\n" +
+	"\x0etarget_version\x18\x0f \x01(\tR\rtargetVersion\x12#\n" +
+	"\rtarget_commit\x18\x10 \x01(\tR\ftargetCommit\x12)\n" +
+	"\x10release_sequence\x18\x11 \x01(\x04R\x0freleaseSequence\x12%\n" +
+	"\x0esecurity_epoch\x18\x12 \x01(\x04R\rsecurityEpoch\x12\x0e\n" +
+	"\x02os\x18\x13 \x01(\tR\x02os\x12\x12\n" +
+	"\x04arch\x18\x14 \x01(\tR\x04arch\x12#\n" +
+	"\rartifact_name\x18\x15 \x01(\tR\fartifactName\x12#\n" +
+	"\rartifact_size\x18\x16 \x01(\x03R\fartifactSize\x12'\n" +
+	"\x0fartifact_sha256\x18\x17 \x01(\tR\x0eartifactSha256\x12+\n" +
+	"\x11canonical_payload\x18\x18 \x01(\fR\x10canonicalPayload\x12\x1c\n" +
+	"\tsignature\x18\x19 \x01(\fR\tsignature\"\xf2\t\n" +
+	"\x1cAgentUpdateRootActionReceipt\x12&\n" +
+	"\x0fagent_public_id\x18\x01 \x01(\tR\ragentPublicId\x12#\n" +
+	"\rassignment_id\x18\x02 \x01(\x03R\fassignmentId\x12\x1f\n" +
+	"\vcampaign_id\x18\x03 \x01(\x03R\n" +
+	"campaignId\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x04 \x01(\x03R\n" +
+	"generation\x12>\n" +
+	"\x06action\x18\x05 \x01(\x0e2&.p2pstream.v1.AgentUpdateDesiredActionR\x06action\x12)\n" +
+	"\x10command_sequence\x18\x06 \x01(\x04R\x0fcommandSequence\x121\n" +
+	"\x14authorization_sha256\x18\a \x01(\tR\x13authorizationSha256\x12/\n" +
+	"\x13authorization_nonce\x18\b \x01(\fR\x12authorizationNonce\x12(\n" +
+	"\x10authority_key_id\x18\t \x01(\tR\x0eauthorityKeyId\x12'\n" +
+	"\x0fauthority_epoch\x18\n" +
+	" \x01(\x04R\x0eauthorityEpoch\x12(\n" +
+	"\x10activator_key_id\x18\v \x01(\tR\x0eactivatorKeyId\x12.\n" +
+	"\x13root_action_counter\x18\f \x01(\x04R\x11rootActionCounter\x127\n" +
+	"\x18completed_at_unix_millis\x18\r \x01(\x03R\x15completedAtUnixMillis\x12N\n" +
+	"\vresult_kind\x18\x0e \x01(\x0e2-.p2pstream.v1.AgentUpdateRootActionResultKindR\n" +
+	"resultKind\x12.\n" +
+	"\x13result_root_version\x18\x0f \x01(\x04R\x11resultRootVersion\x124\n" +
+	"\x16result_manifest_sha256\x18\x10 \x01(\tR\x14resultManifestSha256\x12%\n" +
+	"\x0eresult_version\x18\x11 \x01(\tR\rresultVersion\x12#\n" +
+	"\rresult_commit\x18\x12 \x01(\tR\fresultCommit\x126\n" +
+	"\x17result_release_sequence\x18\x13 \x01(\x04R\x15resultReleaseSequence\x122\n" +
+	"\x15result_security_epoch\x18\x14 \x01(\x04R\x13resultSecurityEpoch\x12\x1b\n" +
+	"\tresult_os\x18\x15 \x01(\tR\bresultOs\x12\x1f\n" +
+	"\vresult_arch\x18\x16 \x01(\tR\n" +
+	"resultArch\x120\n" +
+	"\x14result_artifact_name\x18\x17 \x01(\tR\x12resultArtifactName\x120\n" +
+	"\x14result_artifact_size\x18\x18 \x01(\x03R\x12resultArtifactSize\x124\n" +
+	"\x16result_artifact_sha256\x18\x19 \x01(\tR\x14resultArtifactSha256\x12+\n" +
+	"\x11canonical_payload\x18\x1a \x01(\fR\x10canonicalPayload\x12\x1c\n" +
+	"\tsignature\x18\x1b \x01(\fR\tsignature\"\xf8\x01\n" +
+	"\x11AgentUpdatePolicy\x12'\n" +
+	"\x0fmax_unavailable\x18\x01 \x01(\x03R\x0emaxUnavailable\x12H\n" +
+	"!minimum_eligible_agents_per_route\x18\x02 \x01(\x03R\x1dminimumEligibleAgentsPerRoute\x12!\n" +
+	"\fcanary_count\x18\x03 \x01(\x03R\vcanaryCount\x12\x1b\n" +
+	"\twave_size\x18\x04 \x01(\x03R\bwaveSize\x120\n" +
+	"\x14healthy_dwell_millis\x18\x05 \x01(\x03R\x12healthyDwellMillis\"\xc4\x01\n" +
+	"\x17AgentUpdatePreviewAgent\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\x03R\aagentId\x12&\n" +
+	"\x0fagent_public_id\x18\x02 \x01(\tR\ragentPublicId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1a\n" +
+	"\benrolled\x18\x04 \x01(\bR\benrolled\x12\x1a\n" +
+	"\beligible\x18\x05 \x01(\bR\beligible\x12\x1a\n" +
+	"\bblockers\x18\x06 \x03(\tR\bblockers\"\xb2\x01\n" +
+	"!PreviewAgentUpdateCampaignRequest\x12\x1b\n" +
+	"\tagent_ids\x18\x01 \x03(\x03R\bagentIds\x127\n" +
+	"\x06target\x18\x02 \x01(\v2\x1f.p2pstream.v1.AgentUpdateTargetR\x06target\x127\n" +
+	"\x06policy\x18\x03 \x01(\v2\x1f.p2pstream.v1.AgentUpdatePolicyR\x06policy\"\xaf\x01\n" +
+	"\"PreviewAgentUpdateCampaignResponse\x12=\n" +
+	"\x06agents\x18\x01 \x03(\v2%.p2pstream.v1.AgentUpdatePreviewAgentR\x06agents\x12%\n" +
+	"\x0eeligible_count\x18\x02 \x01(\x03R\religibleCount\x12#\n" +
+	"\rblocked_count\x18\x03 \x01(\x03R\fblockedCount\"\xe4\x06\n" +
+	"\x15AgentUpdateAssignment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
+	"\vcampaign_id\x18\x02 \x01(\x03R\n" +
+	"campaignId\x12\x19\n" +
+	"\bagent_id\x18\x03 \x01(\x03R\aagentId\x12&\n" +
+	"\x0fagent_public_id\x18\x04 \x01(\tR\ragentPublicId\x12\x1d\n" +
+	"\n" +
+	"agent_name\x18\x05 \x01(\tR\tagentName\x12>\n" +
+	"\x05state\x18\x06 \x01(\x0e2(.p2pstream.v1.AgentUpdateAssignmentStateR\x05state\x12M\n" +
+	"\x0edesired_action\x18\a \x01(\x0e2&.p2pstream.v1.AgentUpdateDesiredActionR\rdesiredAction\x12\x1e\n" +
+	"\n" +
+	"generation\x18\b \x01(\x03R\n" +
+	"generation\x12\x1a\n" +
+	"\bcordoned\x18\t \x01(\bR\bcordoned\x12!\n" +
+	"\ffailure_code\x18\n" +
+	" \x01(\tR\vfailureCode\x12%\n" +
+	"\x0efailure_detail\x18\v \x01(\tR\rfailureDetail\x128\n" +
+	"\x18attested_manifest_sha256\x18\f \x01(\tR\x16attestedManifestSha256\x124\n" +
+	"\x16attested_binary_sha256\x18\r \x01(\tR\x14attestedBinarySha256\x127\n" +
+	"\x18activated_at_unix_millis\x18\x0e \x01(\x03R\x15activatedAtUnixMillis\x12<\n" +
+	"\x1bfresh_tunnel_at_unix_millis\x18\x0f \x01(\x03R\x17freshTunnelAtUnixMillis\x123\n" +
+	"\x16healthy_at_unix_millis\x18\x10 \x01(\x03R\x13healthyAtUnixMillis\x123\n" +
+	"\x16updated_at_unix_millis\x18\x11 \x01(\x03R\x13updatedAtUnixMillis\x12)\n" +
+	"\x10observed_version\x18\x12 \x01(\tR\x0fobservedVersion\x12'\n" +
+	"\x0fobserved_commit\x18\x13 \x01(\tR\x0eobservedCommit\"\xba\x03\n" +
+	"\x13AgentUpdateCampaign\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12<\n" +
+	"\x05state\x18\x03 \x01(\x0e2&.p2pstream.v1.AgentUpdateCampaignStateR\x05state\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x04 \x01(\x03R\n" +
+	"generation\x127\n" +
+	"\x06target\x18\x05 \x01(\v2\x1f.p2pstream.v1.AgentUpdateTargetR\x06target\x127\n" +
+	"\x06policy\x18\x06 \x01(\v2\x1f.p2pstream.v1.AgentUpdatePolicyR\x06policy\x12E\n" +
+	"\vassignments\x18\a \x03(\v2#.p2pstream.v1.AgentUpdateAssignmentR\vassignments\x123\n" +
+	"\x16created_at_unix_millis\x18\b \x01(\x03R\x13createdAtUnixMillis\x123\n" +
+	"\x16updated_at_unix_millis\x18\t \x01(\x03R\x13updatedAtUnixMillis\"\x99\x04\n" +
+	"\x18AgentUpdateOverviewAgent\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\x03R\aagentId\x12&\n" +
+	"\x0fagent_public_id\x18\x02 \x01(\tR\ragentPublicId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12)\n" +
+	"\x10updater_enrolled\x18\x04 \x01(\bR\x0fupdaterEnrolled\x12'\n" +
+	"\x0fupdater_version\x18\x05 \x01(\tR\x0eupdaterVersion\x12\x1c\n" +
+	"\tconnected\x18\x06 \x01(\bR\tconnected\x12\x1a\n" +
+	"\bcordoned\x18\a \x01(\bR\bcordoned\x120\n" +
+	"\x14active_assignment_id\x18\b \x01(\x03R\x12activeAssignmentId\x12S\n" +
+	"\x10assignment_state\x18\t \x01(\x0e2(.p2pstream.v1.AgentUpdateAssignmentStateR\x0fassignmentState\x12%\n" +
+	"\x0etunnel_version\x18\n" +
+	" \x01(\tR\rtunnelVersion\x12#\n" +
+	"\rtunnel_commit\x18\v \x01(\tR\ftunnelCommit\x12E\n" +
+	" updater_last_seen_at_unix_millis\x18\f \x01(\x03R\x1bupdaterLastSeenAtUnixMillis\"\x1f\n" +
+	"\x1dGetAgentUpdateOverviewRequest\"\xcd\x02\n" +
+	"\x1eGetAgentUpdateOverviewResponse\x12H\n" +
+	"\x0ftrusted_targets\x18\x01 \x03(\v2\x1f.p2pstream.v1.AgentUpdateTargetR\x0etrustedTargets\x12>\n" +
+	"\x06agents\x18\x02 \x03(\v2&.p2pstream.v1.AgentUpdateOverviewAgentR\x06agents\x12_\n" +
+	"\x14management_authority\x18\x03 \x01(\v2,.p2pstream.v1.AgentUpdateManagementAuthorityR\x13managementAuthority\x12@\n" +
+	"\x1cmanagement_authority_warning\x18\x04 \x01(\tR\x1amanagementAuthorityWarning\"f\n" +
+	"*GenerateAgentUpdaterEnrollmentTokenRequest\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\x03R\aagentId\x12\x1d\n" +
+	"\n" +
+	"ttl_millis\x18\x02 \x01(\x03R\tttlMillis\"\xa9\x03\n" +
+	"+GenerateAgentUpdaterEnrollmentTokenResponse\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x123\n" +
+	"\x16expires_at_unix_millis\x18\x02 \x01(\x03R\x13expiresAtUnixMillis\x12?\n" +
+	"\x1ctrusted_root_metadata_base64\x18\x03 \x01(\tR\x19trustedRootMetadataBase64\x12+\n" +
+	"\x11pinned_repository\x18\x04 \x01(\tR\x10pinnedRepository\x12.\n" +
+	"\x13trusted_root_sha256\x18\x05 \x01(\tR\x11trustedRootSha256\x120\n" +
+	"\x14trusted_root_version\x18\x06 \x01(\x03R\x12trustedRootVersion\x12_\n" +
+	"\x14management_authority\x18\a \x01(\v2,.p2pstream.v1.AgentUpdateManagementAuthorityR\x13managementAuthority\"\x86\x02\n" +
+	"\x19EnrollAgentUpdaterRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12&\n" +
+	"\x0fagent_public_id\x18\x02 \x01(\tR\ragentPublicId\x12,\n" +
+	"\x12updater_public_key\x18\x03 \x01(\fR\x10updaterPublicKey\x120\n" +
+	"\x14activator_public_key\x18\x04 \x01(\fR\x12activatorPublicKey\x12\x0e\n" +
+	"\x02os\x18\x05 \x01(\tR\x02os\x12\x12\n" +
+	"\x04arch\x18\x06 \x01(\tR\x04arch\x12'\n" +
+	"\x0fupdater_version\x18\a \x01(\tR\x0eupdaterVersion\"\xea\x01\n" +
+	"\x1aEnrollAgentUpdaterResponse\x12$\n" +
+	"\x0eupdater_key_id\x18\x01 \x01(\tR\fupdaterKeyId\x12(\n" +
+	"\x10activator_key_id\x18\x02 \x01(\tR\x0eactivatorKeyId\x125\n" +
+	"\x17enrolled_at_unix_millis\x18\x03 \x01(\x03R\x14enrolledAtUnixMillis\x12E\n" +
+	"\areceipt\x18\x04 \x01(\v2+.p2pstream.v1.AgentUpdaterEnrollmentReceiptR\areceipt\"\xc5\x01\n" +
+	" CreateAgentUpdateCampaignRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
+	"\tagent_ids\x18\x02 \x03(\x03R\bagentIds\x127\n" +
+	"\x06target\x18\x03 \x01(\v2\x1f.p2pstream.v1.AgentUpdateTargetR\x06target\x127\n" +
+	"\x06policy\x18\x04 \x01(\v2\x1f.p2pstream.v1.AgentUpdatePolicyR\x06policy\"b\n" +
+	"!CreateAgentUpdateCampaignResponse\x12=\n" +
+	"\bcampaign\x18\x01 \x01(\v2!.p2pstream.v1.AgentUpdateCampaignR\bcampaign\"7\n" +
+	"\x1fListAgentUpdateCampaignsRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x03R\x05limit\"c\n" +
+	" ListAgentUpdateCampaignsResponse\x12?\n" +
+	"\tcampaigns\x18\x01 \x03(\v2!.p2pstream.v1.AgentUpdateCampaignR\tcampaigns\"y\n" +
+	"%ChangeAgentUpdateCampaignStateRequest\x12\x1f\n" +
+	"\vcampaign_id\x18\x01 \x01(\x03R\n" +
+	"campaignId\x12/\n" +
+	"\x13expected_generation\x18\x02 \x01(\x03R\x12expectedGeneration\"g\n" +
+	"&ChangeAgentUpdateCampaignStateResponse\x12=\n" +
+	"\bcampaign\x18\x01 \x01(\v2!.p2pstream.v1.AgentUpdateCampaignR\bcampaign\"\xae\x01\n" +
+	"\"RetryAgentUpdateAssignmentsRequest\x12\x1f\n" +
+	"\vcampaign_id\x18\x01 \x01(\x03R\n" +
+	"campaignId\x12%\n" +
+	"\x0eassignment_ids\x18\x02 \x03(\x03R\rassignmentIds\x12@\n" +
+	"\x1cexpected_campaign_generation\x18\x03 \x01(\x03R\x1aexpectedCampaignGeneration\"d\n" +
+	"#RetryAgentUpdateAssignmentsResponse\x12=\n" +
+	"\bcampaign\x18\x01 \x01(\v2!.p2pstream.v1.AgentUpdateCampaignR\bcampaign\"y\n" +
+	"\x17CheckAgentUpdateRequest\x12&\n" +
+	"\x0fagent_public_id\x18\x01 \x01(\tR\ragentPublicId\x12\x18\n" +
+	"\acounter\x18\x02 \x01(\x04R\acounter\x12\x1c\n" +
+	"\tsignature\x18\x03 \x01(\fR\tsignature\"\xf4\x03\n" +
+	"\x18CheckAgentUpdateResponse\x12#\n" +
+	"\rassignment_id\x18\x01 \x01(\x03R\fassignmentId\x12\x1f\n" +
+	"\vcampaign_id\x18\x02 \x01(\x03R\n" +
+	"campaignId\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x03 \x01(\x03R\n" +
+	"generation\x12M\n" +
+	"\x0edesired_action\x18\x04 \x01(\x0e2&.p2pstream.v1.AgentUpdateDesiredActionR\rdesiredAction\x127\n" +
+	"\x06target\x18\x05 \x01(\v2\x1f.p2pstream.v1.AgentUpdateTargetR\x06target\x12=\n" +
+	"\bartifact\x18\x06 \x01(\v2!.p2pstream.v1.AgentUpdateArtifactR\bartifact\x12,\n" +
+	"\x12retry_after_millis\x18\a \x01(\x03R\x10retryAfterMillis\x12%\n" +
+	"\x0eserver_version\x18\b \x01(\tR\rserverVersion\x12V\n" +
+	"\rauthorization\x18\t \x01(\v20.p2pstream.v1.AgentUpdateAssignmentAuthorizationR\rauthorization\"\xcb\x05\n" +
+	"\x18ReportAgentUpdateRequest\x12&\n" +
+	"\x0fagent_public_id\x18\x01 \x01(\tR\ragentPublicId\x12\x18\n" +
+	"\acounter\x18\x02 \x01(\x04R\acounter\x12\x1c\n" +
+	"\tsignature\x18\x03 \x01(\fR\tsignature\x12#\n" +
+	"\rassignment_id\x18\x04 \x01(\x03R\fassignmentId\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x05 \x01(\x03R\n" +
+	"generation\x12;\n" +
+	"\x05state\x18\x06 \x01(\x0e2%.p2pstream.v1.AgentUpdaterReportStateR\x05state\x12'\n" +
+	"\x0fmanifest_sha256\x18\a \x01(\tR\x0emanifestSha256\x12#\n" +
+	"\rbinary_sha256\x18\b \x01(\tR\fbinarySha256\x12'\n" +
+	"\x0frunning_version\x18\t \x01(\tR\x0erunningVersion\x12%\n" +
+	"\x0erunning_commit\x18\n" +
+	" \x01(\tR\rrunningCommit\x12!\n" +
+	"\ffailure_code\x18\v \x01(\tR\vfailureCode\x12%\n" +
+	"\x0efailure_detail\x18\f \x01(\tR\rfailureDetail\x12-\n" +
+	"\x12activation_counter\x18\r \x01(\x04R\x11activationCounter\x12)\n" +
+	"\x10activation_nonce\x18\x0e \x01(\fR\x0factivationNonce\x12/\n" +
+	"\x13activator_signature\x18\x0f \x01(\fR\x12activatorSignature\x12Z\n" +
+	"\x13root_action_receipt\x18\x10 \x01(\v2*.p2pstream.v1.AgentUpdateRootActionReceiptR\x11rootActionReceipt\"\xf8\x01\n" +
+	"\x19ReportAgentUpdateResponse\x12>\n" +
+	"\x05state\x18\x01 \x01(\x0e2(.p2pstream.v1.AgentUpdateAssignmentStateR\x05state\x12M\n" +
+	"\x0edesired_action\x18\x02 \x01(\x0e2&.p2pstream.v1.AgentUpdateDesiredActionR\rdesiredAction\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x03 \x01(\x03R\n" +
+	"generation\x12,\n" +
+	"\x12retry_after_millis\x18\x04 \x01(\x03R\x10retryAfterMillis*:\n" +
 	"\bUserRole\x12\x19\n" +
 	"\x15USER_ROLE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fUSER_ROLE_ADMIN\x10\x01*\xa6\x01\n" +
@@ -25926,7 +29448,45 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"0PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_UNSPECIFIED\x10\x00\x12,\n" +
 	"(PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_ALL\x10\x01\x127\n" +
 	"3PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_ONLY\x10\x02\x12;\n" +
-	"7PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_EXCLUDED\x10\x032\xc9Y\n" +
+	"7PUBLIC_TRAFFIC_SHAPER_PROTOCOL_SCOPE_WEBSOCKET_EXCLUDED\x10\x03*\xee\x01\n" +
+	"\x18AgentUpdateCampaignState\x12+\n" +
+	"'AGENT_UPDATE_CAMPAIGN_STATE_UNSPECIFIED\x10\x00\x12'\n" +
+	"#AGENT_UPDATE_CAMPAIGN_STATE_RUNNING\x10\x01\x12&\n" +
+	"\"AGENT_UPDATE_CAMPAIGN_STATE_PAUSED\x10\x02\x12)\n" +
+	"%AGENT_UPDATE_CAMPAIGN_STATE_CANCELLED\x10\x03\x12)\n" +
+	"%AGENT_UPDATE_CAMPAIGN_STATE_COMPLETED\x10\x04*\xb8\x04\n" +
+	"\x1aAgentUpdateAssignmentState\x12-\n" +
+	")AGENT_UPDATE_ASSIGNMENT_STATE_UNSPECIFIED\x10\x00\x12)\n" +
+	"%AGENT_UPDATE_ASSIGNMENT_STATE_PENDING\x10\x01\x12)\n" +
+	"%AGENT_UPDATE_ASSIGNMENT_STATE_STAGING\x10\x02\x12(\n" +
+	"$AGENT_UPDATE_ASSIGNMENT_STATE_STAGED\x10\x03\x12*\n" +
+	"&AGENT_UPDATE_ASSIGNMENT_STATE_CORDONED\x10\x04\x12,\n" +
+	"(AGENT_UPDATE_ASSIGNMENT_STATE_ACTIVATING\x10\x05\x121\n" +
+	"-AGENT_UPDATE_ASSIGNMENT_STATE_AWAITING_TUNNEL\x10\x06\x12/\n" +
+	"+AGENT_UPDATE_ASSIGNMENT_STATE_HEALTHY_DWELL\x10\a\x12+\n" +
+	"'AGENT_UPDATE_ASSIGNMENT_STATE_SUCCEEDED\x10\b\x12(\n" +
+	"$AGENT_UPDATE_ASSIGNMENT_STATE_FAILED\x10\t\x12+\n" +
+	"'AGENT_UPDATE_ASSIGNMENT_STATE_CANCELLED\x10\n" +
+	"\x12)\n" +
+	"%AGENT_UPDATE_ASSIGNMENT_STATE_BLOCKED\x10\v*\xe8\x01\n" +
+	"\x18AgentUpdateDesiredAction\x12+\n" +
+	"'AGENT_UPDATE_DESIRED_ACTION_UNSPECIFIED\x10\x00\x12$\n" +
+	" AGENT_UPDATE_DESIRED_ACTION_NONE\x10\x01\x12%\n" +
+	"!AGENT_UPDATE_DESIRED_ACTION_STAGE\x10\x02\x12(\n" +
+	"$AGENT_UPDATE_DESIRED_ACTION_ACTIVATE\x10\x03\x12(\n" +
+	"$AGENT_UPDATE_DESIRED_ACTION_ROLLBACK\x10\x04*\xbd\x02\n" +
+	"\x17AgentUpdaterReportState\x12*\n" +
+	"&AGENT_UPDATER_REPORT_STATE_UNSPECIFIED\x10\x00\x12*\n" +
+	"&AGENT_UPDATER_REPORT_STATE_DOWNLOADING\x10\x01\x12%\n" +
+	"!AGENT_UPDATER_REPORT_STATE_STAGED\x10\x02\x12(\n" +
+	"$AGENT_UPDATER_REPORT_STATE_ACTIVATED\x10\x03\x12&\n" +
+	"\"AGENT_UPDATER_REPORT_STATE_HEALTHY\x10\x04\x12%\n" +
+	"!AGENT_UPDATER_REPORT_STATE_FAILED\x10\x05\x12*\n" +
+	"&AGENT_UPDATER_REPORT_STATE_ROLLED_BACK\x10\x06*\xc4\x01\n" +
+	"\x1fAgentUpdateRootActionResultKind\x124\n" +
+	"0AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED\x10\x00\x127\n" +
+	"3AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE\x10\x01\x122\n" +
+	".AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP\x10\x022\xbfe\n" +
 	"\x16AgentManagementService\x12R\n" +
 	"\vReportStats\x12\x1f.p2pstream.v1.AgentStatsRequest\x1a .p2pstream.v1.AgentStatsResponse\"\x00\x12{\n" +
 	"\x18GetManagementTlsRotation\x12-.p2pstream.v1.GetManagementTlsRotationRequest\x1a..p2pstream.v1.GetManagementTlsRotationResponse\"\x00\x12\x81\x01\n" +
@@ -25962,7 +29522,19 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\vCreateAgent\x12 .p2pstream.v1.CreateAgentRequest\x1a!.p2pstream.v1.CreateAgentResponse\"\x00\x12T\n" +
 	"\vUpdateAgent\x12 .p2pstream.v1.UpdateAgentRequest\x1a!.p2pstream.v1.UpdateAgentResponse\"\x00\x12T\n" +
 	"\vDeleteAgent\x12 .p2pstream.v1.DeleteAgentRequest\x1a!.p2pstream.v1.DeleteAgentResponse\"\x00\x12c\n" +
-	"\x10RotateAgentToken\x12%.p2pstream.v1.RotateAgentTokenRequest\x1a&.p2pstream.v1.RotateAgentTokenResponse\"\x00\x12\x84\x01\n" +
+	"\x10RotateAgentToken\x12%.p2pstream.v1.RotateAgentTokenRequest\x1a&.p2pstream.v1.RotateAgentTokenResponse\"\x00\x12\x9c\x01\n" +
+	"#GenerateAgentUpdaterEnrollmentToken\x128.p2pstream.v1.GenerateAgentUpdaterEnrollmentTokenRequest\x1a9.p2pstream.v1.GenerateAgentUpdaterEnrollmentTokenResponse\"\x00\x12i\n" +
+	"\x12EnrollAgentUpdater\x12'.p2pstream.v1.EnrollAgentUpdaterRequest\x1a(.p2pstream.v1.EnrollAgentUpdaterResponse\"\x00\x12\x81\x01\n" +
+	"\x1aPreviewAgentUpdateCampaign\x12/.p2pstream.v1.PreviewAgentUpdateCampaignRequest\x1a0.p2pstream.v1.PreviewAgentUpdateCampaignResponse\"\x00\x12u\n" +
+	"\x16GetAgentUpdateOverview\x12+.p2pstream.v1.GetAgentUpdateOverviewRequest\x1a,.p2pstream.v1.GetAgentUpdateOverviewResponse\"\x00\x12~\n" +
+	"\x19CreateAgentUpdateCampaign\x12..p2pstream.v1.CreateAgentUpdateCampaignRequest\x1a/.p2pstream.v1.CreateAgentUpdateCampaignResponse\"\x00\x12{\n" +
+	"\x18ListAgentUpdateCampaigns\x12-.p2pstream.v1.ListAgentUpdateCampaignsRequest\x1a..p2pstream.v1.ListAgentUpdateCampaignsResponse\"\x00\x12\x87\x01\n" +
+	"\x18PauseAgentUpdateCampaign\x123.p2pstream.v1.ChangeAgentUpdateCampaignStateRequest\x1a4.p2pstream.v1.ChangeAgentUpdateCampaignStateResponse\"\x00\x12\x88\x01\n" +
+	"\x19ResumeAgentUpdateCampaign\x123.p2pstream.v1.ChangeAgentUpdateCampaignStateRequest\x1a4.p2pstream.v1.ChangeAgentUpdateCampaignStateResponse\"\x00\x12\x88\x01\n" +
+	"\x19CancelAgentUpdateCampaign\x123.p2pstream.v1.ChangeAgentUpdateCampaignStateRequest\x1a4.p2pstream.v1.ChangeAgentUpdateCampaignStateResponse\"\x00\x12\x84\x01\n" +
+	"\x1bRetryAgentUpdateAssignments\x120.p2pstream.v1.RetryAgentUpdateAssignmentsRequest\x1a1.p2pstream.v1.RetryAgentUpdateAssignmentsResponse\"\x00\x12c\n" +
+	"\x10CheckAgentUpdate\x12%.p2pstream.v1.CheckAgentUpdateRequest\x1a&.p2pstream.v1.CheckAgentUpdateResponse\"\x00\x12f\n" +
+	"\x11ReportAgentUpdate\x12&.p2pstream.v1.ReportAgentUpdateRequest\x1a'.p2pstream.v1.ReportAgentUpdateResponse\"\x00\x12\x84\x01\n" +
 	"\x1bCreateManagementAccessToken\x120.p2pstream.v1.CreateManagementAccessTokenRequest\x1a1.p2pstream.v1.CreateManagementAccessTokenResponse\"\x00\x12\x81\x01\n" +
 	"\x1aListManagementAccessTokens\x12/.p2pstream.v1.ListManagementAccessTokensRequest\x1a0.p2pstream.v1.ListManagementAccessTokensResponse\"\x00\x12\x84\x01\n" +
 	"\x1bDeleteManagementAccessToken\x120.p2pstream.v1.DeleteManagementAccessTokenRequest\x1a1.p2pstream.v1.DeleteManagementAccessTokenResponse\"\x00\x12c\n" +
@@ -26039,8 +29611,8 @@ func file_proto_p2pstream_v1_management_proto_rawDescGZIP() []byte {
 	return file_proto_p2pstream_v1_management_proto_rawDescData
 }
 
-var file_proto_p2pstream_v1_management_proto_enumTypes = make([]protoimpl.EnumInfo, 53)
-var file_proto_p2pstream_v1_management_proto_msgTypes = make([]protoimpl.MessageInfo, 268)
+var file_proto_p2pstream_v1_management_proto_enumTypes = make([]protoimpl.EnumInfo, 58)
+var file_proto_p2pstream_v1_management_proto_msgTypes = make([]protoimpl.MessageInfo, 299)
 var file_proto_p2pstream_v1_management_proto_goTypes = []any{
 	(UserRole)(0),                                        // 0: p2pstream.v1.UserRole
 	(ProxyState)(0),                                      // 1: p2pstream.v1.ProxyState
@@ -26095,321 +29667,357 @@ var file_proto_p2pstream_v1_management_proto_goTypes = []any{
 	(PublicRetryBodyMode)(0),                             // 50: p2pstream.v1.PublicRetryBodyMode
 	(PublicRetryResponseBodyMode)(0),                     // 51: p2pstream.v1.PublicRetryResponseBodyMode
 	(PublicTrafficShaperProtocolScope)(0),                // 52: p2pstream.v1.PublicTrafficShaperProtocolScope
-	(*ManagementTrustStatus)(nil),                        // 53: p2pstream.v1.ManagementTrustStatus
-	(*ManagementTrustUpdate)(nil),                        // 54: p2pstream.v1.ManagementTrustUpdate
-	(*AgentStatsRequest)(nil),                            // 55: p2pstream.v1.AgentStatsRequest
-	(*AgentStatsResponse)(nil),                           // 56: p2pstream.v1.AgentStatsResponse
-	(*ManagementTlsCertificateSummary)(nil),              // 57: p2pstream.v1.ManagementTlsCertificateSummary
-	(*ManagementTlsAgentRollout)(nil),                    // 58: p2pstream.v1.ManagementTlsAgentRollout
-	(*ManagementTlsRotation)(nil),                        // 59: p2pstream.v1.ManagementTlsRotation
-	(*GetManagementTlsRotationRequest)(nil),              // 60: p2pstream.v1.GetManagementTlsRotationRequest
-	(*GetManagementTlsRotationResponse)(nil),             // 61: p2pstream.v1.GetManagementTlsRotationResponse
-	(*StageManagementTlsRotationRequest)(nil),            // 62: p2pstream.v1.StageManagementTlsRotationRequest
-	(*StageManagementTlsRotationResponse)(nil),           // 63: p2pstream.v1.StageManagementTlsRotationResponse
-	(*GenerateManagementTlsRotationRequest)(nil),         // 64: p2pstream.v1.GenerateManagementTlsRotationRequest
-	(*GenerateManagementTlsRotationResponse)(nil),        // 65: p2pstream.v1.GenerateManagementTlsRotationResponse
-	(*ActivateManagementTlsRotationRequest)(nil),         // 66: p2pstream.v1.ActivateManagementTlsRotationRequest
-	(*ActivateManagementTlsRotationResponse)(nil),        // 67: p2pstream.v1.ActivateManagementTlsRotationResponse
-	(*RollbackManagementTlsRotationRequest)(nil),         // 68: p2pstream.v1.RollbackManagementTlsRotationRequest
-	(*RollbackManagementTlsRotationResponse)(nil),        // 69: p2pstream.v1.RollbackManagementTlsRotationResponse
-	(*BeginManagementTlsTrustRetirementRequest)(nil),     // 70: p2pstream.v1.BeginManagementTlsTrustRetirementRequest
-	(*BeginManagementTlsTrustRetirementResponse)(nil),    // 71: p2pstream.v1.BeginManagementTlsTrustRetirementResponse
-	(*FinalizeManagementTlsTrustRetirementRequest)(nil),  // 72: p2pstream.v1.FinalizeManagementTlsTrustRetirementRequest
-	(*FinalizeManagementTlsTrustRetirementResponse)(nil), // 73: p2pstream.v1.FinalizeManagementTlsTrustRetirementResponse
-	(*CancelManagementTlsRotationRequest)(nil),           // 74: p2pstream.v1.CancelManagementTlsRotationRequest
-	(*CancelManagementTlsRotationResponse)(nil),          // 75: p2pstream.v1.CancelManagementTlsRotationResponse
-	(*FinalizeManagementTlsTrustCleanupRequest)(nil),     // 76: p2pstream.v1.FinalizeManagementTlsTrustCleanupRequest
-	(*FinalizeManagementTlsTrustCleanupResponse)(nil),    // 77: p2pstream.v1.FinalizeManagementTlsTrustCleanupResponse
-	(*User)(nil),                                      // 78: p2pstream.v1.User
-	(*GetStatusRequest)(nil),                          // 79: p2pstream.v1.GetStatusRequest
-	(*AgentStatsSnapshot)(nil),                        // 80: p2pstream.v1.AgentStatsSnapshot
-	(*GetStatusResponse)(nil),                         // 81: p2pstream.v1.GetStatusResponse
-	(*ProxyStatus)(nil),                               // 82: p2pstream.v1.ProxyStatus
-	(*PublicHeader)(nil),                              // 83: p2pstream.v1.PublicHeader
-	(*PublicRouteTargetUpstreamHeader)(nil),           // 84: p2pstream.v1.PublicRouteTargetUpstreamHeader
-	(*PublicRouteTargetBasicAuth)(nil),                // 85: p2pstream.v1.PublicRouteTargetBasicAuth
-	(*PublicRouteTargetHealthCheck)(nil),              // 86: p2pstream.v1.PublicRouteTargetHealthCheck
-	(*PublicRouteTargetAgentHealth)(nil),              // 87: p2pstream.v1.PublicRouteTargetAgentHealth
-	(*Agent)(nil),                                     // 88: p2pstream.v1.Agent
-	(*PublicAgentSelector)(nil),                       // 89: p2pstream.v1.PublicAgentSelector
-	(*PublicRouteTargetHealth)(nil),                   // 90: p2pstream.v1.PublicRouteTargetHealth
-	(*PublicRouteTarget)(nil),                         // 91: p2pstream.v1.PublicRouteTarget
-	(*PublicListener)(nil),                            // 92: p2pstream.v1.PublicListener
-	(*PublicRoute)(nil),                               // 93: p2pstream.v1.PublicRoute
-	(*PublicAccessProvider)(nil),                      // 94: p2pstream.v1.PublicAccessProvider
-	(*PublicAccessUser)(nil),                          // 95: p2pstream.v1.PublicAccessUser
-	(*PublicAccessPolicy)(nil),                        // 96: p2pstream.v1.PublicAccessPolicy
-	(*PublicTlsCertificate)(nil),                      // 97: p2pstream.v1.PublicTlsCertificate
-	(*PublicTlsDnsCredential)(nil),                    // 98: p2pstream.v1.PublicTlsDnsCredential
-	(*PublicRateLimitKeyPart)(nil),                    // 99: p2pstream.v1.PublicRateLimitKeyPart
-	(*PublicPolicyMatchRule)(nil),                     // 100: p2pstream.v1.PublicPolicyMatchRule
-	(*PublicPolicyMatchBuilder)(nil),                  // 101: p2pstream.v1.PublicPolicyMatchBuilder
-	(*PublicPolicyMatchGroup)(nil),                    // 102: p2pstream.v1.PublicPolicyMatchGroup
-	(*PublicPolicyMatchCondition)(nil),                // 103: p2pstream.v1.PublicPolicyMatchCondition
-	(*PublicRateLimitResponseHeader)(nil),             // 104: p2pstream.v1.PublicRateLimitResponseHeader
-	(*PublicRateLimitRule)(nil),                       // 105: p2pstream.v1.PublicRateLimitRule
-	(*PublicTrafficShaperRule)(nil),                   // 106: p2pstream.v1.PublicTrafficShaperRule
-	(*PublicWafCaptchaProvider)(nil),                  // 107: p2pstream.v1.PublicWafCaptchaProvider
-	(*PublicWafTriggerConfig)(nil),                    // 108: p2pstream.v1.PublicWafTriggerConfig
-	(*PublicWafWaitingRoomConfig)(nil),                // 109: p2pstream.v1.PublicWafWaitingRoomConfig
-	(*PublicWafRule)(nil),                             // 110: p2pstream.v1.PublicWafRule
-	(*PublicResponseTemplate)(nil),                    // 111: p2pstream.v1.PublicResponseTemplate
-	(*PublicCacheSettings)(nil),                       // 112: p2pstream.v1.PublicCacheSettings
-	(*PublicCacheRule)(nil),                           // 113: p2pstream.v1.PublicCacheRule
-	(*PublicListenerStatus)(nil),                      // 114: p2pstream.v1.PublicListenerStatus
-	(*GetPublicProxyConfigRequest)(nil),               // 115: p2pstream.v1.GetPublicProxyConfigRequest
-	(*GetPublicProxyConfigResponse)(nil),              // 116: p2pstream.v1.GetPublicProxyConfigResponse
-	(*PublicRouteTargetHealthTrace)(nil),              // 117: p2pstream.v1.PublicRouteTargetHealthTrace
-	(*ListPublicRouteTargetHealthTracesRequest)(nil),  // 118: p2pstream.v1.ListPublicRouteTargetHealthTracesRequest
-	(*ListPublicRouteTargetHealthTracesResponse)(nil), // 119: p2pstream.v1.ListPublicRouteTargetHealthTracesResponse
-	(*CreatePublicResponseTemplateRequest)(nil),       // 120: p2pstream.v1.CreatePublicResponseTemplateRequest
-	(*CreatePublicResponseTemplateResponse)(nil),      // 121: p2pstream.v1.CreatePublicResponseTemplateResponse
-	(*UpdatePublicResponseTemplateRequest)(nil),       // 122: p2pstream.v1.UpdatePublicResponseTemplateRequest
-	(*UpdatePublicResponseTemplateResponse)(nil),      // 123: p2pstream.v1.UpdatePublicResponseTemplateResponse
-	(*DeletePublicResponseTemplateRequest)(nil),       // 124: p2pstream.v1.DeletePublicResponseTemplateRequest
-	(*DeletePublicResponseTemplateResponse)(nil),      // 125: p2pstream.v1.DeletePublicResponseTemplateResponse
-	(*CreateAgentRequest)(nil),                        // 126: p2pstream.v1.CreateAgentRequest
-	(*CreateAgentResponse)(nil),                       // 127: p2pstream.v1.CreateAgentResponse
-	(*UpdateAgentRequest)(nil),                        // 128: p2pstream.v1.UpdateAgentRequest
-	(*UpdateAgentResponse)(nil),                       // 129: p2pstream.v1.UpdateAgentResponse
-	(*DeleteAgentRequest)(nil),                        // 130: p2pstream.v1.DeleteAgentRequest
-	(*DeleteAgentResponse)(nil),                       // 131: p2pstream.v1.DeleteAgentResponse
-	(*RotateAgentTokenRequest)(nil),                   // 132: p2pstream.v1.RotateAgentTokenRequest
-	(*RotateAgentTokenResponse)(nil),                  // 133: p2pstream.v1.RotateAgentTokenResponse
-	(*ManagementAccessToken)(nil),                     // 134: p2pstream.v1.ManagementAccessToken
-	(*CreateManagementAccessTokenRequest)(nil),        // 135: p2pstream.v1.CreateManagementAccessTokenRequest
-	(*CreateManagementAccessTokenResponse)(nil),       // 136: p2pstream.v1.CreateManagementAccessTokenResponse
-	(*ListManagementAccessTokensRequest)(nil),         // 137: p2pstream.v1.ListManagementAccessTokensRequest
-	(*ListManagementAccessTokensResponse)(nil),        // 138: p2pstream.v1.ListManagementAccessTokensResponse
-	(*DeleteManagementAccessTokenRequest)(nil),        // 139: p2pstream.v1.DeleteManagementAccessTokenRequest
-	(*DeleteManagementAccessTokenResponse)(nil),       // 140: p2pstream.v1.DeleteManagementAccessTokenResponse
-	(*EnvironmentCertificate)(nil),                    // 141: p2pstream.v1.EnvironmentCertificate
-	(*Environment)(nil),                               // 142: p2pstream.v1.Environment
-	(*ListEnvironmentsRequest)(nil),                   // 143: p2pstream.v1.ListEnvironmentsRequest
-	(*ListEnvironmentsResponse)(nil),                  // 144: p2pstream.v1.ListEnvironmentsResponse
-	(*CreateEnvironmentRequest)(nil),                  // 145: p2pstream.v1.CreateEnvironmentRequest
-	(*CreateEnvironmentResponse)(nil),                 // 146: p2pstream.v1.CreateEnvironmentResponse
-	(*UpdateEnvironmentRequest)(nil),                  // 147: p2pstream.v1.UpdateEnvironmentRequest
-	(*UpdateEnvironmentResponse)(nil),                 // 148: p2pstream.v1.UpdateEnvironmentResponse
-	(*DeleteEnvironmentRequest)(nil),                  // 149: p2pstream.v1.DeleteEnvironmentRequest
-	(*DeleteEnvironmentResponse)(nil),                 // 150: p2pstream.v1.DeleteEnvironmentResponse
-	(*DiscoverEnvironmentCertificateRequest)(nil),     // 151: p2pstream.v1.DiscoverEnvironmentCertificateRequest
-	(*DiscoverEnvironmentCertificateResponse)(nil),    // 152: p2pstream.v1.DiscoverEnvironmentCertificateResponse
-	(*TrustEnvironmentCertificateRequest)(nil),        // 153: p2pstream.v1.TrustEnvironmentCertificateRequest
-	(*TrustEnvironmentCertificateResponse)(nil),       // 154: p2pstream.v1.TrustEnvironmentCertificateResponse
-	(*TestEnvironmentRequest)(nil),                    // 155: p2pstream.v1.TestEnvironmentRequest
-	(*TestEnvironmentResponse)(nil),                   // 156: p2pstream.v1.TestEnvironmentResponse
-	(*CreatePublicListenerRequest)(nil),               // 157: p2pstream.v1.CreatePublicListenerRequest
-	(*CreatePublicListenerResponse)(nil),              // 158: p2pstream.v1.CreatePublicListenerResponse
-	(*UpdatePublicListenerRequest)(nil),               // 159: p2pstream.v1.UpdatePublicListenerRequest
-	(*UpdatePublicListenerResponse)(nil),              // 160: p2pstream.v1.UpdatePublicListenerResponse
-	(*DeletePublicListenerRequest)(nil),               // 161: p2pstream.v1.DeletePublicListenerRequest
-	(*DeletePublicListenerResponse)(nil),              // 162: p2pstream.v1.DeletePublicListenerResponse
-	(*EnablePublicListenerRequest)(nil),               // 163: p2pstream.v1.EnablePublicListenerRequest
-	(*EnablePublicListenerResponse)(nil),              // 164: p2pstream.v1.EnablePublicListenerResponse
-	(*DisablePublicListenerRequest)(nil),              // 165: p2pstream.v1.DisablePublicListenerRequest
-	(*DisablePublicListenerResponse)(nil),             // 166: p2pstream.v1.DisablePublicListenerResponse
-	(*StartPublicListenerRequest)(nil),                // 167: p2pstream.v1.StartPublicListenerRequest
-	(*StartPublicListenerResponse)(nil),               // 168: p2pstream.v1.StartPublicListenerResponse
-	(*StopPublicListenerRequest)(nil),                 // 169: p2pstream.v1.StopPublicListenerRequest
-	(*StopPublicListenerResponse)(nil),                // 170: p2pstream.v1.StopPublicListenerResponse
-	(*CreatePublicRouteRequest)(nil),                  // 171: p2pstream.v1.CreatePublicRouteRequest
-	(*CreatePublicRouteResponse)(nil),                 // 172: p2pstream.v1.CreatePublicRouteResponse
-	(*UpdatePublicRouteRequest)(nil),                  // 173: p2pstream.v1.UpdatePublicRouteRequest
-	(*UpdatePublicRouteResponse)(nil),                 // 174: p2pstream.v1.UpdatePublicRouteResponse
-	(*DeletePublicRouteRequest)(nil),                  // 175: p2pstream.v1.DeletePublicRouteRequest
-	(*DeletePublicRouteResponse)(nil),                 // 176: p2pstream.v1.DeletePublicRouteResponse
-	(*CreatePublicAccessProviderRequest)(nil),         // 177: p2pstream.v1.CreatePublicAccessProviderRequest
-	(*CreatePublicAccessProviderResponse)(nil),        // 178: p2pstream.v1.CreatePublicAccessProviderResponse
-	(*UpdatePublicAccessProviderRequest)(nil),         // 179: p2pstream.v1.UpdatePublicAccessProviderRequest
-	(*UpdatePublicAccessProviderResponse)(nil),        // 180: p2pstream.v1.UpdatePublicAccessProviderResponse
-	(*DeletePublicAccessProviderRequest)(nil),         // 181: p2pstream.v1.DeletePublicAccessProviderRequest
-	(*DeletePublicAccessProviderResponse)(nil),        // 182: p2pstream.v1.DeletePublicAccessProviderResponse
-	(*CreatePublicAccessUserRequest)(nil),             // 183: p2pstream.v1.CreatePublicAccessUserRequest
-	(*CreatePublicAccessUserResponse)(nil),            // 184: p2pstream.v1.CreatePublicAccessUserResponse
-	(*UpdatePublicAccessUserRequest)(nil),             // 185: p2pstream.v1.UpdatePublicAccessUserRequest
-	(*UpdatePublicAccessUserResponse)(nil),            // 186: p2pstream.v1.UpdatePublicAccessUserResponse
-	(*DeletePublicAccessUserRequest)(nil),             // 187: p2pstream.v1.DeletePublicAccessUserRequest
-	(*DeletePublicAccessUserResponse)(nil),            // 188: p2pstream.v1.DeletePublicAccessUserResponse
-	(*CreatePublicAccessPolicyRequest)(nil),           // 189: p2pstream.v1.CreatePublicAccessPolicyRequest
-	(*CreatePublicAccessPolicyResponse)(nil),          // 190: p2pstream.v1.CreatePublicAccessPolicyResponse
-	(*UpdatePublicAccessPolicyRequest)(nil),           // 191: p2pstream.v1.UpdatePublicAccessPolicyRequest
-	(*UpdatePublicAccessPolicyResponse)(nil),          // 192: p2pstream.v1.UpdatePublicAccessPolicyResponse
-	(*DeletePublicAccessPolicyRequest)(nil),           // 193: p2pstream.v1.DeletePublicAccessPolicyRequest
-	(*DeletePublicAccessPolicyResponse)(nil),          // 194: p2pstream.v1.DeletePublicAccessPolicyResponse
-	(*CreatePublicTlsDnsCredentialRequest)(nil),       // 195: p2pstream.v1.CreatePublicTlsDnsCredentialRequest
-	(*CreatePublicTlsDnsCredentialResponse)(nil),      // 196: p2pstream.v1.CreatePublicTlsDnsCredentialResponse
-	(*UpdatePublicTlsDnsCredentialRequest)(nil),       // 197: p2pstream.v1.UpdatePublicTlsDnsCredentialRequest
-	(*UpdatePublicTlsDnsCredentialResponse)(nil),      // 198: p2pstream.v1.UpdatePublicTlsDnsCredentialResponse
-	(*DeletePublicTlsDnsCredentialRequest)(nil),       // 199: p2pstream.v1.DeletePublicTlsDnsCredentialRequest
-	(*DeletePublicTlsDnsCredentialResponse)(nil),      // 200: p2pstream.v1.DeletePublicTlsDnsCredentialResponse
-	(*CreatePublicTlsCertificateRequest)(nil),         // 201: p2pstream.v1.CreatePublicTlsCertificateRequest
-	(*CreatePublicTlsCertificateResponse)(nil),        // 202: p2pstream.v1.CreatePublicTlsCertificateResponse
-	(*UpdatePublicTlsCertificateRequest)(nil),         // 203: p2pstream.v1.UpdatePublicTlsCertificateRequest
-	(*UpdatePublicTlsCertificateResponse)(nil),        // 204: p2pstream.v1.UpdatePublicTlsCertificateResponse
-	(*DeletePublicTlsCertificateRequest)(nil),         // 205: p2pstream.v1.DeletePublicTlsCertificateRequest
-	(*DeletePublicTlsCertificateResponse)(nil),        // 206: p2pstream.v1.DeletePublicTlsCertificateResponse
-	(*RenewPublicTlsCertificateRequest)(nil),          // 207: p2pstream.v1.RenewPublicTlsCertificateRequest
-	(*RenewPublicTlsCertificateResponse)(nil),         // 208: p2pstream.v1.RenewPublicTlsCertificateResponse
-	(*CreatePublicRateLimitRuleRequest)(nil),          // 209: p2pstream.v1.CreatePublicRateLimitRuleRequest
-	(*CreatePublicRateLimitRuleResponse)(nil),         // 210: p2pstream.v1.CreatePublicRateLimitRuleResponse
-	(*UpdatePublicRateLimitRuleRequest)(nil),          // 211: p2pstream.v1.UpdatePublicRateLimitRuleRequest
-	(*UpdatePublicRateLimitRuleResponse)(nil),         // 212: p2pstream.v1.UpdatePublicRateLimitRuleResponse
-	(*DeletePublicRateLimitRuleRequest)(nil),          // 213: p2pstream.v1.DeletePublicRateLimitRuleRequest
-	(*DeletePublicRateLimitRuleResponse)(nil),         // 214: p2pstream.v1.DeletePublicRateLimitRuleResponse
-	(*CreatePublicTrafficShaperRuleRequest)(nil),      // 215: p2pstream.v1.CreatePublicTrafficShaperRuleRequest
-	(*CreatePublicTrafficShaperRuleResponse)(nil),     // 216: p2pstream.v1.CreatePublicTrafficShaperRuleResponse
-	(*UpdatePublicTrafficShaperRuleRequest)(nil),      // 217: p2pstream.v1.UpdatePublicTrafficShaperRuleRequest
-	(*UpdatePublicTrafficShaperRuleResponse)(nil),     // 218: p2pstream.v1.UpdatePublicTrafficShaperRuleResponse
-	(*DeletePublicTrafficShaperRuleRequest)(nil),      // 219: p2pstream.v1.DeletePublicTrafficShaperRuleRequest
-	(*DeletePublicTrafficShaperRuleResponse)(nil),     // 220: p2pstream.v1.DeletePublicTrafficShaperRuleResponse
-	(*CreatePublicWafCaptchaProviderRequest)(nil),     // 221: p2pstream.v1.CreatePublicWafCaptchaProviderRequest
-	(*CreatePublicWafCaptchaProviderResponse)(nil),    // 222: p2pstream.v1.CreatePublicWafCaptchaProviderResponse
-	(*UpdatePublicWafCaptchaProviderRequest)(nil),     // 223: p2pstream.v1.UpdatePublicWafCaptchaProviderRequest
-	(*UpdatePublicWafCaptchaProviderResponse)(nil),    // 224: p2pstream.v1.UpdatePublicWafCaptchaProviderResponse
-	(*DeletePublicWafCaptchaProviderRequest)(nil),     // 225: p2pstream.v1.DeletePublicWafCaptchaProviderRequest
-	(*DeletePublicWafCaptchaProviderResponse)(nil),    // 226: p2pstream.v1.DeletePublicWafCaptchaProviderResponse
-	(*CreatePublicWafRuleRequest)(nil),                // 227: p2pstream.v1.CreatePublicWafRuleRequest
-	(*CreatePublicWafRuleResponse)(nil),               // 228: p2pstream.v1.CreatePublicWafRuleResponse
-	(*UpdatePublicWafRuleRequest)(nil),                // 229: p2pstream.v1.UpdatePublicWafRuleRequest
-	(*UpdatePublicWafRuleResponse)(nil),               // 230: p2pstream.v1.UpdatePublicWafRuleResponse
-	(*DeletePublicWafRuleRequest)(nil),                // 231: p2pstream.v1.DeletePublicWafRuleRequest
-	(*DeletePublicWafRuleResponse)(nil),               // 232: p2pstream.v1.DeletePublicWafRuleResponse
-	(*CreatePublicCacheRuleRequest)(nil),              // 233: p2pstream.v1.CreatePublicCacheRuleRequest
-	(*CreatePublicCacheRuleResponse)(nil),             // 234: p2pstream.v1.CreatePublicCacheRuleResponse
-	(*UpdatePublicCacheRuleRequest)(nil),              // 235: p2pstream.v1.UpdatePublicCacheRuleRequest
-	(*UpdatePublicCacheRuleResponse)(nil),             // 236: p2pstream.v1.UpdatePublicCacheRuleResponse
-	(*DeletePublicCacheRuleRequest)(nil),              // 237: p2pstream.v1.DeletePublicCacheRuleRequest
-	(*DeletePublicCacheRuleResponse)(nil),             // 238: p2pstream.v1.DeletePublicCacheRuleResponse
-	(*UpdatePublicCacheSettingsRequest)(nil),          // 239: p2pstream.v1.UpdatePublicCacheSettingsRequest
-	(*UpdatePublicCacheSettingsResponse)(nil),         // 240: p2pstream.v1.UpdatePublicCacheSettingsResponse
-	(*PurgePublicCacheRequest)(nil),                   // 241: p2pstream.v1.PurgePublicCacheRequest
-	(*PurgePublicCacheResponse)(nil),                  // 242: p2pstream.v1.PurgePublicCacheResponse
-	(*GetDashboardRequest)(nil),                       // 243: p2pstream.v1.GetDashboardRequest
-	(*DashboardWindowSummary)(nil),                    // 244: p2pstream.v1.DashboardWindowSummary
-	(*DashboardProxyDimensionSummary)(nil),            // 245: p2pstream.v1.DashboardProxyDimensionSummary
-	(*DashboardTrafficBucket)(nil),                    // 246: p2pstream.v1.DashboardTrafficBucket
-	(*ManagementSecurity)(nil),                        // 247: p2pstream.v1.ManagementSecurity
-	(*AgentConnectionSummary)(nil),                    // 248: p2pstream.v1.AgentConnectionSummary
-	(*AgentUptimeSummary)(nil),                        // 249: p2pstream.v1.AgentUptimeSummary
-	(*AgentConnectionSession)(nil),                    // 250: p2pstream.v1.AgentConnectionSession
-	(*GetAgentAvailabilityRequest)(nil),               // 251: p2pstream.v1.GetAgentAvailabilityRequest
-	(*AgentAvailabilityInterval)(nil),                 // 252: p2pstream.v1.AgentAvailabilityInterval
-	(*GetAgentAvailabilityResponse)(nil),              // 253: p2pstream.v1.GetAgentAvailabilityResponse
-	(*GetDashboardResponse)(nil),                      // 254: p2pstream.v1.GetDashboardResponse
-	(*GetDashboardDiagnosticsRequest)(nil),            // 255: p2pstream.v1.GetDashboardDiagnosticsRequest
-	(*DashboardDiagnosticsOutcomeSummary)(nil),        // 256: p2pstream.v1.DashboardDiagnosticsOutcomeSummary
-	(*DashboardStatusCodeSummary)(nil),                // 257: p2pstream.v1.DashboardStatusCodeSummary
-	(*DashboardDiagnosticsSample)(nil),                // 258: p2pstream.v1.DashboardDiagnosticsSample
-	(*DashboardRetryHealthSummary)(nil),               // 259: p2pstream.v1.DashboardRetryHealthSummary
-	(*DashboardRetryTrendBucket)(nil),                 // 260: p2pstream.v1.DashboardRetryTrendBucket
-	(*DashboardRetryRuleSummary)(nil),                 // 261: p2pstream.v1.DashboardRetryRuleSummary
-	(*DashboardRetryFailureSummary)(nil),              // 262: p2pstream.v1.DashboardRetryFailureSummary
-	(*GetDashboardDiagnosticsResponse)(nil),           // 263: p2pstream.v1.GetDashboardDiagnosticsResponse
-	(*TrafficTraceSettings)(nil),                      // 264: p2pstream.v1.TrafficTraceSettings
-	(*GetTrafficTraceSettingsRequest)(nil),            // 265: p2pstream.v1.GetTrafficTraceSettingsRequest
-	(*GetTrafficTraceSettingsResponse)(nil),           // 266: p2pstream.v1.GetTrafficTraceSettingsResponse
-	(*SetTrafficTraceSettingsRequest)(nil),            // 267: p2pstream.v1.SetTrafficTraceSettingsRequest
-	(*SetTrafficTraceSettingsResponse)(nil),           // 268: p2pstream.v1.SetTrafficTraceSettingsResponse
-	(*StreamTrafficTraceEventsRequest)(nil),           // 269: p2pstream.v1.StreamTrafficTraceEventsRequest
-	(*TrafficTraceEvent)(nil),                         // 270: p2pstream.v1.TrafficTraceEvent
-	(*StreamTrafficTraceEventsResponse)(nil),          // 271: p2pstream.v1.StreamTrafficTraceEventsResponse
-	(*GetSetupStateRequest)(nil),                      // 272: p2pstream.v1.GetSetupStateRequest
-	(*GetSetupStateResponse)(nil),                     // 273: p2pstream.v1.GetSetupStateResponse
-	(*SetupAdminRequest)(nil),                         // 274: p2pstream.v1.SetupAdminRequest
-	(*SetupAdminResponse)(nil),                        // 275: p2pstream.v1.SetupAdminResponse
-	(*LoginRequest)(nil),                              // 276: p2pstream.v1.LoginRequest
-	(*LoginResponse)(nil),                             // 277: p2pstream.v1.LoginResponse
-	(*LogoutRequest)(nil),                             // 278: p2pstream.v1.LogoutRequest
-	(*LogoutResponse)(nil),                            // 279: p2pstream.v1.LogoutResponse
-	(*GetCurrentUserRequest)(nil),                     // 280: p2pstream.v1.GetCurrentUserRequest
-	(*GetCurrentUserResponse)(nil),                    // 281: p2pstream.v1.GetCurrentUserResponse
-	(*StartProxyRequest)(nil),                         // 282: p2pstream.v1.StartProxyRequest
-	(*StartProxyResponse)(nil),                        // 283: p2pstream.v1.StartProxyResponse
-	(*StopProxyRequest)(nil),                          // 284: p2pstream.v1.StopProxyRequest
-	(*StopProxyResponse)(nil),                         // 285: p2pstream.v1.StopProxyResponse
-	(*PublicWafGeoRestriction)(nil),                   // 286: p2pstream.v1.PublicWafGeoRestriction
-	(*PublicGeoIpDatabaseStatus)(nil),                 // 287: p2pstream.v1.PublicGeoIpDatabaseStatus
-	(*PublicGeoIpSettings)(nil),                       // 288: p2pstream.v1.PublicGeoIpSettings
-	(*PublicTrustedProxySource)(nil),                  // 289: p2pstream.v1.PublicTrustedProxySource
-	(*UpdatePublicGeoIpSettingsRequest)(nil),          // 290: p2pstream.v1.UpdatePublicGeoIpSettingsRequest
-	(*UpdatePublicGeoIpSettingsResponse)(nil),         // 291: p2pstream.v1.UpdatePublicGeoIpSettingsResponse
-	(*RefreshPublicGeoIpDatabaseRequest)(nil),         // 292: p2pstream.v1.RefreshPublicGeoIpDatabaseRequest
-	(*RefreshPublicGeoIpDatabaseResponse)(nil),        // 293: p2pstream.v1.RefreshPublicGeoIpDatabaseResponse
-	(*CreatePublicTrustedProxySourceRequest)(nil),     // 294: p2pstream.v1.CreatePublicTrustedProxySourceRequest
-	(*CreatePublicTrustedProxySourceResponse)(nil),    // 295: p2pstream.v1.CreatePublicTrustedProxySourceResponse
-	(*UpdatePublicTrustedProxySourceRequest)(nil),     // 296: p2pstream.v1.UpdatePublicTrustedProxySourceRequest
-	(*UpdatePublicTrustedProxySourceResponse)(nil),    // 297: p2pstream.v1.UpdatePublicTrustedProxySourceResponse
-	(*DeletePublicTrustedProxySourceRequest)(nil),     // 298: p2pstream.v1.DeletePublicTrustedProxySourceRequest
-	(*DeletePublicTrustedProxySourceResponse)(nil),    // 299: p2pstream.v1.DeletePublicTrustedProxySourceResponse
-	(*RefreshPublicTrustedProxySourceRequest)(nil),    // 300: p2pstream.v1.RefreshPublicTrustedProxySourceRequest
-	(*RefreshPublicTrustedProxySourceResponse)(nil),   // 301: p2pstream.v1.RefreshPublicTrustedProxySourceResponse
-	(*PublicCacheStorageStats)(nil),                   // 302: p2pstream.v1.PublicCacheStorageStats
-	(*PublicRetryRule)(nil),                           // 303: p2pstream.v1.PublicRetryRule
-	(*CreatePublicRetryRuleRequest)(nil),              // 304: p2pstream.v1.CreatePublicRetryRuleRequest
-	(*CreatePublicRetryRuleResponse)(nil),             // 305: p2pstream.v1.CreatePublicRetryRuleResponse
-	(*UpdatePublicRetryRuleRequest)(nil),              // 306: p2pstream.v1.UpdatePublicRetryRuleRequest
-	(*UpdatePublicRetryRuleResponse)(nil),             // 307: p2pstream.v1.UpdatePublicRetryRuleResponse
-	(*DeletePublicRetryRuleRequest)(nil),              // 308: p2pstream.v1.DeletePublicRetryRuleRequest
-	(*DeletePublicRetryRuleResponse)(nil),             // 309: p2pstream.v1.DeletePublicRetryRuleResponse
-	(*AgentStreamCapacitySummary)(nil),                // 310: p2pstream.v1.AgentStreamCapacitySummary
-	nil,                                               // 311: p2pstream.v1.Agent.LabelsEntry
-	nil,                                               // 312: p2pstream.v1.PublicAgentSelector.MatchLabelsEntry
-	nil,                                               // 313: p2pstream.v1.PublicRouteTargetHealthTrace.DebugAttributesEntry
-	nil,                                               // 314: p2pstream.v1.CreateAgentRequest.LabelsEntry
-	nil,                                               // 315: p2pstream.v1.UpdateAgentRequest.LabelsEntry
-	nil,                                               // 316: p2pstream.v1.TrafficTraceEvent.RequestHeadersEntry
-	nil,                                               // 317: p2pstream.v1.TrafficTraceEvent.ResponseHeadersEntry
-	nil,                                               // 318: p2pstream.v1.TrafficTraceEvent.DebugAttributesEntry
-	nil,                                               // 319: p2pstream.v1.AgentStreamCapacitySummary.AdmissionMissesByConstraintEntry
-	nil,                                               // 320: p2pstream.v1.AgentStreamCapacitySummary.WaitersByConstraintEntry
+	(AgentUpdateCampaignState)(0),                        // 53: p2pstream.v1.AgentUpdateCampaignState
+	(AgentUpdateAssignmentState)(0),                      // 54: p2pstream.v1.AgentUpdateAssignmentState
+	(AgentUpdateDesiredAction)(0),                        // 55: p2pstream.v1.AgentUpdateDesiredAction
+	(AgentUpdaterReportState)(0),                         // 56: p2pstream.v1.AgentUpdaterReportState
+	(AgentUpdateRootActionResultKind)(0),                 // 57: p2pstream.v1.AgentUpdateRootActionResultKind
+	(*ManagementTrustStatus)(nil),                        // 58: p2pstream.v1.ManagementTrustStatus
+	(*ManagementTrustUpdate)(nil),                        // 59: p2pstream.v1.ManagementTrustUpdate
+	(*AgentStatsRequest)(nil),                            // 60: p2pstream.v1.AgentStatsRequest
+	(*AgentStatsResponse)(nil),                           // 61: p2pstream.v1.AgentStatsResponse
+	(*ManagementTlsCertificateSummary)(nil),              // 62: p2pstream.v1.ManagementTlsCertificateSummary
+	(*ManagementTlsAgentRollout)(nil),                    // 63: p2pstream.v1.ManagementTlsAgentRollout
+	(*ManagementTlsRotation)(nil),                        // 64: p2pstream.v1.ManagementTlsRotation
+	(*GetManagementTlsRotationRequest)(nil),              // 65: p2pstream.v1.GetManagementTlsRotationRequest
+	(*GetManagementTlsRotationResponse)(nil),             // 66: p2pstream.v1.GetManagementTlsRotationResponse
+	(*StageManagementTlsRotationRequest)(nil),            // 67: p2pstream.v1.StageManagementTlsRotationRequest
+	(*StageManagementTlsRotationResponse)(nil),           // 68: p2pstream.v1.StageManagementTlsRotationResponse
+	(*GenerateManagementTlsRotationRequest)(nil),         // 69: p2pstream.v1.GenerateManagementTlsRotationRequest
+	(*GenerateManagementTlsRotationResponse)(nil),        // 70: p2pstream.v1.GenerateManagementTlsRotationResponse
+	(*ActivateManagementTlsRotationRequest)(nil),         // 71: p2pstream.v1.ActivateManagementTlsRotationRequest
+	(*ActivateManagementTlsRotationResponse)(nil),        // 72: p2pstream.v1.ActivateManagementTlsRotationResponse
+	(*RollbackManagementTlsRotationRequest)(nil),         // 73: p2pstream.v1.RollbackManagementTlsRotationRequest
+	(*RollbackManagementTlsRotationResponse)(nil),        // 74: p2pstream.v1.RollbackManagementTlsRotationResponse
+	(*BeginManagementTlsTrustRetirementRequest)(nil),     // 75: p2pstream.v1.BeginManagementTlsTrustRetirementRequest
+	(*BeginManagementTlsTrustRetirementResponse)(nil),    // 76: p2pstream.v1.BeginManagementTlsTrustRetirementResponse
+	(*FinalizeManagementTlsTrustRetirementRequest)(nil),  // 77: p2pstream.v1.FinalizeManagementTlsTrustRetirementRequest
+	(*FinalizeManagementTlsTrustRetirementResponse)(nil), // 78: p2pstream.v1.FinalizeManagementTlsTrustRetirementResponse
+	(*CancelManagementTlsRotationRequest)(nil),           // 79: p2pstream.v1.CancelManagementTlsRotationRequest
+	(*CancelManagementTlsRotationResponse)(nil),          // 80: p2pstream.v1.CancelManagementTlsRotationResponse
+	(*FinalizeManagementTlsTrustCleanupRequest)(nil),     // 81: p2pstream.v1.FinalizeManagementTlsTrustCleanupRequest
+	(*FinalizeManagementTlsTrustCleanupResponse)(nil),    // 82: p2pstream.v1.FinalizeManagementTlsTrustCleanupResponse
+	(*User)(nil),                                        // 83: p2pstream.v1.User
+	(*GetStatusRequest)(nil),                            // 84: p2pstream.v1.GetStatusRequest
+	(*AgentStatsSnapshot)(nil),                          // 85: p2pstream.v1.AgentStatsSnapshot
+	(*GetStatusResponse)(nil),                           // 86: p2pstream.v1.GetStatusResponse
+	(*ProxyStatus)(nil),                                 // 87: p2pstream.v1.ProxyStatus
+	(*PublicHeader)(nil),                                // 88: p2pstream.v1.PublicHeader
+	(*PublicRouteTargetUpstreamHeader)(nil),             // 89: p2pstream.v1.PublicRouteTargetUpstreamHeader
+	(*PublicRouteTargetBasicAuth)(nil),                  // 90: p2pstream.v1.PublicRouteTargetBasicAuth
+	(*PublicRouteTargetHealthCheck)(nil),                // 91: p2pstream.v1.PublicRouteTargetHealthCheck
+	(*PublicRouteTargetAgentHealth)(nil),                // 92: p2pstream.v1.PublicRouteTargetAgentHealth
+	(*Agent)(nil),                                       // 93: p2pstream.v1.Agent
+	(*PublicAgentSelector)(nil),                         // 94: p2pstream.v1.PublicAgentSelector
+	(*PublicRouteTargetHealth)(nil),                     // 95: p2pstream.v1.PublicRouteTargetHealth
+	(*PublicRouteTarget)(nil),                           // 96: p2pstream.v1.PublicRouteTarget
+	(*PublicListener)(nil),                              // 97: p2pstream.v1.PublicListener
+	(*PublicRoute)(nil),                                 // 98: p2pstream.v1.PublicRoute
+	(*PublicAccessProvider)(nil),                        // 99: p2pstream.v1.PublicAccessProvider
+	(*PublicAccessUser)(nil),                            // 100: p2pstream.v1.PublicAccessUser
+	(*PublicAccessPolicy)(nil),                          // 101: p2pstream.v1.PublicAccessPolicy
+	(*PublicTlsCertificate)(nil),                        // 102: p2pstream.v1.PublicTlsCertificate
+	(*PublicTlsDnsCredential)(nil),                      // 103: p2pstream.v1.PublicTlsDnsCredential
+	(*PublicRateLimitKeyPart)(nil),                      // 104: p2pstream.v1.PublicRateLimitKeyPart
+	(*PublicPolicyMatchRule)(nil),                       // 105: p2pstream.v1.PublicPolicyMatchRule
+	(*PublicPolicyMatchBuilder)(nil),                    // 106: p2pstream.v1.PublicPolicyMatchBuilder
+	(*PublicPolicyMatchGroup)(nil),                      // 107: p2pstream.v1.PublicPolicyMatchGroup
+	(*PublicPolicyMatchCondition)(nil),                  // 108: p2pstream.v1.PublicPolicyMatchCondition
+	(*PublicRateLimitResponseHeader)(nil),               // 109: p2pstream.v1.PublicRateLimitResponseHeader
+	(*PublicRateLimitRule)(nil),                         // 110: p2pstream.v1.PublicRateLimitRule
+	(*PublicTrafficShaperRule)(nil),                     // 111: p2pstream.v1.PublicTrafficShaperRule
+	(*PublicWafCaptchaProvider)(nil),                    // 112: p2pstream.v1.PublicWafCaptchaProvider
+	(*PublicWafTriggerConfig)(nil),                      // 113: p2pstream.v1.PublicWafTriggerConfig
+	(*PublicWafWaitingRoomConfig)(nil),                  // 114: p2pstream.v1.PublicWafWaitingRoomConfig
+	(*PublicWafRule)(nil),                               // 115: p2pstream.v1.PublicWafRule
+	(*PublicResponseTemplate)(nil),                      // 116: p2pstream.v1.PublicResponseTemplate
+	(*PublicCacheSettings)(nil),                         // 117: p2pstream.v1.PublicCacheSettings
+	(*PublicCacheRule)(nil),                             // 118: p2pstream.v1.PublicCacheRule
+	(*PublicListenerStatus)(nil),                        // 119: p2pstream.v1.PublicListenerStatus
+	(*GetPublicProxyConfigRequest)(nil),                 // 120: p2pstream.v1.GetPublicProxyConfigRequest
+	(*GetPublicProxyConfigResponse)(nil),                // 121: p2pstream.v1.GetPublicProxyConfigResponse
+	(*PublicRouteTargetHealthTrace)(nil),                // 122: p2pstream.v1.PublicRouteTargetHealthTrace
+	(*ListPublicRouteTargetHealthTracesRequest)(nil),    // 123: p2pstream.v1.ListPublicRouteTargetHealthTracesRequest
+	(*ListPublicRouteTargetHealthTracesResponse)(nil),   // 124: p2pstream.v1.ListPublicRouteTargetHealthTracesResponse
+	(*CreatePublicResponseTemplateRequest)(nil),         // 125: p2pstream.v1.CreatePublicResponseTemplateRequest
+	(*CreatePublicResponseTemplateResponse)(nil),        // 126: p2pstream.v1.CreatePublicResponseTemplateResponse
+	(*UpdatePublicResponseTemplateRequest)(nil),         // 127: p2pstream.v1.UpdatePublicResponseTemplateRequest
+	(*UpdatePublicResponseTemplateResponse)(nil),        // 128: p2pstream.v1.UpdatePublicResponseTemplateResponse
+	(*DeletePublicResponseTemplateRequest)(nil),         // 129: p2pstream.v1.DeletePublicResponseTemplateRequest
+	(*DeletePublicResponseTemplateResponse)(nil),        // 130: p2pstream.v1.DeletePublicResponseTemplateResponse
+	(*CreateAgentRequest)(nil),                          // 131: p2pstream.v1.CreateAgentRequest
+	(*CreateAgentResponse)(nil),                         // 132: p2pstream.v1.CreateAgentResponse
+	(*UpdateAgentRequest)(nil),                          // 133: p2pstream.v1.UpdateAgentRequest
+	(*UpdateAgentResponse)(nil),                         // 134: p2pstream.v1.UpdateAgentResponse
+	(*DeleteAgentRequest)(nil),                          // 135: p2pstream.v1.DeleteAgentRequest
+	(*DeleteAgentResponse)(nil),                         // 136: p2pstream.v1.DeleteAgentResponse
+	(*RotateAgentTokenRequest)(nil),                     // 137: p2pstream.v1.RotateAgentTokenRequest
+	(*RotateAgentTokenResponse)(nil),                    // 138: p2pstream.v1.RotateAgentTokenResponse
+	(*ManagementAccessToken)(nil),                       // 139: p2pstream.v1.ManagementAccessToken
+	(*CreateManagementAccessTokenRequest)(nil),          // 140: p2pstream.v1.CreateManagementAccessTokenRequest
+	(*CreateManagementAccessTokenResponse)(nil),         // 141: p2pstream.v1.CreateManagementAccessTokenResponse
+	(*ListManagementAccessTokensRequest)(nil),           // 142: p2pstream.v1.ListManagementAccessTokensRequest
+	(*ListManagementAccessTokensResponse)(nil),          // 143: p2pstream.v1.ListManagementAccessTokensResponse
+	(*DeleteManagementAccessTokenRequest)(nil),          // 144: p2pstream.v1.DeleteManagementAccessTokenRequest
+	(*DeleteManagementAccessTokenResponse)(nil),         // 145: p2pstream.v1.DeleteManagementAccessTokenResponse
+	(*EnvironmentCertificate)(nil),                      // 146: p2pstream.v1.EnvironmentCertificate
+	(*Environment)(nil),                                 // 147: p2pstream.v1.Environment
+	(*ListEnvironmentsRequest)(nil),                     // 148: p2pstream.v1.ListEnvironmentsRequest
+	(*ListEnvironmentsResponse)(nil),                    // 149: p2pstream.v1.ListEnvironmentsResponse
+	(*CreateEnvironmentRequest)(nil),                    // 150: p2pstream.v1.CreateEnvironmentRequest
+	(*CreateEnvironmentResponse)(nil),                   // 151: p2pstream.v1.CreateEnvironmentResponse
+	(*UpdateEnvironmentRequest)(nil),                    // 152: p2pstream.v1.UpdateEnvironmentRequest
+	(*UpdateEnvironmentResponse)(nil),                   // 153: p2pstream.v1.UpdateEnvironmentResponse
+	(*DeleteEnvironmentRequest)(nil),                    // 154: p2pstream.v1.DeleteEnvironmentRequest
+	(*DeleteEnvironmentResponse)(nil),                   // 155: p2pstream.v1.DeleteEnvironmentResponse
+	(*DiscoverEnvironmentCertificateRequest)(nil),       // 156: p2pstream.v1.DiscoverEnvironmentCertificateRequest
+	(*DiscoverEnvironmentCertificateResponse)(nil),      // 157: p2pstream.v1.DiscoverEnvironmentCertificateResponse
+	(*TrustEnvironmentCertificateRequest)(nil),          // 158: p2pstream.v1.TrustEnvironmentCertificateRequest
+	(*TrustEnvironmentCertificateResponse)(nil),         // 159: p2pstream.v1.TrustEnvironmentCertificateResponse
+	(*TestEnvironmentRequest)(nil),                      // 160: p2pstream.v1.TestEnvironmentRequest
+	(*TestEnvironmentResponse)(nil),                     // 161: p2pstream.v1.TestEnvironmentResponse
+	(*CreatePublicListenerRequest)(nil),                 // 162: p2pstream.v1.CreatePublicListenerRequest
+	(*CreatePublicListenerResponse)(nil),                // 163: p2pstream.v1.CreatePublicListenerResponse
+	(*UpdatePublicListenerRequest)(nil),                 // 164: p2pstream.v1.UpdatePublicListenerRequest
+	(*UpdatePublicListenerResponse)(nil),                // 165: p2pstream.v1.UpdatePublicListenerResponse
+	(*DeletePublicListenerRequest)(nil),                 // 166: p2pstream.v1.DeletePublicListenerRequest
+	(*DeletePublicListenerResponse)(nil),                // 167: p2pstream.v1.DeletePublicListenerResponse
+	(*EnablePublicListenerRequest)(nil),                 // 168: p2pstream.v1.EnablePublicListenerRequest
+	(*EnablePublicListenerResponse)(nil),                // 169: p2pstream.v1.EnablePublicListenerResponse
+	(*DisablePublicListenerRequest)(nil),                // 170: p2pstream.v1.DisablePublicListenerRequest
+	(*DisablePublicListenerResponse)(nil),               // 171: p2pstream.v1.DisablePublicListenerResponse
+	(*StartPublicListenerRequest)(nil),                  // 172: p2pstream.v1.StartPublicListenerRequest
+	(*StartPublicListenerResponse)(nil),                 // 173: p2pstream.v1.StartPublicListenerResponse
+	(*StopPublicListenerRequest)(nil),                   // 174: p2pstream.v1.StopPublicListenerRequest
+	(*StopPublicListenerResponse)(nil),                  // 175: p2pstream.v1.StopPublicListenerResponse
+	(*CreatePublicRouteRequest)(nil),                    // 176: p2pstream.v1.CreatePublicRouteRequest
+	(*CreatePublicRouteResponse)(nil),                   // 177: p2pstream.v1.CreatePublicRouteResponse
+	(*UpdatePublicRouteRequest)(nil),                    // 178: p2pstream.v1.UpdatePublicRouteRequest
+	(*UpdatePublicRouteResponse)(nil),                   // 179: p2pstream.v1.UpdatePublicRouteResponse
+	(*DeletePublicRouteRequest)(nil),                    // 180: p2pstream.v1.DeletePublicRouteRequest
+	(*DeletePublicRouteResponse)(nil),                   // 181: p2pstream.v1.DeletePublicRouteResponse
+	(*CreatePublicAccessProviderRequest)(nil),           // 182: p2pstream.v1.CreatePublicAccessProviderRequest
+	(*CreatePublicAccessProviderResponse)(nil),          // 183: p2pstream.v1.CreatePublicAccessProviderResponse
+	(*UpdatePublicAccessProviderRequest)(nil),           // 184: p2pstream.v1.UpdatePublicAccessProviderRequest
+	(*UpdatePublicAccessProviderResponse)(nil),          // 185: p2pstream.v1.UpdatePublicAccessProviderResponse
+	(*DeletePublicAccessProviderRequest)(nil),           // 186: p2pstream.v1.DeletePublicAccessProviderRequest
+	(*DeletePublicAccessProviderResponse)(nil),          // 187: p2pstream.v1.DeletePublicAccessProviderResponse
+	(*CreatePublicAccessUserRequest)(nil),               // 188: p2pstream.v1.CreatePublicAccessUserRequest
+	(*CreatePublicAccessUserResponse)(nil),              // 189: p2pstream.v1.CreatePublicAccessUserResponse
+	(*UpdatePublicAccessUserRequest)(nil),               // 190: p2pstream.v1.UpdatePublicAccessUserRequest
+	(*UpdatePublicAccessUserResponse)(nil),              // 191: p2pstream.v1.UpdatePublicAccessUserResponse
+	(*DeletePublicAccessUserRequest)(nil),               // 192: p2pstream.v1.DeletePublicAccessUserRequest
+	(*DeletePublicAccessUserResponse)(nil),              // 193: p2pstream.v1.DeletePublicAccessUserResponse
+	(*CreatePublicAccessPolicyRequest)(nil),             // 194: p2pstream.v1.CreatePublicAccessPolicyRequest
+	(*CreatePublicAccessPolicyResponse)(nil),            // 195: p2pstream.v1.CreatePublicAccessPolicyResponse
+	(*UpdatePublicAccessPolicyRequest)(nil),             // 196: p2pstream.v1.UpdatePublicAccessPolicyRequest
+	(*UpdatePublicAccessPolicyResponse)(nil),            // 197: p2pstream.v1.UpdatePublicAccessPolicyResponse
+	(*DeletePublicAccessPolicyRequest)(nil),             // 198: p2pstream.v1.DeletePublicAccessPolicyRequest
+	(*DeletePublicAccessPolicyResponse)(nil),            // 199: p2pstream.v1.DeletePublicAccessPolicyResponse
+	(*CreatePublicTlsDnsCredentialRequest)(nil),         // 200: p2pstream.v1.CreatePublicTlsDnsCredentialRequest
+	(*CreatePublicTlsDnsCredentialResponse)(nil),        // 201: p2pstream.v1.CreatePublicTlsDnsCredentialResponse
+	(*UpdatePublicTlsDnsCredentialRequest)(nil),         // 202: p2pstream.v1.UpdatePublicTlsDnsCredentialRequest
+	(*UpdatePublicTlsDnsCredentialResponse)(nil),        // 203: p2pstream.v1.UpdatePublicTlsDnsCredentialResponse
+	(*DeletePublicTlsDnsCredentialRequest)(nil),         // 204: p2pstream.v1.DeletePublicTlsDnsCredentialRequest
+	(*DeletePublicTlsDnsCredentialResponse)(nil),        // 205: p2pstream.v1.DeletePublicTlsDnsCredentialResponse
+	(*CreatePublicTlsCertificateRequest)(nil),           // 206: p2pstream.v1.CreatePublicTlsCertificateRequest
+	(*CreatePublicTlsCertificateResponse)(nil),          // 207: p2pstream.v1.CreatePublicTlsCertificateResponse
+	(*UpdatePublicTlsCertificateRequest)(nil),           // 208: p2pstream.v1.UpdatePublicTlsCertificateRequest
+	(*UpdatePublicTlsCertificateResponse)(nil),          // 209: p2pstream.v1.UpdatePublicTlsCertificateResponse
+	(*DeletePublicTlsCertificateRequest)(nil),           // 210: p2pstream.v1.DeletePublicTlsCertificateRequest
+	(*DeletePublicTlsCertificateResponse)(nil),          // 211: p2pstream.v1.DeletePublicTlsCertificateResponse
+	(*RenewPublicTlsCertificateRequest)(nil),            // 212: p2pstream.v1.RenewPublicTlsCertificateRequest
+	(*RenewPublicTlsCertificateResponse)(nil),           // 213: p2pstream.v1.RenewPublicTlsCertificateResponse
+	(*CreatePublicRateLimitRuleRequest)(nil),            // 214: p2pstream.v1.CreatePublicRateLimitRuleRequest
+	(*CreatePublicRateLimitRuleResponse)(nil),           // 215: p2pstream.v1.CreatePublicRateLimitRuleResponse
+	(*UpdatePublicRateLimitRuleRequest)(nil),            // 216: p2pstream.v1.UpdatePublicRateLimitRuleRequest
+	(*UpdatePublicRateLimitRuleResponse)(nil),           // 217: p2pstream.v1.UpdatePublicRateLimitRuleResponse
+	(*DeletePublicRateLimitRuleRequest)(nil),            // 218: p2pstream.v1.DeletePublicRateLimitRuleRequest
+	(*DeletePublicRateLimitRuleResponse)(nil),           // 219: p2pstream.v1.DeletePublicRateLimitRuleResponse
+	(*CreatePublicTrafficShaperRuleRequest)(nil),        // 220: p2pstream.v1.CreatePublicTrafficShaperRuleRequest
+	(*CreatePublicTrafficShaperRuleResponse)(nil),       // 221: p2pstream.v1.CreatePublicTrafficShaperRuleResponse
+	(*UpdatePublicTrafficShaperRuleRequest)(nil),        // 222: p2pstream.v1.UpdatePublicTrafficShaperRuleRequest
+	(*UpdatePublicTrafficShaperRuleResponse)(nil),       // 223: p2pstream.v1.UpdatePublicTrafficShaperRuleResponse
+	(*DeletePublicTrafficShaperRuleRequest)(nil),        // 224: p2pstream.v1.DeletePublicTrafficShaperRuleRequest
+	(*DeletePublicTrafficShaperRuleResponse)(nil),       // 225: p2pstream.v1.DeletePublicTrafficShaperRuleResponse
+	(*CreatePublicWafCaptchaProviderRequest)(nil),       // 226: p2pstream.v1.CreatePublicWafCaptchaProviderRequest
+	(*CreatePublicWafCaptchaProviderResponse)(nil),      // 227: p2pstream.v1.CreatePublicWafCaptchaProviderResponse
+	(*UpdatePublicWafCaptchaProviderRequest)(nil),       // 228: p2pstream.v1.UpdatePublicWafCaptchaProviderRequest
+	(*UpdatePublicWafCaptchaProviderResponse)(nil),      // 229: p2pstream.v1.UpdatePublicWafCaptchaProviderResponse
+	(*DeletePublicWafCaptchaProviderRequest)(nil),       // 230: p2pstream.v1.DeletePublicWafCaptchaProviderRequest
+	(*DeletePublicWafCaptchaProviderResponse)(nil),      // 231: p2pstream.v1.DeletePublicWafCaptchaProviderResponse
+	(*CreatePublicWafRuleRequest)(nil),                  // 232: p2pstream.v1.CreatePublicWafRuleRequest
+	(*CreatePublicWafRuleResponse)(nil),                 // 233: p2pstream.v1.CreatePublicWafRuleResponse
+	(*UpdatePublicWafRuleRequest)(nil),                  // 234: p2pstream.v1.UpdatePublicWafRuleRequest
+	(*UpdatePublicWafRuleResponse)(nil),                 // 235: p2pstream.v1.UpdatePublicWafRuleResponse
+	(*DeletePublicWafRuleRequest)(nil),                  // 236: p2pstream.v1.DeletePublicWafRuleRequest
+	(*DeletePublicWafRuleResponse)(nil),                 // 237: p2pstream.v1.DeletePublicWafRuleResponse
+	(*CreatePublicCacheRuleRequest)(nil),                // 238: p2pstream.v1.CreatePublicCacheRuleRequest
+	(*CreatePublicCacheRuleResponse)(nil),               // 239: p2pstream.v1.CreatePublicCacheRuleResponse
+	(*UpdatePublicCacheRuleRequest)(nil),                // 240: p2pstream.v1.UpdatePublicCacheRuleRequest
+	(*UpdatePublicCacheRuleResponse)(nil),               // 241: p2pstream.v1.UpdatePublicCacheRuleResponse
+	(*DeletePublicCacheRuleRequest)(nil),                // 242: p2pstream.v1.DeletePublicCacheRuleRequest
+	(*DeletePublicCacheRuleResponse)(nil),               // 243: p2pstream.v1.DeletePublicCacheRuleResponse
+	(*UpdatePublicCacheSettingsRequest)(nil),            // 244: p2pstream.v1.UpdatePublicCacheSettingsRequest
+	(*UpdatePublicCacheSettingsResponse)(nil),           // 245: p2pstream.v1.UpdatePublicCacheSettingsResponse
+	(*PurgePublicCacheRequest)(nil),                     // 246: p2pstream.v1.PurgePublicCacheRequest
+	(*PurgePublicCacheResponse)(nil),                    // 247: p2pstream.v1.PurgePublicCacheResponse
+	(*GetDashboardRequest)(nil),                         // 248: p2pstream.v1.GetDashboardRequest
+	(*DashboardWindowSummary)(nil),                      // 249: p2pstream.v1.DashboardWindowSummary
+	(*DashboardProxyDimensionSummary)(nil),              // 250: p2pstream.v1.DashboardProxyDimensionSummary
+	(*DashboardTrafficBucket)(nil),                      // 251: p2pstream.v1.DashboardTrafficBucket
+	(*ManagementSecurity)(nil),                          // 252: p2pstream.v1.ManagementSecurity
+	(*AgentConnectionSummary)(nil),                      // 253: p2pstream.v1.AgentConnectionSummary
+	(*AgentUptimeSummary)(nil),                          // 254: p2pstream.v1.AgentUptimeSummary
+	(*AgentConnectionSession)(nil),                      // 255: p2pstream.v1.AgentConnectionSession
+	(*GetAgentAvailabilityRequest)(nil),                 // 256: p2pstream.v1.GetAgentAvailabilityRequest
+	(*AgentAvailabilityInterval)(nil),                   // 257: p2pstream.v1.AgentAvailabilityInterval
+	(*GetAgentAvailabilityResponse)(nil),                // 258: p2pstream.v1.GetAgentAvailabilityResponse
+	(*GetDashboardResponse)(nil),                        // 259: p2pstream.v1.GetDashboardResponse
+	(*GetDashboardDiagnosticsRequest)(nil),              // 260: p2pstream.v1.GetDashboardDiagnosticsRequest
+	(*DashboardDiagnosticsOutcomeSummary)(nil),          // 261: p2pstream.v1.DashboardDiagnosticsOutcomeSummary
+	(*DashboardStatusCodeSummary)(nil),                  // 262: p2pstream.v1.DashboardStatusCodeSummary
+	(*DashboardDiagnosticsSample)(nil),                  // 263: p2pstream.v1.DashboardDiagnosticsSample
+	(*DashboardRetryHealthSummary)(nil),                 // 264: p2pstream.v1.DashboardRetryHealthSummary
+	(*DashboardRetryTrendBucket)(nil),                   // 265: p2pstream.v1.DashboardRetryTrendBucket
+	(*DashboardRetryRuleSummary)(nil),                   // 266: p2pstream.v1.DashboardRetryRuleSummary
+	(*DashboardRetryFailureSummary)(nil),                // 267: p2pstream.v1.DashboardRetryFailureSummary
+	(*GetDashboardDiagnosticsResponse)(nil),             // 268: p2pstream.v1.GetDashboardDiagnosticsResponse
+	(*TrafficTraceSettings)(nil),                        // 269: p2pstream.v1.TrafficTraceSettings
+	(*GetTrafficTraceSettingsRequest)(nil),              // 270: p2pstream.v1.GetTrafficTraceSettingsRequest
+	(*GetTrafficTraceSettingsResponse)(nil),             // 271: p2pstream.v1.GetTrafficTraceSettingsResponse
+	(*SetTrafficTraceSettingsRequest)(nil),              // 272: p2pstream.v1.SetTrafficTraceSettingsRequest
+	(*SetTrafficTraceSettingsResponse)(nil),             // 273: p2pstream.v1.SetTrafficTraceSettingsResponse
+	(*StreamTrafficTraceEventsRequest)(nil),             // 274: p2pstream.v1.StreamTrafficTraceEventsRequest
+	(*TrafficTraceEvent)(nil),                           // 275: p2pstream.v1.TrafficTraceEvent
+	(*StreamTrafficTraceEventsResponse)(nil),            // 276: p2pstream.v1.StreamTrafficTraceEventsResponse
+	(*GetSetupStateRequest)(nil),                        // 277: p2pstream.v1.GetSetupStateRequest
+	(*GetSetupStateResponse)(nil),                       // 278: p2pstream.v1.GetSetupStateResponse
+	(*SetupAdminRequest)(nil),                           // 279: p2pstream.v1.SetupAdminRequest
+	(*SetupAdminResponse)(nil),                          // 280: p2pstream.v1.SetupAdminResponse
+	(*LoginRequest)(nil),                                // 281: p2pstream.v1.LoginRequest
+	(*LoginResponse)(nil),                               // 282: p2pstream.v1.LoginResponse
+	(*LogoutRequest)(nil),                               // 283: p2pstream.v1.LogoutRequest
+	(*LogoutResponse)(nil),                              // 284: p2pstream.v1.LogoutResponse
+	(*GetCurrentUserRequest)(nil),                       // 285: p2pstream.v1.GetCurrentUserRequest
+	(*GetCurrentUserResponse)(nil),                      // 286: p2pstream.v1.GetCurrentUserResponse
+	(*StartProxyRequest)(nil),                           // 287: p2pstream.v1.StartProxyRequest
+	(*StartProxyResponse)(nil),                          // 288: p2pstream.v1.StartProxyResponse
+	(*StopProxyRequest)(nil),                            // 289: p2pstream.v1.StopProxyRequest
+	(*StopProxyResponse)(nil),                           // 290: p2pstream.v1.StopProxyResponse
+	(*PublicWafGeoRestriction)(nil),                     // 291: p2pstream.v1.PublicWafGeoRestriction
+	(*PublicGeoIpDatabaseStatus)(nil),                   // 292: p2pstream.v1.PublicGeoIpDatabaseStatus
+	(*PublicGeoIpSettings)(nil),                         // 293: p2pstream.v1.PublicGeoIpSettings
+	(*PublicTrustedProxySource)(nil),                    // 294: p2pstream.v1.PublicTrustedProxySource
+	(*UpdatePublicGeoIpSettingsRequest)(nil),            // 295: p2pstream.v1.UpdatePublicGeoIpSettingsRequest
+	(*UpdatePublicGeoIpSettingsResponse)(nil),           // 296: p2pstream.v1.UpdatePublicGeoIpSettingsResponse
+	(*RefreshPublicGeoIpDatabaseRequest)(nil),           // 297: p2pstream.v1.RefreshPublicGeoIpDatabaseRequest
+	(*RefreshPublicGeoIpDatabaseResponse)(nil),          // 298: p2pstream.v1.RefreshPublicGeoIpDatabaseResponse
+	(*CreatePublicTrustedProxySourceRequest)(nil),       // 299: p2pstream.v1.CreatePublicTrustedProxySourceRequest
+	(*CreatePublicTrustedProxySourceResponse)(nil),      // 300: p2pstream.v1.CreatePublicTrustedProxySourceResponse
+	(*UpdatePublicTrustedProxySourceRequest)(nil),       // 301: p2pstream.v1.UpdatePublicTrustedProxySourceRequest
+	(*UpdatePublicTrustedProxySourceResponse)(nil),      // 302: p2pstream.v1.UpdatePublicTrustedProxySourceResponse
+	(*DeletePublicTrustedProxySourceRequest)(nil),       // 303: p2pstream.v1.DeletePublicTrustedProxySourceRequest
+	(*DeletePublicTrustedProxySourceResponse)(nil),      // 304: p2pstream.v1.DeletePublicTrustedProxySourceResponse
+	(*RefreshPublicTrustedProxySourceRequest)(nil),      // 305: p2pstream.v1.RefreshPublicTrustedProxySourceRequest
+	(*RefreshPublicTrustedProxySourceResponse)(nil),     // 306: p2pstream.v1.RefreshPublicTrustedProxySourceResponse
+	(*PublicCacheStorageStats)(nil),                     // 307: p2pstream.v1.PublicCacheStorageStats
+	(*PublicRetryRule)(nil),                             // 308: p2pstream.v1.PublicRetryRule
+	(*CreatePublicRetryRuleRequest)(nil),                // 309: p2pstream.v1.CreatePublicRetryRuleRequest
+	(*CreatePublicRetryRuleResponse)(nil),               // 310: p2pstream.v1.CreatePublicRetryRuleResponse
+	(*UpdatePublicRetryRuleRequest)(nil),                // 311: p2pstream.v1.UpdatePublicRetryRuleRequest
+	(*UpdatePublicRetryRuleResponse)(nil),               // 312: p2pstream.v1.UpdatePublicRetryRuleResponse
+	(*DeletePublicRetryRuleRequest)(nil),                // 313: p2pstream.v1.DeletePublicRetryRuleRequest
+	(*DeletePublicRetryRuleResponse)(nil),               // 314: p2pstream.v1.DeletePublicRetryRuleResponse
+	(*AgentStreamCapacitySummary)(nil),                  // 315: p2pstream.v1.AgentStreamCapacitySummary
+	(*AgentUpdateManagementAuthority)(nil),              // 316: p2pstream.v1.AgentUpdateManagementAuthority
+	(*AgentUpdateArtifact)(nil),                         // 317: p2pstream.v1.AgentUpdateArtifact
+	(*AgentUpdateTarget)(nil),                           // 318: p2pstream.v1.AgentUpdateTarget
+	(*AgentUpdaterEnrollmentReceipt)(nil),               // 319: p2pstream.v1.AgentUpdaterEnrollmentReceipt
+	(*AgentUpdateAssignmentAuthorization)(nil),          // 320: p2pstream.v1.AgentUpdateAssignmentAuthorization
+	(*AgentUpdateRootActionReceipt)(nil),                // 321: p2pstream.v1.AgentUpdateRootActionReceipt
+	(*AgentUpdatePolicy)(nil),                           // 322: p2pstream.v1.AgentUpdatePolicy
+	(*AgentUpdatePreviewAgent)(nil),                     // 323: p2pstream.v1.AgentUpdatePreviewAgent
+	(*PreviewAgentUpdateCampaignRequest)(nil),           // 324: p2pstream.v1.PreviewAgentUpdateCampaignRequest
+	(*PreviewAgentUpdateCampaignResponse)(nil),          // 325: p2pstream.v1.PreviewAgentUpdateCampaignResponse
+	(*AgentUpdateAssignment)(nil),                       // 326: p2pstream.v1.AgentUpdateAssignment
+	(*AgentUpdateCampaign)(nil),                         // 327: p2pstream.v1.AgentUpdateCampaign
+	(*AgentUpdateOverviewAgent)(nil),                    // 328: p2pstream.v1.AgentUpdateOverviewAgent
+	(*GetAgentUpdateOverviewRequest)(nil),               // 329: p2pstream.v1.GetAgentUpdateOverviewRequest
+	(*GetAgentUpdateOverviewResponse)(nil),              // 330: p2pstream.v1.GetAgentUpdateOverviewResponse
+	(*GenerateAgentUpdaterEnrollmentTokenRequest)(nil),  // 331: p2pstream.v1.GenerateAgentUpdaterEnrollmentTokenRequest
+	(*GenerateAgentUpdaterEnrollmentTokenResponse)(nil), // 332: p2pstream.v1.GenerateAgentUpdaterEnrollmentTokenResponse
+	(*EnrollAgentUpdaterRequest)(nil),                   // 333: p2pstream.v1.EnrollAgentUpdaterRequest
+	(*EnrollAgentUpdaterResponse)(nil),                  // 334: p2pstream.v1.EnrollAgentUpdaterResponse
+	(*CreateAgentUpdateCampaignRequest)(nil),            // 335: p2pstream.v1.CreateAgentUpdateCampaignRequest
+	(*CreateAgentUpdateCampaignResponse)(nil),           // 336: p2pstream.v1.CreateAgentUpdateCampaignResponse
+	(*ListAgentUpdateCampaignsRequest)(nil),             // 337: p2pstream.v1.ListAgentUpdateCampaignsRequest
+	(*ListAgentUpdateCampaignsResponse)(nil),            // 338: p2pstream.v1.ListAgentUpdateCampaignsResponse
+	(*ChangeAgentUpdateCampaignStateRequest)(nil),       // 339: p2pstream.v1.ChangeAgentUpdateCampaignStateRequest
+	(*ChangeAgentUpdateCampaignStateResponse)(nil),      // 340: p2pstream.v1.ChangeAgentUpdateCampaignStateResponse
+	(*RetryAgentUpdateAssignmentsRequest)(nil),          // 341: p2pstream.v1.RetryAgentUpdateAssignmentsRequest
+	(*RetryAgentUpdateAssignmentsResponse)(nil),         // 342: p2pstream.v1.RetryAgentUpdateAssignmentsResponse
+	(*CheckAgentUpdateRequest)(nil),                     // 343: p2pstream.v1.CheckAgentUpdateRequest
+	(*CheckAgentUpdateResponse)(nil),                    // 344: p2pstream.v1.CheckAgentUpdateResponse
+	(*ReportAgentUpdateRequest)(nil),                    // 345: p2pstream.v1.ReportAgentUpdateRequest
+	(*ReportAgentUpdateResponse)(nil),                   // 346: p2pstream.v1.ReportAgentUpdateResponse
+	nil,                                                 // 347: p2pstream.v1.Agent.LabelsEntry
+	nil,                                                 // 348: p2pstream.v1.PublicAgentSelector.MatchLabelsEntry
+	nil,                                                 // 349: p2pstream.v1.PublicRouteTargetHealthTrace.DebugAttributesEntry
+	nil,                                                 // 350: p2pstream.v1.CreateAgentRequest.LabelsEntry
+	nil,                                                 // 351: p2pstream.v1.UpdateAgentRequest.LabelsEntry
+	nil,                                                 // 352: p2pstream.v1.TrafficTraceEvent.RequestHeadersEntry
+	nil,                                                 // 353: p2pstream.v1.TrafficTraceEvent.ResponseHeadersEntry
+	nil,                                                 // 354: p2pstream.v1.TrafficTraceEvent.DebugAttributesEntry
+	nil,                                                 // 355: p2pstream.v1.AgentStreamCapacitySummary.AdmissionMissesByConstraintEntry
+	nil,                                                 // 356: p2pstream.v1.AgentStreamCapacitySummary.WaitersByConstraintEntry
 }
 var file_proto_p2pstream_v1_management_proto_depIdxs = []int32{
 	39,  // 0: p2pstream.v1.ManagementTrustStatus.state:type_name -> p2pstream.v1.ManagementTrustInstallState
 	40,  // 1: p2pstream.v1.ManagementTrustStatus.error_code:type_name -> p2pstream.v1.ManagementTrustErrorCode
-	53,  // 2: p2pstream.v1.AgentStatsRequest.management_trust_status:type_name -> p2pstream.v1.ManagementTrustStatus
-	54,  // 3: p2pstream.v1.AgentStatsResponse.management_trust_update:type_name -> p2pstream.v1.ManagementTrustUpdate
+	58,  // 2: p2pstream.v1.AgentStatsRequest.management_trust_status:type_name -> p2pstream.v1.ManagementTrustStatus
+	59,  // 3: p2pstream.v1.AgentStatsResponse.management_trust_update:type_name -> p2pstream.v1.ManagementTrustUpdate
 	43,  // 4: p2pstream.v1.ManagementTlsAgentRollout.state:type_name -> p2pstream.v1.ManagementTlsAgentRolloutState
 	41,  // 5: p2pstream.v1.ManagementTlsRotation.phase:type_name -> p2pstream.v1.ManagementTlsRotationPhase
-	57,  // 6: p2pstream.v1.ManagementTlsRotation.active_certificate:type_name -> p2pstream.v1.ManagementTlsCertificateSummary
-	57,  // 7: p2pstream.v1.ManagementTlsRotation.staged_certificate:type_name -> p2pstream.v1.ManagementTlsCertificateSummary
-	58,  // 8: p2pstream.v1.ManagementTlsRotation.agents:type_name -> p2pstream.v1.ManagementTlsAgentRollout
+	62,  // 6: p2pstream.v1.ManagementTlsRotation.active_certificate:type_name -> p2pstream.v1.ManagementTlsCertificateSummary
+	62,  // 7: p2pstream.v1.ManagementTlsRotation.staged_certificate:type_name -> p2pstream.v1.ManagementTlsCertificateSummary
+	63,  // 8: p2pstream.v1.ManagementTlsRotation.agents:type_name -> p2pstream.v1.ManagementTlsAgentRollout
 	42,  // 9: p2pstream.v1.ManagementTlsRotation.cleanup_reason:type_name -> p2pstream.v1.ManagementTlsCleanupReason
-	59,  // 10: p2pstream.v1.GetManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
-	59,  // 11: p2pstream.v1.StageManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
-	59,  // 12: p2pstream.v1.GenerateManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
-	59,  // 13: p2pstream.v1.ActivateManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
-	59,  // 14: p2pstream.v1.RollbackManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
-	59,  // 15: p2pstream.v1.BeginManagementTlsTrustRetirementResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
-	59,  // 16: p2pstream.v1.FinalizeManagementTlsTrustRetirementResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
-	59,  // 17: p2pstream.v1.CancelManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
-	59,  // 18: p2pstream.v1.FinalizeManagementTlsTrustCleanupResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
+	64,  // 10: p2pstream.v1.GetManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
+	64,  // 11: p2pstream.v1.StageManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
+	64,  // 12: p2pstream.v1.GenerateManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
+	64,  // 13: p2pstream.v1.ActivateManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
+	64,  // 14: p2pstream.v1.RollbackManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
+	64,  // 15: p2pstream.v1.BeginManagementTlsTrustRetirementResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
+	64,  // 16: p2pstream.v1.FinalizeManagementTlsTrustRetirementResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
+	64,  // 17: p2pstream.v1.CancelManagementTlsRotationResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
+	64,  // 18: p2pstream.v1.FinalizeManagementTlsTrustCleanupResponse.rotation:type_name -> p2pstream.v1.ManagementTlsRotation
 	0,   // 19: p2pstream.v1.User.role:type_name -> p2pstream.v1.UserRole
-	80,  // 20: p2pstream.v1.GetStatusResponse.latest_agent_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
-	82,  // 21: p2pstream.v1.GetStatusResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	85,  // 20: p2pstream.v1.GetStatusResponse.latest_agent_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
+	87,  // 21: p2pstream.v1.GetStatusResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
 	1,   // 22: p2pstream.v1.ProxyStatus.state:type_name -> p2pstream.v1.ProxyState
-	114, // 23: p2pstream.v1.ProxyStatus.listeners:type_name -> p2pstream.v1.PublicListenerStatus
+	119, // 23: p2pstream.v1.ProxyStatus.listeners:type_name -> p2pstream.v1.PublicListenerStatus
 	8,   // 24: p2pstream.v1.PublicRouteTargetHealthCheck.status:type_name -> p2pstream.v1.PublicRouteTargetHealthStatus
 	8,   // 25: p2pstream.v1.PublicRouteTargetAgentHealth.status:type_name -> p2pstream.v1.PublicRouteTargetHealthStatus
-	80,  // 26: p2pstream.v1.Agent.latest_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
-	311, // 27: p2pstream.v1.Agent.labels:type_name -> p2pstream.v1.Agent.LabelsEntry
-	312, // 28: p2pstream.v1.PublicAgentSelector.match_labels:type_name -> p2pstream.v1.PublicAgentSelector.MatchLabelsEntry
+	85,  // 26: p2pstream.v1.Agent.latest_stats:type_name -> p2pstream.v1.AgentStatsSnapshot
+	347, // 27: p2pstream.v1.Agent.labels:type_name -> p2pstream.v1.Agent.LabelsEntry
+	348, // 28: p2pstream.v1.PublicAgentSelector.match_labels:type_name -> p2pstream.v1.PublicAgentSelector.MatchLabelsEntry
 	8,   // 29: p2pstream.v1.PublicRouteTargetHealth.status:type_name -> p2pstream.v1.PublicRouteTargetHealthStatus
 	5,   // 30: p2pstream.v1.PublicRouteTarget.target_type:type_name -> p2pstream.v1.PublicRouteTargetType
 	6,   // 31: p2pstream.v1.PublicRouteTarget.transport:type_name -> p2pstream.v1.PublicRouteTargetTransport
-	89,  // 32: p2pstream.v1.PublicRouteTarget.agent_selector:type_name -> p2pstream.v1.PublicAgentSelector
+	94,  // 32: p2pstream.v1.PublicRouteTarget.agent_selector:type_name -> p2pstream.v1.PublicAgentSelector
 	7,   // 33: p2pstream.v1.PublicRouteTarget.agent_load_balancing:type_name -> p2pstream.v1.PublicRouteTargetLoadBalancing
-	84,  // 34: p2pstream.v1.PublicRouteTarget.upstream_request_headers:type_name -> p2pstream.v1.PublicRouteTargetUpstreamHeader
-	85,  // 35: p2pstream.v1.PublicRouteTarget.upstream_basic_auth:type_name -> p2pstream.v1.PublicRouteTargetBasicAuth
-	86,  // 36: p2pstream.v1.PublicRouteTarget.health_check:type_name -> p2pstream.v1.PublicRouteTargetHealthCheck
-	83,  // 37: p2pstream.v1.PublicRouteTarget.static_response_headers:type_name -> p2pstream.v1.PublicHeader
+	89,  // 34: p2pstream.v1.PublicRouteTarget.upstream_request_headers:type_name -> p2pstream.v1.PublicRouteTargetUpstreamHeader
+	90,  // 35: p2pstream.v1.PublicRouteTarget.upstream_basic_auth:type_name -> p2pstream.v1.PublicRouteTargetBasicAuth
+	91,  // 36: p2pstream.v1.PublicRouteTarget.health_check:type_name -> p2pstream.v1.PublicRouteTargetHealthCheck
+	88,  // 37: p2pstream.v1.PublicRouteTarget.static_response_headers:type_name -> p2pstream.v1.PublicHeader
 	3,   // 38: p2pstream.v1.PublicRouteTarget.static_response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
-	90,  // 39: p2pstream.v1.PublicRouteTarget.health:type_name -> p2pstream.v1.PublicRouteTargetHealth
+	95,  // 39: p2pstream.v1.PublicRouteTarget.health:type_name -> p2pstream.v1.PublicRouteTargetHealth
 	2,   // 40: p2pstream.v1.PublicListener.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
 	15,  // 41: p2pstream.v1.PublicRoute.action:type_name -> p2pstream.v1.PublicRouteAction
 	16,  // 42: p2pstream.v1.PublicRoute.redirect_target_mode:type_name -> p2pstream.v1.PublicRouteRedirectTargetMode
 	7,   // 43: p2pstream.v1.PublicRoute.target_load_balancing:type_name -> p2pstream.v1.PublicRouteTargetLoadBalancing
-	91,  // 44: p2pstream.v1.PublicRoute.targets:type_name -> p2pstream.v1.PublicRouteTarget
+	96,  // 44: p2pstream.v1.PublicRoute.targets:type_name -> p2pstream.v1.PublicRouteTarget
 	17,  // 45: p2pstream.v1.PublicRoute.path_security_mode:type_name -> p2pstream.v1.PublicRoutePathSecurityMode
 	11,  // 46: p2pstream.v1.PublicAccessProvider.provider_type:type_name -> p2pstream.v1.PublicAccessProviderType
 	12,  // 47: p2pstream.v1.PublicAccessProvider.local_auth_mode:type_name -> p2pstream.v1.PublicAccessLocalAuthMode
@@ -26421,479 +30029,537 @@ var file_proto_p2pstream_v1_management_proto_depIdxs = []int32{
 	34,  // 53: p2pstream.v1.PublicTlsCertificate.status:type_name -> p2pstream.v1.PublicTlsCertificateStatus
 	33,  // 54: p2pstream.v1.PublicTlsDnsCredential.provider:type_name -> p2pstream.v1.PublicDnsProvider
 	19,  // 55: p2pstream.v1.PublicRateLimitKeyPart.source:type_name -> p2pstream.v1.PublicRateLimitKeySource
-	101, // 56: p2pstream.v1.PublicPolicyMatchRule.builder:type_name -> p2pstream.v1.PublicPolicyMatchBuilder
-	102, // 57: p2pstream.v1.PublicPolicyMatchBuilder.root:type_name -> p2pstream.v1.PublicPolicyMatchGroup
+	106, // 56: p2pstream.v1.PublicPolicyMatchRule.builder:type_name -> p2pstream.v1.PublicPolicyMatchBuilder
+	107, // 57: p2pstream.v1.PublicPolicyMatchBuilder.root:type_name -> p2pstream.v1.PublicPolicyMatchGroup
 	20,  // 58: p2pstream.v1.PublicPolicyMatchGroup.operator:type_name -> p2pstream.v1.PublicPolicyMatchBooleanOperator
-	103, // 59: p2pstream.v1.PublicPolicyMatchGroup.conditions:type_name -> p2pstream.v1.PublicPolicyMatchCondition
-	102, // 60: p2pstream.v1.PublicPolicyMatchGroup.groups:type_name -> p2pstream.v1.PublicPolicyMatchGroup
+	108, // 59: p2pstream.v1.PublicPolicyMatchGroup.conditions:type_name -> p2pstream.v1.PublicPolicyMatchCondition
+	107, // 60: p2pstream.v1.PublicPolicyMatchGroup.groups:type_name -> p2pstream.v1.PublicPolicyMatchGroup
 	21,  // 61: p2pstream.v1.PublicPolicyMatchCondition.field:type_name -> p2pstream.v1.PublicPolicyMatchField
 	22,  // 62: p2pstream.v1.PublicPolicyMatchCondition.operator:type_name -> p2pstream.v1.PublicPolicyMatchConditionOperator
 	18,  // 63: p2pstream.v1.PublicRateLimitRule.algorithm:type_name -> p2pstream.v1.PublicRateLimitAlgorithm
-	99,  // 64: p2pstream.v1.PublicRateLimitRule.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
-	104, // 65: p2pstream.v1.PublicRateLimitRule.response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
+	104, // 64: p2pstream.v1.PublicRateLimitRule.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
+	109, // 65: p2pstream.v1.PublicRateLimitRule.response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
 	3,   // 66: p2pstream.v1.PublicRateLimitRule.response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
-	100, // 67: p2pstream.v1.PublicRateLimitRule.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	105, // 67: p2pstream.v1.PublicRateLimitRule.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
 	23,  // 68: p2pstream.v1.PublicTrafficShaperRule.budget_scope:type_name -> p2pstream.v1.PublicTrafficShaperBudgetScope
-	99,  // 69: p2pstream.v1.PublicTrafficShaperRule.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
-	100, // 70: p2pstream.v1.PublicTrafficShaperRule.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	104, // 69: p2pstream.v1.PublicTrafficShaperRule.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
+	105, // 70: p2pstream.v1.PublicTrafficShaperRule.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
 	52,  // 71: p2pstream.v1.PublicTrafficShaperRule.protocol_scope:type_name -> p2pstream.v1.PublicTrafficShaperProtocolScope
 	24,  // 72: p2pstream.v1.PublicWafCaptchaProvider.provider_type:type_name -> p2pstream.v1.PublicWafCaptchaProviderType
 	25,  // 73: p2pstream.v1.PublicWafRule.action:type_name -> p2pstream.v1.PublicWafRuleAction
 	26,  // 74: p2pstream.v1.PublicWafRule.activation_mode:type_name -> p2pstream.v1.PublicWafActivationMode
-	99,  // 75: p2pstream.v1.PublicWafRule.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
-	109, // 76: p2pstream.v1.PublicWafRule.waiting_room:type_name -> p2pstream.v1.PublicWafWaitingRoomConfig
-	108, // 77: p2pstream.v1.PublicWafRule.triggers:type_name -> p2pstream.v1.PublicWafTriggerConfig
-	104, // 78: p2pstream.v1.PublicWafRule.block_response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
+	104, // 75: p2pstream.v1.PublicWafRule.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
+	114, // 76: p2pstream.v1.PublicWafRule.waiting_room:type_name -> p2pstream.v1.PublicWafWaitingRoomConfig
+	113, // 77: p2pstream.v1.PublicWafRule.triggers:type_name -> p2pstream.v1.PublicWafTriggerConfig
+	109, // 78: p2pstream.v1.PublicWafRule.block_response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
 	3,   // 79: p2pstream.v1.PublicWafRule.block_response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
-	100, // 80: p2pstream.v1.PublicWafRule.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	286, // 81: p2pstream.v1.PublicWafRule.geo_restriction:type_name -> p2pstream.v1.PublicWafGeoRestriction
+	105, // 80: p2pstream.v1.PublicWafRule.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	291, // 81: p2pstream.v1.PublicWafRule.geo_restriction:type_name -> p2pstream.v1.PublicWafGeoRestriction
 	4,   // 82: p2pstream.v1.PublicResponseTemplate.kind:type_name -> p2pstream.v1.PublicResponseTemplateKind
 	29,  // 83: p2pstream.v1.PublicCacheRule.scope:type_name -> p2pstream.v1.PublicCacheScope
 	27,  // 84: p2pstream.v1.PublicCacheRule.ttl_mode:type_name -> p2pstream.v1.PublicCacheTtlMode
 	28,  // 85: p2pstream.v1.PublicCacheRule.query_mode:type_name -> p2pstream.v1.PublicCacheQueryMode
-	100, // 86: p2pstream.v1.PublicCacheRule.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	105, // 86: p2pstream.v1.PublicCacheRule.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
 	1,   // 87: p2pstream.v1.PublicListenerStatus.state:type_name -> p2pstream.v1.ProxyState
-	92,  // 88: p2pstream.v1.GetPublicProxyConfigResponse.listeners:type_name -> p2pstream.v1.PublicListener
-	93,  // 89: p2pstream.v1.GetPublicProxyConfigResponse.routes:type_name -> p2pstream.v1.PublicRoute
-	97,  // 90: p2pstream.v1.GetPublicProxyConfigResponse.tls_certificates:type_name -> p2pstream.v1.PublicTlsCertificate
-	82,  // 91: p2pstream.v1.GetPublicProxyConfigResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	88,  // 92: p2pstream.v1.GetPublicProxyConfigResponse.agents:type_name -> p2pstream.v1.Agent
-	105, // 93: p2pstream.v1.GetPublicProxyConfigResponse.rate_limit_rules:type_name -> p2pstream.v1.PublicRateLimitRule
-	106, // 94: p2pstream.v1.GetPublicProxyConfigResponse.traffic_shaper_rules:type_name -> p2pstream.v1.PublicTrafficShaperRule
-	98,  // 95: p2pstream.v1.GetPublicProxyConfigResponse.tls_dns_credentials:type_name -> p2pstream.v1.PublicTlsDnsCredential
-	107, // 96: p2pstream.v1.GetPublicProxyConfigResponse.waf_captcha_providers:type_name -> p2pstream.v1.PublicWafCaptchaProvider
-	110, // 97: p2pstream.v1.GetPublicProxyConfigResponse.waf_rules:type_name -> p2pstream.v1.PublicWafRule
-	112, // 98: p2pstream.v1.GetPublicProxyConfigResponse.cache_settings:type_name -> p2pstream.v1.PublicCacheSettings
-	113, // 99: p2pstream.v1.GetPublicProxyConfigResponse.cache_rules:type_name -> p2pstream.v1.PublicCacheRule
-	111, // 100: p2pstream.v1.GetPublicProxyConfigResponse.response_templates:type_name -> p2pstream.v1.PublicResponseTemplate
-	91,  // 101: p2pstream.v1.GetPublicProxyConfigResponse.route_targets:type_name -> p2pstream.v1.PublicRouteTarget
-	288, // 102: p2pstream.v1.GetPublicProxyConfigResponse.geo_ip_settings:type_name -> p2pstream.v1.PublicGeoIpSettings
-	289, // 103: p2pstream.v1.GetPublicProxyConfigResponse.trusted_proxy_sources:type_name -> p2pstream.v1.PublicTrustedProxySource
-	94,  // 104: p2pstream.v1.GetPublicProxyConfigResponse.access_providers:type_name -> p2pstream.v1.PublicAccessProvider
-	96,  // 105: p2pstream.v1.GetPublicProxyConfigResponse.access_policies:type_name -> p2pstream.v1.PublicAccessPolicy
-	302, // 106: p2pstream.v1.GetPublicProxyConfigResponse.cache_storage_stats:type_name -> p2pstream.v1.PublicCacheStorageStats
-	303, // 107: p2pstream.v1.GetPublicProxyConfigResponse.retry_rules:type_name -> p2pstream.v1.PublicRetryRule
-	95,  // 108: p2pstream.v1.GetPublicProxyConfigResponse.access_users:type_name -> p2pstream.v1.PublicAccessUser
+	97,  // 88: p2pstream.v1.GetPublicProxyConfigResponse.listeners:type_name -> p2pstream.v1.PublicListener
+	98,  // 89: p2pstream.v1.GetPublicProxyConfigResponse.routes:type_name -> p2pstream.v1.PublicRoute
+	102, // 90: p2pstream.v1.GetPublicProxyConfigResponse.tls_certificates:type_name -> p2pstream.v1.PublicTlsCertificate
+	87,  // 91: p2pstream.v1.GetPublicProxyConfigResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	93,  // 92: p2pstream.v1.GetPublicProxyConfigResponse.agents:type_name -> p2pstream.v1.Agent
+	110, // 93: p2pstream.v1.GetPublicProxyConfigResponse.rate_limit_rules:type_name -> p2pstream.v1.PublicRateLimitRule
+	111, // 94: p2pstream.v1.GetPublicProxyConfigResponse.traffic_shaper_rules:type_name -> p2pstream.v1.PublicTrafficShaperRule
+	103, // 95: p2pstream.v1.GetPublicProxyConfigResponse.tls_dns_credentials:type_name -> p2pstream.v1.PublicTlsDnsCredential
+	112, // 96: p2pstream.v1.GetPublicProxyConfigResponse.waf_captcha_providers:type_name -> p2pstream.v1.PublicWafCaptchaProvider
+	115, // 97: p2pstream.v1.GetPublicProxyConfigResponse.waf_rules:type_name -> p2pstream.v1.PublicWafRule
+	117, // 98: p2pstream.v1.GetPublicProxyConfigResponse.cache_settings:type_name -> p2pstream.v1.PublicCacheSettings
+	118, // 99: p2pstream.v1.GetPublicProxyConfigResponse.cache_rules:type_name -> p2pstream.v1.PublicCacheRule
+	116, // 100: p2pstream.v1.GetPublicProxyConfigResponse.response_templates:type_name -> p2pstream.v1.PublicResponseTemplate
+	96,  // 101: p2pstream.v1.GetPublicProxyConfigResponse.route_targets:type_name -> p2pstream.v1.PublicRouteTarget
+	293, // 102: p2pstream.v1.GetPublicProxyConfigResponse.geo_ip_settings:type_name -> p2pstream.v1.PublicGeoIpSettings
+	294, // 103: p2pstream.v1.GetPublicProxyConfigResponse.trusted_proxy_sources:type_name -> p2pstream.v1.PublicTrustedProxySource
+	99,  // 104: p2pstream.v1.GetPublicProxyConfigResponse.access_providers:type_name -> p2pstream.v1.PublicAccessProvider
+	101, // 105: p2pstream.v1.GetPublicProxyConfigResponse.access_policies:type_name -> p2pstream.v1.PublicAccessPolicy
+	307, // 106: p2pstream.v1.GetPublicProxyConfigResponse.cache_storage_stats:type_name -> p2pstream.v1.PublicCacheStorageStats
+	308, // 107: p2pstream.v1.GetPublicProxyConfigResponse.retry_rules:type_name -> p2pstream.v1.PublicRetryRule
+	100, // 108: p2pstream.v1.GetPublicProxyConfigResponse.access_users:type_name -> p2pstream.v1.PublicAccessUser
 	6,   // 109: p2pstream.v1.PublicRouteTargetHealthTrace.transport:type_name -> p2pstream.v1.PublicRouteTargetTransport
 	9,   // 110: p2pstream.v1.PublicRouteTargetHealthTrace.source:type_name -> p2pstream.v1.PublicRouteTargetHealthTraceSource
 	10,  // 111: p2pstream.v1.PublicRouteTargetHealthTrace.outcome:type_name -> p2pstream.v1.PublicRouteTargetHealthTraceOutcome
 	8,   // 112: p2pstream.v1.PublicRouteTargetHealthTrace.status_before:type_name -> p2pstream.v1.PublicRouteTargetHealthStatus
 	8,   // 113: p2pstream.v1.PublicRouteTargetHealthTrace.status_after:type_name -> p2pstream.v1.PublicRouteTargetHealthStatus
-	313, // 114: p2pstream.v1.PublicRouteTargetHealthTrace.debug_attributes:type_name -> p2pstream.v1.PublicRouteTargetHealthTrace.DebugAttributesEntry
-	117, // 115: p2pstream.v1.ListPublicRouteTargetHealthTracesResponse.traces:type_name -> p2pstream.v1.PublicRouteTargetHealthTrace
+	349, // 114: p2pstream.v1.PublicRouteTargetHealthTrace.debug_attributes:type_name -> p2pstream.v1.PublicRouteTargetHealthTrace.DebugAttributesEntry
+	122, // 115: p2pstream.v1.ListPublicRouteTargetHealthTracesResponse.traces:type_name -> p2pstream.v1.PublicRouteTargetHealthTrace
 	4,   // 116: p2pstream.v1.CreatePublicResponseTemplateRequest.kind:type_name -> p2pstream.v1.PublicResponseTemplateKind
-	111, // 117: p2pstream.v1.CreatePublicResponseTemplateResponse.template:type_name -> p2pstream.v1.PublicResponseTemplate
+	116, // 117: p2pstream.v1.CreatePublicResponseTemplateResponse.template:type_name -> p2pstream.v1.PublicResponseTemplate
 	4,   // 118: p2pstream.v1.UpdatePublicResponseTemplateRequest.kind:type_name -> p2pstream.v1.PublicResponseTemplateKind
-	111, // 119: p2pstream.v1.UpdatePublicResponseTemplateResponse.template:type_name -> p2pstream.v1.PublicResponseTemplate
-	314, // 120: p2pstream.v1.CreateAgentRequest.labels:type_name -> p2pstream.v1.CreateAgentRequest.LabelsEntry
-	88,  // 121: p2pstream.v1.CreateAgentResponse.agent:type_name -> p2pstream.v1.Agent
-	315, // 122: p2pstream.v1.UpdateAgentRequest.labels:type_name -> p2pstream.v1.UpdateAgentRequest.LabelsEntry
-	88,  // 123: p2pstream.v1.UpdateAgentResponse.agent:type_name -> p2pstream.v1.Agent
-	88,  // 124: p2pstream.v1.RotateAgentTokenResponse.agent:type_name -> p2pstream.v1.Agent
-	134, // 125: p2pstream.v1.CreateManagementAccessTokenResponse.access_token:type_name -> p2pstream.v1.ManagementAccessToken
-	134, // 126: p2pstream.v1.ListManagementAccessTokensResponse.access_tokens:type_name -> p2pstream.v1.ManagementAccessToken
-	37,  // 127: p2pstream.v1.Environment.transport:type_name -> p2pstream.v1.EnvironmentTransport
-	38,  // 128: p2pstream.v1.Environment.trust_state:type_name -> p2pstream.v1.EnvironmentTrustState
-	141, // 129: p2pstream.v1.Environment.trusted_certificate:type_name -> p2pstream.v1.EnvironmentCertificate
-	141, // 130: p2pstream.v1.Environment.observed_certificate:type_name -> p2pstream.v1.EnvironmentCertificate
-	142, // 131: p2pstream.v1.ListEnvironmentsResponse.environments:type_name -> p2pstream.v1.Environment
-	37,  // 132: p2pstream.v1.CreateEnvironmentRequest.transport:type_name -> p2pstream.v1.EnvironmentTransport
-	142, // 133: p2pstream.v1.CreateEnvironmentResponse.environment:type_name -> p2pstream.v1.Environment
-	37,  // 134: p2pstream.v1.UpdateEnvironmentRequest.transport:type_name -> p2pstream.v1.EnvironmentTransport
-	142, // 135: p2pstream.v1.UpdateEnvironmentResponse.environment:type_name -> p2pstream.v1.Environment
-	142, // 136: p2pstream.v1.DiscoverEnvironmentCertificateResponse.environment:type_name -> p2pstream.v1.Environment
-	141, // 137: p2pstream.v1.DiscoverEnvironmentCertificateResponse.certificate:type_name -> p2pstream.v1.EnvironmentCertificate
-	142, // 138: p2pstream.v1.TrustEnvironmentCertificateResponse.environment:type_name -> p2pstream.v1.Environment
-	142, // 139: p2pstream.v1.TestEnvironmentResponse.environment:type_name -> p2pstream.v1.Environment
-	81,  // 140: p2pstream.v1.TestEnvironmentResponse.status:type_name -> p2pstream.v1.GetStatusResponse
-	2,   // 141: p2pstream.v1.CreatePublicListenerRequest.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
-	92,  // 142: p2pstream.v1.CreatePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
-	114, // 143: p2pstream.v1.CreatePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	82,  // 144: p2pstream.v1.CreatePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	2,   // 145: p2pstream.v1.UpdatePublicListenerRequest.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
-	92,  // 146: p2pstream.v1.UpdatePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
-	114, // 147: p2pstream.v1.UpdatePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	82,  // 148: p2pstream.v1.UpdatePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	92,  // 149: p2pstream.v1.EnablePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
-	114, // 150: p2pstream.v1.EnablePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	82,  // 151: p2pstream.v1.EnablePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	92,  // 152: p2pstream.v1.DisablePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
-	114, // 153: p2pstream.v1.DisablePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	82,  // 154: p2pstream.v1.DisablePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	114, // 155: p2pstream.v1.StartPublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	82,  // 156: p2pstream.v1.StartPublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	114, // 157: p2pstream.v1.StopPublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
-	82,  // 158: p2pstream.v1.StopPublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	15,  // 159: p2pstream.v1.CreatePublicRouteRequest.action:type_name -> p2pstream.v1.PublicRouteAction
-	16,  // 160: p2pstream.v1.CreatePublicRouteRequest.redirect_target_mode:type_name -> p2pstream.v1.PublicRouteRedirectTargetMode
-	7,   // 161: p2pstream.v1.CreatePublicRouteRequest.target_load_balancing:type_name -> p2pstream.v1.PublicRouteTargetLoadBalancing
-	91,  // 162: p2pstream.v1.CreatePublicRouteRequest.targets:type_name -> p2pstream.v1.PublicRouteTarget
-	17,  // 163: p2pstream.v1.CreatePublicRouteRequest.path_security_mode:type_name -> p2pstream.v1.PublicRoutePathSecurityMode
-	93,  // 164: p2pstream.v1.CreatePublicRouteResponse.route:type_name -> p2pstream.v1.PublicRoute
-	15,  // 165: p2pstream.v1.UpdatePublicRouteRequest.action:type_name -> p2pstream.v1.PublicRouteAction
-	16,  // 166: p2pstream.v1.UpdatePublicRouteRequest.redirect_target_mode:type_name -> p2pstream.v1.PublicRouteRedirectTargetMode
-	7,   // 167: p2pstream.v1.UpdatePublicRouteRequest.target_load_balancing:type_name -> p2pstream.v1.PublicRouteTargetLoadBalancing
-	91,  // 168: p2pstream.v1.UpdatePublicRouteRequest.targets:type_name -> p2pstream.v1.PublicRouteTarget
-	17,  // 169: p2pstream.v1.UpdatePublicRouteRequest.path_security_mode:type_name -> p2pstream.v1.PublicRoutePathSecurityMode
-	93,  // 170: p2pstream.v1.UpdatePublicRouteResponse.route:type_name -> p2pstream.v1.PublicRoute
-	11,  // 171: p2pstream.v1.CreatePublicAccessProviderRequest.provider_type:type_name -> p2pstream.v1.PublicAccessProviderType
-	12,  // 172: p2pstream.v1.CreatePublicAccessProviderRequest.local_auth_mode:type_name -> p2pstream.v1.PublicAccessLocalAuthMode
-	13,  // 173: p2pstream.v1.CreatePublicAccessProviderRequest.local_auth_cookie_same_site:type_name -> p2pstream.v1.PublicAccessCookieSameSite
-	94,  // 174: p2pstream.v1.CreatePublicAccessProviderResponse.provider:type_name -> p2pstream.v1.PublicAccessProvider
-	11,  // 175: p2pstream.v1.UpdatePublicAccessProviderRequest.provider_type:type_name -> p2pstream.v1.PublicAccessProviderType
-	12,  // 176: p2pstream.v1.UpdatePublicAccessProviderRequest.local_auth_mode:type_name -> p2pstream.v1.PublicAccessLocalAuthMode
-	13,  // 177: p2pstream.v1.UpdatePublicAccessProviderRequest.local_auth_cookie_same_site:type_name -> p2pstream.v1.PublicAccessCookieSameSite
-	94,  // 178: p2pstream.v1.UpdatePublicAccessProviderResponse.provider:type_name -> p2pstream.v1.PublicAccessProvider
-	95,  // 179: p2pstream.v1.CreatePublicAccessUserResponse.user:type_name -> p2pstream.v1.PublicAccessUser
-	95,  // 180: p2pstream.v1.UpdatePublicAccessUserResponse.user:type_name -> p2pstream.v1.PublicAccessUser
-	14,  // 181: p2pstream.v1.CreatePublicAccessPolicyRequest.group_match:type_name -> p2pstream.v1.PublicAccessGroupMatch
-	96,  // 182: p2pstream.v1.CreatePublicAccessPolicyResponse.policy:type_name -> p2pstream.v1.PublicAccessPolicy
-	14,  // 183: p2pstream.v1.UpdatePublicAccessPolicyRequest.group_match:type_name -> p2pstream.v1.PublicAccessGroupMatch
-	96,  // 184: p2pstream.v1.UpdatePublicAccessPolicyResponse.policy:type_name -> p2pstream.v1.PublicAccessPolicy
-	33,  // 185: p2pstream.v1.CreatePublicTlsDnsCredentialRequest.provider:type_name -> p2pstream.v1.PublicDnsProvider
-	98,  // 186: p2pstream.v1.CreatePublicTlsDnsCredentialResponse.credential:type_name -> p2pstream.v1.PublicTlsDnsCredential
-	33,  // 187: p2pstream.v1.UpdatePublicTlsDnsCredentialRequest.provider:type_name -> p2pstream.v1.PublicDnsProvider
-	98,  // 188: p2pstream.v1.UpdatePublicTlsDnsCredentialResponse.credential:type_name -> p2pstream.v1.PublicTlsDnsCredential
-	30,  // 189: p2pstream.v1.CreatePublicTlsCertificateRequest.source:type_name -> p2pstream.v1.PublicTlsCertificateSource
-	31,  // 190: p2pstream.v1.CreatePublicTlsCertificateRequest.acme_challenge_type:type_name -> p2pstream.v1.PublicAcmeChallengeType
-	32,  // 191: p2pstream.v1.CreatePublicTlsCertificateRequest.acme_ca:type_name -> p2pstream.v1.PublicAcmeCa
-	97,  // 192: p2pstream.v1.CreatePublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
-	30,  // 193: p2pstream.v1.UpdatePublicTlsCertificateRequest.source:type_name -> p2pstream.v1.PublicTlsCertificateSource
-	31,  // 194: p2pstream.v1.UpdatePublicTlsCertificateRequest.acme_challenge_type:type_name -> p2pstream.v1.PublicAcmeChallengeType
-	32,  // 195: p2pstream.v1.UpdatePublicTlsCertificateRequest.acme_ca:type_name -> p2pstream.v1.PublicAcmeCa
-	97,  // 196: p2pstream.v1.UpdatePublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
-	97,  // 197: p2pstream.v1.RenewPublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
-	18,  // 198: p2pstream.v1.CreatePublicRateLimitRuleRequest.algorithm:type_name -> p2pstream.v1.PublicRateLimitAlgorithm
-	99,  // 199: p2pstream.v1.CreatePublicRateLimitRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
-	104, // 200: p2pstream.v1.CreatePublicRateLimitRuleRequest.response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
-	3,   // 201: p2pstream.v1.CreatePublicRateLimitRuleRequest.response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
-	100, // 202: p2pstream.v1.CreatePublicRateLimitRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	105, // 203: p2pstream.v1.CreatePublicRateLimitRuleResponse.rule:type_name -> p2pstream.v1.PublicRateLimitRule
-	18,  // 204: p2pstream.v1.UpdatePublicRateLimitRuleRequest.algorithm:type_name -> p2pstream.v1.PublicRateLimitAlgorithm
-	99,  // 205: p2pstream.v1.UpdatePublicRateLimitRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
-	104, // 206: p2pstream.v1.UpdatePublicRateLimitRuleRequest.response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
-	3,   // 207: p2pstream.v1.UpdatePublicRateLimitRuleRequest.response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
-	100, // 208: p2pstream.v1.UpdatePublicRateLimitRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	105, // 209: p2pstream.v1.UpdatePublicRateLimitRuleResponse.rule:type_name -> p2pstream.v1.PublicRateLimitRule
-	23,  // 210: p2pstream.v1.CreatePublicTrafficShaperRuleRequest.budget_scope:type_name -> p2pstream.v1.PublicTrafficShaperBudgetScope
-	99,  // 211: p2pstream.v1.CreatePublicTrafficShaperRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
-	100, // 212: p2pstream.v1.CreatePublicTrafficShaperRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	52,  // 213: p2pstream.v1.CreatePublicTrafficShaperRuleRequest.protocol_scope:type_name -> p2pstream.v1.PublicTrafficShaperProtocolScope
-	106, // 214: p2pstream.v1.CreatePublicTrafficShaperRuleResponse.rule:type_name -> p2pstream.v1.PublicTrafficShaperRule
-	23,  // 215: p2pstream.v1.UpdatePublicTrafficShaperRuleRequest.budget_scope:type_name -> p2pstream.v1.PublicTrafficShaperBudgetScope
-	99,  // 216: p2pstream.v1.UpdatePublicTrafficShaperRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
-	100, // 217: p2pstream.v1.UpdatePublicTrafficShaperRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	52,  // 218: p2pstream.v1.UpdatePublicTrafficShaperRuleRequest.protocol_scope:type_name -> p2pstream.v1.PublicTrafficShaperProtocolScope
-	106, // 219: p2pstream.v1.UpdatePublicTrafficShaperRuleResponse.rule:type_name -> p2pstream.v1.PublicTrafficShaperRule
-	24,  // 220: p2pstream.v1.CreatePublicWafCaptchaProviderRequest.provider_type:type_name -> p2pstream.v1.PublicWafCaptchaProviderType
-	107, // 221: p2pstream.v1.CreatePublicWafCaptchaProviderResponse.provider:type_name -> p2pstream.v1.PublicWafCaptchaProvider
-	24,  // 222: p2pstream.v1.UpdatePublicWafCaptchaProviderRequest.provider_type:type_name -> p2pstream.v1.PublicWafCaptchaProviderType
-	107, // 223: p2pstream.v1.UpdatePublicWafCaptchaProviderResponse.provider:type_name -> p2pstream.v1.PublicWafCaptchaProvider
-	25,  // 224: p2pstream.v1.CreatePublicWafRuleRequest.action:type_name -> p2pstream.v1.PublicWafRuleAction
-	26,  // 225: p2pstream.v1.CreatePublicWafRuleRequest.activation_mode:type_name -> p2pstream.v1.PublicWafActivationMode
-	99,  // 226: p2pstream.v1.CreatePublicWafRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
-	109, // 227: p2pstream.v1.CreatePublicWafRuleRequest.waiting_room:type_name -> p2pstream.v1.PublicWafWaitingRoomConfig
-	108, // 228: p2pstream.v1.CreatePublicWafRuleRequest.triggers:type_name -> p2pstream.v1.PublicWafTriggerConfig
-	104, // 229: p2pstream.v1.CreatePublicWafRuleRequest.block_response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
-	3,   // 230: p2pstream.v1.CreatePublicWafRuleRequest.block_response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
-	100, // 231: p2pstream.v1.CreatePublicWafRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	286, // 232: p2pstream.v1.CreatePublicWafRuleRequest.geo_restriction:type_name -> p2pstream.v1.PublicWafGeoRestriction
-	110, // 233: p2pstream.v1.CreatePublicWafRuleResponse.rule:type_name -> p2pstream.v1.PublicWafRule
-	25,  // 234: p2pstream.v1.UpdatePublicWafRuleRequest.action:type_name -> p2pstream.v1.PublicWafRuleAction
-	26,  // 235: p2pstream.v1.UpdatePublicWafRuleRequest.activation_mode:type_name -> p2pstream.v1.PublicWafActivationMode
-	99,  // 236: p2pstream.v1.UpdatePublicWafRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
-	109, // 237: p2pstream.v1.UpdatePublicWafRuleRequest.waiting_room:type_name -> p2pstream.v1.PublicWafWaitingRoomConfig
-	108, // 238: p2pstream.v1.UpdatePublicWafRuleRequest.triggers:type_name -> p2pstream.v1.PublicWafTriggerConfig
-	104, // 239: p2pstream.v1.UpdatePublicWafRuleRequest.block_response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
-	3,   // 240: p2pstream.v1.UpdatePublicWafRuleRequest.block_response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
-	100, // 241: p2pstream.v1.UpdatePublicWafRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	286, // 242: p2pstream.v1.UpdatePublicWafRuleRequest.geo_restriction:type_name -> p2pstream.v1.PublicWafGeoRestriction
-	110, // 243: p2pstream.v1.UpdatePublicWafRuleResponse.rule:type_name -> p2pstream.v1.PublicWafRule
-	29,  // 244: p2pstream.v1.CreatePublicCacheRuleRequest.scope:type_name -> p2pstream.v1.PublicCacheScope
-	27,  // 245: p2pstream.v1.CreatePublicCacheRuleRequest.ttl_mode:type_name -> p2pstream.v1.PublicCacheTtlMode
-	28,  // 246: p2pstream.v1.CreatePublicCacheRuleRequest.query_mode:type_name -> p2pstream.v1.PublicCacheQueryMode
-	100, // 247: p2pstream.v1.CreatePublicCacheRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	113, // 248: p2pstream.v1.CreatePublicCacheRuleResponse.rule:type_name -> p2pstream.v1.PublicCacheRule
-	29,  // 249: p2pstream.v1.UpdatePublicCacheRuleRequest.scope:type_name -> p2pstream.v1.PublicCacheScope
-	27,  // 250: p2pstream.v1.UpdatePublicCacheRuleRequest.ttl_mode:type_name -> p2pstream.v1.PublicCacheTtlMode
-	28,  // 251: p2pstream.v1.UpdatePublicCacheRuleRequest.query_mode:type_name -> p2pstream.v1.PublicCacheQueryMode
-	100, // 252: p2pstream.v1.UpdatePublicCacheRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	113, // 253: p2pstream.v1.UpdatePublicCacheRuleResponse.rule:type_name -> p2pstream.v1.PublicCacheRule
-	112, // 254: p2pstream.v1.UpdatePublicCacheSettingsResponse.settings:type_name -> p2pstream.v1.PublicCacheSettings
-	44,  // 255: p2pstream.v1.DashboardProxyDimensionSummary.dimension:type_name -> p2pstream.v1.DashboardProxyDimension
-	252, // 256: p2pstream.v1.GetAgentAvailabilityResponse.intervals:type_name -> p2pstream.v1.AgentAvailabilityInterval
-	81,  // 257: p2pstream.v1.GetDashboardResponse.status:type_name -> p2pstream.v1.GetStatusResponse
-	244, // 258: p2pstream.v1.GetDashboardResponse.windows:type_name -> p2pstream.v1.DashboardWindowSummary
-	248, // 259: p2pstream.v1.GetDashboardResponse.agent_connections:type_name -> p2pstream.v1.AgentConnectionSummary
-	245, // 260: p2pstream.v1.GetDashboardResponse.top_listeners:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	245, // 261: p2pstream.v1.GetDashboardResponse.top_routes:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	245, // 262: p2pstream.v1.GetDashboardResponse.top_agents:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	245, // 263: p2pstream.v1.GetDashboardResponse.top_error_kinds:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	245, // 264: p2pstream.v1.GetDashboardResponse.status_classes:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	246, // 265: p2pstream.v1.GetDashboardResponse.traffic_buckets:type_name -> p2pstream.v1.DashboardTrafficBucket
-	247, // 266: p2pstream.v1.GetDashboardResponse.management_security:type_name -> p2pstream.v1.ManagementSecurity
-	249, // 267: p2pstream.v1.GetDashboardResponse.agent_uptime_summaries:type_name -> p2pstream.v1.AgentUptimeSummary
-	250, // 268: p2pstream.v1.GetDashboardResponse.recent_agent_connections:type_name -> p2pstream.v1.AgentConnectionSession
-	245, // 269: p2pstream.v1.GetDashboardResponse.top_route_targets:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	310, // 270: p2pstream.v1.GetDashboardResponse.agent_stream_capacity:type_name -> p2pstream.v1.AgentStreamCapacitySummary
-	256, // 271: p2pstream.v1.GetDashboardDiagnosticsResponse.outcome:type_name -> p2pstream.v1.DashboardDiagnosticsOutcomeSummary
-	257, // 272: p2pstream.v1.GetDashboardDiagnosticsResponse.status_codes:type_name -> p2pstream.v1.DashboardStatusCodeSummary
-	245, // 273: p2pstream.v1.GetDashboardDiagnosticsResponse.error_kinds:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	245, // 274: p2pstream.v1.GetDashboardDiagnosticsResponse.problem_listeners:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	245, // 275: p2pstream.v1.GetDashboardDiagnosticsResponse.problem_routes:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	245, // 276: p2pstream.v1.GetDashboardDiagnosticsResponse.problem_route_targets:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	245, // 277: p2pstream.v1.GetDashboardDiagnosticsResponse.problem_agents:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
-	258, // 278: p2pstream.v1.GetDashboardDiagnosticsResponse.recent_samples:type_name -> p2pstream.v1.DashboardDiagnosticsSample
-	259, // 279: p2pstream.v1.GetDashboardDiagnosticsResponse.retry_health:type_name -> p2pstream.v1.DashboardRetryHealthSummary
-	260, // 280: p2pstream.v1.GetDashboardDiagnosticsResponse.retry_trend:type_name -> p2pstream.v1.DashboardRetryTrendBucket
-	261, // 281: p2pstream.v1.GetDashboardDiagnosticsResponse.retry_rules:type_name -> p2pstream.v1.DashboardRetryRuleSummary
-	262, // 282: p2pstream.v1.GetDashboardDiagnosticsResponse.retry_failed_agents:type_name -> p2pstream.v1.DashboardRetryFailureSummary
-	262, // 283: p2pstream.v1.GetDashboardDiagnosticsResponse.retry_error_kinds:type_name -> p2pstream.v1.DashboardRetryFailureSummary
-	310, // 284: p2pstream.v1.GetDashboardDiagnosticsResponse.agent_stream_capacity:type_name -> p2pstream.v1.AgentStreamCapacitySummary
-	35,  // 285: p2pstream.v1.TrafficTraceSettings.level:type_name -> p2pstream.v1.TrafficTraceLevel
-	264, // 286: p2pstream.v1.GetTrafficTraceSettingsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
-	35,  // 287: p2pstream.v1.SetTrafficTraceSettingsRequest.level:type_name -> p2pstream.v1.TrafficTraceLevel
-	264, // 288: p2pstream.v1.SetTrafficTraceSettingsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
-	36,  // 289: p2pstream.v1.TrafficTraceEvent.stage:type_name -> p2pstream.v1.TrafficTraceStage
-	316, // 290: p2pstream.v1.TrafficTraceEvent.request_headers:type_name -> p2pstream.v1.TrafficTraceEvent.RequestHeadersEntry
-	317, // 291: p2pstream.v1.TrafficTraceEvent.response_headers:type_name -> p2pstream.v1.TrafficTraceEvent.ResponseHeadersEntry
-	318, // 292: p2pstream.v1.TrafficTraceEvent.debug_attributes:type_name -> p2pstream.v1.TrafficTraceEvent.DebugAttributesEntry
-	18,  // 293: p2pstream.v1.TrafficTraceEvent.rate_limit_algorithm:type_name -> p2pstream.v1.PublicRateLimitAlgorithm
-	23,  // 294: p2pstream.v1.TrafficTraceEvent.traffic_shaper_budget_scope:type_name -> p2pstream.v1.PublicTrafficShaperBudgetScope
-	25,  // 295: p2pstream.v1.TrafficTraceEvent.waf_action:type_name -> p2pstream.v1.PublicWafRuleAction
-	26,  // 296: p2pstream.v1.TrafficTraceEvent.waf_activation_mode:type_name -> p2pstream.v1.PublicWafActivationMode
-	5,   // 297: p2pstream.v1.TrafficTraceEvent.route_target_type:type_name -> p2pstream.v1.PublicRouteTargetType
-	6,   // 298: p2pstream.v1.TrafficTraceEvent.route_target_transport:type_name -> p2pstream.v1.PublicRouteTargetTransport
-	264, // 299: p2pstream.v1.StreamTrafficTraceEventsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
-	270, // 300: p2pstream.v1.StreamTrafficTraceEventsResponse.event:type_name -> p2pstream.v1.TrafficTraceEvent
-	78,  // 301: p2pstream.v1.SetupAdminResponse.user:type_name -> p2pstream.v1.User
-	78,  // 302: p2pstream.v1.LoginResponse.user:type_name -> p2pstream.v1.User
-	78,  // 303: p2pstream.v1.GetCurrentUserResponse.user:type_name -> p2pstream.v1.User
-	82,  // 304: p2pstream.v1.StartProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	82,  // 305: p2pstream.v1.StopProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
-	45,  // 306: p2pstream.v1.PublicWafGeoRestriction.mode:type_name -> p2pstream.v1.PublicWafGeoRestrictionMode
-	46,  // 307: p2pstream.v1.PublicWafGeoRestriction.unknown_behavior:type_name -> p2pstream.v1.PublicWafGeoUnknownBehavior
-	287, // 308: p2pstream.v1.PublicGeoIpSettings.database_status:type_name -> p2pstream.v1.PublicGeoIpDatabaseStatus
-	47,  // 309: p2pstream.v1.PublicTrustedProxySource.provider:type_name -> p2pstream.v1.PublicTrustedProxyProvider
-	48,  // 310: p2pstream.v1.PublicTrustedProxySource.header_mode:type_name -> p2pstream.v1.PublicTrustedProxyHeaderMode
-	288, // 311: p2pstream.v1.UpdatePublicGeoIpSettingsResponse.settings:type_name -> p2pstream.v1.PublicGeoIpSettings
-	288, // 312: p2pstream.v1.RefreshPublicGeoIpDatabaseResponse.settings:type_name -> p2pstream.v1.PublicGeoIpSettings
-	48,  // 313: p2pstream.v1.CreatePublicTrustedProxySourceRequest.header_mode:type_name -> p2pstream.v1.PublicTrustedProxyHeaderMode
-	289, // 314: p2pstream.v1.CreatePublicTrustedProxySourceResponse.source:type_name -> p2pstream.v1.PublicTrustedProxySource
-	48,  // 315: p2pstream.v1.UpdatePublicTrustedProxySourceRequest.header_mode:type_name -> p2pstream.v1.PublicTrustedProxyHeaderMode
-	289, // 316: p2pstream.v1.UpdatePublicTrustedProxySourceResponse.source:type_name -> p2pstream.v1.PublicTrustedProxySource
-	289, // 317: p2pstream.v1.RefreshPublicTrustedProxySourceResponse.source:type_name -> p2pstream.v1.PublicTrustedProxySource
-	49,  // 318: p2pstream.v1.PublicRetryRule.failure_mode:type_name -> p2pstream.v1.PublicRetryFailureMode
-	50,  // 319: p2pstream.v1.PublicRetryRule.body_mode:type_name -> p2pstream.v1.PublicRetryBodyMode
-	100, // 320: p2pstream.v1.PublicRetryRule.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	51,  // 321: p2pstream.v1.PublicRetryRule.response_body_mode:type_name -> p2pstream.v1.PublicRetryResponseBodyMode
-	49,  // 322: p2pstream.v1.CreatePublicRetryRuleRequest.failure_mode:type_name -> p2pstream.v1.PublicRetryFailureMode
-	50,  // 323: p2pstream.v1.CreatePublicRetryRuleRequest.body_mode:type_name -> p2pstream.v1.PublicRetryBodyMode
-	100, // 324: p2pstream.v1.CreatePublicRetryRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	51,  // 325: p2pstream.v1.CreatePublicRetryRuleRequest.response_body_mode:type_name -> p2pstream.v1.PublicRetryResponseBodyMode
-	303, // 326: p2pstream.v1.CreatePublicRetryRuleResponse.rule:type_name -> p2pstream.v1.PublicRetryRule
-	49,  // 327: p2pstream.v1.UpdatePublicRetryRuleRequest.failure_mode:type_name -> p2pstream.v1.PublicRetryFailureMode
-	50,  // 328: p2pstream.v1.UpdatePublicRetryRuleRequest.body_mode:type_name -> p2pstream.v1.PublicRetryBodyMode
-	100, // 329: p2pstream.v1.UpdatePublicRetryRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
-	51,  // 330: p2pstream.v1.UpdatePublicRetryRuleRequest.response_body_mode:type_name -> p2pstream.v1.PublicRetryResponseBodyMode
-	303, // 331: p2pstream.v1.UpdatePublicRetryRuleResponse.rule:type_name -> p2pstream.v1.PublicRetryRule
-	319, // 332: p2pstream.v1.AgentStreamCapacitySummary.admission_misses_by_constraint:type_name -> p2pstream.v1.AgentStreamCapacitySummary.AdmissionMissesByConstraintEntry
-	320, // 333: p2pstream.v1.AgentStreamCapacitySummary.waiters_by_constraint:type_name -> p2pstream.v1.AgentStreamCapacitySummary.WaitersByConstraintEntry
-	55,  // 334: p2pstream.v1.AgentManagementService.ReportStats:input_type -> p2pstream.v1.AgentStatsRequest
-	60,  // 335: p2pstream.v1.AgentManagementService.GetManagementTlsRotation:input_type -> p2pstream.v1.GetManagementTlsRotationRequest
-	62,  // 336: p2pstream.v1.AgentManagementService.StageManagementTlsRotation:input_type -> p2pstream.v1.StageManagementTlsRotationRequest
-	64,  // 337: p2pstream.v1.AgentManagementService.GenerateManagementTlsRotation:input_type -> p2pstream.v1.GenerateManagementTlsRotationRequest
-	66,  // 338: p2pstream.v1.AgentManagementService.ActivateManagementTlsRotation:input_type -> p2pstream.v1.ActivateManagementTlsRotationRequest
-	68,  // 339: p2pstream.v1.AgentManagementService.RollbackManagementTlsRotation:input_type -> p2pstream.v1.RollbackManagementTlsRotationRequest
-	70,  // 340: p2pstream.v1.AgentManagementService.BeginManagementTlsTrustRetirement:input_type -> p2pstream.v1.BeginManagementTlsTrustRetirementRequest
-	72,  // 341: p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustRetirement:input_type -> p2pstream.v1.FinalizeManagementTlsTrustRetirementRequest
-	74,  // 342: p2pstream.v1.AgentManagementService.CancelManagementTlsRotation:input_type -> p2pstream.v1.CancelManagementTlsRotationRequest
-	76,  // 343: p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustCleanup:input_type -> p2pstream.v1.FinalizeManagementTlsTrustCleanupRequest
-	79,  // 344: p2pstream.v1.AgentManagementService.GetStatus:input_type -> p2pstream.v1.GetStatusRequest
-	243, // 345: p2pstream.v1.AgentManagementService.GetDashboard:input_type -> p2pstream.v1.GetDashboardRequest
-	251, // 346: p2pstream.v1.AgentManagementService.GetAgentAvailability:input_type -> p2pstream.v1.GetAgentAvailabilityRequest
-	255, // 347: p2pstream.v1.AgentManagementService.GetDashboardDiagnostics:input_type -> p2pstream.v1.GetDashboardDiagnosticsRequest
-	265, // 348: p2pstream.v1.AgentManagementService.GetTrafficTraceSettings:input_type -> p2pstream.v1.GetTrafficTraceSettingsRequest
-	267, // 349: p2pstream.v1.AgentManagementService.SetTrafficTraceSettings:input_type -> p2pstream.v1.SetTrafficTraceSettingsRequest
-	269, // 350: p2pstream.v1.AgentManagementService.StreamTrafficTraceEvents:input_type -> p2pstream.v1.StreamTrafficTraceEventsRequest
-	272, // 351: p2pstream.v1.AgentManagementService.GetSetupState:input_type -> p2pstream.v1.GetSetupStateRequest
-	274, // 352: p2pstream.v1.AgentManagementService.SetupAdmin:input_type -> p2pstream.v1.SetupAdminRequest
-	276, // 353: p2pstream.v1.AgentManagementService.Login:input_type -> p2pstream.v1.LoginRequest
-	278, // 354: p2pstream.v1.AgentManagementService.Logout:input_type -> p2pstream.v1.LogoutRequest
-	280, // 355: p2pstream.v1.AgentManagementService.GetCurrentUser:input_type -> p2pstream.v1.GetCurrentUserRequest
-	282, // 356: p2pstream.v1.AgentManagementService.StartProxy:input_type -> p2pstream.v1.StartProxyRequest
-	284, // 357: p2pstream.v1.AgentManagementService.StopProxy:input_type -> p2pstream.v1.StopProxyRequest
-	115, // 358: p2pstream.v1.AgentManagementService.GetPublicProxyConfig:input_type -> p2pstream.v1.GetPublicProxyConfigRequest
-	120, // 359: p2pstream.v1.AgentManagementService.CreatePublicResponseTemplate:input_type -> p2pstream.v1.CreatePublicResponseTemplateRequest
-	122, // 360: p2pstream.v1.AgentManagementService.UpdatePublicResponseTemplate:input_type -> p2pstream.v1.UpdatePublicResponseTemplateRequest
-	124, // 361: p2pstream.v1.AgentManagementService.DeletePublicResponseTemplate:input_type -> p2pstream.v1.DeletePublicResponseTemplateRequest
-	118, // 362: p2pstream.v1.AgentManagementService.ListPublicRouteTargetHealthTraces:input_type -> p2pstream.v1.ListPublicRouteTargetHealthTracesRequest
-	126, // 363: p2pstream.v1.AgentManagementService.CreateAgent:input_type -> p2pstream.v1.CreateAgentRequest
-	128, // 364: p2pstream.v1.AgentManagementService.UpdateAgent:input_type -> p2pstream.v1.UpdateAgentRequest
-	130, // 365: p2pstream.v1.AgentManagementService.DeleteAgent:input_type -> p2pstream.v1.DeleteAgentRequest
-	132, // 366: p2pstream.v1.AgentManagementService.RotateAgentToken:input_type -> p2pstream.v1.RotateAgentTokenRequest
-	135, // 367: p2pstream.v1.AgentManagementService.CreateManagementAccessToken:input_type -> p2pstream.v1.CreateManagementAccessTokenRequest
-	137, // 368: p2pstream.v1.AgentManagementService.ListManagementAccessTokens:input_type -> p2pstream.v1.ListManagementAccessTokensRequest
-	139, // 369: p2pstream.v1.AgentManagementService.DeleteManagementAccessToken:input_type -> p2pstream.v1.DeleteManagementAccessTokenRequest
-	143, // 370: p2pstream.v1.AgentManagementService.ListEnvironments:input_type -> p2pstream.v1.ListEnvironmentsRequest
-	145, // 371: p2pstream.v1.AgentManagementService.CreateEnvironment:input_type -> p2pstream.v1.CreateEnvironmentRequest
-	147, // 372: p2pstream.v1.AgentManagementService.UpdateEnvironment:input_type -> p2pstream.v1.UpdateEnvironmentRequest
-	149, // 373: p2pstream.v1.AgentManagementService.DeleteEnvironment:input_type -> p2pstream.v1.DeleteEnvironmentRequest
-	151, // 374: p2pstream.v1.AgentManagementService.DiscoverEnvironmentCertificate:input_type -> p2pstream.v1.DiscoverEnvironmentCertificateRequest
-	153, // 375: p2pstream.v1.AgentManagementService.TrustEnvironmentCertificate:input_type -> p2pstream.v1.TrustEnvironmentCertificateRequest
-	155, // 376: p2pstream.v1.AgentManagementService.TestEnvironment:input_type -> p2pstream.v1.TestEnvironmentRequest
-	157, // 377: p2pstream.v1.AgentManagementService.CreatePublicListener:input_type -> p2pstream.v1.CreatePublicListenerRequest
-	159, // 378: p2pstream.v1.AgentManagementService.UpdatePublicListener:input_type -> p2pstream.v1.UpdatePublicListenerRequest
-	161, // 379: p2pstream.v1.AgentManagementService.DeletePublicListener:input_type -> p2pstream.v1.DeletePublicListenerRequest
-	163, // 380: p2pstream.v1.AgentManagementService.EnablePublicListener:input_type -> p2pstream.v1.EnablePublicListenerRequest
-	165, // 381: p2pstream.v1.AgentManagementService.DisablePublicListener:input_type -> p2pstream.v1.DisablePublicListenerRequest
-	167, // 382: p2pstream.v1.AgentManagementService.StartPublicListener:input_type -> p2pstream.v1.StartPublicListenerRequest
-	169, // 383: p2pstream.v1.AgentManagementService.StopPublicListener:input_type -> p2pstream.v1.StopPublicListenerRequest
-	171, // 384: p2pstream.v1.AgentManagementService.CreatePublicRoute:input_type -> p2pstream.v1.CreatePublicRouteRequest
-	173, // 385: p2pstream.v1.AgentManagementService.UpdatePublicRoute:input_type -> p2pstream.v1.UpdatePublicRouteRequest
-	175, // 386: p2pstream.v1.AgentManagementService.DeletePublicRoute:input_type -> p2pstream.v1.DeletePublicRouteRequest
-	177, // 387: p2pstream.v1.AgentManagementService.CreatePublicAccessProvider:input_type -> p2pstream.v1.CreatePublicAccessProviderRequest
-	179, // 388: p2pstream.v1.AgentManagementService.UpdatePublicAccessProvider:input_type -> p2pstream.v1.UpdatePublicAccessProviderRequest
-	181, // 389: p2pstream.v1.AgentManagementService.DeletePublicAccessProvider:input_type -> p2pstream.v1.DeletePublicAccessProviderRequest
-	183, // 390: p2pstream.v1.AgentManagementService.CreatePublicAccessUser:input_type -> p2pstream.v1.CreatePublicAccessUserRequest
-	185, // 391: p2pstream.v1.AgentManagementService.UpdatePublicAccessUser:input_type -> p2pstream.v1.UpdatePublicAccessUserRequest
-	187, // 392: p2pstream.v1.AgentManagementService.DeletePublicAccessUser:input_type -> p2pstream.v1.DeletePublicAccessUserRequest
-	189, // 393: p2pstream.v1.AgentManagementService.CreatePublicAccessPolicy:input_type -> p2pstream.v1.CreatePublicAccessPolicyRequest
-	191, // 394: p2pstream.v1.AgentManagementService.UpdatePublicAccessPolicy:input_type -> p2pstream.v1.UpdatePublicAccessPolicyRequest
-	193, // 395: p2pstream.v1.AgentManagementService.DeletePublicAccessPolicy:input_type -> p2pstream.v1.DeletePublicAccessPolicyRequest
-	195, // 396: p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential:input_type -> p2pstream.v1.CreatePublicTlsDnsCredentialRequest
-	197, // 397: p2pstream.v1.AgentManagementService.UpdatePublicTlsDnsCredential:input_type -> p2pstream.v1.UpdatePublicTlsDnsCredentialRequest
-	199, // 398: p2pstream.v1.AgentManagementService.DeletePublicTlsDnsCredential:input_type -> p2pstream.v1.DeletePublicTlsDnsCredentialRequest
-	201, // 399: p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate:input_type -> p2pstream.v1.CreatePublicTlsCertificateRequest
-	203, // 400: p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate:input_type -> p2pstream.v1.UpdatePublicTlsCertificateRequest
-	205, // 401: p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate:input_type -> p2pstream.v1.DeletePublicTlsCertificateRequest
-	207, // 402: p2pstream.v1.AgentManagementService.RenewPublicTlsCertificate:input_type -> p2pstream.v1.RenewPublicTlsCertificateRequest
-	209, // 403: p2pstream.v1.AgentManagementService.CreatePublicRateLimitRule:input_type -> p2pstream.v1.CreatePublicRateLimitRuleRequest
-	211, // 404: p2pstream.v1.AgentManagementService.UpdatePublicRateLimitRule:input_type -> p2pstream.v1.UpdatePublicRateLimitRuleRequest
-	213, // 405: p2pstream.v1.AgentManagementService.DeletePublicRateLimitRule:input_type -> p2pstream.v1.DeletePublicRateLimitRuleRequest
-	215, // 406: p2pstream.v1.AgentManagementService.CreatePublicTrafficShaperRule:input_type -> p2pstream.v1.CreatePublicTrafficShaperRuleRequest
-	217, // 407: p2pstream.v1.AgentManagementService.UpdatePublicTrafficShaperRule:input_type -> p2pstream.v1.UpdatePublicTrafficShaperRuleRequest
-	219, // 408: p2pstream.v1.AgentManagementService.DeletePublicTrafficShaperRule:input_type -> p2pstream.v1.DeletePublicTrafficShaperRuleRequest
-	221, // 409: p2pstream.v1.AgentManagementService.CreatePublicWafCaptchaProvider:input_type -> p2pstream.v1.CreatePublicWafCaptchaProviderRequest
-	223, // 410: p2pstream.v1.AgentManagementService.UpdatePublicWafCaptchaProvider:input_type -> p2pstream.v1.UpdatePublicWafCaptchaProviderRequest
-	225, // 411: p2pstream.v1.AgentManagementService.DeletePublicWafCaptchaProvider:input_type -> p2pstream.v1.DeletePublicWafCaptchaProviderRequest
-	227, // 412: p2pstream.v1.AgentManagementService.CreatePublicWafRule:input_type -> p2pstream.v1.CreatePublicWafRuleRequest
-	229, // 413: p2pstream.v1.AgentManagementService.UpdatePublicWafRule:input_type -> p2pstream.v1.UpdatePublicWafRuleRequest
-	231, // 414: p2pstream.v1.AgentManagementService.DeletePublicWafRule:input_type -> p2pstream.v1.DeletePublicWafRuleRequest
-	290, // 415: p2pstream.v1.AgentManagementService.UpdatePublicGeoIpSettings:input_type -> p2pstream.v1.UpdatePublicGeoIpSettingsRequest
-	292, // 416: p2pstream.v1.AgentManagementService.RefreshPublicGeoIpDatabase:input_type -> p2pstream.v1.RefreshPublicGeoIpDatabaseRequest
-	294, // 417: p2pstream.v1.AgentManagementService.CreatePublicTrustedProxySource:input_type -> p2pstream.v1.CreatePublicTrustedProxySourceRequest
-	296, // 418: p2pstream.v1.AgentManagementService.UpdatePublicTrustedProxySource:input_type -> p2pstream.v1.UpdatePublicTrustedProxySourceRequest
-	298, // 419: p2pstream.v1.AgentManagementService.DeletePublicTrustedProxySource:input_type -> p2pstream.v1.DeletePublicTrustedProxySourceRequest
-	300, // 420: p2pstream.v1.AgentManagementService.RefreshPublicTrustedProxySource:input_type -> p2pstream.v1.RefreshPublicTrustedProxySourceRequest
-	233, // 421: p2pstream.v1.AgentManagementService.CreatePublicCacheRule:input_type -> p2pstream.v1.CreatePublicCacheRuleRequest
-	235, // 422: p2pstream.v1.AgentManagementService.UpdatePublicCacheRule:input_type -> p2pstream.v1.UpdatePublicCacheRuleRequest
-	237, // 423: p2pstream.v1.AgentManagementService.DeletePublicCacheRule:input_type -> p2pstream.v1.DeletePublicCacheRuleRequest
-	304, // 424: p2pstream.v1.AgentManagementService.CreatePublicRetryRule:input_type -> p2pstream.v1.CreatePublicRetryRuleRequest
-	306, // 425: p2pstream.v1.AgentManagementService.UpdatePublicRetryRule:input_type -> p2pstream.v1.UpdatePublicRetryRuleRequest
-	308, // 426: p2pstream.v1.AgentManagementService.DeletePublicRetryRule:input_type -> p2pstream.v1.DeletePublicRetryRuleRequest
-	239, // 427: p2pstream.v1.AgentManagementService.UpdatePublicCacheSettings:input_type -> p2pstream.v1.UpdatePublicCacheSettingsRequest
-	241, // 428: p2pstream.v1.AgentManagementService.PurgePublicCache:input_type -> p2pstream.v1.PurgePublicCacheRequest
-	56,  // 429: p2pstream.v1.AgentManagementService.ReportStats:output_type -> p2pstream.v1.AgentStatsResponse
-	61,  // 430: p2pstream.v1.AgentManagementService.GetManagementTlsRotation:output_type -> p2pstream.v1.GetManagementTlsRotationResponse
-	63,  // 431: p2pstream.v1.AgentManagementService.StageManagementTlsRotation:output_type -> p2pstream.v1.StageManagementTlsRotationResponse
-	65,  // 432: p2pstream.v1.AgentManagementService.GenerateManagementTlsRotation:output_type -> p2pstream.v1.GenerateManagementTlsRotationResponse
-	67,  // 433: p2pstream.v1.AgentManagementService.ActivateManagementTlsRotation:output_type -> p2pstream.v1.ActivateManagementTlsRotationResponse
-	69,  // 434: p2pstream.v1.AgentManagementService.RollbackManagementTlsRotation:output_type -> p2pstream.v1.RollbackManagementTlsRotationResponse
-	71,  // 435: p2pstream.v1.AgentManagementService.BeginManagementTlsTrustRetirement:output_type -> p2pstream.v1.BeginManagementTlsTrustRetirementResponse
-	73,  // 436: p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustRetirement:output_type -> p2pstream.v1.FinalizeManagementTlsTrustRetirementResponse
-	75,  // 437: p2pstream.v1.AgentManagementService.CancelManagementTlsRotation:output_type -> p2pstream.v1.CancelManagementTlsRotationResponse
-	77,  // 438: p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustCleanup:output_type -> p2pstream.v1.FinalizeManagementTlsTrustCleanupResponse
-	81,  // 439: p2pstream.v1.AgentManagementService.GetStatus:output_type -> p2pstream.v1.GetStatusResponse
-	254, // 440: p2pstream.v1.AgentManagementService.GetDashboard:output_type -> p2pstream.v1.GetDashboardResponse
-	253, // 441: p2pstream.v1.AgentManagementService.GetAgentAvailability:output_type -> p2pstream.v1.GetAgentAvailabilityResponse
-	263, // 442: p2pstream.v1.AgentManagementService.GetDashboardDiagnostics:output_type -> p2pstream.v1.GetDashboardDiagnosticsResponse
-	266, // 443: p2pstream.v1.AgentManagementService.GetTrafficTraceSettings:output_type -> p2pstream.v1.GetTrafficTraceSettingsResponse
-	268, // 444: p2pstream.v1.AgentManagementService.SetTrafficTraceSettings:output_type -> p2pstream.v1.SetTrafficTraceSettingsResponse
-	271, // 445: p2pstream.v1.AgentManagementService.StreamTrafficTraceEvents:output_type -> p2pstream.v1.StreamTrafficTraceEventsResponse
-	273, // 446: p2pstream.v1.AgentManagementService.GetSetupState:output_type -> p2pstream.v1.GetSetupStateResponse
-	275, // 447: p2pstream.v1.AgentManagementService.SetupAdmin:output_type -> p2pstream.v1.SetupAdminResponse
-	277, // 448: p2pstream.v1.AgentManagementService.Login:output_type -> p2pstream.v1.LoginResponse
-	279, // 449: p2pstream.v1.AgentManagementService.Logout:output_type -> p2pstream.v1.LogoutResponse
-	281, // 450: p2pstream.v1.AgentManagementService.GetCurrentUser:output_type -> p2pstream.v1.GetCurrentUserResponse
-	283, // 451: p2pstream.v1.AgentManagementService.StartProxy:output_type -> p2pstream.v1.StartProxyResponse
-	285, // 452: p2pstream.v1.AgentManagementService.StopProxy:output_type -> p2pstream.v1.StopProxyResponse
-	116, // 453: p2pstream.v1.AgentManagementService.GetPublicProxyConfig:output_type -> p2pstream.v1.GetPublicProxyConfigResponse
-	121, // 454: p2pstream.v1.AgentManagementService.CreatePublicResponseTemplate:output_type -> p2pstream.v1.CreatePublicResponseTemplateResponse
-	123, // 455: p2pstream.v1.AgentManagementService.UpdatePublicResponseTemplate:output_type -> p2pstream.v1.UpdatePublicResponseTemplateResponse
-	125, // 456: p2pstream.v1.AgentManagementService.DeletePublicResponseTemplate:output_type -> p2pstream.v1.DeletePublicResponseTemplateResponse
-	119, // 457: p2pstream.v1.AgentManagementService.ListPublicRouteTargetHealthTraces:output_type -> p2pstream.v1.ListPublicRouteTargetHealthTracesResponse
-	127, // 458: p2pstream.v1.AgentManagementService.CreateAgent:output_type -> p2pstream.v1.CreateAgentResponse
-	129, // 459: p2pstream.v1.AgentManagementService.UpdateAgent:output_type -> p2pstream.v1.UpdateAgentResponse
-	131, // 460: p2pstream.v1.AgentManagementService.DeleteAgent:output_type -> p2pstream.v1.DeleteAgentResponse
-	133, // 461: p2pstream.v1.AgentManagementService.RotateAgentToken:output_type -> p2pstream.v1.RotateAgentTokenResponse
-	136, // 462: p2pstream.v1.AgentManagementService.CreateManagementAccessToken:output_type -> p2pstream.v1.CreateManagementAccessTokenResponse
-	138, // 463: p2pstream.v1.AgentManagementService.ListManagementAccessTokens:output_type -> p2pstream.v1.ListManagementAccessTokensResponse
-	140, // 464: p2pstream.v1.AgentManagementService.DeleteManagementAccessToken:output_type -> p2pstream.v1.DeleteManagementAccessTokenResponse
-	144, // 465: p2pstream.v1.AgentManagementService.ListEnvironments:output_type -> p2pstream.v1.ListEnvironmentsResponse
-	146, // 466: p2pstream.v1.AgentManagementService.CreateEnvironment:output_type -> p2pstream.v1.CreateEnvironmentResponse
-	148, // 467: p2pstream.v1.AgentManagementService.UpdateEnvironment:output_type -> p2pstream.v1.UpdateEnvironmentResponse
-	150, // 468: p2pstream.v1.AgentManagementService.DeleteEnvironment:output_type -> p2pstream.v1.DeleteEnvironmentResponse
-	152, // 469: p2pstream.v1.AgentManagementService.DiscoverEnvironmentCertificate:output_type -> p2pstream.v1.DiscoverEnvironmentCertificateResponse
-	154, // 470: p2pstream.v1.AgentManagementService.TrustEnvironmentCertificate:output_type -> p2pstream.v1.TrustEnvironmentCertificateResponse
-	156, // 471: p2pstream.v1.AgentManagementService.TestEnvironment:output_type -> p2pstream.v1.TestEnvironmentResponse
-	158, // 472: p2pstream.v1.AgentManagementService.CreatePublicListener:output_type -> p2pstream.v1.CreatePublicListenerResponse
-	160, // 473: p2pstream.v1.AgentManagementService.UpdatePublicListener:output_type -> p2pstream.v1.UpdatePublicListenerResponse
-	162, // 474: p2pstream.v1.AgentManagementService.DeletePublicListener:output_type -> p2pstream.v1.DeletePublicListenerResponse
-	164, // 475: p2pstream.v1.AgentManagementService.EnablePublicListener:output_type -> p2pstream.v1.EnablePublicListenerResponse
-	166, // 476: p2pstream.v1.AgentManagementService.DisablePublicListener:output_type -> p2pstream.v1.DisablePublicListenerResponse
-	168, // 477: p2pstream.v1.AgentManagementService.StartPublicListener:output_type -> p2pstream.v1.StartPublicListenerResponse
-	170, // 478: p2pstream.v1.AgentManagementService.StopPublicListener:output_type -> p2pstream.v1.StopPublicListenerResponse
-	172, // 479: p2pstream.v1.AgentManagementService.CreatePublicRoute:output_type -> p2pstream.v1.CreatePublicRouteResponse
-	174, // 480: p2pstream.v1.AgentManagementService.UpdatePublicRoute:output_type -> p2pstream.v1.UpdatePublicRouteResponse
-	176, // 481: p2pstream.v1.AgentManagementService.DeletePublicRoute:output_type -> p2pstream.v1.DeletePublicRouteResponse
-	178, // 482: p2pstream.v1.AgentManagementService.CreatePublicAccessProvider:output_type -> p2pstream.v1.CreatePublicAccessProviderResponse
-	180, // 483: p2pstream.v1.AgentManagementService.UpdatePublicAccessProvider:output_type -> p2pstream.v1.UpdatePublicAccessProviderResponse
-	182, // 484: p2pstream.v1.AgentManagementService.DeletePublicAccessProvider:output_type -> p2pstream.v1.DeletePublicAccessProviderResponse
-	184, // 485: p2pstream.v1.AgentManagementService.CreatePublicAccessUser:output_type -> p2pstream.v1.CreatePublicAccessUserResponse
-	186, // 486: p2pstream.v1.AgentManagementService.UpdatePublicAccessUser:output_type -> p2pstream.v1.UpdatePublicAccessUserResponse
-	188, // 487: p2pstream.v1.AgentManagementService.DeletePublicAccessUser:output_type -> p2pstream.v1.DeletePublicAccessUserResponse
-	190, // 488: p2pstream.v1.AgentManagementService.CreatePublicAccessPolicy:output_type -> p2pstream.v1.CreatePublicAccessPolicyResponse
-	192, // 489: p2pstream.v1.AgentManagementService.UpdatePublicAccessPolicy:output_type -> p2pstream.v1.UpdatePublicAccessPolicyResponse
-	194, // 490: p2pstream.v1.AgentManagementService.DeletePublicAccessPolicy:output_type -> p2pstream.v1.DeletePublicAccessPolicyResponse
-	196, // 491: p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential:output_type -> p2pstream.v1.CreatePublicTlsDnsCredentialResponse
-	198, // 492: p2pstream.v1.AgentManagementService.UpdatePublicTlsDnsCredential:output_type -> p2pstream.v1.UpdatePublicTlsDnsCredentialResponse
-	200, // 493: p2pstream.v1.AgentManagementService.DeletePublicTlsDnsCredential:output_type -> p2pstream.v1.DeletePublicTlsDnsCredentialResponse
-	202, // 494: p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate:output_type -> p2pstream.v1.CreatePublicTlsCertificateResponse
-	204, // 495: p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate:output_type -> p2pstream.v1.UpdatePublicTlsCertificateResponse
-	206, // 496: p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate:output_type -> p2pstream.v1.DeletePublicTlsCertificateResponse
-	208, // 497: p2pstream.v1.AgentManagementService.RenewPublicTlsCertificate:output_type -> p2pstream.v1.RenewPublicTlsCertificateResponse
-	210, // 498: p2pstream.v1.AgentManagementService.CreatePublicRateLimitRule:output_type -> p2pstream.v1.CreatePublicRateLimitRuleResponse
-	212, // 499: p2pstream.v1.AgentManagementService.UpdatePublicRateLimitRule:output_type -> p2pstream.v1.UpdatePublicRateLimitRuleResponse
-	214, // 500: p2pstream.v1.AgentManagementService.DeletePublicRateLimitRule:output_type -> p2pstream.v1.DeletePublicRateLimitRuleResponse
-	216, // 501: p2pstream.v1.AgentManagementService.CreatePublicTrafficShaperRule:output_type -> p2pstream.v1.CreatePublicTrafficShaperRuleResponse
-	218, // 502: p2pstream.v1.AgentManagementService.UpdatePublicTrafficShaperRule:output_type -> p2pstream.v1.UpdatePublicTrafficShaperRuleResponse
-	220, // 503: p2pstream.v1.AgentManagementService.DeletePublicTrafficShaperRule:output_type -> p2pstream.v1.DeletePublicTrafficShaperRuleResponse
-	222, // 504: p2pstream.v1.AgentManagementService.CreatePublicWafCaptchaProvider:output_type -> p2pstream.v1.CreatePublicWafCaptchaProviderResponse
-	224, // 505: p2pstream.v1.AgentManagementService.UpdatePublicWafCaptchaProvider:output_type -> p2pstream.v1.UpdatePublicWafCaptchaProviderResponse
-	226, // 506: p2pstream.v1.AgentManagementService.DeletePublicWafCaptchaProvider:output_type -> p2pstream.v1.DeletePublicWafCaptchaProviderResponse
-	228, // 507: p2pstream.v1.AgentManagementService.CreatePublicWafRule:output_type -> p2pstream.v1.CreatePublicWafRuleResponse
-	230, // 508: p2pstream.v1.AgentManagementService.UpdatePublicWafRule:output_type -> p2pstream.v1.UpdatePublicWafRuleResponse
-	232, // 509: p2pstream.v1.AgentManagementService.DeletePublicWafRule:output_type -> p2pstream.v1.DeletePublicWafRuleResponse
-	291, // 510: p2pstream.v1.AgentManagementService.UpdatePublicGeoIpSettings:output_type -> p2pstream.v1.UpdatePublicGeoIpSettingsResponse
-	293, // 511: p2pstream.v1.AgentManagementService.RefreshPublicGeoIpDatabase:output_type -> p2pstream.v1.RefreshPublicGeoIpDatabaseResponse
-	295, // 512: p2pstream.v1.AgentManagementService.CreatePublicTrustedProxySource:output_type -> p2pstream.v1.CreatePublicTrustedProxySourceResponse
-	297, // 513: p2pstream.v1.AgentManagementService.UpdatePublicTrustedProxySource:output_type -> p2pstream.v1.UpdatePublicTrustedProxySourceResponse
-	299, // 514: p2pstream.v1.AgentManagementService.DeletePublicTrustedProxySource:output_type -> p2pstream.v1.DeletePublicTrustedProxySourceResponse
-	301, // 515: p2pstream.v1.AgentManagementService.RefreshPublicTrustedProxySource:output_type -> p2pstream.v1.RefreshPublicTrustedProxySourceResponse
-	234, // 516: p2pstream.v1.AgentManagementService.CreatePublicCacheRule:output_type -> p2pstream.v1.CreatePublicCacheRuleResponse
-	236, // 517: p2pstream.v1.AgentManagementService.UpdatePublicCacheRule:output_type -> p2pstream.v1.UpdatePublicCacheRuleResponse
-	238, // 518: p2pstream.v1.AgentManagementService.DeletePublicCacheRule:output_type -> p2pstream.v1.DeletePublicCacheRuleResponse
-	305, // 519: p2pstream.v1.AgentManagementService.CreatePublicRetryRule:output_type -> p2pstream.v1.CreatePublicRetryRuleResponse
-	307, // 520: p2pstream.v1.AgentManagementService.UpdatePublicRetryRule:output_type -> p2pstream.v1.UpdatePublicRetryRuleResponse
-	309, // 521: p2pstream.v1.AgentManagementService.DeletePublicRetryRule:output_type -> p2pstream.v1.DeletePublicRetryRuleResponse
-	240, // 522: p2pstream.v1.AgentManagementService.UpdatePublicCacheSettings:output_type -> p2pstream.v1.UpdatePublicCacheSettingsResponse
-	242, // 523: p2pstream.v1.AgentManagementService.PurgePublicCache:output_type -> p2pstream.v1.PurgePublicCacheResponse
-	429, // [429:524] is the sub-list for method output_type
-	334, // [334:429] is the sub-list for method input_type
-	334, // [334:334] is the sub-list for extension type_name
-	334, // [334:334] is the sub-list for extension extendee
-	0,   // [0:334] is the sub-list for field type_name
+	116, // 119: p2pstream.v1.UpdatePublicResponseTemplateResponse.template:type_name -> p2pstream.v1.PublicResponseTemplate
+	350, // 120: p2pstream.v1.CreateAgentRequest.labels:type_name -> p2pstream.v1.CreateAgentRequest.LabelsEntry
+	93,  // 121: p2pstream.v1.CreateAgentResponse.agent:type_name -> p2pstream.v1.Agent
+	316, // 122: p2pstream.v1.CreateAgentResponse.updater_management_authority:type_name -> p2pstream.v1.AgentUpdateManagementAuthority
+	351, // 123: p2pstream.v1.UpdateAgentRequest.labels:type_name -> p2pstream.v1.UpdateAgentRequest.LabelsEntry
+	93,  // 124: p2pstream.v1.UpdateAgentResponse.agent:type_name -> p2pstream.v1.Agent
+	93,  // 125: p2pstream.v1.RotateAgentTokenResponse.agent:type_name -> p2pstream.v1.Agent
+	139, // 126: p2pstream.v1.CreateManagementAccessTokenResponse.access_token:type_name -> p2pstream.v1.ManagementAccessToken
+	139, // 127: p2pstream.v1.ListManagementAccessTokensResponse.access_tokens:type_name -> p2pstream.v1.ManagementAccessToken
+	37,  // 128: p2pstream.v1.Environment.transport:type_name -> p2pstream.v1.EnvironmentTransport
+	38,  // 129: p2pstream.v1.Environment.trust_state:type_name -> p2pstream.v1.EnvironmentTrustState
+	146, // 130: p2pstream.v1.Environment.trusted_certificate:type_name -> p2pstream.v1.EnvironmentCertificate
+	146, // 131: p2pstream.v1.Environment.observed_certificate:type_name -> p2pstream.v1.EnvironmentCertificate
+	147, // 132: p2pstream.v1.ListEnvironmentsResponse.environments:type_name -> p2pstream.v1.Environment
+	37,  // 133: p2pstream.v1.CreateEnvironmentRequest.transport:type_name -> p2pstream.v1.EnvironmentTransport
+	147, // 134: p2pstream.v1.CreateEnvironmentResponse.environment:type_name -> p2pstream.v1.Environment
+	37,  // 135: p2pstream.v1.UpdateEnvironmentRequest.transport:type_name -> p2pstream.v1.EnvironmentTransport
+	147, // 136: p2pstream.v1.UpdateEnvironmentResponse.environment:type_name -> p2pstream.v1.Environment
+	147, // 137: p2pstream.v1.DiscoverEnvironmentCertificateResponse.environment:type_name -> p2pstream.v1.Environment
+	146, // 138: p2pstream.v1.DiscoverEnvironmentCertificateResponse.certificate:type_name -> p2pstream.v1.EnvironmentCertificate
+	147, // 139: p2pstream.v1.TrustEnvironmentCertificateResponse.environment:type_name -> p2pstream.v1.Environment
+	147, // 140: p2pstream.v1.TestEnvironmentResponse.environment:type_name -> p2pstream.v1.Environment
+	86,  // 141: p2pstream.v1.TestEnvironmentResponse.status:type_name -> p2pstream.v1.GetStatusResponse
+	2,   // 142: p2pstream.v1.CreatePublicListenerRequest.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
+	97,  // 143: p2pstream.v1.CreatePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	119, // 144: p2pstream.v1.CreatePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	87,  // 145: p2pstream.v1.CreatePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	2,   // 146: p2pstream.v1.UpdatePublicListenerRequest.protocol:type_name -> p2pstream.v1.PublicListenerProtocol
+	97,  // 147: p2pstream.v1.UpdatePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	119, // 148: p2pstream.v1.UpdatePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	87,  // 149: p2pstream.v1.UpdatePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	97,  // 150: p2pstream.v1.EnablePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	119, // 151: p2pstream.v1.EnablePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	87,  // 152: p2pstream.v1.EnablePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	97,  // 153: p2pstream.v1.DisablePublicListenerResponse.listener:type_name -> p2pstream.v1.PublicListener
+	119, // 154: p2pstream.v1.DisablePublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	87,  // 155: p2pstream.v1.DisablePublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	119, // 156: p2pstream.v1.StartPublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	87,  // 157: p2pstream.v1.StartPublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	119, // 158: p2pstream.v1.StopPublicListenerResponse.status:type_name -> p2pstream.v1.PublicListenerStatus
+	87,  // 159: p2pstream.v1.StopPublicListenerResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	15,  // 160: p2pstream.v1.CreatePublicRouteRequest.action:type_name -> p2pstream.v1.PublicRouteAction
+	16,  // 161: p2pstream.v1.CreatePublicRouteRequest.redirect_target_mode:type_name -> p2pstream.v1.PublicRouteRedirectTargetMode
+	7,   // 162: p2pstream.v1.CreatePublicRouteRequest.target_load_balancing:type_name -> p2pstream.v1.PublicRouteTargetLoadBalancing
+	96,  // 163: p2pstream.v1.CreatePublicRouteRequest.targets:type_name -> p2pstream.v1.PublicRouteTarget
+	17,  // 164: p2pstream.v1.CreatePublicRouteRequest.path_security_mode:type_name -> p2pstream.v1.PublicRoutePathSecurityMode
+	98,  // 165: p2pstream.v1.CreatePublicRouteResponse.route:type_name -> p2pstream.v1.PublicRoute
+	15,  // 166: p2pstream.v1.UpdatePublicRouteRequest.action:type_name -> p2pstream.v1.PublicRouteAction
+	16,  // 167: p2pstream.v1.UpdatePublicRouteRequest.redirect_target_mode:type_name -> p2pstream.v1.PublicRouteRedirectTargetMode
+	7,   // 168: p2pstream.v1.UpdatePublicRouteRequest.target_load_balancing:type_name -> p2pstream.v1.PublicRouteTargetLoadBalancing
+	96,  // 169: p2pstream.v1.UpdatePublicRouteRequest.targets:type_name -> p2pstream.v1.PublicRouteTarget
+	17,  // 170: p2pstream.v1.UpdatePublicRouteRequest.path_security_mode:type_name -> p2pstream.v1.PublicRoutePathSecurityMode
+	98,  // 171: p2pstream.v1.UpdatePublicRouteResponse.route:type_name -> p2pstream.v1.PublicRoute
+	11,  // 172: p2pstream.v1.CreatePublicAccessProviderRequest.provider_type:type_name -> p2pstream.v1.PublicAccessProviderType
+	12,  // 173: p2pstream.v1.CreatePublicAccessProviderRequest.local_auth_mode:type_name -> p2pstream.v1.PublicAccessLocalAuthMode
+	13,  // 174: p2pstream.v1.CreatePublicAccessProviderRequest.local_auth_cookie_same_site:type_name -> p2pstream.v1.PublicAccessCookieSameSite
+	99,  // 175: p2pstream.v1.CreatePublicAccessProviderResponse.provider:type_name -> p2pstream.v1.PublicAccessProvider
+	11,  // 176: p2pstream.v1.UpdatePublicAccessProviderRequest.provider_type:type_name -> p2pstream.v1.PublicAccessProviderType
+	12,  // 177: p2pstream.v1.UpdatePublicAccessProviderRequest.local_auth_mode:type_name -> p2pstream.v1.PublicAccessLocalAuthMode
+	13,  // 178: p2pstream.v1.UpdatePublicAccessProviderRequest.local_auth_cookie_same_site:type_name -> p2pstream.v1.PublicAccessCookieSameSite
+	99,  // 179: p2pstream.v1.UpdatePublicAccessProviderResponse.provider:type_name -> p2pstream.v1.PublicAccessProvider
+	100, // 180: p2pstream.v1.CreatePublicAccessUserResponse.user:type_name -> p2pstream.v1.PublicAccessUser
+	100, // 181: p2pstream.v1.UpdatePublicAccessUserResponse.user:type_name -> p2pstream.v1.PublicAccessUser
+	14,  // 182: p2pstream.v1.CreatePublicAccessPolicyRequest.group_match:type_name -> p2pstream.v1.PublicAccessGroupMatch
+	101, // 183: p2pstream.v1.CreatePublicAccessPolicyResponse.policy:type_name -> p2pstream.v1.PublicAccessPolicy
+	14,  // 184: p2pstream.v1.UpdatePublicAccessPolicyRequest.group_match:type_name -> p2pstream.v1.PublicAccessGroupMatch
+	101, // 185: p2pstream.v1.UpdatePublicAccessPolicyResponse.policy:type_name -> p2pstream.v1.PublicAccessPolicy
+	33,  // 186: p2pstream.v1.CreatePublicTlsDnsCredentialRequest.provider:type_name -> p2pstream.v1.PublicDnsProvider
+	103, // 187: p2pstream.v1.CreatePublicTlsDnsCredentialResponse.credential:type_name -> p2pstream.v1.PublicTlsDnsCredential
+	33,  // 188: p2pstream.v1.UpdatePublicTlsDnsCredentialRequest.provider:type_name -> p2pstream.v1.PublicDnsProvider
+	103, // 189: p2pstream.v1.UpdatePublicTlsDnsCredentialResponse.credential:type_name -> p2pstream.v1.PublicTlsDnsCredential
+	30,  // 190: p2pstream.v1.CreatePublicTlsCertificateRequest.source:type_name -> p2pstream.v1.PublicTlsCertificateSource
+	31,  // 191: p2pstream.v1.CreatePublicTlsCertificateRequest.acme_challenge_type:type_name -> p2pstream.v1.PublicAcmeChallengeType
+	32,  // 192: p2pstream.v1.CreatePublicTlsCertificateRequest.acme_ca:type_name -> p2pstream.v1.PublicAcmeCa
+	102, // 193: p2pstream.v1.CreatePublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
+	30,  // 194: p2pstream.v1.UpdatePublicTlsCertificateRequest.source:type_name -> p2pstream.v1.PublicTlsCertificateSource
+	31,  // 195: p2pstream.v1.UpdatePublicTlsCertificateRequest.acme_challenge_type:type_name -> p2pstream.v1.PublicAcmeChallengeType
+	32,  // 196: p2pstream.v1.UpdatePublicTlsCertificateRequest.acme_ca:type_name -> p2pstream.v1.PublicAcmeCa
+	102, // 197: p2pstream.v1.UpdatePublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
+	102, // 198: p2pstream.v1.RenewPublicTlsCertificateResponse.tls_certificate:type_name -> p2pstream.v1.PublicTlsCertificate
+	18,  // 199: p2pstream.v1.CreatePublicRateLimitRuleRequest.algorithm:type_name -> p2pstream.v1.PublicRateLimitAlgorithm
+	104, // 200: p2pstream.v1.CreatePublicRateLimitRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
+	109, // 201: p2pstream.v1.CreatePublicRateLimitRuleRequest.response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
+	3,   // 202: p2pstream.v1.CreatePublicRateLimitRuleRequest.response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
+	105, // 203: p2pstream.v1.CreatePublicRateLimitRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	110, // 204: p2pstream.v1.CreatePublicRateLimitRuleResponse.rule:type_name -> p2pstream.v1.PublicRateLimitRule
+	18,  // 205: p2pstream.v1.UpdatePublicRateLimitRuleRequest.algorithm:type_name -> p2pstream.v1.PublicRateLimitAlgorithm
+	104, // 206: p2pstream.v1.UpdatePublicRateLimitRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
+	109, // 207: p2pstream.v1.UpdatePublicRateLimitRuleRequest.response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
+	3,   // 208: p2pstream.v1.UpdatePublicRateLimitRuleRequest.response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
+	105, // 209: p2pstream.v1.UpdatePublicRateLimitRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	110, // 210: p2pstream.v1.UpdatePublicRateLimitRuleResponse.rule:type_name -> p2pstream.v1.PublicRateLimitRule
+	23,  // 211: p2pstream.v1.CreatePublicTrafficShaperRuleRequest.budget_scope:type_name -> p2pstream.v1.PublicTrafficShaperBudgetScope
+	104, // 212: p2pstream.v1.CreatePublicTrafficShaperRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
+	105, // 213: p2pstream.v1.CreatePublicTrafficShaperRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	52,  // 214: p2pstream.v1.CreatePublicTrafficShaperRuleRequest.protocol_scope:type_name -> p2pstream.v1.PublicTrafficShaperProtocolScope
+	111, // 215: p2pstream.v1.CreatePublicTrafficShaperRuleResponse.rule:type_name -> p2pstream.v1.PublicTrafficShaperRule
+	23,  // 216: p2pstream.v1.UpdatePublicTrafficShaperRuleRequest.budget_scope:type_name -> p2pstream.v1.PublicTrafficShaperBudgetScope
+	104, // 217: p2pstream.v1.UpdatePublicTrafficShaperRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
+	105, // 218: p2pstream.v1.UpdatePublicTrafficShaperRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	52,  // 219: p2pstream.v1.UpdatePublicTrafficShaperRuleRequest.protocol_scope:type_name -> p2pstream.v1.PublicTrafficShaperProtocolScope
+	111, // 220: p2pstream.v1.UpdatePublicTrafficShaperRuleResponse.rule:type_name -> p2pstream.v1.PublicTrafficShaperRule
+	24,  // 221: p2pstream.v1.CreatePublicWafCaptchaProviderRequest.provider_type:type_name -> p2pstream.v1.PublicWafCaptchaProviderType
+	112, // 222: p2pstream.v1.CreatePublicWafCaptchaProviderResponse.provider:type_name -> p2pstream.v1.PublicWafCaptchaProvider
+	24,  // 223: p2pstream.v1.UpdatePublicWafCaptchaProviderRequest.provider_type:type_name -> p2pstream.v1.PublicWafCaptchaProviderType
+	112, // 224: p2pstream.v1.UpdatePublicWafCaptchaProviderResponse.provider:type_name -> p2pstream.v1.PublicWafCaptchaProvider
+	25,  // 225: p2pstream.v1.CreatePublicWafRuleRequest.action:type_name -> p2pstream.v1.PublicWafRuleAction
+	26,  // 226: p2pstream.v1.CreatePublicWafRuleRequest.activation_mode:type_name -> p2pstream.v1.PublicWafActivationMode
+	104, // 227: p2pstream.v1.CreatePublicWafRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
+	114, // 228: p2pstream.v1.CreatePublicWafRuleRequest.waiting_room:type_name -> p2pstream.v1.PublicWafWaitingRoomConfig
+	113, // 229: p2pstream.v1.CreatePublicWafRuleRequest.triggers:type_name -> p2pstream.v1.PublicWafTriggerConfig
+	109, // 230: p2pstream.v1.CreatePublicWafRuleRequest.block_response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
+	3,   // 231: p2pstream.v1.CreatePublicWafRuleRequest.block_response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
+	105, // 232: p2pstream.v1.CreatePublicWafRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	291, // 233: p2pstream.v1.CreatePublicWafRuleRequest.geo_restriction:type_name -> p2pstream.v1.PublicWafGeoRestriction
+	115, // 234: p2pstream.v1.CreatePublicWafRuleResponse.rule:type_name -> p2pstream.v1.PublicWafRule
+	25,  // 235: p2pstream.v1.UpdatePublicWafRuleRequest.action:type_name -> p2pstream.v1.PublicWafRuleAction
+	26,  // 236: p2pstream.v1.UpdatePublicWafRuleRequest.activation_mode:type_name -> p2pstream.v1.PublicWafActivationMode
+	104, // 237: p2pstream.v1.UpdatePublicWafRuleRequest.key_parts:type_name -> p2pstream.v1.PublicRateLimitKeyPart
+	114, // 238: p2pstream.v1.UpdatePublicWafRuleRequest.waiting_room:type_name -> p2pstream.v1.PublicWafWaitingRoomConfig
+	113, // 239: p2pstream.v1.UpdatePublicWafRuleRequest.triggers:type_name -> p2pstream.v1.PublicWafTriggerConfig
+	109, // 240: p2pstream.v1.UpdatePublicWafRuleRequest.block_response_headers:type_name -> p2pstream.v1.PublicRateLimitResponseHeader
+	3,   // 241: p2pstream.v1.UpdatePublicWafRuleRequest.block_response_body_mode:type_name -> p2pstream.v1.PublicResponseBodyMode
+	105, // 242: p2pstream.v1.UpdatePublicWafRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	291, // 243: p2pstream.v1.UpdatePublicWafRuleRequest.geo_restriction:type_name -> p2pstream.v1.PublicWafGeoRestriction
+	115, // 244: p2pstream.v1.UpdatePublicWafRuleResponse.rule:type_name -> p2pstream.v1.PublicWafRule
+	29,  // 245: p2pstream.v1.CreatePublicCacheRuleRequest.scope:type_name -> p2pstream.v1.PublicCacheScope
+	27,  // 246: p2pstream.v1.CreatePublicCacheRuleRequest.ttl_mode:type_name -> p2pstream.v1.PublicCacheTtlMode
+	28,  // 247: p2pstream.v1.CreatePublicCacheRuleRequest.query_mode:type_name -> p2pstream.v1.PublicCacheQueryMode
+	105, // 248: p2pstream.v1.CreatePublicCacheRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	118, // 249: p2pstream.v1.CreatePublicCacheRuleResponse.rule:type_name -> p2pstream.v1.PublicCacheRule
+	29,  // 250: p2pstream.v1.UpdatePublicCacheRuleRequest.scope:type_name -> p2pstream.v1.PublicCacheScope
+	27,  // 251: p2pstream.v1.UpdatePublicCacheRuleRequest.ttl_mode:type_name -> p2pstream.v1.PublicCacheTtlMode
+	28,  // 252: p2pstream.v1.UpdatePublicCacheRuleRequest.query_mode:type_name -> p2pstream.v1.PublicCacheQueryMode
+	105, // 253: p2pstream.v1.UpdatePublicCacheRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	118, // 254: p2pstream.v1.UpdatePublicCacheRuleResponse.rule:type_name -> p2pstream.v1.PublicCacheRule
+	117, // 255: p2pstream.v1.UpdatePublicCacheSettingsResponse.settings:type_name -> p2pstream.v1.PublicCacheSettings
+	44,  // 256: p2pstream.v1.DashboardProxyDimensionSummary.dimension:type_name -> p2pstream.v1.DashboardProxyDimension
+	257, // 257: p2pstream.v1.GetAgentAvailabilityResponse.intervals:type_name -> p2pstream.v1.AgentAvailabilityInterval
+	86,  // 258: p2pstream.v1.GetDashboardResponse.status:type_name -> p2pstream.v1.GetStatusResponse
+	249, // 259: p2pstream.v1.GetDashboardResponse.windows:type_name -> p2pstream.v1.DashboardWindowSummary
+	253, // 260: p2pstream.v1.GetDashboardResponse.agent_connections:type_name -> p2pstream.v1.AgentConnectionSummary
+	250, // 261: p2pstream.v1.GetDashboardResponse.top_listeners:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	250, // 262: p2pstream.v1.GetDashboardResponse.top_routes:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	250, // 263: p2pstream.v1.GetDashboardResponse.top_agents:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	250, // 264: p2pstream.v1.GetDashboardResponse.top_error_kinds:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	250, // 265: p2pstream.v1.GetDashboardResponse.status_classes:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	251, // 266: p2pstream.v1.GetDashboardResponse.traffic_buckets:type_name -> p2pstream.v1.DashboardTrafficBucket
+	252, // 267: p2pstream.v1.GetDashboardResponse.management_security:type_name -> p2pstream.v1.ManagementSecurity
+	254, // 268: p2pstream.v1.GetDashboardResponse.agent_uptime_summaries:type_name -> p2pstream.v1.AgentUptimeSummary
+	255, // 269: p2pstream.v1.GetDashboardResponse.recent_agent_connections:type_name -> p2pstream.v1.AgentConnectionSession
+	250, // 270: p2pstream.v1.GetDashboardResponse.top_route_targets:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	315, // 271: p2pstream.v1.GetDashboardResponse.agent_stream_capacity:type_name -> p2pstream.v1.AgentStreamCapacitySummary
+	261, // 272: p2pstream.v1.GetDashboardDiagnosticsResponse.outcome:type_name -> p2pstream.v1.DashboardDiagnosticsOutcomeSummary
+	262, // 273: p2pstream.v1.GetDashboardDiagnosticsResponse.status_codes:type_name -> p2pstream.v1.DashboardStatusCodeSummary
+	250, // 274: p2pstream.v1.GetDashboardDiagnosticsResponse.error_kinds:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	250, // 275: p2pstream.v1.GetDashboardDiagnosticsResponse.problem_listeners:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	250, // 276: p2pstream.v1.GetDashboardDiagnosticsResponse.problem_routes:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	250, // 277: p2pstream.v1.GetDashboardDiagnosticsResponse.problem_route_targets:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	250, // 278: p2pstream.v1.GetDashboardDiagnosticsResponse.problem_agents:type_name -> p2pstream.v1.DashboardProxyDimensionSummary
+	263, // 279: p2pstream.v1.GetDashboardDiagnosticsResponse.recent_samples:type_name -> p2pstream.v1.DashboardDiagnosticsSample
+	264, // 280: p2pstream.v1.GetDashboardDiagnosticsResponse.retry_health:type_name -> p2pstream.v1.DashboardRetryHealthSummary
+	265, // 281: p2pstream.v1.GetDashboardDiagnosticsResponse.retry_trend:type_name -> p2pstream.v1.DashboardRetryTrendBucket
+	266, // 282: p2pstream.v1.GetDashboardDiagnosticsResponse.retry_rules:type_name -> p2pstream.v1.DashboardRetryRuleSummary
+	267, // 283: p2pstream.v1.GetDashboardDiagnosticsResponse.retry_failed_agents:type_name -> p2pstream.v1.DashboardRetryFailureSummary
+	267, // 284: p2pstream.v1.GetDashboardDiagnosticsResponse.retry_error_kinds:type_name -> p2pstream.v1.DashboardRetryFailureSummary
+	315, // 285: p2pstream.v1.GetDashboardDiagnosticsResponse.agent_stream_capacity:type_name -> p2pstream.v1.AgentStreamCapacitySummary
+	35,  // 286: p2pstream.v1.TrafficTraceSettings.level:type_name -> p2pstream.v1.TrafficTraceLevel
+	269, // 287: p2pstream.v1.GetTrafficTraceSettingsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
+	35,  // 288: p2pstream.v1.SetTrafficTraceSettingsRequest.level:type_name -> p2pstream.v1.TrafficTraceLevel
+	269, // 289: p2pstream.v1.SetTrafficTraceSettingsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
+	36,  // 290: p2pstream.v1.TrafficTraceEvent.stage:type_name -> p2pstream.v1.TrafficTraceStage
+	352, // 291: p2pstream.v1.TrafficTraceEvent.request_headers:type_name -> p2pstream.v1.TrafficTraceEvent.RequestHeadersEntry
+	353, // 292: p2pstream.v1.TrafficTraceEvent.response_headers:type_name -> p2pstream.v1.TrafficTraceEvent.ResponseHeadersEntry
+	354, // 293: p2pstream.v1.TrafficTraceEvent.debug_attributes:type_name -> p2pstream.v1.TrafficTraceEvent.DebugAttributesEntry
+	18,  // 294: p2pstream.v1.TrafficTraceEvent.rate_limit_algorithm:type_name -> p2pstream.v1.PublicRateLimitAlgorithm
+	23,  // 295: p2pstream.v1.TrafficTraceEvent.traffic_shaper_budget_scope:type_name -> p2pstream.v1.PublicTrafficShaperBudgetScope
+	25,  // 296: p2pstream.v1.TrafficTraceEvent.waf_action:type_name -> p2pstream.v1.PublicWafRuleAction
+	26,  // 297: p2pstream.v1.TrafficTraceEvent.waf_activation_mode:type_name -> p2pstream.v1.PublicWafActivationMode
+	5,   // 298: p2pstream.v1.TrafficTraceEvent.route_target_type:type_name -> p2pstream.v1.PublicRouteTargetType
+	6,   // 299: p2pstream.v1.TrafficTraceEvent.route_target_transport:type_name -> p2pstream.v1.PublicRouteTargetTransport
+	269, // 300: p2pstream.v1.StreamTrafficTraceEventsResponse.settings:type_name -> p2pstream.v1.TrafficTraceSettings
+	275, // 301: p2pstream.v1.StreamTrafficTraceEventsResponse.event:type_name -> p2pstream.v1.TrafficTraceEvent
+	83,  // 302: p2pstream.v1.SetupAdminResponse.user:type_name -> p2pstream.v1.User
+	83,  // 303: p2pstream.v1.LoginResponse.user:type_name -> p2pstream.v1.User
+	83,  // 304: p2pstream.v1.GetCurrentUserResponse.user:type_name -> p2pstream.v1.User
+	87,  // 305: p2pstream.v1.StartProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	87,  // 306: p2pstream.v1.StopProxyResponse.proxy:type_name -> p2pstream.v1.ProxyStatus
+	45,  // 307: p2pstream.v1.PublicWafGeoRestriction.mode:type_name -> p2pstream.v1.PublicWafGeoRestrictionMode
+	46,  // 308: p2pstream.v1.PublicWafGeoRestriction.unknown_behavior:type_name -> p2pstream.v1.PublicWafGeoUnknownBehavior
+	292, // 309: p2pstream.v1.PublicGeoIpSettings.database_status:type_name -> p2pstream.v1.PublicGeoIpDatabaseStatus
+	47,  // 310: p2pstream.v1.PublicTrustedProxySource.provider:type_name -> p2pstream.v1.PublicTrustedProxyProvider
+	48,  // 311: p2pstream.v1.PublicTrustedProxySource.header_mode:type_name -> p2pstream.v1.PublicTrustedProxyHeaderMode
+	293, // 312: p2pstream.v1.UpdatePublicGeoIpSettingsResponse.settings:type_name -> p2pstream.v1.PublicGeoIpSettings
+	293, // 313: p2pstream.v1.RefreshPublicGeoIpDatabaseResponse.settings:type_name -> p2pstream.v1.PublicGeoIpSettings
+	48,  // 314: p2pstream.v1.CreatePublicTrustedProxySourceRequest.header_mode:type_name -> p2pstream.v1.PublicTrustedProxyHeaderMode
+	294, // 315: p2pstream.v1.CreatePublicTrustedProxySourceResponse.source:type_name -> p2pstream.v1.PublicTrustedProxySource
+	48,  // 316: p2pstream.v1.UpdatePublicTrustedProxySourceRequest.header_mode:type_name -> p2pstream.v1.PublicTrustedProxyHeaderMode
+	294, // 317: p2pstream.v1.UpdatePublicTrustedProxySourceResponse.source:type_name -> p2pstream.v1.PublicTrustedProxySource
+	294, // 318: p2pstream.v1.RefreshPublicTrustedProxySourceResponse.source:type_name -> p2pstream.v1.PublicTrustedProxySource
+	49,  // 319: p2pstream.v1.PublicRetryRule.failure_mode:type_name -> p2pstream.v1.PublicRetryFailureMode
+	50,  // 320: p2pstream.v1.PublicRetryRule.body_mode:type_name -> p2pstream.v1.PublicRetryBodyMode
+	105, // 321: p2pstream.v1.PublicRetryRule.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	51,  // 322: p2pstream.v1.PublicRetryRule.response_body_mode:type_name -> p2pstream.v1.PublicRetryResponseBodyMode
+	49,  // 323: p2pstream.v1.CreatePublicRetryRuleRequest.failure_mode:type_name -> p2pstream.v1.PublicRetryFailureMode
+	50,  // 324: p2pstream.v1.CreatePublicRetryRuleRequest.body_mode:type_name -> p2pstream.v1.PublicRetryBodyMode
+	105, // 325: p2pstream.v1.CreatePublicRetryRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	51,  // 326: p2pstream.v1.CreatePublicRetryRuleRequest.response_body_mode:type_name -> p2pstream.v1.PublicRetryResponseBodyMode
+	308, // 327: p2pstream.v1.CreatePublicRetryRuleResponse.rule:type_name -> p2pstream.v1.PublicRetryRule
+	49,  // 328: p2pstream.v1.UpdatePublicRetryRuleRequest.failure_mode:type_name -> p2pstream.v1.PublicRetryFailureMode
+	50,  // 329: p2pstream.v1.UpdatePublicRetryRuleRequest.body_mode:type_name -> p2pstream.v1.PublicRetryBodyMode
+	105, // 330: p2pstream.v1.UpdatePublicRetryRuleRequest.match_rule:type_name -> p2pstream.v1.PublicPolicyMatchRule
+	51,  // 331: p2pstream.v1.UpdatePublicRetryRuleRequest.response_body_mode:type_name -> p2pstream.v1.PublicRetryResponseBodyMode
+	308, // 332: p2pstream.v1.UpdatePublicRetryRuleResponse.rule:type_name -> p2pstream.v1.PublicRetryRule
+	355, // 333: p2pstream.v1.AgentStreamCapacitySummary.admission_misses_by_constraint:type_name -> p2pstream.v1.AgentStreamCapacitySummary.AdmissionMissesByConstraintEntry
+	356, // 334: p2pstream.v1.AgentStreamCapacitySummary.waiters_by_constraint:type_name -> p2pstream.v1.AgentStreamCapacitySummary.WaitersByConstraintEntry
+	317, // 335: p2pstream.v1.AgentUpdateTarget.artifacts:type_name -> p2pstream.v1.AgentUpdateArtifact
+	55,  // 336: p2pstream.v1.AgentUpdateAssignmentAuthorization.action:type_name -> p2pstream.v1.AgentUpdateDesiredAction
+	55,  // 337: p2pstream.v1.AgentUpdateRootActionReceipt.action:type_name -> p2pstream.v1.AgentUpdateDesiredAction
+	57,  // 338: p2pstream.v1.AgentUpdateRootActionReceipt.result_kind:type_name -> p2pstream.v1.AgentUpdateRootActionResultKind
+	318, // 339: p2pstream.v1.PreviewAgentUpdateCampaignRequest.target:type_name -> p2pstream.v1.AgentUpdateTarget
+	322, // 340: p2pstream.v1.PreviewAgentUpdateCampaignRequest.policy:type_name -> p2pstream.v1.AgentUpdatePolicy
+	323, // 341: p2pstream.v1.PreviewAgentUpdateCampaignResponse.agents:type_name -> p2pstream.v1.AgentUpdatePreviewAgent
+	54,  // 342: p2pstream.v1.AgentUpdateAssignment.state:type_name -> p2pstream.v1.AgentUpdateAssignmentState
+	55,  // 343: p2pstream.v1.AgentUpdateAssignment.desired_action:type_name -> p2pstream.v1.AgentUpdateDesiredAction
+	53,  // 344: p2pstream.v1.AgentUpdateCampaign.state:type_name -> p2pstream.v1.AgentUpdateCampaignState
+	318, // 345: p2pstream.v1.AgentUpdateCampaign.target:type_name -> p2pstream.v1.AgentUpdateTarget
+	322, // 346: p2pstream.v1.AgentUpdateCampaign.policy:type_name -> p2pstream.v1.AgentUpdatePolicy
+	326, // 347: p2pstream.v1.AgentUpdateCampaign.assignments:type_name -> p2pstream.v1.AgentUpdateAssignment
+	54,  // 348: p2pstream.v1.AgentUpdateOverviewAgent.assignment_state:type_name -> p2pstream.v1.AgentUpdateAssignmentState
+	318, // 349: p2pstream.v1.GetAgentUpdateOverviewResponse.trusted_targets:type_name -> p2pstream.v1.AgentUpdateTarget
+	328, // 350: p2pstream.v1.GetAgentUpdateOverviewResponse.agents:type_name -> p2pstream.v1.AgentUpdateOverviewAgent
+	316, // 351: p2pstream.v1.GetAgentUpdateOverviewResponse.management_authority:type_name -> p2pstream.v1.AgentUpdateManagementAuthority
+	316, // 352: p2pstream.v1.GenerateAgentUpdaterEnrollmentTokenResponse.management_authority:type_name -> p2pstream.v1.AgentUpdateManagementAuthority
+	319, // 353: p2pstream.v1.EnrollAgentUpdaterResponse.receipt:type_name -> p2pstream.v1.AgentUpdaterEnrollmentReceipt
+	318, // 354: p2pstream.v1.CreateAgentUpdateCampaignRequest.target:type_name -> p2pstream.v1.AgentUpdateTarget
+	322, // 355: p2pstream.v1.CreateAgentUpdateCampaignRequest.policy:type_name -> p2pstream.v1.AgentUpdatePolicy
+	327, // 356: p2pstream.v1.CreateAgentUpdateCampaignResponse.campaign:type_name -> p2pstream.v1.AgentUpdateCampaign
+	327, // 357: p2pstream.v1.ListAgentUpdateCampaignsResponse.campaigns:type_name -> p2pstream.v1.AgentUpdateCampaign
+	327, // 358: p2pstream.v1.ChangeAgentUpdateCampaignStateResponse.campaign:type_name -> p2pstream.v1.AgentUpdateCampaign
+	327, // 359: p2pstream.v1.RetryAgentUpdateAssignmentsResponse.campaign:type_name -> p2pstream.v1.AgentUpdateCampaign
+	55,  // 360: p2pstream.v1.CheckAgentUpdateResponse.desired_action:type_name -> p2pstream.v1.AgentUpdateDesiredAction
+	318, // 361: p2pstream.v1.CheckAgentUpdateResponse.target:type_name -> p2pstream.v1.AgentUpdateTarget
+	317, // 362: p2pstream.v1.CheckAgentUpdateResponse.artifact:type_name -> p2pstream.v1.AgentUpdateArtifact
+	320, // 363: p2pstream.v1.CheckAgentUpdateResponse.authorization:type_name -> p2pstream.v1.AgentUpdateAssignmentAuthorization
+	56,  // 364: p2pstream.v1.ReportAgentUpdateRequest.state:type_name -> p2pstream.v1.AgentUpdaterReportState
+	321, // 365: p2pstream.v1.ReportAgentUpdateRequest.root_action_receipt:type_name -> p2pstream.v1.AgentUpdateRootActionReceipt
+	54,  // 366: p2pstream.v1.ReportAgentUpdateResponse.state:type_name -> p2pstream.v1.AgentUpdateAssignmentState
+	55,  // 367: p2pstream.v1.ReportAgentUpdateResponse.desired_action:type_name -> p2pstream.v1.AgentUpdateDesiredAction
+	60,  // 368: p2pstream.v1.AgentManagementService.ReportStats:input_type -> p2pstream.v1.AgentStatsRequest
+	65,  // 369: p2pstream.v1.AgentManagementService.GetManagementTlsRotation:input_type -> p2pstream.v1.GetManagementTlsRotationRequest
+	67,  // 370: p2pstream.v1.AgentManagementService.StageManagementTlsRotation:input_type -> p2pstream.v1.StageManagementTlsRotationRequest
+	69,  // 371: p2pstream.v1.AgentManagementService.GenerateManagementTlsRotation:input_type -> p2pstream.v1.GenerateManagementTlsRotationRequest
+	71,  // 372: p2pstream.v1.AgentManagementService.ActivateManagementTlsRotation:input_type -> p2pstream.v1.ActivateManagementTlsRotationRequest
+	73,  // 373: p2pstream.v1.AgentManagementService.RollbackManagementTlsRotation:input_type -> p2pstream.v1.RollbackManagementTlsRotationRequest
+	75,  // 374: p2pstream.v1.AgentManagementService.BeginManagementTlsTrustRetirement:input_type -> p2pstream.v1.BeginManagementTlsTrustRetirementRequest
+	77,  // 375: p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustRetirement:input_type -> p2pstream.v1.FinalizeManagementTlsTrustRetirementRequest
+	79,  // 376: p2pstream.v1.AgentManagementService.CancelManagementTlsRotation:input_type -> p2pstream.v1.CancelManagementTlsRotationRequest
+	81,  // 377: p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustCleanup:input_type -> p2pstream.v1.FinalizeManagementTlsTrustCleanupRequest
+	84,  // 378: p2pstream.v1.AgentManagementService.GetStatus:input_type -> p2pstream.v1.GetStatusRequest
+	248, // 379: p2pstream.v1.AgentManagementService.GetDashboard:input_type -> p2pstream.v1.GetDashboardRequest
+	256, // 380: p2pstream.v1.AgentManagementService.GetAgentAvailability:input_type -> p2pstream.v1.GetAgentAvailabilityRequest
+	260, // 381: p2pstream.v1.AgentManagementService.GetDashboardDiagnostics:input_type -> p2pstream.v1.GetDashboardDiagnosticsRequest
+	270, // 382: p2pstream.v1.AgentManagementService.GetTrafficTraceSettings:input_type -> p2pstream.v1.GetTrafficTraceSettingsRequest
+	272, // 383: p2pstream.v1.AgentManagementService.SetTrafficTraceSettings:input_type -> p2pstream.v1.SetTrafficTraceSettingsRequest
+	274, // 384: p2pstream.v1.AgentManagementService.StreamTrafficTraceEvents:input_type -> p2pstream.v1.StreamTrafficTraceEventsRequest
+	277, // 385: p2pstream.v1.AgentManagementService.GetSetupState:input_type -> p2pstream.v1.GetSetupStateRequest
+	279, // 386: p2pstream.v1.AgentManagementService.SetupAdmin:input_type -> p2pstream.v1.SetupAdminRequest
+	281, // 387: p2pstream.v1.AgentManagementService.Login:input_type -> p2pstream.v1.LoginRequest
+	283, // 388: p2pstream.v1.AgentManagementService.Logout:input_type -> p2pstream.v1.LogoutRequest
+	285, // 389: p2pstream.v1.AgentManagementService.GetCurrentUser:input_type -> p2pstream.v1.GetCurrentUserRequest
+	287, // 390: p2pstream.v1.AgentManagementService.StartProxy:input_type -> p2pstream.v1.StartProxyRequest
+	289, // 391: p2pstream.v1.AgentManagementService.StopProxy:input_type -> p2pstream.v1.StopProxyRequest
+	120, // 392: p2pstream.v1.AgentManagementService.GetPublicProxyConfig:input_type -> p2pstream.v1.GetPublicProxyConfigRequest
+	125, // 393: p2pstream.v1.AgentManagementService.CreatePublicResponseTemplate:input_type -> p2pstream.v1.CreatePublicResponseTemplateRequest
+	127, // 394: p2pstream.v1.AgentManagementService.UpdatePublicResponseTemplate:input_type -> p2pstream.v1.UpdatePublicResponseTemplateRequest
+	129, // 395: p2pstream.v1.AgentManagementService.DeletePublicResponseTemplate:input_type -> p2pstream.v1.DeletePublicResponseTemplateRequest
+	123, // 396: p2pstream.v1.AgentManagementService.ListPublicRouteTargetHealthTraces:input_type -> p2pstream.v1.ListPublicRouteTargetHealthTracesRequest
+	131, // 397: p2pstream.v1.AgentManagementService.CreateAgent:input_type -> p2pstream.v1.CreateAgentRequest
+	133, // 398: p2pstream.v1.AgentManagementService.UpdateAgent:input_type -> p2pstream.v1.UpdateAgentRequest
+	135, // 399: p2pstream.v1.AgentManagementService.DeleteAgent:input_type -> p2pstream.v1.DeleteAgentRequest
+	137, // 400: p2pstream.v1.AgentManagementService.RotateAgentToken:input_type -> p2pstream.v1.RotateAgentTokenRequest
+	331, // 401: p2pstream.v1.AgentManagementService.GenerateAgentUpdaterEnrollmentToken:input_type -> p2pstream.v1.GenerateAgentUpdaterEnrollmentTokenRequest
+	333, // 402: p2pstream.v1.AgentManagementService.EnrollAgentUpdater:input_type -> p2pstream.v1.EnrollAgentUpdaterRequest
+	324, // 403: p2pstream.v1.AgentManagementService.PreviewAgentUpdateCampaign:input_type -> p2pstream.v1.PreviewAgentUpdateCampaignRequest
+	329, // 404: p2pstream.v1.AgentManagementService.GetAgentUpdateOverview:input_type -> p2pstream.v1.GetAgentUpdateOverviewRequest
+	335, // 405: p2pstream.v1.AgentManagementService.CreateAgentUpdateCampaign:input_type -> p2pstream.v1.CreateAgentUpdateCampaignRequest
+	337, // 406: p2pstream.v1.AgentManagementService.ListAgentUpdateCampaigns:input_type -> p2pstream.v1.ListAgentUpdateCampaignsRequest
+	339, // 407: p2pstream.v1.AgentManagementService.PauseAgentUpdateCampaign:input_type -> p2pstream.v1.ChangeAgentUpdateCampaignStateRequest
+	339, // 408: p2pstream.v1.AgentManagementService.ResumeAgentUpdateCampaign:input_type -> p2pstream.v1.ChangeAgentUpdateCampaignStateRequest
+	339, // 409: p2pstream.v1.AgentManagementService.CancelAgentUpdateCampaign:input_type -> p2pstream.v1.ChangeAgentUpdateCampaignStateRequest
+	341, // 410: p2pstream.v1.AgentManagementService.RetryAgentUpdateAssignments:input_type -> p2pstream.v1.RetryAgentUpdateAssignmentsRequest
+	343, // 411: p2pstream.v1.AgentManagementService.CheckAgentUpdate:input_type -> p2pstream.v1.CheckAgentUpdateRequest
+	345, // 412: p2pstream.v1.AgentManagementService.ReportAgentUpdate:input_type -> p2pstream.v1.ReportAgentUpdateRequest
+	140, // 413: p2pstream.v1.AgentManagementService.CreateManagementAccessToken:input_type -> p2pstream.v1.CreateManagementAccessTokenRequest
+	142, // 414: p2pstream.v1.AgentManagementService.ListManagementAccessTokens:input_type -> p2pstream.v1.ListManagementAccessTokensRequest
+	144, // 415: p2pstream.v1.AgentManagementService.DeleteManagementAccessToken:input_type -> p2pstream.v1.DeleteManagementAccessTokenRequest
+	148, // 416: p2pstream.v1.AgentManagementService.ListEnvironments:input_type -> p2pstream.v1.ListEnvironmentsRequest
+	150, // 417: p2pstream.v1.AgentManagementService.CreateEnvironment:input_type -> p2pstream.v1.CreateEnvironmentRequest
+	152, // 418: p2pstream.v1.AgentManagementService.UpdateEnvironment:input_type -> p2pstream.v1.UpdateEnvironmentRequest
+	154, // 419: p2pstream.v1.AgentManagementService.DeleteEnvironment:input_type -> p2pstream.v1.DeleteEnvironmentRequest
+	156, // 420: p2pstream.v1.AgentManagementService.DiscoverEnvironmentCertificate:input_type -> p2pstream.v1.DiscoverEnvironmentCertificateRequest
+	158, // 421: p2pstream.v1.AgentManagementService.TrustEnvironmentCertificate:input_type -> p2pstream.v1.TrustEnvironmentCertificateRequest
+	160, // 422: p2pstream.v1.AgentManagementService.TestEnvironment:input_type -> p2pstream.v1.TestEnvironmentRequest
+	162, // 423: p2pstream.v1.AgentManagementService.CreatePublicListener:input_type -> p2pstream.v1.CreatePublicListenerRequest
+	164, // 424: p2pstream.v1.AgentManagementService.UpdatePublicListener:input_type -> p2pstream.v1.UpdatePublicListenerRequest
+	166, // 425: p2pstream.v1.AgentManagementService.DeletePublicListener:input_type -> p2pstream.v1.DeletePublicListenerRequest
+	168, // 426: p2pstream.v1.AgentManagementService.EnablePublicListener:input_type -> p2pstream.v1.EnablePublicListenerRequest
+	170, // 427: p2pstream.v1.AgentManagementService.DisablePublicListener:input_type -> p2pstream.v1.DisablePublicListenerRequest
+	172, // 428: p2pstream.v1.AgentManagementService.StartPublicListener:input_type -> p2pstream.v1.StartPublicListenerRequest
+	174, // 429: p2pstream.v1.AgentManagementService.StopPublicListener:input_type -> p2pstream.v1.StopPublicListenerRequest
+	176, // 430: p2pstream.v1.AgentManagementService.CreatePublicRoute:input_type -> p2pstream.v1.CreatePublicRouteRequest
+	178, // 431: p2pstream.v1.AgentManagementService.UpdatePublicRoute:input_type -> p2pstream.v1.UpdatePublicRouteRequest
+	180, // 432: p2pstream.v1.AgentManagementService.DeletePublicRoute:input_type -> p2pstream.v1.DeletePublicRouteRequest
+	182, // 433: p2pstream.v1.AgentManagementService.CreatePublicAccessProvider:input_type -> p2pstream.v1.CreatePublicAccessProviderRequest
+	184, // 434: p2pstream.v1.AgentManagementService.UpdatePublicAccessProvider:input_type -> p2pstream.v1.UpdatePublicAccessProviderRequest
+	186, // 435: p2pstream.v1.AgentManagementService.DeletePublicAccessProvider:input_type -> p2pstream.v1.DeletePublicAccessProviderRequest
+	188, // 436: p2pstream.v1.AgentManagementService.CreatePublicAccessUser:input_type -> p2pstream.v1.CreatePublicAccessUserRequest
+	190, // 437: p2pstream.v1.AgentManagementService.UpdatePublicAccessUser:input_type -> p2pstream.v1.UpdatePublicAccessUserRequest
+	192, // 438: p2pstream.v1.AgentManagementService.DeletePublicAccessUser:input_type -> p2pstream.v1.DeletePublicAccessUserRequest
+	194, // 439: p2pstream.v1.AgentManagementService.CreatePublicAccessPolicy:input_type -> p2pstream.v1.CreatePublicAccessPolicyRequest
+	196, // 440: p2pstream.v1.AgentManagementService.UpdatePublicAccessPolicy:input_type -> p2pstream.v1.UpdatePublicAccessPolicyRequest
+	198, // 441: p2pstream.v1.AgentManagementService.DeletePublicAccessPolicy:input_type -> p2pstream.v1.DeletePublicAccessPolicyRequest
+	200, // 442: p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential:input_type -> p2pstream.v1.CreatePublicTlsDnsCredentialRequest
+	202, // 443: p2pstream.v1.AgentManagementService.UpdatePublicTlsDnsCredential:input_type -> p2pstream.v1.UpdatePublicTlsDnsCredentialRequest
+	204, // 444: p2pstream.v1.AgentManagementService.DeletePublicTlsDnsCredential:input_type -> p2pstream.v1.DeletePublicTlsDnsCredentialRequest
+	206, // 445: p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate:input_type -> p2pstream.v1.CreatePublicTlsCertificateRequest
+	208, // 446: p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate:input_type -> p2pstream.v1.UpdatePublicTlsCertificateRequest
+	210, // 447: p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate:input_type -> p2pstream.v1.DeletePublicTlsCertificateRequest
+	212, // 448: p2pstream.v1.AgentManagementService.RenewPublicTlsCertificate:input_type -> p2pstream.v1.RenewPublicTlsCertificateRequest
+	214, // 449: p2pstream.v1.AgentManagementService.CreatePublicRateLimitRule:input_type -> p2pstream.v1.CreatePublicRateLimitRuleRequest
+	216, // 450: p2pstream.v1.AgentManagementService.UpdatePublicRateLimitRule:input_type -> p2pstream.v1.UpdatePublicRateLimitRuleRequest
+	218, // 451: p2pstream.v1.AgentManagementService.DeletePublicRateLimitRule:input_type -> p2pstream.v1.DeletePublicRateLimitRuleRequest
+	220, // 452: p2pstream.v1.AgentManagementService.CreatePublicTrafficShaperRule:input_type -> p2pstream.v1.CreatePublicTrafficShaperRuleRequest
+	222, // 453: p2pstream.v1.AgentManagementService.UpdatePublicTrafficShaperRule:input_type -> p2pstream.v1.UpdatePublicTrafficShaperRuleRequest
+	224, // 454: p2pstream.v1.AgentManagementService.DeletePublicTrafficShaperRule:input_type -> p2pstream.v1.DeletePublicTrafficShaperRuleRequest
+	226, // 455: p2pstream.v1.AgentManagementService.CreatePublicWafCaptchaProvider:input_type -> p2pstream.v1.CreatePublicWafCaptchaProviderRequest
+	228, // 456: p2pstream.v1.AgentManagementService.UpdatePublicWafCaptchaProvider:input_type -> p2pstream.v1.UpdatePublicWafCaptchaProviderRequest
+	230, // 457: p2pstream.v1.AgentManagementService.DeletePublicWafCaptchaProvider:input_type -> p2pstream.v1.DeletePublicWafCaptchaProviderRequest
+	232, // 458: p2pstream.v1.AgentManagementService.CreatePublicWafRule:input_type -> p2pstream.v1.CreatePublicWafRuleRequest
+	234, // 459: p2pstream.v1.AgentManagementService.UpdatePublicWafRule:input_type -> p2pstream.v1.UpdatePublicWafRuleRequest
+	236, // 460: p2pstream.v1.AgentManagementService.DeletePublicWafRule:input_type -> p2pstream.v1.DeletePublicWafRuleRequest
+	295, // 461: p2pstream.v1.AgentManagementService.UpdatePublicGeoIpSettings:input_type -> p2pstream.v1.UpdatePublicGeoIpSettingsRequest
+	297, // 462: p2pstream.v1.AgentManagementService.RefreshPublicGeoIpDatabase:input_type -> p2pstream.v1.RefreshPublicGeoIpDatabaseRequest
+	299, // 463: p2pstream.v1.AgentManagementService.CreatePublicTrustedProxySource:input_type -> p2pstream.v1.CreatePublicTrustedProxySourceRequest
+	301, // 464: p2pstream.v1.AgentManagementService.UpdatePublicTrustedProxySource:input_type -> p2pstream.v1.UpdatePublicTrustedProxySourceRequest
+	303, // 465: p2pstream.v1.AgentManagementService.DeletePublicTrustedProxySource:input_type -> p2pstream.v1.DeletePublicTrustedProxySourceRequest
+	305, // 466: p2pstream.v1.AgentManagementService.RefreshPublicTrustedProxySource:input_type -> p2pstream.v1.RefreshPublicTrustedProxySourceRequest
+	238, // 467: p2pstream.v1.AgentManagementService.CreatePublicCacheRule:input_type -> p2pstream.v1.CreatePublicCacheRuleRequest
+	240, // 468: p2pstream.v1.AgentManagementService.UpdatePublicCacheRule:input_type -> p2pstream.v1.UpdatePublicCacheRuleRequest
+	242, // 469: p2pstream.v1.AgentManagementService.DeletePublicCacheRule:input_type -> p2pstream.v1.DeletePublicCacheRuleRequest
+	309, // 470: p2pstream.v1.AgentManagementService.CreatePublicRetryRule:input_type -> p2pstream.v1.CreatePublicRetryRuleRequest
+	311, // 471: p2pstream.v1.AgentManagementService.UpdatePublicRetryRule:input_type -> p2pstream.v1.UpdatePublicRetryRuleRequest
+	313, // 472: p2pstream.v1.AgentManagementService.DeletePublicRetryRule:input_type -> p2pstream.v1.DeletePublicRetryRuleRequest
+	244, // 473: p2pstream.v1.AgentManagementService.UpdatePublicCacheSettings:input_type -> p2pstream.v1.UpdatePublicCacheSettingsRequest
+	246, // 474: p2pstream.v1.AgentManagementService.PurgePublicCache:input_type -> p2pstream.v1.PurgePublicCacheRequest
+	61,  // 475: p2pstream.v1.AgentManagementService.ReportStats:output_type -> p2pstream.v1.AgentStatsResponse
+	66,  // 476: p2pstream.v1.AgentManagementService.GetManagementTlsRotation:output_type -> p2pstream.v1.GetManagementTlsRotationResponse
+	68,  // 477: p2pstream.v1.AgentManagementService.StageManagementTlsRotation:output_type -> p2pstream.v1.StageManagementTlsRotationResponse
+	70,  // 478: p2pstream.v1.AgentManagementService.GenerateManagementTlsRotation:output_type -> p2pstream.v1.GenerateManagementTlsRotationResponse
+	72,  // 479: p2pstream.v1.AgentManagementService.ActivateManagementTlsRotation:output_type -> p2pstream.v1.ActivateManagementTlsRotationResponse
+	74,  // 480: p2pstream.v1.AgentManagementService.RollbackManagementTlsRotation:output_type -> p2pstream.v1.RollbackManagementTlsRotationResponse
+	76,  // 481: p2pstream.v1.AgentManagementService.BeginManagementTlsTrustRetirement:output_type -> p2pstream.v1.BeginManagementTlsTrustRetirementResponse
+	78,  // 482: p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustRetirement:output_type -> p2pstream.v1.FinalizeManagementTlsTrustRetirementResponse
+	80,  // 483: p2pstream.v1.AgentManagementService.CancelManagementTlsRotation:output_type -> p2pstream.v1.CancelManagementTlsRotationResponse
+	82,  // 484: p2pstream.v1.AgentManagementService.FinalizeManagementTlsTrustCleanup:output_type -> p2pstream.v1.FinalizeManagementTlsTrustCleanupResponse
+	86,  // 485: p2pstream.v1.AgentManagementService.GetStatus:output_type -> p2pstream.v1.GetStatusResponse
+	259, // 486: p2pstream.v1.AgentManagementService.GetDashboard:output_type -> p2pstream.v1.GetDashboardResponse
+	258, // 487: p2pstream.v1.AgentManagementService.GetAgentAvailability:output_type -> p2pstream.v1.GetAgentAvailabilityResponse
+	268, // 488: p2pstream.v1.AgentManagementService.GetDashboardDiagnostics:output_type -> p2pstream.v1.GetDashboardDiagnosticsResponse
+	271, // 489: p2pstream.v1.AgentManagementService.GetTrafficTraceSettings:output_type -> p2pstream.v1.GetTrafficTraceSettingsResponse
+	273, // 490: p2pstream.v1.AgentManagementService.SetTrafficTraceSettings:output_type -> p2pstream.v1.SetTrafficTraceSettingsResponse
+	276, // 491: p2pstream.v1.AgentManagementService.StreamTrafficTraceEvents:output_type -> p2pstream.v1.StreamTrafficTraceEventsResponse
+	278, // 492: p2pstream.v1.AgentManagementService.GetSetupState:output_type -> p2pstream.v1.GetSetupStateResponse
+	280, // 493: p2pstream.v1.AgentManagementService.SetupAdmin:output_type -> p2pstream.v1.SetupAdminResponse
+	282, // 494: p2pstream.v1.AgentManagementService.Login:output_type -> p2pstream.v1.LoginResponse
+	284, // 495: p2pstream.v1.AgentManagementService.Logout:output_type -> p2pstream.v1.LogoutResponse
+	286, // 496: p2pstream.v1.AgentManagementService.GetCurrentUser:output_type -> p2pstream.v1.GetCurrentUserResponse
+	288, // 497: p2pstream.v1.AgentManagementService.StartProxy:output_type -> p2pstream.v1.StartProxyResponse
+	290, // 498: p2pstream.v1.AgentManagementService.StopProxy:output_type -> p2pstream.v1.StopProxyResponse
+	121, // 499: p2pstream.v1.AgentManagementService.GetPublicProxyConfig:output_type -> p2pstream.v1.GetPublicProxyConfigResponse
+	126, // 500: p2pstream.v1.AgentManagementService.CreatePublicResponseTemplate:output_type -> p2pstream.v1.CreatePublicResponseTemplateResponse
+	128, // 501: p2pstream.v1.AgentManagementService.UpdatePublicResponseTemplate:output_type -> p2pstream.v1.UpdatePublicResponseTemplateResponse
+	130, // 502: p2pstream.v1.AgentManagementService.DeletePublicResponseTemplate:output_type -> p2pstream.v1.DeletePublicResponseTemplateResponse
+	124, // 503: p2pstream.v1.AgentManagementService.ListPublicRouteTargetHealthTraces:output_type -> p2pstream.v1.ListPublicRouteTargetHealthTracesResponse
+	132, // 504: p2pstream.v1.AgentManagementService.CreateAgent:output_type -> p2pstream.v1.CreateAgentResponse
+	134, // 505: p2pstream.v1.AgentManagementService.UpdateAgent:output_type -> p2pstream.v1.UpdateAgentResponse
+	136, // 506: p2pstream.v1.AgentManagementService.DeleteAgent:output_type -> p2pstream.v1.DeleteAgentResponse
+	138, // 507: p2pstream.v1.AgentManagementService.RotateAgentToken:output_type -> p2pstream.v1.RotateAgentTokenResponse
+	332, // 508: p2pstream.v1.AgentManagementService.GenerateAgentUpdaterEnrollmentToken:output_type -> p2pstream.v1.GenerateAgentUpdaterEnrollmentTokenResponse
+	334, // 509: p2pstream.v1.AgentManagementService.EnrollAgentUpdater:output_type -> p2pstream.v1.EnrollAgentUpdaterResponse
+	325, // 510: p2pstream.v1.AgentManagementService.PreviewAgentUpdateCampaign:output_type -> p2pstream.v1.PreviewAgentUpdateCampaignResponse
+	330, // 511: p2pstream.v1.AgentManagementService.GetAgentUpdateOverview:output_type -> p2pstream.v1.GetAgentUpdateOverviewResponse
+	336, // 512: p2pstream.v1.AgentManagementService.CreateAgentUpdateCampaign:output_type -> p2pstream.v1.CreateAgentUpdateCampaignResponse
+	338, // 513: p2pstream.v1.AgentManagementService.ListAgentUpdateCampaigns:output_type -> p2pstream.v1.ListAgentUpdateCampaignsResponse
+	340, // 514: p2pstream.v1.AgentManagementService.PauseAgentUpdateCampaign:output_type -> p2pstream.v1.ChangeAgentUpdateCampaignStateResponse
+	340, // 515: p2pstream.v1.AgentManagementService.ResumeAgentUpdateCampaign:output_type -> p2pstream.v1.ChangeAgentUpdateCampaignStateResponse
+	340, // 516: p2pstream.v1.AgentManagementService.CancelAgentUpdateCampaign:output_type -> p2pstream.v1.ChangeAgentUpdateCampaignStateResponse
+	342, // 517: p2pstream.v1.AgentManagementService.RetryAgentUpdateAssignments:output_type -> p2pstream.v1.RetryAgentUpdateAssignmentsResponse
+	344, // 518: p2pstream.v1.AgentManagementService.CheckAgentUpdate:output_type -> p2pstream.v1.CheckAgentUpdateResponse
+	346, // 519: p2pstream.v1.AgentManagementService.ReportAgentUpdate:output_type -> p2pstream.v1.ReportAgentUpdateResponse
+	141, // 520: p2pstream.v1.AgentManagementService.CreateManagementAccessToken:output_type -> p2pstream.v1.CreateManagementAccessTokenResponse
+	143, // 521: p2pstream.v1.AgentManagementService.ListManagementAccessTokens:output_type -> p2pstream.v1.ListManagementAccessTokensResponse
+	145, // 522: p2pstream.v1.AgentManagementService.DeleteManagementAccessToken:output_type -> p2pstream.v1.DeleteManagementAccessTokenResponse
+	149, // 523: p2pstream.v1.AgentManagementService.ListEnvironments:output_type -> p2pstream.v1.ListEnvironmentsResponse
+	151, // 524: p2pstream.v1.AgentManagementService.CreateEnvironment:output_type -> p2pstream.v1.CreateEnvironmentResponse
+	153, // 525: p2pstream.v1.AgentManagementService.UpdateEnvironment:output_type -> p2pstream.v1.UpdateEnvironmentResponse
+	155, // 526: p2pstream.v1.AgentManagementService.DeleteEnvironment:output_type -> p2pstream.v1.DeleteEnvironmentResponse
+	157, // 527: p2pstream.v1.AgentManagementService.DiscoverEnvironmentCertificate:output_type -> p2pstream.v1.DiscoverEnvironmentCertificateResponse
+	159, // 528: p2pstream.v1.AgentManagementService.TrustEnvironmentCertificate:output_type -> p2pstream.v1.TrustEnvironmentCertificateResponse
+	161, // 529: p2pstream.v1.AgentManagementService.TestEnvironment:output_type -> p2pstream.v1.TestEnvironmentResponse
+	163, // 530: p2pstream.v1.AgentManagementService.CreatePublicListener:output_type -> p2pstream.v1.CreatePublicListenerResponse
+	165, // 531: p2pstream.v1.AgentManagementService.UpdatePublicListener:output_type -> p2pstream.v1.UpdatePublicListenerResponse
+	167, // 532: p2pstream.v1.AgentManagementService.DeletePublicListener:output_type -> p2pstream.v1.DeletePublicListenerResponse
+	169, // 533: p2pstream.v1.AgentManagementService.EnablePublicListener:output_type -> p2pstream.v1.EnablePublicListenerResponse
+	171, // 534: p2pstream.v1.AgentManagementService.DisablePublicListener:output_type -> p2pstream.v1.DisablePublicListenerResponse
+	173, // 535: p2pstream.v1.AgentManagementService.StartPublicListener:output_type -> p2pstream.v1.StartPublicListenerResponse
+	175, // 536: p2pstream.v1.AgentManagementService.StopPublicListener:output_type -> p2pstream.v1.StopPublicListenerResponse
+	177, // 537: p2pstream.v1.AgentManagementService.CreatePublicRoute:output_type -> p2pstream.v1.CreatePublicRouteResponse
+	179, // 538: p2pstream.v1.AgentManagementService.UpdatePublicRoute:output_type -> p2pstream.v1.UpdatePublicRouteResponse
+	181, // 539: p2pstream.v1.AgentManagementService.DeletePublicRoute:output_type -> p2pstream.v1.DeletePublicRouteResponse
+	183, // 540: p2pstream.v1.AgentManagementService.CreatePublicAccessProvider:output_type -> p2pstream.v1.CreatePublicAccessProviderResponse
+	185, // 541: p2pstream.v1.AgentManagementService.UpdatePublicAccessProvider:output_type -> p2pstream.v1.UpdatePublicAccessProviderResponse
+	187, // 542: p2pstream.v1.AgentManagementService.DeletePublicAccessProvider:output_type -> p2pstream.v1.DeletePublicAccessProviderResponse
+	189, // 543: p2pstream.v1.AgentManagementService.CreatePublicAccessUser:output_type -> p2pstream.v1.CreatePublicAccessUserResponse
+	191, // 544: p2pstream.v1.AgentManagementService.UpdatePublicAccessUser:output_type -> p2pstream.v1.UpdatePublicAccessUserResponse
+	193, // 545: p2pstream.v1.AgentManagementService.DeletePublicAccessUser:output_type -> p2pstream.v1.DeletePublicAccessUserResponse
+	195, // 546: p2pstream.v1.AgentManagementService.CreatePublicAccessPolicy:output_type -> p2pstream.v1.CreatePublicAccessPolicyResponse
+	197, // 547: p2pstream.v1.AgentManagementService.UpdatePublicAccessPolicy:output_type -> p2pstream.v1.UpdatePublicAccessPolicyResponse
+	199, // 548: p2pstream.v1.AgentManagementService.DeletePublicAccessPolicy:output_type -> p2pstream.v1.DeletePublicAccessPolicyResponse
+	201, // 549: p2pstream.v1.AgentManagementService.CreatePublicTlsDnsCredential:output_type -> p2pstream.v1.CreatePublicTlsDnsCredentialResponse
+	203, // 550: p2pstream.v1.AgentManagementService.UpdatePublicTlsDnsCredential:output_type -> p2pstream.v1.UpdatePublicTlsDnsCredentialResponse
+	205, // 551: p2pstream.v1.AgentManagementService.DeletePublicTlsDnsCredential:output_type -> p2pstream.v1.DeletePublicTlsDnsCredentialResponse
+	207, // 552: p2pstream.v1.AgentManagementService.CreatePublicTlsCertificate:output_type -> p2pstream.v1.CreatePublicTlsCertificateResponse
+	209, // 553: p2pstream.v1.AgentManagementService.UpdatePublicTlsCertificate:output_type -> p2pstream.v1.UpdatePublicTlsCertificateResponse
+	211, // 554: p2pstream.v1.AgentManagementService.DeletePublicTlsCertificate:output_type -> p2pstream.v1.DeletePublicTlsCertificateResponse
+	213, // 555: p2pstream.v1.AgentManagementService.RenewPublicTlsCertificate:output_type -> p2pstream.v1.RenewPublicTlsCertificateResponse
+	215, // 556: p2pstream.v1.AgentManagementService.CreatePublicRateLimitRule:output_type -> p2pstream.v1.CreatePublicRateLimitRuleResponse
+	217, // 557: p2pstream.v1.AgentManagementService.UpdatePublicRateLimitRule:output_type -> p2pstream.v1.UpdatePublicRateLimitRuleResponse
+	219, // 558: p2pstream.v1.AgentManagementService.DeletePublicRateLimitRule:output_type -> p2pstream.v1.DeletePublicRateLimitRuleResponse
+	221, // 559: p2pstream.v1.AgentManagementService.CreatePublicTrafficShaperRule:output_type -> p2pstream.v1.CreatePublicTrafficShaperRuleResponse
+	223, // 560: p2pstream.v1.AgentManagementService.UpdatePublicTrafficShaperRule:output_type -> p2pstream.v1.UpdatePublicTrafficShaperRuleResponse
+	225, // 561: p2pstream.v1.AgentManagementService.DeletePublicTrafficShaperRule:output_type -> p2pstream.v1.DeletePublicTrafficShaperRuleResponse
+	227, // 562: p2pstream.v1.AgentManagementService.CreatePublicWafCaptchaProvider:output_type -> p2pstream.v1.CreatePublicWafCaptchaProviderResponse
+	229, // 563: p2pstream.v1.AgentManagementService.UpdatePublicWafCaptchaProvider:output_type -> p2pstream.v1.UpdatePublicWafCaptchaProviderResponse
+	231, // 564: p2pstream.v1.AgentManagementService.DeletePublicWafCaptchaProvider:output_type -> p2pstream.v1.DeletePublicWafCaptchaProviderResponse
+	233, // 565: p2pstream.v1.AgentManagementService.CreatePublicWafRule:output_type -> p2pstream.v1.CreatePublicWafRuleResponse
+	235, // 566: p2pstream.v1.AgentManagementService.UpdatePublicWafRule:output_type -> p2pstream.v1.UpdatePublicWafRuleResponse
+	237, // 567: p2pstream.v1.AgentManagementService.DeletePublicWafRule:output_type -> p2pstream.v1.DeletePublicWafRuleResponse
+	296, // 568: p2pstream.v1.AgentManagementService.UpdatePublicGeoIpSettings:output_type -> p2pstream.v1.UpdatePublicGeoIpSettingsResponse
+	298, // 569: p2pstream.v1.AgentManagementService.RefreshPublicGeoIpDatabase:output_type -> p2pstream.v1.RefreshPublicGeoIpDatabaseResponse
+	300, // 570: p2pstream.v1.AgentManagementService.CreatePublicTrustedProxySource:output_type -> p2pstream.v1.CreatePublicTrustedProxySourceResponse
+	302, // 571: p2pstream.v1.AgentManagementService.UpdatePublicTrustedProxySource:output_type -> p2pstream.v1.UpdatePublicTrustedProxySourceResponse
+	304, // 572: p2pstream.v1.AgentManagementService.DeletePublicTrustedProxySource:output_type -> p2pstream.v1.DeletePublicTrustedProxySourceResponse
+	306, // 573: p2pstream.v1.AgentManagementService.RefreshPublicTrustedProxySource:output_type -> p2pstream.v1.RefreshPublicTrustedProxySourceResponse
+	239, // 574: p2pstream.v1.AgentManagementService.CreatePublicCacheRule:output_type -> p2pstream.v1.CreatePublicCacheRuleResponse
+	241, // 575: p2pstream.v1.AgentManagementService.UpdatePublicCacheRule:output_type -> p2pstream.v1.UpdatePublicCacheRuleResponse
+	243, // 576: p2pstream.v1.AgentManagementService.DeletePublicCacheRule:output_type -> p2pstream.v1.DeletePublicCacheRuleResponse
+	310, // 577: p2pstream.v1.AgentManagementService.CreatePublicRetryRule:output_type -> p2pstream.v1.CreatePublicRetryRuleResponse
+	312, // 578: p2pstream.v1.AgentManagementService.UpdatePublicRetryRule:output_type -> p2pstream.v1.UpdatePublicRetryRuleResponse
+	314, // 579: p2pstream.v1.AgentManagementService.DeletePublicRetryRule:output_type -> p2pstream.v1.DeletePublicRetryRuleResponse
+	245, // 580: p2pstream.v1.AgentManagementService.UpdatePublicCacheSettings:output_type -> p2pstream.v1.UpdatePublicCacheSettingsResponse
+	247, // 581: p2pstream.v1.AgentManagementService.PurgePublicCache:output_type -> p2pstream.v1.PurgePublicCacheResponse
+	475, // [475:582] is the sub-list for method output_type
+	368, // [368:475] is the sub-list for method input_type
+	368, // [368:368] is the sub-list for extension type_name
+	368, // [368:368] is the sub-list for extension extendee
+	0,   // [0:368] is the sub-list for field type_name
 }
 
 func init() { file_proto_p2pstream_v1_management_proto_init() }
@@ -26906,8 +30572,8 @@ func file_proto_p2pstream_v1_management_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_p2pstream_v1_management_proto_rawDesc), len(file_proto_p2pstream_v1_management_proto_rawDesc)),
-			NumEnums:      53,
-			NumMessages:   268,
+			NumEnums:      58,
+			NumMessages:   299,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

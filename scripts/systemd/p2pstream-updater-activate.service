@@ -1,0 +1,39 @@
+[Unit]
+Description=p2pstream offline update activator
+StartLimitIntervalSec=10min
+StartLimitBurst=5
+ConditionPathExists=/etc/p2pstream-updater/enrolled.json
+ConditionPathExists=/etc/p2pstream-updater/root.json
+ConditionPathExists=/etc/p2pstream-updater/management-authority.json
+
+[Service]
+Type=oneshot
+Restart=on-failure
+RestartSec=30s
+User=root
+Group=root
+ExecStart=/opt/p2pstream-agent/updater/p2pstream updater activate
+ExecStartPost=/usr/bin/systemctl start --no-block p2pstream-updater.service
+ExecStopPost=/usr/bin/systemctl start --no-block p2pstream-updater.service
+UMask=0077
+NoNewPrivileges=true
+PrivateNetwork=true
+IPAddressDeny=any
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/var/lib/p2pstream-updater /opt/p2pstream-agent
