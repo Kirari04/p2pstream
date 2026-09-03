@@ -7,7 +7,7 @@ import (
 
 func (p Paths) validate() error {
 	values := map[string]string{
-		"config": p.ConfigPath, "trust": p.TrustPath, "state": p.StateDir,
+		"config": p.ConfigPath, "state": p.StateDir,
 		"install root": p.InstallRoot, "command": p.CommandPath,
 	}
 	for name, value := range values {

@@ -307,7 +307,6 @@ test_existing_install_managed_updater_bootstrap_preserves_env() {
   run_installer \
     P2PSTREAM_ENABLE_MANAGED_UPDATES="true" \
     P2PSTREAM_UPDATER_ENROLLMENT_TOKEN="single-use-updater-token" \
-    P2PSTREAM_AGENT_UPDATE_ROOT_BASE64="$(base64_value '{}')" \
 	P2PSTREAM_EXISTING_TUNNEL_VERSION="v1.2.3" \
 	P2PSTREAM_EXISTING_TUNNEL_COMMIT="1111111111111111111111111111111111111111" \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
@@ -364,7 +363,6 @@ test_existing_install_managed_updater_rejects_mismatched_service_before_mutation
   if run_installer \
     P2PSTREAM_ENABLE_MANAGED_UPDATES="true" \
     P2PSTREAM_UPDATER_ENROLLMENT_TOKEN="single-use-updater-token" \
-    P2PSTREAM_AGENT_UPDATE_ROOT_BASE64="$(base64_value '{}')" \
     P2PSTREAM_EXISTING_TUNNEL_VERSION="v1.2.3" \
     P2PSTREAM_EXISTING_TUNNEL_COMMIT="1111111111111111111111111111111111111111" \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
@@ -386,7 +384,6 @@ test_managed_updater_requires_separate_enrollment_token_before_mutation() {
   setup_fixture
   if run_installer \
     P2PSTREAM_ENABLE_MANAGED_UPDATES="true" \
-    P2PSTREAM_AGENT_UPDATE_ROOT_BASE64="$(base64_value '{}')" \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     AGENT_ID="agent-one" \
     AGENT_TOKEN="agent-token" \
@@ -402,7 +399,6 @@ test_managed_updater_requires_separate_enrollment_token_before_mutation() {
   if run_installer \
     P2PSTREAM_ENABLE_MANAGED_UPDATES="true" \
     P2PSTREAM_UPDATER_ENROLLMENT_TOKEN="single-use" \
-    P2PSTREAM_AGENT_UPDATE_ROOT_BASE64="$(base64_value '{}')" \
     P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64="" \
     MANAGEMENT_URL="https://mgmt.example.test:8081" \
     AGENT_ID="agent-one" \
@@ -423,7 +419,6 @@ test_managed_updater_reenrollment_updates_only_pinned_rescue() {
 	run_installer \
 		P2PSTREAM_ENABLE_MANAGED_UPDATES="true" \
 		P2PSTREAM_UPDATER_ENROLLMENT_TOKEN="first-updater-token" \
-		P2PSTREAM_AGENT_UPDATE_ROOT_BASE64="$(base64_value '{}')" \
 		P2PSTREAM_EXISTING_TUNNEL_VERSION="v1.2.3" \
 		P2PSTREAM_EXISTING_TUNNEL_COMMIT="1111111111111111111111111111111111111111" \
 		MANAGEMENT_URL="https://mgmt.example.test:8081" \
@@ -440,7 +435,6 @@ test_managed_updater_reenrollment_updates_only_pinned_rescue() {
 	run_installer \
 		P2PSTREAM_ENABLE_MANAGED_UPDATES="true" \
 		P2PSTREAM_UPDATER_ENROLLMENT_TOKEN="replacement-updater-token" \
-		P2PSTREAM_AGENT_UPDATE_ROOT_BASE64="$(base64_value '{}')" \
 		MANAGEMENT_URL="https://mgmt.example.test:8081" \
 		AGENT_ID="agent-one"
 

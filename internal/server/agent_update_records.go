@@ -29,7 +29,7 @@ type signedAssignmentAuthorization struct {
 
 func agentUpdaterIdentityByAgentID(ctx context.Context, query db.DBTX, agentID int64) (agentUpdaterIdentityRow, error) {
 	var row agentUpdaterIdentityRow
-	err := query.QueryRowContext(ctx, `SELECT i.agent_id,i.updater_key_id,i.updater_public_key,i.activator_key_id,i.activator_public_key,i.os,i.arch,i.updater_version,i.trusted_root_sha256,i.trusted_root_version,i.pinned_repository,i.authority_key_id,i.authority_epoch,i.enrollment_generation,i.enrollment_receipt_payload,i.enrollment_receipt_signature,i.enabled,i.last_counter,i.last_command_sequence,i.last_root_action_counter,i.enrolled_at,i.last_seen_at,i.updated_at,a.public_id FROM agent_updater_identities i JOIN agents a ON a.id=i.agent_id WHERE i.agent_id=? AND a.enabled=1 AND i.enabled=1`, agentID).Scan(&row.AgentID, &row.UpdaterKeyID, &row.UpdaterPublicKey, &row.ActivatorKeyID, &row.ActivatorPublicKey, &row.Os, &row.Arch, &row.UpdaterVersion, &row.TrustedRootSha256, &row.TrustedRootVersion, &row.PinnedRepository, &row.AuthorityKeyID, &row.AuthorityEpoch, &row.EnrollmentGeneration, &row.EnrollmentReceiptPayload, &row.EnrollmentReceiptSignature, &row.Enabled, &row.LastCounter, &row.LastCommandSequence, &row.LastRootActionCounter, &row.EnrolledAt, &row.LastSeenAt, &row.UpdatedAt, &row.AgentPublicID)
+	err := query.QueryRowContext(ctx, `SELECT i.agent_id,i.updater_key_id,i.updater_public_key,i.activator_key_id,i.activator_public_key,i.os,i.arch,i.updater_version,i.pinned_repository,i.authority_key_id,i.authority_epoch,i.enrollment_generation,i.enrollment_receipt_payload,i.enrollment_receipt_signature,i.enabled,i.last_counter,i.last_command_sequence,i.last_root_action_counter,i.enrolled_at,i.last_seen_at,i.updated_at,a.public_id FROM agent_updater_identities i JOIN agents a ON a.id=i.agent_id WHERE i.agent_id=? AND a.enabled=1 AND i.enabled=1`, agentID).Scan(&row.AgentID, &row.UpdaterKeyID, &row.UpdaterPublicKey, &row.ActivatorKeyID, &row.ActivatorPublicKey, &row.Os, &row.Arch, &row.UpdaterVersion, &row.PinnedRepository, &row.AuthorityKeyID, &row.AuthorityEpoch, &row.EnrollmentGeneration, &row.EnrollmentReceiptPayload, &row.EnrollmentReceiptSignature, &row.Enabled, &row.LastCounter, &row.LastCommandSequence, &row.LastRootActionCounter, &row.EnrolledAt, &row.LastSeenAt, &row.UpdatedAt, &row.AgentPublicID)
 	return row, err
 }
 
@@ -112,8 +112,8 @@ func (a *App) issueAssignmentAuthorizationTx(ctx context.Context, tx *sql.Tx, id
 		Generation: assignment.Generation, Action: authAction, CommandSequence: uint64(previous + 1), Nonce: nonce,
 		IssuedAtUnixMillis: now.UnixMilli(), ExpiresAtUnixMillis: now.Add(agentupdateauth.MaxAuthorizationLifetime).UnixMilli(),
 		AuthorityKeyID: authorityIdentity.KeyID, AuthorityEpoch: authorityIdentity.Epoch, ServerVersion: buildinfo.Version,
-		RootVersion: uint64(campaign.RootVersion), ManifestSHA256: campaign.ManifestSha256,
-		TargetVersion: campaign.TargetVersion, TargetCommit: campaign.TargetCommit,
+		ManifestSHA256: campaign.ManifestSha256,
+		TargetVersion:  campaign.TargetVersion, TargetCommit: campaign.TargetCommit,
 		ReleaseSequence: uint64(campaign.ReleaseSequence), SecurityEpoch: uint64(campaign.SecurityEpoch),
 		OS: identity.Os, Arch: identity.Arch, ArtifactName: artifact.Name, ArtifactSize: artifact.SizeBytes, ArtifactSHA256: artifact.Sha256,
 	}
@@ -195,7 +195,7 @@ func assignmentAuthorizationProto(record signedAssignmentAuthorization) *p2pstre
 		Action: desiredActionAuthProto(v.Action), CommandSequence: v.CommandSequence, Nonce: append([]byte(nil), v.Nonce...),
 		IssuedAtUnixMillis: v.IssuedAtUnixMillis, ExpiresAtUnixMillis: v.ExpiresAtUnixMillis,
 		AuthorityKeyId: v.AuthorityKeyID, AuthorityEpoch: v.AuthorityEpoch, ServerVersion: v.ServerVersion,
-		RootVersion: v.RootVersion, ManifestSha256: v.ManifestSHA256, TargetVersion: v.TargetVersion,
+		ManifestSha256: v.ManifestSHA256, TargetVersion: v.TargetVersion,
 		TargetCommit: v.TargetCommit, ReleaseSequence: v.ReleaseSequence, SecurityEpoch: v.SecurityEpoch,
 		Os: v.OS, Arch: v.Arch, ArtifactName: v.ArtifactName, ArtifactSize: v.ArtifactSize,
 		ArtifactSha256: v.ArtifactSHA256, CanonicalPayload: append([]byte(nil), record.Payload...), Signature: append([]byte(nil), record.Signature...),
@@ -217,8 +217,8 @@ func storedAssignmentAuthorization(assignment agentUpdateAssignmentRow, campaign
 		Nonce: append([]byte(nil), assignment.AuthorizationNonce...), IssuedAtUnixMillis: assignment.AuthorizationIssuedAt.Time.UnixMilli(),
 		ExpiresAtUnixMillis: assignment.AuthorizationExpiresAt.Time.UnixMilli(), AuthorityKeyID: identity.AuthorityKeyID,
 		AuthorityEpoch: uint64(identity.AuthorityEpoch), ServerVersion: assignment.AuthorizationServerVersion,
-		RootVersion: uint64(campaign.RootVersion), ManifestSHA256: campaign.ManifestSha256,
-		TargetVersion: campaign.TargetVersion, TargetCommit: campaign.TargetCommit,
+		ManifestSHA256: campaign.ManifestSha256,
+		TargetVersion:  campaign.TargetVersion, TargetCommit: campaign.TargetCommit,
 		ReleaseSequence: uint64(campaign.ReleaseSequence), SecurityEpoch: uint64(campaign.SecurityEpoch),
 		OS: identity.Os, Arch: identity.Arch, ArtifactName: artifact.Name, ArtifactSize: artifact.SizeBytes, ArtifactSHA256: artifact.Sha256,
 	}
@@ -239,8 +239,7 @@ func enrollmentReceiptProto(value agentupdateauth.EnrollmentReceipt, payload, si
 		AgentPublicId: value.AgentPublicID, UpdaterKeyId: value.UpdaterKeyID,
 		UpdaterPublicKeySha256: value.UpdaterPublicKeySHA256, ActivatorKeyId: value.ActivatorKeyID,
 		ActivatorPublicKeySha256: value.ActivatorPublicKeySHA256, Os: value.OS, Arch: value.Arch,
-		UpdaterVersion: value.UpdaterVersion, TrustedRootSha256: value.TrustedRootSHA256,
-		TrustedRootVersion: value.TrustedRootVersion, PinnedRepository: value.PinnedRepository,
+		UpdaterVersion: value.UpdaterVersion, PinnedRepository: value.PinnedRepository,
 		AuthorityKeyId: value.AuthorityKeyID, AuthorityEpoch: value.AuthorityEpoch,
 		EnrolledAtUnixMillis: value.EnrolledAtUnixMillis, ExpiresAtUnixMillis: value.ExpiresAtUnixMillis,
 		Generation: value.Generation, CanonicalPayload: append([]byte(nil), payload...), Signature: append([]byte(nil), signature...),
@@ -249,8 +248,8 @@ func enrollmentReceiptProto(value agentupdateauth.EnrollmentReceipt, payload, si
 
 func rootActionResultKindFromProto(value p2pstreamv1.AgentUpdateRootActionResultKind) (agentupdateauth.RootActionResultKind, error) {
 	switch value {
-	case p2pstreamv1.AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE:
-		return agentupdateauth.RootActionResultSignedRelease, nil
+	case p2pstreamv1.AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_RELEASE:
+		return agentupdateauth.RootActionResultRelease, nil
 	case p2pstreamv1.AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP:
 		return agentupdateauth.RootActionResultBootstrap, nil
 	default:
@@ -276,8 +275,8 @@ func rootActionReceiptFromProto(value *p2pstreamv1.AgentUpdateRootActionReceipt)
 		AuthorizationSHA256: value.AuthorizationSha256, AuthorizationNonce: append([]byte(nil), value.AuthorizationNonce...),
 		AuthorityKeyID: value.AuthorityKeyId, AuthorityEpoch: value.AuthorityEpoch, ActivatorKeyID: value.ActivatorKeyId,
 		RootActionCounter: value.RootActionCounter, CompletedAtUnixMillis: value.CompletedAtUnixMillis, ResultKind: kind,
-		ResultRootVersion: value.ResultRootVersion, ResultManifestSHA256: value.ResultManifestSha256,
-		ResultVersion: value.ResultVersion, ResultCommit: value.ResultCommit,
+		ResultManifestSHA256: value.ResultManifestSha256,
+		ResultVersion:        value.ResultVersion, ResultCommit: value.ResultCommit,
 		ResultReleaseSequence: value.ResultReleaseSequence, ResultSecurityEpoch: value.ResultSecurityEpoch,
 		ResultOS: value.ResultOs, ResultArch: value.ResultArch, ResultArtifactName: value.ResultArtifactName,
 		ResultArtifactSize: value.ResultArtifactSize, ResultArtifactSHA256: value.ResultArtifactSha256,
@@ -318,8 +317,8 @@ func verifyAgentUpdateRootActionReceipt(identity agentUpdaterIdentityRow, assign
 	}
 	artifact := artifactForPlatform(campaign.Artifacts, identity.Os, identity.Arch)
 	if expectedAction == agentupdateauth.AssignmentActionActivate {
-		if receipt.ResultKind != agentupdateauth.RootActionResultSignedRelease || artifact == nil ||
-			receipt.ResultRootVersion != uint64(campaign.RootVersion) || receipt.ResultManifestSHA256 != campaign.ManifestSha256 ||
+		if receipt.ResultKind != agentupdateauth.RootActionResultRelease || artifact == nil ||
+			receipt.ResultManifestSHA256 != campaign.ManifestSha256 ||
 			receipt.ResultVersion != campaign.TargetVersion || receipt.ResultCommit != campaign.TargetCommit ||
 			receipt.ResultReleaseSequence != uint64(campaign.ReleaseSequence) || receipt.ResultSecurityEpoch != uint64(campaign.SecurityEpoch) ||
 			receipt.ResultOS != identity.Os || receipt.ResultArch != identity.Arch || receipt.ResultArtifactName != artifact.Name ||
@@ -330,7 +329,7 @@ func verifyAgentUpdateRootActionReceipt(identity agentUpdaterIdentityRow, assign
 		if receipt.ResultOS != identity.Os || receipt.ResultArch != identity.Arch {
 			return agentupdateauth.RootActionReceipt{}, nil, nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("rollback receipt result platform does not match the enrolled host"))
 		}
-		if artifact != nil && receipt.ResultKind == agentupdateauth.RootActionResultSignedRelease &&
+		if artifact != nil && receipt.ResultKind == agentupdateauth.RootActionResultRelease &&
 			receipt.ResultVersion == campaign.TargetVersion && receipt.ResultCommit == campaign.TargetCommit && receipt.ResultArtifactSHA256 == artifact.Sha256 {
 			return agentupdateauth.RootActionReceipt{}, nil, nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("rollback receipt did not move away from the failed campaign target"))
 		}

@@ -85,7 +85,6 @@ type AgentUpdateAssignment struct {
 	RootActionReceiptSignature []byte       `json:"root_action_receipt_signature"`
 	RootActionCompletedAt      sql.NullTime `json:"root_action_completed_at"`
 	RootResultKind             string       `json:"root_result_kind"`
-	RootResultRootVersion      int64        `json:"root_result_root_version"`
 	RootResultManifestSha256   string       `json:"root_result_manifest_sha256"`
 	RootResultVersion          string       `json:"root_result_version"`
 	RootResultCommit           string       `json:"root_result_commit"`
@@ -117,7 +116,6 @@ type AgentUpdateCampaign struct {
 	TargetCommit                  string        `json:"target_commit"`
 	ManifestSha256                string        `json:"manifest_sha256"`
 	ReleaseSequence               int64         `json:"release_sequence"`
-	RootVersion                   int64         `json:"root_version"`
 	SecurityEpoch                 int64         `json:"security_epoch"`
 	MinimumUpdaterVersion         string        `json:"minimum_updater_version"`
 	MinimumTunnelProtocol         int64         `json:"minimum_tunnel_protocol"`
@@ -157,8 +155,6 @@ type AgentUpdaterEnrollmentToken struct {
 	ID                   int64        `json:"id"`
 	AgentID              int64        `json:"agent_id"`
 	TokenHash            string       `json:"token_hash"`
-	TrustedRootSha256    string       `json:"trusted_root_sha256"`
-	TrustedRootVersion   int64        `json:"trusted_root_version"`
 	PinnedRepository     string       `json:"pinned_repository"`
 	AuthorityKeyID       string       `json:"authority_key_id"`
 	AuthorityEpoch       int64        `json:"authority_epoch"`
@@ -185,8 +181,6 @@ type AgentUpdaterIdentity struct {
 	Os                         string       `json:"os"`
 	Arch                       string       `json:"arch"`
 	UpdaterVersion             string       `json:"updater_version"`
-	TrustedRootSha256          string       `json:"trusted_root_sha256"`
-	TrustedRootVersion         int64        `json:"trusted_root_version"`
 	PinnedRepository           string       `json:"pinned_repository"`
 	AuthorityKeyID             string       `json:"authority_key_id"`
 	AuthorityEpoch             int64        `json:"authority_epoch"`

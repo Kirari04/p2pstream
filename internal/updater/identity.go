@@ -1,7 +1,6 @@
 package updater
 
 import (
-	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
@@ -17,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"golang.org/x/mod/semver"
 	"golang.org/x/sys/unix"
@@ -26,8 +24,6 @@ import (
 	"p2pstream/internal/agentupdateauth"
 	"p2pstream/internal/buildinfo"
 )
-
-const bootstrapRootMinLifetime = 24*time.Hour + 5*time.Minute
 
 type PublicIdentities struct {
 	WorkerPublicKey    string `json:"worker_public_key"`
@@ -39,7 +35,6 @@ type BootstrapOptions struct {
 	UpdaterUser        string
 	Config             HostConfig
 	EnrollmentToken    string
-	TrustedRootJSON    []byte
 	AuthorityPublicKey []byte
 	AuthorityKeyID     string
 	AuthorityEpoch     uint64
@@ -65,9 +60,8 @@ func (p Paths) activatorPublicKeyPath() string {
 	return filepath.Join(filepath.Dir(p.ConfigPath), "activator.pub")
 }
 
-// BootstrapHost creates local identities and fixed storage roots, and pins the
-// explicitly supplied out-of-band trust root. It does not enroll, enable a
-// timer, or consume the tunnel agent token.
+// BootstrapHost creates local identities and fixed storage roots. It does not
+// enroll, enable a timer, or consume the tunnel agent token.
 
 func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 	paths := options.Paths
@@ -85,13 +79,6 @@ func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 	}
 	if options.EnrollmentToken == "" || len(options.EnrollmentToken) > 4096 || strings.ContainsAny(options.EnrollmentToken, "\r\n") {
 		return PublicIdentities{}, errors.New("single-use updater enrollment token is missing or invalid")
-	}
-	trustedRoot, err := agentupdate.ParseRoot(options.TrustedRootJSON)
-	if err != nil {
-		return PublicIdentities{}, fmt.Errorf("validate out-of-band update root: %w", err)
-	}
-	if err := requireBootstrapRootLifetime(trustedRoot.ExpiresAt, time.Now().UTC()); err != nil {
-		return PublicIdentities{}, err
 	}
 	if !validVersionForChannel(options.CurrentVersion, options.Config.Channel) {
 		return PublicIdentities{}, fmt.Errorf("managed updater current version must match the %s release channel", options.Config.Channel)
@@ -134,7 +121,7 @@ func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 			return PublicIdentities{}, err
 		}
 	}
-	// Validate immutable trust/config pins before mutating enrollment tokens or
+	// Validate immutable config pins before mutating enrollment tokens or
 	// identities, so a rejected re-bootstrap leaves the existing host intact.
 	if options.Reenroll {
 		if _, err := readRegularNoFollow(paths.enrolledPath(), 64<<10); err != nil {
@@ -142,7 +129,7 @@ func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 		}
 	}
 	initialVersionFloor := bootstrapVersionFloor(options.CurrentVersion, options.ExistingTunnelVersion)
-	if err := pinBootstrapState(paths, options.TrustedRootJSON, trustedRoot.Version, initialVersionFloor, !options.Reenroll, 0, gid); err != nil {
+	if err := pinBootstrapState(paths, initialVersionFloor, !options.Reenroll, 0, gid); err != nil {
 		return PublicIdentities{}, err
 	}
 	if err := pinHostConfig(paths.ConfigPath, options.Config, 0, gid); err != nil {
@@ -253,47 +240,12 @@ func pinBootstrapSlotMetadata(paths Paths, buildVersion, buildCommit string) err
 	}
 }
 
-func requireBootstrapRootLifetime(expiresText string, now time.Time) error {
-	expiresAt, err := time.Parse(time.RFC3339, expiresText)
-	if err != nil || expiresAt.Before(now.Add(bootstrapRootMinLifetime)) {
-		return errors.New("out-of-band update root expires too soon for safe enrollment")
-	}
-	return nil
-}
-
-// pinBootstrapState permits first-use pinning but never implicit root
-// replacement. Root rotation requires the separately threshold-authorized
-// rotation path. Re-bootstrap may advance the installed version floor, but it
-// cannot reset sequence, epoch, minimum-safe-version, or root floors.
-func pinBootstrapState(paths Paths, trustedRootJSON []byte, rootVersion uint64, currentVersion string, advanceVersionFloor bool, owner, group int) error {
-	existingRoot, err := readRegularNoFollow(paths.TrustPath, defaultMaxMetadata)
-	switch {
-	case err == nil:
-		if !bytes.Equal(existingRoot, trustedRootJSON) {
-			return errors.New("refusing to replace the pinned updater trust root during bootstrap")
-		}
-		if err := requireProtectedRegularFile(paths.TrustPath, 0640, owner, group); err != nil {
-			return fmt.Errorf("pinned updater trust root is not protected: %w", err)
-		}
-	case errors.Is(err, os.ErrNotExist):
-		if err := atomicWrite(paths.TrustPath, trustedRootJSON, 0640); err != nil {
-			return err
-		}
-		if err := os.Chown(paths.TrustPath, owner, group); err != nil {
-			return err
-		}
-	default:
-		return err
-	}
+// pinBootstrapState may advance the installed version floor, but it cannot
+// reset sequence, epoch, or minimum-safe-version floors.
+func pinBootstrapState(paths Paths, currentVersion string, advanceVersionFloor bool, owner, group int) error {
 	floor, err := loadFloor(paths.floorPath())
 	if err != nil {
 		return err
-	}
-	if floor.RootVersion > rootVersion {
-		return errors.New("bootstrap trust root is below the persisted root version floor")
-	}
-	if floor.RootVersion < rootVersion {
-		floor.RootVersion = rootVersion
 	}
 	if advanceVersionFloor && (floor.Version == "" || semver.Compare(currentVersion, floor.Version) > 0) {
 		floor.Version = currentVersion

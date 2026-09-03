@@ -5,10 +5,7 @@ export type CreatedAgentSetup = {
   token: string;
   updaterEnrollmentToken: string;
   updaterEnrollmentExpiresAtUnixMillis: bigint;
-  updaterTrustedRootMetadataBase64: string;
   updaterPinnedRepository: string;
-  updaterTrustedRootSha256: string;
-  updaterTrustedRootVersion: bigint;
   updaterManagementAuthorityPublicKeyBase64: string;
   updaterManagementAuthorityKeyId: string;
   updaterManagementAuthorityEpoch: bigint;

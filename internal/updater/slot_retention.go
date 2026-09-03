@@ -234,7 +234,7 @@ func retainOptionalRollbackResult(paths Paths, retained map[string]struct{}) {
 func retainReceiptResult(retained map[string]struct{}, receipt agentupdateauth.RootActionReceipt) error {
 	var slotName string
 	switch receipt.ResultKind {
-	case agentupdateauth.RootActionResultSignedRelease:
+	case agentupdateauth.RootActionResultRelease:
 		slotName = receipt.ResultVersion
 	case agentupdateauth.RootActionResultBootstrap:
 		if !digestPattern.MatchString(receipt.ResultArtifactSHA256) {

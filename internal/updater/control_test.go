@@ -5,9 +5,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/x509"
-	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
@@ -36,7 +34,6 @@ type fakeControlAPI struct {
 	reportCounters       []uint64
 	failFirstEnroll      bool
 	authorityPrivate     ed25519.PrivateKey
-	trustedRoot          []byte
 	receipt              *p2pstreamv1.AgentUpdaterEnrollmentReceipt
 	mutateEnrollment     func(*p2pstreamv1.AgentUpdaterEnrollmentReceipt)
 	lastReport           *p2pstreamv1.ReportAgentUpdateRequest
@@ -69,12 +66,7 @@ func (f *fakeControlAPI) EnrollAgentUpdater(_ context.Context, request *connect.
 		f.t.Fatalf("enrollment request = %+v", request.Msg)
 	}
 	if f.receipt == nil {
-		root, err := agentupdate.ParseRoot(f.trustedRoot)
-		if err != nil {
-			f.t.Fatal(err)
-		}
 		authorityKeyID, _ := agentupdateauth.KeyID(f.authorityPrivate.Public().(ed25519.PublicKey))
-		rootDigest := sha256.Sum256(f.trustedRoot)
 		now := time.Now().UTC()
 		generation := f.enrollmentGeneration
 		if generation == 0 {
@@ -84,7 +76,6 @@ func (f *fakeControlAPI) EnrollAgentUpdater(_ context.Context, request *connect.
 			AgentPublicID: request.Msg.AgentPublicId, UpdaterKeyID: keyID(f.updaterPublic), UpdaterPublicKeySHA256: keyID(f.updaterPublic),
 			ActivatorKeyID: keyID(f.activatorPublic), ActivatorPublicKeySHA256: keyID(f.activatorPublic),
 			OS: request.Msg.Os, Arch: request.Msg.Arch, UpdaterVersion: request.Msg.UpdaterVersion,
-			TrustedRootSHA256: hex.EncodeToString(rootDigest[:]), TrustedRootVersion: root.Version,
 			PinnedRepository: "owner/repo", AuthorityKeyID: authorityKeyID, AuthorityEpoch: 1,
 			EnrolledAtUnixMillis: now.UnixMilli(), ExpiresAtUnixMillis: now.Add(time.Hour).UnixMilli(), Generation: generation,
 		}
@@ -116,40 +107,27 @@ func enrollmentReceiptToProto(value agentupdateauth.EnrollmentReceipt, payload, 
 		AgentPublicId: value.AgentPublicID, UpdaterKeyId: value.UpdaterKeyID, UpdaterPublicKeySha256: value.UpdaterPublicKeySHA256,
 		ActivatorKeyId: value.ActivatorKeyID, ActivatorPublicKeySha256: value.ActivatorPublicKeySHA256,
 		Os: value.OS, Arch: value.Arch, UpdaterVersion: value.UpdaterVersion,
-		TrustedRootSha256: value.TrustedRootSHA256, TrustedRootVersion: value.TrustedRootVersion,
 		PinnedRepository: value.PinnedRepository, AuthorityKeyId: value.AuthorityKeyID, AuthorityEpoch: value.AuthorityEpoch,
 		EnrolledAtUnixMillis: value.EnrolledAtUnixMillis, ExpiresAtUnixMillis: value.ExpiresAtUnixMillis,
 		Generation: value.Generation, CanonicalPayload: payload, Signature: signature,
 	}
 }
 
-func prepareEnrollmentTrust(t *testing.T, paths Paths) (ed25519.PrivateKey, []byte) {
+func prepareEnrollmentTrust(t *testing.T, paths Paths) ed25519.PrivateKey {
 	t.Helper()
 	authorityPublic, authorityPrivate, _ := ed25519.GenerateKey(rand.Reader)
 	authorityKeyID, _ := agentupdateauth.KeyID(authorityPublic)
 	if err := atomicJSON(paths.authorityPath(), pinnedManagementAuthority{KeyID: authorityKeyID, Epoch: 1, PublicKey: mustEncodePublicKey(t, authorityPublic)}, 0640); err != nil {
 		t.Fatal(err)
 	}
-	rootPublic, _, _ := ed25519.GenerateKey(rand.Reader)
-	root, err := agentupdate.NewRootMetadata(1, time.Now().UTC().Add(72*time.Hour).Format(time.RFC3339), 1, []ed25519.PublicKey{rootPublic})
-	if err != nil {
-		t.Fatal(err)
-	}
-	rootJSON, err := agentupdate.CanonicalRoot(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(paths.TrustPath, rootJSON, 0640); err != nil {
-		t.Fatal(err)
-	}
-	return authorityPrivate, rootJSON
+	return authorityPrivate
 }
 
 func TestEnrollmentRetriesSameIdentityAfterCommittedResponseLoss(t *testing.T) {
 	root := t.TempDir()
 	paths := Paths{
-		ConfigPath: filepath.Join(root, "etc", "updater.json"), TrustPath: filepath.Join(root, "etc", "root.json"),
-		StateDir: filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream"),
+		ConfigPath: filepath.Join(root, "etc", "updater.json"),
+		StateDir:   filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream"),
 	}
 	for _, dir := range []string{filepath.Dir(paths.ConfigPath), paths.workerStateDir(), paths.rootStateDir()} {
 		if err := os.MkdirAll(dir, 0700); err != nil {
@@ -163,8 +141,8 @@ func TestEnrollmentRetriesSameIdentityAfterCommittedResponseLoss(t *testing.T) {
 	if err := os.WriteFile(paths.enrollmentTokenPath(), []byte("single-use\n"), 0640); err != nil {
 		t.Fatal(err)
 	}
-	authorityPrivate, trustedRoot := prepareEnrollmentTrust(t, paths)
-	api := &fakeControlAPI{t: t, updaterPublic: updaterPublic, activatorPublic: activatorPublic, failFirstEnroll: true, authorityPrivate: authorityPrivate, trustedRoot: trustedRoot}
+	authorityPrivate := prepareEnrollmentTrust(t, paths)
+	api := &fakeControlAPI{t: t, updaterPublic: updaterPublic, activatorPublic: activatorPublic, failFirstEnroll: true, authorityPrivate: authorityPrivate}
 	control := WorkerControl{Paths: paths, API: api, UpdaterVersion: "v1.0.0"}
 	config := HostConfig{Repository: "owner/repo", ManagementOrigin: "https://management.example", AgentPublicID: "agent-a", Channel: "stable"}
 	if err := control.Enroll(context.Background(), config); err == nil {
@@ -193,7 +171,7 @@ func TestEnrollmentRejectsForgedOrNonCanonicalReceipt(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			root := t.TempDir()
-			paths := Paths{ConfigPath: filepath.Join(root, "etc", "updater.json"), TrustPath: filepath.Join(root, "etc", "root.json"), StateDir: filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream")}
+			paths := Paths{ConfigPath: filepath.Join(root, "etc", "updater.json"), StateDir: filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream")}
 			for _, dir := range []string{filepath.Dir(paths.ConfigPath), paths.workerStateDir(), paths.rootStateDir()} {
 				if err := os.MkdirAll(dir, 0700); err != nil {
 					t.Fatal(err)
@@ -206,8 +184,8 @@ func TestEnrollmentRejectsForgedOrNonCanonicalReceipt(t *testing.T) {
 			if err := os.WriteFile(paths.enrollmentTokenPath(), []byte("single-use\n"), 0640); err != nil {
 				t.Fatal(err)
 			}
-			authorityPrivate, trustedRoot := prepareEnrollmentTrust(t, paths)
-			api := &fakeControlAPI{t: t, updaterPublic: updaterPublic, activatorPublic: activatorPublic, authorityPrivate: authorityPrivate, trustedRoot: trustedRoot, mutateEnrollment: test.mutate}
+			authorityPrivate := prepareEnrollmentTrust(t, paths)
+			api := &fakeControlAPI{t: t, updaterPublic: updaterPublic, activatorPublic: activatorPublic, authorityPrivate: authorityPrivate, mutateEnrollment: test.mutate}
 			control := WorkerControl{Paths: paths, API: api, UpdaterVersion: "v1.0.0"}
 			config := HostConfig{Repository: "owner/repo", ManagementOrigin: "https://management.example", AgentPublicID: "agent-a", Channel: "stable"}
 			if err := control.Enroll(context.Background(), config); err == nil {
@@ -288,8 +266,8 @@ func (f *fakeControlAPI) ReportAgentUpdate(_ context.Context, request *connect.R
 func TestWorkerEnrollmentUsesSeparateKeysAndPersistsCounterBeforeRetry(t *testing.T) {
 	root := t.TempDir()
 	paths := Paths{
-		ConfigPath: filepath.Join(root, "etc", "updater.json"), TrustPath: filepath.Join(root, "etc", "root.json"),
-		StateDir: filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream"),
+		ConfigPath: filepath.Join(root, "etc", "updater.json"),
+		StateDir:   filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream"),
 	}
 	for _, dir := range []string{filepath.Dir(paths.ConfigPath), paths.workerStateDir(), paths.rootStateDir()} {
 		if err := os.MkdirAll(dir, 0700); err != nil {
@@ -303,8 +281,8 @@ func TestWorkerEnrollmentUsesSeparateKeysAndPersistsCounterBeforeRetry(t *testin
 	if err := os.WriteFile(paths.enrollmentTokenPath(), []byte("single-use\n"), 0640); err != nil {
 		t.Fatal(err)
 	}
-	authorityPrivate, trustedRoot := prepareEnrollmentTrust(t, paths)
-	api := &fakeControlAPI{t: t, updaterPublic: updaterPublic, activatorPublic: activatorPublic, authorityPrivate: authorityPrivate, trustedRoot: trustedRoot}
+	authorityPrivate := prepareEnrollmentTrust(t, paths)
+	api := &fakeControlAPI{t: t, updaterPublic: updaterPublic, activatorPublic: activatorPublic, authorityPrivate: authorityPrivate}
 	control := WorkerControl{Paths: paths, API: api, UpdaterVersion: "v1.0.0"}
 	config := HostConfig{Repository: "owner/repo", ManagementOrigin: "https://management.example", AgentPublicID: "agent-a", Channel: "stable"}
 	if err := control.Enroll(context.Background(), config); err != nil {
@@ -329,8 +307,8 @@ func TestWorkerEnrollmentUsesSeparateKeysAndPersistsCounterBeforeRetry(t *testin
 func TestWorkerReenrollmentRequiresNewSignedGenerationAndRecoversAfterCheckFailure(t *testing.T) {
 	root := t.TempDir()
 	paths := Paths{
-		ConfigPath: filepath.Join(root, "etc", "updater.json"), TrustPath: filepath.Join(root, "etc", "root.json"),
-		StateDir: filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream"),
+		ConfigPath: filepath.Join(root, "etc", "updater.json"),
+		StateDir:   filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream"),
 	}
 	for _, dir := range []string{filepath.Dir(paths.ConfigPath), paths.workerStateDir(), paths.rootStateDir()} {
 		if err := os.MkdirAll(dir, 0700); err != nil {
@@ -344,8 +322,8 @@ func TestWorkerReenrollmentRequiresNewSignedGenerationAndRecoversAfterCheckFailu
 	if err := os.WriteFile(paths.enrollmentTokenPath(), []byte("single-use\n"), 0640); err != nil {
 		t.Fatal(err)
 	}
-	authorityPrivate, trustedRoot := prepareEnrollmentTrust(t, paths)
-	api := &fakeControlAPI{t: t, updaterPublic: updaterPublic, activatorPublic: activatorPublic, authorityPrivate: authorityPrivate, trustedRoot: trustedRoot}
+	authorityPrivate := prepareEnrollmentTrust(t, paths)
+	api := &fakeControlAPI{t: t, updaterPublic: updaterPublic, activatorPublic: activatorPublic, authorityPrivate: authorityPrivate}
 	control := WorkerControl{Paths: paths, API: api, UpdaterVersion: "v1.0.0"}
 	config := HostConfig{Repository: "owner/repo", ManagementOrigin: "https://management.example", AgentPublicID: "agent-a", Channel: "stable"}
 	if err := control.Enroll(context.Background(), config); err != nil {
@@ -401,7 +379,7 @@ func TestWorkerReenrollmentRequiresNewSignedGenerationAndRecoversAfterCheckFailu
 
 func TestWorkerReportUsesNextReservedCounterAndCanonicalPayload(t *testing.T) {
 	root := t.TempDir()
-	paths := Paths{ConfigPath: filepath.Join(root, "etc", "updater.json"), TrustPath: filepath.Join(root, "etc", "root.json"), StateDir: filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream")}
+	paths := Paths{ConfigPath: filepath.Join(root, "etc", "updater.json"), StateDir: filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream")}
 	if err := os.MkdirAll(paths.workerStateDir(), 0700); err != nil {
 		t.Fatal(err)
 	}

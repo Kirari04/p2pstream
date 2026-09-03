@@ -11,8 +11,8 @@ func TestHostConfigPinsExactGitHubRawArtifactURL(t *testing.T) {
 	release := VerifiedRelease{
 		Version: "v1.2.3", Commit: strings.Repeat("a", 40),
 		ManifestSHA256: strings.Repeat("b", 64), Sequence: 2, SecurityEpoch: 1,
-		MinimumSafeVersion: "v1.0.0", RootVersion: 1,
-		Artifact: Artifact{Name: runtimeArtifactName("v1.2.3"), Size: int64(len(body)), SHA256: sha256.Sum256(body)},
+		MinimumSafeVersion: "v1.0.0",
+		Artifact:           Artifact{Name: runtimeArtifactName("v1.2.3"), Size: int64(len(body)), SHA256: sha256.Sum256(body)},
 	}
 	config := HostConfig{Repository: "Kirari04/p2pstream", ManagementOrigin: "https://management.example.test:8081", AgentPublicID: "agent-a", Channel: "stable"}
 	got, err := config.ArtifactURL(release)

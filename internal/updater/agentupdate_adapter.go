@@ -9,23 +9,18 @@ import (
 	"p2pstream/internal/agentupdate"
 )
 
-// AgentUpdateVerifier is the production adapter to the signed release
-// metadata package. It is stateless so the unprivileged worker and privileged
-// activator can perform independent verification.
+// AgentUpdateVerifier is the production adapter to the release metadata
+// package. It is stateless so the worker and activator can independently
+// validate the metadata and artifact digest received through GitHub.
 type AgentUpdateVerifier struct{}
 
-func (AgentUpdateVerifier) Verify(manifestJSON, signaturesJSON, trustedRootJSON []byte, policy VerifyPolicy) (VerifiedRelease, error) {
-	root, err := agentupdate.ParseRoot(trustedRootJSON)
-	if err != nil {
-		return VerifiedRelease{}, err
-	}
-	verified, err := agentupdate.Verify(manifestJSON, signaturesJSON, root, agentupdate.VerifyPolicy{
+func (AgentUpdateVerifier) Verify(manifestJSON []byte, policy VerifyPolicy) (VerifiedRelease, error) {
+	verified, err := agentupdate.Verify(manifestJSON, agentupdate.VerifyPolicy{
 		Now:                       policy.Now,
 		RequiredChannel:           policy.RequiredChannel,
 		CurrentSequence:           policy.CurrentSequence,
 		CurrentSecurityEpoch:      policy.CurrentSecurityEpoch,
 		CurrentMinimumSafeVersion: policy.CurrentMinimumSafeVersion,
-		MinimumRootVersion:        policy.MinimumRootVersion,
 		CurrentVersion:            policy.CurrentVersion,
 		ServerVersion:             policy.ServerVersion,
 		UpdaterVersion:            policy.UpdaterVersion,
@@ -48,8 +43,8 @@ func (AgentUpdateVerifier) Verify(manifestJSON, signaturesJSON, trustedRootJSON 
 	return VerifiedRelease{
 		Version: verified.Version, Commit: verified.Commit, ManifestSHA256: verified.ManifestSHA256,
 		Sequence: verified.Sequence, SecurityEpoch: verified.SecurityEpoch,
-		MinimumSafeVersion: verified.MinimumSafeVersion, RootVersion: verified.Manifest.RootVersion,
-		Artifact: Artifact{Name: verified.Artifact.Name, Size: int64(verified.Artifact.Size), SHA256: sha},
+		MinimumSafeVersion: verified.MinimumSafeVersion,
+		Artifact:           Artifact{Name: verified.Artifact.Name, Size: int64(verified.Artifact.Size), SHA256: sha},
 	}, nil
 }
 

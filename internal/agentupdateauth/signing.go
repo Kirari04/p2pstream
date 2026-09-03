@@ -34,7 +34,6 @@ type Activation struct {
 	Generation      int64
 	Counter         uint64
 	Nonce           []byte
-	RootVersion     int64
 	ManifestSHA256  string
 	TargetVersion   string
 	TargetCommit    string
@@ -56,7 +55,7 @@ func ReportPayload(value Report) []byte {
 }
 
 func ActivationPayload(value Activation) []byte {
-	return record("root-activation", value.AgentPublicID, strconv.FormatInt(value.AssignmentID, 10), strconv.FormatInt(value.Generation, 10), strconv.FormatUint(value.Counter, 10), hex.EncodeToString(value.Nonce), strconv.FormatInt(value.RootVersion, 10), value.ManifestSHA256, value.TargetVersion, value.TargetCommit, strconv.FormatInt(value.ReleaseSequence, 10), strconv.FormatInt(value.SecurityEpoch, 10), value.OS, value.Arch, value.ArtifactName, strconv.FormatInt(value.ArtifactSize, 10), value.ArtifactSHA256)
+	return record("root-activation", value.AgentPublicID, strconv.FormatInt(value.AssignmentID, 10), strconv.FormatInt(value.Generation, 10), strconv.FormatUint(value.Counter, 10), hex.EncodeToString(value.Nonce), value.ManifestSHA256, value.TargetVersion, value.TargetCommit, strconv.FormatInt(value.ReleaseSequence, 10), strconv.FormatInt(value.SecurityEpoch, 10), value.OS, value.Arch, value.ArtifactName, strconv.FormatInt(value.ArtifactSize, 10), value.ArtifactSHA256)
 }
 
 func record(method string, values ...string) []byte {

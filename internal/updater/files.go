@@ -191,7 +191,7 @@ func copyArtifact(dst *os.File, src io.Reader, expected Artifact) error {
 		return fmt.Errorf("artifact size = %d, want %d", n, expected.Size)
 	}
 	if !bytes.Equal(h.Sum(nil), expected.SHA256[:]) {
-		return errors.New("artifact SHA-256 does not match signed metadata")
+		return errors.New("artifact SHA-256 does not match release metadata")
 	}
 	return nil
 }

@@ -7,6 +7,8 @@ import (
 	"errors"
 )
 
+// These helpers encode the local worker and activator identities used to
+// authorize privileged host actions. They are unrelated to release artifacts.
 func EncodePublicKey(publicKey ed25519.PublicKey) (string, error) {
 	if len(publicKey) != ed25519.PublicKeySize {
 		return "", errors.New("invalid Ed25519 public key length")
@@ -15,15 +17,13 @@ func EncodePublicKey(publicKey ed25519.PublicKey) (string, error) {
 }
 
 func ParsePublicKey(encoded string) (ed25519.PublicKey, error) {
-	decoded, err := decodeCanonicalBase64(encoded, ed25519.PublicKeySize)
+	decoded, err := decodeCanonicalKey(encoded, ed25519.PublicKeySize)
 	if err != nil {
 		return nil, err
 	}
 	return ed25519.PublicKey(decoded), nil
 }
 
-// EncodePrivateKey encodes only the 32-byte seed; the public suffix is derived
-// again on parse instead of trusting duplicated key material.
 func EncodePrivateKey(privateKey ed25519.PrivateKey) (string, error) {
 	if len(privateKey) != ed25519.PrivateKeySize {
 		return "", errors.New("invalid Ed25519 private key length")
@@ -36,9 +36,20 @@ func EncodePrivateKey(privateKey ed25519.PrivateKey) (string, error) {
 }
 
 func ParsePrivateKey(encoded string) (ed25519.PrivateKey, error) {
-	seed, err := decodeCanonicalBase64(encoded, ed25519.SeedSize)
+	seed, err := decodeCanonicalKey(encoded, ed25519.SeedSize)
 	if err != nil {
 		return nil, err
 	}
 	return ed25519.NewKeyFromSeed(seed), nil
+}
+
+func decodeCanonicalKey(value string, expectedBytes int) ([]byte, error) {
+	decoded, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		return nil, err
+	}
+	if len(decoded) != expectedBytes || base64.StdEncoding.EncodeToString(decoded) != value {
+		return nil, errors.New("invalid length or non-canonical base64")
+	}
+	return decoded, nil
 }

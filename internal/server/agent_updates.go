@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -79,17 +78,14 @@ type TrustedAgentUpdateCatalog interface {
 	ResolveTrustedAgentUpdateTarget(context.Context, string) (*p2pstreamv1.AgentUpdateTarget, error)
 }
 
-// AgentUpdateBootstrapProvider supplies only pinned trust/bootstrap material;
-// it never supplies commands, local paths, or mutable artifact URLs.
+// AgentUpdateBootstrapProvider supplies the fixed GitHub repository. It never
+// supplies commands, local paths, or mutable artifact URLs.
 type AgentUpdateBootstrapProvider interface {
-	AgentUpdateBootstrapConfig(context.Context) (trustedRootMetadataBase64 string, pinnedRepository string, err error)
+	AgentUpdateBootstrapConfig(context.Context) (pinnedRepository string, err error)
 }
 
 type agentUpdateBootstrap struct {
-	RootMetadataBase64 string
-	RootSHA256         string
-	RootVersion        int64
-	PinnedRepository   string
+	PinnedRepository string
 }
 
 type agentUpdateCampaignRow struct {
@@ -122,8 +118,8 @@ func (a *App) GenerateAgentUpdaterEnrollmentToken(ctx context.Context, req *conn
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
-	if bootstrap.RootMetadataBase64 == "" {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("agent update bootstrap trust is not configured"))
+	if bootstrap.PinnedRepository == "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("agent update repository is not configured"))
 	}
 	_, authorityIdentity, err := a.requireAgentUpdateAuthority()
 	if err != nil {
@@ -140,34 +136,21 @@ func (a *App) GenerateAgentUpdaterEnrollmentToken(ctx context.Context, req *conn
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	return connect.NewResponse(&p2pstreamv1.GenerateAgentUpdaterEnrollmentTokenResponse{Token: token, ExpiresAtUnixMillis: expiresAt.UnixMilli(), TrustedRootMetadataBase64: bootstrap.RootMetadataBase64, PinnedRepository: bootstrap.PinnedRepository, TrustedRootSha256: bootstrap.RootSHA256, TrustedRootVersion: bootstrap.RootVersion, ManagementAuthority: agentUpdateAuthorityProto(authorityIdentity)}), nil
+	return connect.NewResponse(&p2pstreamv1.GenerateAgentUpdaterEnrollmentTokenResponse{Token: token, ExpiresAtUnixMillis: expiresAt.UnixMilli(), PinnedRepository: bootstrap.PinnedRepository, ManagementAuthority: agentUpdateAuthorityProto(authorityIdentity)}), nil
 }
 
 func (a *App) loadAgentUpdateBootstrap(ctx context.Context) (agentUpdateBootstrap, error) {
 	if a == nil || a.AgentUpdateBootstrap == nil {
 		return agentUpdateBootstrap{}, nil
 	}
-	rootBase64, repository, err := a.AgentUpdateBootstrap.AgentUpdateBootstrapConfig(ctx)
+	repository, err := a.AgentUpdateBootstrap.AgentUpdateBootstrapConfig(ctx)
 	if err != nil {
 		return agentUpdateBootstrap{}, err
 	}
-	if len(rootBase64) == 0 || len(rootBase64) > 64<<10 || len(repository) > 201 || !agentUpdateRepositoryRE.MatchString(repository) {
-		return agentUpdateBootstrap{}, errors.New("agent update bootstrap provider returned invalid trust metadata or repository")
+	if len(repository) > 201 || !agentUpdateRepositoryRE.MatchString(repository) {
+		return agentUpdateBootstrap{}, errors.New("agent update bootstrap provider returned an invalid repository")
 	}
-	decoded, err := base64.StdEncoding.Strict().DecodeString(rootBase64)
-	if err != nil || len(decoded) == 0 || len(decoded) > 48<<10 || base64.StdEncoding.EncodeToString(decoded) != rootBase64 {
-		return agentUpdateBootstrap{}, errors.New("agent update bootstrap provider returned non-canonical root metadata")
-	}
-	root, err := agentupdate.ParseRoot(decoded)
-	if err != nil || root.Version == 0 || root.Version > math.MaxInt64 {
-		return agentUpdateBootstrap{}, errors.New("agent update bootstrap provider returned invalid root metadata")
-	}
-	expiresAt, err := time.Parse(time.RFC3339, root.ExpiresAt)
-	if err != nil || !expiresAt.After(time.Now().UTC().Add(agentUpdaterEnrollmentReceiptTTL+agentUpdaterBootstrapClockSkew)) {
-		return agentUpdateBootstrap{}, errors.New("agent update bootstrap root is expired or too close to expiry")
-	}
-	digest := sha256.Sum256(decoded)
-	return agentUpdateBootstrap{RootMetadataBase64: rootBase64, RootSHA256: hex.EncodeToString(digest[:]), RootVersion: int64(root.Version), PinnedRepository: repository}, nil
+	return agentUpdateBootstrap{PinnedRepository: repository}, nil
 }
 
 func (a *App) createAgentUpdaterEnrollmentToken(ctx context.Context, agentID int64, ttl time.Duration, bootstrap agentUpdateBootstrap) (string, time.Time, error) {
@@ -204,7 +187,7 @@ func (a *App) createAgentUpdaterEnrollmentToken(ctx context.Context, agentID int
 	if _, err := tx.ExecContext(ctx, `DELETE FROM agent_updater_enrollment_tokens WHERE agent_id=? AND used_at IS NULL`, agentID); err != nil {
 		return "", time.Time{}, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_updater_enrollment_tokens (agent_id,token_hash,trusted_root_sha256,trusted_root_version,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,expires_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`, agentID, tokenHash, bootstrap.RootSHA256, bootstrap.RootVersion, bootstrap.PinnedRepository, authorityIdentity.KeyID, int64(authorityIdentity.Epoch), generation, expiresAt, now)
+	_, err = tx.ExecContext(ctx, `INSERT INTO agent_updater_enrollment_tokens (agent_id,token_hash,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,expires_at,created_at) VALUES (?,?,?,?,?,?,?,?)`, agentID, tokenHash, bootstrap.PinnedRepository, authorityIdentity.KeyID, int64(authorityIdentity.Epoch), generation, expiresAt, now)
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -271,8 +254,8 @@ func (a *App) EnrollAgentUpdater(ctx context.Context, req *connect.Request[p2pst
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
-	if bootstrap.RootMetadataBase64 == "" {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("agent update bootstrap trust is not configured"))
+	if bootstrap.PinnedRepository == "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("agent update repository is not configured"))
 	}
 	digest := sha256.Sum256([]byte(m.Token))
 	now := time.Now().UTC().Truncate(time.Millisecond)
@@ -283,17 +266,17 @@ func (a *App) EnrollAgentUpdater(ctx context.Context, req *connect.Request[p2pst
 		return nil, publicDBError(err)
 	}
 	defer tx.Rollback()
-	var tokenID, agentID, boundRootVersion, boundAuthorityEpoch, enrollmentGeneration int64
-	var boundRootSHA256, boundRepository, boundAuthorityKeyID string
+	var tokenID, agentID, boundAuthorityEpoch, enrollmentGeneration int64
+	var boundRepository, boundAuthorityKeyID string
 	var usedAt, receiptExpiresAt sql.NullTime
 	var receiptUpdaterKeyID, receiptActivatorKeyID, receiptOS, receiptArch, receiptUpdaterVersion string
 	var storedReceiptPayload, storedReceiptSignature []byte
-	err = tx.QueryRowContext(ctx, `SELECT t.id,t.agent_id,t.trusted_root_sha256,t.trusted_root_version,t.pinned_repository,t.authority_key_id,t.authority_epoch,t.enrollment_generation,t.used_at,t.receipt_expires_at,t.updater_key_id,t.activator_key_id,t.os,t.arch,t.updater_version,t.receipt_payload,t.receipt_signature FROM agent_updater_enrollment_tokens t JOIN agents a ON a.id=t.agent_id WHERE t.token_hash=? AND a.public_id=? AND a.enabled=1 AND ((t.used_at IS NULL AND t.expires_at>?) OR (t.used_at IS NOT NULL AND t.receipt_expires_at>?))`, hex.EncodeToString(digest[:]), m.AgentPublicId, now, now).Scan(&tokenID, &agentID, &boundRootSHA256, &boundRootVersion, &boundRepository, &boundAuthorityKeyID, &boundAuthorityEpoch, &enrollmentGeneration, &usedAt, &receiptExpiresAt, &receiptUpdaterKeyID, &receiptActivatorKeyID, &receiptOS, &receiptArch, &receiptUpdaterVersion, &storedReceiptPayload, &storedReceiptSignature)
+	err = tx.QueryRowContext(ctx, `SELECT t.id,t.agent_id,t.pinned_repository,t.authority_key_id,t.authority_epoch,t.enrollment_generation,t.used_at,t.receipt_expires_at,t.updater_key_id,t.activator_key_id,t.os,t.arch,t.updater_version,t.receipt_payload,t.receipt_signature FROM agent_updater_enrollment_tokens t JOIN agents a ON a.id=t.agent_id WHERE t.token_hash=? AND a.public_id=? AND a.enabled=1 AND ((t.used_at IS NULL AND t.expires_at>?) OR (t.used_at IS NOT NULL AND t.receipt_expires_at>?))`, hex.EncodeToString(digest[:]), m.AgentPublicId, now, now).Scan(&tokenID, &agentID, &boundRepository, &boundAuthorityKeyID, &boundAuthorityEpoch, &enrollmentGeneration, &usedAt, &receiptExpiresAt, &receiptUpdaterKeyID, &receiptActivatorKeyID, &receiptOS, &receiptArch, &receiptUpdaterVersion, &storedReceiptPayload, &storedReceiptSignature)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("updater enrollment token is invalid, expired, or already used"))
 	}
-	if boundRootSHA256 != bootstrap.RootSHA256 || boundRootVersion != bootstrap.RootVersion || boundRepository != bootstrap.PinnedRepository || boundAuthorityKeyID != authorityIdentity.KeyID || boundAuthorityEpoch <= 0 || uint64(boundAuthorityEpoch) != authorityIdentity.Epoch || enrollmentGeneration <= 0 {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("updater enrollment token trust binding no longer matches configured bootstrap trust"))
+	if boundRepository != bootstrap.PinnedRepository || boundAuthorityKeyID != authorityIdentity.KeyID || boundAuthorityEpoch <= 0 || uint64(boundAuthorityEpoch) != authorityIdentity.Epoch || enrollmentGeneration <= 0 {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("updater enrollment token binding no longer matches configured bootstrap state"))
 	}
 	if usedAt.Valid {
 		if receiptUpdaterKeyID != updaterKeyID || receiptActivatorKeyID != activatorKeyID || receiptOS != osName || receiptArch != arch || receiptUpdaterVersion != strings.TrimSpace(m.UpdaterVersion) {
@@ -301,15 +284,14 @@ func (a *App) EnrollAgentUpdater(ctx context.Context, req *connect.Request[p2pst
 		}
 		var storedUpdaterKey, storedActivatorKey, identityReceiptPayload, identityReceiptSignature []byte
 		var enrolledAt time.Time
-		err := tx.QueryRowContext(ctx, `SELECT updater_public_key,activator_public_key,enrolled_at,enrollment_receipt_payload,enrollment_receipt_signature FROM agent_updater_identities WHERE agent_id=? AND updater_key_id=? AND activator_key_id=? AND os=? AND arch=? AND updater_version=? AND trusted_root_sha256=? AND trusted_root_version=? AND pinned_repository=? AND authority_key_id=? AND authority_epoch=? AND enrollment_generation=? AND enabled=1`, agentID, updaterKeyID, activatorKeyID, osName, arch, strings.TrimSpace(m.UpdaterVersion), boundRootSHA256, boundRootVersion, boundRepository, boundAuthorityKeyID, boundAuthorityEpoch, enrollmentGeneration).Scan(&storedUpdaterKey, &storedActivatorKey, &enrolledAt, &identityReceiptPayload, &identityReceiptSignature)
+		err := tx.QueryRowContext(ctx, `SELECT updater_public_key,activator_public_key,enrolled_at,enrollment_receipt_payload,enrollment_receipt_signature FROM agent_updater_identities WHERE agent_id=? AND updater_key_id=? AND activator_key_id=? AND os=? AND arch=? AND updater_version=? AND pinned_repository=? AND authority_key_id=? AND authority_epoch=? AND enrollment_generation=? AND enabled=1`, agentID, updaterKeyID, activatorKeyID, osName, arch, strings.TrimSpace(m.UpdaterVersion), boundRepository, boundAuthorityKeyID, boundAuthorityEpoch, enrollmentGeneration).Scan(&storedUpdaterKey, &storedActivatorKey, &enrolledAt, &identityReceiptPayload, &identityReceiptSignature)
 		if err != nil || !bytes.Equal(storedUpdaterKey, m.UpdaterPublicKey) || !bytes.Equal(storedActivatorKey, m.ActivatorPublicKey) {
 			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("updater enrollment receipt no longer matches the active identity"))
 		}
 		receipt := agentupdateauth.EnrollmentReceipt{
 			AgentPublicID: m.AgentPublicId, UpdaterKeyID: updaterKeyID, UpdaterPublicKeySHA256: updaterKeyID,
 			ActivatorKeyID: activatorKeyID, ActivatorPublicKeySHA256: activatorKeyID, OS: osName, Arch: arch,
-			UpdaterVersion: strings.TrimSpace(m.UpdaterVersion), TrustedRootSHA256: boundRootSHA256,
-			TrustedRootVersion: uint64(boundRootVersion), PinnedRepository: boundRepository,
+			UpdaterVersion: strings.TrimSpace(m.UpdaterVersion), PinnedRepository: boundRepository,
 			AuthorityKeyID: boundAuthorityKeyID, AuthorityEpoch: uint64(boundAuthorityEpoch),
 			EnrolledAtUnixMillis: enrolledAt.UnixMilli(), ExpiresAtUnixMillis: receiptExpiresAt.Time.UnixMilli(), Generation: uint64(enrollmentGeneration),
 		}
@@ -330,8 +312,7 @@ func (a *App) EnrollAgentUpdater(ctx context.Context, req *connect.Request[p2pst
 	receipt := agentupdateauth.EnrollmentReceipt{
 		AgentPublicID: m.AgentPublicId, UpdaterKeyID: updaterKeyID, UpdaterPublicKeySHA256: updaterKeyID,
 		ActivatorKeyID: activatorKeyID, ActivatorPublicKeySHA256: activatorKeyID, OS: osName, Arch: arch,
-		UpdaterVersion: strings.TrimSpace(m.UpdaterVersion), TrustedRootSHA256: boundRootSHA256,
-		TrustedRootVersion: uint64(boundRootVersion), PinnedRepository: boundRepository,
+		UpdaterVersion: strings.TrimSpace(m.UpdaterVersion), PinnedRepository: boundRepository,
 		AuthorityKeyID: boundAuthorityKeyID, AuthorityEpoch: uint64(boundAuthorityEpoch),
 		EnrolledAtUnixMillis: now.UnixMilli(), ExpiresAtUnixMillis: receiptExpires.UnixMilli(), Generation: uint64(enrollmentGeneration),
 	}
@@ -350,7 +331,7 @@ func (a *App) EnrollAgentUpdater(ctx context.Context, req *connect.Request[p2pst
 	if n, _ := result.RowsAffected(); n != 1 {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("updater enrollment token was already consumed"))
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_updater_identities (agent_id,updater_key_id,updater_public_key,activator_key_id,activator_public_key,os,arch,updater_version,trusted_root_sha256,trusted_root_version,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,enrollment_receipt_payload,enrollment_receipt_signature,enabled,last_counter,last_command_sequence,last_root_action_counter,enrolled_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,0,0,0,?,?) ON CONFLICT(agent_id) DO UPDATE SET last_counter=CASE WHEN agent_updater_identities.updater_key_id=excluded.updater_key_id THEN agent_updater_identities.last_counter ELSE 0 END,last_command_sequence=CASE WHEN agent_updater_identities.authority_key_id=excluded.authority_key_id AND agent_updater_identities.authority_epoch=excluded.authority_epoch THEN agent_updater_identities.last_command_sequence ELSE 0 END,last_root_action_counter=CASE WHEN agent_updater_identities.activator_key_id=excluded.activator_key_id THEN agent_updater_identities.last_root_action_counter ELSE 0 END,updater_key_id=excluded.updater_key_id,updater_public_key=excluded.updater_public_key,activator_key_id=excluded.activator_key_id,activator_public_key=excluded.activator_public_key,os=excluded.os,arch=excluded.arch,updater_version=excluded.updater_version,trusted_root_sha256=excluded.trusted_root_sha256,trusted_root_version=excluded.trusted_root_version,pinned_repository=excluded.pinned_repository,authority_key_id=excluded.authority_key_id,authority_epoch=excluded.authority_epoch,enrollment_generation=excluded.enrollment_generation,enrollment_receipt_payload=excluded.enrollment_receipt_payload,enrollment_receipt_signature=excluded.enrollment_receipt_signature,enabled=1,enrolled_at=excluded.enrolled_at,last_seen_at=NULL,updated_at=excluded.updated_at`, agentID, updaterKeyID, m.UpdaterPublicKey, activatorKeyID, m.ActivatorPublicKey, osName, arch, strings.TrimSpace(m.UpdaterVersion), bootstrap.RootSHA256, bootstrap.RootVersion, bootstrap.PinnedRepository, authorityIdentity.KeyID, int64(authorityIdentity.Epoch), enrollmentGeneration, receiptPayload, receiptSignature, now, now)
+	_, err = tx.ExecContext(ctx, `INSERT INTO agent_updater_identities (agent_id,updater_key_id,updater_public_key,activator_key_id,activator_public_key,os,arch,updater_version,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,enrollment_receipt_payload,enrollment_receipt_signature,enabled,last_counter,last_command_sequence,last_root_action_counter,enrolled_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,0,0,0,?,?) ON CONFLICT(agent_id) DO UPDATE SET last_counter=CASE WHEN agent_updater_identities.updater_key_id=excluded.updater_key_id THEN agent_updater_identities.last_counter ELSE 0 END,last_command_sequence=CASE WHEN agent_updater_identities.authority_key_id=excluded.authority_key_id AND agent_updater_identities.authority_epoch=excluded.authority_epoch THEN agent_updater_identities.last_command_sequence ELSE 0 END,last_root_action_counter=CASE WHEN agent_updater_identities.activator_key_id=excluded.activator_key_id THEN agent_updater_identities.last_root_action_counter ELSE 0 END,updater_key_id=excluded.updater_key_id,updater_public_key=excluded.updater_public_key,activator_key_id=excluded.activator_key_id,activator_public_key=excluded.activator_public_key,os=excluded.os,arch=excluded.arch,updater_version=excluded.updater_version,pinned_repository=excluded.pinned_repository,authority_key_id=excluded.authority_key_id,authority_epoch=excluded.authority_epoch,enrollment_generation=excluded.enrollment_generation,enrollment_receipt_payload=excluded.enrollment_receipt_payload,enrollment_receipt_signature=excluded.enrollment_receipt_signature,enabled=1,enrolled_at=excluded.enrolled_at,last_seen_at=NULL,updated_at=excluded.updated_at`, agentID, updaterKeyID, m.UpdaterPublicKey, activatorKeyID, m.ActivatorPublicKey, osName, arch, strings.TrimSpace(m.UpdaterVersion), bootstrap.PinnedRepository, authorityIdentity.KeyID, int64(authorityIdentity.Epoch), enrollmentGeneration, receiptPayload, receiptSignature, now, now)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -373,7 +354,7 @@ func (a *App) GetAgentUpdateOverview(ctx context.Context, req *connect.Request[p
 	if a.AgentUpdateAuthority != nil {
 		resp.ManagementAuthority = agentUpdateAuthorityProto(a.AgentUpdateAuthority.Identity())
 		if resp.ManagementAuthorityWarning == "" && !semver.IsValid(buildinfo.Version) {
-			resp.ManagementAuthorityWarning = "managed update activation is unavailable because this management server is not running a signed semantic-version build"
+			resp.ManagementAuthorityWarning = "managed update activation is unavailable because this management server is not running an official semantic-version build"
 		}
 	} else if resp.ManagementAuthorityWarning == "" {
 		resp.ManagementAuthorityWarning = "managed update authority is unavailable"
@@ -477,7 +458,7 @@ func (a *App) CreateAgentUpdateCampaign(ctx context.Context, req *connect.Reques
 	}
 	defer tx.Rollback()
 	createdBy := sql.NullInt64{Int64: user.ID, Valid: user.ID > 0}
-	result, err := tx.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_by_user_id,created_at,updated_at) VALUES (?,'running',1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, name, target.Version, target.Commit, target.ManifestSha256, target.ReleaseSequence, target.RootVersion, target.SecurityEpoch, target.MinimumUpdaterVersion, target.MinimumTunnelProtocol, target.MaximumTunnelProtocol, string(artifactsJSON), policy.MaxUnavailable, policy.MinimumEligibleAgentsPerRoute, policy.CanaryCount, policy.WaveSize, policy.HealthyDwellMillis, createdBy, now, now)
+	result, err := tx.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_by_user_id,created_at,updated_at) VALUES (?,'running',1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, name, target.Version, target.Commit, target.ManifestSha256, target.ReleaseSequence, target.SecurityEpoch, target.MinimumUpdaterVersion, target.MinimumTunnelProtocol, target.MaximumTunnelProtocol, string(artifactsJSON), policy.MaxUnavailable, policy.MinimumEligibleAgentsPerRoute, policy.CanaryCount, policy.WaveSize, policy.HealthyDwellMillis, createdBy, now, now)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -715,7 +696,7 @@ func (a *App) RetryAgentUpdateAssignments(ctx context.Context, req *connect.Requ
 			// A retried stage returns to the neutral pending state. Only the
 			// transactional cohort scheduler may release it, otherwise an
 			// administrator retry could jump a later wave ahead of canaries.
-			result, err = tx.ExecContext(ctx, `UPDATE agent_update_assignments SET state='pending',desired_action='none',generation=generation+1,cordoned=0,failure_code='',failure_detail='',attested_manifest_sha256='',attested_binary_sha256='',attested_activation_counter=0,activation_nonce_hash='',authorization_action='',authorization_server_version='',command_sequence=0,authorization_nonce=X'',authorization_sha256='',authorization_payload=X'',authorization_signature=X'',authorization_issued_at=NULL,authorization_expires_at=NULL,root_action_counter=0,root_action_receipt_payload=X'',root_action_receipt_signature=X'',root_action_completed_at=NULL,root_result_kind='',root_result_root_version=0,root_result_manifest_sha256='',root_result_version='',root_result_commit='',root_result_release_sequence=0,root_result_security_epoch=0,root_result_os='',root_result_arch='',root_result_artifact_name='',root_result_artifact_size=0,root_result_artifact_sha256='',running_version='',running_commit='',observed_version='',observed_commit='',activated_at=NULL,fresh_tunnel_at=NULL,healthy_at=NULL,last_report_at=NULL,updated_at=? WHERE id=? AND campaign_id=?`, now, id, req.Msg.CampaignId)
+			result, err = tx.ExecContext(ctx, `UPDATE agent_update_assignments SET state='pending',desired_action='none',generation=generation+1,cordoned=0,failure_code='',failure_detail='',attested_manifest_sha256='',attested_binary_sha256='',attested_activation_counter=0,activation_nonce_hash='',authorization_action='',authorization_server_version='',command_sequence=0,authorization_nonce=X'',authorization_sha256='',authorization_payload=X'',authorization_signature=X'',authorization_issued_at=NULL,authorization_expires_at=NULL,root_action_counter=0,root_action_receipt_payload=X'',root_action_receipt_signature=X'',root_action_completed_at=NULL,root_result_kind='',root_result_manifest_sha256='',root_result_version='',root_result_commit='',root_result_release_sequence=0,root_result_security_epoch=0,root_result_os='',root_result_arch='',root_result_artifact_name='',root_result_artifact_size=0,root_result_artifact_sha256='',running_version='',running_commit='',observed_version='',observed_commit='',activated_at=NULL,fresh_tunnel_at=NULL,healthy_at=NULL,last_report_at=NULL,updated_at=? WHERE id=? AND campaign_id=?`, now, id, req.Msg.CampaignId)
 		}
 		if err != nil {
 			return nil, publicDBError(err)
@@ -966,7 +947,7 @@ func (a *App) ReportAgentUpdate(ctx context.Context, req *connect.Request[p2pstr
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("root action report does not match its signed result receipt"))
 		}
 	} else if m.State == p2pstreamv1.AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_HEALTHY {
-		if !assignment.ActivatedAt.Valid || assignment.RootResultKind != string(agentupdateauth.RootActionResultSignedRelease) || assignment.RootActionReceiptPayload == nil || m.ManifestSha256 != assignment.RootResultManifestSha256 || m.BinarySha256 != assignment.RootResultArtifactSha256 || m.RunningVersion != assignment.RootResultVersion || m.RunningCommit != assignment.RootResultCommit {
+		if !assignment.ActivatedAt.Valid || assignment.RootResultKind != string(agentupdateauth.RootActionResultRelease) || assignment.RootActionReceiptPayload == nil || m.ManifestSha256 != assignment.RootResultManifestSha256 || m.BinarySha256 != assignment.RootResultArtifactSha256 || m.RunningVersion != assignment.RootResultVersion || m.RunningCommit != assignment.RootResultCommit {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("healthy report does not match the stored root activation attestation"))
 		}
 	}
@@ -1052,7 +1033,6 @@ func (a *App) ReportAgentUpdate(ctx context.Context, req *connect.Request[p2pstr
 	rootActionSignature := assignment.RootActionReceiptSignature
 	rootActionCompletedAt := assignment.RootActionCompletedAt
 	rootResultKind := assignment.RootResultKind
-	rootResultRootVersion := assignment.RootResultRootVersion
 	rootResultManifest := assignment.RootResultManifestSha256
 	rootResultVersion, rootResultCommit := assignment.RootResultVersion, assignment.RootResultCommit
 	rootResultSequence, rootResultSecurityEpoch := assignment.RootResultReleaseSequence, assignment.RootResultSecurityEpoch
@@ -1065,7 +1045,7 @@ func (a *App) ReportAgentUpdate(ctx context.Context, req *connect.Request[p2pstr
 		runningVersion, runningCommit = rootReceipt.ResultVersion, rootReceipt.ResultCommit
 		rootActionCounter, rootActionPayload, rootActionSignature = int64(rootReceipt.RootActionCounter), rootReceiptPayload, rootReceiptSignature
 		rootActionCompletedAt = sql.NullTime{Time: now, Valid: true}
-		rootResultKind, rootResultRootVersion = string(rootReceipt.ResultKind), int64(rootReceipt.ResultRootVersion)
+		rootResultKind = string(rootReceipt.ResultKind)
 		rootResultManifest, rootResultVersion, rootResultCommit = rootReceipt.ResultManifestSHA256, rootReceipt.ResultVersion, rootReceipt.ResultCommit
 		rootResultSequence, rootResultSecurityEpoch = int64(rootReceipt.ResultReleaseSequence), int64(rootReceipt.ResultSecurityEpoch)
 		rootResultOS, rootResultArch = rootReceipt.ResultOS, rootReceipt.ResultArch
@@ -1090,7 +1070,7 @@ func (a *App) ReportAgentUpdate(ctx context.Context, req *connect.Request[p2pstr
 		// deadline; last_report_at still records every authenticated heartbeat.
 		assignmentUpdatedAt = assignment.UpdatedAt
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET state=?,desired_action=?,cordoned=?,failure_code=?,failure_detail=?,attested_manifest_sha256=?,attested_binary_sha256=?,attested_activation_counter=?,activation_nonce_hash=?,authorization_action=?,authorization_server_version=?,command_sequence=?,authorization_nonce=?,authorization_sha256=?,authorization_payload=?,authorization_signature=?,authorization_issued_at=?,authorization_expires_at=?,root_action_counter=?,root_action_receipt_payload=?,root_action_receipt_signature=?,root_action_completed_at=?,root_result_kind=?,root_result_root_version=?,root_result_manifest_sha256=?,root_result_version=?,root_result_commit=?,root_result_release_sequence=?,root_result_security_epoch=?,root_result_os=?,root_result_arch=?,root_result_artifact_name=?,root_result_artifact_size=?,root_result_artifact_sha256=?,running_version=?,running_commit=?,observed_version=?,observed_commit=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,last_report_at=?,updated_at=? WHERE id=? AND generation=?`, state, action, cordoned, boundedString(m.FailureCode, 128), boundedString(m.FailureDetail, agentUpdateMaxFailureDetail), attestedManifest, attestedBinary, attestedCounter, nonceHash, authorizationAction, authorizationServerVersion, commandSequence, authorizationNonce, authorizationSHA256, authorizationPayload, authorizationSignature, authorizationIssuedAt, authorizationExpiresAt, rootActionCounter, rootActionPayload, rootActionSignature, rootActionCompletedAt, rootResultKind, rootResultRootVersion, rootResultManifest, rootResultVersion, rootResultCommit, rootResultSequence, rootResultSecurityEpoch, rootResultOS, rootResultArch, rootResultArtifactName, rootResultArtifactSize, rootResultArtifactSHA256, runningVersion, runningCommit, chooseString(isActivation || isRollback, "", assignment.ObservedVersion), chooseString(isActivation || isRollback, "", assignment.ObservedCommit), activatedAt, freshTunnelAt, healthyAt, now, assignmentUpdatedAt, assignment.ID, assignment.Generation)
+	result, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET state=?,desired_action=?,cordoned=?,failure_code=?,failure_detail=?,attested_manifest_sha256=?,attested_binary_sha256=?,attested_activation_counter=?,activation_nonce_hash=?,authorization_action=?,authorization_server_version=?,command_sequence=?,authorization_nonce=?,authorization_sha256=?,authorization_payload=?,authorization_signature=?,authorization_issued_at=?,authorization_expires_at=?,root_action_counter=?,root_action_receipt_payload=?,root_action_receipt_signature=?,root_action_completed_at=?,root_result_kind=?,root_result_manifest_sha256=?,root_result_version=?,root_result_commit=?,root_result_release_sequence=?,root_result_security_epoch=?,root_result_os=?,root_result_arch=?,root_result_artifact_name=?,root_result_artifact_size=?,root_result_artifact_sha256=?,running_version=?,running_commit=?,observed_version=?,observed_commit=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,last_report_at=?,updated_at=? WHERE id=? AND generation=?`, state, action, cordoned, boundedString(m.FailureCode, 128), boundedString(m.FailureDetail, agentUpdateMaxFailureDetail), attestedManifest, attestedBinary, attestedCounter, nonceHash, authorizationAction, authorizationServerVersion, commandSequence, authorizationNonce, authorizationSHA256, authorizationPayload, authorizationSignature, authorizationIssuedAt, authorizationExpiresAt, rootActionCounter, rootActionPayload, rootActionSignature, rootActionCompletedAt, rootResultKind, rootResultManifest, rootResultVersion, rootResultCommit, rootResultSequence, rootResultSecurityEpoch, rootResultOS, rootResultArch, rootResultArtifactName, rootResultArtifactSize, rootResultArtifactSHA256, runningVersion, runningCommit, chooseString(isActivation || isRollback, "", assignment.ObservedVersion), chooseString(isActivation || isRollback, "", assignment.ObservedCommit), activatedAt, freshTunnelAt, healthyAt, now, assignmentUpdatedAt, assignment.ID, assignment.Generation)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -1434,7 +1414,7 @@ func (a *App) resolveAgentUpdateRequest(ctx context.Context, requested *p2pstrea
 		return nil, nil, err
 	}
 	if !semver.IsValid(buildinfo.Version) {
-		return nil, nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("management server build version is not a signed-release semantic version"))
+		return nil, nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("management server build version is not a release semantic version"))
 	}
 	if requested == nil || !agentUpdateDigestRE.MatchString(requested.ManifestSha256) {
 		return nil, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("trusted manifest_sha256 is required"))
@@ -1461,7 +1441,7 @@ func (a *App) resolveAgentUpdateRequest(ctx context.Context, requested *p2pstrea
 }
 
 func validateAgentUpdateTarget(target *p2pstreamv1.AgentUpdateTarget) (*p2pstreamv1.AgentUpdateTarget, error) {
-	if target == nil || !agentUpdateDigestRE.MatchString(target.ManifestSha256) || !semver.IsValid(target.Version) || !regexp.MustCompile(`^[0-9a-f]{40}$`).MatchString(target.Commit) || target.ReleaseSequence <= 0 || target.RootVersion <= 0 || target.SecurityEpoch <= 0 || !semver.IsValid(target.MinimumUpdaterVersion) || target.MinimumTunnelProtocol <= 0 || target.MaximumTunnelProtocol < target.MinimumTunnelProtocol || int64(tunnel.ProtocolVersion) < target.MinimumTunnelProtocol || int64(tunnel.ProtocolVersion) > target.MaximumTunnelProtocol || len(target.Artifacts) == 0 || len(target.Artifacts) > agentUpdateMaxArtifacts {
+	if target == nil || !agentUpdateDigestRE.MatchString(target.ManifestSha256) || !semver.IsValid(target.Version) || !regexp.MustCompile(`^[0-9a-f]{40}$`).MatchString(target.Commit) || target.ReleaseSequence <= 0 || target.SecurityEpoch <= 0 || !semver.IsValid(target.MinimumUpdaterVersion) || target.MinimumTunnelProtocol <= 0 || target.MaximumTunnelProtocol < target.MinimumTunnelProtocol || int64(tunnel.ProtocolVersion) < target.MinimumTunnelProtocol || int64(tunnel.ProtocolVersion) > target.MaximumTunnelProtocol || len(target.Artifacts) == 0 || len(target.Artifacts) > agentUpdateMaxArtifacts {
 		return nil, errors.New("target fields are incomplete or out of bounds")
 	}
 	seen := make(map[string]struct{}, len(target.Artifacts))
@@ -1693,7 +1673,7 @@ func authenticateAgentUpdaterRequest(ctx context.Context, query db.DBTX, publicI
 		return agentUpdaterIdentityRow{}, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid updater authentication"))
 	}
 	var row agentUpdaterIdentityRow
-	err := query.QueryRowContext(ctx, `SELECT i.agent_id,i.updater_key_id,i.updater_public_key,i.activator_key_id,i.activator_public_key,i.os,i.arch,i.updater_version,i.trusted_root_sha256,i.trusted_root_version,i.pinned_repository,i.authority_key_id,i.authority_epoch,i.enrollment_generation,i.enrollment_receipt_payload,i.enrollment_receipt_signature,i.enabled,i.last_counter,i.last_command_sequence,i.last_root_action_counter,i.enrolled_at,i.last_seen_at,i.updated_at,a.public_id FROM agent_updater_identities i JOIN agents a ON a.id=i.agent_id WHERE a.public_id=? AND a.enabled=1 AND i.enabled=1`, publicID).Scan(&row.AgentID, &row.UpdaterKeyID, &row.UpdaterPublicKey, &row.ActivatorKeyID, &row.ActivatorPublicKey, &row.Os, &row.Arch, &row.UpdaterVersion, &row.TrustedRootSha256, &row.TrustedRootVersion, &row.PinnedRepository, &row.AuthorityKeyID, &row.AuthorityEpoch, &row.EnrollmentGeneration, &row.EnrollmentReceiptPayload, &row.EnrollmentReceiptSignature, &row.Enabled, &row.LastCounter, &row.LastCommandSequence, &row.LastRootActionCounter, &row.EnrolledAt, &row.LastSeenAt, &row.UpdatedAt, &row.AgentPublicID)
+	err := query.QueryRowContext(ctx, `SELECT i.agent_id,i.updater_key_id,i.updater_public_key,i.activator_key_id,i.activator_public_key,i.os,i.arch,i.updater_version,i.pinned_repository,i.authority_key_id,i.authority_epoch,i.enrollment_generation,i.enrollment_receipt_payload,i.enrollment_receipt_signature,i.enabled,i.last_counter,i.last_command_sequence,i.last_root_action_counter,i.enrolled_at,i.last_seen_at,i.updated_at,a.public_id FROM agent_updater_identities i JOIN agents a ON a.id=i.agent_id WHERE a.public_id=? AND a.enabled=1 AND i.enabled=1`, publicID).Scan(&row.AgentID, &row.UpdaterKeyID, &row.UpdaterPublicKey, &row.ActivatorKeyID, &row.ActivatorPublicKey, &row.Os, &row.Arch, &row.UpdaterVersion, &row.PinnedRepository, &row.AuthorityKeyID, &row.AuthorityEpoch, &row.EnrollmentGeneration, &row.EnrollmentReceiptPayload, &row.EnrollmentReceiptSignature, &row.Enabled, &row.LastCounter, &row.LastCommandSequence, &row.LastRootActionCounter, &row.EnrolledAt, &row.LastSeenAt, &row.UpdatedAt, &row.AgentPublicID)
 	if err != nil || !ed25519.Verify(ed25519.PublicKey(row.UpdaterPublicKey), payload, signature) {
 		return agentUpdaterIdentityRow{}, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid updater authentication"))
 	}
@@ -1726,7 +1706,7 @@ func (a *App) activeAgentUpdateAssignment(ctx context.Context, agentID int64) (a
 }
 
 func activeAgentUpdateAssignmentQuery(ctx context.Context, query db.DBTX, agentID int64) (agentUpdateAssignmentRow, agentUpdateCampaignRow, error) {
-	rows, err := query.QueryContext(ctx, `SELECT x.id,x.campaign_id,x.agent_id,x.state,x.desired_action,x.generation,x.cordoned,x.failure_code,x.failure_detail,x.attested_manifest_sha256,x.attested_binary_sha256,x.attested_activation_counter,x.activation_nonce_hash,x.authorization_action,x.authorization_server_version,x.command_sequence,x.authorization_nonce,x.authorization_sha256,x.authorization_payload,x.authorization_signature,x.authorization_issued_at,x.authorization_expires_at,x.root_action_counter,x.root_action_receipt_payload,x.root_action_receipt_signature,x.root_action_completed_at,x.root_result_kind,x.root_result_root_version,x.root_result_manifest_sha256,x.root_result_version,x.root_result_commit,x.root_result_release_sequence,x.root_result_security_epoch,x.root_result_os,x.root_result_arch,x.root_result_artifact_name,x.root_result_artifact_size,x.root_result_artifact_sha256,x.running_version,x.running_commit,x.observed_version,x.observed_commit,x.activated_at,x.fresh_tunnel_at,x.healthy_at,x.last_report_at,x.created_at,x.updated_at,a.public_id,a.name,c.id,c.name,c.state,c.generation,c.target_version,c.target_commit,c.manifest_sha256,c.release_sequence,c.root_version,c.security_epoch,c.minimum_updater_version,c.minimum_tunnel_protocol,c.maximum_tunnel_protocol,c.artifacts_json,c.max_unavailable,c.minimum_eligible_agents_per_route,c.canary_count,c.wave_size,c.healthy_dwell_millis,c.created_by_user_id,c.created_at,c.updated_at,c.completed_at FROM agent_update_assignments x JOIN agents a ON a.id=x.agent_id JOIN agent_update_campaigns c ON c.id=x.campaign_id WHERE x.agent_id=? AND (x.state NOT IN ('succeeded','failed','cancelled') OR (x.state='failed' AND x.desired_action='rollback')) ORDER BY x.id DESC LIMIT 2`, agentID)
+	rows, err := query.QueryContext(ctx, `SELECT x.id,x.campaign_id,x.agent_id,x.state,x.desired_action,x.generation,x.cordoned,x.failure_code,x.failure_detail,x.attested_manifest_sha256,x.attested_binary_sha256,x.attested_activation_counter,x.activation_nonce_hash,x.authorization_action,x.authorization_server_version,x.command_sequence,x.authorization_nonce,x.authorization_sha256,x.authorization_payload,x.authorization_signature,x.authorization_issued_at,x.authorization_expires_at,x.root_action_counter,x.root_action_receipt_payload,x.root_action_receipt_signature,x.root_action_completed_at,x.root_result_kind,x.root_result_manifest_sha256,x.root_result_version,x.root_result_commit,x.root_result_release_sequence,x.root_result_security_epoch,x.root_result_os,x.root_result_arch,x.root_result_artifact_name,x.root_result_artifact_size,x.root_result_artifact_sha256,x.running_version,x.running_commit,x.observed_version,x.observed_commit,x.activated_at,x.fresh_tunnel_at,x.healthy_at,x.last_report_at,x.created_at,x.updated_at,a.public_id,a.name,c.id,c.name,c.state,c.generation,c.target_version,c.target_commit,c.manifest_sha256,c.release_sequence,c.security_epoch,c.minimum_updater_version,c.minimum_tunnel_protocol,c.maximum_tunnel_protocol,c.artifacts_json,c.max_unavailable,c.minimum_eligible_agents_per_route,c.canary_count,c.wave_size,c.healthy_dwell_millis,c.created_by_user_id,c.created_at,c.updated_at,c.completed_at FROM agent_update_assignments x JOIN agents a ON a.id=x.agent_id JOIN agent_update_campaigns c ON c.id=x.campaign_id WHERE x.agent_id=? AND (x.state NOT IN ('succeeded','failed','cancelled') OR (x.state='failed' AND x.desired_action='rollback')) ORDER BY x.id DESC LIMIT 2`, agentID)
 	if err != nil {
 		return agentUpdateAssignmentRow{}, agentUpdateCampaignRow{}, err
 	}
@@ -1752,7 +1732,7 @@ func scanAgentUpdateJoined(row rowScanner) (agentUpdateAssignmentRow, agentUpdat
 	destinations := agentUpdateAssignmentScanDestinations(&x)
 	destinations = append(destinations, &x.AgentPublicID, &x.AgentName,
 		&c.ID, &c.Name, &c.State, &c.Generation, &c.TargetVersion, &c.TargetCommit,
-		&c.ManifestSha256, &c.ReleaseSequence, &c.RootVersion, &c.SecurityEpoch,
+		&c.ManifestSha256, &c.ReleaseSequence, &c.SecurityEpoch,
 		&c.MinimumUpdaterVersion, &c.MinimumTunnelProtocol, &c.MaximumTunnelProtocol,
 		&c.ArtifactsJson, &c.MaxUnavailable, &c.MinimumEligibleAgentsPerRoute,
 		&c.CanaryCount, &c.WaveSize, &c.HealthyDwellMillis, &c.CreatedByUserID,
@@ -1776,7 +1756,7 @@ func agentUpdateAssignmentScanDestinations(x *agentUpdateAssignmentRow) []any {
 		&x.AuthorizationNonce, &x.AuthorizationSha256, &x.AuthorizationPayload,
 		&x.AuthorizationSignature, &x.AuthorizationIssuedAt, &x.AuthorizationExpiresAt,
 		&x.RootActionCounter, &x.RootActionReceiptPayload, &x.RootActionReceiptSignature,
-		&x.RootActionCompletedAt, &x.RootResultKind, &x.RootResultRootVersion,
+		&x.RootActionCompletedAt, &x.RootResultKind,
 		&x.RootResultManifestSha256, &x.RootResultVersion, &x.RootResultCommit,
 		&x.RootResultReleaseSequence, &x.RootResultSecurityEpoch, &x.RootResultOs,
 		&x.RootResultArch, &x.RootResultArtifactName, &x.RootResultArtifactSize,
@@ -1788,7 +1768,7 @@ func agentUpdateAssignmentScanDestinations(x *agentUpdateAssignmentRow) []any {
 
 func (a *App) getAgentUpdateCampaignProto(ctx context.Context, id int64) (*p2pstreamv1.AgentUpdateCampaign, error) {
 	var c agentUpdateCampaignRow
-	err := a.DB.QueryRowContext(ctx, `SELECT id,name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_by_user_id,created_at,updated_at,completed_at FROM agent_update_campaigns WHERE id=?`, id).Scan(&c.ID, &c.Name, &c.State, &c.Generation, &c.TargetVersion, &c.TargetCommit, &c.ManifestSha256, &c.ReleaseSequence, &c.RootVersion, &c.SecurityEpoch, &c.MinimumUpdaterVersion, &c.MinimumTunnelProtocol, &c.MaximumTunnelProtocol, &c.ArtifactsJson, &c.MaxUnavailable, &c.MinimumEligibleAgentsPerRoute, &c.CanaryCount, &c.WaveSize, &c.HealthyDwellMillis, &c.CreatedByUserID, &c.CreatedAt, &c.UpdatedAt, &c.CompletedAt)
+	err := a.DB.QueryRowContext(ctx, `SELECT id,name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_by_user_id,created_at,updated_at,completed_at FROM agent_update_campaigns WHERE id=?`, id).Scan(&c.ID, &c.Name, &c.State, &c.Generation, &c.TargetVersion, &c.TargetCommit, &c.ManifestSha256, &c.ReleaseSequence, &c.SecurityEpoch, &c.MinimumUpdaterVersion, &c.MinimumTunnelProtocol, &c.MaximumTunnelProtocol, &c.ArtifactsJson, &c.MaxUnavailable, &c.MinimumEligibleAgentsPerRoute, &c.CanaryCount, &c.WaveSize, &c.HealthyDwellMillis, &c.CreatedByUserID, &c.CreatedAt, &c.UpdatedAt, &c.CompletedAt)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -1796,7 +1776,7 @@ func (a *App) getAgentUpdateCampaignProto(ctx context.Context, id int64) (*p2pst
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	result := &p2pstreamv1.AgentUpdateCampaign{Id: c.ID, Name: c.Name, State: campaignStateProto(c.State), Generation: c.Generation, Target: campaignTargetProto(c), Policy: &p2pstreamv1.AgentUpdatePolicy{MaxUnavailable: c.MaxUnavailable, MinimumEligibleAgentsPerRoute: c.MinimumEligibleAgentsPerRoute, CanaryCount: c.CanaryCount, WaveSize: c.WaveSize, HealthyDwellMillis: c.HealthyDwellMillis}, CreatedAtUnixMillis: c.CreatedAt.UnixMilli(), UpdatedAtUnixMillis: c.UpdatedAt.UnixMilli()}
-	rows, err := a.DB.QueryContext(ctx, `SELECT x.id,x.campaign_id,x.agent_id,x.state,x.desired_action,x.generation,x.cordoned,x.failure_code,x.failure_detail,x.attested_manifest_sha256,x.attested_binary_sha256,x.attested_activation_counter,x.activation_nonce_hash,x.authorization_action,x.authorization_server_version,x.command_sequence,x.authorization_nonce,x.authorization_sha256,x.authorization_payload,x.authorization_signature,x.authorization_issued_at,x.authorization_expires_at,x.root_action_counter,x.root_action_receipt_payload,x.root_action_receipt_signature,x.root_action_completed_at,x.root_result_kind,x.root_result_root_version,x.root_result_manifest_sha256,x.root_result_version,x.root_result_commit,x.root_result_release_sequence,x.root_result_security_epoch,x.root_result_os,x.root_result_arch,x.root_result_artifact_name,x.root_result_artifact_size,x.root_result_artifact_sha256,x.running_version,x.running_commit,x.observed_version,x.observed_commit,x.activated_at,x.fresh_tunnel_at,x.healthy_at,x.last_report_at,x.created_at,x.updated_at,a.public_id,a.name FROM agent_update_assignments x JOIN agents a ON a.id=x.agent_id WHERE x.campaign_id=? ORDER BY x.id`, id)
+	rows, err := a.DB.QueryContext(ctx, `SELECT x.id,x.campaign_id,x.agent_id,x.state,x.desired_action,x.generation,x.cordoned,x.failure_code,x.failure_detail,x.attested_manifest_sha256,x.attested_binary_sha256,x.attested_activation_counter,x.activation_nonce_hash,x.authorization_action,x.authorization_server_version,x.command_sequence,x.authorization_nonce,x.authorization_sha256,x.authorization_payload,x.authorization_signature,x.authorization_issued_at,x.authorization_expires_at,x.root_action_counter,x.root_action_receipt_payload,x.root_action_receipt_signature,x.root_action_completed_at,x.root_result_kind,x.root_result_manifest_sha256,x.root_result_version,x.root_result_commit,x.root_result_release_sequence,x.root_result_security_epoch,x.root_result_os,x.root_result_arch,x.root_result_artifact_name,x.root_result_artifact_size,x.root_result_artifact_sha256,x.running_version,x.running_commit,x.observed_version,x.observed_commit,x.activated_at,x.fresh_tunnel_at,x.healthy_at,x.last_report_at,x.created_at,x.updated_at,a.public_id,a.name FROM agent_update_assignments x JOIN agents a ON a.id=x.agent_id WHERE x.campaign_id=? ORDER BY x.id`, id)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -1814,7 +1794,7 @@ func (a *App) getAgentUpdateCampaignProto(ctx context.Context, id int64) (*p2pst
 }
 
 func campaignTargetProto(c agentUpdateCampaignRow) *p2pstreamv1.AgentUpdateTarget {
-	return &p2pstreamv1.AgentUpdateTarget{Version: c.TargetVersion, Commit: c.TargetCommit, ManifestSha256: c.ManifestSha256, ReleaseSequence: c.ReleaseSequence, MinimumTunnelProtocol: c.MinimumTunnelProtocol, MaximumTunnelProtocol: c.MaximumTunnelProtocol, Artifacts: c.Artifacts, SecurityEpoch: c.SecurityEpoch, MinimumUpdaterVersion: c.MinimumUpdaterVersion, RootVersion: c.RootVersion}
+	return &p2pstreamv1.AgentUpdateTarget{Version: c.TargetVersion, Commit: c.TargetCommit, ManifestSha256: c.ManifestSha256, ReleaseSequence: c.ReleaseSequence, MinimumTunnelProtocol: c.MinimumTunnelProtocol, MaximumTunnelProtocol: c.MaximumTunnelProtocol, Artifacts: c.Artifacts, SecurityEpoch: c.SecurityEpoch, MinimumUpdaterVersion: c.MinimumUpdaterVersion}
 }
 func assignmentProto(x agentUpdateAssignmentRow) *p2pstreamv1.AgentUpdateAssignment {
 	return &p2pstreamv1.AgentUpdateAssignment{Id: x.ID, CampaignId: x.CampaignID, AgentId: x.AgentID, AgentPublicId: x.AgentPublicID, AgentName: x.AgentName, State: assignmentStateProto(x.State), DesiredAction: desiredActionProto(x.DesiredAction), Generation: x.Generation, Cordoned: x.Cordoned == 1, FailureCode: x.FailureCode, FailureDetail: x.FailureDetail, AttestedManifestSha256: x.AttestedManifestSha256, AttestedBinarySha256: x.AttestedBinarySha256, ActivatedAtUnixMillis: nullTimeMillis(x.ActivatedAt), FreshTunnelAtUnixMillis: nullTimeMillis(x.FreshTunnelAt), HealthyAtUnixMillis: nullTimeMillis(x.HealthyAt), UpdatedAtUnixMillis: x.UpdatedAt.UnixMilli(), ObservedVersion: x.ObservedVersion, ObservedCommit: x.ObservedCommit}
@@ -1935,7 +1915,7 @@ func (a *App) tryAuthorizeDrainedAgentUpdateAssignmentLocked(ctx context.Context
 	if err != nil {
 		return
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET desired_action='activate',authorization_action='activate',authorization_server_version=?,command_sequence=?,authorization_nonce=?,authorization_sha256=?,authorization_payload=?,authorization_signature=?,authorization_issued_at=?,authorization_expires_at=?,root_action_counter=0,root_action_receipt_payload=X'',root_action_receipt_signature=X'',root_action_completed_at=NULL,root_result_kind='',root_result_root_version=0,root_result_manifest_sha256='',root_result_version='',root_result_commit='',root_result_release_sequence=0,root_result_security_epoch=0,root_result_os='',root_result_arch='',root_result_artifact_name='',root_result_artifact_size=0,root_result_artifact_sha256='',fresh_tunnel_at=NULL,healthy_at=NULL,updated_at=? WHERE id=? AND generation=? AND state='cordoned' AND desired_action='none' AND cordoned=1 AND EXISTS (SELECT 1 FROM agent_update_campaigns WHERE id=? AND state='running')`, authorization.Value.ServerVersion, int64(authorization.Value.CommandSequence), authorization.Value.Nonce, authorization.SHA256, authorization.Payload, authorization.Signature, time.UnixMilli(authorization.Value.IssuedAtUnixMillis), time.UnixMilli(authorization.Value.ExpiresAtUnixMillis), now, x.ID, x.Generation, x.CampaignID)
+	result, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET desired_action='activate',authorization_action='activate',authorization_server_version=?,command_sequence=?,authorization_nonce=?,authorization_sha256=?,authorization_payload=?,authorization_signature=?,authorization_issued_at=?,authorization_expires_at=?,root_action_counter=0,root_action_receipt_payload=X'',root_action_receipt_signature=X'',root_action_completed_at=NULL,root_result_kind='',root_result_manifest_sha256='',root_result_version='',root_result_commit='',root_result_release_sequence=0,root_result_security_epoch=0,root_result_os='',root_result_arch='',root_result_artifact_name='',root_result_artifact_size=0,root_result_artifact_sha256='',fresh_tunnel_at=NULL,healthy_at=NULL,updated_at=? WHERE id=? AND generation=? AND state='cordoned' AND desired_action='none' AND cordoned=1 AND EXISTS (SELECT 1 FROM agent_update_campaigns WHERE id=? AND state='running')`, authorization.Value.ServerVersion, int64(authorization.Value.CommandSequence), authorization.Value.Nonce, authorization.SHA256, authorization.Payload, authorization.Signature, time.UnixMilli(authorization.Value.IssuedAtUnixMillis), time.UnixMilli(authorization.Value.ExpiresAtUnixMillis), now, x.ID, x.Generation, x.CampaignID)
 	if err != nil {
 		return
 	}
@@ -2276,10 +2256,10 @@ func (a *App) reconcileAgentUpdateSuccessLocked(ctx context.Context, agentID int
 	liveBuildMatches := conn != nil && conn.BuildVersion == x.RootResultVersion && conn.BuildCommit == x.RootResultCommit
 	exactSessionBuildEvidence := liveBuildMatches && x.ObservedVersion == x.RootResultVersion && x.ObservedCommit == x.RootResultCommit
 	// Bootstrap rollback may restore an agent released before tunnel build
-	// headers existed. In that one compatibility case the root-signed receipt
+	// headers existed. In that one compatibility case the activator receipt
 	// already binds the exact local slot bytes/build, and the server-forced
 	// post-receipt reconnect supplies the fresh execution edge. Newly activated
-	// signed releases (and rollback to signed releases) still require exact build
+	// releases (and rollback to releases) still require exact build
 	// headers from that same live connection.
 	bootstrapRollbackEvidence := x.AuthorizationAction == "rollback" && x.RootResultKind == string(agentupdateauth.RootActionResultBootstrap)
 	evidenceComplete := connectedFreshTunnel && x.RootResultKind != "" && (exactSessionBuildEvidence || bootstrapRollbackEvidence)
@@ -2345,7 +2325,7 @@ func (a *App) reconcileAgentUpdateSuccessLocked(ctx context.Context, agentID int
 	if x.UpdatedAt.After(dwellStartedAt) {
 		dwellStartedAt = x.UpdatedAt
 	}
-	if c.State != "running" || x.DesiredAction != "none" || x.AuthorizationAction != "activate" || x.State != "healthy_dwell" || !x.ActivatedAt.Valid || !x.RootActionCompletedAt.Valid || !x.HealthyAt.Valid || !evidenceComplete || x.RootResultKind != string(agentupdateauth.RootActionResultSignedRelease) || x.RootResultManifestSha256 != c.ManifestSha256 || x.RootResultArtifactSha256 != x.AttestedBinarySha256 || x.RunningVersion != c.TargetVersion || x.RunningCommit != c.TargetCommit || x.ObservedVersion != c.TargetVersion || x.ObservedCommit != c.TargetCommit || time.Since(dwellStartedAt) < time.Duration(c.HealthyDwellMillis)*time.Millisecond {
+	if c.State != "running" || x.DesiredAction != "none" || x.AuthorizationAction != "activate" || x.State != "healthy_dwell" || !x.ActivatedAt.Valid || !x.RootActionCompletedAt.Valid || !x.HealthyAt.Valid || !evidenceComplete || x.RootResultKind != string(agentupdateauth.RootActionResultRelease) || x.RootResultManifestSha256 != c.ManifestSha256 || x.RootResultArtifactSha256 != x.AttestedBinarySha256 || x.RunningVersion != c.TargetVersion || x.RunningCommit != c.TargetCommit || x.ObservedVersion != c.TargetVersion || x.ObservedCommit != c.TargetCommit || time.Since(dwellStartedAt) < time.Duration(c.HealthyDwellMillis)*time.Millisecond {
 		return
 	}
 	if a.agentUpdateBeforeSuccessCAS != nil {

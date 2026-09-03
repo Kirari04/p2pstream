@@ -1,8 +1,7 @@
 // Package agentupdatecatalog resolves the release selected by a pinned update
-// channel from a fixed GitHub repository and authenticates it against an
-// out-of-band root.
-// Network responses can select only signed metadata; they can never introduce
-// a download URL, command, or artifact digest.
+// channel from a fixed GitHub repository. GitHub is the trusted distribution
+// boundary. Release metadata can select only fixed-repository assets; it can
+// never introduce a download URL or command.
 package agentupdatecatalog
 
 import (
@@ -37,7 +36,6 @@ var (
 type Options struct {
 	Repository      string
 	Channel         string
-	Root            agentupdate.RootMetadata
 	StatePath       string
 	RefreshInterval time.Duration
 	HTTPClient      *http.Client
@@ -58,7 +56,6 @@ type Snapshot struct {
 
 type persistedFloor struct {
 	SchemaVersion      uint64 `json:"schema_version"`
-	RootVersion        uint64 `json:"root_version"`
 	Sequence           uint64 `json:"sequence"`
 	SecurityEpoch      uint64 `json:"security_epoch"`
 	MinimumSafeVersion string `json:"minimum_safe_version"`
@@ -135,9 +132,9 @@ func loopbackTestOrigin(raw string) bool {
 		parsed.User == nil && parsed.Path == "" && parsed.RawQuery == "" && parsed.Fragment == ""
 }
 
-// Latest returns a freshly authenticated release when refresh is due. A last
-// known good release survives a transient network failure only while its own
-// signed expiry is still in the future.
+// Latest returns a freshly validated release when refresh is due. A last known
+// good release survives a transient network failure only while its manifest
+// expiry is still in the future.
 func (c *Catalog) Latest(ctx context.Context) (*agentupdate.VerifiedCatalog, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -177,14 +174,9 @@ func (c *Catalog) refreshLocked(ctx context.Context, now time.Time) (*agentupdat
 	if err != nil {
 		return nil, err
 	}
-	signatureJSON, err := c.fetchReleaseAsset(ctx, tag, "p2pstream_agent_update_manifest.signatures.json", agentupdate.MaxSignatureEnvelopeBytes)
-	if err != nil {
-		return nil, err
-	}
-	verified, err := agentupdate.VerifyCatalog(manifestJSON, signatureJSON, c.options.Root, agentupdate.CatalogVerifyPolicy{
+	verified, err := agentupdate.VerifyCatalog(manifestJSON, agentupdate.CatalogVerifyPolicy{
 		Now:                       now,
 		RequiredChannel:           c.options.Channel,
-		MinimumRootVersion:        c.floor.RootVersion,
 		CurrentSequence:           c.floor.Sequence,
 		CurrentSecurityEpoch:      c.floor.SecurityEpoch,
 		CurrentMinimumSafeVersion: c.floor.MinimumSafeVersion,
@@ -192,18 +184,17 @@ func (c *Catalog) refreshLocked(ctx context.Context, now time.Time) (*agentupdat
 		ProtocolVersion:           c.options.ProtocolVersion,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("verify signed agent update manifest: %w", err)
+		return nil, fmt.Errorf("verify agent update manifest: %w", err)
 	}
 	if verified.Manifest.Version != tag {
-		return nil, errors.New("signed manifest version does not match immutable release tag")
+		return nil, errors.New("manifest version does not match immutable release tag")
 	}
 	if c.floor.Sequence == verified.Manifest.Sequence && c.floor.ManifestSHA256 != "" && c.floor.ManifestSHA256 != verified.ManifestSHA256 {
-		return nil, errors.New("signed manifest equivocates at an already trusted release sequence")
+		return nil, errors.New("manifest changed at an already trusted release sequence")
 	}
 
 	nextFloor := persistedFloor{
 		SchemaVersion:      stateSchemaVersion,
-		RootVersion:        c.options.Root.Version,
 		Sequence:           verified.Manifest.Sequence,
 		SecurityEpoch:      verified.Manifest.SecurityEpoch,
 		MinimumSafeVersion: verified.Manifest.MinimumSafeVersion,
@@ -344,7 +335,7 @@ func readFloor(path string) (persistedFloor, error) {
 	if floorChannel == "" {
 		floorChannel = releaseversion.ChannelStable
 	}
-	if floor.SchemaVersion != stateSchemaVersion || floor.RootVersion == 0 || floor.Sequence == 0 || floor.SecurityEpoch == 0 ||
+	if floor.SchemaVersion != stateSchemaVersion || floor.Sequence == 0 || floor.SecurityEpoch == 0 ||
 		!releaseversion.ValidForChannel(floor.Version, floorChannel) || !digestRE.MatchString(floor.ManifestSHA256) {
 		return persistedFloor{}, errors.New("agent update catalog state is invalid")
 	}

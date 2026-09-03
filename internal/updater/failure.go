@@ -23,7 +23,7 @@ func (p Paths) lastActivatorErrorPath() string {
 }
 
 // QuarantineActivationFailure removes path-unit edges after any activator
-// failure, preventing a tight root-service retry loop. Signed candidate bytes
+// failure, preventing a tight root-service retry loop. Verified candidate bytes
 // remain staged for diagnosis; the worker reports the bounded failure.
 func QuarantineActivationFailure(paths Paths, cause error, action agentupdateauth.AssignmentAction, commandPath string) error {
 	record := failureRecord{Code: "activation_failed", Detail: boundedFailure(cause)}

@@ -86,7 +86,6 @@ describe("agentSetupSnippets", () => {
       ...baseInput,
       enableManagedUpdates: true,
       updaterEnrollmentToken: "p2puet_separate-root-owned-bootstrap",
-      agentUpdateRootBase64: "eyJzY2hlbWFfdmVyc2lvbiI6MX0=",
       agentUpdateAuthorityPublicKeyBase64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       agentUpdateAuthorityKeyId: "a".repeat(64),
       agentUpdateAuthorityEpoch: 1n,
@@ -96,7 +95,6 @@ describe("agentSetupSnippets", () => {
     expect(snippet).not.toContain("p2puet_separate-root-owned-bootstrap");
     expect(snippet).toContain("Updater enrollment token: ");
     expect(snippet).toContain("IFS= read -r P2PSTREAM_UPDATER_ENROLLMENT_TOKEN");
-    expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_ROOT_BASE64='eyJzY2hlbWFfdmVyc2lvbiI6MX0='");
     expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='");
     expect(snippet).toContain(`P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID='${"a".repeat(64)}'`);
     expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH='1'");
@@ -108,13 +106,13 @@ describe("agentSetupSnippets", () => {
       .not.toContain("P2PSTREAM_UPDATER_ENROLLMENT_TOKEN");
   });
 
-  test("fails closed when managed-update bootstrap trust is incomplete", () => {
-    expect(() => linuxInstallSnippet({ ...baseInput, enableManagedUpdates: true })).toThrow("pinned trust root");
+  test("fails closed when managed-update authorization is incomplete", () => {
+    expect(() => linuxInstallSnippet({ ...baseInput, enableManagedUpdates: true })).toThrow("pinned management authority");
     expect(() => linuxInstallSnippet({
       ...baseInput,
       enableManagedUpdates: true,
       updaterEnrollmentToken: "p2puet_token",
-    })).toThrow("pinned trust root");
+    })).toThrow("pinned management authority");
   });
 
   test("builds updater-only bootstrap without exposing or rotating the tunnel token", () => {
@@ -122,7 +120,6 @@ describe("agentSetupSnippets", () => {
       managementUrl: "https://mgmt.example.test:8081/",
       agentId: "agent-existing",
       updaterEnrollmentToken: "p2puet_one-time",
-      agentUpdateRootBase64: "eyJyb290IjoxfQ==",
       agentUpdateAuthorityPublicKeyBase64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       agentUpdateAuthorityKeyId: "a".repeat(64),
       agentUpdateAuthorityEpoch: 9n,
@@ -137,7 +134,6 @@ describe("agentSetupSnippets", () => {
     expect(snippet).not.toContain("p2puet_one-time");
     expect(snippet).toContain("Updater enrollment token: ");
     expect(snippet).toContain("IFS= read -r P2PSTREAM_UPDATER_ENROLLMENT_TOKEN");
-    expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_ROOT_BASE64='eyJyb290IjoxfQ=='");
     expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH='9'");
 	expect(snippet).toContain("P2PSTREAM_EXISTING_TUNNEL_VERSION='v1.0.0'");
 	expect(snippet).toContain(`P2PSTREAM_EXISTING_TUNNEL_COMMIT='${"b".repeat(40)}'`);
@@ -150,7 +146,6 @@ describe("agentSetupSnippets", () => {
       managementUrl: "https://mgmt.example.test:8081/",
       agentId: "agent-existing",
       updaterEnrollmentToken: "p2puet_one-time",
-      agentUpdateRootBase64: "eyJyb290IjoxfQ==",
       agentUpdateAuthorityPublicKeyBase64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       agentUpdateAuthorityKeyId: "a".repeat(64),
       agentUpdateAuthorityEpoch: 9n,
@@ -172,7 +167,6 @@ describe("agentSetupSnippets", () => {
       version,
       enableManagedUpdates: true,
       updaterEnrollmentToken: "p2puet_staging",
-      agentUpdateRootBase64: "e30=",
       agentUpdateAuthorityPublicKeyBase64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       agentUpdateAuthorityKeyId: "a".repeat(64),
       agentUpdateAuthorityEpoch: 1n,

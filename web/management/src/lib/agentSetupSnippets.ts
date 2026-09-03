@@ -12,7 +12,6 @@ export type AgentSetupSnippetInput = {
   agentId: string;
   agentToken: string;
   updaterEnrollmentToken?: string;
-  agentUpdateRootBase64?: string;
   agentUpdateAuthorityPublicKeyBase64?: string;
   agentUpdateAuthorityKeyId?: string;
   agentUpdateAuthorityEpoch?: bigint;
@@ -32,7 +31,6 @@ export type ManagedUpdaterBootstrapSnippetInput = {
   managementUrl: string;
   agentId: string;
   updaterEnrollmentToken: string;
-  agentUpdateRootBase64: string;
   agentUpdateAuthorityPublicKeyBase64: string;
   agentUpdateAuthorityKeyId: string;
   agentUpdateAuthorityEpoch: bigint;
@@ -129,18 +127,16 @@ export function linuxInstallSnippet(input: AgentSetupSnippetInput): string {
 
 function managedUpdateInstallParts(input: AgentSetupSnippetInput): string[] {
   const enrollmentToken = singleLine(input.updaterEnrollmentToken ?? "").trim();
-  const rootBase64 = singleLine(input.agentUpdateRootBase64 ?? "").trim();
   const authorityPublicKey = singleLine(input.agentUpdateAuthorityPublicKeyBase64 ?? "").trim();
   const authorityKeyId = singleLine(input.agentUpdateAuthorityKeyId ?? "").trim();
   const authorityEpoch = input.agentUpdateAuthorityEpoch ?? 0n;
   if (!input.enableManagedUpdates) return [];
-  if (!enrollmentToken || !rootBase64 || !authorityPublicKey || !/^[0-9a-f]{64}$/.test(authorityKeyId) || authorityEpoch <= 0n) {
-    throw new Error("Managed updates require the one-time enrollment token, pinned trust root, and pinned management authority.");
+  if (!enrollmentToken || !authorityPublicKey || !/^[0-9a-f]{64}$/.test(authorityKeyId) || authorityEpoch <= 0n) {
+    throw new Error("Managed updates require the one-time enrollment token and pinned management authority.");
   }
   return [
     "P2PSTREAM_ENABLE_MANAGED_UPDATES=true",
     `P2PSTREAM_AGENT_UPDATE_CHANNEL=${shellQuote(releaseChannelForVersion(normalizeReleaseVersion(input.version)))}`,
-    `P2PSTREAM_AGENT_UPDATE_ROOT_BASE64=${shellQuote(rootBase64)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64=${shellQuote(authorityPublicKey)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID=${shellQuote(authorityKeyId)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH=${shellQuote(authorityEpoch.toString())}`,
@@ -159,13 +155,12 @@ export function linuxManagedUpdaterBootstrapSnippet(input: ManagedUpdaterBootstr
   const installerPath = normalizeLocalPath(input.installerPath, DEFAULT_LOCAL_INSTALLER_PATH, "Installer");
   const agentBinaryPath = normalizeLocalPath(input.agentBinaryPath, DEFAULT_LOCAL_AGENT_BINARY_PATH, "Agent binary");
   const enrollmentToken = singleLine(input.updaterEnrollmentToken).trim();
-  const rootBase64 = singleLine(input.agentUpdateRootBase64).trim();
   const authorityPublicKey = singleLine(input.agentUpdateAuthorityPublicKeyBase64).trim();
   const authorityKeyId = singleLine(input.agentUpdateAuthorityKeyId).trim();
   const currentTunnelVersion = singleLine(input.currentTunnelVersion).trim();
   const currentTunnelCommit = singleLine(input.currentTunnelCommit).trim();
-  if (!enrollmentToken || !rootBase64 || !authorityPublicKey || !/^[0-9a-f]{64}$/.test(authorityKeyId) || input.agentUpdateAuthorityEpoch <= 0n) {
-    throw new Error("Managed updates require the one-time enrollment token, pinned trust root, and pinned management authority.");
+  if (!enrollmentToken || !authorityPublicKey || !/^[0-9a-f]{64}$/.test(authorityKeyId) || input.agentUpdateAuthorityEpoch <= 0n) {
+    throw new Error("Managed updates require the one-time enrollment token and pinned management authority.");
   }
   if (!isValidReleaseVersion(currentTunnelVersion) || !/^[0-9a-f]{40}$/.test(currentTunnelCommit)) {
     throw new Error("Updater bootstrap requires the exact live tunnel version and commit observed by management.");
@@ -175,7 +170,6 @@ export function linuxManagedUpdaterBootstrapSnippet(input: ManagedUpdaterBootstr
     `AGENT_ID=${shellQuote(input.agentId)}`,
     "P2PSTREAM_ENABLE_MANAGED_UPDATES=true",
     `P2PSTREAM_AGENT_UPDATE_CHANNEL=${shellQuote(releaseChannelForVersion(version))}`,
-    `P2PSTREAM_AGENT_UPDATE_ROOT_BASE64=${shellQuote(rootBase64)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64=${shellQuote(authorityPublicKey)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID=${shellQuote(authorityKeyId)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH=${shellQuote(input.agentUpdateAuthorityEpoch.toString())}`,

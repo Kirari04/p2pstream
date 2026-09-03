@@ -30,7 +30,7 @@ type ociIndexDescriptor struct {
 }
 
 // ParseOCIImageIndex converts the exact raw bytes returned by an OCI registry
-// into signed release metadata. Digest binds every byte, including annotations
+// into release metadata. Digest binds every byte, including annotations
 // not represented in Platforms; Platforms makes the executable child set
 // explicit to offline reviewers.
 func ParseOCIImageIndex(repository string, raw []byte) (OCIImage, error) {
@@ -151,14 +151,14 @@ func rejectDuplicateJSONKeys(data []byte) error {
 }
 
 // VerifyOCIImageIndex requires the registry's current raw index to be exactly
-// the signed content address and normalized descriptor set.
+// the manifest content address and normalized descriptor set.
 func VerifyOCIImageIndex(raw []byte, expected OCIImage) error {
 	actual, err := ParseOCIImageIndex(expected.Repository, raw)
 	if err != nil {
 		return err
 	}
 	if actual.Digest != expected.Digest || actual.Size != expected.Size || actual.MediaType != expected.MediaType || !slices.Equal(actual.Platforms, expected.Platforms) {
-		return errors.New("OCI image index does not match signed release metadata")
+		return errors.New("OCI image index does not match release metadata")
 	}
 	return nil
 }

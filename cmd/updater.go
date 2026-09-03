@@ -39,7 +39,7 @@ var updaterCmd = &cobra.Command{
 
 var updaterStageCmd = &cobra.Command{
 	Use:          "stage",
-	Short:        "Check and stage a signed raw agent binary",
+	Short:        "Check and stage a verified GitHub release binary",
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -97,10 +97,6 @@ var updaterBootstrapHostCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		trustedRoot, err := base64.StdEncoding.Strict().DecodeString(os.Getenv("P2PSTREAM_AGENT_UPDATE_ROOT_BASE64"))
-		if err != nil {
-			return errors.New("P2PSTREAM_AGENT_UPDATE_ROOT_BASE64 is not canonical base64")
-		}
 		authorityPublicKey, err := base64.StdEncoding.Strict().DecodeString(os.Getenv("P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64"))
 		if err != nil {
 			return errors.New("P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64 is not canonical base64")
@@ -117,7 +113,6 @@ var updaterBootstrapHostCmd = &cobra.Command{
 				AgentPublicID: os.Getenv("AGENT_ID"), Channel: channel,
 			},
 			EnrollmentToken:       os.Getenv("P2PSTREAM_UPDATER_ENROLLMENT_TOKEN"),
-			TrustedRootJSON:       trustedRoot,
 			AuthorityPublicKey:    authorityPublicKey,
 			AuthorityKeyID:        os.Getenv("P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID"),
 			AuthorityEpoch:        authorityEpoch,
