@@ -329,7 +329,7 @@ func requireProtectedRegularFile(path string, mode os.FileMode, owner, group int
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !ok || !info.Mode().IsRegular() || info.Mode().Perm() != mode.Perm() ||
-		stat.Uid != uint32(owner) || stat.Gid != uint32(group) {
+		!accountIDMatches(stat.Uid, owner) || !accountIDMatches(stat.Gid, group) {
 		return errors.New("unsafe file type, ownership, or permissions")
 	}
 	return nil
@@ -401,7 +401,7 @@ func loadPrivateIdentity(path string, uid, gid int) (ed25519.PrivateKey, error) 
 		return nil, err
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || stat.Uid != uint32(uid) || stat.Gid != uint32(gid) || info.Mode().Perm() != 0600 {
+	if !ok || !accountIDMatches(stat.Uid, uid) || !accountIDMatches(stat.Gid, gid) || info.Mode().Perm() != 0600 {
 		return nil, errors.New("updater private key has unsafe owner or permissions")
 	}
 	data, err := readBounded(f, 128)
@@ -417,6 +417,10 @@ func loadPrivateIdentity(path string, uid, gid int) (ed25519.PrivateKey, error) 
 		return nil, errors.New("updater private key is invalid")
 	}
 	return key, nil
+}
+
+func accountIDMatches(actual uint32, expected int) bool {
+	return expected >= 0 && uint64(actual) == uint64(expected)
 }
 
 func createExclusiveSynced(path string, data []byte, mode os.FileMode, uid, gid int) error {
