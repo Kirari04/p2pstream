@@ -449,6 +449,7 @@ jobs:
         shell: bash
         env:
           TAG: ${{ needs.verify.outputs.tag }}
+          CHANNEL: ${{ needs.verify.outputs.channel }}
           RELEASE_SEQUENCE: ${{ needs.verify.outputs.sequence }}
           ROOT_METADATA_BASE64: ${{ vars.AGENT_UPDATE_ROOT_METADATA_BASE64 }}
           MANIFEST_VALIDITY_DAYS: ${{ vars.AGENT_UPDATE_MANIFEST_VALIDITY_DAYS }}
