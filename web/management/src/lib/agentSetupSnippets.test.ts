@@ -145,6 +145,22 @@ describe("agentSetupSnippets", () => {
     expect(snippet).not.toContain("\n");
   });
 
+  test("rejects a noncanonical live tunnel version during updater bootstrap", () => {
+    expect(() => linuxManagedUpdaterBootstrapSnippet({
+      managementUrl: "https://mgmt.example.test:8081/",
+      agentId: "agent-existing",
+      updaterEnrollmentToken: "p2puet_one-time",
+      agentUpdateRootBase64: "eyJyb290IjoxfQ==",
+      agentUpdateAuthorityPublicKeyBase64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      agentUpdateAuthorityKeyId: "a".repeat(64),
+      agentUpdateAuthorityEpoch: 9n,
+      currentTunnelVersion: "v1.2.3-staging.01",
+      currentTunnelCommit: "b".repeat(40),
+      repository: "ExampleUser/p2pstream",
+      version: "v1.2.3-staging.17",
+    })).toThrow("exact live tunnel version and commit");
+  });
+
   test("uses immutable staging prereleases in Linux installer snippets", () => {
     const version = "v1.2.3-staging.17";
     const snippet = linuxInstallSnippet({ ...baseInput, version });
