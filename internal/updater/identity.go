@@ -109,15 +109,14 @@ func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 	if err != nil {
 		return PublicIdentities{}, fmt.Errorf("look up updater user: %w", err)
 	}
-	uid64, err := strconv.ParseUint(account.Uid, 10, 32)
+	uid, err := parseAccountID(account.Uid)
 	if err != nil {
-		return PublicIdentities{}, err
+		return PublicIdentities{}, fmt.Errorf("parse updater user ID: %w", err)
 	}
-	gid64, err := strconv.ParseUint(account.Gid, 10, 32)
+	gid, err := parseAccountID(account.Gid)
 	if err != nil {
-		return PublicIdentities{}, err
+		return PublicIdentities{}, fmt.Errorf("parse updater group ID: %w", err)
 	}
-	uid, gid := int(uid64), int(gid64)
 	for _, directory := range []struct {
 		path         string
 		mode         os.FileMode
@@ -177,6 +176,17 @@ func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 		return PublicIdentities{}, err
 	}
 	return PublicIdentities{WorkerPublicKey: worker, ActivatorPublicKey: activator}, nil
+}
+
+func parseAccountID(value string) (int, error) {
+	id, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, err
+	}
+	if id < 0 || uint64(id) > uint64(^uint32(0)) {
+		return 0, errors.New("account ID is outside the supported unsigned 32-bit range")
+	}
+	return id, nil
 }
 
 func bootstrapVersionFloor(rescueVersion, existingTunnelVersion string) string {

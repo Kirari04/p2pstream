@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -42,6 +43,22 @@ func TestEnsureIdentityUsesCanonicalSeedAndDoesNotRotate(t *testing.T) {
 	info, err := os.Stat(privatePath)
 	if err != nil || info.Mode().Perm() != 0600 {
 		t.Fatalf("private key mode = %v, %v", info.Mode().Perm(), err)
+	}
+}
+
+func TestParseAccountIDRejectsValuesThatDoNotFitTheHostInt(t *testing.T) {
+	for _, value := range []string{"-1", "4294967296", "not-an-id"} {
+		if _, err := parseAccountID(value); err == nil {
+			t.Fatalf("parseAccountID(%q) unexpectedly succeeded", value)
+		}
+	}
+
+	if got, err := parseAccountID("4294967295"); strconv.IntSize == 64 {
+		if err != nil || uint64(got) != uint64(^uint32(0)) {
+			t.Fatalf("parseAccountID(max uint32) = %d, %v", got, err)
+		}
+	} else if err == nil {
+		t.Fatal("max uint32 unexpectedly fit a 32-bit int")
 	}
 }
 
