@@ -164,7 +164,7 @@ func (w *Worker) stage(ctx context.Context, check *p2pstreamv1.CheckAgentUpdateR
 		Paths: w.Paths, Source: source, Verifier: verifier,
 		Policy: VerifyPolicy{
 			ServerVersion: check.ServerVersion, UpdaterVersion: buildinfo.Version,
-			ProtocolVersion: uint32(tunnel.ProtocolVersion), RequiredChannel: "stable",
+			ProtocolVersion: uint32(tunnel.ProtocolVersion), RequiredChannel: w.Config.Channel,
 		},
 	})
 	if err != nil {
@@ -443,10 +443,14 @@ func runClaimedRollback(ctx context.Context, paths Paths, service ServiceControl
 }
 
 func runClaimedActivation(ctx context.Context, paths Paths, service ServiceController) error {
-	_, err := Activate(ctx, ActivateOptions{
+	config, err := LoadHostConfig(paths.ConfigPath)
+	if err != nil {
+		return errors.Join(err, QuarantineActivationFailure(paths, err, agentupdateauth.AssignmentActionActivate, paths.activationClaimPath()))
+	}
+	_, err = Activate(ctx, ActivateOptions{
 		Paths: paths, ReadyPath: paths.activationClaimPath(), Verifier: AgentUpdateVerifier{}, Service: service,
 		Policy: VerifyPolicy{
-			UpdaterVersion: buildinfo.Version, ProtocolVersion: uint32(tunnel.ProtocolVersion), RequiredChannel: "stable",
+			UpdaterVersion: buildinfo.Version, ProtocolVersion: uint32(tunnel.ProtocolVersion), RequiredChannel: config.Channel,
 		},
 	})
 	if err != nil {

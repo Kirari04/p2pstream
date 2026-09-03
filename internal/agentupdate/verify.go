@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"p2pstream/internal/releaseversion"
 )
 
 const allowedClockSkew = 5 * time.Minute
@@ -89,7 +91,7 @@ func VerifyCatalog(manifestJSON, signatureJSON []byte, root RootMetadata, policy
 		if err := validateStableVersion(policy.CurrentMinimumSafeVersion); err != nil {
 			return nil, fmt.Errorf("invalid catalog minimum safe version: %w", err)
 		}
-		if compareStableVersions(manifest.MinimumSafeVersion, policy.CurrentMinimumSafeVersion) < 0 {
+		if releaseversion.Compare(manifest.MinimumSafeVersion, policy.CurrentMinimumSafeVersion) < 0 {
 			return nil, errors.New("manifest lowers the catalog minimum safe version")
 		}
 	}
@@ -126,14 +128,14 @@ func Verify(manifestJSON, signatureJSON []byte, root RootMetadata, policy Verify
 		if err := validateStableVersion(policy.CurrentMinimumSafeVersion); err != nil {
 			return nil, fmt.Errorf("invalid persisted minimum safe version: %w", err)
 		}
-		if compareStableVersions(manifest.MinimumSafeVersion, policy.CurrentMinimumSafeVersion) < 0 {
+		if releaseversion.Compare(manifest.MinimumSafeVersion, policy.CurrentMinimumSafeVersion) < 0 {
 			return nil, errors.New("manifest lowers the persisted minimum safe version")
 		}
 	}
-	if err := validateStableVersion(policy.CurrentVersion); err != nil {
-		return nil, fmt.Errorf("invalid current version: %w", err)
+	if !releaseversion.Valid(policy.CurrentVersion) {
+		return nil, errors.New("invalid current version: version must be canonical SemVer")
 	}
-	if compareStableVersions(manifest.Version, policy.CurrentVersion) <= 0 {
+	if releaseversion.Compare(manifest.Version, policy.CurrentVersion) <= 0 {
 		return nil, errors.New("manifest version does not advance the installed version")
 	}
 	if err := requireVersionInRange("server", policy.ServerVersion, manifest.Compatibility.Server); err != nil {
@@ -246,10 +248,10 @@ func verifyThreshold(payload []byte, envelope SignatureEnvelope, root RootMetada
 }
 
 func requireVersionInRange(name, version string, versionRange VersionRange) error {
-	if err := validateStableVersion(version); err != nil {
-		return fmt.Errorf("invalid local %s version: %w", name, err)
+	if !releaseversion.Valid(version) {
+		return fmt.Errorf("invalid local %s version: version must be canonical SemVer", name)
 	}
-	if compareStableVersions(version, versionRange.Min) < 0 || compareStableVersions(version, versionRange.Max) > 0 {
+	if releaseversion.Compare(version, versionRange.Min) < 0 || releaseversion.Compare(version, versionRange.Max) > 0 {
 		return fmt.Errorf("%s version is outside manifest compatibility range", name)
 	}
 	return nil

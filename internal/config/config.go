@@ -14,6 +14,8 @@ import (
 	"github.com/caarlos0/env/v10"
 	"github.com/joho/godotenv"
 
+	"p2pstream/internal/buildinfo"
+	"p2pstream/internal/releaseversion"
 	"p2pstream/internal/tunnel"
 )
 
@@ -48,6 +50,7 @@ type Config struct {
 	ManagementTLSExtraHosts           string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
 	AgentUpdatesEnabled               bool   `env:"AGENT_UPDATES_ENABLED" envDefault:"false"`
 	AgentUpdateRepository             string `env:"AGENT_UPDATE_REPOSITORY" envDefault:"Kirari04/p2pstream"`
+	AgentUpdateChannel                string `env:"AGENT_UPDATE_CHANNEL"`
 	AgentUpdateRootFile               string `env:"AGENT_UPDATE_ROOT_FILE"`
 	AgentUpdateAuthorityKeyFile       string `env:"AGENT_UPDATE_AUTHORITY_KEY_FILE"`
 	AgentUpdateCatalogRefreshMillis   int64  `env:"AGENT_UPDATE_CATALOG_REFRESH_MILLIS" envDefault:"300000"`
@@ -128,7 +131,11 @@ func Load() (*Config, error) {
 	}
 	cfg.ConfigDir = filepath.Clean(cfg.ConfigDir)
 	cfg.CertsDir = filepath.Join(cfg.ConfigDir, certsDirName)
-	cfg.AgentUpdateCatalogStateFile = filepath.Join(cfg.ConfigDir, "agent-update-catalog-state.json")
+	catalogStateName := "agent-update-catalog-state.json"
+	if cfg.AgentUpdateChannel == releaseversion.ChannelStaging {
+		catalogStateName = "agent-update-catalog-state-staging.json"
+	}
+	cfg.AgentUpdateCatalogStateFile = filepath.Join(cfg.ConfigDir, catalogStateName)
 	authorityKeyPath := strings.TrimSpace(cfg.AgentUpdateAuthorityKeyFile)
 	if authorityKeyPath == "" {
 		authorityKeyPath = filepath.Join(cfg.ConfigDir, "agent-update-management-authority.json")
@@ -243,10 +250,18 @@ func validateManagementTLSConfig(cfg *Config) error {
 	cfg.ManagementAdvertiseHost = strings.TrimSpace(cfg.ManagementAdvertiseHost)
 	cfg.ManagementTLSExtraHosts = strings.TrimSpace(cfg.ManagementTLSExtraHosts)
 	cfg.AgentUpdateRepository = strings.TrimSpace(cfg.AgentUpdateRepository)
+	agentUpdateChannel, err := resolveAgentUpdateChannel(cfg.AgentUpdateChannel, buildinfo.Channel)
+	if err != nil {
+		return err
+	}
+	cfg.AgentUpdateChannel = agentUpdateChannel
 	cfg.AgentUpdateRootFile = strings.TrimSpace(cfg.AgentUpdateRootFile)
 	cfg.AgentUpdateAuthorityKeyFile = strings.TrimSpace(cfg.AgentUpdateAuthorityKeyFile)
 	if !agentUpdateRepositoryRE.MatchString(cfg.AgentUpdateRepository) {
 		return errors.New("AGENT_UPDATE_REPOSITORY must use GitHub owner/repo syntax")
+	}
+	if cfg.AgentUpdateChannel != releaseversion.ChannelStable && cfg.AgentUpdateChannel != releaseversion.ChannelStaging {
+		return errors.New("AGENT_UPDATE_CHANNEL must be stable or staging")
 	}
 	if cfg.AgentUpdateCatalogRefreshMillis < 10_000 || cfg.AgentUpdateCatalogRefreshMillis > 3_600_000 {
 		return errors.New("AGENT_UPDATE_CATALOG_REFRESH_MILLIS must be between 10000 and 3600000")
@@ -307,6 +322,25 @@ func validateManagementTLSConfig(cfg *Config) error {
 		}
 	}
 	return nil
+}
+
+func resolveAgentUpdateChannel(configured, compiled string) (string, error) {
+	configured = strings.ToLower(strings.TrimSpace(configured))
+	compiled = strings.ToLower(strings.TrimSpace(compiled))
+	compiledIsRelease := compiled == releaseversion.ChannelStable || compiled == releaseversion.ChannelStaging
+	if configured == "" {
+		if compiledIsRelease {
+			return compiled, nil
+		}
+		return releaseversion.ChannelStable, nil
+	}
+	if configured != releaseversion.ChannelStable && configured != releaseversion.ChannelStaging {
+		return "", errors.New("AGENT_UPDATE_CHANNEL must be stable or staging")
+	}
+	if compiledIsRelease && configured != compiled {
+		return "", errors.New("AGENT_UPDATE_CHANNEL must match the compiled release channel")
+	}
+	return configured, nil
 }
 
 func validateConfiguredSecret(name, value string) error {

@@ -60,12 +60,19 @@ func TestGitHubSourceUsesOnlyImmutableReleaseAssetPaths(t *testing.T) {
 	}
 }
 
-func TestGitHubSourceRejectsMutableOrPreReleaseVersion(t *testing.T) {
+func TestGitHubSourceRejectsMutableOrWrongChannelVersion(t *testing.T) {
 	config := HostConfig{Repository: "owner/repo", ManagementOrigin: "https://management.example", AgentPublicID: "agent-a", Channel: "stable"}
 	for _, version := range []string{"latest", "staging", "v1.2.3-rc.1", "../v1.2.3"} {
 		if _, err := NewGitHubSource(config, version, &http.Client{}); err == nil {
 			t.Fatalf("version %q accepted", version)
 		}
+	}
+	config.Channel = "staging"
+	if _, err := NewGitHubSource(config, "v1.2.3-staging.1", &http.Client{}); err != nil {
+		t.Fatalf("staging prerelease rejected: %v", err)
+	}
+	if _, err := NewGitHubSource(config, "v1.2.3", &http.Client{}); err == nil {
+		t.Fatal("stable release accepted by staging source")
 	}
 }
 

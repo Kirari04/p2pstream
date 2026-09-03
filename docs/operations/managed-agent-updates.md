@@ -1,6 +1,6 @@
 # Managed Agent Updates
 
-Managed updates are an opt-in Linux/systemd workflow for rolling a signed stable agent release across a fleet without rotating tunnel tokens or logging in to each host.
+Managed updates are an opt-in Linux/systemd workflow for rolling a signed stable release or isolated staging prerelease across a fleet without rotating tunnel tokens or logging in to each host.
 
 The management server publishes desired state only. It cannot send shell commands, local paths, service names, or download URLs. An unprivileged host worker checks assignments and stages an exact raw binary; a small root helper has no network access and can only verify, switch fixed binary slots, restart the fixed agent unit, or restore the previous slot.
 
@@ -13,7 +13,7 @@ Three credentials have separate authority:
 - the pinned management authority signs enrollment and each exact activate/rollback command;
 - the root activator identity signs the result of one consumed authority command, including its digest, nonce, monotonic command sequence, and monotonic root-action counter.
 
-Stable manifests are canonical JSON signed by the configured Ed25519 threshold root. They include the exact version, commit, release/security sequence, compatibility ranges, expiry, per-platform raw-binary size and SHA-256, the exact OCI index and child descriptors, and a name/size/SHA-256 inventory of every published release attachment. Release assets are create-only. Staging intentionally carries no production update metadata.
+Stable and staging manifests are canonical JSON signed by the configured Ed25519 threshold root. They include the exact version, channel, commit, release/security sequence, compatibility ranges, expiry, per-platform raw-binary size and SHA-256, the exact OCI index and child descriptors, and a name/size/SHA-256 inventory of every published release attachment. Release assets are create-only. Stable accepts only final SemVer versions; staging accepts only prereleases, pins the exact running management prerelease, and persists an independent rollback floor.
 
 The initial release root and the separate Ed25519 management-authority public key arrive as explicit bootstrap inputs and are pinned in `/etc/p2pstream-updater`. The installer verifies the authority key ID before enrollment, and ordinary bootstrap cannot replace either pin or lower any persisted floor. The release channel cannot replace them. Later release-root changes require a threshold signature from the currently pinned unexpired root and an exactly monotonic root version.
 
@@ -24,10 +24,11 @@ Set the server variables below, then restart p2pstream:
 ```dotenv
 AGENT_UPDATES_ENABLED=true
 AGENT_UPDATE_REPOSITORY=Kirari04/p2pstream
+AGENT_UPDATE_CHANNEL=stable
 AGENT_UPDATE_ROOT_FILE=/etc/p2pstream/update-root.json
 ```
 
-The root file must be the same canonical metadata used by the stable release workflow. If it is missing, malformed, expired, or incompatible, managed enrollment and campaign progression fail closed while ordinary proxy traffic remains available. A GitHub outage may use a cached last-known-good target only until that target's signed expiry.
+The root file must be the same canonical metadata used by the shared release workflow. Official builds select their compiled `stable` or `staging` channel automatically; an explicit `AGENT_UPDATE_CHANNEL` must agree with the intended deployment. If the root is missing, malformed, expired, or incompatible, managed enrollment and campaign progression fail closed while ordinary proxy traffic remains available. A GitHub outage may use a cached last-known-good target only until that target's signed expiry.
 
 On the first pristine managed-update startup, the server creates a separate
 Ed25519 command-authority key at
@@ -91,7 +92,7 @@ Pause stops new activation work but preserves durable state. Cancel removes work
 
 ## Release Workflow Requirements
 
-Stable publishing uses a mandatory prepare/sign/publish ceremony. The prepare
+Stable and staging publishing use the same mandatory prepare/sign/publish ceremony. The prepare
 phase creates an unsigned draft for one exact version and commit. Separately
 controlled offline signers inspect that candidate and each emit one signature
 contribution; an offline workstation merges them only after the pinned-root
@@ -103,6 +104,10 @@ secrets, the management server, or one shared signing process.
 
 Configure the `agent-update-publish` protected GitHub environment with required
 reviewers and its per-release `AGENT_UPDATE_OFFLINE_SIGNATURES_BASE64` secret.
+Staging pushes automatically prepare a unique `vX.Y.Z-staging.N` draft; an
+operator still supplies the independently produced signature envelope and
+dispatches the protected publish phase before the prerelease or `staging` image
+alias becomes available.
 Enable GitHub immutable releases for the repository so the registry also
 enforces the workflow's create-only release contract after publication.
 The repository variables for the canonical root, security/minimum-safe floors,

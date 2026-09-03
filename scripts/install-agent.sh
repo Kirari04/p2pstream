@@ -550,6 +550,23 @@ managed_updates_requested() {
   [[ "${P2PSTREAM_ENABLE_MANAGED_UPDATES:-false}" == "true" ]]
 }
 
+is_exact_semver() {
+	local version="$1" prerelease identifier
+	local -a identifiers
+	(( ${#version} <= 96 )) || return 1
+	[[ "$version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]] || return 1
+	if [[ "$version" == *-* ]]; then
+		prerelease="${version#*-}"
+		IFS=. read -r -a identifiers <<<"$prerelease"
+		for identifier in "${identifiers[@]}"; do
+			if [[ "$identifier" =~ ^[0-9]+$ && ${#identifier} -gt 1 && "$identifier" == 0* ]]; then
+				return 1
+			fi
+		done
+	fi
+	return 0
+}
+
 validate_managed_update_inputs() {
   case "${P2PSTREAM_ENABLE_MANAGED_UPDATES:-false}" in
     true|false) ;;
@@ -563,6 +580,9 @@ validate_managed_update_inputs() {
   require_env P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64
   require_env P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID
   require_env P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH
+	require_env P2PSTREAM_AGENT_UPDATE_CHANNEL
+	[[ "$P2PSTREAM_AGENT_UPDATE_CHANNEL" == "stable" || "$P2PSTREAM_AGENT_UPDATE_CHANNEL" == "staging" ]] \
+		|| fail "P2PSTREAM_AGENT_UPDATE_CHANNEL must be stable or staging"
   [[ "$P2PSTREAM_UPDATER_ENROLLMENT_TOKEN" != *$'\n'* && "$P2PSTREAM_UPDATER_ENROLLMENT_TOKEN" != *$'\r'* ]] \
     || fail "P2PSTREAM_UPDATER_ENROLLMENT_TOKEN must be a single line"
   (( ${#P2PSTREAM_UPDATER_ENROLLMENT_TOKEN} <= 4096 )) \
@@ -744,7 +764,8 @@ install_updater_foundation() {
   P2PSTREAM_AGENT_UPDATE_ROOT_BASE64="$P2PSTREAM_AGENT_UPDATE_ROOT_BASE64" \
   P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64="$P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64" \
   P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID="$P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID" \
-  P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH="$P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH" \
+	P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH="$P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH" \
+	P2PSTREAM_AGENT_UPDATE_CHANNEL="$P2PSTREAM_AGENT_UPDATE_CHANNEL" \
   P2PSTREAM_CURRENT_VERSION="$tag" \
 	P2PSTREAM_EXISTING_TUNNEL_VERSION="${P2PSTREAM_EXISTING_TUNNEL_VERSION:-}" \
 	P2PSTREAM_EXISTING_TUNNEL_COMMIT="${P2PSTREAM_EXISTING_TUNNEL_COMMIT:-}" \
@@ -781,7 +802,7 @@ install_version_slot() {
   local next_current="${AGENT_INSTALL_ROOT}/.current-next"
   local next_command="$(dirname "$INSTALL_PATH")/.p2pstream-next"
 
-  [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ || "$version" =~ ^bootstrap-[0-9a-f]{16}$ ]] \
+  (is_exact_semver "$version" || [[ "$version" =~ ^bootstrap-[0-9a-f]{16}$ ]]) \
     || fail "invalid fixed version slot"
   install -d -o root -g root -m 0755 "$AGENT_INSTALL_ROOT" "$AGENT_SLOTS_DIR" "$slot_dir"
   install -o root -g root -m 0755 "$binary" "${slot_dir}/p2pstream"
@@ -968,11 +989,19 @@ main() {
 
   arch="$(detect_arch)"
   version="$(single_line "$version")"
-  if [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    tag="$version"
-  else
-    fail "P2PSTREAM_VERSION must pin an exact stable vX.Y.Z release"
-  fi
+	if is_exact_semver "$version"; then
+		tag="$version"
+	else
+		fail "P2PSTREAM_VERSION must pin an exact SemVer release or prerelease"
+	fi
+	if managed_updates_requested; then
+		if [[ "$tag" == *-* && "$P2PSTREAM_AGENT_UPDATE_CHANNEL" != "staging" ]]; then
+			fail "SemVer prereleases require P2PSTREAM_AGENT_UPDATE_CHANNEL=staging"
+		fi
+		if [[ "$tag" != *-* && "$P2PSTREAM_AGENT_UPDATE_CHANNEL" != "stable" ]]; then
+			fail "final SemVer releases require P2PSTREAM_AGENT_UPDATE_CHANNEL=stable"
+		fi
+	fi
 
   tmp_dir="$(mktemp -d)"
   INSTALL_TMP_DIR="$tmp_dir"
@@ -989,8 +1018,8 @@ main() {
 	if managed_updates_requested && [[ "$preserve_existing_env" == "true" && "$updater_reenroll" != "true" ]]; then
 		require_env P2PSTREAM_EXISTING_TUNNEL_VERSION
 		require_env P2PSTREAM_EXISTING_TUNNEL_COMMIT
-		[[ "$P2PSTREAM_EXISTING_TUNNEL_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] \
-			|| fail "P2PSTREAM_EXISTING_TUNNEL_VERSION must be the exact observed stable agent version"
+		is_exact_semver "$P2PSTREAM_EXISTING_TUNNEL_VERSION" \
+			|| fail "P2PSTREAM_EXISTING_TUNNEL_VERSION must be the exact observed agent SemVer"
 		[[ "$P2PSTREAM_EXISTING_TUNNEL_COMMIT" =~ ^[0-9a-f]{40}$ ]] \
 			|| fail "P2PSTREAM_EXISTING_TUNNEL_COMMIT must be the exact observed agent commit"
 		[[ -x "$INSTALL_PATH" ]] || fail "existing agent command is not executable: ${INSTALL_PATH}"

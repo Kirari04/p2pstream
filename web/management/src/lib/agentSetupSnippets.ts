@@ -47,8 +47,8 @@ export type ManagedUpdaterBootstrapSnippetInput = {
 
 export const FALLBACK_RELEASE_REPOSITORY = "Kirari04/p2pstream";
 const RELEASE_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const RELEASE_VERSION_PATTERN = /^v\d+\.\d+\.\d+$/;
-const SCRIPT_REF_PATTERN = /^(main|staging|v\d+\.\d+\.\d+|[A-Fa-f0-9]{7,40})$/;
+const RELEASE_VERSION_PATTERN = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+const SCRIPT_REF_PATTERN = /^(main|[A-Fa-f0-9]{7,40})$/;
 const LOCAL_PATH_PATTERN = /^\/[^\r\n\0]+$/;
 export const DEFAULT_LOCAL_INSTALLER_PATH = "/path/to/p2pstream-install-agent.sh";
 export const DEFAULT_LOCAL_AGENT_BINARY_PATH = "/path/to/p2pstream-agent-vX.Y.Z-linux-ARCH";
@@ -59,28 +59,29 @@ export function normalizeManagementUrl(value: string): string {
 }
 
 export function normalizeRepository(value: string | undefined): string {
-	const trimmed = (value ?? "").trim().replace(/^https:\/\/github\.com\//i, "").replace(/^git@github\.com:/i, "").replace(/\.git$/i, "");
-	const repository = trimmed || FALLBACK_RELEASE_REPOSITORY;
-	if (!isValidRepository(repository)) {
-		throw new Error("GitHub repository must use owner/repo with letters, numbers, dots, underscores, or hyphens.");
-	}
-	return repository;
+  const trimmed = (value ?? "").trim().replace(/^https:\/\/github\.com\//i, "").replace(/^git@github\.com:/i, "").replace(/\.git$/i, "");
+  const repository = trimmed || FALLBACK_RELEASE_REPOSITORY;
+  if (!isValidRepository(repository)) {
+    throw new Error("GitHub repository must use owner/repo with letters, numbers, dots, underscores, or hyphens.");
+  }
+  return repository;
 }
 
 export function isValidRepository(value: string | undefined): boolean {
-	return RELEASE_REPOSITORY_PATTERN.test((value ?? "").trim());
+  return RELEASE_REPOSITORY_PATTERN.test((value ?? "").trim());
 }
 
 export function normalizeReleaseVersion(value: string | undefined): string {
   const version = singleLine(value ?? "").trim() || "latest";
-  if (version === "latest" || version === "staging" || RELEASE_VERSION_PATTERN.test(version)) {
+  if (version === "latest" || isValidReleaseVersion(version)) {
     return version;
   }
-  throw new Error("Release version must be latest, staging, or vX.Y.Z.");
+  throw new Error("Release version must be latest or an exact SemVer tag.");
 }
 
 export function isValidScriptRef(value: string | undefined): boolean {
-  return SCRIPT_REF_PATTERN.test(singleLine(value ?? "").trim());
+  const ref = singleLine(value ?? "").trim();
+  return SCRIPT_REF_PATTERN.test(ref) || isValidReleaseVersion(ref);
 }
 
 export function scriptRefForVersion(version: string | undefined): string {
@@ -91,7 +92,7 @@ export function scriptRefForVersion(version: string | undefined): string {
 export function normalizeScriptRef(value: string | undefined, version: string | undefined): string {
   const scriptRef = singleLine(value ?? "").trim() || scriptRefForVersion(version);
   if (!isValidScriptRef(scriptRef)) {
-    throw new Error("Installer script ref must be main, staging, vX.Y.Z, or a commit SHA.");
+    throw new Error("Installer script ref must be main, an exact SemVer tag, or a commit SHA.");
   }
   return scriptRef;
 }
@@ -138,6 +139,7 @@ function managedUpdateInstallParts(input: AgentSetupSnippetInput): string[] {
   }
   return [
     "P2PSTREAM_ENABLE_MANAGED_UPDATES=true",
+    `P2PSTREAM_AGENT_UPDATE_CHANNEL=${shellQuote(releaseChannelForVersion(normalizeReleaseVersion(input.version)))}`,
     `P2PSTREAM_AGENT_UPDATE_ROOT_BASE64=${shellQuote(rootBase64)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64=${shellQuote(authorityPublicKey)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID=${shellQuote(authorityKeyId)}`,
@@ -172,6 +174,7 @@ export function linuxManagedUpdaterBootstrapSnippet(input: ManagedUpdaterBootstr
     `MANAGEMENT_URL=${shellQuote(normalizeManagementUrl(input.managementUrl))}`,
     `AGENT_ID=${shellQuote(input.agentId)}`,
     "P2PSTREAM_ENABLE_MANAGED_UPDATES=true",
+    `P2PSTREAM_AGENT_UPDATE_CHANNEL=${shellQuote(releaseChannelForVersion(version))}`,
     `P2PSTREAM_AGENT_UPDATE_ROOT_BASE64=${shellQuote(rootBase64)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64=${shellQuote(authorityPublicKey)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID=${shellQuote(authorityKeyId)}`,
@@ -207,9 +210,21 @@ function promptedInstallerCommand(parts: string[], installerPath: string, secret
 }
 
 function requirePinnedLinuxVersion(version: string): void {
-  if (!RELEASE_VERSION_PATTERN.test(version)) {
-    throw new Error("Linux installation requires an exact stable vX.Y.Z release and locally pinned files.");
+  if (!isValidReleaseVersion(version)) {
+    throw new Error("Linux installation requires an exact SemVer release or prerelease and locally pinned files.");
   }
+}
+
+function releaseChannelForVersion(version: string): "stable" | "staging" {
+  return version.includes("-") ? "staging" : "stable";
+}
+
+function isValidReleaseVersion(version: string): boolean {
+  if (version.length > 96) return false;
+  const match = RELEASE_VERSION_PATTERN.exec(version);
+  if (!match) return false;
+  const prerelease = version.split("-", 2)[1];
+  return !prerelease?.split(".").some((identifier) => /^\d+$/.test(identifier) && identifier.length > 1 && identifier.startsWith("0"));
 }
 
 function normalizeLocalPath(value: string | undefined, fallback: string, label: string): string {

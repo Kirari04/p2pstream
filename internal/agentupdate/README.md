@@ -1,7 +1,7 @@
 # Agent update trust metadata
 
-The production updater accepts only canonical, threshold-signed metadata for the
-`stable` channel. The manifest contains release identity, compatibility floors,
+The updater accepts only canonical, threshold-signed metadata for its locally
+pinned `stable` or `staging` channel. The manifest contains channel and release identity, compatibility floors,
 raw-binary hashes, and the exact OCI index digest plus its normalized child
 descriptor set. It also contains an exact name/size/SHA-256 inventory of every
 published non-signature release attachment, but never a URL. The updater must construct downloads
@@ -17,10 +17,10 @@ and extends its expiry. An expired root requires out-of-band recovery. Root
 version, release sequence, security epoch, and minimum-safe-version floors must
 be stored durably after activation and supplied on every later verification.
 
-The release workflow deliberately never receives a signing private key. Stable
+The release workflow deliberately never receives a signing private key. Stable and staging
 publishing is a two-phase operation:
 
-1. Dispatch `Release` with `phase=prepare` and an exact unused `vX.Y.Z`. CI
+1. Dispatch `Release channels` with `phase=prepare`, the matching channel, and an exact unused `vX.Y.Z` or `vX.Y.Z-staging.N`. A push to `staging` performs this prepare step automatically with a unique staging prerelease. CI
    builds the binaries and a content-addressed candidate image, then creates a
    draft containing the canonical unsigned manifest. No version, commit, or
    `latest` image alias exists at this stage.
@@ -38,10 +38,11 @@ publishing is a two-phase operation:
    draft, verifies the configured root, threshold, exact release identity,
    every release attachment, and the OCI index re-read by its signed registry
    digest before publishing it. Only then does it create normal image aliases. No
-   draft asset or versioned stable asset is replaced.
+   draft asset or versioned release asset is replaced. Stable moves `latest`;
+   staging marks a GitHub prerelease and moves only the `staging` image alias.
 
 Enable GitHub immutable releases for the repository. The workflow verifies
-every signed byte and never replaces stable assets; the repository setting
+every signed byte and never replaces versioned assets; the repository setting
 adds a server-side immutability boundary after the release is published.
 
 The workflow requires these GitHub configuration values:
@@ -89,6 +90,7 @@ unset P2PSTREAM_OFFLINE_KEY
   --root candidate/p2pstream_agent_update_root.json \
   --signatures p2pstream_agent_update_manifest.signatures.json \
   --expected-version v1.2.3 \
+  --expected-channel stable \
   --expected-commit '<exact-40-character-commit>' \
   --expected-sequence '<monotonic-sequence>' \
   --server-version v1.2.3 --protocol-version 1 \

@@ -218,6 +218,22 @@ func TestProductionPolicyRejectsStaging(t *testing.T) {
 	}
 }
 
+func TestStagingPolicyAcceptsAdvancingPrerelease(t *testing.T) {
+	manifestJSON, signaturesJSON, root, _ := testBundle(t, "staging", 2)
+	policy := testPolicy()
+	policy.RequiredChannel = "staging"
+	policy.CurrentVersion = "v1.2.2-staging.99"
+	policy.ServerVersion = "v1.2.3-staging.1"
+	policy.UpdaterVersion = "v1.1.0-staging.1"
+	verified, err := Verify(manifestJSON, signaturesJSON, root, policy)
+	if err != nil {
+		t.Fatalf("Verify staging: %v", err)
+	}
+	if verified.Version != "v1.2.3-staging.1" || verified.Artifact.Name != "p2pstream_v1.2.3-staging.1_linux_amd64" {
+		t.Fatalf("verified staging release = %+v", verified)
+	}
+}
+
 func TestStrictCanonicalParsingRejectsUnknownURLAndWhitespace(t *testing.T) {
 	manifestJSON, _, _, _ := testBundle(t, "stable", 2)
 	withURL := bytes.Replace(manifestJSON, []byte(`"size":14`), []byte(`"url":"https://attacker.invalid/a","size":14`), 1)
@@ -278,11 +294,15 @@ func testBundle(t *testing.T, channel string, threshold uint32) ([]byte, []byte,
 	}
 	artifactBytes := []byte("binary payload")
 	digest := sha256.Sum256(artifactBytes)
+	version := "v1.2.3"
+	if channel == "staging" {
+		version = "v1.2.3-staging.1"
+	}
 	manifest := Manifest{
 		SchemaVersion:      SchemaVersion,
 		Channel:            channel,
 		RootVersion:        root.Version,
-		Version:            "v1.2.3",
+		Version:            version,
 		Commit:             strings.Repeat("a", 40),
 		Sequence:           10203,
 		PublishedAt:        "2026-01-01T00:00:00Z",
@@ -297,7 +317,7 @@ func testBundle(t *testing.T, channel string, threshold uint32) ([]byte, []byte,
 		Artifacts: []Artifact{{
 			OS:     "linux",
 			Arch:   "amd64",
-			Name:   "p2pstream_v1.2.3_linux_amd64",
+			Name:   "p2pstream_" + version + "_linux_amd64",
 			Size:   uint64(len(artifactBytes)),
 			SHA256: hex.EncodeToString(digest[:]),
 		}},

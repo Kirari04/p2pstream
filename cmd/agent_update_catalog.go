@@ -34,6 +34,7 @@ func newAgentUpdateCatalog(cfg *config.Config) (*agentupdatecatalog.Catalog, err
 	httpClient := newAgentUpdateHTTPClient(time.Duration(cfg.AgentUpdateHTTPTimeoutMillis) * time.Millisecond)
 	return agentupdatecatalog.New(agentupdatecatalog.Options{
 		Repository:      cfg.AgentUpdateRepository,
+		Channel:         cfg.AgentUpdateChannel,
 		Root:            root,
 		StatePath:       cfg.AgentUpdateCatalogStateFile,
 		RefreshInterval: time.Duration(cfg.AgentUpdateCatalogRefreshMillis) * time.Millisecond,

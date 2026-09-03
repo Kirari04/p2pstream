@@ -231,6 +231,7 @@ run_installer() {
     P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" \
     P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID="0000000000000000000000000000000000000000000000000000000000000000" \
     P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH="1" \
+    P2PSTREAM_AGENT_UPDATE_CHANNEL="stable" \
     "$@" \
     bash "$INSTALL_SCRIPT"
 }
@@ -849,7 +850,7 @@ test_reinstall_without_ca_removes_stale_managed_ca() {
   assert_not_contains "${CONFIG_DIR}/agent.env" "MANAGEMENT_CA_FILE"
 }
 
-test_mutable_version_is_rejected_before_install() {
+test_mutable_version_is_rejected_and_prerelease_is_accepted() {
   setup_fixture
   if run_installer \
     P2PSTREAM_VERSION="staging" \
@@ -858,8 +859,15 @@ test_mutable_version_is_rejected_before_install() {
     AGENT_TOKEN="token-one" >"${TEST_DIR}/staging.out" 2>"${TEST_DIR}/staging.err"; then
     fail "mutable staging release should not be installed"
   fi
-  assert_contains "${TEST_DIR}/staging.err" "must pin an exact stable vX.Y.Z release"
+  assert_contains "${TEST_DIR}/staging.err" "must pin an exact SemVer release or prerelease"
   assert_absent "$INSTALL_PATH"
+
+  run_installer \
+    P2PSTREAM_VERSION="v1.3.0-staging.17" \
+    MANAGEMENT_URL="https://mgmt.example.test:8081" \
+    AGENT_ID="agent-one" \
+    AGENT_TOKEN="token-one"
+  assert_exists "$INSTALL_PATH"
 }
 
 test_piped_installer_is_rejected_before_root_mutation() {
@@ -905,7 +913,7 @@ test_validation_failures() {
   if run_installer P2PSTREAM_VERSION="nightly" MANAGEMENT_URL="https://mgmt.example.test:8081" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/version.err"; then
     fail "unsupported P2PSTREAM_VERSION should fail"
   fi
-  assert_contains "${TEST_DIR}/version.err" "P2PSTREAM_VERSION must pin an exact stable vX.Y.Z release"
+  assert_contains "${TEST_DIR}/version.err" "P2PSTREAM_VERSION must pin an exact SemVer release or prerelease"
 
   if run_installer P2PSTREAM_AGENT_STATE_DIR="/" MANAGEMENT_URL="https://mgmt.example.test:8081" AGENT_ID="agent-one" AGENT_TOKEN="token-one" >/dev/null 2>"${TEST_DIR}/state-dir.err"; then
     fail "unsafe P2PSTREAM_AGENT_STATE_DIR should fail"
@@ -1032,7 +1040,7 @@ run_test "reinstall fails closed on ambiguous allow targets" test_reinstall_fail
 run_test "reinstall fails closed on allow targets read error" test_reinstall_fails_closed_on_allow_targets_read_error
 run_test "reinstall rejects unrelated multiline context" test_reinstall_rejects_unrelated_multiline_context
 run_test "reinstall without CA removes stale managed CA" test_reinstall_without_ca_removes_stale_managed_ca
-run_test "mutable release version is rejected" test_mutable_version_is_rejected_before_install
+run_test "mutable version is rejected and prerelease is accepted" test_mutable_version_is_rejected_and_prerelease_is_accepted
 run_test "piped installer is rejected" test_piped_installer_is_rejected_before_root_mutation
 run_test "validation failures" test_validation_failures
 run_test "management trust repair" test_management_trust_repair

@@ -31,6 +31,7 @@ import {
   linuxInstallSnippet,
   linuxUninstallSnippet,
   normalizeManagementUrl as normalizeSetupManagementUrl,
+  normalizeReleaseVersion,
 } from "@/lib/agentSetupSnippets";
 import {
   agentUptimeSummaryById,
@@ -1177,12 +1178,18 @@ function defaultReleaseRepository(): string {
 function defaultReleaseVersion(): string {
   const configured = import.meta.env.VITE_RELEASE_REF;
   const version = typeof configured === "string" ? configured.trim() : "";
-  if (version === "staging" || /^v\d+\.\d+\.\d+$/.test(version)) {
-    return version;
-  }
+  if (immutableReleaseVersion(version)) return version;
   const runningVersion = status.value?.version?.trim() ?? "";
-  if (/^v\d+\.\d+\.\d+$/.test(runningVersion)) return runningVersion;
+  if (immutableReleaseVersion(runningVersion)) return runningVersion;
   return "latest";
+}
+
+function immutableReleaseVersion(version: string): boolean {
+  try {
+    return normalizeReleaseVersion(version) === version && version !== "latest";
+  } catch {
+    return false;
+  }
 }
 
 function defaultDockerImage(repository: string, version: string): string {
@@ -1755,7 +1762,7 @@ async function copyUninstallSnippet() {
               <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Release Version
                 <NInput v-model:value="setupReleaseVersion" size="small" placeholder="vX.Y.Z" required />
-                <small v-if="setupTab === 'install'" class="normal-text line-normal letter-normal">Linux requires an exact stable vX.Y.Z; latest and staging are rejected.</small>
+                <small v-if="setupTab === 'install'" class="normal-text line-normal letter-normal">Linux requires an exact immutable SemVer tag; prereleases use the isolated staging update channel.</small>
               </label>
               <label v-if="setupTab === 'install'" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
                 Pinned Installer File

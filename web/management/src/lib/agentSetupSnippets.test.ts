@@ -59,7 +59,7 @@ describe("agentSetupSnippets", () => {
 
   test("uses GHCR image default from repository", () => {
     expect(dockerImageForRepository("ExampleUser/p2pstream")).toBe("ghcr.io/exampleuser/p2pstream:latest");
-    expect(dockerImageForRepository("ExampleUser/p2pstream", "staging")).toBe("ghcr.io/exampleuser/p2pstream:staging");
+    expect(dockerImageForRepository("ExampleUser/p2pstream", "v1.2.3-staging.17")).toBe("ghcr.io/exampleuser/p2pstream:v1.2.3-staging.17");
     expect(dockerImageForRepository("ExampleUser/p2pstream", "v1.2.3")).toBe("ghcr.io/exampleuser/p2pstream:v1.2.3");
   });
 
@@ -100,6 +100,7 @@ describe("agentSetupSnippets", () => {
     expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='");
     expect(snippet).toContain(`P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID='${"a".repeat(64)}'`);
     expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH='1'");
+    expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_CHANNEL='stable'");
     expect(snippet).toContain("IFS= read -r AGENT_TOKEN; IFS= read -r P2PSTREAM_UPDATER_ENROLLMENT_TOKEN");
     expect(dockerComposeSnippet({ ...baseInput, enableManagedUpdates: true, updaterEnrollmentToken: "p2puet_unused" }))
       .not.toContain("P2PSTREAM_UPDATER_ENROLLMENT_TOKEN");
@@ -144,9 +145,23 @@ describe("agentSetupSnippets", () => {
     expect(snippet).not.toContain("\n");
   });
 
-  test("adds staging version and script ref to Linux installer snippets", () => {
-    expect(() => linuxInstallSnippet({ ...baseInput, version: "staging" })).toThrow("exact stable vX.Y.Z");
-    expect(dockerComposeSnippet({ ...baseInput, version: "staging" })).toContain("image: \"ghcr.io/exampleuser/p2pstream:staging\"");
+  test("uses immutable staging prereleases in Linux installer snippets", () => {
+    const version = "v1.2.3-staging.17";
+    const snippet = linuxInstallSnippet({ ...baseInput, version });
+    expect(snippet).toContain(`P2PSTREAM_VERSION='${version}'`);
+    expect(dockerComposeSnippet({ ...baseInput, version })).toContain(`image: \"ghcr.io/exampleuser/p2pstream:${version}\"`);
+    expect(() => linuxInstallSnippet({ ...baseInput, version: "staging" })).toThrow("latest or an exact SemVer tag");
+    const managedSnippet = linuxInstallSnippet({
+      ...baseInput,
+      version,
+      enableManagedUpdates: true,
+      updaterEnrollmentToken: "p2puet_staging",
+      agentUpdateRootBase64: "e30=",
+      agentUpdateAuthorityPublicKeyBase64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      agentUpdateAuthorityKeyId: "a".repeat(64),
+      agentUpdateAuthorityEpoch: 1n,
+    });
+    expect(managedSnippet).toContain("P2PSTREAM_AGENT_UPDATE_CHANNEL='staging'");
   });
 
   test("adds pinned release version to Linux installer and Docker snippets", () => {
@@ -160,24 +175,24 @@ describe("agentSetupSnippets", () => {
 
   test("validates release versions and installer script refs", () => {
     expect(normalizeReleaseVersion("")).toBe("latest");
-    expect(normalizeReleaseVersion("staging")).toBe("staging");
+    expect(normalizeReleaseVersion("v1.2.3-staging.17")).toBe("v1.2.3-staging.17");
     expect(scriptRefForVersion("latest")).toBe("main");
-    expect(scriptRefForVersion("staging")).toBe("staging");
+    expect(scriptRefForVersion("v1.2.3-staging.17")).toBe("v1.2.3-staging.17");
     expect(scriptRefForVersion("v1.2.3")).toBe("v1.2.3");
     expect(normalizeScriptRef("", "latest")).toBe("main");
     expect(normalizeScriptRef("abcdef0", "latest")).toBe("abcdef0");
-    expect(isValidScriptRef("staging")).toBe(true);
+    expect(isValidScriptRef("staging")).toBe(false);
 
-    for (const version of ["nightly", "dev", "v1.2", "v1.2.3-rc.1", "latest;id"]) {
-      expect(() => normalizeReleaseVersion(version)).toThrow("Release version must be latest, staging, or vX.Y.Z.");
+    for (const version of ["staging", "nightly", "dev", "v1.2", "v1.2.3-01", "latest;id"]) {
+      expect(() => normalizeReleaseVersion(version)).toThrow("Release version must be latest or an exact SemVer tag.");
       expect(() => linuxInstallSnippet({ ...baseInput, version })).toThrow();
-      expect(() => dockerComposeSnippet({ ...baseInput, version })).toThrow("Release version must be latest, staging, or vX.Y.Z.");
+      expect(() => dockerComposeSnippet({ ...baseInput, version })).toThrow("Release version must be latest or an exact SemVer tag.");
     }
 
     for (const scriptRef of ["main;id", "feature/test", "../main", "main\nid", ""]) {
       if (scriptRef === "") continue;
       expect(isValidScriptRef(scriptRef)).toBe(false);
-      expect(() => normalizeScriptRef(scriptRef, "latest")).toThrow("Installer script ref must be main, staging, vX.Y.Z, or a commit SHA.");
+      expect(() => normalizeScriptRef(scriptRef, "latest")).toThrow("Installer script ref must be main, an exact SemVer tag, or a commit SHA.");
     }
   });
 

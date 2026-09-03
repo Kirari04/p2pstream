@@ -27,8 +27,8 @@ func NewGitHubSource(config HostConfig, version string, client *http.Client) (*G
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
-	if !validVersion(version) || strings.Contains(version, "-") {
-		return nil, errors.New("GitHub update source requires an exact stable release version")
+	if !validVersionForChannel(version, config.Channel) {
+		return nil, fmt.Errorf("GitHub update source requires an exact %s release version", config.Channel)
 	}
 	if client == nil {
 		client = newGitHubHTTPClient()
