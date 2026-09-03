@@ -200,7 +200,7 @@ func reusableStagedRelease(paths Paths, expected VerifiedRelease, serverVersion 
 	}
 	want := stagedRecord{
 		Version: expected.Version, Commit: expected.Commit, ManifestSHA: expected.ManifestSHA256,
-		RootVersion: expected.RootVersion, Sequence: expected.Sequence, SecurityEpoch: expected.SecurityEpoch,
+		Sequence: expected.Sequence, SecurityEpoch: expected.SecurityEpoch,
 		ArtifactName: expected.Artifact.Name, ArtifactSize: expected.Artifact.Size,
 		ArtifactSHA: artifactHex(expected.Artifact), ServerVersion: serverVersion,
 	}
@@ -260,7 +260,7 @@ func releaseFromCheck(check *p2pstreamv1.CheckAgentUpdateResponse) (VerifiedRele
 	if !validVersion(check.ServerVersion) {
 		return VerifiedRelease{}, errors.New("management update response has an invalid server version")
 	}
-	if check.Target.ReleaseSequence <= 0 || check.Target.SecurityEpoch <= 0 || check.Target.RootVersion <= 0 ||
+	if check.Target.ReleaseSequence <= 0 || check.Target.SecurityEpoch <= 0 ||
 		check.Artifact.SizeBytes <= 0 || check.Artifact.Os != runtime.GOOS || check.Artifact.Arch != runtime.GOARCH {
 		return VerifiedRelease{}, errors.New("management update target has invalid floor or platform data")
 	}
@@ -273,8 +273,7 @@ func releaseFromCheck(check *p2pstreamv1.CheckAgentUpdateResponse) (VerifiedRele
 	release := VerifiedRelease{
 		Version: check.Target.Version, Commit: check.Target.Commit, ManifestSHA256: check.Target.ManifestSha256,
 		Sequence: uint64(check.Target.ReleaseSequence), SecurityEpoch: uint64(check.Target.SecurityEpoch),
-		RootVersion: uint64(check.Target.RootVersion),
-		Artifact:    Artifact{Name: check.Artifact.Name, Size: check.Artifact.SizeBytes, SHA256: sha},
+		Artifact: Artifact{Name: check.Artifact.Name, Size: check.Artifact.SizeBytes, SHA256: sha},
 	}
 	if err := validateRelease(release); err != nil {
 		return VerifiedRelease{}, err
@@ -287,16 +286,16 @@ type exactReleaseVerifier struct {
 	expected VerifiedRelease
 }
 
-func (v exactReleaseVerifier) Verify(manifest, signatures, root []byte, policy VerifyPolicy) (VerifiedRelease, error) {
-	release, err := v.Verifier.Verify(manifest, signatures, root, policy)
+func (v exactReleaseVerifier) Verify(manifest []byte, policy VerifyPolicy) (VerifiedRelease, error) {
+	release, err := v.Verifier.Verify(manifest, policy)
 	if err != nil {
 		return VerifiedRelease{}, err
 	}
 	if release.Version != v.expected.Version || release.Commit != v.expected.Commit ||
 		release.ManifestSHA256 != v.expected.ManifestSHA256 || release.Sequence != v.expected.Sequence ||
-		release.SecurityEpoch != v.expected.SecurityEpoch || release.RootVersion != v.expected.RootVersion ||
+		release.SecurityEpoch != v.expected.SecurityEpoch ||
 		release.Artifact != v.expected.Artifact {
-		return VerifiedRelease{}, errors.New("signed GitHub manifest does not exactly match management assignment")
+		return VerifiedRelease{}, errors.New("GitHub manifest does not exactly match management assignment")
 	}
 	return release, nil
 }

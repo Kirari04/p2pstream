@@ -155,15 +155,10 @@ func TestReleaseBuildRejectsCrossChannelCatalog(t *testing.T) {
 	}
 }
 
-func TestLoadAgentUpdateCatalogRequiresPinnedTrustRoot(t *testing.T) {
+func TestLoadAgentUpdateCatalogRejectsUnsafeRepository(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
 	t.Setenv("AGENT_UPDATES_ENABLED", "true")
-	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENT_UPDATE_ROOT_FILE") {
-		t.Fatalf("missing trust root error = %v", err)
-	}
-
-	t.Setenv("AGENT_UPDATE_ROOT_FILE", "/etc/p2pstream-updater/root.json")
 	t.Setenv("AGENT_UPDATE_REPOSITORY", "attacker.invalid/repo;curl")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENT_UPDATE_REPOSITORY") {
 		t.Fatalf("unsafe repository error = %v", err)

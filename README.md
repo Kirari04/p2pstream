@@ -74,7 +74,7 @@ Published images are available from GitHub Container Registry:
 ghcr.io/kirari04/p2pstream:latest
 ```
 
-Use `latest` or a pinned `vX.Y.Z` tag for stable deployments. Staging publishes immutable `vX.Y.Z-staging.N` prereleases with matching server images and Linux agent assets; the `staging` image alias moves only after that exact prerelease passes the signed publish ceremony. The `nightly` tag is rebuilt from the `dev` branch as a Docker-only development channel.
+Use `latest` or a pinned `vX.Y.Z` tag for stable deployments. Staging publishes immutable `vX.Y.Z-staging.N` prereleases with matching server images and Linux agent assets; the `staging` image alias moves only after that exact prerelease passes the full build and manifest verification workflow. The `nightly` tag is rebuilt from the `dev` branch as a Docker-only development channel.
 
 ## Default Deployment Notes
 
@@ -111,7 +111,7 @@ Create an agent from **Agents** in the management UI. The **Agent Setup** modal 
 
 Linux setup requires an exact `vX.Y.Z` release or `vX.Y.Z-staging.N` prerelease, a locally supplied versioned installer, and a locally supplied raw agent binary. Verify those files independently before running the generated command; the installer never pipes mutable repository code into root or downloads executable content.
 
-Linux/systemd agents can also enroll in **Agents → Updates**. Enrollment uses a separate short-lived updater token and does not rotate or expose the tunnel token. Managed campaigns verify threshold-signed immutable releases, stage without draining traffic, preserve route quorum while activating, require a root-helper artifact attestation plus a fresh exact-build tunnel, and automatically roll back locally when activation fails. See [Managed agent updates](docs/operations/managed-agent-updates.md).
+Linux/systemd agents can also enroll in **Agents → Updates**. Enrollment uses a separate short-lived updater token and does not rotate or expose the tunnel token. Managed campaigns verify exact GitHub releases and SHA-256 manifests, stage without draining traffic, preserve route quorum while activating, require a privileged-helper artifact attestation plus a fresh exact-build tunnel, and automatically roll back locally when activation fails. See [Managed agent updates](docs/operations/managed-agent-updates.md).
 
 Agents connect through `MANAGEMENT_URL`, usually `https://your-server:8081`. The server's `MANAGEMENT_PUBLIC_URL` supplies that URL to generated setup snippets. If p2pstream generated the management TLS certificate, use the CA material from the **Agent Setup** modal so the agent can verify management HTTPS.
 
@@ -136,7 +136,7 @@ Development happens on the `dev` branch. Open normal feature and dependency PRs 
 
 ## Releases
 
-GitHub Actions verifies the project and publishes release artifacts through one prepare/sign/publish workflow. A `staging` push prepares a unique `vX.Y.Z-staging.N` draft; stable preparation is dispatched from `main` with an exact `vX.Y.Z`. Both channels build Linux `amd64`/`arm64` binaries and images, threshold-sign the complete artifact inventory and content-addressed OCI index with independent offline keys, and use the protected publish phase to verify the unchanged candidate. Publication creates immutable version/commit aliases and then moves only the matching channel alias (`staging` or `latest`). Production signing private keys never enter GitHub Actions.
+GitHub Actions verifies the project and publishes each release in one automatic workflow. A `staging` push publishes a unique `vX.Y.Z-staging.N` prerelease; stable publishing is dispatched from `main` with an exact `vX.Y.Z`. Both channels build Linux `amd64`/`arm64` binaries and images, generate and verify a canonical SHA-256 manifest, publish immutable version/commit aliases, create the GitHub release, verify its uploaded assets, and then move only the matching channel alias (`staging` or `latest`). GitHub Releases is the managed updater's trusted distribution boundary; no separate release-signing ceremony or key is required.
 
 A scheduled nightly workflow builds the current `dev` branch and publishes the Docker-only `ghcr.io/kirari04/p2pstream:nightly` tag. Nightly images are for development validation and should not be used as repeatable production pins.
 

@@ -4,15 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
-	"p2pstream/internal/agentupdate"
 	"p2pstream/internal/agentupdatecatalog"
 	"p2pstream/internal/buildinfo"
 	"p2pstream/internal/config"
@@ -23,19 +19,10 @@ func newAgentUpdateCatalog(cfg *config.Config) (*agentupdatecatalog.Catalog, err
 	if cfg == nil || !cfg.AgentUpdatesEnabled {
 		return nil, nil
 	}
-	rootJSON, err := readBoundedFile(cfg.AgentUpdateRootFile, agentupdate.MaxRootMetadataBytes)
-	if err != nil {
-		return nil, fmt.Errorf("read pinned agent update root: %w", err)
-	}
-	root, err := agentupdate.ParseRoot(rootJSON)
-	if err != nil {
-		return nil, fmt.Errorf("parse pinned agent update root: %w", err)
-	}
 	httpClient := newAgentUpdateHTTPClient(time.Duration(cfg.AgentUpdateHTTPTimeoutMillis) * time.Millisecond)
 	return agentupdatecatalog.New(agentupdatecatalog.Options{
 		Repository:      cfg.AgentUpdateRepository,
 		Channel:         cfg.AgentUpdateChannel,
-		Root:            root,
 		StatePath:       cfg.AgentUpdateCatalogStateFile,
 		RefreshInterval: time.Duration(cfg.AgentUpdateCatalogRefreshMillis) * time.Millisecond,
 		HTTPClient:      httpClient,
@@ -60,22 +47,6 @@ func primeAgentUpdateCatalog(ctx context.Context, catalog *agentupdatecatalog.Ca
 	}
 	_, err := catalog.Latest(ctx)
 	return err
-}
-
-func readBoundedFile(path string, limit int) ([]byte, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	data, err := io.ReadAll(io.LimitReader(file, int64(limit)+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > limit {
-		return nil, fmt.Errorf("file exceeds %d-byte limit", limit)
-	}
-	return data, nil
 }
 
 func trustedAgentUpdateRedirect(request *http.Request, via []*http.Request) error {

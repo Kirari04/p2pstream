@@ -3142,22 +3142,22 @@ func (AgentUpdaterReportState) EnumDescriptor() ([]byte, []int) {
 type AgentUpdateRootActionResultKind int32
 
 const (
-	AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED    AgentUpdateRootActionResultKind = 0
-	AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE AgentUpdateRootActionResultKind = 1
-	AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP      AgentUpdateRootActionResultKind = 2
+	AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED AgentUpdateRootActionResultKind = 0
+	AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_RELEASE     AgentUpdateRootActionResultKind = 1
+	AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP   AgentUpdateRootActionResultKind = 2
 )
 
 // Enum value maps for AgentUpdateRootActionResultKind.
 var (
 	AgentUpdateRootActionResultKind_name = map[int32]string{
 		0: "AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED",
-		1: "AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE",
+		1: "AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_RELEASE",
 		2: "AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP",
 	}
 	AgentUpdateRootActionResultKind_value = map[string]int32{
-		"AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED":    0,
-		"AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE": 1,
-		"AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP":      2,
+		"AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED": 0,
+		"AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_RELEASE":     1,
+		"AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP":   2,
 	}
 )
 
@@ -10171,10 +10171,7 @@ type CreateAgentResponse struct {
 	// Independent from the tunnel bearer and disclosed only once.
 	UpdaterEnrollmentToken               string                          `protobuf:"bytes,3,opt,name=updater_enrollment_token,json=updaterEnrollmentToken,proto3" json:"updater_enrollment_token,omitempty"`
 	UpdaterEnrollmentExpiresAtUnixMillis int64                           `protobuf:"varint,4,opt,name=updater_enrollment_expires_at_unix_millis,json=updaterEnrollmentExpiresAtUnixMillis,proto3" json:"updater_enrollment_expires_at_unix_millis,omitempty"`
-	UpdaterTrustedRootMetadataBase64     string                          `protobuf:"bytes,5,opt,name=updater_trusted_root_metadata_base64,json=updaterTrustedRootMetadataBase64,proto3" json:"updater_trusted_root_metadata_base64,omitempty"`
 	UpdaterPinnedRepository              string                          `protobuf:"bytes,6,opt,name=updater_pinned_repository,json=updaterPinnedRepository,proto3" json:"updater_pinned_repository,omitempty"`
-	UpdaterTrustedRootSha256             string                          `protobuf:"bytes,7,opt,name=updater_trusted_root_sha256,json=updaterTrustedRootSha256,proto3" json:"updater_trusted_root_sha256,omitempty"`
-	UpdaterTrustedRootVersion            int64                           `protobuf:"varint,8,opt,name=updater_trusted_root_version,json=updaterTrustedRootVersion,proto3" json:"updater_trusted_root_version,omitempty"`
 	UpdaterManagementAuthority           *AgentUpdateManagementAuthority `protobuf:"bytes,9,opt,name=updater_management_authority,json=updaterManagementAuthority,proto3" json:"updater_management_authority,omitempty"`
 	unknownFields                        protoimpl.UnknownFields
 	sizeCache                            protoimpl.SizeCache
@@ -10238,32 +10235,11 @@ func (x *CreateAgentResponse) GetUpdaterEnrollmentExpiresAtUnixMillis() int64 {
 	return 0
 }
 
-func (x *CreateAgentResponse) GetUpdaterTrustedRootMetadataBase64() string {
-	if x != nil {
-		return x.UpdaterTrustedRootMetadataBase64
-	}
-	return ""
-}
-
 func (x *CreateAgentResponse) GetUpdaterPinnedRepository() string {
 	if x != nil {
 		return x.UpdaterPinnedRepository
 	}
 	return ""
-}
-
-func (x *CreateAgentResponse) GetUpdaterTrustedRootSha256() string {
-	if x != nil {
-		return x.UpdaterTrustedRootSha256
-	}
-	return ""
-}
-
-func (x *CreateAgentResponse) GetUpdaterTrustedRootVersion() int64 {
-	if x != nil {
-		return x.UpdaterTrustedRootVersion
-	}
-	return 0
 }
 
 func (x *CreateAgentResponse) GetUpdaterManagementAuthority() *AgentUpdateManagementAuthority {
@@ -24234,7 +24210,6 @@ type AgentUpdateTarget struct {
 	Artifacts             []*AgentUpdateArtifact `protobuf:"bytes,7,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
 	SecurityEpoch         int64                  `protobuf:"varint,8,opt,name=security_epoch,json=securityEpoch,proto3" json:"security_epoch,omitempty"`
 	MinimumUpdaterVersion string                 `protobuf:"bytes,9,opt,name=minimum_updater_version,json=minimumUpdaterVersion,proto3" json:"minimum_updater_version,omitempty"`
-	RootVersion           int64                  `protobuf:"varint,10,opt,name=root_version,json=rootVersion,proto3" json:"root_version,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -24332,13 +24307,6 @@ func (x *AgentUpdateTarget) GetMinimumUpdaterVersion() string {
 	return ""
 }
 
-func (x *AgentUpdateTarget) GetRootVersion() int64 {
-	if x != nil {
-		return x.RootVersion
-	}
-	return 0
-}
-
 // The structured fields let both sides validate policy without parsing an
 // ad-hoc wire format. canonical_payload is the exact domain-separated byte
 // string produced by internal/agentupdateauth and signature authenticates
@@ -24354,8 +24322,6 @@ type AgentUpdaterEnrollmentReceipt struct {
 	Os                       string                 `protobuf:"bytes,6,opt,name=os,proto3" json:"os,omitempty"`
 	Arch                     string                 `protobuf:"bytes,7,opt,name=arch,proto3" json:"arch,omitempty"`
 	UpdaterVersion           string                 `protobuf:"bytes,8,opt,name=updater_version,json=updaterVersion,proto3" json:"updater_version,omitempty"`
-	TrustedRootSha256        string                 `protobuf:"bytes,9,opt,name=trusted_root_sha256,json=trustedRootSha256,proto3" json:"trusted_root_sha256,omitempty"`
-	TrustedRootVersion       uint64                 `protobuf:"varint,10,opt,name=trusted_root_version,json=trustedRootVersion,proto3" json:"trusted_root_version,omitempty"`
 	PinnedRepository         string                 `protobuf:"bytes,11,opt,name=pinned_repository,json=pinnedRepository,proto3" json:"pinned_repository,omitempty"`
 	AuthorityKeyId           string                 `protobuf:"bytes,12,opt,name=authority_key_id,json=authorityKeyId,proto3" json:"authority_key_id,omitempty"`
 	AuthorityEpoch           uint64                 `protobuf:"varint,13,opt,name=authority_epoch,json=authorityEpoch,proto3" json:"authority_epoch,omitempty"`
@@ -24454,20 +24420,6 @@ func (x *AgentUpdaterEnrollmentReceipt) GetUpdaterVersion() string {
 	return ""
 }
 
-func (x *AgentUpdaterEnrollmentReceipt) GetTrustedRootSha256() string {
-	if x != nil {
-		return x.TrustedRootSha256
-	}
-	return ""
-}
-
-func (x *AgentUpdaterEnrollmentReceipt) GetTrustedRootVersion() uint64 {
-	if x != nil {
-		return x.TrustedRootVersion
-	}
-	return 0
-}
-
 func (x *AgentUpdaterEnrollmentReceipt) GetPinnedRepository() string {
 	if x != nil {
 		return x.PinnedRepository
@@ -24538,7 +24490,6 @@ type AgentUpdateAssignmentAuthorization struct {
 	AuthorityKeyId      string                   `protobuf:"bytes,10,opt,name=authority_key_id,json=authorityKeyId,proto3" json:"authority_key_id,omitempty"`
 	AuthorityEpoch      uint64                   `protobuf:"varint,11,opt,name=authority_epoch,json=authorityEpoch,proto3" json:"authority_epoch,omitempty"`
 	ServerVersion       string                   `protobuf:"bytes,12,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
-	RootVersion         uint64                   `protobuf:"varint,13,opt,name=root_version,json=rootVersion,proto3" json:"root_version,omitempty"`
 	ManifestSha256      string                   `protobuf:"bytes,14,opt,name=manifest_sha256,json=manifestSha256,proto3" json:"manifest_sha256,omitempty"`
 	TargetVersion       string                   `protobuf:"bytes,15,opt,name=target_version,json=targetVersion,proto3" json:"target_version,omitempty"`
 	TargetCommit        string                   `protobuf:"bytes,16,opt,name=target_commit,json=targetCommit,proto3" json:"target_commit,omitempty"`
@@ -24669,13 +24620,6 @@ func (x *AgentUpdateAssignmentAuthorization) GetServerVersion() string {
 	return ""
 }
 
-func (x *AgentUpdateAssignmentAuthorization) GetRootVersion() uint64 {
-	if x != nil {
-		return x.RootVersion
-	}
-	return 0
-}
-
 func (x *AgentUpdateAssignmentAuthorization) GetManifestSha256() string {
 	if x != nil {
 		return x.ManifestSha256
@@ -24776,7 +24720,6 @@ type AgentUpdateRootActionReceipt struct {
 	RootActionCounter     uint64                          `protobuf:"varint,12,opt,name=root_action_counter,json=rootActionCounter,proto3" json:"root_action_counter,omitempty"`
 	CompletedAtUnixMillis int64                           `protobuf:"varint,13,opt,name=completed_at_unix_millis,json=completedAtUnixMillis,proto3" json:"completed_at_unix_millis,omitempty"`
 	ResultKind            AgentUpdateRootActionResultKind `protobuf:"varint,14,opt,name=result_kind,json=resultKind,proto3,enum=p2pstream.v1.AgentUpdateRootActionResultKind" json:"result_kind,omitempty"`
-	ResultRootVersion     uint64                          `protobuf:"varint,15,opt,name=result_root_version,json=resultRootVersion,proto3" json:"result_root_version,omitempty"`
 	ResultManifestSha256  string                          `protobuf:"bytes,16,opt,name=result_manifest_sha256,json=resultManifestSha256,proto3" json:"result_manifest_sha256,omitempty"`
 	ResultVersion         string                          `protobuf:"bytes,17,opt,name=result_version,json=resultVersion,proto3" json:"result_version,omitempty"`
 	ResultCommit          string                          `protobuf:"bytes,18,opt,name=result_commit,json=resultCommit,proto3" json:"result_commit,omitempty"`
@@ -24919,13 +24862,6 @@ func (x *AgentUpdateRootActionReceipt) GetResultKind() AgentUpdateRootActionResu
 		return x.ResultKind
 	}
 	return AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED
-}
-
-func (x *AgentUpdateRootActionReceipt) GetResultRootVersion() uint64 {
-	if x != nil {
-		return x.ResultRootVersion
-	}
-	return 0
 }
 
 func (x *AgentUpdateRootActionReceipt) GetResultManifestSha256() string {
@@ -25879,16 +25815,13 @@ func (x *GenerateAgentUpdaterEnrollmentTokenRequest) GetTtlMillis() int64 {
 }
 
 type GenerateAgentUpdaterEnrollmentTokenResponse struct {
-	state                     protoimpl.MessageState          `protogen:"open.v1"`
-	Token                     string                          `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	ExpiresAtUnixMillis       int64                           `protobuf:"varint,2,opt,name=expires_at_unix_millis,json=expiresAtUnixMillis,proto3" json:"expires_at_unix_millis,omitempty"`
-	TrustedRootMetadataBase64 string                          `protobuf:"bytes,3,opt,name=trusted_root_metadata_base64,json=trustedRootMetadataBase64,proto3" json:"trusted_root_metadata_base64,omitempty"`
-	PinnedRepository          string                          `protobuf:"bytes,4,opt,name=pinned_repository,json=pinnedRepository,proto3" json:"pinned_repository,omitempty"`
-	TrustedRootSha256         string                          `protobuf:"bytes,5,opt,name=trusted_root_sha256,json=trustedRootSha256,proto3" json:"trusted_root_sha256,omitempty"`
-	TrustedRootVersion        int64                           `protobuf:"varint,6,opt,name=trusted_root_version,json=trustedRootVersion,proto3" json:"trusted_root_version,omitempty"`
-	ManagementAuthority       *AgentUpdateManagementAuthority `protobuf:"bytes,7,opt,name=management_authority,json=managementAuthority,proto3" json:"management_authority,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	state               protoimpl.MessageState          `protogen:"open.v1"`
+	Token               string                          `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	ExpiresAtUnixMillis int64                           `protobuf:"varint,2,opt,name=expires_at_unix_millis,json=expiresAtUnixMillis,proto3" json:"expires_at_unix_millis,omitempty"`
+	PinnedRepository    string                          `protobuf:"bytes,4,opt,name=pinned_repository,json=pinnedRepository,proto3" json:"pinned_repository,omitempty"`
+	ManagementAuthority *AgentUpdateManagementAuthority `protobuf:"bytes,7,opt,name=management_authority,json=managementAuthority,proto3" json:"management_authority,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *GenerateAgentUpdaterEnrollmentTokenResponse) Reset() {
@@ -25935,32 +25868,11 @@ func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetExpiresAtUnixMillis() i
 	return 0
 }
 
-func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetTrustedRootMetadataBase64() string {
-	if x != nil {
-		return x.TrustedRootMetadataBase64
-	}
-	return ""
-}
-
 func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetPinnedRepository() string {
 	if x != nil {
 		return x.PinnedRepository
 	}
 	return ""
-}
-
-func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetTrustedRootSha256() string {
-	if x != nil {
-		return x.TrustedRootSha256
-	}
-	return ""
-}
-
-func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetTrustedRootVersion() int64 {
-	if x != nil {
-		return x.TrustedRootVersion
-	}
-	return 0
 }
 
 func (x *GenerateAgentUpdaterEnrollmentTokenResponse) GetManagementAuthority() *AgentUpdateManagementAuthority {
@@ -27627,17 +27539,14 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x06labels\x18\x04 \x03(\v2,.p2pstream.v1.CreateAgentRequest.LabelsEntryR\x06labels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\x01\x10\x02R\tpublic_id\"\xe5\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\x01\x10\x02R\tpublic_id\"\x88\x04\n" +
 	"\x13CreateAgentResponse\x12)\n" +
 	"\x05agent\x18\x01 \x01(\v2\x13.p2pstream.v1.AgentR\x05agent\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x128\n" +
 	"\x18updater_enrollment_token\x18\x03 \x01(\tR\x16updaterEnrollmentToken\x12W\n" +
-	")updater_enrollment_expires_at_unix_millis\x18\x04 \x01(\x03R$updaterEnrollmentExpiresAtUnixMillis\x12N\n" +
-	"$updater_trusted_root_metadata_base64\x18\x05 \x01(\tR updaterTrustedRootMetadataBase64\x12:\n" +
-	"\x19updater_pinned_repository\x18\x06 \x01(\tR\x17updaterPinnedRepository\x12=\n" +
-	"\x1bupdater_trusted_root_sha256\x18\a \x01(\tR\x18updaterTrustedRootSha256\x12?\n" +
-	"\x1cupdater_trusted_root_version\x18\b \x01(\x03R\x19updaterTrustedRootVersion\x12n\n" +
-	"\x1cupdater_management_authority\x18\t \x01(\v2,.p2pstream.v1.AgentUpdateManagementAuthorityR\x1aupdaterManagementAuthority\"\x8b\x02\n" +
+	")updater_enrollment_expires_at_unix_millis\x18\x04 \x01(\x03R$updaterEnrollmentExpiresAtUnixMillis\x12:\n" +
+	"\x19updater_pinned_repository\x18\x06 \x01(\tR\x17updaterPinnedRepository\x12n\n" +
+	"\x1cupdater_management_authority\x18\t \x01(\v2,.p2pstream.v1.AgentUpdateManagementAuthorityR\x1aupdaterManagementAuthorityJ\x04\b\x05\x10\x06J\x04\b\a\x10\bJ\x04\b\b\x10\tR$updater_trusted_root_metadata_base64R\x1bupdater_trusted_root_sha256R\x1cupdater_trusted_root_version\"\x8b\x02\n" +
 	"\x12UpdateAgentRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x18\n" +
@@ -28877,7 +28786,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x1d\n" +
 	"\n" +
 	"size_bytes\x18\x04 \x01(\x03R\tsizeBytes\x12\x12\n" +
-	"\x04name\x18\x05 \x01(\tR\x04name\"\xcc\x03\n" +
+	"\x04name\x18\x05 \x01(\tR\x04name\"\xbd\x03\n" +
 	"\x11AgentUpdateTarget\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12\x16\n" +
 	"\x06commit\x18\x02 \x01(\tR\x06commit\x12'\n" +
@@ -28887,9 +28796,8 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x17maximum_tunnel_protocol\x18\x06 \x01(\x03R\x15maximumTunnelProtocol\x12?\n" +
 	"\tartifacts\x18\a \x03(\v2!.p2pstream.v1.AgentUpdateArtifactR\tartifacts\x12%\n" +
 	"\x0esecurity_epoch\x18\b \x01(\x03R\rsecurityEpoch\x126\n" +
-	"\x17minimum_updater_version\x18\t \x01(\tR\x15minimumUpdaterVersion\x12!\n" +
-	"\froot_version\x18\n" +
-	" \x01(\x03R\vrootVersion\"\x97\x06\n" +
+	"\x17minimum_updater_version\x18\t \x01(\tR\x15minimumUpdaterVersionJ\x04\b\n" +
+	"\x10\vR\froot_version\"\xec\x05\n" +
 	"\x1dAgentUpdaterEnrollmentReceipt\x12&\n" +
 	"\x0fagent_public_id\x18\x01 \x01(\tR\ragentPublicId\x12$\n" +
 	"\x0eupdater_key_id\x18\x02 \x01(\tR\fupdaterKeyId\x129\n" +
@@ -28898,10 +28806,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x1bactivator_public_key_sha256\x18\x05 \x01(\tR\x18activatorPublicKeySha256\x12\x0e\n" +
 	"\x02os\x18\x06 \x01(\tR\x02os\x12\x12\n" +
 	"\x04arch\x18\a \x01(\tR\x04arch\x12'\n" +
-	"\x0fupdater_version\x18\b \x01(\tR\x0eupdaterVersion\x12.\n" +
-	"\x13trusted_root_sha256\x18\t \x01(\tR\x11trustedRootSha256\x120\n" +
-	"\x14trusted_root_version\x18\n" +
-	" \x01(\x04R\x12trustedRootVersion\x12+\n" +
+	"\x0fupdater_version\x18\b \x01(\tR\x0eupdaterVersion\x12+\n" +
 	"\x11pinned_repository\x18\v \x01(\tR\x10pinnedRepository\x12(\n" +
 	"\x10authority_key_id\x18\f \x01(\tR\x0eauthorityKeyId\x12'\n" +
 	"\x0fauthority_epoch\x18\r \x01(\x04R\x0eauthorityEpoch\x125\n" +
@@ -28911,7 +28816,9 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"generation\x18\x10 \x01(\x04R\n" +
 	"generation\x12+\n" +
 	"\x11canonical_payload\x18\x11 \x01(\fR\x10canonicalPayload\x12\x1c\n" +
-	"\tsignature\x18\x12 \x01(\fR\tsignature\"\xe1\a\n" +
+	"\tsignature\x18\x12 \x01(\fR\tsignatureJ\x04\b\t\x10\n" +
+	"J\x04\b\n" +
+	"\x10\vR\x13trusted_root_sha256R\x14trusted_root_version\"\xd2\a\n" +
 	"\"AgentUpdateAssignmentAuthorization\x12&\n" +
 	"\x0fagent_public_id\x18\x01 \x01(\tR\ragentPublicId\x12#\n" +
 	"\rassignment_id\x18\x02 \x01(\x03R\fassignmentId\x12\x1f\n" +
@@ -28928,8 +28835,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x10authority_key_id\x18\n" +
 	" \x01(\tR\x0eauthorityKeyId\x12'\n" +
 	"\x0fauthority_epoch\x18\v \x01(\x04R\x0eauthorityEpoch\x12%\n" +
-	"\x0eserver_version\x18\f \x01(\tR\rserverVersion\x12!\n" +
-	"\froot_version\x18\r \x01(\x04R\vrootVersion\x12'\n" +
+	"\x0eserver_version\x18\f \x01(\tR\rserverVersion\x12'\n" +
 	"\x0fmanifest_sha256\x18\x0e \x01(\tR\x0emanifestSha256\x12%\n" +
 	"\x0etarget_version\x18\x0f \x01(\tR\rtargetVersion\x12#\n" +
 	"\rtarget_commit\x18\x10 \x01(\tR\ftargetCommit\x12)\n" +
@@ -28941,7 +28847,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\rartifact_size\x18\x16 \x01(\x03R\fartifactSize\x12'\n" +
 	"\x0fartifact_sha256\x18\x17 \x01(\tR\x0eartifactSha256\x12+\n" +
 	"\x11canonical_payload\x18\x18 \x01(\fR\x10canonicalPayload\x12\x1c\n" +
-	"\tsignature\x18\x19 \x01(\fR\tsignature\"\xf2\t\n" +
+	"\tsignature\x18\x19 \x01(\fR\tsignatureJ\x04\b\r\x10\x0eR\froot_version\"\xdd\t\n" +
 	"\x1cAgentUpdateRootActionReceipt\x12&\n" +
 	"\x0fagent_public_id\x18\x01 \x01(\tR\ragentPublicId\x12#\n" +
 	"\rassignment_id\x18\x02 \x01(\x03R\fassignmentId\x12\x1f\n" +
@@ -28961,8 +28867,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x13root_action_counter\x18\f \x01(\x04R\x11rootActionCounter\x127\n" +
 	"\x18completed_at_unix_millis\x18\r \x01(\x03R\x15completedAtUnixMillis\x12N\n" +
 	"\vresult_kind\x18\x0e \x01(\x0e2-.p2pstream.v1.AgentUpdateRootActionResultKindR\n" +
-	"resultKind\x12.\n" +
-	"\x13result_root_version\x18\x0f \x01(\x04R\x11resultRootVersion\x124\n" +
+	"resultKind\x124\n" +
 	"\x16result_manifest_sha256\x18\x10 \x01(\tR\x14resultManifestSha256\x12%\n" +
 	"\x0eresult_version\x18\x11 \x01(\tR\rresultVersion\x12#\n" +
 	"\rresult_commit\x18\x12 \x01(\tR\fresultCommit\x126\n" +
@@ -28975,7 +28880,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x14result_artifact_size\x18\x18 \x01(\x03R\x12resultArtifactSize\x124\n" +
 	"\x16result_artifact_sha256\x18\x19 \x01(\tR\x14resultArtifactSha256\x12+\n" +
 	"\x11canonical_payload\x18\x1a \x01(\fR\x10canonicalPayload\x12\x1c\n" +
-	"\tsignature\x18\x1b \x01(\fR\tsignature\"\xf8\x01\n" +
+	"\tsignature\x18\x1b \x01(\fR\tsignatureJ\x04\b\x0f\x10\x10R\x13result_root_version\"\xf8\x01\n" +
 	"\x11AgentUpdatePolicy\x12'\n" +
 	"\x0fmax_unavailable\x18\x01 \x01(\x03R\x0emaxUnavailable\x12H\n" +
 	"!minimum_eligible_agents_per_route\x18\x02 \x01(\x03R\x1dminimumEligibleAgentsPerRoute\x12!\n" +
@@ -29057,15 +28962,12 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"*GenerateAgentUpdaterEnrollmentTokenRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\x03R\aagentId\x12\x1d\n" +
 	"\n" +
-	"ttl_millis\x18\x02 \x01(\x03R\tttlMillis\"\xa9\x03\n" +
+	"ttl_millis\x18\x02 \x01(\x03R\tttlMillis\"\xe1\x02\n" +
 	"+GenerateAgentUpdaterEnrollmentTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x123\n" +
-	"\x16expires_at_unix_millis\x18\x02 \x01(\x03R\x13expiresAtUnixMillis\x12?\n" +
-	"\x1ctrusted_root_metadata_base64\x18\x03 \x01(\tR\x19trustedRootMetadataBase64\x12+\n" +
-	"\x11pinned_repository\x18\x04 \x01(\tR\x10pinnedRepository\x12.\n" +
-	"\x13trusted_root_sha256\x18\x05 \x01(\tR\x11trustedRootSha256\x120\n" +
-	"\x14trusted_root_version\x18\x06 \x01(\x03R\x12trustedRootVersion\x12_\n" +
-	"\x14management_authority\x18\a \x01(\v2,.p2pstream.v1.AgentUpdateManagementAuthorityR\x13managementAuthority\"\x86\x02\n" +
+	"\x16expires_at_unix_millis\x18\x02 \x01(\x03R\x13expiresAtUnixMillis\x12+\n" +
+	"\x11pinned_repository\x18\x04 \x01(\tR\x10pinnedRepository\x12_\n" +
+	"\x14management_authority\x18\a \x01(\v2,.p2pstream.v1.AgentUpdateManagementAuthorityR\x13managementAuthorityJ\x04\b\x03\x10\x04J\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\x1ctrusted_root_metadata_base64R\x13trusted_root_sha256R\x14trusted_root_version\"\x86\x02\n" +
 	"\x19EnrollAgentUpdaterRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12&\n" +
 	"\x0fagent_public_id\x18\x02 \x01(\tR\ragentPublicId\x12,\n" +
@@ -29482,10 +29384,10 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"$AGENT_UPDATER_REPORT_STATE_ACTIVATED\x10\x03\x12&\n" +
 	"\"AGENT_UPDATER_REPORT_STATE_HEALTHY\x10\x04\x12%\n" +
 	"!AGENT_UPDATER_REPORT_STATE_FAILED\x10\x05\x12*\n" +
-	"&AGENT_UPDATER_REPORT_STATE_ROLLED_BACK\x10\x06*\xc4\x01\n" +
+	"&AGENT_UPDATER_REPORT_STATE_ROLLED_BACK\x10\x06*\xbd\x01\n" +
 	"\x1fAgentUpdateRootActionResultKind\x124\n" +
-	"0AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED\x10\x00\x127\n" +
-	"3AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE\x10\x01\x122\n" +
+	"0AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED\x10\x00\x120\n" +
+	",AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_RELEASE\x10\x01\x122\n" +
 	".AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP\x10\x022\xbfe\n" +
 	"\x16AgentManagementService\x12R\n" +
 	"\vReportStats\x12\x1f.p2pstream.v1.AgentStatsRequest\x1a .p2pstream.v1.AgentStatsResponse\"\x00\x12{\n" +

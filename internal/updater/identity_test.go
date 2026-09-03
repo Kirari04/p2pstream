@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"p2pstream/internal/agentupdate"
 	"p2pstream/internal/agentupdateauth"
@@ -62,56 +61,29 @@ func TestParseAccountIDRejectsValuesThatDoNotFitTheHostInt(t *testing.T) {
 	}
 }
 
-func TestBootstrapRootRequiresEnrollmentLifetimeMargin(t *testing.T) {
-	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
-	if err := requireBootstrapRootLifetime(now.Add(bootstrapRootMinLifetime-time.Second).Format(time.RFC3339), now); err == nil {
-		t.Fatal("near-expiry bootstrap root was accepted")
-	}
-	if err := requireBootstrapRootLifetime(now.Add(bootstrapRootMinLifetime).Format(time.RFC3339), now); err != nil {
-		t.Fatalf("root at exact lifetime boundary rejected: %v", err)
-	}
-}
-
-func TestBootstrapCannotReplacePinnedRootOrLowerFloor(t *testing.T) {
+func TestBootstrapCannotLowerFloor(t *testing.T) {
 	root := t.TempDir()
 	paths := Paths{
-		ConfigPath: filepath.Join(root, "etc", "updater.json"), TrustPath: filepath.Join(root, "etc", "root.json"),
-		StateDir: filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream"),
-	}
-	if err := os.MkdirAll(filepath.Dir(paths.TrustPath), 0700); err != nil {
-		t.Fatal(err)
+		ConfigPath: filepath.Join(root, "etc", "updater.json"),
+		StateDir:   filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream"),
 	}
 	if err := os.MkdirAll(paths.StateDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	uid, gid := os.Geteuid(), os.Getegid()
-	if err := pinBootstrapState(paths, []byte("canonical-root-a"), 3, "v1.4.0", true, uid, gid); err != nil {
+	if err := pinBootstrapState(paths, "v1.4.0", true, uid, gid); err != nil {
 		t.Fatal(err)
 	}
-	wantFloor := Floor{Version: "v1.4.0", RootVersion: 3, Sequence: 9, SecurityEpoch: 4, MinimumSafeVersion: "v1.3.0"}
+	wantFloor := Floor{Version: "v1.4.0", Sequence: 9, SecurityEpoch: 4, MinimumSafeVersion: "v1.3.0"}
 	if err := atomicJSON(paths.floorPath(), wantFloor, 0640); err != nil {
 		t.Fatal(err)
 	}
-	if err := pinBootstrapState(paths, []byte("canonical-root-a"), 3, "v1.2.0", true, uid, gid); err != nil {
+	if err := pinBootstrapState(paths, "v1.2.0", true, uid, gid); err != nil {
 		t.Fatal(err)
 	}
 	gotFloor, err := loadFloor(paths.floorPath())
 	if err != nil || gotFloor != wantFloor {
 		t.Fatalf("floor lowered on re-bootstrap: %+v, %v", gotFloor, err)
-	}
-	if err := pinBootstrapState(paths, []byte("attacker-root-b"), 4, "v1.5.0", true, uid, gid); err == nil {
-		t.Fatal("bootstrap replaced an existing pinned root")
-	}
-	gotRoot, err := os.ReadFile(paths.TrustPath)
-	if err != nil || string(gotRoot) != "canonical-root-a" {
-		t.Fatalf("pinned root changed: %q, %v", gotRoot, err)
-	}
-	gotFloor, err = loadFloor(paths.floorPath())
-	if err != nil || gotFloor != wantFloor {
-		t.Fatalf("floor changed after rejected root replacement: %+v, %v", gotFloor, err)
-	}
-	if _, err := os.Stat(paths.TrustPath); err != nil {
-		t.Fatalf("pinned root disappeared: %v", err)
 	}
 }
 
@@ -132,17 +104,14 @@ func TestBootstrapVersionFloorIncludesNewerExistingTunnel(t *testing.T) {
 
 	root := t.TempDir()
 	paths := Paths{
-		ConfigPath: filepath.Join(root, "etc", "updater.json"), TrustPath: filepath.Join(root, "etc", "root.json"),
-		StateDir: filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream"),
-	}
-	if err := os.MkdirAll(filepath.Dir(paths.TrustPath), 0700); err != nil {
-		t.Fatal(err)
+		ConfigPath: filepath.Join(root, "etc", "updater.json"),
+		StateDir:   filepath.Join(root, "state"), InstallRoot: filepath.Join(root, "install"), CommandPath: filepath.Join(root, "bin", "p2pstream"),
 	}
 	if err := os.MkdirAll(paths.StateDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	uid, gid := os.Geteuid(), os.Getegid()
-	if err := pinBootstrapState(paths, []byte("canonical-root"), 1, bootstrapVersionFloor("v1.5.0", "v2.0.0"), true, uid, gid); err != nil {
+	if err := pinBootstrapState(paths, bootstrapVersionFloor("v1.5.0", "v2.0.0"), true, uid, gid); err != nil {
 		t.Fatal(err)
 	}
 	floor, err := loadFloor(paths.floorPath())

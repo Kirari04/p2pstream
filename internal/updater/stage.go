@@ -18,7 +18,6 @@ type StageOptions struct {
 	Source        Source
 	Verifier      Verifier
 	Policy        VerifyPolicy
-	TrustedRoot   []byte
 	DiskPreflight func(string, int64) error
 }
 
@@ -31,7 +30,6 @@ type readyRecord struct {
 	Version       string                        `json:"version"`
 	Commit        string                        `json:"commit"`
 	ManifestSHA   string                        `json:"manifest_sha256"`
-	RootVersion   uint64                        `json:"root_version"`
 	Sequence      uint64                        `json:"sequence"`
 	SecurityEpoch uint64                        `json:"security_epoch"`
 	ArtifactName  string                        `json:"artifact_name"`
@@ -44,7 +42,6 @@ type stagedRecord struct {
 	Version       string `json:"version"`
 	Commit        string `json:"commit"`
 	ManifestSHA   string `json:"manifest_sha256"`
-	RootVersion   uint64 `json:"root_version"`
 	Sequence      uint64 `json:"sequence"`
 	SecurityEpoch uint64 `json:"security_epoch"`
 	ArtifactName  string `json:"artifact_name"`
@@ -69,27 +66,20 @@ func Stage(ctx context.Context, options StageOptions) (Result, error) {
 	if options.DiskPreflight == nil {
 		options.DiskPreflight = diskPreflight
 	}
-	if len(options.TrustedRoot) == 0 {
-		root, err := readRegularNoFollow(options.Paths.TrustPath, defaultMaxMetadata)
-		if err != nil {
-			return Result{}, fmt.Errorf("read updater trust root: %w", err)
-		}
-		options.TrustedRoot = root
-	}
 	floor, err := loadFloor(options.Paths.floorPath())
 	if err != nil {
 		return Result{}, err
 	}
 	applyFloor(&options.Policy, floor)
 
-	manifest, signatures, err := options.Source.FetchMetadata(ctx)
+	manifest, err := options.Source.FetchMetadata(ctx)
 	if err != nil {
 		return Result{}, err
 	}
-	if len(manifest) > defaultMaxMetadata || len(signatures) > defaultMaxMetadata {
+	if len(manifest) > defaultMaxMetadata {
 		return Result{}, errors.New("update metadata exceeds size limit")
 	}
-	release, err := options.Verifier.Verify(manifest, signatures, options.TrustedRoot, options.Policy)
+	release, err := options.Verifier.Verify(manifest, options.Policy)
 	if err != nil {
 		return Result{}, fmt.Errorf("verify update metadata before download: %w", err)
 	}
@@ -150,10 +140,10 @@ func Stage(ctx context.Context, options StageOptions) (Result, error) {
 		return Result{}, err
 	}
 
-	// Recheck signed policy after a potentially long download. This also keeps
+	// Recheck release policy after a potentially long download. This also keeps
 	// staging and activation symmetric when metadata expiry is near.
 	options.Policy.Now = time.Now().UTC()
-	rechecked, err := options.Verifier.Verify(manifest, signatures, options.TrustedRoot, options.Policy)
+	rechecked, err := options.Verifier.Verify(manifest, options.Policy)
 	if err != nil {
 		return Result{}, fmt.Errorf("verify update metadata after download: %w", err)
 	}
@@ -169,15 +159,12 @@ func Stage(ctx context.Context, options StageOptions) (Result, error) {
 	if err := atomicWrite(filepath.Join(options.Paths.candidateDir(), "manifest.json"), manifest, 0600); err != nil {
 		return Result{}, err
 	}
-	if err := atomicWrite(filepath.Join(options.Paths.candidateDir(), "manifest.signatures.json"), signatures, 0600); err != nil {
-		return Result{}, err
-	}
 	if err := syncDir(options.Paths.candidateDir()); err != nil {
 		return Result{}, err
 	}
 	staged := stagedRecord{
 		Version: release.Version, Commit: release.Commit, ManifestSHA: release.ManifestSHA256,
-		RootVersion: release.RootVersion, Sequence: release.Sequence, SecurityEpoch: release.SecurityEpoch,
+		Sequence: release.Sequence, SecurityEpoch: release.SecurityEpoch,
 		ArtifactName: release.Artifact.Name, ArtifactSize: release.Artifact.Size,
 		ArtifactSHA: artifactHex(release.Artifact), ServerVersion: options.Policy.ServerVersion,
 	}
@@ -210,12 +197,12 @@ func RequestActivation(paths Paths, authorization assignmentAuthorizationRecord,
 	}
 	want := stagedRecord{
 		Version: expected.Version, Commit: expected.Commit, ManifestSHA: expected.ManifestSHA256,
-		RootVersion: expected.RootVersion, Sequence: expected.Sequence, SecurityEpoch: expected.SecurityEpoch,
+		Sequence: expected.Sequence, SecurityEpoch: expected.SecurityEpoch,
 		ArtifactName: expected.Artifact.Name, ArtifactSize: expected.Artifact.Size,
 		ArtifactSHA: artifactHex(expected.Artifact), ServerVersion: serverVersion,
 	}
 	if staged != want {
-		return errors.New("activation assignment does not exactly match the staged signed release")
+		return errors.New("activation assignment does not exactly match the staged release")
 	}
 	if err := verifyAssignmentAuthorizationRecord(paths, authorization, agentupdateauth.AssignmentActionActivate, time.Now().UTC(), 0); err != nil {
 		return err
@@ -229,7 +216,7 @@ func RequestActivation(paths Paths, authorization assignmentAuthorizationRecord,
 		AgentPublicID: a.AgentPublicID, AssignmentID: a.AssignmentID,
 		Generation: a.Generation, Nonce: base64.StdEncoding.EncodeToString(a.Nonce),
 		Version: staged.Version, Commit: staged.Commit, ManifestSHA: staged.ManifestSHA,
-		RootVersion: staged.RootVersion, Sequence: staged.Sequence, SecurityEpoch: staged.SecurityEpoch,
+		Sequence: staged.Sequence, SecurityEpoch: staged.SecurityEpoch,
 		ArtifactName: staged.ArtifactName, ArtifactSize: staged.ArtifactSize, ArtifactSHA: staged.ArtifactSHA,
 		ServerVersion: staged.ServerVersion,
 	}
@@ -237,13 +224,13 @@ func RequestActivation(paths Paths, authorization assignmentAuthorizationRecord,
 }
 
 func authorizationMatchesRelease(authorization agentupdateauth.AssignmentAuthorization, release VerifiedRelease, serverVersion string) error {
-	if authorization.ServerVersion != serverVersion || authorization.RootVersion != release.RootVersion ||
-		authorization.ManifestSHA256 != release.ManifestSHA256 || authorization.TargetVersion != release.Version ||
+	if authorization.ServerVersion != serverVersion || authorization.ManifestSHA256 != release.ManifestSHA256 ||
+		authorization.TargetVersion != release.Version ||
 		authorization.TargetCommit != release.Commit || authorization.ReleaseSequence != release.Sequence ||
 		authorization.SecurityEpoch != release.SecurityEpoch || authorization.OS != runtime.GOOS ||
 		authorization.Arch != runtime.GOARCH || authorization.ArtifactName != release.Artifact.Name ||
 		authorization.ArtifactSize != release.Artifact.Size || authorization.ArtifactSHA256 != artifactHex(release.Artifact) {
-		return errors.New("signed root-action authorization does not exactly match the staged signed release")
+		return errors.New("signed root-action authorization does not exactly match the staged release")
 	}
 	return nil
 }
@@ -304,9 +291,6 @@ func applyFloor(policy *VerifyPolicy, floor Floor) {
 	}
 	if floor.MinimumSafeVersion != "" {
 		policy.CurrentMinimumSafeVersion = floor.MinimumSafeVersion
-	}
-	if floor.RootVersion > policy.MinimumRootVersion {
-		policy.MinimumRootVersion = floor.RootVersion
 	}
 	if floor.Version != "" {
 		policy.CurrentVersion = floor.Version

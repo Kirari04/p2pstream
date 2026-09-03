@@ -576,7 +576,6 @@ validate_managed_update_inputs() {
     return
   fi
   require_env P2PSTREAM_UPDATER_ENROLLMENT_TOKEN
-  require_env P2PSTREAM_AGENT_UPDATE_ROOT_BASE64
   require_env P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64
   require_env P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID
   require_env P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH
@@ -587,8 +586,6 @@ validate_managed_update_inputs() {
     || fail "P2PSTREAM_UPDATER_ENROLLMENT_TOKEN must be a single line"
   (( ${#P2PSTREAM_UPDATER_ENROLLMENT_TOKEN} <= 4096 )) \
     || fail "P2PSTREAM_UPDATER_ENROLLMENT_TOKEN is too long"
-  printf '%s' "$P2PSTREAM_AGENT_UPDATE_ROOT_BASE64" | base64 -d >/dev/null 2>&1 \
-    || fail "P2PSTREAM_AGENT_UPDATE_ROOT_BASE64 must be valid base64"
   local decoded_authority_key_length canonical_authority_key authority_key_id
   decoded_authority_key_length="$(printf '%s' "$P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64" | base64 -d 2>/dev/null | wc -c)" \
     || fail "P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64 must be canonical base64"
@@ -761,7 +758,6 @@ install_updater_foundation() {
 
   P2PSTREAM_REPOSITORY="$repository" \
   P2PSTREAM_UPDATER_ENROLLMENT_TOKEN="$P2PSTREAM_UPDATER_ENROLLMENT_TOKEN" \
-  P2PSTREAM_AGENT_UPDATE_ROOT_BASE64="$P2PSTREAM_AGENT_UPDATE_ROOT_BASE64" \
   P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64="$P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64" \
   P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID="$P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID" \
 	P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH="$P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH" \
@@ -786,8 +782,8 @@ install_updater_foundation() {
   install -m 0644 "${tmp_dir}/p2pstream-updater-activate.path" "$UPDATER_ACTIVATE_PATH_FILE"
 
   # Enrollment is intentionally a separate fail-closed transition. Neither
-  # unit is enabled until the signed Check adapter persists enrolled.json,
-  # trusted root metadata, and monotonic counters atomically.
+  # unit is enabled until the signed Check adapter persists enrolled.json and
+  # its monotonic counters atomically.
   systemctl daemon-reload
 	runuser -u "$UPDATER_USER" -- "$UPDATER_RUNNER_PATH" updater enroll \
     || fail "unprivileged updater enrollment or first signed check failed"

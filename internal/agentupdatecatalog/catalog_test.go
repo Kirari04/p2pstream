@@ -3,7 +3,6 @@ package agentupdatecatalog
 import (
 	"bytes"
 	"context"
-	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -26,7 +25,6 @@ func TestCatalogAuthenticatesPersistsAndUsesBoundedStaleFallback(t *testing.T) {
 
 	catalog, err := New(Options{
 		Repository:      "owner/repo",
-		Root:            bundle.root,
 		StatePath:       filepath.Join(t.TempDir(), "catalog-state.json"),
 		RefreshInterval: 10 * time.Second,
 		HTTPClient:      server.Client(),
@@ -62,7 +60,7 @@ func TestCatalogAuthenticatesPersistsAndUsesBoundedStaleFallback(t *testing.T) {
 
 	now = bundle.expiresAt
 	if _, err := catalog.Latest(context.Background()); err == nil {
-		t.Fatal("Latest accepted stale metadata at its signed expiry")
+		t.Fatal("Latest accepted stale metadata at its expiry")
 	}
 }
 
@@ -73,7 +71,7 @@ func TestStagingCatalogPinsTheRunningImmutablePrerelease(t *testing.T) {
 	defer server.Close()
 
 	catalog, err := New(Options{
-		Repository: "owner/repo", Channel: "staging", Root: bundle.root,
+		Repository: "owner/repo", Channel: "staging",
 		StatePath: filepath.Join(t.TempDir(), "catalog-state.json"), RefreshInterval: 10 * time.Second,
 		HTTPClient: server.Client(), ServerVersion: bundle.tag, ProtocolVersion: 1,
 		Now: func() time.Time { return now }, APIBaseURL: server.URL, DownloadBaseURL: server.URL,
@@ -93,7 +91,7 @@ func TestStagingCatalogPinsTheRunningImmutablePrerelease(t *testing.T) {
 		t.Fatalf("persisted staging floor = %+v, err=%v", floor, err)
 	}
 	if _, err := New(Options{
-		Repository: "owner/repo", Channel: "stable", Root: bundle.root, StatePath: catalog.options.StatePath,
+		Repository: "owner/repo", Channel: "stable", StatePath: catalog.options.StatePath,
 		RefreshInterval: 10 * time.Second, HTTPClient: server.Client(),
 	}); err == nil || !strings.Contains(err.Error(), "different release channel") {
 		t.Fatalf("cross-channel state error = %v", err)
@@ -107,7 +105,7 @@ func TestCatalogRejectsRollbackAcrossRestartAndInvalidLatestTag(t *testing.T) {
 	server := newCatalogServer(t, current)
 	defer server.Close()
 	options := Options{
-		Repository: "owner/repo", Root: current.root, StatePath: statePath,
+		Repository: "owner/repo", StatePath: statePath,
 		RefreshInterval: 10 * time.Second, HTTPClient: server.Client(),
 		ServerVersion: "v1.2.0", ProtocolVersion: 1, Now: func() time.Time { return now },
 		APIBaseURL: server.URL, DownloadBaseURL: server.URL,
@@ -120,7 +118,7 @@ func TestCatalogRejectsRollbackAcrossRestartAndInvalidLatestTag(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rollback := newCatalogBundleWithKeys(t, now, "v1.2.2", 10202, current.keys, current.root)
+	rollback := newCatalogBundle(t, now, "v1.2.2", 10202)
 	server.setBundle(rollback)
 	restarted, err := New(options)
 	if err != nil {
@@ -143,7 +141,7 @@ func TestCatalogRejectsOversizedMetadataAndNonLoopbackOverride(t *testing.T) {
 	defer server.Close()
 	server.setManifest(bytes.Repeat([]byte("x"), agentupdate.MaxManifestBytes+1))
 	catalog, err := New(Options{
-		Repository: "owner/repo", Root: bundle.root, StatePath: filepath.Join(t.TempDir(), "state"),
+		Repository: "owner/repo", StatePath: filepath.Join(t.TempDir(), "state"),
 		RefreshInterval: 10 * time.Second, HTTPClient: server.Client(), Now: func() time.Time { return now },
 		APIBaseURL: server.URL, DownloadBaseURL: server.URL,
 	})
@@ -155,7 +153,7 @@ func TestCatalogRejectsOversizedMetadataAndNonLoopbackOverride(t *testing.T) {
 	}
 
 	_, err = New(Options{
-		Repository: "owner/repo", Root: bundle.root, StatePath: filepath.Join(t.TempDir(), "state"),
+		Repository: "owner/repo", StatePath: filepath.Join(t.TempDir(), "state"),
 		RefreshInterval: 10 * time.Second, HTTPClient: server.Client(),
 		APIBaseURL: "https://attacker.invalid", DownloadBaseURL: "https://github.com",
 	})
@@ -163,7 +161,7 @@ func TestCatalogRejectsOversizedMetadataAndNonLoopbackOverride(t *testing.T) {
 		t.Fatalf("custom origin error = %v", err)
 	}
 	_, err = New(Options{
-		Repository: "owner/repo", Root: bundle.root, StatePath: filepath.Join(t.TempDir(), "state"),
+		Repository: "owner/repo", StatePath: filepath.Join(t.TempDir(), "state"),
 		RefreshInterval: 10 * time.Second, HTTPClient: server.Client(),
 		APIBaseURL: "http://127.0.0.1:123@attacker.invalid", DownloadBaseURL: server.URL,
 	})
@@ -178,7 +176,7 @@ func TestServerAdapterResolvesOnlyExactAuthenticatedDigest(t *testing.T) {
 	server := newCatalogServer(t, bundle)
 	defer server.Close()
 	catalog, err := New(Options{
-		Repository: "owner/repo", Root: bundle.root, StatePath: filepath.Join(t.TempDir(), "state"),
+		Repository: "owner/repo", StatePath: filepath.Join(t.TempDir(), "state"),
 		RefreshInterval: 10 * time.Second, HTTPClient: server.Client(), ServerVersion: "v1.2.0", ProtocolVersion: 1,
 		Now: func() time.Time { return now }, APIBaseURL: server.URL, DownloadBaseURL: server.URL,
 	})
@@ -190,7 +188,7 @@ func TestServerAdapterResolvesOnlyExactAuthenticatedDigest(t *testing.T) {
 		t.Fatalf("targets = %+v, err=%v", targets, err)
 	}
 	target := targets[0]
-	if target.Version != "v1.2.3" || target.RootVersion != 1 || len(target.Artifacts) != 2 || target.Artifacts[0].Name == "" {
+	if target.Version != "v1.2.3" || len(target.Artifacts) != 2 || target.Artifacts[0].Name == "" {
 		t.Fatalf("target = %+v", target)
 	}
 	resolved, err := catalog.ResolveTrustedAgentUpdateTarget(context.Background(), target.ManifestSha256)
@@ -205,37 +203,19 @@ func TestServerAdapterResolvesOnlyExactAuthenticatedDigest(t *testing.T) {
 	if _, err := catalog.ResolveTrustedAgentUpdateTarget(context.Background(), strings.Repeat("0", 64)); err == nil {
 		t.Fatal("untrusted digest resolved")
 	}
-	rootBase64, repository, err := catalog.AgentUpdateBootstrapConfig(context.Background())
-	if err != nil || repository != "owner/repo" || rootBase64 == "" {
-		t.Fatalf("bootstrap config = %q %q, err=%v", rootBase64, repository, err)
+	repository, err := catalog.AgentUpdateBootstrapConfig(context.Background())
+	if err != nil || repository != "owner/repo" {
+		t.Fatalf("bootstrap config = %q, err=%v", repository, err)
 	}
 }
 
 type catalogBundle struct {
-	tag        string
-	manifest   []byte
-	signatures []byte
-	root       agentupdate.RootMetadata
-	keys       []ed25519.PrivateKey
-	expiresAt  time.Time
+	tag       string
+	manifest  []byte
+	expiresAt time.Time
 }
 
 func newCatalogBundle(t *testing.T, now time.Time, version string, sequence uint64) catalogBundle {
-	t.Helper()
-	keys := []ed25519.PrivateKey{
-		ed25519.NewKeyFromSeed(bytes.Repeat([]byte{1}, ed25519.SeedSize)),
-		ed25519.NewKeyFromSeed(bytes.Repeat([]byte{2}, ed25519.SeedSize)),
-	}
-	root, err := agentupdate.NewRootMetadata(1, now.Add(365*24*time.Hour).Format(time.RFC3339), 2, []ed25519.PublicKey{
-		keys[0].Public().(ed25519.PublicKey), keys[1].Public().(ed25519.PublicKey),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return newCatalogBundleWithKeys(t, now, version, sequence, keys, root)
-}
-
-func newCatalogBundleWithKeys(t *testing.T, now time.Time, version string, sequence uint64, keys []ed25519.PrivateKey, root agentupdate.RootMetadata) catalogBundle {
 	t.Helper()
 	expiresAt := now.Add(time.Hour)
 	artifacts := make([]agentupdate.Artifact, 0, 2)
@@ -252,7 +232,7 @@ func newCatalogBundleWithKeys(t *testing.T, now time.Time, version string, seque
 		channel = "staging"
 	}
 	manifest, err := agentupdate.CanonicalManifest(agentupdate.Manifest{
-		SchemaVersion: agentupdate.SchemaVersion, Channel: channel, RootVersion: root.Version,
+		SchemaVersion: agentupdate.SchemaVersion, Channel: channel,
 		Version: version, Commit: strings.Repeat("a", 40), Sequence: sequence,
 		PublishedAt: now.Add(-time.Minute).Format(time.RFC3339), ExpiresAt: expiresAt.Format(time.RFC3339),
 		MinimumSafeVersion: "v1.0.0", SecurityEpoch: 1,
@@ -266,15 +246,7 @@ func newCatalogBundleWithKeys(t *testing.T, now time.Time, version string, seque
 	if err != nil {
 		t.Fatal(err)
 	}
-	envelope, err := agentupdate.SignManifest(manifest, root, keys)
-	if err != nil {
-		t.Fatal(err)
-	}
-	signatures, err := agentupdate.CanonicalSignatures(envelope)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return catalogBundle{tag: version, manifest: manifest, signatures: signatures, root: root, keys: keys, expiresAt: expiresAt}
+	return catalogBundle{tag: version, manifest: manifest, expiresAt: expiresAt}
 }
 
 type catalogServer struct {
@@ -303,8 +275,6 @@ func newCatalogServer(t *testing.T, bundle catalogBundle) *catalogServer {
 			fmt.Fprintf(w, `{"tag_name":%q,"draft":false,"prerelease":true}`, server.tag)
 		case strings.HasSuffix(r.URL.Path, "/p2pstream_agent_update_manifest.json"):
 			w.Write(server.manifest)
-		case strings.HasSuffix(r.URL.Path, "/p2pstream_agent_update_manifest.signatures.json"):
-			w.Write(server.bundle.signatures)
 		default:
 			http.NotFound(w, r)
 		}

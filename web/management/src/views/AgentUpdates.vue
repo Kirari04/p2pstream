@@ -59,9 +59,6 @@ const previewFingerprint = ref("");
 const previewLoading = ref(false);
 const bootstrapAgent = ref<AgentUpdateOverviewAgent | null>(null);
 const bootstrapToken = ref("");
-const bootstrapRootBase64 = ref("");
-const bootstrapRootSHA256 = ref("");
-const bootstrapRootVersion = ref(0n);
 const bootstrapRepository = ref("");
 const bootstrapAuthorityPublicKeyBase64 = ref("");
 const bootstrapAuthorityKeyId = ref("");
@@ -220,13 +217,12 @@ function managementOrigin(): string {
 }
 
 const bootstrapCommand = computed(() => {
-  if (!bootstrapAgent.value || !bootstrapAgent.value.tunnelVersion || !bootstrapAgent.value.tunnelCommit || !bootstrapToken.value || !bootstrapRootBase64.value || !bootstrapAuthorityPublicKeyBase64.value || !bootstrapAuthorityKeyId.value || bootstrapAuthorityEpoch.value <= 0n) return "";
+  if (!bootstrapAgent.value || !bootstrapAgent.value.tunnelVersion || !bootstrapAgent.value.tunnelCommit || !bootstrapToken.value || !bootstrapAuthorityPublicKeyBase64.value || !bootstrapAuthorityKeyId.value || bootstrapAuthorityEpoch.value <= 0n) return "";
   try {
     return linuxManagedUpdaterBootstrapSnippet({
       managementUrl: managementOrigin(),
       agentId: bootstrapAgent.value.agentPublicId,
       updaterEnrollmentToken: bootstrapToken.value,
-      agentUpdateRootBase64: bootstrapRootBase64.value,
       agentUpdateAuthorityPublicKeyBase64: bootstrapAuthorityPublicKeyBase64.value,
       agentUpdateAuthorityKeyId: bootstrapAuthorityKeyId.value,
       agentUpdateAuthorityEpoch: bootstrapAuthorityEpoch.value,
@@ -253,9 +249,6 @@ async function openBootstrap(agent: AgentUpdateOverviewAgent) {
     });
     bootstrapAgent.value = agent;
     bootstrapToken.value = response.token;
-    bootstrapRootBase64.value = response.trustedRootMetadataBase64;
-    bootstrapRootSHA256.value = response.trustedRootSha256;
-    bootstrapRootVersion.value = response.trustedRootVersion;
     bootstrapRepository.value = response.pinnedRepository;
     bootstrapAuthorityPublicKeyBase64.value = bytesToBase64(response.managementAuthority?.publicKey ?? new Uint8Array());
     bootstrapAuthorityKeyId.value = response.managementAuthority?.keyId ?? "";
@@ -273,9 +266,6 @@ async function openBootstrap(agent: AgentUpdateOverviewAgent) {
 function closeBootstrap() {
   bootstrapAgent.value = null;
   bootstrapToken.value = "";
-  bootstrapRootBase64.value = "";
-  bootstrapRootSHA256.value = "";
-  bootstrapRootVersion.value = 0n;
   bootstrapRepository.value = "";
   bootstrapAuthorityPublicKeyBase64.value = "";
   bootstrapAuthorityKeyId.value = "";
@@ -526,7 +516,7 @@ onMounted(refresh);
         <div class="agent-update-policy__body">
           <div class="agent-update-policy__notice">
             <WarningIcon aria-hidden="true" />
-            <p>Activation never proceeds unless the route retains its configured eligible-agent quorum, the root helper attests the exact artifact, and the new tunnel survives its health dwell.</p>
+            <p>Activation never proceeds unless the route retains its configured eligible-agent quorum, the privileged helper attests the exact artifact, and the new tunnel survives its health dwell.</p>
           </div>
           <dl>
             <div><dt>Target</dt><dd>{{ trustedTarget?.version || "No trusted release" }}</dd></div>
@@ -667,13 +657,13 @@ onMounted(refresh);
           {{ bootstrapReadyToClose ? "Command and one-time token copied. Paste the token only into the command's hidden prompt." : "Copy the command and enrollment token separately before closing. The command contains no secret and never rotates the tunnel token." }}
         </NAlert>
 		<NAlert type="info" :bordered="false">
-		  The pinned file installs the rescue updater only. The live tunnel remains on {{ bootstrapAgent.tunnelVersion }} ({{ shortDigest(bootstrapAgent.tunnelCommit) }}) until a drained campaign activates a signed target.
+		  The pinned file installs the rescue updater only. The live tunnel remains on {{ bootstrapAgent.tunnelVersion }} ({{ shortDigest(bootstrapAgent.tunnelCommit) }}) until a drained campaign activates a verified GitHub release.
 		</NAlert>
         <div class="agent-bootstrap-identity">
           <div><span>Agent</span><strong>{{ bootstrapAgent.name }}</strong><small class="mono-text">{{ bootstrapAgent.agentPublicId }}</small></div>
-          <div><span>Pinned root</span><strong>v{{ bootstrapRootVersion }}</strong><small class="mono-text">{{ shortDigest(bootstrapRootSHA256) }}</small></div>
+          <div><span>Release source</span><strong>GitHub</strong><small class="mono-text">{{ bootstrapRepository }}</small></div>
           <div><span>Management authority</span><strong>epoch {{ bootstrapAuthorityEpoch }}</strong><small class="mono-text">{{ shortDigest(bootstrapAuthorityKeyId) }}</small></div>
-          <div><span>Expires</span><strong>{{ formatExpiry(bootstrapExpiresAt) }}</strong><small>{{ bootstrapRepository }}</small></div>
+          <div><span>Expires</span><strong>{{ formatExpiry(bootstrapExpiresAt) }}</strong><small>one-time enrollment</small></div>
         </div>
         <label class="agent-update-field">
           <span>One-time updater enrollment token</span>

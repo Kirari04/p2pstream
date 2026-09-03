@@ -1132,15 +1132,14 @@ message CreateAgentRequest {
 }
 
 message CreateAgentResponse {
+  reserved 5, 7, 8;
+  reserved "updater_trusted_root_metadata_base64", "updater_trusted_root_sha256", "updater_trusted_root_version";
   Agent agent = 1;
   string token = 2;
   // Independent from the tunnel bearer and disclosed only once.
   string updater_enrollment_token = 3;
   int64 updater_enrollment_expires_at_unix_millis = 4;
-  string updater_trusted_root_metadata_base64 = 5;
   string updater_pinned_repository = 6;
-  string updater_trusted_root_sha256 = 7;
-  int64 updater_trusted_root_version = 8;
   AgentUpdateManagementAuthority updater_management_authority = 9;
 }
 
@@ -2769,7 +2768,7 @@ enum AgentUpdaterReportState {
 
 enum AgentUpdateRootActionResultKind {
   AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED = 0;
-  AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE = 1;
+  AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_RELEASE = 1;
   AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP = 2;
 }
 
@@ -2788,6 +2787,8 @@ message AgentUpdateArtifact {
 }
 
 message AgentUpdateTarget {
+  reserved 10;
+  reserved "root_version";
   string version = 1;
   string commit = 2;
   string manifest_sha256 = 3;
@@ -2797,7 +2798,6 @@ message AgentUpdateTarget {
   repeated AgentUpdateArtifact artifacts = 7;
   int64 security_epoch = 8;
   string minimum_updater_version = 9;
-  int64 root_version = 10;
 }
 
 // The structured fields let both sides validate policy without parsing an
@@ -2806,6 +2806,8 @@ message AgentUpdateTarget {
 // those bytes. Receivers must reconstruct and compare canonical_payload before
 // accepting or persisting the record.
 message AgentUpdaterEnrollmentReceipt {
+  reserved 9, 10;
+  reserved "trusted_root_sha256", "trusted_root_version";
   string agent_public_id = 1;
   string updater_key_id = 2;
   string updater_public_key_sha256 = 3;
@@ -2814,8 +2816,6 @@ message AgentUpdaterEnrollmentReceipt {
   string os = 6;
   string arch = 7;
   string updater_version = 8;
-  string trusted_root_sha256 = 9;
-  uint64 trusted_root_version = 10;
   string pinned_repository = 11;
   string authority_key_id = 12;
   uint64 authority_epoch = 13;
@@ -2827,6 +2827,8 @@ message AgentUpdaterEnrollmentReceipt {
 }
 
 message AgentUpdateAssignmentAuthorization {
+  reserved 13;
+  reserved "root_version";
   string agent_public_id = 1;
   int64 assignment_id = 2;
   int64 campaign_id = 3;
@@ -2839,7 +2841,6 @@ message AgentUpdateAssignmentAuthorization {
   string authority_key_id = 10;
   uint64 authority_epoch = 11;
   string server_version = 12;
-  uint64 root_version = 13;
   string manifest_sha256 = 14;
   string target_version = 15;
   string target_commit = 16;
@@ -2855,6 +2856,8 @@ message AgentUpdateAssignmentAuthorization {
 }
 
 message AgentUpdateRootActionReceipt {
+  reserved 15;
+  reserved "result_root_version";
   string agent_public_id = 1;
   int64 assignment_id = 2;
   int64 campaign_id = 3;
@@ -2869,7 +2872,6 @@ message AgentUpdateRootActionReceipt {
   uint64 root_action_counter = 12;
   int64 completed_at_unix_millis = 13;
   AgentUpdateRootActionResultKind result_kind = 14;
-  uint64 result_root_version = 15;
   string result_manifest_sha256 = 16;
   string result_version = 17;
   string result_commit = 18;
@@ -2978,12 +2980,11 @@ message GenerateAgentUpdaterEnrollmentTokenRequest {
 }
 
 message GenerateAgentUpdaterEnrollmentTokenResponse {
+  reserved 3, 5, 6;
+  reserved "trusted_root_metadata_base64", "trusted_root_sha256", "trusted_root_version";
   string token = 1;
   int64 expires_at_unix_millis = 2;
-  string trusted_root_metadata_base64 = 3;
   string pinned_repository = 4;
-  string trusted_root_sha256 = 5;
-  int64 trusted_root_version = 6;
   AgentUpdateManagementAuthority management_authority = 7;
 }
 

@@ -100,7 +100,7 @@ func TestSlotRetentionProtectsLocallySignedRootReceiptResult(t *testing.T) {
 		t.Fatal(err)
 	}
 	receipt, err := createRootActionReceipt(
-		f.paths, f.authorization, hex.EncodeToString(authorizationDigest[:]), signedReleaseSlotMetadata(f.release),
+		f.paths, f.authorization, hex.EncodeToString(authorizationDigest[:]), releaseSlotMetadata(f.release),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -164,8 +164,8 @@ func setRetentionFixtureRelease(t testing.TB, f *fixture, version string, fill b
 		Version: version, Commit: strings.Repeat(string(fill), 40),
 		ManifestSHA256: fmt.Sprintf("%x", sha256.Sum256([]byte("manifest-"+version))),
 		Sequence:       releaseSequence, SecurityEpoch: 4,
-		MinimumSafeVersion: "v1.0.0", RootVersion: 3,
-		Artifact: Artifact{Name: runtimeArtifactName(version), Size: int64(len(body)), SHA256: digest},
+		MinimumSafeVersion: "v1.0.0",
+		Artifact:           Artifact{Name: runtimeArtifactName(version), Size: int64(len(body)), SHA256: digest},
 	}
 	assignment := Assignment{
 		AgentPublicID: f.assignment.AgentPublicID,
@@ -175,7 +175,7 @@ func setRetentionFixtureRelease(t testing.TB, f *fixture, version string, fill b
 	}
 	f.body = body
 	f.release = release
-	f.source = &fakeSource{manifest: []byte("manifest"), signature: []byte("signatures"), body: body, artifact: release.Artifact}
+	f.source = &fakeSource{manifest: []byte("manifest"), body: body, artifact: release.Artifact}
 	f.verifier = &fakeVerifier{release: release}
 	f.assignment = assignment
 	f.authorization = signedFixtureAuthorization(
@@ -210,8 +210,8 @@ func retentionTestMetadata(version string) slotMetadata {
 	body := []byte("test slot " + version + "\n")
 	digest := sha256.Sum256(body)
 	return slotMetadata{
-		Target: "slots/" + version + "/p2pstream", ResultKind: agentupdateauth.RootActionResultSignedRelease,
-		RootVersion: 3, ManifestSHA256: strings.Repeat("f", 64), Version: version,
+		Target: "slots/" + version + "/p2pstream", ResultKind: agentupdateauth.RootActionResultRelease,
+		ManifestSHA256: strings.Repeat("f", 64), Version: version,
 		Commit: strings.Repeat("c", 40), BuildVersion: version, BuildCommit: strings.Repeat("c", 40),
 		ReleaseSequence: 9, SecurityEpoch: 4, OS: runtime.GOOS, Arch: runtime.GOARCH,
 		ArtifactName: runtimeArtifactName(version), ArtifactSize: int64(len(body)), ArtifactSHA256: fmt.Sprintf("%x", digest),

@@ -24,15 +24,14 @@ import (
 )
 
 type fakeSource struct {
-	manifest  []byte
-	signature []byte
-	body      []byte
-	artifact  Artifact
-	fetches   atomic.Int32
+	manifest []byte
+	body     []byte
+	artifact Artifact
+	fetches  atomic.Int32
 }
 
-func (s *fakeSource) FetchMetadata(context.Context) ([]byte, []byte, error) {
-	return append([]byte(nil), s.manifest...), append([]byte(nil), s.signature...), nil
+func (s *fakeSource) FetchMetadata(context.Context) ([]byte, error) {
+	return append([]byte(nil), s.manifest...), nil
 }
 
 func (s *fakeSource) FetchArtifact(_ context.Context, artifact Artifact) (io.ReadCloser, error) {
@@ -49,9 +48,9 @@ type fakeVerifier struct {
 	calls             atomic.Int32
 }
 
-func (v *fakeVerifier) Verify(manifest, signatures, root []byte, policy VerifyPolicy) (VerifiedRelease, error) {
+func (v *fakeVerifier) Verify(manifest []byte, policy VerifyPolicy) (VerifiedRelease, error) {
 	v.calls.Add(1)
-	if string(manifest) != "manifest" || string(signatures) != "signatures" || string(root) != "trusted-root" {
+	if string(manifest) != "manifest" {
 		return VerifiedRelease{}, errors.New("metadata verification failed")
 	}
 	if policy.CurrentSequence >= v.release.Sequence {
@@ -157,29 +156,25 @@ func newFixture(t testing.TB) fixture {
 	root := t.TempDir()
 	paths := Paths{
 		ConfigPath:  filepath.Join(root, "etc", "updater.json"),
-		TrustPath:   filepath.Join(root, "etc", "root.json"),
 		StateDir:    filepath.Join(root, "state"),
 		InstallRoot: filepath.Join(root, "install"),
 		CommandPath: filepath.Join(root, "bin", "p2pstream"),
 	}
-	for _, dir := range []string{filepath.Dir(paths.TrustPath), paths.stagingDir(), paths.rootStateDir(), paths.slotsDir(), filepath.Dir(paths.CommandPath)} {
+	for _, dir := range []string{filepath.Dir(paths.ConfigPath), paths.stagingDir(), paths.rootStateDir(), paths.slotsDir(), filepath.Dir(paths.CommandPath)} {
 		if err := os.MkdirAll(dir, 0700); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(paths.TrustPath, []byte("trusted-root"), 0640); err != nil {
-		t.Fatal(err)
-	}
-	body := []byte("signed raw p2pstream executable\n")
+	body := []byte("raw p2pstream executable\n")
 	digest := sha256.Sum256(body)
 	release := VerifiedRelease{
 		Version: "v1.1.0", Commit: strings.Repeat("a", 40),
 		ManifestSHA256: fmt.Sprintf("%x", sha256.Sum256([]byte("manifest"))),
 		Sequence:       2, SecurityEpoch: 4,
-		MinimumSafeVersion: "v1.0.1", RootVersion: 3,
-		Artifact: Artifact{Name: runtimeArtifactName("v1.1.0"), Size: int64(len(body)), SHA256: digest},
+		MinimumSafeVersion: "v1.0.1",
+		Artifact:           Artifact{Name: runtimeArtifactName("v1.1.0"), Size: int64(len(body)), SHA256: digest},
 	}
-	source := &fakeSource{manifest: []byte("manifest"), signature: []byte("signatures"), body: body, artifact: release.Artifact}
+	source := &fakeSource{manifest: []byte("manifest"), body: body, artifact: release.Artifact}
 	verifier := &fakeVerifier{release: release}
 	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -220,7 +215,7 @@ func newFixture(t testing.TB) fixture {
 	if err := atomicJSON(paths.currentSlotMetadataPath(), bootstrap, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := atomicJSON(paths.floorPath(), Floor{Version: "v1.0.0", Sequence: 1, SecurityEpoch: 3, MinimumSafeVersion: "v1.0.0", RootVersion: 2}, 0640); err != nil {
+	if err := atomicJSON(paths.floorPath(), Floor{Version: "v1.0.0", Sequence: 1, SecurityEpoch: 3, MinimumSafeVersion: "v1.0.0"}, 0640); err != nil {
 		t.Fatal(err)
 	}
 	assignment := Assignment{AgentPublicID: "agent-public-a", AssignmentID: 41, Generation: 7, Nonce: bytes.Repeat([]byte{0x42}, 32)}
@@ -285,7 +280,7 @@ func signedFixtureAuthorization(t testing.TB, private ed25519.PrivateKey, keyID 
 		AgentPublicID: assignment.AgentPublicID, AssignmentID: assignment.AssignmentID, CampaignID: 10,
 		Generation: assignment.Generation, Action: action, CommandSequence: sequence, Nonce: append([]byte(nil), assignment.Nonce...),
 		IssuedAtUnixMillis: now.Add(-time.Minute).UnixMilli(), ExpiresAtUnixMillis: now.Add(time.Hour).UnixMilli(),
-		AuthorityKeyID: keyID, AuthorityEpoch: 1, ServerVersion: "v1.5.0", RootVersion: release.RootVersion,
+		AuthorityKeyID: keyID, AuthorityEpoch: 1, ServerVersion: "v1.5.0",
 		ManifestSHA256: release.ManifestSHA256, TargetVersion: release.Version, TargetCommit: release.Commit,
 		ReleaseSequence: release.Sequence, SecurityEpoch: release.SecurityEpoch, OS: runtime.GOOS, Arch: runtime.GOARCH,
 		ArtifactName: release.Artifact.Name, ArtifactSize: release.Artifact.Size, ArtifactSHA256: artifactHex(release.Artifact),
@@ -313,7 +308,7 @@ func fixtureAuthorizationProto(t testing.TB, record assignmentAuthorizationRecor
 		Generation: a.Generation, Action: action, CommandSequence: a.CommandSequence,
 		Nonce: append([]byte(nil), a.Nonce...), IssuedAtUnixMillis: a.IssuedAtUnixMillis,
 		ExpiresAtUnixMillis: a.ExpiresAtUnixMillis, AuthorityKeyId: a.AuthorityKeyID,
-		AuthorityEpoch: a.AuthorityEpoch, ServerVersion: a.ServerVersion, RootVersion: a.RootVersion,
+		AuthorityEpoch: a.AuthorityEpoch, ServerVersion: a.ServerVersion,
 		ManifestSha256: a.ManifestSHA256, TargetVersion: a.TargetVersion, TargetCommit: a.TargetCommit,
 		ReleaseSequence: a.ReleaseSequence, SecurityEpoch: a.SecurityEpoch, Os: a.OS, Arch: a.Arch,
 		ArtifactName: a.ArtifactName, ArtifactSize: a.ArtifactSize, ArtifactSha256: a.ArtifactSHA256,
@@ -330,7 +325,7 @@ func fixtureCheckResponse(t testing.TB, f fixture) *p2pstreamv1.CheckAgentUpdate
 		ServerVersion: f.authorization.Authorization.ServerVersion,
 		Target: &p2pstreamv1.AgentUpdateTarget{
 			Version: f.release.Version, Commit: f.release.Commit, ManifestSha256: f.release.ManifestSHA256,
-			ReleaseSequence: int64(f.release.Sequence), SecurityEpoch: int64(f.release.SecurityEpoch), RootVersion: int64(f.release.RootVersion),
+			ReleaseSequence: int64(f.release.Sequence), SecurityEpoch: int64(f.release.SecurityEpoch),
 		},
 		Artifact: &p2pstreamv1.AgentUpdateArtifact{
 			Os: runtime.GOOS, Arch: runtime.GOARCH, Name: f.release.Artifact.Name,
@@ -502,7 +497,7 @@ func TestWorkerBindsProductionCheckAuthorizationWire(t *testing.T) {
 	if record.Authorization.CommandSequence != f.authorization.Authorization.CommandSequence ||
 		release.Version != f.release.Version || release.Commit != f.release.Commit ||
 		release.ManifestSHA256 != f.release.ManifestSHA256 || release.Sequence != f.release.Sequence ||
-		release.SecurityEpoch != f.release.SecurityEpoch || release.RootVersion != f.release.RootVersion ||
+		release.SecurityEpoch != f.release.SecurityEpoch ||
 		release.Artifact != f.release.Artifact {
 		t.Fatalf("wire authorization/release mismatch: record=%+v release=%+v", record, release)
 	}
@@ -631,7 +626,7 @@ func TestActivateReverifiesPromotesPersistsFloorAndCleansStage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if floor.Version != "v1.1.0" || floor.Sequence != 2 || floor.SecurityEpoch != 4 || floor.MinimumSafeVersion != "v1.0.1" || floor.RootVersion != 3 {
+	if floor.Version != "v1.1.0" || floor.Sequence != 2 || floor.SecurityEpoch != 4 || floor.MinimumSafeVersion != "v1.0.1" {
 		t.Fatalf("floor = %+v", floor)
 	}
 	receipt, err := LoadRootActionReceipt(f.paths)
@@ -683,7 +678,7 @@ func TestActivateRecoversSwitchedJournalBeforeNewWork(t *testing.T) {
 	journal := activationJournal{
 		Phase: journalSwitched, PreviousTarget: f.bootstrap.Target, PreviousSlot: f.bootstrap,
 		CandidateTarget: "slots/v1.1.0/p2pstream", Version: "v1.1.0", Sequence: 2,
-		SecurityEpoch: 4, MinimumSafeVersion: "v1.0.1", RootVersion: 3,
+		SecurityEpoch: 4, MinimumSafeVersion: "v1.0.1",
 	}
 	if err := writeJournal(f.paths, journal); err != nil {
 		t.Fatal(err)
@@ -713,14 +708,14 @@ func TestActivateCompletesHealthyJournalCrash(t *testing.T) {
 	journal := activationJournal{
 		Phase: journalHealthy, PreviousTarget: f.bootstrap.Target, PreviousSlot: f.bootstrap, Authorization: f.authorization,
 		CandidateTarget: "slots/v1.1.0/p2pstream", Version: "v1.1.0", Sequence: 2,
-		SecurityEpoch: 4, MinimumSafeVersion: "v1.0.1", RootVersion: 3,
+		SecurityEpoch: 4, MinimumSafeVersion: "v1.0.1",
 	}
 	authorizationDigest, err := agentupdateauth.AssignmentAuthorizationDigest(f.authorization.Authorization)
 	if err != nil {
 		t.Fatal(err)
 	}
 	journal.AuthorizationSHA = fmt.Sprintf("%x", authorizationDigest)
-	receipt, err := createRootActionReceipt(f.paths, f.authorization, journal.AuthorizationSHA, signedReleaseSlotMetadata(f.release))
+	receipt, err := createRootActionReceipt(f.paths, f.authorization, journal.AuthorizationSHA, releaseSlotMetadata(f.release))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -738,7 +733,7 @@ func TestActivateCompletesHealthyJournalCrash(t *testing.T) {
 		t.Fatalf("result = %+v", result)
 	}
 	floor, _ := loadFloor(f.paths.floorPath())
-	if floor.Version != "v1.1.0" || floor.RootVersion != 3 {
+	if floor.Version != "v1.1.0" {
 		t.Fatalf("floor = %+v", floor)
 	}
 }
@@ -759,14 +754,14 @@ func TestHealthyJournalRecoveryCannotConsumeNewerActivationCommand(t *testing.T)
 	journal := activationJournal{
 		Phase: journalHealthy, PreviousTarget: f.bootstrap.Target, PreviousSlot: f.bootstrap, Authorization: f.authorization,
 		CandidateTarget: "slots/v1.1.0/p2pstream", Version: "v1.1.0", Sequence: 2,
-		SecurityEpoch: 4, MinimumSafeVersion: "v1.0.1", RootVersion: 3,
+		SecurityEpoch: 4, MinimumSafeVersion: "v1.0.1",
 	}
 	authorizationDigest, err := agentupdateauth.AssignmentAuthorizationDigest(f.authorization.Authorization)
 	if err != nil {
 		t.Fatal(err)
 	}
 	journal.AuthorizationSHA = fmt.Sprintf("%x", authorizationDigest)
-	receipt, err := createRootActionReceipt(f.paths, f.authorization, journal.AuthorizationSHA, signedReleaseSlotMetadata(f.release))
+	receipt, err := createRootActionReceipt(f.paths, f.authorization, journal.AuthorizationSHA, releaseSlotMetadata(f.release))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -875,10 +870,10 @@ func TestActivationCounterAdvancesExactlyAcrossSuccessiveUpdates(t *testing.T) {
 	f.release = VerifiedRelease{
 		Version: "v1.2.0", Commit: strings.Repeat("c", 40),
 		ManifestSHA256: strings.Repeat("d", 64), Sequence: 3, SecurityEpoch: 4,
-		MinimumSafeVersion: "v1.0.1", RootVersion: 3,
-		Artifact: Artifact{Name: runtimeArtifactName("v1.2.0"), Size: int64(len(body)), SHA256: digest},
+		MinimumSafeVersion: "v1.0.1",
+		Artifact:           Artifact{Name: runtimeArtifactName("v1.2.0"), Size: int64(len(body)), SHA256: digest},
 	}
-	f.source = &fakeSource{manifest: []byte("manifest"), signature: []byte("signatures"), body: body, artifact: f.release.Artifact}
+	f.source = &fakeSource{manifest: []byte("manifest"), body: body, artifact: f.release.Artifact}
 	f.verifier = &fakeVerifier{release: f.release}
 	f.assignment = Assignment{AgentPublicID: "agent-public-a", AssignmentID: 42, Generation: 8, Nonce: bytes.Repeat([]byte{0x43}, 32)}
 	f.authorization = signedFixtureAuthorization(t, f.authorityPrivate, f.authorization.Authorization.AuthorityKeyID, f.assignment, f.release, agentupdateauth.AssignmentActionActivate, 2)
@@ -916,10 +911,10 @@ func TestRootRejectsReplayedManagementCommandSequence(t *testing.T) {
 	digest := sha256.Sum256(body)
 	f.release = VerifiedRelease{
 		Version: "v1.2.0", Commit: strings.Repeat("c", 40), ManifestSHA256: strings.Repeat("d", 64),
-		Sequence: 3, SecurityEpoch: 4, MinimumSafeVersion: "v1.0.1", RootVersion: 3,
+		Sequence: 3, SecurityEpoch: 4, MinimumSafeVersion: "v1.0.1",
 		Artifact: Artifact{Name: runtimeArtifactName("v1.2.0"), Size: int64(len(body)), SHA256: digest},
 	}
-	f.source = &fakeSource{manifest: []byte("manifest"), signature: []byte("signatures"), body: body, artifact: f.release.Artifact}
+	f.source = &fakeSource{manifest: []byte("manifest"), body: body, artifact: f.release.Artifact}
 	f.verifier = &fakeVerifier{release: f.release}
 	f.assignment = Assignment{AgentPublicID: "agent-public-a", AssignmentID: 42, Generation: 8, Nonce: bytes.Repeat([]byte{0x43}, 32)}
 	f.authorization = signedFixtureAuthorization(t, f.authorityPrivate, f.authorization.Authorization.AuthorityKeyID, f.assignment, f.release, agentupdateauth.AssignmentActionActivate, 1)
@@ -1171,7 +1166,7 @@ func TestRollbackRecoversCompletedRootReceiptExactlyOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	journal := rollbackJournal{Phase: rollbackCompleted, Authorization: authorization, AuthorizationSHA: authorizationSHA,
-		FromSlot: signedReleaseSlotMetadata(f.release), ToSlot: f.bootstrap, Receipt: &receipt}
+		FromSlot: releaseSlotMetadata(f.release), ToSlot: f.bootstrap, Receipt: &receipt}
 	if err := writeRollbackJournal(f.paths, journal); err != nil {
 		t.Fatal(err)
 	}

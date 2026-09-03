@@ -49,7 +49,7 @@ func (a *App) CreateAgent(
 	}
 	updaterBootstrap, bootstrapErr := a.loadAgentUpdateBootstrap(ctx)
 	var updaterAuthority *p2pstreamv1.AgentUpdateManagementAuthority
-	if bootstrapErr == nil && updaterBootstrap.RootMetadataBase64 != "" {
+	if bootstrapErr == nil && updaterBootstrap.PinnedRepository != "" {
 		if _, identity, authorityErr := a.requireAgentUpdateAuthority(); authorityErr == nil {
 			updaterAuthority = agentUpdateAuthorityProto(identity)
 		}
@@ -90,7 +90,7 @@ func (a *App) CreateAgent(
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_updater_enrollment_tokens (agent_id,token_hash,trusted_root_sha256,trusted_root_version,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,expires_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`, agent.ID, updaterTokenHash, updaterBootstrap.RootSHA256, updaterBootstrap.RootVersion, updaterBootstrap.PinnedRepository, updaterAuthority.KeyId, int64(updaterAuthority.Epoch), 1, updaterTokenExpiresAt, updaterTokenCreatedAt); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_updater_enrollment_tokens (agent_id,token_hash,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,expires_at,created_at) VALUES (?,?,?,?,?,?,?,?)`, agent.ID, updaterTokenHash, updaterBootstrap.PinnedRepository, updaterAuthority.KeyId, int64(updaterAuthority.Epoch), 1, updaterTokenExpiresAt, updaterTokenCreatedAt); err != nil {
 			return nil, publicDBError(err)
 		}
 	}
@@ -109,10 +109,7 @@ func (a *App) CreateAgent(
 		Token:                                token,
 		UpdaterEnrollmentToken:               updaterToken,
 		UpdaterEnrollmentExpiresAtUnixMillis: updaterTokenExpiresAtUnixMillis,
-		UpdaterTrustedRootMetadataBase64:     updaterBootstrap.RootMetadataBase64,
 		UpdaterPinnedRepository:              updaterBootstrap.PinnedRepository,
-		UpdaterTrustedRootSha256:             updaterBootstrap.RootSHA256,
-		UpdaterTrustedRootVersion:            updaterBootstrap.RootVersion,
 		UpdaterManagementAuthority:           updaterAuthority,
 	}), nil
 }

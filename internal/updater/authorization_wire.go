@@ -37,8 +37,7 @@ func enrollmentReceiptFromProto(message *p2pstreamv1.AgentUpdaterEnrollmentRecei
 			AgentPublicID: message.AgentPublicId, UpdaterKeyID: message.UpdaterKeyId,
 			UpdaterPublicKeySHA256: message.UpdaterPublicKeySha256, ActivatorKeyID: message.ActivatorKeyId,
 			ActivatorPublicKeySHA256: message.ActivatorPublicKeySha256, OS: message.Os, Arch: message.Arch,
-			UpdaterVersion: message.UpdaterVersion, TrustedRootSHA256: message.TrustedRootSha256,
-			TrustedRootVersion: message.TrustedRootVersion, PinnedRepository: message.PinnedRepository,
+			UpdaterVersion: message.UpdaterVersion, PinnedRepository: message.PinnedRepository,
 			AuthorityKeyID: message.AuthorityKeyId, AuthorityEpoch: message.AuthorityEpoch,
 			EnrolledAtUnixMillis: message.EnrolledAtUnixMillis, ExpiresAtUnixMillis: message.ExpiresAtUnixMillis,
 			Generation: message.Generation,
@@ -70,7 +69,7 @@ func assignmentAuthorizationFromProto(message *p2pstreamv1.AgentUpdateAssignment
 			Generation: message.Generation, Action: action, CommandSequence: message.CommandSequence,
 			Nonce: append([]byte(nil), message.Nonce...), IssuedAtUnixMillis: message.IssuedAtUnixMillis,
 			ExpiresAtUnixMillis: message.ExpiresAtUnixMillis, AuthorityKeyID: message.AuthorityKeyId,
-			AuthorityEpoch: message.AuthorityEpoch, ServerVersion: message.ServerVersion, RootVersion: message.RootVersion,
+			AuthorityEpoch: message.AuthorityEpoch, ServerVersion: message.ServerVersion,
 			ManifestSHA256: message.ManifestSha256, TargetVersion: message.TargetVersion, TargetCommit: message.TargetCommit,
 			ReleaseSequence: message.ReleaseSequence, SecurityEpoch: message.SecurityEpoch, OS: message.Os, Arch: message.Arch,
 			ArtifactName: message.ArtifactName, ArtifactSize: message.ArtifactSize, ArtifactSHA256: message.ArtifactSha256,
@@ -102,8 +101,8 @@ func rootActionReceiptToProto(record rootActionReceiptRecord) (*p2pstreamv1.Agen
 	}
 	resultKind := p2pstreamv1.AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_UNSPECIFIED
 	switch record.Receipt.ResultKind {
-	case agentupdateauth.RootActionResultSignedRelease:
-		resultKind = p2pstreamv1.AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE
+	case agentupdateauth.RootActionResultRelease:
+		resultKind = p2pstreamv1.AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_RELEASE
 	case agentupdateauth.RootActionResultBootstrap:
 		resultKind = p2pstreamv1.AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP
 	default:
@@ -116,7 +115,7 @@ func rootActionReceiptToProto(record rootActionReceiptRecord) (*p2pstreamv1.Agen
 		AuthorizationSha256: r.AuthorizationSHA256, AuthorizationNonce: append([]byte(nil), r.AuthorizationNonce...),
 		AuthorityKeyId: r.AuthorityKeyID, AuthorityEpoch: r.AuthorityEpoch, ActivatorKeyId: r.ActivatorKeyID,
 		RootActionCounter: r.RootActionCounter, CompletedAtUnixMillis: r.CompletedAtUnixMillis,
-		ResultKind: resultKind, ResultRootVersion: r.ResultRootVersion, ResultManifestSha256: r.ResultManifestSHA256,
+		ResultKind: resultKind, ResultManifestSha256: r.ResultManifestSHA256,
 		ResultVersion: r.ResultVersion, ResultCommit: r.ResultCommit, ResultReleaseSequence: r.ResultReleaseSequence,
 		ResultSecurityEpoch: r.ResultSecurityEpoch, ResultOs: r.ResultOS, ResultArch: r.ResultArch,
 		ResultArtifactName: r.ResultArtifactName, ResultArtifactSize: r.ResultArtifactSize,

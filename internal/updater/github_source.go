@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	manifestAssetName  = "p2pstream_agent_update_manifest.json"
-	signatureAssetName = "p2pstream_agent_update_manifest.signatures.json"
+	manifestAssetName = "p2pstream_agent_update_manifest.json"
 )
 
 type GitHubSource struct {
@@ -38,7 +37,7 @@ func NewGitHubSource(config HostConfig, version string, client *http.Client) (*G
 
 func newGitHubHTTPClient() *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	// Do not inherit HTTPS_PROXY for the signed-release channel. Explicit proxy
+	// Do not inherit HTTPS_PROXY for the release channel. Explicit proxy
 	// support, if added later, must be pinned updater configuration.
 	transport.Proxy = nil
 	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
@@ -58,16 +57,12 @@ func trustedGitHubRedirectHost(host string) bool {
 	return host == "github.com" || host == "objects.githubusercontent.com" || host == "release-assets.githubusercontent.com"
 }
 
-func (s *GitHubSource) FetchMetadata(ctx context.Context) ([]byte, []byte, error) {
+func (s *GitHubSource) FetchMetadata(ctx context.Context) ([]byte, error) {
 	manifest, err := s.fetch(ctx, manifestAssetName, defaultMaxMetadata)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	signatures, err := s.fetch(ctx, signatureAssetName, defaultMaxMetadata)
-	if err != nil {
-		return nil, nil, err
-	}
-	return manifest, signatures, nil
+	return manifest, nil
 }
 
 func (s *GitHubSource) FetchArtifact(ctx context.Context, artifact Artifact) (io.ReadCloser, error) {

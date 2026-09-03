@@ -229,9 +229,6 @@ const rotateAgentToConfirm = ref<Agent | null>(null);
 const issuedToken = ref("");
 const issuedAgent = ref<Agent | null>(null);
 const issuedUpdaterEnrollmentToken = ref("");
-const issuedUpdaterRootBase64 = ref("");
-const issuedUpdaterRootSha256 = ref("");
-const issuedUpdaterRootVersion = ref(0n);
 const issuedUpdaterAuthorityPublicKeyBase64 = ref("");
 const issuedUpdaterAuthorityKeyId = ref("");
 const issuedUpdaterAuthorityEpoch = ref(0n);
@@ -1081,9 +1078,6 @@ function clearIssuedToken() {
   issuedToken.value = "";
   issuedAgent.value = null;
   issuedUpdaterEnrollmentToken.value = "";
-  issuedUpdaterRootBase64.value = "";
-  issuedUpdaterRootSha256.value = "";
-  issuedUpdaterRootVersion.value = 0n;
   issuedUpdaterAuthorityPublicKeyBase64.value = "";
   issuedUpdaterAuthorityKeyId.value = "";
   issuedUpdaterAuthorityEpoch.value = 0n;
@@ -1115,18 +1109,15 @@ async function requestClearIssuedToken() {
   clearIssuedToken();
 }
 
-function openSetupModal(agent: Agent | null, token: string, context: "create" | "rotate" = "create", updater?: Pick<CreatedAgentSetup, "updaterEnrollmentToken" | "updaterTrustedRootMetadataBase64" | "updaterPinnedRepository" | "updaterTrustedRootSha256" | "updaterTrustedRootVersion" | "updaterManagementAuthorityPublicKeyBase64" | "updaterManagementAuthorityKeyId" | "updaterManagementAuthorityEpoch">) {
+function openSetupModal(agent: Agent | null, token: string, context: "create" | "rotate" = "create", updater?: Pick<CreatedAgentSetup, "updaterEnrollmentToken" | "updaterPinnedRepository" | "updaterManagementAuthorityPublicKeyBase64" | "updaterManagementAuthorityKeyId" | "updaterManagementAuthorityEpoch">) {
   if (!agent || !token) return;
   issuedAgent.value = agent;
   issuedToken.value = token;
   issuedUpdaterEnrollmentToken.value = updater?.updaterEnrollmentToken ?? "";
-  issuedUpdaterRootBase64.value = updater?.updaterTrustedRootMetadataBase64 ?? "";
-  issuedUpdaterRootSha256.value = updater?.updaterTrustedRootSha256 ?? "";
-  issuedUpdaterRootVersion.value = updater?.updaterTrustedRootVersion ?? 0n;
   issuedUpdaterAuthorityPublicKeyBase64.value = updater?.updaterManagementAuthorityPublicKeyBase64 ?? "";
   issuedUpdaterAuthorityKeyId.value = updater?.updaterManagementAuthorityKeyId ?? "";
   issuedUpdaterAuthorityEpoch.value = updater?.updaterManagementAuthorityEpoch ?? 0n;
-  setupManagedUpdates.value = Boolean(issuedUpdaterEnrollmentToken.value && issuedUpdaterRootBase64.value && issuedUpdaterAuthorityPublicKeyBase64.value && issuedUpdaterAuthorityKeyId.value && issuedUpdaterAuthorityEpoch.value > 0n && context === "create");
+  setupManagedUpdates.value = Boolean(issuedUpdaterEnrollmentToken.value && issuedUpdaterAuthorityPublicKeyBase64.value && issuedUpdaterAuthorityKeyId.value && issuedUpdaterAuthorityEpoch.value > 0n && context === "create");
   setupContext.value = context;
   setupManagementUrl.value = defaultManagementUrl();
   setupManagementCAFile.value = "";
@@ -1230,7 +1221,6 @@ function setupSnippetInput() {
     agentId: issuedAgent.value?.publicId ?? "",
     agentToken: issuedToken.value,
     updaterEnrollmentToken: issuedUpdaterEnrollmentToken.value,
-    agentUpdateRootBase64: issuedUpdaterRootBase64.value,
     agentUpdateAuthorityPublicKeyBase64: issuedUpdaterAuthorityPublicKeyBase64.value,
     agentUpdateAuthorityKeyId: issuedUpdaterAuthorityKeyId.value,
     agentUpdateAuthorityEpoch: issuedUpdaterAuthorityEpoch.value,
@@ -1694,19 +1684,19 @@ async function copyUninstallSnippet() {
           </p>
         </div>
 
-        <div v-if="issuedUpdaterEnrollmentToken && issuedUpdaterRootBase64 && !setupIsRotation" class="round-md framed frame-standard muted-bg pad-md">
+        <div v-if="issuedUpdaterEnrollmentToken && !setupIsRotation" class="round-md framed frame-standard muted-bg pad-md">
           <div class="layout-row align-center space-sm">
             <NTag size="small" :bordered="false" :type="setupManagedUpdates ? 'success' : 'default'">Managed updates</NTag>
             <span class="copy-xs weight-semibold base-text">Linux/systemd only</span>
           </div>
           <NCheckbox v-model:checked="setupManagedUpdates" class="margin-top-md">
-            Enroll this host for signed route-aware updates
+            Enroll this host for route-aware updates
           </NCheckbox>
           <p class="margin-top-xs copy-xs line-normal muted-text">
             Uses a separate single-use updater identity. The tunnel token cannot approve updates, and future releases do not require token rotation.
           </p>
           <p class="margin-top-xs copy-xs line-normal muted-text">
-            Pinned root v{{ issuedUpdaterRootVersion }} · <code>{{ issuedUpdaterRootSha256.slice(0, 12) }}…{{ issuedUpdaterRootSha256.slice(-10) }}</code>
+            Release source {{ setupReleaseRepository }} on GitHub · exact versions and SHA-256 digests remain enforced
           </p>
           <p class="margin-top-xs copy-xs line-normal muted-text">
             Management authority epoch {{ issuedUpdaterAuthorityEpoch }} · <code>{{ issuedUpdaterAuthorityKeyId.slice(0, 12) }}…{{ issuedUpdaterAuthorityKeyId.slice(-10) }}</code>

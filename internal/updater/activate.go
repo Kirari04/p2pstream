@@ -20,7 +20,6 @@ type ActivateOptions struct {
 	Verifier      Verifier
 	Service       ServiceController
 	Policy        VerifyPolicy
-	TrustedRoot   []byte
 	DiskPreflight func(string, int64) error
 	// ReadyPath is an internal root-owned claimed command path. Direct callers
 	// leave it empty to use the ordinary staging edge.
@@ -35,7 +34,6 @@ type activationJournal struct {
 	Sequence           uint64                        `json:"sequence"`
 	SecurityEpoch      uint64                        `json:"security_epoch"`
 	MinimumSafeVersion string                        `json:"minimum_safe_version"`
-	RootVersion        uint64                        `json:"root_version"`
 	Authorization      assignmentAuthorizationRecord `json:"authorization"`
 	AuthorizationSHA   string                        `json:"authorization_sha256"`
 	PreviousSlot       slotMetadata                  `json:"previous_slot"`
@@ -83,13 +81,6 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 	} else if err != nil {
 		return Result{}, err
 	}
-	if len(options.TrustedRoot) == 0 {
-		root, err := readRegularNoFollow(options.Paths.TrustPath, defaultMaxMetadata)
-		if err != nil {
-			return Result{}, fmt.Errorf("read updater trust root: %w", err)
-		}
-		options.TrustedRoot = root
-	}
 	floor, err := loadFloor(options.Paths.floorPath())
 	if err != nil {
 		return Result{}, err
@@ -112,11 +103,7 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("read staged manifest: %w", err)
 	}
-	signatures, err := readRegularNoFollow(filepath.Join(options.Paths.candidateDir(), "manifest.signatures.json"), defaultMaxMetadata)
-	if err != nil {
-		return Result{}, fmt.Errorf("read staged signatures: %w", err)
-	}
-	release, err := options.Verifier.Verify(manifest, signatures, options.TrustedRoot, options.Policy)
+	release, err := options.Verifier.Verify(manifest, options.Policy)
 	if err != nil {
 		return Result{}, fmt.Errorf("independently verify staged metadata: %w", err)
 	}
@@ -124,7 +111,7 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 		return Result{}, err
 	}
 	if ready.Version != release.Version || ready.Commit != release.Commit || ready.ManifestSHA != release.ManifestSHA256 ||
-		ready.RootVersion != release.RootVersion || ready.Sequence != release.Sequence ||
+		ready.Sequence != release.Sequence ||
 		ready.SecurityEpoch != release.SecurityEpoch || ready.ArtifactName != release.Artifact.Name ||
 		ready.ArtifactSize != release.Artifact.Size || ready.ArtifactSHA != artifactHex(release.Artifact) {
 		return Result{}, errors.New("staged ready record does not match verified metadata")
@@ -172,8 +159,8 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 	journal := activationJournal{
 		Phase: journalPrepared, PreviousTarget: previous, CandidateTarget: candidate,
 		Version: release.Version, Sequence: release.Sequence, SecurityEpoch: release.SecurityEpoch,
-		MinimumSafeVersion: release.MinimumSafeVersion, RootVersion: release.RootVersion,
-		Authorization: ready.Authorization, AuthorizationSHA: authorizationSHA, PreviousSlot: previousSlot,
+		MinimumSafeVersion: release.MinimumSafeVersion,
+		Authorization:      ready.Authorization, AuthorizationSHA: authorizationSHA, PreviousSlot: previousSlot,
 	}
 	if err := writeJournal(options.Paths, journal); err != nil {
 		return Result{}, err
@@ -209,7 +196,7 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 		return Result{}, fmt.Errorf("candidate failed health check and was rolled back: %w", err)
 	}
 	journal.Phase = journalHealthy
-	receipt, err := createRootActionReceipt(options.Paths, ready.Authorization, authorizationSHA, signedReleaseSlotMetadata(release))
+	receipt, err := createRootActionReceipt(options.Paths, ready.Authorization, authorizationSHA, releaseSlotMetadata(release))
 	if err != nil {
 		return Result{}, err
 	}
@@ -234,7 +221,7 @@ func installSlot(paths Paths, release VerifiedRelease, artifact *os.File) (strin
 			return "", errors.New("existing version slot is not a protected regular file")
 		}
 		if err := verifyFile(slotPath, release.Artifact); err != nil {
-			return "", fmt.Errorf("existing version slot does not match signed artifact: %w", err)
+			return "", fmt.Errorf("existing version slot does not match release artifact: %w", err)
 		}
 		return slotPath, nil
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -437,7 +424,7 @@ func clearStaged(paths Paths, readyPath string) error {
 	if err := removeAndSync(paths.stagedPath()); err != nil {
 		return err
 	}
-	for _, name := range []string{"artifact.bin", "manifest.json", "manifest.signatures.json"} {
+	for _, name := range []string{"artifact.bin", "manifest.json"} {
 		if err := removeAndSync(filepath.Join(paths.candidateDir(), name)); err != nil {
 			return err
 		}

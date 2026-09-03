@@ -21,9 +21,9 @@ func TestCanonicalAuthorizationPayloadGoldenDigests(t *testing.T) {
 		payload func() ([]byte, error)
 		want    string
 	}{
-		{"assignment", func() ([]byte, error) { return AssignmentAuthorizationPayload(authorization) }, "d34d351857c23ae1fea300af6d5a643006dac9819d8b15357db7e6beef6db4c9"},
-		{"enrollment", func() ([]byte, error) { return EnrollmentReceiptPayload(enrollment) }, "557f64e04d4a21e0aba7cd843e5fa0806b7414e329b3b334cf9fb94d3330cc0c"},
-		{"root-action", func() ([]byte, error) { return RootActionReceiptPayload(receipt) }, "f84d10ce594a3154611e59933d89e125fb8e7f0c0e6aac8ad184098a6221087b"},
+		{"assignment", func() ([]byte, error) { return AssignmentAuthorizationPayload(authorization) }, "d3a611c492edef3e7321479d9de69b2a5801f8883480f96c8241a604723f96ce"},
+		{"enrollment", func() ([]byte, error) { return EnrollmentReceiptPayload(enrollment) }, "7093b24ade0c4973f6825cfc1cd3cdbd05b91c16c5baa0ae90b59c207c94582e"},
+		{"root-action", func() ([]byte, error) { return RootActionReceiptPayload(receipt) }, "18132e8cf2ea67db915d68a509646cde73b406b9605429b6e32ecbe03dee68dc"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -70,7 +70,6 @@ func TestAssignmentAuthorizationSignatureBindsEveryField(t *testing.T) {
 		{"authority-key", func(v *AssignmentAuthorization) { v.AuthorityKeyID = strings.Repeat("9", 64) }},
 		{"authority-epoch", func(v *AssignmentAuthorization) { v.AuthorityEpoch++ }},
 		{"server-version", func(v *AssignmentAuthorization) { v.ServerVersion = "v1.9.1" }},
-		{"root-version", func(v *AssignmentAuthorization) { v.RootVersion++ }},
 		{"manifest", func(v *AssignmentAuthorization) { v.ManifestSHA256 = strings.Repeat("8", 64) }},
 		{"target-version", func(v *AssignmentAuthorization) { v.TargetVersion = "v2.4.1" }},
 		{"target-commit", func(v *AssignmentAuthorization) { v.TargetCommit = strings.Repeat("7", 40) }},
@@ -139,8 +138,6 @@ func TestEnrollmentReceiptSignatureBindsEveryField(t *testing.T) {
 		{"os", func(v *EnrollmentReceipt) { v.OS = "freebsd" }},
 		{"arch", func(v *EnrollmentReceipt) { v.Arch = "arm64" }},
 		{"updater-version", func(v *EnrollmentReceipt) { v.UpdaterVersion = "v1.1.1" }},
-		{"root-digest", func(v *EnrollmentReceipt) { v.TrustedRootSHA256 = strings.Repeat("7", 64) }},
-		{"root-version", func(v *EnrollmentReceipt) { v.TrustedRootVersion++ }},
 		{"repository", func(v *EnrollmentReceipt) { v.PinnedRepository = "owner/other" }},
 		{"authority-key", func(v *EnrollmentReceipt) { v.AuthorityKeyID = strings.Repeat("6", 64) }},
 		{"authority-epoch", func(v *EnrollmentReceipt) { v.AuthorityEpoch++ }},
@@ -202,7 +199,6 @@ func TestRootActionReceiptSignatureBindsEveryFieldAndSupportsBootstrapRollback(t
 		{"root-counter", func(v *RootActionReceipt) { v.RootActionCounter++ }},
 		{"completed", func(v *RootActionReceipt) { v.CompletedAtUnixMillis++ }},
 		{"result-kind", func(v *RootActionReceipt) { v.ResultKind = RootActionResultBootstrap }},
-		{"result-root", func(v *RootActionReceipt) { v.ResultRootVersion++ }},
 		{"result-manifest", func(v *RootActionReceipt) { v.ResultManifestSHA256 = strings.Repeat("6", 64) }},
 		{"result-version", func(v *RootActionReceipt) { v.ResultVersion = "v2.4.1" }},
 		{"result-commit", func(v *RootActionReceipt) { v.ResultCommit = strings.Repeat("5", 40) }},
@@ -233,7 +229,6 @@ func TestRootActionReceiptSignatureBindsEveryFieldAndSupportsBootstrapRollback(t
 	bootstrap := cloneRootActionReceipt(base)
 	bootstrap.Action = AssignmentActionRollback
 	bootstrap.ResultKind = RootActionResultBootstrap
-	bootstrap.ResultRootVersion = 0
 	bootstrap.ResultManifestSHA256 = ""
 	bootstrap.ResultVersion = "v1.9.0"
 	bootstrap.ResultCommit = strings.Repeat("d", 40)
@@ -264,7 +259,7 @@ func validTestAssignmentAuthorization(authorityKeyID string) AssignmentAuthoriza
 		AgentPublicID: "agent:configured-a", AssignmentID: 17, CampaignID: 9, Generation: 3,
 		Action: AssignmentActionActivate, CommandSequence: 12, Nonce: bytes.Repeat([]byte{0xa5}, 32),
 		IssuedAtUnixMillis: issuedAt.UnixMilli(), ExpiresAtUnixMillis: issuedAt.Add(time.Hour).UnixMilli(),
-		AuthorityKeyID: authorityKeyID, AuthorityEpoch: 2, ServerVersion: "v1.9.0", RootVersion: 4,
+		AuthorityKeyID: authorityKeyID, AuthorityEpoch: 2, ServerVersion: "v1.9.0",
 		ManifestSHA256: strings.Repeat("a", 64), TargetVersion: "v2.4.0", TargetCommit: strings.Repeat("b", 40),
 		ReleaseSequence: 31, SecurityEpoch: 7, OS: "linux", Arch: "amd64",
 		ArtifactName: "p2pstream_v2.4.0_linux_amd64", ArtifactSize: 1234567, ArtifactSHA256: strings.Repeat("c", 64),
@@ -277,7 +272,7 @@ func validTestEnrollmentReceipt(authorityKeyID string, updaterPublic ed25519.Pub
 	return EnrollmentReceipt{
 		AgentPublicID: "agent:configured-a", UpdaterKeyID: updaterKeyID, UpdaterPublicKeySHA256: updaterKeyID,
 		ActivatorKeyID: activatorKeyID, ActivatorPublicKeySHA256: activatorKeyID, OS: "linux", Arch: "amd64",
-		UpdaterVersion: "v1.9.0", TrustedRootSHA256: strings.Repeat("d", 64), TrustedRootVersion: 4,
+		UpdaterVersion:   "v1.9.0",
 		PinnedRepository: "owner/repository", AuthorityKeyID: authorityKeyID, AuthorityEpoch: 2,
 		EnrolledAtUnixMillis: enrolledAt.UnixMilli(), ExpiresAtUnixMillis: enrolledAt.Add(24 * time.Hour).UnixMilli(), Generation: 5,
 	}
@@ -290,7 +285,7 @@ func validTestRootActionReceipt(authorityKeyID, activatorKeyID string) RootActio
 		AuthorizationNonce: bytes.Repeat([]byte{0xa5}, 32), AuthorityKeyID: authorityKeyID, AuthorityEpoch: 2,
 		ActivatorKeyID: activatorKeyID, RootActionCounter: 8,
 		CompletedAtUnixMillis: time.Date(2026, time.September, 2, 20, 5, 0, 0, time.UTC).UnixMilli(),
-		ResultKind:            RootActionResultSignedRelease, ResultRootVersion: 4, ResultManifestSHA256: strings.Repeat("a", 64),
+		ResultKind:            RootActionResultRelease, ResultManifestSHA256: strings.Repeat("a", 64),
 		ResultVersion: "v2.4.0", ResultCommit: strings.Repeat("b", 40), ResultReleaseSequence: 31, ResultSecurityEpoch: 7,
 		ResultOS: "linux", ResultArch: "amd64", ResultArtifactName: "p2pstream_v2.4.0_linux_amd64",
 		ResultArtifactSize: 1234567, ResultArtifactSHA256: strings.Repeat("c", 64),
