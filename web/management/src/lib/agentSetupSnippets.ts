@@ -167,7 +167,7 @@ export function linuxManagedUpdaterBootstrapSnippet(input: ManagedUpdaterBootstr
   if (!enrollmentToken || !rootBase64 || !authorityPublicKey || !/^[0-9a-f]{64}$/.test(authorityKeyId) || input.agentUpdateAuthorityEpoch <= 0n) {
     throw new Error("Managed updates require the one-time enrollment token, pinned trust root, and pinned management authority.");
   }
-  if (!RELEASE_VERSION_PATTERN.test(currentTunnelVersion) || !/^[0-9a-f]{40}$/.test(currentTunnelCommit)) {
+  if (!isValidReleaseVersion(currentTunnelVersion) || !/^[0-9a-f]{40}$/.test(currentTunnelCommit)) {
     throw new Error("Updater bootstrap requires the exact live tunnel version and commit observed by management.");
   }
   const parts = [
