@@ -657,7 +657,7 @@ func upstreamServerStatusErrorKind(statusCode int) string {
 
 func agentProxyCapacityErrorKind(errorKind string) bool {
 	switch errorKind {
-	case "agent_capacity", "agent_resource_pressure", "agent_server_capacity", "agent_server_health_capacity", "agent_server_pooled_capacity":
+	case "agent_capacity", "agent_resource_pressure", "agent_server_capacity", "agent_server_health_capacity", "agent_server_pooled_capacity", "agent_update_cordoned":
 		return true
 	default:
 		return false
@@ -784,6 +784,9 @@ func (a *App) dialViaAgentWithCapacity(
 	class agentStreamCapacityClass,
 	queueKey string,
 ) (net.Conn, error) {
+	if agent != nil && a.isAgentUpdateCordoned(agent.AgentID) {
+		return nil, errAgentUpdateCordoned
+	}
 	if agent == nil || agent.Session == nil || agent.Session.IsClosed() {
 		return nil, errAgentDisconnected
 	}
@@ -807,6 +810,10 @@ func (a *App) dialViaAgentWithCapacity(
 	}
 	if err != nil {
 		return nil, agentStreamCapacityDialError(ctx, class, err)
+	}
+	if a.isAgentUpdateCordoned(agent.AgentID) {
+		lease.release()
+		return nil, errAgentUpdateCordoned
 	}
 
 	openCh := startCapacityManagedAgentStreamOpen(ctx, agent, func() (net.Conn, error) {
@@ -1061,6 +1068,9 @@ func (a *App) eligibleTargetAgentCandidatesFromSnapshot(snap *publicProxySnapsho
 		if !agentConfig.Enabled || !agentSelectorMatchesLabels(target.AgentSelector, agentConfig.Labels) {
 			continue
 		}
+		if a.isAgentUpdateCordoned(agentID) {
+			continue
+		}
 		conn := a.AgentHub.connectedByID(agentID)
 		if conn == nil {
 			continue
@@ -1285,6 +1295,9 @@ func (a *App) targetHasEligibleAgent(snap *publicProxySnapshot, target publicRou
 	}
 	for agentID, agentConfig := range snap.Agents {
 		if !agentConfig.Enabled || !agentSelectorMatchesLabels(target.AgentSelector, agentConfig.Labels) {
+			continue
+		}
+		if a.isAgentUpdateCordoned(agentID) {
 			continue
 		}
 		if a.AgentHub.connectedByID(agentID) != nil {

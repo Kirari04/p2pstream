@@ -37,20 +37,21 @@ Example:
      <figcaption>The Agent Setup modal shows the one-time token and generated installer snippets. Copy the command before selecting Done because the token is not shown again.</figcaption>
    </figure>
 
-2. On the home lab host, run the generated Linux installer from the **Agent Setup** modal. It has this shape:
+2. Obtain the exact versioned installer and raw agent binary through an independently trusted channel, verify them locally, and enter their absolute paths in the **Agent Setup** modal. The generated local-only command has this shape:
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/install-agent.sh | sudo env \
+   sudo env \
      MANAGEMENT_URL='https://proxy.example.com:8081' \
      MANAGEMENT_CA_PEM_BASE64='...' \
      AGENT_ID='agent-...' \
      AGENT_TOKEN='...' \
      P2PSTREAM_REPOSITORY='Kirari04/p2pstream' \
-     P2PSTREAM_VERSION='latest' \
-     bash
+     P2PSTREAM_VERSION='v1.2.3' \
+     P2PSTREAM_AGENT_BINARY_FILE='/srv/pinned/p2pstream_v1.2.3_linux_amd64' \
+     bash '/srv/pinned/install-agent-v1.2.3.sh'
    ```
 
-   The installer creates `/usr/local/bin/p2pstream`, `/etc/p2pstream/agent.env`, and `p2pstream-agent.service`, then restarts the agent service. You can run the generated Linux command again after token rotation to reinstall the existing agent with the new token. Staging management UIs generate the same command with `P2PSTREAM_VERSION='staging'` and the installer script loaded from the `staging` branch.
+   The installer refuses stdin/piped execution, mutable release names, symlinked binaries, and remote checksum bootstrap. It creates `/usr/local/bin/p2pstream`, `/etc/p2pstream/agent.env`, and `p2pstream-agent.service`, then restarts the agent service. You can run the generated Linux command again after token rotation with independently verified local files.
 
 3. Check the agent service:
 

@@ -10,7 +10,8 @@ import PublicTrafficShaperRuleEditorModal from "@/components/editors/PublicTraff
 import PublicWafCaptchaProviderEditorModal from "@/components/editors/PublicWafCaptchaProviderEditorModal.vue";
 import PublicWafRuleEditorModal from "@/components/editors/PublicWafRuleEditorModal.vue";
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
-import type { Agent, GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
+import type { GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
+import type { CreatedAgentSetup } from "@/types/agentSetup";
 
 defineProps<{
   config: GetPublicProxyConfigResponse | null;
@@ -18,7 +19,7 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (event: "created-agent", payload: { agent: Agent | null; token: string }): void;
+  (event: "created-agent", payload: CreatedAgentSetup): void;
   (event: "saved"): void;
 }>();
 

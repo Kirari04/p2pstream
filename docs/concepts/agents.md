@@ -40,7 +40,7 @@ By default, agents reject insecure HTTP management URLs and verify HTTPS certifi
 | `MANAGEMENT_CA_FILE` | Path to a PEM CA bundle on the agent host. |
 | `MANAGEMENT_CA_PEM_BASE64` | Base64-encoded PEM CA bundle, useful for generated snippets. |
 
-The **Agent Setup** modal can generate a one-line Linux systemd installer, a Docker Compose service, or a direct CLI command. Each generated form configures writable durable management trust; Docker uses a named state volume and direct CLI runs use a local state directory. The Linux installer downloads the release binary, verifies the checksum, writes `/etc/p2pstream/agent.env`, enables `p2pstream-agent.service`, and restarts it. After token rotation, run the generated Linux reinstall command on the existing agent host so the new token and TLS material are loaded by a fresh process.
+The **Agent Setup** modal can generate a one-line Linux systemd installer, a Docker Compose service, or a direct CLI command. Each generated form configures writable durable management trust; Docker uses a named state volume and direct CLI runs use a local state directory. Linux setup deliberately accepts only a locally supplied installer file, an exact stable `vX.Y.Z` identity, and a locally supplied raw binary. It never pipes mutable repository code into root or downloads executable content. After independently verifying those two files, the command writes `/etc/p2pstream/agent.env`, enables `p2pstream-agent.service`, and restarts it. After token rotation, run the generated Linux reinstall command on the existing agent host so the new token and TLS material are loaded by a fresh process.
 
 If management requires agent client certificates, configure:
 

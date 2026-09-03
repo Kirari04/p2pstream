@@ -123,6 +123,7 @@ jobs:
           mkdir -p dist
           go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${STAGING_TAG} -X p2pstream/internal/buildinfo.Commit=${COMMIT_SHA} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY}" -o dist/p2pstream main.go
           chmod +x dist/p2pstream
+          cp dist/p2pstream "p2pstream_${STAGING_TAG}_linux_${ARCH}"
           VERSION="${STAGING_TAG}" COMMIT="${COMMIT_SHA}" SOURCE_REPOSITORY="${SOURCE_REPOSITORY}" make legal-notices
           mkdir -p dist/package
           cp dist/p2pstream dist/package/p2pstream
@@ -133,7 +134,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: staging-binary-linux-${{ matrix.arch }}
-          path: p2pstream_staging_linux_${{ matrix.arch }}.tar.gz
+          path: |
+            p2pstream_staging_linux_${{ matrix.arch }}
+            p2pstream_staging_linux_${{ matrix.arch }}.tar.gz
           if-no-files-found: error
 
   image:
@@ -206,9 +209,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p dist/assets
-          find dist/artifacts -type f -name '*.tar.gz' -exec cp {} dist/assets/ \;
+          find dist/artifacts -type f \( -name '*.tar.gz' -o -name 'p2pstream_staging_linux_*' \) -exec cp {} dist/assets/ \;
           git archive --format=tar.gz --prefix="p2pstream-${STAGING_TAG}/" -o "dist/assets/p2pstream_${STAGING_TAG}_source.tar.gz" HEAD
-          (cd dist/assets && sha256sum *.tar.gz > checksums.txt)
+          (cd dist/assets && sha256sum p2pstream_* > checksums.txt)
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -250,9 +253,12 @@ jobs:
 
           printf -v notes '%s\n\n%s' \
             "Mutable p2pstream staging build for commit ${SHORT_SHA}." \
-            "This prerelease is rebuilt from the staging branch and is intended for validation before merging staging to main."
+            "This prerelease is rebuilt from the staging branch, carries no signed production update manifest, and must never be used for automatic production updates."
 
           if gh release view "${STAGING_TAG}" >/dev/null 2>&1; then
+            gh release delete-asset "${STAGING_TAG}" p2pstream_agent_update_manifest.json --yes 2>/dev/null || true
+            gh release delete-asset "${STAGING_TAG}" p2pstream_agent_update_manifest.signatures.json --yes 2>/dev/null || true
+            gh release delete-asset "${STAGING_TAG}" p2pstream_agent_update_root.json --yes 2>/dev/null || true
             gh release edit "${STAGING_TAG}" --prerelease --title "${STAGING_TAG}" --notes "$notes"
             gh release upload "${STAGING_TAG}" dist/assets/* --clobber
           else

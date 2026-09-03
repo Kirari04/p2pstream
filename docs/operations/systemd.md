@@ -95,6 +95,8 @@ sudo journalctl -u p2pstream-agent -f
 
 After rotating an agent token, run the generated Linux reinstall command on the existing agent host. The installer rewrites `/etc/p2pstream/agent.env`, refreshes installer-managed management CA material, and restarts `p2pstream-agent` so the new token and TLS settings are loaded. A locally configured `AGENT_ALLOW_TARGETS` or `AGENT_ALLOW_ANY_TARGET` policy is preserved when the reinstall command does not provide a replacement. If the existing environment file cannot be read or contains unsupported or multiline assignment syntax, the reinstall stops instead of risking a policy change; provide a replacement explicitly or add `AGENT_CLEAR_ALLOW_TARGETS=true` to discard the old policy and revert to loopback-only.
 
+The generated Linux command requires `P2PSTREAM_VERSION=vX.Y.Z` plus `P2PSTREAM_AGENT_BINARY_FILE=/absolute/path/to/raw-binary`, and invokes a locally supplied absolute installer path. `latest`, `staging`, remote installer pipes, symlinked installer/binary files, and implicit downloads are rejected. The explicit management-trust repair mode is separate and does not require a binary or version.
+
 The installer also creates `/var/lib/p2pstream-agent/management-ca.pem` as the service-owned durable trust bundle. Management certificate rotation updates this file atomically. If forced activation strands an otherwise current agent, use the trust-repair command shown under **Settings → Management TLS**. If the agent version is incompatible or its configuration is damaged, rerun the full generated install command instead.
 
 ## Uninstall Agent
@@ -103,16 +105,16 @@ Use this only for agents installed with the generated Linux systemd installer. D
 
 The full-purge uninstall removes the agent service, service drop-ins, `/etc/p2pstream`, `/var/lib/p2pstream-agent`, `/usr/local/bin/p2pstream`, and the `p2pstream` service user and group. Do not run it on a host where those paths or that user are shared with a p2pstream server or another install you want to keep.
 
-Generated command:
+First obtain and independently verify the versioned uninstaller as a local file. The UI deliberately does not pipe mutable remote code into root. Generated command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/uninstall-agent.sh | sudo env P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash
+sudo env P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash /path/to/p2pstream-uninstall-agent.sh
 ```
 
 Preview without changing the host:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/uninstall-agent.sh | env P2PSTREAM_UNINSTALL_DRY_RUN=true P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash
+env P2PSTREAM_UNINSTALL_DRY_RUN=true P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash /path/to/p2pstream-uninstall-agent.sh
 ```
 
 Uninstalling the host service does not remove the management record. After the remote host is removed, open the agent row's **More** menu under **Agents** and delete or disable the management record.

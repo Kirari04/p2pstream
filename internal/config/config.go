@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/caarlos0/env/v10"
@@ -45,6 +46,12 @@ type Config struct {
 	ManagementClientIPMode            string `env:"MANAGEMENT_CLIENT_IP_MODE" envDefault:"trusted_chain"`
 	ManagementAdvertiseHost           string `env:"MANAGEMENT_ADVERTISE_HOST"`
 	ManagementTLSExtraHosts           string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
+	AgentUpdatesEnabled               bool   `env:"AGENT_UPDATES_ENABLED" envDefault:"false"`
+	AgentUpdateRepository             string `env:"AGENT_UPDATE_REPOSITORY" envDefault:"Kirari04/p2pstream"`
+	AgentUpdateRootFile               string `env:"AGENT_UPDATE_ROOT_FILE"`
+	AgentUpdateAuthorityKeyFile       string `env:"AGENT_UPDATE_AUTHORITY_KEY_FILE"`
+	AgentUpdateCatalogRefreshMillis   int64  `env:"AGENT_UPDATE_CATALOG_REFRESH_MILLIS" envDefault:"300000"`
+	AgentUpdateHTTPTimeoutMillis      int64  `env:"AGENT_UPDATE_HTTP_TIMEOUT_MILLIS" envDefault:"15000"`
 	PublicCacheDir                    string `env:"PUBLIC_CACHE_DIR"`
 	PublicMaxHeaderBytes              int    `env:"PUBLIC_MAX_HEADER_BYTES" envDefault:"65536"`
 	PublicMaxRequestBodyBytes         int64  `env:"PUBLIC_MAX_REQUEST_BODY_BYTES" envDefault:"1073741824"`
@@ -82,7 +89,10 @@ type Config struct {
 	PublicMaxConcurrentPerTargetAuto bool   `env:"-"`
 	ServerTunnelCapacityAuto         bool   `env:"-"`
 	ServerTunnelDetectedMemoryBytes  int64  `env:"-"`
+	AgentUpdateCatalogStateFile      string `env:"-"`
 }
+
+var agentUpdateRepositoryRE = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
 // Load reads .env files and environment variables into the Config struct.
 func Load() (*Config, error) {
@@ -118,6 +128,16 @@ func Load() (*Config, error) {
 	}
 	cfg.ConfigDir = filepath.Clean(cfg.ConfigDir)
 	cfg.CertsDir = filepath.Join(cfg.ConfigDir, certsDirName)
+	cfg.AgentUpdateCatalogStateFile = filepath.Join(cfg.ConfigDir, "agent-update-catalog-state.json")
+	authorityKeyPath := strings.TrimSpace(cfg.AgentUpdateAuthorityKeyFile)
+	if authorityKeyPath == "" {
+		authorityKeyPath = filepath.Join(cfg.ConfigDir, "agent-update-management-authority.json")
+	}
+	authorityKeyPath, err := filepath.Abs(filepath.Clean(authorityKeyPath))
+	if err != nil {
+		return nil, fmt.Errorf("resolve AGENT_UPDATE_AUTHORITY_KEY_FILE: %w", err)
+	}
+	cfg.AgentUpdateAuthorityKeyFile = authorityKeyPath
 	if strings.TrimSpace(cfg.PublicCacheDir) == "" {
 		cfg.PublicCacheDir = filepath.Join(cfg.ConfigDir, "cache", "public")
 	} else {
@@ -222,6 +242,21 @@ func validateManagementTLSConfig(cfg *Config) error {
 	cfg.ManagementClientIPMode = strings.ToLower(strings.TrimSpace(cfg.ManagementClientIPMode))
 	cfg.ManagementAdvertiseHost = strings.TrimSpace(cfg.ManagementAdvertiseHost)
 	cfg.ManagementTLSExtraHosts = strings.TrimSpace(cfg.ManagementTLSExtraHosts)
+	cfg.AgentUpdateRepository = strings.TrimSpace(cfg.AgentUpdateRepository)
+	cfg.AgentUpdateRootFile = strings.TrimSpace(cfg.AgentUpdateRootFile)
+	cfg.AgentUpdateAuthorityKeyFile = strings.TrimSpace(cfg.AgentUpdateAuthorityKeyFile)
+	if !agentUpdateRepositoryRE.MatchString(cfg.AgentUpdateRepository) {
+		return errors.New("AGENT_UPDATE_REPOSITORY must use GitHub owner/repo syntax")
+	}
+	if cfg.AgentUpdateCatalogRefreshMillis < 10_000 || cfg.AgentUpdateCatalogRefreshMillis > 3_600_000 {
+		return errors.New("AGENT_UPDATE_CATALOG_REFRESH_MILLIS must be between 10000 and 3600000")
+	}
+	if cfg.AgentUpdateHTTPTimeoutMillis < 1_000 || cfg.AgentUpdateHTTPTimeoutMillis > 60_000 {
+		return errors.New("AGENT_UPDATE_HTTP_TIMEOUT_MILLIS must be between 1000 and 60000")
+	}
+	if cfg.AgentUpdatesEnabled && cfg.AgentUpdateRootFile == "" {
+		return errors.New("AGENT_UPDATE_ROOT_FILE is required when AGENT_UPDATES_ENABLED=true")
+	}
 	cfg.BootstrapAgentID = strings.TrimSpace(cfg.BootstrapAgentID)
 	cfg.BootstrapAgentName = strings.TrimSpace(cfg.BootstrapAgentName)
 	cfg.BootstrapAgentToken = strings.TrimSpace(cfg.BootstrapAgentToken)

@@ -46,6 +46,12 @@ Set these on the server process via `.env` or environment. They control manageme
 | `BOOTSTRAP_AGENT_ID`             | empty                        | Bootstrap agent public ID. Must be set with name and token.                                  |
 | `BOOTSTRAP_AGENT_NAME`           | empty                        | Bootstrap agent display name.                                                                |
 | `BOOTSTRAP_AGENT_TOKEN`          | empty                        | Bootstrap agent token. Configured values must be at least 32 characters; generate them with a CSPRNG. Stored as a hash. |
+| `AGENT_UPDATES_ENABLED`          | `false`                      | Enables the trusted stable-release catalog and managed update campaign API. Campaign creation remains fail-closed unless the configured root authenticates the catalog. |
+| `AGENT_UPDATE_REPOSITORY`        | `Kirari04/p2pstream`         | Fixed GitHub `owner/repo` used to resolve exact immutable release assets. URLs and arbitrary hosts are rejected. |
+| `AGENT_UPDATE_ROOT_FILE`         | empty                        | Canonical out-of-band Ed25519 threshold root metadata. Required when managed updates are enabled. The root published beside a release is audit-only and is never trusted automatically. |
+| `AGENT_UPDATE_AUTHORITY_KEY_FILE` | `${CONFIG_DIR}/agent-update-management-authority.json` | Owner-only Ed25519 management command-authority key. It is generated only for pristine managed-update state, while its public identity is pinned in SQLite. Missing or mismatched existing-state keys disable managed updates instead of being replaced. Back it up with the database. |
+| `AGENT_UPDATE_CATALOG_REFRESH_MILLIS` | `300000`              | Signed stable-catalog refresh interval; range `10000`–`3600000`. A last-known-good target is retained through transient network errors only until its signed expiry. |
+| `AGENT_UPDATE_HTTP_TIMEOUT_MILLIS` | `15000`                   | End-to-end timeout for bounded catalog HTTP requests; range `1000`–`60000`. |
 | `OBSERVABILITY_RETENTION_DAYS`   | `30`                         | Retention window for recorded observability data.                                            |
 | `OBSERVABILITY_MAX_ROWS`         | `1000000`                    | Maximum retained proxy request events and agent stat rows. Set `0` to disable this cap.       |
 | `LOGIN_THROTTLE_MAX_KEYS`        | `50000`                      | Total in-memory login throttle budget split between username and client-address trackers; active blocks are retained until expiry. |
@@ -87,16 +93,25 @@ When tunnel window or concurrency values are supplied to the installer, they are
 
 ### Installer Variables
 
-Set these as environment variables before running the Linux agent installer script. They control where the binary is placed and which release is downloaded.
+Set these as environment variables before running the Linux agent installer script. The installer accepts only local executable inputs; the repository is pinned for later signed managed-update downloads.
 
 | Variable                 | Default                    | Description                                                                  |
 | ------------------------ | -------------------------- | ---------------------------------------------------------------------------- |
-| `P2PSTREAM_REPOSITORY`   | `Kirari04/p2pstream`       | GitHub owner/repo used by the installer.                                     |
-| `P2PSTREAM_VERSION`      | `latest`                   | Installer binary channel: `latest`, `staging`, or a release tag such as `vX.Y.Z`. |
+| `P2PSTREAM_REPOSITORY`   | `Kirari04/p2pstream`       | GitHub owner/repo pinned for later managed-update metadata and artifacts. The installer itself performs no download. |
+| `P2PSTREAM_VERSION`      | required                   | Exact stable release identity (`vX.Y.Z`) for a local Linux install. Mutable `latest` and `staging` values are rejected. Not required by the trust-repair-only path. |
+| `P2PSTREAM_AGENT_BINARY_FILE` | required for install | Absolute path to the independently obtained raw Linux agent binary. The installer never downloads or extracts executable content. |
+| `P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64` | required for managed updates | Canonical base64 of the separately pinned 32-byte Ed25519 management-authority public key. |
+| `P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID` | required for managed updates | Lowercase SHA-256 of the decoded management-authority public key. |
+| `P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH` | required for managed updates | Positive authority epoch pinned during first enrollment; bootstrap cannot replace it. |
 | `P2PSTREAM_CONFIG_DIR`   | `/etc/p2pstream`           | Agent config directory created by installer.                                 |
 | `P2PSTREAM_INSTALL_PATH` | `/usr/local/bin/p2pstream` | Binary install path.                                                         |
 | `P2PSTREAM_SYSTEMD_DIR`  | `/etc/systemd/system`      | Systemd unit directory used by installer and uninstaller.                    |
 | `P2PSTREAM_AGENT_STATE_DIR` | `/var/lib/p2pstream-agent` | Writable durable agent state, including the rotated management CA bundle. |
+| `P2PSTREAM_ENABLE_MANAGED_UPDATES` | `false`                | With `true`, performs the one-time Linux/systemd updater bootstrap. Existing tunnel credentials are preserved; no agent-token rotation is needed. |
+| `P2PSTREAM_UPDATER_ENROLLMENT_TOKEN` | empty                | Short-lived, single-use updater enrollment token bound to one agent and the exact initial root/repository identity. It is never written to `agent.env`. |
+| `P2PSTREAM_AGENT_UPDATE_ROOT_BASE64` | empty                 | Canonical root metadata supplied by the authenticated management setup handoff. It is parsed before installation and persisted root-owned; ordinary enrollment never overwrites an existing root. |
+| `P2PSTREAM_EXISTING_TUNNEL_VERSION` | required when enrolling an existing unmanaged agent | Server-observed stable `vX.Y.Z` build identity for the tunnel binary being preserved during updater bootstrap. |
+| `P2PSTREAM_EXISTING_TUNNEL_COMMIT` | required with existing tunnel version | Server-observed 40-character commit for the preserved tunnel binary. Both fields are pinned into bootstrap slot metadata so a rollback can prove the actual restored build. |
 | `P2PSTREAM_REPAIR_TRUST` | `false` | With `true`, repair only the durable CA bundle from `MANAGEMENT_CA_PEM_BASE64` and restart an existing compatible service. |
 | `AGENT_CLEAR_ALLOW_TARGETS` | `false`                 | Remove a preserved destination policy during reinstall, reverting to loopback-only defaults. |
 
@@ -119,6 +134,7 @@ Set these as environment variables before running the Linux agent installer scri
 - Yamux receive credit is lazy, but it is still a reachable memory exposure. Adaptive mode reserves `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` for every live or closing stream until peer FIN/forced Yamux cleanup, subtracts `768 KiB` for bounded socket/relay overhead, and caps the effective receive window to the remainder (default `512 KiB`). After a pressured agent generation fully drains, the agent asynchronously returns unused Go heap pages to the OS before admitting the next full burst. The configured `2 MiB` default remains available to explicit fixed-capacity sessions.
 - Queues remain globally and per-route bounded, opening concurrency remains below Yamux's finite `256` SYN backlog, and a small trusted-health opening share is protected. Cross-session capacity is work-conserving: one session may borrow idle capacity but yields released capacity to waiting sessions.
 - Bootstrap agent ID, name, and token must all be set together.
+- Managed updates require a pinned `owner/repo`, an unexpired threshold root, and management HTTPS. The catalog accepts only canonical signed stable manifests and monotonic security/version floors; mutable staging releases, arbitrary URLs, and unknown artifacts are never eligible campaign targets.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 - Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.
 - Agent target allowlist entries are exact hostnames, IP literals, or CIDR prefixes with optional ports or port ranges. When neither an allowlist nor `AGENT_ALLOW_ANY_TARGET=true` is set, the agent permits only `127.0.0.0/8` and `::1/128`. This keeps same-host services working while preventing default access to the surrounding network.

@@ -20,6 +20,7 @@ describe("managementNavigation", () => {
       "TLS",
     ]);
     expect(MANAGEMENT_NAVIGATION[1]?.items[0]?.children?.map((item) => item.label)).toEqual(["Routes", "Listeners"]);
+    expect(MANAGEMENT_NAVIGATION[1]?.items[1]?.children?.map((item) => item.label)).toEqual(["Fleet", "Activity", "Updates"]);
     expect(MANAGEMENT_NAVIGATION[1]?.items[2]?.children?.map((item) => item.label)).toEqual([
       "Rate Limits",
       "WAF",
@@ -55,6 +56,12 @@ describe("managementNavigation", () => {
     expect(managementBreadcrumbsForPath("/agent/activity")).toEqual([
       { key: "configure", label: "Configure" },
       { key: "agents", label: "Agents", path: "/agent" },
+      { key: "agents-activity", label: "Activity", path: "/agent/activity" },
+    ]);
+    expect(managementBreadcrumbsForPath("/agent/updates")).toEqual([
+      { key: "configure", label: "Configure" },
+      { key: "agents", label: "Agents", path: "/agent" },
+      { key: "agents-updates", label: "Updates", path: "/agent/updates" },
     ]);
     expect(managementBreadcrumbsForPath("/monitor/diagnostics/samples")).toEqual([
       { key: "observe", label: "Observe" },

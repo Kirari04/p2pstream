@@ -16,6 +16,8 @@ const (
 	TunnelVersionHeader              = "X-P2PStream-Tunnel-Version"
 	TunnelMaxConcurrentStreamsHeader = "X-P2PStream-Tunnel-Max-Concurrent-Streams"
 	TunnelCapacityModeHeader         = "X-P2PStream-Tunnel-Capacity-Mode"
+	TunnelAgentVersionHeader         = "X-P2PStream-Agent-Version"
+	TunnelAgentCommitHeader          = "X-P2PStream-Agent-Commit"
 	TunnelCapacityModeAdaptive       = "adaptive"
 	TunnelCapacityModeFixed          = "fixed"
 
