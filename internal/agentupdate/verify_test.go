@@ -2,7 +2,6 @@ package agentupdate
 
 import (
 	"bytes"
-	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
@@ -10,9 +9,9 @@ import (
 	"time"
 )
 
-func TestVerifyThresholdAndArtifact(t *testing.T) {
-	manifestJSON, signaturesJSON, root, artifactBytes := testBundle(t, "stable", 2)
-	verified, err := Verify(manifestJSON, signaturesJSON, root, testPolicy())
+func TestVerifyManifestAndArtifact(t *testing.T) {
+	manifestJSON, artifactBytes := testBundle(t, "stable")
+	verified, err := Verify(manifestJSON, testPolicy())
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
@@ -32,7 +31,7 @@ func TestVerifyThresholdAndArtifact(t *testing.T) {
 }
 
 func TestVerifyCatalogPreservesAllArtifactsAndDigest(t *testing.T) {
-	manifestJSON, _, root, artifactBytes := testBundle(t, "stable", 2)
+	manifestJSON, artifactBytes := testBundle(t, "stable")
 	manifest, err := ParseManifest(manifestJSON)
 	if err != nil {
 		t.Fatal(err)
@@ -46,18 +45,8 @@ func TestVerifyCatalogPreservesAllArtifactsAndDigest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	keys := []ed25519.PrivateKey{deterministicPrivateKey(1), deterministicPrivateKey(2)}
-	envelope, err := SignManifest(manifestJSON, root, keys)
-	if err != nil {
-		t.Fatal(err)
-	}
-	signaturesJSON, err := CanonicalSignatures(envelope)
-	if err != nil {
-		t.Fatal(err)
-	}
-	verified, err := VerifyCatalog(manifestJSON, signaturesJSON, root, CatalogVerifyPolicy{
+	verified, err := VerifyCatalog(manifestJSON, CatalogVerifyPolicy{
 		Now:                       time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC),
-		MinimumRootVersion:        1,
 		CurrentSequence:           10203,
 		CurrentSecurityEpoch:      2,
 		CurrentMinimumSafeVersion: "v1.0.0",
@@ -76,95 +65,8 @@ func TestVerifyCatalogPreservesAllArtifactsAndDigest(t *testing.T) {
 	}
 }
 
-func TestVerifyRejectsInsufficientThreshold(t *testing.T) {
-	manifestJSON, _, root, _ := testBundle(t, "stable", 2)
-	key := deterministicPrivateKey(1)
-	envelope, err := SignManifest(manifestJSON, root, []ed25519.PrivateKey{key})
-	if err == nil {
-		t.Fatalf("SignManifest unexpectedly satisfied threshold: %+v", envelope)
-	}
-
-	root.Threshold = 1
-	envelope, err = SignManifest(manifestJSON, root, []ed25519.PrivateKey{key})
-	if err != nil {
-		t.Fatal(err)
-	}
-	root.Threshold = 2
-	signaturesJSON, err := CanonicalSignatures(envelope)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Verify(manifestJSON, signaturesJSON, root, testPolicy()); err == nil || !strings.Contains(err.Error(), "threshold") {
-		t.Fatalf("Verify error = %v, want threshold rejection", err)
-	}
-}
-
-func TestSignManifestAcceptsThresholdSubsetOfRootKeys(t *testing.T) {
-	manifestJSON, _, root, _ := testBundle(t, "stable", 2)
-	thirdKey := deterministicPrivateKey(3)
-	root, err := NewRootMetadata(root.Version, root.ExpiresAt, 2, []ed25519.PublicKey{
-		deterministicPrivateKey(1).Public().(ed25519.PublicKey),
-		deterministicPrivateKey(2).Public().(ed25519.PublicKey),
-		thirdKey.Public().(ed25519.PublicKey),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	envelope, err := SignManifest(manifestJSON, root, []ed25519.PrivateKey{
-		deterministicPrivateKey(1), deterministicPrivateKey(2),
-	})
-	if err != nil {
-		t.Fatalf("SignManifest threshold subset: %v", err)
-	}
-	signaturesJSON, err := CanonicalSignatures(envelope)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Verify(manifestJSON, signaturesJSON, root, testPolicy()); err != nil {
-		t.Fatalf("Verify threshold subset: %v", err)
-	}
-}
-
-func TestMergeManifestSignaturesRequiresIndependentThreshold(t *testing.T) {
-	manifestJSON, _, root, _ := testBundle(t, "stable", 2)
-	first, err := SignManifestPartial(manifestJSON, root, []ed25519.PrivateKey{deterministicPrivateKey(1)})
-	if err != nil {
-		t.Fatalf("SignManifestPartial first: %v", err)
-	}
-	second, err := SignManifestPartial(manifestJSON, root, []ed25519.PrivateKey{deterministicPrivateKey(2)})
-	if err != nil {
-		t.Fatalf("SignManifestPartial second: %v", err)
-	}
-	if _, err := MergeManifestSignatures(manifestJSON, root, first); err == nil || !strings.Contains(err.Error(), "threshold") {
-		t.Fatalf("single contribution error = %v, want threshold rejection", err)
-	}
-	merged, err := MergeManifestSignatures(manifestJSON, root, second, first)
-	if err != nil {
-		t.Fatalf("MergeManifestSignatures: %v", err)
-	}
-	if len(merged.Signatures) != 2 || merged.Signatures[0].KeyID >= merged.Signatures[1].KeyID {
-		t.Fatalf("merged signatures are not canonical: %+v", merged)
-	}
-	signaturesJSON, err := CanonicalSignatures(merged)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Verify(manifestJSON, signaturesJSON, root, testPolicy()); err != nil {
-		t.Fatalf("Verify merged signatures: %v", err)
-	}
-	if _, err := MergeManifestSignatures(manifestJSON, root, first, first); err == nil || !strings.Contains(err.Error(), "duplicate") {
-		t.Fatalf("duplicate contribution error = %v", err)
-	}
-
-	mutated := append([]byte(nil), manifestJSON...)
-	mutated[len(mutated)-2] ^= 1
-	if _, err := MergeManifestSignatures(mutated, root, first, second); err == nil {
-		t.Fatal("mutated manifest unexpectedly accepted")
-	}
-}
-
 func TestVerifyRejectsDowngradesAndIncompatibleRuntime(t *testing.T) {
-	manifestJSON, signaturesJSON, root, _ := testBundle(t, "stable", 2)
+	manifestJSON, _ := testBundle(t, "stable")
 	tests := []struct {
 		name   string
 		mutate func(*VerifyPolicy)
@@ -173,7 +75,6 @@ func TestVerifyRejectsDowngradesAndIncompatibleRuntime(t *testing.T) {
 		{"sequence", func(p *VerifyPolicy) { p.CurrentSequence = 10203 }, "sequence"},
 		{"security epoch", func(p *VerifyPolicy) { p.CurrentSecurityEpoch = 3 }, "security epoch"},
 		{"minimum safe version", func(p *VerifyPolicy) { p.CurrentMinimumSafeVersion = "v1.1.0" }, "minimum safe"},
-		{"root", func(p *VerifyPolicy) { p.MinimumRootVersion = 2 }, "root version floor"},
 		{"installed version", func(p *VerifyPolicy) { p.CurrentVersion = "v1.2.3" }, "installed version"},
 		{"server", func(p *VerifyPolicy) { p.ServerVersion = "v2.0.1" }, "server version"},
 		{"updater", func(p *VerifyPolicy) { p.UpdaterVersion = "v0.9.9" }, "updater version"},
@@ -183,7 +84,7 @@ func TestVerifyRejectsDowngradesAndIncompatibleRuntime(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			policy := testPolicy()
 			test.mutate(&policy)
-			if _, err := Verify(manifestJSON, signaturesJSON, root, policy); err == nil || !strings.Contains(err.Error(), test.want) {
+			if _, err := Verify(manifestJSON, policy); err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("Verify error = %v, want %q", err, test.want)
 			}
 		})
@@ -191,13 +92,12 @@ func TestVerifyRejectsDowngradesAndIncompatibleRuntime(t *testing.T) {
 }
 
 func TestVerifyBootstrapFloorsDoNotDisableManifestFloors(t *testing.T) {
-	manifestJSON, signaturesJSON, root, _ := testBundle(t, "stable", 2)
+	manifestJSON, _ := testBundle(t, "stable")
 	policy := testPolicy()
 	policy.CurrentSequence = 0
 	policy.CurrentSecurityEpoch = 0
 	policy.CurrentMinimumSafeVersion = ""
-	policy.MinimumRootVersion = 0
-	if _, err := Verify(manifestJSON, signaturesJSON, root, policy); err != nil {
+	if _, err := Verify(manifestJSON, policy); err != nil {
 		t.Fatalf("Verify bootstrap: %v", err)
 	}
 
@@ -211,31 +111,27 @@ func TestVerifyBootstrapFloorsDoNotDisableManifestFloors(t *testing.T) {
 	}
 }
 
-func TestProductionPolicyRejectsStaging(t *testing.T) {
-	manifestJSON, signaturesJSON, root, _ := testBundle(t, "staging", 2)
-	if _, err := Verify(manifestJSON, signaturesJSON, root, testPolicy()); err == nil || !strings.Contains(err.Error(), "channel") {
-		t.Fatalf("Verify error = %v, want channel rejection", err)
+func TestReleaseChannels(t *testing.T) {
+	manifestJSON, _ := testBundle(t, "staging")
+	if _, err := Verify(manifestJSON, testPolicy()); err == nil || !strings.Contains(err.Error(), "channel") {
+		t.Fatalf("stable policy error = %v, want channel rejection", err)
 	}
-}
-
-func TestStagingPolicyAcceptsAdvancingPrerelease(t *testing.T) {
-	manifestJSON, signaturesJSON, root, _ := testBundle(t, "staging", 2)
 	policy := testPolicy()
 	policy.RequiredChannel = "staging"
 	policy.CurrentVersion = "v1.2.2-staging.99"
 	policy.ServerVersion = "v1.2.3-staging.1"
 	policy.UpdaterVersion = "v1.1.0-staging.1"
-	verified, err := Verify(manifestJSON, signaturesJSON, root, policy)
+	verified, err := Verify(manifestJSON, policy)
 	if err != nil {
 		t.Fatalf("Verify staging: %v", err)
 	}
-	if verified.Version != "v1.2.3-staging.1" || verified.Artifact.Name != "p2pstream_v1.2.3-staging.1_linux_amd64" {
+	if verified.Version != "v1.2.3-staging.1" {
 		t.Fatalf("verified staging release = %+v", verified)
 	}
 }
 
 func TestStrictCanonicalParsingRejectsUnknownURLAndWhitespace(t *testing.T) {
-	manifestJSON, _, _, _ := testBundle(t, "stable", 2)
+	manifestJSON, _ := testBundle(t, "stable")
 	withURL := bytes.Replace(manifestJSON, []byte(`"size":14`), []byte(`"url":"https://attacker.invalid/a","size":14`), 1)
 	if _, err := ParseManifest(withURL); err == nil {
 		t.Fatal("ParseManifest accepted an artifact URL")
@@ -248,28 +144,17 @@ func TestStrictCanonicalParsingRejectsUnknownURLAndWhitespace(t *testing.T) {
 	}
 }
 
-func TestVerifyRejectsExpiredMetadataAndTampering(t *testing.T) {
-	manifestJSON, signaturesJSON, root, _ := testBundle(t, "stable", 2)
+func TestVerifyRejectsExpiredMetadata(t *testing.T) {
+	manifestJSON, _ := testBundle(t, "stable")
 	policy := testPolicy()
-	policy.Now = time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
-	if _, err := Verify(manifestJSON, signaturesJSON, root, policy); err == nil || !strings.Contains(err.Error(), "root metadata is expired") {
-		t.Fatalf("Verify root expiry error = %v", err)
-	}
-
-	policy = testPolicy()
 	policy.Now = time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
-	if _, err := Verify(manifestJSON, signaturesJSON, root, policy); err == nil || !strings.Contains(err.Error(), "manifest is expired") {
+	if _, err := Verify(manifestJSON, policy); err == nil || !strings.Contains(err.Error(), "manifest is expired") {
 		t.Fatalf("Verify manifest expiry error = %v", err)
-	}
-
-	tampered := bytes.Replace(manifestJSON, []byte(`"sequence":10203`), []byte(`"sequence":10204`), 1)
-	if _, err := Verify(tampered, signaturesJSON, root, testPolicy()); err == nil || !strings.Contains(err.Error(), "invalid signature") {
-		t.Fatalf("Verify tamper error = %v", err)
 	}
 }
 
 func TestVerifyArtifactRejectsSizeAndDigestMismatch(t *testing.T) {
-	_, _, _, artifactBytes := testBundle(t, "stable", 2)
+	_, artifactBytes := testBundle(t, "stable")
 	digest := sha256.Sum256(artifactBytes)
 	artifact := Artifact{Size: uint64(len(artifactBytes)), SHA256: hex.EncodeToString(digest[:])}
 	if err := VerifyArtifact(bytes.NewReader(append(append([]byte{}, artifactBytes...), 'x')), artifact); err == nil || !strings.Contains(err.Error(), "size") {
@@ -284,14 +169,8 @@ func TestVerifyArtifactRejectsSizeAndDigestMismatch(t *testing.T) {
 	}
 }
 
-func testBundle(t *testing.T, channel string, threshold uint32) ([]byte, []byte, RootMetadata, []byte) {
+func testBundle(t *testing.T, channel string) ([]byte, []byte) {
 	t.Helper()
-	keys := []ed25519.PrivateKey{deterministicPrivateKey(1), deterministicPrivateKey(2)}
-	publicKeys := []ed25519.PublicKey{keys[0].Public().(ed25519.PublicKey), keys[1].Public().(ed25519.PublicKey)}
-	root, err := NewRootMetadata(1, "2027-01-01T00:00:00Z", threshold, publicKeys)
-	if err != nil {
-		t.Fatal(err)
-	}
 	artifactBytes := []byte("binary payload")
 	digest := sha256.Sum256(artifactBytes)
 	version := "v1.2.3"
@@ -299,60 +178,32 @@ func testBundle(t *testing.T, channel string, threshold uint32) ([]byte, []byte,
 		version = "v1.2.3-staging.1"
 	}
 	manifest := Manifest{
-		SchemaVersion:      SchemaVersion,
-		Channel:            channel,
-		RootVersion:        root.Version,
-		Version:            version,
-		Commit:             strings.Repeat("a", 40),
-		Sequence:           10203,
-		PublishedAt:        "2026-01-01T00:00:00Z",
-		ExpiresAt:          "2026-02-01T00:00:00Z",
-		MinimumSafeVersion: "v1.0.0",
-		SecurityEpoch:      2,
+		SchemaVersion: SchemaVersion, Channel: channel, Version: version,
+		Commit: strings.Repeat("a", 40), Sequence: 10203,
+		PublishedAt: "2026-01-01T00:00:00Z", ExpiresAt: "2026-02-01T00:00:00Z",
+		MinimumSafeVersion: "v1.0.0", SecurityEpoch: 2,
 		Compatibility: Compatibility{
 			Server:   VersionRange{Min: "v1.0.0", Max: "v2.0.0"},
 			Protocol: ProtocolRange{Min: 1, Max: 2},
 			Updater:  VersionRange{Min: "v1.0.0", Max: "v2.0.0"},
 		},
 		Artifacts: []Artifact{{
-			OS:     "linux",
-			Arch:   "amd64",
-			Name:   "p2pstream_" + version + "_linux_amd64",
-			Size:   uint64(len(artifactBytes)),
-			SHA256: hex.EncodeToString(digest[:]),
+			OS: "linux", Arch: "amd64", Name: "p2pstream_" + version + "_linux_amd64",
+			Size: uint64(len(artifactBytes)), SHA256: hex.EncodeToString(digest[:]),
 		}},
 	}
 	manifestJSON, err := CanonicalManifest(manifest)
 	if err != nil {
 		t.Fatal(err)
 	}
-	envelope, err := SignManifest(manifestJSON, root, keys)
-	if err != nil {
-		t.Fatal(err)
-	}
-	signaturesJSON, err := CanonicalSignatures(envelope)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return manifestJSON, signaturesJSON, root, artifactBytes
-}
-
-func deterministicPrivateKey(value byte) ed25519.PrivateKey {
-	return ed25519.NewKeyFromSeed(bytes.Repeat([]byte{value}, ed25519.SeedSize))
+	return manifestJSON, artifactBytes
 }
 
 func testPolicy() VerifyPolicy {
 	return VerifyPolicy{
-		Now:                       time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC),
-		CurrentSequence:           10202,
-		CurrentSecurityEpoch:      2,
-		CurrentMinimumSafeVersion: "v1.0.0",
-		MinimumRootVersion:        1,
-		CurrentVersion:            "v1.2.2",
-		ServerVersion:             "v1.5.0",
-		UpdaterVersion:            "v1.1.0",
-		ProtocolVersion:           1,
-		GOOS:                      "linux",
-		GOARCH:                    "amd64",
+		Now: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), CurrentSequence: 10202,
+		CurrentSecurityEpoch: 2, CurrentMinimumSafeVersion: "v1.0.0", CurrentVersion: "v1.2.2",
+		ServerVersion: "v1.5.0", UpdaterVersion: "v1.1.0", ProtocolVersion: 1,
+		GOOS: "linux", GOARCH: "amd64",
 	}
 }

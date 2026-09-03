@@ -18,7 +18,6 @@ func TestGitHubSourceUsesOnlyImmutableReleaseAssetPaths(t *testing.T) {
 	digest := sha256.Sum256(body)
 	wantPaths := []string{
 		"/owner/repo/releases/download/v1.2.3/" + manifestAssetName,
-		"/owner/repo/releases/download/v1.2.3/" + signatureAssetName,
 		"/owner/repo/releases/download/v1.2.3/" + runtimeArtifactName("v1.2.3"),
 	}
 	index := 0
@@ -30,8 +29,6 @@ func TestGitHubSourceUsesOnlyImmutableReleaseAssetPaths(t *testing.T) {
 		switch index {
 		case 0:
 			data = []byte("manifest")
-		case 1:
-			data = []byte("signatures")
 		default:
 			data = body
 		}
@@ -43,7 +40,7 @@ func TestGitHubSourceUsesOnlyImmutableReleaseAssetPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := source.FetchMetadata(context.Background()); err != nil {
+	if _, err := source.FetchMetadata(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	artifact := Artifact{Name: runtimeArtifactName("v1.2.3"), Size: int64(len(body)), SHA256: digest}
@@ -55,7 +52,7 @@ func TestGitHubSourceUsesOnlyImmutableReleaseAssetPaths(t *testing.T) {
 	if got, _ := io.ReadAll(reader); string(got) != string(body) {
 		t.Fatalf("artifact = %q", got)
 	}
-	if index != 3 {
+	if index != 2 {
 		t.Fatalf("request count = %d", index)
 	}
 }

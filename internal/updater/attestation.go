@@ -25,7 +25,6 @@ type rootActionCounter struct {
 type slotMetadata struct {
 	Target          string                               `json:"target"`
 	ResultKind      agentupdateauth.RootActionResultKind `json:"result_kind"`
-	RootVersion     uint64                               `json:"root_version"`
 	ManifestSHA256  string                               `json:"manifest_sha256"`
 	Version         string                               `json:"version"`
 	Commit          string                               `json:"commit"`
@@ -60,11 +59,11 @@ func (p Paths) currentSlotMetadataPath() string {
 	return filepath.Join(p.rootStateDir(), "current-slot.json")
 }
 
-func signedReleaseSlotMetadata(release VerifiedRelease) slotMetadata {
+func releaseSlotMetadata(release VerifiedRelease) slotMetadata {
 	return slotMetadata{
-		Target:      filepath.ToSlash(filepath.Join("slots", release.Version, "p2pstream")),
-		ResultKind:  agentupdateauth.RootActionResultSignedRelease,
-		RootVersion: release.RootVersion, ManifestSHA256: release.ManifestSHA256, Version: release.Version,
+		Target:         filepath.ToSlash(filepath.Join("slots", release.Version, "p2pstream")),
+		ResultKind:     agentupdateauth.RootActionResultRelease,
+		ManifestSHA256: release.ManifestSHA256, Version: release.Version,
 		Commit: release.Commit, BuildVersion: release.Version, BuildCommit: release.Commit,
 		ReleaseSequence: release.Sequence, SecurityEpoch: release.SecurityEpoch,
 		OS: runtime.GOOS, Arch: runtime.GOARCH, ArtifactName: release.Artifact.Name,
@@ -106,7 +105,7 @@ func createRootActionReceipt(paths Paths, authorization assignmentAuthorizationR
 		AuthorizationSHA256: authorizationSHA, AuthorizationNonce: append([]byte(nil), a.Nonce...),
 		AuthorityKeyID: a.AuthorityKeyID, AuthorityEpoch: a.AuthorityEpoch, ActivatorKeyID: activatorKeyID,
 		RootActionCounter: previous + 1, CompletedAtUnixMillis: time.Now().UTC().UnixMilli(),
-		ResultKind: result.ResultKind, ResultRootVersion: result.RootVersion,
+		ResultKind:           result.ResultKind,
 		ResultManifestSHA256: result.ManifestSHA256, ResultVersion: resultVersion, ResultCommit: resultCommit,
 		ResultReleaseSequence: result.ReleaseSequence, ResultSecurityEpoch: result.SecurityEpoch,
 		ResultOS: result.OS, ResultArch: result.Arch, ResultArtifactName: result.ArtifactName,
@@ -201,10 +200,10 @@ func persistHealthyActivation(paths Paths, journal activationJournal, readyPath 
 	if err := verifyRootActionReceiptRecord(paths, *journal.Receipt, journal.Authorization, previousCounter, time.Now().UTC()); err != nil {
 		return err
 	}
-	activated := signedReleaseSlotMetadata(VerifiedRelease{
+	activated := releaseSlotMetadata(VerifiedRelease{
 		Version: journal.Version, Commit: journal.Receipt.Receipt.ResultCommit,
-		ManifestSHA256: journal.Receipt.Receipt.ResultManifestSHA256, RootVersion: journal.RootVersion,
-		Sequence: journal.Sequence, SecurityEpoch: journal.SecurityEpoch,
+		ManifestSHA256: journal.Receipt.Receipt.ResultManifestSHA256,
+		Sequence:       journal.Sequence, SecurityEpoch: journal.SecurityEpoch,
 		Artifact: Artifact{Name: journal.Receipt.Receipt.ResultArtifactName, Size: journal.Receipt.Receipt.ResultArtifactSize,
 			SHA256: mustArtifactDigest(journal.Receipt.Receipt.ResultArtifactSHA256)},
 	})
@@ -219,7 +218,7 @@ func persistHealthyActivation(paths Paths, journal activationJournal, readyPath 
 	if err := atomicJSON(paths.rootActionCounterPath(), rootActionCounter{Counter: journal.Receipt.Receipt.RootActionCounter}, 0600); err != nil {
 		return err
 	}
-	floor := Floor{Sequence: journal.Sequence, SecurityEpoch: journal.SecurityEpoch, MinimumSafeVersion: journal.MinimumSafeVersion, RootVersion: journal.RootVersion, Version: journal.Version}
+	floor := Floor{Sequence: journal.Sequence, SecurityEpoch: journal.SecurityEpoch, MinimumSafeVersion: journal.MinimumSafeVersion, Version: journal.Version}
 	if err := atomicJSON(paths.floorPath(), floor, 0640); err != nil {
 		return err
 	}
@@ -251,13 +250,13 @@ func validateSlotMetadata(slot slotMetadata) error {
 		return errors.New("slot metadata is invalid")
 	}
 	switch slot.ResultKind {
-	case agentupdateauth.RootActionResultSignedRelease:
+	case agentupdateauth.RootActionResultRelease:
 		if !validVersion(slot.Version) || !commitPattern.MatchString(slot.Commit) || !digestPattern.MatchString(slot.ManifestSHA256) ||
-			slot.BuildVersion != slot.Version || slot.BuildCommit != slot.Commit || slot.RootVersion == 0 || slot.ReleaseSequence == 0 || slot.SecurityEpoch == 0 {
-			return errors.New("signed release slot metadata is invalid")
+			slot.BuildVersion != slot.Version || slot.BuildCommit != slot.Commit || slot.ReleaseSequence == 0 || slot.SecurityEpoch == 0 {
+			return errors.New("release slot metadata is invalid")
 		}
 	case agentupdateauth.RootActionResultBootstrap:
-		if !bootstrapVersionPattern.MatchString(slot.Version) || slot.RootVersion != 0 || slot.ManifestSHA256 != "" ||
+		if !bootstrapVersionPattern.MatchString(slot.Version) || slot.ManifestSHA256 != "" ||
 			slot.ReleaseSequence != 0 || slot.SecurityEpoch != 0 || slot.Commit != "" || !validVersion(slot.BuildVersion) || !commitPattern.MatchString(slot.BuildCommit) {
 			return errors.New("bootstrap slot metadata is invalid")
 		}

@@ -51,7 +51,6 @@ type Config struct {
 	AgentUpdatesEnabled               bool   `env:"AGENT_UPDATES_ENABLED" envDefault:"false"`
 	AgentUpdateRepository             string `env:"AGENT_UPDATE_REPOSITORY" envDefault:"Kirari04/p2pstream"`
 	AgentUpdateChannel                string `env:"AGENT_UPDATE_CHANNEL"`
-	AgentUpdateRootFile               string `env:"AGENT_UPDATE_ROOT_FILE"`
 	AgentUpdateAuthorityKeyFile       string `env:"AGENT_UPDATE_AUTHORITY_KEY_FILE"`
 	AgentUpdateCatalogRefreshMillis   int64  `env:"AGENT_UPDATE_CATALOG_REFRESH_MILLIS" envDefault:"300000"`
 	AgentUpdateHTTPTimeoutMillis      int64  `env:"AGENT_UPDATE_HTTP_TIMEOUT_MILLIS" envDefault:"15000"`
@@ -255,7 +254,6 @@ func validateManagementTLSConfig(cfg *Config) error {
 		return err
 	}
 	cfg.AgentUpdateChannel = agentUpdateChannel
-	cfg.AgentUpdateRootFile = strings.TrimSpace(cfg.AgentUpdateRootFile)
 	cfg.AgentUpdateAuthorityKeyFile = strings.TrimSpace(cfg.AgentUpdateAuthorityKeyFile)
 	if !agentUpdateRepositoryRE.MatchString(cfg.AgentUpdateRepository) {
 		return errors.New("AGENT_UPDATE_REPOSITORY must use GitHub owner/repo syntax")
@@ -268,9 +266,6 @@ func validateManagementTLSConfig(cfg *Config) error {
 	}
 	if cfg.AgentUpdateHTTPTimeoutMillis < 1_000 || cfg.AgentUpdateHTTPTimeoutMillis > 60_000 {
 		return errors.New("AGENT_UPDATE_HTTP_TIMEOUT_MILLIS must be between 1000 and 60000")
-	}
-	if cfg.AgentUpdatesEnabled && cfg.AgentUpdateRootFile == "" {
-		return errors.New("AGENT_UPDATE_ROOT_FILE is required when AGENT_UPDATES_ENABLED=true")
 	}
 	cfg.BootstrapAgentID = strings.TrimSpace(cfg.BootstrapAgentID)
 	cfg.BootstrapAgentName = strings.TrimSpace(cfg.BootstrapAgentName)

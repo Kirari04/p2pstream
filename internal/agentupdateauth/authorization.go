@@ -18,16 +18,16 @@ import (
 // AssignmentAction is the privileged root action authorized by management.
 type AssignmentAction string
 
-// RootActionResultKind distinguishes a verified release slot from the initial
-// installer-created bootstrap slot, which has no release root or manifest.
+// RootActionResultKind distinguishes a release slot from the initial
+// installer-created bootstrap slot, which has no release manifest.
 type RootActionResultKind string
 
 const (
 	AssignmentActionActivate AssignmentAction = "activate"
 	AssignmentActionRollback AssignmentAction = "rollback"
 
-	RootActionResultSignedRelease RootActionResultKind = "signed_release"
-	RootActionResultBootstrap     RootActionResultKind = "bootstrap"
+	RootActionResultRelease   RootActionResultKind = "release"
+	RootActionResultBootstrap RootActionResultKind = "bootstrap"
 
 	// MaxAuthorizationLifetime bounds replay exposure if an authorization is
 	// copied before the root activator consumes its monotonic command sequence.
@@ -50,7 +50,7 @@ var (
 )
 
 // AssignmentAuthorization is the complete management decision that may cross
-// the unprivileged-worker/root-activator boundary. The signed target is exact:
+// the unprivileged-worker/root-activator boundary. The authorized target is exact:
 // callers must not replace any target, compatibility, or artifact field.
 type AssignmentAuthorization struct {
 	AgentPublicID       string
@@ -65,7 +65,6 @@ type AssignmentAuthorization struct {
 	AuthorityKeyID      string
 	AuthorityEpoch      uint64
 	ServerVersion       string
-	RootVersion         uint64
 	ManifestSHA256      string
 	TargetVersion       string
 	TargetCommit        string
@@ -90,7 +89,7 @@ type AssignmentAuthorizationVerifyPolicy struct {
 }
 
 // EnrollmentReceipt is management's signed binding between one enrollment
-// generation and the exact updater, root activator, release root, repository,
+// generation and the exact updater, root activator, repository,
 // platform, and management authority identities installed on the host.
 type EnrollmentReceipt struct {
 	AgentPublicID            string
@@ -101,8 +100,6 @@ type EnrollmentReceipt struct {
 	OS                       string
 	Arch                     string
 	UpdaterVersion           string
-	TrustedRootSHA256        string
-	TrustedRootVersion       uint64
 	PinnedRepository         string
 	AuthorityKeyID           string
 	AuthorityEpoch           uint64
@@ -121,7 +118,7 @@ type EnrollmentReceiptVerifyPolicy struct {
 }
 
 // RootActionReceipt is the root activator's durable proof that it consumed an
-// exact management authorization and reached the stated signed-release result.
+// exact management authorization and reached the stated release result.
 // AuthorizationSHA256 transitively binds the complete assignment target.
 type RootActionReceipt struct {
 	AgentPublicID         string
@@ -138,7 +135,6 @@ type RootActionReceipt struct {
 	RootActionCounter     uint64
 	CompletedAtUnixMillis int64
 	ResultKind            RootActionResultKind
-	ResultRootVersion     uint64
 	ResultManifestSHA256  string
 	ResultVersion         string
 	ResultCommit          string
@@ -189,7 +185,6 @@ func AssignmentAuthorizationPayload(value AssignmentAuthorization) ([]byte, erro
 		value.AuthorityKeyID,
 		strconv.FormatUint(value.AuthorityEpoch, 10),
 		value.ServerVersion,
-		strconv.FormatUint(value.RootVersion, 10),
 		value.ManifestSHA256,
 		value.TargetVersion,
 		value.TargetCommit,
@@ -267,8 +262,6 @@ func EnrollmentReceiptPayload(value EnrollmentReceipt) ([]byte, error) {
 		value.OS,
 		value.Arch,
 		value.UpdaterVersion,
-		value.TrustedRootSHA256,
-		strconv.FormatUint(value.TrustedRootVersion, 10),
 		value.PinnedRepository,
 		value.AuthorityKeyID,
 		strconv.FormatUint(value.AuthorityEpoch, 10),
@@ -337,7 +330,6 @@ func RootActionReceiptPayload(value RootActionReceipt) ([]byte, error) {
 		strconv.FormatUint(value.RootActionCounter, 10),
 		strconv.FormatInt(value.CompletedAtUnixMillis, 10),
 		string(value.ResultKind),
-		strconv.FormatUint(value.ResultRootVersion, 10),
 		value.ResultManifestSHA256,
 		value.ResultVersion,
 		value.ResultCommit,
@@ -415,8 +407,8 @@ func validateAssignmentAuthorization(value AssignmentAuthorization) error {
 	if !hexDigestPattern.MatchString(value.AuthorityKeyID) || value.AuthorityEpoch == 0 || value.AuthorityEpoch > math.MaxInt64 {
 		return errors.New("assignment authorization authority is invalid")
 	}
-	if !validVersion(value.ServerVersion) || value.RootVersion == 0 || value.RootVersion > math.MaxInt64 ||
-		!hexDigestPattern.MatchString(value.ManifestSHA256) || !validVersion(value.TargetVersion) || !hexCommitPattern.MatchString(value.TargetCommit) ||
+	if !validVersion(value.ServerVersion) || !hexDigestPattern.MatchString(value.ManifestSHA256) ||
+		!validVersion(value.TargetVersion) || !hexCommitPattern.MatchString(value.TargetCommit) ||
 		value.ReleaseSequence == 0 || value.ReleaseSequence > math.MaxInt64 || value.SecurityEpoch == 0 || value.SecurityEpoch > math.MaxInt64 {
 		return errors.New("assignment authorization release target is invalid")
 	}
@@ -433,8 +425,7 @@ func validateEnrollmentReceipt(value EnrollmentReceipt) error {
 	if !platformPattern.MatchString(value.OS) || !platformPattern.MatchString(value.Arch) || !validVersion(value.UpdaterVersion) {
 		return errors.New("enrollment receipt platform or updater version is invalid")
 	}
-	if !hexDigestPattern.MatchString(value.TrustedRootSHA256) || value.TrustedRootVersion == 0 || value.TrustedRootVersion > math.MaxInt64 ||
-		!pinnedRepositoryPattern.MatchString(value.PinnedRepository) {
+	if !pinnedRepositoryPattern.MatchString(value.PinnedRepository) {
 		return errors.New("enrollment receipt release trust is invalid")
 	}
 	if !hexDigestPattern.MatchString(value.AuthorityKeyID) || value.AuthorityEpoch == 0 || value.AuthorityEpoch > math.MaxInt64 ||
@@ -461,14 +452,14 @@ func validateRootActionReceipt(value RootActionReceipt) error {
 		return errors.New("root action receipt result is invalid")
 	}
 	switch value.ResultKind {
-	case RootActionResultSignedRelease:
-		if value.ResultRootVersion == 0 || value.ResultRootVersion > math.MaxInt64 || !hexDigestPattern.MatchString(value.ResultManifestSHA256) ||
+	case RootActionResultRelease:
+		if !hexDigestPattern.MatchString(value.ResultManifestSHA256) ||
 			!validVersion(value.ResultVersion) || !hexCommitPattern.MatchString(value.ResultCommit) || value.ResultReleaseSequence == 0 ||
 			value.ResultReleaseSequence > math.MaxInt64 || value.ResultSecurityEpoch == 0 || value.ResultSecurityEpoch > math.MaxInt64 {
-			return errors.New("root action receipt signed-release result is invalid")
+			return errors.New("root action receipt release result is invalid")
 		}
 	case RootActionResultBootstrap:
-		if value.Action != AssignmentActionRollback || value.ResultRootVersion != 0 || value.ResultManifestSHA256 != "" ||
+		if value.Action != AssignmentActionRollback || value.ResultManifestSHA256 != "" ||
 			value.ResultReleaseSequence != 0 || value.ResultSecurityEpoch != 0 || !validVersion(value.ResultVersion) ||
 			!hexCommitPattern.MatchString(value.ResultCommit) {
 			return errors.New("root action receipt bootstrap result is invalid")
@@ -482,7 +473,7 @@ func validateRootActionReceipt(value RootActionReceipt) error {
 func validateArtifact(osName, arch, name string, size int64, digest string) error {
 	if !platformPattern.MatchString(osName) || !platformPattern.MatchString(arch) || !artifactNamePattern.MatchString(name) ||
 		size <= 0 || size > 512<<20 || !hexDigestPattern.MatchString(digest) {
-		return errors.New("signed artifact is invalid")
+		return errors.New("artifact is invalid")
 	}
 	return nil
 }

@@ -340,14 +340,14 @@ func validateRollbackJournal(journal rollbackJournal) error {
 
 func authorizationMatchesSlot(authorization agentupdateauth.AssignmentAuthorization, slot slotMetadata) error {
 	if !authorizationMatchesSlotExactly(authorization, slot) {
-		return errors.New("signed rollback authorization does not exactly match the active signed release")
+		return errors.New("signed rollback authorization does not exactly match the active release")
 	}
 	return nil
 }
 
 func authorizationMatchesSlotExactly(authorization agentupdateauth.AssignmentAuthorization, slot slotMetadata) bool {
-	return authorization.RootVersion == slot.RootVersion && authorization.ManifestSHA256 == slot.ManifestSHA256 &&
-		authorization.TargetVersion == slot.Version && authorization.TargetCommit == slot.Commit &&
+	return authorization.ManifestSHA256 == slot.ManifestSHA256 && authorization.TargetVersion == slot.Version &&
+		authorization.TargetCommit == slot.Commit &&
 		authorization.ReleaseSequence == slot.ReleaseSequence && authorization.SecurityEpoch == slot.SecurityEpoch &&
 		authorization.OS == slot.OS && authorization.Arch == slot.Arch && authorization.ArtifactName == slot.ArtifactName &&
 		authorization.ArtifactSize == slot.ArtifactSize && authorization.ArtifactSHA256 == slot.ArtifactSHA256

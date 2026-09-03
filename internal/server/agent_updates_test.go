@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -27,7 +26,6 @@ import (
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
-	"p2pstream/internal/agentupdate"
 	"p2pstream/internal/agentupdateauth"
 	"p2pstream/internal/agentupdateauthority"
 	"p2pstream/internal/buildinfo"
@@ -77,10 +75,9 @@ func TestAgentUpdaterEnrollmentTokenIsScopedHashedAndSingleUse(t *testing.T) {
 	if _, err := app.EnrollAgentUpdater(ctx, different); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("different identity reused enrollment token: %v", err)
 	}
-	replacementProvider, _ := newAgentUpdateTestBootstrap(t)
-	app.AgentUpdateBootstrap = replacementProvider
+	app.AgentUpdateBootstrap = agentUpdateTestBootstrapProvider{repository: "owner/replacement"}
 	if _, err := app.EnrollAgentUpdater(ctx, request); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("enrollment receipt survived bootstrap trust replacement: %v", err)
+		t.Fatalf("enrollment receipt survived repository replacement: %v", err)
 	}
 }
 
@@ -329,7 +326,7 @@ func TestAgentUpdateCohortsAreDiscreteAndCanariesCompleteFirst(t *testing.T) {
 	ctx := context.Background()
 	database := newServerTestDB(t)
 	now := time.Now().UTC()
-	result, err := database.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) VALUES ('cohorts','running',1,'v1.2.3',?,?,12,3,2,'v1.0.0',1,1,'[]',2,1,2,2,10000,?,?)`, strings.Repeat("c", 40), strings.Repeat("a", 64), now, now)
+	result, err := database.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) VALUES ('cohorts','running',1,'v1.2.3',?,?,12,2,'v1.0.0',1,1,'[]',2,1,2,2,10000,?,?)`, strings.Repeat("c", 40), strings.Repeat("a", 64), now, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,22 +432,10 @@ func TestManagementHandlerRejectsCompressedUpdaterMessagesAcrossProtocolsBeforeA
 	}
 }
 
-func TestAgentUpdateBootstrapRejectsNearlyExpiredRoot(t *testing.T) {
-	public, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	root, err := agentupdate.NewRootMetadata(1, time.Now().UTC().Add(time.Hour).Format(time.RFC3339), 1, []ed25519.PublicKey{public})
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := agentupdate.CanonicalRoot(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	app := &App{AgentUpdateBootstrap: agentUpdateTestBootstrapProvider{rootBase64: base64.StdEncoding.EncodeToString(data), repository: "owner/repo"}}
-	if _, err := app.loadAgentUpdateBootstrap(context.Background()); err == nil || !strings.Contains(err.Error(), "expiry") {
-		t.Fatalf("near-expiry bootstrap root error = %v", err)
+func TestAgentUpdateBootstrapRejectsInvalidRepository(t *testing.T) {
+	app := &App{AgentUpdateBootstrap: agentUpdateTestBootstrapProvider{repository: "https://attacker.invalid/repo"}}
+	if _, err := app.loadAgentUpdateBootstrap(context.Background()); err == nil || !strings.Contains(err.Error(), "repository") {
+		t.Fatalf("invalid bootstrap repository error = %v", err)
 	}
 }
 
@@ -477,7 +462,7 @@ func TestCreateAgentRemainsAvailableWhenManagedUpdateBootstrapIsUnavailable(t *t
 			if response.Msg.Agent == nil || response.Msg.Token == "" {
 				t.Fatalf("CreateAgent response is incomplete: %+v", response.Msg)
 			}
-			if response.Msg.UpdaterEnrollmentToken != "" || response.Msg.UpdaterManagementAuthority != nil || response.Msg.UpdaterTrustedRootMetadataBase64 != "" || response.Msg.UpdaterPinnedRepository != "" {
+			if response.Msg.UpdaterEnrollmentToken != "" || response.Msg.UpdaterManagementAuthority != nil || response.Msg.UpdaterPinnedRepository != "" {
 				t.Fatalf("CreateAgent returned an unusable partial updater bootstrap: %+v", response.Msg)
 			}
 		})
@@ -861,7 +846,7 @@ func TestAgentUpdateSuccessRequiresAttestationFreshTunnelBuildAndDwell(t *testin
 	app := newAgentUpdateTestApp(t, database)
 	campaignID, assignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "healthy_dwell", "none", true)
 	now := time.Now().UTC()
-	_, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='signed_release',root_result_manifest_sha256=?,root_result_version=?,root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,healthy_at=?,running_version=?,running_commit=?,observed_version=?,observed_commit=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-4*time.Minute), strings.Repeat("a", 64), "v1.2.3", strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-4*time.Minute), now.Add(-3*time.Minute), "v1.2.3", strings.Repeat("c", 40), "v1.2.3", strings.Repeat("c", 40), assignmentID)
+	_, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='release',root_result_manifest_sha256=?,root_result_version=?,root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,healthy_at=?,running_version=?,running_commit=?,observed_version=?,observed_commit=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-4*time.Minute), strings.Repeat("a", 64), "v1.2.3", strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-4*time.Minute), now.Add(-3*time.Minute), "v1.2.3", strings.Repeat("c", 40), "v1.2.3", strings.Repeat("c", 40), assignmentID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -900,7 +885,7 @@ func TestAgentUpdateSuccessRequiresFreshTunnelToRemainConnectedThroughDwell(t *t
 	_, assignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "healthy_dwell", "none", true)
 	now := time.Now().UTC()
 	freshAt := now.Add(-time.Minute).Truncate(time.Millisecond)
-	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='signed_release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, freshAt, strings.Repeat("c", 40), strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
+	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, freshAt, strings.Repeat("c", 40), strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
 		t.Fatal(err)
 	}
 	freshConn := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: freshAt, BuildVersion: "v1.2.3", BuildCommit: strings.Repeat("c", 40)}
@@ -927,7 +912,7 @@ func TestAgentUpdateDisconnectImmediatelyBeforeSuccessCASCannotAdvance(t *testin
 	_, assignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "healthy_dwell", "none", true)
 	now := time.Now().UTC()
 	freshAt := now.Add(-time.Minute).Truncate(time.Millisecond)
-	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='signed_release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, freshAt, strings.Repeat("c", 40), strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
+	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, freshAt, strings.Repeat("c", 40), strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
 		t.Fatal(err)
 	}
 	freshConn := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: freshAt, BuildVersion: "v1.2.3", BuildCommit: strings.Repeat("c", 40)}
@@ -953,7 +938,7 @@ func TestAgentUpdateLateFreshTunnelRestartsDwell(t *testing.T) {
 	_, assignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "healthy_dwell", "none", true)
 	now := time.Now().UTC()
 	freshAt := now.Truncate(time.Millisecond)
-	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='signed_release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, now.Add(-time.Minute), strings.Repeat("c", 40), strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
+	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, now.Add(-time.Minute), strings.Repeat("c", 40), strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
 		t.Fatal(err)
 	}
 	freshConn := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: freshAt, BuildVersion: "v1.2.3", BuildCommit: strings.Repeat("c", 40)}
@@ -976,7 +961,7 @@ func TestAgentUpdatePeriodicIdenticalBuildReportsDoNotPostponeDwell(t *testing.T
 	_, assignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "healthy_dwell", "none", true)
 	now := time.Now().UTC()
 	freshAt := now.Add(-time.Minute).Truncate(time.Millisecond)
-	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='signed_release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, freshAt, strings.Repeat("c", 40), strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
+	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, freshAt, strings.Repeat("c", 40), strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
 		t.Fatal(err)
 	}
 	freshConn := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: freshAt, BuildVersion: "v1.2.3", BuildCommit: strings.Repeat("c", 40)}
@@ -997,7 +982,7 @@ func TestAgentUpdateStatsFromOldProcessCannotSatisfyFreshTunnelBuildEvidence(t *
 	_, assignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "healthy_dwell", "none", true)
 	now := time.Now().UTC()
 	freshAt := now.Add(-time.Minute).Truncate(time.Millisecond)
-	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='signed_release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
+	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
 		t.Fatal(err)
 	}
 	// The current tunnel is an old/wrong build. A displaced process then sends
@@ -1031,7 +1016,7 @@ func TestAgentUpdateIdempotentHealthyReportsDoNotPostponeDwell(t *testing.T) {
 	insertAgentUpdateIdentity(t, app, database, agent.ID, updaterPublic, activatorPublic)
 	_, assignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "healthy_dwell", "none", true)
 	anchor := time.Now().UTC().Truncate(time.Millisecond)
-	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_action_receipt_payload=X'01',root_result_kind='signed_release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), anchor.Add(-time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), anchor.Add(-time.Minute), anchor, anchor, strings.Repeat("c", 40), strings.Repeat("c", 40), anchor, assignmentID); err != nil {
+	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_action_receipt_payload=X'01',root_result_kind='release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), anchor.Add(-time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), anchor.Add(-time.Minute), anchor, anchor, strings.Repeat("c", 40), strings.Repeat("c", 40), anchor, assignmentID); err != nil {
 		t.Fatal(err)
 	}
 	freshConn := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: anchor, BuildVersion: "v1.2.3", BuildCommit: strings.Repeat("c", 40)}
@@ -1083,7 +1068,7 @@ func TestCancelledHealthyAssignmentCannotRaceIntoSuccess(t *testing.T) {
 	campaignID, assignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "healthy_dwell", "none", true)
 	now := time.Now().UTC()
 	freshAt := now.Add(-time.Minute).Truncate(time.Millisecond)
-	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='signed_release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, freshAt, strings.Repeat("c", 40), strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
+	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',attested_manifest_sha256=?,attested_binary_sha256=?,root_action_completed_at=?,root_result_kind='release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,activated_at=?,fresh_tunnel_at=?,healthy_at=?,running_version='v1.2.3',running_commit=?,observed_version='v1.2.3',observed_commit=?,updated_at=? WHERE id=?`, strings.Repeat("a", 64), strings.Repeat("b", 64), now.Add(-2*time.Minute), strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), now.Add(-2*time.Minute), freshAt, freshAt, strings.Repeat("c", 40), strings.Repeat("c", 40), freshAt, assignmentID); err != nil {
 		t.Fatal(err)
 	}
 	freshConn := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: freshAt, BuildVersion: "v1.2.3", BuildCommit: strings.Repeat("c", 40)}
@@ -1152,7 +1137,7 @@ func TestAgentUpdateDatabaseRejectsConcurrentActiveAssignments(t *testing.T) {
 	agent := createAgentUpdateTestAgent(t, database, "agent-exclusive")
 	_, first := insertAgentUpdateTestCampaign(t, database, agent.ID, "pending", "stage", false)
 	now := time.Now().UTC()
-	result, err := database.Exec(`INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) SELECT 'second','running',1,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,1,1,1,1,10000,?,? FROM agent_update_campaigns LIMIT 1`, now, now)
+	result, err := database.Exec(`INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) SELECT 'second','running',1,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,1,1,1,1,10000,?,? FROM agent_update_campaigns LIMIT 1`, now, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1221,7 +1206,7 @@ func newAgentUpdatePreviewScaleFixture(tb testing.TB, count int) (*App, []int64,
 		activatorKey := make([]byte, ed25519.PublicKeySize)
 		binary.LittleEndian.PutUint64(updaterKey, uint64(i+1))
 		binary.LittleEndian.PutUint64(activatorKey, uint64(count+i+1))
-		_, err = tx.Exec(`INSERT INTO agent_updater_identities (agent_id,updater_key_id,updater_public_key,activator_key_id,activator_public_key,os,arch,updater_version,trusted_root_sha256,trusted_root_version,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,enrollment_receipt_payload,enrollment_receipt_signature,enabled,enrolled_at,last_seen_at,updated_at) VALUES (?,?,?,?,?,'linux','amd64','v1.0.0',?,1,'owner/repo',?,?,1,X'',?,1,?,?,?)`, agentID, fmt.Sprintf("updater-%04d", i), updaterKey, fmt.Sprintf("activator-%04d", i), activatorKey, strings.Repeat("d", 64), authority.KeyID, int64(authority.Epoch), make([]byte, ed25519.SignatureSize), now, now, now)
+		_, err = tx.Exec(`INSERT INTO agent_updater_identities (agent_id,updater_key_id,updater_public_key,activator_key_id,activator_public_key,os,arch,updater_version,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,enrollment_receipt_payload,enrollment_receipt_signature,enabled,enrolled_at,last_seen_at,updated_at) VALUES (?,?,?,?,?,'linux','amd64','v1.0.0','owner/repo',?,?,1,X'',?,1,?,?,?)`, agentID, fmt.Sprintf("updater-%04d", i), updaterKey, fmt.Sprintf("activator-%04d", i), activatorKey, authority.KeyID, int64(authority.Epoch), make([]byte, ed25519.SignatureSize), now, now, now)
 		if err != nil {
 			tb.Fatal(err)
 		}
@@ -1246,7 +1231,7 @@ func insertAgentUpdateIdentity(t *testing.T, app *App, database *db.DB, agentID 
 	t.Helper()
 	now := time.Now().UTC()
 	authority := app.AgentUpdateAuthority.Identity()
-	_, err := database.Exec(`INSERT INTO agent_updater_identities (agent_id,updater_key_id,updater_public_key,activator_key_id,activator_public_key,os,arch,updater_version,trusted_root_sha256,trusted_root_version,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,enrollment_receipt_payload,enrollment_receipt_signature,enabled,enrolled_at,last_seen_at,updated_at) VALUES (?,?,?,?,?,'linux','amd64','v1.0.0',?,1,'owner/repo',?,?,1,X'',?,1,?,?,?)`, agentID, agentUpdateKeyID(updaterPublic), []byte(updaterPublic), agentUpdateKeyID(activatorPublic), []byte(activatorPublic), strings.Repeat("d", 64), authority.KeyID, int64(authority.Epoch), make([]byte, ed25519.SignatureSize), now, now, now)
+	_, err := database.Exec(`INSERT INTO agent_updater_identities (agent_id,updater_key_id,updater_public_key,activator_key_id,activator_public_key,os,arch,updater_version,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,enrollment_receipt_payload,enrollment_receipt_signature,enabled,enrolled_at,last_seen_at,updated_at) VALUES (?,?,?,?,?,'linux','amd64','v1.0.0','owner/repo',?,?,1,X'',?,1,?,?,?)`, agentID, agentUpdateKeyID(updaterPublic), []byte(updaterPublic), agentUpdateKeyID(activatorPublic), []byte(activatorPublic), authority.KeyID, int64(authority.Epoch), make([]byte, ed25519.SignatureSize), now, now, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1292,16 +1277,15 @@ func newAgentUpdateTestRootActionReceipt(t *testing.T, app *App, agentID int64, 
 		Generation: assignment.Generation, Action: action, CommandSequence: authorization.Value.CommandSequence,
 		AuthorizationSHA256: authorization.SHA256, AuthorizationNonce: append([]byte(nil), authorization.Value.Nonce...),
 		AuthorityKeyID: identity.AuthorityKeyID, AuthorityEpoch: uint64(identity.AuthorityEpoch), ActivatorKeyID: identity.ActivatorKeyID,
-		RootActionCounter: counter, CompletedAtUnixMillis: time.Now().UTC().UnixMilli(), ResultKind: agentupdateauth.RootActionResultSignedRelease,
-		ResultRootVersion: uint64(campaign.RootVersion), ResultManifestSHA256: campaign.ManifestSha256,
-		ResultVersion: campaign.TargetVersion, ResultCommit: campaign.TargetCommit,
+		RootActionCounter: counter, CompletedAtUnixMillis: time.Now().UTC().UnixMilli(), ResultKind: agentupdateauth.RootActionResultRelease,
+		ResultManifestSHA256: campaign.ManifestSha256,
+		ResultVersion:        campaign.TargetVersion, ResultCommit: campaign.TargetCommit,
 		ResultReleaseSequence: uint64(campaign.ReleaseSequence), ResultSecurityEpoch: uint64(campaign.SecurityEpoch),
 		ResultOS: identity.Os, ResultArch: identity.Arch, ResultArtifactName: artifact.Name,
 		ResultArtifactSize: artifact.SizeBytes, ResultArtifactSHA256: artifact.Sha256,
 	}
 	if action == agentupdateauth.AssignmentActionRollback {
 		receipt.ResultKind = agentupdateauth.RootActionResultBootstrap
-		receipt.ResultRootVersion = 0
 		receipt.ResultManifestSHA256 = ""
 		receipt.ResultVersion = "v1.0.0"
 		receipt.ResultCommit = strings.Repeat("d", 40)
@@ -1319,7 +1303,7 @@ func newAgentUpdateTestRootActionReceipt(t *testing.T, app *App, agentID int64, 
 	if err != nil {
 		t.Fatal(err)
 	}
-	resultKind := p2pstreamv1.AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_SIGNED_RELEASE
+	resultKind := p2pstreamv1.AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_RELEASE
 	if receipt.ResultKind == agentupdateauth.RootActionResultBootstrap {
 		resultKind = p2pstreamv1.AgentUpdateRootActionResultKind_AGENT_UPDATE_ROOT_ACTION_RESULT_KIND_BOOTSTRAP
 	}
@@ -1329,9 +1313,9 @@ func newAgentUpdateTestRootActionReceipt(t *testing.T, app *App, agentID int64, 
 		AuthorizationSha256: receipt.AuthorizationSHA256, AuthorizationNonce: receipt.AuthorizationNonce,
 		AuthorityKeyId: receipt.AuthorityKeyID, AuthorityEpoch: receipt.AuthorityEpoch, ActivatorKeyId: receipt.ActivatorKeyID,
 		RootActionCounter: receipt.RootActionCounter, CompletedAtUnixMillis: receipt.CompletedAtUnixMillis,
-		ResultKind:        resultKind,
-		ResultRootVersion: receipt.ResultRootVersion, ResultManifestSha256: receipt.ResultManifestSHA256,
-		ResultVersion: receipt.ResultVersion, ResultCommit: receipt.ResultCommit,
+		ResultKind:           resultKind,
+		ResultManifestSha256: receipt.ResultManifestSHA256,
+		ResultVersion:        receipt.ResultVersion, ResultCommit: receipt.ResultCommit,
 		ResultReleaseSequence: receipt.ResultReleaseSequence, ResultSecurityEpoch: receipt.ResultSecurityEpoch,
 		ResultOs: receipt.ResultOS, ResultArch: receipt.ResultArch, ResultArtifactName: receipt.ResultArtifactName,
 		ResultArtifactSize: receipt.ResultArtifactSize, ResultArtifactSha256: receipt.ResultArtifactSHA256,
@@ -1365,33 +1349,21 @@ func newAgentUpdateTestApp(tb testing.TB, database *db.DB) *App {
 	return app
 }
 
-type agentUpdateTestBootstrapProvider struct{ rootBase64, repository string }
+type agentUpdateTestBootstrapProvider struct{ repository string }
 
-func (p agentUpdateTestBootstrapProvider) AgentUpdateBootstrapConfig(context.Context) (string, string, error) {
-	return p.rootBase64, p.repository, nil
+func (p agentUpdateTestBootstrapProvider) AgentUpdateBootstrapConfig(context.Context) (string, error) {
+	return p.repository, nil
 }
 
 type agentUpdateFailingBootstrapProvider struct{}
 
-func (agentUpdateFailingBootstrapProvider) AgentUpdateBootstrapConfig(context.Context) (string, string, error) {
-	return "", "", errors.New("injected catalog failure")
+func (agentUpdateFailingBootstrapProvider) AgentUpdateBootstrapConfig(context.Context) (string, error) {
+	return "", errors.New("injected catalog failure")
 }
 
 func newAgentUpdateTestBootstrap(t *testing.T) (AgentUpdateBootstrapProvider, agentUpdateBootstrap) {
 	t.Helper()
-	public, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	root, err := agentupdate.NewRootMetadata(1, time.Now().UTC().Add(48*time.Hour).Format(time.RFC3339), 1, []ed25519.PublicKey{public})
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := agentupdate.CanonicalRoot(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	provider := agentUpdateTestBootstrapProvider{rootBase64: base64.StdEncoding.EncodeToString(data), repository: "owner/repo"}
+	provider := agentUpdateTestBootstrapProvider{repository: "owner/repo"}
 	app := &App{AgentUpdateBootstrap: provider}
 	bootstrap, err := app.loadAgentUpdateBootstrap(context.Background())
 	if err != nil {
@@ -1404,7 +1376,7 @@ func insertAgentUpdateTestCampaign(t *testing.T, database *db.DB, agentID int64,
 	t.Helper()
 	artifactJSON, _ := json.Marshal([]*p2pstreamv1.AgentUpdateArtifact{{Os: "linux", Arch: "amd64", Name: "p2pstream_v1.2.3_linux_amd64", SizeBytes: 1234, Sha256: strings.Repeat("b", 64)}})
 	now := time.Now().UTC()
-	result, err := database.Exec(`INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) VALUES ('test','running',1,'v1.2.3',?,?,12,3,2,'v1.0.0',1,1,?,1,1,1,1,10000,?,?)`, strings.Repeat("c", 40), strings.Repeat("a", 64), string(artifactJSON), now, now)
+	result, err := database.Exec(`INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) VALUES ('test','running',1,'v1.2.3',?,?,12,2,'v1.0.0',1,1,?,1,1,1,1,10000,?,?)`, strings.Repeat("c", 40), strings.Repeat("a", 64), string(artifactJSON), now, now)
 	if err != nil {
 		t.Fatal(err)
 	}

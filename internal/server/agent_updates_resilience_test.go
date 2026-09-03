@@ -24,7 +24,7 @@ func TestAgentUpdateMaintenanceRetriesTransactionalCohortRelease(t *testing.T) {
 	app := newAgentUpdateTestApp(t, database)
 	now := time.Now().UTC()
 	artifacts, _ := json.Marshal([]*p2pstreamv1.AgentUpdateArtifact{{Os: "linux", Arch: "amd64", Name: "p2pstream_v1.2.3_linux_amd64", SizeBytes: 1, Sha256: strings.Repeat("b", 64)}})
-	result, err := database.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) VALUES ('release-retry','running',1,'v1.2.3',?,?,1,1,1,'v1.0.0',1,1,?,1,1,1,1,10000,?,?)`, strings.Repeat("c", 40), strings.Repeat("a", 64), string(artifacts), now, now)
+	result, err := database.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) VALUES ('release-retry','running',1,'v1.2.3',?,?,1,1,'v1.0.0',1,1,?,1,1,1,1,10000,?,?)`, strings.Repeat("c", 40), strings.Repeat("a", 64), string(artifacts), now, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestAgentUpdateStageReleaseOnlyPublishesCurrentCohort(t *testing.T) {
 	database := newServerTestDB(t)
 	app := newAgentUpdateTestApp(t, database)
 	now := time.Now().UTC()
-	result, err := database.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) VALUES ('stage-window','running',1,'v1.2.3',?,?,1,1,1,'v1.0.0',1,1,'[]',2,1,2,2,10000,?,?)`, strings.Repeat("c", 40), strings.Repeat("a", 64), now, now)
+	result, err := database.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) VALUES ('stage-window','running',1,'v1.2.3',?,?,1,1,'v1.0.0',1,1,'[]',2,1,2,2,10000,?,?)`, strings.Repeat("c", 40), strings.Repeat("a", 64), now, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +316,7 @@ func TestAgentUpdateMaintenanceRequiresWorkerHealthyEvidenceAfterActivation(t *t
 	app := newAgentUpdateTestApp(t, database)
 	campaignID, assignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "awaiting_tunnel", "none", true)
 	completed := time.Now().UTC().Add(-agentUpdatePostActionTimeout - time.Second)
-	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',root_action_completed_at=?,root_result_kind='signed_release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,fresh_tunnel_at=?,observed_version='v1.2.3',observed_commit=?,healthy_at=NULL WHERE id=?`, completed, strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), completed.Add(time.Second), strings.Repeat("c", 40), assignmentID); err != nil {
+	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='activate',root_action_completed_at=?,root_result_kind='release',root_result_manifest_sha256=?,root_result_version='v1.2.3',root_result_commit=?,root_result_artifact_sha256=?,fresh_tunnel_at=?,observed_version='v1.2.3',observed_commit=?,healthy_at=NULL WHERE id=?`, completed, strings.Repeat("a", 64), strings.Repeat("c", 40), strings.Repeat("b", 64), completed.Add(time.Second), strings.Repeat("c", 40), assignmentID); err != nil {
 		t.Fatal(err)
 	}
 	app.setAgentUpdateCordon(agent.ID)
@@ -451,7 +451,7 @@ func TestAgentUpdateMaintenanceRollbackEvidenceTimeoutStaysCordoned(t *testing.T
 	app := newAgentUpdateTestApp(t, database)
 	campaignID, assignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "awaiting_tunnel", "none", true)
 	completed := time.Now().UTC().Add(-agentUpdatePostActionTimeout - time.Second)
-	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='rollback',root_action_completed_at=?,root_result_kind='signed_release',root_result_manifest_sha256=?,root_result_version='v1.0.0',root_result_commit=?,root_result_artifact_sha256=? WHERE id=?`, completed, strings.Repeat("a", 64), strings.Repeat("d", 40), strings.Repeat("e", 64), assignmentID); err != nil {
+	if _, err := database.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action='rollback',root_action_completed_at=?,root_result_kind='release',root_result_manifest_sha256=?,root_result_version='v1.0.0',root_result_commit=?,root_result_artifact_sha256=? WHERE id=?`, completed, strings.Repeat("a", 64), strings.Repeat("d", 40), strings.Repeat("e", 64), assignmentID); err != nil {
 		t.Fatal(err)
 	}
 	app.setAgentUpdateCordon(agent.ID)
@@ -594,7 +594,7 @@ func TestAgentUpdateAcknowledgesTerminalResultAcrossCampaigns(t *testing.T) {
 	insertAgentUpdateIdentity(t, app, database, agent.ID, updaterPublic, activatorPublic)
 	_, oldAssignmentID := insertAgentUpdateTestCampaign(t, database, agent.ID, "failed", "none", false)
 	now := time.Now().UTC()
-	result, err := database.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) SELECT 'next-campaign','running',1,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,1,1,1,1,10000,?,? FROM agent_update_campaigns ORDER BY id LIMIT 1`, now, now)
+	result, err := database.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) SELECT 'next-campaign','running',1,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,1,1,1,1,10000,?,? FROM agent_update_campaigns ORDER BY id LIMIT 1`, now, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -689,7 +689,7 @@ func TestAgentUpdaterReenrollmentPreservesAuthorityCommandFloor(t *testing.T) {
 
 func aCampaignByID(ctx context.Context, app *App, id int64) (agentUpdateCampaignRow, error) {
 	var campaign agentUpdateCampaignRow
-	err := app.DB.QueryRowContext(ctx, `SELECT id,name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_by_user_id,created_at,updated_at,completed_at FROM agent_update_campaigns WHERE id=?`, id).Scan(&campaign.ID, &campaign.Name, &campaign.State, &campaign.Generation, &campaign.TargetVersion, &campaign.TargetCommit, &campaign.ManifestSha256, &campaign.ReleaseSequence, &campaign.RootVersion, &campaign.SecurityEpoch, &campaign.MinimumUpdaterVersion, &campaign.MinimumTunnelProtocol, &campaign.MaximumTunnelProtocol, &campaign.ArtifactsJson, &campaign.MaxUnavailable, &campaign.MinimumEligibleAgentsPerRoute, &campaign.CanaryCount, &campaign.WaveSize, &campaign.HealthyDwellMillis, &campaign.CreatedByUserID, &campaign.CreatedAt, &campaign.UpdatedAt, &campaign.CompletedAt)
+	err := app.DB.QueryRowContext(ctx, `SELECT id,name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_by_user_id,created_at,updated_at,completed_at FROM agent_update_campaigns WHERE id=?`, id).Scan(&campaign.ID, &campaign.Name, &campaign.State, &campaign.Generation, &campaign.TargetVersion, &campaign.TargetCommit, &campaign.ManifestSha256, &campaign.ReleaseSequence, &campaign.SecurityEpoch, &campaign.MinimumUpdaterVersion, &campaign.MinimumTunnelProtocol, &campaign.MaximumTunnelProtocol, &campaign.ArtifactsJson, &campaign.MaxUnavailable, &campaign.MinimumEligibleAgentsPerRoute, &campaign.CanaryCount, &campaign.WaveSize, &campaign.HealthyDwellMillis, &campaign.CreatedByUserID, &campaign.CreatedAt, &campaign.UpdatedAt, &campaign.CompletedAt)
 	if err == sql.ErrNoRows {
 		return campaign, err
 	}
@@ -699,7 +699,7 @@ func aCampaignByID(ctx context.Context, app *App, id int64) (agentUpdateCampaign
 func BenchmarkAgentUpdateMaintenanceThousandAgentCampaign(b *testing.B) {
 	app, ids, _ := newAgentUpdatePreviewScaleFixture(b, 1000)
 	now := time.Now().UTC()
-	result, err := app.DB.ExecContext(context.Background(), `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,root_version,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) VALUES ('maintenance-scale','running',1,'v1.2.3',?,?,1,1,1,'v1.0.0',1,1,'[]',10,1,10,50,10000,?,?)`, strings.Repeat("c", 40), strings.Repeat("a", 64), now, now)
+	result, err := app.DB.ExecContext(context.Background(), `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_at,updated_at) VALUES ('maintenance-scale','running',1,'v1.2.3',?,?,1,1,'v1.0.0',1,1,'[]',10,1,10,50,10000,?,?)`, strings.Repeat("c", 40), strings.Repeat("a", 64), now, now)
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -238,16 +238,6 @@ func enrollmentGenerationFloor(paths Paths, config HostConfig, candidates ...str
 	if err != nil {
 		return 0, fmt.Errorf("load pinned updater management authority: %w", err)
 	}
-	rootJSON, err := readRegularNoFollow(paths.TrustPath, defaultMaxMetadata)
-	if err != nil {
-		return 0, err
-	}
-	root, err := agentupdate.ParseRoot(rootJSON)
-	if err != nil {
-		return 0, err
-	}
-	rootDigest := sha256.Sum256(rootJSON)
-	wantRootDigest := hex.EncodeToString(rootDigest[:])
 	var floor uint64
 	for _, candidate := range candidates {
 		data, readErr := readRegularNoFollow(candidate, 64<<10)
@@ -270,7 +260,7 @@ func enrollmentGenerationFloor(paths Paths, config HostConfig, candidates ...str
 		}
 		r := record.Receipt
 		if r.AgentPublicID != config.AgentPublicID || r.AuthorityKeyID != pinned.KeyID || r.AuthorityEpoch != pinned.Epoch ||
-			r.TrustedRootSHA256 != wantRootDigest || r.TrustedRootVersion != root.Version || r.PinnedRepository != config.Repository {
+			r.PinnedRepository != config.Repository {
 			return 0, errors.New("prior updater enrollment receipt does not match pinned host trust")
 		}
 		if r.Generation > floor {
@@ -363,23 +353,12 @@ func validateEnrollmentReceiptRecord(paths Paths, record enrollmentReceiptRecord
 	}); err != nil {
 		return fmt.Errorf("verify signed updater enrollment receipt: %w", err)
 	}
-	rootJSON, err := readRegularNoFollow(paths.TrustPath, defaultMaxMetadata)
-	if err != nil {
-		return err
-	}
-	root, err := agentupdate.ParseRoot(rootJSON)
-	if err != nil {
-		return err
-	}
-	rootDigest := sha256.Sum256(rootJSON)
 	updaterKeyID, _ := agentupdateauth.KeyID(updaterPublic)
 	activatorKeyID, _ := agentupdateauth.KeyID(activatorPublic)
-	wantRootDigest := hex.EncodeToString(rootDigest[:])
 	r := record.Receipt
 	if r.UpdaterKeyID != updaterKeyID || r.UpdaterPublicKeySHA256 != updaterKeyID ||
 		r.ActivatorKeyID != activatorKeyID || r.ActivatorPublicKeySHA256 != activatorKeyID ||
 		r.OS != runtime.GOOS || r.Arch != runtime.GOARCH || r.UpdaterVersion != updaterVersion ||
-		r.TrustedRootSHA256 != wantRootDigest || r.TrustedRootVersion != root.Version ||
 		r.PinnedRepository != config.Repository || r.AuthorityKeyID != pinned.KeyID || r.AuthorityEpoch != pinned.Epoch {
 		return errors.New("signed updater enrollment receipt does not exactly match local bootstrap state")
 	}
