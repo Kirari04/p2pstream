@@ -17,6 +17,20 @@ import (
 	"p2pstream/internal/agentupdate"
 )
 
+func TestUnavailableCatalogRejectsManagementRequests(t *testing.T) {
+	var catalog *Catalog
+	ctx := context.Background()
+	if targets, err := catalog.ListTrustedAgentUpdateTargets(ctx); err == nil || len(targets) != 0 {
+		t.Fatalf("unavailable targets = %v, err = %v", targets, err)
+	}
+	if target, err := catalog.ResolveTrustedAgentUpdateTarget(ctx, strings.Repeat("a", 64)); err == nil || target != nil {
+		t.Fatalf("unavailable target = %v, err = %v", target, err)
+	}
+	if repository, err := catalog.AgentUpdateBootstrapConfig(ctx); err == nil || repository != "" {
+		t.Fatalf("unavailable bootstrap = %q, err = %v", repository, err)
+	}
+}
+
 func TestCatalogAuthenticatesPersistsAndUsesBoundedStaleFallback(t *testing.T) {
 	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 	bundle := newCatalogBundle(t, now, "v1.2.3", 10203)
