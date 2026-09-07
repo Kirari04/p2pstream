@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"os"
@@ -74,9 +75,11 @@ var serverCmd = &cobra.Command{
 		}
 		if cfg.AgentUpdatesEnabled {
 			authority, authorityErr := server.InitializeAgentUpdateManagementAuthority(context.Background(), database, cfg.AgentUpdateAuthorityKeyFile)
-			app.SetAgentUpdateManagementAuthority(authority, authorityErr)
 			if authorityErr != nil {
+				app.SetAgentUpdateManagementAuthority(nil, authorityErr)
 				log.Error().Err(authorityErr).Msg("Managed update authority unavailable; reverse proxy remains available but managed update enrollment and progression are disabled")
+			} else {
+				app.SetAgentUpdateManagementAuthority(authority, nil)
 			}
 		}
 		updateCatalog, err := newAgentUpdateCatalog(cfg)
@@ -87,9 +90,11 @@ var serverCmd = &cobra.Command{
 			log.Error().Err(err).Msg("Trusted agent update catalog unavailable; reverse proxy remains available but managed update enrollment and campaign creation are disabled")
 			updateCatalog = nil
 		}
-		app.TrustedAgentUpdates = updateCatalog
-		app.AgentUpdateBootstrap = updateCatalog
 		if updateCatalog != nil {
+			// A typed nil catalog assigned to either interface would appear
+			// available and panic when a management request calls it.
+			app.TrustedAgentUpdates = updateCatalog
+			app.AgentUpdateBootstrap = updateCatalog
 			primeCtx, cancelPrime := context.WithTimeout(context.Background(), time.Duration(cfg.AgentUpdateHTTPTimeoutMillis)*time.Millisecond)
 			if err := primeAgentUpdateCatalog(primeCtx, updateCatalog); err != nil {
 				log.Warn().Err(err).Msg("Trusted agent update catalog is temporarily unavailable; campaign creation remains fail-closed")
@@ -102,7 +107,7 @@ var serverCmd = &cobra.Command{
 				log.Warn().Err(err).Msg("Failed to close GeoIP runtime")
 			}
 		}()
-		if err := app.LoadPublicGeoRuntime(); err != nil && !os.IsNotExist(err) {
+		if err := app.LoadPublicGeoRuntime(); err != nil && !errors.Is(err, os.ErrNotExist) {
 			log.Warn().Err(err).Msg("Failed to load the existing GeoIP country database")
 		}
 

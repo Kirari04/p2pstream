@@ -16,7 +16,8 @@ func runEmbeddedMigrations(database *sql.DB) error {
 	if err := adoptEmbeddedMigrationBaseline(database); err != nil {
 		return err
 	}
-	provider, err := goose.NewProvider(goose.DialectSQLite3, database, migrations.FS)
+	provider, err := goose.NewProvider(goose.DialectSQLite3, database, migrations.FS,
+		goose.WithGoMigrations(goose.NewGoMigration(17, &goose.GoFunc{RunTx: repairEmptyManagedUpdateSchema}, nil)))
 	if err != nil {
 		return fmt.Errorf("configure db migrations: %w", err)
 	}
