@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   agentSetupManagementUrl,
+  agentSetupReleaseVersion,
   cliSnippet,
   dockerComposeSnippet,
   dockerImageForRepository,
@@ -39,6 +40,18 @@ describe("agentSetupSnippets", () => {
   test("local bootstrap retains development and deployed management origins", () => {
     expect(agentSetupManagementUrl(undefined, undefined, "http://127.0.0.1:5173")).toBe("https://127.0.0.1:8081");
     expect(agentSetupManagementUrl("", undefined, "https://management.example.test")).toBe("https://management.example.test");
+  });
+
+  test("remote setup replaces advertised loopback and wildcard addresses with the saved environment", () => {
+    for (const configured of ["https://localhost:8081", "https://localhost.:8081", "https://127.0.0.1:8081", "https://127.1:8081", "https://[::1]:8081", "https://0.0.0.0:8081", "https://[::]:8081"]) {
+      expect(agentSetupManagementUrl(configured, "https://remote.example.test:8443/", "http://127.0.0.1:5173")).toBe("https://remote.example.test:8443");
+    }
+  });
+
+  test("setup release defaults to the selected server before the UI build", () => {
+    expect(agentSetupReleaseVersion("v1.2.3-staging.84", "v1.2.3-staging.83")).toBe("v1.2.3-staging.84");
+    expect(agentSetupReleaseVersion("dev", "v1.2.3")).toBe("v1.2.3");
+    expect(agentSetupReleaseVersion("dev", "dev")).toBe("latest");
   });
 
   test("quotes shell values safely", () => {
@@ -82,18 +95,17 @@ describe("agentSetupSnippets", () => {
   test("builds one-line Linux installer snippet", () => {
     const snippet = linuxInstallSnippet(baseInput);
 
-    expect(snippet).toStartWith("{ read -r -s -p 'Agent token: '");
+    expect(snippet).toStartWith("sudo env ");
     expect(snippet).toContain("MANAGEMENT_URL='https://mgmt.example.test'");
     expect(snippet).toContain("AGENT_ID='agent-mfrggzdfmztwq2lkmmxgg33nna'");
-    expect(snippet).not.toContain(baseInput.agentToken);
-    expect(snippet).toContain("IFS= read -r AGENT_TOKEN");
-    expect(snippet).toContain("export AGENT_TOKEN");
+    expect(snippet).toContain(`AGENT_TOKEN=${shellQuote(baseInput.agentToken)}`);
+    expect(snippet).not.toContain("read -r");
     expect(snippet).not.toContain("AGENT_ALLOW_TARGETS");
     expect(snippet).toContain("P2PSTREAM_REPOSITORY='ExampleUser/p2pstream'");
     expect(snippet).toContain("P2PSTREAM_VERSION='v1.2.3'");
-    expect(snippet).toContain("P2PSTREAM_AGENT_BINARY_FILE='/path/to/p2pstream-agent-vX.Y.Z-linux-ARCH'");
-    expect(snippet).toEndWith("p2pstream-installer '/path/to/p2pstream-install-agent.sh'");
-    expect(snippet).not.toContain("curl");
+    expect(snippet).not.toContain("/path/to");
+    expect(snippet).toContain("sha256sum --check");
+    expect(snippet).toContain("curl --proto");
     expect(snippet).not.toContain("\n");
   });
 
@@ -108,14 +120,12 @@ describe("agentSetupSnippets", () => {
     });
 
     expect(snippet).toContain("P2PSTREAM_ENABLE_MANAGED_UPDATES=true");
-    expect(snippet).not.toContain("p2puet_separate-root-owned-bootstrap");
-    expect(snippet).toContain("Updater enrollment token: ");
-    expect(snippet).toContain("IFS= read -r P2PSTREAM_UPDATER_ENROLLMENT_TOKEN");
+    expect(snippet).toContain("P2PSTREAM_UPDATER_ENROLLMENT_TOKEN='p2puet_separate-root-owned-bootstrap'");
     expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='");
     expect(snippet).toContain(`P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID='${"a".repeat(64)}'`);
     expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH='1'");
     expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_CHANNEL='stable'");
-    expect(snippet).toContain("IFS= read -r AGENT_TOKEN; IFS= read -r P2PSTREAM_UPDATER_ENROLLMENT_TOKEN");
+    expect(snippet).not.toContain("read -r");
     expect(dockerComposeSnippet({ ...baseInput, enableManagedUpdates: true, updaterEnrollmentToken: "p2puet_unused" }))
       .not.toContain("P2PSTREAM_UPDATER_ENROLLMENT_TOKEN");
     expect(cliSnippet({ ...baseInput, enableManagedUpdates: true, updaterEnrollmentToken: "p2puet_unused" }))
@@ -147,9 +157,8 @@ describe("agentSetupSnippets", () => {
     expect(snippet).toContain("MANAGEMENT_URL='https://mgmt.example.test:8081'");
     expect(snippet).toContain("AGENT_ID='agent-existing'");
     expect(snippet).toContain("P2PSTREAM_ENABLE_MANAGED_UPDATES=true");
-    expect(snippet).not.toContain("p2puet_one-time");
-    expect(snippet).toContain("Updater enrollment token: ");
-    expect(snippet).toContain("IFS= read -r P2PSTREAM_UPDATER_ENROLLMENT_TOKEN");
+    expect(snippet).toContain("P2PSTREAM_UPDATER_ENROLLMENT_TOKEN='p2puet_one-time'");
+    expect(snippet).not.toContain("read -r");
     expect(snippet).toContain("P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH='9'");
 	expect(snippet).toContain("P2PSTREAM_EXISTING_TUNNEL_VERSION='v1.0.0'");
 	expect(snippet).toContain(`P2PSTREAM_EXISTING_TUNNEL_COMMIT='${"b".repeat(40)}'`);
@@ -222,10 +231,12 @@ describe("agentSetupSnippets", () => {
     }
   });
 
-  test("builds Linux uninstall snippet from a local pinned file", () => {
+  test("downloads the versioned Linux uninstaller automatically", () => {
     const snippet = linuxUninstallSnippet({});
 
-    expect(snippet).toBe("sudo env P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash '/path/to/p2pstream-uninstall-agent.sh'");
+    expect(snippet).toStartWith("sudo env P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash -c ");
+    expect(snippet).toContain("uninstall-agent.sh");
+    expect(snippet).not.toContain("/path/to");
     expect(snippet).not.toContain("\n");
   });
 

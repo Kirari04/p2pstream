@@ -11,6 +11,8 @@ export type AgentSetupSnippetInput = {
   managementUrl: string;
   agentId: string;
   agentToken: string;
+  reuseExistingToken?: boolean;
+  agentEnvironmentPath?: string;
   updaterEnrollmentToken?: string;
   agentUpdateAuthorityPublicKeyBase64?: string;
   agentUpdateAuthorityKeyId?: string;
@@ -48,21 +50,35 @@ const RELEASE_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const RELEASE_VERSION_PATTERN = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const SCRIPT_REF_PATTERN = /^(main|[A-Fa-f0-9]{7,40})$/;
 const LOCAL_PATH_PATTERN = /^\/[^\r\n\0]+$/;
-export const DEFAULT_LOCAL_INSTALLER_PATH = "/path/to/p2pstream-install-agent.sh";
-export const DEFAULT_LOCAL_AGENT_BINARY_PATH = "/path/to/p2pstream-agent-vX.Y.Z-linux-ARCH";
-export const DEFAULT_LOCAL_UNINSTALLER_PATH = "/path/to/p2pstream-uninstall-agent.sh";
+// Empty overrides select verified downloads from the chosen GitHub release.
+export const DEFAULT_LOCAL_INSTALLER_PATH = "";
+export const DEFAULT_LOCAL_AGENT_BINARY_PATH = "";
+export const DEFAULT_LOCAL_UNINSTALLER_PATH = "";
 
 export function normalizeManagementUrl(value: string): string {
   return value.trim().replace(/\/+$/, "");
 }
 
 export function agentSetupManagementUrl(configuredUrl: string | undefined, environmentUrl: string | undefined, browserOrigin: string): string {
-  const selectedUrl = configuredUrl?.trim() || environmentUrl?.trim();
+  const configured = configuredUrl?.trim();
+  const environment = environmentUrl?.trim();
+  const selectedUrl = environment && (!configured || isLocalManagementUrl(configured)) ? environment : configured;
   if (selectedUrl) return normalizeManagementUrl(selectedUrl);
   const url = new URL(browserOrigin);
   if (url.port === "5173") url.port = "8081";
   url.protocol = "https:";
   return normalizeManagementUrl(url.toString());
+}
+
+export function isLocalManagementUrl(value: string): boolean {
+  try {
+    const host = new URL(value).hostname.toLowerCase().replace(/\.$/, "");
+    return host === "localhost" || host.endsWith(".localhost") || host === "0.0.0.0" || host === "[::]" || host === "[::1]" || host.startsWith("127.");
+  } catch { return true; }
+}
+
+export function agentSetupReleaseVersion(runningVersion?: string, configuredVersion?: string): string {
+  return [runningVersion, configuredVersion].map((value) => value?.trim() ?? "").find(isValidReleaseVersion) || "latest";
 }
 
 export function normalizeRepository(value: string | undefined): string {
@@ -112,26 +128,57 @@ export function dockerImageForRepository(repository: string | undefined, version
 export function linuxInstallSnippet(input: AgentSetupSnippetInput): string {
   const repository = normalizeRepository(input.repository);
   const version = normalizeReleaseVersion(input.version);
-  requirePinnedLinuxVersion(version);
+  if (input.enableManagedUpdates) requirePinnedLinuxVersion(version);
   const installerPath = normalizeLocalPath(input.installerPath, DEFAULT_LOCAL_INSTALLER_PATH, "Installer");
   const agentBinaryPath = normalizeLocalPath(input.agentBinaryPath, DEFAULT_LOCAL_AGENT_BINARY_PATH, "Agent binary");
   const parts = [
     `MANAGEMENT_URL=${shellQuote(normalizeManagementUrl(input.managementUrl))}`,
     ...installTLSParts(input.tls),
     `AGENT_ID=${shellQuote(input.agentId)}`,
+    ...(input.reuseExistingToken ? [] : [`AGENT_TOKEN=${shellQuote(input.agentToken)}`]),
     ...managedUpdateInstallParts(input),
     ...shellAgentDestinationPolicyParts(input),
     `P2PSTREAM_REPOSITORY=${shellQuote(repository)}`,
     `P2PSTREAM_VERSION=${shellQuote(version)}`,
-    `P2PSTREAM_AGENT_BINARY_FILE=${shellQuote(agentBinaryPath)}`,
   ];
-  const secrets: PromptedInstallerSecret[] = [
-    { prompt: "Agent token", inputVariable: "P2PSTREAM_AGENT_TOKEN_INPUT", environmentVariable: "AGENT_TOKEN" },
-  ];
-  if (input.enableManagedUpdates) {
-    secrets.push({ prompt: "Updater enrollment token", inputVariable: "P2PSTREAM_UPDATER_TOKEN_INPUT", environmentVariable: "P2PSTREAM_UPDATER_ENROLLMENT_TOKEN" });
-  }
-  return promptedInstallerCommand(parts, installerPath, secrets);
+  return releaseInstallerCommand(parts, repository, version, "install-agent.sh", installerPath, agentBinaryPath, input.reuseExistingToken ? normalizeLocalPath(input.agentEnvironmentPath, "/etc/p2pstream/agent.env", "Agent environment") : "");
+}
+
+export function linuxRotateAgentTokenSnippet(input: Pick<AgentSetupSnippetInput, "agentId" | "agentToken" | "agentEnvironmentPath">): string {
+  const environmentPath = normalizeLocalPath(input.agentEnvironmentPath, "/etc/p2pstream/agent.env", "Agent environment");
+  const parts = [`AGENT_ID=${shellQuote(input.agentId)}`, `AGENT_TOKEN=${shellQuote(input.agentToken)}`];
+  // systemd parses its own EnvironmentFile format. No shell sourcing/eval and no
+  // retrieval of the current tunnel secret by the management server or browser.
+  const script = [
+    "set -euo pipefail",
+    `environment_file=${shellQuote(environmentPath)}`,
+    existingEnvironmentCheck,
+    existingAgentCommand(["AGENT_TOKEN"], `bash -c ${shellQuote(rotateTokenScript)} p2pstream-token "$environment_file"`),
+  ].join("; ");
+  return `sudo env ${parts.join(" ")} bash -c ${shellQuote(script)}`;
+}
+
+const existingEnvironmentCheck = '[ -f "$environment_file" ] && [ ! -L "$environment_file" ] || { echo "Existing agent environment is missing or unsafe; use new-agent setup on a fresh host" >&2; exit 1; }';
+const rotateTokenScript = [
+  'set -euo pipefail; environment_file=$1',
+  existingEnvironmentCheck,
+  'tmp=$(mktemp "${environment_file}.XXXXXX")',
+  'trap \'rm -f -- "$tmp"\' EXIT',
+  'cp --preserve=mode,ownership -- "$environment_file" "$tmp"',
+  'token=${AGENT_TOKEN//\\\\/\\\\\\\\}; token=${token//\\\"/\\\\\\\"}',
+  'printf \'\\n\\nAGENT_TOKEN="%s"\\n\' "$token" >> "$tmp"',
+  'mv -f -- "$tmp" "$environment_file"',
+  'systemctl restart p2pstream-agent',
+].join("; ");
+
+function existingAgentCommand(environmentNames: string[], command: string): string {
+  const clearDestinationPolicy = environmentNames.some((name) => name === "AGENT_ALLOW_TARGETS" || name === "AGENT_ALLOW_ANY_TARGET") ? "unset AGENT_ALLOW_TARGETS AGENT_ALLOW_ANY_TARGET; " : "";
+  const check = 'set -euo pipefail; [ "${AGENT_ID:-}" = "$1" ] && [ -n "${AGENT_TOKEN:-}" ] || { echo "This host does not contain the selected agent identity and token" >&2; exit 1; }; shift; ' + clearDestinationPolicy + 'exec env "$@"';
+  const overrides = environmentNames.map((name) => `${name}="$${name}"`).join(" ");
+  // Escape dollars at the systemd ExecStart boundary (also supported by older
+  // systemd releases), so shell code and literal credential values arrive intact.
+  const escapeArguments = 'for index in "${!service_args[@]}"; do service_args[$index]=${service_args[$index]//\\$/\\$\\$}; done';
+  return `service_args=(bash -c ${shellQuote(check)} p2pstream-existing "$AGENT_ID" ${overrides} ${command}); ${escapeArguments}; systemd-run --quiet --wait --pipe --collect --property=Type=exec --property="EnvironmentFile=$environment_file" "${'$'}{service_args[@]}"`;
 }
 
 function managedUpdateInstallParts(input: AgentSetupSnippetInput): string[] {
@@ -145,6 +192,7 @@ function managedUpdateInstallParts(input: AgentSetupSnippetInput): string[] {
   }
   return [
     "P2PSTREAM_ENABLE_MANAGED_UPDATES=true",
+    `P2PSTREAM_UPDATER_ENROLLMENT_TOKEN=${shellQuote(enrollmentToken)}`,
     `P2PSTREAM_AGENT_UPDATE_CHANNEL=${shellQuote(releaseChannelForVersion(normalizeReleaseVersion(input.version)))}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64=${shellQuote(authorityPublicKey)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID=${shellQuote(authorityKeyId)}`,
@@ -152,9 +200,9 @@ function managedUpdateInstallParts(input: AgentSetupSnippetInput): string[] {
   ];
 }
 
-export function linuxUninstallSnippet(input: Pick<AgentSetupSnippetInput, "installerPath" | "repository">): string {
+export function linuxUninstallSnippet(input: Pick<AgentSetupSnippetInput, "installerPath" | "repository" | "version">): string {
   const path = normalizeLocalPath(input.installerPath, DEFAULT_LOCAL_UNINSTALLER_PATH, "Uninstaller");
-  return `sudo env P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash ${shellQuote(path)}`;
+  return releaseInstallerCommand(["P2PSTREAM_UNINSTALL_CONFIRM=full-purge"], normalizeRepository(input.repository), normalizeReleaseVersion(input.version), "uninstall-agent.sh", path);
 }
 
 export function linuxManagedUpdaterBootstrapSnippet(input: ManagedUpdaterBootstrapSnippetInput): string {
@@ -178,6 +226,7 @@ export function linuxManagedUpdaterBootstrapSnippet(input: ManagedUpdaterBootstr
     `MANAGEMENT_URL=${shellQuote(normalizeManagementUrl(input.managementUrl))}`,
     `AGENT_ID=${shellQuote(input.agentId)}`,
     "P2PSTREAM_ENABLE_MANAGED_UPDATES=true",
+    `P2PSTREAM_UPDATER_ENROLLMENT_TOKEN=${shellQuote(enrollmentToken)}`,
     `P2PSTREAM_AGENT_UPDATE_CHANNEL=${shellQuote(releaseChannelForVersion(version))}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64=${shellQuote(authorityPublicKey)}`,
     `P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID=${shellQuote(authorityKeyId)}`,
@@ -186,35 +235,47 @@ export function linuxManagedUpdaterBootstrapSnippet(input: ManagedUpdaterBootstr
     `P2PSTREAM_EXISTING_TUNNEL_COMMIT=${shellQuote(currentTunnelCommit)}`,
     `P2PSTREAM_REPOSITORY=${shellQuote(repository)}`,
     `P2PSTREAM_VERSION=${shellQuote(version)}`,
-    `P2PSTREAM_AGENT_BINARY_FILE=${shellQuote(agentBinaryPath)}`,
   ];
-  return promptedInstallerCommand(parts, installerPath, [
-    { prompt: "Updater enrollment token", inputVariable: "P2PSTREAM_UPDATER_TOKEN_INPUT", environmentVariable: "P2PSTREAM_UPDATER_ENROLLMENT_TOKEN" },
-  ]);
+  return releaseInstallerCommand(parts, repository, version, "install-agent.sh", installerPath, agentBinaryPath);
 }
 
-type PromptedInstallerSecret = {
-  prompt: string;
-  inputVariable: string;
-  environmentVariable: string;
-};
-
-function promptedInstallerCommand(parts: string[], installerPath: string, secrets: PromptedInstallerSecret[]): string {
-  const prompts = secrets.flatMap((secret) => [
-    `read -r -s -p ${shellQuote(`${secret.prompt}: `)} ${secret.inputVariable}`,
-    "printf '\\n' >&2",
-  ]);
-  const inputVariables = secrets.map((secret) => `"$${secret.inputVariable}"`).join(" ");
-  const rootReads = secrets.map((secret) => `IFS= read -r ${secret.environmentVariable}`).join("; ");
-  const rootExports = secrets.map((secret) => secret.environmentVariable).join(" ");
-  const clearInputs = secrets.map((secret) => secret.inputVariable).join(" ");
-  const rootScript = `set -eu; ${rootReads}; export ${rootExports}; exec bash "$1"`;
-  return `{ ${prompts.join("; ")}; printf '%s\\n' ${inputVariables}; unset ${clearInputs}; } | sudo env ${parts.join(" ")} bash -c ${shellQuote(rootScript)} p2pstream-installer ${shellQuote(installerPath)}`;
+function releaseInstallerCommand(parts: string[], repository: string, version: string, scriptName: "install-agent.sh" | "uninstall-agent.sh", installerPath: string, agentBinaryPath = "", existingEnvironmentPath = ""): string {
+  const needsBinary = scriptName === "install-agent.sh";
+  if (!existingEnvironmentPath && installerPath && (!needsBinary || (agentBinaryPath && version !== "latest"))) {
+    const binary = needsBinary ? ` P2PSTREAM_AGENT_BINARY_FILE=${shellQuote(agentBinaryPath)}` : "";
+    return `sudo env ${parts.join(" ")}${binary} bash ${shellQuote(installerPath)}`;
+  }
+  // Keep the bootstrap self-contained so it also works with already published
+  // releases. Extract only named, checksummed assets; never execute a curl pipe.
+  const script = [
+    "set -euo pipefail",
+    'repository=$1; version=$2; installer=$3; binary=$4; script_name=$5',
+    ...(existingEnvironmentPath ? [`environment_file=${shellQuote(existingEnvironmentPath)}`, existingEnvironmentCheck] : []),
+    'tmp=$(mktemp -d)',
+    'trap \'rm -rf -- "$tmp"\' EXIT',
+    'download() { curl --proto "=https" --proto-redir "=https" --fail --location --silent --show-error --retry 3 --connect-timeout 15 --max-time 300 --max-filesize 536870912 "$@"; }',
+    'if [ "$version" = latest ]; then resolved=$(download --output /dev/null --write-out "%{url_effective}" "https://github.com/$repository/releases/latest"); prefix="https://github.com/$repository/releases/tag/"; [[ "$resolved" = "$prefix"* ]] || { echo "Cannot resolve latest release" >&2; exit 1; }; version=${resolved#"$prefix"}; [[ "$version" =~ ^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$ ]] || { echo "Invalid release version" >&2; exit 1; }; fi',
+    'export P2PSTREAM_VERSION="$version"',
+    'base="https://github.com/$repository/releases/download/$version"',
+    'if [ -z "$installer" ] || { [ "$script_name" = install-agent.sh ] && [ -z "$binary" ]; }; then download --output "$tmp/checksums.txt" "$base/checksums.txt"; fi',
+    'digest() { awk -v name="$1" \'$2 == name || $2 == "*" name { print $1 }\' "$tmp/checksums.txt"; }',
+    'fetch_verified() { local expected; expected=$(digest "$1"); [[ "$expected" =~ ^[0-9a-fA-F]{64}$ ]] || { echo "Missing or ambiguous checksum for $1" >&2; return 1; }; download --output "$tmp/$1" "$base/$1"; printf "%s  %s\\n" "$expected" "$tmp/$1" | sha256sum --check --status || { echo "Checksum mismatch for $1" >&2; return 1; }; }',
+    'if [ -z "$installer" ]; then source="p2pstream_${version}_source.tar.gz"; fetch_verified "$source"; installer="$tmp/$script_name"; tar -xOf "$tmp/$source" "p2pstream-$version/scripts/$script_name" > "$installer"; fi',
+    ...(needsBinary ? [
+      'if [ -z "$binary" ]; then [ "$(uname -s)" = Linux ] || { echo "Linux is required" >&2; exit 1; }; case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) echo "Unsupported agent architecture" >&2; exit 1 ;; esac; asset="p2pstream_${version}_linux_$arch"; if [ -n "$(digest "$asset")" ]; then fetch_verified "$asset"; binary="$tmp/$asset"; else asset="$asset.tar.gz"; fetch_verified "$asset"; binary="$tmp/p2pstream"; tar -xOf "$tmp/$asset" ./p2pstream > "$binary"; fi; fi',
+      'export P2PSTREAM_AGENT_BINARY_FILE="$binary"',
+    ] : []),
+    ...(existingEnvironmentPath ? [
+      'if [ -e /etc/p2pstream-updater/enrolled.json ] && [ "${P2PSTREAM_ENABLE_MANAGED_UPDATES:-false}" != true ]; then echo "Repairing a managed agent requires its update authority; refresh management and try again" >&2; exit 1; fi',
+      existingAgentCommand([...parts.map((part) => part.split("=")[0]!), "P2PSTREAM_AGENT_BINARY_FILE"], 'bash "$installer"'),
+    ] : ['bash "$installer"']),
+  ].join("; ");
+  return `sudo env ${parts.join(" ")} bash -c ${shellQuote(script)} p2pstream-setup ${[repository, version, installerPath, agentBinaryPath, scriptName].map(shellQuote).join(" ")}`;
 }
 
 function requirePinnedLinuxVersion(version: string): void {
   if (!isValidReleaseVersion(version)) {
-    throw new Error("Linux installation requires an exact SemVer release or prerelease and locally pinned files.");
+    throw new Error("Managed updates require an exact SemVer release or prerelease.");
   }
 }
 
@@ -232,6 +293,7 @@ function isValidReleaseVersion(version: string): boolean {
 
 function normalizeLocalPath(value: string | undefined, fallback: string, label: string): string {
   const result = singleLine(value ?? "").trim() || fallback;
+  if (!result) return "";
   if (!LOCAL_PATH_PATTERN.test(result) || result.includes("//") || result.split("/").some((part) => part === "." || part === "..")) {
     throw new Error(`${label} path must be a clean absolute local path.`);
   }

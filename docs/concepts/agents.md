@@ -40,7 +40,7 @@ By default, agents reject insecure HTTP management URLs and verify HTTPS certifi
 | `MANAGEMENT_CA_FILE` | Path to a PEM CA bundle on the agent host. |
 | `MANAGEMENT_CA_PEM_BASE64` | Base64-encoded PEM CA bundle, useful for generated snippets. |
 
-The **Agent Setup** modal can generate a one-line Linux systemd installer, a Docker Compose service, or a direct CLI command. Each generated form configures writable durable management trust; Docker uses a named state volume and direct CLI runs use a local state directory. Linux setup deliberately accepts only a locally supplied installer file, an exact SemVer release or prerelease identity, and a locally supplied raw binary. Staging builds automatically pin the isolated `staging` managed-update channel. The installer never pipes mutable repository code into root or downloads executable content. After independently verifying those two files, the command writes `/etc/p2pstream/agent.env`, enables `p2pstream-agent.service`, and restarts it. After token rotation, run the generated Linux reinstall command on the existing agent host so the new token and TLS material are loaded by a fresh process.
+The **Install Agent** modal can generate a one-line Linux systemd installer, a Docker Compose service, or a direct CLI command. Each generated form configures writable durable management trust; Docker uses a named state volume and direct CLI runs use a local state directory. The Linux command includes the issued credentials and automatically downloads the matching installer and binary from the selected GitHub release, verifying their SHA-256 checksums before installation. Optional local file overrides are available under advanced options. Staging builds pin the isolated `staging` managed-update channel. The command writes `/etc/p2pstream/agent.env`, enables `p2pstream-agent.service`, and restarts it. Use **More → Reinstall / Repair** to reuse the existing host token and include managed-update enrollment. **Rotate token** instead generates a credential-only command that preserves the installed software and settings, then restarts the connection. All setup actions share an editable Management URL; a remote server advertising localhost defaults to the saved environment address.
 
 If management requires agent client certificates, configure:
 
@@ -51,7 +51,7 @@ AGENT_TLS_KEY_FILE=/etc/p2pstream/agent.key.pem
 
 ## Common Mistakes
 
-- Reusing an old token after rotating it in management instead of running the generated reinstall command on the agent host.
+- Reusing an old token after rotating it in management instead of applying the generated token-change command on the agent host.
 - Setting `MANAGEMENT_URL` to a public listener instead of management.
 - Putting management behind a reverse proxy that blocks HTTP/1.1 upgrade streaming for `p2pstream-yamux` or closes idle upgraded connections too aggressively.
 - Forgetting CA material when management uses the auto-generated local CA.

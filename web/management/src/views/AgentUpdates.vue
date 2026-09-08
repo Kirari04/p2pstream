@@ -7,7 +7,6 @@ import {
   CheckCircle2 as CheckIcon,
   CirclePause as PauseIcon,
   CirclePlay as PlayIcon,
-  Copy as CopyIcon,
   Fingerprint as FingerprintIcon,
   PackageCheck as PackageIcon,
   RefreshCw as RefreshIcon,
@@ -15,10 +14,10 @@ import {
   ShieldCheck as ShieldIcon,
   TriangleAlert as WarningIcon,
 } from "@lucide/vue";
-import { dashboardKey, environmentsKey, isBusyKey, runManagementActionKey, selectedEnvironmentIdKey } from "@/composables/managementContextKeys";
+import { dashboardKey, isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { messageFromError } from "@/lib/errors";
-import { agentSetupManagementUrl, DEFAULT_LOCAL_AGENT_BINARY_PATH, DEFAULT_LOCAL_INSTALLER_PATH, linuxManagedUpdaterBootstrapSnippet } from "@/lib/agentSetupSnippets";
+import AgentSetupModal from "@/components/AgentSetupModal.vue";
 import {
   AgentUpdateAssignmentState,
   AgentUpdateCampaignState,
@@ -33,8 +32,6 @@ import {
 const managementClient = useManagementClient();
 const router = useRouter();
 const dashboard = inject(dashboardKey, computed(() => null));
-const environments = inject(environmentsKey, computed(() => []));
-const selectedEnvironmentId = inject(selectedEnvironmentIdKey, computed(() => "0"));
 const isBusy = inject(isBusyKey, computed(() => false));
 const runManagementAction = inject(runManagementActionKey);
 
@@ -59,23 +56,7 @@ const healthyDwellSeconds = ref(120);
 const preview = ref<AgentUpdatePreviewAgent[]>([]);
 const previewFingerprint = ref("");
 const previewLoading = ref(false);
-const bootstrapAgent = ref<AgentUpdateOverviewAgent | null>(null);
-const bootstrapToken = ref("");
-const bootstrapRepository = ref("");
-const bootstrapAuthorityPublicKeyBase64 = ref("");
-const bootstrapAuthorityKeyId = ref("");
-const bootstrapAuthorityEpoch = ref(0n);
-const bootstrapExpiresAt = ref(0n);
-const bootstrapCopied = ref(false);
-const bootstrapTokenCopied = ref(false);
-const bootstrapInstallerPath = ref(DEFAULT_LOCAL_INSTALLER_PATH);
-const bootstrapAgentBinaryPath = ref(DEFAULT_LOCAL_AGENT_BINARY_PATH);
-
-function bytesToBase64(value: Uint8Array): string {
-  let binary = "";
-  for (const byte of value) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
+const setupModal = ref<InstanceType<typeof AgentSetupModal> | null>(null);
 
 const agents = computed(() => overview.value?.agents ?? []);
 const updaterFreshnessWindowMs = 2 * 60 * 1000;
@@ -209,97 +190,8 @@ async function retryFailed(campaign: AgentUpdateCampaign) {
   else await execute();
 }
 
-function managementOrigin(): string {
-  const environment = environments.value.find((item) => item.id.toString() === selectedEnvironmentId.value);
-  return agentSetupManagementUrl(
-    dashboard.value?.managementSecurity?.defaultManagementUrl,
-    environment?.managementUrl,
-    window.location.origin,
-  );
-}
-
-const bootstrapCommand = computed(() => {
-  if (!bootstrapAgent.value || !bootstrapAgent.value.tunnelVersion || !bootstrapAgent.value.tunnelCommit || !bootstrapToken.value || !bootstrapAuthorityPublicKeyBase64.value || !bootstrapAuthorityKeyId.value || bootstrapAuthorityEpoch.value <= 0n) return "";
-  try {
-    return linuxManagedUpdaterBootstrapSnippet({
-      managementUrl: managementOrigin(),
-      agentId: bootstrapAgent.value.agentPublicId,
-      updaterEnrollmentToken: bootstrapToken.value,
-      agentUpdateAuthorityPublicKeyBase64: bootstrapAuthorityPublicKeyBase64.value,
-      agentUpdateAuthorityKeyId: bootstrapAuthorityKeyId.value,
-      agentUpdateAuthorityEpoch: bootstrapAuthorityEpoch.value,
-      currentTunnelVersion: bootstrapAgent.value.tunnelVersion,
-      currentTunnelCommit: bootstrapAgent.value.tunnelCommit,
-      repository: bootstrapRepository.value,
-      version: trustedTarget.value?.version,
-      installerPath: bootstrapInstallerPath.value,
-      agentBinaryPath: bootstrapAgentBinaryPath.value,
-    });
-  } catch (error) {
-    operationError.value = messageFromError(error);
-    return "";
-  }
-});
-const bootstrapReadyToClose = computed(() => bootstrapCopied.value && bootstrapTokenCopied.value);
-
-async function openBootstrap(agent: AgentUpdateOverviewAgent) {
-  operationError.value = "";
-  try {
-    const response = await managementClient.generateAgentUpdaterEnrollmentToken({
-      agentId: agent.agentId,
-      ttlMillis: 10n * 60n * 1000n,
-    });
-    bootstrapAgent.value = agent;
-    bootstrapToken.value = response.token;
-    bootstrapRepository.value = response.pinnedRepository;
-    bootstrapAuthorityPublicKeyBase64.value = bytesToBase64(response.managementAuthority?.publicKey ?? new Uint8Array());
-    bootstrapAuthorityKeyId.value = response.managementAuthority?.keyId ?? "";
-    bootstrapAuthorityEpoch.value = response.managementAuthority?.epoch ?? 0n;
-    bootstrapExpiresAt.value = response.expiresAtUnixMillis;
-    bootstrapCopied.value = false;
-    bootstrapTokenCopied.value = false;
-    bootstrapInstallerPath.value = DEFAULT_LOCAL_INSTALLER_PATH;
-    bootstrapAgentBinaryPath.value = DEFAULT_LOCAL_AGENT_BINARY_PATH;
-  } catch (error) {
-    operationError.value = messageFromError(error);
-  }
-}
-
-function closeBootstrap() {
-  bootstrapAgent.value = null;
-  bootstrapToken.value = "";
-  bootstrapRepository.value = "";
-  bootstrapAuthorityPublicKeyBase64.value = "";
-  bootstrapAuthorityKeyId.value = "";
-  bootstrapAuthorityEpoch.value = 0n;
-  bootstrapExpiresAt.value = 0n;
-  bootstrapCopied.value = false;
-  bootstrapTokenCopied.value = false;
-}
-
-async function copyBootstrap() {
-  if (!bootstrapCommand.value) return;
-  try {
-    await navigator.clipboard.writeText(bootstrapCommand.value);
-    bootstrapCopied.value = true;
-  } catch (error) {
-    operationError.value = messageFromError(error);
-  }
-}
-
-async function copyBootstrapToken() {
-  if (!bootstrapToken.value) return;
-  try {
-    await navigator.clipboard.writeText(bootstrapToken.value);
-    bootstrapTokenCopied.value = true;
-  } catch (error) {
-    operationError.value = messageFromError(error);
-  }
-}
-
-function formatExpiry(value: bigint): string {
-  if (!value) return "unknown";
-  return new Date(Number(value)).toLocaleString();
+function enableManagedUpdates(agent: AgentUpdateOverviewAgent) {
+  void setupModal.value?.openExisting({ id: agent.agentId, publicId: agent.agentPublicId, name: agent.name, version: agent.tunnelVersion, commit: agent.tunnelCommit }, "enable-updates");
 }
 
 function toggleAgent(agent: AgentUpdateOverviewAgent, checked: boolean) {
@@ -467,7 +359,7 @@ onMounted(refresh);
         <small>connected hosts with a recent updater check-in</small>
       </article>
       <article>
-        <span>Bootstrap required</span>
+        <span>Setup required</span>
         <strong>{{ unsupportedAgents }}</strong>
         <small>need one-time host enrollment; no token rotation</small>
       </article>
@@ -549,7 +441,7 @@ onMounted(refresh);
           <div><span>Live tunnel</span><strong>{{ agent.tunnelVersion || "unreported" }}</strong><small v-if="agent.tunnelCommit" class="mono-text">{{ shortDigest(agent.tunnelCommit) }}</small></div>
           <div><span>Traffic</span><strong>{{ agent.cordoned ? "cordoned" : "eligible" }}</strong></div>
           <NTag v-if="agent.updaterEnrolled" size="small" :bordered="false" :type="updaterIsFresh(agent) ? 'success' : 'warning'">{{ updaterIsFresh(agent) ? "Managed" : "Worker stale" }}</NTag>
-          <NButton v-else secondary size="tiny" :disabled="isBusy || !agent.tunnelVersion || !agent.tunnelCommit" @click="openBootstrap(agent)">Bootstrap</NButton>
+          <NButton v-else secondary size="tiny" :disabled="isBusy || !agent.tunnelVersion || !agent.tunnelCommit" @click="enableManagedUpdates(agent)">Enable managed updates</NButton>
         </div>
       </div>
       <div v-else class="agent-update-empty">No agents are registered.</div>
@@ -645,51 +537,7 @@ onMounted(refresh);
       </div>
     </NModal>
 
-    <NModal
-      :show="Boolean(bootstrapAgent)"
-      preset="card"
-      title="Bootstrap Managed Updates"
-      :style="{ width: 'min(760px, calc(100vw - 2rem))' }"
-      :mask-closable="bootstrapReadyToClose"
-      :close-on-esc="bootstrapReadyToClose"
-      @update:show="(show) => { if (!show && bootstrapReadyToClose) closeBootstrap(); }"
-    >
-      <div v-if="bootstrapAgent" class="stack-lg">
-        <NAlert :type="bootstrapReadyToClose ? 'success' : 'warning'" :bordered="false">
-          {{ bootstrapReadyToClose ? "Command and one-time token copied. Paste the token only into the command's hidden prompt." : "Copy the command and enrollment token separately before closing. The command contains no secret and never rotates the tunnel token." }}
-        </NAlert>
-		<NAlert type="info" :bordered="false">
-		  The pinned file installs the rescue updater only. The live tunnel remains on {{ bootstrapAgent.tunnelVersion }} ({{ shortDigest(bootstrapAgent.tunnelCommit) }}) until a drained campaign activates a verified GitHub release.
-		</NAlert>
-        <div class="agent-bootstrap-identity">
-          <div><span>Agent</span><strong>{{ bootstrapAgent.name }}</strong><small class="mono-text">{{ bootstrapAgent.agentPublicId }}</small></div>
-          <div><span>Release source</span><strong>GitHub</strong><small class="mono-text">{{ bootstrapRepository }}</small></div>
-          <div><span>Management authority</span><strong>epoch {{ bootstrapAuthorityEpoch }}</strong><small class="mono-text">{{ shortDigest(bootstrapAuthorityKeyId) }}</small></div>
-          <div><span>Expires</span><strong>{{ formatExpiry(bootstrapExpiresAt) }}</strong><small>one-time enrollment</small></div>
-        </div>
-        <label class="agent-update-field">
-          <span>One-time updater enrollment token</span>
-          <code class="agent-bootstrap-token">{{ bootstrapToken }}</code>
-        </label>
-        <div class="layout-grid space-md mq-md-cols-two">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-            Pinned installer file
-            <NInput v-model:value="bootstrapInstallerPath" size="small" required />
-          </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-			Pinned rescue updater binary ({{ trustedTarget?.version }})
-            <NInput v-model:value="bootstrapAgentBinaryPath" size="small" required />
-          </label>
-        </div>
-        <p class="copy-xs muted-text">Download and verify both versioned files through a trusted channel before running this local-only command. Remote scripts are never piped into root.</p>
-        <pre class="agent-bootstrap-command"><code>{{ bootstrapCommand }}</code></pre>
-        <div class="agent-update-modal__actions">
-          <NButton :disabled="!bootstrapReadyToClose" @click="closeBootstrap">Done</NButton>
-          <NButton secondary :disabled="!bootstrapToken" @click="copyBootstrapToken"><template #icon><CopyIcon /></template>{{ bootstrapTokenCopied ? "Token copied" : "Copy token" }}</NButton>
-          <NButton type="primary" :disabled="!bootstrapCommand" @click="copyBootstrap"><template #icon><CopyIcon /></template>{{ bootstrapCopied ? "Copied" : "Copy bootstrap command" }}</NButton>
-        </div>
-      </div>
-    </NModal>
+    <AgentSetupModal ref="setupModal" />
   </div>
 </template>
 
@@ -964,17 +812,7 @@ onMounted(refresh);
 .agent-update-preview > .agent-update-preview--blocked { border-color: color-mix(in srgb, var(--app-warning) 34%, var(--app-border)); }
 .agent-update-preview > .agent-update-preview--blocked > svg { color: var(--app-warning); }
 .agent-update-modal__actions { display: flex; justify-content: flex-end; gap: 0.6rem; }
-.agent-bootstrap-identity { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--app-border); border-radius: 7px; }
-.agent-bootstrap-identity > div { min-width: 0; padding: 0.8rem; }
-.agent-bootstrap-identity > div + div { border-left: 1px solid var(--app-border-subtle); }
-.agent-bootstrap-identity span,
-.agent-bootstrap-identity strong,
-.agent-bootstrap-identity small { display: block; }
-.agent-bootstrap-identity span { color: var(--app-text-muted); font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.05em; }
-.agent-bootstrap-identity strong { overflow: hidden; margin-top: 0.15rem; font-size: 0.73rem; text-overflow: ellipsis; white-space: nowrap; }
-.agent-bootstrap-identity small { overflow: hidden; margin-top: 0.12rem; color: var(--app-text-muted); font-size: 0.61rem; text-overflow: ellipsis; white-space: nowrap; }
-.agent-bootstrap-command { overflow: auto; max-height: 17rem; margin: 0; border: 1px solid var(--app-border); border-radius: 7px; background: var(--app-panel-muted); padding: 1rem; color: var(--app-text); font-size: 0.68rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
-.agent-bootstrap-token { display: block; border: 1px solid var(--app-border); border-radius: 7px; background: var(--app-panel-muted); padding: 0.75rem; color: var(--app-text); font-size: 0.68rem; overflow-wrap: anywhere; }
+
 
 @media (max-width: 900px) {
   .agent-release-deck,
@@ -1004,8 +842,6 @@ onMounted(refresh);
   .agent-rollout-rail__steps { grid-template-columns: 1fr; }
   .agent-update-form-grid,
   .agent-update-preview { grid-template-columns: 1fr; }
-  .agent-bootstrap-identity { grid-template-columns: 1fr; }
-  .agent-bootstrap-identity > div + div { border-top: 1px solid var(--app-border-subtle); border-left: 0; }
   .agent-update-campaign__summary { align-items: flex-start; grid-template-columns: 1fr; }
   .agent-update-campaign__actions { justify-content: flex-start; }
   .agent-update-assignment { grid-template-columns: 1fr; }
