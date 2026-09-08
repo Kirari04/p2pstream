@@ -48,7 +48,7 @@ type Config struct {
 	ManagementClientIPMode            string `env:"MANAGEMENT_CLIENT_IP_MODE" envDefault:"trusted_chain"`
 	ManagementAdvertiseHost           string `env:"MANAGEMENT_ADVERTISE_HOST"`
 	ManagementTLSExtraHosts           string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
-	AgentUpdatesEnabled               bool   `env:"AGENT_UPDATES_ENABLED" envDefault:"false"`
+	AgentUpdatesEnabled               bool   `env:"AGENT_UPDATES_ENABLED" envDefault:"true"`
 	AgentUpdateRepository             string `env:"AGENT_UPDATE_REPOSITORY" envDefault:"Kirari04/p2pstream"`
 	AgentUpdateChannel                string `env:"AGENT_UPDATE_CHANNEL"`
 	AgentUpdateAuthorityKeyFile       string `env:"AGENT_UPDATE_AUTHORITY_KEY_FILE"`

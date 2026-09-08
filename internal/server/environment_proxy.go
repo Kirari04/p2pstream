@@ -100,6 +100,19 @@ var allowedEnvironmentProxyMethods = map[string]struct{}{
 	"DeletePublicCacheRule":             {},
 	"UpdatePublicCacheSettings":         {},
 	"PurgePublicCache":                  {},
+
+	// Operator actions use the selected server's admin token and update authority.
+	// Host enrollment, polling, and reports retain their dedicated authentication
+	// and are deliberately not exposed through this environment proxy.
+	"GenerateAgentUpdaterEnrollmentToken": {},
+	"GetAgentUpdateOverview":              {},
+	"PreviewAgentUpdateCampaign":          {},
+	"CreateAgentUpdateCampaign":           {},
+	"ListAgentUpdateCampaigns":            {},
+	"PauseAgentUpdateCampaign":            {},
+	"ResumeAgentUpdateCampaign":           {},
+	"CancelAgentUpdateCampaign":           {},
+	"RetryAgentUpdateAssignments":         {},
 }
 
 type environmentAuthRoundTripper struct {

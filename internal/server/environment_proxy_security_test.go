@@ -9,7 +9,7 @@ func TestEnvironmentProxyMethodPolicyIsAllowlistBased(t *testing.T) {
 	if _, ok := allowedEnvironmentProxyMethods["GetStatus"]; !ok {
 		t.Fatal("expected operational GetStatus RPC to remain proxyable")
 	}
-	for _, method := range []string{"Login", "SetupAdmin", "CreateEnvironment", "FutureSensitiveMethod"} {
+	for _, method := range []string{"Login", "SetupAdmin", "CreateEnvironment", "EnrollAgentUpdater", "CheckAgentUpdate", "ReportAgentUpdate", "FutureSensitiveMethod"} {
 		if _, ok := allowedEnvironmentProxyMethods[method]; ok {
 			t.Fatalf("sensitive or unknown method %q is proxyable", method)
 		}

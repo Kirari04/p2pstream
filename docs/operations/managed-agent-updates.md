@@ -1,6 +1,6 @@
 # Managed Agent Updates
 
-Managed updates are an opt-in Linux/systemd workflow for rolling a stable
+Managed updates are a Linux/systemd workflow for rolling a stable
 release or isolated staging prerelease across a fleet without rotating tunnel
 tokens or logging in to each host.
 
@@ -32,9 +32,15 @@ metadata. The remaining Ed25519 identities protect privileged host actions:
 - the privileged activator identity attests the result of one consumed command,
   including its digest, nonce, monotonic sequence, and action counter.
 
-## Enable the server catalog
+## Configure the server catalog
 
-Set the server variables below, then restart p2pstream:
+The server catalog is enabled by default. Hosts still require one-time
+enrollment and an explicitly created rollout campaign; enabling the catalog
+does not update agents automatically. Set `AGENT_UPDATES_ENABLED=false` to
+disable managed updates.
+
+These are the defaults for a stable server. Set overrides as needed, then
+restart p2pstream:
 
 ```dotenv
 AGENT_UPDATES_ENABLED=true
@@ -57,6 +63,25 @@ is not involved in publishing releases. Back up the database and key file as
 one recovery unit. A missing, replaced, permissive, or mismatched key disables
 managed enrollment and campaign progression instead of silently generating a
 new identity for existing state.
+
+## Remote environments
+
+Selecting a trusted remote environment scopes **Agents → Updates** to that
+server: its fleet, release catalog, command authority, enrollment tokens, and
+campaigns. The parent forwards operator actions using the saved environment
+management token over the existing certificate-pinned direct or agent
+transport. Both servers require admin authorization; the remote server still
+enforces release trust and rollout safety gates.
+
+Host enrollment, update checks, and reports go directly to that environment's
+management endpoint using their dedicated credentials. They are not forwarded
+through the parent's environment proxy. Bootstrap commands use the remote
+server's advertised management URL, or its saved environment URL when unset;
+configure `MANAGEMENT_PUBLIC_URL` if hosts need a different reachable address.
+
+The parent needs a build that supports forwarding update actions. The remote
+server also needs the managed-update APIs and working catalog/authority
+configuration; enabling updates on the parent does not configure the remote.
 
 ## Enroll hosts once
 

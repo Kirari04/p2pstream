@@ -56,6 +56,15 @@ export function normalizeManagementUrl(value: string): string {
   return value.trim().replace(/\/+$/, "");
 }
 
+export function agentSetupManagementUrl(configuredUrl: string | undefined, environmentUrl: string | undefined, browserOrigin: string): string {
+  const selectedUrl = configuredUrl?.trim() || environmentUrl?.trim();
+  if (selectedUrl) return normalizeManagementUrl(selectedUrl);
+  const url = new URL(browserOrigin);
+  if (url.port === "5173") url.port = "8081";
+  url.protocol = "https:";
+  return normalizeManagementUrl(url.toString());
+}
+
 export function normalizeRepository(value: string | undefined): string {
   const trimmed = (value ?? "").trim().replace(/^https:\/\/github\.com\//i, "").replace(/^git@github\.com:/i, "").replace(/\.git$/i, "");
   const repository = trimmed || FALLBACK_RELEASE_REPOSITORY;
