@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  agentSetupManagementUrl,
   cliSnippet,
   dockerComposeSnippet,
   dockerImageForRepository,
@@ -25,6 +26,21 @@ const baseInput = {
 };
 
 describe("agentSetupSnippets", () => {
+  test("bootstrap uses the selected environment when it has no advertised management URL", () => {
+    expect(agentSetupManagementUrl("", "https://remote.example.test:8081/", "http://127.0.0.1:5173"))
+      .toBe("https://remote.example.test:8081");
+  });
+
+  test("bootstrap prefers the server's advertised host-reachable URL", () => {
+    expect(agentSetupManagementUrl(" https://agents.example.test/ ", "https://remote.internal:8081", "https://parent.example.test"))
+      .toBe("https://agents.example.test");
+  });
+
+  test("local bootstrap retains development and deployed management origins", () => {
+    expect(agentSetupManagementUrl(undefined, undefined, "http://127.0.0.1:5173")).toBe("https://127.0.0.1:8081");
+    expect(agentSetupManagementUrl("", undefined, "https://management.example.test")).toBe("https://management.example.test");
+  });
+
   test("quotes shell values safely", () => {
     expect(shellQuote("plain")).toBe("'plain'");
     expect(shellQuote("token'value")).toBe("'token'\\''value'");

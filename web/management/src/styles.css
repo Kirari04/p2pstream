@@ -1702,6 +1702,7 @@ samp {
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
+  container-type: inline-size;
   min-height: var(--topbar-height);
   border-bottom: 1px solid var(--app-border-subtle);
   background: var(--app-topbar);
@@ -1711,15 +1712,18 @@ samp {
 .app-header__bar {
   display: flex;
   min-height: var(--topbar-height);
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.625rem 1.5rem;
+  padding-block: 0.75rem;
   padding-inline: 1rem;
 }
 
 .app-header__context {
   display: flex;
   min-width: 0;
+  flex: 1 1 auto;
   align-items: center;
   gap: 0.75rem;
 }
@@ -1792,6 +1796,7 @@ samp {
 }
 
 .app-breadcrumbs li + li::before {
+  flex: 0 0 auto;
   content: "/";
   color: color-mix(in srgb, var(--app-text-muted) 58%, transparent);
 }
@@ -1800,12 +1805,17 @@ samp {
   color: var(--app-text);
 }
 
-.app-breadcrumbs [aria-current="page"] {
+.app-breadcrumbs a,
+.app-breadcrumbs li > span {
+  min-width: 0;
   overflow: hidden;
-  color: var(--app-text);
-  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app-breadcrumbs [aria-current="page"] {
+  color: var(--app-text);
+  font-weight: 600;
 }
 
 .app-header__mobile-title {
@@ -1819,13 +1829,56 @@ samp {
 
 .app-header__actions {
   min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 0.625rem 1rem;
+}
+
+.app-header__scope {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem 1rem;
+}
+
+.app-header__tools {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
   gap: 0.25rem;
+  margin-left: auto;
+}
+
+@container (min-width: 38rem) and (max-width: 64rem) {
+  .app-header__bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .app-header__context,
+  .app-header__tools {
+    grid-row: 1;
+  }
+
+  .app-header__tools {
+    grid-column: 2;
+  }
+
+  .app-header__actions {
+    display: contents;
+  }
+
+  .app-header__scope {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
 
 .app-release-channel {
   display: inline-flex;
   min-height: 2rem;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.4rem;
   border: 1px solid color-mix(in srgb, var(--app-warning) 45%, var(--app-border));
@@ -2603,11 +2656,5 @@ body:has(.app-sidebar--mobile-open) {
   .page-toolbar__actions > *,
   .section-toolbar__actions > * {
     flex: 1 1 auto;
-  }
-}
-
-@media (max-width: 420px) {
-  .app-header__mobile-title {
-    display: none;
   }
 }

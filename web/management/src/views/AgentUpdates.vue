@@ -15,10 +15,10 @@ import {
   ShieldCheck as ShieldIcon,
   TriangleAlert as WarningIcon,
 } from "@lucide/vue";
-import { dashboardKey, isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
+import { dashboardKey, environmentsKey, isBusyKey, runManagementActionKey, selectedEnvironmentIdKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { messageFromError } from "@/lib/errors";
-import { DEFAULT_LOCAL_AGENT_BINARY_PATH, DEFAULT_LOCAL_INSTALLER_PATH, linuxManagedUpdaterBootstrapSnippet } from "@/lib/agentSetupSnippets";
+import { agentSetupManagementUrl, DEFAULT_LOCAL_AGENT_BINARY_PATH, DEFAULT_LOCAL_INSTALLER_PATH, linuxManagedUpdaterBootstrapSnippet } from "@/lib/agentSetupSnippets";
 import {
   AgentUpdateAssignmentState,
   AgentUpdateCampaignState,
@@ -33,6 +33,8 @@ import {
 const managementClient = useManagementClient();
 const router = useRouter();
 const dashboard = inject(dashboardKey, computed(() => null));
+const environments = inject(environmentsKey, computed(() => []));
+const selectedEnvironmentId = inject(selectedEnvironmentIdKey, computed(() => "0"));
 const isBusy = inject(isBusyKey, computed(() => false));
 const runManagementAction = inject(runManagementActionKey);
 
@@ -208,12 +210,12 @@ async function retryFailed(campaign: AgentUpdateCampaign) {
 }
 
 function managementOrigin(): string {
-  const configured = dashboard?.value?.managementSecurity?.defaultManagementUrl?.trim();
-  if (configured) return configured.replace(/\/+$/, "");
-  const url = new URL(window.location.origin);
-  if (url.port === "5173") url.port = "8081";
-  if (url.protocol !== "https:") url.protocol = "https:";
-  return url.toString().replace(/\/$/, "");
+  const environment = environments.value.find((item) => item.id.toString() === selectedEnvironmentId.value);
+  return agentSetupManagementUrl(
+    dashboard.value?.managementSecurity?.defaultManagementUrl,
+    environment?.managementUrl,
+    window.location.origin,
+  );
 }
 
 const bootstrapCommand = computed(() => {
@@ -416,7 +418,7 @@ onMounted(refresh);
       Managed update control is fail-closed: {{ managementAuthorityWarning }}. Public proxy traffic is unaffected.
     </NAlert>
 
-    <NSpin :show="loading && !overview">
+    <NSpin :show="loading && !overview" content-class="stack-lg">
 
     <section class="agent-release-deck" aria-labelledby="release-deck-title">
       <div class="agent-release-deck__signal" aria-hidden="true">
@@ -432,7 +434,7 @@ onMounted(refresh);
       </div>
       <div class="agent-release-deck__integrity">
         <FingerprintIcon aria-hidden="true" />
-        <div>
+        <div class="agent-release-deck__details">
           <span>Release identity</span>
           <strong class="mono-text">{{ shortDigest(selectedTargetDigest) }}</strong>
         </div>
@@ -442,7 +444,7 @@ onMounted(refresh);
       </div>
       <div class="agent-release-deck__integrity">
         <ShieldIcon aria-hidden="true" />
-        <div>
+        <div class="agent-release-deck__details">
           <span>Command authority</span>
           <strong class="mono-text">{{ managementAuthority ? shortDigest(managementAuthority.keyId) : "unavailable" }}</strong>
           <small v-if="managementAuthority">epoch {{ managementAuthority.epoch }}</small>
@@ -791,12 +793,12 @@ onMounted(refresh);
   padding: 1.5rem;
 }
 
-.agent-release-deck__integrity div { min-width: 0; flex: 1; }
-.agent-release-deck__integrity span,
-.agent-release-deck__integrity strong { display: block; }
-.agent-release-deck__integrity span { color: var(--app-text-muted); font-size: 0.68rem; }
-.agent-release-deck__integrity strong { margin-top: 0.15rem; font-size: 0.82rem; }
-.agent-release-deck__integrity small { display: block; margin-top: 0.15rem; color: var(--app-text-muted); font-size: 0.62rem; }
+.agent-release-deck__details { min-width: 0; flex: 1; }
+.agent-release-deck__details span,
+.agent-release-deck__details strong { display: block; }
+.agent-release-deck__details span { color: var(--app-text-muted); font-size: 0.68rem; }
+.agent-release-deck__details strong { margin-top: 0.15rem; font-size: 0.82rem; }
+.agent-release-deck__details small { display: block; margin-top: 0.15rem; color: var(--app-text-muted); font-size: 0.62rem; }
 
 .agent-update-metrics {
   display: grid;
@@ -814,7 +816,7 @@ onMounted(refresh);
 .agent-update-metrics strong { display: block; margin: 0.2rem 0; font-family: var(--font-mono); font-size: 1.35rem; }
 .agent-update-metrics small { font-size: 0.67rem; line-height: 1.35; }
 
-.agent-update-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(19rem, 0.75fr); gap: 1rem; }
+.agent-update-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(19rem, 0.75fr); gap: 1.5rem; }
 .agent-rollout-rail h4,
 .agent-update-policy h4 { margin: 0.15rem 0 0; }
 .agent-rollout-rail__steps { display: grid; grid-template-columns: repeat(4, 1fr); padding: 1.25rem; }
