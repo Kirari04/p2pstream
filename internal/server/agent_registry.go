@@ -190,13 +190,41 @@ func (a *App) DeleteAgent(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	// Serialize the connected check and deletion with tunnel registration.
+	unlock := a.lockAgentAuth(req.Msg.Id)
+	defer unlock()
+
 	if a.AgentHub.connectedByID(req.Msg.Id) != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("connected agent cannot be deleted"))
 	}
 	if err := a.ensureAgentCanBeDisabled(ctx, req.Msg.Id); err != nil {
 		return nil, err
 	}
-	if err := a.DB.DeleteAgent(ctx, req.Msg.Id); err != nil {
+	tx, err := a.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	defer tx.Rollback()
+	qtx := a.DB.WithTx(tx)
+
+	// Historical records outlive the agent. These nullable foreign keys predate
+	// ON DELETE actions, so detach them atomically with the registry deletion.
+	// Agent-owned labels, trust reports, and updater state already cascade.
+	agentID := sql.NullInt64{Int64: req.Msg.Id, Valid: true}
+	for _, detach := range []func(context.Context, sql.NullInt64) error{
+		qtx.DetachAgentConnectionHistory,
+		qtx.DetachAgentStatsHistory,
+		qtx.DetachAgentRequestHistory,
+		qtx.DetachAgentRetryHistory,
+	} {
+		if err := detach(ctx, agentID); err != nil {
+			return nil, publicDBError(err)
+		}
+	}
+	if err := qtx.DeleteAgent(ctx, req.Msg.Id); err != nil {
+		return nil, publicDBError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, publicDBError(err)
 	}
 	if a.AgentTransports != nil {

@@ -1,0 +1,82 @@
+import { expect, test } from "@playwright/test";
+
+// Mount the actual fleet/update views with a fake management client. These
+// checks never create agents, rotate credentials, or enroll production hosts.
+test("shares editable remote setup across install, repair, and updates", async ({ page, context }, testInfo) => {
+  test.skip(testInfo.project.name !== "vite-direct", "The isolated component fixture uses Vite source modules.");
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.route("**/p2pstream.v1.AgentManagementService/**", (route) => { errors.push("Unexpected live management request"); return route.abort(); });
+  await page.goto("/e2e/fixtures/agent-setup.html#/agent");
+  await page.getByRole("button", { name: "Add Agent", exact: true }).click();
+  await page.getByTestId("agent-editor-form").locator("input").first().fill("Fixture Agent");
+  await page.getByRole("button", { name: "Create Agent", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Management URL", exact: true })).toHaveValue("https://remote.example.test:8443");
+  let command = await page.locator(".agent-setup-command code").innerText();
+  expect(command).toContain("AGENT_TOKEN='fixture-agent-token'");
+  expect(command).toContain("P2PSTREAM_UPDATER_ENROLLMENT_TOKEN='fixture-updater-token'");
+  expect(command).not.toContain("/path/to");
+  await page.getByRole("button", { name: "Copy install command", exact: true }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(command);
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeHidden();
+
+  await page.getByRole("button", { name: /More actions for agent/ }).click();
+  await page.getByRole("menuitem", { name: /Reinstall or repair/ }).click();
+  await expect(page.getByRole("heading", { name: "Reinstall / Repair Agent", exact: true })).toBeVisible();
+  const address = page.getByRole("textbox", { name: "Management URL", exact: true });
+  await expect(address).toBeEnabled();
+  await expect(address).toHaveValue("https://remote.example.test:8443");
+  await address.fill("https://agents.example.test:9443");
+  command = await page.locator(".agent-setup-command code").innerText();
+  expect(command).toContain("MANAGEMENT_URL='https://agents.example.test:9443'");
+  expect(command).toContain("P2PSTREAM_UPDATER_ENROLLMENT_TOKEN='fixture-bootstrap-token'");
+  expect(command).toContain("EnvironmentFile=$environment_file");
+  expect(command).not.toContain("AGENT_TOKEN='fixture");
+  expect(await page.evaluate(() => (window as unknown as {setupCalls:string[]}).setupCalls)).toEqual(["enrollment"]);
+  await page.getByRole("button", { name: "Copy command", exact: true }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+
+  await page.getByRole("button", { name: /More actions for agent/ }).click();
+  await page.getByRole("menuitem", { name: /Rotate token/ }).click();
+  await page.getByRole("button", { name: "Rotate Token", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Apply Rotated Token", exact: true })).toBeVisible();
+  command = await page.locator(".agent-setup-command code").innerText();
+  expect(command).toContain("AGENT_TOKEN='fixture-rotated-token'");
+  expect(command).toContain("systemctl restart p2pstream-agent");
+  expect(command).not.toContain("curl");
+  expect(command).not.toContain("install-agent.sh");
+  await page.getByRole("button", { name: "Copy command", exact: true }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+
+  await page.goto("/e2e/fixtures/agent-setup.html#/agent/updates");
+  await page.getByRole("button", { name: "Enable managed updates", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Enable Managed Updates", exact: true })).toBeVisible();
+  await expect(address).toBeEnabled();
+  await expect(address).toHaveValue("https://remote.example.test:8443");
+  await address.fill("https://agents.example.test:9443");
+  command = await page.locator(".agent-setup-command code").innerText();
+  expect(command).toContain("MANAGEMENT_URL='https://agents.example.test:9443'");
+  expect(command).toContain("P2PSTREAM_UPDATER_ENROLLMENT_TOKEN='fixture-bootstrap-token'");
+  expect(command).not.toContain("AGENT_TOKEN=");
+  expect(command).not.toContain("/path/to");
+  await page.getByRole("button", { name: "Copy command", exact: true }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(command);
+  await address.fill("https://changed.example.test:9443");
+  await expect(page.getByRole("button", { name: "Copy command", exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(address).toBeVisible();
+  await page.getByText("Advanced setup options", { exact: false }).click();
+  const scroller = page.locator(".n-modal.n-card > .n-card-content");
+  expect(await scroller.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await page.getByRole("button", { name: "Copy command", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Copied", exact: true })).toBeVisible();
+  await scroller.evaluate((element) => { element.scrollTop = 0; });
+  await expect(address).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("shared-agent-setup-mobile.png") });
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Enable Managed Updates", exact: true })).toBeHidden();
+  expect(errors).toEqual([]);
+});

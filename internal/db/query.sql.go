@@ -2226,6 +2226,42 @@ func (q *Queries) DeleteUserAgentLabelsByAgent(ctx context.Context, agentID int6
 	return err
 }
 
+const detachAgentConnectionHistory = `-- name: DetachAgentConnectionHistory :exec
+UPDATE connections SET agent_id = NULL WHERE agent_id = ?
+`
+
+func (q *Queries) DetachAgentConnectionHistory(ctx context.Context, agentID sql.NullInt64) error {
+	_, err := q.db.ExecContext(ctx, detachAgentConnectionHistory, agentID)
+	return err
+}
+
+const detachAgentRequestHistory = `-- name: DetachAgentRequestHistory :exec
+UPDATE proxy_request_events SET agent_id = NULL WHERE agent_id = ?
+`
+
+func (q *Queries) DetachAgentRequestHistory(ctx context.Context, agentID sql.NullInt64) error {
+	_, err := q.db.ExecContext(ctx, detachAgentRequestHistory, agentID)
+	return err
+}
+
+const detachAgentRetryHistory = `-- name: DetachAgentRetryHistory :exec
+UPDATE proxy_request_events SET retry_failed_agent_id = NULL WHERE retry_failed_agent_id = ?
+`
+
+func (q *Queries) DetachAgentRetryHistory(ctx context.Context, retryFailedAgentID sql.NullInt64) error {
+	_, err := q.db.ExecContext(ctx, detachAgentRetryHistory, retryFailedAgentID)
+	return err
+}
+
+const detachAgentStatsHistory = `-- name: DetachAgentStatsHistory :exec
+UPDATE agent_stats SET agent_id = NULL WHERE agent_id = ?
+`
+
+func (q *Queries) DetachAgentStatsHistory(ctx context.Context, agentID sql.NullInt64) error {
+	_, err := q.db.ExecContext(ctx, detachAgentStatsHistory, agentID)
+	return err
+}
+
 const getActiveConnection = `-- name: GetActiveConnection :one
 SELECT id, connected_at, disconnected_at
 FROM connections

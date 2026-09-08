@@ -128,7 +128,7 @@ test("protects an uncopied one-time agent setup command", async ({ page, context
     page.getByRole("button", { name: "Create Agent", exact: true }).click(),
   ]);
 
-  await expect(page.getByRole("heading", { name: "Agent Setup", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeVisible();
   const advancedSetup = page.locator("details.agent-advanced-options");
   await expect(advancedSetup).not.toHaveAttribute("open", "");
   await expect(page.getByLabel("GitHub Repository")).not.toBeVisible();
@@ -148,12 +148,12 @@ test("protects an uncopied one-time agent setup command", async ({ page, context
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByText("Close Without Copying?", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Agent Setup", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Copy install command", exact: true }).click();
   await expect(page.getByRole("button", { name: "Copied", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Done", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Agent Setup", exact: true })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeHidden();
 
   const cfg = await connectRPC<GetPublicProxyConfigResponse>(page.request, baseURL, "GetPublicProxyConfig", {});
   const createdAgent = cfg.agents.find((agent) => agent.name === agentName);

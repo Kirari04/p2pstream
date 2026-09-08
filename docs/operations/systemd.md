@@ -4,7 +4,7 @@ Run the p2pstream release binary as a Linux systemd service, or operate an agent
 
 ## Use This When
 
-Use systemd when you install the release binary directly on a host, or when managing an agent installed from the **Agent Setup** modal opened from **Agents**.
+Use systemd when you install the release binary directly on a host, or when managing an agent installed from the **Install Agent** modal opened from **Agents**.
 
 ## Prerequisites
 
@@ -93,9 +93,15 @@ sudo systemctl restart p2pstream-agent
 sudo journalctl -u p2pstream-agent -f
 ```
 
-After rotating an agent token, run the generated Linux reinstall command on the existing agent host. The installer rewrites `/etc/p2pstream/agent.env`, refreshes installer-managed management CA material, and restarts `p2pstream-agent` so the new token and TLS settings are loaded. A locally configured `AGENT_ALLOW_TARGETS` or `AGENT_ALLOW_ANY_TARGET` policy is preserved when the reinstall command does not provide a replacement. If the existing environment file cannot be read or contains unsupported or multiline assignment syntax, the reinstall stops instead of risking a policy change; provide a replacement explicitly or add `AGENT_CLEAR_ALLOW_TARGETS=true` to discard the old policy and revert to loopback-only.
+Use **Agents → More → Reinstall / Repair** for an existing Linux host. This shares the install/enrollment dialog, including the Management URL, TLS, release, and optional local-file fields. When the selected remote server advertises localhost, the saved environment address supplies the default; edit it if hosts use another address.
 
-The generated Linux command requires an exact `P2PSTREAM_VERSION=vX.Y.Z` release or `vX.Y.Z-staging.N` prerelease plus `P2PSTREAM_AGENT_BINARY_FILE=/absolute/path/to/raw-binary`, and invokes a locally supplied absolute installer path. Mutable `latest` and `staging`, remote installer pipes, symlinked installer/binary files, and implicit downloads are rejected. Managed prerelease installs pin `P2PSTREAM_AGENT_UPDATE_CHANNEL=staging`; final releases pin `stable`. The explicit management-trust repair mode is separate and does not require a binary or version.
+Reinstall reads the existing host credential through systemd's `EnvironmentFile` parser, checks that its agent ID matches the selected agent, and runs the verified installer with that token. It does not rotate the token on the server. It refreshes configuration and restarts the agent, and includes managed-update enrollment when authority and a trusted release are available. An active update campaign blocks preparation. Existing destination and capacity settings are preserved unless explicitly replaced.
+
+**Rotate token** is a separate action that immediately revokes the old credential. Its Linux command atomically appends the new effective `AGENT_TOKEN` assignment to the existing environment file, preserves its ownership, permissions and other settings, and restarts the connection. It does not download or reinstall software. Both existing-host commands verify the agent identity before modifying the host.
+
+The generated Linux command includes the issued tokens, downloads the versioned installer and architecture-specific binary from the selected GitHub release, and checks them against that release's `checksums.txt`. It runs the verified installer by absolute path with `P2PSTREAM_AGENT_BINARY_FILE` pointing to the verified local binary. Temporary downloads are cleaned up on success or failure. No separate token prompt or manual path editing is required. Independently verified local files remain optional advanced overrides.
+
+Managed updates require an exact release or prerelease. Other installs can use `latest`, which the command resolves once before fetching any release assets. Mutable `staging` aliases remain rejected. Managed prerelease installs pin `P2PSTREAM_AGENT_UPDATE_CHANNEL=staging`; final releases pin `stable`. The installer continues to reject piped execution and symlinked installer/binary files. The explicit management-trust repair mode is separate and does not require a binary or version.
 
 The installer also creates `/var/lib/p2pstream-agent/management-ca.pem` as the service-owned durable trust bundle. Management certificate rotation updates this file atomically. If forced activation strands an otherwise current agent, use the trust-repair command shown under **Settings → Management TLS**. If the agent version is incompatible or its configuration is damaged, rerun the full generated install command instead.
 
@@ -105,17 +111,9 @@ Use this only for agents installed with the generated Linux systemd installer. D
 
 The full-purge uninstall removes the agent service, service drop-ins, `/etc/p2pstream`, `/var/lib/p2pstream-agent`, `/usr/local/bin/p2pstream`, and the `p2pstream` service user and group. Do not run it on a host where those paths or that user are shared with a p2pstream server or another install you want to keep.
 
-First obtain and independently verify the versioned uninstaller as a local file. The UI deliberately does not pipe mutable remote code into root. Generated command:
+Open the agent row's **More** menu and select **Show uninstall command**. Copy the generated command and run it on the agent host. It downloads the selected release's source archive, verifies its SHA-256 checksum, and runs the extracted uninstaller with `P2PSTREAM_UNINSTALL_CONFIRM=full-purge`.
 
-```bash
-sudo env P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash /path/to/p2pstream-uninstall-agent.sh
-```
-
-Preview without changing the host:
-
-```bash
-env P2PSTREAM_UNINSTALL_DRY_RUN=true P2PSTREAM_UNINSTALL_CONFIRM=full-purge bash /path/to/p2pstream-uninstall-agent.sh
-```
+For a preview, add `P2PSTREAM_UNINSTALL_DRY_RUN=true` immediately after `sudo env` in the copied command. An independently verified local uninstaller remains supported as an optional override.
 
 Uninstalling the host service does not remove the management record. After the remote host is removed, open the agent row's **More** menu under **Agents** and delete or disable the management record.
 
@@ -134,7 +132,7 @@ sudo systemctl status p2pstream-agent
 | Symptom | Check |
 | --- | --- |
 | Server cannot bind low ports | Run as root or use capabilities/high ports. |
-| Agent fails after token rotation | Run the generated Linux reinstall command on the existing agent host. |
+| Agent fails after token rotation | Apply the generated token-change command on the existing agent host. |
 | Uninstall refuses to run | Set `P2PSTREAM_UNINSTALL_CONFIRM=full-purge`; unsafe paths are intentionally rejected. |
 
 ## Next Steps

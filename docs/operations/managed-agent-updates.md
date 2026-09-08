@@ -85,10 +85,18 @@ configuration; enabling updates on the parent does not configure the remote.
 
 ## Enroll hosts once
 
-Open **Agents → Updates**. An unenrolled host has a **Bootstrap** action. The UI
-presents a secret-free command and short-lived token as separate copy steps.
-The command prompts for the token so it is not placed in shell history or
-process arguments. The handoff contains:
+Open **Agents → Updates**. An unenrolled host has an **Enable managed updates** action. The UI
+uses the same setup dialog as **Install Agent** and **Reinstall / Repair**, with
+an editable Management URL, release details, and optional local files.
+Enrollment preserves the host's existing management CA and agent configuration.
+A remote server advertising localhost defaults to its saved environment
+address. Enter the address reachable from the agent host.
+
+The dialog provides one complete command with the short-lived enrollment token
+included. Copy it and run it on the agent host; no separate token entry or file
+downloads are needed. It fetches and verifies the selected release's installer
+and architecture-specific binary before execution. Treat the copied command
+as a credential. The handoff contains:
 
 - the management HTTPS origin and agent public ID;
 - a short-lived, single-use updater enrollment token;
