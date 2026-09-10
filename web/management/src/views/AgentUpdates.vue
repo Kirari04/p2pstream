@@ -17,6 +17,7 @@ import {
 import { dashboardKey, isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { messageFromError } from "@/lib/errors";
+import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 import AgentSetupModal from "@/components/AgentSetupModal.vue";
 import {
   AgentUpdateAssignmentState,
@@ -46,6 +47,9 @@ const campaigns = ref<AgentUpdateCampaign[]>([]);
 const loading = ref(false);
 const operationError = ref("");
 const planOpen = ref(false);
+const planError = ref("");
+const planErrorTitle = ref("");
+const planCreating = ref(false);
 const planName = ref("");
 const selectedAgentIds = ref<string[]>([]);
 const maxUnavailable = ref(1);
@@ -56,6 +60,7 @@ const healthyDwellSeconds = ref(120);
 const preview = ref<AgentUpdatePreviewAgent[]>([]);
 const previewFingerprint = ref("");
 const previewLoading = ref(false);
+const planBusy = computed(() => previewLoading.value || planCreating.value || isBusy.value);
 const setupModal = ref<InstanceType<typeof AgentSetupModal> | null>(null);
 
 const agents = computed(() => overview.value?.agents ?? []);
@@ -110,6 +115,7 @@ async function refresh() {
 }
 
 function openPlan() {
+  planError.value = "";
   planName.value = trustedTarget.value ? `Fleet to ${trustedTarget.value.version}` : "Fleet update";
   selectedAgentIds.value = enrolledAgents.value.filter((agent) => agent.connected && !agent.activeAssignmentId).map((agent) => agent.agentId.toString());
   preview.value = [];
@@ -128,9 +134,12 @@ function policyRequest() {
 }
 
 async function previewPlan() {
-  if (!trustedTarget.value || selectedAgentIds.value.length === 0) return;
+  if (planBusy.value || !trustedTarget.value || selectedAgentIds.value.length === 0) return;
+  const fingerprint = currentPlanFingerprint.value;
   previewLoading.value = true;
-  operationError.value = "";
+  planError.value = "";
+  preview.value = [];
+  previewFingerprint.value = "";
   try {
     const response = await managementClient.previewAgentUpdateCampaign({
       agentIds: selectedAgentIds.value.map(BigInt),
@@ -138,17 +147,24 @@ async function previewPlan() {
       policy: policyRequest(),
     });
     preview.value = response.agents;
-    previewFingerprint.value = currentPlanFingerprint.value;
+    previewFingerprint.value = fingerprint;
   } catch (error) {
-    operationError.value = messageFromError(error);
+    planErrorTitle.value = "Safety preview failed";
+    planError.value = messageFromError(error);
   } finally {
     previewLoading.value = false;
   }
 }
 
 async function createPlan() {
-  if (!canCreate.value || !trustedTarget.value) return;
+  if (planBusy.value || !canCreate.value || !trustedTarget.value) return;
   const target = trustedTarget.value;
+  planCreating.value = true;
+  planError.value = "";
+  const onError = (error: unknown) => {
+    planErrorTitle.value = "Unable to start campaign";
+    planError.value = messageFromError(error);
+  };
   const action = async () => {
     await managementClient.createAgentUpdateCampaign({
       name: planName.value.trim(),
@@ -159,8 +175,14 @@ async function createPlan() {
     planOpen.value = false;
     await refresh();
   };
-  if (runManagementAction) await runManagementAction(action, "Update campaign started");
-  else await action();
+  try {
+    if (runManagementAction) await runManagementAction(action, "Update campaign started", { onError });
+    else await action();
+  } catch (error) {
+    onError(error);
+  } finally {
+    planCreating.value = false;
+  }
 }
 
 async function changeCampaign(campaign: AgentUpdateCampaign, action: "pause" | "resume" | "cancel") {
@@ -498,23 +520,25 @@ onMounted(refresh);
     </section>
     </NSpin>
 
-    <NModal v-model:show="planOpen" preset="card" title="Plan Agent Rollout" class="agent-update-modal" :style="{ width: 'min(760px, calc(100vw - 2rem))' }">
+    <NModal v-model:show="planOpen" preset="card" title="Plan Agent Rollout" class="agent-update-modal"
+      :style="modalCardStyle('760px')" :content-style="modalScrollableContentStyle()"
+      :closable="!planBusy" :mask-closable="false" :close-on-esc="!planBusy">
       <div class="stack-lg">
         <NAlert type="info" :bordered="false">Preview is authoritative: the server re-evaluates route quorum, connectivity, enrollment, and active assignments before creating the campaign.</NAlert>
-        <label class="agent-update-field"><span>Campaign name</span><NInput v-model:value="planName" maxlength="128" /></label>
+        <label class="agent-update-field"><span>Campaign name</span><NInput v-model:value="planName" maxlength="128" :disabled="planBusy" /></label>
         <div class="agent-update-form-grid">
-          <label class="agent-update-field"><span>Max unavailable</span><NInputNumber v-model:value="maxUnavailable" :min="1" :max="100" /></label>
-          <label class="agent-update-field"><span>Other agents required per route</span><NInputNumber v-model:value="minimumEligiblePerRoute" :min="1" :max="100" /></label>
-          <label class="agent-update-field"><span>Canary agents</span><NInputNumber v-model:value="canaryCount" :min="1" :max="100" /></label>
-          <label class="agent-update-field"><span>Wave size</span><NInputNumber v-model:value="waveSize" :min="1" :max="100" /></label>
-          <label class="agent-update-field"><span>Healthy dwell seconds</span><NInputNumber v-model:value="healthyDwellSeconds" :min="10" :max="86400" /></label>
+          <label class="agent-update-field"><span>Max unavailable</span><NInputNumber v-model:value="maxUnavailable" :min="1" :max="100" :disabled="planBusy" /></label>
+          <label class="agent-update-field"><span>Other agents required per route</span><NInputNumber v-model:value="minimumEligiblePerRoute" :min="1" :max="100" :disabled="planBusy" /></label>
+          <label class="agent-update-field"><span>Canary agents</span><NInputNumber v-model:value="canaryCount" :min="1" :max="100" :disabled="planBusy" /></label>
+          <label class="agent-update-field"><span>Wave size</span><NInputNumber v-model:value="waveSize" :min="1" :max="100" :disabled="planBusy" /></label>
+          <label class="agent-update-field"><span>Healthy dwell seconds</span><NInputNumber v-model:value="healthyDwellSeconds" :min="10" :max="86400" :disabled="planBusy" /></label>
         </div>
         <div class="agent-update-agent-picker">
           <p class="stat-label">Agents</p>
           <label v-for="agent in agents" :key="agent.agentPublicId" :class="{ 'agent-update-agent-picker__blocked': !agent.updaterEnrolled || !agent.connected || Boolean(agent.activeAssignmentId) }">
             <NCheckbox
               :checked="selectedAgentIds.includes(agent.agentId.toString())"
-              :disabled="!agent.updaterEnrolled || !agent.connected || Boolean(agent.activeAssignmentId)"
+              :disabled="planBusy || !agent.updaterEnrolled || !agent.connected || Boolean(agent.activeAssignmentId)"
               @update:checked="toggleAgent(agent, $event)"
             />
             <span><strong>{{ agent.name }}</strong><small>{{ !agent.updaterEnrolled ? "Updater not enrolled" : !agent.connected ? "Disconnected" : agent.activeAssignmentId ? "Already assigned" : "Ready for preview" }}</small></span>
@@ -529,12 +553,19 @@ onMounted(refresh);
         <NAlert v-if="preview.length && !previewIsCurrent" type="warning" :bordered="false">
           Rollout settings changed after the last safety preview. Preview again before starting.
         </NAlert>
-        <div class="agent-update-modal__actions">
-          <NButton @click="planOpen = false">Cancel</NButton>
-          <NButton secondary :loading="previewLoading" :disabled="!trustedTarget || !selectedAgentIds.length" @click="previewPlan">Preview safety</NButton>
-          <NButton type="primary" :disabled="!canCreate || isBusy" @click="createPlan">Start campaign</NButton>
-        </div>
       </div>
+      <template #footer>
+        <div class="agent-update-modal__footer">
+          <NAlert v-if="planError" type="error" :title="planErrorTitle" :bordered="false" class="agent-update-modal__error">
+            {{ planError }}
+          </NAlert>
+          <div class="agent-update-modal__actions">
+            <NButton :disabled="planBusy" @click="planOpen = false">Cancel</NButton>
+            <NButton secondary :loading="previewLoading" :disabled="planBusy || !trustedTarget || !selectedAgentIds.length" @click="previewPlan">Preview safety</NButton>
+            <NButton type="primary" :loading="planCreating" :disabled="!canCreate || planBusy" @click="createPlan">Start campaign</NButton>
+          </div>
+        </div>
+      </template>
     </NModal>
 
     <AgentSetupModal ref="setupModal" />
@@ -812,6 +843,8 @@ onMounted(refresh);
 .agent-update-preview > .agent-update-preview--blocked { border-color: color-mix(in srgb, var(--app-warning) 34%, var(--app-border)); }
 .agent-update-preview > .agent-update-preview--blocked > svg { color: var(--app-warning); }
 .agent-update-modal__actions { display: flex; justify-content: flex-end; gap: 0.6rem; }
+.agent-update-modal__footer { display: grid; gap: 1rem; }
+.agent-update-modal__error { max-height: min(12rem, 25dvh); overflow-y: auto; overflow-wrap: anywhere; }
 
 
 @media (max-width: 900px) {

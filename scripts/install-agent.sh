@@ -627,7 +627,7 @@ Description=p2pstream unprivileged update staging worker
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=${UPDATER_CONFIG_DIR}/enrolled.json
-ConditionPathExists=${UPDATER_CONFIG_DIR}/root.json
+ConditionPathExists=${UPDATER_CONFIG_DIR}/updater.json
 ConditionPathExists=${UPDATER_CONFIG_DIR}/management-authority.json
 
 [Service]
@@ -679,7 +679,7 @@ Description=p2pstream offline update activator
 StartLimitIntervalSec=10min
 StartLimitBurst=5
 ConditionPathExists=${UPDATER_CONFIG_DIR}/enrolled.json
-ConditionPathExists=${UPDATER_CONFIG_DIR}/root.json
+ConditionPathExists=${UPDATER_CONFIG_DIR}/updater.json
 ConditionPathExists=${UPDATER_CONFIG_DIR}/management-authority.json
 
 [Service]
@@ -1003,7 +1003,7 @@ main() {
   INSTALL_TMP_DIR="$tmp_dir"
   trap cleanup_tmp_dir EXIT
 
-  printf 'Installing locally supplied p2pstream %s for linux/%s...\n' "$tag" "$arch"
+  printf 'Preparing locally supplied p2pstream %s for linux/%s...\n' "$tag" "$arch"
 	local bootstrap_digest slot_version="$tag" updater_reenroll="false"
 	if managed_updates_requested && [[ -e "${UPDATER_CONFIG_DIR}/enrolled.json" || -L "${UPDATER_CONFIG_DIR}/enrolled.json" ]]; then
 		[[ -f "${UPDATER_CONFIG_DIR}/enrolled.json" && ! -L "${UPDATER_CONFIG_DIR}/enrolled.json" ]] \
@@ -1060,13 +1060,20 @@ main() {
 		printf 'Existing tunnel service left running on its unchanged binary.\n'
 	else
 		restart_service
+		if [[ "$updater_reenroll" == "true" ]]; then
+			printf 'Managed agent configuration repaired and service restarted; agent binary unchanged.\n'
+		else
+			printf 'p2pstream agent %s installed and restarted.\n' "$tag"
+		fi
 	fi
 
-  printf 'p2pstream agent installed and restarted.\n'
   printf 'Check status with: sudo systemctl status %s\n' "$SERVICE_NAME"
   printf 'View logs with: sudo journalctl -u %s -f\n' "$SERVICE_NAME"
   if managed_updates_requested; then
     printf 'Managed updater enrolled; hardened polling and activation units enabled.\n'
+		if [[ "$preserve_existing_env" == "true" || "$updater_reenroll" == "true" ]]; then
+			printf 'To upgrade the agent binary, use Agents > Updates > Plan rollout in management.\n'
+		fi
   fi
 }
 

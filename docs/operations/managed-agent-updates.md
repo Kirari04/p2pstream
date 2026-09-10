@@ -146,6 +146,10 @@ decisions.
 
 ## Failure and recovery
 
+If a host enrolled successfully but shows **Worker stale**, check `systemctl status p2pstream-updater.service` and its journal. Releases through `v0.1.53-staging.85` installed units with an obsolete `ConditionPathExists=/etc/p2pstream-updater/root.json` requirement. The current updater provisions `updater.json`, `enrolled.json`, and `management-authority.json`; it does not create `root.json`. Replace that exact obsolete condition with `ConditionPathExists=/etc/p2pstream-updater/updater.json` in both updater service files, reload systemd, restart the updater timer and activation path, and start `p2pstream-updater.service`. Keep the enrollment and management-authority conditions. No token rotation or changes to agent destination permissions are needed.
+
+Re-enrolling or repairing an already managed host updates its rescue runner and keeps its existing agent binary and rollback state. Upgrading that binary requires a rollout campaign. A successful repair message alone does not confirm that the agent upgraded; check **Live tunnel** and the campaign result.
+
 - A failed download, manifest, size, or digest check never reaches the
   privileged helper.
 - A crash during activation is recovered from its fsynced journal and either

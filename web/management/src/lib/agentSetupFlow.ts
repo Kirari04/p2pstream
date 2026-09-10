@@ -37,5 +37,9 @@ export async function prepareExistingAgentSetup(client: ManagementClient, agent:
     updaterManagementAuthorityKeyId: response.managementAuthority?.keyId ?? "",
     updaterManagementAuthorityEpoch: response.managementAuthority?.epoch ?? 0n,
   };
-  return { managed, version: target.version, enrolled: Boolean(existing?.updaterEnrolled), notice: "", liveVersion: existing?.tunnelVersion, liveCommit: existing?.tunnelCommit };
+  const enrolled = Boolean(existing.updaterEnrolled);
+  const notice = enrolled && mode === "reinstall"
+    ? `This host is already managed. Repair refreshes its updater and configuration but keeps the agent binary${existing.tunnelVersion ? ` at ${existing.tunnelVersion}` : ""}. To upgrade to ${target.version}, use Agents → Updates → Plan rollout.`
+    : "";
+  return { managed, version: target.version, enrolled, notice, liveVersion: existing.tunnelVersion, liveCommit: existing.tunnelCommit };
 }
