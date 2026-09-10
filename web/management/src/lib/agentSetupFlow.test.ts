@@ -43,6 +43,19 @@ describe("shared agent setup preparation", () => {
     expect(result.liveCommit).toBe("b".repeat(40));
   });
 
+  test("repair of an enrolled legacy agent explains that the tunnel requires a rollout", async () => {
+    const value = overview();
+    value.agents[0]!.updaterEnrolled = true;
+    value.agents[0]!.tunnelVersion = "v0.1.52";
+    const { client } = clientFor(value);
+    const result = await prepareExistingAgentSetup(client, agent, "reinstall");
+    expect(result.enrolled).toBe(true);
+    expect(result.notice).toContain("keeps the agent binary at v0.1.52");
+    expect(result.notice).toContain("v1.2.3-staging.84");
+    expect(result.notice).toContain("Plan rollout");
+    expect(result.managed?.updaterEnrollmentToken).toBe("updater-token");
+  });
+
   test("a campaign in progress prevents reinstall enrollment", async () => {
     const value = overview();
     value.agents[0]!.activeAssignmentId = 4n;

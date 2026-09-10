@@ -8,6 +8,7 @@ import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import ManagementSidebar from "@/components/ui/ManagementSidebar.vue";
 import ThemeToggle from "@/components/ui/ThemeToggle.vue";
 import {
+  type ManagementActionOptions,
   dashboardKey,
   environmentsKey,
   isBusyKey,
@@ -183,7 +184,7 @@ async function setProxyRunning(shouldRun: boolean) {
   });
 }
 
-async function runManagementAction(action: () => Promise<void>, successMessage?: string): Promise<boolean> {
+async function runManagementAction(action: () => Promise<void>, successMessage?: string, options?: ManagementActionOptions): Promise<boolean> {
   isBusy.value = true;
   error.value = null;
   try {
@@ -215,6 +216,10 @@ async function runManagementAction(action: () => Promise<void>, successMessage?:
     }
     return true;
   } catch (err) {
+    if (options?.onError) {
+      options.onError(err);
+      return false;
+    }
     error.value = messageFromError(err);
     notification.error({
       title: "Operation failed",

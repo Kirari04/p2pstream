@@ -458,7 +458,20 @@ func (a *App) CreateAgentUpdateCampaign(ctx context.Context, req *connect.Reques
 	}
 	defer tx.Rollback()
 	createdBy := sql.NullInt64{Int64: user.ID, Valid: user.ID > 0}
-	result, err := tx.ExecContext(ctx, `INSERT INTO agent_update_campaigns (name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_by_user_id,created_at,updated_at) VALUES (?,'running',1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, name, target.Version, target.Commit, target.ManifestSha256, target.ReleaseSequence, target.SecurityEpoch, target.MinimumUpdaterVersion, target.MinimumTunnelProtocol, target.MaximumTunnelProtocol, string(artifactsJSON), policy.MaxUnavailable, policy.MinimumEligibleAgentsPerRoute, policy.CanaryCount, policy.WaveSize, policy.HealthyDwellMillis, createdBy, now, now)
+	result, err := tx.ExecContext(ctx, `INSERT INTO agent_update_campaigns (
+		name,state,generation,
+		target_version,target_commit,manifest_sha256,
+		release_sequence,security_epoch,minimum_updater_version,
+		minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,
+		max_unavailable,minimum_eligible_agents_per_route,canary_count,
+		wave_size,healthy_dwell_millis,created_by_user_id,created_at,updated_at
+	) VALUES (?,'running',1, ?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?,?,?)`,
+		name,
+		target.Version, target.Commit, target.ManifestSha256,
+		target.ReleaseSequence, target.SecurityEpoch, target.MinimumUpdaterVersion,
+		target.MinimumTunnelProtocol, target.MaximumTunnelProtocol, string(artifactsJSON),
+		policy.MaxUnavailable, policy.MinimumEligibleAgentsPerRoute, policy.CanaryCount,
+		policy.WaveSize, policy.HealthyDwellMillis, createdBy, now, now)
 	if err != nil {
 		return nil, publicDBError(err)
 	}

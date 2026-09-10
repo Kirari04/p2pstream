@@ -3,7 +3,7 @@ Description=p2pstream unprivileged update staging worker
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/p2pstream-updater/enrolled.json
-ConditionPathExists=/etc/p2pstream-updater/root.json
+ConditionPathExists=/etc/p2pstream-updater/updater.json
 ConditionPathExists=/etc/p2pstream-updater/management-authority.json
 
 [Service]

@@ -342,11 +342,43 @@ test_existing_install_managed_updater_bootstrap_preserves_env() {
   assert_exists "${UPDATER_STATE_DIR}/root"
   assert_exists "${AGENT_INSTALL_ROOT}/updater/p2pstream"
   assert_exists "${AGENT_INSTALL_ROOT}/current"
+	# Enrollment provisions these files. Both units must be runnable without
+	# any legacy trust metadata, and still require the signed authority pin.
+	for config in updater.json enrolled.json management-authority.json; do
+		printf '{}\n' >"${UPDATER_CONFIG_DIR}/${config}"
+	done
+	for unit in p2pstream-updater.service p2pstream-updater-activate.service; do
+		assert_updater_unit_conditions "${SYSTEMD_DIR}/${unit}"
+		# Exercise the checked-in units against the same provisioned fixture.
+		sed "s|/etc/p2pstream-updater/|${UPDATER_CONFIG_DIR}/|g" "${ROOT_DIR}/scripts/systemd/${unit}" >"${TEST_DIR}/${unit}"
+		assert_updater_unit_conditions "${TEST_DIR}/${unit}"
+	done
 	cmp -s "${TEST_DIR}/tunnel.before" "$INSTALL_PATH" \
 		|| fail "managed updater bootstrap replaced the live tunnel binary"
 	cmp -s "$LOCAL_AGENT_BINARY" "${AGENT_INSTALL_ROOT}/updater/p2pstream" \
 		|| fail "managed updater bootstrap did not pin the new rescue binary"
 	assert_not_contains "$SYSTEMCTL_LOG" "restart p2pstream-agent"
+}
+
+assert_updater_unit_conditions() {
+	local unit="$1" condition path
+	local -a conditions=()
+	while IFS= read -r condition; do
+		path="${condition#ConditionPathExists=}"
+		[[ -f "$path" ]] || fail "${unit} requires an unprovisioned file: ${path}"
+		conditions+=("$condition")
+	done < <(grep '^ConditionPathExists=' "$unit")
+	assert_contains "$unit" "ConditionPathExists=${UPDATER_CONFIG_DIR}/enrolled.json"
+	assert_contains "$unit" "ConditionPathExists=${UPDATER_CONFIG_DIR}/management-authority.json"
+	if command -v systemd-analyze >/dev/null 2>&1; then
+		systemd-analyze condition "${conditions[@]}" >"${TEST_DIR}/conditions.log" 2>&1 \
+			|| fail "systemd rejected provisioned updater unit conditions"
+		mv "${UPDATER_CONFIG_DIR}/management-authority.json" "${TEST_DIR}/authority.backup"
+		if systemd-analyze condition "${conditions[@]}" >"${TEST_DIR}/conditions.log" 2>&1; then
+			fail "systemd allowed an updater without its management authority"
+		fi
+		mv "${TEST_DIR}/authority.backup" "${UPDATER_CONFIG_DIR}/management-authority.json"
+	fi
 }
 
 test_existing_install_managed_updater_rejects_mismatched_service_before_mutation() {
@@ -444,6 +476,21 @@ test_managed_updater_reenrollment_updates_only_pinned_rescue() {
 		|| fail "rescue re-enrollment did not atomically promote the pinned runner"
 	assert_contains "$COMMAND_LOG" "p2pstream-rescue-v3 updater enroll"
 	assert_not_contains "$SYSTEMCTL_LOG" "restart p2pstream-agent"
+
+	# Reinstall / Repair supplies the existing token and restarts the service,
+	# but re-enrollment must not replace its managed slot or claim an upgrade.
+	run_installer \
+		P2PSTREAM_ENABLE_MANAGED_UPDATES="true" \
+		P2PSTREAM_UPDATER_ENROLLMENT_TOKEN="repair-updater-token" \
+		MANAGEMENT_URL="https://mgmt.example.test:8081" \
+		AGENT_ID="agent-one" \
+		AGENT_TOKEN="existing-token" >"${TEST_DIR}/managed-repair.out"
+	cmp -s "${TEST_DIR}/tunnel-before-reenroll" "$INSTALL_PATH" \
+		|| fail "managed repair replaced the live tunnel slot"
+	assert_contains "${TEST_DIR}/managed-repair.out" "agent binary unchanged"
+	assert_contains "${TEST_DIR}/managed-repair.out" "Plan rollout"
+	assert_not_contains "${TEST_DIR}/managed-repair.out" "installed and restarted"
+	assert_systemctl_enable_before_restart
 }
 
 test_reinstall_overwrites_token_and_ca() {
