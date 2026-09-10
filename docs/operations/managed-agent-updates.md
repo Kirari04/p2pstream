@@ -150,6 +150,8 @@ If a host enrolled successfully but shows **Worker stale**, check `systemctl sta
 
 Re-enrolling or repairing an already managed host updates its rescue runner and keeps its existing agent binary and rollback state. Upgrading that binary requires a rollout campaign. A successful repair message alone does not confirm that the agent upgraded; check **Live tunnel** and the campaign result.
 
+If activation reports that the agent service did not become active and rolled back, inspect the agent service journal and the candidate slot permissions. Updater builds through `v0.1.53-staging.86` created the new slot directory with mode `0700`; the activator's `UMask=0077` also restricted the executable to `0700`. The `p2pstream` service user cannot execute that root-owned slot. The corrected updater explicitly applies `0755` to the verified executable and its version directory before promotion, and repairs those permissions on verified existing slots during retry. Its private state still uses the restrictive umask. Install a release containing this correction into each host's pinned rescue updater before attempting further rollouts; changing only the management server or the agent's live binary does not replace that separate runner.
+
 - A failed download, manifest, size, or digest check never reaches the
   privileged helper.
 - A crash during activation is recovered from its fsynced journal and either

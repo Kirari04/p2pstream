@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"golang.org/x/sys/unix"
 	"p2pstream/internal/agentupdateauth"
 )
 
@@ -216,12 +217,9 @@ func installSlot(paths Paths, release VerifiedRelease, artifact *os.File) (strin
 	}
 	slotDir := filepath.Join(paths.slotsDir(), release.Version)
 	slotPath := filepath.Join(slotDir, "p2pstream")
-	if info, err := os.Lstat(slotPath); err == nil {
-		if !info.Mode().IsRegular() || info.Mode().Perm()&0022 != 0 {
-			return "", errors.New("existing version slot is not a protected regular file")
-		}
-		if err := verifyFile(slotPath, release.Artifact); err != nil {
-			return "", fmt.Errorf("existing version slot does not match release artifact: %w", err)
+	if _, err := os.Lstat(slotDir); err == nil {
+		if err := prepareExistingSlot(slotDir, release.Artifact); err != nil {
+			return "", err
 		}
 		return slotPath, nil
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -250,11 +248,20 @@ func installSlot(paths Paths, release VerifiedRelease, artifact *os.File) (strin
 		_ = out.Close()
 		return "", err
 	}
+	// The activator runs with UMask=0077, but the agent runs as a separate
+	// unprivileged user. Publish verified executable bytes with explicit modes.
+	if err := out.Chmod(0755); err != nil {
+		_ = out.Close()
+		return "", err
+	}
 	if err := out.Sync(); err != nil {
 		_ = out.Close()
 		return "", err
 	}
 	if err := out.Close(); err != nil {
+		return "", err
+	}
+	if err := os.Chmod(tmpDir, 0755); err != nil {
 		return "", err
 	}
 	if err := syncDir(tmpDir); err != nil {
@@ -264,7 +271,7 @@ func installSlot(paths Paths, release VerifiedRelease, artifact *os.File) (strin
 		if !errors.Is(err, os.ErrExist) {
 			return "", err
 		}
-		if err := verifyFile(slotPath, release.Artifact); err != nil {
+		if err := prepareExistingSlot(slotDir, release.Artifact); err != nil {
 			return "", err
 		}
 	} else {
@@ -276,12 +283,59 @@ func installSlot(paths Paths, release VerifiedRelease, artifact *os.File) (strin
 	return slotPath, nil
 }
 
+// A failed activation may have left a verified slot with the old root-only
+// modes. Repair only that protected slot, after rechecking its artifact.
+func prepareExistingSlot(slotDir string, artifact Artifact) error {
+	fd, err := unix.Open(slotDir, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return fmt.Errorf("open existing version slot directory: %w", err)
+	}
+	dir := os.NewFile(uintptr(fd), slotDir)
+	defer dir.Close()
+	info, err := dir.Stat()
+	if err != nil {
+		return err
+	}
+	if info.Mode().Perm()&0022 != 0 {
+		return errors.New("existing version slot directory is not protected")
+	}
+	f, err := openRegularNoFollow(filepath.Join(slotDir, "p2pstream"), artifact.Size)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	info, err = f.Stat()
+	if err != nil {
+		return err
+	}
+	if info.Mode().Perm()&0022 != 0 {
+		return errors.New("existing version slot is not a protected regular file")
+	}
+	if err := verifyFileContents(f, artifact); err != nil {
+		return fmt.Errorf("existing version slot does not match release artifact: %w", err)
+	}
+	if err := f.Chmod(0755); err != nil {
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		return err
+	}
+	if err := dir.Chmod(0755); err != nil {
+		return err
+	}
+	return dir.Sync()
+}
+
 func verifyFile(path string, artifact Artifact) error {
 	f, err := openRegularNoFollow(path, artifact.Size)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+	return verifyFileContents(f, artifact)
+}
+
+func verifyFileContents(f *os.File, artifact Artifact) error {
 	h := sha256.New()
 	n, err := io.Copy(h, io.LimitReader(f, artifact.Size+1))
 	if err != nil {
