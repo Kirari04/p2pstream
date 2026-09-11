@@ -99,6 +99,16 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 	if !validVersion(ready.ServerVersion) {
 		return Result{}, errors.New("staged ready record has an invalid management server version")
 	}
+	commandFloor, err := loadRootCommandFloor(options.Paths)
+	if err != nil {
+		return Result{}, err
+	}
+	if ready.Authorization.Authorization.CommandSequence <= commandFloor.Sequence {
+		if ready.Authorization.Authorization.CommandSequence != commandFloor.Sequence {
+			return Result{}, errors.New("activation management authorization was superseded or replayed")
+		}
+		return replayCompletedActivation(options.Paths, ready, commandFloor, readyPath)
+	}
 	options.Policy.ServerVersion = ready.ServerVersion
 	manifest, err := readRegularNoFollow(filepath.Join(options.Paths.candidateDir(), "manifest.json"), defaultMaxMetadata)
 	if err != nil {
@@ -152,6 +162,16 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 		return Result{}, err
 	}
 	candidate := filepath.ToSlash(filepath.Join("slots", release.Version, "p2pstream"))
+	if previous == candidate {
+		// Reinstalling the exact active target must retain its distinct recovery
+		// slot. Otherwise a subsequent rollback would restore the failed target
+		// to itself and make recovery impossible.
+		previousSlot, err = previousSlotForReactivation(options.Paths, previousSlot)
+		if err != nil {
+			return Result{}, err
+		}
+		previous = previousSlot.Target
+	}
 	authorizationDigest, err := agentupdateauth.AssignmentAuthorizationDigest(ready.Authorization.Authorization)
 	if err != nil {
 		return Result{}, err
@@ -426,6 +446,89 @@ func loadCurrentSlotMetadata(paths Paths, target string) (slotMetadata, error) {
 	return slot, nil
 }
 
+func previousSlotForReactivation(paths Paths, current slotMetadata) (slotMetadata, error) {
+	data, err := readRegularNoFollow(paths.lastActivationPath(), 256<<10)
+	if err != nil {
+		return slotMetadata{}, fmt.Errorf("read previous activation for exact-target reinstall: %w", err)
+	}
+	var activation completedActivation
+	if err := strictJSON(data, &activation); err != nil {
+		return slotMetadata{}, err
+	}
+	counter, err := loadRootActionCounter(paths.rootActionCounterPath())
+	if err != nil {
+		return slotMetadata{}, err
+	}
+	if counter == 0 || activation.Receipt.Receipt.RootActionCounter != counter || activation.ActivatedSlot != current ||
+		activation.Receipt.Receipt.Action != agentupdateauth.AssignmentActionActivate ||
+		!receiptResultMatchesSlot(activation.Receipt.Receipt, current) || activation.PreviousSlot.Target == current.Target {
+		return slotMetadata{}, errors.New("exact-target reinstall has no distinct authenticated recovery slot")
+	}
+	if err := verifyRootActionReceiptRecord(paths, activation.Receipt, activation.Authorization, counter-1, time.Now().UTC()); err != nil {
+		return slotMetadata{}, err
+	}
+	if err := validateSlotMetadata(activation.PreviousSlot); err != nil {
+		return slotMetadata{}, err
+	}
+	return activation.PreviousSlot, nil
+}
+
+func replayCompletedActivation(paths Paths, ready readyRecord, floor rootCommandFloor, readyPath string) (Result, error) {
+	a := ready.Authorization.Authorization
+	digest, err := agentupdateauth.AssignmentAuthorizationDigest(a)
+	if err != nil || floor.AuthorizationSHA256 != hex.EncodeToString(digest[:]) {
+		return Result{}, errors.New("replayed activation command has a different authorization digest")
+	}
+	data, err := readRegularNoFollow(paths.lastActivationPath(), 256<<10)
+	if err != nil {
+		return Result{}, fmt.Errorf("completed activation receipt is unavailable for command replay: %w", err)
+	}
+	var activation completedActivation
+	if err := strictJSON(data, &activation); err != nil {
+		return Result{}, err
+	}
+	if !sameAssignmentAuthorizationRecord(activation.Authorization, ready.Authorization) ||
+		ready.AgentPublicID != a.AgentPublicID || ready.AssignmentID != a.AssignmentID || ready.Generation != a.Generation ||
+		ready.Nonce != base64.StdEncoding.EncodeToString(a.Nonce) || ready.ServerVersion != a.ServerVersion ||
+		ready.Version != a.TargetVersion || ready.Commit != a.TargetCommit || ready.ManifestSHA != a.ManifestSHA256 ||
+		ready.Sequence != a.ReleaseSequence || ready.SecurityEpoch != a.SecurityEpoch ||
+		ready.ArtifactName != a.ArtifactName || ready.ArtifactSize != a.ArtifactSize || ready.ArtifactSHA != a.ArtifactSHA256 {
+		return Result{}, errors.New("completed activation command does not match its exact authorization")
+	}
+	counter, err := loadRootActionCounter(paths.rootActionCounterPath())
+	if err != nil {
+		return Result{}, err
+	}
+	r := activation.Receipt.Receipt
+	if counter == 0 || r.RootActionCounter != counter || r.Action != agentupdateauth.AssignmentActionActivate {
+		return Result{}, errors.New("completed activation receipt does not match the latest root action")
+	}
+	if err := verifyAssignmentAuthorizationRecord(paths, ready.Authorization, agentupdateauth.AssignmentActionActivate, time.UnixMilli(a.IssuedAtUnixMillis), 0); err != nil {
+		return Result{}, err
+	}
+	if err := verifyRootActionReceiptRecord(paths, activation.Receipt, ready.Authorization, counter-1, time.Now().UTC()); err != nil {
+		return Result{}, err
+	}
+	current, err := currentTarget(paths)
+	if err != nil {
+		return Result{}, err
+	}
+	slot, err := loadCurrentSlotMetadata(paths, current)
+	if err != nil {
+		return Result{}, err
+	}
+	if slot != activation.ActivatedSlot || !receiptResultMatchesSlot(r, slot) {
+		return Result{}, errors.New("completed activation receipt does not describe the current slot")
+	}
+	if err := atomicJSON(paths.rootActionReceiptPath(), activation.Receipt, 0644); err != nil {
+		return Result{}, err
+	}
+	if err := clearStagedIfMatchingAuthorization(paths, readyPath, ready.Authorization); err != nil {
+		return Result{}, err
+	}
+	return Result{Version: r.ResultVersion, Sequence: r.ResultReleaseSequence, SecurityEpoch: r.ResultSecurityEpoch}, nil
+}
+
 func recoverActivation(ctx context.Context, options ActivateOptions) error {
 	data, err := readRegularNoFollow(options.Paths.journalPath(), 64<<10)
 	if errors.Is(err, os.ErrNotExist) {
@@ -457,6 +560,9 @@ func rollback(ctx context.Context, options ActivateOptions, journal activationJo
 	}
 	if err := restartAndCheck(ctx, options.Service); err != nil {
 		return fmt.Errorf("previous slot failed health check: %w", err)
+	}
+	if err := atomicJSON(options.Paths.currentSlotMetadataPath(), journal.PreviousSlot, 0600); err != nil {
+		return err
 	}
 	return removeAndSync(options.Paths.journalPath())
 }
@@ -490,6 +596,40 @@ func clearStagedIfMatchingAuthorization(paths Paths, readyPath string, expected 
 	if readyPath == "" {
 		readyPath = paths.readyPath()
 	}
+	// The worker can be publishing the next candidate while root finishes an
+	// earlier action. Open its existing lock read-only: creating it as root
+	// would prevent later unprivileged polls from acquiring their own lock.
+	removeOldClaim := func() error {
+		if readyPath == paths.readyPath() {
+			return nil
+		}
+		data, err := readRegularNoFollow(readyPath, 64<<10)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		var ready readyRecord
+		if strictJSON(data, &ready) != nil || !sameAssignmentAuthorizationRecord(ready.Authorization, expected) {
+			return nil
+		}
+		return removeAndSync(readyPath)
+	}
+	lock, err := openRegularNoFollow(filepath.Join(paths.workerStateDir(), "worker.lock"), 64<<10)
+	if errors.Is(err, os.ErrNotExist) {
+		return removeOldClaim()
+	}
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	if err := unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+		if errors.Is(err, unix.EWOULDBLOCK) || errors.Is(err, unix.EAGAIN) {
+			return removeOldClaim()
+		}
+		return err
+	}
 	data, err := readRegularNoFollow(readyPath, 64<<10)
 	if errors.Is(err, os.ErrNotExist) {
 		// A stale completed journal must never treat a later campaign's shared
@@ -504,12 +644,43 @@ func clearStagedIfMatchingAuthorization(paths Paths, readyPath string, expected 
 		return nil
 	}
 	if readyPath != paths.readyPath() {
-		if _, liveErr := os.Lstat(paths.readyPath()); liveErr == nil {
-			// A newer staging command owns the shared candidate directory.
+		liveData, liveErr := readRegularNoFollow(paths.readyPath(), 64<<10)
+		if errors.Is(liveErr, os.ErrNotExist) {
+			// staged.json has no assignment binding. Even identical release
+			// metadata may belong to a new generation that has no ready edge yet.
+			// Retain that bounded candidate cache and consume only our root claim.
 			return removeAndSync(readyPath)
-		} else if !errors.Is(liveErr, os.ErrNotExist) {
+		}
+		if liveErr != nil {
 			return liveErr
 		}
+		var live readyRecord
+		if strictJSON(liveData, &live) != nil || !sameAssignmentAuthorizationRecord(live.Authorization, expected) {
+			return removeAndSync(readyPath)
+		}
 	}
-	return clearStaged(paths, readyPath)
+	stagedData, err := readRegularNoFollow(paths.stagedPath(), 64<<10)
+	if errors.Is(err, os.ErrNotExist) {
+		return removeAndSync(readyPath)
+	}
+	if err != nil {
+		return err
+	}
+	var staged stagedRecord
+	a := expected.Authorization
+	want := stagedRecord{Version: a.TargetVersion, Commit: a.TargetCommit, ManifestSHA: a.ManifestSHA256,
+		Sequence: a.ReleaseSequence, SecurityEpoch: a.SecurityEpoch, ArtifactName: a.ArtifactName,
+		ArtifactSize: a.ArtifactSize, ArtifactSHA: a.ArtifactSHA256, ServerVersion: a.ServerVersion}
+	if strictJSON(stagedData, &staged) != nil || staged != want {
+		return removeAndSync(readyPath)
+	}
+	// Under the worker lock, this matching live ready edge proves ownership:
+	// Stage always removes it before it starts publishing another candidate.
+	if err := clearStaged(paths, paths.readyPath()); err != nil {
+		return err
+	}
+	if readyPath != paths.readyPath() {
+		return removeAndSync(readyPath)
+	}
+	return nil
 }

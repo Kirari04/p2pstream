@@ -146,6 +146,12 @@ decisions.
 
 ## Failure and recovery
 
+Cancelling a campaign does not immediately release hosts with an outstanding activation authorization. They remain cordoned and reserved until the privileged updater attests rollback and the agent establishes a fresh tunnel. A blocked host in a cancelled campaign can use **Recover agents** (called **Retry** in older interfaces) to request recovery. When rollback is already pending, wait for the updater instead of retrying the same assignment again. A paused campaign must be resumed or cancelled before its queued rollback can execute.
+
+After verified recovery, the historical assignment remains **failed**, with desired action **none** and traffic eligible. That host can be selected in **Plan rollout** again. If the updater is stale or rollback times out, inspect the updater and activator service journals on the host; cancelling or refreshing the browser cannot replace that missing host evidence. Management builds through `v0.1.53-staging.87` also rejected rollback results for assignments left in the blocked phase by cancellation. The corrected report handler accepts those administrator-authorized recovery results while retaining root signature validation and the fresh-tunnel requirement.
+
+If the worker journal repeats `root action report does not match its signed result receipt`, updater builds through `v0.1.53-staging.87` omitted the restored version, commit, and digests from the rollback report envelope, even though the signed root receipt contained them. The worker retries this durable result before polling, so restarting it cannot clear the loop. Upgrade management to a build containing the rollback-report compatibility fix: it accepts the all-empty legacy envelope only for rollback, verifies the signed receipt normally, and records the receipt's result. New updater builds also fill the envelope correctly. If the assignment already reached `root_action_timeout`, use **Recover agents** after upgrading management; the obsolete result can then be acknowledged without releasing the traffic fence, and the worker can obtain a new signed rollback. Do not delete or edit host receipts, rotate the agent token, or reinstall the live agent to clear this reporting error. The separate pinned-updater permission fix described below is still required before retrying activation on an old rescue runner.
+
 If a host enrolled successfully but shows **Worker stale**, check `systemctl status p2pstream-updater.service` and its journal. Releases through `v0.1.53-staging.85` installed units with an obsolete `ConditionPathExists=/etc/p2pstream-updater/root.json` requirement. The current updater provisions `updater.json`, `enrolled.json`, and `management-authority.json`; it does not create `root.json`. Replace that exact obsolete condition with `ConditionPathExists=/etc/p2pstream-updater/updater.json` in both updater service files, reload systemd, restart the updater timer and activation path, and start `p2pstream-updater.service`. Keep the enrollment and management-authority conditions. No token rotation or changes to agent destination permissions are needed.
 
 Re-enrolling or repairing an already managed host updates its rescue runner and keeps its existing agent binary and rollback state. Upgrading that binary requires a rollout campaign. A successful repair message alone does not confirm that the agent upgraded; check **Live tunnel** and the campaign result.
@@ -186,3 +192,51 @@ validity, security/minimum-safe, server/updater/protocol compatibility, and
 current-protocol repository variables listed in
 `internal/agentupdate/README.md`. Docker deployments that require immutable
 rollbacks should pin the version tag or OCI digest rather than a channel alias.
+
+## Verification
+
+The manifest generator enforces the repository's minimum supported pinned
+updater, `v0.1.53-staging.88`. It takes the higher of this floor and the configured
+`AGENT_UPDATE_UPDATER_MIN_VERSION`, and rejects an incompatible maximum. The
+floor stays fixed for later tunnel releases, so a corrected `.88` updater can
+install subsequent compatible releases without another repair. Updater range
+bounds accept canonical SemVer prereleases; server compatibility and minimum
+safe-version bounds keep their existing stable-version rules. Upgrade
+management first, complete any pending recovery, then repair older pinned
+updaters before starting the next rollout. Older management builds reject a
+manifest containing the new prerelease updater bound until management itself
+is upgraded.
+
+Run the real service lifecycle test on a Linux amd64 workstation with Go and
+Multipass installed:
+
+```sh
+scripts/test-managed-updates-systemd.sh
+```
+
+The script builds the current source and an actual `.84` worker, creates a
+disposable Ubuntu 24.04 VM, and uses the production installer, service users,
+systemd hardening, updater/activator executables, authenticated management
+handlers, and agent tunnels. It verifies upgrades, signed cancellation
+rollback, legacy worker reporting, lost-response retry, pinned updater repair
+after verified recovery, recovery from an exhausted systemd crash limit, and a
+subsequent rollout to the same cancelled target.
+Success checks include the real agent
+process executable, reported build, released traffic fence, and unchanged
+agent token/network configuration. It independently checks the repaired pinned
+binary and its enrolled updater version. A VM-local TLS mirror supplies fixture
+artifacts through the normal download and digest-verification path.
+
+Logs are retained under `tmp/managed-updates-systemd` and a VM created by the
+script is removed afterward. Set `P2PSTREAM_SYSTEMD_OUTPUT_DIR` for another log
+directory. `P2PSTREAM_SYSTEMD_VM_NAME` may select an existing disposable VM named
+`p2pstream-update-review...`; it must have no agent installation and is retained
+for inspection. The harness refuses to provision the workstation.
+
+This test covers one Linux amd64 agent. It does not simulate a multi-agent
+route quorum, active routed request draining, ARM64, production GitHub/OCI
+publication, or a pre-existing host's arbitrary configuration. Candidate
+binaries use the same current source with distinct build identities; the old
+worker uses its historical source while the privileged activator stays fixed.
+Unit and lifecycle tests cover additional state transitions and failure
+injection, and a production rollout still begins with a canary.

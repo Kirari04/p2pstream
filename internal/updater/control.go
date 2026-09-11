@@ -137,6 +137,11 @@ func (c WorkerControl) Enroll(ctx context.Context, config HostConfig) error {
 	if c.API == nil {
 		return errors.New("updater control API is required")
 	}
+	lock, err := acquireLock(filepath.Join(c.Paths.workerStateDir(), "worker.lock"))
+	if err != nil {
+		return fmt.Errorf("lock updater enrollment state: %w", err)
+	}
+	defer lock.Close()
 	private, err := c.privateKey()
 	if err != nil {
 		return err
@@ -429,6 +434,23 @@ func FinalizeEnrollment(paths Paths) error {
 	}
 	if err := removeAndSync(paths.enrollmentTokenPath()); err != nil {
 		return err
+	}
+	// Explicit verified repair must also recover units previously stopped by
+	// systemd's start limit. Otherwise enabling the corrected runner leaves the
+	// activator/path failed and the next signed action never executes.
+	for _, unit := range []string{"p2pstream-updater.service", "p2pstream-updater-activate.service", "p2pstream-updater-activate.path"} {
+		// reset-failed rejects never-loaded units on a fresh install. Load and
+		// validate only our installed units before resetting their exact names.
+		state, err := exec.Command("/usr/bin/systemctl", "show", "--property=LoadState", "--value", unit).Output()
+		if err != nil {
+			return fmt.Errorf("load repaired updater unit %s: %w", unit, err)
+		}
+		if strings.TrimSpace(string(state)) != "loaded" {
+			return fmt.Errorf("repaired updater unit %s is not loaded", unit)
+		}
+	}
+	if err := exec.Command("/usr/bin/systemctl", "reset-failed", "p2pstream-updater.service", "p2pstream-updater-activate.service", "p2pstream-updater-activate.path").Run(); err != nil {
+		return fmt.Errorf("reset repaired updater units: %w", err)
 	}
 	if err := exec.Command("/usr/bin/systemctl", "start", "p2pstream-updater.timer", "p2pstream-updater-activate.path").Run(); err != nil {
 		return fmt.Errorf("start updater units: %w", err)
