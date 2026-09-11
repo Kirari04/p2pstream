@@ -121,6 +121,11 @@ func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 			return PublicIdentities{}, err
 		}
 	}
+	lock, err := acquireLock(paths.lockPath())
+	if err != nil {
+		return PublicIdentities{}, fmt.Errorf("lock updater bootstrap state: %w", err)
+	}
+	defer lock.Close()
 	// Validate immutable config pins before mutating enrollment tokens or
 	// identities, so a rejected re-bootstrap leaves the existing host intact.
 	if options.Reenroll {
@@ -137,6 +142,11 @@ func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 	}
 	if err := pinManagementAuthority(paths, options.AuthorityPublicKey, options.AuthorityKeyID, options.AuthorityEpoch, 0, gid); err != nil {
 		return PublicIdentities{}, err
+	}
+	if options.Reenroll {
+		if err := restoreFloorManifestPin(paths); err != nil {
+			return PublicIdentities{}, err
+		}
 	}
 	if !options.Reenroll {
 		buildVersion, buildCommit := buildinfo.Version, buildinfo.Commit
@@ -177,7 +187,10 @@ func parseAccountID(value string) (int, error) {
 }
 
 func bootstrapVersionFloor(rescueVersion, existingTunnelVersion string) string {
-	if existingTunnelVersion != "" && semver.Compare(existingTunnelVersion, rescueVersion) > 0 {
+	// The rescue runner has its own compatibility version. When enrollment
+	// preserves an existing tunnel, its newer rescue binary must not make the
+	// first rollout to that same release look like a tunnel downgrade.
+	if existingTunnelVersion != "" {
 		return existingTunnelVersion
 	}
 	return rescueVersion
@@ -249,11 +262,9 @@ func pinBootstrapState(paths Paths, currentVersion string, advanceVersionFloor b
 	}
 	if advanceVersionFloor && (floor.Version == "" || semver.Compare(currentVersion, floor.Version) > 0) {
 		floor.Version = currentVersion
+		floor.ManifestSHA256 = ""
 	}
-	if err := atomicJSON(paths.floorPath(), floor, 0640); err != nil {
-		return err
-	}
-	return os.Chown(paths.floorPath(), owner, group)
+	return atomicJSONOwned(paths.floorPath(), floor, 0640, owner, group)
 }
 
 func pinHostConfig(path string, config HostConfig, owner, group int) error {

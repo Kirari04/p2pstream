@@ -58,6 +58,11 @@ const (
 	agentUpdateReportMaxRequestBytes  = int64(256 << 10)
 )
 
+// A new recovery generation must not inherit the previous root action's
+// completion or tunnel evidence. Monotonic replay floors live on the enrolled
+// identity and are deliberately not reset by either cancellation or retry.
+const agentUpdateResetRootEvidenceSQL = `root_action_counter=0,root_action_receipt_payload=X'',root_action_receipt_signature=X'',root_action_completed_at=NULL,root_result_kind='',root_result_manifest_sha256='',root_result_version='',root_result_commit='',root_result_release_sequence=0,root_result_security_epoch=0,root_result_os='',root_result_arch='',root_result_artifact_name='',root_result_artifact_size=0,root_result_artifact_sha256='',attested_manifest_sha256='',attested_binary_sha256='',attested_activation_counter=0,activation_nonce_hash='',fresh_tunnel_at=NULL,healthy_at=NULL,observed_version='',observed_commit=''`
+
 type agentUpdateAdmissionContextKey struct{}
 
 var (
@@ -506,7 +511,9 @@ func (a *App) ListAgentUpdateCampaigns(ctx context.Context, req *connect.Request
 	if limit < 1 || limit > 100 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("limit must be between 1 and 100"))
 	}
-	rows, err := a.DB.QueryContext(ctx, `SELECT id FROM agent_update_campaigns ORDER BY id DESC LIMIT ?`, limit)
+	// Recovery controls must remain discoverable even after many later finished
+	// campaigns. A cancelled campaign can still own a cordoned assignment.
+	rows, err := a.DB.QueryContext(ctx, `SELECT c.id FROM agent_update_campaigns c ORDER BY (c.state IN ('running','paused') OR EXISTS (SELECT 1 FROM agent_update_assignments x WHERE x.campaign_id=c.id AND (x.cordoned=1 OR x.state NOT IN ('succeeded','failed','cancelled') OR (x.state='failed' AND x.desired_action='rollback')))) DESC,c.id DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -580,7 +587,16 @@ func (a *App) changeAgentUpdateCampaignState(ctx context.Context, req *connect.R
 		// activated_at=NULL as proof that the host stayed on the old binary. Keep
 		// such agents cordoned and supersede the activation with a separately
 		// signed rollback authorization on their next authenticated Check.
-		if _, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET state=CASE WHEN activated_at IS NULL AND authorization_action<>'activate' AND desired_action<>'activate' THEN 'cancelled' ELSE state END,desired_action=CASE WHEN activated_at IS NULL AND authorization_action<>'activate' AND desired_action<>'activate' THEN 'none' ELSE 'rollback' END,generation=generation+1,cordoned=CASE WHEN activated_at IS NULL AND authorization_action<>'activate' AND desired_action<>'activate' THEN 0 ELSE 1 END,updated_at=? WHERE campaign_id=? AND state NOT IN ('succeeded','failed','cancelled')`, now, req.Msg.CampaignId); err != nil {
+		// Only an uncordoned assignment or a reversible pre-authorization drain
+		// can be released immediately. A failed rollback may have overwritten
+		// the earlier activation authorization without ever setting activated_at.
+		if _, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET state='cancelled',desired_action='none',generation=generation+1,cordoned=0,updated_at=? WHERE campaign_id=? AND state NOT IN ('succeeded','failed','cancelled') AND activated_at IS NULL AND authorization_action='' AND desired_action NOT IN ('activate','rollback') AND (cordoned=0 OR state='cordoned')`, now, req.Msg.CampaignId); err != nil {
+			return nil, publicDBError(err)
+		}
+		// Already verified rollback must retain its receipt and exact generation
+		// while awaiting a fresh tunnel; cancellation cannot replace that proof
+		// or release its fence. Other unsafe phases get a new rollback command.
+		if _, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET desired_action='rollback',generation=generation+1,cordoned=1,authorization_action='',authorization_server_version='',command_sequence=0,authorization_nonce=X'',authorization_sha256='',authorization_payload=X'',authorization_signature=X'',authorization_issued_at=NULL,authorization_expires_at=NULL,`+agentUpdateResetRootEvidenceSQL+`,last_report_at=NULL,updated_at=? WHERE campaign_id=? AND state NOT IN ('succeeded','failed','cancelled') AND NOT (state='awaiting_tunnel' AND desired_action='none' AND authorization_action='rollback' AND root_action_completed_at IS NOT NULL)`, now, req.Msg.CampaignId); err != nil {
 			return nil, publicDBError(err)
 		}
 	} else if state == "paused" {
@@ -704,7 +720,7 @@ func (a *App) RetryAgentUpdateAssignments(ctx context.Context, req *connect.Requ
 	for _, id := range ids {
 		var result sql.Result
 		if retries[id] == retryRollback {
-			result, err = tx.ExecContext(ctx, `UPDATE agent_update_assignments SET state='failed',desired_action='rollback',generation=generation+1,failure_code='',failure_detail='',authorization_action='',authorization_server_version='',command_sequence=0,authorization_nonce=X'',authorization_sha256='',authorization_payload=X'',authorization_signature=X'',authorization_issued_at=NULL,authorization_expires_at=NULL,fresh_tunnel_at=NULL,healthy_at=NULL,last_report_at=NULL,updated_at=? WHERE id=? AND campaign_id=? AND state='blocked' AND cordoned=1`, now, id, req.Msg.CampaignId)
+			result, err = tx.ExecContext(ctx, `UPDATE agent_update_assignments SET state='failed',desired_action='rollback',generation=generation+1,failure_code='',failure_detail='',authorization_action='',authorization_server_version='',command_sequence=0,authorization_nonce=X'',authorization_sha256='',authorization_payload=X'',authorization_signature=X'',authorization_issued_at=NULL,authorization_expires_at=NULL,`+agentUpdateResetRootEvidenceSQL+`,last_report_at=NULL,updated_at=? WHERE id=? AND campaign_id=? AND state='blocked' AND cordoned=1`, now, id, req.Msg.CampaignId)
 		} else {
 			// A retried stage returns to the neutral pending state. Only the
 			// transactional cohort scheduler may release it, otherwise an
@@ -791,8 +807,7 @@ func (a *App) CheckAgentUpdate(ctx context.Context, req *connect.Request[p2pstre
 			return nil, publicDBError(err)
 		}
 	}
-	if campaignAllowsAgentUpdateAuthorization(campaign.State, assignment.DesiredAction) &&
-		(assignment.AuthorizationAction != assignment.DesiredAction || !assignment.AuthorizationExpiresAt.Valid || !assignment.AuthorizationExpiresAt.Time.After(time.Now().UTC())) {
+	if campaignAllowsAgentUpdateAuthorization(campaign.State, assignment.DesiredAction) {
 		assignment, campaign, err = a.ensureAgentUpdateAssignmentAuthorization(ctx, identity.AgentID, assignment.ID, assignment.Generation, assignment.DesiredAction)
 		if err != nil {
 			return nil, err
@@ -822,6 +837,11 @@ func (a *App) CheckAgentUpdate(ctx context.Context, req *connect.Request[p2pstre
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("stored management authorization is invalid: %w", verifyErr))
 		}
 		response.Authorization = assignmentAuthorizationProto(record)
+		// An in-flight command can outlive a management process upgrade. Its
+		// signed compatibility context must remain identical in this envelope;
+		// reminting it could invalidate the root result already being produced.
+		// New staging checks and newly issued authorizations use buildinfo.Version.
+		response.ServerVersion = record.Value.ServerVersion
 	}
 	return connect.NewResponse(response), nil
 }
@@ -889,6 +909,16 @@ func (a *App) ReportAgentUpdate(ctx context.Context, req *connect.Request[p2pstr
 		}
 		return a.acknowledgeSupersededAgentUpdateReport(ctx, tx, identity, m)
 	}
+	// A duplicated root-service edge can report an execution error after that
+	// exact action already committed a signed success receipt. Acknowledge the
+	// stale execution failure so old workers can drain their durable file, while
+	// preserving the proof, health deadline and routing fence. Later health
+	// failures remain actionable; they are not failures to execute this action.
+	matchesCommittedOutcome := m.State == p2pstreamv1.AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_FAILED &&
+		assignment.DesiredAction == "none" && assignment.RootActionCompletedAt.Valid && len(assignment.RootActionReceiptPayload) > 0 &&
+		(assignment.State == "awaiting_tunnel" || assignment.State == "healthy_dwell" || assignment.State == "blocked") &&
+		((assignment.AuthorizationAction == "activate" && m.FailureCode == "activation_failed") ||
+			(assignment.AuthorizationAction == "rollback" && m.FailureCode == "rollback_failed"))
 	if assignment.State == "blocked" && assignment.DesiredAction == "none" {
 		matchesCommittedFailure := m.State == p2pstreamv1.AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_FAILED &&
 			m.FailureCode == assignment.FailureCode && m.FailureDetail == assignment.FailureDetail
@@ -896,20 +926,21 @@ func (a *App) ReportAgentUpdate(ctx context.Context, req *connect.Request[p2pstr
 			assignment.RootActionCompletedAt.Valid && m.ManifestSha256 == assignment.RootResultManifestSha256 &&
 			m.BinarySha256 == assignment.RootResultArtifactSha256 && m.RunningVersion == assignment.RootResultVersion &&
 			m.RunningCommit == assignment.RootResultCommit
-		if matchesCommittedFailure || matchesCommittedHealth {
-			if m.Counter < uint64(identity.LastCounter) {
-				return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("updater counter was replayed"))
-			}
-			if m.Counter > uint64(identity.LastCounter) {
-				if err := consumeAgentUpdaterCounter(ctx, tx, identity.AgentID, m.Counter, time.Now().UTC()); err != nil {
-					return nil, err
-				}
-			}
-			if err := tx.Commit(); err != nil {
-				return nil, publicDBError(err)
-			}
-			return connect.NewResponse(&p2pstreamv1.ReportAgentUpdateResponse{State: assignmentStateProto(assignment.State), DesiredAction: desiredActionProto(assignment.DesiredAction), Generation: assignment.Generation, RetryAfterMillis: agentUpdatePollInterval.Milliseconds()}), nil
+		matchesCommittedOutcome = matchesCommittedOutcome || matchesCommittedFailure || matchesCommittedHealth
+	}
+	if matchesCommittedOutcome {
+		if m.Counter < uint64(identity.LastCounter) {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("updater counter was replayed"))
 		}
+		if m.Counter > uint64(identity.LastCounter) {
+			if err := consumeAgentUpdaterCounter(ctx, tx, identity.AgentID, m.Counter, time.Now().UTC()); err != nil {
+				return nil, err
+			}
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, publicDBError(err)
+		}
+		return connect.NewResponse(&p2pstreamv1.ReportAgentUpdateResponse{State: assignmentStateProto(assignment.State), DesiredAction: desiredActionProto(assignment.DesiredAction), Generation: assignment.Generation, RetryAfterMillis: agentUpdatePollInterval.Milliseconds()}), nil
 	}
 	now := time.Now().UTC()
 	state, action, cordoned := assignment.State, assignment.DesiredAction, assignment.Cordoned
@@ -939,7 +970,7 @@ func (a *App) ReportAgentUpdate(ctx context.Context, req *connect.Request[p2pstr
 			// lost response. Exact stored canonical bytes make this idempotent; a
 			// newer worker counter is consumed, while an exact HTTP retry may reuse
 			// the last counter without mutating durable state.
-			if m.ManifestSha256 != candidate.ResultManifestSHA256 || m.BinarySha256 != candidate.ResultArtifactSHA256 || m.RunningVersion != candidate.ResultVersion || m.RunningCommit != candidate.ResultCommit || m.Counter < uint64(identity.LastCounter) {
+			if !agentUpdateReportMatchesRootResult(m, candidate) || m.Counter < uint64(identity.LastCounter) {
 				return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("root action report retry does not match the committed receipt"))
 			}
 			if m.Counter > uint64(identity.LastCounter) {
@@ -956,7 +987,7 @@ func (a *App) ReportAgentUpdate(ctx context.Context, req *connect.Request[p2pstr
 		if err != nil {
 			return nil, err
 		}
-		if m.ManifestSha256 != rootReceipt.ResultManifestSHA256 || m.BinarySha256 != rootReceipt.ResultArtifactSHA256 || m.RunningVersion != rootReceipt.ResultVersion || m.RunningCommit != rootReceipt.ResultCommit {
+		if !agentUpdateReportMatchesRootResult(m, rootReceipt) {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("root action report does not match its signed result receipt"))
 		}
 	} else if m.State == p2pstreamv1.AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_HEALTHY {
@@ -1005,13 +1036,16 @@ func (a *App) ReportAgentUpdate(ctx context.Context, req *connect.Request[p2pstr
 			state, action, pauseCampaignForFailure = "blocked", "none", true
 		case action == "none" && cordoned == 1 && assignment.ActivatedAt.Valid && (state == "awaiting_tunnel" || state == "healthy_dwell"):
 			state, action, pauseCampaignForFailure = "blocked", "none", true
-		case action == "rollback" && cordoned == 1 && (state == "failed" || state == "cordoned" || state == "activating" || state == "awaiting_tunnel" || state == "healthy_dwell"):
+		case action == "rollback" && cordoned == 1 && (state == "failed" || state == "blocked" || state == "cordoned" || state == "activating" || state == "awaiting_tunnel" || state == "healthy_dwell"):
 			state, action, pauseCampaignForFailure = "blocked", "none", true
 		default:
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("assignment is not accepting a failure report in its current phase"))
 		}
 	case p2pstreamv1.AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_ROLLED_BACK:
-		if action != "rollback" || cordoned != 1 || (state != "failed" && state != "cordoned" && state != "activating" && state != "awaiting_tunnel" && state != "healthy_dwell") {
+		// Administrator cancellation can request rollback while preserving the
+		// blocked phase. Accept its verified root receipt, including assignments
+		// persisted by older servers, and retain the fresh-tunnel recovery gate.
+		if action != "rollback" || cordoned != 1 || (state != "failed" && state != "blocked" && state != "cordoned" && state != "activating" && state != "awaiting_tunnel" && state != "healthy_dwell") {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("assignment is not cordoned for rollback"))
 		}
 		state, action, cordoned = "awaiting_tunnel", "none", 1
@@ -1344,13 +1378,16 @@ func (a *App) reconcileAgentUpdateMaintenance(ctx context.Context, now time.Time
 			}
 			campaigns[item.campaignID] = c
 			a.tryAdvanceAgentUpdateAssignmentLocked(ctx, x, c)
-		case item.rootCompleted.Valid && (item.state == "awaiting_tunnel" || item.state == "healthy_dwell"):
+		case item.action == "none" && item.rootCompleted.Valid && (item.state == "awaiting_tunnel" || item.state == "healthy_dwell"):
 			a.reconcileAgentUpdateSuccessLocked(ctx, item.agentID)
 		case item.campaignState == "running" && item.cordoned == 0 &&
 			item.action == "stage" && (item.state == "pending" || item.state == "staging") &&
 			!now.Before(item.updated.Add(agentUpdateStageTimeout)):
 			a.blockTimedOutAgentUpdateStageLocked(ctx, item, now)
-		case item.cordoned == 1 && (item.action == "activate" || item.action == "rollback") && !item.rootCompleted.Valid && !now.Before(item.updated.Add(agentUpdatePostActionTimeout)):
+		case item.cordoned == 1 && (item.action == "activate" || item.action == "rollback") && !now.Before(item.updated.Add(agentUpdatePostActionTimeout)):
+			// A committed receipt changes desired_action to none. Any remaining
+			// root completion belongs to an older action (including rows left by
+			// older management versions) and cannot disable this action's timer.
 			a.blockTimedOutAgentUpdateRootActionLocked(ctx, item, now)
 		}
 	}
@@ -1406,7 +1443,7 @@ func (a *App) blockTimedOutAgentUpdateRootActionLocked(ctx context.Context, item
 		return
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET state='blocked',desired_action='none',failure_code='root_action_timeout',failure_detail='the signed root action did not complete before the deadline',updated_at=? WHERE id=? AND desired_action=? AND cordoned=1 AND root_action_completed_at IS NULL AND updated_at=?`, now, item.id, item.action, item.updated)
+	result, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET state='blocked',desired_action='none',failure_code='root_action_timeout',failure_detail='the signed root action did not complete before the deadline',updated_at=? WHERE id=? AND desired_action=? AND cordoned=1 AND updated_at=?`, now, item.id, item.action, item.updated)
 	if err != nil {
 		return
 	}
@@ -1605,8 +1642,14 @@ func (a *App) previewAgentUpdateAgents(ctx context.Context, requested []int64, t
 				item.Blockers = append(item.Blockers, "updater_version_incompatible")
 			}
 		}
-		if a.AgentHub == nil || a.AgentHub.connectedByID(id) == nil {
+		var conn *AgentConn
+		if a.AgentHub != nil {
+			conn = a.AgentHub.connectedByID(id)
+		}
+		if conn == nil {
 			item.Blockers = append(item.Blockers, "agent_disconnected")
+		} else if target.Version != "" && target.Commit != "" && conn.BuildVersion == target.Version && conn.BuildCommit == target.Commit {
+			item.Blockers = append(item.Blockers, "already_on_target")
 		}
 		if activeAssignments[id] > 0 {
 			item.Blockers = append(item.Blockers, "active_assignment")
@@ -2233,7 +2276,7 @@ func (a *App) persistAgentUpdateFreshTunnelLocked(ctx context.Context, conn *Age
 	// A new post-action connection invalidates build evidence from every older
 	// session. Repeated observations of the same live connection are no-ops so
 	// they cannot keep moving the health-dwell anchor.
-	_, err := exec(ctx, `UPDATE agent_update_assignments SET fresh_tunnel_at=?,observed_version=?,observed_commit=?,updated_at=? WHERE agent_id=? AND cordoned=1 AND root_action_completed_at IS NOT NULL AND root_action_completed_at<? AND state IN ('awaiting_tunnel','healthy_dwell') AND (fresh_tunnel_at IS NULL OR fresh_tunnel_at<>?)`, conn.ConnectedAt, conn.BuildVersion, conn.BuildCommit, conn.ConnectedAt, conn.AgentID, conn.ConnectedAt, conn.ConnectedAt)
+	_, err := exec(ctx, `UPDATE agent_update_assignments SET fresh_tunnel_at=?,observed_version=?,observed_commit=?,updated_at=? WHERE agent_id=? AND cordoned=1 AND desired_action='none' AND root_action_completed_at IS NOT NULL AND root_action_completed_at<? AND state IN ('awaiting_tunnel','healthy_dwell') AND (fresh_tunnel_at IS NULL OR fresh_tunnel_at<>?)`, conn.ConnectedAt, conn.BuildVersion, conn.BuildCommit, conn.ConnectedAt, conn.AgentID, conn.ConnectedAt, conn.ConnectedAt)
 	return err
 }
 
@@ -2258,7 +2301,7 @@ func (a *App) recordAgentUpdateObservedBuild(agentID int64, _ agentBuildIdentity
 }
 func (a *App) reconcileAgentUpdateSuccessLocked(ctx context.Context, agentID int64) {
 	x, c, err := a.activeAgentUpdateAssignment(ctx, agentID)
-	if err != nil {
+	if err != nil || x.DesiredAction != "none" {
 		return
 	}
 	var conn *AgentConn

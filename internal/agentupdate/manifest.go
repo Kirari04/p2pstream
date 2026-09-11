@@ -219,7 +219,7 @@ func validateManifest(manifest Manifest) error {
 	if err := validateVersionRange(manifest.Compatibility.Server); err != nil {
 		return fmt.Errorf("invalid server compatibility: %w", err)
 	}
-	if err := validateVersionRange(manifest.Compatibility.Updater); err != nil {
+	if err := validateUpdaterVersionRange(manifest.Compatibility.Updater); err != nil {
 		return fmt.Errorf("invalid updater compatibility: %w", err)
 	}
 	if manifest.Compatibility.Protocol.Min == 0 || manifest.Compatibility.Protocol.Max < manifest.Compatibility.Protocol.Min {
@@ -320,6 +320,19 @@ func validateVersionRange(versionRange VersionRange) error {
 	}
 	if err := validateStableVersion(versionRange.Max); err != nil {
 		return err
+	}
+	if releaseversion.Compare(versionRange.Min, versionRange.Max) > 0 {
+		return errors.New("minimum version exceeds maximum version")
+	}
+	return nil
+}
+
+// Updater fixes may first ship in an immutable staging release. A prerelease
+// bound lets a manifest exclude broken earlier runners without excluding the
+// corrected staging runner until the next stable release.
+func validateUpdaterVersionRange(versionRange VersionRange) error {
+	if !releaseversion.Valid(versionRange.Min) || !releaseversion.Valid(versionRange.Max) {
+		return errors.New("version must be canonical SemVer")
 	}
 	if releaseversion.Compare(versionRange.Min, versionRange.Max) > 0 {
 		return errors.New("minimum version exceeds maximum version")

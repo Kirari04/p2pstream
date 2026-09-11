@@ -218,8 +218,9 @@ func persistHealthyActivation(paths Paths, journal activationJournal, readyPath 
 	if err := atomicJSON(paths.rootActionCounterPath(), rootActionCounter{Counter: journal.Receipt.Receipt.RootActionCounter}, 0600); err != nil {
 		return err
 	}
-	floor := Floor{Sequence: journal.Sequence, SecurityEpoch: journal.SecurityEpoch, MinimumSafeVersion: journal.MinimumSafeVersion, Version: journal.Version}
-	if err := atomicJSON(paths.floorPath(), floor, 0640); err != nil {
+	floor := Floor{Sequence: journal.Sequence, SecurityEpoch: journal.SecurityEpoch, MinimumSafeVersion: journal.MinimumSafeVersion,
+		Version: journal.Version, ManifestSHA256: journal.Receipt.Receipt.ResultManifestSHA256}
+	if err := persistFloor(paths, floor); err != nil {
 		return err
 	}
 	if err := atomicJSON(paths.previousSlotPath(), journal.PreviousSlot, 0600); err != nil {
@@ -264,6 +265,14 @@ func validateSlotMetadata(slot slotMetadata) error {
 		return errors.New("slot metadata result kind is invalid")
 	}
 	return nil
+}
+
+func receiptResultMatchesSlot(receipt agentupdateauth.RootActionReceipt, slot slotMetadata) bool {
+	return receipt.ResultKind == slot.ResultKind && receipt.ResultManifestSHA256 == slot.ManifestSHA256 &&
+		receipt.ResultVersion == slot.BuildVersion && receipt.ResultCommit == slot.BuildCommit &&
+		receipt.ResultReleaseSequence == slot.ReleaseSequence && receipt.ResultSecurityEpoch == slot.SecurityEpoch &&
+		receipt.ResultOS == slot.OS && receipt.ResultArch == slot.Arch && receipt.ResultArtifactName == slot.ArtifactName &&
+		receipt.ResultArtifactSize == slot.ArtifactSize && receipt.ResultArtifactSHA256 == slot.ArtifactSHA256
 }
 
 func LoadRootActionReceipt(paths Paths) (rootActionReceiptRecord, error) {

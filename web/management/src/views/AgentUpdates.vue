@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, ref } from "vue";
+import { computed, inject, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { NAlert, NButton, NCheckbox, NInput, NInputNumber, NModal, NSpin, NTab, NTabs, NTag } from "naive-ui";
 import {
@@ -14,9 +14,11 @@ import {
   ShieldCheck as ShieldIcon,
   TriangleAlert as WarningIcon,
 } from "@lucide/vue";
-import { dashboardKey, isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
+import { dashboardKey, isBusyKey, runManagementActionKey, selectedEnvironmentIdKey, selectedEnvironmentBlockedKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { messageFromError } from "@/lib/errors";
+import { agentIsAlreadyOnUpdateTarget, agentRolloutStatus, agentUpdatePreviewBlockerLabel, canResumeUpdateCampaign, recoverableUpdateAssignments, retryableStageAssignments, updateRecoveryMessage } from "@/lib/agentUpdateRecovery";
+import { createAgentUpdatePolling } from "@/lib/agentUpdatePolling";
 import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 import AgentSetupModal from "@/components/AgentSetupModal.vue";
 import {
@@ -35,6 +37,8 @@ const router = useRouter();
 const dashboard = inject(dashboardKey, computed(() => null));
 const isBusy = inject(isBusyKey, computed(() => false));
 const runManagementAction = inject(runManagementActionKey);
+const selectedEnvironmentId = inject(selectedEnvironmentIdKey, computed(() => "0"));
+const selectedEnvironmentBlocked = inject(selectedEnvironmentBlockedKey, computed(() => ""));
 
 const sections = [
   { key: "fleet", label: "Fleet", path: "/agent" },
@@ -46,6 +50,7 @@ const overview = ref<GetAgentUpdateOverviewResponse | null>(null);
 const campaigns = ref<AgentUpdateCampaign[]>([]);
 const loading = ref(false);
 const operationError = ref("");
+const campaignErrors = ref<Record<string, string>>({});
 const planOpen = ref(false);
 const planError = ref("");
 const planErrorTitle = ref("");
@@ -61,6 +66,7 @@ const preview = ref<AgentUpdatePreviewAgent[]>([]);
 const previewFingerprint = ref("");
 const previewLoading = ref(false);
 const planBusy = computed(() => previewLoading.value || planCreating.value || isBusy.value);
+const campaignBusy = computed(() => isBusy.value || loading.value);
 const setupModal = ref<InstanceType<typeof AgentSetupModal> | null>(null);
 
 const agents = computed(() => overview.value?.agents ?? []);
@@ -85,10 +91,14 @@ const currentPlanFingerprint = computed(() => [
   canaryCount.value,
   waveSize.value,
   healthyDwellSeconds.value,
+  selectedAgentIds.value.map((id) => {
+    const agent = agents.value.find((item) => item.agentId.toString() === id);
+    return agent ? [id, agent.updaterEnrolled, agent.connected, agent.activeAssignmentId, agent.updaterVersion, updaterIsFresh(agent), agent.tunnelVersion, agent.tunnelCommit].join(":") : `${id}:missing`;
+  }).sort().join(","),
 ].join("\u0000"));
 const previewIsCurrent = computed(() => Boolean(previewFingerprint.value) && previewFingerprint.value === currentPlanFingerprint.value);
 const canCreate = computed(() => Boolean(
-  trustedTarget.value && managementAuthority.value && planName.value.trim() && selectedAgentIds.value.length > 0 &&
+  !operationError.value && trustedTarget.value && managementAuthority.value && planName.value.trim() && selectedAgentIds.value.length > 0 &&
   preview.value.length === selectedAgentIds.value.length && previewBlocked.value.length === 0 && previewIsCurrent.value,
 ));
 
@@ -97,30 +107,42 @@ async function selectSection(value: string | number) {
   if (section && section.key !== "updates") await router.push(section.path);
 }
 
-async function refresh() {
-  loading.value = true;
-  operationError.value = "";
-  try {
+const polling = createAgentUpdatePolling({
+  scope: () => `${selectedEnvironmentId.value}\u0000${selectedEnvironmentBlocked.value}`,
+  canPoll: () => !planBusy.value && !selectedEnvironmentBlocked.value && document.visibilityState !== "hidden",
+  load: async (signal) => {
+    if (selectedEnvironmentBlocked.value) throw new Error(selectedEnvironmentBlocked.value);
+    const options = { signal, timeoutMs: 15000 };
     const [nextOverview, campaignList] = await Promise.all([
-      managementClient.getAgentUpdateOverview({}),
-      managementClient.listAgentUpdateCampaigns({ limit: 50n }),
+      managementClient.getAgentUpdateOverview({}, options),
+      managementClient.listAgentUpdateCampaigns({ limit: 50n }, options),
     ]);
+    return { nextOverview, campaignList };
+  },
+  apply: ({ nextOverview, campaignList }) => {
     overview.value = nextOverview;
     campaigns.value = campaignList.campaigns;
-  } catch (error) {
-    operationError.value = messageFromError(error);
-  } finally {
-    loading.value = false;
-  }
+    operationError.value = "";
+  },
+  error: (error) => { operationError.value = messageFromError(error); },
+  loading: (value) => { loading.value = value; },
+});
+
+function refresh() {
+  return polling.refresh();
 }
 
 function openPlan() {
   planError.value = "";
   planName.value = trustedTarget.value ? `Fleet to ${trustedTarget.value.version}` : "Fleet update";
-  selectedAgentIds.value = enrolledAgents.value.filter((agent) => agent.connected && !agent.activeAssignmentId).map((agent) => agent.agentId.toString());
+  selectedAgentIds.value = agents.value.filter((agent) => !agentUnavailableForPlan(agent)).map((agent) => agent.agentId.toString());
   preview.value = [];
   previewFingerprint.value = "";
   planOpen.value = true;
+}
+
+function agentUnavailableForPlan(agent: AgentUpdateOverviewAgent): boolean {
+  return !agent.updaterEnrolled || !agent.connected || Boolean(agent.activeAssignmentId) || agentIsAlreadyOnUpdateTarget(agent, trustedTarget.value);
 }
 
 function policyRequest() {
@@ -186,34 +208,48 @@ async function createPlan() {
 }
 
 async function changeCampaign(campaign: AgentUpdateCampaign, action: "pause" | "resume" | "cancel") {
+  if (campaignBusy.value || (action === "resume" && !canResumeUpdateCampaign(campaign))) return;
   const request = { campaignId: campaign.id, expectedGeneration: campaign.generation };
-  const execute = async () => {
+  await runCampaignAction(campaign, async () => {
     if (action === "pause") await managementClient.pauseAgentUpdateCampaign(request);
     else if (action === "resume") await managementClient.resumeAgentUpdateCampaign(request);
     else await managementClient.cancelAgentUpdateCampaign(request);
-    await refresh();
-  };
-  if (runManagementAction) await runManagementAction(execute, `Campaign ${action}d`);
-  else await execute();
+  }, action === "cancel" ? "Campaign cancelled" : `Campaign ${action}d`);
 }
 
-async function retryFailed(campaign: AgentUpdateCampaign) {
-  const failed = campaign.assignments.filter((assignment) => assignment.state === AgentUpdateAssignmentState.FAILED || assignment.state === AgentUpdateAssignmentState.BLOCKED);
+async function retryFailed(campaign: AgentUpdateCampaign, recovery: boolean) {
+  if (campaignBusy.value) return;
+  const failed = recovery ? recoverableUpdateAssignments(campaign) : retryableStageAssignments(campaign);
   if (!failed.length) return;
-  const execute = async () => {
+  await runCampaignAction(campaign, async () => {
     await managementClient.retryAgentUpdateAssignments({
       campaignId: campaign.id,
       assignmentIds: failed.map((assignment) => assignment.id),
       expectedCampaignGeneration: campaign.generation,
     });
-    await refresh();
+  }, recovery ? "Rollback recovery requested" : "Failed assignments queued again");
+}
+
+async function runCampaignAction(campaign: AgentUpdateCampaign, action: () => Promise<unknown>, successMessage: string) {
+  const key = campaign.id.toString();
+  delete campaignErrors.value[key];
+  const onError = (error: unknown) => { campaignErrors.value[key] = messageFromError(error); };
+  const execute = async () => {
+    try { await action(); }
+    finally { await refresh(); }
   };
-  if (runManagementAction) await runManagementAction(execute, "Failed assignments queued again");
-  else await execute();
+  try {
+    if (runManagementAction) await runManagementAction(execute, successMessage, { onError });
+    else await execute();
+  } catch (error) { onError(error); }
 }
 
 function enableManagedUpdates(agent: AgentUpdateOverviewAgent) {
   void setupModal.value?.openExisting({ id: agent.agentId, publicId: agent.agentPublicId, name: agent.name, version: agent.tunnelVersion, commit: agent.tunnelCommit }, "enable-updates");
+}
+
+function repairUpdater(agent: AgentUpdateOverviewAgent) {
+  void setupModal.value?.openExisting({ id: agent.agentId, publicId: agent.agentPublicId, name: agent.name, version: agent.tunnelVersion, commit: agent.tunnelCommit }, "reinstall");
 }
 
 function toggleAgent(agent: AgentUpdateOverviewAgent, checked: boolean) {
@@ -249,8 +285,9 @@ function enumLabel(value: string): string {
   return value.toLowerCase().replaceAll("_", " ");
 }
 
-function assignmentStateLabel(state: AgentUpdateAssignmentState): string {
-  return enumLabel(AgentUpdateAssignmentState[state] ?? "unknown");
+function assignmentStateLabel(assignment: AgentUpdateAssignment): string {
+  if (assignment.cordoned && assignment.desiredAction === AgentUpdateDesiredAction.ROLLBACK) return "rollback pending";
+  return enumLabel(AgentUpdateAssignmentState[assignment.state] ?? "unknown");
 }
 
 function assignmentActionLabel(action: AgentUpdateDesiredAction): string {
@@ -280,6 +317,10 @@ function assignmentEvidence(assignment: AgentUpdateAssignment): string {
   return "No execution evidence reported yet";
 }
 
+function previewBlockerLabel(blocker: string): string {
+  return agentUpdatePreviewBlockerLabel(blocker, trustedTarget.value?.minimumUpdaterVersion);
+}
+
 function formatTimestamp(value: bigint): string {
   return value ? new Date(Number(value)).toLocaleString() : "—";
 }
@@ -298,7 +339,17 @@ function updaterLastSeenLabel(agent: AgentUpdateOverviewAgent): string {
     : `worker stale since ${observed.toLocaleString()}`;
 }
 
-onMounted(refresh);
+watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
+  overview.value = null;
+  campaigns.value = [];
+  campaignErrors.value = {};
+  planOpen.value = false;
+  preview.value = [];
+  previewFingerprint.value = "";
+  void polling.scopeChanged();
+}, { flush: "sync" });
+onMounted(() => { void polling.start(); });
+onUnmounted(() => polling.stop());
 </script>
 
 <template>
@@ -312,7 +363,7 @@ onMounted(refresh);
       <div class="agent-updates__actions">
         <NButton secondary size="small" :loading="loading" :disabled="isBusy" @click="refresh">
           <template #icon><RefreshIcon class="icon-sm" /></template>
-          Refresh catalog
+          Refresh status
         </NButton>
         <NButton type="primary" size="small" :disabled="!trustedTarget || !managementAuthority || !enrolledAgents.length || isBusy" @click="openPlan">
           Plan rollout
@@ -343,7 +394,7 @@ onMounted(refresh);
         <div>
           <p class="stat-label">Management release</p>
           <h4 id="release-deck-title">{{ trustedTarget?.version || serverVersion }}</h4>
-          <p>{{ trustedTarget ? `Signed stable target · sequence ${trustedTarget.releaseSequence}` : "No trusted stable target is currently available." }}</p>
+          <p>{{ trustedTarget ? `Trusted target · sequence ${trustedTarget.releaseSequence}` : "No trusted release target is currently available." }}</p>
         </div>
       </div>
       <div class="agent-release-deck__integrity">
@@ -449,6 +500,7 @@ onMounted(refresh);
         <div>
           <p class="stat-label">Host trust</p>
           <h4>Updater enrollment</h4>
+          <p v-if="trustedTarget" class="muted-text copy-xs">This target requires pinned updater {{ trustedTarget.minimumUpdaterVersion }} or newer. Repair updates the pinned updater and keeps the live tunnel binary.</p>
         </div>
         <NTag size="small" :bordered="false">{{ enrolledAgents.length }}/{{ agents.length }} enrolled</NTag>
       </div>
@@ -462,7 +514,13 @@ onMounted(refresh);
           <div><span>Pinned rescue</span><strong>{{ agent.updaterEnrolled ? (agent.updaterVersion || "enrolled") : "not enrolled" }}</strong><small v-if="agent.updaterEnrolled">{{ updaterLastSeenLabel(agent) }}</small></div>
           <div><span>Live tunnel</span><strong>{{ agent.tunnelVersion || "unreported" }}</strong><small v-if="agent.tunnelCommit" class="mono-text">{{ shortDigest(agent.tunnelCommit) }}</small></div>
           <div><span>Traffic</span><strong>{{ agent.cordoned ? "cordoned" : "eligible" }}</strong></div>
-          <NTag v-if="agent.updaterEnrolled" size="small" :bordered="false" :type="updaterIsFresh(agent) ? 'success' : 'warning'">{{ updaterIsFresh(agent) ? "Managed" : "Worker stale" }}</NTag>
+          <div v-if="agent.updaterEnrolled" class="agent-update-fleet__controls">
+            <NTag size="small" :bordered="false" :type="updaterIsFresh(agent) ? 'success' : 'warning'">{{ updaterIsFresh(agent) ? "Managed" : "Worker stale" }}</NTag>
+            <span :title="agent.activeAssignmentId ? 'Recovery must finish before replacing updater enrollment.' : 'Refresh the pinned updater while preserving the live tunnel binary.'">
+              <NButton secondary size="tiny" :disabled="campaignBusy || Boolean(agent.activeAssignmentId) || !trustedTarget || !managementAuthority" @click="repairUpdater(agent)">Repair updater</NButton>
+            </span>
+            <small v-if="agent.activeAssignmentId">Finish campaign recovery before repair.</small>
+          </div>
           <NButton v-else secondary size="tiny" :disabled="isBusy || !agent.tunnelVersion || !agent.tunnelCommit" @click="enableManagedUpdates(agent)">Enable managed updates</NButton>
         </div>
       </div>
@@ -472,27 +530,30 @@ onMounted(refresh);
     <section class="surface-card agent-update-campaigns">
       <div class="surface-card__header">
         <div>
-          <p class="stat-label">Execution history</p>
+          <p class="stat-label">Execution history · refreshes every 5 seconds</p>
           <h4>Update campaigns</h4>
         </div>
       </div>
       <div v-if="campaigns.length" class="agent-update-campaigns__rows">
         <article v-for="campaign in campaigns" :key="campaign.id.toString()" class="agent-update-campaign">
           <div class="agent-update-campaign__summary">
-            <div>
+            <div class="agent-update-campaign__identity">
               <NTag size="small" :bordered="false" :type="campaignTag(campaign.state)">{{ campaignLabel(campaign.state) }}</NTag>
               <strong>{{ campaign.name }}</strong>
               <small>{{ campaign.target?.version }} · generation {{ campaign.generation }}</small>
             </div>
-            <div class="agent-update-campaign__metric"><span>Proven healthy</span><strong>{{ assignmentProgress(campaign) }}</strong></div>
-            <div class="agent-update-campaign__metric"><span>Wave / unavailable</span><strong>{{ campaign.policy?.waveSize || 0n }} / {{ campaign.policy?.maxUnavailable || 0n }}</strong></div>
+            <div class="agent-update-campaign__metric agent-update-campaign__healthy"><span>Proven healthy</span><strong>{{ assignmentProgress(campaign) }}</strong></div>
+            <div class="agent-update-campaign__metric agent-update-campaign__wave"><span>Wave / unavailable</span><strong>{{ campaign.policy?.waveSize || 0n }} / {{ campaign.policy?.maxUnavailable || 0n }}</strong></div>
             <div class="agent-update-campaign__actions">
-              <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING" quaternary size="tiny" :disabled="isBusy" @click="changeCampaign(campaign, 'pause')"><template #icon><PauseIcon /></template>Pause</NButton>
-              <NButton v-if="campaign.state === AgentUpdateCampaignState.PAUSED" quaternary size="tiny" :disabled="isBusy" @click="changeCampaign(campaign, 'resume')"><template #icon><PlayIcon /></template>Resume</NButton>
-              <NButton v-if="campaign.assignments.some((a) => a.state === AgentUpdateAssignmentState.FAILED || a.state === AgentUpdateAssignmentState.BLOCKED)" quaternary size="tiny" :disabled="isBusy" @click="retryFailed(campaign)"><template #icon><RetryIcon /></template>Retry</NButton>
-              <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING || campaign.state === AgentUpdateCampaignState.PAUSED" quaternary size="tiny" type="error" :disabled="isBusy" @click="changeCampaign(campaign, 'cancel')">Cancel</NButton>
+              <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING" quaternary size="tiny" :disabled="campaignBusy" @click="changeCampaign(campaign, 'pause')"><template #icon><PauseIcon /></template>Pause</NButton>
+              <NButton v-if="campaign.state === AgentUpdateCampaignState.PAUSED" quaternary size="tiny" :disabled="campaignBusy || !canResumeUpdateCampaign(campaign)" :title="canResumeUpdateCampaign(campaign) ? undefined : 'Recover reserved hosts or retry failed assignments before resuming.'" @click="changeCampaign(campaign, 'resume')"><template #icon><PlayIcon /></template>Resume</NButton>
+              <NButton v-if="recoverableUpdateAssignments(campaign).length" quaternary size="tiny" :disabled="campaignBusy" @click="retryFailed(campaign, true)"><template #icon><RetryIcon /></template>Recover agents</NButton>
+              <NButton v-if="retryableStageAssignments(campaign).length" quaternary size="tiny" :disabled="campaignBusy" @click="retryFailed(campaign, false)"><template #icon><RetryIcon /></template>Retry failed</NButton>
+              <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING || campaign.state === AgentUpdateCampaignState.PAUSED" quaternary size="tiny" type="error" :disabled="campaignBusy" @click="changeCampaign(campaign, 'cancel')">Cancel</NButton>
             </div>
           </div>
+          <NAlert v-if="campaignErrors[campaign.id.toString()]" type="error" :bordered="false" class="agent-update-campaign__error" closable @close="delete campaignErrors[campaign.id.toString()]">{{ campaignErrors[campaign.id.toString()] }}</NAlert>
+          <p v-if="updateRecoveryMessage(campaign)" class="agent-update-campaign__recovery" role="status">{{ updateRecoveryMessage(campaign) }}</p>
           <details class="agent-update-campaign__details">
             <summary>Inspect {{ campaign.assignments.length }} agent assignment{{ campaign.assignments.length === 1 ? "" : "s" }}</summary>
             <div class="agent-update-assignment-list">
@@ -504,13 +565,13 @@ onMounted(refresh);
                     <small class="mono-text">{{ assignment.agentPublicId }}</small>
                   </div>
                 </div>
-                <div>
+                <div class="agent-update-assignment__state">
                   <span>State</span>
-                  <NTag size="small" :bordered="false" :type="assignmentTag(assignment.state)">{{ assignmentStateLabel(assignment.state) }}</NTag>
+                  <NTag size="small" :bordered="false" :type="assignment.desiredAction === AgentUpdateDesiredAction.ROLLBACK ? 'warning' : assignmentTag(assignment.state)">{{ assignmentStateLabel(assignment) }}</NTag>
                 </div>
-                <div><span>Desired action</span><strong>{{ assignmentActionLabel(assignment.desiredAction) }}</strong></div>
+                <div class="agent-update-assignment__action"><span>Desired action</span><strong>{{ assignmentActionLabel(assignment.desiredAction) }}</strong></div>
                 <div class="agent-update-assignment__evidence"><span>Evidence</span><strong>{{ assignmentEvidence(assignment) }}</strong></div>
-                <div><span>Updated</span><strong>{{ formatTimestamp(assignment.updatedAtUnixMillis) }}</strong></div>
+                <div class="agent-update-assignment__updated"><span>Updated</span><strong>{{ formatTimestamp(assignment.updatedAtUnixMillis) }}</strong></div>
               </div>
             </div>
           </details>
@@ -535,19 +596,19 @@ onMounted(refresh);
         </div>
         <div class="agent-update-agent-picker">
           <p class="stat-label">Agents</p>
-          <label v-for="agent in agents" :key="agent.agentPublicId" :class="{ 'agent-update-agent-picker__blocked': !agent.updaterEnrolled || !agent.connected || Boolean(agent.activeAssignmentId) }">
+          <label v-for="agent in agents" :key="agent.agentPublicId" :class="{ 'agent-update-agent-picker__blocked': agentUnavailableForPlan(agent) }">
             <NCheckbox
               :checked="selectedAgentIds.includes(agent.agentId.toString())"
-              :disabled="planBusy || !agent.updaterEnrolled || !agent.connected || Boolean(agent.activeAssignmentId)"
+              :disabled="planBusy || (!selectedAgentIds.includes(agent.agentId.toString()) && agentUnavailableForPlan(agent))"
               @update:checked="toggleAgent(agent, $event)"
             />
-            <span><strong>{{ agent.name }}</strong><small>{{ !agent.updaterEnrolled ? "Updater not enrolled" : !agent.connected ? "Disconnected" : agent.activeAssignmentId ? "Already assigned" : "Ready for preview" }}</small></span>
+            <span><strong>{{ agent.name }}</strong><small>{{ agentRolloutStatus(agent, campaigns, trustedTarget) }}</small></span>
           </label>
         </div>
         <div v-if="preview.length" class="agent-update-preview">
           <div v-for="agent in preview" :key="agent.agentPublicId" :class="{ 'agent-update-preview--blocked': !agent.eligible }">
             <CheckIcon v-if="agent.eligible" /><WarningIcon v-else />
-            <span><strong>{{ agent.name }}</strong><small>{{ agent.eligible ? "Eligible" : agent.blockers.join(", ") }}</small></span>
+            <span><strong>{{ agent.name }}</strong><small>{{ agent.eligible ? "Eligible" : agent.blockers.map(previewBlockerLabel).join("; ") }}</small></span>
           </div>
         </div>
         <NAlert v-if="preview.length && !previewIsCurrent" type="warning" :bordered="false">
@@ -558,6 +619,9 @@ onMounted(refresh);
         <div class="agent-update-modal__footer">
           <NAlert v-if="planError" type="error" :title="planErrorTitle" :bordered="false" class="agent-update-modal__error">
             {{ planError }}
+          </NAlert>
+          <NAlert v-else-if="operationError" type="error" title="Unable to refresh update status" :bordered="false" class="agent-update-modal__error">
+            {{ operationError }}
           </NAlert>
           <div class="agent-update-modal__actions">
             <NButton :disabled="planBusy" @click="planOpen = false">Cancel</NButton>
@@ -745,9 +809,11 @@ onMounted(refresh);
 .agent-update-campaigns h4 { margin: 0.15rem 0 0; }
 .agent-update-fleet__rows,
 .agent-update-campaigns__rows { display: grid; }
+.agent-update-campaigns { container: update-campaigns / inline-size; }
+.agent-update-campaigns__rows { grid-template-columns: minmax(0, 1fr); }
 .agent-update-fleet__row {
   display: grid;
-  grid-template-columns: auto minmax(13rem, 1.4fr) minmax(8rem, 0.7fr) minmax(7rem, 0.5fr) auto;
+  grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.5fr) minmax(7rem, 0.7fr);
   align-items: center;
   gap: 1rem;
   border-top: 1px solid var(--app-border-subtle);
@@ -767,6 +833,8 @@ onMounted(refresh);
 .agent-update-fleet__row > div > span,
 .agent-update-campaign__metric span { color: var(--app-text-muted); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.045em; }
 .agent-update-fleet__row strong { overflow: hidden; font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
+.agent-update-fleet__controls { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+.agent-update-fleet__controls small { max-width: 11rem; color: var(--app-text-muted); font-size: 0.65rem; overflow-wrap: anywhere; }
 .agent-update-fleet__identity small,
 .agent-update-campaign small { overflow: hidden; margin-top: 0.12rem; color: var(--app-text-muted); font-size: 0.64rem; text-overflow: ellipsis; white-space: nowrap; }
 .agent-update-campaign {
@@ -774,16 +842,22 @@ onMounted(refresh);
 }
 .agent-update-campaign__summary {
   display: grid;
-  grid-template-columns: minmax(15rem, 1.4fr) minmax(7rem, 0.5fr) minmax(8rem, 0.6fr) auto;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.5fr) minmax(0, 0.6fr) auto;
+  grid-template-areas: "identity healthy wave actions";
   align-items: center;
   gap: 1rem;
   padding: 0.9rem 1.2rem;
 }
-.agent-update-campaign__summary > div:first-child { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.45rem; }
-.agent-update-campaign__summary > div:first-child small { grid-column: 1 / -1; }
+.agent-update-campaign__identity { grid-area: identity; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0.45rem; }
+.agent-update-campaign__identity strong { overflow-wrap: anywhere; }
+.agent-update-campaign__identity small { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; }
+.agent-update-campaign__healthy { grid-area: healthy; }
+.agent-update-campaign__wave { grid-area: wave; }
 .agent-update-campaign__metric strong { margin-top: 0.15rem; font-family: var(--font-mono); font-size: 0.82rem; }
-.agent-update-campaign__actions { display: flex; justify-content: flex-end; gap: 0.25rem; }
+.agent-update-campaign__actions { grid-area: actions; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem; }
 .agent-update-campaign__actions svg { width: 0.8rem; height: 0.8rem; }
+.agent-update-campaign__recovery { margin: 0; padding: 0 1.2rem 0.9rem; color: var(--app-warning); font-size: 0.72rem; line-height: 1.5; overflow-wrap: anywhere; }
+.agent-update-campaign__error { margin: 0 1.2rem 0.9rem; overflow-wrap: anywhere; }
 .agent-update-campaign__details {
   border-top: 1px solid var(--app-border-subtle);
   background: color-mix(in srgb, var(--app-panel-muted) 62%, transparent);
@@ -797,10 +871,11 @@ onMounted(refresh);
   font-weight: 650;
   list-style-position: inside;
 }
-.agent-update-assignment-list { display: grid; border-top: 1px solid var(--app-border-subtle); }
+.agent-update-assignment-list { display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--app-border-subtle); }
 .agent-update-assignment {
   display: grid;
-  grid-template-columns: minmax(13rem, 1.1fr) minmax(8rem, 0.7fr) minmax(7rem, 0.55fr) minmax(16rem, 1.5fr) minmax(10rem, 0.75fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.7fr) minmax(0, 0.55fr) minmax(0, 1.5fr) minmax(0, 0.75fr);
+  grid-template-areas: "identity state action evidence updated";
   align-items: center;
   gap: 0.85rem;
   padding: 0.75rem 1.2rem;
@@ -810,14 +885,45 @@ onMounted(refresh);
 .agent-update-assignment > div > span,
 .agent-update-assignment > div > strong { display: block; }
 .agent-update-assignment > div > span { margin-bottom: 0.15rem; color: var(--app-text-muted); font-size: 0.59rem; letter-spacing: 0.045em; text-transform: uppercase; }
-.agent-update-assignment > div > strong { overflow: hidden; font-size: 0.68rem; text-overflow: ellipsis; white-space: nowrap; }
-.agent-update-assignment__identity { display: flex; align-items: center; gap: 0.65rem; }
+.agent-update-assignment > div > strong { font-size: 0.68rem; overflow-wrap: anywhere; }
+.agent-update-assignment__identity { grid-area: identity; display: flex; align-items: center; gap: 0.65rem; }
+.agent-update-assignment__identity > span { flex-shrink: 0; }
 .agent-update-assignment__identity > div { min-width: 0; }
 .agent-update-assignment__identity strong,
 .agent-update-assignment__identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-update-assignment__identity strong { font-size: 0.7rem; }
 .agent-update-assignment__identity small { margin-top: 0.1rem; font-size: 0.6rem; }
-.agent-update-assignment__evidence strong { white-space: normal; overflow-wrap: anywhere; }
+.agent-update-assignment__state { grid-area: state; }
+.agent-update-assignment__action { grid-area: action; }
+.agent-update-assignment__evidence { grid-area: evidence; }
+.agent-update-assignment__updated { grid-area: updated; }
+
+@container update-campaigns (max-width: 60rem) {
+  .agent-update-campaign__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+    grid-template-areas: "identity identity actions" "healthy wave actions";
+  }
+  .agent-update-assignment {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 1.5fr);
+    grid-template-areas: "identity identity updated" "state action evidence";
+    align-items: start;
+  }
+}
+
+@container update-campaigns (max-width: 40rem) {
+  .agent-update-campaign__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "identity identity" "healthy wave" "actions actions";
+    align-items: start;
+  }
+  .agent-update-campaign__actions { justify-content: flex-start; }
+  .agent-update-assignment {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "identity identity" "state action" "evidence evidence" "updated updated";
+  }
+  .agent-update-assignment__identity strong,
+  .agent-update-assignment__identity small { white-space: normal; overflow-wrap: anywhere; }
+}
 .agent-update-empty { border-top: 1px solid var(--app-border-subtle); padding: 1.5rem; color: var(--app-text-muted); font-size: 0.72rem; text-align: center; }
 .agent-update-field { display: grid; gap: 0.35rem; }
 .agent-update-field > span { color: var(--app-text-muted); font-size: 0.68rem; font-weight: 600; }
@@ -856,13 +962,8 @@ onMounted(refresh);
   .agent-update-metrics article:nth-child(4) { border-top: 1px solid var(--app-border-subtle); }
   .agent-rollout-rail__steps { grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
   .agent-rollout-step::after { display: none; }
-  .agent-update-fleet__row { grid-template-columns: auto 1fr auto; }
-  .agent-update-fleet__row > div:not(.agent-update-fleet__identity) { display: none; }
-  .agent-update-campaign__summary { grid-template-columns: 1fr auto; }
-  .agent-update-campaign__metric { display: none; }
-  .agent-update-assignment { grid-template-columns: minmax(12rem, 1fr) minmax(8rem, auto) minmax(12rem, 1fr); }
-  .agent-update-assignment > div:nth-child(3),
-  .agent-update-assignment > div:nth-child(5) { display: none; }
+  .agent-update-fleet__row { grid-template-columns: auto minmax(0, 1fr) minmax(0, auto); }
+  .agent-update-fleet__row > div:not(.agent-update-fleet__identity):not(.agent-update-fleet__controls) { display: none; }
   .agent-update-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -875,11 +976,6 @@ onMounted(refresh);
   .agent-rollout-rail__steps { grid-template-columns: 1fr; }
   .agent-update-form-grid,
   .agent-update-preview { grid-template-columns: 1fr; }
-  .agent-update-campaign__summary { align-items: flex-start; grid-template-columns: 1fr; }
-  .agent-update-campaign__actions { justify-content: flex-start; }
-  .agent-update-assignment { grid-template-columns: 1fr; }
-  .agent-update-assignment > div:nth-child(3),
-  .agent-update-assignment > div:nth-child(5) { display: block; }
   .agent-update-modal__actions { flex-wrap: wrap; }
 }
 </style>

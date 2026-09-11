@@ -689,6 +689,8 @@ RestartSec=30s
 User=root
 Group=root
 ExecStart=${UPDATER_RUNNER_PATH} updater activate
+# Successful actions must not exhaust the throttle for consecutive failures.
+ExecStartPost=/usr/bin/systemctl reset-failed p2pstream-updater-activate.service p2pstream-updater-activate.path
 ExecStartPost=/usr/bin/systemctl start --no-block p2pstream-updater.service
 ExecStopPost=/usr/bin/systemctl start --no-block p2pstream-updater.service
 UMask=0077
@@ -756,6 +758,17 @@ install_updater_foundation() {
 	install -o root -g root -m 0755 "$P2PSTREAM_AGENT_BINARY_FILE" "$next_runner"
   sync -d "$next_runner"
 
+	# Quiesce both writers before bootstrap rewrites shared enrollment/floor
+	# state. Interrupted root journals remain durable for the new runner.
+	systemctl stop p2pstream-updater.timer p2pstream-updater-activate.path >/dev/null 2>&1 || true
+	# ExecStopPost on the root helper queues the worker, so stop the worker last.
+	systemctl stop p2pstream-updater-activate.service >/dev/null 2>&1 || true
+	systemctl stop p2pstream-updater.service >/dev/null 2>&1 || true
+	if systemctl is-active --quiet p2pstream-updater.timer p2pstream-updater-activate.path p2pstream-updater.service p2pstream-updater-activate.service; then
+		fail "could not stop managed updater units before replacing enrollment state"
+	fi
+	systemctl disable p2pstream-updater.timer p2pstream-updater-activate.path >/dev/null 2>&1 || true
+
   P2PSTREAM_REPOSITORY="$repository" \
   P2PSTREAM_UPDATER_ENROLLMENT_TOKEN="$P2PSTREAM_UPDATER_ENROLLMENT_TOKEN" \
   P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64="$P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64" \
@@ -770,8 +783,6 @@ install_updater_foundation() {
   AGENT_ID="$AGENT_ID" \
 		"$next_runner" updater bootstrap-host >"${tmp_dir}/updater-identities.json" \
     || fail "failed to create isolated updater identities"
-	systemctl stop p2pstream-updater.timer p2pstream-updater-activate.path p2pstream-updater.service p2pstream-updater-activate.service >/dev/null 2>&1 || true
-	systemctl disable p2pstream-updater.timer p2pstream-updater-activate.path >/dev/null 2>&1 || true
 	mv -Tf "$next_runner" "$UPDATER_RUNNER_PATH"
 	sync -d "$UPDATER_RUNNER_DIR"
 

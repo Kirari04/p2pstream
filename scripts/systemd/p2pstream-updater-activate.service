@@ -13,6 +13,8 @@ RestartSec=30s
 User=root
 Group=root
 ExecStart=/opt/p2pstream-agent/updater/p2pstream updater activate
+# Successful actions must not exhaust the throttle for consecutive failures.
+ExecStartPost=/usr/bin/systemctl reset-failed p2pstream-updater-activate.service p2pstream-updater-activate.path
 ExecStartPost=/usr/bin/systemctl start --no-block p2pstream-updater.service
 ExecStopPost=/usr/bin/systemctl start --no-block p2pstream-updater.service
 UMask=0077

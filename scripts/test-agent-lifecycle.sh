@@ -132,6 +132,7 @@ setup_fixture() {
     'printf "%s" "$*" >>"${FAKE_SYSTEMCTL_LOG:?}"' \
     'printf "\n" >>"${FAKE_SYSTEMCTL_LOG:?}"' \
     'if [[ "${1:-}" == "--version" ]]; then printf "systemd 252\n"; exit 0; fi' \
+    'if [[ "${1:-}" == "is-active" ]]; then [[ "${FAKE_SYSTEMCTL_STILL_ACTIVE:-}" == "1" ]] && exit 0; exit 3; fi' \
     'if [[ "${FAKE_SYSTEMCTL_FAIL_RESTART:-}" == "1" && "${1:-}" == "restart" ]]; then exit 1; fi' \
     'exit 0'
 
@@ -329,6 +330,10 @@ test_existing_install_managed_updater_bootstrap_preserves_env() {
   assert_contains "${SYSTEMD_DIR}/p2pstream-updater.service" "ConditionPathExists=${UPDATER_CONFIG_DIR}/management-authority.json"
   assert_contains "${SYSTEMD_DIR}/p2pstream-updater.service" "ExecStart=${AGENT_INSTALL_ROOT}/updater/p2pstream updater stage"
   assert_contains "${SYSTEMD_DIR}/p2pstream-updater-activate.service" "PrivateNetwork=true"
+  assert_contains "${SYSTEMD_DIR}/p2pstream-updater-activate.service" "StartLimitBurst=5"
+  assert_contains "${SYSTEMD_DIR}/p2pstream-updater-activate.service" "Restart=on-failure"
+  assert_contains "${SYSTEMD_DIR}/p2pstream-updater-activate.service" "ExecStartPost=/usr/bin/systemctl reset-failed p2pstream-updater-activate.service p2pstream-updater-activate.path"
+  assert_contains "${ROOT_DIR}/scripts/systemd/p2pstream-updater-activate.service" "ExecStartPost=/usr/bin/systemctl reset-failed p2pstream-updater-activate.service p2pstream-updater-activate.path"
   assert_contains "${SYSTEMD_DIR}/p2pstream-updater-activate.service" "IPAddressDeny=any"
   assert_contains "${SYSTEMD_DIR}/p2pstream-updater-activate.service" "ExecStart=${AGENT_INSTALL_ROOT}/updater/p2pstream updater activate"
   assert_contains "${SYSTEMD_DIR}/p2pstream-updater.timer" "RandomizedDelaySec=30s"
@@ -460,6 +465,7 @@ test_managed_updater_reenrollment_updates_only_pinned_rescue() {
 	cp -L "$INSTALL_PATH" "${TEST_DIR}/tunnel-before-reenroll"
 	write_executable "$LOCAL_AGENT_BINARY" \
 		'#!/usr/bin/env sh' \
+		'if [ "$*" = "updater bootstrap-host" ]; then grep -Fqx "stop p2pstream-updater.service" "$FAKE_SYSTEMCTL_LOG" || { echo "bootstrap raced live updater services" >&2; exit 1; }; fi' \
 		'if [ -n "${FAKE_COMMAND_LOG:-}" ]; then printf "p2pstream-rescue-v3 %s\n" "$*" >>"$FAKE_COMMAND_LOG"; fi' \
 		'printf p2pstream-rescue-v3'
 	: >"$SYSTEMCTL_LOG"
@@ -476,6 +482,17 @@ test_managed_updater_reenrollment_updates_only_pinned_rescue() {
 		|| fail "rescue re-enrollment did not atomically promote the pinned runner"
 	assert_contains "$COMMAND_LOG" "p2pstream-rescue-v3 updater enroll"
 	assert_not_contains "$SYSTEMCTL_LOG" "restart p2pstream-agent"
+	: >"$COMMAND_LOG"
+	if run_installer \
+		P2PSTREAM_ENABLE_MANAGED_UPDATES="true" \
+		P2PSTREAM_UPDATER_ENROLLMENT_TOKEN="refuse-live-writer" \
+		FAKE_SYSTEMCTL_STILL_ACTIVE="1" \
+		MANAGEMENT_URL="https://mgmt.example.test:8081" \
+		AGENT_ID="agent-one" >"${TEST_DIR}/still-active.out" 2>"${TEST_DIR}/still-active.err"; then
+		fail "re-enrollment proceeded while updater units remained active"
+	fi
+	assert_contains "${TEST_DIR}/still-active.err" "could not stop managed updater units"
+	assert_not_contains "$COMMAND_LOG" "updater bootstrap-host"
 
 	# Reinstall / Repair supplies the existing token and restarts the service,
 	# but re-enrollment must not replace its managed slot or claim an upgrade.

@@ -48,6 +48,12 @@ func validateArtifact(a Artifact) error {
 func artifactHex(a Artifact) string { return hex.EncodeToString(a.SHA256[:]) }
 
 func atomicWrite(path string, data []byte, mode os.FileMode) error {
+	return atomicWriteOwned(path, data, mode, -1, -1)
+}
+
+// Set ownership before publishing the replacement, so a root write cannot
+// temporarily or permanently remove the reader group's access.
+func atomicWriteOwned(path string, data []byte, mode os.FileMode, uid, gid int) error {
 	dir := filepath.Dir(path)
 	f, err := os.CreateTemp(dir, ".write-*")
 	if err != nil {
@@ -61,6 +67,11 @@ func atomicWrite(path string, data []byte, mode os.FileMode) error {
 			_ = os.Remove(tmp)
 		}
 	}()
+	if uid != -1 || gid != -1 {
+		if err := f.Chown(uid, gid); err != nil {
+			return err
+		}
+	}
 	if err := f.Chmod(mode); err != nil {
 		return err
 	}
@@ -84,12 +95,16 @@ func atomicWrite(path string, data []byte, mode os.FileMode) error {
 }
 
 func atomicJSON(path string, value any, mode os.FileMode) error {
+	return atomicJSONOwned(path, value, mode, -1, -1)
+}
+
+func atomicJSONOwned(path string, value any, mode os.FileMode, uid, gid int) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
 	data = append(data, '\n')
-	return atomicWrite(path, data, mode)
+	return atomicWriteOwned(path, data, mode, uid, gid)
 }
 
 func strictJSON(data []byte, value any) error {
