@@ -3,6 +3,9 @@ Description=Periodically check for an assigned p2pstream agent update
 
 [Timer]
 OnBootSec=30s
+# Re-arm polling when an existing timer is restarted after repair. Its boot
+# trigger may already be consumed and its service timestamps may be reset.
+OnActiveSec=30s
 OnUnitActiveSec=30s
 RandomizedDelaySec=30s
 AccuracySec=5s

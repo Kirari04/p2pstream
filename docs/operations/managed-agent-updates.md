@@ -156,6 +156,30 @@ If a host enrolled successfully but shows **Worker stale**, check `systemctl sta
 
 Re-enrolling or repairing an already managed host updates its rescue runner and keeps its existing agent binary and rollback state. Upgrading that binary requires a rollout campaign. A successful repair message alone does not confirm that the agent upgraded; check **Live tunnel** and the campaign result.
 
+The timer shipped through `v0.1.53-staging.88` can stop scheduling after repair.
+The enrollment command sends its own check-in before systemd starts the worker,
+so management can show the new pinned updater version while subsequent checks
+never arrive. Check `systemctl status p2pstream-updater.timer`: the characteristic
+state is **active (elapsed)** with **Trigger: n/a**. The original timer's boot
+trigger was already consumed, and stopping/reloading the units can discard the
+service activation timestamps needed by `OnUnitActiveSec`. The corrected timer
+adds `OnActiveSec=30s`, giving every timer restart a fresh scheduling deadline.
+
+For an already repaired `.88` host, apply the timer correction directly:
+
+```sh
+sudo install -d -m 0755 /etc/systemd/system/p2pstream-updater.timer.d &&
+printf '[Timer]\nOnActiveSec=30s\n' | sudo tee /etc/systemd/system/p2pstream-updater.timer.d/10-rearm.conf >/dev/null &&
+sudo systemctl daemon-reload &&
+sudo systemctl restart p2pstream-updater.timer &&
+sudo systemctl start p2pstream-updater.service
+```
+
+This preserves the agent credentials, network permissions, signed receipts and
+current campaign. The timer should show a future trigger while waiting; **running**
+is also normal while its worker executes. A failed worker invocation requires
+its journal (`sudo journalctl -u p2pstream-updater.service -n 50 --no-pager`).
+
 If activation reports that the agent service did not become active and rolled back, inspect the agent service journal and the candidate slot permissions. Updater builds through `v0.1.53-staging.86` created the new slot directory with mode `0700`; the activator's `UMask=0077` also restricted the executable to `0700`. The `p2pstream` service user cannot execute that root-owned slot. The corrected updater explicitly applies `0755` to the verified executable and its version directory before promotion, and repairs those permissions on verified existing slots during retry. Its private state still uses the restrictive umask. Install a release containing this correction into each host's pinned rescue updater before attempting further rollouts; changing only the management server or the agent's live binary does not replace that separate runner.
 
 - A failed download, manifest, size, or digest check never reaches the

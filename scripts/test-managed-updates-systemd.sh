@@ -50,8 +50,9 @@ multipass transfer "${build_dir}/fixture.tar.gz" "${vm_name}:/tmp/p2pstream-revi
 multipass exec "$vm_name" -- sudo bash -c 'set -e; mkdir -p /opt/p2pstream-systemd-fixture; tar -xzf /tmp/p2pstream-review-fixture.tar.gz -C /opt/p2pstream-systemd-fixture; printf "disposable-p2pstream-update-test\n" >/run/p2pstream-systemd-test-vm'
 printf 'Running installer, real services, legacy reports and repeated rollout in %s...\n' "$vm_name"
 result=0
-multipass exec "$vm_name" -- sudo env P2PSTREAM_SYSTEMD_INTEGRATION=1 P2PSTREAM_SYSTEMD_FIXTURE_DIR=/opt/p2pstream-systemd-fixture /opt/p2pstream-systemd-fixture/server.test -test.run '^TestManagedUpdatesSystemdLifecycle$' -test.v -test.timeout 10m >"${output_dir}/test.log" 2>&1 || result=$?
+multipass exec "$vm_name" -- sudo env P2PSTREAM_SYSTEMD_INTEGRATION=1 P2PSTREAM_SYSTEMD_FIXTURE_DIR=/opt/p2pstream-systemd-fixture /opt/p2pstream-systemd-fixture/server.test -test.run '^TestManagedUpdatesSystemdLifecycle$' -test.v -test.timeout 25m >"${output_dir}/test.log" 2>&1 || result=$?
 multipass exec "$vm_name" -- sudo cat /opt/p2pstream-systemd-fixture/systemd-journal.log >"${output_dir}/systemd-journal.log" 2>/dev/null || true
+multipass exec "$vm_name" -- sudo cat /opt/p2pstream-systemd-fixture/systemd-status.log >"${output_dir}/systemd-status.log" 2>/dev/null || true
 cat "${output_dir}/test.log"
 printf 'Logs: %s\n' "$output_dir"
 exit "$result"

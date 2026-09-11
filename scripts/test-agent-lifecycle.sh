@@ -337,6 +337,7 @@ test_existing_install_managed_updater_bootstrap_preserves_env() {
   assert_contains "${SYSTEMD_DIR}/p2pstream-updater-activate.service" "IPAddressDeny=any"
   assert_contains "${SYSTEMD_DIR}/p2pstream-updater-activate.service" "ExecStart=${AGENT_INSTALL_ROOT}/updater/p2pstream updater activate"
   assert_contains "${SYSTEMD_DIR}/p2pstream-updater.timer" "RandomizedDelaySec=30s"
+  assert_contains "${SYSTEMD_DIR}/p2pstream-updater.timer" "OnActiveSec=30s"
   assert_contains "$COMMAND_LOG" "updater bootstrap-host"
   assert_contains "$COMMAND_LOG" "updater enroll"
   assert_contains "$COMMAND_LOG" "updater finalize-enrollment"

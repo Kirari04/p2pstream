@@ -86,3 +86,41 @@ The intended first corrected updater is `.88`; confirm that tag contains these
 fixes when publishing. If another release consumes that tag first, move the fixed
 minimum to the first release that actually contains the corrections. Re-run the
 VM gate before staging changes to execution, recovery, enrollment or units.
+
+## Follow-up: timer stops after `.88` repair
+
+The initial VM test above stopped the updater timer and explicitly started
+workers. That verified execution and recovery but missed periodic scheduling
+after repair. The follow-up removes that shortcut: installed production timers
+now drive the campaigns, including the final rollout after repair, and the test
+rejects an exhausted timer even when `systemctl is-active` reports success.
+
+All four live agents were inspected through the user-provided SSH jump host.
+Each had an enabled timer in `active (elapsed)`, an infinite next deadline, and
+an inactive worker. The new `.88` identity visible in management came from the
+enrollment command's own signed check. The original timer's boot trigger had
+already fired, while repair's stop/reload sequence discarded the service
+activation timestamps needed by `OnUnitActiveSec`. No later poll was scheduled.
+
+Both the installer-generated timer and the checked-in unit now include
+`OnActiveSec=30s`. Existing hosts received the same setting as a persistent
+`/etc/systemd/system/p2pstream-updater.timer.d/10-rearm.conf` override. Only their
+timers were restarted; no manual worker start, token rotation, receipt removal,
+or new campaign was needed. All four resumed recurring checks. Fair Orca's
+existing campaign then completed on `v0.1.53-staging.88`, with 1/1 proven healthy
+at 23:18:36 CEST. The other three hosts remain on their previous live versions
+and are available for subsequent rollout.
+
+| Follow-up check | Result | Evidence |
+| --- | --- | --- |
+| Isolated timer before/after repair | Original timer stopped at 3 executions; the same timer with `OnActiveSec` resumed to 6. A worker longer than its interval also kept recurring. | `tmp/timer-review/timer-probe.log` |
+| Historical missing-condition repair | Original timer stayed exhausted after the condition was corrected; the added restart deadline restored polling. | `tmp/timer-review/legacy-condition-probe.log` |
+| Original full lifecycle, then timer-only intervention | Reproduced the post-repair stall with real binaries and units; replacing only the timer resumed the same campaign to success. This run deliberately includes that intervention. | `tmp/managed-updates-timer-review/stalled-after-repair.log`, `timer-intervention.md`, `test.log` |
+| Fresh full lifecycle using the corrected installer | Passed in 502.81 seconds without mid-run intervention: upgrades, signed legacy rollback and lost-response retry, crash throttling, repair, and exact-target retry. | `tmp/managed-updates-timer-fixed/test.log`, `systemd-status.log`, `systemd-journal.log` |
+| Installer lifecycle, shell syntax, harness compilation and server vet | Passed | `tmp/timer-review/lifecycle.log`, `vet.log` |
+| Live fleet after correction | All four timers repeatedly invoked successful workers; Fair Orca's running executable was the `.88` slot. | `tmp/timer-review/fleet-verification.log` and live campaign result |
+
+The corrected harness retains the prior VM's platform and networking limits.
+Both disposable VMs were removed after collecting evidence. This follow-up
+does not publish a new staging release; the fleet timer correction is already
+applied, and the installer change is ready for the next release.
