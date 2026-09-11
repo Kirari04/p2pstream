@@ -61,10 +61,15 @@ func TestManagedUpdatesSystemdLifecycle(t *testing.T) {
 	if _, err := os.Stat(legacy); err != nil {
 		t.Fatalf("real legacy worker fixture is required: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 	defer func() {
-		cmd := exec.Command("journalctl", "-u", "p2pstream-agent", "-u", "p2pstream-updater", "-u", "p2pstream-updater-activate", "--no-pager", "-n", "240")
+		status, _ := exec.Command("systemctl", "status", "p2pstream-updater.timer", "p2pstream-updater.service", "p2pstream-updater-activate.path", "p2pstream-updater-activate.service", "--no-pager", "-l").CombinedOutput()
+		_ = os.WriteFile(filepath.Join(root, "systemd-status.log"), status, 0600)
+		if t.Failed() {
+			t.Logf("systemd status:\n%s", status)
+		}
+		cmd := exec.Command("journalctl", "-u", "p2pstream-agent", "-u", "p2pstream-updater", "-u", "p2pstream-updater.timer", "-u", "p2pstream-updater-activate", "--no-pager", "-n", "400")
 		if output, err := cmd.CombinedOutput(); err == nil {
 			_ = os.WriteFile(filepath.Join(root, "systemd-journal.log"), output, 0600)
 			if t.Failed() {
@@ -187,9 +192,9 @@ func TestManagedUpdatesSystemdLifecycle(t *testing.T) {
 	if output, err := install.CombinedOutput(); err != nil {
 		t.Fatalf("real installer failed: %v\n%s", err, output)
 	}
-	// Drive the worker explicitly to keep the test bounded; the production
-	// activation path and service hardening remain unchanged.
-	systemdCommand(t, ctx, "systemctl", "stop", "p2pstream-updater.timer")
+	// Leave the installed production timer running. Enrollment performs one
+	// signed check itself, which must not mask a broken periodic worker.
+	systemdAssertPollingScheduled(t, ctx)
 	waitForAgentHubConnection(t, app, agent.ID, true)
 	originalEnv := systemdRead(t, "/etc/p2pstream/agent.env")
 
@@ -203,10 +208,9 @@ func TestManagedUpdatesSystemdLifecycle(t *testing.T) {
 		}
 		return response.Msg.Campaign.Id
 	}
-	var lastWorkerStart time.Time
 	waitCampaign := func(campaignID int64, want string) {
 		t.Helper()
-		deadline := time.Now().Add(90 * time.Second)
+		deadline := time.Now().Add(5 * time.Minute)
 		last := ""
 		for time.Now().Before(deadline) && ctx.Err() == nil {
 			var state, action, failure string
@@ -224,17 +228,6 @@ func TestManagedUpdatesSystemdLifecycle(t *testing.T) {
 			}
 			if state == "blocked" {
 				t.Fatalf("campaign blocked: %s", current)
-			}
-			if time.Since(lastWorkerStart) >= 5*time.Second {
-				lastWorkerStart = time.Now()
-				if output, err := exec.CommandContext(ctx, "systemctl", "start", "p2pstream-updater.service").CombinedOutput(); err != nil {
-					if want != "failed" {
-						t.Fatalf("real worker failed: %v\n%s", err, output)
-					}
-					// A single injected lost response should be recovered by the next
-					// invocation. Persistent errors still fail the bounded phase below.
-					t.Logf("rollback worker retry after failed invocation: %v", err)
-				}
 			}
 			app.reconcileAgentUpdateMaintenance(ctx, time.Now().UTC())
 			time.Sleep(250 * time.Millisecond)
@@ -363,13 +356,34 @@ func TestManagedUpdatesSystemdLifecycle(t *testing.T) {
 	if err := database.QueryRow(`SELECT updater_version FROM agent_updater_identities WHERE agent_id=?`, agent.ID).Scan(&enrolledUpdaterVersion); err != nil || enrolledUpdaterVersion != "v1.1.0" {
 		t.Fatalf("repair did not promote enrolled updater version: %q, %v", enrolledUpdaterVersion, err)
 	}
-	systemdCommand(t, ctx, "systemctl", "stop", "p2pstream-updater.timer")
+	systemdAssertPollingScheduled(t, ctx)
 	waitForAgentHubConnection(t, app, agent.ID, true)
 	assertLive("v1.1.0")
 	third := startCampaign("v1.2.0")
 	waitCampaign(third, "succeeded")
 	assertLive("v1.2.0")
-	t.Log("PASS: real install/enrollment, two upgrades, signed cancellation rollback, legacy worker report/lost-response retry, crash throttle, pinned-updater repair, and exact-target retry")
+	t.Log("PASS: production timer drove real install/enrollment, two upgrades, signed cancellation rollback, legacy worker report/lost-response retry, crash throttle, pinned-updater repair, and exact-target retry")
+}
+
+func systemdAssertPollingScheduled(t *testing.T, ctx context.Context) {
+	t.Helper()
+	// is-active also succeeds for an exhausted timer with no next trigger.
+	status := systemdCommand(t, ctx, "systemctl", "show", "p2pstream-updater.timer", "--property=SubState,NextElapseUSecMonotonic")
+	values := make(map[string]string)
+	for _, line := range strings.Split(strings.TrimSpace(status), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if ok {
+			values[key] = value
+		}
+	}
+	state, deadline := values["SubState"], values["NextElapseUSecMonotonic"]
+	if state == "running" {
+		// A fired oneshot can temporarily have no next deadline until it exits.
+		return
+	}
+	if state != "waiting" || deadline == "" || deadline == "infinity" || deadline == "0" {
+		t.Fatalf("updater timer has no next polling deadline after install/repair: state=%q, deadline=%q", state, deadline)
+	}
 }
 
 type systemdTestCatalog struct {
