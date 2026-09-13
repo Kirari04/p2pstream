@@ -70,6 +70,10 @@ jobs:
       - name: Run Go tests
         run: go test ./...
 
+      - name: Race-test local Yamux extension
+        run: go test -race ./...
+        working-directory: third_party/yamux
+
       - name: Run Go vet
         run: go vet ./...
 

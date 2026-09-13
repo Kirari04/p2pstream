@@ -42,7 +42,7 @@ func TestEffectivePublicRequestCapacities(t *testing.T) {
 		wantGlobal    int64
 		wantPerTarget int64
 	}{
-		{name: "zero values use the global default", wantGlobal: 2048, wantPerTarget: 2048},
+		{name: "zero values use the global default", wantGlobal: defaultPublicMaxConcurrentRequests, wantPerTarget: defaultPublicMaxConcurrentRequests},
 		{name: "automatic target follows configured global", global: 4096, wantGlobal: 4096, wantPerTarget: 4096},
 		{name: "explicit target is retained", global: 4096, perTarget: 512, wantGlobal: 4096, wantPerTarget: 512},
 		{name: "invalid direct construction stays globally bounded", global: 8, perTarget: 9, wantGlobal: 8, wantPerTarget: 8},
@@ -159,7 +159,7 @@ func TestPublicRequestAdmissionLimitsResolvedClientAcrossConnections(t *testing.
 	}
 }
 
-func TestPublicRequestAdmissionAppliesAdaptiveClientShareAcrossHTTP2Work(t *testing.T) {
+func TestPublicRequestAdmissionDoesNotApplyPhysicalStreamShareToHTTP2Work(t *testing.T) {
 	app := NewApp(&config.Config{
 		PublicMaxRequestBodyBytes:    1024,
 		PublicRequestBodyIdleMillis:  30_000,
@@ -194,12 +194,42 @@ func TestPublicRequestAdmissionAppliesAdaptiveClientShareAcrossHTTP2Work(t *test
 	request := httptest.NewRequest(http.MethodGet, "http://public.test/", nil)
 	request.RemoteAddr = "192.0.2.30:1234"
 	recorder := httptest.NewRecorder()
-	app.publicProxyHandler(1)(recorder, request)
-	if recorder.Code != http.StatusServiceUnavailable || recorder.Header().Get("Retry-After") != "1" {
-		t.Fatalf("adaptive client capacity response = %d retry-after %q", recorder.Code, recorder.Header().Get("Retry-After"))
+	ctx := newPublicProxyContext(app, 1, recorder, request)
+	if result := publicRequestAdmissionStage(ctx); result != publicProxyStageContinue {
+		t.Fatalf("HTTP/2 request was rejected at the physical stream share: %d", recorder.Code)
 	}
+	ctx.runCleanup()
+	for len(releases) < int(app.Config.PublicMaxConcurrentPerClient) {
+		release, ok := app.publicClientRequests.tryAcquire("192.0.2.30", -1)
+		if !ok {
+			t.Fatal("explicit client limit was reached prematurely")
+		}
+		releases = append(releases, release)
+	}
+	recorder = httptest.NewRecorder()
+	ctx = newPublicProxyContext(app, 1, recorder, request)
+	if result := publicRequestAdmissionStage(ctx); result != publicProxyStageDone || recorder.Code != http.StatusServiceUnavailable {
+		t.Fatal("explicit client concurrency limit was not preserved")
+	}
+	ctx.runCleanup()
 	for _, release := range releases {
 		release()
+	}
+}
+
+func TestAutomaticPublicAdmissionExceedsLegacyRequestAndPeerLimits(t *testing.T) {
+	app := NewApp(&config.Config{ServerTunnelCapacityAuto: true, ServerTunnelMaxConcurrentStreams: 65536}, nil)
+	usage := sysmetrics.MemoryUsage{UsedBytes: 128 << 20, LimitBytes: 16 << 30, Source: "test"}
+	app.agentStreamCapacity = newAdaptiveServerCapacityForTest(t, 65536, &usage)
+	for range 3000 {
+		req := httptest.NewRequest(http.MethodGet, "http://public.test/", nil)
+		req.RemoteAddr = "192.0.2.30:1234"
+		req.ProtoMajor = 2
+		ctx := newPublicProxyContext(app, 1, httptest.NewRecorder(), req)
+		t.Cleanup(ctx.runCleanup)
+		if publicRequestAdmissionStage(ctx) != publicProxyStageContinue {
+			t.Fatal("automatic admission rejected below real resource capacity")
+		}
 	}
 }
 

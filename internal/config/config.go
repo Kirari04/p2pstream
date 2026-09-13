@@ -63,12 +63,12 @@ type Config struct {
 	PublicMaxHeaderBytes              int    `env:"PUBLIC_MAX_HEADER_BYTES" envDefault:"65536"`
 	PublicMaxRequestBodyBytes         int64  `env:"PUBLIC_MAX_REQUEST_BODY_BYTES" envDefault:"1073741824"`
 	PublicRequestBodyIdleMillis       int64  `env:"PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS" envDefault:"30000"`
-	PublicMaxConcurrentRequests       int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS" envDefault:"2048"`
+	PublicMaxConcurrentRequests       int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS" envDefault:"0"`
 	PublicMaxConcurrentPerTarget      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET" envDefault:"0"`
-	PublicMaxConcurrentPerClient      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT" envDefault:"512"`
+	PublicMaxConcurrentPerClient      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT" envDefault:"0"`
 	PublicMaxConcurrentConnections    int64  `env:"PUBLIC_MAX_CONCURRENT_CONNECTIONS" envDefault:"0"`
-	PublicMaxConnectionsPerPeer       int64  `env:"PUBLIC_MAX_CONNECTIONS_PER_PEER" envDefault:"256"`
-	PublicMaxConnectionsPerTarget     int    `env:"PUBLIC_MAX_CONNECTIONS_PER_TARGET" envDefault:"256"`
+	PublicMaxConnectionsPerPeer       int64  `env:"PUBLIC_MAX_CONNECTIONS_PER_PEER" envDefault:"0"`
+	PublicMaxConnectionsPerTarget     int    `env:"PUBLIC_MAX_CONNECTIONS_PER_TARGET" envDefault:"0"`
 	BootstrapAgentID                  string `env:"BOOTSTRAP_AGENT_ID"`
 	BootstrapAgentName                string `env:"BOOTSTRAP_AGENT_NAME"`
 	BootstrapAgentToken               string `env:"BOOTSTRAP_AGENT_TOKEN"`
@@ -84,7 +84,7 @@ type Config struct {
 	ServerTunnelMemoryHardPercent     int64  `env:"SERVER_TUNNEL_MEMORY_HARD_PERCENT" envDefault:"90"`
 	ServerTunnelMemoryRecoveryPercent int64  `env:"SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT" envDefault:"75"`
 	ServerTunnelMemorySampleMillis    int64  `env:"SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS" envDefault:"100"`
-	ServerTunnelEstimatedStreamBytes  int64  `env:"SERVER_TUNNEL_ESTIMATED_STREAM_BYTES" envDefault:"1310720"`
+	ServerTunnelEstimatedStreamBytes  int64  `env:"SERVER_TUNNEL_ESTIMATED_STREAM_BYTES" envDefault:"0"`
 
 	CertsDir                         string `env:"-"`
 	ManagementTLSEnabled             bool   `env:"-"`
@@ -193,17 +193,17 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.PublicRequestBodyIdleMillis < 5000 || cfg.PublicRequestBodyIdleMillis > 10*60*1000 {
 		return errors.New("PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS must be between 5000 and 600000")
 	}
-	if cfg.PublicMaxConcurrentRequests < 1 || cfg.PublicMaxConcurrentRequests > 100000 {
-		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS must be between 1 and 100000")
+	if cfg.PublicMaxConcurrentRequests < 0 || cfg.PublicMaxConcurrentRequests > 1_000_000 {
+		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS must be 0 (automatic) or between 1 and 1000000")
 	}
-	if cfg.PublicMaxConcurrentPerTarget < 0 || cfg.PublicMaxConcurrentPerTarget > cfg.PublicMaxConcurrentRequests {
+	if cfg.PublicMaxConcurrentPerTarget < 0 || cfg.PublicMaxConcurrentPerTarget > 1_000_000 || (cfg.PublicMaxConcurrentRequests > 0 && cfg.PublicMaxConcurrentPerTarget > cfg.PublicMaxConcurrentRequests) {
 		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET must be 0 or between 1 and PUBLIC_MAX_CONCURRENT_REQUESTS")
 	}
 	if cfg.PublicMaxConcurrentPerTarget == 0 {
 		cfg.PublicMaxConcurrentPerTarget = cfg.PublicMaxConcurrentRequests
 		cfg.PublicMaxConcurrentPerTargetAuto = true
 	}
-	if cfg.PublicMaxConcurrentPerClient < 0 || cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests {
+	if cfg.PublicMaxConcurrentPerClient < 0 || cfg.PublicMaxConcurrentPerClient > 1_000_000 || (cfg.PublicMaxConcurrentRequests > 0 && cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests) {
 		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT must be 0 or between 1 and PUBLIC_MAX_CONCURRENT_REQUESTS")
 	}
 	if cfg.PublicMaxConcurrentConnections < 0 || cfg.PublicMaxConcurrentConnections > 1_000_000 {
@@ -215,8 +215,8 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.PublicMaxConcurrentConnections > 0 && cfg.PublicMaxConnectionsPerPeer > cfg.PublicMaxConcurrentConnections {
 		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_PEER must not exceed PUBLIC_MAX_CONCURRENT_CONNECTIONS")
 	}
-	if cfg.PublicMaxConnectionsPerTarget < 1 || cfg.PublicMaxConnectionsPerTarget > 65535 {
-		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_TARGET must be between 1 and 65535")
+	if cfg.PublicMaxConnectionsPerTarget < 0 || cfg.PublicMaxConnectionsPerTarget > 1_000_000 {
+		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_TARGET must be 0 (automatic) or between 1 and 1000000")
 	}
 	if _, err := tunnel.NormalizeMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes); err != nil {
 		return err
@@ -239,7 +239,7 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.ServerTunnelMemorySampleMillis < 10 || cfg.ServerTunnelMemorySampleMillis > 10000 {
 		return errors.New("SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS must be between 10 and 10000")
 	}
-	if cfg.ServerTunnelEstimatedStreamBytes < tunnel.MinimumAdaptiveStreamChargeBytes || cfg.ServerTunnelEstimatedStreamBytes > tunnel.MaxStreamWindowSizeBytesLimit {
+	if cfg.ServerTunnelEstimatedStreamBytes != 0 && (cfg.ServerTunnelEstimatedStreamBytes < tunnel.MinimumAdaptiveStreamChargeBytes || cfg.ServerTunnelEstimatedStreamBytes > tunnel.MaxStreamWindowSizeBytesLimit) {
 		return fmt.Errorf("SERVER_TUNNEL_ESTIMATED_STREAM_BYTES must be between %d and %d", tunnel.MinimumAdaptiveStreamChargeBytes, tunnel.MaxStreamWindowSizeBytesLimit)
 	}
 	if _, err := tunnel.AdaptiveMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes, cfg.ServerTunnelEstimatedStreamBytes); err != nil {

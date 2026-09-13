@@ -110,6 +110,7 @@ type trafficRequestTrace struct {
 	requestHeaders map[string]string
 	requestBytes   uint64
 	recorder       *proxyResponseRecorder
+	upstreamTiming atomic.Pointer[agentProxyTiming]
 }
 
 func (a *App) newTrafficRequestTrace(r *http.Request, recorder *proxyResponseRecorder, safePath string) *trafficRequestTrace {
@@ -207,6 +208,7 @@ func (t *trafficRequestTrace) emit(
 			event.DebugAttributes = map[string]string{}
 		}
 		event.DebugAttributes["elapsed_ms"] = int64TraceString(event.DurationMs)
+		t.upstreamTiming.Load().attributes(event.DebugAttributes)
 	}
 	if resolution != nil {
 		fillTrafficTraceResolution(event, *resolution)

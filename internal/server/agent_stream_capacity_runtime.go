@@ -5,8 +5,7 @@ import "p2pstream/internal/tunnel"
 const (
 	defaultAgentStreamCapacityControlStreams = 4
 	minimumAgentStreamCapacityWaiters        = 64
-	maximumAgentStreamCapacityWaiters        = 4096
-	maximumAgentStreamCapacityWaitersPerKey  = 512
+	maximumAgentStreamCapacityWaiters        = int(tunnel.MaxServerConcurrentStreamsLimit)
 )
 
 // defaultAgentStreamCapacityConfig derives the server-side stream budgets from
@@ -51,16 +50,10 @@ func defaultAgentStreamCapacityConfig(total int64) agentStreamCapacityConfig {
 	if maxWaiters > maximumAgentStreamCapacityWaiters {
 		maxWaiters = maximumAgentStreamCapacityWaiters
 	}
-	maxWaitersPerKey := totalStreams / 4
-	if maxWaitersPerKey < 16 {
-		maxWaitersPerKey = 16
-	}
-	if maxWaitersPerKey > maximumAgentStreamCapacityWaitersPerKey {
-		maxWaitersPerKey = maximumAgentStreamCapacityWaitersPerKey
-	}
-	if maxWaitersPerKey > maxWaiters {
-		maxWaitersPerKey = maxWaiters
-	}
+	// A single hot target may use the queue when other targets have no demand.
+	// Dispatch remains round-robin across keys; request admission accounts for
+	// queued request memory before reaching this layer.
+	maxWaitersPerKey := maxWaiters
 	maxOpeningPerSession := tunnel.DefaultYamuxConfig(nil).AcceptBacklog
 	if maxOpeningPerSession > totalStreams {
 		maxOpeningPerSession = totalStreams

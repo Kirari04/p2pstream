@@ -31,14 +31,15 @@ type agentTunnelCapacitySnapshot struct {
 
 // agentTunnelCapacityRuntime owns the agent-side lifetime admission count.
 // Adaptive mode has no static memory-derived stream ceiling: its live ceiling
-// follows sampled memory and descriptor headroom. Explicit configuration uses
-// the same implementation with no controller and remains a hard operator limit.
+// follows sampled memory and descriptor headroom. Explicit production limits
+// also retain resource protection, while adding a hard operator ceiling.
 type agentTunnelCapacityRuntime struct {
-	mu         sync.Mutex
-	adaptive   bool
-	maximum    int
-	inUse      int
-	controller *sysmetrics.AdaptiveMemoryController
+	mu          sync.Mutex
+	adaptive    bool
+	maximum     int
+	inUse       int
+	windowBytes int64
+	controller  *sysmetrics.AdaptiveMemoryController
 
 	rejectedPressure atomic.Uint64
 	rejectedFixed    atomic.Uint64
@@ -70,6 +71,29 @@ func (r *agentTunnelCapacityRuntime) setMaximum(maximum int64) {
 	r.mu.Lock()
 	r.maximum = agentTunnelCapacityMaximumInt(maximum)
 	r.mu.Unlock()
+}
+
+func (r *agentTunnelCapacityRuntime) tryReserveWindowGrowth(bytes int64) (func(), bool) {
+	if r == nil || r.controller == nil {
+		return func() {}, true
+	}
+	r.mu.Lock()
+	resource := r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
+	proposed := r.windowBytes + bytes
+	if bytes < 0 || proposed < r.windowBytes || resource.RejectNew || resource.AdmissionLimitWithExternal(proposed, 0) < r.inUse {
+		r.mu.Unlock()
+		return nil, false
+	}
+	r.windowBytes = proposed
+	r.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			r.mu.Lock()
+			r.windowBytes -= bytes
+			r.mu.Unlock()
+		})
+	}, true
 }
 
 // agentTunnelCapacityMaximumInt keeps the int64 protocol/config boundary safe
@@ -211,16 +235,16 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 		RejectedPressure:   r.rejectedPressure.Load(),
 		RejectedFixedLimit: r.rejectedFixed.Load(),
 	}
-	if !r.adaptive || r.controller == nil {
+	if r.controller == nil {
 		return snapshot
 	}
 	var resource sysmetrics.AdaptiveMemorySnapshot
 	if force {
-		resource = r.controller.ForceRefresh(maximum, r.inUse)
+		resource = r.controller.ForceRefresh(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
 	} else {
-		resource = r.controller.Snapshot(maximum, r.inUse)
+		resource = r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
 	}
-	snapshot.AdmissionLimit = resource.AdmissionLimit
+	snapshot.AdmissionLimit = min(maximum, resource.AdmissionLimitWithExternal(r.windowBytes, 0))
 	snapshot.Pressure = resource.Level
 	snapshot.MemoryUsedBytes = resource.Usage.UsedBytes
 	snapshot.MemoryLimitBytes = resource.Usage.LimitBytes
