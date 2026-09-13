@@ -124,4 +124,7 @@ No QUIC listener or new UDP exposure is introduced by this change.
 `third_party/yamux` contains upstream v0.1.2 with its MPL-2.0 license and tests.
 The small extension exposes monotonic per-stream receive-window growth without
 changing the wire protocol. Its own module tests run separately in CI and Docker
-test stages because root `go test ./...` does not traverse nested modules.
+test stages because root `go test ./...` does not traverse nested modules. The
+full suite runs normally, followed by `go test -race -short ./...`: upstream's
+short mode excludes its 250 MiB and 16 GiB stress transfers from race
+instrumentation, while keeping both transfers in normal testing.

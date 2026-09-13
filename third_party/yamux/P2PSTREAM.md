@@ -12,4 +12,7 @@ advertised receive credit must not be revoked. No other streams are changed.
 p2pstream uses this to keep small/idle streams cheap while allowing sustained
 transfers to grow their windows without multiplying every idle connection's
 memory reservation. Upgrade this copy alongside the upstream module version
-and run `go test -race ./...` in this directory when changing it.
+and run `go test ./...` followed by `go test -race -short ./...` in this
+directory when changing it. Upstream's short mode excludes the 250 MiB and
+16 GiB stress transfers, which run in the normal suite: the two-minute timeout is not
+a portable throughput expectation under the race detector on small CI runners.

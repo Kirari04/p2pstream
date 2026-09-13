@@ -70,8 +70,12 @@ jobs:
       - name: Run Go tests
         run: go test ./...
 
-      - name: Race-test local Yamux extension
-        run: go test -race ./...
+      - name: Test local Yamux extension and races
+        # Upstream's short mode excludes its 250 MiB and 16 GiB stress transfers,
+        # which still run in full below without race-detector throughput overhead.
+        run: |
+          go test ./...
+          go test -race -short ./...
         working-directory: third_party/yamux
 
       - name: Run Go vet
