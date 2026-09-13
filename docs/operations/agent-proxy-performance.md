@@ -15,7 +15,7 @@ still apply.
   reconnects independently; a request whose connection was lost still follows
   the configured replay rules.
 - Streams begin with at most 512 KiB receive credit, then double toward the
-  configured 2 MiB maximum as data is consumed. Every increase reserves its
+  configured maximum (2 MiB by default) as data is consumed. Every increase reserves its
   additional memory first. Denied growth keeps the request serving at its
   current window. Initial and additional reservations remain until peer FIN or
   forced stream cleanup. This avoids charging idle connections for bulk-transfer
@@ -33,6 +33,11 @@ still apply.
   or the smaller declared body length; this does not limit total upload size.
   HTTP/2 requests and receive-window growth consume memory, without consuming
   fictitious file descriptors or an artificial fraction of physical stream slots.
+  Under actual resource exhaustion, direct-origin admission can close idle
+  keep-alive sockets before reserving a replacement. Active requests continue;
+  a failed replacement dial releases its reservation for the next request.
+  Admission does not temporarily exceed the memory/descriptor budget to keep
+  idle sockets warm.
 - Pool entries follow the shared stream budget; the separate 256-target ceiling
   is gone. Warm hits avoid constructing a disposable HTTP transport. Remote
   management requests now reuse pinned TLS connections, with invalidation on

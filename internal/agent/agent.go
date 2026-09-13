@@ -976,7 +976,7 @@ func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux
 			reqServerError.Add(1)
 			kind := "agent_capacity"
 			message := "agent tunnel request capacity reached"
-			if capacitySnapshot.Adaptive {
+			if capacitySnapshot.Adaptive || capacitySnapshot.ResourceLimited {
 				kind = "agent_resource_pressure"
 				message = "agent is temporarily limiting new tunnel requests to its live resource allowance"
 			}

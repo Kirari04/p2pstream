@@ -13,6 +13,7 @@ import (
 
 type agentTunnelCapacitySnapshot struct {
 	Adaptive             bool
+	ResourceLimited      bool
 	Maximum              int
 	AdmissionLimit       int
 	InUse                int
@@ -123,7 +124,7 @@ func (r *agentTunnelCapacityRuntime) tryAcquire() (func(), agentTunnelCapacitySn
 	r.mu.Lock()
 	snapshot := r.snapshotLocked()
 	if snapshot.AdmissionLimit < 1 || r.inUse >= snapshot.AdmissionLimit {
-		if snapshot.Adaptive {
+		if snapshot.Adaptive || snapshot.ResourceLimited {
 			r.rejectedPressure.Add(1)
 			// Headroom or descriptor admission can be exhausted below the soft
 			// percentage threshold. Remember that the drained generation still
@@ -149,7 +150,7 @@ func (r *agentTunnelCapacityRuntime) tryAcquire() (func(), agentTunnelCapacitySn
 				r.inUse--
 			}
 			shouldScavenge := r.scavengeNeeded.Swap(false)
-			if r.adaptive && r.inUse == 0 {
+			if r.controller != nil && r.inUse == 0 {
 				pressure := r.snapshotLocked().Pressure
 				shouldScavenge = shouldScavenge || pressure == sysmetrics.MemoryPressureSoft || pressure == sysmetrics.MemoryPressureCritical
 			} else {
@@ -171,7 +172,7 @@ func (r *agentTunnelCapacityRuntime) tryAcquire() (func(), agentTunnelCapacitySn
 }
 
 func (r *agentTunnelCapacityRuntime) requestMemoryScavenge() bool {
-	if r == nil || !r.adaptive || !r.scavengeRunning.CompareAndSwap(false, true) {
+	if r == nil || r.controller == nil || !r.scavengeRunning.CompareAndSwap(false, true) {
 		return false
 	}
 	freeOSMemory := r.freeOSMemory
@@ -245,6 +246,7 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 		resource = r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
 	}
 	snapshot.AdmissionLimit = min(maximum, resource.AdmissionLimitWithExternal(r.windowBytes, 0))
+	snapshot.ResourceLimited = snapshot.AdmissionLimit < maximum
 	snapshot.Pressure = resource.Level
 	snapshot.MemoryUsedBytes = resource.Usage.UsedBytes
 	snapshot.MemoryLimitBytes = resource.Usage.LimitBytes
@@ -256,6 +258,7 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 	snapshot.LastGoodSampleAt = resource.LastGoodSampleAt
 	if resource.RejectNew {
 		snapshot.AdmissionLimit = r.inUse
+		snapshot.ResourceLimited = true
 	}
 	return snapshot
 }

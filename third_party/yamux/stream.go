@@ -295,6 +295,19 @@ func (s *Stream) sendWindowUpdate() error {
 	// Send the header
 	s.controlHdr.encode(typeWindowUpdate, flags, s.id, delta)
 	if err := s.session.waitForSendErr(s.controlHdr, nil, s.controlErr); err != nil {
+		if errors.Is(err, ErrConnectionWriteTimeout) {
+			// Receive credit and SYN state are already committed. A queued
+			// update may still be sent, so this session cannot safely continue.
+			// Close the wire before returning; join the session asynchronously
+			// because a blocked sender can still own this stream's locks.
+			s.session.shutdownErrLock.Lock()
+			if s.session.shutdownErr == nil {
+				s.session.shutdownErr = err
+			}
+			s.session.shutdownErrLock.Unlock()
+			_ = s.session.conn.Close()
+			go s.session.Close()
+		}
 		if errors.Is(err, ErrSessionShutdown) || errors.Is(err, ErrConnectionWriteTimeout) {
 			// Message left in ready queue, header re-use is unsafe.
 			s.controlHdr = header(make([]byte, headerSize))

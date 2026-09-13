@@ -9,6 +9,11 @@ Applications must reserve additional memory before granting credit, and hold
 that reservation until the stream fully closes. Limits only grow; already
 advertised receive credit must not be revoked. No other streams are changed.
 
+The fork also closes the underlying connection if a receive-credit/SYN update
+times out with an unknown send outcome, cleans up failed or reset stream opens,
+and rejects non-positive keep-alive intervals. These fixes keep long-lived
+sessions from retaining stale stream state or continuing with uncertain credit.
+
 p2pstream uses this to keep small/idle streams cheap while allowing sustained
 transfers to grow their windows without multiplying every idle connection's
 memory reservation. Upgrade this copy alongside the upstream module version

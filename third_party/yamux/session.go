@@ -177,6 +177,7 @@ GET_ID:
 	// Get an ID, and check for stream exhaustion
 	id := atomic.LoadUint32(&s.nextStreamID)
 	if id >= math.MaxUint32-1 {
+		<-s.synCh
 		return nil, ErrStreamsExhausted
 	}
 	if !atomic.CompareAndSwapUint32(&s.nextStreamID, id, id+2) {
@@ -196,11 +197,8 @@ GET_ID:
 
 	// Send the window update to create
 	if err := stream.sendWindowUpdate(); err != nil {
-		select {
-		case <-s.synCh:
-		default:
-			s.logger.Printf("[ERR] yamux: aborted stream open without inflight syn semaphore")
-		}
+		stream.forceClose()
+		s.closeStream(id)
 		return nil, err
 	}
 	return stream, nil
@@ -721,6 +719,7 @@ func (s *Session) incomingStream(id uint32) error {
 func (s *Session) closeStream(id uint32) {
 	s.streamLock.Lock()
 	if _, ok := s.inflight[id]; ok {
+		delete(s.inflight, id)
 		select {
 		case <-s.synCh:
 		default:

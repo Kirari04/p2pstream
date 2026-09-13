@@ -17,7 +17,18 @@ type trackedEnvironmentBody struct {
 func (b *trackedEnvironmentBody) Close() error { b.closed = true; return nil }
 
 func TestEnvironmentAgentAdmissionHandoffPreservesUnconsumedMutation(t *testing.T) {
+	for _, nilPool := range []bool{false, true} {
+		t.Run(map[bool]string{false: "application pool", true: "no application pool"}[nilPool], func(t *testing.T) {
+			testEnvironmentAgentAdmissionHandoff(t, nilPool)
+		})
+	}
+}
+
+func testEnvironmentAgentAdmissionHandoff(t *testing.T, nilPool bool) {
 	app := NewApp(nil, nil)
+	if nilPool {
+		app.AgentTransports = nil
+	}
 	body := &trackedEnvironmentBody{Reader: strings.NewReader("mutation")}
 	req := httptest.NewRequest(http.MethodPost, "https://management.test/mutate", body)
 	pooled := retryRoundTripFunc(func(req *http.Request) (*http.Response, error) {
