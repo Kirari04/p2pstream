@@ -115,7 +115,17 @@ func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult
 		// Account for both header copies and bounded body-copy/runtime state.
 		// This is independent of physical tunnel streams: many HTTP/2 requests
 		// may share one connection without inheriting its concurrency budget.
-		release, ok, _ := ctx.App.agentStreamCapacity.tryReserveAdaptiveExternal(int64(headerBytes)*2+64*1024, 0)
+		requestBytes := int64(headerBytes)*2 + 64*1024
+		if ctx.Request != nil && ctx.Request.ProtoMajor == 2 && ctx.Request.ContentLength != 0 {
+			// HTTP/2 can buffer upload data while the origin is stalled. The
+			// relay's copy buffer alone does not cover that receive credit.
+			uploadCredit := int64(publicHTTP2ReceiveWindowBytes)
+			if ctx.Request.ContentLength > 0 {
+				uploadCredit = min(uploadCredit, ctx.Request.ContentLength)
+			}
+			requestBytes += uploadCredit
+		}
+		release, ok, _ := ctx.App.agentStreamCapacity.tryReserveAdaptiveExternal(requestBytes, 0)
 		if !ok {
 			return rejectPublicRequestCapacity(ctx, "public_request_resource_pressure", "Public proxy resource pressure")
 		}

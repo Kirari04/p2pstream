@@ -233,6 +233,29 @@ func TestAutomaticPublicAdmissionExceedsLegacyRequestAndPeerLimits(t *testing.T)
 	}
 }
 
+func TestHTTP2UploadCreditRemainsReservedUntilRequestCleanup(t *testing.T) {
+	app := NewApp(&config.Config{ServerTunnelCapacityAuto: true, ServerTunnelMaxConcurrentStreams: 65536}, nil)
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
+	app.agentStreamCapacity = newAdaptiveServerCapacityForTest(t, 65536, &usage)
+	before := app.agentStreamCapacity.snapshot().AdaptiveExternalBytes
+	req := httptest.NewRequest(http.MethodPost, "https://public.test/upload", http.NoBody)
+	req.ProtoMajor = 2
+	req.ContentLength = -1
+	ctx := newPublicProxyContext(app, 1, httptest.NewRecorder(), req)
+	t.Cleanup(ctx.runCleanup)
+	if publicRequestAdmissionStage(ctx) != publicProxyStageContinue {
+		t.Fatal("healthy upload rejected")
+	}
+	reserved := app.agentStreamCapacity.snapshot().AdaptiveExternalBytes - before
+	if reserved < publicHTTP2ReceiveWindowBytes {
+		t.Fatalf("only %d bytes reserved for a full HTTP/2 upload window", reserved)
+	}
+	ctx.runCleanup()
+	if app.agentStreamCapacity.snapshot().AdaptiveExternalBytes != before {
+		t.Fatal("upload credit reservation leaked")
+	}
+}
+
 func TestRouteTargetCapacityRejectionRecordsTargetNotAgent(t *testing.T) {
 	database := newServerTestDB(t)
 	app := NewApp(&config.Config{

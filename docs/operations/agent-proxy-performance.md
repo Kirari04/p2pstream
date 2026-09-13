@@ -29,6 +29,8 @@ still apply.
 - Public request, resolved-client, direct-peer and direct-origin connection
   guards default to zero (automatic or disabled policy). Public sockets,
   logical HTTP requests and direct-origin sockets still reserve resources.
+  HTTP/2 uploads also reserve their reachable receive credit, capped at 1 MiB
+  or the smaller declared body length; this does not limit total upload size.
   HTTP/2 requests and receive-window growth consume memory, without consuming
   fictitious file descriptors or an artificial fraction of physical stream slots.
 - Pool entries follow the shared stream budget; the separate 256-target ceiling
