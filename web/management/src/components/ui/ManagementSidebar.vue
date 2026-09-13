@@ -2,6 +2,7 @@
 import { ref, type Component } from "vue";
 import {
   Activity as ActivityIcon,
+  Download as UpdateIcon,
   Bot as AgentIcon,
   ChevronRight as ChevronRightIcon,
   FileCode2 as TemplateIcon,
@@ -47,6 +48,7 @@ const icons: Record<string, Component> = {
   environments: EnvironmentIcon,
   "api-tokens": TokenIcon,
   "management-tls": TlsIcon,
+  "server-updates": UpdateIcon,
 };
 
 function itemIcon(item: ManagementNavigationItem): Component {

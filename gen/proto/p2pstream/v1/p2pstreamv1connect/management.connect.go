@@ -33,6 +33,18 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AgentManagementServiceGetServerUpdateOverviewProcedure is the fully-qualified name of the
+	// AgentManagementService's GetServerUpdateOverview RPC.
+	AgentManagementServiceGetServerUpdateOverviewProcedure = "/p2pstream.v1.AgentManagementService/GetServerUpdateOverview"
+	// AgentManagementServicePreviewServerUpdateProcedure is the fully-qualified name of the
+	// AgentManagementService's PreviewServerUpdate RPC.
+	AgentManagementServicePreviewServerUpdateProcedure = "/p2pstream.v1.AgentManagementService/PreviewServerUpdate"
+	// AgentManagementServiceStartServerUpdateProcedure is the fully-qualified name of the
+	// AgentManagementService's StartServerUpdate RPC.
+	AgentManagementServiceStartServerUpdateProcedure = "/p2pstream.v1.AgentManagementService/StartServerUpdate"
+	// AgentManagementServiceGetServerUpdateOperationProcedure is the fully-qualified name of the
+	// AgentManagementService's GetServerUpdateOperation RPC.
+	AgentManagementServiceGetServerUpdateOperationProcedure = "/p2pstream.v1.AgentManagementService/GetServerUpdateOperation"
 	// AgentManagementServiceReportStatsProcedure is the fully-qualified name of the
 	// AgentManagementService's ReportStats RPC.
 	AgentManagementServiceReportStatsProcedure = "/p2pstream.v1.AgentManagementService/ReportStats"
@@ -358,6 +370,10 @@ const (
 
 // AgentManagementServiceClient is a client for the p2pstream.v1.AgentManagementService service.
 type AgentManagementServiceClient interface {
+	GetServerUpdateOverview(context.Context, *connect.Request[v1.GetServerUpdateOverviewRequest]) (*connect.Response[v1.GetServerUpdateOverviewResponse], error)
+	PreviewServerUpdate(context.Context, *connect.Request[v1.PreviewServerUpdateRequest]) (*connect.Response[v1.PreviewServerUpdateResponse], error)
+	StartServerUpdate(context.Context, *connect.Request[v1.StartServerUpdateRequest]) (*connect.Response[v1.StartServerUpdateResponse], error)
+	GetServerUpdateOperation(context.Context, *connect.Request[v1.GetServerUpdateOperationRequest]) (*connect.Response[v1.GetServerUpdateOperationResponse], error)
 	ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error)
 	GetManagementTlsRotation(context.Context, *connect.Request[v1.GetManagementTlsRotationRequest]) (*connect.Response[v1.GetManagementTlsRotationResponse], error)
 	StageManagementTlsRotation(context.Context, *connect.Request[v1.StageManagementTlsRotationRequest]) (*connect.Response[v1.StageManagementTlsRotationResponse], error)
@@ -478,6 +494,30 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 	baseURL = strings.TrimRight(baseURL, "/")
 	agentManagementServiceMethods := v1.File_proto_p2pstream_v1_management_proto.Services().ByName("AgentManagementService").Methods()
 	return &agentManagementServiceClient{
+		getServerUpdateOverview: connect.NewClient[v1.GetServerUpdateOverviewRequest, v1.GetServerUpdateOverviewResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetServerUpdateOverviewProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetServerUpdateOverview")),
+			connect.WithClientOptions(opts...),
+		),
+		previewServerUpdate: connect.NewClient[v1.PreviewServerUpdateRequest, v1.PreviewServerUpdateResponse](
+			httpClient,
+			baseURL+AgentManagementServicePreviewServerUpdateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("PreviewServerUpdate")),
+			connect.WithClientOptions(opts...),
+		),
+		startServerUpdate: connect.NewClient[v1.StartServerUpdateRequest, v1.StartServerUpdateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceStartServerUpdateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("StartServerUpdate")),
+			connect.WithClientOptions(opts...),
+		),
+		getServerUpdateOperation: connect.NewClient[v1.GetServerUpdateOperationRequest, v1.GetServerUpdateOperationResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetServerUpdateOperationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetServerUpdateOperation")),
+			connect.WithClientOptions(opts...),
+		),
 		reportStats: connect.NewClient[v1.AgentStatsRequest, v1.AgentStatsResponse](
 			httpClient,
 			baseURL+AgentManagementServiceReportStatsProcedure,
@@ -1125,6 +1165,10 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 
 // agentManagementServiceClient implements AgentManagementServiceClient.
 type agentManagementServiceClient struct {
+	getServerUpdateOverview              *connect.Client[v1.GetServerUpdateOverviewRequest, v1.GetServerUpdateOverviewResponse]
+	previewServerUpdate                  *connect.Client[v1.PreviewServerUpdateRequest, v1.PreviewServerUpdateResponse]
+	startServerUpdate                    *connect.Client[v1.StartServerUpdateRequest, v1.StartServerUpdateResponse]
+	getServerUpdateOperation             *connect.Client[v1.GetServerUpdateOperationRequest, v1.GetServerUpdateOperationResponse]
 	reportStats                          *connect.Client[v1.AgentStatsRequest, v1.AgentStatsResponse]
 	getManagementTlsRotation             *connect.Client[v1.GetManagementTlsRotationRequest, v1.GetManagementTlsRotationResponse]
 	stageManagementTlsRotation           *connect.Client[v1.StageManagementTlsRotationRequest, v1.StageManagementTlsRotationResponse]
@@ -1232,6 +1276,26 @@ type agentManagementServiceClient struct {
 	deletePublicRetryRule                *connect.Client[v1.DeletePublicRetryRuleRequest, v1.DeletePublicRetryRuleResponse]
 	updatePublicCacheSettings            *connect.Client[v1.UpdatePublicCacheSettingsRequest, v1.UpdatePublicCacheSettingsResponse]
 	purgePublicCache                     *connect.Client[v1.PurgePublicCacheRequest, v1.PurgePublicCacheResponse]
+}
+
+// GetServerUpdateOverview calls p2pstream.v1.AgentManagementService.GetServerUpdateOverview.
+func (c *agentManagementServiceClient) GetServerUpdateOverview(ctx context.Context, req *connect.Request[v1.GetServerUpdateOverviewRequest]) (*connect.Response[v1.GetServerUpdateOverviewResponse], error) {
+	return c.getServerUpdateOverview.CallUnary(ctx, req)
+}
+
+// PreviewServerUpdate calls p2pstream.v1.AgentManagementService.PreviewServerUpdate.
+func (c *agentManagementServiceClient) PreviewServerUpdate(ctx context.Context, req *connect.Request[v1.PreviewServerUpdateRequest]) (*connect.Response[v1.PreviewServerUpdateResponse], error) {
+	return c.previewServerUpdate.CallUnary(ctx, req)
+}
+
+// StartServerUpdate calls p2pstream.v1.AgentManagementService.StartServerUpdate.
+func (c *agentManagementServiceClient) StartServerUpdate(ctx context.Context, req *connect.Request[v1.StartServerUpdateRequest]) (*connect.Response[v1.StartServerUpdateResponse], error) {
+	return c.startServerUpdate.CallUnary(ctx, req)
+}
+
+// GetServerUpdateOperation calls p2pstream.v1.AgentManagementService.GetServerUpdateOperation.
+func (c *agentManagementServiceClient) GetServerUpdateOperation(ctx context.Context, req *connect.Request[v1.GetServerUpdateOperationRequest]) (*connect.Response[v1.GetServerUpdateOperationResponse], error) {
+	return c.getServerUpdateOperation.CallUnary(ctx, req)
 }
 
 // ReportStats calls p2pstream.v1.AgentManagementService.ReportStats.
@@ -1802,6 +1866,10 @@ func (c *agentManagementServiceClient) PurgePublicCache(ctx context.Context, req
 // AgentManagementServiceHandler is an implementation of the p2pstream.v1.AgentManagementService
 // service.
 type AgentManagementServiceHandler interface {
+	GetServerUpdateOverview(context.Context, *connect.Request[v1.GetServerUpdateOverviewRequest]) (*connect.Response[v1.GetServerUpdateOverviewResponse], error)
+	PreviewServerUpdate(context.Context, *connect.Request[v1.PreviewServerUpdateRequest]) (*connect.Response[v1.PreviewServerUpdateResponse], error)
+	StartServerUpdate(context.Context, *connect.Request[v1.StartServerUpdateRequest]) (*connect.Response[v1.StartServerUpdateResponse], error)
+	GetServerUpdateOperation(context.Context, *connect.Request[v1.GetServerUpdateOperationRequest]) (*connect.Response[v1.GetServerUpdateOperationResponse], error)
 	ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error)
 	GetManagementTlsRotation(context.Context, *connect.Request[v1.GetManagementTlsRotationRequest]) (*connect.Response[v1.GetManagementTlsRotationResponse], error)
 	StageManagementTlsRotation(context.Context, *connect.Request[v1.StageManagementTlsRotationRequest]) (*connect.Response[v1.StageManagementTlsRotationResponse], error)
@@ -1918,6 +1986,30 @@ type AgentManagementServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	agentManagementServiceMethods := v1.File_proto_p2pstream_v1_management_proto.Services().ByName("AgentManagementService").Methods()
+	agentManagementServiceGetServerUpdateOverviewHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetServerUpdateOverviewProcedure,
+		svc.GetServerUpdateOverview,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetServerUpdateOverview")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServicePreviewServerUpdateHandler := connect.NewUnaryHandler(
+		AgentManagementServicePreviewServerUpdateProcedure,
+		svc.PreviewServerUpdate,
+		connect.WithSchema(agentManagementServiceMethods.ByName("PreviewServerUpdate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceStartServerUpdateHandler := connect.NewUnaryHandler(
+		AgentManagementServiceStartServerUpdateProcedure,
+		svc.StartServerUpdate,
+		connect.WithSchema(agentManagementServiceMethods.ByName("StartServerUpdate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGetServerUpdateOperationHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetServerUpdateOperationProcedure,
+		svc.GetServerUpdateOperation,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetServerUpdateOperation")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceReportStatsHandler := connect.NewUnaryHandler(
 		AgentManagementServiceReportStatsProcedure,
 		svc.ReportStats,
@@ -2562,6 +2654,14 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 	)
 	return "/p2pstream.v1.AgentManagementService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AgentManagementServiceGetServerUpdateOverviewProcedure:
+			agentManagementServiceGetServerUpdateOverviewHandler.ServeHTTP(w, r)
+		case AgentManagementServicePreviewServerUpdateProcedure:
+			agentManagementServicePreviewServerUpdateHandler.ServeHTTP(w, r)
+		case AgentManagementServiceStartServerUpdateProcedure:
+			agentManagementServiceStartServerUpdateHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetServerUpdateOperationProcedure:
+			agentManagementServiceGetServerUpdateOperationHandler.ServeHTTP(w, r)
 		case AgentManagementServiceReportStatsProcedure:
 			agentManagementServiceReportStatsHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetManagementTlsRotationProcedure:
@@ -2784,6 +2884,22 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 
 // UnimplementedAgentManagementServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAgentManagementServiceHandler struct{}
+
+func (UnimplementedAgentManagementServiceHandler) GetServerUpdateOverview(context.Context, *connect.Request[v1.GetServerUpdateOverviewRequest]) (*connect.Response[v1.GetServerUpdateOverviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetServerUpdateOverview is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) PreviewServerUpdate(context.Context, *connect.Request[v1.PreviewServerUpdateRequest]) (*connect.Response[v1.PreviewServerUpdateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.PreviewServerUpdate is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) StartServerUpdate(context.Context, *connect.Request[v1.StartServerUpdateRequest]) (*connect.Response[v1.StartServerUpdateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.StartServerUpdate is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetServerUpdateOperation(context.Context, *connect.Request[v1.GetServerUpdateOperationRequest]) (*connect.Response[v1.GetServerUpdateOperationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetServerUpdateOperation is not implemented"))
+}
 
 func (UnimplementedAgentManagementServiceHandler) ReportStats(context.Context, *connect.Request[v1.AgentStatsRequest]) (*connect.Response[v1.AgentStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ReportStats is not implemented"))

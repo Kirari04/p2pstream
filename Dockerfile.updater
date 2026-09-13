@@ -1,0 +1,10 @@
+# The installer supplies the exact already-installed release digest. The
+# management image remains free of the Docker CLI and daemon socket.
+ARG P2PSTREAM_IMAGE
+FROM docker:28.3.3-cli@sha256:0135662b510037ea581d99c2e5929c5e01185139c0b86986a418bd4da0b98a44 AS tools
+FROM ${P2PSTREAM_IMAGE}
+USER root
+COPY --from=tools /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=tools /usr/local/libexec/docker/cli-plugins/docker-compose /usr/local/lib/docker/cli-plugins/docker-compose
+ENTRYPOINT []
+CMD ["/app/p2pstream", "server-updater", "serve"]

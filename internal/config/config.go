@@ -27,6 +27,11 @@ const (
 )
 
 type Config struct {
+	ServerUpdateSocket     string `env:"SERVER_UPDATE_SOCKET"`
+	ServerUpdateToken      string `env:"SERVER_UPDATE_TOKEN"`
+	ServerUpdateInstanceID string `env:"SERVER_UPDATE_INSTANCE_ID"`
+	ServerUpdateGateFile   string `env:"SERVER_UPDATE_GATE_FILE"`
+
 	ManagementPort                    string `env:"MANAGEMENT_PORT" envDefault:"8081"`
 	ManagementBindAddress             string `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"0.0.0.0"`
 	ConfigDir                         string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
@@ -119,6 +124,9 @@ func Load() (*Config, error) {
 		cfg.PublicMaxConnectionsPerPeer = cfg.PublicMaxConcurrentConnections
 	}
 	if err := resolveServerTunnelCapacity(cfg, DetectProcessMemoryLimitBytes()); err != nil {
+		return nil, err
+	}
+	if err := validateServerUpdaterConfig(cfg); err != nil {
 		return nil, err
 	}
 	if err := validateManagementTLSConfig(cfg); err != nil {
@@ -543,6 +551,16 @@ func copyFileIfExists(src, dst string) error {
 	if closeErr != nil {
 		_ = os.Remove(dst)
 		return closeErr
+	}
+	return nil
+}
+
+func validateServerUpdaterConfig(cfg *Config) error {
+	if cfg.ServerUpdateSocket == "" && cfg.ServerUpdateToken == "" && cfg.ServerUpdateInstanceID == "" && cfg.ServerUpdateGateFile == "" {
+		return nil
+	}
+	if !filepath.IsAbs(cfg.ServerUpdateSocket) || !filepath.IsAbs(cfg.ServerUpdateGateFile) || len(cfg.ServerUpdateToken) < 32 || !regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`).MatchString(cfg.ServerUpdateInstanceID) {
+		return errors.New("SERVER_UPDATE_SOCKET, SERVER_UPDATE_TOKEN, SERVER_UPDATE_INSTANCE_ID and SERVER_UPDATE_GATE_FILE must be installed together by the host installer")
 	}
 	return nil
 }

@@ -64,7 +64,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Check installer syntax
-        run: bash -n scripts/install-agent.sh scripts/uninstall-agent.sh
+        run: bash -n scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh
 
       - name: Run installer lifecycle tests
         run: scripts/test-agent-lifecycle.sh
@@ -418,6 +418,7 @@ jobs:
 
           published_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           expires_at="$(date -u -d "+${MANIFEST_VALIDITY_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)"
+          go run ./cmd/serverupdate-manifest --version "${TAG}" --commit "${GITHUB_SHA}" --output dist/assets/p2pstream_server_update.json
           manifest=dist/assets/p2pstream_agent_update_manifest.json
           (cd dist/assets && sha256sum p2pstream_* >checksums.txt)
           go run ./cmd/agentupdate-manifest create \
@@ -439,6 +440,7 @@ jobs:
             --artifact "linux/arm64=dist/assets/p2pstream_${TAG}_linux_arm64" \
             --oci-index "${IMAGE}=dist/assets/p2pstream_${TAG}_image_index.json" \
             --release-asset dist/assets/checksums.txt \
+            --release-asset dist/assets/p2pstream_server_update.json \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_amd64" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_amd64.tar.gz" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_arm64" \
@@ -472,6 +474,7 @@ jobs:
             --artifact "linux/arm64=dist/assets/p2pstream_${TAG}_linux_arm64" \
             --oci-index "${IMAGE}=dist/assets/p2pstream_${TAG}_image_index.json" \
             --release-asset dist/assets/checksums.txt \
+            --release-asset dist/assets/p2pstream_server_update.json \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_amd64" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_amd64.tar.gz" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_arm64" \
