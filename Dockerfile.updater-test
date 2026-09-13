@@ -3,6 +3,7 @@ ARG REVIEW_RUNTIME=p2pstream-review:baseline
 FROM golang:1.26.6-bookworm AS tests
 WORKDIR /src
 COPY go.mod go.sum ./
+COPY third_party/yamux ./third_party/yamux
 RUN go mod download
 COPY . .
 RUN go test -c -tags server_update_docker -o /out/server-update-test ./internal/serverupdate
