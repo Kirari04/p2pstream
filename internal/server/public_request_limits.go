@@ -12,7 +12,9 @@ import (
 )
 
 const (
-	defaultPublicMaxConcurrentRequests  = int64(2048)
+	// Structural guard only. Production request admission reserves memory for
+	// each request, including HTTP/2 requests that reuse a physical stream.
+	defaultPublicMaxConcurrentRequests  = int64(1_000_000)
 	defaultPublicMaxRequestBodyBytes    = int64(1 << 30)
 	defaultPublicRequestBodyIdleTimeout = 30 * time.Second
 )

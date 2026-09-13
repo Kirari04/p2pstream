@@ -878,6 +878,7 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			},
 		})
 		attemptCtx = withAgentDialRequestID(attemptCtx, rt.requestID)
+		attemptCtx = rt.trace.withUpstreamTiming(attemptCtx)
 		attemptReq := req.Clone(attemptCtx)
 		attemptReq.Body = attemptBody
 		attemptReq.GetBody = nil
@@ -890,7 +891,7 @@ func (rt *publicAgentAttemptRoundTripper) RoundTrip(req *http.Request) (*http.Re
 			attemptResolution.RetryRuleName = rt.rule.Name
 		}
 		rt.emitAttemptStarted(attemptResolution, agent, attempt, maxAttempts)
-		log.Info().
+		log.Debug().
 			Str("req_id", rt.requestID).
 			Int64("attempt", attempt).
 			Int64("max_attempts", maxAttempts).

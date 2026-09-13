@@ -852,8 +852,17 @@ func assertNoCgroupMemoryEventIncrease(t testing.TB, before, after map[string]ui
 }
 
 func TestAdaptiveAgentSessionReturnsStructuredResourcePressure(t *testing.T) {
+	for _, adaptive := range []bool{true, false} {
+		t.Run(fmt.Sprintf("adaptive=%t", adaptive), func(t *testing.T) {
+			testAgentSessionReturnsStructuredResourcePressure(t, adaptive)
+		})
+	}
+}
+
+func testAgentSessionReturnsStructuredResourcePressure(t *testing.T, adaptive bool) {
 	usage := sysmetrics.MemoryUsage{UsedBytes: 470 << 20, LimitBytes: 512 << 20, Source: "test"}
 	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.adaptive = adaptive
 	capacity.forceRefresh()
 
 	agentConn, serverConn := net.Pipe()
@@ -894,6 +903,34 @@ func TestAdaptiveAgentSessionReturnsStructuredResourcePressure(t *testing.T) {
 	if response.OK || response.ErrorKind != "agent_resource_pressure" {
 		t.Fatalf("pressure response = %+v, want agent_resource_pressure", response)
 	}
+}
+
+func TestFixedAgentCapacityDistinguishesResourceAndOperatorLimits(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.adaptive = false
+	capacity.setMaximum(1)
+	capacity.freeOSMemory = func() {}
+	release, _, ok := capacity.tryAcquire()
+	if !ok {
+		t.Fatal("healthy fixed admission failed")
+	}
+	if _, snapshot, ok := capacity.tryAcquire(); ok || snapshot.ResourceLimited || snapshot.RejectedFixedLimit != 1 || snapshot.RejectedPressure != 0 {
+		t.Fatalf("operator limit rejection = %+v, admitted=%t", snapshot, ok)
+	}
+	usage.UsedBytes = 470 << 20
+	capacity.forceRefresh()
+	if _, snapshot, ok := capacity.tryAcquire(); ok || !snapshot.ResourceLimited || snapshot.Adaptive || snapshot.RejectedPressure != 1 || snapshot.RejectedFixedLimit != 1 {
+		t.Fatalf("resource rejection = %+v, admitted=%t", snapshot, ok)
+	}
+	release()
+	usage.UsedBytes = 64 << 20
+	capacity.forceRefresh()
+	release, snapshot, ok := capacity.tryAcquire()
+	if !ok || snapshot.ResourceLimited || snapshot.Adaptive {
+		t.Fatalf("fixed admission did not recover: %+v, admitted=%t", snapshot, ok)
+	}
+	release()
 }
 
 func BenchmarkAdaptiveAgentCapacityAcquireRelease(b *testing.B) {

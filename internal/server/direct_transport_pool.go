@@ -25,6 +25,7 @@ type directTransportPool struct {
 	mu              sync.Mutex
 	entries         map[directTransportKey]*pooledDirectTransport
 	maxConnsPerHost int
+	app             *App
 }
 
 func newDirectTransportPool(configuredMaxConns ...int) *directTransportPool {
@@ -59,6 +60,9 @@ func (p *directTransportPool) getOrCreate(key directTransportKey, tlsSkipVerify 
 		return existing.transport
 	}
 	transport := newDirectPooledHTTPTransport(tlsSkipVerify, timeout, p.maxConnsPerHost)
+	if p.app != nil {
+		p.accountConnections(transport)
+	}
 	p.entries[key] = &pooledDirectTransport{
 		key:       key,
 		transport: transport,
@@ -67,7 +71,7 @@ func (p *directTransportPool) getOrCreate(key directTransportKey, tlsSkipVerify 
 	return transport
 }
 
-const defaultPublicMaxConnectionsPerTarget = 256
+const defaultPublicMaxConnectionsPerTarget = 0
 
 func newDirectPooledHTTPTransport(tlsSkipVerify bool, timeout time.Duration, configuredMaxConns ...int) *http.Transport {
 	base, ok := http.DefaultTransport.(*http.Transport)

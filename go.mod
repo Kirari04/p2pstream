@@ -2,6 +2,9 @@ module p2pstream
 
 go 1.26.6
 
+// Per-stream receive-window growth with resource-backed credit; see third_party/yamux/P2PSTREAM.md.
+replace github.com/hashicorp/yamux => ./third_party/yamux
+
 require (
 	connectrpc.com/connect v1.20.0
 	github.com/andybalholm/brotli v1.2.2

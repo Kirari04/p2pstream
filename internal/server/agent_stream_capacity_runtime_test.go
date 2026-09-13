@@ -21,8 +21,8 @@ func TestDefaultAgentStreamCapacityConfigReservesPublicAndHealthHeadroom(t *test
 	if config.ReservedPublicForOtherSessions != 15 {
 		t.Fatalf("cross-session public reserve = %d, want 15", config.ReservedPublicForOtherSessions)
 	}
-	if config.MaxWaiters != 64 || config.MaxWaitersPerKey != 16 {
-		t.Fatalf("waiter budgets = %d/%d, want 64/16", config.MaxWaiters, config.MaxWaitersPerKey)
+	if config.MaxWaiters != 64 || config.MaxWaitersPerKey != 64 {
+		t.Fatalf("waiter budgets = %d/%d, want 64/64", config.MaxWaiters, config.MaxWaitersPerKey)
 	}
 	if err := validateAgentStreamCapacityConfig(config); err != nil {
 		t.Fatalf("default capacity config: %v", err)

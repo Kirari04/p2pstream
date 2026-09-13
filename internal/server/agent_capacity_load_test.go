@@ -98,10 +98,10 @@ func TestAgentProxySustains100RPSAcrossFourLegacyAgents(t *testing.T) {
 		return successes.Load(), unavailable.Load()
 	}
 
-	t.Run("legacy global 64 reproduces capacity failures", func(t *testing.T) {
+	t.Run("explicit 64 queues bursts without premature failures", func(t *testing.T) {
 		okResponses, unavailableResponses := run(t, tunnel.DefaultMaxConcurrentAgentRequests)
-		if unavailableResponses == 0 {
-			t.Fatalf("legacy capacity unexpectedly served all requests: 200=%d 503=%d", okResponses, unavailableResponses)
+		if okResponses != requestCount || unavailableResponses != 0 {
+			t.Fatalf("bounded capacity failed instead of queuing: 200=%d 503=%d", okResponses, unavailableResponses)
 		}
 	})
 
@@ -352,7 +352,7 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 		}
 	})
 
-	t.Run("one agent negotiated at legacy 64 reproduces 50-rps agent server capacity", func(t *testing.T) {
+	t.Run("one agent negotiated at legacy 64 queues the 50-rps burst", func(t *testing.T) {
 		const (
 			requestCount = 300
 			requestRate  = 50
@@ -360,8 +360,8 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 		okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses := run(t, 0, 256, 64, 1, requestCount, requestRate, func(index int) time.Duration {
 			return time.Duration(800+(index%18)*100) * time.Millisecond
 		})
-		if agentCapacityFailures == 0 || targetCapacityFailures != 0 || otherResponses != 0 {
-			t.Fatalf("64-stream reproduction results: 200=%d route-target-503=%d agent-capacity-503=%d other=%d, want some agent-capacity failures only", okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses)
+		if okResponses != requestCount || agentCapacityFailures != 0 || targetCapacityFailures != 0 || otherResponses != 0 {
+			t.Fatalf("64-stream queued burst: 200=%d route-target-503=%d agent-capacity-503=%d other=%d, want all %d successful", okResponses, targetCapacityFailures, agentCapacityFailures, otherResponses, requestCount)
 		}
 	})
 

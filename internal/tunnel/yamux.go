@@ -18,7 +18,8 @@ const (
 	// copy buffers, Yamux stream metadata, and allocator slack beyond receive
 	// credit itself. The stream charge is held until the stream lease closes.
 	AdaptivePerStreamOverheadBytes     = int64(768 * 1024)
-	DefaultAdaptiveStreamChargeBytes   = int64(1280 * 1024)
+	DefaultAdaptiveReceiveWindowBytes  = int64(512 * 1024)
+	DefaultAdaptiveStreamChargeBytes   = DefaultAdaptiveReceiveWindowBytes + AdaptivePerStreamOverheadBytes
 	MinimumAdaptiveStreamChargeBytes   = InitialStreamWindowSizeBytes + AdaptivePerStreamOverheadBytes
 	DefaultMaxStreamWindowSizeBytes    = int64(2 * 1024 * 1024)
 	MaxStreamWindowSizeBytesLimit      = int64(64 * 1024 * 1024)
@@ -28,7 +29,41 @@ const (
 	MaxServerConcurrentStreamsLimit    = int64(65536)
 	MaxAdaptiveConcurrentStreamsLimit  = MaxServerConcurrentStreamsLimit
 	MaxAggregateStreamWindowBytesLimit = int64(512 * 1024 * 1024)
+	DefaultUpstreamSocketBufferBytes   = int64(128 * 1024)
+	MaxUpstreamSocketBufferBytes       = int64(16 * 1024 * 1024)
 )
+
+// StreamMemoryCharge covers initial receive credit and bounded socket/relay
+// overhead. GrowingConn reserves additional credit only for sustained traffic.
+func StreamMemoryCharge(windowBytes, socketBufferBytes int64) (int64, error) {
+	window, err := NormalizeMaxStreamWindowSizeBytes(windowBytes)
+	if err != nil {
+		return 0, err
+	}
+	buffer, err := NormalizeUpstreamSocketBufferBytes(socketBufferBytes)
+	if err != nil {
+		return 0, err
+	}
+	// Linux may double both requested socket buffers. The remaining 256 KiB
+	// covers relay buffers, stream metadata, TLS state and allocator slack.
+	charge := min(int64(window), DefaultAdaptiveReceiveWindowBytes) + 4*buffer + 256*1024
+	return max(charge, MinimumAdaptiveStreamChargeBytes), nil
+}
+
+func InitialReceiveWindow(configured int64) (int64, error) {
+	window, err := NormalizeMaxStreamWindowSizeBytes(configured)
+	return min(int64(window), DefaultAdaptiveReceiveWindowBytes), err
+}
+
+func NormalizeUpstreamSocketBufferBytes(size int64) (int64, error) {
+	if size == 0 {
+		size = DefaultUpstreamSocketBufferBytes
+	}
+	if size < 16*1024 || size > MaxUpstreamSocketBufferBytes {
+		return 0, fmt.Errorf("TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES must be between %d and %d", 16*1024, MaxUpstreamSocketBufferBytes)
+	}
+	return size, nil
+}
 
 // AdaptiveMaxStreamWindowSizeBytes returns the largest receive window that is
 // fully covered by the adaptive controller's lifetime charge for one stream.
@@ -50,8 +85,8 @@ func AdaptiveMaxStreamWindowSizeBytes(configuredBytes, chargedBytes int64) (int6
 			AdaptivePerStreamOverheadBytes,
 		)
 	}
-	if chargedBytes > MaxStreamWindowSizeBytesLimit {
-		return 0, fmt.Errorf("adaptive stream charge must be at most %d bytes", MaxStreamWindowSizeBytesLimit)
+	if chargedBytes > MaxStreamWindowSizeBytesLimit+4*MaxUpstreamSocketBufferBytes+AdaptivePerStreamOverheadBytes {
+		return 0, fmt.Errorf("adaptive stream charge exceeds the maximum accounted window and socket buffers")
 	}
 	coveredWindow := chargedBytes - AdaptivePerStreamOverheadBytes
 	if coveredWindow < int64(configured) {

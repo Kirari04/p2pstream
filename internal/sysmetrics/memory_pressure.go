@@ -112,9 +112,8 @@ func DefaultAdaptiveMemoryConfig() AdaptiveMemoryConfig {
 		HardLimitPercent: 90,
 		RecoveryPercent:  75,
 		SampleInterval:   100 * time.Millisecond,
-		// Adaptive Yamux sessions cap their receive window to this value. The
-		// controller conservatively reserves the full charge for every live
-		// stream until its admission lease is released.
+		// Reserve initial credit and overhead for every live stream until its
+		// lease is released. Window growth acquires additional byte reservations.
 		EstimatedBytesPerAdmission: tunnel.DefaultAdaptiveStreamChargeBytes,
 		MaxSampleStaleness:         time.Second,
 	}
@@ -140,24 +139,61 @@ func (c AdaptiveMemoryConfig) Validate() error {
 }
 
 type AdaptiveMemorySnapshot struct {
-	Generation         uint64
-	Usage              MemoryUsage
-	Level              MemoryPressureLevel
-	AdmissionLimit     int
-	Maximum            int
-	RejectNew          bool
-	SampledAt          time.Time
-	NextSampleAt       time.Time
-	SampleError        string
-	HeadroomToHardByte int64
-	ReservedStreamByte int64
-	StreamChargeByte   int64
-	FDUsed             int64
-	FDLimit            int64
-	FDHeadroomToHard   int64
-	ReservedStreamFD   int64
-	PressureReason     string
-	LastGoodSampleAt   time.Time
+	Generation           uint64
+	Usage                MemoryUsage
+	Level                MemoryPressureLevel
+	AdmissionLimit       int
+	MemoryAdmissionLimit int
+	FDAdmissionLimit     int
+	Maximum              int
+	RejectNew            bool
+	SampledAt            time.Time
+	NextSampleAt         time.Time
+	SampleError          string
+	HeadroomToHardByte   int64
+	ReservedStreamByte   int64
+	StreamChargeByte     int64
+	FDUsed               int64
+	FDLimit              int64
+	FDHeadroomToHard     int64
+	ReservedStreamFD     int64
+	PressureReason       string
+	LastGoodSampleAt     time.Time
+}
+
+// AdmissionLimitWithExternal keeps byte and descriptor accounting separate.
+// Charging a byte-only owner against the minimum of both limits would consume
+// imaginary descriptors and prematurely reject multiplexed requests/windows.
+// A negative result means the external owners alone overdraw the envelope;
+// this is distinct from zero remaining stream slots with a valid reservation.
+func (s AdaptiveMemorySnapshot) AdmissionLimitWithExternal(bytes, fds int64) int {
+	memoryLimit, fdLimit := s.MemoryAdmissionLimit, s.FDAdmissionLimit
+	if memoryLimit == 0 && fdLimit == 0 {
+		// Preserve synthetic/older snapshots that only contain the joint limit.
+		memoryLimit, fdLimit = s.AdmissionLimit, s.AdmissionLimit
+	}
+	if s.StreamChargeByte > 0 && bytes > 0 {
+		cost := bytes / s.StreamChargeByte
+		if bytes%s.StreamChargeByte != 0 {
+			cost++
+		}
+		if cost > int64(memoryLimit) {
+			return -1
+		}
+		memoryLimit -= int(cost)
+	}
+	if fds > 0 {
+		cost := fds/2 + fds%2
+		if cost > int64(fdLimit) {
+			return -1
+		}
+		fdLimit -= int(cost)
+	}
+	limit := min(memoryLimit, fdLimit)
+	if s.Maximum > 0 {
+		limit = min(limit, s.Maximum)
+	}
+	return max(0, limit)
 }
 
 // AdaptiveMemoryController turns actual resource pressure into a temporary
@@ -293,6 +329,8 @@ func (c *AdaptiveMemoryController) snapshotAt(maximum, inUse int, force bool) Ad
 			snapshot.AdmissionLimit = inUse
 			snapshot.RejectNew = true
 		}
+		snapshot.MemoryAdmissionLimit = inUse
+		snapshot.FDAdmissionLimit = inUse
 		c.snapshot = snapshot
 		c.nextSampleAt = snapshot.NextSampleAt
 		return snapshot
@@ -360,6 +398,10 @@ func (c *AdaptiveMemoryController) snapshotAt(maximum, inUse int, force bool) Ad
 		unreservedMemoryHeadroom = 0
 	}
 	additional := unreservedMemoryHeadroom / c.config.EstimatedBytesPerAdmission
+	// Keep resource dimensions independent of the stream implementation guard.
+	// Logical HTTP/2 requests and window growth do not create physical streams.
+	snapshot.MemoryAdmissionLimit = inUse + int(min(additional, int64(math.MaxInt-inUse)))
+	snapshot.FDAdmissionLimit = math.MaxInt
 	if fdUsage.Valid() {
 		// A default Go TCP dial may temporarily hold two sockets while Happy
 		// Eyeballs races address families. Reserve both descriptors for every
@@ -372,6 +414,7 @@ func (c *AdaptiveMemoryController) snapshotAt(maximum, inUse int, force bool) Ad
 			unreservedFDHeadroom = 0
 		}
 		fdAdditional := unreservedFDHeadroom / descriptorsPerAdmission
+		snapshot.FDAdmissionLimit = inUse + int(min(fdAdditional, int64(math.MaxInt-inUse)))
 		if fdAdditional < additional {
 			additional = fdAdditional
 		}
@@ -386,6 +429,8 @@ func (c *AdaptiveMemoryController) snapshotAt(maximum, inUse int, force bool) Ad
 	switch c.level {
 	case MemoryPressureCritical:
 		snapshot.AdmissionLimit = inUse
+		snapshot.MemoryAdmissionLimit = inUse
+		snapshot.FDAdmissionLimit = inUse
 		snapshot.RejectNew = true
 	}
 	c.snapshot = snapshot

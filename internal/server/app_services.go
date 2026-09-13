@@ -63,6 +63,7 @@ func newAppServices(cfg *config.Config, app *App) appServices {
 			app.agentStreamCapacity.unregisterSession(agentStreamCapacitySessionKey(conn, conn.Session))
 		}
 	}
+	services.directTransports.app = app
 	services.publicACME = newPublicACMEManager(app)
 	services.publicConfig = newPublicConfigService(app, app.DB, services.targetHealth, appPublicConfigRuntime{app: app})
 	services.proxyRuntime = newProxyRuntime(app)
