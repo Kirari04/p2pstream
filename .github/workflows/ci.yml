@@ -62,7 +62,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Check installer syntax
-        run: bash -n scripts/install-agent.sh scripts/uninstall-agent.sh
+        run: bash -n scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh
 
       - name: Run installer lifecycle tests
         run: scripts/test-agent-lifecycle.sh
@@ -82,5 +82,24 @@ jobs:
       - name: Build management UI
         run: cd web/management && bun run build
 
+      - name: Install update-test browser
+        run: cd web/management && bunx playwright install --with-deps chromium
+
+      - name: Run isolated server update browser tests
+        run: cd web/management && bun run e2e:updates
+
       - name: Build runtime image
         run: docker build --target runtime -t p2pstream:ci .
+
+      - name: Rehearse server update lifecycle in isolated Docker
+        timeout-minutes: 20
+        run: make docker-server-updater-test
+
+      - name: Upload server updater rehearsal artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-updater-rehearsal
+          path: tmp/server-updater-tests/
+          if-no-files-found: ignore
+          retention-days: 7

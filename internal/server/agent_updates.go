@@ -1326,6 +1326,14 @@ type agentUpdateMaintenanceItem struct {
 }
 
 func (a *App) reconcileAgentUpdateMaintenance(ctx context.Context, now time.Time) {
+	if a != nil {
+		a.serverUpdateMu.RLock()
+		defer a.serverUpdateMu.RUnlock()
+		if a.serverUpdateGated() {
+			return
+		}
+	}
+
 	if a == nil || a.DB == nil {
 		return
 	}

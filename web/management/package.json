@@ -9,6 +9,7 @@
     "build": "vue-tsc --noEmit && bun run --bun vite build",
     "docs:screenshots": "playwright test -c playwright.docs-screenshots.config.ts",
     "e2e": "playwright test",
+    "e2e:updates": "playwright test -c playwright.updates.config.ts",
     "e2e:install": "playwright install chromium",
     "typecheck": "vue-tsc --noEmit"
   },

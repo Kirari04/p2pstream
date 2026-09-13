@@ -1,5 +1,7 @@
 # Upgrades
 
+For supported Docker Compose deployments, use [Management Server Updates](./server-updates) to preview a verified release and update the selected environment with snapshot recovery.
+
 Upgrade the p2pstream image or binary while keeping the same persistent data directory.
 
 ## Use This When

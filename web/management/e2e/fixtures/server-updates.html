@@ -1,0 +1,42 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Server Updates fixture</title>
+<div style="padding:16px"><button id="switch">Switch environment</button><output id="requests">[]</output></div>
+<div id="app" style="padding:24px;max-width:1100px;margin:auto"></div>
+<script type="module">
+import { createApp, h, computed, ref } from 'vue';
+import { NConfigProvider, darkTheme } from 'naive-ui';
+import { create } from '@bufbuild/protobuf';
+import * as schemas from '/src/gen/proto/p2pstream/v1/management_pb.ts';
+import * as keys from '/src/composables/managementContextKeys.ts';
+import { createRoutedManagementClient } from '/src/api/managementClient.ts';
+import ServerUpdates from '/src/views/ServerUpdates.vue';
+import '/src/styles.css';
+
+document.documentElement.classList.add('dark');
+const query = new URLSearchParams(location.search);
+const scope = ref('1');
+const name = computed(() => scope.value === '1' ? 'fireani.me' : 'Local');
+const ids = {1:'11111111-1111-4111-8111-111111111111',2:'22222222-2222-4222-8222-222222222222'};
+const target = {version:'v0.1.53-staging.91',commit:'b'.repeat(40),channel:'staging',image:'ghcr.io/kirari04/p2pstream@sha256:'+'c'.repeat(64),manifestSha256:'d'.repeat(64)};
+const requests = [];
+const clients = Object.fromEntries(['1','2'].map((id) => [id, {
+ getServerUpdateOverview: async () => create(schemas.GetServerUpdateOverviewResponseSchema, {instanceId:ids[id],version:'v0.1.53-staging.90',commit:'a'.repeat(40),channel:'staging',executorConfigured:true,executorAvailable:true,target}),
+ previewServerUpdate: async () => {
+  await new Promise(resolve => setTimeout(resolve, query.has('slow') ? 700 : 30));
+  return create(schemas.PreviewServerUpdateResponseSchema,{instanceId:ids[id],currentVersion:'v0.1.53-staging.90',target,planToken:'opaque-plan-'+id,expiresAtUnixMillis:BigInt(Date.now() + (query.has('expired') ? -1 : 600000))});
+ },
+ startServerUpdate: async (request) => {
+  requests.push({environment:id,...request}); document.querySelector('#requests').textContent=JSON.stringify(requests);
+  if (query.has('lost') && requests.length === 1) throw new Error('connection interrupted');
+  return {operation:create(schemas.ServerUpdateOperationSchema,{id:request.operationId,phase:'accepted',previousVersion:'v0.1.53-staging.90',targetVersion:target.version})};
+ }
+}]));
+const app=createApp({render:()=>h(NConfigProvider,{theme:darkTheme},{default:()=>h(ServerUpdates)})});
+app.provide(keys.managementClientKey,createRoutedManagementClient(()=>clients[scope.value],()=>''));
+app.provide(keys.selectedEnvironmentIdKey,computed(()=>scope.value));
+app.provide(keys.selectedEnvironmentLabelKey,name);
+app.provide(keys.selectedEnvironmentBlockedKey,computed(()=>''));
+app.mount('#app');
+document.querySelector('#switch').onclick=()=>{scope.value=scope.value==='1'?'2':'1'};
+</script>

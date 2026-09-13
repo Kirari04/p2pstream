@@ -146,6 +146,10 @@ var serverCmd = &cobra.Command{
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
+		if err := app.StartServerUpdateRuntime(ctx); err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize server update readiness")
+		}
+
 		app.StartAdaptiveTunnelCapacity(ctx)
 		app.StartAgentUpdateMaintenance(ctx)
 		app.StartObservabilityMaintenance(ctx)
