@@ -3075,7 +3075,62 @@ message ReportAgentUpdateResponse {
   int64 retry_after_millis = 4;
 }
 
+// Server deployment updates are opt-in and executed by a separate supervisor.
+message ServerUpdateRelease {
+  string version = 1;
+  string commit = 2;
+  string channel = 3;
+  string manifest_sha256 = 4;
+  string image = 5;
+}
+message ServerUpdateOperation {
+  string id = 1;
+  string phase = 2;
+  string detail = 3;
+  string previous_version = 4;
+  string target_version = 5;
+  int64 started_at_unix_millis = 6;
+  int64 updated_at_unix_millis = 7;
+}
+message GetServerUpdateOverviewRequest {}
+message GetServerUpdateOverviewResponse {
+  string instance_id = 1;
+  string version = 2;
+  string commit = 3;
+  string channel = 4;
+  bool executor_configured = 5;
+  bool executor_available = 6;
+  string warning = 7;
+  ServerUpdateRelease target = 8;
+  ServerUpdateOperation operation = 9;
+  repeated string blockers = 10;
+}
+message PreviewServerUpdateRequest {
+  string instance_id = 1;
+  string target_version = 2;
+}
+message PreviewServerUpdateResponse {
+  string instance_id = 1;
+  string current_version = 2;
+  ServerUpdateRelease target = 3;
+  // Opaque executor-issued preview; clients must return it unchanged.
+  string plan_token = 4;
+  int64 expires_at_unix_millis = 5;
+}
+message StartServerUpdateRequest {
+  string instance_id = 1;
+  string operation_id = 2;
+  string plan_token = 3;
+}
+message StartServerUpdateResponse { ServerUpdateOperation operation = 1; }
+message GetServerUpdateOperationRequest { string instance_id = 1; string operation_id = 2; }
+message GetServerUpdateOperationResponse { ServerUpdateOperation operation = 1; }
+
 service AgentManagementService {
+  rpc GetServerUpdateOverview(GetServerUpdateOverviewRequest) returns (GetServerUpdateOverviewResponse) {}
+  rpc PreviewServerUpdate(PreviewServerUpdateRequest) returns (PreviewServerUpdateResponse) {}
+  rpc StartServerUpdate(StartServerUpdateRequest) returns (StartServerUpdateResponse) {}
+  rpc GetServerUpdateOperation(GetServerUpdateOperationRequest) returns (GetServerUpdateOperationResponse) {}
   rpc ReportStats(AgentStatsRequest) returns (AgentStatsResponse) {}
   rpc GetManagementTlsRotation(GetManagementTlsRotationRequest) returns (GetManagementTlsRotationResponse) {}
   rpc StageManagementTlsRotation(StageManagementTlsRotationRequest) returns (StageManagementTlsRotationResponse) {}

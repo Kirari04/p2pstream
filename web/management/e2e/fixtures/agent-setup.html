@@ -1,0 +1,33 @@
+<div id="app"></div>
+<script type="module">
+import { createApp, h, computed } from 'vue';
+import { createRouter, createWebHashHistory, RouterView } from 'vue-router';
+import { NDialogProvider, NConfigProvider } from 'naive-ui';
+import { create } from '@bufbuild/protobuf';
+import * as schemas from '/src/gen/proto/p2pstream/v1/management_pb.ts';
+import * as keys from '/src/composables/managementContextKeys.ts';
+import AgentHealth from '/src/views/AgentHealth.vue';
+import AgentUpdates from '/src/views/AgentUpdates.vue';
+import '/src/styles.css';
+const agent = create(schemas.AgentSchema, { id: 1n, publicId: 'fixture-agent', name: 'Fixture Agent', enabled: true, connected: true, version: 'v0.1.52', commit: 'b'.repeat(40) });
+const authority = { publicKey: new Uint8Array(32), keyId: 'a'.repeat(64), epoch: 1n };
+window.setupCalls = [];
+const fakeClient = {
+  createAgent: async () => ({ agent, token: 'fixture-agent-token', updaterEnrollmentToken: 'fixture-updater-token', updaterPinnedRepository: 'Kirari04/p2pstream', updaterManagementAuthority: authority }),
+  rotateAgentToken: async () => { window.setupCalls.push('rotate'); return { agent, token: 'fixture-rotated-token' }; },
+  getAgentUpdateOverview: async () => create(schemas.GetAgentUpdateOverviewResponseSchema, { agents: [{ agentId: 1n, agentPublicId: agent.publicId, name: agent.name, connected: true, tunnelVersion: agent.version, tunnelCommit: agent.commit }], trustedTargets: [{ version: 'v0.1.53-staging.84', manifestSha256: 'c'.repeat(64) }], managementAuthority: authority }),
+  listAgentUpdateCampaigns: async () => ({ campaigns: [] }),
+  generateAgentUpdaterEnrollmentToken: async () => { window.setupCalls.push('enrollment'); return { token: 'fixture-bootstrap-token', pinnedRepository: 'Kirari04/p2pstream', managementAuthority: authority, expiresAtUnixMillis: BigInt(Date.now()+600000) }; },
+};
+const router = createRouter({ history: createWebHashHistory(), routes: [{path:'/agent',component:AgentHealth}, {path:'/agent/updates',component:AgentUpdates}] });
+const app = createApp({ render: () => h(NConfigProvider, null, {default: () => h(NDialogProvider, null, {default: () => h(RouterView)})}) });
+app.provide(keys.managementClientKey, fakeClient);
+app.provide(keys.dashboardKey, computed(() => create(schemas.GetDashboardResponseSchema, { status: {version:'v0.1.53-staging.84'}, managementSecurity: {defaultManagementUrl:'https://localhost:8081',managementCaPem:'fixture-ca'} })));
+app.provide(keys.publicProxyConfigKey, computed(() => create(schemas.GetPublicProxyConfigResponseSchema, {agents:[agent]})));
+app.provide(keys.environmentsKey, computed(() => [{id:7n, managementUrl:'https://remote.example.test:8443'}]));
+app.provide(keys.selectedEnvironmentIdKey, computed(() => '7'));
+app.provide(keys.runManagementActionKey, async (action) => {await action(); return true});
+app.use(router);
+await router.isReady();
+app.mount('#app');
+</script>

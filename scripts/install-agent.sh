@@ -627,7 +627,7 @@ Description=p2pstream unprivileged update staging worker
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=${UPDATER_CONFIG_DIR}/enrolled.json
-ConditionPathExists=${UPDATER_CONFIG_DIR}/root.json
+ConditionPathExists=${UPDATER_CONFIG_DIR}/updater.json
 ConditionPathExists=${UPDATER_CONFIG_DIR}/management-authority.json
 
 [Service]
@@ -663,6 +663,9 @@ Description=Periodically check for an assigned p2pstream agent update
 
 [Timer]
 OnBootSec=30s
+# Re-arm polling when an existing timer is restarted after repair. Its boot
+# trigger may already be consumed and its service timestamps may be reset.
+OnActiveSec=30s
 OnUnitActiveSec=30s
 RandomizedDelaySec=30s
 AccuracySec=5s
@@ -679,7 +682,7 @@ Description=p2pstream offline update activator
 StartLimitIntervalSec=10min
 StartLimitBurst=5
 ConditionPathExists=${UPDATER_CONFIG_DIR}/enrolled.json
-ConditionPathExists=${UPDATER_CONFIG_DIR}/root.json
+ConditionPathExists=${UPDATER_CONFIG_DIR}/updater.json
 ConditionPathExists=${UPDATER_CONFIG_DIR}/management-authority.json
 
 [Service]
@@ -689,6 +692,8 @@ RestartSec=30s
 User=root
 Group=root
 ExecStart=${UPDATER_RUNNER_PATH} updater activate
+# Successful actions must not exhaust the throttle for consecutive failures.
+ExecStartPost=/usr/bin/systemctl reset-failed p2pstream-updater-activate.service p2pstream-updater-activate.path
 ExecStartPost=/usr/bin/systemctl start --no-block p2pstream-updater.service
 ExecStopPost=/usr/bin/systemctl start --no-block p2pstream-updater.service
 UMask=0077
@@ -756,6 +761,17 @@ install_updater_foundation() {
 	install -o root -g root -m 0755 "$P2PSTREAM_AGENT_BINARY_FILE" "$next_runner"
   sync -d "$next_runner"
 
+	# Quiesce both writers before bootstrap rewrites shared enrollment/floor
+	# state. Interrupted root journals remain durable for the new runner.
+	systemctl stop p2pstream-updater.timer p2pstream-updater-activate.path >/dev/null 2>&1 || true
+	# ExecStopPost on the root helper queues the worker, so stop the worker last.
+	systemctl stop p2pstream-updater-activate.service >/dev/null 2>&1 || true
+	systemctl stop p2pstream-updater.service >/dev/null 2>&1 || true
+	if systemctl is-active --quiet p2pstream-updater.timer p2pstream-updater-activate.path p2pstream-updater.service p2pstream-updater-activate.service; then
+		fail "could not stop managed updater units before replacing enrollment state"
+	fi
+	systemctl disable p2pstream-updater.timer p2pstream-updater-activate.path >/dev/null 2>&1 || true
+
   P2PSTREAM_REPOSITORY="$repository" \
   P2PSTREAM_UPDATER_ENROLLMENT_TOKEN="$P2PSTREAM_UPDATER_ENROLLMENT_TOKEN" \
   P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64="$P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64" \
@@ -770,8 +786,6 @@ install_updater_foundation() {
   AGENT_ID="$AGENT_ID" \
 		"$next_runner" updater bootstrap-host >"${tmp_dir}/updater-identities.json" \
     || fail "failed to create isolated updater identities"
-	systemctl stop p2pstream-updater.timer p2pstream-updater-activate.path p2pstream-updater.service p2pstream-updater-activate.service >/dev/null 2>&1 || true
-	systemctl disable p2pstream-updater.timer p2pstream-updater-activate.path >/dev/null 2>&1 || true
 	mv -Tf "$next_runner" "$UPDATER_RUNNER_PATH"
 	sync -d "$UPDATER_RUNNER_DIR"
 
@@ -1003,7 +1017,7 @@ main() {
   INSTALL_TMP_DIR="$tmp_dir"
   trap cleanup_tmp_dir EXIT
 
-  printf 'Installing locally supplied p2pstream %s for linux/%s...\n' "$tag" "$arch"
+  printf 'Preparing locally supplied p2pstream %s for linux/%s...\n' "$tag" "$arch"
 	local bootstrap_digest slot_version="$tag" updater_reenroll="false"
 	if managed_updates_requested && [[ -e "${UPDATER_CONFIG_DIR}/enrolled.json" || -L "${UPDATER_CONFIG_DIR}/enrolled.json" ]]; then
 		[[ -f "${UPDATER_CONFIG_DIR}/enrolled.json" && ! -L "${UPDATER_CONFIG_DIR}/enrolled.json" ]] \
@@ -1060,13 +1074,20 @@ main() {
 		printf 'Existing tunnel service left running on its unchanged binary.\n'
 	else
 		restart_service
+		if [[ "$updater_reenroll" == "true" ]]; then
+			printf 'Managed agent configuration repaired and service restarted; agent binary unchanged.\n'
+		else
+			printf 'p2pstream agent %s installed and restarted.\n' "$tag"
+		fi
 	fi
 
-  printf 'p2pstream agent installed and restarted.\n'
   printf 'Check status with: sudo systemctl status %s\n' "$SERVICE_NAME"
   printf 'View logs with: sudo journalctl -u %s -f\n' "$SERVICE_NAME"
   if managed_updates_requested; then
     printf 'Managed updater enrolled; hardened polling and activation units enabled.\n'
+		if [[ "$preserve_existing_env" == "true" || "$updater_reenroll" == "true" ]]; then
+			printf 'To upgrade the agent binary, use Agents > Updates > Plan rollout in management.\n'
+		fi
   fi
 }
 

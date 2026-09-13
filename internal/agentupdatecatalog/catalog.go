@@ -136,6 +136,9 @@ func loopbackTestOrigin(raw string) bool {
 // good release survives a transient network failure only while its manifest
 // expiry is still in the future.
 func (c *Catalog) Latest(ctx context.Context) (*agentupdate.VerifiedCatalog, error) {
+	if c == nil {
+		return nil, errors.New("agent update catalog is unavailable")
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

@@ -30,28 +30,16 @@ Example:
    | Name | `home-lab` |
    | Enabled | On |
 
-   After creation, the **Agent Setup** modal shows the generated `AGENT_ID` and one-time `AGENT_TOKEN`.
+   After creation, the **Install Agent** modal shows the generated `AGENT_ID` and one-time `AGENT_TOKEN`.
 
    <figure class="doc-screenshot">
      <img src="../assets/new/new_agent_modal_setup.png" alt="p2pstream Agent Setup modal showing generated agent identity, a one-time token, advanced options, and Linux, Docker Compose, and CLI tabs">
      <figcaption>The Agent Setup modal shows the one-time token and generated installer snippets. Copy the command before selecting Done because the token is not shown again.</figcaption>
    </figure>
 
-2. Obtain the exact versioned installer and raw agent binary through an independently trusted channel, verify them locally, and enter their absolute paths in the **Agent Setup** modal. The generated local-only command has this shape:
+2. Select **Linux install**, copy the generated command, and paste it into a terminal on the agent host. The command already includes the agent token and, when enabled, the updater enrollment token. It downloads the installer and binary for the selected release and host architecture, then verifies their SHA-256 checksums before installation. No local file paths or separate token entry are required.
 
-   ```bash
-   sudo env \
-     MANAGEMENT_URL='https://proxy.example.com:8081' \
-     MANAGEMENT_CA_PEM_BASE64='...' \
-     AGENT_ID='agent-...' \
-     AGENT_TOKEN='...' \
-     P2PSTREAM_REPOSITORY='Kirari04/p2pstream' \
-     P2PSTREAM_VERSION='v1.2.3' \
-     P2PSTREAM_AGENT_BINARY_FILE='/srv/pinned/p2pstream_v1.2.3_linux_amd64' \
-     bash '/srv/pinned/install-agent-v1.2.3.sh'
-   ```
-
-   The installer refuses stdin/piped execution, mutable release names, symlinked binaries, and remote checksum bootstrap. It creates `/usr/local/bin/p2pstream`, `/etc/p2pstream/agent.env`, and `p2pstream-agent.service`, then restarts the agent service. You can run the generated Linux command again after token rotation with independently verified local files.
+   The installer creates `/usr/local/bin/p2pstream`, `/etc/p2pstream/agent.env`, and `p2pstream-agent.service`, then restarts the agent service. For an existing host, use **More → Reinstall / Repair** to keep its token and enable managed updates. After explicit token rotation, run the separate token-change command. Independently verified local files can still be selected under **Advanced setup options**.
 
 3. Check the agent service:
 

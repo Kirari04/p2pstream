@@ -1,6 +1,6 @@
 # Managed Agent Updates
 
-Managed updates are an opt-in Linux/systemd workflow for rolling a stable
+Managed updates are a Linux/systemd workflow for rolling a stable
 release or isolated staging prerelease across a fleet without rotating tunnel
 tokens or logging in to each host.
 
@@ -32,9 +32,15 @@ metadata. The remaining Ed25519 identities protect privileged host actions:
 - the privileged activator identity attests the result of one consumed command,
   including its digest, nonce, monotonic sequence, and action counter.
 
-## Enable the server catalog
+## Configure the server catalog
 
-Set the server variables below, then restart p2pstream:
+The server catalog is enabled by default. Hosts still require one-time
+enrollment and an explicitly created rollout campaign; enabling the catalog
+does not update agents automatically. Set `AGENT_UPDATES_ENABLED=false` to
+disable managed updates.
+
+These are the defaults for a stable server. Set overrides as needed, then
+restart p2pstream:
 
 ```dotenv
 AGENT_UPDATES_ENABLED=true
@@ -58,12 +64,39 @@ one recovery unit. A missing, replaced, permissive, or mismatched key disables
 managed enrollment and campaign progression instead of silently generating a
 new identity for existing state.
 
+## Remote environments
+
+Selecting a trusted remote environment scopes **Agents → Updates** to that
+server: its fleet, release catalog, command authority, enrollment tokens, and
+campaigns. The parent forwards operator actions using the saved environment
+management token over the existing certificate-pinned direct or agent
+transport. Both servers require admin authorization; the remote server still
+enforces release trust and rollout safety gates.
+
+Host enrollment, update checks, and reports go directly to that environment's
+management endpoint using their dedicated credentials. They are not forwarded
+through the parent's environment proxy. Bootstrap commands use the remote
+server's advertised management URL, or its saved environment URL when unset;
+configure `MANAGEMENT_PUBLIC_URL` if hosts need a different reachable address.
+
+The parent needs a build that supports forwarding update actions. The remote
+server also needs the managed-update APIs and working catalog/authority
+configuration; enabling updates on the parent does not configure the remote.
+
 ## Enroll hosts once
 
-Open **Agents → Updates**. An unenrolled host has a **Bootstrap** action. The UI
-presents a secret-free command and short-lived token as separate copy steps.
-The command prompts for the token so it is not placed in shell history or
-process arguments. The handoff contains:
+Open **Agents → Updates**. An unenrolled host has an **Enable managed updates** action. The UI
+uses the same setup dialog as **Install Agent** and **Reinstall / Repair**, with
+an editable Management URL, release details, and optional local files.
+Enrollment preserves the host's existing management CA and agent configuration.
+A remote server advertising localhost defaults to its saved environment
+address. Enter the address reachable from the agent host.
+
+The dialog provides one complete command with the short-lived enrollment token
+included. Copy it and run it on the agent host; no separate token entry or file
+downloads are needed. It fetches and verifies the selected release's installer
+and architecture-specific binary before execution. Treat the copied command
+as a credential. The handoff contains:
 
 - the management HTTPS origin and agent public ID;
 - a short-lived, single-use updater enrollment token;
@@ -113,6 +146,42 @@ decisions.
 
 ## Failure and recovery
 
+Cancelling a campaign does not immediately release hosts with an outstanding activation authorization. They remain cordoned and reserved until the privileged updater attests rollback and the agent establishes a fresh tunnel. A blocked host in a cancelled campaign can use **Recover agents** (called **Retry** in older interfaces) to request recovery. When rollback is already pending, wait for the updater instead of retrying the same assignment again. A paused campaign must be resumed or cancelled before its queued rollback can execute.
+
+After verified recovery, the historical assignment remains **failed**, with desired action **none** and traffic eligible. That host can be selected in **Plan rollout** again. If the updater is stale or rollback times out, inspect the updater and activator service journals on the host; cancelling or refreshing the browser cannot replace that missing host evidence. Management builds through `v0.1.53-staging.87` also rejected rollback results for assignments left in the blocked phase by cancellation. The corrected report handler accepts those administrator-authorized recovery results while retaining root signature validation and the fresh-tunnel requirement.
+
+If the worker journal repeats `root action report does not match its signed result receipt`, updater builds through `v0.1.53-staging.87` omitted the restored version, commit, and digests from the rollback report envelope, even though the signed root receipt contained them. The worker retries this durable result before polling, so restarting it cannot clear the loop. Upgrade management to a build containing the rollback-report compatibility fix: it accepts the all-empty legacy envelope only for rollback, verifies the signed receipt normally, and records the receipt's result. New updater builds also fill the envelope correctly. If the assignment already reached `root_action_timeout`, use **Recover agents** after upgrading management; the obsolete result can then be acknowledged without releasing the traffic fence, and the worker can obtain a new signed rollback. Do not delete or edit host receipts, rotate the agent token, or reinstall the live agent to clear this reporting error. The separate pinned-updater permission fix described below is still required before retrying activation on an old rescue runner.
+
+If a host enrolled successfully but shows **Worker stale**, check `systemctl status p2pstream-updater.service` and its journal. Releases through `v0.1.53-staging.85` installed units with an obsolete `ConditionPathExists=/etc/p2pstream-updater/root.json` requirement. The current updater provisions `updater.json`, `enrolled.json`, and `management-authority.json`; it does not create `root.json`. Replace that exact obsolete condition with `ConditionPathExists=/etc/p2pstream-updater/updater.json` in both updater service files, reload systemd, restart the updater timer and activation path, and start `p2pstream-updater.service`. Keep the enrollment and management-authority conditions. No token rotation or changes to agent destination permissions are needed.
+
+Re-enrolling or repairing an already managed host updates its rescue runner and keeps its existing agent binary and rollback state. Upgrading that binary requires a rollout campaign. A successful repair message alone does not confirm that the agent upgraded; check **Live tunnel** and the campaign result.
+
+The timer shipped through `v0.1.53-staging.88` can stop scheduling after repair.
+The enrollment command sends its own check-in before systemd starts the worker,
+so management can show the new pinned updater version while subsequent checks
+never arrive. Check `systemctl status p2pstream-updater.timer`: the characteristic
+state is **active (elapsed)** with **Trigger: n/a**. The original timer's boot
+trigger was already consumed, and stopping/reloading the units can discard the
+service activation timestamps needed by `OnUnitActiveSec`. The corrected timer
+adds `OnActiveSec=30s`, giving every timer restart a fresh scheduling deadline.
+
+For an already repaired `.88` host, apply the timer correction directly:
+
+```sh
+sudo install -d -m 0755 /etc/systemd/system/p2pstream-updater.timer.d &&
+printf '[Timer]\nOnActiveSec=30s\n' | sudo tee /etc/systemd/system/p2pstream-updater.timer.d/10-rearm.conf >/dev/null &&
+sudo systemctl daemon-reload &&
+sudo systemctl restart p2pstream-updater.timer &&
+sudo systemctl start p2pstream-updater.service
+```
+
+This preserves the agent credentials, network permissions, signed receipts and
+current campaign. The timer should show a future trigger while waiting; **running**
+is also normal while its worker executes. A failed worker invocation requires
+its journal (`sudo journalctl -u p2pstream-updater.service -n 50 --no-pager`).
+
+If activation reports that the agent service did not become active and rolled back, inspect the agent service journal and the candidate slot permissions. Updater builds through `v0.1.53-staging.86` created the new slot directory with mode `0700`; the activator's `UMask=0077` also restricted the executable to `0700`. The `p2pstream` service user cannot execute that root-owned slot. The corrected updater explicitly applies `0755` to the verified executable and its version directory before promotion, and repairs those permissions on verified existing slots during retry. Its private state still uses the restrictive umask. Install a release containing this correction into each host's pinned rescue updater before attempting further rollouts; changing only the management server or the agent's live binary does not replace that separate runner.
+
 - A failed download, manifest, size, or digest check never reaches the
   privileged helper.
 - A crash during activation is recovered from its fsynced journal and either
@@ -147,3 +216,51 @@ validity, security/minimum-safe, server/updater/protocol compatibility, and
 current-protocol repository variables listed in
 `internal/agentupdate/README.md`. Docker deployments that require immutable
 rollbacks should pin the version tag or OCI digest rather than a channel alias.
+
+## Verification
+
+The manifest generator enforces the repository's minimum supported pinned
+updater, `v0.1.53-staging.88`. It takes the higher of this floor and the configured
+`AGENT_UPDATE_UPDATER_MIN_VERSION`, and rejects an incompatible maximum. The
+floor stays fixed for later tunnel releases, so a corrected `.88` updater can
+install subsequent compatible releases without another repair. Updater range
+bounds accept canonical SemVer prereleases; server compatibility and minimum
+safe-version bounds keep their existing stable-version rules. Upgrade
+management first, complete any pending recovery, then repair older pinned
+updaters before starting the next rollout. Older management builds reject a
+manifest containing the new prerelease updater bound until management itself
+is upgraded.
+
+Run the real service lifecycle test on a Linux amd64 workstation with Go and
+Multipass installed:
+
+```sh
+scripts/test-managed-updates-systemd.sh
+```
+
+The script builds the current source and an actual `.84` worker, creates a
+disposable Ubuntu 24.04 VM, and uses the production installer, service users,
+systemd hardening, updater/activator executables, authenticated management
+handlers, and agent tunnels. It verifies upgrades, signed cancellation
+rollback, legacy worker reporting, lost-response retry, pinned updater repair
+after verified recovery, recovery from an exhausted systemd crash limit, and a
+subsequent rollout to the same cancelled target.
+Success checks include the real agent
+process executable, reported build, released traffic fence, and unchanged
+agent token/network configuration. It independently checks the repaired pinned
+binary and its enrolled updater version. A VM-local TLS mirror supplies fixture
+artifacts through the normal download and digest-verification path.
+
+Logs are retained under `tmp/managed-updates-systemd` and a VM created by the
+script is removed afterward. Set `P2PSTREAM_SYSTEMD_OUTPUT_DIR` for another log
+directory. `P2PSTREAM_SYSTEMD_VM_NAME` may select an existing disposable VM named
+`p2pstream-update-review...`; it must have no agent installation and is retained
+for inspection. The harness refuses to provision the workstation.
+
+This test covers one Linux amd64 agent. It does not simulate a multi-agent
+route quorum, active routed request draining, ARM64, production GitHub/OCI
+publication, or a pre-existing host's arbitrary configuration. Candidate
+binaries use the same current source with distinct build identities; the old
+worker uses its historical source while the privileged activator stays fixed.
+Unit and lifecycle tests cover additional state transitions and failure
+injection, and a production rollout still begins with a canary.

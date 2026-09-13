@@ -100,7 +100,7 @@ func TestLoadSupportsDisablingManagementUI(t *testing.T) {
 	}
 }
 
-func TestLoadAgentUpdateCatalogDefaultsToDisabledAndPinnedRepository(t *testing.T) {
+func TestLoadAgentUpdateCatalogDefaultsToEnabledAndPinnedRepository(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	configDir := filepath.Join(workDir, "data")
 	t.Setenv("CONFIG_DIR", configDir)
@@ -109,8 +109,8 @@ func TestLoadAgentUpdateCatalogDefaultsToDisabledAndPinnedRepository(t *testing.
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.AgentUpdatesEnabled {
-		t.Fatal("AgentUpdatesEnabled = true, want explicit opt-in")
+	if !cfg.AgentUpdatesEnabled {
+		t.Fatal("AgentUpdatesEnabled = false, want enabled by default")
 	}
 	if cfg.AgentUpdateRepository != "Kirari04/p2pstream" {
 		t.Fatalf("AgentUpdateRepository = %q", cfg.AgentUpdateRepository)
@@ -123,6 +123,19 @@ func TestLoadAgentUpdateCatalogDefaultsToDisabledAndPinnedRepository(t *testing.
 	}
 	if cfg.AgentUpdateAuthorityKeyFile != filepath.Join(configDir, "agent-update-management-authority.json") {
 		t.Fatalf("AgentUpdateAuthorityKeyFile = %q", cfg.AgentUpdateAuthorityKeyFile)
+	}
+}
+
+func TestLoadSupportsDisablingAgentUpdates(t *testing.T) {
+	workDir := isolatedConfigTestDir(t)
+	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
+	t.Setenv("AGENT_UPDATES_ENABLED", "false")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AgentUpdatesEnabled {
+		t.Fatal("explicit AGENT_UPDATES_ENABLED=false must disable managed updates")
 	}
 }
 
@@ -604,6 +617,7 @@ func isolatedConfigTestDir(t *testing.T) string {
 	unsetEnv(t, "PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET")
 	unsetEnv(t, "PUBLIC_MAX_CONNECTIONS_PER_TARGET")
 	unsetEnv(t, "SERVER_TUNNEL_MAX_CONCURRENT_STREAMS")
+	unsetEnv(t, "AGENT_UPDATES_ENABLED")
 	unsetEnv(t, "AGENT_UPDATE_CHANNEL")
 	unsetEnv(t, "SERVER_TUNNEL_MEMORY_PERCENT")
 	unsetEnv(t, "SERVER_TUNNEL_MEMORY_RESERVE_BYTES")

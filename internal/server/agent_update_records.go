@@ -155,18 +155,23 @@ func (a *App) ensureAgentUpdateAssignmentAuthorization(ctx context.Context, agen
 		return agentUpdateAssignmentRow{}, agentUpdateCampaignRow{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("campaign state does not permit privileged update authorization"))
 	}
 	now := time.Now().UTC().Truncate(time.Millisecond)
-	if assignment.AuthorizationAction == action && assignment.AuthorizationExpiresAt.Valid && assignment.AuthorizationExpiresAt.Time.After(now) {
-		return assignment, campaign, nil
-	}
 	identity, err := agentUpdaterIdentityByAgentID(ctx, tx, agentID)
 	if err != nil {
 		return agentUpdateAssignmentRow{}, agentUpdateCampaignRow{}, publicDBError(err)
+	}
+	if assignment.AuthorizationAction == action && assignment.AuthorizationExpiresAt.Valid && assignment.AuthorizationExpiresAt.Time.After(now) {
+		// Older cancellation could advance the assignment generation while
+		// retaining an unexpired rollback authorization. Its canonical state
+		// must still match before reuse; otherwise mint a fresh command below.
+		if _, err := storedAssignmentAuthorization(assignment, campaign, identity); err == nil {
+			return assignment, campaign, nil
+		}
 	}
 	authorization, err := a.issueAssignmentAuthorizationTx(ctx, tx, identity, assignment, campaign, action, now)
 	if err != nil {
 		return agentUpdateAssignmentRow{}, agentUpdateCampaignRow{}, err
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action=?,authorization_server_version=?,command_sequence=?,authorization_nonce=?,authorization_sha256=?,authorization_payload=?,authorization_signature=?,authorization_issued_at=?,authorization_expires_at=?,updated_at=? WHERE id=? AND generation=? AND desired_action=? AND (authorization_action<>? OR authorization_expires_at IS NULL OR authorization_expires_at<=?) AND EXISTS (SELECT 1 FROM agent_update_campaigns WHERE id=? AND state=?)`, action, authorization.Value.ServerVersion, int64(authorization.Value.CommandSequence), authorization.Value.Nonce, authorization.SHA256, authorization.Payload, authorization.Signature, time.UnixMilli(authorization.Value.IssuedAtUnixMillis), time.UnixMilli(authorization.Value.ExpiresAtUnixMillis), now, assignment.ID, assignment.Generation, action, action, now, campaign.ID, campaign.State)
+	result, err := tx.ExecContext(ctx, `UPDATE agent_update_assignments SET authorization_action=?,authorization_server_version=?,command_sequence=?,authorization_nonce=?,authorization_sha256=?,authorization_payload=?,authorization_signature=?,authorization_issued_at=?,authorization_expires_at=?,updated_at=? WHERE id=? AND generation=? AND desired_action=? AND EXISTS (SELECT 1 FROM agent_update_campaigns WHERE id=? AND state=?)`, action, authorization.Value.ServerVersion, int64(authorization.Value.CommandSequence), authorization.Value.Nonce, authorization.SHA256, authorization.Payload, authorization.Signature, time.UnixMilli(authorization.Value.IssuedAtUnixMillis), time.UnixMilli(authorization.Value.ExpiresAtUnixMillis), now, assignment.ID, assignment.Generation, action, campaign.ID, campaign.State)
 	if err != nil {
 		return agentUpdateAssignmentRow{}, agentUpdateCampaignRow{}, publicDBError(err)
 	}
@@ -335,6 +340,22 @@ func verifyAgentUpdateRootActionReceipt(identity agentUpdaterIdentityRow, assign
 		}
 	}
 	return receipt, payload, signature, nil
+}
+
+// agentUpdateReportMatchesRootResult compares the worker envelope only after
+// its signature and the root receipt have been verified. Older pinned workers
+// omitted all four duplicated result fields for rollback. Accept that exact
+// legacy shape; persist results from the signed receipt, never from omissions.
+// Partial or conflicting envelopes and activation reports still require an
+// exact match. Receipt authorization, replay and tunnel gates are unchanged.
+func agentUpdateReportMatchesRootResult(report *p2pstreamv1.ReportAgentUpdateRequest, receipt agentupdateauth.RootActionReceipt) bool {
+	if report.State == p2pstreamv1.AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_ROLLED_BACK &&
+		receipt.Action == agentupdateauth.AssignmentActionRollback &&
+		report.ManifestSha256 == "" && report.BinarySha256 == "" && report.RunningVersion == "" && report.RunningCommit == "" {
+		return true
+	}
+	return report.ManifestSha256 == receipt.ResultManifestSHA256 && report.BinarySha256 == receipt.ResultArtifactSHA256 &&
+		report.RunningVersion == receipt.ResultVersion && report.RunningCommit == receipt.ResultCommit
 }
 
 func consumeRootActionCounter(ctx context.Context, query db.DBTX, identity agentUpdaterIdentityRow, counter uint64, now time.Time) error {

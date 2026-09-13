@@ -45,6 +45,7 @@ type VerifyPolicy struct {
 	CurrentSecurityEpoch      uint64
 	CurrentMinimumSafeVersion string
 	CurrentVersion            string
+	CurrentManifestSHA256     string
 	ServerVersion             string
 	UpdaterVersion            string
 	ProtocolVersion           uint32
@@ -98,6 +99,7 @@ type Floor struct {
 	SecurityEpoch      uint64 `json:"security_epoch"`
 	MinimumSafeVersion string `json:"minimum_safe_version"`
 	Version            string `json:"version"`
+	ManifestSHA256     string `json:"manifest_sha256,omitempty"`
 }
 
 type Result struct {

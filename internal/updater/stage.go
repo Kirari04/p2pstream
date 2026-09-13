@@ -8,9 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 
 	"p2pstream/internal/agentupdateauth"
+	"p2pstream/internal/buildinfo"
+	"p2pstream/internal/tunnel"
 )
 
 type StageOptions struct {
@@ -85,9 +88,6 @@ func Stage(ctx context.Context, options StageOptions) (Result, error) {
 	}
 	if err := validateRelease(release); err != nil {
 		return Result{}, err
-	}
-	if release.Sequence == floor.Sequence && release.SecurityEpoch == floor.SecurityEpoch && release.Version == floor.Version {
-		return Result{Version: release.Version, Sequence: release.Sequence, SecurityEpoch: release.SecurityEpoch}, nil
 	}
 	if err := os.MkdirAll(options.Paths.stagingDir(), 0700); err != nil {
 		return Result{}, err
@@ -199,7 +199,7 @@ func RequestActivation(paths Paths, authorization assignmentAuthorizationRecord,
 		Version: expected.Version, Commit: expected.Commit, ManifestSHA: expected.ManifestSHA256,
 		Sequence: expected.Sequence, SecurityEpoch: expected.SecurityEpoch,
 		ArtifactName: expected.Artifact.Name, ArtifactSize: expected.Artifact.Size,
-		ArtifactSHA: artifactHex(expected.Artifact), ServerVersion: serverVersion,
+		ArtifactSHA: artifactHex(expected.Artifact), ServerVersion: staged.ServerVersion,
 	}
 	if staged != want {
 		return errors.New("activation assignment does not exactly match the staged release")
@@ -209,6 +209,18 @@ func RequestActivation(paths Paths, authorization assignmentAuthorizationRecord,
 	}
 	if err := authorizationMatchesRelease(authorization.Authorization, expected, serverVersion); err != nil {
 		return err
+	}
+	if staged.ServerVersion != serverVersion {
+		// Management may restart onto a newer version after STAGED was reported.
+		// A fresh signed authorization can advance that context only after the
+		// exact staged metadata is independently checked against the new server.
+		if err := verifyStagedManagementContext(paths, expected, serverVersion); err != nil {
+			return err
+		}
+		staged.ServerVersion = serverVersion
+		if err := atomicJSON(paths.stagedPath(), staged, 0600); err != nil {
+			return err
+		}
 	}
 	a := authorization.Authorization
 	ready := readyRecord{
@@ -221,6 +233,29 @@ func RequestActivation(paths Paths, authorization assignmentAuthorizationRecord,
 		ServerVersion: staged.ServerVersion,
 	}
 	return atomicJSON(paths.readyPath(), ready, 0600)
+}
+
+func verifyStagedManagementContext(paths Paths, expected VerifiedRelease, serverVersion string) error {
+	config, err := LoadHostConfig(paths.ConfigPath)
+	if err != nil {
+		return err
+	}
+	floor, err := loadFloor(paths.floorPath())
+	if err != nil {
+		return err
+	}
+	policy := VerifyPolicy{Now: time.Now().UTC(), ServerVersion: serverVersion,
+		UpdaterVersion: buildinfo.Version, ProtocolVersion: uint32(tunnel.ProtocolVersion), RequiredChannel: config.Channel}
+	applyFloor(&policy, floor)
+	manifest, err := readRegularNoFollow(filepath.Join(paths.candidateDir(), "manifest.json"), defaultMaxMetadata)
+	if err != nil {
+		return err
+	}
+	_, err = (exactReleaseVerifier{Verifier: AgentUpdateVerifier{}, expected: expected}).Verify(manifest, policy)
+	if err != nil {
+		return fmt.Errorf("verify staged release against current management version: %w", err)
+	}
+	return nil
 }
 
 func authorizationMatchesRelease(authorization agentupdateauth.AssignmentAuthorization, release VerifiedRelease, serverVersion string) error {
@@ -279,7 +314,24 @@ func loadFloor(path string) (Floor, error) {
 	if floor.MinimumSafeVersion != "" && !validVersion(floor.MinimumSafeVersion) {
 		return Floor{}, errors.New("updater security floor contains an invalid minimum safe version")
 	}
+	if floor.ManifestSHA256 != "" && (!digestPattern.MatchString(floor.ManifestSHA256) || floor.Sequence == 0 || floor.SecurityEpoch == 0 || floor.Version == "") {
+		return Floor{}, errors.New("updater security floor contains an invalid manifest identity")
+	}
 	return floor, nil
+}
+
+func persistFloor(paths Paths, floor Floor) error {
+	// Bootstrap pins the state directory to root:updater. Inherit that trusted
+	// reader group rather than the root activator process's primary group.
+	info, err := os.Lstat(paths.StateDir)
+	if err != nil {
+		return err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || !info.IsDir() || stat.Uid != uint32(os.Geteuid()) || info.Mode().Perm()&0022 != 0 {
+		return errors.New("updater state directory has unsafe ownership or permissions")
+	}
+	return atomicJSONOwned(paths.floorPath(), floor, 0640, int(stat.Uid), int(stat.Gid))
 }
 
 func applyFloor(policy *VerifyPolicy, floor Floor) {
@@ -295,4 +347,5 @@ func applyFloor(policy *VerifyPolicy, floor Floor) {
 	if floor.Version != "" {
 		policy.CurrentVersion = floor.Version
 	}
+	policy.CurrentManifestSHA256 = floor.ManifestSHA256
 }

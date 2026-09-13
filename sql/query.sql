@@ -959,6 +959,18 @@ WHERE id = ?;
 DELETE FROM agents
 WHERE id = ?;
 
+-- name: DetachAgentConnectionHistory :exec
+UPDATE connections SET agent_id = NULL WHERE agent_id = ?;
+
+-- name: DetachAgentStatsHistory :exec
+UPDATE agent_stats SET agent_id = NULL WHERE agent_id = ?;
+
+-- name: DetachAgentRequestHistory :exec
+UPDATE proxy_request_events SET agent_id = NULL WHERE agent_id = ?;
+
+-- name: DetachAgentRetryHistory :exec
+UPDATE proxy_request_events SET retry_failed_agent_id = NULL WHERE retry_failed_agent_id = ?;
+
 -- name: ListAgentLabels :many
 SELECT agent_id, key, value, source, created_at, updated_at
 FROM public_agent_labels

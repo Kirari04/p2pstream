@@ -1,0 +1,57 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<div id="app"></div>
+<output id="requests" aria-label="Fixture requests">Preview requests: 0; Create requests: 0; Global errors: 0</output>
+<script type="module">
+import { createApp, h, computed, ref } from 'vue';
+import { createRouter, createWebHashHistory } from 'vue-router';
+import { NConfigProvider, NDialogProvider, darkTheme } from 'naive-ui';
+import { create } from '@bufbuild/protobuf';
+import * as schemas from '/src/gen/proto/p2pstream/v1/management_pb.ts';
+import * as keys from '/src/composables/managementContextKeys.ts';
+import AgentUpdates from '/src/views/AgentUpdates.vue';
+import '/src/styles.css';
+
+// The real view with deterministic RPC failures; no network requests or host mutations.
+const previewFailure = new URLSearchParams(location.search).get('failure') === 'preview';
+let previews = 0, creates = 0, globalErrors = 0;
+const record = () => { document.querySelector('#requests').textContent = `Preview requests: ${previews}; Create requests: ${creates}; Global errors: ${globalErrors}`; };
+const busy = ref(false);
+const campaigns = [];
+const target = { version: 'v0.1.53-staging.84', manifestSha256: 'c'.repeat(64) };
+const agents = Array.from({length: 8}, (_, i) => ({ agentId: BigInt(i + 1), agentPublicId: `fixture-agent-${i + 1}`, name: `Fixture Agent ${i + 1}`, connected: true, updaterEnrolled: true, updaterVersion: target.version, updaterLastSeenAtUnixMillis: BigInt(Date.now()), tunnelVersion: 'v0.1.52' }));
+const client = {
+  getAgentUpdateOverview: async () => create(schemas.GetAgentUpdateOverviewResponseSchema, { agents, trustedTargets: [target], managementAuthority: {publicKey:new Uint8Array(32),keyId:'a'.repeat(64),epoch:1n} }),
+  listAgentUpdateCampaigns: async () => ({ campaigns }),
+  previewAgentUpdateCampaign: async (request) => {
+    previews += 1; record();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    if (previewFailure && previews === 2) throw new Error('[unavailable] Safety preview could not reach the selected environment.');
+    return { agents: agents.filter((agent) => request.agentIds.includes(agent.agentId)).map((agent) => ({...agent, eligible:true, blockers:[]})) };
+  },
+  createAgentUpdateCampaign: async (request) => {
+    creates += 1; record();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    if (creates === 1) throw new Error('[internal] 21 values for 20 columns');
+    const campaign = create(schemas.AgentUpdateCampaignSchema, { id:1n, name:request.name, state:schemas.AgentUpdateCampaignState.RUNNING, generation:1n, target:request.target, policy:request.policy });
+    campaigns.push(campaign);
+    return {campaign};
+  },
+};
+const app = createApp({ render: () => h(NConfigProvider, {theme:darkTheme}, {default: () => h(NDialogProvider, null, {default: () => h(AgentUpdates)})}) });
+app.provide(keys.managementClientKey, client);
+app.provide(keys.dashboardKey, computed(() => create(schemas.GetDashboardResponseSchema, {status:{version:target.version}})));
+app.provide(keys.isBusyKey, computed(() => busy.value));
+app.provide(keys.runManagementActionKey, async (action, _message, options) => {
+  busy.value = true;
+  try { await action(); return true; }
+  catch (error) {
+    if (options?.onError) options.onError(error);
+    else { globalErrors += 1; record(); }
+    return false;
+  } finally { busy.value = false; }
+});
+const router = createRouter({history:createWebHashHistory(), routes:[{path:'/agent/updates',component:AgentUpdates}]});
+app.use(router);
+await router.isReady();
+app.mount('#app');
+</script>

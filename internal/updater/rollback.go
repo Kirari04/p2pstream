@@ -48,6 +48,9 @@ func (p Paths) rollbackResultPath() string {
 func (p Paths) rollbackJournalPath() string {
 	return filepath.Join(p.rootStateDir(), "rollback-journal.json")
 }
+func (p Paths) lastRollbackPath() string {
+	return filepath.Join(p.rootStateDir(), "last-rollback.json")
+}
 
 func RequestRollback(paths Paths, authorization assignmentAuthorizationRecord) error {
 	if err := paths.validate(); err != nil {
@@ -84,6 +87,16 @@ func rollbackFromPath(ctx context.Context, paths Paths, service ServiceControlle
 	var request rollbackRequest
 	if err := strictJSON(requestData, &request); err != nil {
 		return errors.New("invalid rollback request")
+	}
+	commandFloor, err := loadRootCommandFloor(paths)
+	if err != nil {
+		return err
+	}
+	if request.Authorization.Authorization.CommandSequence <= commandFloor.Sequence {
+		if request.Authorization.Authorization.CommandSequence != commandFloor.Sequence {
+			return errors.New("rollback management authorization was superseded or replayed")
+		}
+		return replayCompletedRollback(paths, request.Authorization, commandFloor, requestPath)
 	}
 	if err := verifyAssignmentAuthorizationRecord(paths, request.Authorization, agentupdateauth.AssignmentActionRollback, time.Now().UTC(), 0); err != nil {
 		return err
@@ -366,5 +379,67 @@ func persistRollbackResult(paths Paths, result rollbackRecord, current slotMetad
 	if err := atomicJSON(paths.currentSlotMetadataPath(), current, 0600); err != nil {
 		return err
 	}
+	if err := atomicJSON(paths.lastRollbackPath(), result, 0600); err != nil {
+		return err
+	}
 	return atomicJSON(paths.rollbackResultPath(), result, 0644)
+}
+
+func replayCompletedRollback(paths Paths, authorization assignmentAuthorizationRecord, floor rootCommandFloor, requestPath string) error {
+	digest, err := agentupdateauth.AssignmentAuthorizationDigest(authorization.Authorization)
+	if err != nil || floor.AuthorizationSHA256 != fmt.Sprintf("%x", digest) {
+		return errors.New("consumed rollback command has a different authorization digest")
+	}
+	data, err := readRegularNoFollow(paths.lastRollbackPath(), 256<<10)
+	if errors.Is(err, os.ErrNotExist) {
+		// A legacy helper may only have published the worker-visible receipt.
+		// Its signature and all durable root state are verified below before use.
+		data, err = readRegularNoFollow(paths.rollbackResultPath(), 256<<10)
+	}
+	if err != nil {
+		return fmt.Errorf("completed rollback receipt is unavailable for command replay: %w", err)
+	}
+	var result rollbackRecord
+	if err := strictJSON(data, &result); err != nil {
+		return err
+	}
+	if !sameAssignmentAuthorizationRecord(result.Authorization, authorization) {
+		return errors.New("completed rollback receipt belongs to a different authorization")
+	}
+	// This acknowledges past execution; expiry still rejects every fresh
+	// command, but an exact completed proof may be republished after a delay.
+	if err := verifyAssignmentAuthorizationRecord(paths, authorization, agentupdateauth.AssignmentActionRollback, time.UnixMilli(authorization.Authorization.IssuedAtUnixMillis), 0); err != nil {
+		return err
+	}
+	counter, err := loadRootActionCounter(paths.rootActionCounterPath())
+	if err != nil {
+		return err
+	}
+	if counter == 0 || result.Receipt.Receipt.RootActionCounter != counter {
+		return errors.New("completed rollback receipt does not match the latest root action")
+	}
+	if err := verifyRootActionReceiptRecord(paths, result.Receipt, authorization, counter-1, time.Now().UTC()); err != nil {
+		return err
+	}
+	current, err := currentTarget(paths)
+	if err != nil {
+		return err
+	}
+	slot, err := loadCurrentSlotMetadata(paths, current)
+	if err != nil {
+		return err
+	}
+	if !receiptResultMatchesSlot(result.Receipt.Receipt, slot) {
+		return errors.New("completed rollback receipt does not describe the current slot")
+	}
+	if err := atomicJSON(paths.lastRollbackPath(), result, 0600); err != nil {
+		return err
+	}
+	if err := atomicJSON(paths.rollbackResultPath(), result, 0644); err != nil {
+		return err
+	}
+	if err := clearSupersededActivationForRollback(paths, authorization); err != nil {
+		return err
+	}
+	return removeMatchingRollbackRequest(requestPath, authorization)
 }

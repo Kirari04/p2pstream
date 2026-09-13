@@ -126,7 +126,9 @@ func (w *Worker) reportRollback(ctx context.Context) (bool, error) {
 	}
 	_, err = w.Control.ReportRootAction(ctx, agentupdateauth.Report{
 		AgentPublicID: w.Config.AgentPublicID, AssignmentID: result.Authorization.Authorization.AssignmentID, Generation: result.Authorization.Authorization.Generation,
-		State: int32(p2pstreamv1.AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_ROLLED_BACK),
+		State:          int32(p2pstreamv1.AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_ROLLED_BACK),
+		ManifestSHA256: result.Receipt.Receipt.ResultManifestSHA256, BinarySHA256: result.Receipt.Receipt.ResultArtifactSHA256,
+		RunningVersion: result.Receipt.Receipt.ResultVersion, RunningCommit: result.Receipt.Receipt.ResultCommit,
 	}, result.Receipt)
 	if err != nil {
 		return true, err

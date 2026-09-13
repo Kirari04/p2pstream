@@ -22,6 +22,7 @@ func (AgentUpdateVerifier) Verify(manifestJSON []byte, policy VerifyPolicy) (Ver
 		CurrentSecurityEpoch:      policy.CurrentSecurityEpoch,
 		CurrentMinimumSafeVersion: policy.CurrentMinimumSafeVersion,
 		CurrentVersion:            policy.CurrentVersion,
+		CurrentManifestSHA256:     policy.CurrentManifestSHA256,
 		ServerVersion:             policy.ServerVersion,
 		UpdaterVersion:            policy.UpdaterVersion,
 		ProtocolVersion:           policy.ProtocolVersion,

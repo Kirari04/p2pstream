@@ -12,6 +12,9 @@ import (
 // AgentUpdateBootstrapConfig implements server.AgentUpdateBootstrapProvider.
 // It returns the fixed GitHub repository identifier, not a URL.
 func (c *Catalog) AgentUpdateBootstrapConfig(context.Context) (string, error) {
+	if c == nil {
+		return "", errors.New("agent update catalog is unavailable")
+	}
 	return c.options.Repository, nil
 }
 

@@ -403,6 +403,14 @@ func publicACMECertificateScheduleDecision(cert db.PublicTlsCertificate, now tim
 }
 
 func (m *publicACMEManager) issueCertificate(ctx context.Context, certID int64, trigger string) {
+	if m != nil && m.app != nil {
+		m.app.serverUpdateMu.RLock()
+		defer m.app.serverUpdateMu.RUnlock()
+		if m.app.serverUpdateGated() {
+			return
+		}
+	}
+
 	attemptAt := time.Now().UTC()
 	if !m.beginIssue(certID) {
 		publicACMELog(log.Info(), trigger, publicACMEStageDuplicateInFlight).

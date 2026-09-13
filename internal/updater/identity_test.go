@@ -92,7 +92,7 @@ func TestBootstrapVersionFloorIncludesNewerExistingTunnel(t *testing.T) {
 		name, rescue, tunnel, want string
 	}{
 		{name: "newer tunnel", rescue: "v1.5.0", tunnel: "v2.0.0", want: "v2.0.0"},
-		{name: "newer rescue", rescue: "v2.1.0", tunnel: "v2.0.0", want: "v2.1.0"},
+		{name: "newer rescue preserves live tunnel floor", rescue: "v2.1.0", tunnel: "v2.0.0", want: "v2.0.0"},
 		{name: "new install", rescue: "v1.5.0", want: "v1.5.0"},
 	} {
 		t.Run(test.name, func(t *testing.T) {

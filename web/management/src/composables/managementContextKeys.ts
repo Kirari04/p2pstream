@@ -6,7 +6,8 @@ import type {
   GetPublicProxyConfigResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
-export type ManagementActionRunner = (action: () => Promise<void>, successMessage?: string) => Promise<boolean>;
+export type ManagementActionOptions = { onError?: (error: unknown) => void };
+export type ManagementActionRunner = (action: () => Promise<void>, successMessage?: string, options?: ManagementActionOptions) => Promise<boolean>;
 
 export const dashboardKey = Symbol("dashboard") as InjectionKey<ComputedRef<GetDashboardResponse | null>>;
 export const publicProxyConfigKey = Symbol("publicProxyConfig") as InjectionKey<ComputedRef<GetPublicProxyConfigResponse | null>>;

@@ -107,13 +107,13 @@ Full self-hosting and operations documentation is available at <https://kirari04
 
 ## Agent Install
 
-Create an agent from **Agents** in the management UI. The **Agent Setup** modal gives you an `AGENT_ID` and one-time `AGENT_TOKEN`, then provides Linux install, Docker Compose, and CLI snippets.
+Create an agent from **Agents** in the management UI. The **Install Agent** modal gives you an `AGENT_ID` and one-time `AGENT_TOKEN`, then provides Linux install, Docker Compose, and CLI snippets.
 
-Linux setup requires an exact `vX.Y.Z` release or `vX.Y.Z-staging.N` prerelease, a locally supplied versioned installer, and a locally supplied raw agent binary. Verify those files independently before running the generated command; the installer never pipes mutable repository code into root or downloads executable content.
+Copy the Linux command and run it on the agent host. It includes the issued credentials, downloads the installer and architecture-specific binary from the selected GitHub release, and verifies their SHA-256 checksums before installation. No token prompts or local file paths are required. Advanced options support independently verified local files. Managed updates pin an exact release or prerelease; other installs can resolve `latest` once to an exact release.
 
-Linux/systemd agents can also enroll in **Agents → Updates**. Enrollment uses a separate short-lived updater token and does not rotate or expose the tunnel token. Managed campaigns verify exact GitHub releases and SHA-256 manifests, stage without draining traffic, preserve route quorum while activating, require a privileged-helper artifact attestation plus a fresh exact-build tunnel, and automatically roll back locally when activation fails. See [Managed agent updates](docs/operations/managed-agent-updates.md).
+Existing Linux agents have **More → Reinstall / Repair**, which reuses their host token and includes managed-update setup when available. **Agents → Updates → Enable managed updates** performs the one-time enrollment while keeping the existing tunnel running. **Rotate token** remains a separate credential action. All setup actions share a dialog with an editable Management URL. Remote environments use their saved address when the server advertises localhost. Managed campaigns verify exact GitHub releases and SHA-256 manifests, preserve route quorum during activation, and roll back locally on failure. See [Managed agent updates](docs/operations/managed-agent-updates.md).
 
-Agents connect through `MANAGEMENT_URL`, usually `https://your-server:8081`. The server's `MANAGEMENT_PUBLIC_URL` supplies that URL to generated setup snippets. If p2pstream generated the management TLS certificate, use the CA material from the **Agent Setup** modal so the agent can verify management HTTPS.
+Agents connect through `MANAGEMENT_URL`, usually `https://your-server:8081`. The server's `MANAGEMENT_PUBLIC_URL` supplies that URL to generated setup snippets. If p2pstream generated the management TLS certificate, use the CA material from the **Install Agent** modal so the agent can verify management HTTPS.
 
 For shell-installed agents, uninstall and full-purge commands are documented in the [systemd operations guide](https://kirari04.github.io/p2pstream/operations/systemd#uninstall-agent).
 

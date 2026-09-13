@@ -121,6 +121,7 @@ Then open `MANAGEMENT_PUBLIC_URL` in a browser. The **Overview** page should sho
 
 ## Next Steps
 
+- [Management server updates](../operations/server-updates)
 - [Backup and restore](../operations/backup-restore)
 - [Docker reference](../reference/docker)
 - [Management TLS reference](../reference/management-tls)

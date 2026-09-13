@@ -8,6 +8,7 @@ import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import ManagementSidebar from "@/components/ui/ManagementSidebar.vue";
 import ThemeToggle from "@/components/ui/ThemeToggle.vue";
 import {
+  type ManagementActionOptions,
   dashboardKey,
   environmentsKey,
   isBusyKey,
@@ -183,7 +184,7 @@ async function setProxyRunning(shouldRun: boolean) {
   });
 }
 
-async function runManagementAction(action: () => Promise<void>, successMessage?: string): Promise<boolean> {
+async function runManagementAction(action: () => Promise<void>, successMessage?: string, options?: ManagementActionOptions): Promise<boolean> {
   isBusy.value = true;
   error.value = null;
   try {
@@ -215,6 +216,10 @@ async function runManagementAction(action: () => Promise<void>, successMessage?:
     }
     return true;
   } catch (err) {
+    if (options?.onError) {
+      options.onError(err);
+      return false;
+    }
     error.value = messageFromError(err);
     notification.error({
       title: "Operation failed",
@@ -341,65 +346,69 @@ watch(() => route.fullPath, async () => {
           </router-link>
 
           <div class="app-header__actions">
-            <span
-              v-if="showStagingIdentity"
-              class="app-release-channel"
-              data-testid="release-channel"
-              :title="`Staging prerelease ${releaseReference}`"
-            >
-              <span class="app-release-channel__signal" aria-hidden="true" />
-              Staging
-              <code>{{ releaseReference }}</code>
-            </span>
-            <label v-if="currentUser" class="app-env-label">
-              <span>Environment</span>
-              <AccessibleSelect
-                v-model:value="selectedEnvironmentId"
-                accessible-label="Environment"
-                data-testid="environment-select"
-                size="small"
-                class="app-env-select"
-                :options="environmentSelectOptions"
-                :title="`Selected environment: ${selectedEnvironmentLabel}`"
-              />
-            </label>
-            <a
-              :href="sourceOfferHref"
-              :title="sourceOfferTitle"
-              :aria-label="sourceOfferTitle"
-              class="app-source-link"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Source
-            </a>
-            <ThemeToggle />
-            <DisabledHint v-if="currentUser" :disabled="Boolean(refreshDisabledReason)" :reason="refreshDisabledReason">
-              <NButton
-                quaternary
-                size="small"
-                :loading="isRefreshing"
-                :disabled="Boolean(refreshDisabledReason)"
-                aria-label="Refresh management data"
-                title="Refresh management data"
-                @click="() => loadDashboard()"
+            <div class="app-header__scope">
+              <span
+                v-if="showStagingIdentity"
+                class="app-release-channel"
+                data-testid="release-channel"
+                :title="`Staging prerelease ${releaseReference}`"
               >
-                <template #icon><RefreshIcon class="icon-sm" /></template>
-              </NButton>
-            </DisabledHint>
-            <DisabledHint v-if="currentUser" :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-              <NButton
-                quaternary
-                size="small"
-                :disabled="Boolean(busyDisabledReason)"
-                aria-label="Log out"
-                title="Log out"
-                @click="requestLogout"
+                <span class="app-release-channel__signal" aria-hidden="true" />
+                Staging
+                <code>{{ releaseReference }}</code>
+              </span>
+              <label v-if="currentUser" class="app-env-label">
+                <span>Environment</span>
+                <AccessibleSelect
+                  v-model:value="selectedEnvironmentId"
+                  accessible-label="Environment"
+                  data-testid="environment-select"
+                  size="small"
+                  class="app-env-select"
+                  :options="environmentSelectOptions"
+                  :title="`Selected environment: ${selectedEnvironmentLabel}`"
+                />
+              </label>
+            </div>
+            <div class="app-header__tools">
+              <a
+                :href="sourceOfferHref"
+                :title="sourceOfferTitle"
+                :aria-label="sourceOfferTitle"
+                class="app-source-link"
+                target="_blank"
+                rel="noreferrer"
               >
-                <template #icon><LogoutIcon class="icon-sm" /></template>
-                <span class="app-header__logout-label">Log out</span>
-              </NButton>
-            </DisabledHint>
+                Source
+              </a>
+              <ThemeToggle />
+              <DisabledHint v-if="currentUser" :disabled="Boolean(refreshDisabledReason)" :reason="refreshDisabledReason">
+                <NButton
+                  quaternary
+                  size="small"
+                  :loading="isRefreshing"
+                  :disabled="Boolean(refreshDisabledReason)"
+                  aria-label="Refresh management data"
+                  title="Refresh management data"
+                  @click="() => loadDashboard()"
+                >
+                  <template #icon><RefreshIcon class="icon-sm" /></template>
+                </NButton>
+              </DisabledHint>
+              <DisabledHint v-if="currentUser" :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+                <NButton
+                  quaternary
+                  size="small"
+                  :disabled="Boolean(busyDisabledReason)"
+                  aria-label="Log out"
+                  title="Log out"
+                  @click="requestLogout"
+                >
+                  <template #icon><LogoutIcon class="icon-sm" /></template>
+                  <span class="app-header__logout-label">Log out</span>
+                </NButton>
+              </DisabledHint>
+            </div>
           </div>
         </div>
       </header>

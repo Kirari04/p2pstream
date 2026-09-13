@@ -617,9 +617,20 @@ func TestAgentUpdateRootActionReportLostResponseRetryIsIdempotent(t *testing.T) 
 		RunningVersion: "v1.2.3", RunningCommit: strings.Repeat("c", 40),
 	}
 	report.RootActionReceipt = newAgentUpdateTestRootActionReceipt(t, app, agent.ID, activatorPrivate, agentupdateauth.AssignmentActionActivate, 1)
+	// The legacy rollback exception must never admit incomplete activation
+	// reports, either at first acceptance or during a lost-response retry.
+	empty := proto.Clone(report).(*p2pstreamv1.ReportAgentUpdateRequest)
+	empty.ManifestSha256, empty.BinarySha256, empty.RunningVersion, empty.RunningCommit = "", "", "", ""
+	signAgentUpdateTestReport(empty, updaterPrivate)
+	if _, err := app.ReportAgentUpdate(ctx, connect.NewRequest(empty)); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("activation accepted omitted result fields: %v", err)
+	}
 	signAgentUpdateTestReport(report, updaterPrivate)
 	if _, err := app.ReportAgentUpdate(ctx, connect.NewRequest(report)); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := app.ReportAgentUpdate(ctx, connect.NewRequest(empty)); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("activation retry accepted omitted result fields: %v", err)
 	}
 	if retry, err := app.ReportAgentUpdate(ctx, connect.NewRequest(report)); err != nil || retry.Msg.State != p2pstreamv1.AgentUpdateAssignmentState_AGENT_UPDATE_ASSIGNMENT_STATE_AWAITING_TUNNEL {
 		t.Fatalf("exact lost-response retry = %+v, %v", retry, err)
@@ -824,7 +835,7 @@ func TestCancelCampaignKeepsEscapedActivationCordonedAndSupersedesItWithRollback
 	if err := database.QueryRowContext(ctx, `SELECT state,desired_action,authorization_action,generation,cordoned FROM agent_update_assignments WHERE id=?`, assignmentID).Scan(&state, &action, &authorizationAction, &generation, &cordoned); err != nil {
 		t.Fatal(err)
 	}
-	if state != "cordoned" || action != "rollback" || authorizationAction != "activate" || generation != 2 || cordoned != 1 || !app.isAgentUpdateCordoned(agent.ID) {
+	if state != "cordoned" || action != "rollback" || authorizationAction != "" || generation != 2 || cordoned != 1 || !app.isAgentUpdateCordoned(agent.ID) {
 		t.Fatalf("cancelled escaped activation = state:%s action:%s auth:%s generation:%d cordoned:%d", state, action, authorizationAction, generation, cordoned)
 	}
 

@@ -160,10 +160,15 @@ func newFixture(t testing.TB) fixture {
 		InstallRoot: filepath.Join(root, "install"),
 		CommandPath: filepath.Join(root, "bin", "p2pstream"),
 	}
-	for _, dir := range []string{filepath.Dir(paths.ConfigPath), paths.stagingDir(), paths.rootStateDir(), paths.slotsDir(), filepath.Dir(paths.CommandPath)} {
+	for _, dir := range []string{filepath.Dir(paths.ConfigPath), paths.stagingDir(), paths.workerStateDir(), paths.rootStateDir(), paths.slotsDir(), filepath.Dir(paths.CommandPath)} {
 		if err := os.MkdirAll(dir, 0700); err != nil {
 			t.Fatal(err)
 		}
+	}
+	// Production Worker.Run creates and owns this lock before staging. Root
+	// cleanup opens it read-only and must never create a root-owned replacement.
+	if err := os.WriteFile(filepath.Join(paths.workerStateDir(), "worker.lock"), nil, 0600); err != nil {
+		t.Fatal(err)
 	}
 	body := []byte("raw p2pstream executable\n")
 	digest := sha256.Sum256(body)

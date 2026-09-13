@@ -16,7 +16,13 @@ import (
 	"time"
 
 	"p2pstream/internal/agentupdate"
+	"p2pstream/internal/releaseversion"
 )
+
+// The first rescue runner containing the durable receipt, readable-floor and
+// privileged-slot fixes. Keep this fixed across later releases: a compatible
+// pinned updater must not require re-enrollment for every new tunnel version.
+const minimumSupportedUpdaterVersion = "v0.1.53-staging.88"
 
 type artifactFlags []string
 
@@ -221,6 +227,10 @@ func runCreate(arguments []string) error {
 	if *protocolMin > uint(^uint32(0)) || *protocolMax > uint(^uint32(0)) {
 		return errors.New("protocol version exceeds uint32")
 	}
+	updaterRange, err := supportedUpdaterRange(*updaterMin, *updaterMax)
+	if err != nil {
+		return err
+	}
 	manifestArtifacts := make([]agentupdate.Artifact, 0, len(artifacts))
 	for _, specification := range artifacts {
 		artifact, err := inspectArtifact(specification)
@@ -267,7 +277,7 @@ func runCreate(arguments []string) error {
 		Compatibility: agentupdate.Compatibility{
 			Server:   agentupdate.VersionRange{Min: *serverMin, Max: *serverMax},
 			Protocol: agentupdate.ProtocolRange{Min: uint32(*protocolMin), Max: uint32(*protocolMax)},
-			Updater:  agentupdate.VersionRange{Min: *updaterMin, Max: *updaterMax},
+			Updater:  updaterRange,
 		},
 		Artifacts:     manifestArtifacts,
 		OCIImages:     manifestOCIImages,
@@ -278,6 +288,19 @@ func runCreate(arguments []string) error {
 		return fmt.Errorf("create manifest: %w", err)
 	}
 	return writeExclusive(*output, data, 0o644)
+}
+
+func supportedUpdaterRange(minimum, maximum string) (agentupdate.VersionRange, error) {
+	if !releaseversion.Valid(minimum) || !releaseversion.Valid(maximum) {
+		return agentupdate.VersionRange{}, errors.New("updater compatibility requires canonical SemVer bounds")
+	}
+	if releaseversion.Compare(minimum, minimumSupportedUpdaterVersion) < 0 {
+		minimum = minimumSupportedUpdaterVersion
+	}
+	if releaseversion.Compare(minimum, maximum) > 0 {
+		return agentupdate.VersionRange{}, fmt.Errorf("updater compatibility maximum %s is below required minimum %s", maximum, minimum)
+	}
+	return agentupdate.VersionRange{Min: minimum, Max: maximum}, nil
 }
 
 func inspectReleaseAsset(path string) (agentupdate.ReleaseAsset, error) {

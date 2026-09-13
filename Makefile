@@ -1,4 +1,4 @@
-.PHONY: all build backend-build clean dev dev-token-check docker-build docker-race-test docker-smoke docker-smoke-clean docker-test docs-screenshots frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run schema-check sqlc test verify verify-clean-tree
+.PHONY: all build backend-build clean dev dev-token-check docker-build docker-race-test docker-smoke docker-smoke-clean docker-server-updater-test docker-test docs-screenshots frontend-build frontend-e2e frontend-install generate generate-proto generate-sqlc legal-notices run schema-check sqlc test verify verify-clean-tree
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -114,6 +114,9 @@ docker-smoke:
 	@docker compose -f docker-compose.test.yml down -v --remove-orphans
 	@docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from smoke
 
+docker-server-updater-test:
+	@scripts/test-server-updater.sh
+
 docker-smoke-clean:
 	@docker compose -f docker-compose.test.yml down -v --remove-orphans
 
@@ -132,7 +135,7 @@ verify-clean-tree:
 verify: verify-clean-tree
 	@$(MAKE) generate
 	@$(MAKE) verify-clean-tree
-	@bash -n scripts/install-agent.sh scripts/uninstall-agent.sh
+	@bash -n scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh
 	@scripts/test-agent-lifecycle.sh
 	@go test ./...
 	@go vet ./...

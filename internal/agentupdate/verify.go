@@ -26,11 +26,14 @@ type VerifyPolicy struct {
 	CurrentSecurityEpoch      uint64
 	CurrentMinimumSafeVersion string
 	CurrentVersion            string
-	ServerVersion             string
-	UpdaterVersion            string
-	ProtocolVersion           uint32
-	GOOS                      string
-	GOARCH                    string
+	// CurrentManifestSHA256 pins an already activated release. Only those exact
+	// bytes may be retried at the equal version/sequence floor after rollback.
+	CurrentManifestSHA256 string
+	ServerVersion         string
+	UpdaterVersion        string
+	ProtocolVersion       uint32
+	GOOS                  string
+	GOARCH                string
 }
 
 type VerifiedManifest struct {
@@ -114,7 +117,9 @@ func Verify(manifestJSON []byte, policy VerifyPolicy) (*VerifiedManifest, error)
 		return nil, err
 	}
 	manifest := verified.Manifest
-	if manifest.Sequence <= policy.CurrentSequence {
+	exactRetry := policy.CurrentSequence > 0 && manifest.Sequence == policy.CurrentSequence &&
+		manifest.Version == policy.CurrentVersion && policy.CurrentManifestSHA256 == verified.ManifestSHA256
+	if manifest.Sequence <= policy.CurrentSequence && !exactRetry {
 		return nil, errors.New("manifest sequence does not advance the persisted sequence")
 	}
 	if manifest.SecurityEpoch < policy.CurrentSecurityEpoch {
@@ -131,7 +136,7 @@ func Verify(manifestJSON []byte, policy VerifyPolicy) (*VerifiedManifest, error)
 	if !releaseversion.Valid(policy.CurrentVersion) {
 		return nil, errors.New("invalid current version: version must be canonical SemVer")
 	}
-	if releaseversion.Compare(manifest.Version, policy.CurrentVersion) <= 0 {
+	if releaseversion.Compare(manifest.Version, policy.CurrentVersion) <= 0 && !exactRetry {
 		return nil, errors.New("manifest version does not advance the installed version")
 	}
 	if err := requireVersionInRange("server", policy.ServerVersion, manifest.Compatibility.Server); err != nil {

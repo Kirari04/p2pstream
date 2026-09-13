@@ -83,6 +83,10 @@ type Querier interface {
 	DeletePublicWafRule(ctx context.Context, id int64) error
 	DeleteStalePublicAccessSessions(ctx context.Context) (int64, error)
 	DeleteUserAgentLabelsByAgent(ctx context.Context, agentID int64) error
+	DetachAgentConnectionHistory(ctx context.Context, agentID sql.NullInt64) error
+	DetachAgentRequestHistory(ctx context.Context, agentID sql.NullInt64) error
+	DetachAgentRetryHistory(ctx context.Context, retryFailedAgentID sql.NullInt64) error
+	DetachAgentStatsHistory(ctx context.Context, agentID sql.NullInt64) error
 	GetActiveConnection(ctx context.Context) (GetActiveConnectionRow, error)
 	GetActiveManagementAccessTokenByHash(ctx context.Context, tokenHash string) (ManagementAccessToken, error)
 	GetActivePublicAccessSession(ctx context.Context, arg GetActivePublicAccessSessionParams) (GetActivePublicAccessSessionRow, error)

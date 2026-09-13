@@ -27,6 +27,11 @@ const environmentProxyPrefix = "/environments/"
 // Unknown procedures are denied by default. New RPCs must be reviewed before
 // they become reachable through a parent environment.
 var allowedEnvironmentProxyMethods = map[string]struct{}{
+	"GetServerUpdateOverview":  {},
+	"PreviewServerUpdate":      {},
+	"StartServerUpdate":        {},
+	"GetServerUpdateOperation": {},
+
 	"GetStatus":                         {},
 	"GetDashboard":                      {},
 	"GetAgentAvailability":              {},
@@ -100,6 +105,19 @@ var allowedEnvironmentProxyMethods = map[string]struct{}{
 	"DeletePublicCacheRule":             {},
 	"UpdatePublicCacheSettings":         {},
 	"PurgePublicCache":                  {},
+
+	// Operator actions use the selected server's admin token and update authority.
+	// Host enrollment, polling, and reports retain their dedicated authentication
+	// and are deliberately not exposed through this environment proxy.
+	"GenerateAgentUpdaterEnrollmentToken": {},
+	"GetAgentUpdateOverview":              {},
+	"PreviewAgentUpdateCampaign":          {},
+	"CreateAgentUpdateCampaign":           {},
+	"ListAgentUpdateCampaigns":            {},
+	"PauseAgentUpdateCampaign":            {},
+	"ResumeAgentUpdateCampaign":           {},
+	"CancelAgentUpdateCampaign":           {},
+	"RetryAgentUpdateAssignments":         {},
 }
 
 type environmentAuthRoundTripper struct {
@@ -133,6 +151,12 @@ func (a *App) environmentProxyHandler() http.Handler {
 		if _, allowed := allowedEnvironmentProxyMethods[method]; !allowed {
 			writeConnectError(w, connect.CodePermissionDenied, "management method cannot be proxied to an environment")
 			return
+		}
+		if method == "StartServerUpdate" || method == "PreviewServerUpdate" {
+			if !serverUpdateOriginAllowed(r) {
+				writeConnectError(w, connect.CodePermissionDenied, "cross-origin server update request rejected")
+				return
+			}
 		}
 		if r.Method != http.MethodPost {
 			writeConnectError(w, connect.CodeInvalidArgument, "environment proxy only accepts POST requests")

@@ -145,6 +145,8 @@ func (c *AgentConn) acquireStreamOpenAdmission(ctx context.Context) (func(), boo
 }
 
 type App struct {
+	serverUpdateMu sync.RWMutex
+
 	Config              *config.Config
 	DB                  *db.DB
 	StartedAt           time.Time
@@ -379,7 +381,7 @@ func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
 		connect.WithCodec(strictProtoJSONCodec{name: "json"}),
 		connect.WithCodec(strictProtoJSONCodec{name: "json; charset=utf-8"}),
 	)
-	mux.Handle(path, a.agentUpdateHTTPAdmission(handler))
+	mux.Handle(path, a.serverUpdateAdmission(a.agentUpdateHTTPAdmission(handler)))
 	if !a.Config.ManagementUIDisabled {
 		mux.Handle("/", managementui.NewHandler(a.Config.ManagementUIDevProxy, a.Config.ManagementUIDistDir))
 	}
