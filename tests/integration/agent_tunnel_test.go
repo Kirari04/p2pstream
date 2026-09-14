@@ -47,6 +47,8 @@ func dialAgentTunnel(ctx context.Context, managementURL string, publicID string,
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", tunnel.UpgradeToken)
 	req.Header.Set(tunnel.TunnelVersionHeader, fmt.Sprintf("%d", tunnel.ProtocolVersion))
+	req.Header.Set(tunnel.TunnelMaxConcurrentStreamsHeader, fmt.Sprintf("%d", tunnel.DefaultMaxConcurrentAgentRequests))
+	req.Header.Set(tunnel.TunnelCapacityModeHeader, tunnel.TunnelCapacityModeFixed)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {

@@ -35,9 +35,12 @@ func TestLoadDerivesDatabaseURLFromConfigDir(t *testing.T) {
 func TestLoadRespectsExplicitDatabaseURL(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	configDir := filepath.Join(workDir, "data")
-	explicitDatabaseURL := "file:/tmp/p2pstream-custom.db?mode=ro"
+	explicitDatabaseURL := "file:p2pstream.db?mode=rwc"
 	t.Setenv("CONFIG_DIR", configDir)
 	t.Setenv("DATABASE_URL", explicitDatabaseURL)
+	if err := os.WriteFile(databaseFileName, []byte("legacy-db"), 0600); err != nil {
+		t.Fatalf("failed to write legacy file: %v", err)
+	}
 
 	cfg, err := Load()
 	if err != nil {
@@ -233,9 +236,6 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if cfg.TunnelMaxStreamWindowBytes != 2*1024*1024 {
 		t.Fatalf("TunnelMaxStreamWindowBytes = %d, want 2097152", cfg.TunnelMaxStreamWindowBytes)
 	}
-	if cfg.TunnelMaxConcurrentRequests != 64 {
-		t.Fatalf("TunnelMaxConcurrentRequests = %d, want 64", cfg.TunnelMaxConcurrentRequests)
-	}
 	if cfg.PublicMaxHeaderBytes != 64*1024 {
 		t.Fatalf("PublicMaxHeaderBytes = %d, want 65536", cfg.PublicMaxHeaderBytes)
 	}
@@ -422,11 +422,11 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 		}
 	})
 
-	t.Run("large aggregate tunnel window allowed with explicit concurrency", func(t *testing.T) {
+	t.Run("large tunnel window allowed without server agent concurrency setting", func(t *testing.T) {
 		workDir := isolatedConfigTestDir(t)
 		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
 		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "67108864")
-		t.Setenv("TUNNEL_MAX_CONCURRENT_REQUESTS", "9")
+		t.Setenv("TUNNEL_MAX_CONCURRENT_REQUESTS", "not-a-server-setting")
 
 		if _, err := Load(); err != nil {
 			t.Fatalf("explicit aggregate tunnel capacity rejected: %v", err)
@@ -434,39 +434,20 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 	})
 }
 
-func TestLoadMigratesLegacyDefaultDatabase(t *testing.T) {
+func TestLoadRejectsLegacyDefaultDatabaseLocation(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	configDir := filepath.Join(workDir, "data")
 	t.Setenv("CONFIG_DIR", configDir)
 
-	legacyFiles := map[string]string{
-		"p2pstream.db":     "legacy-db",
-		"p2pstream.db-wal": "legacy-wal",
-		"p2pstream.db-shm": "legacy-shm",
-	}
-	for name, contents := range legacyFiles {
-		if err := os.WriteFile(name, []byte(contents), 0600); err != nil {
-			t.Fatalf("failed to write legacy file %s: %v", name, err)
-		}
+	if err := os.WriteFile(databaseFileName, []byte("legacy-db"), 0600); err != nil {
+		t.Fatalf("failed to write legacy file: %v", err)
 	}
 
-	cfg, err := Load()
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "automatic migration is unsupported") {
+		t.Fatalf("Load() error = %v, want unsupported legacy location error", err)
 	}
-
-	assertSQLiteURL(t, cfg.DatabaseURL, filepath.Join(configDir, databaseFileName))
-	for name, contents := range legacyFiles {
-		got, err := os.ReadFile(filepath.Join(configDir, name))
-		if err != nil {
-			t.Fatalf("failed to read migrated %s: %v", name, err)
-		}
-		if string(got) != contents {
-			t.Fatalf("migrated %s = %q, want %q", name, string(got), contents)
-		}
-		if _, err := os.Stat(name); err != nil {
-			t.Fatalf("legacy file %s should remain in place: %v", name, err)
-		}
+	if _, err := os.Stat(filepath.Join(configDir, databaseFileName)); !os.IsNotExist(err) {
+		t.Fatalf("unexpected default database at %s, stat error = %v", filepath.Join(configDir, databaseFileName), err)
 	}
 }
 
@@ -621,8 +602,6 @@ func isolatedConfigTestDir(t *testing.T) string {
 	unsetEnv(t, "SERVER_TUNNEL_MAX_CONCURRENT_STREAMS")
 	unsetEnv(t, "AGENT_UPDATES_ENABLED")
 	unsetEnv(t, "AGENT_UPDATE_CHANNEL")
-	unsetEnv(t, "SERVER_TUNNEL_MEMORY_PERCENT")
-	unsetEnv(t, "SERVER_TUNNEL_MEMORY_RESERVE_BYTES")
 	unsetEnv(t, "SERVER_TUNNEL_MEMORY_SOFT_PERCENT")
 	unsetEnv(t, "SERVER_TUNNEL_MEMORY_HARD_PERCENT")
 	unsetEnv(t, "SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT")

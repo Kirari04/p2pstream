@@ -26,7 +26,9 @@ Requests are never cached when they include:
 - WebSocket or other upgrade headers,
 - methods other than `GET` or `HEAD`.
 
-Requests with `Cookie` always bypass shared cache. The legacy `allow_cookie_requests` field may still appear in older configuration, but it is preserved only for compatibility and has no runtime effect.
+Requests with `Cookie` always bypass shared cache. The legacy
+`allow_cookie_requests` and acknowledgement fields are retired at v0.1.53;
+update clients to stop sending them. The v0.1.53 upgrade removes the database column automatically.
 
 Responses are never cached when they include `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, a disallowed status code, or a body larger than the rule maximum object size.
 

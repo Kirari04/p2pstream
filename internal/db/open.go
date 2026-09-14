@@ -57,10 +57,8 @@ func Open(databaseURL string) (*DB, error) {
 	}
 
 	if err := runEmbeddedMigrations(db); err != nil {
+		_ = db.Close()
 		return nil, err
-	}
-	if err := instance.migrate(); err != nil {
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	// Enforce the same runtime pragmas after migration in case schema setup

@@ -2,20 +2,14 @@ package server
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"time"
-
-	"github.com/rs/zerolog/log"
 
 	"p2pstream/internal/db"
 )
 
 const (
-	observabilityRollupBackfillBatchRows = int64(10000)
-	observabilityRollupBackfillInterval  = 200 * time.Millisecond
-	observabilityRowCapDeleteBatchRows   = int64(10000)
-	observabilityRowCapDeleteMaxBatches  = 10
+	observabilityRowCapDeleteBatchRows  = int64(10000)
+	observabilityRowCapDeleteMaxBatches = 10
 )
 
 func (a *App) insertProxyRequestEventWithRollups(ctx context.Context, event db.InsertProxyRequestEventAtParams) error {
@@ -337,137 +331,25 @@ func proxyRetryRollupParams(event db.InsertProxyRequestEventAtParams) (db.Upsert
 	}, true
 }
 
-func (a *App) observabilityRollupsReady(ctx context.Context) (bool, error) {
-	if a.DB == nil {
-		return false, nil
-	}
-	state, err := a.DB.GetObservabilityRollupState(ctx)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
-		}
-		return false, err
-	}
-	return state.ProxyBackfilledThroughID >= state.ProxyBackfillUpperID &&
-		state.AgentBackfilledThroughID >= state.AgentBackfillUpperID, nil
-}
-
-func (a *App) backfillObservabilityRollupBatch(ctx context.Context) (bool, error) {
-	if a == nil || a.DB == nil {
-		return false, nil
-	}
-
-	tx, err := a.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return false, err
-	}
-	defer tx.Rollback()
-
-	qtx := a.DB.WithTx(tx)
-	state, err := qtx.GetObservabilityRollupState(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	if state.ProxyBackfilledThroughID < state.ProxyBackfillUpperID {
-		next, err := qtx.GetNextProxyRollupBackfillThroughID(ctx, db.GetNextProxyRollupBackfillThroughIDParams{
-			CurrentID: state.ProxyBackfilledThroughID,
-			UpperID:   state.ProxyBackfillUpperID,
-			BatchSize: observabilityRollupBackfillBatchRows,
-		})
-		if err != nil {
-			return false, err
-		}
-		if next <= state.ProxyBackfilledThroughID {
-			next = state.ProxyBackfillUpperID
-		} else {
-			if err := qtx.BackfillProxyRequestRollupMinutesRange(ctx, db.BackfillProxyRequestRollupMinutesRangeParams{
-				FromID:    state.ProxyBackfilledThroughID,
-				ThroughID: next,
-			}); err != nil {
-				return false, err
-			}
-			if err := qtx.BackfillProxyRequestTupleRollupMinutesRange(ctx, db.BackfillProxyRequestTupleRollupMinutesRangeParams{
-				FromID:    state.ProxyBackfilledThroughID,
-				ThroughID: next,
-			}); err != nil {
-				return false, err
-			}
-			if err := qtx.BackfillProxyRequestStatusRollupMinutesRange(ctx, db.BackfillProxyRequestStatusRollupMinutesRangeParams{
-				FromID:    state.ProxyBackfilledThroughID,
-				ThroughID: next,
-			}); err != nil {
-				return false, err
-			}
-		}
-		if err := qtx.MarkProxyRollupBackfilledThrough(ctx, next); err != nil {
-			return false, err
-		}
-		return true, tx.Commit()
-	}
-
-	if state.AgentBackfilledThroughID < state.AgentBackfillUpperID {
-		next, err := qtx.GetNextAgentRollupBackfillThroughID(ctx, db.GetNextAgentRollupBackfillThroughIDParams{
-			CurrentID: state.AgentBackfilledThroughID,
-			UpperID:   state.AgentBackfillUpperID,
-			BatchSize: observabilityRollupBackfillBatchRows,
-		})
-		if err != nil {
-			return false, err
-		}
-		if next <= state.AgentBackfilledThroughID {
-			next = state.AgentBackfillUpperID
-		} else {
-			if err := qtx.BackfillAgentStatRollupMinutesRange(ctx, db.BackfillAgentStatRollupMinutesRangeParams{
-				FromID:    state.AgentBackfilledThroughID,
-				ThroughID: next,
-			}); err != nil {
-				return false, err
-			}
-		}
-		if err := qtx.MarkAgentRollupBackfilledThrough(ctx, next); err != nil {
-			return false, err
-		}
-		return true, tx.Commit()
-	}
-
-	return false, tx.Commit()
-}
-
 func (a *App) StartObservabilityMaintenance(ctx context.Context) {
 	if a == nil || a.DB == nil {
 		return
 	}
 	go func() {
-		backfillTicker := time.NewTicker(observabilityRollupBackfillInterval)
 		cleanupTicker := time.NewTicker(observabilityCleanupInterval)
-		defer backfillTicker.Stop()
 		defer cleanupTicker.Stop()
 
-		a.runObservabilityBackfillBatch(ctx)
 		a.cleanupObservability(ctx, time.Now().UTC())
 
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-backfillTicker.C:
-				a.runObservabilityBackfillBatch(ctx)
 			case now := <-cleanupTicker.C:
 				a.cleanupObservability(ctx, now.UTC())
 			}
 		}
 	}()
-}
-
-func (a *App) StartObservabilityCleanup(ctx context.Context) {
-	a.StartObservabilityMaintenance(ctx)
-}
-
-func (a *App) runObservabilityBackfillBatch(ctx context.Context) {
-	if _, err := a.backfillObservabilityRollupBatch(ctx); err != nil && !errors.Is(err, context.Canceled) {
-		log.Warn().Err(err).Msg("Failed to backfill observability rollups")
-	}
 }
 
 func rollupBucketUnixMillis(t time.Time) int64 {

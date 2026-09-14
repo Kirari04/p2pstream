@@ -262,7 +262,7 @@ function releaseInstallerCommand(parts: string[], repository: string, version: s
     'fetch_verified() { local expected; expected=$(digest "$1"); [[ "$expected" =~ ^[0-9a-fA-F]{64}$ ]] || { echo "Missing or ambiguous checksum for $1" >&2; return 1; }; download --output "$tmp/$1" "$base/$1"; printf "%s  %s\\n" "$expected" "$tmp/$1" | sha256sum --check --status || { echo "Checksum mismatch for $1" >&2; return 1; }; }',
     'if [ -z "$installer" ]; then source="p2pstream_${version}_source.tar.gz"; fetch_verified "$source"; installer="$tmp/$script_name"; tar -xOf "$tmp/$source" "p2pstream-$version/scripts/$script_name" > "$installer"; fi',
     ...(needsBinary ? [
-      'if [ -z "$binary" ]; then [ "$(uname -s)" = Linux ] || { echo "Linux is required" >&2; exit 1; }; case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) echo "Unsupported agent architecture" >&2; exit 1 ;; esac; asset="p2pstream_${version}_linux_$arch"; if [ -n "$(digest "$asset")" ]; then fetch_verified "$asset"; binary="$tmp/$asset"; else asset="$asset.tar.gz"; fetch_verified "$asset"; binary="$tmp/p2pstream"; tar -xOf "$tmp/$asset" ./p2pstream > "$binary"; fi; fi',
+      'if [ -z "$binary" ]; then [ "$(uname -s)" = Linux ] || { echo "Linux is required" >&2; exit 1; }; case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) echo "Unsupported agent architecture" >&2; exit 1 ;; esac; asset="p2pstream_${version}_linux_$arch"; fetch_verified "$asset"; binary="$tmp/$asset"; fi',
       'export P2PSTREAM_AGENT_BINARY_FILE="$binary"',
     ] : []),
     ...(existingEnvironmentPath ? [

@@ -8,9 +8,8 @@ const (
 	maximumAgentStreamCapacityWaiters        = int(tunnel.MaxServerConcurrentStreamsLimit)
 )
 
-// defaultAgentStreamCapacityConfig derives the server-side stream budgets from
-// the legacy total while the dedicated server settings are rolled out. The
-// budgets are structural: pooled connections can never consume the public
+// defaultAgentStreamCapacityConfig partitions the configured server stream
+// ceiling. Pooled connections can never consume the public
 // one-shot headroom, and public work can never consume the trusted health
 // reserve.
 func defaultAgentStreamCapacityConfig(total int64) agentStreamCapacityConfig {
@@ -75,7 +74,7 @@ func mustNewDefaultAgentStreamCapacityManager(total int64) *agentStreamCapacityM
 	if err != nil {
 		// The derived configuration is entirely internal and validated by unit
 		// tests. Keep construction total for embedded/test callers with an empty
-		// Config, matching the legacy limiter's behavior.
+		// Config.
 		manager, _ = newAgentStreamCapacityManager(defaultAgentStreamCapacityConfig(tunnel.DefaultServerMaxConcurrentStreams))
 	}
 	return manager

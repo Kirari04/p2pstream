@@ -143,11 +143,6 @@ func BootstrapHost(options BootstrapOptions) (PublicIdentities, error) {
 	if err := pinManagementAuthority(paths, options.AuthorityPublicKey, options.AuthorityKeyID, options.AuthorityEpoch, 0, gid); err != nil {
 		return PublicIdentities{}, err
 	}
-	if options.Reenroll {
-		if err := restoreFloorManifestPin(paths); err != nil {
-			return PublicIdentities{}, err
-		}
-	}
 	if !options.Reenroll {
 		buildVersion, buildCommit := buildinfo.Version, buildinfo.Commit
 		if options.ExistingTunnelVersion != "" || options.ExistingTunnelCommit != "" {

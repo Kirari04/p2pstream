@@ -314,6 +314,9 @@ func loadFloor(path string) (Floor, error) {
 	if floor.MinimumSafeVersion != "" && !validVersion(floor.MinimumSafeVersion) {
 		return Floor{}, errors.New("updater security floor contains an invalid minimum safe version")
 	}
+	if (floor.Sequence != 0 || floor.SecurityEpoch != 0) && floor.ManifestSHA256 == "" {
+		return Floor{}, errors.New("updater security floor is unsupported: a nonzero sequence or security epoch requires a manifest pin")
+	}
 	if floor.ManifestSHA256 != "" && (!digestPattern.MatchString(floor.ManifestSHA256) || floor.Sequence == 0 || floor.SecurityEpoch == 0 || floor.Version == "") {
 		return Floor{}, errors.New("updater security floor contains an invalid manifest identity")
 	}

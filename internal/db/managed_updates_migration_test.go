@@ -34,7 +34,7 @@ func TestManagedUpdateMigrationRepairsEmptyVersion16Schemas(t *testing.T) {
 				t.Fatalf("authority pin changed during migration: key=%q, err=%v", keyID, err)
 			}
 			var version int64
-			if err := database.QueryRow(`SELECT MAX(version_id) FROM goose_db_version WHERE is_applied=1`).Scan(&version); err != nil || version != 17 {
+			if err := database.QueryRow(`SELECT MAX(version_id) FROM goose_db_version WHERE is_applied=1`).Scan(&version); err != nil || version != 18 {
 				t.Fatalf("migration version=%d, err=%v", version, err)
 			}
 			rows, err := database.Query(`PRAGMA foreign_key_check`)
@@ -75,11 +75,12 @@ func TestManagedUpdateMigrationLeavesPopulatedCurrentSchemaIntact(t *testing.T) 
 	if _, err := database.Exec(`INSERT INTO agent_updater_enrollment_tokens (agent_id,token_hash,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,expires_at) SELECT id,'existing-token','owner/repo','existing-pin',1,1,CURRENT_TIMESTAMP FROM agents WHERE public_id='existing-agent'`); err != nil {
 		t.Fatal(err)
 	}
-	before := readNormalizedSchema(t, database)
+	wantDB := openSchemaParityDB(t, "schema.db")
+	applySchemaSQL(t, wantDB)
 	if err := runEmbeddedMigrations(database); err != nil {
 		t.Fatal(err)
 	}
-	assertSchemaParity(t, "unchanged current schema", readNormalizedSchema(t, database), before)
+	assertSchemaParity(t, "unchanged current schema", readNormalizedSchema(t, database), readNormalizedSchema(t, wantDB))
 	var token string
 	if err := database.QueryRow(`SELECT token_hash FROM agent_updater_enrollment_tokens`).Scan(&token); err != nil || token != "existing-token" {
 		t.Fatalf("existing token changed: token=%q, err=%v", token, err)

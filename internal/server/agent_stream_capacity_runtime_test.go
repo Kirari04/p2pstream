@@ -86,7 +86,7 @@ func TestHighTotalReservesPerSessionOpeningCapacityForHealth(t *testing.T) {
 	assertAgentStreamCapacityClean(t, manager)
 }
 
-func TestDefaultAgentStreamCapacityConfigSupportsSmallLegacyTotals(t *testing.T) {
+func TestDefaultAgentStreamCapacityConfigSupportsSmallTotals(t *testing.T) {
 	for _, total := range []int64{1, 2, 4, 5, 16} {
 		config := defaultAgentStreamCapacityConfig(total)
 		if config.Total != int(total) {
@@ -118,7 +118,6 @@ func TestNewAppUsesDedicatedServerStreamCapacity(t *testing.T) {
 	}
 
 	app = NewApp(&config.Config{
-		TunnelMaxConcurrentRequests:      7,
 		ServerTunnelMaxConcurrentStreams: 777,
 	}, nil)
 	if got := app.agentStreamCapacity.snapshot().Total.Capacity; got != 777 {

@@ -599,14 +599,8 @@ func agentBuildIdentityFromStats(payload *p2pstreamv1.AgentStatsRequest) agentBu
 	if payload == nil {
 		return agentBuildIdentity{}
 	}
-	version := payload.AgentVersion
-	if strings.TrimSpace(version) == "" && payload.ManagementTrustStatus != nil {
-		// Compatibility with agents released before build identity was promoted
-		// to a top-level heartbeat field.
-		version = payload.ManagementTrustStatus.AgentVersion
-	}
 	return agentBuildIdentity{
-		Version: truncateProxyRequestContextValue(version, 128),
+		Version: truncateProxyRequestContextValue(payload.AgentVersion, 128),
 		Commit:  truncateProxyRequestContextValue(payload.AgentCommit, 128),
 	}
 }
@@ -752,7 +746,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unsupported tunnel version", http.StatusUpgradeRequired)
 		return
 	}
-	advertisedStreams, advertised, err := tunnel.ParseOptionalMaxConcurrentStreams(
+	advertisedStreams, err := tunnel.ParseMaxConcurrentStreams(
 		r.Header.Get(tunnel.TunnelMaxConcurrentStreamsHeader),
 		tunnel.MaxConcurrentAgentRequestsLimit,
 	)
@@ -760,15 +754,12 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if !advertised {
-		advertisedStreams = tunnel.DefaultMaxConcurrentAgentRequests
-	}
 	group, lane, err := tunnel.ParseTunnelLane(r.Header.Get(tunnel.TunnelGroupHeader), r.Header.Get(tunnel.TunnelLaneHeader))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	capacityMode, _, err := tunnel.ParseOptionalCapacityMode(r.Header.Get(tunnel.TunnelCapacityModeHeader))
+	capacityMode, err := tunnel.ParseCapacityMode(r.Header.Get(tunnel.TunnelCapacityModeHeader))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -891,9 +882,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = rw.WriteString(tunnel.TunnelGroupHeader + ": " + group + "\r\n")
 		_, _ = rw.WriteString(tunnel.TunnelLaneHeader + ": " + strconv.Itoa(lane) + "\r\n")
 	}
-	if adaptiveCapacity {
-		_, _ = rw.WriteString(tunnel.TunnelCapacityModeHeader + ": " + tunnel.TunnelCapacityModeAdaptive + "\r\n")
-	}
+	_, _ = rw.WriteString(tunnel.TunnelCapacityModeHeader + ": " + capacityMode + "\r\n")
 	_, _ = rw.WriteString("\r\n")
 	if err := rw.Flush(); err != nil {
 		_ = rawConn.Close()

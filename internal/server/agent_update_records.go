@@ -343,17 +343,9 @@ func verifyAgentUpdateRootActionReceipt(identity agentUpdaterIdentityRow, assign
 }
 
 // agentUpdateReportMatchesRootResult compares the worker envelope only after
-// its signature and the root receipt have been verified. Older pinned workers
-// omitted all four duplicated result fields for rollback. Accept that exact
-// legacy shape; persist results from the signed receipt, never from omissions.
-// Partial or conflicting envelopes and activation reports still require an
-// exact match. Receipt authorization, replay and tunnel gates are unchanged.
+// its signature and the root receipt have been verified. The current worker
+// must repeat the exact result fields bound by that signed receipt.
 func agentUpdateReportMatchesRootResult(report *p2pstreamv1.ReportAgentUpdateRequest, receipt agentupdateauth.RootActionReceipt) bool {
-	if report.State == p2pstreamv1.AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_ROLLED_BACK &&
-		receipt.Action == agentupdateauth.AssignmentActionRollback &&
-		report.ManifestSha256 == "" && report.BinarySha256 == "" && report.RunningVersion == "" && report.RunningCommit == "" {
-		return true
-	}
 	return report.ManifestSha256 == receipt.ResultManifestSHA256 && report.BinarySha256 == receipt.ResultArtifactSHA256 &&
 		report.RunningVersion == receipt.ResultVersion && report.RunningCommit == receipt.ResultCommit
 }

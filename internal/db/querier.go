@@ -12,10 +12,6 @@ import (
 
 type Querier interface {
 	AssignDefaultLocalAccessLoginTemplate(ctx context.Context, localAuthLoginTemplateID sql.NullInt64) (int64, error)
-	BackfillAgentStatRollupMinutesRange(ctx context.Context, arg BackfillAgentStatRollupMinutesRangeParams) error
-	BackfillProxyRequestRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestRollupMinutesRangeParams) error
-	BackfillProxyRequestStatusRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestStatusRollupMinutesRangeParams) error
-	BackfillProxyRequestTupleRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestTupleRollupMinutesRangeParams) error
 	ClearEnvironmentTrust(ctx context.Context, id int64) (Environment, error)
 	CloseOpenConnectionsAt(ctx context.Context, disconnectedAt sql.NullTime) error
 	CountPublicListeners(ctx context.Context) (int64, error)
@@ -94,17 +90,12 @@ type Querier interface {
 	GetAgent(ctx context.Context, id int64) (Agent, error)
 	GetAgentByPublicID(ctx context.Context, publicID string) (Agent, error)
 	GetAgentStatsRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetAgentStatsRollupSummarySinceRow, error)
-	GetAgentStatsSummarySince(ctx context.Context, reportedAt time.Time) (GetAgentStatsSummarySinceRow, error)
 	GetConnectionSummarySince(ctx context.Context, connectedAt time.Time) (GetConnectionSummarySinceRow, error)
 	GetEnabledPublicAccessUserByProviderAndUsername(ctx context.Context, arg GetEnabledPublicAccessUserByProviderAndUsernameParams) (PublicAccessUser, error)
 	GetEnvironment(ctx context.Context, id int64) (Environment, error)
 	GetLatestAgentStat(ctx context.Context) (AgentStat, error)
 	GetLatestAgentStatByAgent(ctx context.Context, agentID sql.NullInt64) (AgentStat, error)
-	GetNextAgentRollupBackfillThroughID(ctx context.Context, arg GetNextAgentRollupBackfillThroughIDParams) (int64, error)
-	GetNextProxyRollupBackfillThroughID(ctx context.Context, arg GetNextProxyRollupBackfillThroughIDParams) (int64, error)
-	GetObservabilityRollupState(ctx context.Context) (ObservabilityRollupState, error)
 	GetProxyRequestRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRequestRollupSummarySinceRow, error)
-	GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error)
 	GetProxyRetryRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRetryRollupSummarySinceRow, error)
 	GetPublicAccessPolicy(ctx context.Context, id int64) (PublicAccessPolicy, error)
 	GetPublicAccessProvider(ctx context.Context, id int64) (PublicAccessProvider, error)
@@ -154,10 +145,8 @@ type Querier interface {
 	ListProxyRetryRuleRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRetryRuleRollupsSinceRow, error)
 	ListProxyRetryTrendRollupsSince(ctx context.Context, arg ListProxyRetryTrendRollupsSinceParams) ([]ListProxyRetryTrendRollupsSinceRow, error)
 	ListProxyStatusClassesRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyStatusClassesRollupsSinceRow, error)
-	ListProxyStatusClassesSince(ctx context.Context, occurredAt time.Time) ([]ListProxyStatusClassesSinceRow, error)
 	ListProxyStatusCodeRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyStatusCodeRollupsSinceRow, error)
 	ListProxyTrafficBucketRollupsSince(ctx context.Context, arg ListProxyTrafficBucketRollupsSinceParams) ([]ListProxyTrafficBucketRollupsSinceRow, error)
-	ListProxyTrafficBucketsSince(ctx context.Context, arg ListProxyTrafficBucketsSinceParams) ([]ListProxyTrafficBucketsSinceRow, error)
 	ListPublicAccessPolicies(ctx context.Context) ([]PublicAccessPolicy, error)
 	ListPublicAccessProviders(ctx context.Context) ([]PublicAccessProvider, error)
 	ListPublicAccessUsers(ctx context.Context) ([]PublicAccessUser, error)
@@ -184,20 +173,13 @@ type Querier interface {
 	ListRecentConnections(ctx context.Context, limit int64) ([]ListRecentConnectionsRow, error)
 	ListRecentProxyProblemSamplesSince(ctx context.Context, arg ListRecentProxyProblemSamplesSinceParams) ([]ListRecentProxyProblemSamplesSinceRow, error)
 	ListTopProxyAgentsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyAgentsRollupsSinceRow, error)
-	ListTopProxyAgentsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyAgentsSinceRow, error)
 	ListTopProxyErrorKindsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyErrorKindsRollupsSinceRow, error)
-	ListTopProxyErrorKindsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyErrorKindsSinceRow, error)
 	ListTopProxyListenersRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyListenersRollupsSinceRow, error)
-	ListTopProxyListenersSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyListenersSinceRow, error)
 	ListTopProxyRouteTargetsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyRouteTargetsRollupsSinceRow, error)
-	ListTopProxyRouteTargetsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyRouteTargetsSinceRow, error)
 	ListTopProxyRoutesRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyRoutesRollupsSinceRow, error)
-	ListTopProxyRoutesSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyRoutesSinceRow, error)
 	MarkAgentConnected(ctx context.Context, id int64) error
 	MarkAgentDisconnected(ctx context.Context, id int64) error
-	MarkAgentRollupBackfilledThrough(ctx context.Context, agentBackfilledThroughID int64) error
 	MarkAgentsWithOpenConnectionsDisconnectedAt(ctx context.Context, arg MarkAgentsWithOpenConnectionsDisconnectedAtParams) error
-	MarkProxyRollupBackfilledThrough(ctx context.Context, proxyBackfilledThroughID int64) error
 	PurgeAllPublicCacheEntries(ctx context.Context) ([]PurgeAllPublicCacheEntriesRow, error)
 	PurgePublicCacheEntriesByHostPath(ctx context.Context, arg PurgePublicCacheEntriesByHostPathParams) ([]PurgePublicCacheEntriesByHostPathRow, error)
 	PurgePublicCacheEntriesByRule(ctx context.Context, ruleID int64) ([]PurgePublicCacheEntriesByRuleRow, error)

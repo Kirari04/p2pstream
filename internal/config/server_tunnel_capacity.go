@@ -28,17 +28,6 @@ func resolveServerTunnelCapacity(cfg *Config, memoryLimitBytes int64) error {
 	return nil
 }
 
-// RecommendedAgentTunnelConcurrentRequests derives an agent-side capability
-// from the memory limit visible to the process. Operators can still override
-// it explicitly; this is the no-configuration default advertised to servers.
-func RecommendedAgentTunnelConcurrentRequests(windowBytes int64, memoryLimitBytes int64) (int64, error) {
-	if _, err := tunnel.NormalizeMaxStreamWindowSizeBytes(windowBytes); err != nil {
-		return 0, err
-	}
-	_ = memoryLimitBytes
-	return tunnel.MaxConcurrentAgentRequestsLimit, nil
-}
-
 func DetectProcessMemoryLimitBytes() int64 {
 	usage, err := sysmetrics.NewSystemMemoryUsageSampler().SampleMemoryUsage()
 	if err != nil || !usage.Valid() {

@@ -48,7 +48,7 @@ func TestServerMetadataBindsImageSchemaAndRecovery(t *testing.T) {
 		floor               Floor
 	}{
 		{"tampered metadata", append(metadata, ' '), current, "ghcr.io/test/repo", "stable", "amd64", Floor{}},
-		{"unknown schema", metadata, RuntimeStatus{API: API, Schema: 18, Version: current.Version}, "ghcr.io/test/repo", "stable", "amd64", Floor{}},
+		{"unknown schema", metadata, RuntimeStatus{API: API, Schema: Schema + 1, Version: current.Version}, "ghcr.io/test/repo", "stable", "amd64", Floor{}},
 		{"old runtime", metadata, RuntimeStatus{API: 0, Schema: 17, Version: current.Version}, "ghcr.io/test/repo", "stable", "amd64", Floor{}},
 		{"wrong repository", metadata, current, "ghcr.io/attacker/repo", "stable", "amd64", Floor{}},
 		{"wrong channel", metadata, current, "ghcr.io/test/repo", "staging", "amd64", Floor{}},

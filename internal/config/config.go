@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/netip"
 	"net/url"
 	"os"
@@ -76,10 +75,7 @@ type Config struct {
 	ObservabilityMaxRows              int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
 	LoginThrottleMaxKeys              int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
 	TunnelMaxStreamWindowBytes        int64  `env:"TUNNEL_MAX_STREAM_WINDOW_BYTES" envDefault:"2097152"`
-	TunnelMaxConcurrentRequests       int64  `env:"TUNNEL_MAX_CONCURRENT_REQUESTS" envDefault:"64"`
 	ServerTunnelMaxConcurrentStreams  int64  `env:"SERVER_TUNNEL_MAX_CONCURRENT_STREAMS" envDefault:"0"`
-	ServerTunnelMemoryPercent         int64  `env:"SERVER_TUNNEL_MEMORY_PERCENT" envDefault:"50"`
-	ServerTunnelMemoryReserveBytes    int64  `env:"SERVER_TUNNEL_MEMORY_RESERVE_BYTES" envDefault:"536870912"`
 	ServerTunnelMemorySoftPercent     int64  `env:"SERVER_TUNNEL_MEMORY_SOFT_PERCENT" envDefault:"80"`
 	ServerTunnelMemoryHardPercent     int64  `env:"SERVER_TUNNEL_MEMORY_HARD_PERCENT" envDefault:"90"`
 	ServerTunnelMemoryRecoveryPercent int64  `env:"SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT" envDefault:"75"`
@@ -107,21 +103,9 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	_, explicitDatabaseURL := os.LookupEnv("DATABASE_URL")
-	_, explicitPublicClientLimit := os.LookupEnv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT")
-	_, explicitPublicPeerLimit := os.LookupEnv("PUBLIC_MAX_CONNECTIONS_PER_PEER")
-
 	cfg := &Config{}
 	if err := env.Parse(cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
-	}
-	// New fairness defaults must not make an existing lower global limit fail
-	// startup after an upgrade. Only automatic defaults are narrowed; explicit
-	// contradictory values still fail validation below.
-	if !explicitPublicClientLimit && cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests {
-		cfg.PublicMaxConcurrentPerClient = cfg.PublicMaxConcurrentRequests
-	}
-	if !explicitPublicPeerLimit && cfg.PublicMaxConcurrentConnections > 0 && cfg.PublicMaxConnectionsPerPeer > cfg.PublicMaxConcurrentConnections {
-		cfg.PublicMaxConnectionsPerPeer = cfg.PublicMaxConcurrentConnections
 	}
 	if err := resolveServerTunnelCapacity(cfg, DetectProcessMemoryLimitBytes()); err != nil {
 		return nil, err
@@ -164,7 +148,7 @@ func Load() (*Config, error) {
 
 	if !explicitDatabaseURL || strings.TrimSpace(cfg.DatabaseURL) == "" {
 		dbPath := filepath.Join(cfg.ConfigDir, databaseFileName)
-		if err := migrateLegacyDefaultDatabase(dbPath); err != nil {
+		if err := rejectLegacyDefaultDatabase(dbPath); err != nil {
 			return nil, err
 		}
 		cfg.DatabaseURL = defaultDatabaseURL(dbPath)
@@ -219,9 +203,6 @@ func validateManagementTLSConfig(cfg *Config) error {
 		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_TARGET must be 0 (automatic) or between 1 and 1000000")
 	}
 	if _, err := tunnel.NormalizeMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes); err != nil {
-		return err
-	}
-	if _, err := tunnel.NormalizeMaxConcurrentAgentRequests(cfg.TunnelMaxConcurrentRequests); err != nil {
 		return err
 	}
 	if cfg.ServerTunnelMaxConcurrentStreams < 1 || cfg.ServerTunnelMaxConcurrentStreams > tunnel.MaxServerConcurrentStreamsLimit {
@@ -479,7 +460,7 @@ func defaultDatabaseURL(dbPath string) string {
 	return "file:" + filepath.ToSlash(dbPath) + "?" + values.Encode()
 }
 
-func migrateLegacyDefaultDatabase(newDBPath string) error {
+func rejectLegacyDefaultDatabase(newDBPath string) error {
 	if _, err := os.Stat(newDBPath); err == nil {
 		return nil
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -487,72 +468,13 @@ func migrateLegacyDefaultDatabase(newDBPath string) error {
 	}
 
 	legacyDBPath := databaseFileName
-	if samePath(legacyDBPath, newDBPath) {
-		return nil
-	}
 	if _, err := os.Stat(legacyDBPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
 		return fmt.Errorf("failed to inspect legacy database %q: %w", legacyDBPath, err)
 	}
-
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		src := legacyDBPath + suffix
-		dst := newDBPath + suffix
-		if err := copyFileIfExists(src, dst); err != nil {
-			return fmt.Errorf("failed to migrate legacy database file %q to %q: %w", src, dst, err)
-		}
-	}
-	return nil
-}
-
-func samePath(a, b string) bool {
-	absA, errA := filepath.Abs(a)
-	absB, errB := filepath.Abs(b)
-	if errA != nil || errB != nil {
-		return filepath.Clean(a) == filepath.Clean(b)
-	}
-	return absA == absB
-}
-
-func copyFileIfExists(src, dst string) error {
-	info, err := os.Stat(src)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return err
-	}
-	if info.IsDir() {
-		return fmt.Errorf("source is a directory")
-	}
-
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	mode := info.Mode().Perm()
-	if mode == 0 {
-		mode = 0600
-	}
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
-	if err != nil {
-		return err
-	}
-	_, copyErr := io.Copy(out, in)
-	closeErr := out.Close()
-	if copyErr != nil {
-		_ = os.Remove(dst)
-		return copyErr
-	}
-	if closeErr != nil {
-		_ = os.Remove(dst)
-		return closeErr
-	}
-	return nil
+	return fmt.Errorf("legacy database found at %q; automatic migration is unsupported, move it to %q or set DATABASE_URL explicitly", legacyDBPath, newDBPath)
 }
 
 func validateServerUpdaterConfig(cfg *Config) error {

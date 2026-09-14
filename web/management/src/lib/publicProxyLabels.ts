@@ -96,7 +96,7 @@ export function routeAction(route: PublicRoute): PublicRouteAction {
   return route.action === PublicRouteAction.REDIRECT ? PublicRouteAction.REDIRECT : PublicRouteAction.FORWARD;
 }
 
-export function routeAssignments(route: PublicRoute, _legacyAssignments: readonly unknown[] = []): PublicRouteTarget[] {
+export function routeAssignments(route: PublicRoute): PublicRouteTarget[] {
   return [...route.targets].sort((a, b) => {
     if (a.priorityGroup !== b.priorityGroup) return a.priorityGroup < b.priorityGroup ? -1 : 1;
     if (a.position !== b.position) return a.position < b.position ? -1 : 1;
@@ -105,18 +105,18 @@ export function routeAssignments(route: PublicRoute, _legacyAssignments: readonl
   });
 }
 
-export function routeDestinationLabel(route: PublicRoute, _legacyTargets: readonly unknown[] = [], routeTargets: readonly unknown[] = []): string {
+export function routeDestinationLabel(route: PublicRoute): string {
 	if (routeAction(route) === PublicRouteAction.REDIRECT) {
 		return `Redirect ${route.redirectStatusCode || 302}`;
 	}
-	const assignments = routeAssignments(route, routeTargets);
+	const assignments = routeAssignments(route);
 	if (assignments.length > 1) return `${assignments.length.toString()} targets`;
 	return routeTargetName(assignments[0]);
 }
 
-export function routeTargetSummary(route: PublicRoute, _legacyTargets: readonly unknown[] = [], routeTargets: readonly unknown[] = []): string {
+export function routeTargetSummary(route: PublicRoute): string {
 	if (routeAction(route) !== PublicRouteAction.REDIRECT) {
-		const assignments = routeAssignments(route, routeTargets);
+		const assignments = routeAssignments(route);
 		const names = assignments.map(routeTargetName).join(", ");
     return `${loadBalancingLabel(route.targetLoadBalancing)} / ${names || "No targets"}`;
   }
@@ -450,8 +450,7 @@ export function cacheRuleSummary(rule: PublicCacheRule): string {
   const ttl = durationMillisLabel(rule.ttlMillis);
   const statuses = rule.cacheStatusCodes.length ? rule.cacheStatusCodes.join(",") : "200,203,204,301,308";
   const maxMb = Math.max(1, Math.round(Number(rule.maxObjectBytes || 0n) / 1024 / 1024));
-  const cookies = rule.allowCookieRequests ? " / legacy cookie flag" : "";
-  return `${cacheTtlModeLabel(rule.ttlMode)} ${ttl} / status ${statuses} / max ${maxMb.toString()} MiB${cookies}`;
+  return `${cacheTtlModeLabel(rule.ttlMode)} ${ttl} / status ${statuses} / max ${maxMb.toString()} MiB`;
 }
 
 export function cacheRuleMatchSummary(rule: PublicCacheRule): string {

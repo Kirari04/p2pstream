@@ -2319,14 +2319,7 @@ func (a *App) reconcileAgentUpdateSuccessLocked(ctx context.Context, agentID int
 	connectedFreshTunnel := conn != nil && x.FreshTunnelAt.Valid && conn.ConnectedAt.Equal(x.FreshTunnelAt.Time)
 	liveBuildMatches := conn != nil && conn.BuildVersion == x.RootResultVersion && conn.BuildCommit == x.RootResultCommit
 	exactSessionBuildEvidence := liveBuildMatches && x.ObservedVersion == x.RootResultVersion && x.ObservedCommit == x.RootResultCommit
-	// Bootstrap rollback may restore an agent released before tunnel build
-	// headers existed. In that one compatibility case the activator receipt
-	// already binds the exact local slot bytes/build, and the server-forced
-	// post-receipt reconnect supplies the fresh execution edge. Newly activated
-	// releases (and rollback to releases) still require exact build
-	// headers from that same live connection.
-	bootstrapRollbackEvidence := x.AuthorizationAction == "rollback" && x.RootResultKind == string(agentupdateauth.RootActionResultBootstrap)
-	evidenceComplete := connectedFreshTunnel && x.RootResultKind != "" && (exactSessionBuildEvidence || bootstrapRollbackEvidence)
+	evidenceComplete := connectedFreshTunnel && x.RootResultKind != "" && exactSessionBuildEvidence
 	requiredEvidenceComplete := evidenceComplete && (x.AuthorizationAction == "rollback" || x.HealthyAt.Valid)
 	if x.Cordoned == 1 && x.RootActionCompletedAt.Valid && (x.State == "awaiting_tunnel" || x.State == "healthy_dwell") && !requiredEvidenceComplete && !time.Now().UTC().Before(x.RootActionCompletedAt.Time.Add(agentUpdatePostActionTimeout)) {
 		now := time.Now().UTC().Truncate(time.Millisecond)

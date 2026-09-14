@@ -680,21 +680,6 @@ func parsePublicTargetOrigin(targetOrigin string) (*url.URL, error) {
 	return &url.URL{Scheme: parsed.Scheme, Host: parsed.Host}, nil
 }
 
-func normalizeLegacyPublicTargetOrigin(targetOrigin string) (string, bool, error) {
-	if parsed, err := parsePublicTargetOrigin(targetOrigin); err == nil {
-		return parsed.String(), false, nil
-	}
-	parsed, err := url.Parse(strings.TrimSpace(targetOrigin))
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-		return "", false, errors.New("legacy target URL does not contain a valid HTTP(S) origin")
-	}
-	origin, err := parsePublicTargetOrigin((&url.URL{Scheme: parsed.Scheme, Host: parsed.Host}).String())
-	if err != nil {
-		return "", false, err
-	}
-	return origin.String(), true, nil
-}
-
 func normalizeHostPattern(pattern string) string {
 	pattern = strings.TrimSpace(strings.ToLower(pattern))
 	return strings.TrimSuffix(pattern, ".")

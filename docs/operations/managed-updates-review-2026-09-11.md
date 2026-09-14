@@ -5,6 +5,12 @@ Scope: the pending changes on top of staging commit
 `v0.1.53-staging.84`–`.87`. This review does not publish a release or modify the
 remote fleet.
 
+> Historical record: this review describes the compatibility support available through `v0.1.53-staging.90`.
+> Its legacy recovery, floor, slot-repair, and release-cutoff references are
+> retained as evidence of that review and are not compatibility promises for
+> v0.1.53. Complete the previous-release preparation in [Upgrades](./upgrades)
+> before the planned v0.1.53 cutover.
+
 ## Review method
 
 Three independent agents reviewed management recovery, host execution, and

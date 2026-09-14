@@ -24,6 +24,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/protobuf/encoding/protowire"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
@@ -102,7 +103,6 @@ type publicCacheRuleConfig struct {
 	CacheStatusCodes     []int64
 	MaxObjectBytes       int64
 	AddCacheStatusHeader bool
-	AllowCookieRequests  bool
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 	Fingerprint          string
@@ -124,7 +124,6 @@ type publicCacheRuleMutationInput struct {
 	CacheStatusCodesJSON string
 	MaxObjectBytes       int64
 	AddCacheStatusHeader int64
-	AllowCookieRequests  int64
 }
 
 type publicCacheDecision struct {
@@ -1321,9 +1320,8 @@ func (a *App) invalidatePublicCacheEntry(entry db.PublicCacheEntry) {
 		}
 	}
 	deleted, err := a.DB.DeletePublicCacheEntryGeneration(context.Background(), db.DeletePublicCacheEntryGenerationParams{
-		KeyDigest:      entry.KeyDigest,
-		StoredAt:       entry.StoredAt,
-		StoredAtLegacy: entry.StoredAt.UTC().Format(sqliteLegacyTimestampLayout),
+		KeyDigest: entry.KeyDigest,
+		StoredAt:  entry.StoredAt,
 	})
 	if err != nil {
 		return
@@ -2083,7 +2081,6 @@ func publicCacheRuleRowToConfig(row db.PublicCacheRule) (publicCacheRuleConfig, 
 		CacheStatusCodes:     normalizePublicCacheStatusCodes(statusCodes),
 		MaxObjectBytes:       normalizePublicCacheMaxObjectBytes(row.MaxObjectBytes),
 		AddCacheStatusHeader: row.AddCacheStatusHeader != 0,
-		AllowCookieRequests:  row.AllowCookieRequests != 0,
 		CreatedAt:            row.CreatedAt,
 		UpdatedAt:            row.UpdatedAt,
 	}
@@ -2120,7 +2117,6 @@ func publicCacheRuleConfigToProto(rule publicCacheRuleConfig) *p2pstreamv1.Publi
 		CacheStatusCodes:     append([]int64(nil), rule.CacheStatusCodes...),
 		MaxObjectBytes:       rule.MaxObjectBytes,
 		AddCacheStatusHeader: rule.AddCacheStatusHeader,
-		AllowCookieRequests:  rule.AllowCookieRequests,
 		CreatedAtUnixMillis:  rule.CreatedAt.UnixMilli(),
 		UpdatedAtUnixMillis:  rule.UpdatedAt.UnixMilli(),
 		MatchRule:            publicPolicyMatchRuleToProto(rule.Match),
@@ -2142,15 +2138,11 @@ func (a *App) ensurePublicCacheSettings(ctx context.Context) (db.PublicCacheSett
 	return row, nil
 }
 
-func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, priority int64, enabled bool, routeIDs []int64, targetIDs []int64, scope p2pstreamv1.PublicCacheScope, ttlMode p2pstreamv1.PublicCacheTtlMode, ttlMillis int64, queryMode p2pstreamv1.PublicCacheQueryMode, queryParams []string, varyHeaders []string, statusCodes []int64, maxObjectBytes int64, addCacheStatusHeader bool, allowCookieRequests bool, allowCookieRequestsAcknowledged bool, matchRule *p2pstreamv1.PublicPolicyMatchRule) (publicCacheRuleMutationInput, error) {
+func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, priority int64, enabled bool, routeIDs []int64, targetIDs []int64, scope p2pstreamv1.PublicCacheScope, ttlMode p2pstreamv1.PublicCacheTtlMode, ttlMillis int64, queryMode p2pstreamv1.PublicCacheQueryMode, queryParams []string, varyHeaders []string, statusCodes []int64, maxObjectBytes int64, addCacheStatusHeader bool, matchRule *p2pstreamv1.PublicPolicyMatchRule) (publicCacheRuleMutationInput, error) {
 	name, err := normalizePublicName(name)
 	if err != nil {
 		return publicCacheRuleMutationInput{}, connect.NewError(connect.CodeInvalidArgument, errors.New("cache rule name must be 1-64 alphanumeric, dot, dash, or underscore characters"))
 	}
-	// allowCookieRequests/allowCookieRequestsAcknowledged are retained for API and
-	// database compatibility only; Cookie-bearing requests always bypass shared cache
-	// at runtime, so the acknowledgement is no longer enforced.
-	_ = allowCookieRequestsAcknowledged
 	matchConfig, err := validatePublicPolicyMatch(matchRule)
 	if err != nil {
 		return publicCacheRuleMutationInput{}, err
@@ -2225,7 +2217,6 @@ func (a *App) validatePublicCacheRuleInput(ctx context.Context, name string, pri
 		CacheStatusCodesJSON: string(statusCodesJSON),
 		MaxObjectBytes:       maxObjectBytes,
 		AddCacheStatusHeader: boolInt(addCacheStatusHeader),
-		AllowCookieRequests:  boolInt(allowCookieRequests),
 	}, nil
 }
 
@@ -2265,10 +2256,10 @@ func (a *App) CreatePublicCacheRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	if err := rejectRemovedPolicyMatchField(req.Msg, 4); err != nil {
+	if err := rejectRemovedProtoFields(req.Msg, map[protowire.Number]string{4: "match", 16: "allow_cookie_requests", 18: "allow_cookie_requests_acknowledged"}); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader, req.Msg.AllowCookieRequests, req.Msg.AllowCookieRequestsAcknowledged, req.Msg.MatchRule)
+	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader, req.Msg.MatchRule)
 	if err != nil {
 		return nil, err
 	}
@@ -2291,10 +2282,10 @@ func (a *App) UpdatePublicCacheRule(ctx context.Context, req *connect.Request[p2
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	if err := rejectRemovedPolicyMatchField(req.Msg, 5); err != nil {
+	if err := rejectRemovedProtoFields(req.Msg, map[protowire.Number]string{5: "match", 17: "allow_cookie_requests", 19: "allow_cookie_requests_acknowledged"}); err != nil {
 		return nil, err
 	}
-	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader, req.Msg.AllowCookieRequests, req.Msg.AllowCookieRequestsAcknowledged, req.Msg.MatchRule)
+	params, err := a.validatePublicCacheRuleInput(ctx, req.Msg.Name, req.Msg.Priority, req.Msg.Enabled, req.Msg.RouteIds, req.Msg.TargetIds, req.Msg.Scope, req.Msg.TtlMode, req.Msg.TtlMillis, req.Msg.QueryMode, req.Msg.QueryParams, req.Msg.VaryHeaders, req.Msg.CacheStatusCodes, req.Msg.MaxObjectBytes, req.Msg.AddCacheStatusHeader, req.Msg.MatchRule)
 	if err != nil {
 		return nil, err
 	}
@@ -2494,7 +2485,6 @@ func cacheCreateParams(input publicCacheRuleMutationInput) db.CreatePublicCacheR
 		CacheStatusCodesJson: input.CacheStatusCodesJSON,
 		MaxObjectBytes:       input.MaxObjectBytes,
 		AddCacheStatusHeader: input.AddCacheStatusHeader,
-		AllowCookieRequests:  input.AllowCookieRequests,
 	}
 }
 
@@ -2516,7 +2506,6 @@ func cacheUpdateParams(id int64, input publicCacheRuleMutationInput) db.UpdatePu
 		CacheStatusCodesJson: input.CacheStatusCodesJSON,
 		MaxObjectBytes:       input.MaxObjectBytes,
 		AddCacheStatusHeader: input.AddCacheStatusHeader,
-		AllowCookieRequests:  input.AllowCookieRequests,
 	}
 }
 

@@ -463,8 +463,7 @@ function policyWarningsForRule(kind: TrafficPolicyKind, id: bigint): TrafficPoli
 
 function visiblePolicyWarningsForRule(kind: TrafficPolicyKind, id: bigint): TrafficPolicyAttentionWarning[] {
   return policyWarningsForRule(kind, id).filter((warning) => (
-    warning.code !== "disabled-rule" &&
-    warning.code !== "cache-allows-cookie-requests"
+    warning.code !== "disabled-rule"
   ));
 }
 
@@ -477,7 +476,6 @@ function warningLabel(warning: TrafficPolicyAttentionWarning): string {
     case "captcha-provider-disabled": return "Provider disabled";
     case "captcha-provider-secret-missing": return "Provider secret missing";
     case "cache-settings-disabled": return "Cache disabled";
-    case "cache-allows-cookie-requests": return "Legacy Cookie flag";
     case "retry-duplicate-risk": return "Duplicate risk";
     default: return warning.message;
   }
@@ -492,7 +490,6 @@ function warningSeverity(warning: TrafficPolicyAttentionWarning): string {
     case "duplicate-priority":
     case "any-request-rule":
     case "cache-settings-disabled":
-    case "cache-allows-cookie-requests":
     case "retry-duplicate-risk":
       return "warning";
     default:
@@ -1246,7 +1243,6 @@ async function deleteTrafficShaperRule(id: bigint) {
                 <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
                   {{ rule.enabled ? 'Enabled' : 'Disabled' }}
                 </NTag>
-                <NTag v-if="rule.allowCookieRequests" size="small" :bordered="false" type="warning">Legacy cookie flag</NTag>
               </div>
               <div v-if="visiblePolicyWarningsForRule('cache', rule.id).length" class="policy-data-tags">
                 <NTag

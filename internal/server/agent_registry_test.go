@@ -283,8 +283,8 @@ func TestReportStatsRecordsAgentBuildIdentity(t *testing.T) {
 		t.Fatalf("report legacy agent build identity: %v", err)
 	}
 	legacy := app.agentToProto(context.Background(), stored)
-	if legacy.Version != "v1.2.2" || legacy.Commit != "" {
-		t.Fatalf("legacy agent build = %q/%q, want v1.2.2/empty", legacy.Version, legacy.Commit)
+	if legacy.Version != "" || legacy.Commit != "" {
+		t.Fatalf("nested legacy identity must not be used as current build: %q/%q", legacy.Version, legacy.Commit)
 	}
 }
 
@@ -960,26 +960,28 @@ func TestAgentTunnelNegotiatesAdaptiveCapacityAtProtocolGuard(t *testing.T) {
 	}
 }
 
-func TestAgentTunnelOldPeerGetsLegacySessionCapacity(t *testing.T) {
+func TestAgentTunnelRejectsMissingCapacityHeaders(t *testing.T) {
 	database := newAgentRegistryTestDB(t)
-	app := NewApp(&config.Config{ManagementUIDisabled: true, ServerTunnelMaxConcurrentStreams: 777}, database)
-	agentRow := createAgentRegistryTestAgent(t, database, "agent-tunnel-legacy-capacity", "Legacy Capacity", "token")
-	mux := http.NewServeMux()
-	app.RegisterManagementRoutes(mux)
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	session, conn, err := dialAgentRegistryTestTunnel(server.URL, agentRow.PublicID, "token")
-	if err != nil {
-		t.Fatalf("dial legacy tunnel: %v", err)
-	}
-	defer conn.Close()
-	defer session.Close()
-	waitForAgentHubConnection(t, app, agentRow.ID, true)
-
-	connected := app.AgentHub.connectedByID(agentRow.ID)
-	if connected == nil || connected.AdvertisedMaxConcurrentStreams != tunnel.DefaultMaxConcurrentAgentRequests || connected.NegotiatedMaxConcurrentStreams != tunnel.DefaultMaxConcurrentAgentRequests {
-		t.Fatalf("legacy capacity negotiation = %#v, want %d", connected, tunnel.DefaultMaxConcurrentAgentRequests)
+	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
+	agent := createAgentRegistryTestAgent(t, database, "agent-cutover-capacity", "Capacity", "token")
+	for _, missing := range []string{tunnel.TunnelMaxConcurrentStreamsHeader, tunnel.TunnelCapacityModeHeader} {
+		req := httptest.NewRequest(http.MethodGet, tunnel.BootstrapPath, nil)
+		req.Header.Set("X-P2PStream-Agent-ID", agent.PublicID)
+		req.Header.Set("Authorization", "Bearer token")
+		req.Header.Set("Connection", "Upgrade")
+		req.Header.Set("Upgrade", tunnel.UpgradeToken)
+		req.Header.Set(tunnel.TunnelVersionHeader, "1")
+		req.Header.Set(tunnel.TunnelMaxConcurrentStreamsHeader, "64")
+		req.Header.Set(tunnel.TunnelCapacityModeHeader, tunnel.TunnelCapacityModeFixed)
+		req.Header.Del(missing)
+		rec := httptest.NewRecorder()
+		app.agentTunnelHandler(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("missing %s: status %d", missing, rec.Code)
+		}
+		if app.AgentHub.connectedByID(agent.ID) != nil {
+			t.Fatal("rejected peer registered a tunnel")
+		}
 	}
 }
 
@@ -1306,11 +1308,11 @@ func agentRegistryTestConn(agent db.Agent) *AgentConn {
 }
 
 func dialAgentRegistryTestTunnel(serverURL string, publicID string, token string) (*yamux.Session, net.Conn, error) {
-	return dialAgentRegistryTestTunnelWithCapacity(serverURL, publicID, token, 0)
+	return dialAgentRegistryTestTunnelWithCapacity(serverURL, publicID, token, tunnel.DefaultMaxConcurrentAgentRequests)
 }
 
 func dialAgentRegistryTestTunnelWithCapacity(serverURL string, publicID string, token string, advertisedCapacity int64) (*yamux.Session, net.Conn, error) {
-	return dialAgentRegistryTestTunnelWithCapacityMode(serverURL, publicID, token, advertisedCapacity, "")
+	return dialAgentRegistryTestTunnelWithCapacityMode(serverURL, publicID, token, advertisedCapacity, tunnel.TunnelCapacityModeFixed)
 }
 
 func dialAgentRegistryTestTunnelWithCapacityMode(serverURL string, publicID string, token string, advertisedCapacity int64, capacityMode string) (*yamux.Session, net.Conn, error) {
