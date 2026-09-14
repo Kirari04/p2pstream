@@ -49,8 +49,12 @@ still apply.
   Health admission uses 250 ms and treats local saturation as a skipped probe.
 
 Existing explicit environment values remain limits. Remove old overrides to use
-automatic admission. Old peers retain their negotiated compatibility ceilings;
-additional lanes start only after the primary handshake acknowledges support.
+automatic admission. Upgrade the server and agents together: both fixed and adaptive modes require
+explicit capacity headers. An explicit fixed
+`TUNNEL_MAX_CONCURRENT_REQUESTS` remains supported for controlled deployments;
+mixed releases must not be treated as a promise of retired legacy-header
+negotiation. Additional lanes start only after the primary handshake
+acknowledges support.
 No throughput improvement bypasses agent destination policy or TLS trust.
 
 ## Measurements

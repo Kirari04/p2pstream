@@ -61,7 +61,7 @@ type persistedFloor struct {
 	MinimumSafeVersion string `json:"minimum_safe_version"`
 	ManifestSHA256     string `json:"manifest_sha256"`
 	Version            string `json:"version"`
-	Channel            string `json:"channel,omitempty"`
+	Channel            string `json:"channel"`
 }
 
 type Catalog struct {
@@ -114,11 +114,7 @@ func New(options Options) (*Catalog, error) {
 		return nil, err
 	}
 	if floor.Sequence != 0 {
-		floorChannel := floor.Channel
-		if floorChannel == "" {
-			floorChannel = releaseversion.ChannelStable
-		}
-		if floorChannel != options.Channel {
+		if floor.Channel != options.Channel {
 			return nil, errors.New("agent update catalog state belongs to a different release channel")
 		}
 	}
@@ -334,12 +330,12 @@ func readFloor(path string) (persistedFloor, error) {
 	if err := requireJSONEOF(decoder); err != nil {
 		return persistedFloor{}, fmt.Errorf("decode agent update catalog state: %w", err)
 	}
-	floorChannel := floor.Channel
-	if floorChannel == "" {
-		floorChannel = releaseversion.ChannelStable
+	nonempty := floor.Sequence != 0 || floor.SecurityEpoch != 0 || floor.MinimumSafeVersion != "" || floor.ManifestSHA256 != "" || floor.Version != ""
+	if nonempty && floor.Channel == "" {
+		return persistedFloor{}, errors.New("agent update catalog state requires an explicit release channel")
 	}
 	if floor.SchemaVersion != stateSchemaVersion || floor.Sequence == 0 || floor.SecurityEpoch == 0 ||
-		!releaseversion.ValidForChannel(floor.Version, floorChannel) || !digestRE.MatchString(floor.ManifestSHA256) {
+		!releaseversion.ValidForChannel(floor.Version, floor.Channel) || !digestRE.MatchString(floor.ManifestSHA256) {
 		return persistedFloor{}, errors.New("agent update catalog state is invalid")
 	}
 	return floor, nil

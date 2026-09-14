@@ -238,7 +238,7 @@ func installSlot(paths Paths, release VerifiedRelease, artifact *os.File) (strin
 	slotDir := filepath.Join(paths.slotsDir(), release.Version)
 	slotPath := filepath.Join(slotDir, "p2pstream")
 	if _, err := os.Lstat(slotDir); err == nil {
-		if err := prepareExistingSlot(slotDir, release.Artifact); err != nil {
+		if err := validateExistingSlot(slotDir, release.Artifact); err != nil {
 			return "", err
 		}
 		return slotPath, nil
@@ -291,7 +291,7 @@ func installSlot(paths Paths, release VerifiedRelease, artifact *os.File) (strin
 		if !errors.Is(err, os.ErrExist) {
 			return "", err
 		}
-		if err := prepareExistingSlot(slotDir, release.Artifact); err != nil {
+		if err := validateExistingSlot(slotDir, release.Artifact); err != nil {
 			return "", err
 		}
 	} else {
@@ -303,9 +303,9 @@ func installSlot(paths Paths, release VerifiedRelease, artifact *os.File) (strin
 	return slotPath, nil
 }
 
-// A failed activation may have left a verified slot with the old root-only
-// modes. Repair only that protected slot, after rechecking its artifact.
-func prepareExistingSlot(slotDir string, artifact Artifact) error {
+// Existing slots must already have the current service-readable protected
+// modes. Recheck their identity without following links before reuse.
+func validateExistingSlot(slotDir string, artifact Artifact) error {
 	fd, err := unix.Open(slotDir, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 	if err != nil {
 		return fmt.Errorf("open existing version slot directory: %w", err)
@@ -316,8 +316,8 @@ func prepareExistingSlot(slotDir string, artifact Artifact) error {
 	if err != nil {
 		return err
 	}
-	if info.Mode().Perm()&0022 != 0 {
-		return errors.New("existing version slot directory is not protected")
+	if info.Mode().Perm() != 0755 {
+		return errors.New("existing version slot directory has unsupported permissions")
 	}
 	f, err := openRegularNoFollow(filepath.Join(slotDir, "p2pstream"), artifact.Size)
 	if err != nil {
@@ -328,22 +328,13 @@ func prepareExistingSlot(slotDir string, artifact Artifact) error {
 	if err != nil {
 		return err
 	}
-	if info.Mode().Perm()&0022 != 0 {
-		return errors.New("existing version slot is not a protected regular file")
+	if info.Mode().Perm() != 0755 {
+		return errors.New("existing version slot has unsupported permissions")
 	}
 	if err := verifyFileContents(f, artifact); err != nil {
 		return fmt.Errorf("existing version slot does not match release artifact: %w", err)
 	}
-	if err := f.Chmod(0755); err != nil {
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		return err
-	}
-	if err := dir.Chmod(0755); err != nil {
-		return err
-	}
-	return dir.Sync()
+	return nil
 }
 
 func verifyFile(path string, artifact Artifact) error {

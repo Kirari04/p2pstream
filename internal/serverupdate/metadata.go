@@ -19,7 +19,7 @@ import (
 
 const (
 	API           = 1
-	Schema        = 17
+	Schema        = 18
 	MetadataAsset = "p2pstream_server_update.json"
 	RuntimeSocket = "/tmp/p2pstream-server-status.sock"
 )
@@ -44,7 +44,7 @@ type Metadata struct {
 }
 
 func NewMetadata(version, commit string) Metadata {
-	return Metadata{API: API, Version: version, Commit: commit, SourceSchemaMin: Schema,
+	return Metadata{API: API, Version: version, Commit: commit, SourceSchemaMin: 17,
 		SourceSchemaMax: Schema, TargetSchema: Schema, RuntimeAPIMin: API, AgentProtocolMin: 1, AgentProtocolMax: 1, Rollback: "snapshot"}
 }
 

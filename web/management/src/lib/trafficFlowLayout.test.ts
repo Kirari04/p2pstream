@@ -473,7 +473,6 @@ function cacheRule(overrides: Partial<PublicCacheRule>): PublicCacheRule {
     cacheStatusCodes: [200n],
     maxObjectBytes: 104_857_600n,
     addCacheStatusHeader: true,
-    allowCookieRequests: false,
     createdAtUnixMillis: 0n,
     updatedAtUnixMillis: 0n,
     ...overrides,

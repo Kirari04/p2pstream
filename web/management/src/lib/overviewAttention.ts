@@ -62,7 +62,6 @@ const ACTIONABLE_POLICY_WARNING_CODES = new Set<TrafficPolicyAttentionWarning["c
   "captcha-provider-disabled",
   "captcha-provider-secret-missing",
   "cache-settings-disabled",
-  "cache-allows-cookie-requests",
   "retry-duplicate-risk",
 ]);
 

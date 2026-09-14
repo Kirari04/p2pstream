@@ -19,12 +19,10 @@ func TestCancelledBlockedAgentUpdateAcceptsRollbackRecovery(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		rollbackFails bool
-		legacyReport  bool
 		timedOut      bool
 	}{
 		{name: "verified rollback releases assignment after fresh tunnel"},
-		{name: "legacy rollback report uses signed receipt results", legacyReport: true},
-		{name: "legacy rollback recovers after watchdog timeout", legacyReport: true, timedOut: true},
+		{name: "rollback recovers after watchdog timeout", timedOut: true},
 		{name: "rollback failure remains fenced and can be retried", rollbackFails: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -78,19 +76,9 @@ func TestCancelledBlockedAgentUpdateAcceptsRollbackRecovery(t *testing.T) {
 				report.FailureCode = "rollback_failed"
 			} else {
 				receipt := newAgentUpdateTestRootActionReceipt(t, app, agent.ID, activatorPrivate, agentupdateauth.AssignmentActionRollback, 1)
-				if !tc.legacyReport {
-					report.ManifestSha256, report.BinarySha256 = receipt.ResultManifestSha256, receipt.ResultArtifactSha256
-					report.RunningVersion, report.RunningCommit = receipt.ResultVersion, receipt.ResultCommit
-				}
+				report.ManifestSha256, report.BinarySha256 = receipt.ResultManifestSha256, receipt.ResultArtifactSha256
+				report.RunningVersion, report.RunningCommit = receipt.ResultVersion, receipt.ResultCommit
 				report.RootActionReceipt = receipt
-				if tc.legacyReport {
-					partial := proto.Clone(report).(*p2pstreamv1.ReportAgentUpdateRequest)
-					partial.BinarySha256 = receipt.ResultArtifactSha256
-					signAgentUpdateTestReport(partial, updaterPrivate)
-					if _, err := app.ReportAgentUpdate(ctx, connect.NewRequest(partial)); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-						t.Fatalf("partially omitted result accepted: %v", err)
-					}
-				}
 				// The blocked phase must not make an unsigned worker's claim enough
 				// to clear the fence: the root receipt still has to authenticate.
 				receipt.Signature[0] ^= 1
@@ -137,6 +125,8 @@ func TestCancelledBlockedAgentUpdateAcceptsRollbackRecovery(t *testing.T) {
 				}
 				report.Generation, report.Counter = response.Msg.Generation, 5
 				report.RootActionReceipt = newAgentUpdateTestRootActionReceipt(t, app, agent.ID, activatorPrivate, agentupdateauth.AssignmentActionRollback, 2)
+				report.ManifestSha256, report.BinarySha256 = report.RootActionReceipt.ResultManifestSha256, report.RootActionReceipt.ResultArtifactSha256
+				report.RunningVersion, report.RunningCommit = report.RootActionReceipt.ResultVersion, report.RootActionReceipt.ResultCommit
 			}
 			signAgentUpdateTestReport(report, updaterPrivate)
 			if _, err := app.ReportAgentUpdate(ctx, connect.NewRequest(report)); err != nil {
@@ -156,8 +146,7 @@ func TestCancelledBlockedAgentUpdateAcceptsRollbackRecovery(t *testing.T) {
 			}
 
 			assertAgentUpdateAssignmentState(t, database, assignmentID, "awaiting_tunnel")
-			// Lost responses must be retryable with the same signed root receipt,
-			// including the incomplete envelope sent by older pinned workers.
+			// Lost responses must be retryable with the same signed root receipt.
 			for _, counter := range []uint64{report.Counter, report.Counter + 1} {
 				report.Counter = counter
 				signAgentUpdateTestReport(report, updaterPrivate)
@@ -183,7 +172,7 @@ func TestCancelledBlockedAgentUpdateAcceptsRollbackRecovery(t *testing.T) {
 			if err := database.QueryRowContext(ctx, `SELECT root_action_completed_at FROM agent_update_assignments WHERE id=?`, assignmentID).Scan(&completedAt); err != nil {
 				t.Fatal(err)
 			}
-			conn := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: completedAt.Add(time.Millisecond)}
+			conn := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: completedAt.Add(time.Millisecond), BuildVersion: report.RootActionReceipt.ResultVersion, BuildCommit: report.RootActionReceipt.ResultCommit}
 			if err := app.AgentHub.connect(conn); err != nil {
 				t.Fatal(err)
 			}

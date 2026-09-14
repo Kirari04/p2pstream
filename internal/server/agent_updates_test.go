@@ -650,6 +650,27 @@ func TestAgentUpdateRootActionReportLostResponseRetryIsIdempotent(t *testing.T) 
 	}
 }
 
+func TestAgentUpdateRollbackReportRequiresExactRootResultFields(t *testing.T) {
+	receipt := agentupdateauth.RootActionReceipt{
+		Action:               agentupdateauth.AssignmentActionRollback,
+		ResultManifestSHA256: strings.Repeat("a", 64),
+		ResultArtifactSHA256: strings.Repeat("b", 64),
+		ResultVersion:        "v1.0.0",
+		ResultCommit:         strings.Repeat("c", 40),
+	}
+	empty := &p2pstreamv1.ReportAgentUpdateRequest{State: p2pstreamv1.AgentUpdaterReportState_AGENT_UPDATER_REPORT_STATE_ROLLED_BACK}
+	if agentUpdateReportMatchesRootResult(empty, receipt) {
+		t.Fatal("rollback report with omitted root result fields was accepted")
+	}
+	exact := &p2pstreamv1.ReportAgentUpdateRequest{
+		ManifestSha256: receipt.ResultManifestSHA256, BinarySha256: receipt.ResultArtifactSHA256,
+		RunningVersion: receipt.ResultVersion, RunningCommit: receipt.ResultCommit,
+	}
+	if !agentUpdateReportMatchesRootResult(exact, receipt) {
+		t.Fatal("rollback report with exact root result fields was rejected")
+	}
+}
+
 func TestAgentUpdateReportRejectsOutOfOrderStateWithoutConsumingCounter(t *testing.T) {
 	ctx := context.Background()
 	database := newServerTestDB(t)
@@ -780,10 +801,9 @@ func TestAgentUpdateRollbackStaysCordonedUntilReceiptFreshTunnelAndObservedBuild
 		t.Fatalf("rollback overwrote the original activation edge: got %s want %s", activatedAt, originalActivatedAt)
 	}
 
-	// The bootstrap slot may be a pre-feature agent that has no tunnel build
-	// headers. Its root-signed exact slot receipt plus this server-forced fresh
-	// reconnect must still complete rollback safely.
-	postRollbackTunnel := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: completedAt.Add(time.Millisecond)}
+	// Rollback completion requires exact build evidence from the fresh tunnel,
+	// including when the root receipt describes the bootstrap slot.
+	postRollbackTunnel := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: completedAt.Add(time.Millisecond), BuildVersion: rollbackReceipt.ResultVersion, BuildCommit: rollbackReceipt.ResultCommit}
 	if err := app.AgentHub.connect(postRollbackTunnel); err != nil {
 		t.Fatal(err)
 	}
@@ -794,7 +814,7 @@ func TestAgentUpdateRollbackStaysCordonedUntilReceiptFreshTunnelAndObservedBuild
 		t.Fatal("rollback disconnect immediately before recovery CAS released routing")
 	}
 	app.agentUpdateBeforeSuccessCAS = nil
-	recoveryTunnel := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: completedAt.Add(2 * time.Millisecond)}
+	recoveryTunnel := &AgentConn{AgentID: agent.ID, PublicID: agent.PublicID, Done: make(chan struct{}), ConnectedAt: completedAt.Add(2 * time.Millisecond), BuildVersion: rollbackReceipt.ResultVersion, BuildCommit: rollbackReceipt.ResultCommit}
 	if err := app.AgentHub.connect(recoveryTunnel); err != nil {
 		t.Fatal(err)
 	}

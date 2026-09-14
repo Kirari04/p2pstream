@@ -295,104 +295,8 @@ func TestReinstallExactActiveTargetPreservesDistinctRollbackSlot(t *testing.T) {
 	}
 }
 
-func TestLegacyFloorManifestMigrationRequiresMatchingAuthenticatedReceipt(t *testing.T) {
-	for _, kind := range []string{"matching activation", "after rollback", "missing receipt", "newer floor", "tampered root receipt", "tampered authorization", "ahead root counter", "wrong signed result"} {
-		t.Run(kind, func(t *testing.T) {
-			f := newFixture(t)
-			stageAndRequestActivation(t, f)
-			if _, err := Activate(context.Background(), ActivateOptions{
-				Paths: f.paths, Verifier: f.verifier, Service: &fakeService{}, DiskPreflight: allowDisk,
-			}); err != nil {
-				t.Fatal(err)
-			}
-			floor, err := loadFloor(f.paths.floorPath())
-			if err != nil {
-				t.Fatal(err)
-			}
-			floor.ManifestSHA256 = ""
-			if kind == "newer floor" {
-				floor.Sequence++
-				floor.Version = "v1.2.0"
-			}
-			if err := atomicJSON(f.paths.floorPath(), floor, 0640); err != nil {
-				t.Fatal(err)
-			}
-			wantError := false
-			switch kind {
-			case "after rollback":
-				assignment := f.assignment
-				assignment.Generation++
-				authorization := signedFixtureAuthorization(t, f.authorityPrivate, f.authorization.Authorization.AuthorityKeyID,
-					assignment, f.release, agentupdateauth.AssignmentActionRollback, 2)
-				if err := RequestRollback(f.paths, authorization); err != nil {
-					t.Fatal(err)
-				}
-				if err := Rollback(context.Background(), f.paths, &fakeService{}); err != nil {
-					t.Fatal(err)
-				}
-			case "missing receipt":
-				if err := os.Remove(f.paths.lastActivationPath()); err != nil {
-					t.Fatal(err)
-				}
-			case "ahead root counter":
-				wantError = true
-				if err := atomicJSON(f.paths.rootActionCounterPath(), rootActionCounter{}, 0600); err != nil {
-					t.Fatal(err)
-				}
-			case "tampered root receipt", "tampered authorization", "wrong signed result":
-				wantError = true
-				data, err := os.ReadFile(f.paths.lastActivationPath())
-				if err != nil {
-					t.Fatal(err)
-				}
-				var record completedActivation
-				if err := strictJSON(data, &record); err != nil {
-					t.Fatal(err)
-				}
-				if kind == "tampered root receipt" {
-					record.Receipt.Signature[0] ^= 1
-				} else if kind == "tampered authorization" {
-					record.Authorization.Signature[0] ^= 1
-				} else {
-					record.Receipt.Receipt.ResultArtifactSHA256 = strings.Repeat("f", 64)
-					private, err := loadActivatorPrivateKey(f.paths.activatorPrivateKeyPath())
-					if err != nil {
-						t.Fatal(err)
-					}
-					record.Receipt.CanonicalPayload, err = agentupdateauth.RootActionReceiptPayload(record.Receipt.Receipt)
-					if err != nil {
-						t.Fatal(err)
-					}
-					record.Receipt.Signature, err = agentupdateauth.SignRootActionReceipt(private, record.Receipt.Receipt)
-					if err != nil {
-						t.Fatal(err)
-					}
-				}
-				if err := atomicJSON(f.paths.lastActivationPath(), record, 0600); err != nil {
-					t.Fatal(err)
-				}
-			}
-			err = restoreFloorManifestPin(f.paths)
-			if (err != nil) != wantError {
-				t.Fatalf("floor migration error = %v, wantError=%v", err, wantError)
-			}
-			got, err := loadFloor(f.paths.floorPath())
-			if err != nil {
-				t.Fatal(err)
-			}
-			want := floor
-			if kind == "matching activation" || kind == "after rollback" {
-				want.ManifestSHA256 = f.release.ManifestSHA256
-			}
-			if got != want {
-				t.Fatalf("migration modified the floor without matching evidence: got %+v, want %+v", got, want)
-			}
-		})
-	}
-}
-
 func TestCompletedRollbackReplayKeepsProofAndRejectsSubstitution(t *testing.T) {
-	for _, kind := range []string{"lost worker publication", "legacy fallback", "forged legacy fallback", "different authorization", "superseded command"} {
+	for _, kind := range []string{"lost worker publication", "missing root receipt", "missing both receipts", "different authorization", "superseded command"} {
 		t.Run(kind, func(t *testing.T) {
 			f := newFixture(t)
 			authorization := signedFixtureAuthorization(t, f.authorityPrivate, f.authorization.Authorization.AuthorityKeyID,
@@ -413,18 +317,13 @@ func TestCompletedRollbackReplayKeepsProofAndRejectsSubstitution(t *testing.T) {
 				if err := os.Remove(f.paths.rollbackResultPath()); err != nil {
 					t.Fatal(err)
 				}
-			case "legacy fallback", "forged legacy fallback":
+			case "missing root receipt", "missing both receipts":
+				wantError = true
 				if err := os.Remove(f.paths.lastRollbackPath()); err != nil {
 					t.Fatal(err)
 				}
-				if kind == "forged legacy fallback" {
-					wantError = true
-					var result rollbackRecord
-					if err := strictJSON(original, &result); err != nil {
-						t.Fatal(err)
-					}
-					result.Receipt.Signature[0] ^= 1
-					if err := atomicJSON(f.paths.rollbackResultPath(), result, 0644); err != nil {
+				if kind == "missing both receipts" {
+					if err := os.Remove(f.paths.rollbackResultPath()); err != nil {
 						t.Fatal(err)
 					}
 				}

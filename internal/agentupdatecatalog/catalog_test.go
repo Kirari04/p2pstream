@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -109,6 +110,21 @@ func TestStagingCatalogPinsTheRunningImmutablePrerelease(t *testing.T) {
 		RefreshInterval: 10 * time.Second, HTTPClient: server.Client(),
 	}); err == nil || !strings.Contains(err.Error(), "different release channel") {
 		t.Fatalf("cross-channel state error = %v", err)
+	}
+}
+
+func TestCatalogRejectsPersistedFloorWithoutExplicitChannel(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "catalog-state.json")
+	state := `{"schema_version":1,"sequence":10203,"security_epoch":1,"minimum_safe_version":"v1.0.0","manifest_sha256":"` + strings.Repeat("a", 64) + `","version":"v1.2.3"}`
+	if err := os.WriteFile(statePath, []byte(state), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := New(Options{
+		Repository: "owner/repo", StatePath: statePath, RefreshInterval: 10 * time.Second,
+		HTTPClient: http.DefaultClient,
+	})
+	if err == nil || !strings.Contains(err.Error(), "explicit release channel") {
+		t.Fatalf("channel-less persisted floor error = %v", err)
 	}
 }
 

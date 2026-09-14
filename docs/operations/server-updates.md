@@ -86,6 +86,13 @@ Do not delete the maintenance file, journal, or snapshots to unblock a failed op
 
 The release workflow includes server compatibility metadata as a hashed attachment of the existing strict agent manifest. Existing agent readers keep their original manifest shape. Update `internal/serverupdate/metadata.go` deliberately when the SQLite schema or accepted agent/runtime protocols change; a test checks its schema against the migrated database.
 
+Legacy support is scheduled to end with **v0.1.53** (not yet released).
+Complete the [v0.1.53 upgrade preparation](./upgrades) before installing it.
+`v0.1.53-staging.90` still includes the migration and repair support needed for
+older installations. Keep a complete `CONFIG_DIR` backup and the matching
+binary or image: rollback restores that backup, rather than opening the
+upgraded database with an older release.
+
 The test suite covers altered/stale previews, replay, changed release metadata, crash recovery, SQLite snapshot restoration, unsafe enrollment layouts, and local/remote authorization. Run the isolated real-view browser tests with:
 
 ```bash

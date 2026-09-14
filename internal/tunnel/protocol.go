@@ -49,32 +49,24 @@ func ParseTunnelLane(group, rawLane string) (string, int, error) {
 	return group, lane, nil
 }
 
-func ParseOptionalCapacityMode(value string) (string, bool, error) {
+func ParseCapacityMode(value string) (string, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
-	if value == "" {
-		return "", false, nil
-	}
 	switch value {
 	case TunnelCapacityModeAdaptive, TunnelCapacityModeFixed:
-		return value, true, nil
+		return value, nil
 	default:
-		return "", true, fmt.Errorf("invalid tunnel capacity mode %q", value)
+		return "", fmt.Errorf("tunnel capacity mode is required and must be fixed or adaptive: %q", value)
 	}
 }
 
-// ParseOptionalMaxConcurrentStreams parses the optional capacity extension on
-// the HTTP upgrade handshake. An absent header is intentionally distinct from
-// a zero value so new peers remain compatible with protocol-v1 releases.
-func ParseOptionalMaxConcurrentStreams(value string, maximum int64) (int64, bool, error) {
+// ParseMaxConcurrentStreams validates the required HTTP upgrade capacity header.
+func ParseMaxConcurrentStreams(value string, maximum int64) (int64, error) {
 	value = strings.TrimSpace(value)
-	if value == "" {
-		return 0, false, nil
-	}
 	streams, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || streams < 1 || streams > maximum {
-		return 0, true, fmt.Errorf("invalid tunnel max concurrent streams %q: must be between 1 and %d", value, maximum)
+		return 0, fmt.Errorf("tunnel max concurrent streams is required and must be between 1 and %d: %q", maximum, value)
 	}
-	return streams, true, nil
+	return streams, nil
 }
 
 var (

@@ -151,7 +151,7 @@ func TestDeepReviewCancelPreservesUnconfirmedRollbackFence(t *testing.T) {
 			if err := f.database.QueryRow(`SELECT root_action_completed_at FROM agent_update_assignments WHERE id=?`, f.assignmentID).Scan(&completedAt); err != nil {
 				t.Fatal(err)
 			}
-			conn := &AgentConn{AgentID: f.agent.ID, PublicID: f.agent.PublicID, Done: make(chan struct{}), ConnectedAt: completedAt.Add(time.Millisecond)}
+			conn := &AgentConn{AgentID: f.agent.ID, PublicID: f.agent.PublicID, Done: make(chan struct{}), ConnectedAt: completedAt.Add(time.Millisecond), BuildVersion: "v1.0.0", BuildCommit: strings.Repeat("d", 40)}
 			if err := f.app.AgentHub.connect(conn); err != nil {
 				t.Fatal(err)
 			}

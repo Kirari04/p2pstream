@@ -904,7 +904,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 }
 
 func negotiatedAgentTunnelCapacity(headers http.Header, advertised int64, adaptiveRequested bool) (int64, error) {
-	responseMode, _, err := tunnel.ParseOptionalCapacityMode(headers.Get(tunnel.TunnelCapacityModeHeader))
+	responseMode, err := tunnel.ParseCapacityMode(headers.Get(tunnel.TunnelCapacityModeHeader))
 	if err != nil {
 		return 0, fmt.Errorf("invalid agent tunnel negotiated capacity mode: %w", err)
 	}
@@ -913,21 +913,17 @@ func negotiatedAgentTunnelCapacity(headers http.Header, advertised int64, adapti
 	if adaptiveAcknowledged {
 		parseMaximum = tunnel.MaxAdaptiveConcurrentStreamsLimit
 	}
-	negotiated, present, err := tunnel.ParseOptionalMaxConcurrentStreams(
+	negotiated, err := tunnel.ParseMaxConcurrentStreams(
 		headers.Get(tunnel.TunnelMaxConcurrentStreamsHeader),
 		parseMaximum,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("invalid agent tunnel negotiated capacity: %w", err)
 	}
-	if !present {
-		return advertised, nil
-	}
 	if adaptiveAcknowledged || negotiated < advertised {
 		return negotiated, nil
 	}
-	// An old or non-adaptive server cannot raise a fixed client limit merely by
-	// returning a header. This keeps one-version rolling upgrades safe.
+	// The server cannot raise a fixed client limit.
 	return advertised, nil
 }
 

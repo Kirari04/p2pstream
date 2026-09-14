@@ -35,12 +35,12 @@ func repairEmptyManagedUpdateSchema(ctx context.Context, tx *sql.Tx) error {
 		}
 		existing[check.table] = len(columns) > 0
 		for _, column := range check.required {
-			if !sqliteColumnExists(columns, column) {
+			if !columns[column] {
 				needsRepair = true
 			}
 		}
 		for _, column := range check.obsolete {
-			if sqliteColumnExists(columns, column) {
+			if columns[column] {
 				needsRepair = true
 			}
 		}
@@ -78,4 +78,25 @@ func repairEmptyManagedUpdateSchema(ctx context.Context, tx *sql.Tx) error {
 	up, _, _ := strings.Cut(string(data), "-- +goose Down")
 	_, err = tx.ExecContext(ctx, up)
 	return err
+}
+
+// sqliteTxTableColumns inspects the fixed table names used by migration 17.
+func sqliteTxTableColumns(tx *sql.Tx, tableName string) (map[string]bool, error) {
+	rows, err := tx.Query(`PRAGMA table_info(` + tableName + `)`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	columns := make(map[string]bool)
+	for rows.Next() {
+		var cid, notNull, primaryKey int64
+		var name, columnType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return nil, err
+		}
+		columns[name] = true
+	}
+	return columns, rows.Err()
 }

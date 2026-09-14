@@ -42,7 +42,7 @@ func TestAgentReconnectBackoffBounds(t *testing.T) {
 	}
 }
 
-func TestNegotiatedAgentTunnelCapacityRollingCompatibility(t *testing.T) {
+func TestNegotiatedAgentTunnelCapacityRequiredHeaders(t *testing.T) {
 	tests := []struct {
 		name              string
 		adaptiveRequested bool
@@ -51,11 +51,13 @@ func TestNegotiatedAgentTunnelCapacityRollingCompatibility(t *testing.T) {
 		want              int64
 		wantErr           bool
 	}{
+		{name: "fixed mode", responseMode: tunnel.TunnelCapacityModeFixed, responseLimit: "256", want: 256},
+		{name: "missing capacity", responseMode: tunnel.TunnelCapacityModeFixed, wantErr: true},
 		{name: "new agent new server", adaptiveRequested: true, responseMode: tunnel.TunnelCapacityModeAdaptive, responseLimit: "65536", want: 65536},
-		{name: "new agent old server", adaptiveRequested: true, responseLimit: "256", want: 256},
+		{name: "new agent old server", adaptiveRequested: true, responseLimit: "256", wantErr: true},
 		{name: "new agent rejects unacknowledged adaptive limit", adaptiveRequested: true, responseLimit: "4096", wantErr: true},
 		{name: "fixed agent rejects adaptive limit", responseMode: tunnel.TunnelCapacityModeAdaptive, responseLimit: "65536", wantErr: true},
-		{name: "missing old server response header", adaptiveRequested: true, want: tunnel.MaxConcurrentAgentRequestsLimit},
+		{name: "missing old server response header", adaptiveRequested: true, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

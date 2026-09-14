@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/encoding/protowire"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/authutil"
@@ -80,43 +81,20 @@ func TestPublicCacheRequestBypassesUnsafeRequests(t *testing.T) {
 	}
 }
 
-func TestPublicCacheCookieRequestBypassesByDefault(t *testing.T) {
+func TestPublicCacheCookieRequestAlwaysBypasses(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
-
 	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
 	req.Header.Set("Cookie", "sid=1")
-
 	decision := app.checkPublicCache(req, resolution)
-	if decision.Status != publicCacheStatusBypass || decision.BypassReason != "cookie" {
-		t.Fatalf("cookie request cache decision = %q/%q, want bypass/cookie", decision.Status, decision.BypassReason)
-	}
-}
-
-func TestPublicCacheCookieRequestAllowedByLegacyRuleStillBypasses(t *testing.T) {
-	app, resolution, closeDB := newTestPublicCacheApp(t)
-	defer closeDB()
-	setTestCacheRuleAllowCookieRequests(t, app, true)
-
-	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
-	req.Header.Set("Cookie", "sid=1")
-
-	decision := app.checkPublicCache(req, resolution)
-	if decision.Status != publicCacheStatusBypass || decision.BypassReason != "cookie" {
-		t.Fatalf("cookie request cache decision = %q/%q, want bypass/cookie", decision.Status, decision.BypassReason)
-	}
-	if !decision.CookieRequest {
-		t.Fatal("expected cookie request trace marker on decision")
-	}
-	if decision.Cacheable {
-		t.Fatal("cookie request with legacy allow flag should not be cacheable")
+	if decision.Status != publicCacheStatusBypass || decision.BypassReason != "cookie" || !decision.CookieRequest || decision.Cacheable {
+		t.Fatalf("cookie-bearing request must always bypass caching: %+v", decision)
 	}
 }
 
 func TestPublicCacheCookieRequestDoesNotPopulateOrHitCache(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
-	setTestCacheRuleAllowCookieRequests(t, app, true)
 
 	originHits := 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -233,7 +211,6 @@ func TestPublicCacheCompatibilityRouteEncodedSeparatorDoesNotPopulateOrHitCache(
 func TestPublicCacheAuthorizationStillBypasses(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
-	setTestCacheRuleAllowCookieRequests(t, app, true)
 
 	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
 	req.Header.Set("Cookie", "sid=1")
@@ -454,7 +431,7 @@ func TestPublicCacheRejectsSensitiveConfiguredVaryHeaders(t *testing.T) {
 	defer closeDB()
 
 	for _, header := range []string{"Cookie", "Authorization", "Set-Cookie", "Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-Forwarded-Port", "X-Real-IP"} {
-		if _, err := app.validatePublicCacheRuleInput(context.Background(), "bad-vary", 10, true, nil, nil, p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND, p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED, defaultPublicCacheTTLMillis, p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL, nil, []string{header}, []int64{http.StatusOK}, defaultPublicCacheMaxObjectBytes, true, false, false, nil); err == nil {
+		if _, err := app.validatePublicCacheRuleInput(context.Background(), "bad-vary", 10, true, nil, nil, p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND, p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED, defaultPublicCacheTTLMillis, p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL, nil, []string{header}, []int64{http.StatusOK}, defaultPublicCacheMaxObjectBytes, true, nil); err == nil {
 			t.Fatalf("expected validation error for configured vary header %q", header)
 		}
 	}
@@ -486,34 +463,32 @@ func TestPublicCacheGeneratedForwardedVaryHeadersAreCaseInsensitive(t *testing.T
 	}
 }
 
-func TestPublicCacheManagementAPIAllowCookieRequestsReadback(t *testing.T) {
+func TestPublicCacheManagementAPIRuleReadback(t *testing.T) {
 	app, _, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
 
 	header := createTestAdminSession(t, app)
 	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicCacheRuleRequest{
-		Name:                            "cookie-assets",
-		Priority:                        20,
-		Enabled:                         true,
-		MatchRule:                       &p2pstreamv1.PublicPolicyMatchRule{CelExpression: `method == "GET" && path.endsWith(".js")`},
-		Scope:                           p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND,
-		TtlMode:                         p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED,
-		TtlMillis:                       defaultPublicCacheTTLMillis,
-		QueryMode:                       p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL,
-		VaryHeaders:                     []string{"Accept-Encoding"},
-		CacheStatusCodes:                []int64{http.StatusOK},
-		MaxObjectBytes:                  defaultPublicCacheMaxObjectBytes,
-		AddCacheStatusHeader:            true,
-		AllowCookieRequests:             true,
-		AllowCookieRequestsAcknowledged: true,
+		Name:                 "cookie-assets",
+		Priority:             20,
+		Enabled:              true,
+		MatchRule:            &p2pstreamv1.PublicPolicyMatchRule{CelExpression: `method == "GET" && path.endsWith(".js")`},
+		Scope:                p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND,
+		TtlMode:              p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED,
+		TtlMillis:            defaultPublicCacheTTLMillis,
+		QueryMode:            p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL,
+		VaryHeaders:          []string{"Accept-Encoding"},
+		CacheStatusCodes:     []int64{http.StatusOK},
+		MaxObjectBytes:       defaultPublicCacheMaxObjectBytes,
+		AddCacheStatusHeader: true,
 	})
 	createReq.Header().Set("Cookie", header.Get("Cookie"))
 	createResp, err := app.CreatePublicCacheRule(context.Background(), createReq)
 	if err != nil {
 		t.Fatalf("create cache rule: %v", err)
 	}
-	if !createResp.Msg.Rule.AllowCookieRequests {
-		t.Fatal("create readback allowCookieRequests = false, want true")
+	if createResp.Msg.Rule.Name != "cookie-assets" || !createResp.Msg.Rule.AddCacheStatusHeader {
+		t.Fatal("created cache rule did not retain its current fields")
 	}
 
 	updateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicCacheRuleRequest{
@@ -530,44 +505,38 @@ func TestPublicCacheManagementAPIAllowCookieRequestsReadback(t *testing.T) {
 		CacheStatusCodes:     []int64{http.StatusOK},
 		MaxObjectBytes:       defaultPublicCacheMaxObjectBytes,
 		AddCacheStatusHeader: true,
-		AllowCookieRequests:  false,
 	})
 	updateReq.Header().Set("Cookie", header.Get("Cookie"))
 	updateResp, err := app.UpdatePublicCacheRule(context.Background(), updateReq)
 	if err != nil {
 		t.Fatalf("update cache rule: %v", err)
 	}
-	if updateResp.Msg.Rule.AllowCookieRequests {
-		t.Fatal("update readback allowCookieRequests = true, want false")
+	if updateResp.Msg.Rule.Id != createResp.Msg.Rule.Id || updateResp.Msg.Rule.Name != "cookie-assets" {
+		t.Fatal("updated cache rule did not retain its identity")
 	}
 }
 
-func TestPublicCacheManagementAPIAcceptsLegacyCookieRequestFlagWithoutAcknowledgement(t *testing.T) {
+func TestPublicCacheManagementAPIRejectsRemovedCookieFields(t *testing.T) {
 	app, _, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
-
 	header := createTestAdminSession(t, app)
-	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicCacheRuleRequest{
-		Name:                 "cookie-assets",
-		Priority:             20,
-		Enabled:              true,
-		MatchRule:            &p2pstreamv1.PublicPolicyMatchRule{CelExpression: `method == "GET"`},
-		Scope:                p2pstreamv1.PublicCacheScope_PUBLIC_CACHE_SCOPE_SELECTED_BACKEND,
-		TtlMode:              p2pstreamv1.PublicCacheTtlMode_PUBLIC_CACHE_TTL_MODE_FIXED,
-		TtlMillis:            defaultPublicCacheTTLMillis,
-		QueryMode:            p2pstreamv1.PublicCacheQueryMode_PUBLIC_CACHE_QUERY_MODE_FULL,
-		VaryHeaders:          []string{"Accept-Encoding"},
-		CacheStatusCodes:     []int64{http.StatusOK},
-		MaxObjectBytes:       defaultPublicCacheMaxObjectBytes,
-		AddCacheStatusHeader: true,
-		AllowCookieRequests:  true,
-	})
-	createReq.Header().Set("Cookie", header.Get("Cookie"))
-	// allow_cookie_requests is deprecated and ineffective at runtime, so the legacy
-	// acknowledgement is no longer required: creating a rule with the flag set (and no
-	// acknowledgement) now succeeds.
-	if _, err := app.CreatePublicCacheRule(context.Background(), createReq); err != nil {
-		t.Fatalf("creating rule with legacy allow_cookie_requests flag failed: %v", err)
+	for _, field := range []protowire.Number{16, 18} {
+		msg := &p2pstreamv1.CreatePublicCacheRuleRequest{}
+		msg.ProtoReflect().SetUnknown(protowire.AppendVarint(protowire.AppendTag(nil, field, protowire.VarintType), 1))
+		req := connect.NewRequest(msg)
+		req.Header().Set("Cookie", header.Get("Cookie"))
+		if _, err := app.CreatePublicCacheRule(context.Background(), req); connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "no longer supported") {
+			t.Fatalf("create field %d: %v", field, err)
+		}
+	}
+	for _, field := range []protowire.Number{17, 19} {
+		msg := &p2pstreamv1.UpdatePublicCacheRuleRequest{}
+		msg.ProtoReflect().SetUnknown(protowire.AppendVarint(protowire.AppendTag(nil, field, protowire.VarintType), 1))
+		req := connect.NewRequest(msg)
+		req.Header().Set("Cookie", header.Get("Cookie"))
+		if _, err := app.UpdatePublicCacheRule(context.Background(), req); connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "no longer supported") {
+			t.Fatalf("update field %d: %v", field, err)
+		}
 	}
 }
 
@@ -1667,44 +1636,31 @@ func TestPublicCacheStorageUsageTracksRulePurge(t *testing.T) {
 	assertPublicCacheStorageStats(t, app, 0, 0, 0)
 }
 
-func TestPublicCacheGenerationInvalidationSupportsLegacyTimestamp(t *testing.T) {
+func TestPublicCacheGenerationInvalidationRemovesCurrentGeneration(t *testing.T) {
 	app, resolution, closeDB := newTestPublicCacheApp(t)
 	defer closeDB()
-	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/legacy-generation.txt", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/current-generation.txt", nil)
 	snap := app.currentPublicSnapshot()
 	if snap == nil || len(snap.CacheRules) == 0 {
 		t.Fatal("test cache snapshot missing rule")
 	}
-	entry, err := storeTestPublicCacheGeneration(app, resolution, req, snap.CacheRules[0], app.PublicCache.nextStoredAt(), []byte("legacy-generation"))
+	entry, err := storeTestPublicCacheGeneration(app, resolution, req, snap.CacheRules[0], app.PublicCache.nextStoredAt(), []byte("current-generation"))
 	if err != nil {
-		t.Fatalf("store legacy-generation entry: %v", err)
-	}
-	legacyStoredAt := entry.StoredAt.UTC().Truncate(time.Second)
-	legacyText := legacyStoredAt.Format(sqliteLegacyTimestampLayout)
-	if _, err := app.DB.ExecContext(context.Background(), `
-		UPDATE public_cache_entries
-		SET stored_at = ?, last_accessed_at = ?
-		WHERE key_digest = ?
-	`, legacyText, legacyText, entry.KeyDigest); err != nil {
-		t.Fatalf("convert cache generation to legacy timestamp: %v", err)
-	}
-	entry, err = app.DB.GetPublicCacheEntry(context.Background(), entry.KeyDigest)
-	if err != nil {
-		t.Fatalf("load legacy cache generation: %v", err)
+		t.Fatalf("store current-generation entry: %v", err)
 	}
 	app.PublicCache.putIndexEntry(entry)
-	app.PublicCache.putMemory(entry.KeyDigest, entry.StoredAt, []byte("legacy-generation"))
+	app.PublicCache.putMemory(entry.KeyDigest, entry.StoredAt, []byte("current-generation"))
 	assertPublicCacheStorageStats(t, app, entry.SizeBytes, entry.SizeBytes, 1)
 
 	app.invalidatePublicCacheEntry(entry)
 	if _, err := app.DB.GetPublicCacheEntry(context.Background(), entry.KeyDigest); !errors.Is(err, sql.ErrNoRows) {
-		t.Fatalf("legacy cache generation database row error = %v, want sql.ErrNoRows", err)
+		t.Fatalf("current cache generation database row error = %v, want sql.ErrNoRows", err)
 	}
 	if _, err := os.Stat(entry.BodyPath); !os.IsNotExist(err) {
-		t.Fatalf("legacy cache generation body stat error = %v, want not exist", err)
+		t.Fatalf("current cache generation body stat error = %v, want not exist", err)
 	}
 	if body := app.PublicCache.getMemory(entry.KeyDigest, entry.StoredAt); len(body) != 0 {
-		t.Fatalf("legacy cache generation memory remained: %q", body)
+		t.Fatalf("current cache generation memory remained: %q", body)
 	}
 	assertPublicCacheStorageStats(t, app, 0, 0, 0)
 }
@@ -2475,7 +2431,6 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 		CacheStatusCodesJson: "[200]",
 		MaxObjectBytes:       defaultPublicCacheMaxObjectBytes,
 		AddCacheStatusHeader: 1,
-		AllowCookieRequests:  0,
 	})
 	if err != nil {
 		t.Fatalf("create cache rule: %v", err)
@@ -2525,22 +2480,6 @@ func newTestPublicCacheApp(t *testing.T) (*App, publicRouteResolution, func()) {
 		}
 		database.Close()
 	}
-}
-
-func setTestCacheRuleAllowCookieRequests(t *testing.T, app *App, allowed bool) {
-	t.Helper()
-	app.proxyMu.Lock()
-	if app.publicSnapshot == nil || len(app.publicSnapshot.CacheRules) == 0 {
-		app.proxyMu.Unlock()
-		t.Fatal("test cache snapshot missing rule")
-	}
-	app.publicSnapshot.CacheRules[0].AllowCookieRequests = allowed
-	app.publicSnapshot.CacheRules[0].Fingerprint = publicCacheRuleFingerprint(app.publicSnapshot.CacheRules[0])
-	settings := app.publicSnapshot.CacheSettings
-	rules := append([]publicCacheRuleConfig(nil), app.publicSnapshot.CacheRules...)
-	app.publicSnapshot.CacheFingerprint = publicCacheRuntimeFingerprint(settings, rules)
-	app.proxyMu.Unlock()
-	app.PublicCache.reconcile(settings, rules)
 }
 
 func createTestAdminSession(t *testing.T, app *App) http.Header {

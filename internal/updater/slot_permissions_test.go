@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -26,7 +27,7 @@ func TestInstallSlotWithActivatorUmask(t *testing.T) {
 	for _, reuse := range []bool{false, true} {
 		name := "new_slot"
 		if reuse {
-			name = "retry_legacy_slot"
+			name = "reject_old_slot_modes"
 		}
 		t.Run(name, func(t *testing.T) {
 			f := newFixture(t)
@@ -46,7 +47,21 @@ func TestInstallSlotWithActivatorUmask(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer artifact.Close()
-			if _, err := installSlot(f.paths, f.release, artifact); err != nil {
+			if _, err := installSlot(f.paths, f.release, artifact); reuse {
+				if err == nil || !strings.Contains(err.Error(), "unsupported permissions") {
+					t.Fatalf("legacy slot result = %v, want unsupported permissions", err)
+				}
+				for path, mode := range map[string]os.FileMode{slotDir: 0700, slotPath: 0700} {
+					info, statErr := os.Stat(path)
+					if statErr != nil {
+						t.Fatal(statErr)
+					}
+					if info.Mode().Perm() != mode {
+						t.Errorf("%s permissions changed to %04o", path, info.Mode().Perm())
+					}
+				}
+				return
+			} else if err != nil {
 				t.Fatal(err)
 			}
 			// The service runs as p2pstream, not the root activator. Both the
@@ -140,5 +155,33 @@ func TestInstallSlotRejectsUnsafeExistingSlotBeforeChangingPermissions(t *testin
 				t.Fatalf("live slot changed: %q, %v", current, err)
 			}
 		})
+	}
+}
+
+func TestInstallSlotReusesCurrentProtectedSlot(t *testing.T) {
+	f := newFixture(t)
+	stageFixture(t, f)
+	slotDir := filepath.Join(f.paths.slotsDir(), f.release.Version)
+	slotPath := filepath.Join(slotDir, "p2pstream")
+	if err := os.Mkdir(slotDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(slotPath, f.body, 0755); err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := os.Open(filepath.Join(f.paths.candidateDir(), "artifact.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer artifact.Close()
+	got, err := installSlot(f.paths, f.release, artifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != slotPath {
+		t.Fatalf("reused slot path = %q, want %q", got, slotPath)
+	}
+	if err := verifyFile(slotPath, f.release.Artifact); err != nil {
+		t.Fatalf("reused slot verification: %v", err)
 	}
 }

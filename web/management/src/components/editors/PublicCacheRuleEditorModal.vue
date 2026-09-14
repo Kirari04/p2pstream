@@ -71,8 +71,6 @@ const form = reactive({
   cacheStatusCodes: [...defaultCacheStatusCodes],
   maxObjectMiB: 100,
   addCacheStatusHeader: true,
-  allowCookieRequests: false,
-  allowCookieRequestsAcknowledged: false,
 });
 
 const ttlModeOptions = [
@@ -175,7 +173,6 @@ const submitDisabledReason = computed(() => {
   if (varyHeadersValidationReason.value) return varyHeadersValidationReason.value;
   if (cacheStatusCodesValidationReason.value) return cacheStatusCodesValidationReason.value;
   if (policyMatchValidationReason(form.match)) return policyMatchValidationReason(form.match);
-  if (form.allowCookieRequests && !form.allowCookieRequestsAcknowledged) return "Acknowledge the legacy Cookie flag behavior.";
   return "";
 });
 const submitDisabled = computed(() => Boolean(submitDisabledReason.value));
@@ -197,8 +194,6 @@ function resetForm() {
   form.cacheStatusCodes = [...defaultCacheStatusCodes];
   form.maxObjectMiB = 100;
   form.addCacheStatusHeader = true;
-  form.allowCookieRequests = false;
-  form.allowCookieRequestsAcknowledged = false;
 }
 
 function openCreate() {
@@ -226,8 +221,6 @@ function openEdit(ruleId: bigint | string) {
   form.cacheStatusCodes = rule.cacheStatusCodes.length ? rule.cacheStatusCodes.map((value) => value.toString()) : [...defaultCacheStatusCodes];
   form.maxObjectMiB = Math.max(1, Math.round(Number(rule.maxObjectBytes || 104857600n) / 1024 / 1024));
   form.addCacheStatusHeader = rule.addCacheStatusHeader;
-  form.allowCookieRequests = rule.allowCookieRequests;
-  form.allowCookieRequestsAcknowledged = rule.allowCookieRequests;
   isOpen.value = true;
 }
 
@@ -422,8 +415,6 @@ async function submitRule() {
       cacheStatusCodes: normalizedCacheStatusCodes.value,
       maxObjectBytes: BigInt(Math.max(1, form.maxObjectMiB) * 1024 * 1024),
       addCacheStatusHeader: form.addCacheStatusHeader,
-      allowCookieRequests: form.allowCookieRequests,
-      allowCookieRequestsAcknowledged: form.allowCookieRequests && form.allowCookieRequestsAcknowledged,
     };
     if (form.id) {
       await managementClient.updatePublicCacheRule({ id: BigInt(form.id), ...payload });
@@ -471,26 +462,6 @@ defineExpose({ openCreate, openEdit, close });
         <p class="copy-xs line-normal muted-text">
           Authorization and Cookie requests always bypass shared cache. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
         </p>
-        <NCheckbox v-model:checked="form.allowCookieRequests" class="round-md framed frame-standard muted-bg pad-md">
-          <span class="layout-grid space-2xs">
-            <span class="weight-medium base-text">Preserve legacy Cookie opt-in flag</span>
-            <span class="copy-xs line-normal muted-text">
-              This compatibility flag has no runtime effect; Cookie requests still bypass shared cache.
-            </span>
-          </span>
-        </NCheckbox>
-        <NCheckbox
-          v-if="form.allowCookieRequests"
-          v-model:checked="form.allowCookieRequestsAcknowledged"
-          class="round-md framed frame-standard panel-bg pad-md"
-        >
-          <span class="layout-grid space-2xs">
-            <span class="weight-medium base-text">I understand Cookie requests still bypass cache</span>
-            <span class="copy-xs line-normal muted-text">
-              Keep this only when preserving legacy configuration shape; clear it for new cache rules.
-            </span>
-          </span>
-        </NCheckbox>
         <div class="layout-grid space-lg mq-sm-cols-four">
           <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
             TTL mode

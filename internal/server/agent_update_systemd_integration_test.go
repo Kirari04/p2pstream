@@ -57,10 +57,6 @@ func TestManagedUpdatesSystemdLifecycle(t *testing.T) {
 	if !filepath.IsAbs(root) {
 		t.Fatal("absolute P2PSTREAM_SYSTEMD_FIXTURE_DIR is required")
 	}
-	legacy := filepath.Join(root, "p2pstream-legacy-worker")
-	if _, err := os.Stat(legacy); err != nil {
-		t.Fatalf("real legacy worker fixture is required: %v", err)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 	defer func() {
@@ -260,13 +256,6 @@ func TestManagedUpdatesSystemdLifecycle(t *testing.T) {
 	assertLive("v1.1.0")
 	second := startCampaign("v1.2.0")
 	waitCampaign(second, "healthy_dwell")
-	// Exercise the installed .84 worker's actual report serialization against
-	// current management while retaining the fixed root activator.
-	if err := os.MkdirAll("/etc/systemd/system/p2pstream-updater.service.d", 0755); err != nil {
-		t.Fatal(err)
-	}
-	systemdWrite(t, "/etc/systemd/system/p2pstream-updater.service.d/review.conf", []byte("[Service]\nExecStart=\nExecStart="+legacy+" updater stage\n"), 0644)
-	systemdCommand(t, ctx, "systemctl", "daemon-reload")
 	campaign, err := app.getAgentUpdateCampaignProto(ctx, second)
 	if err != nil {
 		t.Fatal(err)
@@ -286,21 +275,11 @@ func TestManagedUpdatesSystemdLifecycle(t *testing.T) {
 	if len(rollbackReports) < 2 || rollbackReports[0].RootActionReceipt == nil || rollbackReports[1].RootActionReceipt == nil || !bytes.Equal(rollbackReports[0].RootActionReceipt.CanonicalPayload, rollbackReports[1].RootActionReceipt.CanonicalPayload) || rollbackReports[0].Counter >= rollbackReports[1].Counter {
 		t.Errorf("lost response did not retry the exact root proof with a fresh worker counter (%d reports)", len(rollbackReports))
 	}
-	if len(rollbackReports) > 0 {
-		legacyReport := rollbackReports[0]
-		if legacyReport.BinarySha256 != "" || legacyReport.ManifestSha256 != "" || legacyReport.RunningVersion != "" || legacyReport.RunningCommit != "" || legacyReport.RootActionReceipt == nil || len(legacyReport.RootActionReceipt.CanonicalPayload) == 0 {
-			t.Error("legacy worker fixture did not exercise the empty rollback envelope with signed proof")
-		}
-	}
 	rollbackReportsMu.Unlock()
 	if _, err := os.Stat("/var/lib/p2pstream-updater/staging/rollback-result.json"); !os.IsNotExist(err) {
 		t.Fatalf("acknowledged result still blocks polling: %v", err)
 	}
 	assertLive("v1.1.0")
-	if err := os.Remove("/etc/systemd/system/p2pstream-updater.service.d/review.conf"); err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
-	}
-	systemdCommand(t, ctx, "systemctl", "daemon-reload")
 	// Reproduce a previously exhausted crash budget. Only the fault injection
 	// resets counters here; recovery below must be performed by the installer.
 	systemdCommand(t, ctx, "systemctl", "stop", "p2pstream-updater-activate.path", "p2pstream-updater-activate.service")
@@ -362,7 +341,7 @@ func TestManagedUpdatesSystemdLifecycle(t *testing.T) {
 	third := startCampaign("v1.2.0")
 	waitCampaign(third, "succeeded")
 	assertLive("v1.2.0")
-	t.Log("PASS: production timer drove real install/enrollment, two upgrades, signed cancellation rollback, legacy worker report/lost-response retry, crash throttle, pinned-updater repair, and exact-target retry")
+	t.Log("PASS: production timer drove real install/enrollment, two upgrades, signed cancellation rollback, exact-result lost-response retry, crash throttle, pinned-updater repair, and exact-target retry")
 }
 
 func systemdAssertPollingScheduled(t *testing.T, ctx context.Context) {

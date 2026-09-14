@@ -385,10 +385,10 @@ func TestPublicTLSCertificateValidationRejectsInvalidSelfSignedGeneration(t *tes
 	}
 }
 
-func TestPublicProxyConfigBackfillsLegacyCertificateValidityFromFile(t *testing.T) {
+func TestPublicProxyConfigUsesPersistedCertificateValidityOnly(t *testing.T) {
 	database := newServerTestDB(t)
 	listener := seedServerHTTPSListener(t, database)
-	certPEM, keyPEM, leaf, err := generatePublicSelfSignedCertificatePEM("legacy.example.com", 24*time.Hour)
+	certPEM, keyPEM, _, err := generatePublicSelfSignedCertificatePEM("legacy.example.com", 24*time.Hour)
 	if err != nil {
 		t.Fatalf("generate legacy certificate: %v", err)
 	}
@@ -426,11 +426,8 @@ func TestPublicProxyConfigBackfillsLegacyCertificateValidityFromFile(t *testing.
 			break
 		}
 	}
-	if gotIssued == 0 || gotExpires == 0 {
-		t.Fatalf("expected legacy certificate validity from file, got issued=%d expires=%d", gotIssued, gotExpires)
-	}
-	if gotIssued != leaf.NotBefore.UnixMilli() || gotExpires != leaf.NotAfter.UnixMilli() {
-		t.Fatalf("validity = %d/%d, want %d/%d", gotIssued, gotExpires, leaf.NotBefore.UnixMilli(), leaf.NotAfter.UnixMilli())
+	if gotIssued != 0 || gotExpires != 0 {
+		t.Fatalf("certificate validity was read from file instead of persisted fields: issued=%d expires=%d", gotIssued, gotExpires)
 	}
 }
 

@@ -48,7 +48,6 @@ const routes = [
       { path: 'updates', name: 'settings-updates', component: ServerUpdates },
     ],
   },
-  { path: '/environments', redirect: '/settings/environments' },
   { path: '/proxy', redirect: '/proxy/routes' },
   { path: '/proxy/:section(routes|listeners)', name: 'proxy', component: ProxyConfig },
   { path: '/proxy/:pathMatch(.*)*', redirect: '/proxy/routes' },
@@ -57,7 +56,6 @@ const routes = [
   { path: '/policies/:pathMatch(.*)*', redirect: '/policies/rate-limits' },
   { path: '/templates', name: 'templates', component: ResponseTemplates },
   { path: '/tls', name: 'tls', component: TlsConfig },
-  { path: '/management', redirect: '/proxy/routes' },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFound },
 ];
 

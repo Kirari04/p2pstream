@@ -34,7 +34,7 @@ Evaluation order:
 8. Agent retry rule selection for an upstream cache miss
 9. Origin forwarding, bounded alternate-agent attempts, or cached response
 
-Policy matching uses request-only CEL `match_rule` expressions for method, protocol, host, path, remote IP/CIDR, headers, cookies, and query parameters. See [CEL Policy Matching](../reference/cel) for the shared matcher syntax, validation rules, and examples. Legacy `match` is removed from the public API; existing stored legacy rows are migrated automatically. If no key parts are configured, remote IP is used.
+Policy matching uses request-only CEL `match_rule` expressions for method, protocol, host, path, remote IP/CIDR, headers, cookies, and query parameters. See [CEL Policy Matching](../reference/cel) for the shared matcher syntax, validation rules, and examples. Legacy `match` is removed from the public API. Stored legacy rows must be converted by an earlier release before upgrading; see [Upgrades](../operations/upgrades). If no key parts are configured, remote IP is used.
 
 Cache `route_ids` and `target_ids` remain separate filters evaluated after route/target selection.
 
