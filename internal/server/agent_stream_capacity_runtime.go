@@ -5,13 +5,11 @@ import "p2pstream/internal/tunnel"
 const (
 	defaultAgentStreamCapacityControlStreams = 4
 	minimumAgentStreamCapacityWaiters        = 64
-	maximumAgentStreamCapacityWaiters        = 4096
-	maximumAgentStreamCapacityWaitersPerKey  = 512
+	maximumAgentStreamCapacityWaiters        = int(tunnel.MaxServerConcurrentStreamsLimit)
 )
 
-// defaultAgentStreamCapacityConfig derives the server-side stream budgets from
-// the legacy total while the dedicated server settings are rolled out. The
-// budgets are structural: pooled connections can never consume the public
+// defaultAgentStreamCapacityConfig partitions the configured server stream
+// ceiling. Pooled connections can never consume the public
 // one-shot headroom, and public work can never consume the trusted health
 // reserve.
 func defaultAgentStreamCapacityConfig(total int64) agentStreamCapacityConfig {
@@ -51,16 +49,10 @@ func defaultAgentStreamCapacityConfig(total int64) agentStreamCapacityConfig {
 	if maxWaiters > maximumAgentStreamCapacityWaiters {
 		maxWaiters = maximumAgentStreamCapacityWaiters
 	}
-	maxWaitersPerKey := totalStreams / 4
-	if maxWaitersPerKey < 16 {
-		maxWaitersPerKey = 16
-	}
-	if maxWaitersPerKey > maximumAgentStreamCapacityWaitersPerKey {
-		maxWaitersPerKey = maximumAgentStreamCapacityWaitersPerKey
-	}
-	if maxWaitersPerKey > maxWaiters {
-		maxWaitersPerKey = maxWaiters
-	}
+	// A single hot target may use the queue when other targets have no demand.
+	// Dispatch remains round-robin across keys; request admission accounts for
+	// queued request memory before reaching this layer.
+	maxWaitersPerKey := maxWaiters
 	maxOpeningPerSession := tunnel.DefaultYamuxConfig(nil).AcceptBacklog
 	if maxOpeningPerSession > totalStreams {
 		maxOpeningPerSession = totalStreams
@@ -82,7 +74,7 @@ func mustNewDefaultAgentStreamCapacityManager(total int64) *agentStreamCapacityM
 	if err != nil {
 		// The derived configuration is entirely internal and validated by unit
 		// tests. Keep construction total for embedded/test callers with an empty
-		// Config, matching the legacy limiter's behavior.
+		// Config.
 		manager, _ = newAgentStreamCapacityManager(defaultAgentStreamCapacityConfig(tunnel.DefaultServerMaxConcurrentStreams))
 	}
 	return manager

@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/netip"
 	"net/url"
 	"os"
@@ -63,12 +62,12 @@ type Config struct {
 	PublicMaxHeaderBytes              int    `env:"PUBLIC_MAX_HEADER_BYTES" envDefault:"65536"`
 	PublicMaxRequestBodyBytes         int64  `env:"PUBLIC_MAX_REQUEST_BODY_BYTES" envDefault:"1073741824"`
 	PublicRequestBodyIdleMillis       int64  `env:"PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS" envDefault:"30000"`
-	PublicMaxConcurrentRequests       int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS" envDefault:"2048"`
+	PublicMaxConcurrentRequests       int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS" envDefault:"0"`
 	PublicMaxConcurrentPerTarget      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET" envDefault:"0"`
-	PublicMaxConcurrentPerClient      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT" envDefault:"512"`
+	PublicMaxConcurrentPerClient      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT" envDefault:"0"`
 	PublicMaxConcurrentConnections    int64  `env:"PUBLIC_MAX_CONCURRENT_CONNECTIONS" envDefault:"0"`
-	PublicMaxConnectionsPerPeer       int64  `env:"PUBLIC_MAX_CONNECTIONS_PER_PEER" envDefault:"256"`
-	PublicMaxConnectionsPerTarget     int    `env:"PUBLIC_MAX_CONNECTIONS_PER_TARGET" envDefault:"256"`
+	PublicMaxConnectionsPerPeer       int64  `env:"PUBLIC_MAX_CONNECTIONS_PER_PEER" envDefault:"0"`
+	PublicMaxConnectionsPerTarget     int    `env:"PUBLIC_MAX_CONNECTIONS_PER_TARGET" envDefault:"0"`
 	BootstrapAgentID                  string `env:"BOOTSTRAP_AGENT_ID"`
 	BootstrapAgentName                string `env:"BOOTSTRAP_AGENT_NAME"`
 	BootstrapAgentToken               string `env:"BOOTSTRAP_AGENT_TOKEN"`
@@ -76,15 +75,12 @@ type Config struct {
 	ObservabilityMaxRows              int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
 	LoginThrottleMaxKeys              int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
 	TunnelMaxStreamWindowBytes        int64  `env:"TUNNEL_MAX_STREAM_WINDOW_BYTES" envDefault:"2097152"`
-	TunnelMaxConcurrentRequests       int64  `env:"TUNNEL_MAX_CONCURRENT_REQUESTS" envDefault:"64"`
 	ServerTunnelMaxConcurrentStreams  int64  `env:"SERVER_TUNNEL_MAX_CONCURRENT_STREAMS" envDefault:"0"`
-	ServerTunnelMemoryPercent         int64  `env:"SERVER_TUNNEL_MEMORY_PERCENT" envDefault:"50"`
-	ServerTunnelMemoryReserveBytes    int64  `env:"SERVER_TUNNEL_MEMORY_RESERVE_BYTES" envDefault:"536870912"`
 	ServerTunnelMemorySoftPercent     int64  `env:"SERVER_TUNNEL_MEMORY_SOFT_PERCENT" envDefault:"80"`
 	ServerTunnelMemoryHardPercent     int64  `env:"SERVER_TUNNEL_MEMORY_HARD_PERCENT" envDefault:"90"`
 	ServerTunnelMemoryRecoveryPercent int64  `env:"SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT" envDefault:"75"`
 	ServerTunnelMemorySampleMillis    int64  `env:"SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS" envDefault:"100"`
-	ServerTunnelEstimatedStreamBytes  int64  `env:"SERVER_TUNNEL_ESTIMATED_STREAM_BYTES" envDefault:"1310720"`
+	ServerTunnelEstimatedStreamBytes  int64  `env:"SERVER_TUNNEL_ESTIMATED_STREAM_BYTES" envDefault:"0"`
 
 	CertsDir                         string `env:"-"`
 	ManagementTLSEnabled             bool   `env:"-"`
@@ -107,21 +103,9 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	_, explicitDatabaseURL := os.LookupEnv("DATABASE_URL")
-	_, explicitPublicClientLimit := os.LookupEnv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT")
-	_, explicitPublicPeerLimit := os.LookupEnv("PUBLIC_MAX_CONNECTIONS_PER_PEER")
-
 	cfg := &Config{}
 	if err := env.Parse(cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
-	}
-	// New fairness defaults must not make an existing lower global limit fail
-	// startup after an upgrade. Only automatic defaults are narrowed; explicit
-	// contradictory values still fail validation below.
-	if !explicitPublicClientLimit && cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests {
-		cfg.PublicMaxConcurrentPerClient = cfg.PublicMaxConcurrentRequests
-	}
-	if !explicitPublicPeerLimit && cfg.PublicMaxConcurrentConnections > 0 && cfg.PublicMaxConnectionsPerPeer > cfg.PublicMaxConcurrentConnections {
-		cfg.PublicMaxConnectionsPerPeer = cfg.PublicMaxConcurrentConnections
 	}
 	if err := resolveServerTunnelCapacity(cfg, DetectProcessMemoryLimitBytes()); err != nil {
 		return nil, err
@@ -164,7 +148,7 @@ func Load() (*Config, error) {
 
 	if !explicitDatabaseURL || strings.TrimSpace(cfg.DatabaseURL) == "" {
 		dbPath := filepath.Join(cfg.ConfigDir, databaseFileName)
-		if err := migrateLegacyDefaultDatabase(dbPath); err != nil {
+		if err := rejectLegacyDefaultDatabase(dbPath); err != nil {
 			return nil, err
 		}
 		cfg.DatabaseURL = defaultDatabaseURL(dbPath)
@@ -193,17 +177,17 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.PublicRequestBodyIdleMillis < 5000 || cfg.PublicRequestBodyIdleMillis > 10*60*1000 {
 		return errors.New("PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS must be between 5000 and 600000")
 	}
-	if cfg.PublicMaxConcurrentRequests < 1 || cfg.PublicMaxConcurrentRequests > 100000 {
-		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS must be between 1 and 100000")
+	if cfg.PublicMaxConcurrentRequests < 0 || cfg.PublicMaxConcurrentRequests > 1_000_000 {
+		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS must be 0 (automatic) or between 1 and 1000000")
 	}
-	if cfg.PublicMaxConcurrentPerTarget < 0 || cfg.PublicMaxConcurrentPerTarget > cfg.PublicMaxConcurrentRequests {
+	if cfg.PublicMaxConcurrentPerTarget < 0 || cfg.PublicMaxConcurrentPerTarget > 1_000_000 || (cfg.PublicMaxConcurrentRequests > 0 && cfg.PublicMaxConcurrentPerTarget > cfg.PublicMaxConcurrentRequests) {
 		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET must be 0 or between 1 and PUBLIC_MAX_CONCURRENT_REQUESTS")
 	}
 	if cfg.PublicMaxConcurrentPerTarget == 0 {
 		cfg.PublicMaxConcurrentPerTarget = cfg.PublicMaxConcurrentRequests
 		cfg.PublicMaxConcurrentPerTargetAuto = true
 	}
-	if cfg.PublicMaxConcurrentPerClient < 0 || cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests {
+	if cfg.PublicMaxConcurrentPerClient < 0 || cfg.PublicMaxConcurrentPerClient > 1_000_000 || (cfg.PublicMaxConcurrentRequests > 0 && cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests) {
 		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT must be 0 or between 1 and PUBLIC_MAX_CONCURRENT_REQUESTS")
 	}
 	if cfg.PublicMaxConcurrentConnections < 0 || cfg.PublicMaxConcurrentConnections > 1_000_000 {
@@ -215,13 +199,10 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.PublicMaxConcurrentConnections > 0 && cfg.PublicMaxConnectionsPerPeer > cfg.PublicMaxConcurrentConnections {
 		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_PEER must not exceed PUBLIC_MAX_CONCURRENT_CONNECTIONS")
 	}
-	if cfg.PublicMaxConnectionsPerTarget < 1 || cfg.PublicMaxConnectionsPerTarget > 65535 {
-		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_TARGET must be between 1 and 65535")
+	if cfg.PublicMaxConnectionsPerTarget < 0 || cfg.PublicMaxConnectionsPerTarget > 1_000_000 {
+		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_TARGET must be 0 (automatic) or between 1 and 1000000")
 	}
 	if _, err := tunnel.NormalizeMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes); err != nil {
-		return err
-	}
-	if _, err := tunnel.NormalizeMaxConcurrentAgentRequests(cfg.TunnelMaxConcurrentRequests); err != nil {
 		return err
 	}
 	if cfg.ServerTunnelMaxConcurrentStreams < 1 || cfg.ServerTunnelMaxConcurrentStreams > tunnel.MaxServerConcurrentStreamsLimit {
@@ -239,7 +220,7 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.ServerTunnelMemorySampleMillis < 10 || cfg.ServerTunnelMemorySampleMillis > 10000 {
 		return errors.New("SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS must be between 10 and 10000")
 	}
-	if cfg.ServerTunnelEstimatedStreamBytes < tunnel.MinimumAdaptiveStreamChargeBytes || cfg.ServerTunnelEstimatedStreamBytes > tunnel.MaxStreamWindowSizeBytesLimit {
+	if cfg.ServerTunnelEstimatedStreamBytes != 0 && (cfg.ServerTunnelEstimatedStreamBytes < tunnel.MinimumAdaptiveStreamChargeBytes || cfg.ServerTunnelEstimatedStreamBytes > tunnel.MaxStreamWindowSizeBytesLimit) {
 		return fmt.Errorf("SERVER_TUNNEL_ESTIMATED_STREAM_BYTES must be between %d and %d", tunnel.MinimumAdaptiveStreamChargeBytes, tunnel.MaxStreamWindowSizeBytesLimit)
 	}
 	if _, err := tunnel.AdaptiveMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes, cfg.ServerTunnelEstimatedStreamBytes); err != nil {
@@ -479,7 +460,7 @@ func defaultDatabaseURL(dbPath string) string {
 	return "file:" + filepath.ToSlash(dbPath) + "?" + values.Encode()
 }
 
-func migrateLegacyDefaultDatabase(newDBPath string) error {
+func rejectLegacyDefaultDatabase(newDBPath string) error {
 	if _, err := os.Stat(newDBPath); err == nil {
 		return nil
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -487,72 +468,13 @@ func migrateLegacyDefaultDatabase(newDBPath string) error {
 	}
 
 	legacyDBPath := databaseFileName
-	if samePath(legacyDBPath, newDBPath) {
-		return nil
-	}
 	if _, err := os.Stat(legacyDBPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
 		return fmt.Errorf("failed to inspect legacy database %q: %w", legacyDBPath, err)
 	}
-
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		src := legacyDBPath + suffix
-		dst := newDBPath + suffix
-		if err := copyFileIfExists(src, dst); err != nil {
-			return fmt.Errorf("failed to migrate legacy database file %q to %q: %w", src, dst, err)
-		}
-	}
-	return nil
-}
-
-func samePath(a, b string) bool {
-	absA, errA := filepath.Abs(a)
-	absB, errB := filepath.Abs(b)
-	if errA != nil || errB != nil {
-		return filepath.Clean(a) == filepath.Clean(b)
-	}
-	return absA == absB
-}
-
-func copyFileIfExists(src, dst string) error {
-	info, err := os.Stat(src)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return err
-	}
-	if info.IsDir() {
-		return fmt.Errorf("source is a directory")
-	}
-
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	mode := info.Mode().Perm()
-	if mode == 0 {
-		mode = 0600
-	}
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
-	if err != nil {
-		return err
-	}
-	_, copyErr := io.Copy(out, in)
-	closeErr := out.Close()
-	if copyErr != nil {
-		_ = os.Remove(dst)
-		return copyErr
-	}
-	if closeErr != nil {
-		_ = os.Remove(dst)
-		return closeErr
-	}
-	return nil
+	return fmt.Errorf("legacy database found at %q; automatic migration is unsupported, move it to %q or set DATABASE_URL explicitly", legacyDBPath, newDBPath)
 }
 
 func validateServerUpdaterConfig(cfg *Config) error {

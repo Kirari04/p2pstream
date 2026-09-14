@@ -410,7 +410,6 @@ export async function seedDocsFixture(
     matchRule: { celExpression: 'method == "GET" && path_prefix(path, "/assets")' },
     queryMode: "PUBLIC_CACHE_QUERY_MODE_FULL",
     varyHeaders: ["accept-encoding"],
-    allowCookieRequests: false,
     maxObjectBytes: "1048576",
     addCacheStatusHeader: true,
   });

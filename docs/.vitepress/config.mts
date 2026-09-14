@@ -102,6 +102,7 @@ export default defineConfig({
         text: "Operate",
         items: [
           { text: "Troubleshooting", link: "/operations/troubleshooting" },
+          { text: "Agent Proxy Performance", link: "/operations/agent-proxy-performance" },
           { text: "Trace Live Traffic", link: "/guides/trace-live-traffic" },
           { text: "Observability", link: "/concepts/observability" },
           { text: "Backup and Restore", link: "/operations/backup-restore" },

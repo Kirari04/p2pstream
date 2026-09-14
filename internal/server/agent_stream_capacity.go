@@ -687,28 +687,14 @@ func (m *agentStreamCapacityManager) adaptiveProtectedControlLocked() int {
 		protected = defaultAgentStreamCapacityControlStreams
 	}
 	effective := m.adaptiveEffectiveAdmissionLimitLocked()
-	if protected > effective {
-		protected = effective
+	if protected >= effective {
+		protected = max(0, effective-1)
 	}
 	return protected
 }
 
 func (m *agentStreamCapacityManager) adaptiveEffectiveAdmissionLimitLocked() int {
-	limit := m.resourceSnapshot.AdmissionLimit
-	charge := m.resourceSnapshot.StreamChargeByte
-	if charge <= 0 {
-		return limit
-	}
-	memorySlots := ceilPositiveInt64(m.adaptiveExternalBytes, charge)
-	// The controller charges two descriptors per stream for Happy Eyeballs.
-	fdSlots := ceilPositiveInt64(m.adaptiveExternalFDs, 2)
-	if fdSlots > memorySlots {
-		memorySlots = fdSlots
-	}
-	if memorySlots >= int64(limit) {
-		return 0
-	}
-	return limit - int(memorySlots)
+	return max(0, m.resourceSnapshot.AdmissionLimitWithExternal(m.adaptiveExternalBytes, m.adaptiveExternalFDs))
 }
 
 func (m *agentStreamCapacityManager) adaptiveStreamAdmissionLimitLocked() int {
@@ -1228,12 +1214,7 @@ func (m *agentStreamCapacityManager) tryReserveAdaptiveExternal(memoryBytes, fil
 	}
 	proposedBytes := saturatingAddInt64(m.adaptiveExternalBytes, memoryBytes)
 	proposedFDs := saturatingAddInt64(m.adaptiveExternalFDs, fileDescriptors)
-	memorySlots := ceilPositiveInt64(proposedBytes, m.resourceSnapshot.StreamChargeByte)
-	fdSlots := ceilPositiveInt64(proposedFDs, 2)
-	if fdSlots > memorySlots {
-		memorySlots = fdSlots
-	}
-	limit := m.resourceSnapshot.AdmissionLimit - int(memorySlots)
+	limit := m.resourceSnapshot.AdmissionLimitWithExternal(proposedBytes, proposedFDs)
 	protectedControl := m.adaptiveProtectedControlLocked() - m.usedControl
 	if protectedControl < 0 {
 		protectedControl = 0

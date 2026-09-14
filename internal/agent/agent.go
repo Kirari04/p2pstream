@@ -16,6 +16,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -27,6 +28,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog/log"
 
@@ -68,21 +70,23 @@ type agentStatsReportClient interface {
 }
 
 type Options struct {
-	ManagementURL               string
-	PublicID                    string
-	Name                        string
-	Token                       string
-	ManagementCAFile            string
-	ManagementCAPEMBase64       string
-	ManagementTrustFile         string
-	TLSCertFile                 string
-	TLSKeyFile                  string
-	AllowInsecureManagement     bool
-	AllowTargets                []string
-	AllowAnyTarget              bool
-	TunnelMaxStreamWindowBytes  int64
-	TunnelMaxConcurrentRequests int64
-	TunnelCapacityAdaptive      bool
+	ManagementURL                   string
+	PublicID                        string
+	Name                            string
+	Token                           string
+	ManagementCAFile                string
+	ManagementCAPEMBase64           string
+	ManagementTrustFile             string
+	TLSCertFile                     string
+	TLSKeyFile                      string
+	AllowInsecureManagement         bool
+	AllowTargets                    []string
+	AllowAnyTarget                  bool
+	TunnelMaxStreamWindowBytes      int64
+	TunnelMaxConcurrentRequests     int64
+	TunnelCapacityAdaptive          bool
+	TunnelUpstreamSocketBufferBytes int64
+	TunnelConnections               int
 }
 
 // Run is the main entry point to start the agent loop
@@ -121,10 +125,21 @@ func RunContext(ctx context.Context, opts Options) error {
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	charge, err := tunnel.StreamMemoryCharge(opts.TunnelMaxStreamWindowBytes, opts.TunnelUpstreamSocketBufferBytes)
+	if err != nil {
+		return err
+	}
+	capacityConfig := sysmetrics.DefaultAdaptiveMemoryConfig()
+	capacityConfig.EstimatedBytesPerAdmission = charge
+	controller, err := sysmetrics.NewAdaptiveMemoryController(capacityConfig, nil)
+	if err != nil {
+		return err
+	}
+	runCtx = context.WithValue(runCtx, upstreamSocketBufferContextKey{}, opts.TunnelUpstreamSocketBufferBytes)
 	capacityRuntime := newAgentTunnelCapacityRuntime(
 		opts.TunnelMaxConcurrentRequests,
 		opts.TunnelCapacityAdaptive,
-		nil,
+		controller,
 	)
 	// Establish a real local resource snapshot before advertising or accepting
 	// adaptive work. If the host signal is unavailable, the runtime preserves
@@ -144,48 +159,82 @@ func RunContext(ctx context.Context, opts Options) error {
 		<-statsDone
 	}()
 
-	backoff := agentReconnectBackoffMin
-	for {
-		if err := runCtx.Err(); err != nil {
-			return err
-		}
-		log.Info().Str("tunnel_url", tunnelURL).Msg("Attempting to connect to management server...")
+	runLane := func(lane tunnelLaneRegistration) error {
+		backoff := agentReconnectBackoffMin
+		for {
+			if err := runCtx.Err(); err != nil {
+				return err
+			}
+			log.Info().Str("tunnel_url", tunnelURL).Msg("Attempting to connect to management server...")
 
-		connectedAt := time.Now()
-		err := connectAndServe(
-			runCtx,
-			tunnelClient,
-			tunnelURL,
-			opts.PublicID,
-			opts.Name,
-			opts.Token,
-			destinationPolicy,
-			opts.TunnelMaxStreamWindowBytes,
-			opts.TunnelMaxConcurrentRequests,
-			opts.TunnelCapacityAdaptive,
-			capacityRuntime,
-		)
-		if err != nil {
-			if runCtx.Err() != nil {
+			connectedAt := time.Now()
+			err := connectAndServe(
+				runCtx,
+				tunnelClient,
+				tunnelURL,
+				opts.PublicID,
+				opts.Name,
+				opts.Token,
+				destinationPolicy,
+				opts.TunnelMaxStreamWindowBytes,
+				opts.TunnelMaxConcurrentRequests,
+				opts.TunnelCapacityAdaptive,
+				capacityRuntime,
+				lane,
+			)
+			if errors.Is(err, errTunnelLaneUnsupported) {
+				log.Info().Int("tunnel_lane", lane.lane).Msg("Server no longer acknowledges parallel tunnels; stopping extra lane")
+				return nil
+			}
+			if err != nil {
+				if runCtx.Err() != nil {
+					return runCtx.Err()
+				}
+				log.Warn().Err(err).Msg("Disconnected")
+			}
+			if time.Since(connectedAt) >= agentStableConnectionInterval {
+				backoff = agentReconnectBackoffMin
+			}
+
+			sleep := jitterAgentReconnectBackoff(backoff)
+			log.Info().Dur("retry_in", sleep).Msg("Waiting before reconnect")
+			timer := time.NewTimer(sleep)
+			select {
+			case <-timer.C:
+			case <-runCtx.Done():
+				timer.Stop()
 				return runCtx.Err()
 			}
-			log.Warn().Err(err).Msg("Disconnected")
+			backoff = nextAgentReconnectBackoff(backoff)
 		}
-		if time.Since(connectedAt) >= agentStableConnectionInterval {
-			backoff = agentReconnectBackoffMin
-		}
-
-		sleep := jitterAgentReconnectBackoff(backoff)
-		log.Info().Dur("retry_in", sleep).Msg("Waiting before reconnect")
-		timer := time.NewTimer(sleep)
-		select {
-		case <-timer.C:
-		case <-runCtx.Done():
-			timer.Stop()
-			return runCtx.Err()
-		}
-		backoff = nextAgentReconnectBackoff(backoff)
 	}
+	count := opts.TunnelConnections
+	if count == 0 {
+		count = tunnel.DefaultParallelTunnels
+	}
+	group := uuid.NewString()
+	ready := make(chan struct{})
+	var acknowledged sync.Once
+	var workers sync.WaitGroup
+	for lane := 1; lane < count; lane++ {
+		workers.Add(1)
+		go func(lane int) {
+			defer workers.Done()
+			select {
+			case <-runCtx.Done():
+				return
+			case <-ready:
+			}
+			_ = runLane(tunnelLaneRegistration{group: group, lane: lane})
+		}(lane)
+	}
+	defer func() {
+		cancel()
+		workers.Wait()
+	}()
+	return runLane(tunnelLaneRegistration{group: group, lane: 0, accepted: func() {
+		acknowledged.Do(func() { close(ready) })
+	}})
 }
 
 func nextAgentReconnectBackoff(current time.Duration) time.Duration {
@@ -212,6 +261,9 @@ func jitterAgentReconnectBackoff(base time.Duration) time.Duration {
 }
 
 func validateOptions(opts Options) error {
+	if opts.TunnelConnections < 0 || opts.TunnelConnections > tunnel.MaxParallelTunnels {
+		return fmt.Errorf("TUNNEL_CONNECTIONS must be between 1 and %d", tunnel.MaxParallelTunnels)
+	}
 	if strings.TrimSpace(opts.ManagementURL) == "" {
 		return fmt.Errorf("management URL is required")
 	}
@@ -234,6 +286,9 @@ func validateOptions(opts Options) error {
 		return fmt.Errorf("agent TLS files require an https management URL")
 	}
 	if _, err := tunnel.NormalizeMaxStreamWindowSizeBytes(opts.TunnelMaxStreamWindowBytes); err != nil {
+		return err
+	}
+	if _, err := tunnel.NormalizeUpstreamSocketBufferBytes(opts.TunnelUpstreamSocketBufferBytes); err != nil {
 		return err
 	}
 	if _, err := tunnel.NormalizeMaxConcurrentAgentRequests(opts.TunnelMaxConcurrentRequests); err != nil {
@@ -721,7 +776,15 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
 	}, nil
 }
 
-func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, destinationPolicy *agentDestinationPolicy, maxStreamWindowSizeBytes int64, maxConcurrentRequests int64, adaptiveCapacity bool, capacityRuntime *agentTunnelCapacityRuntime) error {
+type tunnelLaneRegistration struct {
+	group    string
+	lane     int
+	accepted func()
+}
+
+var errTunnelLaneUnsupported = errors.New("management server does not acknowledge parallel tunnel lanes")
+
+func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, destinationPolicy *agentDestinationPolicy, maxStreamWindowSizeBytes int64, maxConcurrentRequests int64, adaptiveCapacity bool, capacityRuntime *agentTunnelCapacityRuntime, registrations ...tunnelLaneRegistration) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -736,6 +799,12 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	req, err := http.NewRequestWithContext(serveCtx, http.MethodGet, tunnelURL, nil)
 	if err != nil {
 		return err
+	}
+	var registration tunnelLaneRegistration
+	if len(registrations) > 0 {
+		registration = registrations[0]
+		req.Header.Set(tunnel.TunnelGroupHeader, registration.group)
+		req.Header.Set(tunnel.TunnelLaneHeader, strconv.Itoa(registration.lane))
 	}
 	req.Header.Set("Authorization", "Bearer "+agentToken)
 	req.Header.Set("X-P2PStream-Agent-ID", agentPublicID)
@@ -772,6 +841,13 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = resp.Body.Close()
 		return fmt.Errorf("agent tunnel upgrade response header = %q", got)
 	}
+	if registration.group != "" && registration.lane > 0 &&
+		(resp.Header.Get(tunnel.TunnelGroupHeader) != registration.group || resp.Header.Get(tunnel.TunnelLaneHeader) != strconv.Itoa(registration.lane)) {
+		_ = resp.Body.Close()
+		// A server downgrade can occur after the primary initially enabled
+		// extra lanes. Do not repeatedly replace its legacy single connection.
+		return errTunnelLaneUnsupported
+	}
 	negotiatedMaxConcurrentRequests, err := negotiatedAgentTunnelCapacity(resp.Header, maxConcurrentRequests, adaptiveCapacity)
 	if err != nil {
 		_ = resp.Body.Close()
@@ -787,18 +863,13 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = resp.Body.Close()
 		return fmt.Errorf("agent tunnel response body is %T, want io.ReadWriteCloser", resp.Body)
 	}
-	effectiveStreamWindowBytes := maxStreamWindowSizeBytes
-	if adaptiveCapacity {
-		effectiveStreamWindowBytes, err = tunnel.AdaptiveMaxStreamWindowSizeBytes(
-			maxStreamWindowSizeBytes,
-			sysmetrics.DefaultAdaptiveMemoryConfig().EstimatedBytesPerAdmission,
-		)
-		if err != nil {
-			_ = rwc.Close()
-			return fmt.Errorf("invalid adaptive tunnel yamux configuration: %w", err)
-		}
+	initialWindow, err := tunnel.InitialReceiveWindow(maxStreamWindowSizeBytes)
+	if err != nil {
+		_ = rwc.Close()
+		return err
 	}
-	yamuxConfig, err := tunnel.NewYamuxConfig(nil, effectiveStreamWindowBytes)
+	serveCtx = context.WithValue(serveCtx, receiveWindowContextKey{}, maxStreamWindowSizeBytes)
+	yamuxConfig, err := tunnel.NewYamuxConfig(nil, initialWindow)
 	if err != nil {
 		_ = rwc.Close()
 		return fmt.Errorf("invalid tunnel yamux configuration: %w", err)
@@ -809,6 +880,9 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		return fmt.Errorf("failed to initialize tunnel session: %w", err)
 	}
 	defer session.Close()
+	if registration.group != "" && resp.Header.Get(tunnel.TunnelGroupHeader) == registration.group && resp.Header.Get(tunnel.TunnelLaneHeader) == strconv.Itoa(registration.lane) && registration.accepted != nil {
+		registration.accepted()
+	}
 
 	log.Info().
 		Int64("advertised_max_streams", maxConcurrentRequests).
@@ -830,7 +904,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 }
 
 func negotiatedAgentTunnelCapacity(headers http.Header, advertised int64, adaptiveRequested bool) (int64, error) {
-	responseMode, _, err := tunnel.ParseOptionalCapacityMode(headers.Get(tunnel.TunnelCapacityModeHeader))
+	responseMode, err := tunnel.ParseCapacityMode(headers.Get(tunnel.TunnelCapacityModeHeader))
 	if err != nil {
 		return 0, fmt.Errorf("invalid agent tunnel negotiated capacity mode: %w", err)
 	}
@@ -839,21 +913,17 @@ func negotiatedAgentTunnelCapacity(headers http.Header, advertised int64, adapti
 	if adaptiveAcknowledged {
 		parseMaximum = tunnel.MaxAdaptiveConcurrentStreamsLimit
 	}
-	negotiated, present, err := tunnel.ParseOptionalMaxConcurrentStreams(
+	negotiated, err := tunnel.ParseMaxConcurrentStreams(
 		headers.Get(tunnel.TunnelMaxConcurrentStreamsHeader),
 		parseMaximum,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("invalid agent tunnel negotiated capacity: %w", err)
 	}
-	if !present {
-		return advertised, nil
-	}
 	if adaptiveAcknowledged || negotiated < advertised {
 		return negotiated, nil
 	}
-	// An old or non-adaptive server cannot raise a fixed client limit merely by
-	// returning a header. This keeps one-version rolling upgrades safe.
+	// The server cannot raise a fixed client limit.
 	return advertised, nil
 }
 
@@ -902,7 +972,7 @@ func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux
 			reqServerError.Add(1)
 			kind := "agent_capacity"
 			message := "agent tunnel request capacity reached"
-			if capacitySnapshot.Adaptive {
+			if capacitySnapshot.Adaptive || capacitySnapshot.ResourceLimited {
 				kind = "agent_resource_pressure"
 				message = "agent is temporarily limiting new tunnel requests to its live resource allowance"
 			}
@@ -912,8 +982,11 @@ func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux
 		handlers.Add(1)
 		go func(stream net.Conn) {
 			defer handlers.Done()
+			maximum, _ := ctx.Value(receiveWindowContextKey{}).(int64)
+			growing := tunnel.NewGrowingConn(stream, maximum, capacity.tryReserveWindowGrowth)
+			stream = growing
 			handleTunnelStream(ctx, stream, destinationPolicy)
-			releaseAgentTunnelCapacityAfterPeerClose(stream, release)
+			releaseAgentTunnelCapacityAfterPeerClose(stream, func() { growing.Release(); release() })
 		}(stream)
 	}
 }
@@ -982,7 +1055,22 @@ func handleTunnelStream(ctx context.Context, stream net.Conn, destinationPolicy 
 	activeRequests.Add(1)
 	defer activeRequests.Add(-1)
 
+	var dnsStarted, dnsNanos atomic.Int64
+	if openReq.TraceTimings {
+		ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+			DNSStart: func(httptrace.DNSStartInfo) { dnsStarted.Store(time.Since(startedAt).Nanoseconds()) },
+			DNSDone: func(httptrace.DNSDoneInfo) {
+				dnsNanos.Add(time.Since(startedAt).Nanoseconds() - dnsStarted.Load())
+			},
+		})
+	}
+	dialStarted := time.Now()
 	upstream, err := dialTunnelDestination(ctx, openReq.Network, openReq.Address, destinationPolicy)
+	response := tunnel.OpenResponse{OK: err == nil}
+	if openReq.TraceTimings {
+		response.DialDurationNanos = time.Since(dialStarted).Nanoseconds()
+		response.DNSDurationNanos = dnsNanos.Load()
+	}
 	if err != nil {
 		kind := tunnelDialErrorKind(err)
 		reqInternalError.Add(1)
@@ -992,16 +1080,14 @@ func handleTunnelStream(ctx context.Context, stream net.Conn, destinationPolicy 
 			Str("error_kind", kind).
 			Str("address", redactTunnelAddress(openReq.Address)).
 			Msg("Tunnel stream dial failed")
-		_ = tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{
-			OK:        false,
-			ErrorKind: kind,
-			Error:     err.Error(),
-		})
+		response.ErrorKind = kind
+		response.Error = err.Error()
+		_ = tunnel.WriteOpenResponse(stream, response)
 		return
 	}
 	defer upstream.Close()
 
-	if err := tunnel.WriteOpenResponse(stream, tunnel.OpenResponse{OK: true}); err != nil {
+	if err := tunnel.WriteOpenResponse(stream, response); err != nil {
 		reqInternalError.Add(1)
 		return
 	}
@@ -1057,7 +1143,15 @@ func dialTunnelDestination(ctx context.Context, network string, address string, 
 	return agentTunnelDialNetwork(dialCtx, network, dialAddress)
 }
 
+type upstreamSocketBufferContextKey struct{}
+type receiveWindowContextKey struct{}
+
 func dialTunnelNetwork(ctx context.Context, network string, address string) (net.Conn, error) {
+	configuredBuffer, _ := ctx.Value(upstreamSocketBufferContextKey{}).(int64)
+	socketBufferBytes, err := tunnel.NormalizeUpstreamSocketBufferBytes(configuredBuffer)
+	if err != nil {
+		return nil, err
+	}
 	dialer := agentTunnelDialer()
 	conn, err := dialer.DialContext(ctx, network, address)
 	if err != nil {
@@ -1068,12 +1162,11 @@ func dialTunnelNetwork(ctx context.Context, network string, address string) (net
 		// reservation. Linux may double these requested values internally; the
 		// controller reserves substantially more than both buffers plus relay
 		// allocations.
-		const socketBufferBytes = 64 * 1024
-		if err := tcpConn.SetReadBuffer(socketBufferBytes); err != nil {
+		if err := tcpConn.SetReadBuffer(int(socketBufferBytes)); err != nil {
 			_ = conn.Close()
 			return nil, fmt.Errorf("bound upstream TCP read buffer: %w", err)
 		}
-		if err := tcpConn.SetWriteBuffer(socketBufferBytes); err != nil {
+		if err := tcpConn.SetWriteBuffer(int(socketBufferBytes)); err != nil {
 			_ = conn.Close()
 			return nil, fmt.Errorf("bound upstream TCP write buffer: %w", err)
 		}

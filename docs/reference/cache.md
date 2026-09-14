@@ -25,8 +25,7 @@ Cache rules run after route/target selection and before forwarding a cache miss 
 | `cache_status_codes` | `200`, `203`, `204`, `301`, `308` | Statuses that may be stored. |
 | `max_object_bytes` | `104857600` | Maximum stored response size. |
 | `add_cache_status_header` | false unless enabled | Adds `X-p2pstream-Cache`. |
-| `allow_cookie_requests` | `false` | Legacy/deprecated. Cookie-bearing requests always bypass shared cache; this field may still appear for compatibility but has no runtime effect. |
-| `allow_cookie_requests_acknowledged` | `false` | Legacy acknowledgement field retained for compatibility with `allow_cookie_requests`. |
+
 
 ### Storage Limits
 
@@ -53,7 +52,9 @@ The **Storage usage** panel reports cache-accounted body bytes for the disk tier
 
 p2pstream always bypasses cache for requests with `Authorization`, `Cookie`, non-GET/HEAD methods, request bodies, `Range`, and upgrades.
 
-`allow_cookie_requests` is retained for API and database compatibility, but Cookie-bearing requests never use shared cache lookup or storage. Do not rely on this field for cache behavior.
+The legacy `allow_cookie_requests` and acknowledgement fields are retired at
+v0.1.53. Cookie-bearing requests never use shared cache lookup or storage;
+update clients to stop sending the old fields. The v0.1.53 upgrade removes the database column automatically.
 
 Requests containing encoded path separators on routes that enable `allow_encoded_separators` path security always bypass shared cache. Compatibility routes can preserve encoded separators for upstreams that require them, but those ambiguous request targets are not used for shared cache lookup or storage.
 

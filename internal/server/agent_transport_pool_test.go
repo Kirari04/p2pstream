@@ -37,6 +37,32 @@ func TestAgentTransportPoolReusesPublicRouteTargetConnection(t *testing.T) {
 	}
 }
 
+func TestAgentTransportPoolRetainsMoreThan256WarmTargets(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer upstream.Close()
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, time.Second)
+	app.agentStreamCapacity = mustNewDefaultAgentStreamCapacityManager(1024)
+	for range 2 {
+		for id := int64(1); id <= 300; id++ {
+			target.ID = id
+			req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL, nil)
+			resp, err := app.agentTargetTransport(agent, target).RoundTrip(req)
+			if err != nil {
+				t.Fatalf("warm target %d: %v", id, err)
+			}
+			_ = resp.Body.Close()
+		}
+	}
+	if got := app.AgentTransports.len(); got != 300 {
+		t.Fatalf("retained %d transports, want 300", got)
+	}
+	if got := fake.openRequestCount(); got != 300 {
+		t.Fatalf("opened %d connections, want 300 reused connections", got)
+	}
+}
+
 func TestAgentTransportPoolPressureReclaimPrefersSessionAndScalesWithDemand(t *testing.T) {
 	pool := newAgentTransportPool()
 	preferred := &AgentConn{AgentID: 7}
@@ -78,6 +104,55 @@ func TestAgentTransportPoolPressureReclaimPrefersSessionAndScalesWithDemand(t *t
 	}
 	if pool.reclaimOldestIdle(preferred, true) {
 		t.Fatal("empty pool reported a reclaimed idle shard")
+	}
+}
+
+func TestAgentTransportPoolReclaimsIdleSocketBesideActiveResponse(t *testing.T) {
+	finish := make(chan struct{})
+	var once sync.Once
+	unblock := func() { once.Do(func() { close(finish) }) }
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/stream" {
+			_, _ = w.Write([]byte("start"))
+			w.(http.Flusher).Flush()
+			<-finish
+		}
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer func() { unblock(); upstream.Close() }()
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, time.Second)
+	rt := app.agentTargetTransport(agent, target)
+	request, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL+"/stream", nil)
+	active, err := rt.RoundTrip(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer active.Body.Close()
+	request, _ = http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL+"/api", nil)
+	idle, err := rt.RoundTrip(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, idle.Body)
+	_ = idle.Body.Close()
+	fake.waitOpenRequestCount(t, 2)
+	if !app.AgentTransports.reclaimOldestIdle(agent, false) {
+		t.Fatal("active shard hid its reclaimable idle connection")
+	}
+	deadline := time.Now().Add(time.Second)
+	for app.agentStreamCapacity.snapshot().Total.InUse > 1 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if app.agentStreamCapacity.snapshot().Total.InUse != 1 {
+		t.Fatal("idle stream retained its resource reservation")
+	}
+	if app.AgentTransports.len() != 1 {
+		t.Fatal("reclaim retired the active transport")
+	}
+	unblock()
+	data, err := io.ReadAll(active.Body)
+	if err != nil || string(data) != "startok" {
+		t.Fatalf("reclaim interrupted active response: %q, %v", data, err)
 	}
 }
 

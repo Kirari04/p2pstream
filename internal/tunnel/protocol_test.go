@@ -54,29 +54,27 @@ func TestOpenRequestValidate(t *testing.T) {
 	}
 }
 
-func TestParseOptionalMaxConcurrentStreams(t *testing.T) {
-	if value, present, err := ParseOptionalMaxConcurrentStreams("", MaxConcurrentAgentRequestsLimit); err != nil || present || value != 0 {
-		t.Fatalf("absent capacity = %d/%v/%v, want 0/false/nil", value, present, err)
+func TestParseMaxConcurrentStreams(t *testing.T) {
+	if value, err := ParseMaxConcurrentStreams(" 512 ", MaxConcurrentAgentRequestsLimit); err != nil || value != 512 {
+		t.Fatalf("valid capacity = %d, %v", value, err)
 	}
-	if value, present, err := ParseOptionalMaxConcurrentStreams(" 512 ", MaxConcurrentAgentRequestsLimit); err != nil || !present || value != 512 {
-		t.Fatalf("parsed capacity = %d/%v/%v, want 512/true/nil", value, present, err)
-	}
-	for _, raw := range []string{"0", "-1", "2049", "not-a-number"} {
-		if _, present, err := ParseOptionalMaxConcurrentStreams(raw, MaxConcurrentAgentRequestsLimit); err == nil || !present {
-			t.Fatalf("invalid capacity %q = present %v error %v, want true/non-nil", raw, present, err)
+	for _, raw := range []string{"", " ", "0", "-1", "2049", "invalid"} {
+		if _, err := ParseMaxConcurrentStreams(raw, MaxConcurrentAgentRequestsLimit); err == nil {
+			t.Fatalf("capacity %q must be rejected", raw)
 		}
 	}
 }
 
-func TestParseOptionalCapacityMode(t *testing.T) {
-	if mode, present, err := ParseOptionalCapacityMode(""); err != nil || present || mode != "" {
-		t.Fatalf("absent capacity mode = %q/%t/%v", mode, present, err)
+func TestParseCapacityMode(t *testing.T) {
+	for _, raw := range []string{" Adaptive ", "fixed"} {
+		if _, err := ParseCapacityMode(raw); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if mode, present, err := ParseOptionalCapacityMode(" Adaptive "); err != nil || !present || mode != TunnelCapacityModeAdaptive {
-		t.Fatalf("adaptive capacity mode = %q/%t/%v", mode, present, err)
-	}
-	if _, present, err := ParseOptionalCapacityMode("unlimited"); err == nil || !present {
-		t.Fatalf("invalid capacity mode present=%t err=%v", present, err)
+	for _, raw := range []string{"", " ", "unlimited"} {
+		if _, err := ParseCapacityMode(raw); err == nil {
+			t.Fatalf("mode %q must be rejected", raw)
+		}
 	}
 }
 

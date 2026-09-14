@@ -13,6 +13,7 @@ import (
 
 type agentTunnelCapacitySnapshot struct {
 	Adaptive             bool
+	ResourceLimited      bool
 	Maximum              int
 	AdmissionLimit       int
 	InUse                int
@@ -31,14 +32,15 @@ type agentTunnelCapacitySnapshot struct {
 
 // agentTunnelCapacityRuntime owns the agent-side lifetime admission count.
 // Adaptive mode has no static memory-derived stream ceiling: its live ceiling
-// follows sampled memory and descriptor headroom. Explicit configuration uses
-// the same implementation with no controller and remains a hard operator limit.
+// follows sampled memory and descriptor headroom. Explicit production limits
+// also retain resource protection, while adding a hard operator ceiling.
 type agentTunnelCapacityRuntime struct {
-	mu         sync.Mutex
-	adaptive   bool
-	maximum    int
-	inUse      int
-	controller *sysmetrics.AdaptiveMemoryController
+	mu          sync.Mutex
+	adaptive    bool
+	maximum     int
+	inUse       int
+	windowBytes int64
+	controller  *sysmetrics.AdaptiveMemoryController
 
 	rejectedPressure atomic.Uint64
 	rejectedFixed    atomic.Uint64
@@ -72,6 +74,29 @@ func (r *agentTunnelCapacityRuntime) setMaximum(maximum int64) {
 	r.mu.Unlock()
 }
 
+func (r *agentTunnelCapacityRuntime) tryReserveWindowGrowth(bytes int64) (func(), bool) {
+	if r == nil || r.controller == nil {
+		return func() {}, true
+	}
+	r.mu.Lock()
+	resource := r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
+	proposed := r.windowBytes + bytes
+	if bytes < 0 || proposed < r.windowBytes || resource.RejectNew || resource.AdmissionLimitWithExternal(proposed, 0) < r.inUse {
+		r.mu.Unlock()
+		return nil, false
+	}
+	r.windowBytes = proposed
+	r.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			r.mu.Lock()
+			r.windowBytes -= bytes
+			r.mu.Unlock()
+		})
+	}, true
+}
+
 // agentTunnelCapacityMaximumInt keeps the int64 protocol/config boundary safe
 // on every supported architecture. Negotiated values are normally much lower,
 // but constructors and setters must remain total even when called directly.
@@ -99,7 +124,7 @@ func (r *agentTunnelCapacityRuntime) tryAcquire() (func(), agentTunnelCapacitySn
 	r.mu.Lock()
 	snapshot := r.snapshotLocked()
 	if snapshot.AdmissionLimit < 1 || r.inUse >= snapshot.AdmissionLimit {
-		if snapshot.Adaptive {
+		if snapshot.Adaptive || snapshot.ResourceLimited {
 			r.rejectedPressure.Add(1)
 			// Headroom or descriptor admission can be exhausted below the soft
 			// percentage threshold. Remember that the drained generation still
@@ -125,7 +150,7 @@ func (r *agentTunnelCapacityRuntime) tryAcquire() (func(), agentTunnelCapacitySn
 				r.inUse--
 			}
 			shouldScavenge := r.scavengeNeeded.Swap(false)
-			if r.adaptive && r.inUse == 0 {
+			if r.controller != nil && r.inUse == 0 {
 				pressure := r.snapshotLocked().Pressure
 				shouldScavenge = shouldScavenge || pressure == sysmetrics.MemoryPressureSoft || pressure == sysmetrics.MemoryPressureCritical
 			} else {
@@ -147,7 +172,7 @@ func (r *agentTunnelCapacityRuntime) tryAcquire() (func(), agentTunnelCapacitySn
 }
 
 func (r *agentTunnelCapacityRuntime) requestMemoryScavenge() bool {
-	if r == nil || !r.adaptive || !r.scavengeRunning.CompareAndSwap(false, true) {
+	if r == nil || r.controller == nil || !r.scavengeRunning.CompareAndSwap(false, true) {
 		return false
 	}
 	freeOSMemory := r.freeOSMemory
@@ -211,16 +236,17 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 		RejectedPressure:   r.rejectedPressure.Load(),
 		RejectedFixedLimit: r.rejectedFixed.Load(),
 	}
-	if !r.adaptive || r.controller == nil {
+	if r.controller == nil {
 		return snapshot
 	}
 	var resource sysmetrics.AdaptiveMemorySnapshot
 	if force {
-		resource = r.controller.ForceRefresh(maximum, r.inUse)
+		resource = r.controller.ForceRefresh(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
 	} else {
-		resource = r.controller.Snapshot(maximum, r.inUse)
+		resource = r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
 	}
-	snapshot.AdmissionLimit = resource.AdmissionLimit
+	snapshot.AdmissionLimit = min(maximum, resource.AdmissionLimitWithExternal(r.windowBytes, 0))
+	snapshot.ResourceLimited = snapshot.AdmissionLimit < maximum
 	snapshot.Pressure = resource.Level
 	snapshot.MemoryUsedBytes = resource.Usage.UsedBytes
 	snapshot.MemoryLimitBytes = resource.Usage.LimitBytes
@@ -232,6 +258,7 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 	snapshot.LastGoodSampleAt = resource.LastGoodSampleAt
 	if resource.RejectNew {
 		snapshot.AdmissionLimit = r.inUse
+		snapshot.ResourceLimited = true
 	}
 	return snapshot
 }

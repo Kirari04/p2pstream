@@ -21,8 +21,8 @@ func TestDefaultAgentStreamCapacityConfigReservesPublicAndHealthHeadroom(t *test
 	if config.ReservedPublicForOtherSessions != 15 {
 		t.Fatalf("cross-session public reserve = %d, want 15", config.ReservedPublicForOtherSessions)
 	}
-	if config.MaxWaiters != 64 || config.MaxWaitersPerKey != 16 {
-		t.Fatalf("waiter budgets = %d/%d, want 64/16", config.MaxWaiters, config.MaxWaitersPerKey)
+	if config.MaxWaiters != 64 || config.MaxWaitersPerKey != 64 {
+		t.Fatalf("waiter budgets = %d/%d, want 64/64", config.MaxWaiters, config.MaxWaitersPerKey)
 	}
 	if err := validateAgentStreamCapacityConfig(config); err != nil {
 		t.Fatalf("default capacity config: %v", err)
@@ -86,7 +86,7 @@ func TestHighTotalReservesPerSessionOpeningCapacityForHealth(t *testing.T) {
 	assertAgentStreamCapacityClean(t, manager)
 }
 
-func TestDefaultAgentStreamCapacityConfigSupportsSmallLegacyTotals(t *testing.T) {
+func TestDefaultAgentStreamCapacityConfigSupportsSmallTotals(t *testing.T) {
 	for _, total := range []int64{1, 2, 4, 5, 16} {
 		config := defaultAgentStreamCapacityConfig(total)
 		if config.Total != int(total) {
@@ -118,7 +118,6 @@ func TestNewAppUsesDedicatedServerStreamCapacity(t *testing.T) {
 	}
 
 	app = NewApp(&config.Config{
-		TunnelMaxConcurrentRequests:      7,
 		ServerTunnelMaxConcurrentStreams: 777,
 	}, nil)
 	if got := app.agentStreamCapacity.snapshot().Total.Capacity; got != 777 {

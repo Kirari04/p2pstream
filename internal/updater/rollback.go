@@ -391,11 +391,6 @@ func replayCompletedRollback(paths Paths, authorization assignmentAuthorizationR
 		return errors.New("consumed rollback command has a different authorization digest")
 	}
 	data, err := readRegularNoFollow(paths.lastRollbackPath(), 256<<10)
-	if errors.Is(err, os.ErrNotExist) {
-		// A legacy helper may only have published the worker-visible receipt.
-		// Its signature and all durable root state are verified below before use.
-		data, err = readRegularNoFollow(paths.rollbackResultPath(), 256<<10)
-	}
 	if err != nil {
 		return fmt.Errorf("completed rollback receipt is unavailable for command replay: %w", err)
 	}

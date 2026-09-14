@@ -35,9 +35,12 @@ func TestLoadDerivesDatabaseURLFromConfigDir(t *testing.T) {
 func TestLoadRespectsExplicitDatabaseURL(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	configDir := filepath.Join(workDir, "data")
-	explicitDatabaseURL := "file:/tmp/p2pstream-custom.db?mode=ro"
+	explicitDatabaseURL := "file:p2pstream.db?mode=rwc"
 	t.Setenv("CONFIG_DIR", configDir)
 	t.Setenv("DATABASE_URL", explicitDatabaseURL)
+	if err := os.WriteFile(databaseFileName, []byte("legacy-db"), 0600); err != nil {
+		t.Fatalf("failed to write legacy file: %v", err)
+	}
 
 	cfg, err := Load()
 	if err != nil {
@@ -178,7 +181,7 @@ func TestLoadAgentUpdateCatalogRejectsUnsafeRepository(t *testing.T) {
 	}
 }
 
-func TestLoadNarrowsNewFairnessDefaultsUnderExistingGlobalLimits(t *testing.T) {
+func TestLoadAutomaticFairnessDefaultsRespectExplicitGlobalLimits(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
 	t.Setenv("PUBLIC_MAX_CONCURRENT_REQUESTS", "100")
@@ -188,11 +191,11 @@ func TestLoadNarrowsNewFairnessDefaultsUnderExistingGlobalLimits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.PublicMaxConcurrentPerClient != 100 {
-		t.Fatalf("automatic per-client limit = %d, want global request limit 100", cfg.PublicMaxConcurrentPerClient)
+	if cfg.PublicMaxConcurrentPerClient != 0 {
+		t.Fatalf("automatic per-client limit = %d, want automatic per-client capacity", cfg.PublicMaxConcurrentPerClient)
 	}
-	if cfg.PublicMaxConnectionsPerPeer != 80 {
-		t.Fatalf("automatic per-peer limit = %d, want global connection limit 80", cfg.PublicMaxConnectionsPerPeer)
+	if cfg.PublicMaxConnectionsPerPeer != 0 {
+		t.Fatalf("automatic per-peer limit = %d, want automatic per-peer capacity", cfg.PublicMaxConnectionsPerPeer)
 	}
 }
 
@@ -233,9 +236,6 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if cfg.TunnelMaxStreamWindowBytes != 2*1024*1024 {
 		t.Fatalf("TunnelMaxStreamWindowBytes = %d, want 2097152", cfg.TunnelMaxStreamWindowBytes)
 	}
-	if cfg.TunnelMaxConcurrentRequests != 64 {
-		t.Fatalf("TunnelMaxConcurrentRequests = %d, want 64", cfg.TunnelMaxConcurrentRequests)
-	}
 	if cfg.PublicMaxHeaderBytes != 64*1024 {
 		t.Fatalf("PublicMaxHeaderBytes = %d, want 65536", cfg.PublicMaxHeaderBytes)
 	}
@@ -245,14 +245,14 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if cfg.PublicRequestBodyIdleMillis != 30_000 {
 		t.Fatalf("PublicRequestBodyIdleMillis = %d, want 30000", cfg.PublicRequestBodyIdleMillis)
 	}
-	if cfg.PublicMaxConcurrentRequests != 2048 || cfg.PublicMaxConcurrentPerTarget != 2048 || cfg.PublicMaxConnectionsPerTarget != 256 {
-		t.Fatalf("public capacity defaults = %d/%d/%d, want 2048/2048/256", cfg.PublicMaxConcurrentRequests, cfg.PublicMaxConcurrentPerTarget, cfg.PublicMaxConnectionsPerTarget)
+	if cfg.PublicMaxConcurrentRequests != 0 || cfg.PublicMaxConcurrentPerTarget != 0 || cfg.PublicMaxConnectionsPerTarget != 0 {
+		t.Fatalf("public capacity defaults = %d/%d/%d, want automatic 0/0/0", cfg.PublicMaxConcurrentRequests, cfg.PublicMaxConcurrentPerTarget, cfg.PublicMaxConnectionsPerTarget)
 	}
-	if cfg.PublicMaxConcurrentPerClient != 512 {
-		t.Fatalf("PublicMaxConcurrentPerClient = %d, want 512", cfg.PublicMaxConcurrentPerClient)
+	if cfg.PublicMaxConcurrentPerClient != 0 {
+		t.Fatalf("PublicMaxConcurrentPerClient = %d, want 0", cfg.PublicMaxConcurrentPerClient)
 	}
-	if cfg.PublicMaxConcurrentConnections != 0 || cfg.PublicMaxConnectionsPerPeer != 256 {
-		t.Fatalf("public connection guards = %d/%d, want resource-governed global and 256 per peer", cfg.PublicMaxConcurrentConnections, cfg.PublicMaxConnectionsPerPeer)
+	if cfg.PublicMaxConcurrentConnections != 0 || cfg.PublicMaxConnectionsPerPeer != 0 {
+		t.Fatalf("public connection guards = %d/%d, want resource-governed global and per-peer capacity", cfg.PublicMaxConcurrentConnections, cfg.PublicMaxConnectionsPerPeer)
 	}
 	if !cfg.PublicMaxConcurrentPerTargetAuto {
 		t.Fatal("PublicMaxConcurrentPerTargetAuto = false, want automatic default")
@@ -260,7 +260,7 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if !cfg.ServerTunnelCapacityAuto || cfg.ServerTunnelMaxConcurrentStreams != tunnel.MaxServerConcurrentStreamsLimit {
 		t.Fatalf("server adaptive capacity = automatic %t guard %d", cfg.ServerTunnelCapacityAuto, cfg.ServerTunnelMaxConcurrentStreams)
 	}
-	if cfg.ServerTunnelMemorySoftPercent != 80 || cfg.ServerTunnelMemoryHardPercent != 90 || cfg.ServerTunnelMemoryRecoveryPercent != 75 || cfg.ServerTunnelMemorySampleMillis != 100 || cfg.ServerTunnelEstimatedStreamBytes != tunnel.DefaultAdaptiveStreamChargeBytes {
+	if cfg.ServerTunnelMemorySoftPercent != 80 || cfg.ServerTunnelMemoryHardPercent != 90 || cfg.ServerTunnelMemoryRecoveryPercent != 75 || cfg.ServerTunnelMemorySampleMillis != 100 || cfg.ServerTunnelEstimatedStreamBytes != 0 {
 		t.Fatalf("server adaptive memory defaults = soft %d hard %d recovery %d sample %d estimate %d", cfg.ServerTunnelMemorySoftPercent, cfg.ServerTunnelMemoryHardPercent, cfg.ServerTunnelMemoryRecoveryPercent, cfg.ServerTunnelMemorySampleMillis, cfg.ServerTunnelEstimatedStreamBytes)
 	}
 }
@@ -422,11 +422,11 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 		}
 	})
 
-	t.Run("large aggregate tunnel window allowed with explicit concurrency", func(t *testing.T) {
+	t.Run("large tunnel window allowed without server agent concurrency setting", func(t *testing.T) {
 		workDir := isolatedConfigTestDir(t)
 		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
 		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "67108864")
-		t.Setenv("TUNNEL_MAX_CONCURRENT_REQUESTS", "9")
+		t.Setenv("TUNNEL_MAX_CONCURRENT_REQUESTS", "not-a-server-setting")
 
 		if _, err := Load(); err != nil {
 			t.Fatalf("explicit aggregate tunnel capacity rejected: %v", err)
@@ -434,39 +434,20 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 	})
 }
 
-func TestLoadMigratesLegacyDefaultDatabase(t *testing.T) {
+func TestLoadRejectsLegacyDefaultDatabaseLocation(t *testing.T) {
 	workDir := isolatedConfigTestDir(t)
 	configDir := filepath.Join(workDir, "data")
 	t.Setenv("CONFIG_DIR", configDir)
 
-	legacyFiles := map[string]string{
-		"p2pstream.db":     "legacy-db",
-		"p2pstream.db-wal": "legacy-wal",
-		"p2pstream.db-shm": "legacy-shm",
-	}
-	for name, contents := range legacyFiles {
-		if err := os.WriteFile(name, []byte(contents), 0600); err != nil {
-			t.Fatalf("failed to write legacy file %s: %v", name, err)
-		}
+	if err := os.WriteFile(databaseFileName, []byte("legacy-db"), 0600); err != nil {
+		t.Fatalf("failed to write legacy file: %v", err)
 	}
 
-	cfg, err := Load()
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "automatic migration is unsupported") {
+		t.Fatalf("Load() error = %v, want unsupported legacy location error", err)
 	}
-
-	assertSQLiteURL(t, cfg.DatabaseURL, filepath.Join(configDir, databaseFileName))
-	for name, contents := range legacyFiles {
-		got, err := os.ReadFile(filepath.Join(configDir, name))
-		if err != nil {
-			t.Fatalf("failed to read migrated %s: %v", name, err)
-		}
-		if string(got) != contents {
-			t.Fatalf("migrated %s = %q, want %q", name, string(got), contents)
-		}
-		if _, err := os.Stat(name); err != nil {
-			t.Fatalf("legacy file %s should remain in place: %v", name, err)
-		}
+	if _, err := os.Stat(filepath.Join(configDir, databaseFileName)); !os.IsNotExist(err) {
+		t.Fatalf("unexpected default database at %s, stat error = %v", filepath.Join(configDir, databaseFileName), err)
 	}
 }
 
@@ -615,12 +596,12 @@ func isolatedConfigTestDir(t *testing.T) string {
 	unsetEnv(t, "PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS")
 	unsetEnv(t, "PUBLIC_MAX_CONCURRENT_REQUESTS")
 	unsetEnv(t, "PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET")
+	unsetEnv(t, "PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT")
+	unsetEnv(t, "PUBLIC_MAX_CONNECTIONS_PER_PEER")
 	unsetEnv(t, "PUBLIC_MAX_CONNECTIONS_PER_TARGET")
 	unsetEnv(t, "SERVER_TUNNEL_MAX_CONCURRENT_STREAMS")
 	unsetEnv(t, "AGENT_UPDATES_ENABLED")
 	unsetEnv(t, "AGENT_UPDATE_CHANNEL")
-	unsetEnv(t, "SERVER_TUNNEL_MEMORY_PERCENT")
-	unsetEnv(t, "SERVER_TUNNEL_MEMORY_RESERVE_BYTES")
 	unsetEnv(t, "SERVER_TUNNEL_MEMORY_SOFT_PERCENT")
 	unsetEnv(t, "SERVER_TUNNEL_MEMORY_HARD_PERCENT")
 	unsetEnv(t, "SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT")

@@ -31,7 +31,7 @@ var errNoPublicRouteAvailable = errors.New("no public route available")
 
 var agentOpenHandshakeTimeout = 10 * time.Second
 
-const defaultAgentStreamCapacityWaitTimeout = 250 * time.Millisecond
+const defaultAgentStreamCapacityWaitTimeout = 10 * time.Second
 
 type publicRouteTargetHealthConfig struct {
 	ID                            int64
@@ -607,6 +607,13 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				return
 			}
 			if agent == nil {
+				if errors.Is(err, errDirectUpstreamResourcePressure) {
+					statusCode = http.StatusServiceUnavailable
+					errorKind = "direct_resource_pressure"
+					w.Header().Set("Retry-After", "1")
+					http.Error(w, "Service Unavailable", statusCode)
+					return
+				}
 				log.Error().Err(err).Str("target", resolution.Target.Name).Msg("Direct target proxy failed")
 				if r.Context().Err() == nil && !errors.Is(err, context.Canceled) {
 					a.markPublicRouteTargetPassiveFailure(resolution.Target.ID, err)
@@ -783,11 +790,19 @@ func (a *App) dialViaAgentWithCapacity(
 	requestID string,
 	class agentStreamCapacityClass,
 	queueKey string,
+	preferredLane ...int,
 ) (net.Conn, error) {
 	if agent != nil && a.isAgentUpdateCordoned(agent.AgentID) {
 		return nil, errAgentUpdateCordoned
 	}
-	if agent == nil || agent.Session == nil || agent.Session.IsClosed() {
+	lane := 0
+	if len(preferredLane) > 0 {
+		lane = preferredLane[0]
+	} else if agent != nil {
+		lane = agent.transportLane()
+	}
+	session := agent.tunnelSession(lane)
+	if agent == nil || session == nil {
 		return nil, errAgentDisconnected
 	}
 	if a.agentStreamCapacity == nil {
@@ -797,20 +812,49 @@ func (a *App) dialViaAgentWithCapacity(
 		queueKey = "agent-stream"
 	}
 	queueKey = agentStreamCapacityQueueKey(class, queueKey)
-	session := agent.Session
 	sessionKey := agentStreamCapacitySessionKey(agent, session)
+	timing := agentTimingFromContext(ctx)
+	phaseStart := time.Now()
+	if timing != nil {
+		timing.lane.Store(int64(lane))
+	}
 	var lease *agentStreamCapacityLease
 	var err error
 	if class == agentStreamCapacityPublicPooled {
 		lease, err = a.agentStreamCapacity.tryAcquire(class, queueKey, sessionKey)
+		// Opening concurrency bounds Yamux's SYN backlog, not the number of
+		// requests this agent can serve. Join the fair queue for a transient
+		// opening burst instead of returning an avoidable 503.
+		if errors.Is(err, errAgentStreamCapacitySessionBudget) {
+			// Stay inside net/http's reusable-connection wait: a busy origin
+			// can satisfy this request as soon as an existing connection is
+			// returned. Moving it to a one-shot transport would strand it
+			// behind those same idle connections until their 30s expiry.
+			a.reclaimIdleAgentTransportFor(agent, false)
+		}
+		if errors.Is(err, errAgentStreamCapacitySessionOpeningLimit) || errors.Is(err, errAgentStreamCapacityWaitTurn) || errors.Is(err, errAgentStreamCapacitySessionBudget) {
+			waitCtx, cancel := context.WithTimeout(ctx, defaultAgentStreamCapacityWaitTimeout)
+			lease, err = a.agentStreamCapacity.acquire(waitCtx, class, queueKey, sessionKey)
+			cancel()
+		}
 	} else {
-		waitCtx, cancel := context.WithTimeout(ctx, defaultAgentStreamCapacityWaitTimeout)
+		waitTimeout := defaultAgentStreamCapacityWaitTimeout
+		if class == agentStreamCapacityTrustedHealth {
+			// Skip a saturated probe promptly; it must not falsely mark a
+			// healthy origin down by consuming the probe's network timeout.
+			waitTimeout = 250 * time.Millisecond
+		}
+		waitCtx, cancel := context.WithTimeout(ctx, waitTimeout)
 		lease, err = a.agentStreamCapacity.acquire(waitCtx, class, queueKey, sessionKey)
 		cancel()
+	}
+	if timing != nil {
+		timing.admission.Add(time.Since(phaseStart).Nanoseconds())
 	}
 	if err != nil {
 		return nil, agentStreamCapacityDialError(ctx, class, err)
 	}
+	phaseStart = time.Now()
 	if a.isAgentUpdateCordoned(agent.AgentID) {
 		lease.release()
 		return nil, errAgentUpdateCordoned
@@ -827,7 +871,11 @@ func (a *App) dialViaAgentWithCapacity(
 			lease.release()
 			return nil, errors.New("agent tunnel stream capacity lease left opening state")
 		}
-		return newCapacityManagedAgentTunnelStreamConn(conn, agent, lease), nil
+		maximumWindow := tunnel.DefaultMaxStreamWindowSizeBytes
+		if a.Config != nil && a.Config.TunnelMaxStreamWindowBytes > 0 {
+			maximumWindow = a.Config.TunnelMaxStreamWindowBytes
+		}
+		return newCapacityManagedAgentTunnelStreamConn(conn, agent, lease, maximumWindow), nil
 	})
 
 	var conn net.Conn
@@ -856,7 +904,7 @@ func (a *App) dialViaAgentWithCapacity(
 		}
 		return nil, ctx.Err()
 	case <-agent.Done:
-		_ = agent.Session.Close()
+		_ = session.Close()
 		log.Debug().
 			Str("request_id", requestID).
 			Str("agent", agent.PublicID).
@@ -865,6 +913,10 @@ func (a *App) dialViaAgentWithCapacity(
 		return nil, errAgentDisconnected
 	}
 	_ = conn.SetDeadline(agentOpenHandshakeDeadline(ctx, time.Now()))
+	if timing != nil {
+		timing.open.Add(time.Since(phaseStart).Nanoseconds())
+	}
+	phaseStart = time.Now()
 	handshakeDone := make(chan struct{})
 	stopHandshakeWatch := func() {
 		select {
@@ -884,11 +936,21 @@ func (a *App) dialViaAgentWithCapacity(
 	}()
 	defer stopHandshakeWatch()
 	req := tunnel.NewOpenRequest(requestID, network, address)
+	req.TraceTimings = timing != nil
 	if err := tunnel.WriteOpenRequest(conn, req); err != nil {
 		_ = conn.Close()
 		return nil, agentOpenHandshakeError(ctx, err)
 	}
 	resp, err := tunnel.ReadOpenResponse(conn)
+	if timing != nil {
+		timing.handshake.Add(time.Since(phaseStart).Nanoseconds())
+		if resp.DialDurationNanos > 0 {
+			timing.agentDial.Add(resp.DialDurationNanos)
+		}
+		if resp.DNSDurationNanos > 0 {
+			timing.agentDNS.Add(resp.DNSDurationNanos)
+		}
+	}
 	if err != nil {
 		_ = conn.Close()
 		return nil, agentOpenHandshakeError(ctx, err)
@@ -908,7 +970,8 @@ func (a *App) dialViaAgentWithCapacity(
 }
 
 func agentStreamCapacitySessionKey(agent *AgentConn, session *yamux.Session) string {
-	return fmt.Sprintf("%p/%p", agent, session)
+	// All physical lanes share the authenticated generation's lifetime budget.
+	return fmt.Sprintf("%p", agent)
 }
 
 func startCapacityManagedAgentStreamOpen(
@@ -954,8 +1017,8 @@ func agentStreamCapacityDialError(ctx context.Context, class agentStreamCapacity
 	if class == agentStreamCapacityPublicPooled {
 		// Global/public/pooled constraints can leave the reusable lane. A
 		// session lifetime constraint may do so only after reclaiming that same
-		// session's idle connection. Opening and fairness constraints remain
-		// terminal because reclaim cannot satisfy them.
+		// session's idle connection. Opening and fairness constraints are queued
+		// in dialViaAgentWithCapacity rather than treated as lack of capacity.
 		if agentStreamCapacityAllowsPooledHandoff(err) {
 			return agentDialError{Kind: "server_pooled_capacity", Err: err.Error(), cause: err}
 		}
@@ -968,13 +1031,15 @@ func agentStreamCapacityAllowsPooledHandoff(err error) bool {
 		errors.Is(err, errAgentStreamCapacityTotalBudget) ||
 		errors.Is(err, errAgentStreamCapacityPublicBudget) ||
 		errors.Is(err, errAgentStreamCapacityPooledBudget) ||
-		errors.Is(err, errAgentStreamCapacitySessionBudget)
+		errors.Is(err, errAgentStreamCapacitySessionBudget) ||
+		errors.Is(err, errAgentStreamCapacityResourcePressure)
 }
 
 func agentStreamCapacityRequiresIdleReclaim(err error) bool {
 	return errors.Is(err, errAgentStreamCapacityTotalBudget) ||
 		errors.Is(err, errAgentStreamCapacityPublicBudget) ||
-		errors.Is(err, errAgentStreamCapacitySessionBudget)
+		errors.Is(err, errAgentStreamCapacitySessionBudget) ||
+		errors.Is(err, errAgentStreamCapacityResourcePressure)
 }
 
 func agentStreamCapacityAllowsCrossSessionReclaim(err error) bool {

@@ -133,11 +133,6 @@ func (a *App) UpdateAgent(
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	if !req.Msg.Enabled {
-		if err := a.ensureAgentCanBeDisabled(ctx, req.Msg.Id); err != nil {
-			return nil, err
-		}
-	}
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, publicDBError(err)
@@ -196,9 +191,6 @@ func (a *App) DeleteAgent(
 
 	if a.AgentHub.connectedByID(req.Msg.Id) != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("connected agent cannot be deleted"))
-	}
-	if err := a.ensureAgentCanBeDisabled(ctx, req.Msg.Id); err != nil {
-		return nil, err
 	}
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
@@ -329,10 +321,6 @@ func (a *App) ensureBootstrapAgent(ctx context.Context) {
 	if err := a.ensureAgentSystemLabel(ctx, agent); err != nil {
 		log.Warn().Err(err).Msg("Failed to upsert bootstrap agent system label")
 	}
-}
-
-func (a *App) ensureAgentCanBeDisabled(ctx context.Context, agentID int64) error {
-	return nil
 }
 
 func (a *App) createAgentWithGeneratedPublicID(ctx context.Context, name string, tokenHash string, enabled int64) (db.Agent, error) {

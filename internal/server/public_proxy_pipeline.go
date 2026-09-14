@@ -107,6 +107,30 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 }
 
 func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult {
+	if ctx.App != nil && ctx.App.agentStreamCapacity != nil {
+		headerBytes := defaultPublicMaxHeaderBytes
+		if ctx.App.Config != nil && ctx.App.Config.PublicMaxHeaderBytes > 0 {
+			headerBytes = ctx.App.Config.PublicMaxHeaderBytes
+		}
+		// Account for both header copies and bounded body-copy/runtime state.
+		// This is independent of physical tunnel streams: many HTTP/2 requests
+		// may share one connection without inheriting its concurrency budget.
+		requestBytes := int64(headerBytes)*2 + 64*1024
+		if ctx.Request != nil && ctx.Request.ProtoMajor == 2 && ctx.Request.ContentLength != 0 {
+			// HTTP/2 can buffer upload data while the origin is stalled. The
+			// relay's copy buffer alone does not cover that receive credit.
+			uploadCredit := int64(publicHTTP2ReceiveWindowBytes)
+			if ctx.Request.ContentLength > 0 {
+				uploadCredit = min(uploadCredit, ctx.Request.ContentLength)
+			}
+			requestBytes += uploadCredit
+		}
+		release, ok, _ := ctx.App.agentStreamCapacity.tryReserveAdaptiveExternal(requestBytes, 0)
+		if !ok {
+			return rejectPublicRequestCapacity(ctx, "public_request_resource_pressure", "Public proxy resource pressure")
+		}
+		ctx.deferCleanup(release)
+	}
 	if ctx.App != nil && ctx.App.publicProxyRequests != nil {
 		release, ok := ctx.App.publicProxyRequests.tryAcquire()
 		if !ok {
@@ -116,9 +140,6 @@ func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult
 	}
 	if ctx.App != nil && ctx.App.publicClientRequests != nil {
 		dynamicLimit := int64(-1)
-		if limit, adaptive := ctx.App.agentStreamCapacity.adaptivePublicClientRequestLimit(); adaptive {
-			dynamicLimit = limit
-		}
 		release, ok := ctx.App.publicClientRequests.tryAcquire(remoteIPForRateLimit(ctx.Request), dynamicLimit)
 		if !ok {
 			ctx.App.publicClientRequestRejected.Add(1)

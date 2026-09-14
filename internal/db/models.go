@@ -248,16 +248,6 @@ type ManagementAgentTrustReport struct {
 	ReportedAt            time.Time `json:"reported_at"`
 }
 
-type ObservabilityRollupState struct {
-	ID                       int64     `json:"id"`
-	ProxyBackfillUpperID     int64     `json:"proxy_backfill_upper_id"`
-	ProxyBackfilledThroughID int64     `json:"proxy_backfilled_through_id"`
-	AgentBackfillUpperID     int64     `json:"agent_backfill_upper_id"`
-	AgentBackfilledThroughID int64     `json:"agent_backfilled_through_id"`
-	CreatedAt                time.Time `json:"created_at"`
-	UpdatedAt                time.Time `json:"updated_at"`
-}
-
 type ProxyRequestEvent struct {
 	ID                 int64         `json:"id"`
 	OccurredAt         time.Time     `json:"occurred_at"`
@@ -471,7 +461,6 @@ type PublicCacheRule struct {
 	CacheStatusCodesJson string    `json:"cache_status_codes_json"`
 	MaxObjectBytes       int64     `json:"max_object_bytes"`
 	AddCacheStatusHeader int64     `json:"add_cache_status_header"`
-	AllowCookieRequests  int64     `json:"allow_cookie_requests"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }

@@ -26,6 +26,7 @@ const (
 type agentTransportKey struct {
 	Kind                        agentTransportKind
 	AgentID                     int64
+	TunnelLane                  int
 	RouteTargetID               int64
 	EnvironmentID               int64
 	TargetOrigin                string
@@ -74,8 +75,6 @@ type agentTransportPoolStats struct {
 	TerminalCapacityFailure uint64
 }
 
-const maxAgentTransportPoolEntries = 256
-
 type agentDialRequestIDContextKey struct{}
 
 func newAgentTransportPool() *agentTransportPool {
@@ -112,6 +111,7 @@ func (p *agentTransportPool) publicRouteTargetTransport(app *App, agent *AgentCo
 	key := agentTransportKey{
 		Kind:                        agentTransportKindRouteTarget,
 		AgentID:                     agent.AgentID,
+		TunnelLane:                  agent.transportLane(),
 		RouteTargetID:               target.ID,
 		TargetOrigin:                routeTargetTransportOrigin(target),
 		TLSSkipVerify:               target.TLSSkipVerify,
@@ -147,23 +147,19 @@ func (p *agentTransportPool) environmentTransport(app *App, agent *AgentConn, en
 	key := agentTransportKey{
 		Kind:                        agentTransportKindEnvironment,
 		AgentID:                     agent.AgentID,
+		TunnelLane:                  agent.transportLane(),
 		EnvironmentID:               env.ID,
 		ManagementURL:               env.ManagementUrl,
 		TrustedCertificateSHA256:    normalizeEnvironmentCertificateFingerprint(env.TrustedCertificateSha256),
 		ResponseHeaderTimeoutMillis: int64(timeout / time.Millisecond),
 	}
-	// Environment proxy requests may carry non-replayable bodies. Select a
-	// one-shot transport before RoundTrip so pooled admission can never require
-	// replaying a body that net/http may already have closed or consumed.
-	return newAgentHTTPTransport(app, agent, tlsConfig, timeout, agentTransportCapacityQueueKey(key), agentStreamCapacityPublicOneShot, true)
+	return p.getOrCreate(app, agent, key, tlsConfig, timeout)
 }
 
 func (p *agentTransportPool) getOrCreate(app *App, agent *AgentConn, key agentTransportKey, tlsConfig *tls.Config, timeout time.Duration) http.RoundTripper {
-	queueKey := agentTransportCapacityQueueKey(key)
 	if p == nil {
-		return newAgentPooledHTTPTransport(app, agent, tlsConfig, timeout, queueKey)
+		return newAgentPooledHTTPTransport(app, agent, tlsConfig, timeout, agentTransportCapacityQueueKey(key), key.TunnelLane)
 	}
-	oneShot := newAgentHTTPTransport(app, agent, tlsConfig, timeout, queueKey, agentStreamCapacityPublicOneShot, true)
 	var closeIdle []*http.Transport
 	p.mu.Lock()
 	if existing := p.entries[key]; existing != nil {
@@ -175,6 +171,7 @@ func (p *agentTransportPool) getOrCreate(app *App, agent *AgentConn, key agentTr
 			closeIdle = append(closeIdle, transport)
 		}
 	}
+	queueKey := agentTransportCapacityQueueKey(key)
 	p.initializeLimitLocked(app)
 	for p.retainedEntriesLocked() >= p.maxEntries && p.maxEntries > 0 {
 		candidateKey, candidate := p.oldestIdleEntryLocked()
@@ -188,15 +185,15 @@ func (p *agentTransportPool) getOrCreate(app *App, agent *AgentConn, key agentTr
 	if p.maxEntries == 0 || p.retainedEntriesLocked() >= p.maxEntries {
 		p.mu.Unlock()
 		closeAgentIdleTransports(closeIdle)
-		return oneShot
+		return newAgentHTTPTransport(app, agent, tlsConfig, timeout, queueKey, agentStreamCapacityPublicOneShot, true, key.TunnelLane)
 	}
 	now := time.Now()
 	entry := &pooledAgentTransport{
 		pool:      p,
 		key:       key,
 		agent:     agent,
-		transport: newAgentPooledHTTPTransport(app, agent, tlsConfig, timeout, queueKey),
-		oneShot:   oneShot,
+		transport: newAgentPooledHTTPTransport(app, agent, tlsConfig, timeout, queueKey, key.TunnelLane),
+		oneShot:   newAgentHTTPTransport(app, agent, tlsConfig, timeout, queueKey, agentStreamCapacityPublicOneShot, true, key.TunnelLane),
 		createdAt: now,
 		lastUsed:  now,
 	}
@@ -215,9 +212,6 @@ func (p *agentTransportPool) initializeLimitLocked(app *App) {
 		return
 	}
 	p.maxEntries = app.agentStreamCapacity.snapshot().Pooled.Capacity
-	if p.maxEntries > maxAgentTransportPoolEntries {
-		p.maxEntries = maxAgentTransportPoolEntries
-	}
 }
 
 func (p *agentTransportPool) retainedEntriesLocked() int {
@@ -240,8 +234,8 @@ func (p *agentTransportPool) oldestIdleEntryLocked() (agentTransportKey, *pooled
 
 // reclaimOldestIdle retires at most one shard when pooled admission is under
 // pressure. idleHint is deliberately advisory: net/http does not expose exact
-// global idle ownership. The zero in-flight condition makes CloseIdleConnections
-// safe, and the capacity manager remains the source of truth because a Yamux
+// global idle ownership. net/http closes only idle connections, and the
+// capacity manager remains the source of truth because a Yamux
 // permit is not reusable until peer FIN is observed.
 func (p *agentTransportPool) reclaimOldestIdle(preferredAgent *AgentConn, allowOtherAgents bool) bool {
 	if p == nil {
@@ -251,9 +245,9 @@ func (p *agentTransportPool) reclaimOldestIdle(preferredAgent *AgentConn, allowO
 	var candidateKey agentTransportKey
 	var candidate *pooledAgentTransport
 	p.mu.Lock()
-	selectCandidate := func(match func(*pooledAgentTransport) bool) {
+	selectCandidate := func(match func(*pooledAgentTransport) bool, includeActive bool) {
 		for key, entry := range p.entries {
-			if entry == nil || entry.retired || entry.inFlight != 0 || !entry.idleHint || !match(entry) {
+			if entry == nil || entry.retired || (!includeActive && entry.inFlight != 0) || !entry.idleHint || !match(entry) {
 				continue
 			}
 			if candidate == nil || entry.lastUsed.Before(candidate.lastUsed) {
@@ -262,17 +256,30 @@ func (p *agentTransportPool) reclaimOldestIdle(preferredAgent *AgentConn, allowO
 		}
 	}
 	if preferredAgent != nil {
-		selectCandidate(func(entry *pooledAgentTransport) bool { return entry.agent == preferredAgent })
+		selectCandidate(func(entry *pooledAgentTransport) bool { return entry.agent == preferredAgent }, false)
 	}
 	if candidate == nil && allowOtherAgents {
-		selectCandidate(func(*pooledAgentTransport) bool { return true })
+		selectCandidate(func(*pooledAgentTransport) bool { return true }, false)
+	}
+	// A hot shard may retain many idle connections beside one long response.
+	// Keep that shard alive and let net/http reclaim its idle sockets safely.
+	if candidate == nil && preferredAgent != nil {
+		selectCandidate(func(entry *pooledAgentTransport) bool { return entry.agent == preferredAgent }, true)
+	}
+	if candidate == nil && allowOtherAgents {
+		selectCandidate(func(*pooledAgentTransport) bool { return true }, true)
 	}
 	if candidate == nil {
 		p.mu.Unlock()
 		p.reclaimNoCandidate.Add(1)
 		return false
 	}
-	transport := p.retireLocked(candidateKey, candidate)
+	transport := candidate.transport
+	if candidate.inFlight == 0 {
+		transport = p.retireLocked(candidateKey, candidate)
+	} else {
+		candidate.idleHint = false
+	}
 	p.mu.Unlock()
 	if transport != nil {
 		transport.CloseIdleConnections()
@@ -352,10 +359,12 @@ func (entry *pooledAgentTransport) RoundTrip(req *http.Request) (*http.Response,
 		return oneShot.RoundTrip(req)
 	}
 	entry.inFlight++
-	entry.idleHint = false
 	entry.lastUsed = time.Now()
 	transport := entry.transport
 	entry.pool.mu.Unlock()
+	if timing := agentTimingFromContext(req.Context()); timing != nil {
+		timing.lane.Store(int64(entry.key.TunnelLane))
+	}
 
 	resp, err := transport.RoundTrip(req)
 	if err != nil || resp == nil {
@@ -445,8 +454,8 @@ func (b *agentTransportTrackedBody) finish(reusable bool) {
 	})
 }
 
-func newAgentPooledHTTPTransport(app *App, agent *AgentConn, tlsConfig *tls.Config, timeout time.Duration, queueKey string) *http.Transport {
-	return newAgentHTTPTransport(app, agent, tlsConfig, timeout, queueKey, agentStreamCapacityPublicPooled, false)
+func newAgentPooledHTTPTransport(app *App, agent *AgentConn, tlsConfig *tls.Config, timeout time.Duration, queueKey string, lane ...int) *http.Transport {
+	return newAgentHTTPTransport(app, agent, tlsConfig, timeout, queueKey, agentStreamCapacityPublicPooled, false, lane...)
 }
 
 func newAgentHTTPTransport(
@@ -457,6 +466,7 @@ func newAgentHTTPTransport(
 	queueKey string,
 	class agentStreamCapacityClass,
 	disableKeepAlives bool,
+	lane ...int,
 ) *http.Transport {
 	base, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
@@ -469,9 +479,6 @@ func newAgentHTTPTransport(
 		maxIdleConnections = app.agentStreamCapacity.snapshot().Pooled.Capacity
 		if maxIdleConnections < 1 {
 			maxIdleConnections = 1
-		}
-		if maxIdleConnections > maxAgentTransportPoolEntries {
-			maxIdleConnections = maxAgentTransportPoolEntries
 		}
 	}
 	// The manager's pooled lifetime budget is the authoritative global idle
@@ -492,7 +499,7 @@ func newAgentHTTPTransport(
 				requestID = id.String()
 			}
 		}
-		return app.dialViaAgentWithCapacity(ctx, agent, network, address, requestID, class, queueKey)
+		return app.dialViaAgentWithCapacity(ctx, agent, network, address, requestID, class, queueKey, lane...)
 	}
 	return transport
 }

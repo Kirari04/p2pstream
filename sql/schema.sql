@@ -299,27 +299,6 @@ CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS observability_rollup_state (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    proxy_backfill_upper_id INTEGER NOT NULL DEFAULT 0,
-    proxy_backfilled_through_id INTEGER NOT NULL DEFAULT 0,
-    agent_backfill_upper_id INTEGER NOT NULL DEFAULT 0,
-    agent_backfilled_through_id INTEGER NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-INSERT INTO observability_rollup_state (
-    id, proxy_backfill_upper_id, proxy_backfilled_through_id, agent_backfill_upper_id, agent_backfilled_through_id
-)
-SELECT
-    1,
-    CAST(COALESCE((SELECT MAX(id) FROM proxy_request_events), 0) AS INTEGER),
-    0,
-    CAST(COALESCE((SELECT MAX(id) FROM agent_stats), 0) AS INTEGER),
-    0
-WHERE NOT EXISTS (SELECT 1 FROM observability_rollup_state WHERE id = 1);
-
 CREATE TABLE IF NOT EXISTS public_response_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
@@ -712,7 +691,6 @@ CREATE TABLE IF NOT EXISTS public_cache_rules (
     cache_status_codes_json TEXT NOT NULL DEFAULT '[200,203,204,301,308]',
     max_object_bytes INTEGER NOT NULL DEFAULT 104857600,
     add_cache_status_header INTEGER NOT NULL DEFAULT 1,
-    allow_cookie_requests INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -754,9 +732,9 @@ CREATE TABLE IF NOT EXISTS public_cache_entries (
     status_code INTEGER NOT NULL,
     body_path TEXT NOT NULL,
     size_bytes INTEGER NOT NULL,
-    stored_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    stored_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S+00:00', 'now')),
     expires_at DATETIME NOT NULL,
-    last_accessed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_accessed_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S+00:00', 'now')),
     hit_count INTEGER NOT NULL DEFAULT 0
 );
 

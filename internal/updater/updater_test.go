@@ -220,7 +220,7 @@ func newFixture(t testing.TB) fixture {
 	if err := atomicJSON(paths.currentSlotMetadataPath(), bootstrap, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := atomicJSON(paths.floorPath(), Floor{Version: "v1.0.0", Sequence: 1, SecurityEpoch: 3, MinimumSafeVersion: "v1.0.0"}, 0640); err != nil {
+	if err := atomicJSON(paths.floorPath(), Floor{Version: "v1.0.0", Sequence: 1, SecurityEpoch: 3, MinimumSafeVersion: "v1.0.0", ManifestSHA256: strings.Repeat("e", 64)}, 0640); err != nil {
 		t.Fatal(err)
 	}
 	assignment := Assignment{AgentPublicID: "agent-public-a", AssignmentID: 41, Generation: 7, Nonce: bytes.Repeat([]byte{0x42}, 32)}

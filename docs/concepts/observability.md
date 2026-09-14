@@ -18,7 +18,7 @@ The **Overview** page summarizes retained proxy request events over `5m`, `1h`, 
 OBSERVABILITY_RETENTION_DAYS=30
 ```
 
-Proxy request events include status code, duration, error kind, listener ID, route ID, route target ID, WAF rule/action, cache rule/status/bytes, retry rule/count/outcome/initial error, final agent ID, request bytes, and response bytes. Recovered retries are retained as diagnostic samples even when their final status is successful. The route-target-only migration resets retained proxy request events and proxy rollups so legacy backend IDs are no longer kept. Agent stats history is not reset.
+Proxy request events include status code, duration, error kind, listener ID, route ID, route target ID, WAF rule/action, cache rule/status/bytes, retry rule/count/outcome/initial error, final agent ID, request bytes, and response bytes. Recovered retries are retained as diagnostic samples even when their final status is successful.
 
 Agents report memory, CPU percentage, goroutine count, active requests, request outcome counters, bytes received, and bytes sent.
 

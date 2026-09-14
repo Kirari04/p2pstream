@@ -24,7 +24,7 @@ const authority = {
 
 // All commands run against local fixtures. sudo and curl are replaced; neither
 // the real installer nor a remote service is invoked by these tests.
-function fixture(options: { arch?: string; legacy?: boolean; version?: string } = {}) {
+function fixture(options: { arch?: string; version?: string } = {}) {
   const version = options.version ?? input.version;
   const arch = options.arch ?? "amd64";
   const root = mkdtempSync(join(tmpdir(), "agent-setup-test-"));
@@ -42,13 +42,8 @@ function fixture(options: { arch?: string; legacy?: boolean; version?: string } 
   expect(Bun.spawnSync(["tar", "-czf", join(assets, sourceAsset), "-C", root, `p2pstream-${version}`]).exitCode).toBe(0);
   const binary = join(root, "p2pstream");
   writeFileSync(binary, `fixture binary for ${version} ${arch}`);
-  let binaryAsset = `p2pstream_${version}_linux_${arch}`;
-  if (options.legacy) {
-    binaryAsset += ".tar.gz";
-    expect(Bun.spawnSync(["tar", "-czf", join(assets, binaryAsset), "-C", root, "./p2pstream"]).exitCode).toBe(0);
-  } else {
-    writeFileSync(join(assets, binaryAsset), readFileSync(binary));
-  }
+  const binaryAsset = `p2pstream_${version}_linux_${arch}`;
+  writeFileSync(join(assets, binaryAsset), readFileSync(binary));
   const checksum = (name: string) => `${createHash("sha256").update(readFileSync(join(assets, name))).digest("hex")}  ${name}\n`;
   const manifest = checksum(sourceAsset) + checksum(binaryAsset);
   writeFileSync(join(assets, "checksums.txt"), manifest);
@@ -125,8 +120,8 @@ describe("copy-and-paste Linux setup commands", () => {
     });
   }
 
-  test("supports older releases with archived binaries and resolves latest once", () => {
-    const f = fixture({ version: "v0.1.52", legacy: true });
+  test("supports older releases with raw binaries and resolves latest once", () => {
+    const f = fixture({ version: "v0.1.52" });
     const result = f.run(linuxInstallSnippet({ ...input, version: "latest" }));
     expect(result.stderr).toBe("");
     expect(result.exitCode).toBe(0);

@@ -464,7 +464,7 @@ func TestPublicWafGeoRestrictionAPIRoundTripAndReadiness(t *testing.T) {
 	if stored.GeoMode != publicWafGeoModeSelected || stored.GeoCountryCodesJson != `["CH","XK"]` || stored.GeoUnknownBehavior != publicWafGeoUnknownBypassRule {
 		t.Fatalf("unexpected stored geo WAF rule: %+v", stored)
 	}
-	oldClientUpdate := func(geoRestriction *p2pstreamv1.PublicWafGeoRestriction) (*p2pstreamv1.PublicWafRule, error) {
+	updateRule := func(geoRestriction *p2pstreamv1.PublicWafGeoRestriction) (*p2pstreamv1.PublicWafRule, error) {
 		req := connect.NewRequest(&p2pstreamv1.UpdatePublicWafRuleRequest{
 			Id:             created.Msg.Rule.Id,
 			Name:           created.Msg.Rule.Name,
@@ -480,21 +480,12 @@ func TestPublicWafGeoRestrictionAPIRoundTripAndReadiness(t *testing.T) {
 		}
 		return resp.Msg.Rule, nil
 	}
-	app.GeoConfigRefresher = &testPublicGeoConfigRefresher{geoErr: errors.New("runtime unavailable")}
-	if _, err := oldClientUpdate(nil); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("old-client update with unavailable runtime code = %s, want failed_precondition: %v", connect.CodeOf(err), err)
+	if _, err := updateRule(nil); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("omitted geo restriction must be rejected: %v", err)
 	}
-	app.GeoConfigRefresher = &testPublicGeoConfigRefresher{geoInfo: PublicGeoIPDatabaseInfo{
-		DatabaseType: "GeoLite2-Country",
-		BuildAt:      now.Add(-time.Hour),
-	}}
-	preserved, err := oldClientUpdate(nil)
-	if err != nil {
-		t.Fatalf("old-client update: %v", err)
-	}
-	if preserved.GeoRestriction == nil || preserved.GeoRestriction.Mode != p2pstreamv1.PublicWafGeoRestrictionMode_PUBLIC_WAF_GEO_RESTRICTION_MODE_SELECTED_COUNTRIES ||
-		!reflect.DeepEqual(preserved.GeoRestriction.CountryCodes, []string{"CH", "XK"}) {
-		t.Fatalf("old-client update stripped geo restriction: %+v", preserved.GeoRestriction)
+	unchanged, err := app.DB.GetPublicWafRule(ctx, created.Msg.Rule.Id)
+	if err != nil || unchanged.GeoCountryCodesJson != stored.GeoCountryCodesJson || unchanged.Priority != stored.Priority {
+		t.Fatalf("rejected update changed geo policy: %+v, %v", unchanged, err)
 	}
 
 	disableGeo := connect.NewRequest(&p2pstreamv1.UpdatePublicGeoIpSettingsRequest{Enabled: false, MaxmindAccountId: "123"})
@@ -502,7 +493,7 @@ func TestPublicWafGeoRestrictionAPIRoundTripAndReadiness(t *testing.T) {
 	if _, err := app.UpdatePublicGeoIpSettings(ctx, disableGeo); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("disable GeoIP with enabled geo rule code = %s, want failed_precondition: %v", connect.CodeOf(err), err)
 	}
-	cleared, err := oldClientUpdate(&p2pstreamv1.PublicWafGeoRestriction{
+	cleared, err := updateRule(&p2pstreamv1.PublicWafGeoRestriction{
 		Mode: p2pstreamv1.PublicWafGeoRestrictionMode_PUBLIC_WAF_GEO_RESTRICTION_MODE_DISABLED,
 	})
 	if err != nil {

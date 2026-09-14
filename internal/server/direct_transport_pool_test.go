@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"p2pstream/internal/sysmetrics"
 )
 
 func TestDirectTransportPoolReusesPublicRouteTargetConnection(t *testing.T) {
@@ -46,6 +48,33 @@ func TestDirectTransportPoolAppliesConnectionBudget(t *testing.T) {
 	}
 	if transport.MaxConnsPerHost != 17 {
 		t.Fatalf("MaxConnsPerHost = %d, want 17", transport.MaxConnsPerHost)
+	}
+}
+
+func TestDirectResourcePressurePreservesOriginHealthAndRecovers(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) }))
+	defer upstream.Close()
+	app := NewApp(nil, nil)
+	defer app.DirectTransports.closeAll()
+	healthTarget := testHealthTarget(t, 70, publicRouteTargetTransportDirect, upstream.URL)
+	target := directTransportPoolTestTarget(t, 70, upstream.URL, time.Second)
+	app.TargetHealth.reconcile(app, testHealthSnapshot(healthTarget), false)
+	usage := sysmetrics.MemoryUsage{UsedBytes: 480 << 20, LimitBytes: 512 << 20, Source: "test"}
+	app.agentStreamCapacity = newAdaptiveServerCapacityForTest(t, 65536, &usage)
+	rec := httptest.NewRecorder()
+	proxyDirectTargetForTest(app, rec, httptest.NewRequest(http.MethodGet, "http://public.test/", nil), target)
+	if rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Retry-After") != "1" {
+		t.Fatalf("resource pressure response = %d, headers=%v", rec.Code, rec.Header())
+	}
+	if !app.TargetHealth.available(healthTarget) {
+		t.Fatal("local capacity marked a healthy origin unavailable")
+	}
+	usage.UsedBytes = 64 << 20
+	app.agentStreamCapacity.refreshAdaptiveCapacity(true)
+	rec = httptest.NewRecorder()
+	proxyDirectTargetForTest(app, rec, httptest.NewRequest(http.MethodGet, "http://public.test/", nil), target)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("resource recovery response = %d", rec.Code)
 	}
 }
 

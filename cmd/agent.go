@@ -84,6 +84,16 @@ var agentCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
 		}
+		connections, err := agentTunnelIntegerOption(cmd, "tunnel-connections", "TUNNEL_CONNECTIONS", tunnel.DefaultParallelTunnels)
+		if err != nil || connections < 1 || connections > tunnel.MaxParallelTunnels {
+			fmt.Fprintf(os.Stderr, "TUNNEL_CONNECTIONS must be between 1 and %d: %v\n", tunnel.MaxParallelTunnels, err)
+			os.Exit(1)
+		}
+		socketBuffer, err := agentTunnelIntegerOption(cmd, "tunnel-upstream-socket-buffer-bytes", "TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES", tunnel.DefaultUpstreamSocketBufferBytes)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
 		allowTargets, _ := cmd.Flags().GetStringArray("allow-target")
 		if len(allowTargets) == 0 {
 			allowTargets = splitAgentAllowTargets(os.Getenv("AGENT_ALLOW_TARGETS"))
@@ -98,21 +108,23 @@ var agentCmd = &cobra.Command{
 		defer stop()
 
 		if err := agent.RunContext(ctx, agent.Options{
-			ManagementURL:               mgmtURL,
-			PublicID:                    agentID,
-			Name:                        agentName,
-			Token:                       agentToken,
-			ManagementCAFile:            managementCAFile,
-			ManagementCAPEMBase64:       managementCAPEMBase64,
-			ManagementTrustFile:         managementTrustFile,
-			TLSCertFile:                 tlsCertFile,
-			TLSKeyFile:                  tlsKeyFile,
-			AllowInsecureManagement:     allowInsecureManagement,
-			AllowTargets:                allowTargets,
-			AllowAnyTarget:              allowAnyTarget,
-			TunnelMaxStreamWindowBytes:  tunnelMaxStreamWindowBytes,
-			TunnelMaxConcurrentRequests: tunnelMaxConcurrentRequests,
-			TunnelCapacityAdaptive:      agentTunnelCapacityAdaptive(cmd),
+			ManagementURL:                   mgmtURL,
+			PublicID:                        agentID,
+			Name:                            agentName,
+			Token:                           agentToken,
+			ManagementCAFile:                managementCAFile,
+			ManagementCAPEMBase64:           managementCAPEMBase64,
+			ManagementTrustFile:             managementTrustFile,
+			TLSCertFile:                     tlsCertFile,
+			TLSKeyFile:                      tlsKeyFile,
+			AllowInsecureManagement:         allowInsecureManagement,
+			AllowTargets:                    allowTargets,
+			AllowAnyTarget:                  allowAnyTarget,
+			TunnelMaxStreamWindowBytes:      tunnelMaxStreamWindowBytes,
+			TunnelMaxConcurrentRequests:     tunnelMaxConcurrentRequests,
+			TunnelCapacityAdaptive:          agentTunnelCapacityAdaptive(cmd),
+			TunnelConnections:               int(connections),
+			TunnelUpstreamSocketBufferBytes: socketBuffer,
 		}); err != nil && ctx.Err() == nil {
 			fmt.Fprintln(os.Stderr, "agent failed: "+err.Error())
 			os.Exit(1)
@@ -147,6 +159,8 @@ func init() {
 	agentCmd.Flags().Bool("allow-insecure-management", false, "Allow an insecure HTTP management URL")
 	agentCmd.Flags().Int64("tunnel-max-stream-window-bytes", tunnel.DefaultMaxStreamWindowSizeBytes, "Maximum Yamux receive window per tunnel stream in bytes")
 	agentCmd.Flags().Int64("tunnel-max-concurrent-requests", 0, "Optional fixed concurrent tunnel request limit (default: adaptive local resource pressure)")
+	agentCmd.Flags().Int64("tunnel-connections", tunnel.DefaultParallelTunnels, "Parallel TCP tunnels sharing one agent's resource capacity")
+	agentCmd.Flags().Int64("tunnel-upstream-socket-buffer-bytes", tunnel.DefaultUpstreamSocketBufferBytes, "Per-direction origin socket buffer, included in stream memory accounting")
 	agentCmd.Flags().StringArray("allow-target", nil, "Opt-in tunnel destination allowlist entry; repeat for CIDR/IP/hostname with optional port or port range")
 	agentCmd.Flags().Bool("allow-any-target", false, "Explicitly allow management to dial any destination reachable by this agent")
 }
@@ -227,6 +241,21 @@ func agentTunnelMaxStreamWindowBytes(cmd *cobra.Command) (int64, error) {
 	value, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid TUNNEL_MAX_STREAM_WINDOW_BYTES %q: %w", raw, err)
+	}
+	return value, nil
+}
+
+func agentTunnelIntegerOption(cmd *cobra.Command, flag, environment string, fallback int64) (int64, error) {
+	if cmd.Flags().Changed(flag) {
+		return cmd.Flags().GetInt64(flag)
+	}
+	raw := strings.TrimSpace(os.Getenv(environment))
+	if raw == "" {
+		return fallback, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s: %w", environment, err)
 	}
 	return value, nil
 }

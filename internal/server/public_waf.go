@@ -1422,15 +1422,7 @@ func (a *App) UpdatePublicWafRule(ctx context.Context, req *connect.Request[p2ps
 	}
 	geoRestriction := req.Msg.GeoRestriction
 	if geoRestriction == nil {
-		existing, err := a.DB.GetPublicWafRule(ctx, req.Msg.Id)
-		if err != nil {
-			return nil, publicDBError(err)
-		}
-		stored, err := decodeStoredPublicWafGeoRestriction(existing.GeoMode, existing.GeoCountryCodesJson, existing.GeoUnknownBehavior)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("stored WAF geo restriction is invalid: %w", err))
-		}
-		geoRestriction = publicWafGeoRestrictionToProto(stored)
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("geo_restriction is required for WAF rule updates; send disabled mode to clear it"))
 	}
 	if err := a.applyPublicWafGeoRestrictionInput(ctx, req.Msg.Enabled, geoRestriction, &params); err != nil {
 		return nil, err

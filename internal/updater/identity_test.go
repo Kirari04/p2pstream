@@ -74,7 +74,7 @@ func TestBootstrapCannotLowerFloor(t *testing.T) {
 	if err := pinBootstrapState(paths, "v1.4.0", true, uid, gid); err != nil {
 		t.Fatal(err)
 	}
-	wantFloor := Floor{Version: "v1.4.0", Sequence: 9, SecurityEpoch: 4, MinimumSafeVersion: "v1.3.0"}
+	wantFloor := Floor{Version: "v1.4.0", Sequence: 9, SecurityEpoch: 4, MinimumSafeVersion: "v1.3.0", ManifestSHA256: strings.Repeat("e", 64)}
 	if err := atomicJSON(paths.floorPath(), wantFloor, 0640); err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +84,28 @@ func TestBootstrapCannotLowerFloor(t *testing.T) {
 	gotFloor, err := loadFloor(paths.floorPath())
 	if err != nil || gotFloor != wantFloor {
 		t.Fatalf("floor lowered on re-bootstrap: %+v, %v", gotFloor, err)
+	}
+}
+
+func TestLoadFloorRejectsUnpinnedPersistedSecurityFloor(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "floor.json")
+	want := Floor{Version: "v1.4.0", Sequence: 9, SecurityEpoch: 4, MinimumSafeVersion: "v1.3.0"}
+	if err := atomicJSON(path, want, 0640); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadFloor(path); err == nil || !strings.Contains(err.Error(), "unsupported") || !strings.Contains(err.Error(), "manifest pin") {
+		t.Fatalf("unpinned persisted floor error = %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got Floor
+	if err := strictJSON(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("rejected floor was modified: got %+v, want %+v", got, want)
 	}
 }
 

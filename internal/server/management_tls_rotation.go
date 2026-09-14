@@ -98,24 +98,28 @@ func NewManagementTLSRuntime(cfg *config.Config, database *db.DB, tlsConfig *tls
 		ActiveKeyFile:    keyFile,
 		ActiveCAPEM:      strings.TrimSpace(cfg.ManagementCAPEM),
 	}
+	var persistedFields map[string]json.RawMessage
+	loadedFromDisk := false
 	if raw, err := os.ReadFile(runtime.stateFile); err == nil {
 		if err := json.Unmarshal(raw, &runtime.state); err != nil {
 			return nil, fmt.Errorf("parse management TLS rotation state: %w", err)
 		}
+		if err := json.Unmarshal(raw, &persistedFields); err != nil {
+			return nil, fmt.Errorf("parse management TLS rotation state fields: %w", err)
+		}
+		loadedFromDisk = true
 		if runtime.state.ActiveGeneration == 0 {
 			return nil, errors.New("invalid management TLS rotation state: active generation is zero")
 		}
 	} else if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("read management TLS rotation state: %w", err)
 	}
-	if runtime.state.StagedGeneration == 0 && runtime.state.Phase == "distributing" {
-		runtime.state.StagedGeneration = runtime.state.RolloutGeneration
+	if loadedFromDisk && runtime.state.Phase == "distributing" && runtime.state.StagedGeneration == 0 {
+		return nil, errors.New("unsupported management TLS rotation state: distributing state has no staged generation")
 	}
-	if !runtime.state.TrustManaged && runtime.state.Phase == "idle" && runtime.state.ActiveGeneration > 1 && strings.TrimSpace(runtime.state.ActiveCAPEM) != "" {
-		runtime.state.TrustManaged = true
-		runtime.state.DesiredTrustGeneration = runtime.state.ActiveGeneration
-		runtime.state.DesiredTrustCAPEM = normalizeCertificateBundle(runtime.state.ActiveCAPEM)
-		runtime.state.DesiredTrustBundleSHA256 = managementCAPEMSHA256(runtime.state.DesiredTrustCAPEM)
+	if loadedFromDisk && runtime.state.Phase == "idle" && runtime.state.ActiveGeneration > 1 && !runtime.state.TrustManaged &&
+		strings.TrimSpace(runtime.state.ActiveCAPEM) != "" && persistedFields["trust_managed"] == nil {
+		return nil, errors.New("unsupported management TLS rotation state: idle state lacks managed trust metadata")
 	}
 	if err := validateManagementTLSRotationState(runtime.state); err != nil {
 		return nil, fmt.Errorf("validate management TLS rotation state: %w", err)

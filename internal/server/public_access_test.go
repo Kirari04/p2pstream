@@ -160,18 +160,12 @@ func TestPublicAccessLocalUserManagementHashesSecretsAndRevokesSessions(t *testi
 		LocalAuthLoginTemplateId: provider.LocalAuthLoginTemplateId,
 	})
 	legacyUpdateReq.Header().Set("Cookie", header.Get("Cookie"))
-	legacyUpdateResp, err := app.UpdatePublicAccessProvider(ctx, legacyUpdateReq)
-	if err != nil {
-		t.Fatalf("legacy-schema local provider update: %v", err)
+	if _, err := app.UpdatePublicAccessProvider(ctx, legacyUpdateReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("incomplete local provider update: %v", err)
 	}
-	provider = legacyUpdateResp.Msg.Provider
-	if got := strings.Join(provider.LocalAuthAllowedHosts, ","); got != "*.apps.example.test,login.example.test" ||
-		provider.LocalAuthCookieSameSite != p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT ||
-		provider.LocalAuthCookieDomain != "example.test" || !provider.LocalAuthCookieSecure || provider.LocalAuthCookieName != "family_access" ||
-		provider.LocalAuthLoginUsernameMaxFailures != 3 || provider.LocalAuthLoginClientMaxFailures != 12 ||
-		provider.LocalAuthLoginWindowMillis != int64((2*time.Minute)/time.Millisecond) ||
-		provider.LocalAuthLoginBlockMillis != int64((10*time.Minute)/time.Millisecond) {
-		t.Fatalf("legacy-schema update replaced local security settings: %+v", provider)
+	storedProvider, err := app.DB.GetPublicAccessProvider(ctx, provider.Id)
+	if err != nil || storedProvider.Name != "family" || storedProvider.LocalAuthCookieName != "family_access" || storedProvider.LocalAuthLoginUsernameMaxFailures != 3 {
+		t.Fatalf("rejected update changed provider: %+v, %v", storedProvider, err)
 	}
 
 	userReq := connect.NewRequest(&p2pstreamv1.CreatePublicAccessUserRequest{

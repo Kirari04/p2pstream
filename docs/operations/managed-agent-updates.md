@@ -148,15 +148,20 @@ decisions.
 
 Cancelling a campaign does not immediately release hosts with an outstanding activation authorization. They remain cordoned and reserved until the privileged updater attests rollback and the agent establishes a fresh tunnel. A blocked host in a cancelled campaign can use **Recover agents** (called **Retry** in older interfaces) to request recovery. When rollback is already pending, wait for the updater instead of retrying the same assignment again. A paused campaign must be resumed or cancelled before its queued rollback can execute.
 
-After verified recovery, the historical assignment remains **failed**, with desired action **none** and traffic eligible. That host can be selected in **Plan rollout** again. If the updater is stale or rollback times out, inspect the updater and activator service journals on the host; cancelling or refreshing the browser cannot replace that missing host evidence. Management builds through `v0.1.53-staging.87` also rejected rollback results for assignments left in the blocked phase by cancellation. The corrected report handler accepts those administrator-authorized recovery results while retaining root signature validation and the fresh-tunnel requirement.
+After verified recovery, the historical assignment remains **failed**, with desired action **none** and traffic eligible. That host can be selected in **Plan rollout** again. If the updater is stale or rollback times out, inspect the updater and activator service journals on the host; cancelling or refreshing the browser cannot replace that missing host evidence. Administrator-authorized recovery still requires root signature validation and a fresh tunnel carrying the exact restored build.
 
-If the worker journal repeats `root action report does not match its signed result receipt`, updater builds through `v0.1.53-staging.87` omitted the restored version, commit, and digests from the rollback report envelope, even though the signed root receipt contained them. The worker retries this durable result before polling, so restarting it cannot clear the loop. Upgrade management to a build containing the rollback-report compatibility fix: it accepts the all-empty legacy envelope only for rollback, verifies the signed receipt normally, and records the receipt's result. New updater builds also fill the envelope correctly. If the assignment already reached `root_action_timeout`, use **Recover agents** after upgrading management; the obsolete result can then be acknowledged without releasing the traffic fence, and the worker can obtain a new signed rollback. Do not delete or edit host receipts, rotate the agent token, or reinstall the live agent to clear this reporting error. The separate pinned-updater permission fix described below is still required before retrying activation on an old rescue runner.
+If the worker journal reports `root action report does not match its signed result receipt`, inspect the signed root receipt and the exact result fields in the report. Current management requires the manifest, artifact, restored version, and restored commit to match that receipt; an empty or partial legacy envelope is unsupported. Durable signed action and failure results are replayed in place after a lost response. Do not delete or edit host receipts, rotate the agent token, or reinstall the live agent to clear a reporting error. Complete the previous-release repair and re-enrollment steps in [Upgrades](./upgrades) before the planned v0.1.53 cutover.
 
-If a host enrolled successfully but shows **Worker stale**, check `systemctl status p2pstream-updater.service` and its journal. Releases through `v0.1.53-staging.85` installed units with an obsolete `ConditionPathExists=/etc/p2pstream-updater/root.json` requirement. The current updater provisions `updater.json`, `enrolled.json`, and `management-authority.json`; it does not create `root.json`. Replace that exact obsolete condition with `ConditionPathExists=/etc/p2pstream-updater/updater.json` in both updater service files, reload systemd, restart the updater timer and activation path, and start `p2pstream-updater.service`. Keep the enrollment and management-authority conditions. No token rotation or changes to agent destination permissions are needed.
+If a host enrolled successfully but shows **Worker stale**, check the updater
+service and timer journals. Complete stale-host repair with the previous release
+before the planned v0.1.53 cutover; v0.1.53 does not reconstruct obsolete updater
+state or service conditions. Keep the existing agent token, live binary, and
+destination policy while performing that repair.
 
 Re-enrolling or repairing an already managed host updates its rescue runner and keeps its existing agent binary and rollback state. Upgrading that binary requires a rollout campaign. A successful repair message alone does not confirm that the agent upgraded; check **Live tunnel** and the campaign result.
 
-The timer shipped through `v0.1.53-staging.88` can stop scheduling after repair.
+The updater timer can stop scheduling after repair if its next trigger was
+already consumed.
 The enrollment command sends its own check-in before systemd starts the worker,
 so management can show the new pinned updater version while subsequent checks
 never arrive. Check `systemctl status p2pstream-updater.timer`: the characteristic
@@ -165,7 +170,7 @@ trigger was already consumed, and stopping/reloading the units can discard the
 service activation timestamps needed by `OnUnitActiveSec`. The corrected timer
 adds `OnActiveSec=30s`, giving every timer restart a fresh scheduling deadline.
 
-For an already repaired `.88` host, apply the timer correction directly:
+For an already repaired host, apply the timer correction directly:
 
 ```sh
 sudo install -d -m 0755 /etc/systemd/system/p2pstream-updater.timer.d &&
@@ -180,7 +185,14 @@ current campaign. The timer should show a future trigger while waiting; **runnin
 is also normal while its worker executes. A failed worker invocation requires
 its journal (`sudo journalctl -u p2pstream-updater.service -n 50 --no-pager`).
 
-If activation reports that the agent service did not become active and rolled back, inspect the agent service journal and the candidate slot permissions. Updater builds through `v0.1.53-staging.86` created the new slot directory with mode `0700`; the activator's `UMask=0077` also restricted the executable to `0700`. The `p2pstream` service user cannot execute that root-owned slot. The corrected updater explicitly applies `0755` to the verified executable and its version directory before promotion, and repairs those permissions on verified existing slots during retry. Its private state still uses the restrictive umask. Install a release containing this correction into each host's pinned rescue updater before attempting further rollouts; changing only the management server or the agent's live binary does not replace that separate runner.
+If activation reports that the agent service did not become active and rolled
+back, inspect the agent service journal and candidate slot permissions. Current
+updater state requires the protected executable and version directory to be
+readable and executable with mode `0755`, with the existing no-follow, owner,
+type, digest, and size checks. It does not repair legacy slot modes during
+retry. Complete that repair with the previous release before the planned v0.1.53
+cutover; changing only the management server or live agent binary does not
+replace the pinned runner.
 
 - A failed download, manifest, size, or digest check never reaches the
   privileged helper.
@@ -193,8 +205,9 @@ If activation reports that the agent service did not become active and rolled ba
   cannot advance a wave.
 - Server watchdogs bound staging, draining, privileged action, reconnect, and
   evidence waits.
-- Verified staged bytes and durable action/failure results are retried in place
-  after a lost response.
+- Verified staged bytes and durable signed action/failure results are retried in
+  place after a lost response; a worker rollback result is not used as a
+  substitute for the durable root receipt.
 - Successful updates retain only current, previous, and journal-referenced
   slots using no-follow owner/type/link checks.
 - The rescue updater has its own compatibility version. Upgrading it requires a
@@ -219,17 +232,15 @@ rollbacks should pin the version tag or OCI digest rather than a channel alias.
 
 ## Verification
 
-The manifest generator enforces the repository's minimum supported pinned
-updater, `v0.1.53-staging.88`. It takes the higher of this floor and the configured
-`AGENT_UPDATE_UPDATER_MIN_VERSION`, and rejects an incompatible maximum. The
-floor stays fixed for later tunnel releases, so a corrected `.88` updater can
-install subsequent compatible releases without another repair. Updater range
-bounds accept canonical SemVer prereleases; server compatibility and minimum
-safe-version bounds keep their existing stable-version rules. Upgrade
-management first, complete any pending recovery, then repair older pinned
-updaters before starting the next rollout. Older management builds reject a
-manifest containing the new prerelease updater bound until management itself
-is upgraded.
+The manifest generator requires at least `v0.1.53-staging.88` for the pinned
+updater, or the configured `AGENT_UPDATE_UPDATER_MIN_VERSION` if higher, and
+rejects incompatible maximums. This release floor does not replace the persisted
+state checks required for the planned v0.1.53 cutover. Updater range bounds accept canonical SemVer
+prereleases; server compatibility and minimum-safe-version bounds keep their
+current stable-version rules. Before upgrading to v0.1.53, upgrade management to `v0.1.53-staging.90`, complete
+pending recovery, and repair or re-enroll older pinned updaters with the
+preparation release. v0.1.53 requires a manifest-pinned floor and does not
+auto-restore an absent manifest pin.
 
 Run the real service lifecycle test on a Linux amd64 workstation with Go and
 Multipass installed:
@@ -238,13 +249,13 @@ Multipass installed:
 scripts/test-managed-updates-systemd.sh
 ```
 
-The script builds the current source and an actual `.84` worker, creates a
-disposable Ubuntu 24.04 VM, and uses the production installer, service users,
+The script builds the current source, creates a disposable Ubuntu 24.04 VM, and
+uses the production installer, service users,
 systemd hardening, updater/activator executables, authenticated management
 handlers, and agent tunnels. It verifies upgrades, signed cancellation
-rollback, legacy worker reporting, lost-response retry, pinned updater repair
-after verified recovery, recovery from an exhausted systemd crash limit, and a
-subsequent rollout to the same cancelled target.
+rollback with exact signed result fields, lost-response retry, pinned updater
+repair after verified recovery, recovery from an exhausted systemd crash limit,
+and a subsequent rollout to the same cancelled target.
 Success checks include the real agent
 process executable, reported build, released traffic fence, and unchanged
 agent token/network configuration. It independently checks the repaired pinned

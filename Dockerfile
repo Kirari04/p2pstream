@@ -25,6 +25,7 @@ ARG COMMIT
 ARG SOURCE_REPOSITORY
 ARG RELEASE_CHANNEL
 COPY go.mod go.sum ./
+COPY third_party/yamux ./third_party/yamux
 RUN go mod download
 COPY . .
 RUN go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=${VERSION} -X p2pstream/internal/buildinfo.Commit=${COMMIT} -X p2pstream/internal/buildinfo.Repository=${SOURCE_REPOSITORY} -X p2pstream/internal/buildinfo.Channel=${RELEASE_CHANNEL}" -o /out/p2pstream main.go
@@ -48,6 +49,7 @@ ENV PATH=/usr/local/bun/bin:$PATH
 WORKDIR /src
 RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.2.18"
 COPY go.mod go.sum ./
+COPY third_party/yamux ./third_party/yamux
 RUN go mod download
 COPY web/management/package.json web/management/bun.lock ./web/management/
 RUN cd web/management && bun install --frozen-lockfile
@@ -56,18 +58,21 @@ COPY . .
 FROM test-base AS test
 RUN make generate
 RUN go test ./...
+RUN cd third_party/yamux && go test ./...
 RUN cd web/management && bun run typecheck
 RUN make build
 
 FROM test-base AS race-test
 RUN make generate
 RUN go test -race ./...
+RUN cd third_party/yamux && go test ./... && go test -race -short ./...
 
 FROM test-base AS smoke
 
 FROM golang:1.26.6-bookworm AS smoke-upstream-build
 WORKDIR /src
 COPY go.mod go.sum ./
+COPY third_party/yamux ./third_party/yamux
 RUN go mod download
 COPY internal/smoketest/upstream ./internal/smoketest/upstream
 RUN CGO_ENABLED=0 go build -trimpath -o /out/smoke-upstream ./internal/smoketest/upstream

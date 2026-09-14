@@ -45,23 +45,11 @@ var serverCmd = &cobra.Command{
 			Int64("memory_recovery_percent", cfg.ServerTunnelMemoryRecoveryPercent).
 			Int64("memory_sample_millis", cfg.ServerTunnelMemorySampleMillis).
 			Msg("Configured server tunnel capacity")
-		if _, legacyPercent := os.LookupEnv("SERVER_TUNNEL_MEMORY_PERCENT"); legacyPercent {
-			log.Warn().Msg("SERVER_TUNNEL_MEMORY_PERCENT is deprecated; adaptive admission uses SERVER_TUNNEL_MEMORY_SOFT_PERCENT and SERVER_TUNNEL_MEMORY_HARD_PERCENT")
-		}
-		if _, legacyReserve := os.LookupEnv("SERVER_TUNNEL_MEMORY_RESERVE_BYTES"); legacyReserve {
-			log.Warn().Msg("SERVER_TUNNEL_MEMORY_RESERVE_BYTES is deprecated; adaptive admission uses actual live memory pressure")
-		}
 		log.Info().
 			Int64("max_concurrent_requests", cfg.PublicMaxConcurrentRequests).
 			Int64("max_concurrent_requests_per_target", cfg.PublicMaxConcurrentPerTarget).
 			Bool("per_target_automatic", cfg.PublicMaxConcurrentPerTargetAuto).
 			Msg("Configured public request capacity")
-		if !cfg.PublicMaxConcurrentPerTargetAuto &&
-			cfg.PublicMaxConcurrentRequests == 2048 &&
-			cfg.PublicMaxConcurrentPerTarget == 256 {
-			log.Warn().
-				Msg("Detected the legacy 256-request per-target ceiling; set PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=0 to let each target use the global request capacity")
-		}
 
 		database, err := db.Open(cfg.DatabaseURL)
 		if err != nil {

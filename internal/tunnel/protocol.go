@@ -18,38 +18,55 @@ const (
 	TunnelCapacityModeHeader         = "X-P2PStream-Tunnel-Capacity-Mode"
 	TunnelAgentVersionHeader         = "X-P2PStream-Agent-Version"
 	TunnelAgentCommitHeader          = "X-P2PStream-Agent-Commit"
+	TunnelGroupHeader                = "X-P2PStream-Tunnel-Group"
+	TunnelLaneHeader                 = "X-P2PStream-Tunnel-Lane"
+	DefaultParallelTunnels           = 4
+	MaxParallelTunnels               = 32
 	TunnelCapacityModeAdaptive       = "adaptive"
 	TunnelCapacityModeFixed          = "fixed"
 
 	MaxControlFrameBytes = 16 * 1024
 )
 
-func ParseOptionalCapacityMode(value string) (string, bool, error) {
-	value = strings.ToLower(strings.TrimSpace(value))
-	if value == "" {
-		return "", false, nil
+// The extension is acknowledged before an agent starts additional connections.
+// Old peers therefore retain their single authenticated tunnel unchanged.
+func ParseTunnelLane(group, rawLane string) (string, int, error) {
+	if group == "" && rawLane == "" {
+		return "", 0, nil
 	}
+	if len(group) < 16 || len(group) > 64 {
+		return "", 0, errors.New("invalid tunnel group")
+	}
+	for _, ch := range group {
+		if !(ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '-') {
+			return "", 0, errors.New("invalid tunnel group")
+		}
+	}
+	lane, err := strconv.Atoi(rawLane)
+	if err != nil || lane < 0 || lane >= MaxParallelTunnels {
+		return "", 0, errors.New("invalid tunnel lane")
+	}
+	return group, lane, nil
+}
+
+func ParseCapacityMode(value string) (string, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
 	switch value {
 	case TunnelCapacityModeAdaptive, TunnelCapacityModeFixed:
-		return value, true, nil
+		return value, nil
 	default:
-		return "", true, fmt.Errorf("invalid tunnel capacity mode %q", value)
+		return "", fmt.Errorf("tunnel capacity mode is required and must be fixed or adaptive: %q", value)
 	}
 }
 
-// ParseOptionalMaxConcurrentStreams parses the optional capacity extension on
-// the HTTP upgrade handshake. An absent header is intentionally distinct from
-// a zero value so new peers remain compatible with protocol-v1 releases.
-func ParseOptionalMaxConcurrentStreams(value string, maximum int64) (int64, bool, error) {
+// ParseMaxConcurrentStreams validates the required HTTP upgrade capacity header.
+func ParseMaxConcurrentStreams(value string, maximum int64) (int64, error) {
 	value = strings.TrimSpace(value)
-	if value == "" {
-		return 0, false, nil
-	}
 	streams, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || streams < 1 || streams > maximum {
-		return 0, true, fmt.Errorf("invalid tunnel max concurrent streams %q: must be between 1 and %d", value, maximum)
+		return 0, fmt.Errorf("tunnel max concurrent streams is required and must be between 1 and %d: %q", maximum, value)
 	}
-	return streams, true, nil
+	return streams, nil
 }
 
 var (
@@ -59,16 +76,19 @@ var (
 )
 
 type OpenRequest struct {
-	Version   int    `json:"version"`
-	RequestID string `json:"request_id"`
-	Network   string `json:"network"`
-	Address   string `json:"address"`
+	Version      int    `json:"version"`
+	RequestID    string `json:"request_id"`
+	Network      string `json:"network"`
+	Address      string `json:"address"`
+	TraceTimings bool   `json:"trace_timings,omitempty"`
 }
 
 type OpenResponse struct {
-	OK        bool   `json:"ok"`
-	ErrorKind string `json:"error_kind,omitempty"`
-	Error     string `json:"error,omitempty"`
+	OK                bool   `json:"ok"`
+	ErrorKind         string `json:"error_kind,omitempty"`
+	Error             string `json:"error,omitempty"`
+	DialDurationNanos int64  `json:"dial_duration_nanos,omitempty"`
+	DNSDurationNanos  int64  `json:"dns_duration_nanos,omitempty"`
 }
 
 func NewOpenRequest(requestID string, network string, address string) OpenRequest {

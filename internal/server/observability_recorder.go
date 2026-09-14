@@ -22,7 +22,6 @@ const (
 	observabilityRecorderMaxTouchKeys  = 8192
 	observabilityRecorderLogInterval   = time.Minute
 	publicCacheTouchCoalesceInterval   = time.Minute
-	sqliteLegacyTimestampLayout        = "2006-01-02 15:04:05"
 )
 
 type proxyRequestEvent struct {
@@ -547,7 +546,6 @@ func publicCacheTouchesToFlush(touches map[publicCacheTouchKey]*publicCacheTouch
 			HitCount:       touch.hitCount,
 			KeyDigest:      key.keyDigest,
 			StoredAt:       key.storedAt,
-			StoredAtLegacy: key.storedAt.UTC().Format(sqliteLegacyTimestampLayout),
 			LastAccessedAt: touch.lastAccessedAt,
 		})
 	}
@@ -634,15 +632,6 @@ func (r *observabilityRecorder) cleanup(ctx context.Context, now time.Time) {
 	if maxRows <= 0 {
 		return
 	}
-	ready, err := a.observabilityRollupsReady(ctx)
-	if err != nil {
-		log.Warn().Err(err).Msg("Failed to check observability rollup readiness for row cap")
-		return
-	}
-	if !ready {
-		return
-	}
-
 	for i := 0; i < observabilityRowCapDeleteMaxBatches; i++ {
 		deleted, err := a.DB.DeleteOldestProxyRequestEventsOverLimit(ctx, db.DeleteOldestProxyRequestEventsOverLimitParams{
 			Offset:      maxRows,
