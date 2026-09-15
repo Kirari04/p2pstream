@@ -45,9 +45,12 @@ func StreamMemoryCharge(windowBytes, socketBufferBytes int64) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if buffer == 0 {
+		buffer = 128 * 1024 // base allowance; auto sockets reserve any excess at dial
+	}
 	// Linux may double both requested socket buffers. The remaining 256 KiB
 	// covers relay buffers, stream metadata, TLS state and allocator slack.
-	charge := min(int64(window), DefaultAdaptiveReceiveWindowBytes) + 4*max(buffer, 128*1024) + 256*1024
+	charge := min(int64(window), DefaultAdaptiveReceiveWindowBytes) + 4*buffer + 256*1024
 	return max(charge, MinimumAdaptiveStreamChargeBytes), nil
 }
 
