@@ -1,7 +1,6 @@
 package yamux
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"sync"
@@ -35,7 +34,7 @@ type Stream struct {
 	state     streamState
 	stateLock sync.Mutex
 
-	recvBuf  *bytes.Buffer
+	recvBuf  *recvBuffer
 	recvLock sync.Mutex
 
 	controlHdr     header
@@ -265,8 +264,20 @@ func (s *Stream) sendFlags() uint16 {
 }
 
 // sendWindowUpdate potentially sends a window update enabling
-// further writes to take place. Must be invoked with the lock.
+// further writes to take place. Normal reads batch updates smaller than a
+// quarter of the receive window.
 func (s *Stream) sendWindowUpdate() error {
+	return s.sendWindowUpdateMode(false)
+}
+
+// sendWindowUpdateForced publishes a positive receive-credit change
+// immediately. Explicit receive-window growth must not depend on a later
+// application read to cross the normal quarter-window batching threshold.
+func (s *Stream) sendWindowUpdateForced() error {
+	return s.sendWindowUpdateMode(true)
+}
+
+func (s *Stream) sendWindowUpdateMode(force bool) error {
 	s.controlHdrLock.Lock()
 	defer s.controlHdrLock.Unlock()
 
@@ -282,8 +293,15 @@ func (s *Stream) sendWindowUpdate() error {
 	// Determine the flags if any
 	flags := s.sendFlags()
 
+	// A concurrent update may have published the growth while this caller was
+	// waiting for controlHdrLock. Do not emit a spurious zero-credit frame.
+	if delta == 0 && flags == 0 {
+		s.recvLock.Unlock()
+		return nil
+	}
+
 	// Check if we can omit the update
-	if delta < (max/2) && flags == 0 {
+	if !force && delta < (max/4) && flags == 0 {
 		s.recvLock.Unlock()
 		return nil
 	}
@@ -322,6 +340,19 @@ func (s *Stream) MaxReceiveWindow() uint32 {
 	return atomic.LoadUint32(&s.maxReceiveWindow)
 }
 
+// ReceiveBufferStats reports the logical bytes currently buffered and the
+// accounted receive storage retained by this stream. Both values are sampled
+// while holding recvLock, so the pair describes one consistent point in time.
+func (s *Stream) ReceiveBufferStats() (bufferedBytes, allocatedBytes uint64) {
+	s.recvLock.Lock()
+	if s.recvBuf != nil {
+		bufferedBytes = uint64(s.recvBuf.Buffered())
+		allocatedBytes = uint64(s.recvBuf.AllocatedCapacity())
+	}
+	s.recvLock.Unlock()
+	return bufferedBytes, allocatedBytes
+}
+
 // GrowReceiveWindow increases this stream's receive credit. The caller must
 // reserve the additional memory before calling and retain that reservation
 // until the stream has fully closed. Credit can never be revoked once sent.
@@ -333,7 +364,7 @@ func (s *Stream) GrowReceiveWindow(window uint32) error {
 			return nil
 		}
 		if atomic.CompareAndSwapUint32(&s.maxReceiveWindow, current, window) {
-			return s.sendWindowUpdate()
+			return s.sendWindowUpdateForced()
 		}
 	}
 }
@@ -522,10 +553,7 @@ func (s *Stream) readData(hdr header, flags uint16, conn io.Reader) error {
 		return nil
 	}
 
-	// Wrap in a limited reader
-	conn = &io.LimitedReader{R: conn, N: int64(length)}
-
-	// Copy into buffer
+	// Check the attacker-controlled length before allocating receive storage.
 	s.recvLock.Lock()
 
 	if length > s.recvWindow {
@@ -535,19 +563,19 @@ func (s *Stream) readData(hdr header, flags uint16, conn io.Reader) error {
 	}
 
 	if s.recvBuf == nil {
-		// Allocate the receive buffer just-in-time to fit the full data frame.
-		// This way we can read in the whole packet without further allocations.
-		s.recvBuf = bytes.NewBuffer(make([]byte, 0, length))
+		s.recvBuf = &recvBuffer{}
 	}
-	copiedLength, err := io.Copy(s.recvBuf, conn)
+	copiedLength, err := s.recvBuf.readFrom(conn, int64(length))
+	// Account for bytes that arrived even when the underlying frame is
+	// truncated. The session will terminate on the error, but retaining this
+	// invariant makes direct Stream users observe accurate receive credit.
+	s.recvWindow -= uint32(copiedLength)
 	if err != nil {
 		s.session.logger.Printf("[ERR] yamux: Failed to read stream data: %v", err)
 		s.recvLock.Unlock()
 		return err
 	}
 
-	// Decrement the receive window
-	s.recvWindow -= uint32(copiedLength)
 	s.recvLock.Unlock()
 
 	// Unblock any readers
@@ -586,6 +614,8 @@ func (s *Stream) SetWriteDeadline(t time.Time) error {
 func (s *Stream) Shrink() {
 	s.recvLock.Lock()
 	if s.recvBuf != nil && s.recvBuf.Len() == 0 {
+		// This also drops the bounded reusable spare chunks, returning an idle
+		// stream's receive storage to zero.
 		s.recvBuf = nil
 	}
 	s.recvLock.Unlock()

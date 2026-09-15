@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/tcpsocket"
 )
 
 const (
@@ -44,27 +45,12 @@ func (l resourceBoundedPublicListener) Accept() (net.Conn, error) {
 		if err != nil {
 			return nil, err
 		}
-		tcpConn, ok := conn.(*net.TCPConn)
-		if !ok {
-			if release, ok := l.acquireConnection(conn); ok {
-				return &resourceBoundedPublicConn{Conn: conn, release: release}, nil
+		if release, ok := l.acquireConnection(conn); ok {
+			tracked := &resourceBoundedPublicConn{Conn: conn, release: release}
+			if tcp, ok := conn.(*net.TCPConn); ok {
+				return &resourceBoundedPublicTCPConn{resourceBoundedPublicConn: tracked, tcp: tcp}, nil
 			}
-			_ = conn.Close()
-			time.Sleep(10 * time.Millisecond)
-			continue
-		}
-		// Bound attacker-controlled public socket queues so the adaptive
-		// per-stream overhead reservation remains meaningful for slow uploads
-		// and downloads. Linux can double the requested values; the reservation
-		// includes both directions plus relay/allocator slack.
-		const socketBufferBytes = 64 * 1024
-		if err := tcpConn.SetReadBuffer(socketBufferBytes); err == nil {
-			if err = tcpConn.SetWriteBuffer(socketBufferBytes); err == nil {
-				if release, ok := l.acquireConnection(conn); ok {
-					tracked := &resourceBoundedPublicConn{Conn: conn, release: release}
-					return &resourceBoundedPublicTCPConn{resourceBoundedPublicConn: tracked, tcp: tcpConn}, nil
-				}
-			}
+			return tracked, nil
 		}
 		_ = conn.Close()
 		time.Sleep(10 * time.Millisecond)
@@ -205,11 +191,17 @@ func (a *App) tryReservePublicConnection(conn net.Conn) (func(), bool) {
 	if a.Config != nil && a.Config.PublicMaxHeaderBytes > 0 {
 		maxHeaderBytes = a.Config.PublicMaxHeaderBytes
 	}
-	// TCP queues, TLS/parser state, and the configured maximum attacker-owned
-	// header all exist before request admission. Header parsing can transiently
-	// hold input plus parsed strings, so charge it twice on top of 512 KiB of
-	// socket/runtime slack for the connection lifetime.
+	// Reserve possible autotuned queues before TLS or HTTP reads can grow
+	// them. Header parsing can transiently hold both input and parsed strings.
 	resourceBytes := int64(512*1024) + int64(maxHeaderBytes)*2
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		socketBytes, err := tcpsocket.Configure(tcp, 0)
+		if err != nil {
+			a.publicConnectionResourceReject.Add(1)
+			return nil, false
+		}
+		resourceBytes += socketBytes
+	}
 	peerMemoryLimit := int64(-1)
 	peerFDLimit := int64(-1)
 	if a.publicConnections.peerGuardEnabled() {

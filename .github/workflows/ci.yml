@@ -70,6 +70,10 @@ jobs:
       - name: Run Go tests
         run: go test ./...
 
+      - name: Test public proxy throughput over a real TCP WAN
+        timeout-minutes: 6
+        run: scripts/test-proxy-wan.sh
+
       - name: Test local Yamux extension and races
         # Upstream's short mode excludes its 250 MiB and 16 GiB stress transfers,
         # which still run in full below without race-detector throughput overhead.

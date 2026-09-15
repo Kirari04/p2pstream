@@ -1308,7 +1308,15 @@ func TestSendData_VeryLarge(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping slow test that may time out on the race detector")
 	}
-	client, server := testClientServer(t)
+	clientConn, serverConn := testConnTLS(t)
+	clientConfig, serverConfig := testConf(), testConf()
+	// Sixteen concurrent GiB transfers can delay a ping behind TLS writes on
+	// small CI runners. Keep keepalives enabled, using the application's write
+	// timeout instead of the 250 ms timeout intended for small unit fixtures.
+	// The complete byte-count assertions and 120 s stress deadline still apply.
+	clientConfig.ConnectionWriteTimeout = 10 * time.Second
+	serverConfig.ConnectionWriteTimeout = 10 * time.Second
+	client, server := testClientServerConfig(t, clientConn, serverConn, clientConfig, serverConfig)
 
 	var n int64 = 1 * 1024 * 1024 * 1024
 	var workers int = 16

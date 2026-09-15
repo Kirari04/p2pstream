@@ -233,8 +233,8 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if cfg.LoginThrottleMaxKeys != 50_000 {
 		t.Fatalf("LoginThrottleMaxKeys = %d, want 50000", cfg.LoginThrottleMaxKeys)
 	}
-	if cfg.TunnelMaxStreamWindowBytes != 2*1024*1024 {
-		t.Fatalf("TunnelMaxStreamWindowBytes = %d, want 2097152", cfg.TunnelMaxStreamWindowBytes)
+	if cfg.TunnelMaxStreamWindowBytes != tunnel.DefaultMaxStreamWindowSizeBytes {
+		t.Fatalf("TunnelMaxStreamWindowBytes = %d, want %d", cfg.TunnelMaxStreamWindowBytes, tunnel.DefaultMaxStreamWindowSizeBytes)
 	}
 	if cfg.PublicMaxHeaderBytes != 64*1024 {
 		t.Fatalf("PublicMaxHeaderBytes = %d, want 65536", cfg.PublicMaxHeaderBytes)
@@ -415,7 +415,7 @@ func TestLoadValidatesSecurityLimitBounds(t *testing.T) {
 	t.Run("large tunnel stream window rejected", func(t *testing.T) {
 		workDir := isolatedConfigTestDir(t)
 		t.Setenv("CONFIG_DIR", filepath.Join(workDir, "data"))
-		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "67108865")
+		t.Setenv("TUNNEL_MAX_STREAM_WINDOW_BYTES", "1073741825")
 
 		if _, err := Load(); err == nil {
 			t.Fatal("expected large TUNNEL_MAX_STREAM_WINDOW_BYTES to fail")

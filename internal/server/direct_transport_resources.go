@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 
+	"p2pstream/internal/tcpsocket"
 	"p2pstream/internal/tunnel"
 )
 
@@ -33,15 +34,24 @@ func (p *directTransportPool) accountConnections(transport *http.Transport) {
 			return nil, err
 		}
 		if tcp, ok := conn.(*net.TCPConn); ok {
-			err = tcp.SetReadBuffer(int(tunnel.DefaultUpstreamSocketBufferBytes))
-			if err == nil {
-				err = tcp.SetWriteBuffer(int(tunnel.DefaultUpstreamSocketBufferBytes))
-			}
-			if err != nil {
+			socketBytes, socketErr := tcpsocket.Configure(tcp, 0)
+			if socketErr != nil {
 				_ = conn.Close()
 				release()
-				return nil, err
+				return nil, socketErr
 			}
+			extra, admitted, _ := p.app.agentStreamCapacity.tryReserveAdaptiveExternal(max(0, socketBytes-tcpsocket.BaseMemoryBytes), 0)
+			if !admitted {
+				p.closeIdleConnections()
+				extra, admitted, _ = p.app.agentStreamCapacity.tryReserveAdaptiveExternal(max(0, socketBytes-tcpsocket.BaseMemoryBytes), 0)
+			}
+			if !admitted {
+				_ = conn.Close()
+				release()
+				return nil, errDirectUpstreamResourcePressure
+			}
+			initial := release
+			release = func() { extra(); initial() }
 		}
 		bounded := &resourceBoundedPublicConn{Conn: conn, release: release}
 		if tcp, ok := conn.(*net.TCPConn); ok {
