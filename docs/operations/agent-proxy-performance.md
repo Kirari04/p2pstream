@@ -14,12 +14,24 @@ still apply.
   stream admission, update drain, health identity and revocation. A dropped lane
   reconnects independently; a request whose connection was lost still follows
   the configured replay rules.
-- Streams begin with at most 512 KiB receive credit, then double toward the
-  configured maximum (64 MiB by default) as data is consumed. Every increase reserves its
-  additional memory first. Denied growth keeps the request serving at its
-  current window. Initial and additional reservations remain until peer FIN or
-  forced stream cleanup. This avoids charging idle connections for bulk-transfer
-  windows they never use.
+- Streams begin with at most 512 KiB receive credit. Smoothed consumption
+  and the recent minimum session RTT guide growth toward eight bandwidth-delay
+  products, using at least 2 ms for relay scheduling. Two supporting samples
+  are required, with at most one doubling per decision and a configurable
+  1 GiB ceiling. Slow streams do not grow just because they have transferred
+  many bytes. Unknown RTT holds the initial window; denied growth backs off
+  for one second. Shared Ping probes retain a bounded 30-second history, so
+  queued responses do not immediately inflate the target. A real increase in
+  path latency can take up to 30 seconds to replace the earlier minimum.
+  Every increase reserves its receive chunks and metadata before publishing
+  credit. Ordinary reads return credit at a quarter-window threshold; explicit
+  growth publishes new credit immediately. Initial and additional reservations
+  remain until peer FIN or forced stream cleanup. Receive storage uses lazy
+  64 KiB chunks and releases drained bulk storage, keeping a cache of up to 64
+  chunks (4 MiB per stream) for reuse. The cache is populated lazily rather
+  than preallocated, and this retention ceiling does not change the resource
+  reservation bound. Reclaiming storage does not revoke advertised credit or
+  release its reservation.
 - Linux public, direct-origin and agent-origin TCP sockets retain kernel
   autotuning. Setting even a moderately sized `SO_RCVBUF` or `SO_SNDBUF`
   disables autotuning and can severely limit a connection over a WAN. The
@@ -60,8 +72,8 @@ still apply.
   Health admission uses 250 ms and treats local saturation as a skipped probe.
 
 Existing explicit environment values remain limits. Remove old overrides to use
-automatic admission. Upgrade the server and agents together: both fixed and adaptive modes require
-explicit capacity headers. An explicit fixed
+automatic admission. Upgrade the server and agents together: both fixed and
+adaptive modes require explicit capacity headers. An explicit fixed
 `TUNNEL_MAX_CONCURRENT_REQUESTS` remains supported for controlled deployments;
 mixed releases must not be treated as a promise of retired legacy-header
 negotiation. Additional lanes start only after the primary handshake
@@ -72,10 +84,11 @@ No throughput improvement bypasses agent destination policy or TLS trust.
 
 The published **v0.1.53-staging.91** is affected: public sockets were fixed at
 64 KiB per direction, while direct and agent origins defaulted to 128 KiB.
-The autotuning fix described above is currently unreleased. Upgrade both the
-server and agents when it ships; remove explicit socket/window overrides to use
-its new defaults. Increasing only `net.core.rmem_max`/`wmem_max` did not remove
-the affected release's application-imposed public cap.
+The fixes described here restore TCP autotuning. Upgrade the server and agents
+together to a release containing these changes, and remove explicit
+socket/window overrides to use the new defaults. Increasing only
+`net.core.rmem_max`/`wmem_max` did not remove the affected release's
+application-imposed public cap.
 
 `scripts/test-proxy-wan.sh` runs in the required CI Verify job. It creates
 three disposable Linux network namespaces (server, router, client) with 80 ms
@@ -110,8 +123,9 @@ links and unchanged guest OS buffer limits, three 128 MiB downloads measured:
 These include connection setup and TCP startup; shorter transfers differ
 substantially. They demonstrate removal of the fixed 1.4–1.5 MB/s ceiling, not
 NIC line-rate under every topology. VPN loss, congestion, OS autotuning maxima,
-TLS/relay work and explicit operator settings can still limit throughput. The
-resource-backed Yamux receive ceiling is now 64 MiB; initial credit remains
+TLS/relay work and explicit operator settings can still limit throughput.
+That run used the previous 64 MiB ceiling and lifetime-byte growth policy.
+The implementation below replaces that growth policy; initial credit remains
 512 KiB and growth can be denied when memory is unavailable.
 
 Reproduce the CI regression without a development server:
@@ -120,7 +134,151 @@ Reproduce the CI regression without a development server:
 scripts/test-proxy-wan.sh
 ```
 
-## Measurements
+## High-bandwidth profiling
+
+The 100 Mbit/s CI regression is not a gigabit capacity qualification. Further
+profiling on 2026-09-15 used the same three 2-vCPU, 2-GiB Ubuntu 24.04 VMs,
+512 MiB downloads, four authenticated TLS/Yamux lanes and WireGuard. An nginx
+relay fetched the same agent origin over the same VPN path as the direct proxy.
+Rates below are decimal MB/s and include transfer startup. This was a shared
+development host, not a dedicated performance runner.
+
+The following bullets are historical profiles of earlier window and
+growth implementations; they are retained for context and are not cache64
+measurements.
+
+- With 80 ms VPN RTT, the original 6 MiB receive / 4 MiB send autotuning
+  maxima limited fresh agent downloads to about 20–25 MB/s. Raising both
+  maxima to 32 MiB in the lab produced about 77–86 MB/s. An independent
+  reverse-direction iperf3 test increased from 35.8 to 128.6 MB/s for one
+  TCP flow. These were lab settings, not new application defaults.
+- On the path without added delay, allowing tunnel growth to 64 MiB produced
+  about 96–108 MB/s and a 421 MiB post-GC server heap after repeated downloads.
+  Roughly 414 MiB was retained by Yamux's `bytes.Buffer` receive storage.
+  A 2 MiB tunnel ceiling delivered about 101–109 MB/s with a 21 MiB heap in
+  the corresponding profile. Heap is distinct from RSS, kernel socket memory,
+  and the application's resource reservations.
+- Smaller windows are not appropriate everywhere. With the larger Linux
+  maxima and 80 ms VPN RTT, an 8 MiB tunnel ceiling delivered about 48–53 MB/s,
+  compared with about 77–86 MB/s at 64 MiB. That baseline replenished credit after
+  at least half its window becomes available, so a high-throughput path needs
+  headroom beyond a single bandwidth-delay product.
+- The profiled baseline grew credit with total consumed bytes, so even slow,
+  long-lived connections eventually reached the maximum. Its `bytes.Buffer`
+  capacity and transient reallocation could exceed logical receive credit.
+  This motivated the measured growth and bounded chunk storage now implemented.
+
+The final comparison used the lazy 64-chunk cache (64 KiB chunks,
+4 MiB retention ceiling per stream). It was not preallocated and did not alter
+the resource reservation bound. These are three cold-service alternating pairs
+on the same development lab, with 512 MiB HTTP/2 transfers; the parallel case
+used four 256 MiB transfers. They are lab comparisons, not a physical 10 Gbit/s
+qualification. The baseline was commit `463958f`, with the prior 64 MiB
+lifetime-byte growth policy; both builds retained Linux TCP autotuning, with
+32 MiB receive/send maxima in these runs. Each pair restarted the services
+and cleared the lab's saved TCP connection metrics.
+
+| Lab case | Baseline median MB/s (range) | Final median MB/s (range) |
+| --- | ---: | ---: |
+| LAN, one transfer | 112.4 (112.1–113.0) | 109.4 (101.5–110.0) |
+| VPN, 80 ms RTT, one transfer | 56.9 (56.7–78.8) | 81.1 (55.7–83.4) |
+| VPN, 80 ms RTT, four transfers | 91.2 (90.3–103.5) | 90.9 (90.7–106.2) |
+
+The VPN single-transfer series is bimodal in both modes, so the medians are
+descriptive rather than a capacity claim. An intermediate 512 KiB chunk cache
+had about a 15% lower parallel median and substantial allocation churn; it
+was rejected. Increasing reuse to 4 MiB recovered the parallel result while
+preserving the same accounting bound. The final LAN median was 2.6% below
+the baseline; this small sample does not establish throughput equivalence.
+
+With 80 ms RTT on both links, two pairs measured 51.9 MB/s for the baseline
+and 54.3 MB/s for the final build. Under 80 ms VPN RTT plus 5 ms jitter in
+each direction, four pairs measured medians of 22.3 and 17.1 MB/s respectively,
+with broad ranges of 17.4–26.2 and 15.7–59.2 MB/s. An nginx relay over the same
+jittered VPN measured 17.4 MB/s (15.9–20.3, three runs). TCP snapshots show
+congestion and retransmission variance; TCP receive-window metrics do not
+measure Yamux credit. These samples support a lab-network limitation but do
+not establish equal performance under jitter. With the original 6 MiB/4 MiB
+kernel maxima, two pairs measured 22.3 MB/s for the baseline and 17.5 MB/s
+for the final build (12.8–22.1 MB/s); that small comparison is also variable.
+
+Separate 30-second server profiles during repeated 512 MiB LAN downloads
+measured the following. Both captures include startup and a forced GC; they
+are diagnostic samples, not equal-byte CPU benchmarks.
+
+| Server measurement | Baseline | Final |
+| --- | ---: | ---: |
+| Retained Go heap after GC | 416.0 MiB | 16.0 MiB |
+| Cumulative Go allocations | 1,726.9 MiB | 59.0 MiB |
+| RSS after the traffic sequence | 548.2 MiB | 55.6 MiB |
+| Peak RSS | 859.1 MiB | 57.1 MiB |
+| Sampled CPU time | 12.38 s | 11.90 s |
+
+Baseline Yamux buffer growth retained about 407.9 MiB; final receive chunks
+retained about 7.4 MiB. Heap, RSS, kernel socket buffers and admission
+reservations are separate measurements. The profile supports a substantial
+allocation/retention improvement; it does not establish a CPU speedup.
+
+The new controller measures consumption over elapsed time, including time
+spent outside `Read`, and samples at intervals of at least one RTT or 10 ms.
+It smooths the measured rate, requires two growth-supporting samples,
+discards epochs spanning long idle gaps, and limits each increase.
+Existing advertised credit remains backed until
+the stream closes; it cannot safely shrink after being granted.
+Increasing Linux maxima also increases the current lifetime socket reservation,
+including idle sockets; it must be considered together with connection fan-out.
+These measurements do not demonstrate 10 Gbit/s performance.
+
+The optional HTTP/2 diagnostic isolates receive-window behavior in a Go HTTPS
+server configured like the public listener. It is separate from the complete
+public-proxy CI test. At 80 ms RTT, median uploads were 161 Mbit/s for HTTP/1.1,
+87 Mbit/s with 1 MiB HTTP/2 connection/stream credit, and 182 Mbit/s with 3 MiB
+for both. Raising only the stream window left the 87 Mbit/s ceiling unchanged.
+The production upload window remains 1 MiB. Review showed that HTTP/2 reset
+streams can return connection credit while their handlers still retain unread
+bodies; a single connection reservation therefore cannot cover repeated reset
+waves. Larger windows need reservation for each body until cleanup, including
+bodies canceled before handler admission. The diagnostic has no application
+resource ledger and does not enable larger windows in production.
+
+```sh
+scripts/benchmark-http2-upload.sh
+go test ./internal/tunnel -run '^$' -bench '^BenchmarkTunnelYamuxThroughput$' -benchtime=1s -count=3
+go -C third_party/yamux test -run '^$' -bench '^BenchmarkTransportThroughput$' -benchtime=1s -count=3
+go -C third_party/yamux test -run '^$' -bench '^BenchmarkReceiveBufferFrameReuse$' -benchtime=1s -count=3
+```
+
+The loopback benchmarks compare chunk sizes, initial/window growth, TCP and
+TLS. Their throughput is not an end-to-end proxy capacity result. The coalescing
+adapter is test-only; its counters measure writes into the transport API,
+including TLS, rather than actual TCP writes or TLS records. Coalescing helped
+plain TCP in these runs but showed no improvement through TLS.
+
+For CPU, heap and contention profiles, build the optional lab-only profiler:
+
+```sh
+go build -tags labprofile -o /tmp/p2pstream-labprofile .
+```
+
+In an isolated lab, run the server or agent with
+`P2PSTREAM_LABPROFILE=1`, `P2PSTREAM_LABPROFILE_SECONDS=30` and a separate
+`P2PSTREAM_LABPROFILE_DIR` for each process. Optional
+`P2PSTREAM_LABPROFILE_BLOCK_RATE=1000000` and
+`P2PSTREAM_LABPROFILE_MUTEX_FRACTION=100` enable sampled contention profiles.
+The timer starts during process initialization, so captures include startup.
+Keep traffic running for the interval and wait for `labprofile finished` before
+stopping the process. Early termination can leave an incomplete capture.
+The profiler writes private local files and exposes no HTTP endpoint. Normal
+release builds exclude it. Compare throughput with unprofiled runs; forced GC
+and profiling can perturb execution.
+
+```sh
+go tool pprof -top /path/to/server/cpu.pprof
+go tool pprof -top -inuse_space /path/to/server/heap.pprof
+go tool pprof -top -alloc_space /path/to/server/heap.pprof
+```
+
+## Earlier transport measurements
 
 Local AMD Ryzen 9 6900HS, Linux amd64, Go 1.26.6. These are development
 benchmarks, not a production throughput guarantee.

@@ -48,6 +48,14 @@ type Session struct {
 	pingID   uint32
 	pingLock sync.Mutex
 
+	// RTT probes are shared by all streams, including newly opened streams.
+	rttNanos        atomic.Int64
+	rttUpdatedNanos atomic.Int64
+	rttMu           sync.Mutex
+	rttEstimate     rttEstimator
+	rttProbe        bool
+	rttProbed       time.Time
+
 	// streams maps a stream id to a stream, and inflight has an entry
 	// for any outgoing stream that has not yet been established. Both are
 	// protected by streamLock.
@@ -332,8 +340,14 @@ func (s *Session) Ping() (time.Duration, error) {
 	s.pingID++
 	s.pings[id] = ch
 	s.pingLock.Unlock()
+	defer func() {
+		s.pingLock.Lock()
+		delete(s.pings, id)
+		s.pingLock.Unlock()
+	}()
 
 	// Send the ping request
+	start := time.Now()
 	hdr := header(make([]byte, headerSize))
 	hdr.encode(typePing, flagSYN, 0, id)
 	if err := s.waitForSend(hdr, nil); err != nil {
@@ -341,20 +355,18 @@ func (s *Session) Ping() (time.Duration, error) {
 	}
 
 	// Wait for a response
-	start := time.Now()
 	select {
 	case <-ch:
 	case <-time.After(s.config.ConnectionWriteTimeout):
-		s.pingLock.Lock()
-		delete(s.pings, id) // Ignore it if a response comes later.
-		s.pingLock.Unlock()
 		return 0, ErrTimeout
 	case <-s.shutdownCh:
 		return 0, ErrSessionShutdown
 	}
 
 	// Compute the RTT
-	return time.Since(start), nil
+	rtt := time.Since(start)
+	s.recordRTT(rtt)
+	return rtt, nil
 }
 
 // keepalive is a long running goroutine that periodically does
@@ -363,7 +375,13 @@ func (s *Session) keepalive() {
 	for {
 		select {
 		case <-time.After(s.config.KeepAliveInterval):
-			_, err := s.Ping()
+			_, err, ran := s.runRTTProbe(true)
+			if !ran {
+				// A request-triggered probe already owns the single-flight gate.
+				// It will record the sample (or failure), so this keepalive tick
+				// can safely wait for the next interval.
+				continue
+			}
 			if err != nil {
 				if err != ErrSessionShutdown {
 					s.logger.Printf("[ERR] yamux: keepalive failed: %v", err)

@@ -74,7 +74,7 @@ type Config struct {
 	ObservabilityRetentionDays        int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
 	ObservabilityMaxRows              int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
 	LoginThrottleMaxKeys              int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
-	TunnelMaxStreamWindowBytes        int64  `env:"TUNNEL_MAX_STREAM_WINDOW_BYTES" envDefault:"67108864"`
+	TunnelMaxStreamWindowBytes        int64  `env:"TUNNEL_MAX_STREAM_WINDOW_BYTES" envDefault:"1073741824"`
 	ServerTunnelMaxConcurrentStreams  int64  `env:"SERVER_TUNNEL_MAX_CONCURRENT_STREAMS" envDefault:"0"`
 	ServerTunnelMemorySoftPercent     int64  `env:"SERVER_TUNNEL_MEMORY_SOFT_PERCENT" envDefault:"80"`
 	ServerTunnelMemoryHardPercent     int64  `env:"SERVER_TUNNEL_MEMORY_HARD_PERCENT" envDefault:"90"`

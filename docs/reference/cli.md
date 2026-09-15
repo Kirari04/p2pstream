@@ -55,7 +55,7 @@ p2pstream agent [flags]
 - Use only one password source: prompt, `--password-env`, or `--password-file`.
 - `agent` requires `AGENT_ID` and `AGENT_TOKEN`.
 - Agent HTTP management URLs are rejected unless `--allow-insecure-management` or `AGENT_ALLOW_INSECURE_MANAGEMENT` is set.
-- `--tunnel-max-stream-window-bytes` must be at least `262144` and at most `67108864`.
+- `--tunnel-max-stream-window-bytes` must be at least `262144` and at most `1073741824`.
 - `--tunnel-max-concurrent-requests` must be between `1` and `2048`.
 - When neither an allowlist nor `--allow-any-target`/`AGENT_ALLOW_ANY_TARGET=true` is set, the agent permits only IPv4 and IPv6 loopback destinations.
 - `--allow-any-target` cannot be combined with `--allow-target` entries.
