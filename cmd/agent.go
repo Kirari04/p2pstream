@@ -160,7 +160,7 @@ func init() {
 	agentCmd.Flags().Int64("tunnel-max-stream-window-bytes", tunnel.DefaultMaxStreamWindowSizeBytes, "Maximum Yamux receive window per tunnel stream in bytes")
 	agentCmd.Flags().Int64("tunnel-max-concurrent-requests", 0, "Optional fixed concurrent tunnel request limit (default: adaptive local resource pressure)")
 	agentCmd.Flags().Int64("tunnel-connections", tunnel.DefaultParallelTunnels, "Parallel TCP tunnels sharing one agent's resource capacity")
-	agentCmd.Flags().Int64("tunnel-upstream-socket-buffer-bytes", tunnel.DefaultUpstreamSocketBufferBytes, "Per-direction origin socket buffer, included in stream memory accounting")
+	agentCmd.Flags().Int64("tunnel-upstream-socket-buffer-bytes", tunnel.DefaultUpstreamSocketBufferBytes, "Origin TCP buffer: 0 uses Linux autotuning; positive per-direction bytes are included in stream accounting")
 	agentCmd.Flags().StringArray("allow-target", nil, "Opt-in tunnel destination allowlist entry; repeat for CIDR/IP/hostname with optional port or port range")
 	agentCmd.Flags().Bool("allow-any-target", false, "Explicitly allow management to dial any destination reachable by this agent")
 }

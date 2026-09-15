@@ -36,6 +36,7 @@ import (
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
 	"p2pstream/internal/buildinfo"
 	"p2pstream/internal/sysmetrics"
+	"p2pstream/internal/tcpsocket"
 	"p2pstream/internal/tunnel"
 )
 
@@ -952,6 +953,7 @@ func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux
 	if capacity == nil {
 		capacity = newAgentTunnelCapacityRuntime(tunnel.DefaultMaxConcurrentAgentRequests, false, nil)
 	}
+	ctx = context.WithValue(ctx, upstreamCapacityContextKey{}, capacity)
 	var handlers sync.WaitGroup
 	defer func() {
 		_ = session.Close()
@@ -1144,7 +1146,10 @@ func dialTunnelDestination(ctx context.Context, network string, address string, 
 }
 
 type upstreamSocketBufferContextKey struct{}
+type upstreamCapacityContextKey struct{}
 type receiveWindowContextKey struct{}
+
+var errUpstreamSocketResourcePressure = errors.New("upstream TCP buffer resource pressure")
 
 func dialTunnelNetwork(ctx context.Context, network string, address string) (net.Conn, error) {
 	configuredBuffer, _ := ctx.Value(upstreamSocketBufferContextKey{}).(int64)
@@ -1157,19 +1162,25 @@ func dialTunnelNetwork(ctx context.Context, network string, address string) (net
 	if err != nil {
 		return nil, err
 	}
-	if tcpConn, ok := conn.(*net.TCPConn); ok {
-		// Keep kernel socket buffering within the adaptive per-stream overhead
-		// reservation. Linux may double these requested values internally; the
-		// controller reserves substantially more than both buffers plus relay
-		// allocations.
-		if err := tcpConn.SetReadBuffer(int(socketBufferBytes)); err != nil {
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		socketBytes, err := tcpsocket.Configure(tcp, socketBufferBytes)
+		if err != nil {
 			_ = conn.Close()
-			return nil, fmt.Errorf("bound upstream TCP read buffer: %w", err)
+			return nil, fmt.Errorf("account upstream TCP buffers: %w", err)
 		}
-		if err := tcpConn.SetWriteBuffer(int(socketBufferBytes)); err != nil {
+		// Explicit buffers are included in the initial stream charge. Auto
+		// mode reserves the kernel's larger allowance for the socket lifetime.
+		capacity, _ := ctx.Value(upstreamCapacityContextKey{}).(*agentTunnelCapacityRuntime)
+		included := max(tcpsocket.BaseMemoryBytes, 4*socketBufferBytes)
+		if socketBytes <= included {
+			return conn, nil
+		}
+		release, ok := capacity.tryReserveWindowGrowth(socketBytes - included)
+		if !ok {
 			_ = conn.Close()
-			return nil, fmt.Errorf("bound upstream TCP write buffer: %w", err)
+			return nil, errUpstreamSocketResourcePressure
 		}
+		return &tcpsocket.AccountedConn{TCPConn: tcp, Release: release}, nil
 	}
 	return conn, nil
 }
@@ -1179,6 +1190,9 @@ func agentTunnelDialer() net.Dialer {
 }
 
 func tunnelDialErrorKind(err error) string {
+	if errors.Is(err, errUpstreamSocketResourcePressure) {
+		return "agent_resource_pressure"
+	}
 	if errors.Is(err, errAgentDestinationForbidden) {
 		return "dial_forbidden"
 	}

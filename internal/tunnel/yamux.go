@@ -17,24 +17,27 @@ const (
 	// AdaptivePerStreamOverheadBytes covers bounded TCP socket buffers, relay
 	// copy buffers, Yamux stream metadata, and allocator slack beyond receive
 	// credit itself. The stream charge is held until the stream lease closes.
-	AdaptivePerStreamOverheadBytes     = int64(768 * 1024)
-	DefaultAdaptiveReceiveWindowBytes  = int64(512 * 1024)
-	DefaultAdaptiveStreamChargeBytes   = DefaultAdaptiveReceiveWindowBytes + AdaptivePerStreamOverheadBytes
-	MinimumAdaptiveStreamChargeBytes   = InitialStreamWindowSizeBytes + AdaptivePerStreamOverheadBytes
-	DefaultMaxStreamWindowSizeBytes    = int64(2 * 1024 * 1024)
-	MaxStreamWindowSizeBytesLimit      = int64(64 * 1024 * 1024)
-	DefaultMaxConcurrentAgentRequests  = int64(64)
-	MaxConcurrentAgentRequestsLimit    = int64(2048)
-	DefaultServerMaxConcurrentStreams  = int64(256)
-	MaxServerConcurrentStreamsLimit    = int64(65536)
-	MaxAdaptiveConcurrentStreamsLimit  = MaxServerConcurrentStreamsLimit
-	MaxAggregateStreamWindowBytesLimit = int64(512 * 1024 * 1024)
-	DefaultUpstreamSocketBufferBytes   = int64(128 * 1024)
-	MaxUpstreamSocketBufferBytes       = int64(16 * 1024 * 1024)
+	AdaptivePerStreamOverheadBytes    = int64(768 * 1024)
+	DefaultAdaptiveReceiveWindowBytes = int64(512 * 1024)
+	DefaultAdaptiveStreamChargeBytes  = DefaultAdaptiveReceiveWindowBytes + AdaptivePerStreamOverheadBytes
+	MinimumAdaptiveStreamChargeBytes  = InitialStreamWindowSizeBytes + AdaptivePerStreamOverheadBytes
+	DefaultMaxStreamWindowSizeBytes   = MaxStreamWindowSizeBytesLimit
+	// This is a protocol ceiling, not an initial allocation. Production growth
+	// must reserve against the shared process memory budget before advertising
+	// any extra credit, including with explicit concurrency limits.
+	MaxStreamWindowSizeBytesLimit     = int64(1024 * 1024 * 1024)
+	DefaultMaxConcurrentAgentRequests = int64(64)
+	MaxConcurrentAgentRequestsLimit   = int64(2048)
+	DefaultServerMaxConcurrentStreams = int64(256)
+	MaxServerConcurrentStreamsLimit   = int64(65536)
+	MaxAdaptiveConcurrentStreamsLimit = MaxServerConcurrentStreamsLimit
+	DefaultUpstreamSocketBufferBytes  = int64(0) // kernel autotuning
+	MaxUpstreamSocketBufferBytes      = int64(16 * 1024 * 1024)
 )
 
-// StreamMemoryCharge covers initial receive credit and bounded socket/relay
-// overhead. GrowingConn reserves additional credit only for sustained traffic.
+// StreamMemoryCharge covers initial receive credit and socket/relay overhead.
+// Auto TCP sockets reserve any larger kernel allowance separately at dial time.
+// GrowingConn reserves additional receive credit only for sustained traffic.
 func StreamMemoryCharge(windowBytes, socketBufferBytes int64) (int64, error) {
 	window, err := NormalizeMaxStreamWindowSizeBytes(windowBytes)
 	if err != nil {
@@ -43,6 +46,9 @@ func StreamMemoryCharge(windowBytes, socketBufferBytes int64) (int64, error) {
 	buffer, err := NormalizeUpstreamSocketBufferBytes(socketBufferBytes)
 	if err != nil {
 		return 0, err
+	}
+	if buffer == 0 {
+		buffer = 128 * 1024 // base allowance; auto sockets reserve any excess at dial
 	}
 	// Linux may double both requested socket buffers. The remaining 256 KiB
 	// covers relay buffers, stream metadata, TLS state and allocator slack.
@@ -57,10 +63,10 @@ func InitialReceiveWindow(configured int64) (int64, error) {
 
 func NormalizeUpstreamSocketBufferBytes(size int64) (int64, error) {
 	if size == 0 {
-		size = DefaultUpstreamSocketBufferBytes
+		return 0, nil
 	}
 	if size < 16*1024 || size > MaxUpstreamSocketBufferBytes {
-		return 0, fmt.Errorf("TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES must be between %d and %d", 16*1024, MaxUpstreamSocketBufferBytes)
+		return 0, fmt.Errorf("TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES must be zero (automatic) or between %d and %d", 16*1024, MaxUpstreamSocketBufferBytes)
 	}
 	return size, nil
 }
@@ -111,24 +117,6 @@ func NormalizeMaxConcurrentAgentRequests(requests int64) (int64, error) {
 		return 0, fmt.Errorf("TUNNEL_MAX_CONCURRENT_REQUESTS must be less than or equal to %d", MaxConcurrentAgentRequestsLimit)
 	}
 	return requests, nil
-}
-
-func ValidateAggregateStreamWindowBudget(windowBytes int64, requests int64) error {
-	window, err := NormalizeMaxStreamWindowSizeBytes(windowBytes)
-	if err != nil {
-		return err
-	}
-	requests, err = NormalizeMaxConcurrentAgentRequests(requests)
-	if err != nil {
-		return err
-	}
-	if int64(window) > MaxAggregateStreamWindowBytesLimit/requests {
-		return fmt.Errorf(
-			"TUNNEL_MAX_STREAM_WINDOW_BYTES times TUNNEL_MAX_CONCURRENT_REQUESTS must be less than or equal to %d bytes",
-			MaxAggregateStreamWindowBytesLimit,
-		)
-	}
-	return nil
 }
 
 func NewYamuxConfig(logger yamux.Logger, maxStreamWindowSizeBytes int64) (*yamux.Config, error) {

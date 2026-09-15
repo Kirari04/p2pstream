@@ -3,6 +3,7 @@ package tunnel
 import (
 	"net"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/yamux"
 )
@@ -12,19 +13,29 @@ import (
 // stream usable at its existing window instead of failing the request.
 type GrowingConn struct {
 	net.Conn
-	stream    *yamux.Stream
-	maximum   uint32
-	reserve   func(int64) (func(), bool)
-	mu        sync.Mutex
-	readBytes uint64
-	closing   bool
-	releases  []func()
+	stream   *yamux.Stream
+	maximum  uint32
+	reserve  func(int64) (func(), bool)
+	mu       sync.Mutex
+	growth   receiveWindowGrowth
+	closing  bool
+	releases []func()
 }
 
 func NewGrowingConn(conn net.Conn, maximum int64, reserve func(int64) (func(), bool)) *GrowingConn {
-	window, _ := NormalizeMaxStreamWindowSizeBytes(maximum)
+	window, err := NormalizeMaxStreamWindowSizeBytes(maximum)
 	stream, _ := conn.(*yamux.Stream)
-	return &GrowingConn{Conn: conn, stream: stream, maximum: window, reserve: reserve}
+	if err != nil && stream != nil {
+		// Runtime callers validate configuration before opening a session. If
+		// another caller supplies an invalid ceiling, grant no extra credit.
+		window = stream.MaxReceiveWindow()
+	}
+	c := &GrowingConn{Conn: conn, stream: stream, maximum: window, reserve: reserve}
+	c.growth.start = time.Now()
+	if stream != nil && reserve != nil && stream.MaxReceiveWindow() < window {
+		stream.Session().RequestRTT()
+	}
+	return c
 }
 
 func (c *GrowingConn) Read(p []byte) (int, error) {
@@ -38,20 +49,29 @@ func (c *GrowingConn) Read(p []byte) (int, error) {
 }
 
 func (c *GrowingConn) grow(n uint64) error {
+	return c.growMeasured(n, time.Now(), c.stream.Session().RTT())
+}
+
+func (c *GrowingConn) growMeasured(n uint64, now time.Time, rtt time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	current := c.stream.MaxReceiveWindow()
 	if c.closing || current >= c.maximum {
 		return nil
 	}
-	c.readBytes += n
-	if c.readBytes < uint64(current) {
+	next, sampled := c.growth.observe(now, n, current, c.maximum, rtt)
+	if sampled {
+		c.stream.Session().RequestRTT()
+	}
+	if next <= current {
 		return nil
 	}
-	c.readBytes = 0
-	next := uint32(min(uint64(current)*2, uint64(c.maximum)))
-	release, ok := c.reserve(int64(next - current))
+	// The initial stream charge includes chunk slack. Charge every additional
+	// chunk and its bookkeeping before publishing the new receive credit.
+	extra := yamux.ReceiveWindowMemory(next) - yamux.ReceiveWindowMemory(current)
+	release, ok := c.reserve(int64(extra))
 	if !ok {
+		c.growth.deniedUntil = now.Add(time.Second)
 		return nil
 	}
 	c.releases = append(c.releases, release)
