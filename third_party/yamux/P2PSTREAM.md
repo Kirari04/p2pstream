@@ -21,3 +21,8 @@ and run `go test ./...` followed by `go test -race -short ./...` in this
 directory when changing it. Upstream's short mode excludes the 250 MiB and
 16 GiB stress transfers, which run in the normal suite: the two-minute timeout is not
 a portable throughput expectation under the race detector on small CI runners.
+The 16 GiB stress fixture retains keepalives but uses the application's 10-second
+write timeout instead of the small-fixture 250 ms timeout, which can expire
+behind saturated TLS writes on shared runners. Its full byte-count checks and
+120-second completion deadline are unchanged; keepalive timeout unit tests keep
+their deliberately short timers.
