@@ -233,8 +233,8 @@ func TestLoadManagementBindAndSecurityDefaults(t *testing.T) {
 	if cfg.LoginThrottleMaxKeys != 50_000 {
 		t.Fatalf("LoginThrottleMaxKeys = %d, want 50000", cfg.LoginThrottleMaxKeys)
 	}
-	if cfg.TunnelMaxStreamWindowBytes != 2*1024*1024 {
-		t.Fatalf("TunnelMaxStreamWindowBytes = %d, want 2097152", cfg.TunnelMaxStreamWindowBytes)
+	if cfg.TunnelMaxStreamWindowBytes != 64*1024*1024 {
+		t.Fatalf("TunnelMaxStreamWindowBytes = %d, want 67108864", cfg.TunnelMaxStreamWindowBytes)
 	}
 	if cfg.PublicMaxHeaderBytes != 64*1024 {
 		t.Fatalf("PublicMaxHeaderBytes = %d, want 65536", cfg.PublicMaxHeaderBytes)

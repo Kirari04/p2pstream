@@ -145,6 +145,10 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 
 	runCtx, cancel := context.WithCancel(t.Context())
 	defer cancel()
+	// This 512 MiB fixture measures many small delayed requests. Explicitly
+	// retain its bounded socket allowance; auto mode reserves the host's TCP
+	// maxima and is covered by the public WAN and socket admission tests.
+	runCtx = context.WithValue(runCtx, upstreamSocketBufferContextKey{}, int64(128<<10))
 	sessionReady := make(chan *yamux.Session, 1)
 	management := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(tunnel.TunnelCapacityModeHeader) != tunnel.TunnelCapacityModeAdaptive ||
@@ -549,6 +553,7 @@ func TestProductionAgentHeldStreamsRespect512MiBResourceEnvelope(t *testing.T) {
 
 	runCtx, cancel := context.WithCancel(t.Context())
 	defer cancel()
+	runCtx = context.WithValue(runCtx, upstreamSocketBufferContextKey{}, int64(128<<10))
 	sessionReady := make(chan *yamux.Session, 1)
 	management := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hijacker, ok := w.(http.Hijacker)

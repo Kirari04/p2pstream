@@ -44,7 +44,7 @@ p2pstream agent [flags]
 | `--allow-insecure-management` | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Permit HTTP management URL. |
 | `--tunnel-max-stream-window-bytes` | `TUNNEL_MAX_STREAM_WINDOW_BYTES` | Maximum receive window; grows from up to 512 KiB as sustained traffic acquires memory credit. |
 | `--tunnel-connections` | `TUNNEL_CONNECTIONS` | Parallel TCP tunnels per agent, default 4; range 1–32. All lanes share one capacity budget. |
-| `--tunnel-upstream-socket-buffer-bytes` | `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES` | Per-direction origin socket buffer, default 128 KiB; range 16 KiB–16 MiB. Larger buffers increase the initial per-stream memory reservation. |
+| `--tunnel-upstream-socket-buffer-bytes` | `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES` | Origin TCP buffering: `0` (default) uses Linux autotuning. An explicit 16 KiB–16 MiB value fixes each direction and increases the initial stream reservation. |
 | `--tunnel-max-concurrent-requests` | `TUNNEL_MAX_CONCURRENT_REQUESTS` | Optional fixed request limit. When omitted, local nested-cgroup/host/Go memory and file-descriptor pressure control admission dynamically. |
 | `--allow-target` | `AGENT_ALLOW_TARGETS` | Opt-in destination allowlist entry. Repeat the flag, or separate env entries with commas/whitespace. |
 | `--allow-any-target` | `AGENT_ALLOW_ANY_TARGET` | Explicitly permit any destination reachable by the agent. |

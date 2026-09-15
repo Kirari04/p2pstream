@@ -140,8 +140,8 @@ func TestNormalizeMaxStreamWindowSizeBytesRejectsUnsafeBounds(t *testing.T) {
 }
 
 func TestValidateAggregateStreamWindowBudget(t *testing.T) {
-	if err := ValidateAggregateStreamWindowBudget(0, 0); err != nil {
-		t.Fatalf("default aggregate stream window budget: %v", err)
+	if err := ValidateAggregateStreamWindowBudget(2*1024*1024, 0); err != nil {
+		t.Fatalf("bounded aggregate stream window budget: %v", err)
 	}
 	if err := ValidateAggregateStreamWindowBudget(64*1024*1024, 8); err != nil {
 		t.Fatalf("boundary aggregate stream window budget: %v", err)

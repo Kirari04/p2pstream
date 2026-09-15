@@ -15,17 +15,28 @@ still apply.
   reconnects independently; a request whose connection was lost still follows
   the configured replay rules.
 - Streams begin with at most 512 KiB receive credit, then double toward the
-  configured maximum (2 MiB by default) as data is consumed. Every increase reserves its
+  configured maximum (64 MiB by default) as data is consumed. Every increase reserves its
   additional memory first. Denied growth keeps the request serving at its
   current window. Initial and additional reservations remain until peer FIN or
   forced stream cleanup. This avoids charging idle connections for bulk-transfer
   windows they never use.
-- The agent's origin sockets request 128 KiB per direction, configurable with
-  `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES`. Accounting includes Linux's possible
-  doubling of both buffers. Increase this on an agent whose origin itself is
-  across a high-latency link; larger buffers reduce available connection count
-  on memory-constrained machines. The management TCP connections keep kernel
-  autotuning. Direct-origin sockets use the same bounded 128 KiB default.
+- Linux public, direct-origin and agent-origin TCP sockets retain kernel
+  autotuning. Setting even a moderately sized `SO_RCVBUF` or `SO_SNDBUF`
+  disables autotuning and can severely limit a connection over a WAN. The
+  default agent `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES=0` leaves both untouched;
+  an explicit positive value still requests fixed buffers. Non-Linux builds
+  retain the bounded 128 KiB fallback until their kernel allowances can be read.
+- Before HTTP/TLS traffic can grow TCP queues, admission reserves the possible
+  receive and send buffers from the current network namespace's `tcp_rmem` and
+  `tcp_wmem` settings, or larger already-present socket buffers. These kernel
+  maxima are actual buffer sizes, not doubled setsockopt requests. The credit
+  lasts until physical close, including pooled idle connections and half-close.
+  Missing or invalid Linux allowance information rejects the connection.
+  Reserving possible growth is conservative: larger OS maxima permit more
+  bandwidth per connection but reduce admitted concurrent sockets at a given
+  memory budget. The public peer guard includes the complete socket allowance.
+  Apply OS tuning before starting the processes; restart after raising TCP
+  maxima so existing socket reservations reflect the new allowances.
 - Public request, resolved-client, direct-peer and direct-origin connection
   guards default to zero (automatic or disabled policy). Public sockets,
   logical HTTP requests and direct-origin sockets still reserve resources.
@@ -56,6 +67,58 @@ mixed releases must not be treated as a promise of retired legacy-header
 negotiation. Additional lanes start only after the primary handshake
 acknowledges support.
 No throughput improvement bypasses agent destination policy or TLS trust.
+
+## TCP bandwidth regression and coverage
+
+The published **v0.1.53-staging.91** is affected: public sockets were fixed at
+64 KiB per direction, while direct and agent origins defaulted to 128 KiB.
+The autotuning fix described above is currently unreleased. Upgrade both the
+server and agents when it ships; remove explicit socket/window overrides to use
+its new defaults. Increasing only `net.core.rmem_max`/`wmem_max` did not remove
+the affected release's application-imposed public cap.
+
+`scripts/test-proxy-wan.sh` runs in the required CI Verify job. It creates
+three disposable Linux network namespaces (server, router, client) with 80 ms
+RTT and 100 Mbit/s capacity. Delay is on the forwarding router, avoiding TCP
+Small Queues artifacts from applying netem at the sending endpoint. It tests
+HTTP/1.1 and HTTP/2 through the actual public HTTPS listener and routing stack,
+with direct origins and a real agent. A second topology puts the origin across
+the WAN to catch origin socket regressions. Transfers verify complete payload
+hashes and use the median of three runs against an unproxied control; admission,
+TLS, response status and negotiated HTTP versions are exercised too. HTTP/2
+uploads cover the public receive direction. The harness needs Linux `ip`, `tc`,
+`unshare`, `nsenter` and a curl build with HTTP/2. It uses unprivileged namespaces,
+or passwordless sudo on CI hosts that restrict user namespaces, and changes no
+host addresses, routes, qdiscs or sysctls.
+
+The new download test against the released source measured **1.17–1.18 MB/s**
+against a **9.72 MB/s** HTTPS control and failed its 65% relative-throughput
+floor. The fix measured **9.72–9.74 MB/s**, matching the control. This test catches
+the public socket regression that the older transport-only benchmark missed.
+
+A separate three-VM Multipass lab uses public HTTPS, four real TLS/Yamux lanes,
+WireGuard (MTU 1420) and nginx origins. With 80 ms RTT on both client and VPN
+links and unchanged guest OS buffer limits, three 128 MiB downloads measured:
+
+| Path | Median MB/s |
+| --- | ---: |
+| nginx HTTPS control, client link only | 36.52 |
+| Direct proxy through WireGuard | 23.25 |
+| Agent proxy through WireGuard | 16.82 |
+| Four agent downloads, 64 MiB each, aggregate | 39.79 |
+
+These include connection setup and TCP startup; shorter transfers differ
+substantially. They demonstrate removal of the fixed 1.4–1.5 MB/s ceiling, not
+NIC line-rate under every topology. VPN loss, congestion, OS autotuning maxima,
+TLS/relay work and explicit operator settings can still limit throughput. The
+resource-backed Yamux receive ceiling is now 64 MiB; initial credit remains
+512 KiB and growth can be denied when memory is unavailable.
+
+Reproduce the CI regression without a development server:
+
+```sh
+scripts/test-proxy-wan.sh
+```
 
 ## Measurements
 

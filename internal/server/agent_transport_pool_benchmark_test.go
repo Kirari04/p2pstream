@@ -22,7 +22,7 @@ import (
 const (
 	agentTransportBenchmarkStatus          = http.StatusNoContent
 	agentTransportBenchmarkChurnWindowSize = 128
-	agentTransportBenchmarkStreamCapacity  = tunnel.MaxAggregateStreamWindowBytesLimit / tunnel.DefaultMaxStreamWindowSizeBytes
+	agentTransportBenchmarkStreamCapacity  = int64(256) // keep the benchmark concurrency independent of receive-window defaults
 )
 
 type agentTransportBenchmarkFixture struct {
