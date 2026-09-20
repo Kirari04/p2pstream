@@ -92,6 +92,7 @@ export function hostnamePatternValidationReason(value: string, allowWildcard: bo
   if (!hostname) return "Enter a hostname.";
   if (hostname !== value || /[\u0000-\u001f\u007f\s]/u.test(hostname)) return "Do not include whitespace or control characters.";
   if (hostname.includes("://") || /[/?#@]/u.test(hostname)) return "Enter only a hostname, without a scheme, path, credentials, query, or fragment.";
+  if (hostname.includes(":") && !isIPLiteral(hostname)) return "Enter only a hostname, without a port.";
   if (hostname.endsWith("..")) return "Use at most one trailing dot.";
   const wildcardCount = (hostname.match(/\*/gu) ?? []).length;
   if (!allowWildcard && wildcardCount) return "The primary hostname must be exact; wildcards are aliases only.";
@@ -108,6 +109,12 @@ function normalizedHostnameKey(value: string): string {
 }
 
 function isIPLiteral(value: string): boolean {
-  if (/^(?:\d{1,3}\.){3}\d{1,3}$/u.test(value)) return true;
-  return value.includes(":") && /^[0-9a-f:.]+$/iu.test(value);
+  const octets = value.split(".");
+  if (octets.length === 4 && octets.every((octet) => /^\d{1,3}$/u.test(octet) && Number(octet) <= 255)) return true;
+  if (!value.includes(":")) return false;
+  try {
+    return new URL(`http://[${value}]/`).hostname.startsWith("[");
+  } catch {
+    return false;
+  }
 }

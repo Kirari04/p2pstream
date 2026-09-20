@@ -19,6 +19,9 @@ describe("public sites", () => {
     expect(publicSiteValidationReason(base)).toBe("");
     expect(publicSiteValidationReason({ ...base, name: "Customer portal" })).toContain("only letters");
     expect(publicSiteValidationReason({ ...base, primaryHostname: "*.example.com" })).toContain("must be exact");
+    expect(publicSiteValidationReason({ ...base, primaryHostname: "app.example.com:443" })).toContain("without a port");
+    expect(publicSiteValidationReason({ ...base, primaryHostname: "dead.beef:443" })).toContain("without a port");
+    expect(publicSiteValidationReason({ ...base, primaryHostname: "2001:db8::1" })).toBe("");
     expect(publicSiteValidationReason({
       ...base,
       aliases: [{ id: "1", hostnamePattern: "*.example.com", behavior: PublicSiteHostBehavior.SERVE }],

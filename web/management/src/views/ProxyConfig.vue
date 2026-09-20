@@ -435,6 +435,7 @@ async function deleteSite(site: PublicSite) {
     if (await confirm(
       "Site still owns routes",
       `“${diagnosticInspectionText(site.name)}” owns ${routeCount.toString()} ${routeCount === 1 ? "route" : "routes"}. A claimed hostname never falls through, so detach or delete those routes before removing the site. Open Routes now?`,
+      "Open Routes",
     )) await router.push("/proxy/routes");
     return;
   }
