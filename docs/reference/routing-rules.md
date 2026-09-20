@@ -6,14 +6,17 @@ In the management UI, choose **Proxy -> Routes**. The Routes tab presents compac
 
 ## Route Fields And Defaults
 
-A non-default route requires at least one of:
+A non-default Legacy route requires at least one of:
 
 - host pattern,
 - path prefix.
 
+A Site-owned route may use an empty path prefix to match the Site root because its hostname scope comes from the Site.
+
 | Field | Rule |
 | --- | --- |
 | `listener_id` | Required. Route is scoped to this listener. |
+| `site_id` | Optional Site scope. On create, omission makes a Legacy listener-wide rule. On update, omission preserves the current binding; send explicit `0` to detach to Legacy. |
 | `priority` | Lower numbers evaluate first. |
 | `host_pattern` | Exact host or wildcard subdomain. |
 | `path_prefix` | Must start with `/` when set. |
@@ -21,7 +24,7 @@ A non-default route requires at least one of:
 | `access_policy_id` | Optional reusable identity policy. Requests fail closed when its provider or policy is unavailable. |
 | `action` | `forward` or `redirect`; defaults to forward when unspecified. |
 | `target_load_balancing` | Defaults to round-robin for forward target pools. |
-| `is_default` | Marks the listener default route. One default route is allowed per listener. |
+| `is_default` | Marks the selected scope's default. Each Site may have one; Legacy routes share one listener-wide default. |
 | `redirect_status_code` | Defaults to `302` when unset. |
 | `redirect_preserve_path_suffix` | Defaults enabled. |
 | `redirect_preserve_query` | Defaults enabled. |
@@ -115,7 +118,11 @@ The compatibility mode is route-scoped so only the backend that needs encoded se
 
 ## Runtime Effects
 
-Routes are sorted by priority ascending, then route ID ascending. If no enabled non-default route matches, the listener default route handles the request.
+Site-owned routes are evaluated only after the request Host claims that Site. A claimed Site hostname never falls through to legacy routes or another Site when no path matches. See [Sites and Domain Aliases](./sites).
+
+Routes are sorted by priority ascending, then route ID ascending within the selected scope. For a claimed Site hostname, its Site default handles a path miss. For Legacy scope, the listener-wide default handles a miss.
+
+Default-route uniqueness follows the same boundary: each Site may have one default route, while Legacy routes share one listener-wide default.
 
 p2pstream performs a lightweight route match before WAF, rate limits, access control, and traffic shapers to determine the matched route's path security mode and access policy. Target selection and load-balancer accounting still happen after those policy layers.
 

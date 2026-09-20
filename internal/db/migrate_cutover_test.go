@@ -24,7 +24,7 @@ func seedCutoverVersion17(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := provider.Up(context.Background()); err != nil {
+	if _, err := provider.UpTo(context.Background(), 17); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := database.Exec(`

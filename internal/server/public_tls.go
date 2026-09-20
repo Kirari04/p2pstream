@@ -180,8 +180,7 @@ func (s *publicTLSSelector) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Cer
 			return cert, nil
 		}
 		for _, wildcard := range s.wildcard {
-			if strings.HasSuffix(serverName, wildcard.suffix) &&
-				len(serverName) > len(strings.TrimPrefix(wildcard.suffix, ".")) {
+			if strictPublicSiteHostMatches(serverName, wildcard.pattern) {
 				return wildcard.cert, nil
 			}
 		}

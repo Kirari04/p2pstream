@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -31,6 +33,7 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		AccessUsers:         publicAccessUsersToProto(rows.AccessUsers),
 		AccessPolicies:      publicAccessPoliciesToProto(rows.AccessPolicies),
 		Listeners:           publicListenersToProto(rows.Listeners),
+		Sites:               publicSitesToProto(rows.Sites, rows.SiteHosts, rows.Listeners, rows.TLSCertificates),
 		Routes:              publicRoutesToProto(rows.Routes, rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
 		RouteTargets:        publicRouteTargetsToProto(rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
 		TlsCertificates:     publicTLSCertificatesToProto(rows.TLSCertificates),
@@ -52,7 +55,9 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 }
 
 func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
-	snap, err := a.loadPublicProxySnapshot(ctx)
+	a.publicConfigRefreshMu.Lock()
+	defer a.publicConfigRefreshMu.Unlock()
+	snap, err := a.loadPublicProxySnapshotLocked(ctx)
 	if err != nil {
 		return err
 	}
@@ -139,6 +144,12 @@ func routeTargetTransportSignatureFor(target publicRouteTargetConfig) routeTarge
 }
 
 func (a *App) loadPublicProxySnapshot(ctx context.Context) (*publicProxySnapshot, error) {
+	a.publicConfigRefreshMu.Lock()
+	defer a.publicConfigRefreshMu.Unlock()
+	return a.loadPublicProxySnapshotLocked(ctx)
+}
+
+func (a *App) loadPublicProxySnapshotLocked(ctx context.Context) (*publicProxySnapshot, error) {
 	rows, err := a.loadPublicConfigRows(ctx)
 	if err != nil {
 		return nil, err
@@ -188,105 +199,130 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err := a.ensurePublicProxySeeded(ctx); err != nil {
 		return publicConfigRows{}, err
 	}
-	accessProviders, err := a.DB.ListPublicAccessProviders(ctx)
+	if _, err := a.ensurePublicWafSettings(ctx); err != nil {
+		return publicConfigRows{}, err
+	}
+	if _, err := a.ensurePublicGeoIPSettings(ctx); err != nil {
+		return publicConfigRows{}, err
+	}
+	if _, err := a.ensurePublicCacheSettings(ctx); err != nil {
+		return publicConfigRows{}, err
+	}
+	tx, err := a.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	accessPolicies, err := a.DB.ListPublicAccessPolicies(ctx)
+	defer tx.Rollback()
+	txq := a.DB.Queries.WithTx(tx)
+	accessProviders, err := txq.ListPublicAccessProviders(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	accessUsers, err := a.DB.ListPublicAccessUsers(ctx)
+	accessPolicies, err := txq.ListPublicAccessPolicies(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	responseTemplates, err := a.DB.ListPublicResponseTemplates(ctx)
+	accessUsers, err := txq.ListPublicAccessUsers(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	agents, err := a.DB.ListAgents(ctx)
+	responseTemplates, err := txq.ListPublicResponseTemplates(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	agentLabels, err := a.DB.ListAgentLabels(ctx)
+	agents, err := txq.ListAgents(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	listeners, err := a.DB.ListPublicListeners(ctx)
+	agentLabels, err := txq.ListAgentLabels(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	routes, err := a.DB.ListPublicRoutes(ctx)
+	listeners, err := txq.ListPublicListeners(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	routeTargets, err := a.DB.ListPublicRouteTargets(ctx)
+	sites, err := txq.ListPublicSites(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	routeTargetUpstreamHeaders, err := a.DB.ListPublicRouteTargetUpstreamHeaders(ctx)
+	siteHosts, err := txq.ListPublicSiteHosts(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	routeTargetResponseHeaders, err := a.DB.ListPublicRouteTargetResponseHeaders(ctx)
+	routes, err := txq.ListPublicRoutes(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	certs, err := a.DB.ListPublicTlsCertificates(ctx)
+	routeTargets, err := txq.ListPublicRouteTargets(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	tlsDNSCredentials, err := a.DB.ListPublicTlsDnsCredentials(ctx)
+	routeTargetUpstreamHeaders, err := txq.ListPublicRouteTargetUpstreamHeaders(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	rateLimitRules, err := a.DB.ListPublicRateLimitRules(ctx)
+	routeTargetResponseHeaders, err := txq.ListPublicRouteTargetResponseHeaders(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	trafficShaperRules, err := a.DB.ListPublicTrafficShaperRules(ctx)
+	certs, err := txq.ListPublicTlsCertificates(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	wafCaptchaProviders, err := a.DB.ListPublicWafCaptchaProviders(ctx)
+	tlsDNSCredentials, err := txq.ListPublicTlsDnsCredentials(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	wafRules, err := a.DB.ListPublicWafRules(ctx)
+	rateLimitRules, err := txq.ListPublicRateLimitRules(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	wafSettings, err := a.ensurePublicWafSettings(ctx)
+	trafficShaperRules, err := txq.ListPublicTrafficShaperRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	wafCaptchaProviders, err := txq.ListPublicWafCaptchaProviders(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	wafRules, err := txq.ListPublicWafRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	wafSettings, err := txq.GetPublicWafSettings(ctx)
 	if err != nil {
 		return publicConfigRows{}, err
 	}
-	geoIPSettings, err := a.ensurePublicGeoIPSettings(ctx)
+	geoIPSettings, err := txq.GetPublicGeoIpSettings(ctx)
 	if err != nil {
 		return publicConfigRows{}, err
 	}
-	trustedProxySources, err := a.DB.ListPublicTrustedProxySources(ctx)
+	trustedProxySources, err := txq.ListPublicTrustedProxySources(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	cacheSettings, err := a.ensurePublicCacheSettings(ctx)
+	cacheSettings, err := txq.GetPublicCacheSettings(ctx)
 	if err != nil {
 		return publicConfigRows{}, err
 	}
-	cacheRules, err := a.DB.ListPublicCacheRules(ctx)
+	cacheRules, err := txq.ListPublicCacheRules(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	retryRules, err := a.DB.ListPublicRetryRules(ctx)
+	retryRules, err := txq.ListPublicRetryRules(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	return publicConfigRows{
+	rows := publicConfigRows{
 		AccessProviders:            accessProviders,
 		AccessUsers:                accessUsers,
 		AccessPolicies:             accessPolicies,
 		Agents:                     agents,
 		AgentLabels:                agentLabels,
 		Listeners:                  listeners,
+		Sites:                      sites,
+		SiteHosts:                  siteHosts,
 		Routes:                     routes,
 		RouteTargets:               routeTargets,
 		RouteTargetUpstreamHeaders: routeTargetUpstreamHeaders,
@@ -304,7 +340,11 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		CacheRules:                 cacheRules,
 		RetryRules:                 retryRules,
 		ResponseTemplates:          responseTemplates,
-	}, nil
+	}
+	if err := tx.Commit(); err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	return rows, nil
 }
 
 func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error) {
@@ -318,6 +358,8 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		RouteTargets:        make(map[int64]publicRouteTargetConfig),
 		Agents:              make(map[int64]publicAgentConfig),
 		Listeners:           make(map[int64]publicListenerConfig),
+		Sites:               make(map[int64]publicSiteConfig),
+		SiteHostsByListener: make(map[int64][]publicSiteHostConfig),
 		RoutesByListener:    make(map[int64][]publicRouteConfig),
 		CertsByListener:     make(map[int64][]publicTLSCertificateConfig),
 		WafCaptchaProviders: make(map[int64]publicWafCaptchaProviderConfig),
@@ -437,6 +479,54 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			Enabled:     listener.Enabled != 0,
 		}
 	}
+	for _, site := range rows.Sites {
+		snap.Sites[site.ID] = publicSiteConfig{
+			ID: site.ID, ListenerID: site.ListenerID, Name: site.Name, Enabled: site.Enabled != 0,
+		}
+	}
+	for _, host := range rows.SiteHosts {
+		site, ok := snap.Sites[host.SiteID]
+		if !ok || site.ListenerID != host.ListenerID {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has inconsistent ownership", host.HostnamePattern))
+		}
+		normalized, normalizeErr := normalizePublicSiteHostnamePattern(host.HostnamePattern)
+		if normalizeErr != nil || normalized != host.HostnamePattern {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q is not stored canonically", host.HostnamePattern))
+		}
+		if host.Role != publicSiteHostRolePrimary && host.Role != publicSiteHostRoleAlias {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has invalid role", host.HostnamePattern))
+		}
+		if host.Behavior != publicSiteHostBehaviorServe && host.Behavior != publicSiteHostBehaviorRedirect {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has invalid behavior", host.HostnamePattern))
+		}
+		if host.Role == publicSiteHostRolePrimary && (host.Behavior != publicSiteHostBehaviorServe || strings.HasPrefix(host.HostnamePattern, "*.")) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has invalid primary binding", host.HostnamePattern))
+		}
+		binding := publicSiteHostConfig{
+			ID: host.ID, SiteID: host.SiteID, ListenerID: host.ListenerID,
+			HostnamePattern: host.HostnamePattern, Primary: host.Role == "primary", Behavior: host.Behavior,
+		}
+		if binding.Primary {
+			site.PrimaryHostname = binding.HostnamePattern
+			snap.Sites[site.ID] = site
+		}
+		snap.SiteHostsByListener[host.ListenerID] = append(snap.SiteHostsByListener[host.ListenerID], binding)
+	}
+	for siteID, site := range snap.Sites {
+		count, primaryCount := 0, 0
+		for _, binding := range snap.SiteHostsByListener[site.ListenerID] {
+			if binding.SiteID != siteID {
+				continue
+			}
+			count++
+			if binding.Primary {
+				primaryCount++
+			}
+		}
+		if count == 0 || count > maxPublicSiteHosts || primaryCount != 1 || site.PrimaryHostname == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site %q requires 1-%d bindings and exactly one primary", site.Name, maxPublicSiteHosts))
+		}
+	}
 	for routeID, targets := range routeTargetsByRoute {
 		sort.SliceStable(targets, func(i, j int) bool {
 			if targets[i].PriorityGroup == targets[j].PriorityGroup {
@@ -453,6 +543,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		snap.RoutesByListener[route.ListenerID] = append(snap.RoutesByListener[route.ListenerID], publicRouteConfig{
 			ID:                         route.ID,
 			ListenerID:                 route.ListenerID,
+			SiteID:                     nullInt64Value(route.SiteID),
 			Priority:                   route.Priority,
 			HostPattern:                normalizeHostPattern(route.HostPattern),
 			PathPrefix:                 route.PathPrefix,

@@ -554,10 +554,21 @@ func TestPublicTLSCertificateUploadStoresManagedFiles(t *testing.T) {
 	assertFileMode(t, wantCertPath, 0600)
 	assertFileMode(t, wantKeyPath, 0600)
 
-	updateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicTlsCertificateRequest{
+	renameReq := connect.NewRequest(&p2pstreamv1.UpdatePublicTlsCertificateRequest{
 		Id:              cert.GetId(),
 		ListenerId:      listener.ID,
 		HostnamePattern: "renamed.example.com",
+		Enabled:         false,
+	})
+	renameReq.Header().Set("Cookie", cookie)
+	if _, err := client.UpdatePublicTlsCertificate(context.Background(), renameReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("retained certificate rename code = %v, err=%v", connect.CodeOf(err), err)
+	}
+
+	updateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicTlsCertificateRequest{
+		Id:              cert.GetId(),
+		ListenerId:      listener.ID,
+		HostnamePattern: cert.GetHostnamePattern(),
 		Enabled:         false,
 	})
 	updateReq.Header().Set("Cookie", cookie)

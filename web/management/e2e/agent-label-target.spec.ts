@@ -78,7 +78,7 @@ test("configures agent labels and an agent-selected route target", async ({ page
   expect(labelledAgent?.labels.role).toBe("app");
   expect(labelledAgent?.labels["p2pstream.io/agent-id"]).toBe(agentPublicID);
 
-  await page.goto("/#/proxy");
+  await page.goto("/#/proxy/routes");
   await expect(page.getByRole("heading", { name: "Proxy", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Add Route" }).click();
   await expect(page.getByRole("heading", { name: "Add Route", exact: true })).toBeVisible();

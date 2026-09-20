@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -518,6 +519,28 @@ func (a *App) validatePublicTLSCertificateInput(
 		}, publicTLSCertificateMaterial{}, nil
 	}
 
+	// A broken manual mapping must always remain recoverable. A disabled save
+	// with the same identity and no replacement material cannot widen trust, so
+	// retain its existing material and diagnostic state without loading it.
+	// This also makes repeated saves of an already-disabled mapping idempotent.
+	if !enabled && existing != nil && normalizePublicTLSCertificateSource(existing.Source) == publicTLSCertificateSourceManual &&
+		listenerID == existing.ListenerID && hostnamePattern == normalizeHostPattern(existing.HostnamePattern) &&
+		!generateSelfSigned && selfSignedValidityDays == 0 && !hasCertUpload && !hasKeyUpload &&
+		(certPath == "" || certPath == existing.CertPath) && (keyPath == "" || keyPath == existing.KeyPath) {
+		return publicTLSCertificateMutationInput{
+			ListenerID:           listenerID,
+			HostnamePattern:      hostnamePattern,
+			Enabled:              0,
+			Source:               publicTLSCertificateSourceManual,
+			Status:               existing.Status,
+			LastError:            existing.LastError,
+			IssuedAt:             nullTimeFromExisting(existing, "issued_at"),
+			ExpiresAt:            nullTimeFromExisting(existing, "expires_at"),
+			NextRenewalAt:        nullTimeFromExisting(existing, "next_renewal_at"),
+			LastRenewalAttemptAt: nullTimeFromExisting(existing, "last_renewal_attempt_at"),
+		}, publicTLSCertificateMaterial{}, nil
+	}
+
 	if generateSelfSigned {
 		if hasCertUpload || hasKeyUpload || certPath != "" || keyPath != "" {
 			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("self-signed generation cannot be combined with certificate uploads or file paths"))
@@ -551,6 +574,9 @@ func (a *App) validatePublicTLSCertificateInput(
 		if _, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
 			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("certificate and private key must be a valid PEM pair: %w", err))
 		}
+		if err := verifyPublicTLSCertificateHostname(certPEM, hostnamePattern); err != nil {
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, err)
+		}
 		issuedAt, expiresAt, err := publicTLSCertificateValidityFromPEM(certPEM)
 		if err != nil {
 			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, err)
@@ -570,6 +596,17 @@ func (a *App) validatePublicTLSCertificateInput(
 		if existing == nil || normalizePublicTLSCertificateSource(existing.Source) != publicTLSCertificateSourceManual {
 			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("manual certificates require uploaded files, server file paths, or self-signed generation"))
 		}
+		pair, loadErr := tls.LoadX509KeyPair(existing.CertPath, existing.KeyPath)
+		if loadErr != nil || len(pair.Certificate) == 0 {
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("retained certificate material is unavailable"))
+		}
+		leaf, parseErr := x509.ParseCertificate(pair.Certificate[0])
+		if parseErr != nil {
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("parse retained certificate leaf: %w", parseErr))
+		}
+		if verifyErr := verifyPublicTLSLeafHostname(leaf, hostnamePattern); verifyErr != nil {
+			return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, verifyErr)
+		}
 		return publicTLSCertificateMutationInput{
 			ListenerID:           listenerID,
 			HostnamePattern:      hostnamePattern,
@@ -585,6 +622,20 @@ func (a *App) validatePublicTLSCertificateInput(
 	if certPath == "" || keyPath == "" {
 		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate and key paths are required"))
 	}
+	pair, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("certificate and key paths must contain a valid PEM pair: %w", err))
+	}
+	if len(pair.Certificate) == 0 {
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, errors.New("certificate path does not contain a leaf certificate"))
+	}
+	leaf, err := x509.ParseCertificate(pair.Certificate[0])
+	if err != nil {
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("parse certificate leaf: %w", err))
+	}
+	if err := verifyPublicTLSLeafHostname(leaf, hostnamePattern); err != nil {
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	issuedAt, expiresAt := publicTLSCertificateValidityFromFile(certPath)
 	return publicTLSCertificateMutationInput{
 		ListenerID:      listenerID,
@@ -597,6 +648,32 @@ func (a *App) validatePublicTLSCertificateInput(
 		IssuedAt:        issuedAt,
 		ExpiresAt:       expiresAt,
 	}, publicTLSCertificateMaterial{}, nil
+}
+
+func verifyPublicTLSCertificateHostname(certPEM []byte, hostnamePattern string) error {
+	leaf, err := parseLeafCertificate(certPEM)
+	if err != nil {
+		return fmt.Errorf("certificate PEM must contain a valid leaf certificate: %w", err)
+	}
+	return verifyPublicTLSLeafHostname(leaf, hostnamePattern)
+}
+
+func verifyPublicTLSLeafHostname(leaf *x509.Certificate, hostnamePattern string) error {
+	if leaf == nil {
+		return errors.New("certificate leaf is required")
+	}
+	if strings.HasPrefix(hostnamePattern, "*.") {
+		for _, dnsName := range leaf.DNSNames {
+			if normalizeHostPattern(dnsName) == hostnamePattern {
+				return nil
+			}
+		}
+		return fmt.Errorf("certificate SAN does not cover wildcard %q", hostnamePattern)
+	}
+	if err := leaf.VerifyHostname(hostnamePattern); err != nil {
+		return fmt.Errorf("certificate SAN does not cover %q: %w", hostnamePattern, err)
+	}
+	return nil
 }
 
 func (a *App) validatePublicTLSDNSCredentialInput(

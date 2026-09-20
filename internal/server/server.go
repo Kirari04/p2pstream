@@ -242,9 +242,10 @@ type App struct {
 	publicSnapshotGeneration uint64
 	publicListenerState      map[int64]*publicListenerRuntime
 
-	publicConfigCacheMu sync.RWMutex
-	publicConfigCache   cachedPublicConfig
-	publicGeoConfigMu   sync.Mutex
+	publicConfigCacheMu   sync.RWMutex
+	publicConfigCache     cachedPublicConfig
+	publicConfigRefreshMu sync.Mutex
+	publicGeoConfigMu     sync.Mutex
 
 	publicGeoMaintenanceMu      sync.Mutex
 	publicGeoMaintenanceStarted bool

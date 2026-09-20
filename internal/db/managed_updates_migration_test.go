@@ -34,7 +34,7 @@ func TestManagedUpdateMigrationRepairsEmptyVersion16Schemas(t *testing.T) {
 				t.Fatalf("authority pin changed during migration: key=%q, err=%v", keyID, err)
 			}
 			var version int64
-			if err := database.QueryRow(`SELECT MAX(version_id) FROM goose_db_version WHERE is_applied=1`).Scan(&version); err != nil || version != 18 {
+			if err := database.QueryRow(`SELECT MAX(version_id) FROM goose_db_version WHERE is_applied=1`).Scan(&version); err != nil || version != 19 {
 				t.Fatalf("migration version=%d, err=%v", version, err)
 			}
 			rows, err := database.Query(`PRAGMA foreign_key_check`)
