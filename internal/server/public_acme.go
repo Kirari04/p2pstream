@@ -663,21 +663,23 @@ func (i publicRealACMEIssuer) Issue(ctx context.Context, store publicACMEChallen
 			Str("acme_challenge_type", challengeType).
 			Msg("ACME challenge provisioned")
 		if _, err := client.Accept(ctx, challenge); err != nil {
-			cleanup()
-			publicACMELogIssueConfig(log.Info(), cfg, publicACMEStageChallengeCleanup).
-				Str("authorization_domain", authz.Identifier.Value).
-				Msg("ACME challenge cleanup completed")
+			cleanupErr := cleanup()
+			logPublicACMEChallengeCleanup(cfg, authz.Identifier.Value, cleanupErr)
+			if cleanupErr != nil {
+				err = errors.Join(err, fmt.Errorf("cleanup ACME challenge: %w", cleanupErr))
+			}
 			return publicACMEIssueResult{}, publicACMEStageWrap(publicACMEStageChallengeAccept, err)
 		}
 		publicACMELogIssueConfig(log.Info(), cfg, publicACMEStageChallengeAccept).
 			Str("authorization_domain", authz.Identifier.Value).
 			Msg("ACME challenge accepted")
 		_, waitErr := client.WaitAuthorization(ctx, authz.URI)
-		cleanup()
-		publicACMELogIssueConfig(log.Info(), cfg, publicACMEStageChallengeCleanup).
-			Str("authorization_domain", authz.Identifier.Value).
-			Msg("ACME challenge cleanup completed")
+		cleanupErr := cleanup()
+		logPublicACMEChallengeCleanup(cfg, authz.Identifier.Value, cleanupErr)
 		if waitErr != nil {
+			if cleanupErr != nil {
+				waitErr = errors.Join(waitErr, fmt.Errorf("cleanup ACME challenge: %w", cleanupErr))
+			}
 			return publicACMEIssueResult{}, publicACMEStageWrap(publicACMEStageAuthorizationWait, waitErr)
 		}
 		publicACMELogIssueConfig(log.Info(), cfg, publicACMEStageAuthorizationWait).
@@ -734,20 +736,22 @@ func (i publicRealACMEIssuer) Issue(ctx context.Context, store publicACMEChallen
 	}, nil
 }
 
-func provisionACMEChallenge(ctx context.Context, client *acme.Client, store publicACMEChallengeStore, cfg publicACMEIssueConfig, authz *acme.Authorization, challenge *acme.Challenge) (func(), error) {
+func provisionACMEChallenge(ctx context.Context, client *acme.Client, store publicACMEChallengeStore, cfg publicACMEIssueConfig, authz *acme.Authorization, challenge *acme.Challenge) (func() error, error) {
 	switch cfg.ChallengeType {
 	case publicACMEChallengeHTTP01:
 		response, err := client.HTTP01ChallengeResponse(challenge.Token)
 		if err != nil {
 			return nil, err
 		}
-		return store.SetHTTPChallenge(client.HTTP01ChallengePath(challenge.Token), response), nil
+		cleanup := store.SetHTTPChallenge(client.HTTP01ChallengePath(challenge.Token), response)
+		return func() error { cleanup(); return nil }, nil
 	case publicACMEChallengeTLSALPN01:
 		challengeCert, err := client.TLSALPN01ChallengeCert(challenge.Token, authz.Identifier.Value)
 		if err != nil {
 			return nil, err
 		}
-		return store.SetTLSALPNChallenge(authz.Identifier.Value, challengeCert), nil
+		cleanup := store.SetTLSALPNChallenge(authz.Identifier.Value, challengeCert)
+		return func() error { cleanup(); return nil }, nil
 	case publicACMEChallengeDNS01:
 		if cfg.DNSCredential == nil {
 			return nil, errors.New("DNS-01 requires a DNS credential")
@@ -761,6 +765,19 @@ func provisionACMEChallenge(ctx context.Context, client *acme.Client, store publ
 	default:
 		return nil, fmt.Errorf("unsupported ACME challenge type %q", cfg.ChallengeType)
 	}
+}
+
+func logPublicACMEChallengeCleanup(cfg publicACMEIssueConfig, authorizationDomain string, cleanupErr error) {
+	if cleanupErr != nil {
+		publicACMELogIssueConfig(log.Warn(), cfg, publicACMEStageChallengeCleanup).
+			Str("authorization_domain", authorizationDomain).
+			Err(cleanupErr).
+			Msg("ACME challenge cleanup failed")
+		return
+	}
+	publicACMELogIssueConfig(log.Info(), cfg, publicACMEStageChallengeCleanup).
+		Str("authorization_domain", authorizationDomain).
+		Msg("ACME challenge cleanup completed")
 }
 
 func findACMEChallenge(authz *acme.Authorization, challengeType string) *acme.Challenge {
