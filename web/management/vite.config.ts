@@ -16,6 +16,16 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 5173,
     strictPort: true,
+    watch: {
+      ignored: [
+        "**/.impeccable/**",
+        "**/docs-screenshots/**",
+        "**/e2e/**",
+        "**/e2e-isolated/**",
+        "**/tests/**",
+        "**/tmp/**",
+      ],
+    },
     proxy: {
       "/p2pstream.v1.AgentManagementService": {
         target: managementProxyTarget,

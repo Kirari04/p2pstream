@@ -13,7 +13,7 @@ all: build
 
 generate-proto: frontend-install
 	@echo "Generating protobuf code..."
-	@go tool buf generate
+	@go tool buf generate --path proto
 
 generate-sqlc:
 	@echo "Generating sqlc code..."
