@@ -309,9 +309,13 @@ func (s *publicConfigService) createPublicRoute(
 	req *connect.Request[p2pstreamv1.CreatePublicRouteRequest],
 ) (*connect.Response[p2pstreamv1.CreatePublicRouteResponse], error) {
 	a := s.app
+	if req.Msg.SiteId != nil && *req.Msg.SiteId < 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("site ID cannot be negative"))
+	}
 	params, routeTargets, err := a.validatePublicRouteInput(
 		ctx,
 		req.Msg.ListenerId,
+		optionalPublicSiteID(req.Msg.SiteId),
 		req.Msg.Priority,
 		req.Msg.HostPattern,
 		req.Msg.PathPrefix,
@@ -358,13 +362,25 @@ func (s *publicConfigService) updatePublicRoute(
 	req *connect.Request[p2pstreamv1.UpdatePublicRouteRequest],
 ) (*connect.Response[p2pstreamv1.UpdatePublicRouteResponse], error) {
 	a := s.app
+	if req.Msg.SiteId != nil && *req.Msg.SiteId < 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("site ID cannot be negative"))
+	}
 	existingSecrets, err := a.existingPublicRouteTargetSecrets(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
+	existingRoute, err := s.db.GetPublicRoute(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	siteID := existingRoute.SiteID
+	if req.Msg.SiteId != nil {
+		siteID = optionalPublicSiteID(req.Msg.SiteId)
+	}
 	params, routeTargets, err := a.validatePublicRouteInput(
 		ctx,
 		req.Msg.ListenerId,
+		siteID,
 		req.Msg.Priority,
 		req.Msg.HostPattern,
 		req.Msg.PathPrefix,
@@ -444,6 +460,7 @@ func (a *App) createPublicRouteWithTargets(
 	qtx := a.DB.WithTx(tx)
 	route, err := qtx.CreatePublicRoute(ctx, db.CreatePublicRouteParams{
 		ListenerID:                 params.ListenerID,
+		SiteID:                     params.SiteID,
 		Priority:                   params.Priority,
 		HostPattern:                params.HostPattern,
 		PathPrefix:                 params.PathPrefix,

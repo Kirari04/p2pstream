@@ -126,6 +126,20 @@ enum PublicRoutePathSecurityMode {
   PUBLIC_ROUTE_PATH_SECURITY_MODE_ALLOW_ENCODED_SEPARATORS = 2;
 }
 
+enum PublicSiteHostBehavior {
+  PUBLIC_SITE_HOST_BEHAVIOR_UNSPECIFIED = 0;
+  PUBLIC_SITE_HOST_BEHAVIOR_SERVE = 1;
+  PUBLIC_SITE_HOST_BEHAVIOR_REDIRECT = 2;
+}
+
+enum PublicSiteTlsCoverage {
+  PUBLIC_SITE_TLS_COVERAGE_UNSPECIFIED = 0;
+  PUBLIC_SITE_TLS_COVERAGE_NOT_APPLICABLE = 1;
+  PUBLIC_SITE_TLS_COVERAGE_COVERED = 2;
+  PUBLIC_SITE_TLS_COVERAGE_MISSING = 3;
+  PUBLIC_SITE_TLS_COVERAGE_INVALID = 4;
+}
+
 enum PublicRateLimitAlgorithm {
   PUBLIC_RATE_LIMIT_ALGORITHM_UNSPECIFIED = 0;
   PUBLIC_RATE_LIMIT_ALGORITHM_FIXED_WINDOW = 1;
@@ -725,6 +739,29 @@ message PublicRoute {
   repeated PublicRouteTarget targets = 21;
   PublicRoutePathSecurityMode path_security_mode = 22;
   int64 access_policy_id = 23;
+  int64 site_id = 24;
+}
+
+message PublicSiteHost {
+  int64 id = 1;
+  int64 site_id = 2;
+  string hostname_pattern = 3;
+  bool primary = 4;
+  PublicSiteHostBehavior behavior = 5;
+  PublicSiteTlsCoverage tls_coverage = 6;
+  string tls_detail = 7;
+  int64 created_at_unix_millis = 8;
+  int64 updated_at_unix_millis = 9;
+}
+
+message PublicSite {
+  int64 id = 1;
+  int64 listener_id = 2;
+  string name = 3;
+  bool enabled = 4;
+  repeated PublicSiteHost hosts = 5;
+  int64 created_at_unix_millis = 6;
+  int64 updated_at_unix_millis = 7;
 }
 
 message PublicAccessProvider {
@@ -1042,6 +1079,7 @@ message GetPublicProxyConfigResponse {
   PublicCacheStorageStats cache_storage_stats = 22;
   repeated PublicRetryRule retry_rules = 23;
   repeated PublicAccessUser access_users = 24;
+  repeated PublicSite sites = 25;
 }
 
 message PublicRouteTargetHealthTrace {
@@ -1414,6 +1452,7 @@ message CreatePublicRouteRequest {
   repeated PublicRouteTarget targets = 21;
   PublicRoutePathSecurityMode path_security_mode = 22;
   int64 access_policy_id = 23;
+  optional int64 site_id = 24;
 }
 
 message CreatePublicRouteResponse {
@@ -1441,7 +1480,36 @@ message UpdatePublicRouteRequest {
   repeated PublicRouteTarget targets = 21;
   PublicRoutePathSecurityMode path_security_mode = 22;
   int64 access_policy_id = 23;
+  optional int64 site_id = 24;
 }
+
+message PublicSiteHostInput {
+  string hostname_pattern = 1;
+  bool primary = 2;
+  PublicSiteHostBehavior behavior = 3;
+}
+
+message CreatePublicSiteRequest {
+  int64 listener_id = 1;
+  string name = 2;
+  bool enabled = 3;
+  repeated PublicSiteHostInput hosts = 4;
+}
+
+message CreatePublicSiteResponse { PublicSite site = 1; }
+
+message UpdatePublicSiteRequest {
+  int64 id = 1;
+  int64 listener_id = 2;
+  string name = 3;
+  bool enabled = 4;
+  repeated PublicSiteHostInput hosts = 5;
+}
+
+message UpdatePublicSiteResponse { PublicSite site = 1; }
+
+message DeletePublicSiteRequest { int64 id = 1; }
+message DeletePublicSiteResponse {}
 
 message UpdatePublicRouteResponse {
   PublicRoute route = 1;
@@ -3196,6 +3264,9 @@ service AgentManagementService {
   rpc DisablePublicListener(DisablePublicListenerRequest) returns (DisablePublicListenerResponse) {}
   rpc StartPublicListener(StartPublicListenerRequest) returns (StartPublicListenerResponse) {}
   rpc StopPublicListener(StopPublicListenerRequest) returns (StopPublicListenerResponse) {}
+  rpc CreatePublicSite(CreatePublicSiteRequest) returns (CreatePublicSiteResponse) {}
+  rpc UpdatePublicSite(UpdatePublicSiteRequest) returns (UpdatePublicSiteResponse) {}
+  rpc DeletePublicSite(DeletePublicSiteRequest) returns (DeletePublicSiteResponse) {}
   rpc CreatePublicRoute(CreatePublicRouteRequest) returns (CreatePublicRouteResponse) {}
   rpc UpdatePublicRoute(UpdatePublicRouteRequest) returns (UpdatePublicRouteResponse) {}
   rpc DeletePublicRoute(DeletePublicRouteRequest) returns (DeletePublicRouteResponse) {}

@@ -32,15 +32,25 @@ import {
   routeTargetSummary,
   severityForState,
 } from "@/lib/publicProxyLabels";
+import {
+  publicSiteAliases,
+  publicSitePrimary,
+  publicSiteTLSCoverage,
+  publicSiteTLSDetail,
+  publicSiteTLSLabel,
+} from "@/lib/publicSites";
 import { naiveTagType } from "@/lib/naiveUi";
 import {
   ProxyState,
   PublicRouteAction,
+  PublicSiteHostBehavior,
+  PublicSiteTlsCoverage,
   type PublicListener,
   type PublicRoute,
+  type PublicSite,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
-const proxySectionKeys = ["routes", "listeners"] as const;
+const proxySectionKeys = ["sites", "routes", "listeners"] as const;
 type ProxySectionKey = typeof proxySectionKeys[number];
 type ProxySectionSummary = {
   key: ProxySectionKey;
@@ -77,6 +87,7 @@ const proxySeverity = computed(() => severityForState(proxyState.value));
 const listeners = computed(() => config.value?.listeners ?? []);
 const routeTargets = computed(() => config.value?.routeTargets ?? []);
 const routes = computed(() => config.value?.routes ?? []);
+const sites = computed(() => config.value?.sites ?? []);
 const accessPolicies = computed(() => config.value?.accessPolicies ?? []);
 const listenerStatuses = computed(() => config.value?.proxy?.listeners ?? status.value?.proxy?.listeners ?? []);
 const runningListeners = computed(() => listeners.value.filter((listener) => listenerStatus(listener)?.running).length);
@@ -214,6 +225,13 @@ const { confirm } = useConfirmDialog();
 
 const proxySections = computed<ProxySectionSummary[]>(() => [
   {
+    key: "sites",
+    label: "Sites",
+    value: sites.value.length.toString(),
+    detail: `${sites.value.reduce((total, site) => total + site.hosts.length, 0).toString()} claimed hostnames`,
+    description: "Virtual hosts that claim domains on a listener before path routing.",
+  },
+  {
     key: "routes",
     label: "Routes",
     value: routes.value.length.toString(),
@@ -230,9 +248,9 @@ const proxySections = computed<ProxySectionSummary[]>(() => [
 ]);
 const summaryFacts = computed<ProxySummaryFact[]>(() => [
   { key: "proxy", label: "Proxy", value: proxyStateLabel(proxyState.value, status.value?.proxyRunning), detail: proxyIsRunning.value ? "accepting traffic" : "not running" },
-  proxySections.value[1],
   proxySections.value[0],
-  { key: "targets", label: "Targets", value: routeTargets.value.length.toString(), detail: "proxy and static destinations" },
+  proxySections.value[1],
+  proxySections.value[2],
 ]);
 const activeProxySection = computed<ProxySectionKey>(() => normalizeProxySection(route.params.section));
 const activeProxyMeta = computed(() => (
@@ -294,7 +312,7 @@ async function run(action: () => Promise<void>) {
 
 function normalizeProxySection(value: unknown): ProxySectionKey {
   const section = Array.isArray(value) ? value[0] : value;
-  return proxySectionKeys.includes(section as ProxySectionKey) ? section as ProxySectionKey : "routes";
+  return proxySectionKeys.includes(section as ProxySectionKey) ? section as ProxySectionKey : "sites";
 }
 
 async function selectProxySection(value: string | number) {
@@ -330,6 +348,14 @@ function openAddRouteModal() {
   editorHost.value?.openCreateRoute();
 }
 
+function openAddSiteModal() {
+  editorHost.value?.openCreateSite();
+}
+
+function editSite(site: PublicSite) {
+  editorHost.value?.openSite(site.id);
+}
+
 function editRoute(routeId: bigint) {
   editorHost.value?.openRoute(routeId);
 }
@@ -342,6 +368,16 @@ function routeAccessLabel(route: PublicRoute): string {
   if (route.accessPolicyId <= 0n) return "";
   const policy = accessPolicies.value.find((item) => item.id === route.accessPolicyId);
   return policy ? `Protected · ${policy.name}` : `Protected · policy #${route.accessPolicyId.toString()}`;
+}
+
+function siteForRoute(route: PublicRoute): PublicSite | undefined {
+  return route.siteId > 0n ? sites.value.find((site) => site.id === route.siteId) : undefined;
+}
+
+function routeScopeTitle(route: PublicRoute): string {
+  const site = siteForRoute(route);
+  if (!site) return `${route.hostPattern || "*"}${route.pathPrefix || "/"}`;
+  return `Site: ${site.name} · ${publicSitePrimary(site)?.hostnamePattern ?? ""} · ${route.pathPrefix || "/"}`;
 }
 
 async function deleteListener(listener: PublicListener) {
@@ -378,6 +414,36 @@ async function deleteRoute(id: bigint) {
   if (!await confirm("Delete Route", "This route and its targets will be permanently removed. Traffic matching it will fall through to other routes or the default route.")) return;
   await run(async () => {
     await managementClient.deletePublicRoute({ id });
+  });
+}
+
+function siteRouteCount(site: PublicSite): number {
+  return routes.value.filter((route) => route.siteId === site.id).length;
+}
+
+function siteCoverageTagType(site: PublicSite) {
+  const coverage = publicSiteTLSCoverage(site);
+  if (coverage === PublicSiteTlsCoverage.COVERED || coverage === PublicSiteTlsCoverage.NOT_APPLICABLE) return naiveTagType("ok");
+  if (coverage === PublicSiteTlsCoverage.MISSING) return naiveTagType("warn");
+  if (coverage === PublicSiteTlsCoverage.INVALID) return naiveTagType("error");
+  return "default" as const;
+}
+
+async function deleteSite(site: PublicSite) {
+  const routeCount = siteRouteCount(site);
+  if (routeCount > 0) {
+    if (await confirm(
+      "Site still owns routes",
+      `“${diagnosticInspectionText(site.name)}” owns ${routeCount.toString()} ${routeCount === 1 ? "route" : "routes"}. A claimed hostname never falls through, so detach or delete those routes before removing the site. Open Routes now?`,
+    )) await router.push("/proxy/routes");
+    return;
+  }
+  if (!await confirm(
+    "Delete Site",
+    `Delete “${diagnosticInspectionText(site.name)}” and release its ${site.hosts.length.toString()} claimed ${site.hosts.length === 1 ? "hostname" : "hostnames"}? Routes are never reassigned automatically.`,
+  )) return;
+  await run(async () => {
+    await managementClient.deletePublicSite({ id: site.id });
   });
 }
 </script>
@@ -448,6 +514,90 @@ async function deleteRoute(id: bigint) {
       @update:value="selectProxySection"
     >
       <NTabPane
+        id="proxy-panel-sites"
+        name="sites"
+        role="tabpanel"
+        aria-labelledby="proxy-tab-sites"
+        :tab="`Sites · ${sites.length}`"
+        :tab-props="proxyTabProps('sites', `${sites.length.toString()} sites configured`)"
+      >
+        <section class="surface-card hide-overflow">
+          <div class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
+            <div>
+              <h2 class="copy-base weight-semibold">Sites</h2>
+              <p class="margin-top-xs copy-sm muted-text">Claim primary domains and aliases on a listener, then route paths inside that boundary.</p>
+            </div>
+            <DisabledHint :disabled="!listeners.length" reason="Create a listener before creating a site.">
+              <NButton type="primary" size="small" :disabled="!listeners.length" @click="openAddSiteModal">
+                <template #icon><PlusIcon class="icon-sm" /></template>
+                Add Site
+              </NButton>
+            </DisabledHint>
+          </div>
+          <div v-if="sites.length" class="site-table" role="table" aria-label="Configured virtual host sites" :aria-rowcount="sites.length + 1">
+            <div class="site-table__header" role="row">
+              <span role="columnheader">Site and listener</span>
+              <span role="columnheader">Claimed hostnames</span>
+              <span role="columnheader">TLS and routes</span>
+              <span role="columnheader">State</span>
+              <span class="site-table__actions-heading" role="columnheader">Actions</span>
+            </div>
+            <div v-for="site in sites" :key="site.id.toString()" class="site-table__row" role="row" :data-testid="`site-row-${site.id.toString()}`">
+              <div class="site-table__identity" role="cell">
+                <div class="site-table__title-line">
+                  <bdi class="site-table__name" dir="auto" :title="diagnosticInspectionText(site.name)">{{ diagnosticExcerpt(site.name, 48).text }}</bdi>
+                  <span class="mono-text copy-xs muted-text">#{{ site.id.toString() }}</span>
+                </div>
+                <p class="copy-xs muted-text">{{ listenerName(site.listenerId, listeners) }}</p>
+              </div>
+              <div class="site-table__hosts" role="cell">
+                <div class="site-table__primary-host">
+                  <span class="site-table__host-role">Primary</span>
+                  <bdi class="mono-text copy-xs clip-text" dir="ltr" :title="publicSitePrimary(site)?.hostnamePattern">{{ publicSitePrimary(site)?.hostnamePattern || 'Missing primary' }}</bdi>
+                </div>
+                <div v-if="publicSiteAliases(site).length" class="site-table__aliases">
+                  <span v-for="host in publicSiteAliases(site).slice(0, 3)" :key="host.id.toString()" class="site-table__alias" :title="`${host.hostnamePattern} · ${host.behavior === PublicSiteHostBehavior.REDIRECT ? '308 redirect' : 'serve'}`">
+                    <bdi dir="ltr">{{ host.hostnamePattern }}</bdi>
+                    <span aria-hidden="true">{{ host.behavior === PublicSiteHostBehavior.REDIRECT ? '→308' : 'serve' }}</span>
+                  </span>
+                  <span v-if="publicSiteAliases(site).length > 3" class="copy-xs muted-text">+{{ publicSiteAliases(site).length - 3 }} more</span>
+                </div>
+                <p v-else class="copy-xs muted-text">No aliases</p>
+              </div>
+              <div class="site-table__operations" role="cell">
+                <NTag size="small" :bordered="false" :type="siteCoverageTagType(site)" :title="publicSiteTLSDetail(site)">
+                  {{ publicSiteTLSLabel(publicSiteTLSCoverage(site)) }}
+                </NTag>
+                <span class="copy-xs muted-text">{{ siteRouteCount(site) }} {{ siteRouteCount(site) === 1 ? 'route' : 'routes' }}</span>
+                <router-link v-if="publicSiteTLSCoverage(site) === PublicSiteTlsCoverage.MISSING || publicSiteTLSCoverage(site) === PublicSiteTlsCoverage.INVALID" to="/tls" class="copy-xs">Configure TLS</router-link>
+              </div>
+              <div class="site-table__state-cell" role="cell">
+                <span class="route-table__state" :class="{ 'route-table__state--disabled': !site.enabled }">
+                  <span class="route-table__state-dot" aria-hidden="true"></span>
+                  {{ site.enabled ? 'Enabled' : 'Disabled' }}
+                </span>
+              </div>
+              <div class="site-table__actions" role="cell">
+                <NButton secondary size="small" :aria-label="`Edit site ${diagnosticExcerpt(site.name, 48).text}`" title="Edit site" @click="editSite(site)">
+                  <template #icon><PencilIcon class="icon-sm" /></template>
+                </NButton>
+                <NButton type="error" size="small" :aria-label="`Delete site ${diagnosticExcerpt(site.name, 48).text}`" :title="siteRouteCount(site) ? 'Detach site routes before deletion' : 'Delete site'" @click="deleteSite(site)">
+                  <template #icon><TrashIcon class="icon-sm" /></template>
+                </NButton>
+              </div>
+            </div>
+          </div>
+          <EmptyState
+            v-else
+            title="No sites configured"
+            description="Creating a Site immediately claims its domains. Legacy routes are not migrated automatically. Primary and Serve hosts return 404 until a Site route matches; enabled Redirect aliases still return 308."
+            :action-label="listeners.length ? 'Add Site' : undefined"
+            @action="openAddSiteModal"
+          />
+        </section>
+      </NTabPane>
+
+      <NTabPane
         id="proxy-panel-routes"
         name="routes"
         role="tabpanel"
@@ -493,8 +643,13 @@ async function deleteRoute(id: bigint) {
                   <span v-if="route.isDefault" class="route-table__default">Default</span>
                   <span v-if="route.accessPolicyId > 0n" class="route-table__access">{{ routeAccessLabel(route) }}</span>
                 </div>
-                <p class="route-table__technical mono-text" dir="auto">
-                  {{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}
+                <p
+                  class="route-table__technical mono-text"
+                  dir="auto"
+                  :title="routeScopeTitle(route)"
+                >
+                  <template v-if="siteForRoute(route)">Site: {{ siteForRoute(route)?.name }} · {{ route.pathPrefix || "/" }}</template>
+                  <template v-else>{{ route.hostPattern || "*" }}{{ route.pathPrefix || "/" }}</template>
                 </p>
               </div>
 
@@ -704,6 +859,133 @@ async function deleteRoute(id: bigint) {
   width: 100%;
 }
 
+.site-table {
+  container-type: inline-size;
+}
+
+.site-table__header,
+.site-table__row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.75fr) minmax(18rem, 1.5fr) minmax(9rem, 0.7fr) 6rem 5.25rem;
+  gap: 1rem;
+  align-items: center;
+  padding-inline: 1.25rem;
+}
+
+.site-table__header {
+  min-height: 2.25rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.site-table__actions-heading {
+  text-align: right;
+}
+
+.site-table__row {
+  min-height: 4.75rem;
+  padding-block: 0.625rem;
+  border-left: 3px solid var(--app-accent);
+  transition: background-color 160ms ease-out;
+}
+
+.site-table__row + .site-table__row {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+.site-table__row:hover,
+.site-table__row:focus-within {
+  background: var(--app-hover);
+}
+
+.site-table__identity,
+.site-table__hosts,
+.site-table__operations {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.site-table__title-line,
+.site-table__primary-host,
+.site-table__aliases {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.site-table__name {
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-table__host-role {
+  flex: 0 0 auto;
+  border-radius: 3px;
+  padding: 0.0625rem 0.3125rem;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.site-table__aliases {
+  overflow: hidden;
+}
+
+.site-table__alias {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 12rem;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 4px;
+  padding: 0.125rem 0.375rem;
+  color: var(--app-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+
+.site-table__alias bdi {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-table__alias span {
+  flex: 0 0 auto;
+  color: var(--app-text);
+  font-family: var(--font-body);
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+.site-table__operations {
+  justify-items: start;
+}
+
+.site-table__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.site-table__actions :deep(.n-button) {
+  width: 2.125rem;
+  min-width: 2.125rem;
+  padding-inline: 0;
+}
+
 .route-table {
   min-width: 0;
 }
@@ -865,6 +1147,29 @@ async function deleteRoute(id: bigint) {
   padding-inline: 0;
 }
 
+@container (max-width: 56rem) {
+  .site-table__header {
+    display: none;
+  }
+
+  .site-table__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    padding-block: 0.875rem;
+  }
+
+  .site-table__hosts,
+  .site-table__operations,
+  .site-table__state-cell {
+    grid-column: 1 / -1;
+  }
+
+  .site-table__actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
 @media (max-width: 860px) {
   .route-table__header {
     display: none;
@@ -926,6 +1231,7 @@ async function deleteRoute(id: bigint) {
 }
 
 @media (pointer: coarse) {
+  .site-table__actions :deep(.n-button),
   .route-table__actions :deep(.n-button) {
     width: 2.75rem;
     min-width: 2.75rem;

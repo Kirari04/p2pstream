@@ -269,8 +269,10 @@ func (a *App) StopProxyListener(ctx context.Context) (*p2pstreamv1.ProxyStatus, 
 }
 
 func (a *App) startProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) {
-	snap, err := a.loadPublicProxySnapshot(ctx)
+	a.publicConfigRefreshMu.Lock()
+	snap, err := a.loadPublicProxySnapshotLocked(ctx)
 	if err != nil {
+		a.publicConfigRefreshMu.Unlock()
 		return nil, err
 	}
 
@@ -293,6 +295,7 @@ func (a *App) startProxy(ctx context.Context) (*p2pstreamv1.ProxyStatus, error) 
 		}
 		_, _ = a.startPublicListenerRuntime(ctx, listener.ID, false)
 	}
+	a.publicConfigRefreshMu.Unlock()
 
 	a.proxyMu.Lock()
 	status := a.proxyStatusLocked()

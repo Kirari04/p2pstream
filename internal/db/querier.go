@@ -15,6 +15,7 @@ type Querier interface {
 	ClearEnvironmentTrust(ctx context.Context, id int64) (Environment, error)
 	CloseOpenConnectionsAt(ctx context.Context, disconnectedAt sql.NullTime) error
 	CountPublicListeners(ctx context.Context) (int64, error)
+	CountPublicRoutesBySite(ctx context.Context, siteID sql.NullInt64) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
@@ -32,6 +33,8 @@ type Querier interface {
 	CreatePublicRouteTarget(ctx context.Context, arg CreatePublicRouteTargetParams) (PublicRouteTarget, error)
 	CreatePublicRouteTargetResponseHeader(ctx context.Context, arg CreatePublicRouteTargetResponseHeaderParams) (PublicRouteTargetResponseHeader, error)
 	CreatePublicRouteTargetUpstreamHeader(ctx context.Context, arg CreatePublicRouteTargetUpstreamHeaderParams) (PublicRouteTargetUpstreamHeader, error)
+	CreatePublicSite(ctx context.Context, arg CreatePublicSiteParams) (PublicSite, error)
+	CreatePublicSiteHost(ctx context.Context, arg CreatePublicSiteHostParams) (PublicSiteHost, error)
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	CreatePublicTlsDnsCredential(ctx context.Context, arg CreatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
@@ -71,6 +74,8 @@ type Querier interface {
 	DeletePublicRouteTargetResponseHeaders(ctx context.Context, targetID int64) error
 	DeletePublicRouteTargetUpstreamHeaders(ctx context.Context, targetID int64) error
 	DeletePublicRouteTargets(ctx context.Context, routeID int64) error
+	DeletePublicSite(ctx context.Context, id int64) error
+	DeletePublicSiteHosts(ctx context.Context, siteID int64) error
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
 	DeletePublicTlsDnsCredential(ctx context.Context, id int64) error
 	DeletePublicTrafficShaperRule(ctx context.Context, id int64) error
@@ -111,6 +116,7 @@ type Querier interface {
 	GetPublicRetryRule(ctx context.Context, id int64) (PublicRetryRule, error)
 	GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error)
 	GetPublicRouteTarget(ctx context.Context, id int64) (PublicRouteTarget, error)
+	GetPublicSite(ctx context.Context, id int64) (PublicSite, error)
 	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
 	GetPublicTlsDnsCredential(ctx context.Context, id int64) (PublicTlsDnsCredential, error)
 	GetPublicTrafficShaperRule(ctx context.Context, id int64) (PublicTrafficShaperRule, error)
@@ -164,6 +170,9 @@ type Querier interface {
 	ListPublicRouteTargets(ctx context.Context) ([]PublicRouteTarget, error)
 	ListPublicRouteTargetsByRoute(ctx context.Context, routeID int64) ([]PublicRouteTarget, error)
 	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)
+	ListPublicSiteHosts(ctx context.Context) ([]PublicSiteHost, error)
+	ListPublicSiteHostsBySite(ctx context.Context, siteID int64) ([]PublicSiteHost, error)
+	ListPublicSites(ctx context.Context) ([]PublicSite, error)
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error)
 	ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTrafficShaperRule, error)
@@ -220,7 +229,9 @@ type Querier interface {
 	UpdatePublicResponseTemplate(ctx context.Context, arg UpdatePublicResponseTemplateParams) (PublicResponseTemplate, error)
 	UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRetryRuleParams) (PublicRetryRule, error)
 	UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error)
+	UpdatePublicRouteHostPatternBySite(ctx context.Context, arg UpdatePublicRouteHostPatternBySiteParams) error
 	UpdatePublicRouteTarget(ctx context.Context, arg UpdatePublicRouteTargetParams) (PublicRouteTarget, error)
+	UpdatePublicSite(ctx context.Context, arg UpdatePublicSiteParams) (PublicSite, error)
 	UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateIssueState(ctx context.Context, arg UpdatePublicTlsCertificateIssueStateParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateRenewalStatus(ctx context.Context, arg UpdatePublicTlsCertificateRenewalStatusParams) (PublicTlsCertificate, error)

@@ -231,6 +231,15 @@ const (
 	// AgentManagementServiceStopPublicListenerProcedure is the fully-qualified name of the
 	// AgentManagementService's StopPublicListener RPC.
 	AgentManagementServiceStopPublicListenerProcedure = "/p2pstream.v1.AgentManagementService/StopPublicListener"
+	// AgentManagementServiceCreatePublicSiteProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicSite RPC.
+	AgentManagementServiceCreatePublicSiteProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicSite"
+	// AgentManagementServiceUpdatePublicSiteProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicSite RPC.
+	AgentManagementServiceUpdatePublicSiteProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicSite"
+	// AgentManagementServiceDeletePublicSiteProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicSite RPC.
+	AgentManagementServiceDeletePublicSiteProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicSite"
 	// AgentManagementServiceCreatePublicRouteProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicRoute RPC.
 	AgentManagementServiceCreatePublicRouteProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicRoute"
@@ -436,6 +445,9 @@ type AgentManagementServiceClient interface {
 	DisablePublicListener(context.Context, *connect.Request[v1.DisablePublicListenerRequest]) (*connect.Response[v1.DisablePublicListenerResponse], error)
 	StartPublicListener(context.Context, *connect.Request[v1.StartPublicListenerRequest]) (*connect.Response[v1.StartPublicListenerResponse], error)
 	StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error)
+	CreatePublicSite(context.Context, *connect.Request[v1.CreatePublicSiteRequest]) (*connect.Response[v1.CreatePublicSiteResponse], error)
+	UpdatePublicSite(context.Context, *connect.Request[v1.UpdatePublicSiteRequest]) (*connect.Response[v1.UpdatePublicSiteResponse], error)
+	DeletePublicSite(context.Context, *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error)
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
@@ -890,6 +902,24 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("StopPublicListener")),
 			connect.WithClientOptions(opts...),
 		),
+		createPublicSite: connect.NewClient[v1.CreatePublicSiteRequest, v1.CreatePublicSiteResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicSiteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicSite")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicSite: connect.NewClient[v1.UpdatePublicSiteRequest, v1.UpdatePublicSiteResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicSiteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicSite")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicSite: connect.NewClient[v1.DeletePublicSiteRequest, v1.DeletePublicSiteResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicSiteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicSite")),
+			connect.WithClientOptions(opts...),
+		),
 		createPublicRoute: connect.NewClient[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse](
 			httpClient,
 			baseURL+AgentManagementServiceCreatePublicRouteProcedure,
@@ -1231,6 +1261,9 @@ type agentManagementServiceClient struct {
 	disablePublicListener                *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
 	startPublicListener                  *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
 	stopPublicListener                   *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
+	createPublicSite                     *connect.Client[v1.CreatePublicSiteRequest, v1.CreatePublicSiteResponse]
+	updatePublicSite                     *connect.Client[v1.UpdatePublicSiteRequest, v1.UpdatePublicSiteResponse]
+	deletePublicSite                     *connect.Client[v1.DeletePublicSiteRequest, v1.DeletePublicSiteResponse]
 	createPublicRoute                    *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
 	updatePublicRoute                    *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
 	deletePublicRoute                    *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
@@ -1625,6 +1658,21 @@ func (c *agentManagementServiceClient) StopPublicListener(ctx context.Context, r
 	return c.stopPublicListener.CallUnary(ctx, req)
 }
 
+// CreatePublicSite calls p2pstream.v1.AgentManagementService.CreatePublicSite.
+func (c *agentManagementServiceClient) CreatePublicSite(ctx context.Context, req *connect.Request[v1.CreatePublicSiteRequest]) (*connect.Response[v1.CreatePublicSiteResponse], error) {
+	return c.createPublicSite.CallUnary(ctx, req)
+}
+
+// UpdatePublicSite calls p2pstream.v1.AgentManagementService.UpdatePublicSite.
+func (c *agentManagementServiceClient) UpdatePublicSite(ctx context.Context, req *connect.Request[v1.UpdatePublicSiteRequest]) (*connect.Response[v1.UpdatePublicSiteResponse], error) {
+	return c.updatePublicSite.CallUnary(ctx, req)
+}
+
+// DeletePublicSite calls p2pstream.v1.AgentManagementService.DeletePublicSite.
+func (c *agentManagementServiceClient) DeletePublicSite(ctx context.Context, req *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error) {
+	return c.deletePublicSite.CallUnary(ctx, req)
+}
+
 // CreatePublicRoute calls p2pstream.v1.AgentManagementService.CreatePublicRoute.
 func (c *agentManagementServiceClient) CreatePublicRoute(ctx context.Context, req *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error) {
 	return c.createPublicRoute.CallUnary(ctx, req)
@@ -1932,6 +1980,9 @@ type AgentManagementServiceHandler interface {
 	DisablePublicListener(context.Context, *connect.Request[v1.DisablePublicListenerRequest]) (*connect.Response[v1.DisablePublicListenerResponse], error)
 	StartPublicListener(context.Context, *connect.Request[v1.StartPublicListenerRequest]) (*connect.Response[v1.StartPublicListenerResponse], error)
 	StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error)
+	CreatePublicSite(context.Context, *connect.Request[v1.CreatePublicSiteRequest]) (*connect.Response[v1.CreatePublicSiteResponse], error)
+	UpdatePublicSite(context.Context, *connect.Request[v1.UpdatePublicSiteRequest]) (*connect.Response[v1.UpdatePublicSiteResponse], error)
+	DeletePublicSite(context.Context, *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error)
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
@@ -2382,6 +2433,24 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("StopPublicListener")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceCreatePublicSiteHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicSiteProcedure,
+		svc.CreatePublicSite,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicSite")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicSiteHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicSiteProcedure,
+		svc.UpdatePublicSite,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicSite")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicSiteHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicSiteProcedure,
+		svc.DeletePublicSite,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicSite")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceCreatePublicRouteHandler := connect.NewUnaryHandler(
 		AgentManagementServiceCreatePublicRouteProcedure,
 		svc.CreatePublicRoute,
@@ -2786,6 +2855,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceStartPublicListenerHandler.ServeHTTP(w, r)
 		case AgentManagementServiceStopPublicListenerProcedure:
 			agentManagementServiceStopPublicListenerHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicSiteProcedure:
+			agentManagementServiceCreatePublicSiteHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicSiteProcedure:
+			agentManagementServiceUpdatePublicSiteHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicSiteProcedure:
+			agentManagementServiceDeletePublicSiteHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicRouteProcedure:
 			agentManagementServiceCreatePublicRouteHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicRouteProcedure:
@@ -3147,6 +3222,18 @@ func (UnimplementedAgentManagementServiceHandler) StartPublicListener(context.Co
 
 func (UnimplementedAgentManagementServiceHandler) StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.StopPublicListener is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicSite(context.Context, *connect.Request[v1.CreatePublicSiteRequest]) (*connect.Response[v1.CreatePublicSiteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicSite is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicSite(context.Context, *connect.Request[v1.UpdatePublicSiteRequest]) (*connect.Response[v1.UpdatePublicSiteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicSite is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicSite(context.Context, *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicSite is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error) {

@@ -1300,9 +1300,61 @@ RETURNING id, name, bind_address, port, protocol, enabled, created_at, updated_a
 DELETE FROM public_listeners
 WHERE id = ?;
 
+-- name: CreatePublicSite :one
+INSERT INTO public_sites (listener_id, name, enabled)
+VALUES (?, ?, ?)
+RETURNING id, listener_id, name, enabled, created_at, updated_at;
+
+-- name: GetPublicSite :one
+SELECT id, listener_id, name, enabled, created_at, updated_at
+FROM public_sites
+WHERE id = ?;
+
+-- name: ListPublicSites :many
+SELECT id, listener_id, name, enabled, created_at, updated_at
+FROM public_sites
+ORDER BY listener_id ASC, name ASC, id ASC;
+
+-- name: UpdatePublicSite :one
+UPDATE public_sites
+SET listener_id = ?, name = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, name, enabled, created_at, updated_at;
+
+-- name: DeletePublicSite :exec
+DELETE FROM public_sites
+WHERE id = ?;
+
+-- name: CreatePublicSiteHost :one
+INSERT INTO public_site_hosts (site_id, listener_id, hostname_pattern, role, behavior)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at;
+
+-- name: ListPublicSiteHosts :many
+SELECT id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at
+FROM public_site_hosts
+ORDER BY listener_id ASC, hostname_pattern ASC, id ASC;
+
+-- name: ListPublicSiteHostsBySite :many
+SELECT id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at
+FROM public_site_hosts
+WHERE site_id = ?
+ORDER BY CASE role WHEN 'primary' THEN 0 ELSE 1 END, hostname_pattern ASC, id ASC;
+
+-- name: DeletePublicSiteHosts :exec
+DELETE FROM public_site_hosts
+WHERE site_id = ?;
+
+-- name: CountPublicRoutesBySite :one
+SELECT COUNT(*) FROM public_routes WHERE site_id = ?;
+
+-- name: UpdatePublicRouteHostPatternBySite :exec
+UPDATE public_routes SET host_pattern = ?, updated_at = CURRENT_TIMESTAMP WHERE site_id = ?;
+
 -- name: CreatePublicRoute :one
 INSERT INTO public_routes (
     listener_id,
+    site_id,
     priority,
     host_pattern,
     path_prefix,
@@ -1318,22 +1370,23 @@ INSERT INTO public_routes (
     access_policy_id,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at;
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at, site_id;
 
 -- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at, site_id
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC;
 
 -- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at, site_id
 FROM public_routes
 WHERE id = ?;
 
 -- name: UpdatePublicRoute :one
 UPDATE public_routes
 SET listener_id = ?,
+    site_id = ?,
     priority = ?,
     host_pattern = ?,
     path_prefix = ?,
@@ -1350,7 +1403,7 @@ SET listener_id = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at;
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at, site_id;
 
 -- name: DeletePublicRoute :exec
 DELETE FROM public_routes

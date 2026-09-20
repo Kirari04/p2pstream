@@ -19,6 +19,7 @@ const allNavigationDestinations = [
   "Traffic",
   "Diagnostics",
   "Proxy",
+  "Sites",
   "Routes",
   "Listeners",
   "Agents",
@@ -77,7 +78,8 @@ test("groups desktop navigation and reflects nested active and breadcrumb state"
   await expect(overviewLink).toHaveClass(/app-sidebar__link--active/);
 
   await sidebar.getByRole("link", { name: "Proxy", exact: true }).click();
-  await expect(page).toHaveURL(/#\/proxy\/routes$/);
+  await expect(page).toHaveURL(/#\/proxy\/sites$/);
+  await expect(sidebar.getByRole("link", { name: "Sites", exact: true })).toHaveAttribute("aria-current", "page");
   await sidebar.getByRole("link", { name: "Listeners", exact: true }).click();
   await expect(page).toHaveURL(/#\/proxy\/listeners$/);
 

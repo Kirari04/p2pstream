@@ -338,6 +338,7 @@ func (a *App) validatePublicListenerInput(
 func (a *App) validatePublicRouteInput(
 	ctx context.Context,
 	listenerID int64,
+	siteID sql.NullInt64,
 	priority int64,
 	hostPattern string,
 	pathPrefix string,
@@ -359,11 +360,33 @@ func (a *App) validatePublicRouteInput(
 		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
 	}
 	hostPattern = normalizeHostPattern(hostPattern)
+	if siteID.Valid {
+		site, err := a.DB.GetPublicSite(ctx, siteID.Int64)
+		if err != nil {
+			return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
+		}
+		if site.ListenerID != listenerID {
+			return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route site must belong to the selected listener"))
+		}
+		hosts, err := a.DB.ListPublicSiteHostsBySite(ctx, site.ID)
+		if err != nil {
+			return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
+		}
+		for _, host := range hosts {
+			if host.Role == "primary" {
+				hostPattern = host.HostnamePattern
+				break
+			}
+		}
+		if hostPattern == "" {
+			return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("route site has no primary hostname"))
+		}
+	}
 	pathPrefix = strings.TrimSpace(pathPrefix)
 	if !isDefault && hostPattern == "" && pathPrefix == "" {
 		return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route requires a host pattern or path prefix"))
 	}
-	if hostPattern != "" {
+	if hostPattern != "" && !siteID.Valid {
 		if err := validateHostPattern(hostPattern); err != nil {
 			return db.UpdatePublicRouteParams{}, nil, err
 		}
@@ -423,6 +446,7 @@ func (a *App) validatePublicRouteInput(
 	}
 	return db.UpdatePublicRouteParams{
 		ListenerID:                 listenerID,
+		SiteID:                     siteID,
 		Priority:                   priority,
 		HostPattern:                hostPattern,
 		PathPrefix:                 pathPrefix,
@@ -1035,6 +1059,13 @@ func boolInt(value bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+func optionalPublicSiteID(value *int64) sql.NullInt64 {
+	if value == nil || *value <= 0 {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: *value, Valid: true}
 }
 
 func publicDBError(err error) error {

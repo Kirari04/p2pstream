@@ -18,6 +18,7 @@ import {
 } from "@/lib/agentLabels";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { editorDrawerWidth } from "@/lib/naiveUi";
+import { publicRouteDefaultScopeLabel, publicRouteSiteSelectionState } from "@/lib/publicSites";
 import {
   PublicRouteTargetLoadBalancing,
   PublicResponseBodyMode,
@@ -102,6 +103,7 @@ const isOpen = ref(false);
 const routeFormMode = ref<RouteFormMode>("create");
 const listeners = computed(() => props.config?.listeners ?? []);
 const routes = computed(() => props.config?.routes ?? []);
+const sites = computed(() => props.config?.sites ?? []);
 const agents = computed(() => props.config?.agents ?? []);
 const accessPolicies = computed(() => props.config?.accessPolicies ?? []);
 const listenerOptions = computed(() =>
@@ -177,6 +179,7 @@ function defaultHealthCheckForm(): HealthCheckForm {
 const routeForm = reactive({
   id: "",
   listenerId: "",
+  siteId: "0",
   action: PublicRouteAction.FORWARD,
   priority: 100,
   hostPattern: "",
@@ -195,6 +198,23 @@ const routeForm = reactive({
 });
 let nextSelectorRowID = 1;
 
+const routeScopeOptions = computed(() => [
+  { label: "Legacy host rule · listener-wide", value: "0" },
+  ...sites.value
+    .filter((site) => site.listenerId.toString() === routeForm.listenerId)
+    .map((site) => ({
+      label: `${site.name}${site.enabled ? "" : " · disabled"}`,
+      value: site.id.toString(),
+    })),
+  ...(routeForm.siteId !== "0" && !sites.value.some((site) => site.id.toString() === routeForm.siteId && site.listenerId.toString() === routeForm.listenerId)
+    ? [{ label: `Unavailable Site #${routeForm.siteId} · choose another scope`, value: routeForm.siteId, disabled: true }]
+    : []),
+]);
+const selectedSite = computed(() => sites.value.find((site) => (
+  site.id.toString() === routeForm.siteId && site.listenerId.toString() === routeForm.listenerId
+)));
+const routeSiteSelectionState = computed(() => publicRouteSiteSelectionState(routeForm.siteId, routeForm.listenerId, sites.value));
+
 const routeIsRedirect = computed(() => routeForm.action === PublicRouteAction.REDIRECT);
 const modalTitle = computed(() => (
   routeFormMode.value === "edit" ? "Edit Route" :
@@ -209,6 +229,7 @@ const submitLabel = computed(() => (
 const routeSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
   if (!listeners.value.length) return "Create a listener before creating a route.";
+  if (routeSiteSelectionState.value === "unavailable") return "Choose a Site on this listener or explicitly select Legacy.";
   if (routeIsRedirect.value && routeForm.redirectTarget.trim() === "") return "Enter a redirect target.";
   if (!routeIsRedirect.value && !routeForm.targets.length) return "Add at least one target.";
   const targetError = routeForm.targets.map(targetValidationReason).find(Boolean);
@@ -259,6 +280,7 @@ function defaultTarget(index = routeForm.targets.length): TargetForm {
 function resetForm() {
   routeForm.id = "";
   routeForm.listenerId = listeners.value[0]?.id.toString() ?? "";
+  routeForm.siteId = "0";
   routeForm.action = PublicRouteAction.FORWARD;
   routeForm.priority = 100;
   routeForm.hostPattern = "";
@@ -352,6 +374,7 @@ function populateRouteForm(route: PublicRoute, mode: "edit" | "clone") {
   const action = routeAction(route);
   routeForm.id = mode === "clone" ? "" : route.id.toString();
   routeForm.listenerId = route.listenerId.toString();
+  routeForm.siteId = route.siteId.toString();
   routeForm.action = action;
   routeForm.priority = Number(route.priority);
   routeForm.hostPattern = route.hostPattern;
@@ -565,8 +588,9 @@ async function submitRoute() {
     const isRedirect = routeForm.action === PublicRouteAction.REDIRECT;
     const payload = {
       listenerId: BigInt(routeForm.listenerId || "0"),
+      siteId: BigInt(routeForm.siteId || "0"),
       priority: BigInt(routeForm.priority),
-      hostPattern: routeForm.hostPattern,
+      hostPattern: routeForm.siteId === "0" ? routeForm.hostPattern : "",
       pathPrefix: routeForm.pathPrefix,
       pathSecurityMode: routeForm.pathSecurityMode,
       accessPolicyId: BigInt(routeForm.accessPolicyId || "0"),
@@ -637,10 +661,23 @@ defineExpose({ openCreate, openEdit, openClone, close });
         <NCheckbox v-model:checked="routeForm.enabled" class="self-align-end">
           Enabled
         </NCheckbox>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Host pattern
+        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
+          Routing scope
+          <AccessibleSelect v-model:value="routeForm.siteId" accessible-label="Route site or legacy host rule" size="small" :options="routeScopeOptions" />
+          <span v-if="selectedSite" class="normal-text letter-normal">Hostnames come from Site “{{ selectedSite.name }}”. Requests for claimed hosts never fall through to legacy routes.</span>
+          <span v-else-if="routeSiteSelectionState === 'unavailable'" class="normal-text letter-normal warning-text">The saved Site is unavailable on this listener. Choose another Site or explicitly select Legacy; nothing is detached automatically.</span>
+          <span v-else class="normal-text letter-normal">Legacy rules match listener-wide and are never adopted into a Site automatically.</span>
+        </label>
+        <label v-if="routeSiteSelectionState === 'legacy'" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          Legacy host pattern
           <NInput v-model:value="routeForm.hostPattern" size="small" placeholder="*.example.com" />
         </label>
+        <div v-else-if="selectedSite" class="layout-grid space-xs min-width-zero">
+          <span class="copy-xs weight-medium label-case letter-wide muted-text">Site hostnames</span>
+          <span class="mono-text copy-xs base-text clip-text" :title="selectedSite.hosts.map((host) => host.hostnamePattern).join(' · ')">
+            {{ selectedSite.hosts.map((host) => host.hostnamePattern).join(' · ') }}
+          </span>
+        </div>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Path prefix
           <NInput v-model:value="routeForm.pathPrefix" size="small" placeholder="/" />
@@ -665,9 +702,10 @@ defineExpose({ openCreate, openEdit, openClone, close });
             :disabled="routeIsRedirect"
           />
         </label>
-        <NCheckbox v-model:checked="routeForm.isDefault" class="self-align-end">
-          Default route
-        </NCheckbox>
+        <div class="layout-grid space-xs self-align-end">
+          <NCheckbox v-model:checked="routeForm.isDefault">Default route</NCheckbox>
+          <span class="copy-xs muted-text">{{ publicRouteDefaultScopeLabel(routeSiteSelectionState) }}</span>
+        </div>
       </section>
 
       <section v-if="routeIsRedirect" class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg mq-sm-cols-four">

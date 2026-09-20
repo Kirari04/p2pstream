@@ -574,6 +574,7 @@ type PublicRoute struct {
 	Enabled                    int64         `json:"enabled"`
 	CreatedAt                  time.Time     `json:"created_at"`
 	UpdatedAt                  time.Time     `json:"updated_at"`
+	SiteID                     sql.NullInt64 `json:"site_id"`
 }
 
 type PublicRouteTarget struct {
@@ -630,6 +631,26 @@ type PublicRouteTargetUpstreamHeader struct {
 	Sensitive int64     `json:"sensitive"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PublicSite struct {
+	ID         int64     `json:"id"`
+	ListenerID int64     `json:"listener_id"`
+	Name       string    `json:"name"`
+	Enabled    int64     `json:"enabled"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+type PublicSiteHost struct {
+	ID              int64     `json:"id"`
+	SiteID          int64     `json:"site_id"`
+	ListenerID      int64     `json:"listener_id"`
+	HostnamePattern string    `json:"hostname_pattern"`
+	Role            string    `json:"role"`
+	Behavior        string    `json:"behavior"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type PublicTlsCertificate struct {

@@ -83,6 +83,8 @@ type publicConfigRows struct {
 	Agents                     []db.Agent
 	AgentLabels                []db.PublicAgentLabel
 	Listeners                  []db.PublicListener
+	Sites                      []db.PublicSite
+	SiteHosts                  []db.PublicSiteHost
 	Routes                     []db.PublicRoute
 	RouteTargets               []db.PublicRouteTarget
 	RouteTargetUpstreamHeaders []db.PublicRouteTargetUpstreamHeader
