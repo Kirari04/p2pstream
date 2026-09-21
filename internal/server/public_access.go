@@ -421,6 +421,8 @@ func publicAccessOriginalURL(r *http.Request, listener publicListenerConfig) str
 	port := forwardedPortForPublicListener(listener, scheme)
 	if host != "" && port != "" && !((scheme == "http" && port == "80") || (scheme == "https" && port == "443")) {
 		host = net.JoinHostPort(strings.Trim(host, "[]"), port)
+	} else if ip := net.ParseIP(strings.Trim(host, "[]")); ip != nil && strings.Contains(host, ":") {
+		host = "[" + strings.Trim(host, "[]") + "]"
 	}
 	return (&url.URL{
 		Scheme:   scheme,

@@ -63,6 +63,9 @@ Set these on the server process via `.env` or environment. They control manageme
 | `SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS` | `100`                     | Local cgroup/Go/host memory and process file-descriptor sampling interval; range `10`–`10000`. |
 | `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` | `0` | Auto-derived initial lifetime stream reservation (`1280 KiB` with default windows). Explicit range `1048576`–`1073741824` can increase that reservation; it never lowers the derived charge. Window growth reserves additional bytes separately. |
 
+Compose overrides two binary defaults for stable-image compatibility:
+`PUBLIC_MAX_CONCURRENT_REQUESTS=2048` and `PUBLIC_MAX_CONNECTIONS_PER_TARGET=256`.
+
 If every login throttle slot is occupied by an active block, new failed-login keys are not tracked until a blocked key expires or a login succeeds for an existing key.
 
 ### Agent Variables

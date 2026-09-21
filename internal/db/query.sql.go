@@ -90,6 +90,17 @@ func (q *Queries) CountPublicListeners(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countPublicRoutesBySite = `-- name: CountPublicRoutesBySite :one
+SELECT COUNT(*) FROM public_routes WHERE site_id = ?
+`
+
+func (q *Queries) CountPublicRoutesBySite(ctx context.Context, siteID sql.NullInt64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPublicRoutesBySite, siteID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(*) FROM users
 `
@@ -757,6 +768,7 @@ func (q *Queries) CreatePublicRetryRule(ctx context.Context, arg CreatePublicRet
 const createPublicRoute = `-- name: CreatePublicRoute :one
 INSERT INTO public_routes (
     listener_id,
+    site_id,
     priority,
     host_pattern,
     path_prefix,
@@ -772,12 +784,13 @@ INSERT INTO public_routes (
     access_policy_id,
     enabled
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at, site_id
 `
 
 type CreatePublicRouteParams struct {
 	ListenerID                 int64         `json:"listener_id"`
+	SiteID                     sql.NullInt64 `json:"site_id"`
 	Priority                   int64         `json:"priority"`
 	HostPattern                string        `json:"host_pattern"`
 	PathPrefix                 string        `json:"path_prefix"`
@@ -797,6 +810,7 @@ type CreatePublicRouteParams struct {
 func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRouteParams) (PublicRoute, error) {
 	row := q.db.QueryRowContext(ctx, createPublicRoute,
 		arg.ListenerID,
+		arg.SiteID,
 		arg.Priority,
 		arg.HostPattern,
 		arg.PathPrefix,
@@ -832,6 +846,7 @@ func (q *Queries) CreatePublicRoute(ctx context.Context, arg CreatePublicRoutePa
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SiteID,
 	)
 	return i, err
 }
@@ -1022,6 +1037,68 @@ func (q *Queries) CreatePublicRouteTargetUpstreamHeader(ctx context.Context, arg
 		&i.Name,
 		&i.Value,
 		&i.Sensitive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicSite = `-- name: CreatePublicSite :one
+INSERT INTO public_sites (listener_id, name, enabled)
+VALUES (?, ?, ?)
+RETURNING id, listener_id, name, enabled, created_at, updated_at
+`
+
+type CreatePublicSiteParams struct {
+	ListenerID int64  `json:"listener_id"`
+	Name       string `json:"name"`
+	Enabled    int64  `json:"enabled"`
+}
+
+func (q *Queries) CreatePublicSite(ctx context.Context, arg CreatePublicSiteParams) (PublicSite, error) {
+	row := q.db.QueryRowContext(ctx, createPublicSite, arg.ListenerID, arg.Name, arg.Enabled)
+	var i PublicSite
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.Name,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicSiteHost = `-- name: CreatePublicSiteHost :one
+INSERT INTO public_site_hosts (site_id, listener_id, hostname_pattern, role, behavior)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at
+`
+
+type CreatePublicSiteHostParams struct {
+	SiteID          int64  `json:"site_id"`
+	ListenerID      int64  `json:"listener_id"`
+	HostnamePattern string `json:"hostname_pattern"`
+	Role            string `json:"role"`
+	Behavior        string `json:"behavior"`
+}
+
+func (q *Queries) CreatePublicSiteHost(ctx context.Context, arg CreatePublicSiteHostParams) (PublicSiteHost, error) {
+	row := q.db.QueryRowContext(ctx, createPublicSiteHost,
+		arg.SiteID,
+		arg.ListenerID,
+		arg.HostnamePattern,
+		arg.Role,
+		arg.Behavior,
+	)
+	var i PublicSiteHost
+	err := row.Scan(
+		&i.ID,
+		&i.SiteID,
+		&i.ListenerID,
+		&i.HostnamePattern,
+		&i.Role,
+		&i.Behavior,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1925,6 +2002,26 @@ WHERE route_id = ?
 
 func (q *Queries) DeletePublicRouteTargets(ctx context.Context, routeID int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicRouteTargets, routeID)
+	return err
+}
+
+const deletePublicSite = `-- name: DeletePublicSite :exec
+DELETE FROM public_sites
+WHERE id = ?
+`
+
+func (q *Queries) DeletePublicSite(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicSite, id)
+	return err
+}
+
+const deletePublicSiteHosts = `-- name: DeletePublicSiteHosts :exec
+DELETE FROM public_site_hosts
+WHERE site_id = ?
+`
+
+func (q *Queries) DeletePublicSiteHosts(ctx context.Context, siteID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicSiteHosts, siteID)
 	return err
 }
 
@@ -2888,7 +2985,7 @@ func (q *Queries) GetPublicRetryRule(ctx context.Context, id int64) (PublicRetry
 }
 
 const getPublicRoute = `-- name: GetPublicRoute :one
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at, site_id
 FROM public_routes
 WHERE id = ?
 `
@@ -2915,6 +3012,7 @@ func (q *Queries) GetPublicRoute(ctx context.Context, id int64) (PublicRoute, er
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SiteID,
 	)
 	return i, err
 }
@@ -2965,6 +3063,26 @@ func (q *Queries) GetPublicRouteTarget(ctx context.Context, id int64) (PublicRou
 		&i.StaticResponseBody,
 		&i.StaticResponseBodyMode,
 		&i.StaticResponseTemplateID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicSite = `-- name: GetPublicSite :one
+SELECT id, listener_id, name, enabled, created_at, updated_at
+FROM public_sites
+WHERE id = ?
+`
+
+func (q *Queries) GetPublicSite(ctx context.Context, id int64) (PublicSite, error) {
+	row := q.db.QueryRowContext(ctx, getPublicSite, id)
+	var i PublicSite
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.Name,
+		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -5545,7 +5663,7 @@ func (q *Queries) ListPublicRouteTargetsByRoute(ctx context.Context, routeID int
 }
 
 const listPublicRoutes = `-- name: ListPublicRoutes :many
-SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
+SELECT id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at, site_id
 FROM public_routes
 ORDER BY listener_id ASC, priority ASC, id ASC
 `
@@ -5575,6 +5693,120 @@ func (q *Queries) ListPublicRoutes(ctx context.Context) ([]PublicRoute, error) {
 			&i.RedirectPreserveQuery,
 			&i.PathSecurityMode,
 			&i.AccessPolicyID,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SiteID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicSiteHosts = `-- name: ListPublicSiteHosts :many
+SELECT id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at
+FROM public_site_hosts
+ORDER BY listener_id ASC, hostname_pattern ASC, id ASC
+`
+
+func (q *Queries) ListPublicSiteHosts(ctx context.Context) ([]PublicSiteHost, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicSiteHosts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicSiteHost
+	for rows.Next() {
+		var i PublicSiteHost
+		if err := rows.Scan(
+			&i.ID,
+			&i.SiteID,
+			&i.ListenerID,
+			&i.HostnamePattern,
+			&i.Role,
+			&i.Behavior,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicSiteHostsBySite = `-- name: ListPublicSiteHostsBySite :many
+SELECT id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at
+FROM public_site_hosts
+WHERE site_id = ?
+ORDER BY CASE role WHEN 'primary' THEN 0 ELSE 1 END, hostname_pattern ASC, id ASC
+`
+
+func (q *Queries) ListPublicSiteHostsBySite(ctx context.Context, siteID int64) ([]PublicSiteHost, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicSiteHostsBySite, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicSiteHost
+	for rows.Next() {
+		var i PublicSiteHost
+		if err := rows.Scan(
+			&i.ID,
+			&i.SiteID,
+			&i.ListenerID,
+			&i.HostnamePattern,
+			&i.Role,
+			&i.Behavior,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicSites = `-- name: ListPublicSites :many
+SELECT id, listener_id, name, enabled, created_at, updated_at
+FROM public_sites
+ORDER BY listener_id ASC, name ASC, id ASC
+`
+
+func (q *Queries) ListPublicSites(ctx context.Context) ([]PublicSite, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicSites)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicSite
+	for rows.Next() {
+		var i PublicSite
+		if err := rows.Scan(
+			&i.ID,
+			&i.ListenerID,
+			&i.Name,
 			&i.Enabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -7897,6 +8129,7 @@ func (q *Queries) UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRet
 const updatePublicRoute = `-- name: UpdatePublicRoute :one
 UPDATE public_routes
 SET listener_id = ?,
+    site_id = ?,
     priority = ?,
     host_pattern = ?,
     path_prefix = ?,
@@ -7913,11 +8146,12 @@ SET listener_id = ?,
     enabled = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at
+RETURNING id, listener_id, priority, host_pattern, path_prefix, target_load_balancing, is_default, action, redirect_target_mode, redirect_target, redirect_status_code, redirect_preserve_path_suffix, redirect_preserve_query, path_security_mode, access_policy_id, enabled, created_at, updated_at, site_id
 `
 
 type UpdatePublicRouteParams struct {
 	ListenerID                 int64         `json:"listener_id"`
+	SiteID                     sql.NullInt64 `json:"site_id"`
 	Priority                   int64         `json:"priority"`
 	HostPattern                string        `json:"host_pattern"`
 	PathPrefix                 string        `json:"path_prefix"`
@@ -7938,6 +8172,7 @@ type UpdatePublicRouteParams struct {
 func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error) {
 	row := q.db.QueryRowContext(ctx, updatePublicRoute,
 		arg.ListenerID,
+		arg.SiteID,
 		arg.Priority,
 		arg.HostPattern,
 		arg.PathPrefix,
@@ -7974,8 +8209,23 @@ func (q *Queries) UpdatePublicRoute(ctx context.Context, arg UpdatePublicRoutePa
 		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SiteID,
 	)
 	return i, err
+}
+
+const updatePublicRouteHostPatternBySite = `-- name: UpdatePublicRouteHostPatternBySite :exec
+UPDATE public_routes SET host_pattern = ?, updated_at = CURRENT_TIMESTAMP WHERE site_id = ?
+`
+
+type UpdatePublicRouteHostPatternBySiteParams struct {
+	HostPattern string        `json:"host_pattern"`
+	SiteID      sql.NullInt64 `json:"site_id"`
+}
+
+func (q *Queries) UpdatePublicRouteHostPatternBySite(ctx context.Context, arg UpdatePublicRouteHostPatternBySiteParams) error {
+	_, err := q.db.ExecContext(ctx, updatePublicRouteHostPatternBySite, arg.HostPattern, arg.SiteID)
+	return err
 }
 
 const updatePublicRouteTarget = `-- name: UpdatePublicRouteTarget :one
@@ -8118,6 +8368,39 @@ func (q *Queries) UpdatePublicRouteTarget(ctx context.Context, arg UpdatePublicR
 		&i.StaticResponseBody,
 		&i.StaticResponseBodyMode,
 		&i.StaticResponseTemplateID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePublicSite = `-- name: UpdatePublicSite :one
+UPDATE public_sites
+SET listener_id = ?, name = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, listener_id, name, enabled, created_at, updated_at
+`
+
+type UpdatePublicSiteParams struct {
+	ListenerID int64  `json:"listener_id"`
+	Name       string `json:"name"`
+	Enabled    int64  `json:"enabled"`
+	ID         int64  `json:"id"`
+}
+
+func (q *Queries) UpdatePublicSite(ctx context.Context, arg UpdatePublicSiteParams) (PublicSite, error) {
+	row := q.db.QueryRowContext(ctx, updatePublicSite,
+		arg.ListenerID,
+		arg.Name,
+		arg.Enabled,
+		arg.ID,
+	)
+	var i PublicSite
+	err := row.Scan(
+		&i.ID,
+		&i.ListenerID,
+		&i.Name,
+		&i.Enabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

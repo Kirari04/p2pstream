@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -54,6 +55,7 @@ var publicProxyStages = []publicProxyStage{
 	publicRequestAdmissionStage,
 	rejectGloballyInvalidPublicPathStage,
 	serveACMEChallengeStage,
+	validatePublicSiteAuthorityStage,
 	serveWAFReservedStage,
 	routePathSecurityStage,
 	beginWAFPressureStage,
@@ -66,6 +68,65 @@ var publicProxyStages = []publicProxyStage{
 	routeSelectionTraceStage,
 	cacheLookupStage,
 	activeTargetAccountingAndForwardStage,
+}
+
+type publicSiteAuthorityContextKey struct{}
+
+type publicSiteAuthorityContext struct {
+	Hostname     string
+	RawAuthority string
+	Parsed       bool
+}
+
+func validatePublicSiteAuthorityStage(ctx *publicProxyContext) publicProxyStageResult {
+	if ctx == nil || ctx.Request == nil || ctx.Snapshot == nil || len(ctx.Snapshot.SiteHostsByListener[ctx.ListenerID]) == 0 {
+		return publicProxyStageContinue
+	}
+	hostname, err := parsePublicSiteRequestAuthority(ctx.Request.Host)
+	if err != nil {
+		http.Error(ctx.ResponseWriter, "bad request", http.StatusBadRequest)
+		ctx.App.recordProxyRequestEventWithIDsAndContext(context.Background(), http.StatusBadRequest, time.Since(ctx.StartedAt), "invalid_authority", sql.NullInt64{Int64: ctx.ListenerID, Valid: true}, sql.NullInt64{}, sql.NullInt64{}, ctx.Observability.requestBytesValue(), ctx.Observability.responseBytesValue(), ctx.RequestContext)
+		if ctx.Trace != nil {
+			resolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: ctx.ListenerID, Valid: true}}
+			ctx.Trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED, &resolution, nil, http.StatusBadRequest, "invalid_authority", ctx.ResponseWriter.Header(), nil)
+		}
+		return publicProxyStageDone
+	}
+	rawAuthority := ctx.Request.Host
+	ctx.Request = ctx.Request.WithContext(context.WithValue(ctx.Request.Context(), publicSiteAuthorityContextKey{}, publicSiteAuthorityContext{Hostname: hostname, RawAuthority: rawAuthority, Parsed: true}))
+	// Only a managed binding claims and canonicalizes the authority. Do this
+	// before any managed-host rejection so event and trace data use the same
+	// canonical host as routing, policy, cache, and authentication.
+	_, hostManaged := matchPublicSiteHost(ctx.Snapshot.SiteHostsByListener[ctx.ListenerID], hostname)
+	if hostManaged {
+		ctx.Request.Host = hostname
+	}
+	ctx.Recorder.request = ctx.Request
+	ctx.RequestContext = proxyRequestContextFromHTTP(ctx.Request)
+	if ctx.Trace != nil && hostManaged {
+		ctx.Trace.host = hostname
+	}
+	listener := ctx.Snapshot.Listeners[ctx.ListenerID]
+	if listener.Protocol == publicListenerProtocolHTTPS && ctx.Request.TLS != nil {
+		serverName := ctx.Request.TLS.ServerName
+		sni, sniValid := "", true
+		if serverName != "" {
+			var sniErr error
+			sni, sniErr = normalizePublicSiteRequestHostname(serverName)
+			sniValid = sniErr == nil
+		}
+		_, sniManaged := matchPublicSiteHost(ctx.Snapshot.SiteHostsByListener[ctx.ListenerID], sni)
+		if (hostManaged || sniManaged) && (!sniValid || (serverName == "" && net.ParseIP(hostname) == nil) || (serverName != "" && sni != hostname)) {
+			http.Error(ctx.ResponseWriter, "misdirected request", http.StatusMisdirectedRequest)
+			ctx.App.recordProxyRequestEventWithIDsAndContext(context.Background(), http.StatusMisdirectedRequest, time.Since(ctx.StartedAt), "site_sni_host_mismatch", sql.NullInt64{Int64: ctx.ListenerID, Valid: true}, sql.NullInt64{}, sql.NullInt64{}, ctx.Observability.requestBytesValue(), ctx.Observability.responseBytesValue(), ctx.RequestContext)
+			if ctx.Trace != nil {
+				resolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: ctx.ListenerID, Valid: true}}
+				ctx.Trace.emit(p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED, &resolution, nil, http.StatusMisdirectedRequest, "site_sni_host_mismatch", ctx.ResponseWriter.Header(), nil)
+			}
+			return publicProxyStageDone
+		}
+	}
+	return publicProxyStageContinue
 }
 
 func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r *http.Request) *publicProxyContext {
@@ -601,6 +662,14 @@ func routeResolutionStage(ctx *publicProxyContext) publicProxyStageResult {
 			statusCode = http.StatusNotFound
 			errorKind = "no_route"
 			http.NotFound(ctx.ResponseWriter, ctx.Request)
+		} else if errors.Is(err, errMalformedPublicAuthority) {
+			statusCode = http.StatusBadRequest
+			errorKind = "invalid_authority"
+			http.Error(ctx.ResponseWriter, "bad request", statusCode)
+		} else if errors.Is(err, errPublicSiteSNIMismatch) {
+			statusCode = http.StatusMisdirectedRequest
+			errorKind = "site_sni_host_mismatch"
+			http.Error(ctx.ResponseWriter, "misdirected request", statusCode)
 		} else if errors.Is(err, errNoRouteTargetAvailable) || errors.Is(err, errNoRouteBackendAvailable) {
 			statusCode = http.StatusServiceUnavailable
 			errorKind = "no_route_target_available"

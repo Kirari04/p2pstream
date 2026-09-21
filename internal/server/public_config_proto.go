@@ -424,6 +424,7 @@ func publicRouteToProto(route db.PublicRoute, targets []db.PublicRouteTarget, up
 	return &p2pstreamv1.PublicRoute{
 		Id:                         route.ID,
 		ListenerId:                 route.ListenerID,
+		SiteId:                     nullInt64Value(route.SiteID),
 		Priority:                   route.Priority,
 		HostPattern:                route.HostPattern,
 		PathPrefix:                 route.PathPrefix,

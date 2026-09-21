@@ -81,10 +81,16 @@ func (e *Engine) Overview(ctx context.Context) (Overview, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	o := Overview{InstanceID: e.state.InstanceID, Channel: e.state.Channel, Operation: e.state.Operation}
+	if err := ctx.Err(); err != nil {
+		return o, err
+	}
 	if o.Operation != nil && !o.Operation.Terminal() {
 		return clone(o), nil
 	}
 	current, _, _, err := e.driver.Inspect(ctx)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return o, ctxErr
+	}
 	if err != nil {
 		o.Warning = "Cannot inspect the managed server: " + err.Error()
 		return clone(o), nil
@@ -95,6 +101,9 @@ func (e *Engine) Overview(ctx context.Context) (Overview, error) {
 	}
 	if e.lastCheck.IsZero() || time.Since(e.lastCheck) >= time.Hour {
 		r, err := e.source.Latest(ctx, current, e.verificationFloor())
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return o, ctxErr
+		}
 		e.lastCheck = time.Now()
 		e.lastWarning = ""
 		e.cached = nil

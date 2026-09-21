@@ -39,7 +39,8 @@ describe("trafficFlowAnimation", () => {
     const seen = new Set<string>();
     const index = createTrafficFlowConfigIndex({
       $typeName: "p2pstream.v1.GetPublicProxyConfigResponse",
-      listeners: [],
+    listeners: [],
+    sites: [],
       agents: [],
       routes: [],
       routeTargets: [],

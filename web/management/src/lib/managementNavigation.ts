@@ -53,9 +53,10 @@ export const MANAGEMENT_NAVIGATION: readonly ManagementNavigationGroup[] = [
       {
         key: "proxy",
         label: "Proxy",
-        path: "/proxy/routes",
+        path: "/proxy/sites",
         activePrefix: "/proxy",
         children: [
+          { key: "proxy-sites", label: "Sites", path: "/proxy/sites" },
           { key: "proxy-routes", label: "Routes", path: "/proxy/routes" },
           { key: "proxy-listeners", label: "Listeners", path: "/proxy/listeners" },
         ],

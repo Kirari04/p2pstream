@@ -6,6 +6,7 @@ import PublicCacheRuleEditorModal from "@/components/editors/PublicCacheRuleEdit
 import PublicRateLimitRuleEditorModal from "@/components/editors/PublicRateLimitRuleEditorModal.vue";
 import PublicRetryRuleEditorModal from "@/components/editors/PublicRetryRuleEditorModal.vue";
 import PublicRouteEditorModal from "@/components/editors/PublicRouteEditorModal.vue";
+import PublicSiteEditorModal from "@/components/editors/PublicSiteEditorModal.vue";
 import PublicTrafficShaperRuleEditorModal from "@/components/editors/PublicTrafficShaperRuleEditorModal.vue";
 import PublicWafCaptchaProviderEditorModal from "@/components/editors/PublicWafCaptchaProviderEditorModal.vue";
 import PublicWafRuleEditorModal from "@/components/editors/PublicWafRuleEditorModal.vue";
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 
 const listenerEditor = ref<InstanceType<typeof PublicListenerEditorModal> | null>(null);
 const routeEditor = ref<InstanceType<typeof PublicRouteEditorModal> | null>(null);
+const siteEditor = ref<InstanceType<typeof PublicSiteEditorModal> | null>(null);
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
 const rateLimitEditor = ref<InstanceType<typeof PublicRateLimitRuleEditorModal> | null>(null);
 const retryRuleEditor = ref<InstanceType<typeof PublicRetryRuleEditorModal> | null>(null);
@@ -68,6 +70,10 @@ function openListener(listenerId: bigint | string) {
 
 function openRoute(routeId: bigint | string) {
   routeEditor.value?.openEdit(routeId);
+}
+
+function openSite(siteId: bigint | string) {
+  siteEditor.value?.openEdit(siteId);
 }
 
 function openCloneRoute(routeId: bigint | string) {
@@ -118,6 +124,10 @@ function openCreateRoute() {
   routeEditor.value?.openCreate();
 }
 
+function openCreateSite() {
+  siteEditor.value?.openCreate();
+}
+
 function openCreateRouteTarget() {
 }
 
@@ -153,6 +163,7 @@ defineExpose({
   openTarget,
   openListener,
   openRoute,
+  openSite,
   openCloneRoute,
   openRouteTarget,
   openCloneRouteTarget,
@@ -165,6 +176,7 @@ defineExpose({
   openWafCaptchaProvider,
   openCreateListener,
   openCreateRoute,
+  openCreateSite,
   openCreateRouteTarget,
   openCreateAgent,
   openCreateRateLimitRule,
@@ -179,6 +191,7 @@ defineExpose({
 <template>
   <PublicListenerEditorModal ref="listenerEditor" :config="config" @saved="emit('saved')" />
   <PublicRouteEditorModal ref="routeEditor" :config="config" @saved="emit('saved')" />
+  <PublicSiteEditorModal ref="siteEditor" :config="config" @saved="emit('saved')" />
   <PublicRateLimitRuleEditorModal ref="rateLimitEditor" :config="config" @saved="emit('saved')" />
   <PublicTrafficShaperRuleEditorModal ref="trafficShaperEditor" :config="config" @saved="emit('saved')" />
   <PublicRetryRuleEditorModal ref="retryRuleEditor" :config="config" @saved="emit('saved')" />

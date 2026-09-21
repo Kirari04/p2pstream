@@ -13,12 +13,18 @@ import (
 )
 
 type fakeSource struct {
-	release Release
-	err     error
-	calls   int
+	release     Release
+	err         error
+	calls       int
+	latestCalls int
+	latest      func(context.Context, RuntimeStatus, Floor) (*Release, error)
 }
 
-func (s *fakeSource) Latest(context.Context, RuntimeStatus, Floor) (*Release, error) {
+func (s *fakeSource) Latest(ctx context.Context, current RuntimeStatus, floor Floor) (*Release, error) {
+	s.latestCalls++
+	if s.latest != nil {
+		return s.latest(ctx, current, floor)
+	}
 	return &s.release, s.err
 }
 func (s *fakeSource) Resolve(context.Context, string, RuntimeStatus, Floor) (Release, error) {
@@ -95,6 +101,84 @@ func fixtureEngine(t *testing.T) (*Engine, *fakeDriver, *fakeSource, StartReques
 		t.Fatal(err)
 	}
 	return e, d, s, StartRequest{OperationID: uuid.NewString(), Plan: p, Actor: "admin:test"}
+}
+
+func TestOverviewCallerCancellationDoesNotPoisonCheckCache(t *testing.T) {
+	e, _, source, _ := fixtureEngine(t)
+	previousCheck := time.Now().Add(-2 * time.Hour)
+	previousRelease := clone(source.release)
+	previousRelease.Version = "v1.0.2"
+	previousWarning := "previous release check warning"
+	previousObservedFloor := e.state.ObservedFloor
+	e.lastCheck = previousCheck
+	e.cached = &previousRelease
+	e.lastWarning = previousWarning
+
+	ctx, cancel := context.WithCancel(context.Background())
+	canceledRelease := clone(source.release)
+	canceledRelease.Sequence++
+	source.latest = func(ctx context.Context, _ RuntimeStatus, _ Floor) (*Release, error) {
+		cancel()
+		return &canceledRelease, nil
+	}
+	if _, err := e.Overview(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Overview() error = %v, want context.Canceled", err)
+	}
+	if !e.lastCheck.Equal(previousCheck) {
+		t.Fatalf("lastCheck = %v, want unchanged %v", e.lastCheck, previousCheck)
+	}
+	if !reflect.DeepEqual(e.cached, &previousRelease) {
+		t.Fatalf("cached release = %+v, want unchanged %+v", e.cached, previousRelease)
+	}
+	if e.lastWarning != previousWarning {
+		t.Fatalf("lastWarning = %q, want %q", e.lastWarning, previousWarning)
+	}
+	if e.state.ObservedFloor != previousObservedFloor {
+		t.Fatalf("observed floor = %+v, want unchanged %+v", e.state.ObservedFloor, previousObservedFloor)
+	}
+
+	source.latest = nil
+	overview, err := e.Overview(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if overview.Target == nil || overview.Target.Version != source.release.Version {
+		t.Fatalf("immediate retry target = %+v, want %q", overview.Target, source.release.Version)
+	}
+	if !e.lastCheck.After(previousCheck) || e.lastWarning != "" {
+		t.Fatalf("successful retry did not refresh cache: lastCheck=%v warning=%q", e.lastCheck, e.lastWarning)
+	}
+	if source.latestCalls != 2 {
+		t.Fatalf("Latest() calls = %d, want cancellation plus immediate retry", source.latestCalls)
+	}
+}
+
+func TestOverviewCachesSourceTimeoutWhenCallerIsActive(t *testing.T) {
+	e, _, source, _ := fixtureEngine(t)
+	source.err = context.DeadlineExceeded
+
+	overview, err := e.Overview(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if overview.Warning != context.DeadlineExceeded.Error() {
+		t.Fatalf("warning = %q, want %q", overview.Warning, context.DeadlineExceeded)
+	}
+	if e.lastCheck.IsZero() {
+		t.Fatal("source timeout did not advance lastCheck")
+	}
+	if e.cached != nil {
+		t.Fatalf("cached release = %+v, want nil", e.cached)
+	}
+
+	source.err = nil
+	overview, err = e.Overview(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if overview.Warning != context.DeadlineExceeded.Error() || source.latestCalls != 1 {
+		t.Fatalf("cached timeout = warning %q after %d calls, want %q after one call", overview.Warning, source.latestCalls, context.DeadlineExceeded)
+	}
 }
 
 func TestEngineAcceptsExactlyOneBoundRequest(t *testing.T) {

@@ -19,7 +19,7 @@ describe("managementNavigation", () => {
       "Templates",
       "TLS",
     ]);
-    expect(MANAGEMENT_NAVIGATION[1]?.items[0]?.children?.map((item) => item.label)).toEqual(["Routes", "Listeners"]);
+    expect(MANAGEMENT_NAVIGATION[1]?.items[0]?.children?.map((item) => item.label)).toEqual(["Sites", "Routes", "Listeners"]);
     expect(MANAGEMENT_NAVIGATION[1]?.items[1]?.children?.map((item) => item.label)).toEqual(["Fleet", "Activity", "Updates"]);
     expect(MANAGEMENT_NAVIGATION[1]?.items[2]?.children?.map((item) => item.label)).toEqual([
       "Rate Limits",
@@ -71,6 +71,7 @@ describe("managementNavigation", () => {
   });
 
   test("returns the deepest route label with a safe fallback", () => {
+    expect(managementRouteLabel("/proxy/sites")).toBe("Sites");
     expect(managementRouteLabel("/proxy/listeners")).toBe("Listeners");
     expect(managementRouteLabel("/unknown", "Not Found")).toBe("Not Found");
     expect(managementBreadcrumbsForPath("/unknown")).toEqual([]);

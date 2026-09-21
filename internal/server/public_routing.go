@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/netip"
 	"net/url"
 	"sort"
 	"strconv"
@@ -28,6 +29,8 @@ import (
 var errNoRouteBackendAvailable = errors.New("no route backend available")
 var errNoRouteTargetAvailable = errors.New("no route target available")
 var errNoPublicRouteAvailable = errors.New("no public route available")
+var errMalformedPublicAuthority = errors.New("malformed request authority")
+var errPublicSiteSNIMismatch = errors.New("TLS server name does not match request host")
 
 var agentOpenHandshakeTimeout = 10 * time.Second
 
@@ -142,6 +145,7 @@ type publicListenerConfig struct {
 type publicRouteConfig struct {
 	ID                         int64
 	ListenerID                 int64
+	SiteID                     int64
 	Priority                   int64
 	HostPattern                string
 	PathPrefix                 string
@@ -157,6 +161,23 @@ type publicRouteConfig struct {
 	PathSecurityMode           string
 	AccessPolicyID             int64
 	Enabled                    bool
+}
+
+type publicSiteConfig struct {
+	ID              int64
+	ListenerID      int64
+	Name            string
+	Enabled         bool
+	PrimaryHostname string
+}
+
+type publicSiteHostConfig struct {
+	ID              int64
+	SiteID          int64
+	ListenerID      int64
+	HostnamePattern string
+	Primary         bool
+	Behavior        string
 }
 
 type publicTLSCertificateConfig struct {
@@ -178,6 +199,8 @@ type publicProxySnapshot struct {
 	RouteTargets        map[int64]publicRouteTargetConfig
 	Agents              map[int64]publicAgentConfig
 	Listeners           map[int64]publicListenerConfig
+	Sites               map[int64]publicSiteConfig
+	SiteHostsByListener map[int64][]publicSiteHostConfig
 	RoutesByListener    map[int64][]publicRouteConfig
 	CertsByListener     map[int64][]publicTLSCertificateConfig
 	RateLimitRules      []publicRateLimitRuleConfig
@@ -1523,8 +1546,6 @@ func (a *App) matchPublicRoute(listenerID int64, r *http.Request) (publicRouteMa
 }
 
 func (a *App) matchPublicRouteInSnapshot(snap *publicProxySnapshot, listenerID int64, r *http.Request) (publicRouteMatch, error) {
-	host := normalizeRequestHost(r.Host)
-
 	if snap == nil {
 		return publicRouteMatch{}, errors.New("public proxy config is not loaded")
 	}
@@ -1534,10 +1555,63 @@ func (a *App) matchPublicRouteInSnapshot(snap *publicProxySnapshot, listenerID i
 		return publicRouteMatch{}, errors.New("listener not found")
 	}
 
+	// A configured site claims its host completely: once recognized, requests
+	// can only select that site's routes and never fall through to legacy rules.
+	if len(snap.SiteHostsByListener[listenerID]) > 0 {
+		host := ""
+		if parsed, ok := r.Context().Value(publicSiteAuthorityContextKey{}).(publicSiteAuthorityContext); ok && parsed.Parsed {
+			host = parsed.Hostname
+		} else {
+			var err error
+			host, err = parsePublicSiteRequestAuthority(r.Host)
+			if err != nil {
+				return publicRouteMatch{}, fmt.Errorf("%w: %v", errMalformedPublicAuthority, err)
+			}
+		}
+		binding, hostManaged := matchPublicSiteHost(snap.SiteHostsByListener[listenerID], host)
+		if hostManaged {
+			site, exists := snap.Sites[binding.SiteID]
+			if !exists || !site.Enabled {
+				return publicRouteMatch{}, errNoPublicRouteAvailable
+			}
+			if binding.Behavior == publicSiteHostBehaviorRedirect && !binding.Primary {
+				return publicRouteMatch{Snapshot: snap, Listener: listener, Route: publicSiteRedirectRoute(listener, site)}, nil
+			}
+			var matchedRoute publicRouteConfig
+			var defaultRoute publicRouteConfig
+			for _, route := range snap.RoutesByListener[listenerID] {
+				if !route.Enabled || route.SiteID != site.ID {
+					continue
+				}
+				if route.IsDefault {
+					if defaultRoute.ID == 0 {
+						defaultRoute = route
+					}
+					continue
+				}
+				if route.PathPrefix != "" && !pathPrefixMatches(r.URL.Path, route.PathPrefix) {
+					continue
+				}
+				matchedRoute = route
+				break
+			}
+			isDefault := false
+			if matchedRoute.ID == 0 {
+				if defaultRoute.ID == 0 {
+					return publicRouteMatch{}, errNoPublicRouteAvailable
+				}
+				matchedRoute, isDefault = defaultRoute, true
+			}
+			return publicRouteMatch{Snapshot: snap, Listener: listener, Route: matchedRoute, DefaultRoute: isDefault}, nil
+		}
+	}
+
+	host := normalizeRequestHost(r.Host)
+
 	var matchedRoute publicRouteConfig
 	var defaultRoute publicRouteConfig
 	for _, route := range snap.RoutesByListener[listenerID] {
-		if !route.Enabled {
+		if !route.Enabled || route.SiteID != 0 {
 			continue
 		}
 		if route.IsDefault {
@@ -1570,6 +1644,92 @@ func (a *App) matchPublicRouteInSnapshot(snap *publicProxySnapshot, listenerID i
 		Route:        matchedRoute,
 		DefaultRoute: isDefaultRoute,
 	}, nil
+}
+
+func parsePublicSiteRequestAuthority(authority string) (string, error) {
+	if authority == "" || authority != strings.TrimSpace(authority) || strings.ContainsAny(authority, "*/\\@,\t\r\n") {
+		return "", errors.New("host header is empty or contains forbidden characters")
+	}
+	host := authority
+	if strings.HasPrefix(authority, "[") {
+		end := strings.IndexByte(authority, ']')
+		if end < 0 {
+			return "", errors.New("IPv6 address is missing closing bracket")
+		}
+		host = authority[1:end]
+		rest := authority[end+1:]
+		if rest != "" {
+			if !strings.HasPrefix(rest, ":") || !validPublicAuthorityPort(rest[1:]) {
+				return "", errors.New("invalid port")
+			}
+		}
+		address, addressErr := netip.ParseAddr(host)
+		if addressErr != nil || !address.Is6() || address.Zone() != "" {
+			return "", errors.New("brackets require an IPv6 address")
+		}
+	} else {
+		switch strings.Count(authority, ":") {
+		case 0:
+		case 1:
+			var port string
+			host, port, _ = strings.Cut(authority, ":")
+			if !validPublicAuthorityPort(port) {
+				return "", errors.New("invalid port")
+			}
+		default:
+			return "", errors.New("IPv6 addresses must be bracketed")
+		}
+	}
+	return normalizePublicSiteRequestHostname(host)
+}
+
+func validPublicAuthorityPort(value string) bool {
+	port, err := strconv.ParseUint(value, 10, 16)
+	return err == nil && port > 0
+}
+
+func normalizePublicSiteRequestHostname(host string) (string, error) {
+	if host == "" || host != strings.TrimSpace(host) || strings.Contains(host, "*") {
+		return "", errors.New("invalid hostname")
+	}
+	host = strings.ToLower(host)
+	if address, err := netip.ParseAddr(host); err == nil {
+		if address.Zone() != "" {
+			return "", errors.New("IP zone identifiers are not allowed")
+		}
+		return address.String(), nil
+	}
+	return normalizePublicSiteRequestDNSName(host)
+}
+
+func matchPublicSiteHost(bindings []publicSiteHostConfig, host string) (publicSiteHostConfig, bool) {
+	for _, binding := range bindings {
+		if binding.HostnamePattern == host {
+			return binding, true
+		}
+	}
+	for _, binding := range bindings {
+		if strictPublicSiteHostMatches(host, binding.HostnamePattern) {
+			return binding, true
+		}
+	}
+	return publicSiteHostConfig{}, false
+}
+
+func publicSiteRedirectRoute(listener publicListenerConfig, site publicSiteConfig) publicRouteConfig {
+	host := site.PrimaryHostname
+	if ip := net.ParseIP(host); ip != nil && strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+	defaultPort := (listener.Protocol == publicListenerProtocolHTTPS && listener.Port == 443) || (listener.Protocol != publicListenerProtocolHTTPS && listener.Port == 80)
+	if !defaultPort && listener.Port > 0 {
+		host = net.JoinHostPort(strings.Trim(host, "[]"), strconv.FormatInt(listener.Port, 10))
+	}
+	scheme := "http"
+	if listener.Protocol == publicListenerProtocolHTTPS {
+		scheme = "https"
+	}
+	return publicRouteConfig{Action: publicRouteActionRedirect, RedirectTargetMode: publicRouteRedirectTargetModeExternalOriginKeepPath, RedirectTarget: (&url.URL{Scheme: scheme, Host: host}).String(), RedirectStatusCode: http.StatusPermanentRedirect, RedirectPreserveQuery: true, PathSecurityMode: publicRoutePathSecurityModeAllowEncodedSeparators, Enabled: true, SiteID: site.ID, ListenerID: listener.ID}
 }
 
 func (a *App) resolvePublicRouteFromMatch(match publicRouteMatch) (publicRouteResolution, error) {
@@ -1656,6 +1816,7 @@ func redirectLocationForRequest(r *http.Request, route publicRouteConfig) (strin
 			target.RawPath = ""
 		}
 		target.RawQuery = mergeRedirectQuery(target.RawQuery, r.URL.RawQuery, route.RedirectPreserveQuery)
+		target.ForceQuery = route.RedirectPreserveQuery && r.URL.ForceQuery && target.RawQuery == ""
 		return target.String(), nil
 	case publicRouteRedirectTargetModeExternalOriginKeepPath:
 		target, err := url.Parse(route.RedirectTarget)
@@ -1669,6 +1830,7 @@ func redirectLocationForRequest(r *http.Request, route publicRouteConfig) (strin
 		}
 		target.RawQuery = ""
 		target.RawQuery = mergeRedirectQuery(target.RawQuery, r.URL.RawQuery, route.RedirectPreserveQuery)
+		target.ForceQuery = route.RedirectPreserveQuery && r.URL.ForceQuery && target.RawQuery == ""
 		return target.String(), nil
 	default:
 		return "", errors.New("unsupported redirect target mode")

@@ -122,6 +122,7 @@ export default defineConfig({
           { text: "LLM-Ready Docs", link: "/reference/llms" },
           { text: "License", link: "/reference/license" },
           { text: "Database", link: "/reference/database" },
+          { text: "Sites and Domain Aliases", link: "/reference/sites" },
           { text: "Routing Rules", link: "/reference/routing-rules" },
           { text: "CEL Policy Matching", link: "/reference/cel" },
           { text: "Management TLS", link: "/reference/management-tls" },
