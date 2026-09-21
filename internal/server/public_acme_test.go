@@ -3,7 +3,11 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -17,11 +21,41 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/acme"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 )
+
+func TestPublicACMECertificateRequestMatchesOrderIdentifiers(t *testing.T) {
+	for _, domain := range []string{"example.com", "*.example.com"} {
+		t.Run(domain, func(t *testing.T) {
+			key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				t.Fatalf("generate key: %v", err)
+			}
+			csrDER, err := x509.CreateCertificateRequest(rand.Reader, publicACMECertificateRequest(domain), key)
+			if err != nil {
+				t.Fatalf("create certificate request: %v", err)
+			}
+			csr, err := x509.ParseCertificateRequest(csrDER)
+			if err != nil {
+				t.Fatalf("parse certificate request: %v", err)
+			}
+			orderIDs := acme.DomainIDs(domain)
+			if len(orderIDs) != 1 || orderIDs[0].Type != "dns" {
+				t.Fatalf("order identifiers = %+v, want one DNS identifier", orderIDs)
+			}
+			if csr.Subject.CommonName != "" {
+				t.Fatalf("CSR Common Name = %q, want empty", csr.Subject.CommonName)
+			}
+			if len(csr.DNSNames) != 1 || csr.DNSNames[0] != orderIDs[0].Value {
+				t.Fatalf("CSR DNS names = %v, want exactly order identifier %q", csr.DNSNames, orderIDs[0].Value)
+			}
+		})
+	}
+}
 
 type fakeACMEIssuer struct {
 	certPEM []byte

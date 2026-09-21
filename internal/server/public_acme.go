@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/pem"
 	"errors"
@@ -698,10 +697,7 @@ func (i publicRealACMEIssuer) Issue(ctx context.Context, store publicACMEChallen
 	if err != nil {
 		return publicACMEIssueResult{}, publicACMEStageWrap(publicACMEStageCSRCreate, err)
 	}
-	csr, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
-		Subject:  pkix.Name{CommonName: strings.TrimPrefix(cfg.Domain, "*.")},
-		DNSNames: []string{cfg.Domain},
-	}, certKey)
+	csr, err := x509.CreateCertificateRequest(rand.Reader, publicACMECertificateRequest(cfg.Domain), certKey)
 	if err != nil {
 		return publicACMEIssueResult{}, publicACMEStageWrap(publicACMEStageCSRCreate, err)
 	}
@@ -734,6 +730,10 @@ func (i publicRealACMEIssuer) Issue(ctx context.Context, store publicACMEChallen
 		KeyPEM:  pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}),
 		Leaf:    leaf,
 	}, nil
+}
+
+func publicACMECertificateRequest(domain string) *x509.CertificateRequest {
+	return &x509.CertificateRequest{DNSNames: []string{domain}}
 }
 
 func provisionACMEChallenge(ctx context.Context, client *acme.Client, store publicACMEChallengeStore, cfg publicACMEIssueConfig, authz *acme.Authorization, challenge *acme.Challenge) (func() error, error) {
