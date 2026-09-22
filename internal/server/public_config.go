@@ -85,6 +85,7 @@ type publicConfigRows struct {
 	Listeners                  []db.PublicListener
 	Sites                      []db.PublicSite
 	SiteHosts                  []db.PublicSiteHost
+	SiteListenerBindings       []db.PublicSiteListenerBinding
 	Routes                     []db.PublicRoute
 	RouteTargets               []db.PublicRouteTarget
 	RouteTargetUpstreamHeaders []db.PublicRouteTargetUpstreamHeader

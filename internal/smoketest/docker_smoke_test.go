@@ -580,10 +580,30 @@ func upsertDefaultRouteTarget(
 
 	target.RouteId = 0
 	target.Position = 0
-	route := findDefaultRoute(cfg, listenerID)
+	site := findDefaultSiteForListener(cfg, listenerID)
+	createdSite := false
+	if site == nil {
+		req := connect.NewRequest(&p2pstreamv1.CreatePublicSiteRequest{
+			Name:        "smoke-" + name,
+			Enabled:     true,
+			DefaultSite: true,
+			ListenerBindings: []*p2pstreamv1.PublicSiteListenerBinding{{
+				ListenerId: listenerID,
+				Behavior:   p2pstreamv1.PublicSiteListenerBehavior_PUBLIC_SITE_LISTENER_BEHAVIOR_SERVE,
+			}},
+		})
+		req.Header().Set("Cookie", cookie)
+		resp, err := client.CreatePublicSite(ctx, req)
+		if err != nil {
+			t.Fatalf("create Default Site %q: %v", name, err)
+		}
+		site = resp.Msg.GetSite()
+		createdSite = true
+	}
+	route := findDefaultRoute(cfg, site.GetId())
 	if route == nil {
 		req := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-			ListenerId:                 listenerID,
+			SiteId:                     &site.Id,
 			Priority:                   1000,
 			PathPrefix:                 "/",
 			TargetLoadBalancing:        p2pstreamv1.PublicRouteTargetLoadBalancing_PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN,
@@ -600,12 +620,20 @@ func upsertDefaultRouteTarget(
 		if err != nil {
 			t.Fatalf("create default route %q: %v", name, err)
 		}
+		if createdSite {
+			publish := connect.NewRequest(&p2pstreamv1.PublishPublicSiteRequest{Id: site.GetId()})
+			publish.Header().Set("Cookie", cookie)
+			if _, err := client.PublishPublicSite(ctx, publish); err != nil {
+				t.Fatalf("publish Default Site %q: %v", name, err)
+			}
+		}
 		return resp.Msg.GetRoute()
 	}
 
+	siteID := site.GetId()
 	req := connect.NewRequest(&p2pstreamv1.UpdatePublicRouteRequest{
 		Id:                         route.GetId(),
-		ListenerId:                 listenerID,
+		SiteId:                     &siteID,
 		Priority:                   route.GetPriority(),
 		HostPattern:                route.GetHostPattern(),
 		PathPrefix:                 route.GetPathPrefix(),
@@ -1482,9 +1510,23 @@ func findListener(cfg *p2pstreamv1.GetPublicProxyConfigResponse, name string) *p
 	return nil
 }
 
-func findDefaultRoute(cfg *p2pstreamv1.GetPublicProxyConfigResponse, listenerID int64) *p2pstreamv1.PublicRoute {
+func findDefaultSiteForListener(cfg *p2pstreamv1.GetPublicProxyConfigResponse, listenerID int64) *p2pstreamv1.PublicSite {
+	for _, site := range cfg.GetSites() {
+		if !site.GetDefaultSite() {
+			continue
+		}
+		for _, binding := range site.GetListenerBindings() {
+			if binding.GetListenerId() == listenerID {
+				return site
+			}
+		}
+	}
+	return nil
+}
+
+func findDefaultRoute(cfg *p2pstreamv1.GetPublicProxyConfigResponse, siteID int64) *p2pstreamv1.PublicRoute {
 	for _, route := range cfg.GetRoutes() {
-		if route.GetListenerId() == listenerID && route.GetIsDefault() {
+		if route.GetSiteId() == siteID && route.GetIsDefault() {
 			return route
 		}
 	}

@@ -58,17 +58,14 @@ The management server uses HTTPS by default. In auto mode, p2pstream creates a l
 
 ## Verification
 
-The first browser visit should show **Setup Admin**. After setup, **Overview** should load. **Proxy -> Listeners** should show the seeded `public-http` and `public-https` listeners, while **Proxy -> Routes** should show the default routes with static welcome targets.
+The first browser visit should show **Setup Admin**. After setup, **Overview** should load. **Proxy -> Listeners** shows the seeded `public-http` and `public-https` listeners. Open their shared published Default Site under **Proxy -> Sites** to inspect its welcome route and static target. Create a separate draft Site for your application's hostnames, configure its routes inside the Site workspace, review readiness, and publish when ready.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/first_login_setup_admin.png" alt="p2pstream Setup Admin screen showing setup token, username, password, and confirm password fields">
   <figcaption>The first-run setup screen appears only before the initial admin user exists. Use the setup token from the configured environment or server startup log.</figcaption>
 </figure>
 
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy Routes page showing a compact table of seeded default routes and their route targets">
-  <figcaption>The Proxy Routes page gives a new install a known default runtime state. Replace the welcome targets with real routes before serving production traffic.</figcaption>
-</figure>
+Default Sites handle hostnames that no named Site owns. A published named Site keeps its own routing boundary, including when a path has no matching route. See [Sites](../reference/sites) for listener assignments, publication, and migration of older routing configurations.
 
 On a new database, p2pstream seeds:
 

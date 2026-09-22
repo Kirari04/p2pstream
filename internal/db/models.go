@@ -634,23 +634,54 @@ type PublicRouteTargetUpstreamHeader struct {
 }
 
 type PublicSite struct {
-	ID         int64     `json:"id"`
-	ListenerID int64     `json:"listener_id"`
-	Name       string    `json:"name"`
-	Enabled    int64     `json:"enabled"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID                int64     `json:"id"`
+	Name              string    `json:"name"`
+	Enabled           int64     `json:"enabled"`
+	Published         int64     `json:"published"`
+	DefaultSite       int64     `json:"default_site"`
+	CanonicalHostname string    `json:"canonical_hostname"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type PublicSiteHost struct {
 	ID              int64     `json:"id"`
 	SiteID          int64     `json:"site_id"`
-	ListenerID      int64     `json:"listener_id"`
 	HostnamePattern string    `json:"hostname_pattern"`
 	Role            string    `json:"role"`
 	Behavior        string    `json:"behavior"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+type PublicSiteListenerBinding struct {
+	SiteID             int64         `json:"site_id"`
+	ListenerID         int64         `json:"listener_id"`
+	Behavior           string        `json:"behavior"`
+	RedirectListenerID sql.NullInt64 `json:"redirect_listener_id"`
+	RedirectHostname   string        `json:"redirect_hostname"`
+	CreatedAt          time.Time     `json:"created_at"`
+	UpdatedAt          time.Time     `json:"updated_at"`
+}
+
+type PublicSiteMigratedListener struct {
+	ListenerID int64     `json:"listener_id"`
+	MigratedAt time.Time `json:"migrated_at"`
+}
+
+type PublicSiteMigrationRouteMapping struct {
+	SourceRouteID      int64     `json:"source_route_id"`
+	DestinationSiteID  int64     `json:"destination_site_id"`
+	DestinationRouteID int64     `json:"destination_route_id"`
+	Copied             int64     `json:"copied"`
+	CreatedAt          time.Time `json:"created_at"`
+}
+
+type PublicSiteMigrationTargetMapping struct {
+	SourceTargetID      int64     `json:"source_target_id"`
+	DestinationRouteID  int64     `json:"destination_route_id"`
+	DestinationTargetID int64     `json:"destination_target_id"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 type PublicTlsCertificate struct {

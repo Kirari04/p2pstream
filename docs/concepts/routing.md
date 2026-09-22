@@ -1,74 +1,68 @@
 # Routing
 
-Routes decide what a public listener does with a matching host and path after earlier policy layers have run.
+Public routing follows this ownership chain:
 
-## What It Is
+**Listener → Site → Route → Targets**
 
-A route belongs to one listener and performs either a forward action or a redirect action. Forward routes select one or more route-owned targets; redirect routes return a redirect response without contacting an origin.
+The listener accepts the connection. Its hostname bindings select one Site. That Site's routes select an action, and a forward action selects one of the route's targets.
 
-## When It Matters
+## Site selection
 
-Routing matters when publishing multiple hostnames on one listener, adding path-specific targets, creating failover groups, or explaining why a request reached the listener but not the expected origin.
+A Site owns exact or one-label wildcard hostnames and can be assigned to several listeners. The same route list is used through every assignment.
 
-## Runtime Behavior
+For each request, p2pstream checks:
 
-Routes are evaluated after WAF, rate limits, and traffic shapers. p2pstream also performs an earlier route-only match to apply the route's path security mode; this does not select a target or advance load-balancer state. Cache rules run after route/target selection and can serve eligible proxy assets without contacting the origin.
+1. an exact hostname Site;
+2. a one-label wildcard Site;
+3. the listener's Default Site for an otherwise unmatched hostname.
 
-A route must include at least one of:
+Once a Site is selected, its ownership is exclusive. A path miss or disabled published Site returns `404`; it does not fall through to another hostname Site or the Default Site. A disabled published Site keeps its ownership reserved.
 
-- host pattern,
-- path prefix.
+Draft Sites do not participate in selection. Publishing activates all validated hostname and listener assignments together.
 
-Host patterns support exact hosts such as `app.example.com` and wildcard subdomains such as `*.example.com`. Path prefixes must start with `/`.
+## Route selection
 
-Routes are sorted by priority, then ID. Lower priority numbers run first.
+Routes match paths inside their owning Site. They are sorted by priority, then ID. Lower priority numbers run first.
 
-| Priority | Host | Path | Result |
-| --- | --- | --- | --- |
-| `10` | `app.example.com` | `/api` | checked first |
-| `20` | `app.example.com` | `/` | fallback for same host |
-| `100` | empty | `/` | broad listener fallback |
-
-Forward routes load-balance across enabled route targets. Targets are grouped by `priority_group`; p2pstream selects only from the lowest available group, so higher groups act as failover. Within a group, the route target load-balancing policy uses each target's position and weight.
-
-Proxy targets can use direct transport or agent transport. Agent targets select connected healthy agents by label selector and then use the target's agent load-balancing policy.
-
-If no enabled target is available for a matched forward route, p2pstream returns `503 Service Unavailable`.
-
-Redirect status codes must be `301`, `302`, `307`, or `308`.
-
-## Path Security Modes
-
-Routes default to strict path security. Strict routes reject encoded path separators such as `%2F` and `%5C` before WAF, rate limits, traffic shapers, cache, and forwarding. Public listeners also reject decoded `.` and `..` path segments and raw literal backslashes.
-
-Use **Allow encoded separators** only for routes whose upstream requires encoded separators in path identifiers, for example GitLab project paths. Those requests keep the encoded separator form for the upstream, but shared cache bypasses them. WAF, rate-limit, and traffic-shaper path rules still evaluate p2pstream's decoded request path, so keep route-specific policy simple when enabling this compatibility mode.
-
-| Redirect mode | Target example | Behavior |
+| Priority | Path | Result |
 | --- | --- | --- |
-| Same host path | `/new` | Redirects to a path on the same request host. |
-| External origin keep path | `https://new.example.com` | Keeps the incoming path and query on another origin. |
-| Absolute URL | `https://new.example.com/docs` | Redirects to the exact URL, with optional path/query preservation. |
+| `10` | `/api` | Checked first for the selected Site. |
+| `20` | `/` | Broader path fallback in that Site. |
+| default | empty | Used when no non-default route matches. |
 
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream Edit Route drawer showing host and path match fields, route action, targets, and priority">
-  <figcaption>The route drawer shows the match, action, route targets, priority groups, and route priority in one place. Use it to verify that specific rules run before broad fallback routes.</figcaption>
-</figure>
+The Site default route is a path fallback. The listener Default Site is a hostname fallback. A Site can have one default route, and a listener can have one published Default Site.
 
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy Routes table showing listener and match, action and target summary, priority, state, and row actions">
-  <figcaption>The compact Routes table keeps each request match beside its action and target summary, with priority, state, and edit, clone, and delete actions aligned per row.</figcaption>
-</figure>
+A route performs either a forward action or a redirect action. Redirect routes return locally without contacting an origin. Forward routes select from their enabled targets.
 
-## Common Mistakes
+## Target selection
 
-- Putting broad catch-all routes at lower priority numbers than specific routes.
-- Expecting the listener default route to run when an enabled matching route exists but no target is available.
-- Forgetting wildcard host patterns do not match the apex host.
-- Expecting captcha or waiting-room redirects to replay request bodies.
-- Enabling encoded separator compatibility on broad fallback routes instead of limiting it to the upstream that needs it.
+Targets are grouped by `priority_group`. p2pstream uses only the lowest group that has an available target, so higher groups provide failover. Within a group, the route's load-balancing policy considers target positions and weights.
 
-## Related Links
+Proxy targets use direct transport from the server or agent transport from a matching connected agent. Static targets return a local status, headers, and body. If a matched forward route has no available target, p2pstream returns `503 Service Unavailable`; it does not choose a different route.
 
+## Listener context remains significant
+
+A Site's route list is shared, but the actual incoming listener still controls protocol and listener-specific behavior. It remains part of authentication, policy context, cache isolation, observability, certificate selection, and Serve-versus-redirect handling.
+
+An HTTP assignment can serve while an HTTPS assignment serves the same Site with certificate checks. An HTTP assignment can instead redirect to one of that Site's HTTPS Serve assignments.
+
+## Request processing
+
+p2pstream performs an early Site and route-only match to determine path security and access policy. WAF, rate limits, and traffic shapers then run with the resolved routing context. The later routing pass selects a target and advances load-balancer state. Cache rules run after route and target selection and may serve an eligible proxy response without contacting the origin.
+
+Routes default to strict path security. Strict routes reject encoded `/` and `\` separators before policy and forwarding stages. `allow_encoded_separators` exists for upstreams that require encoded path identifiers; shared cache bypasses those requests.
+
+## Migration from standalone routes
+
+Older configurations can contain routes owned directly by a listener. Those routes remain authoritative until the Site migration is successfully applied.
+
+Migration first generates a revision-bound preview. It shows proposed named Sites and Default Sites, routes that keep their IDs, fallback routes that require copies, warnings that need acknowledgement, and blockers that need configuration changes. Apply recomputes the preview inside one transaction and rejects it if the reviewed configuration changed.
+
+The converter copies listener-wide path and default fallbacks into each new named Site when that is necessary to keep the old request winner. It records source-to-destination identities and expands cache and retry scopes for copied routes and targets. Each copy becomes independently editable. It does not approximate legacy wildcard depth, ambiguous priority ties, hostname ownership conflicts, or other behavior it cannot prove equivalent.
+
+## Related links
+
+- [Sites](../reference/sites)
+- [Routing rules reference](../reference/routing-rules)
 - [Publish a service](../guides/publish-a-service)
 - [Redirects and static responses](../guides/redirects-and-static-responses)
-- [Routing rules reference](../reference/routing-rules)

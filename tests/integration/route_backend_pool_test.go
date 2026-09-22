@@ -17,10 +17,10 @@ func TestPublicRouteTargetPoolAPIRoundTrip(t *testing.T) {
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	cfg := getPublicProxyConfig(t, client, cookie)
-	listener := publicListenerByName(t, cfg, "public-http")
+	siteID := publicSiteIDByName(t, cfg, "welcome")
 
 	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId:          listener.GetId(),
+		SiteId:              siteID,
 		Priority:            10,
 		PathPrefix:          "/pool",
 		Action:              p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_FORWARD,
@@ -60,10 +60,10 @@ func TestPublicRouteTargetPoolValidation(t *testing.T) {
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	cfg := getPublicProxyConfig(t, client, cookie)
-	listener := publicListenerByName(t, cfg, "public-http")
+	siteID := publicSiteIDByName(t, cfg, "welcome")
 
 	healthReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId: listener.GetId(),
+		SiteId:     siteID,
 		Priority:   10,
 		PathPrefix: "/bad-health",
 		Action:     p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_FORWARD,

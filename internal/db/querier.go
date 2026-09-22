@@ -35,6 +35,7 @@ type Querier interface {
 	CreatePublicRouteTargetUpstreamHeader(ctx context.Context, arg CreatePublicRouteTargetUpstreamHeaderParams) (PublicRouteTargetUpstreamHeader, error)
 	CreatePublicSite(ctx context.Context, arg CreatePublicSiteParams) (PublicSite, error)
 	CreatePublicSiteHost(ctx context.Context, arg CreatePublicSiteHostParams) (PublicSiteHost, error)
+	CreatePublicSiteListenerBinding(ctx context.Context, arg CreatePublicSiteListenerBindingParams) (PublicSiteListenerBinding, error)
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	CreatePublicTlsDnsCredential(ctx context.Context, arg CreatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
@@ -76,6 +77,7 @@ type Querier interface {
 	DeletePublicRouteTargets(ctx context.Context, routeID int64) error
 	DeletePublicSite(ctx context.Context, id int64) error
 	DeletePublicSiteHosts(ctx context.Context, siteID int64) error
+	DeletePublicSiteListenerBindings(ctx context.Context, siteID int64) error
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
 	DeletePublicTlsDnsCredential(ctx context.Context, id int64) error
 	DeletePublicTrafficShaperRule(ctx context.Context, id int64) error
@@ -131,6 +133,7 @@ type Querier interface {
 	InsertConnection(ctx context.Context, agentID sql.NullInt64) (int64, error)
 	InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error
 	InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error)
+	IsPublicListenerSiteMigrated(ctx context.Context, listenerID int64) (int64, error)
 	ListAgentConnectionsSince(ctx context.Context, arg ListAgentConnectionsSinceParams) ([]ListAgentConnectionsSinceRow, error)
 	ListAgentLabels(ctx context.Context) ([]PublicAgentLabel, error)
 	ListAgentLabelsByAgent(ctx context.Context, agentID int64) ([]PublicAgentLabel, error)
@@ -172,6 +175,8 @@ type Querier interface {
 	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)
 	ListPublicSiteHosts(ctx context.Context) ([]PublicSiteHost, error)
 	ListPublicSiteHostsBySite(ctx context.Context, siteID int64) ([]PublicSiteHost, error)
+	ListPublicSiteListenerBindings(ctx context.Context) ([]PublicSiteListenerBinding, error)
+	ListPublicSiteListenerBindingsBySite(ctx context.Context, siteID int64) ([]PublicSiteListenerBinding, error)
 	ListPublicSites(ctx context.Context) ([]PublicSite, error)
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error)
@@ -189,6 +194,7 @@ type Querier interface {
 	MarkAgentConnected(ctx context.Context, id int64) error
 	MarkAgentDisconnected(ctx context.Context, id int64) error
 	MarkAgentsWithOpenConnectionsDisconnectedAt(ctx context.Context, arg MarkAgentsWithOpenConnectionsDisconnectedAtParams) error
+	MarkPublicListenerSiteMigrated(ctx context.Context, listenerID int64) error
 	PurgeAllPublicCacheEntries(ctx context.Context) ([]PurgeAllPublicCacheEntriesRow, error)
 	PurgePublicCacheEntriesByHostPath(ctx context.Context, arg PurgePublicCacheEntriesByHostPathParams) ([]PurgePublicCacheEntriesByHostPathRow, error)
 	PurgePublicCacheEntriesByRule(ctx context.Context, ruleID int64) ([]PurgePublicCacheEntriesByRuleRow, error)
@@ -201,6 +207,7 @@ type Querier interface {
 	SetPublicGeoIpUpdateError(ctx context.Context, arg SetPublicGeoIpUpdateErrorParams) (PublicGeoIpSetting, error)
 	SetPublicGeoIpUpdateSuccess(ctx context.Context, arg SetPublicGeoIpUpdateSuccessParams) (PublicGeoIpSetting, error)
 	SetPublicListenerEnabled(ctx context.Context, arg SetPublicListenerEnabledParams) (PublicListener, error)
+	SetPublicSitePublished(ctx context.Context, arg SetPublicSitePublishedParams) (PublicSite, error)
 	SetPublicTrustedProxySourceEnabled(ctx context.Context, arg SetPublicTrustedProxySourceEnabledParams) (PublicTrustedProxySource, error)
 	SetPublicTrustedProxySourceRefreshAttempt(ctx context.Context, arg SetPublicTrustedProxySourceRefreshAttemptParams) (PublicTrustedProxySource, error)
 	SetPublicTrustedProxySourceRefreshError(ctx context.Context, arg SetPublicTrustedProxySourceRefreshErrorParams) (PublicTrustedProxySource, error)

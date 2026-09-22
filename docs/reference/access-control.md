@@ -2,7 +2,7 @@
 
 p2pstream can protect a public route with a reusable access policy. Choose **Local users** for a self-contained setup, or **Forward auth** to delegate identity to an existing service. Both provider types feed the same optional group policy and trusted identity-header boundary.
 
-Manage providers and policies under **Traffic Policy -> Access**, then assign a policy in **Proxy -> Routes -> Access policy**.
+Manage providers and policies under **Traffic Policy -> Access**, then open the owning Site under **Proxy -> Sites** and assign **Access policy** in its route editor.
 
 ## Built-In Local Users
 

@@ -1,9 +1,20 @@
 <script setup lang="ts">
-import { computed, inject, reactive, ref } from "vue";
-import { NButton, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
+import { computed, inject, nextTick, reactive, ref } from "vue";
+import {
+  NButton,
+  NCheckbox,
+  NDrawer,
+  NDrawerContent,
+  NInput,
+  NInputNumber,
+} from "naive-ui";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
-import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
+import {
+  isBusyKey,
+  runManagementActionKey,
+} from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
+import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import DisabledHint from "@/components/DisabledHint.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { editorDrawerWidth } from "@/lib/naiveUi";
@@ -14,7 +25,6 @@ import {
 
 const managementClient = useManagementClient();
 
-
 const props = defineProps<{
   config: GetPublicProxyConfigResponse | null;
 }>();
@@ -24,15 +34,22 @@ const emit = defineEmits<{
 }>();
 
 const runManagementAction = inject(runManagementActionKey);
-const isBusy = inject(isBusyKey, computed(() => false));
+const isBusy = inject(
+  isBusyKey,
+  computed(() => false),
+);
 
 const isOpen = ref(false);
+const initialSnapshot = ref("");
+let returnFocusElement: HTMLElement | null = null;
+const { confirm } = useConfirmDialog();
 const listeners = computed(() => props.config?.listeners ?? []);
 const listenerSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
   const port = listenerForm.port;
   if (port === null || !Number.isInteger(port)) return "Enter a listener port.";
-  if (port < 1 || port > 65535) return "Listener port must be between 1 and 65535.";
+  if (port < 1 || port > 65535)
+    return "Listener port must be between 1 and 65535.";
   return "";
 });
 
@@ -48,6 +65,24 @@ const protocolOptions = [
   { label: "HTTP", value: PublicListenerProtocol.HTTP },
   { label: "HTTPS", value: PublicListenerProtocol.HTTPS },
 ];
+const formSnapshot = computed(() => JSON.stringify(listenerForm));
+const isDirty = computed(
+  () =>
+    isOpen.value &&
+    initialSnapshot.value !== "" &&
+    formSnapshot.value !== initialSnapshot.value,
+);
+
+function openDrawer() {
+  returnFocusElement =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+  isOpen.value = true;
+  void nextTick(() => {
+    initialSnapshot.value = formSnapshot.value;
+  });
+}
 
 function resetForm() {
   listenerForm.id = "";
@@ -60,7 +95,7 @@ function resetForm() {
 
 function openCreate() {
   resetForm();
-  isOpen.value = true;
+  openDrawer();
 }
 
 function openEdit(listenerId: bigint | string) {
@@ -73,11 +108,32 @@ function openEdit(listenerId: bigint | string) {
   listenerForm.port = Number(listener.port);
   listenerForm.protocol = listener.protocol;
   listenerForm.enabled = listener.enabled;
-  isOpen.value = true;
+  openDrawer();
 }
 
-function close() {
+function forceClose() {
   isOpen.value = false;
+  initialSnapshot.value = "";
+  const target = returnFocusElement;
+  returnFocusElement = null;
+  void nextTick(() => target?.focus());
+}
+
+async function close() {
+  if (
+    isDirty.value &&
+    !(await confirm(
+      "Discard listener changes?",
+      "This listener has unsaved changes.",
+      "Discard changes",
+    ))
+  )
+    return;
+  forceClose();
+}
+
+function handleDrawerVisibility(show: boolean) {
+  if (!show) void close();
 }
 
 async function run(action: () => Promise<void>): Promise<boolean> {
@@ -99,13 +155,16 @@ async function submitListener() {
       enabled: listenerForm.enabled,
     };
     if (listenerForm.id) {
-      await managementClient.updatePublicListener({ id: BigInt(listenerForm.id), ...payload });
+      await managementClient.updatePublicListener({
+        id: BigInt(listenerForm.id),
+        ...payload,
+      });
     } else {
       await managementClient.createPublicListener(payload);
     }
   });
   if (ok) {
-    isOpen.value = false;
+    forceClose();
     emit("saved");
   }
 }
@@ -115,49 +174,95 @@ defineExpose({ openCreate, openEdit, close });
 
 <template>
   <NDrawer
-    v-model:show="isOpen"
+    :show="isOpen"
+    to="body"
+    @update:show="handleDrawerVisibility"
     placement="right"
     :width="editorDrawerWidth('36rem')"
     :aria-label="listenerForm.id ? 'Edit Listener' : 'Add Listener'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="listenerForm.id ? 'Edit Listener' : 'Add Listener'" closable>
-    <form @submit.prevent="submitListener" class="editor-drawer-form layout-grid space-lg mq-sm-cols-two">
-      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-        Name
-        <NInput v-model:value="listenerForm.name" size="small" required />
-      </label>
-      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-        Bind address
-        <NInput v-model:value="listenerForm.bindAddress" size="small" placeholder="0.0.0.0" />
-        <p class="copy-xs weight-normal normal-text letter-normal muted-text">Leave empty to bind on all interfaces.</p>
-      </label>
-      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-        Port
-        <NInputNumber :show-button="false" v-model:value="listenerForm.port" size="small" :min="1" :max="65535" required />
-        <p class="copy-xs weight-normal normal-text letter-normal muted-text">Ports below 1024 may require elevated privileges.</p>
-      </label>
-      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-        Protocol
-        <AccessibleSelect v-model:value="listenerForm.protocol" accessible-label="Listener protocol" size="small" :options="protocolOptions" />
-        <p class="copy-xs weight-normal normal-text letter-normal muted-text">Choose HTTPS to enable TLS termination.</p>
-      </label>
-      <NCheckbox v-model:checked="listenerForm.enabled" class="margin-top-sm mq-sm-span-two">
-        Enabled
-      </NCheckbox>
-      <div class="editor-drawer-actions mq-sm-span-two margin-top-lg layout-row align-end-row space-md">
-        <NButton secondary @click="close">Cancel</NButton>
-        <DisabledHint :disabled="Boolean(listenerSubmitDisabledReason)" :reason="listenerSubmitDisabledReason">
-          <NButton
-            type="primary"
-            attr-type="submit"
+    <NDrawerContent
+      :title="listenerForm.id ? 'Edit Listener' : 'Add Listener'"
+      closable
+    >
+      <form
+        @submit.prevent="submitListener"
+        class="editor-drawer-form layout-grid space-lg mq-sm-cols-two"
+      >
+        <label
+          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+        >
+          Name
+          <NInput v-model:value="listenerForm.name" size="small" required />
+        </label>
+        <label
+          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+        >
+          Bind address
+          <NInput
+            v-model:value="listenerForm.bindAddress"
+            size="small"
+            placeholder="0.0.0.0"
+          />
+          <p class="copy-xs weight-normal normal-text letter-normal muted-text">
+            Leave empty to bind on all interfaces.
+          </p>
+        </label>
+        <label
+          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+        >
+          Port
+          <NInputNumber
+            :show-button="false"
+            v-model:value="listenerForm.port"
+            size="small"
+            :min="1"
+            :max="65535"
+            required
+          />
+          <p class="copy-xs weight-normal normal-text letter-normal muted-text">
+            Ports below 1024 may require elevated privileges.
+          </p>
+        </label>
+        <label
+          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+        >
+          Protocol
+          <AccessibleSelect
+            v-model:value="listenerForm.protocol"
+            accessible-label="Listener protocol"
+            size="small"
+            :options="protocolOptions"
+          />
+          <p class="copy-xs weight-normal normal-text letter-normal muted-text">
+            Choose HTTPS to enable TLS termination.
+          </p>
+        </label>
+        <NCheckbox
+          v-model:checked="listenerForm.enabled"
+          class="margin-top-sm mq-sm-span-two"
+        >
+          Enabled
+        </NCheckbox>
+        <div
+          class="editor-drawer-actions mq-sm-span-two margin-top-lg layout-row align-end-row space-md"
+        >
+          <NButton secondary attr-type="button" @click="close">Cancel</NButton>
+          <DisabledHint
             :disabled="Boolean(listenerSubmitDisabledReason)"
+            :reason="listenerSubmitDisabledReason"
           >
-            {{ listenerForm.id ? 'Save Changes' : 'Create Listener' }}
-          </NButton>
-        </DisabledHint>
-      </div>
-    </form>
+            <NButton
+              type="primary"
+              attr-type="submit"
+              :disabled="Boolean(listenerSubmitDisabledReason)"
+            >
+              {{ listenerForm.id ? "Save Changes" : "Create Listener" }}
+            </NButton>
+          </DisabledHint>
+        </div>
+      </form>
     </NDrawerContent>
   </NDrawer>
 </template>

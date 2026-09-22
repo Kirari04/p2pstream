@@ -367,8 +367,39 @@ func TestEnvironmentRequiresHTTPSAndTrustedCertificateBeforeProxy(t *testing.T) 
 	}
 	publicConfigReq := connect.NewRequest(&p2pstreamv1.GetPublicProxyConfigRequest{})
 	publicConfigReq.Header().Set("Cookie", localHeader.Get("Cookie"))
-	if _, err := proxyClient.GetPublicProxyConfig(ctx, publicConfigReq); err != nil {
+	publicConfigResp, err := proxyClient.GetPublicProxyConfig(ctx, publicConfigReq)
+	if err != nil {
 		t.Fatalf("trusted environment proxy GetPublicProxyConfig: %v", err)
+	}
+	var httpListenerID int64
+	for _, listener := range publicConfigResp.Msg.Listeners {
+		if listener.Protocol == p2pstreamv1.PublicListenerProtocol_PUBLIC_LISTENER_PROTOCOL_HTTP {
+			httpListenerID = listener.Id
+			break
+		}
+	}
+	createSiteReq := connect.NewRequest(&p2pstreamv1.CreatePublicSiteRequest{
+		Name: "remote-site", Enabled: true,
+		Hosts:            []*p2pstreamv1.PublicSiteHostInput{{HostnamePattern: "remote.example.test"}},
+		ListenerBindings: []*p2pstreamv1.PublicSiteListenerBinding{{ListenerId: httpListenerID}},
+	})
+	createSiteReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	createdSite, err := proxyClient.CreatePublicSite(ctx, createSiteReq)
+	if err != nil {
+		t.Fatalf("create Site through trusted environment: %v", err)
+	}
+	publishSiteReq := connect.NewRequest(&p2pstreamv1.PublishPublicSiteRequest{Id: createdSite.Msg.Site.Id})
+	publishSiteReq.Header().Set("Cookie", localHeader.Get("Cookie"))
+	if _, err := proxyClient.PublishPublicSite(ctx, publishSiteReq); err != nil {
+		t.Fatalf("publish Site through trusted environment: %v", err)
+	}
+	storedSite, err := remoteApp.DB.GetPublicSite(ctx, createdSite.Msg.Site.Id)
+	if err != nil || storedSite.Published == 0 {
+		t.Fatalf("remote Site publication was not persisted: %+v err=%v", storedSite, err)
+	}
+	localSites, err := localApp.DB.ListPublicSites(ctx)
+	if err != nil || len(localSites) != 0 {
+		t.Fatalf("remote Site mutation affected parent environment: %+v err=%v", localSites, err)
 	}
 
 	_, _, changedCert, err := generatePublicSelfSignedCertificatePEM("127.0.0.1", time.Hour)

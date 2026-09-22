@@ -20,7 +20,7 @@ The server runs the management UI/API, public proxy runtime, SQLite storage, pub
 | Public listeners | Bind configured HTTP/HTTPS ports and receive public user traffic. |
 | WAF | Applies ordered block, captcha, and waiting-room rules before rate limits and routing. |
 | Access control | Uses a route-assigned local-user or forward-auth provider and optional group policy to protect public resources. |
-| Router | Selects a route by listener, host, path prefix, and priority. |
+| Router | Selects a Site by listener and hostname, then a route within that Site by path prefix and priority. |
 | Target executor | Forwards directly, returns static responses, redirects, or sends requests to a label-selected agent. |
 | SQLite | Stores users, sessions, agents, public proxy config, TLS metadata, and observability events. |
 
@@ -34,12 +34,12 @@ Direct target flow:
 
 1. A client connects to a public listener.
 2. Globally invalid paths, ACME HTTP challenges, and reserved WAF endpoints are handled before normal policy evaluation.
-3. p2pstream performs a route-only match to enforce the matched route's path security mode.
+3. p2pstream selects the published Site by listener and hostname and performs an early route match to enforce path security. Site listener and alias redirects are resolved before normal route execution.
 4. WAF rules may block, require captcha, or place the visitor in a waiting room.
 5. Rate limit rules run before route resolution.
 6. If the early-matched route has an access policy, its provider authenticates the request and its optional group requirements authorize it.
 7. A traffic shaper may wrap upload/download body streams.
-8. The router selects a route target, or a listener default route target if no explicit route matches.
+8. The router selects a target from the matched route, using the Site's default route when no path route matches. Requests never fall through from a selected Site to another Site.
 9. Cache rules can serve eligible unprotected proxy assets after route/target selection; protected routes bypass shared cache.
 10. For an agent target and cache miss, the first matching retry rule defines the bounded attempt envelope.
 11. The server forwards directly, forwards through the selected agent with optional alternate-agent attempts, or returns a redirect/static response.

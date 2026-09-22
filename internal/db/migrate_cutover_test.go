@@ -34,6 +34,9 @@ func seedCutoverVersion17(t *testing.T) *sql.DB {
  `); err != nil {
 		t.Fatal(err)
 	}
+	// Match the production pool after seeding: migration 20 reserves its own
+	// connection while Goose keeps the migration bookkeeping connection.
+	database.SetMaxOpenConns(8)
 	return database
 }
 

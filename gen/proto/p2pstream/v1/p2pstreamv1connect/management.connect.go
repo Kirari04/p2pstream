@@ -237,9 +237,18 @@ const (
 	// AgentManagementServiceUpdatePublicSiteProcedure is the fully-qualified name of the
 	// AgentManagementService's UpdatePublicSite RPC.
 	AgentManagementServiceUpdatePublicSiteProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicSite"
+	// AgentManagementServicePublishPublicSiteProcedure is the fully-qualified name of the
+	// AgentManagementService's PublishPublicSite RPC.
+	AgentManagementServicePublishPublicSiteProcedure = "/p2pstream.v1.AgentManagementService/PublishPublicSite"
 	// AgentManagementServiceDeletePublicSiteProcedure is the fully-qualified name of the
 	// AgentManagementService's DeletePublicSite RPC.
 	AgentManagementServiceDeletePublicSiteProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicSite"
+	// AgentManagementServicePreviewPublicSiteMigrationProcedure is the fully-qualified name of the
+	// AgentManagementService's PreviewPublicSiteMigration RPC.
+	AgentManagementServicePreviewPublicSiteMigrationProcedure = "/p2pstream.v1.AgentManagementService/PreviewPublicSiteMigration"
+	// AgentManagementServiceApplyPublicSiteMigrationProcedure is the fully-qualified name of the
+	// AgentManagementService's ApplyPublicSiteMigration RPC.
+	AgentManagementServiceApplyPublicSiteMigrationProcedure = "/p2pstream.v1.AgentManagementService/ApplyPublicSiteMigration"
 	// AgentManagementServiceCreatePublicRouteProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicRoute RPC.
 	AgentManagementServiceCreatePublicRouteProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicRoute"
@@ -447,7 +456,10 @@ type AgentManagementServiceClient interface {
 	StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error)
 	CreatePublicSite(context.Context, *connect.Request[v1.CreatePublicSiteRequest]) (*connect.Response[v1.CreatePublicSiteResponse], error)
 	UpdatePublicSite(context.Context, *connect.Request[v1.UpdatePublicSiteRequest]) (*connect.Response[v1.UpdatePublicSiteResponse], error)
+	PublishPublicSite(context.Context, *connect.Request[v1.PublishPublicSiteRequest]) (*connect.Response[v1.PublishPublicSiteResponse], error)
 	DeletePublicSite(context.Context, *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error)
+	PreviewPublicSiteMigration(context.Context, *connect.Request[v1.PreviewPublicSiteMigrationRequest]) (*connect.Response[v1.PreviewPublicSiteMigrationResponse], error)
+	ApplyPublicSiteMigration(context.Context, *connect.Request[v1.ApplyPublicSiteMigrationRequest]) (*connect.Response[v1.ApplyPublicSiteMigrationResponse], error)
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
@@ -914,10 +926,28 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicSite")),
 			connect.WithClientOptions(opts...),
 		),
+		publishPublicSite: connect.NewClient[v1.PublishPublicSiteRequest, v1.PublishPublicSiteResponse](
+			httpClient,
+			baseURL+AgentManagementServicePublishPublicSiteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("PublishPublicSite")),
+			connect.WithClientOptions(opts...),
+		),
 		deletePublicSite: connect.NewClient[v1.DeletePublicSiteRequest, v1.DeletePublicSiteResponse](
 			httpClient,
 			baseURL+AgentManagementServiceDeletePublicSiteProcedure,
 			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicSite")),
+			connect.WithClientOptions(opts...),
+		),
+		previewPublicSiteMigration: connect.NewClient[v1.PreviewPublicSiteMigrationRequest, v1.PreviewPublicSiteMigrationResponse](
+			httpClient,
+			baseURL+AgentManagementServicePreviewPublicSiteMigrationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("PreviewPublicSiteMigration")),
+			connect.WithClientOptions(opts...),
+		),
+		applyPublicSiteMigration: connect.NewClient[v1.ApplyPublicSiteMigrationRequest, v1.ApplyPublicSiteMigrationResponse](
+			httpClient,
+			baseURL+AgentManagementServiceApplyPublicSiteMigrationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ApplyPublicSiteMigration")),
 			connect.WithClientOptions(opts...),
 		),
 		createPublicRoute: connect.NewClient[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse](
@@ -1263,7 +1293,10 @@ type agentManagementServiceClient struct {
 	stopPublicListener                   *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
 	createPublicSite                     *connect.Client[v1.CreatePublicSiteRequest, v1.CreatePublicSiteResponse]
 	updatePublicSite                     *connect.Client[v1.UpdatePublicSiteRequest, v1.UpdatePublicSiteResponse]
+	publishPublicSite                    *connect.Client[v1.PublishPublicSiteRequest, v1.PublishPublicSiteResponse]
 	deletePublicSite                     *connect.Client[v1.DeletePublicSiteRequest, v1.DeletePublicSiteResponse]
+	previewPublicSiteMigration           *connect.Client[v1.PreviewPublicSiteMigrationRequest, v1.PreviewPublicSiteMigrationResponse]
+	applyPublicSiteMigration             *connect.Client[v1.ApplyPublicSiteMigrationRequest, v1.ApplyPublicSiteMigrationResponse]
 	createPublicRoute                    *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
 	updatePublicRoute                    *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
 	deletePublicRoute                    *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
@@ -1668,9 +1701,24 @@ func (c *agentManagementServiceClient) UpdatePublicSite(ctx context.Context, req
 	return c.updatePublicSite.CallUnary(ctx, req)
 }
 
+// PublishPublicSite calls p2pstream.v1.AgentManagementService.PublishPublicSite.
+func (c *agentManagementServiceClient) PublishPublicSite(ctx context.Context, req *connect.Request[v1.PublishPublicSiteRequest]) (*connect.Response[v1.PublishPublicSiteResponse], error) {
+	return c.publishPublicSite.CallUnary(ctx, req)
+}
+
 // DeletePublicSite calls p2pstream.v1.AgentManagementService.DeletePublicSite.
 func (c *agentManagementServiceClient) DeletePublicSite(ctx context.Context, req *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error) {
 	return c.deletePublicSite.CallUnary(ctx, req)
+}
+
+// PreviewPublicSiteMigration calls p2pstream.v1.AgentManagementService.PreviewPublicSiteMigration.
+func (c *agentManagementServiceClient) PreviewPublicSiteMigration(ctx context.Context, req *connect.Request[v1.PreviewPublicSiteMigrationRequest]) (*connect.Response[v1.PreviewPublicSiteMigrationResponse], error) {
+	return c.previewPublicSiteMigration.CallUnary(ctx, req)
+}
+
+// ApplyPublicSiteMigration calls p2pstream.v1.AgentManagementService.ApplyPublicSiteMigration.
+func (c *agentManagementServiceClient) ApplyPublicSiteMigration(ctx context.Context, req *connect.Request[v1.ApplyPublicSiteMigrationRequest]) (*connect.Response[v1.ApplyPublicSiteMigrationResponse], error) {
+	return c.applyPublicSiteMigration.CallUnary(ctx, req)
 }
 
 // CreatePublicRoute calls p2pstream.v1.AgentManagementService.CreatePublicRoute.
@@ -1982,7 +2030,10 @@ type AgentManagementServiceHandler interface {
 	StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error)
 	CreatePublicSite(context.Context, *connect.Request[v1.CreatePublicSiteRequest]) (*connect.Response[v1.CreatePublicSiteResponse], error)
 	UpdatePublicSite(context.Context, *connect.Request[v1.UpdatePublicSiteRequest]) (*connect.Response[v1.UpdatePublicSiteResponse], error)
+	PublishPublicSite(context.Context, *connect.Request[v1.PublishPublicSiteRequest]) (*connect.Response[v1.PublishPublicSiteResponse], error)
 	DeletePublicSite(context.Context, *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error)
+	PreviewPublicSiteMigration(context.Context, *connect.Request[v1.PreviewPublicSiteMigrationRequest]) (*connect.Response[v1.PreviewPublicSiteMigrationResponse], error)
+	ApplyPublicSiteMigration(context.Context, *connect.Request[v1.ApplyPublicSiteMigrationRequest]) (*connect.Response[v1.ApplyPublicSiteMigrationResponse], error)
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
@@ -2445,10 +2496,28 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicSite")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServicePublishPublicSiteHandler := connect.NewUnaryHandler(
+		AgentManagementServicePublishPublicSiteProcedure,
+		svc.PublishPublicSite,
+		connect.WithSchema(agentManagementServiceMethods.ByName("PublishPublicSite")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceDeletePublicSiteHandler := connect.NewUnaryHandler(
 		AgentManagementServiceDeletePublicSiteProcedure,
 		svc.DeletePublicSite,
 		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicSite")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServicePreviewPublicSiteMigrationHandler := connect.NewUnaryHandler(
+		AgentManagementServicePreviewPublicSiteMigrationProcedure,
+		svc.PreviewPublicSiteMigration,
+		connect.WithSchema(agentManagementServiceMethods.ByName("PreviewPublicSiteMigration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceApplyPublicSiteMigrationHandler := connect.NewUnaryHandler(
+		AgentManagementServiceApplyPublicSiteMigrationProcedure,
+		svc.ApplyPublicSiteMigration,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ApplyPublicSiteMigration")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceCreatePublicRouteHandler := connect.NewUnaryHandler(
@@ -2859,8 +2928,14 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceCreatePublicSiteHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicSiteProcedure:
 			agentManagementServiceUpdatePublicSiteHandler.ServeHTTP(w, r)
+		case AgentManagementServicePublishPublicSiteProcedure:
+			agentManagementServicePublishPublicSiteHandler.ServeHTTP(w, r)
 		case AgentManagementServiceDeletePublicSiteProcedure:
 			agentManagementServiceDeletePublicSiteHandler.ServeHTTP(w, r)
+		case AgentManagementServicePreviewPublicSiteMigrationProcedure:
+			agentManagementServicePreviewPublicSiteMigrationHandler.ServeHTTP(w, r)
+		case AgentManagementServiceApplyPublicSiteMigrationProcedure:
+			agentManagementServiceApplyPublicSiteMigrationHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicRouteProcedure:
 			agentManagementServiceCreatePublicRouteHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicRouteProcedure:
@@ -3232,8 +3307,20 @@ func (UnimplementedAgentManagementServiceHandler) UpdatePublicSite(context.Conte
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicSite is not implemented"))
 }
 
+func (UnimplementedAgentManagementServiceHandler) PublishPublicSite(context.Context, *connect.Request[v1.PublishPublicSiteRequest]) (*connect.Response[v1.PublishPublicSiteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.PublishPublicSite is not implemented"))
+}
+
 func (UnimplementedAgentManagementServiceHandler) DeletePublicSite(context.Context, *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicSite is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) PreviewPublicSiteMigration(context.Context, *connect.Request[v1.PreviewPublicSiteMigrationRequest]) (*connect.Response[v1.PreviewPublicSiteMigrationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.PreviewPublicSiteMigration is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) ApplyPublicSiteMigration(context.Context, *connect.Request[v1.ApplyPublicSiteMigrationRequest]) (*connect.Response[v1.ApplyPublicSiteMigrationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ApplyPublicSiteMigration is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error) {

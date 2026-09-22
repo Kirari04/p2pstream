@@ -164,20 +164,30 @@ type publicRouteConfig struct {
 }
 
 type publicSiteConfig struct {
-	ID              int64
-	ListenerID      int64
-	Name            string
-	Enabled         bool
-	PrimaryHostname string
+	ID                int64
+	ListenerID        int64
+	Name              string
+	Enabled           bool
+	Published         bool
+	DefaultSite       bool
+	CanonicalHostname string
+	PrimaryHostname   string
 }
 
 type publicSiteHostConfig struct {
 	ID              int64
 	SiteID          int64
-	ListenerID      int64
 	HostnamePattern string
 	Primary         bool
 	Behavior        string
+}
+
+type publicSiteListenerBindingConfig struct {
+	SiteID             int64
+	ListenerID         int64
+	Behavior           string
+	RedirectListenerID int64
+	RedirectHostname   string
 }
 
 type publicTLSCertificateConfig struct {
@@ -193,27 +203,30 @@ type publicTLSCertificateConfig struct {
 }
 
 type publicProxySnapshot struct {
-	AccessProviders     map[int64]publicAccessProviderConfig
-	AccessPolicies      map[int64]publicAccessPolicyConfig
-	AccessHeaderNames   []string
-	RouteTargets        map[int64]publicRouteTargetConfig
-	Agents              map[int64]publicAgentConfig
-	Listeners           map[int64]publicListenerConfig
-	Sites               map[int64]publicSiteConfig
-	SiteHostsByListener map[int64][]publicSiteHostConfig
-	RoutesByListener    map[int64][]publicRouteConfig
-	CertsByListener     map[int64][]publicTLSCertificateConfig
-	RateLimitRules      []publicRateLimitRuleConfig
-	TrafficShaperRules  []publicTrafficShaperRuleConfig
-	WafCaptchaProviders map[int64]publicWafCaptchaProviderConfig
-	WafRules            []publicWafRuleConfig
-	WafCookieSecret     []byte
-	CacheSettings       publicCacheSettingsConfig
-	CacheRules          []publicCacheRuleConfig
-	RetryRules          []publicRetryRuleConfig
-	CacheFingerprint    string
-	ResponseTemplates   map[int64]publicResponseTemplateConfig
-	ClientIdentity      *ClientIdentityResolver
+	AccessProviders        map[int64]publicAccessProviderConfig
+	AccessPolicies         map[int64]publicAccessPolicyConfig
+	AccessHeaderNames      []string
+	RouteTargets           map[int64]publicRouteTargetConfig
+	Agents                 map[int64]publicAgentConfig
+	Listeners              map[int64]publicListenerConfig
+	Sites                  map[int64]publicSiteConfig
+	SiteHostsByListener    map[int64][]publicSiteHostConfig
+	SiteBindingsByListener map[int64][]publicSiteListenerBindingConfig
+	DefaultSiteByListener  map[int64]publicSiteListenerBindingConfig
+	RoutesByListener       map[int64][]publicRouteConfig
+	RoutesBySite           map[int64][]publicRouteConfig
+	CertsByListener        map[int64][]publicTLSCertificateConfig
+	RateLimitRules         []publicRateLimitRuleConfig
+	TrafficShaperRules     []publicTrafficShaperRuleConfig
+	WafCaptchaProviders    map[int64]publicWafCaptchaProviderConfig
+	WafRules               []publicWafRuleConfig
+	WafCookieSecret        []byte
+	CacheSettings          publicCacheSettingsConfig
+	CacheRules             []publicCacheRuleConfig
+	RetryRules             []publicRetryRuleConfig
+	CacheFingerprint       string
+	ResponseTemplates      map[int64]publicResponseTemplateConfig
+	ClientIdentity         *ClientIdentityResolver
 }
 
 type publicRouteResolution struct {
@@ -1557,7 +1570,7 @@ func (a *App) matchPublicRouteInSnapshot(snap *publicProxySnapshot, listenerID i
 
 	// A configured site claims its host completely: once recognized, requests
 	// can only select that site's routes and never fall through to legacy rules.
-	if len(snap.SiteHostsByListener[listenerID]) > 0 {
+	if len(snap.SiteHostsByListener[listenerID]) > 0 || len(snap.SiteBindingsByListener[listenerID]) > 0 || snap.DefaultSiteByListener[listenerID].SiteID != 0 {
 		host := ""
 		if parsed, ok := r.Context().Value(publicSiteAuthorityContextKey{}).(publicSiteAuthorityContext); ok && parsed.Parsed {
 			host = parsed.Hostname
@@ -1568,18 +1581,29 @@ func (a *App) matchPublicRouteInSnapshot(snap *publicProxySnapshot, listenerID i
 				return publicRouteMatch{}, fmt.Errorf("%w: %v", errMalformedPublicAuthority, err)
 			}
 		}
-		binding, hostManaged := matchPublicSiteHost(snap.SiteHostsByListener[listenerID], host)
+		hostBinding, listenerBinding, hostManaged := matchPublicSiteForListener(snap, listenerID, host)
 		if hostManaged {
-			site, exists := snap.Sites[binding.SiteID]
+			site, exists := snap.Sites[listenerBinding.SiteID]
 			if !exists || !site.Enabled {
 				return publicRouteMatch{}, errNoPublicRouteAvailable
 			}
-			if binding.Behavior == publicSiteHostBehaviorRedirect && !binding.Primary {
+			if listenerBinding.Behavior == publicSiteListenerBehaviorRedirectHTTPS {
+				target, exists := snap.Listeners[listenerBinding.RedirectListenerID]
+				if !exists {
+					return publicRouteMatch{}, errNoPublicRouteAvailable
+				}
+				return publicRouteMatch{Snapshot: snap, Listener: listener, Route: publicSiteListenerRedirectRoute(listener, target, site, listenerBinding, hostBinding, host)}, nil
+			}
+			if hostBinding.Behavior == publicSiteHostBehaviorRedirect && !hostBinding.Primary {
 				return publicRouteMatch{Snapshot: snap, Listener: listener, Route: publicSiteRedirectRoute(listener, site)}, nil
 			}
 			var matchedRoute publicRouteConfig
 			var defaultRoute publicRouteConfig
-			for _, route := range snap.RoutesByListener[listenerID] {
+			routes := snap.RoutesBySite[site.ID]
+			if routes == nil {
+				routes = snap.RoutesByListener[listenerID]
+			}
+			for _, route := range routes {
 				if !route.Enabled || route.SiteID != site.ID {
 					continue
 				}
@@ -1716,8 +1740,28 @@ func matchPublicSiteHost(bindings []publicSiteHostConfig, host string) (publicSi
 	return publicSiteHostConfig{}, false
 }
 
+func matchPublicSiteForListener(snap *publicProxySnapshot, listenerID int64, host string) (publicSiteHostConfig, publicSiteListenerBindingConfig, bool) {
+	hostBinding, matched := matchPublicSiteHost(snap.SiteHostsByListener[listenerID], host)
+	if matched {
+		for _, listenerBinding := range snap.SiteBindingsByListener[listenerID] {
+			if listenerBinding.SiteID == hostBinding.SiteID {
+				return hostBinding, listenerBinding, true
+			}
+		}
+		// Compatibility for focused snapshots created before listener bindings.
+		return hostBinding, publicSiteListenerBindingConfig{SiteID: hostBinding.SiteID, ListenerID: listenerID, Behavior: publicSiteListenerBehaviorServe}, true
+	}
+	if defaultBinding := snap.DefaultSiteByListener[listenerID]; defaultBinding.SiteID != 0 {
+		return publicSiteHostConfig{SiteID: defaultBinding.SiteID, Behavior: publicSiteHostBehaviorServe}, defaultBinding, true
+	}
+	return publicSiteHostConfig{}, publicSiteListenerBindingConfig{}, false
+}
+
 func publicSiteRedirectRoute(listener publicListenerConfig, site publicSiteConfig) publicRouteConfig {
-	host := site.PrimaryHostname
+	host := site.CanonicalHostname
+	if host == "" {
+		host = site.PrimaryHostname
+	}
 	if ip := net.ParseIP(host); ip != nil && strings.Contains(host, ":") {
 		host = "[" + host + "]"
 	}
@@ -1730,6 +1774,23 @@ func publicSiteRedirectRoute(listener publicListenerConfig, site publicSiteConfi
 		scheme = "https"
 	}
 	return publicRouteConfig{Action: publicRouteActionRedirect, RedirectTargetMode: publicRouteRedirectTargetModeExternalOriginKeepPath, RedirectTarget: (&url.URL{Scheme: scheme, Host: host}).String(), RedirectStatusCode: http.StatusPermanentRedirect, RedirectPreserveQuery: true, PathSecurityMode: publicRoutePathSecurityModeAllowEncodedSeparators, Enabled: true, SiteID: site.ID, ListenerID: listener.ID}
+}
+
+func publicSiteListenerRedirectRoute(source, target publicListenerConfig, site publicSiteConfig, binding publicSiteListenerBindingConfig, hostBinding publicSiteHostConfig, requestHost string) publicRouteConfig {
+	host := binding.RedirectHostname
+	if host == "" && hostBinding.Behavior == publicSiteHostBehaviorRedirect {
+		host = site.CanonicalHostname
+	}
+	if host == "" {
+		host = requestHost
+	}
+	if ip := net.ParseIP(host); ip != nil && strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+	if target.Port > 0 && target.Port != 443 {
+		host = net.JoinHostPort(strings.Trim(host, "[]"), strconv.FormatInt(target.Port, 10))
+	}
+	return publicRouteConfig{Action: publicRouteActionRedirect, RedirectTargetMode: publicRouteRedirectTargetModeExternalOriginKeepPath, RedirectTarget: (&url.URL{Scheme: "https", Host: host}).String(), RedirectStatusCode: http.StatusPermanentRedirect, RedirectPreserveQuery: true, PathSecurityMode: publicRoutePathSecurityModeAllowEncodedSeparators, Enabled: true, SiteID: site.ID, ListenerID: source.ID}
 }
 
 func (a *App) resolvePublicRouteFromMatch(match publicRouteMatch) (publicRouteResolution, error) {

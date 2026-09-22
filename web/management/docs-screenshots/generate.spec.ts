@@ -127,8 +127,8 @@ test.describe("docs screenshots", () => {
       await capture(page, "proxy_edit_interface_listener_modal.png");
       await closeModal(page);
 
-      await gotoApp(page, "/#/proxy/routes", "Proxy");
-      await page.getByRole("heading", { name: "Routes" }).scrollIntoViewIfNeeded();
+      await gotoApp(page, "/#/proxy/sites", "Proxy");
+      await page.getByRole("heading", { name: "Sites", exact: true }).scrollIntoViewIfNeeded();
       await capture(page, "proxy_backends_and_routes.png");
 
       await openRoute(page, "app.example.test");
@@ -290,13 +290,18 @@ async function openFirstEnvironmentEditor(page: Page) {
 }
 
 async function openRoute(page: Page, routeText: string) {
-  await page.getByText(routeText).first().scrollIntoViewIfNeeded();
-  const routeRow = page.locator('[data-testid^="route-row-"]').filter({
+  const workspace = page.getByRole("dialog", { name: "Site workspace", exact: true });
+  if (await workspace.isVisible()) {
+    await workspace.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(workspace).toBeHidden();
+  }
+  const siteRow = page.locator('[data-testid^="site-row-"]').filter({
     hasText: routeText,
-    has: page.getByRole("button", { name: "Edit route" }),
   }).first();
-  await routeRow.getByRole("button", { name: "Edit route" }).click();
-  await expect(page.getByText("Edit Route")).toBeVisible({ timeout: 10_000 });
+  await siteRow.getByRole("button", { name: /^Edit site / }).click();
+  await expect(workspace).toBeVisible();
+  await workspace.getByRole("list", { name: "Site routes" }).getByRole("button", { name: "Edit route", exact: true }).first().click();
+  await expect(page.getByRole("dialog", { name: "Edit Route", exact: true })).toBeVisible({ timeout: 10_000 });
   await waitForSettled(page);
 }
 

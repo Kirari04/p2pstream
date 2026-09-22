@@ -356,34 +356,23 @@ func (a *App) validatePublicRouteInput(
 	accessPolicyID int64,
 	existingSecrets existingPublicRouteTargetSecrets,
 ) (db.UpdatePublicRouteParams, []publicRouteTargetMutationInput, error) {
-	if _, err := a.DB.GetPublicListener(ctx, listenerID); err != nil {
-		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
-	}
 	hostPattern = normalizeHostPattern(hostPattern)
 	if siteID.Valid {
-		site, err := a.DB.GetPublicSite(ctx, siteID.Int64)
+		_, err := a.DB.GetPublicSite(ctx, siteID.Int64)
 		if err != nil {
 			return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
 		}
-		if site.ListenerID != listenerID {
-			return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route site must belong to the selected listener"))
-		}
-		hosts, err := a.DB.ListPublicSiteHostsBySite(ctx, site.ID)
-		if err != nil {
-			return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
-		}
-		for _, host := range hosts {
-			if host.Role == "primary" {
-				hostPattern = host.HostnamePattern
-				break
-			}
-		}
-		if hostPattern == "" {
-			return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("route site has no primary hostname"))
-		}
+		listenerID = 0
+		hostPattern = ""
+	} else if _, err := a.DB.GetPublicListener(ctx, listenerID); err != nil {
+		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
+	} else if migrated, err := a.DB.IsPublicListenerSiteMigrated(ctx, listenerID); err != nil {
+		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
+	} else if migrated != 0 {
+		return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("listener routes must belong to a Site after standalone route migration"))
 	}
 	pathPrefix = strings.TrimSpace(pathPrefix)
-	if !isDefault && hostPattern == "" && pathPrefix == "" {
+	if !isDefault && !siteID.Valid && hostPattern == "" && pathPrefix == "" {
 		return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route requires a host pattern or path prefix"))
 	}
 	if hostPattern != "" && !siteID.Valid {
