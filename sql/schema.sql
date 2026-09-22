@@ -332,6 +332,11 @@ CREATE TABLE IF NOT EXISTS public_listeners (
     UNIQUE(bind_address, port)
 );
 
+CREATE TABLE IF NOT EXISTS public_site_migrated_listeners (
+    listener_id INTEGER PRIMARY KEY REFERENCES public_listeners(id) ON DELETE CASCADE,
+    migrated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS public_access_providers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
@@ -403,21 +408,31 @@ CREATE TABLE IF NOT EXISTS public_access_policies (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS public_sites (
+CREATE TABLE IF NOT EXISTS "public_sites" (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
+    published INTEGER NOT NULL DEFAULT 0,
+    default_site INTEGER NOT NULL DEFAULT 0,
+    canonical_hostname TEXT NOT NULL DEFAULT '',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(listener_id, name),
-    UNIQUE(id, listener_id)
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS public_site_hosts (
+CREATE TABLE IF NOT EXISTS public_site_listener_bindings (
+    site_id INTEGER NOT NULL REFERENCES "public_sites"(id) ON DELETE CASCADE,
+    listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
+    behavior TEXT NOT NULL DEFAULT 'serve' CHECK (behavior IN ('serve', 'redirect_https')),
+    redirect_listener_id INTEGER REFERENCES public_listeners(id) ON DELETE RESTRICT,
+    redirect_hostname TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (site_id, listener_id)
+);
+
+CREATE TABLE IF NOT EXISTS "public_site_hosts" (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    site_id INTEGER NOT NULL,
-    listener_id INTEGER NOT NULL,
+    site_id INTEGER NOT NULL REFERENCES "public_sites"(id) ON DELETE CASCADE,
     hostname_pattern TEXT COLLATE NOCASE NOT NULL CHECK (
         hostname_pattern = lower(trim(hostname_pattern)) AND hostname_pattern NOT LIKE '%.'
     ),
@@ -425,14 +440,14 @@ CREATE TABLE IF NOT EXISTS public_site_hosts (
     behavior TEXT NOT NULL CHECK (behavior IN ('serve', 'redirect')),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(listener_id, hostname_pattern),
+    UNIQUE(site_id, hostname_pattern),
     CHECK (role != 'primary' OR behavior = 'serve'),
-    FOREIGN KEY (site_id, listener_id) REFERENCES public_sites(id, listener_id) ON DELETE CASCADE
+    CHECK (role != 'primary' OR hostname_pattern NOT LIKE '*.%')
 );
 
-CREATE TABLE IF NOT EXISTS public_routes (
+CREATE TABLE IF NOT EXISTS "public_routes" (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
+    listener_id INTEGER NOT NULL DEFAULT 0,
     priority INTEGER NOT NULL,
     host_pattern TEXT NOT NULL DEFAULT '',
     path_prefix TEXT NOT NULL DEFAULT '',
@@ -449,7 +464,8 @@ CREATE TABLE IF NOT EXISTS public_routes (
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    site_id INTEGER REFERENCES public_sites(id) ON DELETE RESTRICT
+    site_id INTEGER REFERENCES "public_sites"(id) ON DELETE RESTRICT,
+    CHECK ((site_id IS NULL AND listener_id > 0) OR (site_id IS NOT NULL AND listener_id = 0))
 );
 
 CREATE TABLE IF NOT EXISTS public_route_targets (
@@ -865,8 +881,15 @@ CREATE INDEX IF NOT EXISTS idx_public_routes_site_priority
 ON public_routes (site_id, priority, id)
 WHERE site_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_public_sites_listener
-ON public_sites (listener_id, name, id);
+CREATE INDEX IF NOT EXISTS idx_public_sites_name
+ON public_sites (name, id);
+
+CREATE INDEX IF NOT EXISTS idx_public_site_listener_bindings_listener
+ON public_site_listener_bindings (listener_id, site_id);
+
+CREATE INDEX IF NOT EXISTS idx_public_site_listener_bindings_redirect
+ON public_site_listener_bindings (redirect_listener_id, site_id)
+WHERE redirect_listener_id IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_public_site_hosts_one_primary
 ON public_site_hosts (site_id)
@@ -875,32 +898,68 @@ WHERE role = 'primary';
 CREATE INDEX IF NOT EXISTS idx_public_site_hosts_site
 ON public_site_hosts (site_id, role, id);
 
-CREATE INDEX IF NOT EXISTS idx_public_routes_access_policy_id
-ON public_routes (access_policy_id);
-
-CREATE TRIGGER IF NOT EXISTS trg_public_routes_site_listener_insert
+CREATE TRIGGER IF NOT EXISTS trg_public_routes_legacy_listener_insert
 BEFORE INSERT ON public_routes
-WHEN NEW.site_id IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM public_sites s WHERE s.id = NEW.site_id AND s.listener_id = NEW.listener_id
+WHEN NEW.site_id IS NULL AND NOT EXISTS (
+    SELECT 1 FROM public_listeners l WHERE l.id = NEW.listener_id
 )
 BEGIN
-    SELECT RAISE(ABORT, 'route site and listener must agree');
+    SELECT RAISE(ABORT, 'standalone route listener does not exist');
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_public_routes_site_listener_update
+CREATE TRIGGER IF NOT EXISTS trg_public_routes_legacy_listener_update
 BEFORE UPDATE OF site_id, listener_id ON public_routes
-WHEN NEW.site_id IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM public_sites s WHERE s.id = NEW.site_id AND s.listener_id = NEW.listener_id
+WHEN NEW.site_id IS NULL AND NOT EXISTS (
+    SELECT 1 FROM public_listeners l WHERE l.id = NEW.listener_id
 )
 BEGIN
-    SELECT RAISE(ABORT, 'route site and listener must agree');
+    SELECT RAISE(ABORT, 'standalone route listener does not exist');
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_public_listener_delete_site_routes
+CREATE TRIGGER IF NOT EXISTS trg_public_routes_migrated_listener_insert
+BEFORE INSERT ON public_routes
+WHEN NEW.site_id IS NULL AND EXISTS (
+    SELECT 1 FROM public_site_migrated_listeners m WHERE m.listener_id = NEW.listener_id
+)
+BEGIN
+    SELECT RAISE(ABORT, 'listener requires Site-owned routes');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_site_migrated_listeners_no_standalone_insert
+BEFORE INSERT ON public_site_migrated_listeners
+WHEN EXISTS (
+    SELECT 1 FROM public_routes r WHERE r.listener_id = NEW.listener_id AND r.site_id IS NULL
+)
+BEGIN
+    SELECT RAISE(ABORT, 'listener still has standalone routes');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_site_migrated_listeners_no_standalone_update
+BEFORE UPDATE OF listener_id ON public_site_migrated_listeners
+WHEN EXISTS (
+    SELECT 1 FROM public_routes r WHERE r.listener_id = NEW.listener_id AND r.site_id IS NULL
+)
+BEGIN
+    SELECT RAISE(ABORT, 'listener still has standalone routes');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_routes_migrated_listener_update
+BEFORE UPDATE OF site_id, listener_id ON public_routes
+WHEN NEW.site_id IS NULL AND EXISTS (
+    SELECT 1 FROM public_site_migrated_listeners m WHERE m.listener_id = NEW.listener_id
+)
+BEGIN
+    SELECT RAISE(ABORT, 'listener requires Site-owned routes');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_listener_delete_standalone_routes
 BEFORE DELETE ON public_listeners
 BEGIN
-    DELETE FROM public_routes WHERE listener_id = OLD.id AND site_id IS NOT NULL;
+    DELETE FROM public_routes WHERE listener_id = OLD.id AND site_id IS NULL;
 END;
+
+CREATE INDEX IF NOT EXISTS idx_public_routes_access_policy_id
+ON public_routes (access_policy_id);
 
 CREATE INDEX IF NOT EXISTS idx_public_access_policies_provider_id
 ON public_access_policies (provider_id);
@@ -912,6 +971,23 @@ WHERE is_default = 1 AND site_id IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_public_routes_one_default_per_site
 ON public_routes (site_id)
 WHERE is_default = 1 AND site_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS public_site_migration_route_mappings (
+    source_route_id INTEGER NOT NULL,
+    destination_site_id INTEGER NOT NULL REFERENCES public_sites(id) ON DELETE CASCADE,
+    destination_route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
+    copied INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_route_id, destination_site_id)
+);
+
+CREATE TABLE IF NOT EXISTS public_site_migration_target_mappings (
+    source_target_id INTEGER NOT NULL,
+    destination_route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
+    destination_target_id INTEGER NOT NULL REFERENCES public_route_targets(id) ON DELETE CASCADE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_target_id, destination_route_id)
+);
 
 CREATE INDEX IF NOT EXISTS idx_public_response_templates_kind
 ON public_response_templates (kind, name);

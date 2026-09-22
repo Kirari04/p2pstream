@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
+	"p2pstream/internal/db"
 )
 
 func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPublicProxyConfigResponse, error) {
@@ -33,7 +34,7 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		AccessUsers:         publicAccessUsersToProto(rows.AccessUsers),
 		AccessPolicies:      publicAccessPoliciesToProto(rows.AccessPolicies),
 		Listeners:           publicListenersToProto(rows.Listeners),
-		Sites:               publicSitesToProto(rows.Sites, rows.SiteHosts, rows.Listeners, rows.TLSCertificates),
+		Sites:               publicSitesToProto(rows.Sites, rows.SiteHosts, rows.SiteListenerBindings, rows.Listeners, rows.TLSCertificates, rows.Routes, rows.RouteTargets),
 		Routes:              publicRoutesToProto(rows.Routes, rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
 		RouteTargets:        publicRouteTargetsToProto(rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
 		TlsCertificates:     publicTLSCertificatesToProto(rows.TLSCertificates),
@@ -57,6 +58,10 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
 	a.publicConfigRefreshMu.Lock()
 	defer a.publicConfigRefreshMu.Unlock()
+	return a.refreshPublicProxySnapshotAlreadyLocked(ctx)
+}
+
+func (a *App) refreshPublicProxySnapshotAlreadyLocked(ctx context.Context) error {
 	snap, err := a.loadPublicProxySnapshotLocked(ctx)
 	if err != nil {
 		return err
@@ -199,13 +204,7 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err := a.ensurePublicProxySeeded(ctx); err != nil {
 		return publicConfigRows{}, err
 	}
-	if _, err := a.ensurePublicWafSettings(ctx); err != nil {
-		return publicConfigRows{}, err
-	}
-	if _, err := a.ensurePublicGeoIPSettings(ctx); err != nil {
-		return publicConfigRows{}, err
-	}
-	if _, err := a.ensurePublicCacheSettings(ctx); err != nil {
+	if err := a.ensurePublicConfigCandidatePrerequisites(ctx); err != nil {
 		return publicConfigRows{}, err
 	}
 	tx, err := a.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -214,6 +213,30 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	}
 	defer tx.Rollback()
 	txq := a.DB.Queries.WithTx(tx)
+	rows, err := loadPublicConfigRowsWithQueries(ctx, txq)
+	if err != nil {
+		return publicConfigRows{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	return rows, nil
+}
+
+func (a *App) ensurePublicConfigCandidatePrerequisites(ctx context.Context) error {
+	if _, err := a.ensurePublicWafSettings(ctx); err != nil {
+		return err
+	}
+	if _, err := a.ensurePublicGeoIPSettings(ctx); err != nil {
+		return err
+	}
+	if _, err := a.ensurePublicCacheSettings(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func loadPublicConfigRowsWithQueries(ctx context.Context, txq *db.Queries) (publicConfigRows, error) {
 	accessProviders, err := txq.ListPublicAccessProviders(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
@@ -247,6 +270,10 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
 	siteHosts, err := txq.ListPublicSiteHosts(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	siteListenerBindings, err := txq.ListPublicSiteListenerBindings(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
@@ -323,6 +350,7 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		Listeners:                  listeners,
 		Sites:                      sites,
 		SiteHosts:                  siteHosts,
+		SiteListenerBindings:       siteListenerBindings,
 		Routes:                     routes,
 		RouteTargets:               routeTargets,
 		RouteTargetUpstreamHeaders: routeTargetUpstreamHeaders,
@@ -341,10 +369,27 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		RetryRules:                 retryRules,
 		ResponseTemplates:          responseTemplates,
 	}
-	if err := tx.Commit(); err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
 	return rows, nil
+}
+
+// preparePublicConfigCandidateTx builds the exact runtime candidate represented
+// by an open write transaction. Callers must hold publicConfigRefreshMu until
+// the transaction commits and the prepared snapshot is applied.
+func preparePublicConfigCandidateTx(ctx context.Context, q *db.Queries) (publicConfigRows, *publicProxySnapshot, error) {
+	rows, err := loadPublicConfigRowsWithQueries(ctx, q)
+	if err != nil {
+		return publicConfigRows{}, nil, err
+	}
+	snap, err := snapshotFromPublicRows(rows)
+	if err != nil {
+		return publicConfigRows{}, nil, err
+	}
+	return rows, snap, nil
+}
+
+func (a *App) applyPreparedPublicConfigCandidate(rows publicConfigRows, snap *publicProxySnapshot) {
+	a.storePublicConfigCache(rows, snap)
+	a.applyPublicProxySnapshot(snap)
 }
 
 func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error) {
@@ -353,20 +398,23 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	snap := &publicProxySnapshot{
-		AccessProviders:     make(map[int64]publicAccessProviderConfig),
-		AccessPolicies:      make(map[int64]publicAccessPolicyConfig),
-		RouteTargets:        make(map[int64]publicRouteTargetConfig),
-		Agents:              make(map[int64]publicAgentConfig),
-		Listeners:           make(map[int64]publicListenerConfig),
-		Sites:               make(map[int64]publicSiteConfig),
-		SiteHostsByListener: make(map[int64][]publicSiteHostConfig),
-		RoutesByListener:    make(map[int64][]publicRouteConfig),
-		CertsByListener:     make(map[int64][]publicTLSCertificateConfig),
-		WafCaptchaProviders: make(map[int64]publicWafCaptchaProviderConfig),
-		WafCookieSecret:     []byte(rows.WafSettings.CookieSigningSecret),
-		CacheSettings:       publicCacheSettingsRowToConfig(rows.CacheSettings),
-		ResponseTemplates:   publicResponseTemplatesToConfig(rows.ResponseTemplates),
-		ClientIdentity:      clientIdentity,
+		AccessProviders:        make(map[int64]publicAccessProviderConfig),
+		AccessPolicies:         make(map[int64]publicAccessPolicyConfig),
+		RouteTargets:           make(map[int64]publicRouteTargetConfig),
+		Agents:                 make(map[int64]publicAgentConfig),
+		Listeners:              make(map[int64]publicListenerConfig),
+		Sites:                  make(map[int64]publicSiteConfig),
+		SiteHostsByListener:    make(map[int64][]publicSiteHostConfig),
+		SiteBindingsByListener: make(map[int64][]publicSiteListenerBindingConfig),
+		DefaultSiteByListener:  make(map[int64]publicSiteListenerBindingConfig),
+		RoutesByListener:       make(map[int64][]publicRouteConfig),
+		RoutesBySite:           make(map[int64][]publicRouteConfig),
+		CertsByListener:        make(map[int64][]publicTLSCertificateConfig),
+		WafCaptchaProviders:    make(map[int64]publicWafCaptchaProviderConfig),
+		WafCookieSecret:        []byte(rows.WafSettings.CookieSigningSecret),
+		CacheSettings:          publicCacheSettingsRowToConfig(rows.CacheSettings),
+		ResponseTemplates:      publicResponseTemplatesToConfig(rows.ResponseTemplates),
+		ClientIdentity:         clientIdentity,
 	}
 	for _, row := range rows.AccessProviders {
 		provider, err := publicAccessProviderRowToConfig(row)
@@ -481,13 +529,15 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 	}
 	for _, site := range rows.Sites {
 		snap.Sites[site.ID] = publicSiteConfig{
-			ID: site.ID, ListenerID: site.ListenerID, Name: site.Name, Enabled: site.Enabled != 0,
+			ID: site.ID, Name: site.Name, Enabled: site.Enabled != 0, Published: site.Published != 0,
+			DefaultSite: site.DefaultSite != 0, CanonicalHostname: site.CanonicalHostname,
+			PrimaryHostname: site.CanonicalHostname,
 		}
 	}
+	siteHostsBySite := make(map[int64][]publicSiteHostConfig)
 	for _, host := range rows.SiteHosts {
-		site, ok := snap.Sites[host.SiteID]
-		if !ok || site.ListenerID != host.ListenerID {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has inconsistent ownership", host.HostnamePattern))
+		if _, ok := snap.Sites[host.SiteID]; !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has no owner", host.HostnamePattern))
 		}
 		normalized, normalizeErr := normalizePublicSiteHostnamePattern(host.HostnamePattern)
 		if normalizeErr != nil || normalized != host.HostnamePattern {
@@ -503,28 +553,63 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has invalid primary binding", host.HostnamePattern))
 		}
 		binding := publicSiteHostConfig{
-			ID: host.ID, SiteID: host.SiteID, ListenerID: host.ListenerID,
+			ID: host.ID, SiteID: host.SiteID,
 			HostnamePattern: host.HostnamePattern, Primary: host.Role == "primary", Behavior: host.Behavior,
 		}
-		if binding.Primary {
-			site.PrimaryHostname = binding.HostnamePattern
-			snap.Sites[site.ID] = site
-		}
-		snap.SiteHostsByListener[host.ListenerID] = append(snap.SiteHostsByListener[host.ListenerID], binding)
+		siteHostsBySite[host.SiteID] = append(siteHostsBySite[host.SiteID], binding)
 	}
-	for siteID, site := range snap.Sites {
-		count, primaryCount := 0, 0
-		for _, binding := range snap.SiteHostsByListener[site.ListenerID] {
-			if binding.SiteID != siteID {
-				continue
-			}
-			count++
-			if binding.Primary {
-				primaryCount++
-			}
+	ownedHostPatterns := make(map[int64]map[string]int64)
+	for _, row := range rows.SiteListenerBindings {
+		site, ok := snap.Sites[row.SiteID]
+		if !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site listener binding has no Site %d", row.SiteID))
 		}
-		if count == 0 || count > maxPublicSiteHosts || primaryCount != 1 || site.PrimaryHostname == "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site %q requires 1-%d bindings and exactly one primary", site.Name, maxPublicSiteHosts))
+		if _, ok := snap.Listeners[row.ListenerID]; !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site %q references missing listener %d", site.Name, row.ListenerID))
+		}
+		binding := publicSiteListenerBindingConfig{
+			SiteID: row.SiteID, ListenerID: row.ListenerID, Behavior: row.Behavior,
+			RedirectListenerID: nullInt64Value(row.RedirectListenerID), RedirectHostname: row.RedirectHostname,
+		}
+		if site.ListenerID == 0 || row.ListenerID < site.ListenerID {
+			site.ListenerID = row.ListenerID
+			snap.Sites[row.SiteID] = site
+		}
+		if !site.Published {
+			continue
+		}
+		if row.Behavior != publicSiteListenerBehaviorServe && row.Behavior != publicSiteListenerBehaviorRedirectHTTPS {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site %q has invalid listener behavior %q", site.Name, row.Behavior))
+		}
+		snap.SiteBindingsByListener[row.ListenerID] = append(snap.SiteBindingsByListener[row.ListenerID], binding)
+		if site.DefaultSite {
+			if previous, exists := snap.DefaultSiteByListener[row.ListenerID]; exists && previous.SiteID != row.SiteID {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("listener %d has multiple published Default Sites", row.ListenerID))
+			}
+			snap.DefaultSiteByListener[row.ListenerID] = binding
+			continue
+		}
+		hosts := siteHostsBySite[row.SiteID]
+		if len(hosts) == 0 || len(hosts) > maxPublicSiteHosts {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("published Site %q requires 1-%d hostnames", site.Name, maxPublicSiteHosts))
+		}
+		if ownedHostPatterns[row.ListenerID] == nil {
+			ownedHostPatterns[row.ListenerID] = make(map[string]int64)
+		}
+		for _, host := range hosts {
+			if owner, exists := ownedHostPatterns[row.ListenerID][host.HostnamePattern]; exists && owner != row.SiteID {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("listener %d hostname %q is owned by multiple published Sites", row.ListenerID, host.HostnamePattern))
+			}
+			ownedHostPatterns[row.ListenerID][host.HostnamePattern] = row.SiteID
+			snap.SiteHostsByListener[row.ListenerID] = append(snap.SiteHostsByListener[row.ListenerID], host)
+		}
+	}
+	for _, site := range snap.Sites {
+		if !site.Published {
+			continue
+		}
+		if site.DefaultSite && len(siteHostsBySite[site.ID]) != 0 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("Default Site %q cannot have hostnames", site.Name))
 		}
 	}
 	for routeID, targets := range routeTargetsByRoute {
@@ -540,7 +625,7 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		routeTargetsByRoute[routeID] = targets
 	}
 	for _, route := range rows.Routes {
-		snap.RoutesByListener[route.ListenerID] = append(snap.RoutesByListener[route.ListenerID], publicRouteConfig{
+		config := publicRouteConfig{
 			ID:                         route.ID,
 			ListenerID:                 route.ListenerID,
 			SiteID:                     nullInt64Value(route.SiteID),
@@ -559,11 +644,20 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			PathSecurityMode:           normalizePublicRoutePathSecurityMode(route.PathSecurityMode),
 			AccessPolicyID:             nullInt64Value(route.AccessPolicyID),
 			Enabled:                    route.Enabled != 0,
-		})
+		}
+		if config.SiteID != 0 {
+			snap.RoutesBySite[config.SiteID] = append(snap.RoutesBySite[config.SiteID], config)
+		} else {
+			snap.RoutesByListener[route.ListenerID] = append(snap.RoutesByListener[route.ListenerID], config)
+		}
 	}
 	for listenerID, routes := range snap.RoutesByListener {
 		sortPublicRoutes(routes)
 		snap.RoutesByListener[listenerID] = routes
+	}
+	for siteID, routes := range snap.RoutesBySite {
+		sortPublicRoutes(routes)
+		snap.RoutesBySite[siteID] = routes
 	}
 	for _, cert := range rows.TLSCertificates {
 		snap.CertsByListener[cert.ListenerID] = append(snap.CertsByListener[cert.ListenerID], publicTLSCertificateConfig{
@@ -649,9 +743,21 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 }
 
 func (a *App) reconcilePublicListenerAfterMutation(ctx context.Context, listenerID int64) (*p2pstreamv1.PublicListenerStatus, error) {
+	a.publicListenerLifecycleMu.Lock()
+	defer a.publicListenerLifecycleMu.Unlock()
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
+	return a.reconcilePublicListenerRuntimeFromCurrentSnapshot(ctx, listenerID)
+}
+
+func (a *App) reconcilePublicListenerAfterPreparedMutation(ctx context.Context, listenerID int64) (*p2pstreamv1.PublicListenerStatus, error) {
+	a.publicListenerLifecycleMu.Lock()
+	defer a.publicListenerLifecycleMu.Unlock()
+	return a.reconcilePublicListenerRuntimeFromCurrentSnapshot(ctx, listenerID)
+}
+
+func (a *App) reconcilePublicListenerRuntimeFromCurrentSnapshot(ctx context.Context, listenerID int64) (*p2pstreamv1.PublicListenerStatus, error) {
 	a.proxyMu.Lock()
 	snap := a.publicSnapshot
 	listener, ok := snap.Listeners[listenerID]

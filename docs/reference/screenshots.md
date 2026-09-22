@@ -33,6 +33,8 @@ A visual reference for the current p2pstream management console. These images ar
 
 ## Proxy Configuration
 
+Configure hostnames, listener assignments, and routes in the [Site workspace](./sites). Route and target editors open inside their owning Site.
+
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
     <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy Public Listeners tab showing proxy summary counts, listener search, HTTP and HTTPS bind addresses, route counts, runtime state, Stop, Edit, and More actions">
@@ -45,18 +47,8 @@ A visual reference for the current p2pstream management console. These images ar
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy Routes tab showing compact rows for listener and match, forward or redirect action, proxy or static targets, priority, enabled state, and edit clone and delete actions">
-    <figcaption>Routes and targets table</figcaption>
-  </figure>
-
-  <figure class="doc-screenshot screenshot-tile">
     <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream Edit Route drawer showing a direct proxy target's name, type, priority group, weight, URL, transport, header timeout, TLS verification, and enabled state">
     <figcaption>Direct proxy target fields</figcaption>
-  </figure>
-
-  <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream Edit Route drawer showing listener, host pattern, path prefix, path security, action, route targets, fallback priority groups, and priority">
-    <figcaption>Edit Route drawer</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">

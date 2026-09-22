@@ -24,10 +24,10 @@ func TestPublicRouteTargetUpstreamConfigAPIValidationAndReadback(t *testing.T) {
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	cfg := getPublicProxyConfig(t, client, cookie)
-	listener := publicListenerByName(t, cfg, "public-http")
+	siteID := publicSiteIDByName(t, cfg, "welcome")
 
 	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId: listener.GetId(),
+		SiteId:     siteID,
 		Priority:   20,
 		PathPrefix: "/upstream-api",
 		Enabled:    true,
@@ -78,10 +78,10 @@ func TestPublicRouteTargetUpstreamResponseHeaderTimeoutAPI(t *testing.T) {
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	cfg := getPublicProxyConfig(t, client, cookie)
-	listener := publicListenerByName(t, cfg, "public-http")
+	siteID := publicSiteIDByName(t, cfg, "welcome")
 
 	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId: listener.GetId(),
+		SiteId:     siteID,
 		Priority:   30,
 		PathPrefix: "/timeout-api",
 		Enabled:    true,
@@ -104,7 +104,7 @@ func TestPublicRouteTargetUpstreamResponseHeaderTimeoutAPI(t *testing.T) {
 
 	updateReq := connect.NewRequest(&p2pstreamv1.UpdatePublicRouteRequest{
 		Id:         createResp.Msg.GetRoute().GetId(),
-		ListenerId: listener.GetId(),
+		SiteId:     siteID,
 		Priority:   30,
 		PathPrefix: "/timeout-api",
 		Enabled:    true,
@@ -128,7 +128,7 @@ func TestPublicRouteTargetUpstreamResponseHeaderTimeoutAPI(t *testing.T) {
 
 	for _, timeoutMillis := range []int64{999, 3600001} {
 		req := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-			ListenerId: listener.GetId(),
+			SiteId:     siteID,
 			Priority:   40 + timeoutMillis,
 			PathPrefix: "/timeout-invalid",
 			Enabled:    true,
@@ -153,7 +153,7 @@ func TestPublicRouteTargetUpstreamConfigValidationRejectsInvalidInputs(t *testin
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	cfg := getPublicProxyConfig(t, client, cookie)
-	listener := publicListenerByName(t, cfg, "public-http")
+	siteID := publicSiteIDByName(t, cfg, "welcome")
 
 	cases := []struct {
 		name    string
@@ -180,7 +180,7 @@ func TestPublicRouteTargetUpstreamConfigValidationRejectsInvalidInputs(t *testin
 	for idx, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			req := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-				ListenerId: listener.GetId(),
+				SiteId:     siteID,
 				Priority:   int64(100 + idx),
 				PathPrefix: "/" + tc.name,
 				Enabled:    true,
@@ -207,10 +207,10 @@ func TestStaticPublicRouteTargetClearsUpstreamConfig(t *testing.T) {
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	cfg := getPublicProxyConfig(t, client, cookie)
-	listener := publicListenerByName(t, cfg, "public-http")
+	siteID := publicSiteIDByName(t, cfg, "welcome")
 
 	req := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId: listener.GetId(),
+		SiteId:     siteID,
 		Priority:   200,
 		PathPrefix: "/static-clears-upstream",
 		Enabled:    true,

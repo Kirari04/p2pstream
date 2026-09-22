@@ -5,6 +5,7 @@ import {
   PublicRouteAction,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
+  PublicSiteListenerBehavior,
   PublicWafActivationMode,
   PublicWafRuleAction,
   type Agent,
@@ -15,6 +16,7 @@ import {
   type PublicWafRule,
   type PublicRoute,
   type PublicRouteTarget,
+  type PublicSite,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import { TrafficTraceStage as TraceStage } from "@/gen/proto/p2pstream/v1/management_pb";
 import { trafficShaperProtocolScopeLabel } from "@/lib/publicProxyLabels";
@@ -30,6 +32,7 @@ export const TRAFFIC_SHAPER_KEY = "traffic-shaper";
 export type TrafficFlowConfigIndex = {
   routesByListenerId: Map<string, PublicRoute[]>;
   routeById: Map<string, PublicRoute>;
+  siteById: Map<string, PublicSite>;
   routeTargetById: Map<string, PublicRouteTarget>;
   routeTargetsByRouteId: Map<string, PublicRouteTarget[]>;
   agentById: Map<string, Agent>;
@@ -84,6 +87,7 @@ export class TrafficRequestPathCache {
 export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigResponse | null): TrafficFlowConfigIndex {
   const routesByListenerId = new Map<string, PublicRoute[]>();
   const routeById = new Map<string, PublicRoute>();
+  const siteById = new Map((config?.sites ?? []).map((site) => [site.id.toString(), site]));
   const routeTargetById = new Map<string, PublicRouteTarget>();
   const routeTargetsByRouteId = new Map<string, PublicRouteTarget[]>();
   const agentById = new Map<string, Agent>();
@@ -106,10 +110,18 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
 
   for (const route of config?.routes ?? []) {
     routeById.set(route.id.toString(), route);
-    const key = route.listenerId.toString();
-    const routes = routesByListenerId.get(key) ?? [];
-    routes.push(route);
-    routesByListenerId.set(key, routes);
+    const site = route.siteId > 0n ? siteById.get(route.siteId.toString()) : undefined;
+    const listenerIds = route.siteId > 0n
+      ? site?.published && site.enabled
+        ? site.listenerBindings.filter((binding) => binding.behavior !== PublicSiteListenerBehavior.REDIRECT_HTTPS).map((binding) => binding.listenerId)
+        : []
+      : [route.listenerId];
+    for (const listenerId of new Set(listenerIds)) {
+      const key = listenerId.toString();
+      const routes = routesByListenerId.get(key) ?? [];
+      routes.push(route);
+      routesByListenerId.set(key, routes);
+    }
   }
   for (const routes of routesByListenerId.values()) {
     routes.sort(compareRoutes);
@@ -131,6 +143,7 @@ export function createTrafficFlowConfigIndex(config: GetPublicProxyConfigRespons
   return {
     routesByListenerId,
     routeById,
+    siteById,
     routeTargetById,
     routeTargetsByRouteId,
     agentById,

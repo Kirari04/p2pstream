@@ -19,7 +19,7 @@ import (
 
 const (
 	API           = 1
-	Schema        = 19
+	Schema        = 20
 	MetadataAsset = "p2pstream_server_update.json"
 	RuntimeSocket = "/tmp/p2pstream-server-status.sock"
 )

@@ -484,6 +484,7 @@ function route(overrides: Partial<PublicRoute>): PublicRoute {
     $typeName: "p2pstream.v1.PublicRoute",
     id: 0n,
     listenerId: 0n,
+    siteId: 0n,
     priority: 100n,
     hostPattern: "",
     pathPrefix: "",

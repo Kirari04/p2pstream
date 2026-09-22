@@ -1300,49 +1300,87 @@ RETURNING id, name, bind_address, port, protocol, enabled, created_at, updated_a
 DELETE FROM public_listeners
 WHERE id = ?;
 
+-- name: MarkPublicListenerSiteMigrated :exec
+INSERT INTO public_site_migrated_listeners (listener_id)
+VALUES (?)
+ON CONFLICT(listener_id) DO UPDATE SET migrated_at = CURRENT_TIMESTAMP;
+
+-- name: IsPublicListenerSiteMigrated :one
+SELECT EXISTS(
+    SELECT 1 FROM public_site_migrated_listeners WHERE listener_id = ?
+);
+
 -- name: CreatePublicSite :one
-INSERT INTO public_sites (listener_id, name, enabled)
-VALUES (?, ?, ?)
-RETURNING id, listener_id, name, enabled, created_at, updated_at;
+INSERT INTO public_sites (name, enabled, published, default_site, canonical_hostname)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, name, enabled, published, default_site, canonical_hostname, created_at, updated_at;
 
 -- name: GetPublicSite :one
-SELECT id, listener_id, name, enabled, created_at, updated_at
+SELECT id, name, enabled, published, default_site, canonical_hostname, created_at, updated_at
 FROM public_sites
 WHERE id = ?;
 
 -- name: ListPublicSites :many
-SELECT id, listener_id, name, enabled, created_at, updated_at
+SELECT id, name, enabled, published, default_site, canonical_hostname, created_at, updated_at
 FROM public_sites
-ORDER BY listener_id ASC, name ASC, id ASC;
+ORDER BY name ASC, id ASC;
 
 -- name: UpdatePublicSite :one
 UPDATE public_sites
-SET listener_id = ?, name = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+SET name = ?, enabled = ?, default_site = ?, canonical_hostname = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, name, enabled, created_at, updated_at;
+RETURNING id, name, enabled, published, default_site, canonical_hostname, created_at, updated_at;
+
+-- name: SetPublicSitePublished :one
+UPDATE public_sites
+SET published = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, enabled, published, default_site, canonical_hostname, created_at, updated_at;
 
 -- name: DeletePublicSite :exec
 DELETE FROM public_sites
 WHERE id = ?;
 
 -- name: CreatePublicSiteHost :one
-INSERT INTO public_site_hosts (site_id, listener_id, hostname_pattern, role, behavior)
-VALUES (?, ?, ?, ?, ?)
-RETURNING id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at;
+INSERT INTO public_site_hosts (site_id, hostname_pattern, role, behavior)
+VALUES (?, ?, ?, ?)
+RETURNING id, site_id, hostname_pattern, role, behavior, created_at, updated_at;
 
 -- name: ListPublicSiteHosts :many
-SELECT id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at
+SELECT id, site_id, hostname_pattern, role, behavior, created_at, updated_at
 FROM public_site_hosts
-ORDER BY listener_id ASC, hostname_pattern ASC, id ASC;
+ORDER BY site_id ASC, hostname_pattern ASC, id ASC;
 
 -- name: ListPublicSiteHostsBySite :many
-SELECT id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at
+SELECT id, site_id, hostname_pattern, role, behavior, created_at, updated_at
 FROM public_site_hosts
 WHERE site_id = ?
 ORDER BY CASE role WHEN 'primary' THEN 0 ELSE 1 END, hostname_pattern ASC, id ASC;
 
 -- name: DeletePublicSiteHosts :exec
 DELETE FROM public_site_hosts
+WHERE site_id = ?;
+
+-- name: CreatePublicSiteListenerBinding :one
+INSERT INTO public_site_listener_bindings (
+    site_id, listener_id, behavior, redirect_listener_id, redirect_hostname
+)
+VALUES (?, ?, ?, ?, ?)
+RETURNING site_id, listener_id, behavior, redirect_listener_id, redirect_hostname, created_at, updated_at;
+
+-- name: ListPublicSiteListenerBindings :many
+SELECT site_id, listener_id, behavior, redirect_listener_id, redirect_hostname, created_at, updated_at
+FROM public_site_listener_bindings
+ORDER BY listener_id ASC, site_id ASC;
+
+-- name: ListPublicSiteListenerBindingsBySite :many
+SELECT site_id, listener_id, behavior, redirect_listener_id, redirect_hostname, created_at, updated_at
+FROM public_site_listener_bindings
+WHERE site_id = ?
+ORDER BY listener_id ASC;
+
+-- name: DeletePublicSiteListenerBindings :exec
+DELETE FROM public_site_listener_bindings
 WHERE site_id = ?;
 
 -- name: CountPublicRoutesBySite :one

@@ -78,9 +78,17 @@ test("configures agent labels and an agent-selected route target", async ({ page
   expect(labelledAgent?.labels.role).toBe("app");
   expect(labelledAgent?.labels["p2pstream.io/agent-id"]).toBe(agentPublicID);
 
-  await page.goto("/#/proxy/routes");
+  const createdSite = await connectRPC<{ site: { id: string; name: string } }>(page.request, baseURL, "CreatePublicSite", {
+    name: `agent-target-${slug}`,
+    enabled: true,
+    defaultSite: true,
+  });
+  await page.goto("/#/proxy/sites");
   await expect(page.getByRole("heading", { name: "Proxy", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Add Route" }).click();
+  await page.getByTestId(`site-row-${createdSite.site.id}`).getByRole("button", { name: `Edit site ${createdSite.site.name}` }).click();
+  const siteWorkspace = page.getByRole("dialog", { name: "Site workspace", exact: true });
+  await expect(siteWorkspace).toBeVisible();
+  await siteWorkspace.getByRole("button", { name: "Add route", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Add Route", exact: true })).toBeVisible();
   await page.getByLabel("Path prefix").fill(routePath);
   const targetRow = page.getByTestId("route-target-row").first();
@@ -103,6 +111,7 @@ test("configures agent labels and an agent-selected route target", async ({ page
     page.waitForResponse((response) => response.url().includes("/p2pstream.v1.AgentManagementService/CreatePublicRoute") && response.status() === 200),
     page.getByRole("button", { name: "Create Route" }).click(),
   ]);
+  await expect(siteWorkspace).toBeVisible();
 
   cfg = await connectRPC<GetPublicProxyConfigResponse>(page.request, baseURL, "GetPublicProxyConfig", {});
   const savedTarget = cfg.routeTargets.find((target) => target.name === targetName);

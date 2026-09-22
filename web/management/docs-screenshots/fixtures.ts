@@ -264,12 +264,22 @@ export async function seedDocsFixture(
     }),
   };
 
+  const sitesByHostname = new Map<string, JsonRecord>();
+  for (const hostname of ["app.example.test", "api.example.test", "maintenance.example.test", "old.example.test", "fallback.example.test"]) {
+    const created = await connectRPC<any>(request, baseURL, "CreatePublicSite", {
+      name: `docs-${hostname.split(".")[0]}`,
+      enabled: true,
+      hosts: [{ hostnamePattern: hostname, behavior: "PUBLIC_SITE_HOST_BEHAVIOR_SERVE" }],
+      listenerBindings: [{ listenerId: updatedHttpListener.listener.id, behavior: "PUBLIC_SITE_LISTENER_BEHAVIOR_SERVE" }],
+    });
+    sitesByHostname.set(hostname, created.site);
+  }
+
   const directRoute = await connectRPC<any>(request, baseURL, "CreatePublicRoute", {
-    listenerId: updatedHttpListener.listener.id,
+    siteId: sitesByHostname.get("app.example.test")!.id,
     enabled: true,
     action: "PUBLIC_ROUTE_ACTION_FORWARD",
     priority: 10,
-    hostPattern: "app.example.test",
     pathPrefix: "/",
     targetLoadBalancing: "PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN",
     targets: [
@@ -292,11 +302,10 @@ export async function seedDocsFixture(
   });
 
   const agentRoute = await connectRPC<any>(request, baseURL, "CreatePublicRoute", {
-    listenerId: updatedHttpListener.listener.id,
+    siteId: sitesByHostname.get("api.example.test")!.id,
     enabled: true,
     action: "PUBLIC_ROUTE_ACTION_FORWARD",
     priority: 20,
-    hostPattern: "api.example.test",
     pathPrefix: "/api",
     targetLoadBalancing: "PUBLIC_ROUTE_TARGET_LOAD_BALANCING_WEIGHTED_LEAST_ACTIVE_REQUESTS",
     targets: [
@@ -322,11 +331,10 @@ export async function seedDocsFixture(
   });
 
   const staticRoute = await connectRPC<any>(request, baseURL, "CreatePublicRoute", {
-    listenerId: updatedHttpListener.listener.id,
+    siteId: sitesByHostname.get("maintenance.example.test")!.id,
     enabled: true,
     action: "PUBLIC_ROUTE_ACTION_FORWARD",
     priority: 30,
-    hostPattern: "maintenance.example.test",
     pathPrefix: "/",
     targetLoadBalancing: "PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN",
     targets: [
@@ -350,11 +358,10 @@ export async function seedDocsFixture(
   });
 
   const redirectRoute = await connectRPC<any>(request, baseURL, "CreatePublicRoute", {
-    listenerId: updatedHttpListener.listener.id,
+    siteId: sitesByHostname.get("old.example.test")!.id,
     enabled: true,
     action: "PUBLIC_ROUTE_ACTION_REDIRECT",
     priority: 40,
-    hostPattern: "old.example.test",
     pathPrefix: "/docs",
     redirectTargetMode: "PUBLIC_ROUTE_REDIRECT_TARGET_MODE_EXTERNAL_ORIGIN_KEEP_PATH",
     redirectTarget: "https://docs.example.test",
@@ -364,11 +371,10 @@ export async function seedDocsFixture(
   });
 
   const fallbackRoute = await connectRPC<any>(request, baseURL, "CreatePublicRoute", {
-    listenerId: updatedHttpListener.listener.id,
+    siteId: sitesByHostname.get("fallback.example.test")!.id,
     enabled: true,
     action: "PUBLIC_ROUTE_ACTION_FORWARD",
     priority: 1000,
-    hostPattern: "fallback.example.test",
     pathPrefix: "/",
     targetLoadBalancing: "PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN",
     targets: [
@@ -387,6 +393,10 @@ export async function seedDocsFixture(
       },
     ],
   });
+
+  for (const site of sitesByHostname.values()) {
+    await connectRPC(request, baseURL, "PublishPublicSite", { id: site.id });
+  }
 
   await connectRPC<any>(request, baseURL, "UpdatePublicCacheSettings", {
     enabled: true,

@@ -233,14 +233,15 @@ type App struct {
 	generatedSetupToken string
 	setupTokenLogOnce   sync.Once
 
-	proxyMu                  sync.Mutex
-	proxyServiceActive       bool
-	proxyState               p2pstreamv1.ProxyState
-	proxyLastError           string
-	publicSnapshot           *publicProxySnapshot
-	publicSnapshotPtr        atomic.Pointer[publicProxySnapshot]
-	publicSnapshotGeneration uint64
-	publicListenerState      map[int64]*publicListenerRuntime
+	proxyMu                   sync.Mutex
+	proxyServiceActive        bool
+	proxyState                p2pstreamv1.ProxyState
+	proxyLastError            string
+	publicSnapshot            *publicProxySnapshot
+	publicSnapshotPtr         atomic.Pointer[publicProxySnapshot]
+	publicSnapshotGeneration  uint64
+	publicListenerState       map[int64]*publicListenerRuntime
+	publicListenerLifecycleMu sync.Mutex
 
 	publicConfigCacheMu   sync.RWMutex
 	publicConfigCache     cachedPublicConfig

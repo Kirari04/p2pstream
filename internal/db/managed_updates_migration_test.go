@@ -34,7 +34,7 @@ func TestManagedUpdateMigrationRepairsEmptyVersion16Schemas(t *testing.T) {
 				t.Fatalf("authority pin changed during migration: key=%q, err=%v", keyID, err)
 			}
 			var version int64
-			if err := database.QueryRow(`SELECT MAX(version_id) FROM goose_db_version WHERE is_applied=1`).Scan(&version); err != nil || version != 19 {
+			if err := database.QueryRow(`SELECT MAX(version_id) FROM goose_db_version WHERE is_applied=1`).Scan(&version); err != nil || version != 20 {
 				t.Fatalf("migration version=%d, err=%v", version, err)
 			}
 			rows, err := database.Query(`PRAGMA foreign_key_check`)
@@ -131,6 +131,9 @@ func seedManagedUpdateVersion16(t *testing.T, fixture string) *sql.DB {
 	`); err != nil {
 		t.Fatal(err)
 	}
+	// Match the production pool for RunDB migrations: Goose retains one
+	// connection while the Site rebuild uses its own connection and transaction.
+	database.SetMaxOpenConns(8)
 	return database
 }
 
