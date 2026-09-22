@@ -93,12 +93,15 @@ def main():
         rpc("SetupAdmin", {"username": "reviewadmin", "password": "Review-only-password-123!", "setupToken": "review-setup-token-0123456789abcdef"})
         rpc("Login", {"username": "reviewadmin", "password": "Review-only-password-123!"})
         listener = rpc("CreatePublicListener", {"name": "review-public", "bindAddress": "0.0.0.0", "port": "8080", "protocol": "PUBLIC_LISTENER_PROTOCOL_HTTP", "enabled": True})["listener"]
-        rpc("CreatePublicRoute", {"listenerId": listener["id"], "priority": "1000", "pathPrefix": "/", "isDefault": True,
+        site = rpc("CreatePublicSite", {"name": "review-public", "enabled": True, "defaultSite": True,
+            "listenerBindings": [{"listenerId": listener["id"], "behavior": "PUBLIC_SITE_LISTENER_BEHAVIOR_SERVE"}]})["site"]
+        rpc("CreatePublicRoute", {"siteId": site["id"], "priority": "1000", "pathPrefix": "/", "isDefault": True,
             "enabled": True, "action": "PUBLIC_ROUTE_ACTION_FORWARD", "targetLoadBalancing": "PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN",
             "targets": [{"name": "agent upstream", "enabled": True, "weight": "100", "targetType": "PUBLIC_ROUTE_TARGET_TYPE_PROXY",
                 "url": "http://upstream:9000", "transport": "PUBLIC_ROUTE_TARGET_TRANSPORT_AGENT",
                 "agentSelector": {"matchLabels": {"p2pstream.io/agent-id": "review-agent"}},
                 "agentLoadBalancing": "PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN"}]})
+        rpc("PublishPublicSite", {"id": site["id"]})
         container = compose(state / "compose.json", "ps", "-q", "p2pstream")
         ca = docker("exec", container, "cat", "/data/certs/management/ca.crt.pem")
         (state / "initial-ca.pem").write_text(ca)

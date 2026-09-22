@@ -6,8 +6,10 @@ import (
 )
 
 func TestEnvironmentProxyMethodPolicyIsAllowlistBased(t *testing.T) {
-	if _, ok := allowedEnvironmentProxyMethods["GetStatus"]; !ok {
-		t.Fatal("expected operational GetStatus RPC to remain proxyable")
+	for _, method := range []string{"GetStatus", "CreatePublicSite", "UpdatePublicSite", "DeletePublicSite", "PublishPublicSite", "PreviewPublicSiteMigration", "ApplyPublicSiteMigration"} {
+		if _, ok := allowedEnvironmentProxyMethods[method]; !ok {
+			t.Fatalf("expected operational %s RPC to remain proxyable", method)
+		}
 	}
 	for _, method := range []string{"Login", "SetupAdmin", "CreateEnvironment", "EnrollAgentUpdater", "CheckAgentUpdate", "ReportAgentUpdate", "FutureSensitiveMethod"} {
 		if _, ok := allowedEnvironmentProxyMethods[method]; ok {

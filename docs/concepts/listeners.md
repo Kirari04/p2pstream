@@ -4,7 +4,7 @@ A listener is the public TCP bind and protocol where user traffic enters p2pstre
 
 ## What It Is
 
-Listeners belong to the public proxy runtime, not the management server. Each listener has a protocol, bind address, port, and enabled flag. Default behavior is modeled as an enabled default route for that listener.
+Listeners belong to the public proxy runtime, not the management server. Each listener has a protocol, bind address, port, and enabled flag. Assign Sites to a listener to serve their hostnames and shared routes. An optional Default Site handles unmatched hostnames.
 
 | Protocol | Behavior |
 | --- | --- |
@@ -36,7 +36,9 @@ On an empty database, p2pstream creates:
 | `public-http` | HTTP | `80` |
 | `public-https` | HTTPS | `443` |
 
-Both use default routes with static welcome targets until you replace those targets or add more specific routes.
+Both serve one shared, published Default Site with a default route and static welcome target. Edit its routes under **Proxy → Sites**, or create a named Site for your application.
+
+Deleting a stopped listener removes its Site assignments while preserving the Sites and their routes. A Site with no remaining assignments serves no traffic until it is assigned again. Change any Site redirects that use this listener as their HTTPS destination before deleting it.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy Listeners table showing searchable HTTP and HTTPS listeners with bind addresses, route counts, runtime state, and row actions">
@@ -45,7 +47,7 @@ Both use default routes with static welcome targets until you replace those targ
 
 <figure class="doc-screenshot">
   <img src="../assets/new/proxy_edit_interface_listener_modal.png" alt="p2pstream Edit Listener drawer showing protocol, bind address, port, and enabled state">
-  <figcaption>The listener drawer controls the public bind. Default handling is configured as a route; container port publishing and host firewall rules still need to expose the same port outside p2pstream.</figcaption>
+  <figcaption>The listener drawer controls the public bind. Assign a Default Site for unmatched hostnames; container port publishing and host firewall rules still need to expose the same port outside p2pstream.</figcaption>
 </figure>
 
 ## Common Mistakes
@@ -57,6 +59,7 @@ Both use default routes with static welcome targets until you replace those targ
 
 ## Related Links
 
+- [Sites](../reference/sites)
 - [Publish a service](../guides/publish-a-service)
 - [Ports reference](../reference/ports)
 - [ACME HTTP/TLS-ALPN](../guides/acme-http-tls-alpn)

@@ -9,17 +9,15 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
 ## Prerequisites
 
 - A listener that receives the public request.
-- A clear host/path match so the redirect or static route does not catch unrelated traffic.
+- A Site assigned to the listener, with the intended hostnames, and a clear path match.
 
 ## Steps
 
-1. To redirect a whole host, open **Proxy -> Routes**, select **Add Route**, and create:
+1. To redirect a whole host, open **Proxy -> Sites** and create a draft Site for `old.example.com` on `public-https`. Inside the Site workspace, select **Add first route** and configure:
 
    | Field | Value |
    | --- | --- |
-   | Listener | `public-https` |
    | Priority | `10` |
-   | Host pattern | `old.example.com` |
    | Path prefix | `/` |
    | Action | Redirect |
    | Mode | External origin |
@@ -28,7 +26,7 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
    | Preserve path suffix | On |
    | Preserve query | On |
 
-   This sends:
+   Save the route, configure HTTPS certificate coverage for the Site, and publish it. This sends:
 
    ```text
    https://old.example.com/docs?a=1 -> https://new.example.com/docs?a=1
@@ -39,17 +37,16 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
      <figcaption>The route drawer keeps redirect mode, target, status code, path-suffix preservation, and query handling with the match that triggers it.</figcaption>
    </figure>
 
-2. To redirect a path on the same host, use same-host path mode:
+2. To redirect a path on the same host, open the Site for `app.example.com`, add a route, and use same-host path mode:
 
    | Field | Value |
    | --- | --- |
-   | Host pattern | `app.example.com` |
    | Path prefix | `/old` |
    | Mode | Same host path |
    | Target | `/new` |
    | Status | `302` |
 
-3. To serve a static maintenance response, open the matching route's **Edit** action under **Proxy -> Routes**, then select **Add Target** and configure a static target:
+3. To serve a static maintenance response, open its Site under **Proxy -> Sites**, select the route's **Edit** action, then select **Add Target** and configure a static target:
 
    | Field | Value |
    | --- | --- |
@@ -59,7 +56,7 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
    | Body | `Maintenance in progress` |
    | Enabled | On |
 
-   Static targets also support reusable **Generic body** templates and response headers such as `Content-Type` and `Retry-After` through the public configuration API. The redesigned route drawer retains existing template and header values but currently exposes only the inline **Body** control. Create reusable bodies under **Templates**, then use the management API when you need to attach one or configure static-response headers until those drawer controls are restored.
+   Expand **Advanced target settings** to select a reusable **Generic body** template or add response headers such as `Content-Type` and `Retry-After`. Create reusable bodies under **Templates**, then select one in the route drawer.
 
    <figure class="doc-screenshot">
      <img src="../assets/new/proxy_static_response_target_modal.png" alt="p2pstream Edit Route drawer showing a static target with status, inline body, weight, priority group, and enabled controls">
@@ -71,12 +68,11 @@ Use redirects for host/path migrations. Use static responses for maintenance pag
      <figcaption>Generic response templates centralize reusable bodies for static targets, rate-limit responses, and WAF block responses while each caller keeps control of status and headers.</figcaption>
    </figure>
 
-4. Give that route a lower priority number than the normal app route:
+4. Give that route a lower priority number than the normal app route in the same Site:
 
    | Field | Value |
    | --- | --- |
    | Priority | `1` |
-   | Host pattern | `app.example.com` |
    | Path prefix | `/` |
    | Target | `maintenance` |
 
@@ -97,8 +93,8 @@ Redirect routes should return `301`, `302`, `307`, or `308`. Static routes shoul
 | --- | --- |
 | Redirect target rejected | Same-host targets must be root-relative paths; external-origin targets must be HTTP/HTTPS origins. |
 | Wrong route wins | Lower priority numbers run first. |
-| Static route affects all traffic | Narrow host/path match or disable the route after maintenance. |
-| API-configured template rejected | Static targets can only use generic body templates. |
+| Static route affects unintended paths | Narrow the route's path match inside its Site or disable the route after maintenance. |
+| Template rejected | Static targets can only use generic body templates. |
 
 ## Next Steps
 

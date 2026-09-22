@@ -82,7 +82,7 @@ curl -I https://app.example.com
 | Certificate issuance fails | Token must edit DNS records for the zone. |
 | Public delegation mismatch | The configured Zone ID must identify the active Cloudflare zone whose assigned nameservers match the domain's public NS records. |
 | Authoritative TXT check times out | Permit outbound UDP and TCP port 53 from the p2pstream container to the authoritative nameservers. The error identifies the nameserver that did not return the expected record. |
-| TLS works but route fails | Add or fix **Proxy -> Routes** for the hostname. |
+| TLS works but route fails | Open the hostname's Site under **Proxy -> Sites**, check publication and listener assignments, and add or fix its route. |
 | Apex host not covered | `*.example.com` does not cover `example.com`; add a separate mapping if needed. |
 
 ## Next Steps

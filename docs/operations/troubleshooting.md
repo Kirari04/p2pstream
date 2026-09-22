@@ -119,11 +119,12 @@ ACME renewal logs use `component=public_acme`. Filter those entries and inspect 
 
 | Check | Fix |
 | --- | --- |
-| Listener | Route must belong to the listener receiving the request. |
-| Host pattern | Use exact host or `*.example.com`. |
+| Listener | The route's owning Site must have a Serve assignment on the incoming listener. |
+| Site state | Publish the Site and enable it. Drafts never receive traffic; disabled published Sites keep their claims and return `404`. |
+| Hostname | Check the Site's exact or one-label wildcard hostname. Exact Sites take precedence over wildcard Sites; otherwise the listener's Default Site is selected. |
 | Path prefix | Prefix must start with `/`. |
 | Priority | Lower numbers win. Put specific routes first. |
-| Default route | If no explicit route matches, the listener default route handles the request. |
+| Default route | If no path route matches, the selected Site's default route handles the request. A missing path never falls through to another Site. |
 
 ## Target Returns Bad Gateway
 

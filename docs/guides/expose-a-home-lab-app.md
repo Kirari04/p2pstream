@@ -61,7 +61,7 @@ Example:
      <figcaption>Agent labels are the bridge between connected workers and agent route targets. User labels are editable; system labels are read-only and can be copied for exact-agent targeting.</figcaption>
    </figure>
 
-5. Open **Proxy -> Routes**, select **Add Route** or a route's **Edit** action, then add an agent proxy target in the route drawer:
+5. Open **Proxy -> Sites** and create a draft Site for `ha.example.com`, assigned to `public-https`. Inside the open Site, select **Add first route** and add an agent proxy target in the nested route drawer:
 
    :::warning Origin resolution
    The origin URL is resolved from the **agent host**, not from the p2pstream server. Set it to whatever the agent host can reach — `localhost`, a LAN hostname, or an internal IP are all valid here.
@@ -85,15 +85,13 @@ Example:
 
    New agent targets use round-robin selection among matching agents by default. The public configuration API supports additional agent-selection policies; the redesigned route drawer retains an existing policy but does not currently expose a control to change it.
 
-6. Configure the route match:
+6. Configure the route's path match and save it to return to the Site. Hostnames and listeners come from the Site:
 
    | Field | Value |
    | --- | --- |
-   | Listener | `public-https` |
-   | Host pattern | `ha.example.com` |
    | Path prefix | `/` |
 
-7. Open **TLS**, select **Add Certificate**, and create an ACME certificate mapping for `ha.example.com`.
+7. Use the Site readiness summary, or **TLS -> Add Certificate**, to create an ACME certificate mapping for `ha.example.com` on `public-https`. Review readiness and select **Publish** in the Site workspace.
 
 ## Verification
 

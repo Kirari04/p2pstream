@@ -93,7 +93,8 @@ export function buildTrafficFlowGraph(input: {
   addNode({ key: "response", label: "Response", subLabel: "Client", column: 10, kind: "response", editTargets: [] });
 
   const listeners = input.config?.listeners ?? [];
-  const targets = input.config?.routeTargets ?? [];
+  const exposedRouteIds = new Set([...index.routesByListenerId.values()].flat().map((route) => route.id.toString()));
+  const targets = (input.config?.routeTargets ?? []).filter((target) => exposedRouteIds.has(target.routeId.toString()));
   const enabledRateLimitTargets = index.enabledRateLimitTargets;
   const enabledWafTargets = index.enabledWafTargets;
   const enabledCacheTargets = index.enabledCacheTargets;
@@ -166,32 +167,41 @@ export function buildTrafficFlowGraph(input: {
     if (showRateLimitNode) addEdge(rateEntryKey, RATE_LIMIT_KEY);
     if (showTrafficShaperNode) addEdge(shaperEntryKey, TRAFFIC_SHAPER_KEY);
 
-    const defaultRouteKey = listenerDefaultRouteKey(listener.id);
-    addNode({
-      key: defaultRouteKey,
-      label: "Default route",
-      subLabel: "Listener fallbacks",
-      column: 5,
-      kind: "route",
-      editTargets: [listenerEditTarget(listener.id, listener.name || `Listener ${listener.id.toString()}`, "Default target")],
-    });
-    addEdge(routeEntryKey, defaultRouteKey);
-    const defaultRoute = (index.routesByListenerId.get(listener.id.toString()) ?? []).find((route) => route.isDefault);
-    if (defaultRoute) {
-      for (const target of routeTargetAssignments(defaultRoute, index).filter((item) => item.enabled)) {
-        addEdge(defaultRouteKey, targetKey(target.id));
+    const listenerRoutes = index.routesByListenerId.get(listener.id.toString()) ?? [];
+    const standaloneRoutes = listenerRoutes.filter((route) => route.siteId === 0n);
+    if (standaloneRoutes.length) {
+      const defaultRouteKey = listenerDefaultRouteKey(listener.id);
+      const defaultRoute = standaloneRoutes.find((route) => route.isDefault);
+      addNode({
+        key: defaultRouteKey,
+        label: "Default route",
+        subLabel: "Listener-wide fallback",
+        column: 5,
+        kind: "route",
+        editTargets: defaultRoute ? [routeEditTarget(defaultRoute)] : [],
+      });
+      addEdge(routeEntryKey, defaultRouteKey);
+      if (defaultRoute && isRedirectRoute(defaultRoute)) {
+        addRedirectNode(defaultRoute, addNode);
+        addEdge(defaultRouteKey, redirectKey(defaultRoute.id));
+        addEdge(redirectKey(defaultRoute.id), "response", "intermediate-bypass");
+      } else if (defaultRoute) {
+        for (const target of routeTargetAssignments(defaultRoute, index).filter((item) => item.enabled)) {
+          addEdge(defaultRouteKey, targetKey(target.id));
+        }
+      } else {
+        addEdge(defaultRouteKey, "response", "agent-bypass");
       }
-    } else {
-      addEdge(defaultRouteKey, "response", "agent-bypass");
     }
 
-    for (const route of index.routesByListenerId.get(listener.id.toString()) ?? []) {
-      if (route.isDefault) continue;
+    for (const route of listenerRoutes) {
+      if (route.isDefault && route.siteId === 0n) continue;
       const key = routeKey(route.id);
+      const siteName = index.siteById.get(route.siteId.toString())?.name;
       addNode({
         key,
-        label: routeLabel(route.hostPattern, route.pathPrefix, route.id),
-        subLabel: `P${route.priority.toString()}`,
+        label: route.isDefault ? "Default path" : routeLabel(route.hostPattern, route.pathPrefix, route.id),
+        subLabel: [siteName, `P${route.priority.toString()}`].filter(Boolean).join(" · "),
         column: 5,
         kind: "route",
         editTargets: [routeEditTarget(route)],

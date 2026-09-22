@@ -94,11 +94,14 @@ jobs:
       - name: Build management UI
         run: cd web/management && bun run build
 
-      - name: Install update-test browser
+      - name: Install management-test browser
         run: cd web/management && bunx playwright install --with-deps chromium
 
       - name: Run isolated server update browser tests
         run: cd web/management && bun run e2e:updates
+
+      - name: Run isolated Site workspace browser tests
+        run: cd web/management && bun run e2e:sites
 
       - name: Build runtime image
         run: docker build --target runtime -t p2pstream:ci .

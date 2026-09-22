@@ -39,8 +39,8 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	cookie := createAdminSession(t, client)
 
 	cfg := getPublicProxyConfig(t, client, cookie)
-	if len(cfg.GetRouteTargets()) != 2 {
-		t.Fatalf("expected two seeded route targets, got %d", len(cfg.GetRouteTargets()))
+	if len(cfg.GetRouteTargets()) != 1 {
+		t.Fatalf("expected one seeded route target, got %d", len(cfg.GetRouteTargets()))
 	}
 	for _, target := range cfg.GetRouteTargets() {
 		if target.GetName() != "default" || !target.GetEnabled() {
@@ -75,11 +75,30 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 		!httpsListener.Enabled {
 		t.Fatalf("unexpected seeded HTTPS listener: %+v", httpsListener)
 	}
-	if len(cfg.Routes) != 2 {
-		t.Fatalf("expected two seeded routes, got %d", len(cfg.Routes))
+	if len(cfg.GetSites()) != 1 {
+		t.Fatalf("expected one seeded Site, got %d", len(cfg.GetSites()))
 	}
-	assertSeededWelcomeRoute(t, cfg, httpListener.GetId())
-	assertSeededWelcomeRoute(t, cfg, httpsListener.GetId())
+	welcomeSite := cfg.GetSites()[0]
+	if welcomeSite.GetName() != "welcome" || !welcomeSite.GetEnabled() || !welcomeSite.GetPublished() || !welcomeSite.GetDefaultSite() {
+		t.Fatalf("unexpected seeded welcome Site: %+v", welcomeSite)
+	}
+	if len(welcomeSite.GetListenerBindings()) != 2 {
+		t.Fatalf("expected two seeded welcome Site bindings, got %+v", welcomeSite.GetListenerBindings())
+	}
+	boundListeners := map[int64]bool{}
+	for _, binding := range welcomeSite.GetListenerBindings() {
+		if binding.GetBehavior() != p2pstreamv1.PublicSiteListenerBehavior_PUBLIC_SITE_LISTENER_BEHAVIOR_SERVE {
+			t.Fatalf("unexpected seeded welcome Site binding: %+v", binding)
+		}
+		boundListeners[binding.GetListenerId()] = true
+	}
+	if !boundListeners[httpListener.GetId()] || !boundListeners[httpsListener.GetId()] {
+		t.Fatalf("seeded welcome Site bindings do not cover both listeners: %+v", welcomeSite.GetListenerBindings())
+	}
+	if len(cfg.Routes) != 1 {
+		t.Fatalf("expected one seeded route, got %d", len(cfg.Routes))
+	}
+	assertSeededWelcomeRoute(t, cfg, welcomeSite.GetId())
 
 	if len(cfg.TlsCertificates) != 1 {
 		t.Fatalf("expected one seeded TLS certificate, got %d", len(cfg.TlsCertificates))
@@ -100,8 +119,8 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 	}
 
 	cfgAgain := getPublicProxyConfig(t, client, cookie)
-	if len(cfgAgain.Listeners) != 2 || len(cfgAgain.GetRouteTargets()) != 2 || len(cfgAgain.Routes) != 2 || len(cfgAgain.TlsCertificates) != 1 {
-		t.Fatalf("expected idempotent seed, got %d listeners, %d targets, %d routes, and %d TLS certs", len(cfgAgain.Listeners), len(cfgAgain.GetRouteTargets()), len(cfgAgain.Routes), len(cfgAgain.TlsCertificates))
+	if len(cfgAgain.Listeners) != 2 || len(cfgAgain.GetSites()) != 1 || len(cfgAgain.GetSites()[0].GetListenerBindings()) != 2 || len(cfgAgain.GetRouteTargets()) != 1 || len(cfgAgain.Routes) != 1 || len(cfgAgain.TlsCertificates) != 1 {
+		t.Fatalf("expected idempotent seed, got %d listeners, %d Sites, %d bindings, %d targets, %d routes, and %d TLS certs", len(cfgAgain.Listeners), len(cfgAgain.GetSites()), len(cfgAgain.GetSites()[0].GetListenerBindings()), len(cfgAgain.GetRouteTargets()), len(cfgAgain.Routes), len(cfgAgain.TlsCertificates))
 	}
 
 	if _, err := database.UpdatePublicListener(context.Background(), db.UpdatePublicListenerParams{
@@ -268,10 +287,10 @@ func TestPublicRouteTargetStaticConfigValidationAndReadback(t *testing.T) {
 	_, client := newTestManagementClient(t, app)
 	cookie := createAdminSession(t, client)
 	cfg := getPublicProxyConfig(t, client, cookie)
-	listener := publicListenerByName(t, cfg, "public-http")
+	siteID := publicSiteIDByName(t, cfg, "welcome")
 
 	invalidStatusReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId: listener.GetId(),
+		SiteId:     siteID,
 		Priority:   20,
 		PathPrefix: "/bad-status",
 		Enabled:    true,
@@ -288,7 +307,7 @@ func TestPublicRouteTargetStaticConfigValidationAndReadback(t *testing.T) {
 	}
 
 	invalidHeaderReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId: listener.GetId(),
+		SiteId:     siteID,
 		Priority:   30,
 		PathPrefix: "/bad-header",
 		Enabled:    true,
@@ -308,7 +327,7 @@ func TestPublicRouteTargetStaticConfigValidationAndReadback(t *testing.T) {
 	}
 
 	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId: listener.GetId(),
+		SiteId:     siteID,
 		Priority:   40,
 		PathPrefix: "/static-api",
 		Enabled:    true,
@@ -739,13 +758,26 @@ func publicListenerByName(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigRes
 	return nil
 }
 
-func assertSeededWelcomeRoute(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, listenerID int64) {
+func publicSiteIDByName(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, name string) *int64 {
+	t.Helper()
+	for _, site := range cfg.GetSites() {
+		if site.GetName() == name {
+			id := site.GetId()
+			return &id
+		}
+	}
+	t.Fatalf("Site %q not found in %+v", name, cfg.GetSites())
+	return nil
+}
+
+func assertSeededWelcomeRoute(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfigResponse, siteID int64) {
 	t.Helper()
 	for _, route := range cfg.Routes {
-		if route.GetListenerId() != listenerID {
+		if route.GetSiteId() != siteID {
 			continue
 		}
-		if route.GetPriority() != 1000 ||
+		if route.GetListenerId() != 0 ||
+			route.GetPriority() != 1000 ||
 			route.GetHostPattern() != "" ||
 			route.GetPathPrefix() != "/" ||
 			!route.GetIsDefault() ||
@@ -753,11 +785,11 @@ func assertSeededWelcomeRoute(t *testing.T, cfg *p2pstreamv1.GetPublicProxyConfi
 			!route.GetEnabled() ||
 			len(route.GetTargets()) != 1 ||
 			route.GetTargets()[0].GetTargetType() != p2pstreamv1.PublicRouteTargetType_PUBLIC_ROUTE_TARGET_TYPE_STATIC {
-			t.Fatalf("unexpected seeded route for listener %d: %+v", listenerID, route)
+			t.Fatalf("unexpected seeded route for Site %d: %+v", siteID, route)
 		}
 		return
 	}
-	t.Fatalf("seeded route for listener %d not found in %+v", listenerID, cfg.Routes)
+	t.Fatalf("seeded route for Site %d not found in %+v", siteID, cfg.Routes)
 }
 
 func publicListenerBoundAddress(t *testing.T, status *p2pstreamv1.ProxyStatus, listenerID int64) string {

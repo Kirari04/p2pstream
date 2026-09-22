@@ -79,7 +79,7 @@ type publicSiteAuthorityContext struct {
 }
 
 func validatePublicSiteAuthorityStage(ctx *publicProxyContext) publicProxyStageResult {
-	if ctx == nil || ctx.Request == nil || ctx.Snapshot == nil || len(ctx.Snapshot.SiteHostsByListener[ctx.ListenerID]) == 0 {
+	if ctx == nil || ctx.Request == nil || ctx.Snapshot == nil || (len(ctx.Snapshot.SiteHostsByListener[ctx.ListenerID]) == 0 && len(ctx.Snapshot.SiteBindingsByListener[ctx.ListenerID]) == 0 && ctx.Snapshot.DefaultSiteByListener[ctx.ListenerID].SiteID == 0) {
 		return publicProxyStageContinue
 	}
 	hostname, err := parsePublicSiteRequestAuthority(ctx.Request.Host)
@@ -97,7 +97,7 @@ func validatePublicSiteAuthorityStage(ctx *publicProxyContext) publicProxyStageR
 	// Only a managed binding claims and canonicalizes the authority. Do this
 	// before any managed-host rejection so event and trace data use the same
 	// canonical host as routing, policy, cache, and authentication.
-	_, hostManaged := matchPublicSiteHost(ctx.Snapshot.SiteHostsByListener[ctx.ListenerID], hostname)
+	_, _, hostManaged := matchPublicSiteForListener(ctx.Snapshot, ctx.ListenerID, hostname)
 	if hostManaged {
 		ctx.Request.Host = hostname
 	}
@@ -115,7 +115,7 @@ func validatePublicSiteAuthorityStage(ctx *publicProxyContext) publicProxyStageR
 			sni, sniErr = normalizePublicSiteRequestHostname(serverName)
 			sniValid = sniErr == nil
 		}
-		_, sniManaged := matchPublicSiteHost(ctx.Snapshot.SiteHostsByListener[ctx.ListenerID], sni)
+		_, _, sniManaged := matchPublicSiteForListener(ctx.Snapshot, ctx.ListenerID, sni)
 		if (hostManaged || sniManaged) && (!sniValid || (serverName == "" && net.ParseIP(hostname) == nil) || (serverName != "" && sni != hostname)) {
 			http.Error(ctx.ResponseWriter, "misdirected request", http.StatusMisdirectedRequest)
 			ctx.App.recordProxyRequestEventWithIDsAndContext(context.Background(), http.StatusMisdirectedRequest, time.Since(ctx.StartedAt), "site_sni_host_mismatch", sql.NullInt64{Int64: ctx.ListenerID, Valid: true}, sql.NullInt64{}, sql.NullInt64{}, ctx.Observability.requestBytesValue(), ctx.Observability.responseBytesValue(), ctx.RequestContext)

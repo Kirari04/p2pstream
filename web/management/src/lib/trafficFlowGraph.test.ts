@@ -4,12 +4,14 @@ import {
   PublicRouteRedirectTargetMode,
   PublicRouteTargetTransport,
   PublicRouteTargetType,
+  PublicSiteListenerBehavior,
   TrafficTraceStage,
   type Agent,
   type GetPublicProxyConfigResponse,
   type PublicListener,
   type PublicRoute,
   type PublicRouteTarget,
+  type PublicSite,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   CACHE_KEY,
@@ -28,6 +30,33 @@ import { newTraceRequest } from "@/lib/trafficTraceStore";
 import type { TraceRequest } from "@/types/trafficTrace";
 
 describe("trafficFlowGraph", () => {
+  test("shared Site routes connect to Serve listeners and keep each Site default distinct", () => {
+    const shared = site({ id: 7n, name: "Application" });
+    const fallback = site({ id: 8n, name: "Fallback", defaultSite: true });
+    const draft = site({ id: 9n, published: false });
+    const config = configWith({
+      listeners: [listener(), { ...listener(), id: 2n }, { ...listener(), id: 3n }],
+      sites: [shared, fallback, draft],
+      routes: [
+        route({ id: 11n, siteId: 7n, isDefault: true }),
+        route({ id: 12n, siteId: 8n, isDefault: true }),
+        route({ id: 13n, siteId: 9n }),
+      ],
+      routeTargets: [routeTarget({ id: 21n, routeId: 11n }), routeTarget({ id: 22n, routeId: 13n })],
+    });
+    const layout = buildLayout(config, []);
+    const edges = edgeKeys(layout.edges);
+    expect(edges).toContain(`${listenerKey(1n)}->${routeKey(11n)}`);
+    expect(edges).toContain(`${listenerKey(2n)}->${routeKey(11n)}`);
+    expect(edges).toContain(`${listenerKey(1n)}->${routeKey(12n)}`);
+    expect(edges).not.toContain(`${listenerKey(3n)}->${routeKey(11n)}`);
+    expect(layout.nodeByKey.get(routeKey(11n))?.subLabel).toContain("Application");
+    expect(layout.nodeByKey.get(routeKey(12n))?.subLabel).toContain("Fallback");
+    expect(layout.nodeByKey.has(routeKey(13n))).toBe(false);
+    expect(layout.nodeByKey.has(targetKey(22n))).toBe(false);
+    expect(edges).toContain(`${routeKey(11n)}->${targetKey(21n)}`);
+  });
+
   test("generates listener, route, and target nodes from config", () => {
     const config = configWith({
       listeners: [listener()],
@@ -227,6 +256,7 @@ function route(overrides: Partial<PublicRoute>): PublicRoute {
     $typeName: "p2pstream.v1.PublicRoute",
     id: 0n,
     listenerId: 0n,
+    siteId: 0n,
     priority: 100n,
     hostPattern: "",
     pathPrefix: "",
@@ -242,6 +272,21 @@ function route(overrides: Partial<PublicRoute>): PublicRoute {
     targets: [],
     ...overrides,
   } as PublicRoute;
+}
+
+function site(overrides: Partial<PublicSite>): PublicSite {
+  return {
+    id: 0n,
+    name: "Site",
+    enabled: true,
+    published: true,
+    listenerBindings: [
+      { listenerId: 1n, behavior: PublicSiteListenerBehavior.SERVE },
+      { listenerId: 2n, behavior: PublicSiteListenerBehavior.SERVE },
+      { listenerId: 3n, behavior: PublicSiteListenerBehavior.REDIRECT_HTTPS, redirectListenerId: 2n },
+    ],
+    ...overrides,
+  } as PublicSite;
 }
 
 function routeTarget(overrides: Partial<PublicRouteTarget>): PublicRouteTarget {

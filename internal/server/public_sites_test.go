@@ -69,12 +69,13 @@ func TestPublicSiteRoutingIsolatedAndNeverFallsThrough(t *testing.T) {
 	legacyTarget := publicRouteTargetConfig{ID: 20, RouteID: 10, Enabled: true, TargetType: publicRouteTargetTypeStatic}
 	siteTarget := publicRouteTargetConfig{ID: 21, RouteID: 11, Enabled: true, TargetType: publicRouteTargetTypeStatic}
 	snap := &publicProxySnapshot{
-		Listeners:           map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP}},
-		Sites:               map[int64]publicSiteConfig{2: {ID: 2, ListenerID: 1, Enabled: true, PrimaryHostname: "app.example.com"}},
-		SiteHostsByListener: map[int64][]publicSiteHostConfig{1: {{SiteID: 2, ListenerID: 1, HostnamePattern: "app.example.com", Primary: true, Behavior: publicSiteHostBehaviorServe}}},
+		Listeners:              map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP}},
+		Sites:                  map[int64]publicSiteConfig{2: {ID: 2, Enabled: true, Published: true, CanonicalHostname: "app.example.com", PrimaryHostname: "app.example.com"}},
+		SiteBindingsByListener: map[int64][]publicSiteListenerBindingConfig{1: {{SiteID: 2, ListenerID: 1, Behavior: publicSiteListenerBehaviorServe}}},
+		SiteHostsByListener:    map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "app.example.com", Primary: true, Behavior: publicSiteHostBehaviorServe}}},
 		RoutesByListener: map[int64][]publicRouteConfig{1: {
 			{ID: 10, ListenerID: 1, Priority: 1, PathPrefix: "/", Enabled: true, Targets: []publicRouteTargetConfig{legacyTarget}},
-			{ID: 11, ListenerID: 1, SiteID: 2, Priority: 10, PathPrefix: "/managed", Enabled: true, Targets: []publicRouteTargetConfig{siteTarget}},
+			{ID: 11, SiteID: 2, Priority: 10, PathPrefix: "/managed", Enabled: true, Targets: []publicRouteTargetConfig{siteTarget}},
 		}},
 		RouteTargets: map[int64]publicRouteTargetConfig{20: legacyTarget, 21: siteTarget},
 	}
@@ -107,10 +108,11 @@ func TestPublicSiteRoutingIsolatedAndNeverFallsThrough(t *testing.T) {
 func TestPublicSiteRejectsMalformedAuthorityAndSNIMismatch(t *testing.T) {
 	target := publicRouteTargetConfig{ID: 21, RouteID: 11, Enabled: true, TargetType: publicRouteTargetTypeStatic}
 	snap := &publicProxySnapshot{
-		Listeners:           map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTPS}},
-		Sites:               map[int64]publicSiteConfig{2: {ID: 2, ListenerID: 1, Enabled: true, PrimaryHostname: "app.example.com"}},
-		SiteHostsByListener: map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "app.example.com", Primary: true, Behavior: publicSiteHostBehaviorServe}}},
-		RoutesByListener:    map[int64][]publicRouteConfig{1: {{ID: 11, ListenerID: 1, SiteID: 2, IsDefault: true, Enabled: true, Targets: []publicRouteTargetConfig{target}}}},
+		Listeners:              map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTPS}},
+		Sites:                  map[int64]publicSiteConfig{2: {ID: 2, Enabled: true, Published: true, CanonicalHostname: "app.example.com", PrimaryHostname: "app.example.com"}},
+		SiteBindingsByListener: map[int64][]publicSiteListenerBindingConfig{1: {{SiteID: 2, ListenerID: 1, Behavior: publicSiteListenerBehaviorServe}}},
+		SiteHostsByListener:    map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "app.example.com", Primary: true, Behavior: publicSiteHostBehaviorServe}}},
+		RoutesByListener:       map[int64][]publicRouteConfig{1: {{ID: 11, SiteID: 2, IsDefault: true, Enabled: true, Targets: []publicRouteTargetConfig{target}}}},
 	}
 	app := NewApp(nil, nil)
 	malformed := httptest.NewRequest(http.MethodGet, "https://app.example.com/", nil)
@@ -142,7 +144,8 @@ func assertMisdirectedAuthorityStage(t *testing.T, app *App, snap *publicProxySn
 
 func TestManagedSNIMismatchPrecedesWAFReservedEndpoint(t *testing.T) {
 	target := publicRouteTargetConfig{ID: 21, RouteID: 11, Enabled: true, TargetType: publicRouteTargetTypeStatic}
-	snap := &publicProxySnapshot{Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTPS}}, Sites: map[int64]publicSiteConfig{2: {ID: 2, ListenerID: 1, Enabled: true, PrimaryHostname: "app.example.com"}}, SiteHostsByListener: map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "app.example.com", Primary: true, Behavior: publicSiteHostBehaviorServe}}}, RoutesByListener: map[int64][]publicRouteConfig{1: {{ID: 11, SiteID: 2, Enabled: true, IsDefault: true, Targets: []publicRouteTargetConfig{target}}}}}
+	snap := &publicProxySnapshot{Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTPS}}, Sites: map[int64]publicSiteConfig{2: {ID: 2, Enabled: true, Published: true, CanonicalHostname: "app.example.com", PrimaryHostname: "app.example.com"}}, SiteBindingsByListener: map[int64][]publicSiteListenerBindingConfig{1: {{SiteID: 2, ListenerID: 1, Behavior: publicSiteListenerBehaviorServe}}},
+		SiteHostsByListener: map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "app.example.com", Primary: true, Behavior: publicSiteHostBehaviorServe}}}, RoutesByListener: map[int64][]publicRouteConfig{1: {{ID: 11, SiteID: 2, Enabled: true, IsDefault: true, Targets: []publicRouteTargetConfig{target}}}}}
 	app := NewApp(nil, nil)
 	setPublicSnapshotForTest(t, app, snap)
 	req := httptest.NewRequest(http.MethodGet, "https://app.example.com"+publicWafCaptchaVerifyPath, nil)
@@ -156,10 +159,11 @@ func TestManagedSNIMismatchPrecedesWAFReservedEndpoint(t *testing.T) {
 
 func TestPublicSiteAliasRedirectUsesStoredPrimaryAndPreservesRequest(t *testing.T) {
 	listener := publicListenerConfig{ID: 1, Protocol: publicListenerProtocolHTTPS, Port: 8443}
-	site := publicSiteConfig{ID: 2, ListenerID: 1, Enabled: true, PrimaryHostname: "primary.example.com"}
+	site := publicSiteConfig{ID: 2, Enabled: true, Published: true, CanonicalHostname: "primary.example.com", PrimaryHostname: "primary.example.com"}
 	snap := &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{1: listener}, Sites: map[int64]publicSiteConfig{2: site},
-		SiteHostsByListener: map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "alias.example.net", Behavior: publicSiteHostBehaviorRedirect}}},
+		SiteBindingsByListener: map[int64][]publicSiteListenerBindingConfig{1: {{SiteID: 2, ListenerID: 1, Behavior: publicSiteListenerBehaviorServe}}},
+		SiteHostsByListener:    map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "alias.example.net", Behavior: publicSiteHostBehaviorRedirect}}},
 	}
 	req := httptest.NewRequest(http.MethodPost, "https://alias.example.net/a/b?x=1", strings.NewReader("body"))
 	req.TLS = &tls.ConnectionState{ServerName: "alias.example.net"}
@@ -206,6 +210,7 @@ func TestPublicSiteCRUDIsAtomicAndOldRouteUpdatePreservesBinding(t *testing.T) {
 	}
 	defer database.Close()
 	app := NewApp(nil, database)
+	defer app.CloseObservabilityRecorder(context.Background())
 	header := createTestAdminSession(t, app)
 	listener, err := database.CreatePublicListener(context.Background(), db.CreatePublicListenerParams{Name: "http", Port: 8080, Protocol: publicListenerProtocolHTTP, Enabled: 1})
 	if err != nil {
@@ -237,6 +242,8 @@ func TestPublicSiteCRUDIsAtomicAndOldRouteUpdatePreservesBinding(t *testing.T) {
 		t.Fatalf("route site = %d", routeResponse.Msg.Route.SiteId)
 	}
 
+	siteWorkspacePublish(t, app, header.Get("Cookie"), siteID)
+
 	// Simulate an older API client: omitted optional site_id must not detach.
 	updateRoute := connect.NewRequest(&p2pstreamv1.UpdatePublicRouteRequest{Id: routeResponse.Msg.Route.Id, ListenerId: listener.ID, Priority: 11, IsDefault: true, Enabled: true, Action: p2pstreamv1.PublicRouteAction_PUBLIC_ROUTE_ACTION_REDIRECT, RedirectTargetMode: p2pstreamv1.PublicRouteRedirectTargetMode_PUBLIC_ROUTE_REDIRECT_TARGET_MODE_SAME_HOST_PATH, RedirectTarget: "/ok", RedirectStatusCode: 302, RedirectPreserveQuery: true})
 	updateRoute.Header().Set("Cookie", header.Get("Cookie"))
@@ -253,9 +260,11 @@ func TestPublicSiteCRUDIsAtomicAndOldRouteUpdatePreservesBinding(t *testing.T) {
 		t.Fatalf("rename primary: %v", err)
 	}
 	storedRoute, err := database.GetPublicRoute(context.Background(), routeResponse.Msg.Route.Id)
-	if err != nil || storedRoute.HostPattern != "new.example.com" {
-		t.Fatalf("route primary after rename = %q, err=%v", storedRoute.HostPattern, err)
+	if err != nil || storedRoute.HostPattern != "" || storedRoute.ListenerID != 0 {
+		t.Fatalf("Site-owned route retained listener/hostname state: %+v, err=%v", storedRoute, err)
 	}
+	siteWorkspaceResponse(t, app, listener.ID, "new.example.com", "/", 302, "/ok")
+	siteWorkspaceResponse(t, app, listener.ID, "www.example.com", "/old?q=1", 308, "http://new.example.com:8080/old?q=1")
 
 	deleteSite := connect.NewRequest(&p2pstreamv1.DeletePublicSiteRequest{Id: siteID})
 	deleteSite.Header().Set("Cookie", header.Get("Cookie"))
@@ -270,9 +279,11 @@ func TestPublicSiteCRUDIsAtomicAndOldRouteUpdatePreservesBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create other site: %v", err)
 	}
+	siteWorkspaceRoute(t, app, header.Get("Cookie"), other.Msg.Site.Id, "", "/other", true)
+	siteWorkspacePublish(t, app, header.Get("Cookie"), other.Msg.Site.Id)
 	conflict := connect.NewRequest(&p2pstreamv1.UpdatePublicSiteRequest{Id: other.Msg.Site.Id, ListenerId: listener.ID, Name: "other", Enabled: true, Hosts: []*p2pstreamv1.PublicSiteHostInput{{HostnamePattern: "other.example.com", Primary: true}, {HostnamePattern: "www.example.com"}}})
 	conflict.Header().Set("Cookie", header.Get("Cookie"))
-	if _, err := app.UpdatePublicSite(context.Background(), conflict); connect.CodeOf(err) != connect.CodeAlreadyExists {
+	if _, err := app.UpdatePublicSite(context.Background(), conflict); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("conflict code = %v, err=%v", connect.CodeOf(err), err)
 	}
 	hosts, err := database.ListPublicSiteHostsBySite(context.Background(), other.Msg.Site.Id)
@@ -282,7 +293,8 @@ func TestPublicSiteCRUDIsAtomicAndOldRouteUpdatePreservesBinding(t *testing.T) {
 }
 
 func TestPublicSiteAuthorityStageCanonicalizesEveryDownstreamView(t *testing.T) {
-	snap := &publicProxySnapshot{SiteHostsByListener: map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "xn--bcher-kva.example"}}}}
+	snap := &publicProxySnapshot{SiteBindingsByListener: map[int64][]publicSiteListenerBindingConfig{1: {{SiteID: 2, ListenerID: 1, Behavior: publicSiteListenerBehaviorServe}}},
+		SiteHostsByListener: map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "xn--bcher-kva.example"}}}}
 	app := NewApp(nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
 	req.Host = "BÜCHER.example:8080"
@@ -303,8 +315,9 @@ func TestPublicSiteAuthorityStageCanonicalizesEveryDownstreamView(t *testing.T) 
 
 func TestPublicSiteAuthorityStageCanonicalizesManagedHostBeforeSNIRejection(t *testing.T) {
 	snap := &publicProxySnapshot{
-		Listeners:           map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTPS}},
-		SiteHostsByListener: map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "xn--bcher-kva.example"}}},
+		Listeners:              map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTPS}},
+		SiteBindingsByListener: map[int64][]publicSiteListenerBindingConfig{1: {{SiteID: 2, ListenerID: 1, Behavior: publicSiteListenerBehaviorServe}}},
+		SiteHostsByListener:    map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "xn--bcher-kva.example"}}},
 	}
 	app := NewApp(nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "https://example.test/", nil)
@@ -457,7 +470,8 @@ func TestManualCertificateWithUnavailableMaterialCanBeDisabled(t *testing.T) {
 
 func TestUnmanagedUnicodeHostKeepsLegacySemanticsWithUnrelatedSite(t *testing.T) {
 	target := publicRouteTargetConfig{ID: 2, RouteID: 1, Enabled: true, TargetType: publicRouteTargetTypeStatic}
-	snap := &publicProxySnapshot{Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP}}, Sites: map[int64]publicSiteConfig{2: {ID: 2, ListenerID: 1, Enabled: true, PrimaryHostname: "other.example.com"}}, SiteHostsByListener: map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "other.example.com", Primary: true, Behavior: publicSiteHostBehaviorServe}}}, RoutesByListener: map[int64][]publicRouteConfig{1: {{ID: 1, ListenerID: 1, HostPattern: "bücher.example", Enabled: true, Targets: []publicRouteTargetConfig{target}}}}}
+	snap := &publicProxySnapshot{Listeners: map[int64]publicListenerConfig{1: {ID: 1, Protocol: publicListenerProtocolHTTP}}, Sites: map[int64]publicSiteConfig{2: {ID: 2, Enabled: true, Published: true, CanonicalHostname: "other.example.com", PrimaryHostname: "other.example.com"}}, SiteBindingsByListener: map[int64][]publicSiteListenerBindingConfig{1: {{SiteID: 2, ListenerID: 1, Behavior: publicSiteListenerBehaviorServe}}},
+		SiteHostsByListener: map[int64][]publicSiteHostConfig{1: {{SiteID: 2, HostnamePattern: "other.example.com", Primary: true, Behavior: publicSiteHostBehaviorServe}}}, RoutesByListener: map[int64][]publicRouteConfig{1: {{ID: 1, ListenerID: 1, HostPattern: "bücher.example", Enabled: true, Targets: []publicRouteTargetConfig{target}}}}}
 	req := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
 	req.Host = "BÜCHER.example"
 	ctx := newPublicProxyContext(NewApp(nil, nil), 1, httptest.NewRecorder(), req)

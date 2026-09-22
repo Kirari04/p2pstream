@@ -36,7 +36,7 @@ Use an agent-selected target when multiple hosts can reach the same upstream, or
      <figcaption>Use shared labels for pools and the reserved exact-agent label only when a route must pin traffic to one specific registered agent.</figcaption>
    </figure>
 
-4. Open **Proxy -> Routes**, select **Add Route** or a route's **Edit** action, then add an agent proxy target in the route drawer:
+4. Open the relevant Site under **Proxy -> Sites**, select **Add route** or a route's **Edit** action, then add an agent proxy target in the nested route drawer:
 
    | Field | Value |
    | --- | --- |

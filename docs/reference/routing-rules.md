@@ -1,35 +1,30 @@
 # Routing Rules Reference
 
-Routes belong to listeners and are evaluated only for traffic received by that listener.
+Routes belong to Sites. A request first selects a Site from the incoming listener and hostname, then evaluates that Site's shared route list.
 
-In the management UI, choose **Proxy -> Routes**. The Routes tab presents compact rows for route and match, action and targets, priority and state, and actions. Choose **Add Route** to open the route drawer; existing rows expose edit, clone, and delete actions. Choose **Proxy -> Listeners** to manage the incoming endpoints those routes belong to.
+Configure routes from **Proxy → Sites**. Open or create a Site and use its route section to add, edit, clone, order, enable, disable, or delete routes. New routes are bound to the open Site automatically.
 
-## Route Fields And Defaults
+Existing standalone listener routes may remain active after an upgrade until they complete the revision-bound migration described in [Sites](./sites#migrating-standalone-routes). They cannot be created through the normal Site workflow.
 
-A non-default Legacy route requires at least one of:
-
-- host pattern,
-- path prefix.
-
-A Site-owned route may use an empty path prefix to match the Site root because its hostname scope comes from the Site.
+## Route fields and defaults
 
 | Field | Rule |
 | --- | --- |
-| `listener_id` | Required. Route is scoped to this listener. |
-| `site_id` | Optional Site scope. On create, omission makes a Legacy listener-wide rule. On update, omission preserves the current binding; send explicit `0` to detach to Legacy. |
-| `priority` | Lower numbers evaluate first. |
-| `host_pattern` | Exact host or wildcard subdomain. |
-| `path_prefix` | Must start with `/` when set. |
-| `path_security_mode` | Defaults to `strict`. Use `allow_encoded_separators` only for upstreams that require encoded `/` or `\` path identifiers. |
+| `site_id` | Required for Site route creation. It identifies the owning Site. |
+| `priority` | Lower numbers evaluate first. Route ID breaks a tie. |
+| `path_prefix` | Must start with `/` when set. An empty path matches within the owning Site. |
+| `path_security_mode` | Defaults to `strict`. Use `allow_encoded_separators` only for an upstream that requires encoded `/` or `\` identifiers. |
 | `access_policy_id` | Optional reusable identity policy. Requests fail closed when its provider or policy is unavailable. |
 | `action` | `forward` or `redirect`; defaults to forward when unspecified. |
 | `target_load_balancing` | Defaults to round-robin for forward target pools. |
-| `is_default` | Marks the selected scope's default. Each Site may have one; Legacy routes share one listener-wide default. |
-| `redirect_status_code` | Defaults to `302` when unset. |
+| `is_default` | Handles path misses inside the owning Site. A Site can have one default route. |
+| `redirect_status_code` | `301`, `302`, `307`, or `308`; defaults to `302` when unset. |
 | `redirect_preserve_path_suffix` | Defaults enabled. |
 | `redirect_preserve_query` | Defaults enabled. |
 
-## Target Fields
+Hostname matching belongs to the Site. A Site-owned route does not define a separate host pattern or listener scope. All Serve listener assignments use the same route paths and targets.
+
+## Target fields
 
 Forward routes require at least one enabled target.
 
@@ -42,7 +37,7 @@ Forward routes require at least one enabled target.
 | `priority_group` | Lowest available group is selected; higher groups are failover. |
 | `weight` | `1` to `1000000`; defaults to `100`. |
 | `agent_load_balancing` | Agent selection policy for agent targets. |
-| `tls_skip_verify` | Disables upstream certificate verification for this target; use only for a deliberately trusted private origin. |
+| `tls_skip_verify` | Disables upstream certificate verification for a deliberately trusted private origin. |
 | `upstream_response_header_timeout_millis` | Defaults to `60000`. |
 | `upstream_request_headers` | Ordered headers added to upstream requests. Sensitive values are write-only and returned as saved-state metadata. |
 | `upstream_basic_auth` | Optional upstream username and write-only password. |
@@ -50,102 +45,54 @@ Forward routes require at least one enabled target.
 | `static_status_code` | Local status returned by a static target. |
 | `static_response_headers` | Headers returned by a static target. |
 | `static_response_body_mode` | Inline body or generic response template. |
-| `static_response_template_id` | Generic template selected when template mode is active. |
+| `static_response_template_id` | Generic template selected in template mode. |
 
 Static targets use `static_status_code`, `static_response_headers`, and either inline body text or a generic response template.
 
-Agent labels are configured in the **Edit Agent** drawer. Labels under `p2pstream.io/` are system-owned. Use `p2pstream.io/agent-id=<agent public ID>` for exact-agent targeting. Empty selector values are allowed and match only agents with the same empty label value.
+Agent labels are configured in the **Edit Agent** drawer. Labels under `p2pstream.io/` are system-owned. Use `p2pstream.io/agent-id=<agent public ID>` for exact-agent targeting. Empty selector values match only agents with the same empty label value.
 
-### Current Management UI Coverage
+Sensitive header values and basic-auth passwords remain write-only. An ordinary saved edit preserves their saved state. Cloning cannot copy masked values: the clone retains enabled basic authentication but blocks saving until its password is re-entered, and each masked sensitive header needs a new value. A cloned route also starts with its default-route flag cleared so it cannot silently replace the Site's current default.
 
-The route drawer currently exposes route matching, path security, route-level target balancing, redirects, and these target controls:
+## Path matching and defaults
 
-- target name, type, priority group, weight, and enabled state;
-- proxy URL, Direct or Agent transport, response-header timeout, and TLS verification;
-- exact-agent or label selectors for Agent transport;
-- status and inline body for Static targets.
+Routes are sorted by priority ascending, then route ID ascending. p2pstream selects the first enabled non-default route whose path prefix matches. If none matches, it selects the Site's enabled default route. With no match, the selected Site returns `404`; it does not try another Site.
 
-The management API and runtime also support upstream request headers, upstream basic authentication, health checks, per-target agent load balancing, static response headers, and template-backed static bodies. Those fields are loaded and preserved during an ordinary edit but are not currently rendered by the route drawer, so use the management API to review saved-state metadata or configure them. Secret values remain write-only. Do not infer from the drawer that an existing hidden setting is absent. Cloning a route cannot carry forward redacted header or basic-auth secrets; set new secrets through the API.
+| Priority | Path | Result |
+| --- | --- | --- |
+| `10` | `/api` | Checked first inside the selected Site. |
+| `20` | `/` | Broad path fallback inside the same Site. |
+| default | empty | Used only when no non-default path route matches. |
 
-## Validation Rules
+A listener's Default Site handles an unmatched hostname. A Site's default route handles an unmatched path. These are independent settings.
 
-| Pattern | Matches |
-| --- | --- |
-| `app.example.com` | exactly `app.example.com` |
-| `*.example.com` | `app.example.com`, `media.example.com` |
-
-Wildcard patterns do not match the apex `example.com`.
-
-Redirect routes require target mode, target, and status code `301`, `302`, `307`, or `308`.
-
-## Path Security
+## Path security
 
 Every route has a path security mode:
 
 | Mode | Behavior |
 | --- | --- |
 | `strict` | Rejects request targets containing encoded path separators such as `%2F` or `%5C` before WAF, rate limits, traffic shaping, cache, or forwarding. |
-| `allow_encoded_separators` | Allows encoded separators for compatibility with upstreams that use encoded path IDs, such as GitLab project paths. Shared cache bypasses encoded-separator requests on these routes. |
+| `allow_encoded_separators` | Allows encoded separators for compatibility with upstreams that use encoded path IDs. Shared cache bypasses these requests. |
 
 Decoded `.` and `..` path segments and raw literal backslashes are always rejected on public listeners. Encoded dots inside ordinary segment names, such as `/files/v1%2e2/readme`, are allowed; encoded dots that decode to a whole `.` or `..` segment are rejected.
 
-The compatibility mode is route-scoped so only the backend that needs encoded separators receives them. WAF, rate-limit, and traffic-shaper path matching still use p2pstream's decoded request path model, so avoid relying on decoded slash boundaries for routes that enable encoded separators.
+WAF, rate-limit, and traffic-shaper path matching use p2pstream's decoded request path model. Keep route-specific policy simple when enabling encoded-separator compatibility.
 
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream route drawer showing listener, host pattern, path prefix, path security, action, targets, and priority">
-  <figcaption>The route drawer defines the listener-scoped match, path security, action, priority, and forward target pool or redirect settings.</figcaption>
-</figure>
+## Runtime effects
 
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_direct_route_modal.png" alt="p2pstream route drawer showing a direct upstream target">
-  <figcaption>Direct proxy targets are used when the p2pstream server itself can reach the upstream origin.</figcaption>
-</figure>
-
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_agent_route_target_modal.png" alt="p2pstream route drawer showing an agent-selected proxy target with label selectors">
-  <figcaption>Agent proxy targets select a connected agent by labels and dial the origin from that agent's network.</figcaption>
-</figure>
-
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_redirect_route_modal.png" alt="p2pstream route drawer showing redirect action, destination, status, path-suffix, and query-preservation settings">
-  <figcaption>Redirect routes return a local redirect response without selecting a route target.</figcaption>
-</figure>
-
-<figure class="doc-screenshot">
-  <img src="../assets/new/proxy_static_response_target_modal.png" alt="p2pstream route drawer showing the currently available static target controls for status and inline body">
-  <figcaption>Static response targets can return a local status, headers, and inline or template-backed body without forwarding upstream. The current drawer exposes status and inline body; configure response headers or a generic response template through the management API.</figcaption>
-</figure>
-
-## Runtime Effects
-
-Site-owned routes are evaluated only after the request Host claims that Site. A claimed Site hostname never falls through to legacy routes or another Site when no path matches. See [Sites and Domain Aliases](./sites).
-
-Routes are sorted by priority ascending, then route ID ascending within the selected scope. For a claimed Site hostname, its Site default handles a path miss. For Legacy scope, the listener-wide default handles a miss.
-
-Default-route uniqueness follows the same boundary: each Site may have one default route, while Legacy routes share one listener-wide default.
-
-p2pstream performs a lightweight route match before WAF, rate limits, access control, and traffic shapers to determine the matched route's path security mode and access policy. Target selection and load-balancer accounting still happen after those policy layers.
+p2pstream performs a lightweight Site and route match before WAF, rate limits, access control, and traffic shapers to determine path security and access policy. This pass does not select a target or advance load-balancer state. Target selection still happens after those policy layers.
 
 An assigned access policy applies to forward, static, and redirect routes. Protected routes bypass shared cache. See [Identity-Aware Access](./access-control).
 
-At request time, disabled targets, unhealthy targets, invalid target configs, and unavailable agent selector matches are skipped. p2pstream selects from the lowest available priority group. If no target is usable, the response is `503`.
+At request time, disabled targets, unhealthy targets, invalid target configurations, and unavailable agent selector matches are skipped. p2pstream selects from the lowest available priority group. If no target is usable, the response is `503`.
 
-When target health checks are enabled, connection and timeout failures mark the selected target or target-agent path temporarily unhealthy for later requests. The original request is not replayed to another target.
+When health checks are enabled, connection and timeout failures mark the selected target or target-agent path temporarily unhealthy for later requests. The original request is not replayed to another target.
 
 After a route and target are selected, cache rules may serve eligible proxy `GET` or `HEAD` requests. Redirect routes and static targets are not cached.
 
-## Example
+## Related tasks
 
-Specific route before broad fallback:
-
-| Priority | Host | Path | Target |
-| --- | --- | --- | --- |
-| `10` | `app.example.com` | `/api` | `api-direct` |
-| `20` | `app.example.com` | `/` | `app-agent` |
-| default | empty | `/` | `welcome-static` |
-
-## Related Tasks
-
+- [Sites](./sites)
 - [Publish a service](../guides/publish-a-service)
 - [Redirects and static responses](../guides/redirects-and-static-responses)
 - [Troubleshooting route matching](../operations/troubleshooting#route-does-not-match)

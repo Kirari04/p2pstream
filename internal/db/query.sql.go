@@ -1044,25 +1044,35 @@ func (q *Queries) CreatePublicRouteTargetUpstreamHeader(ctx context.Context, arg
 }
 
 const createPublicSite = `-- name: CreatePublicSite :one
-INSERT INTO public_sites (listener_id, name, enabled)
-VALUES (?, ?, ?)
-RETURNING id, listener_id, name, enabled, created_at, updated_at
+INSERT INTO public_sites (name, enabled, published, default_site, canonical_hostname)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, name, enabled, published, default_site, canonical_hostname, created_at, updated_at
 `
 
 type CreatePublicSiteParams struct {
-	ListenerID int64  `json:"listener_id"`
-	Name       string `json:"name"`
-	Enabled    int64  `json:"enabled"`
+	Name              string `json:"name"`
+	Enabled           int64  `json:"enabled"`
+	Published         int64  `json:"published"`
+	DefaultSite       int64  `json:"default_site"`
+	CanonicalHostname string `json:"canonical_hostname"`
 }
 
 func (q *Queries) CreatePublicSite(ctx context.Context, arg CreatePublicSiteParams) (PublicSite, error) {
-	row := q.db.QueryRowContext(ctx, createPublicSite, arg.ListenerID, arg.Name, arg.Enabled)
+	row := q.db.QueryRowContext(ctx, createPublicSite,
+		arg.Name,
+		arg.Enabled,
+		arg.Published,
+		arg.DefaultSite,
+		arg.CanonicalHostname,
+	)
 	var i PublicSite
 	err := row.Scan(
 		&i.ID,
-		&i.ListenerID,
 		&i.Name,
 		&i.Enabled,
+		&i.Published,
+		&i.DefaultSite,
+		&i.CanonicalHostname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1070,14 +1080,13 @@ func (q *Queries) CreatePublicSite(ctx context.Context, arg CreatePublicSitePara
 }
 
 const createPublicSiteHost = `-- name: CreatePublicSiteHost :one
-INSERT INTO public_site_hosts (site_id, listener_id, hostname_pattern, role, behavior)
-VALUES (?, ?, ?, ?, ?)
-RETURNING id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at
+INSERT INTO public_site_hosts (site_id, hostname_pattern, role, behavior)
+VALUES (?, ?, ?, ?)
+RETURNING id, site_id, hostname_pattern, role, behavior, created_at, updated_at
 `
 
 type CreatePublicSiteHostParams struct {
 	SiteID          int64  `json:"site_id"`
-	ListenerID      int64  `json:"listener_id"`
 	HostnamePattern string `json:"hostname_pattern"`
 	Role            string `json:"role"`
 	Behavior        string `json:"behavior"`
@@ -1086,7 +1095,6 @@ type CreatePublicSiteHostParams struct {
 func (q *Queries) CreatePublicSiteHost(ctx context.Context, arg CreatePublicSiteHostParams) (PublicSiteHost, error) {
 	row := q.db.QueryRowContext(ctx, createPublicSiteHost,
 		arg.SiteID,
-		arg.ListenerID,
 		arg.HostnamePattern,
 		arg.Role,
 		arg.Behavior,
@@ -1095,10 +1103,46 @@ func (q *Queries) CreatePublicSiteHost(ctx context.Context, arg CreatePublicSite
 	err := row.Scan(
 		&i.ID,
 		&i.SiteID,
-		&i.ListenerID,
 		&i.HostnamePattern,
 		&i.Role,
 		&i.Behavior,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicSiteListenerBinding = `-- name: CreatePublicSiteListenerBinding :one
+INSERT INTO public_site_listener_bindings (
+    site_id, listener_id, behavior, redirect_listener_id, redirect_hostname
+)
+VALUES (?, ?, ?, ?, ?)
+RETURNING site_id, listener_id, behavior, redirect_listener_id, redirect_hostname, created_at, updated_at
+`
+
+type CreatePublicSiteListenerBindingParams struct {
+	SiteID             int64         `json:"site_id"`
+	ListenerID         int64         `json:"listener_id"`
+	Behavior           string        `json:"behavior"`
+	RedirectListenerID sql.NullInt64 `json:"redirect_listener_id"`
+	RedirectHostname   string        `json:"redirect_hostname"`
+}
+
+func (q *Queries) CreatePublicSiteListenerBinding(ctx context.Context, arg CreatePublicSiteListenerBindingParams) (PublicSiteListenerBinding, error) {
+	row := q.db.QueryRowContext(ctx, createPublicSiteListenerBinding,
+		arg.SiteID,
+		arg.ListenerID,
+		arg.Behavior,
+		arg.RedirectListenerID,
+		arg.RedirectHostname,
+	)
+	var i PublicSiteListenerBinding
+	err := row.Scan(
+		&i.SiteID,
+		&i.ListenerID,
+		&i.Behavior,
+		&i.RedirectListenerID,
+		&i.RedirectHostname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -2022,6 +2066,16 @@ WHERE site_id = ?
 
 func (q *Queries) DeletePublicSiteHosts(ctx context.Context, siteID int64) error {
 	_, err := q.db.ExecContext(ctx, deletePublicSiteHosts, siteID)
+	return err
+}
+
+const deletePublicSiteListenerBindings = `-- name: DeletePublicSiteListenerBindings :exec
+DELETE FROM public_site_listener_bindings
+WHERE site_id = ?
+`
+
+func (q *Queries) DeletePublicSiteListenerBindings(ctx context.Context, siteID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePublicSiteListenerBindings, siteID)
 	return err
 }
 
@@ -3070,7 +3124,7 @@ func (q *Queries) GetPublicRouteTarget(ctx context.Context, id int64) (PublicRou
 }
 
 const getPublicSite = `-- name: GetPublicSite :one
-SELECT id, listener_id, name, enabled, created_at, updated_at
+SELECT id, name, enabled, published, default_site, canonical_hostname, created_at, updated_at
 FROM public_sites
 WHERE id = ?
 `
@@ -3080,9 +3134,11 @@ func (q *Queries) GetPublicSite(ctx context.Context, id int64) (PublicSite, erro
 	var i PublicSite
 	err := row.Scan(
 		&i.ID,
-		&i.ListenerID,
 		&i.Name,
 		&i.Enabled,
+		&i.Published,
+		&i.DefaultSite,
+		&i.CanonicalHostname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -3564,6 +3620,19 @@ func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxy
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const isPublicListenerSiteMigrated = `-- name: IsPublicListenerSiteMigrated :one
+SELECT EXISTS(
+    SELECT 1 FROM public_site_migrated_listeners WHERE listener_id = ?
+)
+`
+
+func (q *Queries) IsPublicListenerSiteMigrated(ctx context.Context, listenerID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, isPublicListenerSiteMigrated, listenerID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const listAgentConnectionsSince = `-- name: ListAgentConnectionsSince :many
@@ -5712,9 +5781,9 @@ func (q *Queries) ListPublicRoutes(ctx context.Context) ([]PublicRoute, error) {
 }
 
 const listPublicSiteHosts = `-- name: ListPublicSiteHosts :many
-SELECT id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at
+SELECT id, site_id, hostname_pattern, role, behavior, created_at, updated_at
 FROM public_site_hosts
-ORDER BY listener_id ASC, hostname_pattern ASC, id ASC
+ORDER BY site_id ASC, hostname_pattern ASC, id ASC
 `
 
 func (q *Queries) ListPublicSiteHosts(ctx context.Context) ([]PublicSiteHost, error) {
@@ -5729,7 +5798,6 @@ func (q *Queries) ListPublicSiteHosts(ctx context.Context) ([]PublicSiteHost, er
 		if err := rows.Scan(
 			&i.ID,
 			&i.SiteID,
-			&i.ListenerID,
 			&i.HostnamePattern,
 			&i.Role,
 			&i.Behavior,
@@ -5750,7 +5818,7 @@ func (q *Queries) ListPublicSiteHosts(ctx context.Context) ([]PublicSiteHost, er
 }
 
 const listPublicSiteHostsBySite = `-- name: ListPublicSiteHostsBySite :many
-SELECT id, site_id, listener_id, hostname_pattern, role, behavior, created_at, updated_at
+SELECT id, site_id, hostname_pattern, role, behavior, created_at, updated_at
 FROM public_site_hosts
 WHERE site_id = ?
 ORDER BY CASE role WHEN 'primary' THEN 0 ELSE 1 END, hostname_pattern ASC, id ASC
@@ -5768,7 +5836,6 @@ func (q *Queries) ListPublicSiteHostsBySite(ctx context.Context, siteID int64) (
 		if err := rows.Scan(
 			&i.ID,
 			&i.SiteID,
-			&i.ListenerID,
 			&i.HostnamePattern,
 			&i.Role,
 			&i.Behavior,
@@ -5788,10 +5855,85 @@ func (q *Queries) ListPublicSiteHostsBySite(ctx context.Context, siteID int64) (
 	return items, nil
 }
 
+const listPublicSiteListenerBindings = `-- name: ListPublicSiteListenerBindings :many
+SELECT site_id, listener_id, behavior, redirect_listener_id, redirect_hostname, created_at, updated_at
+FROM public_site_listener_bindings
+ORDER BY listener_id ASC, site_id ASC
+`
+
+func (q *Queries) ListPublicSiteListenerBindings(ctx context.Context) ([]PublicSiteListenerBinding, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicSiteListenerBindings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicSiteListenerBinding
+	for rows.Next() {
+		var i PublicSiteListenerBinding
+		if err := rows.Scan(
+			&i.SiteID,
+			&i.ListenerID,
+			&i.Behavior,
+			&i.RedirectListenerID,
+			&i.RedirectHostname,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicSiteListenerBindingsBySite = `-- name: ListPublicSiteListenerBindingsBySite :many
+SELECT site_id, listener_id, behavior, redirect_listener_id, redirect_hostname, created_at, updated_at
+FROM public_site_listener_bindings
+WHERE site_id = ?
+ORDER BY listener_id ASC
+`
+
+func (q *Queries) ListPublicSiteListenerBindingsBySite(ctx context.Context, siteID int64) ([]PublicSiteListenerBinding, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicSiteListenerBindingsBySite, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PublicSiteListenerBinding
+	for rows.Next() {
+		var i PublicSiteListenerBinding
+		if err := rows.Scan(
+			&i.SiteID,
+			&i.ListenerID,
+			&i.Behavior,
+			&i.RedirectListenerID,
+			&i.RedirectHostname,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicSites = `-- name: ListPublicSites :many
-SELECT id, listener_id, name, enabled, created_at, updated_at
+SELECT id, name, enabled, published, default_site, canonical_hostname, created_at, updated_at
 FROM public_sites
-ORDER BY listener_id ASC, name ASC, id ASC
+ORDER BY name ASC, id ASC
 `
 
 func (q *Queries) ListPublicSites(ctx context.Context) ([]PublicSite, error) {
@@ -5805,9 +5947,11 @@ func (q *Queries) ListPublicSites(ctx context.Context) ([]PublicSite, error) {
 		var i PublicSite
 		if err := rows.Scan(
 			&i.ID,
-			&i.ListenerID,
 			&i.Name,
 			&i.Enabled,
+			&i.Published,
+			&i.DefaultSite,
+			&i.CanonicalHostname,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -6665,6 +6809,17 @@ func (q *Queries) MarkAgentsWithOpenConnectionsDisconnectedAt(ctx context.Contex
 	return err
 }
 
+const markPublicListenerSiteMigrated = `-- name: MarkPublicListenerSiteMigrated :exec
+INSERT INTO public_site_migrated_listeners (listener_id)
+VALUES (?)
+ON CONFLICT(listener_id) DO UPDATE SET migrated_at = CURRENT_TIMESTAMP
+`
+
+func (q *Queries) MarkPublicListenerSiteMigrated(ctx context.Context, listenerID int64) error {
+	_, err := q.db.ExecContext(ctx, markPublicListenerSiteMigrated, listenerID)
+	return err
+}
+
 const purgeAllPublicCacheEntries = `-- name: PurgeAllPublicCacheEntries :many
 DELETE FROM public_cache_entries
 RETURNING key_digest, body_path, size_bytes
@@ -6980,6 +7135,34 @@ func (q *Queries) SetPublicListenerEnabled(ctx context.Context, arg SetPublicLis
 		&i.Port,
 		&i.Protocol,
 		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setPublicSitePublished = `-- name: SetPublicSitePublished :one
+UPDATE public_sites
+SET published = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, enabled, published, default_site, canonical_hostname, created_at, updated_at
+`
+
+type SetPublicSitePublishedParams struct {
+	Published int64 `json:"published"`
+	ID        int64 `json:"id"`
+}
+
+func (q *Queries) SetPublicSitePublished(ctx context.Context, arg SetPublicSitePublishedParams) (PublicSite, error) {
+	row := q.db.QueryRowContext(ctx, setPublicSitePublished, arg.Published, arg.ID)
+	var i PublicSite
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Enabled,
+		&i.Published,
+		&i.DefaultSite,
+		&i.CanonicalHostname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -8376,31 +8559,35 @@ func (q *Queries) UpdatePublicRouteTarget(ctx context.Context, arg UpdatePublicR
 
 const updatePublicSite = `-- name: UpdatePublicSite :one
 UPDATE public_sites
-SET listener_id = ?, name = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+SET name = ?, enabled = ?, default_site = ?, canonical_hostname = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, listener_id, name, enabled, created_at, updated_at
+RETURNING id, name, enabled, published, default_site, canonical_hostname, created_at, updated_at
 `
 
 type UpdatePublicSiteParams struct {
-	ListenerID int64  `json:"listener_id"`
-	Name       string `json:"name"`
-	Enabled    int64  `json:"enabled"`
-	ID         int64  `json:"id"`
+	Name              string `json:"name"`
+	Enabled           int64  `json:"enabled"`
+	DefaultSite       int64  `json:"default_site"`
+	CanonicalHostname string `json:"canonical_hostname"`
+	ID                int64  `json:"id"`
 }
 
 func (q *Queries) UpdatePublicSite(ctx context.Context, arg UpdatePublicSiteParams) (PublicSite, error) {
 	row := q.db.QueryRowContext(ctx, updatePublicSite,
-		arg.ListenerID,
 		arg.Name,
 		arg.Enabled,
+		arg.DefaultSite,
+		arg.CanonicalHostname,
 		arg.ID,
 	)
 	var i PublicSite
 	err := row.Scan(
 		&i.ID,
-		&i.ListenerID,
 		&i.Name,
 		&i.Enabled,
+		&i.Published,
+		&i.DefaultSite,
+		&i.CanonicalHostname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

@@ -756,12 +756,50 @@ message PublicSiteHost {
 
 message PublicSite {
   int64 id = 1;
+  // Compatibility summary only. The lowest listener binding ID is returned,
+  // or zero when the Site is unbound. listener_bindings is authoritative.
   int64 listener_id = 2;
   string name = 3;
   bool enabled = 4;
   repeated PublicSiteHost hosts = 5;
   int64 created_at_unix_millis = 6;
   int64 updated_at_unix_millis = 7;
+  bool published = 8;
+  bool default_site = 9;
+  string canonical_hostname = 10;
+  repeated PublicSiteListenerBinding listener_bindings = 11;
+  repeated PublicSiteReadinessItem readiness = 12;
+}
+
+enum PublicSiteListenerBehavior {
+  PUBLIC_SITE_LISTENER_BEHAVIOR_UNSPECIFIED = 0;
+  PUBLIC_SITE_LISTENER_BEHAVIOR_SERVE = 1;
+  PUBLIC_SITE_LISTENER_BEHAVIOR_REDIRECT_HTTPS = 2;
+}
+
+message PublicSiteListenerBinding {
+  int64 listener_id = 1;
+  PublicSiteListenerBehavior behavior = 2;
+  int64 redirect_listener_id = 3;
+  string redirect_hostname = 4;
+}
+
+enum PublicSiteReadinessSeverity {
+  PUBLIC_SITE_READINESS_SEVERITY_UNSPECIFIED = 0;
+  PUBLIC_SITE_READINESS_SEVERITY_BLOCKER = 1;
+  PUBLIC_SITE_READINESS_SEVERITY_WARNING = 2;
+  PUBLIC_SITE_READINESS_SEVERITY_INFO = 3;
+  PUBLIC_SITE_READINESS_SEVERITY_UNKNOWN = 4;
+}
+
+message PublicSiteReadinessItem {
+  string code = 1;
+  PublicSiteReadinessSeverity severity = 2;
+  string message = 3;
+  int64 listener_id = 4;
+  int64 route_id = 5;
+  string hostname = 6;
+  string action = 7;
 }
 
 message PublicAccessProvider {
@@ -1490,26 +1528,107 @@ message PublicSiteHostInput {
 }
 
 message CreatePublicSiteRequest {
+  // Compatibility input. Used as a single Serve binding only when
+  // listener_bindings is empty.
   int64 listener_id = 1;
   string name = 2;
   bool enabled = 3;
   repeated PublicSiteHostInput hosts = 4;
+  repeated PublicSiteListenerBinding listener_bindings = 5;
+  bool default_site = 6;
+  string canonical_hostname = 7;
 }
 
 message CreatePublicSiteResponse { PublicSite site = 1; }
 
 message UpdatePublicSiteRequest {
   int64 id = 1;
+  // Compatibility input. Used as a single Serve binding only when
+  // listener_bindings is empty.
   int64 listener_id = 2;
   string name = 3;
   bool enabled = 4;
   repeated PublicSiteHostInput hosts = 5;
+  repeated PublicSiteListenerBinding listener_bindings = 6;
+  bool default_site = 7;
+  string canonical_hostname = 8;
 }
 
 message UpdatePublicSiteResponse { PublicSite site = 1; }
 
 message DeletePublicSiteRequest { int64 id = 1; }
 message DeletePublicSiteResponse {}
+
+message PublishPublicSiteRequest { int64 id = 1; }
+message PublishPublicSiteResponse { PublicSite site = 1; }
+
+enum PublicSiteMigrationSeverity {
+  PUBLIC_SITE_MIGRATION_SEVERITY_UNSPECIFIED = 0;
+  PUBLIC_SITE_MIGRATION_SEVERITY_WARNING = 1;
+  PUBLIC_SITE_MIGRATION_SEVERITY_BLOCKER = 2;
+}
+
+enum PublicSiteMigrationHostnameMode {
+  PUBLIC_SITE_MIGRATION_HOSTNAME_MODE_UNSPECIFIED = 0;
+  PUBLIC_SITE_MIGRATION_HOSTNAME_MODE_SPECIFIC = 1;
+  PUBLIC_SITE_MIGRATION_HOSTNAME_MODE_DEFAULT = 2;
+}
+
+message PreviewPublicSiteMigrationRequest { repeated int64 listener_ids = 1; }
+
+message PublicSiteMigrationRouteCopy {
+  int64 source_route_id = 1;
+  string destination_group_key = 2;
+  string reason = 3;
+}
+
+message PublicSiteMigrationGroup {
+  string key = 1;
+  int64 listener_id = 2;
+  string listener_name = 3;
+  string proposed_site_name = 4;
+  PublicSiteMigrationHostnameMode hostname_mode = 5;
+  repeated string hostname_patterns = 6;
+  repeated int64 source_route_ids = 7;
+  repeated PublicSiteMigrationRouteCopy route_copies = 8;
+  bool preserves_route_ids = 9;
+}
+
+message PublicSiteMigrationIssue {
+  string code = 1;
+  PublicSiteMigrationSeverity severity = 2;
+  int64 listener_id = 3;
+  repeated int64 route_ids = 4;
+  string summary = 5;
+  string detail = 6;
+  bool requires_acknowledgement = 7;
+}
+
+message PreviewPublicSiteMigrationResponse {
+  string revision = 1;
+  repeated PublicSiteMigrationGroup groups = 2;
+  repeated PublicSiteMigrationIssue issues = 3;
+  bool can_apply = 4;
+}
+
+message ApplyPublicSiteMigrationRequest {
+  string revision = 1;
+  repeated int64 listener_ids = 2;
+  repeated string accepted_warning_codes = 3;
+}
+
+message PublicSiteMigrationRouteMapping {
+  int64 source_route_id = 1;
+  int64 destination_site_id = 2;
+  int64 destination_route_id = 3;
+  bool copied = 4;
+}
+
+message ApplyPublicSiteMigrationResponse {
+  string revision = 1;
+  repeated PublicSite created_sites = 2;
+  repeated PublicSiteMigrationRouteMapping mappings = 3;
+}
 
 message UpdatePublicRouteResponse {
   PublicRoute route = 1;
@@ -3266,7 +3385,10 @@ service AgentManagementService {
   rpc StopPublicListener(StopPublicListenerRequest) returns (StopPublicListenerResponse) {}
   rpc CreatePublicSite(CreatePublicSiteRequest) returns (CreatePublicSiteResponse) {}
   rpc UpdatePublicSite(UpdatePublicSiteRequest) returns (UpdatePublicSiteResponse) {}
+  rpc PublishPublicSite(PublishPublicSiteRequest) returns (PublishPublicSiteResponse) {}
   rpc DeletePublicSite(DeletePublicSiteRequest) returns (DeletePublicSiteResponse) {}
+  rpc PreviewPublicSiteMigration(PreviewPublicSiteMigrationRequest) returns (PreviewPublicSiteMigrationResponse) {}
+  rpc ApplyPublicSiteMigration(ApplyPublicSiteMigrationRequest) returns (ApplyPublicSiteMigrationResponse) {}
   rpc CreatePublicRoute(CreatePublicRouteRequest) returns (CreatePublicRouteResponse) {}
   rpc UpdatePublicRoute(UpdatePublicRouteRequest) returns (UpdatePublicRouteResponse) {}
   rpc DeletePublicRoute(DeletePublicRouteRequest) returns (DeletePublicRouteResponse) {}

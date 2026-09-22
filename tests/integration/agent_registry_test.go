@@ -148,10 +148,10 @@ func TestAgentSelectorRouteTargetAPIValidationAndReadback(t *testing.T) {
 	}
 
 	cfg := getPublicProxyConfig(t, client, cookie)
-	listener := publicListenerByName(t, cfg, "public-http")
+	siteID := publicSiteIDByName(t, cfg, "welcome")
 
 	invalidReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId: listener.GetId(),
+		SiteId:     siteID,
 		Priority:   10,
 		PathPrefix: "/invalid-agent-target",
 		Enabled:    true,
@@ -169,7 +169,7 @@ func TestAgentSelectorRouteTargetAPIValidationAndReadback(t *testing.T) {
 	}
 
 	createReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId:          listener.GetId(),
+		SiteId:              siteID,
 		Priority:            20,
 		PathPrefix:          "/api-agent-target",
 		Enabled:             true,
@@ -212,7 +212,7 @@ func TestAgentSelectorRouteTargetAPIValidationAndReadback(t *testing.T) {
 	}
 
 	exactReq := connect.NewRequest(&p2pstreamv1.CreatePublicRouteRequest{
-		ListenerId: listener.GetId(),
+		SiteId:     siteID,
 		Priority:   30,
 		PathPrefix: "/exact-agent-target",
 		Enabled:    true,
