@@ -81,6 +81,8 @@ type publicACMEManager struct {
 	tlsChallenges  map[string]*tls.Certificate
 }
 
+var errPublicACMEHostnameCanonicalizationSuperseded = errors.New("ACME certificate configuration changed while canonicalizing its hostname")
+
 type publicACMEIssueConfig struct {
 	CertificateID int64
 	ListenerID    int64
@@ -433,6 +435,12 @@ func (m *publicACMEManager) issueCertificate(ctx context.Context, certID int64, 
 	}
 	cert, err = m.canonicalizeCertificateHostname(ctx, cert)
 	if err != nil {
+		if errors.Is(err, errPublicACMEHostnameCanonicalizationSuperseded) {
+			publicACMELogCertificate(log.Info(), cert, trigger, publicACMEStageIssueConfig).
+				Time("attempt_at", attemptAt).
+				Msg("ACME certificate renewal skipped because its configuration changed")
+			return
+		}
 		m.markIssueFailed(ctx, cert, trigger, attemptAt, publicACMEStageWrap(publicACMEStageIssueConfig, err))
 		return
 	}
@@ -578,7 +586,7 @@ func (m *publicACMEManager) canonicalizeCertificateHostname(ctx context.Context,
 		return cert, fmt.Errorf("confirm canonical ACME hostname update: %w", err)
 	}
 	if rows != 1 {
-		return cert, errors.New("ACME certificate configuration changed while canonicalizing its hostname")
+		return cert, errPublicACMEHostnameCanonicalizationSuperseded
 	}
 	updated, err := m.app.DB.GetPublicTlsCertificate(ctx, cert.ID)
 	if err != nil {

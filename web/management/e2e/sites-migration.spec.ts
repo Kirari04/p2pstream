@@ -40,7 +40,10 @@ test("reviews explicit route copies and migrates only selected listeners", async
         hostnamePatterns: ["app.example.test"], sourceRouteIds: ["97011"],
         routeCopies: [{ sourceRouteId: "97012", destinationGroupKey: "application", reason: "Preserve the listener-wide fallback" }],
       }],
-      issues: blocked ? [{ code: "legacy_wildcard_semantics", severity: "PUBLIC_SITE_MIGRATION_SEVERITY_BLOCKER", listenerId: blockedId, routeIds: ["97013"], summary: "Wildcard route needs review", detail: "Review wildcard depth before migrating this listener." }] : [{
+      issues: blocked ? [
+        { code: "legacy_wildcard_semantics", severity: "PUBLIC_SITE_MIGRATION_SEVERITY_BLOCKER", listenerId: blockedId, routeIds: ["97013"], summary: "Wildcard route needs review", detail: "Review wildcard depth before migrating this listener." },
+        { code: "strict_authority_parsing", severity: "PUBLIC_SITE_MIGRATION_SEVERITY_WARNING", listenerId: listener.id, routeIds: ["97011", "97012"], summary: "Site authority parsing is stricter", detail: "Sites reject malformed authorities and canonicalize DNS names.", requiresAcknowledgement: true },
+      ] : [{
         code: "strict_authority_parsing", severity: "PUBLIC_SITE_MIGRATION_SEVERITY_WARNING",
         listenerId: listener.id, routeIds: ["97011", "97012"], summary: "Site authority parsing is stricter",
         detail: "Sites reject malformed authorities and canonicalize DNS names.", requiresAcknowledgement: true,
@@ -64,6 +67,10 @@ test("reviews explicit route copies and migrates only selected listeners", async
   await expect(panel.getByRole("alert")).toContainText("1 blocker must be resolved");
   await expect(panel.getByText("Resolve before migration", { exact: true })).toBeVisible();
   await expect(panel.getByText("*.example.test · /", { exact: true })).toBeVisible();
+  const issues = panel.locator(".migration-issue");
+  await expect(issues).toHaveCount(2);
+  await expect(issues.nth(0)).toContainText("Blocker");
+  await expect(issues.nth(1)).toContainText("Warning");
   await expect(panel.getByRole("button", { name: "Apply migration", exact: true })).toBeDisabled();
   await panel.getByRole("checkbox", { name: "Needs wildcard review", exact: true }).uncheck();
   await expect(panel.getByText("Blocked", { exact: true })).toHaveCount(0);

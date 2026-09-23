@@ -481,8 +481,12 @@ watch(tlsDnsCredentials, () => {
               </NButton>
             </div>
           </div>
-          <div v-if="cert.lastError" class="tls-table__row-note" role="cell">
-            <p class="error-text">Last error: {{ cert.lastError }}</p>
+          <div
+            v-if="cert.lastError || tlsCertificateHostnameGuidance(cert)"
+            class="tls-table__row-note"
+            role="cell"
+          >
+            <p v-if="cert.lastError" class="error-text">Last error: {{ cert.lastError }}</p>
             <p
               v-if="tlsCertificateHostnameGuidance(cert)"
               class="margin-top-xs base-text"

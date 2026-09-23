@@ -395,6 +395,36 @@ func TestPublicACMECanonicalizesExistingInternationalizedMapping(t *testing.T) {
 	}
 }
 
+func TestPublicACMECanonicalizationDoesNotOverwriteConcurrentEdit(t *testing.T) {
+	database := newServerTestDB(t)
+	listener := seedServerHTTPSListener(t, database)
+	stale, err := database.CreatePublicTlsCertificate(context.Background(), db.CreatePublicTlsCertificateParams{
+		ListenerID:      listener.ID,
+		HostnamePattern: "züribadi.ch",
+		Enabled:         1,
+		Source:          publicTLSCertificateSourceACME,
+		Status:          publicTLSCertificateStatusError,
+		LastError:       "existing diagnostic",
+	})
+	if err != nil {
+		t.Fatalf("create legacy mapping: %v", err)
+	}
+	if _, err := database.ExecContext(context.Background(), `UPDATE public_tls_certificates SET hostname_pattern = ? WHERE id = ?`, "edited.example", stale.ID); err != nil {
+		t.Fatalf("simulate concurrent edit: %v", err)
+	}
+	manager := newPublicACMEManager(NewApp(&config.Config{}, database))
+	if _, err := manager.canonicalizeCertificateHostname(context.Background(), stale); !errors.Is(err, errPublicACMEHostnameCanonicalizationSuperseded) {
+		t.Fatalf("canonicalize stale mapping error = %v", err)
+	}
+	persisted, err := database.GetPublicTlsCertificate(context.Background(), stale.ID)
+	if err != nil {
+		t.Fatalf("reload mapping: %v", err)
+	}
+	if persisted.HostnamePattern != "edited.example" || persisted.LastError != "existing diagnostic" {
+		t.Fatalf("concurrent edit was changed: %+v", persisted)
+	}
+}
+
 func TestPublicSelfSignedCertificateGenerationUsesHostPatternSAN(t *testing.T) {
 	_, _, wildcardLeaf, err := generatePublicSelfSignedCertificatePEM("*.Example.COM", 24*time.Hour)
 	if err != nil {
