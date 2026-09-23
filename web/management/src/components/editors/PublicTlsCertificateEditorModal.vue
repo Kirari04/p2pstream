@@ -165,8 +165,14 @@ function openFor(listenerId: bigint | string = "", hostnamePattern = "") {
     )
     .sort(
       (left, right) =>
-        Number(left.hostnamePattern !== hostnamePattern) -
-        Number(right.hostnamePattern !== hostnamePattern),
+        Number(
+          asciiHostnamePattern(left.hostnamePattern) !==
+            asciiHostnamePattern(hostnamePattern),
+        ) -
+        Number(
+          asciiHostnamePattern(right.hostnamePattern) !==
+            asciiHostnamePattern(hostnamePattern),
+        ),
     )[0];
   form.id = certificate?.id.toString() ?? "";
   form.listenerId = httpsListeners.value.some(
