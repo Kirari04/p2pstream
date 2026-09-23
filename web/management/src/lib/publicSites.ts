@@ -6,6 +6,7 @@ import {
   type PublicSite,
   type PublicSiteHost,
 } from "@/gen/proto/p2pstream/v1/management_pb";
+import { asciiHostnamePattern } from "@/lib/idnHostnames";
 
 export type SiteAliasForm = {
   id: string;
@@ -268,7 +269,7 @@ export function hostnamePatternValidationReason(
 }
 
 function normalizedHostnameKey(value: string): string {
-  return value.trim().toLowerCase().replace(/\.$/u, "");
+  return asciiHostnamePattern(value.trim().toLowerCase().replace(/\.$/u, ""));
 }
 
 function isIPLiteral(value: string): boolean {
