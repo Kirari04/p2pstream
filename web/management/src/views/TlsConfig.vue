@@ -13,6 +13,7 @@ import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { displayHostnamePattern } from "@/lib/idnHostnames";
 import {
   acmeChallengeTypeForMethod,
   dnsCredentialName,
@@ -212,7 +213,7 @@ function editTlsCertificate(certId: bigint) {
   if (!cert) return;
   tlsForm.id = cert.id.toString();
   tlsForm.listenerId = cert.listenerId.toString();
-  tlsForm.hostnamePattern = cert.hostnamePattern;
+  tlsForm.hostnamePattern = displayHostnamePattern(cert.hostnamePattern);
   tlsForm.method = tlsMethodForCertificate(cert);
   tlsForm.manualMode = tlsForm.method === "manual" ? "upload" : "generate";
   tlsForm.selfSignedValidityDays = 3650;
@@ -435,7 +436,7 @@ watch(tlsDnsCredentials, () => {
           role="row"
         >
           <div class="tls-table__cell tls-table__identity" data-label="Mapping" role="cell">
-            <strong>{{ cert.hostnamePattern }}</strong>
+            <strong :title="cert.hostnamePattern">{{ displayHostnamePattern(cert.hostnamePattern) }}</strong>
             <span>{{ listenerName(cert.listenerId, listeners) }}</span>
           </div>
           <div class="tls-table__cell" data-label="Certificate" role="cell">

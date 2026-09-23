@@ -32,6 +32,10 @@ import {
   diagnosticInspectionText,
 } from "@/lib/diagnosticText";
 import {
+  displayHostnamePattern,
+  displayMigratedSiteName,
+} from "@/lib/idnHostnames";
+import {
   bindLabel,
   listenerRuntimeState,
   listenerStateLabel,
@@ -681,7 +685,7 @@ async function deleteSite(site: PublicSite) {
                     class="site-table__name"
                     dir="auto"
                     :title="diagnosticInspectionText(site.name)"
-                    >{{ diagnosticExcerpt(site.name, 48).text }}</bdi
+                    >{{ diagnosticExcerpt(displayMigratedSiteName(site.name), 48).text }}</bdi
                   >
                   <span class="mono-text copy-xs muted-text"
                     >#{{ site.id.toString() }}</span
@@ -696,10 +700,15 @@ async function deleteSite(site: PublicSite) {
                   <span class="site-table__host-role">{{
                     site.defaultSite ? "Default" : "Named"
                   }}</span>
-                  <bdi class="mono-text copy-xs clip-text" dir="ltr">{{
+                  <bdi
+                    class="mono-text copy-xs clip-text"
+                    dir="ltr"
+                    :title="site.canonicalHostname || undefined"
+                    >{{
                     site.defaultSite
                       ? "Any unmatched hostname"
-                      : site.canonicalHostname || "No canonical hostname"
+                      : displayHostnamePattern(site.canonicalHostname) ||
+                        "No canonical hostname"
                   }}</bdi>
                 </div>
                 <div
@@ -712,7 +721,7 @@ async function deleteSite(site: PublicSite) {
                     class="site-table__alias"
                     :title="host.hostnamePattern"
                   >
-                    <bdi dir="ltr">{{ host.hostnamePattern }}</bdi>
+                    <bdi dir="ltr">{{ displayHostnamePattern(host.hostnamePattern) }}</bdi>
                     <span aria-hidden="true">{{
                       host.behavior === PublicSiteHostBehavior.REDIRECT
                         ? "redirect"

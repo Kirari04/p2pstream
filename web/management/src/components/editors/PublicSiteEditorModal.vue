@@ -34,6 +34,7 @@ import {
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { displayHostnamePattern } from "@/lib/idnHostnames";
 import { editorDrawerWidth, naiveTagType } from "@/lib/naiveUi";
 import {
   protocolLabel,
@@ -198,10 +199,10 @@ function populateForm(site: PublicSite) {
   form.name = site.name;
   form.enabled = site.enabled;
   form.defaultSite = site.defaultSite;
-  form.canonicalHostname = site.canonicalHostname;
+  form.canonicalHostname = displayHostnamePattern(site.canonicalHostname);
   form.hostnames = site.hosts.map((host) => ({
     id: host.id.toString(),
-    hostnamePattern: host.hostnamePattern,
+    hostnamePattern: displayHostnamePattern(host.hostnamePattern),
     behavior: host.behavior || PublicSiteHostBehavior.SERVE,
   }));
   const bindings = site.listenerBindings.length
@@ -221,7 +222,7 @@ function populateForm(site: PublicSite) {
     listenerId: binding.listenerId.toString(),
     behavior: binding.behavior || PublicSiteListenerBehavior.SERVE,
     redirectListenerId: binding.redirectListenerId.toString(),
-    redirectHostname: binding.redirectHostname,
+    redirectHostname: displayHostnamePattern(binding.redirectHostname),
   }));
   routeSaveNotice.value = "";
 }
