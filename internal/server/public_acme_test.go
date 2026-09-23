@@ -320,6 +320,81 @@ func TestPublicTLSCertificateValidationAllowsWildcardOnlyForDNS01(t *testing.T) 
 	}
 }
 
+func TestPublicTLSCertificateValidationCanonicalizesInternationalizedHostname(t *testing.T) {
+	database := newServerTestDB(t)
+	listener := seedServerHTTPSListener(t, database)
+	credential, err := database.CreatePublicTlsDnsCredential(context.Background(), db.CreatePublicTlsDnsCredentialParams{
+		Name:             "cf-idna",
+		Provider:         publicDNSProviderCloudflare,
+		CloudflareZoneID: "zone",
+		ApiToken:         "token",
+		Enabled:          1,
+	})
+	if err != nil {
+		t.Fatalf("create credential: %v", err)
+	}
+	app := NewApp(&config.Config{}, database)
+	params, _, err := app.validatePublicTLSCertificateInput(
+		context.Background(),
+		listener.ID,
+		"ZÜRIBADI.ch.",
+		"",
+		"",
+		nil,
+		nil,
+		true,
+		p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_ACME,
+		p2pstreamv1.PublicAcmeChallengeType_PUBLIC_ACME_CHALLENGE_TYPE_DNS_01,
+		p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_LETS_ENCRYPT_STAGING,
+		"admin@example.com",
+		credential.ID,
+		false,
+		0,
+		nil,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("validate internationalized hostname: %v", err)
+	}
+	if params.HostnamePattern != "xn--zribadi-n2a.ch" {
+		t.Fatalf("canonical hostname = %q", params.HostnamePattern)
+	}
+}
+
+func TestPublicACMECanonicalizesExistingInternationalizedMapping(t *testing.T) {
+	database := newServerTestDB(t)
+	listener := seedServerHTTPSListener(t, database)
+	row, err := database.CreatePublicTlsCertificate(context.Background(), db.CreatePublicTlsCertificateParams{
+		ListenerID:        listener.ID,
+		HostnamePattern:   "züribadi.ch",
+		Enabled:           1,
+		Source:            publicTLSCertificateSourceACME,
+		AcmeChallengeType: publicACMEChallengeDNS01,
+		AcmeCa:            publicACMECAStaging,
+		AcmeEmail:         "admin@example.com",
+		Status:            publicTLSCertificateStatusError,
+		LastError:         "rejectedIdentifier",
+	})
+	if err != nil {
+		t.Fatalf("create legacy mapping: %v", err)
+	}
+	manager := newPublicACMEManager(NewApp(&config.Config{}, database))
+	updated, err := manager.canonicalizeCertificateHostname(context.Background(), row)
+	if err != nil {
+		t.Fatalf("canonicalize existing mapping: %v", err)
+	}
+	if updated.HostnamePattern != "xn--zribadi-n2a.ch" {
+		t.Fatalf("canonical hostname = %q", updated.HostnamePattern)
+	}
+	persisted, err := database.GetPublicTlsCertificate(context.Background(), row.ID)
+	if err != nil {
+		t.Fatalf("reload mapping: %v", err)
+	}
+	if persisted.HostnamePattern != updated.HostnamePattern {
+		t.Fatalf("persisted hostname = %q", persisted.HostnamePattern)
+	}
+}
+
 func TestPublicSelfSignedCertificateGenerationUsesHostPatternSAN(t *testing.T) {
 	_, _, wildcardLeaf, err := generatePublicSelfSignedCertificatePEM("*.Example.COM", 24*time.Hour)
 	if err != nil {

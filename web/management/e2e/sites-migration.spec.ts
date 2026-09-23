@@ -61,6 +61,9 @@ test("reviews explicit route copies and migrates only selected listeners", async
   const panel = page.locator("section").filter({ has: page.getByRole("heading", { name: "3 standalone routes need a Site", exact: true }) });
   await panel.getByRole("button", { name: "Preview migration", exact: true }).click();
   await expect(panel.getByText("Blocked", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("alert")).toContainText("1 blocker must be resolved");
+  await expect(panel.getByText("Resolve before migration", { exact: true })).toBeVisible();
+  await expect(panel.getByText("*.example.test · /", { exact: true })).toBeVisible();
   await expect(panel.getByRole("button", { name: "Apply migration", exact: true })).toBeDisabled();
   await panel.getByRole("checkbox", { name: "Needs wildcard review", exact: true }).uncheck();
   await expect(panel.getByText("Blocked", { exact: true })).toHaveCount(0);

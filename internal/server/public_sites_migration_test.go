@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -126,6 +127,31 @@ func TestPlanPublicSiteMigrationBlocksUnmodeledSemantics(t *testing.T) {
 			}
 			t.Fatalf("missing blocker %q in %+v", test.code, preview.Issues)
 		})
+	}
+}
+
+func TestPlanPublicSiteMigrationExplainsIDNAAndFollowOnTLSBlockers(t *testing.T) {
+	preview := publicSiteMigrationPreviewProto(planPublicSiteMigration(publicSiteMigrationState{
+		Listeners: []publicSiteMigrationListener{{ID: 1, Name: "https", Protocol: publicListenerProtocolHTTPS}},
+		Routes:    []publicSiteMigrationRoute{{ID: 44, ListenerID: 1, HostPattern: "züribadi.ch", PathPrefix: "/", Enabled: true}},
+		Certs: []db.PublicTlsCertificate{{
+			ID: 1, ListenerID: 1, HostnamePattern: "züribadi.ch", Enabled: 1, Source: publicTLSCertificateSourceACME,
+		}},
+	}))
+	if preview.CanApply {
+		t.Fatal("internationalized hostname migration unexpectedly applyable")
+	}
+	var canonical, coverage bool
+	for _, issue := range preview.Issues {
+		switch issue.Code {
+		case "hostname_canonicalization_change":
+			canonical = strings.Contains(issue.Detail, "züribadi.ch") && strings.Contains(issue.Detail, "xn--zribadi-n2a.ch")
+		case "https_certificate_coverage":
+			coverage = strings.Contains(issue.Detail, "xn--zribadi-n2a.ch") && strings.Contains(issue.Detail, "issuance has not produced")
+		}
+	}
+	if !canonical || !coverage {
+		t.Fatalf("migration issues do not explain canonicalization and TLS follow-up: %+v", preview.Issues)
 	}
 }
 

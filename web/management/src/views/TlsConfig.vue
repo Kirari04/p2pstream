@@ -37,6 +37,7 @@ import {
   PublicListenerProtocol,
   PublicTlsCertificateSource,
   PublicTlsCertificateStatus,
+  type PublicTlsCertificate,
   type PublicTlsDnsCredential,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
@@ -128,6 +129,28 @@ const tlsCredentialForm = reactive({
 });
 
 const tlsHasPartialUpload = computed(() => Boolean(tlsForm.certPem) !== Boolean(tlsForm.keyPem));
+function canonicalTlsHostnamePattern(value: string) {
+  const trimmed = value.trim().toLowerCase().replace(/\.$/, "");
+  if (!trimmed) return "";
+  const wildcard = trimmed.startsWith("*.");
+  const hostname = wildcard ? trimmed.slice(2) : trimmed;
+  try {
+    const canonical = new URL(`https://${hostname}`).hostname;
+    return wildcard ? `*.${canonical}` : canonical;
+  } catch {
+    return "";
+  }
+}
+const canonicalTlsHostname = computed(() => canonicalTlsHostnamePattern(tlsForm.hostnamePattern));
+const tlsHostnameWillNormalize = computed(() =>
+  Boolean(canonicalTlsHostname.value) &&
+  canonicalTlsHostname.value !== tlsForm.hostnamePattern.trim().toLowerCase().replace(/\.$/, ""),
+);
+function tlsCertificateHostnameGuidance(cert: PublicTlsCertificate) {
+  const canonical = canonicalTlsHostnamePattern(cert.hostnamePattern);
+  if (!canonical || canonical === cert.hostnamePattern) return "";
+  return `This internationalized hostname must be requested as ${canonical}. Retry issuance and the mapping will be repaired automatically.`;
+}
 const tlsSubmitDisabledReason = computed(() => {
   if (isBusy.value) return BUSY_REASON;
   if (!httpsListeners.value.length) return "Create an HTTPS listener before adding a TLS mapping.";
@@ -458,7 +481,15 @@ watch(tlsDnsCredentials, () => {
               </NButton>
             </div>
           </div>
-          <p v-if="cert.lastError" class="tls-table__row-note error-text" role="cell">Last error: {{ cert.lastError }}</p>
+          <div v-if="cert.lastError" class="tls-table__row-note" role="cell">
+            <p class="error-text">Last error: {{ cert.lastError }}</p>
+            <p
+              v-if="tlsCertificateHostnameGuidance(cert)"
+              class="margin-top-xs base-text"
+            >
+              {{ tlsCertificateHostnameGuidance(cert) }}
+            </p>
+          </div>
         </div>
         <div v-if="httpsListeners.length && !tlsCertificates.length" class="tls-table__row tls-table__certificate-grid" role="row">
           <div class="tls-table__cell tls-table__identity" data-label="Mapping" role="cell">
@@ -568,6 +599,13 @@ watch(tlsDnsCredentials, () => {
           Hostname pattern
           <NInput v-model:value="tlsForm.hostnamePattern" size="small" placeholder="app.example.com" required />
           <p class="copy-xs weight-normal normal-text letter-normal muted-text">Exact domain or wildcard prefix (*.example.com).</p>
+          <p
+            v-if="tlsHostnameWillNormalize"
+            class="tls-hostname-preview copy-xs weight-normal normal-text letter-normal"
+          >
+            Certificate identifier:
+            <code>{{ canonicalTlsHostname }}</code>
+          </p>
         </label>
         <div v-if="tlsForm.method !== 'manual'" class="layout-grid space-md">
           <div class="layout-grid space-md mq-sm-cols-two">
@@ -805,6 +843,20 @@ watch(tlsDnsCredentials, () => {
   overflow-wrap: anywhere;
   unicode-bidi: plaintext;
   white-space: pre-wrap;
+}
+.tls-table__row-note p {
+  margin: 0;
+}
+.tls-hostname-preview {
+  margin: 0;
+  border-left: 2px solid var(--app-info);
+  padding: 0.375rem 0.5rem;
+  background: color-mix(in srgb, var(--app-info) 7%, var(--app-panel));
+  color: var(--app-text);
+}
+.tls-hostname-preview code {
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 @container (max-width: 62rem) {

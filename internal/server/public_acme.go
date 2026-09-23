@@ -431,6 +431,11 @@ func (m *publicACMEManager) issueCertificate(ctx context.Context, certID int64, 
 	if normalizePublicTLSCertificateSource(cert.Source) != publicTLSCertificateSourceACME || cert.Enabled == 0 {
 		return
 	}
+	cert, err = m.canonicalizeCertificateHostname(ctx, cert)
+	if err != nil {
+		m.markIssueFailed(ctx, cert, trigger, attemptAt, publicACMEStageWrap(publicACMEStageIssueConfig, err))
+		return
+	}
 	publicACMELogCertificate(log.Info(), cert, trigger, publicACMEStageIssueCertificate).
 		Time("attempt_at", attemptAt).
 		Msg("ACME certificate renewal started")
@@ -528,10 +533,14 @@ func (m *publicACMEManager) endIssue(certID int64) {
 }
 
 func (m *publicACMEManager) issueConfig(ctx context.Context, cert db.PublicTlsCertificate) (publicACMEIssueConfig, error) {
+	domain, err := normalizePublicSiteHostnamePattern(cert.HostnamePattern)
+	if err != nil {
+		return publicACMEIssueConfig{}, fmt.Errorf("invalid ACME hostname %q: %w", cert.HostnamePattern, err)
+	}
 	cfg := publicACMEIssueConfig{
 		CertificateID: cert.ID,
 		ListenerID:    cert.ListenerID,
-		Domain:        cert.HostnamePattern,
+		Domain:        domain,
 		ChallengeType: normalizePublicACMEChallengeType(cert.AcmeChallengeType),
 		CA:            normalizePublicACMECA(cert.AcmeCa),
 		Email:         cert.AcmeEmail,
@@ -550,6 +559,32 @@ func (m *publicACMEManager) issueConfig(ctx context.Context, cert db.PublicTlsCe
 		cfg.DNSCredential = &credential
 	}
 	return cfg, nil
+}
+
+func (m *publicACMEManager) canonicalizeCertificateHostname(ctx context.Context, cert db.PublicTlsCertificate) (db.PublicTlsCertificate, error) {
+	canonical, err := normalizePublicSiteHostnamePattern(cert.HostnamePattern)
+	if err != nil {
+		return cert, fmt.Errorf("invalid ACME hostname %q: %w", cert.HostnamePattern, err)
+	}
+	if canonical == cert.HostnamePattern {
+		return cert, nil
+	}
+	result, err := m.app.DB.ExecContext(ctx, `UPDATE public_tls_certificates SET hostname_pattern = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND hostname_pattern = ?`, canonical, cert.ID, cert.HostnamePattern)
+	if err != nil {
+		return cert, fmt.Errorf("canonicalize ACME hostname %q as %q: %w", cert.HostnamePattern, canonical, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return cert, fmt.Errorf("confirm canonical ACME hostname update: %w", err)
+	}
+	if rows != 1 {
+		return cert, errors.New("ACME certificate configuration changed while canonicalizing its hostname")
+	}
+	updated, err := m.app.DB.GetPublicTlsCertificate(ctx, cert.ID)
+	if err != nil {
+		return cert, fmt.Errorf("reload canonical ACME certificate: %w", err)
+	}
+	return updated, nil
 }
 
 func (m *publicACMEManager) markIssueFailed(ctx context.Context, cert db.PublicTlsCertificate, trigger string, attemptAt time.Time, issueErr error) {

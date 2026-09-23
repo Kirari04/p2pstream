@@ -440,7 +440,10 @@ func (a *App) validatePublicTLSCertificateInput(
 	if listener.Protocol != publicListenerProtocolHTTPS {
 		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("TLS certificates can only be configured on HTTPS listeners"))
 	}
-	hostnamePattern = normalizeHostPattern(hostnamePattern)
+	hostnamePattern, err = normalizePublicSiteHostnamePattern(hostnamePattern)
+	if err != nil {
+		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if err := validateHostPattern(hostnamePattern); err != nil {
 		return publicTLSCertificateMutationInput{}, publicTLSCertificateMaterial{}, err
 	}
@@ -524,7 +527,7 @@ func (a *App) validatePublicTLSCertificateInput(
 	// retain its existing material and diagnostic state without loading it.
 	// This also makes repeated saves of an already-disabled mapping idempotent.
 	if !enabled && existing != nil && normalizePublicTLSCertificateSource(existing.Source) == publicTLSCertificateSourceManual &&
-		listenerID == existing.ListenerID && hostnamePattern == normalizeHostPattern(existing.HostnamePattern) &&
+		listenerID == existing.ListenerID && hostnamePattern == canonicalPublicHostnamePatternOrLegacy(existing.HostnamePattern) &&
 		!generateSelfSigned && selfSignedValidityDays == 0 && !hasCertUpload && !hasKeyUpload &&
 		(certPath == "" || certPath == existing.CertPath) && (keyPath == "" || keyPath == existing.KeyPath) {
 		return publicTLSCertificateMutationInput{
