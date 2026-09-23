@@ -75,13 +75,17 @@ test("reviews explicit route copies and migrates only selected listeners", async
   await panel.getByRole("checkbox", { name: "Needs wildcard review", exact: true }).uncheck();
   await expect(panel.getByText("Blocked", { exact: true })).toHaveCount(0);
   await panel.getByRole("button", { name: "Preview migration", exact: true }).click();
-  await expect(panel.getByText("Can apply", { exact: true })).toBeVisible();
+  await expect(panel.getByText("Review required", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("alert")).toContainText("1 behavior acknowledgement required");
+  await expect(panel.getByText("0 of 1 acknowledged", { exact: false })).toBeVisible();
+  await panel.getByText("Review 1 proposed Site", { exact: true }).click();
   await panel.getByText("Review routes and copies", { exact: true }).click();
   await expect(panel.getByText("Keep route #97011 · /app", { exact: true })).toBeVisible();
   await expect(panel.getByText("Copy route #97012 · Default path", { exact: true })).toBeVisible();
   const applyButton = panel.getByRole("button", { name: "Apply migration", exact: true });
   await expect(applyButton).toBeDisabled();
   await panel.getByRole("checkbox", { name: "Site authority parsing is stricter", exact: true }).check();
+  await expect(panel.getByText("Ready to apply", { exact: true })).toBeVisible();
   await expect(applyButton).toBeEnabled();
   await panel.screenshot({ path: testInfo.outputPath("migration-preview-desktop.png") });
   await page.setViewportSize({ width: 375, height: 812 });
@@ -92,7 +96,8 @@ test("reviews explicit route copies and migrates only selected listeners", async
   await expect(panel.getByRole("alert")).toContainText("Configuration changed since this preview.");
   await expect(panel.getByText("Keep route #97011 · /app", { exact: true })).toBeVisible();
   await panel.getByRole("button", { name: "Refresh preview", exact: true }).click();
-  await expect(panel.getByRole("alert")).toHaveCount(0);
+  await expect(panel.locator(".migration-panel__error")).toHaveCount(0);
+  await expect(panel.getByRole("alert")).toContainText("1 behavior acknowledgement required");
   await expect(applyButton).toBeDisabled();
   await panel.getByRole("checkbox", { name: "Site authority parsing is stricter", exact: true }).check();
   await applyButton.click();
