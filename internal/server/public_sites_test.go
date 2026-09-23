@@ -399,6 +399,16 @@ func TestPublicSiteTLSCoverageDoesNotClaimIPLiteralSNI(t *testing.T) {
 	}
 }
 
+func TestPublicSiteTLSCoverageExplainsWildcardApexGap(t *testing.T) {
+	coverage, detail := publicSiteTLSCoverage(publicListenerProtocolHTTPS, 1, "example.com", []db.PublicTlsCertificate{{
+		ID: 1, ListenerID: 1, HostnamePattern: "*.example.com", Enabled: 1,
+	}})
+	if coverage != p2pstreamv1.PublicSiteTlsCoverage_PUBLIC_SITE_TLS_COVERAGE_MISSING ||
+		!strings.Contains(detail, "apex hostname") || !strings.Contains(detail, "*.example.com") {
+		t.Fatalf("wildcard apex coverage = %v, %q", coverage, detail)
+	}
+}
+
 func TestPublicTLSSelectorWildcardMatchesExactlyOneLabel(t *testing.T) {
 	wildcard, fallback := &tls.Certificate{}, &tls.Certificate{}
 	selector := &publicTLSSelector{wildcard: []publicWildcardCertificate{{pattern: "*.example.com", suffix: ".example.com", cert: wildcard}}, fallback: fallback}

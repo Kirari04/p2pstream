@@ -252,8 +252,18 @@ func planPublicSiteMigration(state publicSiteMigrationState) publicSiteMigration
 				continue
 			}
 			normalized, err := normalizePublicSiteHostnamePattern(pattern)
-			if err != nil || normalized != pattern {
-				plan.Issues = append(plan.Issues, migrationBlocker("hostname_canonicalization_change", listener.ID, []int64{route.ID}, "Hostname cannot be migrated exactly", "The stored route hostname is not already in the canonical Site hostname form. Normalize it and review matching behavior before migration."))
+			if err != nil {
+				plan.Issues = append(plan.Issues, migrationBlocker("hostname_canonicalization_change", listener.ID, []int64{route.ID}, "Hostname is not valid for a Site", fmt.Sprintf("Stored hostname %q cannot be normalized: %v. Edit the route and review its matching behavior before migration.", pattern, err)))
+				continue
+			}
+			if normalized != pattern {
+				plan.Issues = append(plan.Issues, migrationBlocker("hostname_canonicalization_change", listener.ID, []int64{route.ID}, "Hostname must be normalized before migration", fmt.Sprintf("Change stored hostname %q to its canonical Site form %q, then refresh the preview.", pattern, normalized)))
+				if listener.Protocol == publicListenerProtocolHTTPS && !addressIsHTTPSIncompatible(listener.Protocol, normalized) {
+					coverage, detail := publicSiteTLSCoverage(listener.Protocol, listener.ID, normalized, state.Certs)
+					if coverage != p2pstreamv1.PublicSiteTlsCoverage_PUBLIC_SITE_TLS_COVERAGE_COVERED {
+						plan.Issues = append(plan.Issues, migrationBlocker("https_certificate_coverage", listener.ID, []int64{route.ID}, "Canonical hostname needs certificate coverage", detail+". Configure the effective TLS mapping before migration."))
+					}
+				}
 				continue
 			}
 			if addressIsHTTPSIncompatible(listener.Protocol, normalized) {
