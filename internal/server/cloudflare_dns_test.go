@@ -23,11 +23,13 @@ import (
 type fakeDNS01Resolver struct {
 	nameservers []*net.NS
 	addresses   map[string][]net.IPAddr
+	nsQueries   []string
 	nsErr       error
 	ipErr       map[string]error
 }
 
-func (r *fakeDNS01Resolver) LookupNS(context.Context, string) ([]*net.NS, error) {
+func (r *fakeDNS01Resolver) LookupNS(_ context.Context, name string) ([]*net.NS, error) {
+	r.nsQueries = append(r.nsQueries, name)
 	return r.nameservers, r.nsErr
 }
 
@@ -73,6 +75,15 @@ func TestCloudflareAuthoritiesForDomainValidatesDelegationAndAddresses(t *testin
 	}
 	if len(authorities) != 3 || authorities[2].Name != "secondary.example.net." {
 		t.Fatalf("multi-provider authorities = %#v", authorities)
+	}
+
+	idnaZone := zone
+	idnaZone.Name = "züribadi.ch"
+	if _, err := solverUnderTest.authoritiesForDomain(context.Background(), "xn--zribadi-n2a.ch", idnaZone); err != nil {
+		t.Fatalf("IDNA-equivalent Cloudflare zone rejected: %v", err)
+	}
+	if got := resolver.nsQueries[len(resolver.nsQueries)-1]; got != "xn--zribadi-n2a.ch." {
+		t.Fatalf("IDNA zone delegation lookup = %q, want punycode", got)
 	}
 
 	if _, err := solverUnderTest.authoritiesForDomain(context.Background(), "*.attacker.example", zone); err == nil || !strings.Contains(err.Error(), "outside configured Cloudflare zone") {
