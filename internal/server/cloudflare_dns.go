@@ -153,15 +153,23 @@ func (s cloudflareDNSSolver) getZoneDetails(ctx context.Context) (cloudflareZone
 }
 
 func (s cloudflareDNSSolver) authoritiesForDomain(ctx context.Context, domain string, zone cloudflareZoneDetails) ([]dns01Authority, error) {
-	domainName, err := canonicalDNSName(strings.TrimPrefix(normalizeHostPattern(domain), "*."))
+	domainHost, err := normalizePublicSiteRequestDNSName(strings.TrimPrefix(normalizeHostPattern(domain), "*."))
 	if err != nil {
 		return nil, fmt.Errorf("invalid ACME domain: %w", err)
 	}
-	zoneDNSName, err := canonicalDNSName(zone.Name)
+	domainDNSName, err := canonicalDNSName(domainHost)
+	if err != nil {
+		return nil, fmt.Errorf("invalid ACME domain: %w", err)
+	}
+	zoneHost, err := normalizePublicSiteRequestDNSName(zone.Name)
 	if err != nil {
 		return nil, fmt.Errorf("Cloudflare returned invalid zone name: %w", err)
 	}
-	domainName = strings.TrimSuffix(domainName, ".")
+	zoneDNSName, err := canonicalDNSName(zoneHost)
+	if err != nil {
+		return nil, fmt.Errorf("Cloudflare returned invalid zone name: %w", err)
+	}
+	domainName := strings.TrimSuffix(domainDNSName, ".")
 	zoneName := strings.TrimSuffix(zoneDNSName, ".")
 	if domainName != zoneName && !strings.HasSuffix(domainName, "."+zoneName) {
 		return nil, fmt.Errorf("ACME domain %q is outside configured Cloudflare zone %q", domainName, zoneName)
