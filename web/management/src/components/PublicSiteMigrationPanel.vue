@@ -89,6 +89,15 @@ const unacceptedWarning = computed(
       (code) => !acceptedWarnings.value.includes(code),
     ) ?? "",
 );
+const unacceptedWarningCount = computed(
+  () =>
+    requiredWarningCodes.value.filter(
+      (code) => !acceptedWarnings.value.includes(code),
+    ).length,
+);
+const acceptedWarningCount = computed(
+  () => requiredWarningCodes.value.length - unacceptedWarningCount.value,
+);
 const applyDisabledReason = computed(() => {
   if (isBusy.value) return BUSY_REASON;
   if (!preview.value?.canApply)
@@ -270,13 +279,28 @@ function listenerLabel(id: bigint) {
         <NTag
           size="small"
           :bordered="false"
-          :type="preview.canApply ? 'success' : 'error'"
-          >{{ preview.canApply ? "Can apply" : "Blocked" }}</NTag
+          :type="
+            !preview.canApply
+              ? 'error'
+              : unacceptedWarningCount
+                ? 'warning'
+                : 'success'
+          "
+          >{{
+            !preview.canApply
+              ? "Blocked"
+              : unacceptedWarningCount
+                ? "Review required"
+                : "Ready to apply"
+          }}</NTag
         >
       </div>
       <div
-        v-if="blockerIssues.length"
-        class="migration-readiness"
+        v-if="blockerIssues.length || unacceptedWarningCount"
+        :class="[
+          'migration-readiness',
+          { 'migration-readiness--review': !blockerIssues.length },
+        ]"
         role="alert"
       >
         <span class="migration-readiness__mark" aria-hidden="true"
@@ -284,16 +308,53 @@ function listenerLabel(id: bigint) {
         /></span>
         <div>
           <p class="copy-sm weight-semibold base-text">
-            {{ blockerIssues.length }}
-            {{ blockerIssues.length === 1 ? "blocker" : "blockers" }} must be
-            resolved
+            <template v-if="blockerIssues.length">
+              {{ blockerIssues.length }}
+              {{ blockerIssues.length === 1 ? "blocker" : "blockers" }} must
+              be resolved
+            </template>
+            <template v-else>
+              {{ unacceptedWarningCount }} behavior
+              {{
+                unacceptedWarningCount === 1
+                  ? "acknowledgement"
+                  : "acknowledgements"
+              }}
+              required
+            </template>
           </p>
           <p class="margin-top-xs copy-xs line-normal muted-text">
-            No configuration will change until every item below is fixed and a
-            fresh preview reports that migration can apply.
+            <template v-if="blockerIssues.length">
+              No configuration will change until every item below is fixed and
+              a fresh preview reports that migration can apply.
+            </template>
+            <template v-else>
+              Review and accept the expected routing behavior below to enable
+              Apply migration.
+            </template>
           </p>
         </div>
       </div>
+      <fieldset
+        v-if="acknowledgementIssues.length"
+        class="migration-panel__acknowledgements"
+      >
+        <legend class="copy-xs weight-semibold base-text">
+          Required behavior review
+        </legend>
+        <p class="copy-xs line-normal muted-text">
+          {{ acceptedWarningCount }} of {{ requiredWarningCodes.length }}
+          acknowledged. These changes preserve valid routes while tightening
+          authority handling for Sites.
+        </p>
+        <NCheckbox
+          v-for="issue in acknowledgementIssues"
+          :key="issue.code"
+          :checked="acceptedWarnings.includes(issue.code)"
+          @update:checked="setWarningAccepted(issue.code, Boolean($event))"
+          >{{ issue.summary }}</NCheckbox
+        >
+      </fieldset>
       <div v-if="orderedIssues.length" class="migration-panel__issues-wrap">
         <div class="migration-panel__section-heading">
           <div>
@@ -336,7 +397,10 @@ function listenerLabel(id: bigint) {
                 {{ issue.detail }}
               </p>
               <div
-                v-if="issue.routeIds.length"
+                v-if="
+                  issue.routeIds.length &&
+                  issue.severity === PublicSiteMigrationSeverity.BLOCKER
+                "
                 class="migration-issue__routes margin-top-sm"
               >
                 <div
@@ -360,16 +424,56 @@ function listenerLabel(id: bigint) {
                   >
                 </div>
               </div>
+              <details
+                v-else-if="issue.routeIds.length"
+                class="migration-issue__affected margin-top-sm"
+              >
+                <summary class="copy-xs weight-semibold base-text">
+                  Review {{ issue.routeIds.length }} affected
+                  {{ issue.routeIds.length === 1 ? "route" : "routes" }}
+                </summary>
+                <div class="migration-issue__routes margin-top-sm">
+                  <div
+                    v-for="routeId in issue.routeIds"
+                    :key="routeId.toString()"
+                    class="migration-issue__route"
+                  >
+                    <div>
+                      <p class="copy-xs weight-semibold base-text">
+                        Route #{{ routeId.toString() }}
+                      </p>
+                      <p class="margin-top-xs mono-text copy-xs muted-text">
+                        {{ routeContext(routeId) }}
+                      </p>
+                    </div>
+                    <NButton
+                      secondary
+                      size="tiny"
+                      @click="emit('edit-route', routeId)"
+                      >Edit route</NButton
+                    >
+                  </div>
+                </div>
+              </details>
             </div>
           </article>
         </div>
       </div>
-      <div class="migration-panel__groups">
-        <article
+      <details class="migration-panel__proposal">
+        <summary class="copy-sm weight-semibold base-text">
+          Review {{ preview.groups.length }} proposed
+          {{ preview.groups.length === 1 ? "Site" : "Sites" }}
+        </summary>
+        <p class="margin-top-xs copy-xs line-normal muted-text">
+          Expand to inspect generated Site names, retained routes, and copied
+          fallbacks before applying.
+        </p>
+        <div class="migration-panel__groups margin-top-sm">
+          <article
           v-for="group in preview.groups"
           :key="group.key"
           class="migration-group"
-        >
+          >
           <div>
             <p class="copy-sm weight-semibold base-text">
               {{ group.proposedSiteName }}
@@ -424,23 +528,9 @@ function listenerLabel(id: bigint) {
               </li>
             </ul>
           </details>
-        </article>
-      </div>
-      <fieldset
-        v-if="acknowledgementIssues.length"
-        class="migration-panel__acknowledgements"
-      >
-        <legend class="copy-xs weight-semibold base-text">
-          Acknowledge behavior changes for these listeners
-        </legend>
-        <NCheckbox
-          v-for="issue in acknowledgementIssues"
-          :key="issue.code"
-          :checked="acceptedWarnings.includes(issue.code)"
-          @update:checked="setWarningAccepted(issue.code, Boolean($event))"
-          >{{ issue.summary }}</NCheckbox
-        >
-      </fieldset>
+          </article>
+        </div>
+      </details>
       <div class="migration-panel__actions">
         <p class="copy-xs line-normal muted-text">
           Applying creates published Sites, preserves or maps route identity as
@@ -489,7 +579,13 @@ function listenerLabel(id: bigint) {
   margin-bottom: 0.5rem;
 }
 .migration-panel__acknowledgements {
+  gap: 0.625rem;
   margin: 0;
+  border: 1px solid
+    color-mix(in srgb, var(--app-warning) 38%, var(--app-border));
+  border-radius: 0.5rem;
+  padding: 0.875rem;
+  background: color-mix(in srgb, var(--app-warning) 7%, var(--app-panel));
 }
 .migration-readiness {
   display: flex;
@@ -510,6 +606,14 @@ function listenerLabel(id: bigint) {
   background: color-mix(in srgb, var(--app-error) 14%, var(--app-panel));
   color: var(--app-error);
 }
+.migration-readiness--review {
+  border-color: color-mix(in srgb, var(--app-warning) 38%, var(--app-border));
+  background: color-mix(in srgb, var(--app-warning) 7%, var(--app-panel));
+}
+.migration-readiness--review .migration-readiness__mark {
+  background: color-mix(in srgb, var(--app-warning) 14%, var(--app-panel));
+  color: var(--app-warning);
+}
 .migration-panel__issues-wrap {
   display: grid;
   gap: 0.625rem;
@@ -523,6 +627,17 @@ function listenerLabel(id: bigint) {
 .migration-issue__routes {
   display: grid;
   gap: 0.5rem;
+}
+.migration-issue__affected summary,
+.migration-panel__proposal > summary {
+  cursor: pointer;
+}
+.migration-panel__proposal {
+  min-width: 0;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  background: var(--app-panel);
 }
 .migration-issue__route {
   display: flex;
