@@ -82,6 +82,17 @@ func normalizePublicSiteHostnamePattern(value string) (string, error) {
 	return ascii, nil
 }
 
+// canonicalPublicHostnamePatternOrLegacy keeps read paths tolerant of rows
+// written before public hostname inputs were normalized as IDNA. Mutation paths
+// must use normalizePublicSiteHostnamePattern and surface its validation error.
+func canonicalPublicHostnamePatternOrLegacy(value string) string {
+	canonical, err := normalizePublicSiteHostnamePattern(value)
+	if err != nil {
+		return normalizeHostPattern(value)
+	}
+	return canonical
+}
+
 func normalizePublicSiteRequestDNSName(value string) (string, error) {
 	if value == "" || value != strings.TrimSpace(value) || strings.Contains(value, "*") {
 		return "", errors.New("invalid hostname")
@@ -1054,23 +1065,27 @@ func publicSiteTLSCoverage(protocol string, listenerID int64, hostname string, c
 	}
 	var exact *db.PublicTlsCertificate
 	var wildcards []*db.PublicTlsCertificate
+	var unavailableMatches []string
 	for i := range certs {
 		certRow := &certs[i]
 		if certRow.ListenerID != listenerID || certRow.Enabled == 0 {
 			continue
 		}
-		pattern := normalizeHostPattern(certRow.HostnamePattern)
+		pattern := canonicalPublicHostnamePatternOrLegacy(certRow.HostnamePattern)
 		if !strictPublicSiteHostMatches(hostname, pattern) {
 			continue
 		}
 		if normalizePublicTLSCertificateSource(certRow.Source) == publicTLSCertificateSourceACME && (certRow.CertPath == "" || certRow.KeyPath == "") {
+			unavailableMatches = append(unavailableMatches, pattern)
 			continue
 		}
 		if normalizePublicTLSCertificateSource(certRow.Source) == publicTLSCertificateSourceACME {
 			if _, err := os.Stat(certRow.CertPath); errors.Is(err, os.ErrNotExist) {
+				unavailableMatches = append(unavailableMatches, pattern)
 				continue
 			}
 			if _, err := os.Stat(certRow.KeyPath); errors.Is(err, os.ErrNotExist) {
+				unavailableMatches = append(unavailableMatches, pattern)
 				continue
 			}
 		}
@@ -1093,7 +1108,22 @@ func publicSiteTLSCoverage(protocol string, listenerID int64, hostname string, c
 		selected = wildcards[0]
 	}
 	if selected == nil {
-		return p2pstreamv1.PublicSiteTlsCoverage_PUBLIC_SITE_TLS_COVERAGE_MISSING, "no enabled certificate mapping covers hostname"
+		if len(unavailableMatches) > 0 {
+			return p2pstreamv1.PublicSiteTlsCoverage_PUBLIC_SITE_TLS_COVERAGE_INVALID,
+				fmt.Sprintf("certificate mapping %q covers %q, but issuance has not produced usable certificate material", unavailableMatches[len(unavailableMatches)-1], hostname)
+		}
+		for i := range certs {
+			certRow := &certs[i]
+			if certRow.ListenerID != listenerID || certRow.Enabled == 0 {
+				continue
+			}
+			pattern := canonicalPublicHostnamePatternOrLegacy(certRow.HostnamePattern)
+			if strings.HasPrefix(pattern, "*.") && hostname == strings.TrimPrefix(pattern, "*.") {
+				return p2pstreamv1.PublicSiteTlsCoverage_PUBLIC_SITE_TLS_COVERAGE_MISSING,
+					fmt.Sprintf("%q is an apex hostname; wildcard mapping %q covers one-label subdomains but not the apex", hostname, pattern)
+			}
+		}
+		return p2pstreamv1.PublicSiteTlsCoverage_PUBLIC_SITE_TLS_COVERAGE_MISSING, fmt.Sprintf("no enabled certificate mapping covers %q", hostname)
 	}
 	pair, err := tls.LoadX509KeyPair(selected.CertPath, selected.KeyPath)
 	if err != nil || len(pair.Certificate) == 0 {

@@ -140,7 +140,7 @@ func newPublicTLSSelector(listenerID int64, snap *publicProxySnapshot, acmeManag
 			}
 			return nil, err
 		}
-		pattern := normalizeHostPattern(certConfig.HostnamePattern)
+		pattern := canonicalPublicHostnamePatternOrLegacy(certConfig.HostnamePattern)
 		if strings.HasPrefix(pattern, "*.") {
 			selector.wildcard = append(selector.wildcard, publicWildcardCertificate{
 				pattern: pattern,

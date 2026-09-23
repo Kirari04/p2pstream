@@ -72,6 +72,17 @@ const acknowledgementIssues = computed(() => [
 const requiredWarningCodes = computed(() =>
   acknowledgementIssues.value.map((issue) => issue.code),
 );
+const blockerIssues = computed(() =>
+  (preview.value?.issues ?? []).filter(
+    (issue) => issue.severity === PublicSiteMigrationSeverity.BLOCKER,
+  ),
+);
+const orderedIssues = computed(() => [
+  ...blockerIssues.value,
+  ...(preview.value?.issues ?? []).filter(
+    (issue) => issue.severity !== PublicSiteMigrationSeverity.BLOCKER,
+  ),
+]);
 const unacceptedWarning = computed(
   () =>
     requiredWarningCodes.value.find(
@@ -175,6 +186,14 @@ function routeLabel(id: bigint) {
   const route = legacyRoutes.value.find((item) => item.id === id);
   return route?.isDefault ? "Default path" : route?.pathPrefix || "All paths";
 }
+function routeContext(id: bigint) {
+  const route = legacyRoutes.value.find((item) => item.id === id);
+  if (!route) return `Route #${id.toString()}`;
+  const hostname = route.isDefault || !route.hostPattern
+    ? "Any unmatched hostname"
+    : route.hostPattern;
+  return `${hostname} · ${routeLabel(id)}`;
+}
 function listenerLabel(id: bigint) {
   return (
     props.config?.listeners.find((listener) => listener.id === id)?.name ??
@@ -255,6 +274,96 @@ function listenerLabel(id: bigint) {
           >{{ preview.canApply ? "Can apply" : "Blocked" }}</NTag
         >
       </div>
+      <div
+        v-if="blockerIssues.length"
+        class="migration-readiness"
+        role="alert"
+      >
+        <span class="migration-readiness__mark" aria-hidden="true"
+          ><AlertIcon class="icon-md"
+        /></span>
+        <div>
+          <p class="copy-sm weight-semibold base-text">
+            {{ blockerIssues.length }}
+            {{ blockerIssues.length === 1 ? "blocker" : "blockers" }} must be
+            resolved
+          </p>
+          <p class="margin-top-xs copy-xs line-normal muted-text">
+            No configuration will change until every item below is fixed and a
+            fresh preview reports that migration can apply.
+          </p>
+        </div>
+      </div>
+      <div v-if="orderedIssues.length" class="migration-panel__issues-wrap">
+        <div class="migration-panel__section-heading">
+          <div>
+            <p class="copy-xs weight-semibold label-case letter-wide muted-text">
+              {{ blockerIssues.length ? "Resolve before migration" : "Behavior review" }}
+            </p>
+            <p class="margin-top-xs copy-xs muted-text">
+              Affected hostnames and routes are listed with the required next step.
+            </p>
+          </div>
+          <NTag
+            v-if="blockerIssues.length"
+            size="small"
+            :bordered="false"
+            type="error"
+            >{{ blockerIssues.length }} blocking</NTag
+          >
+        </div>
+        <div class="migration-panel__issues">
+          <article
+            v-for="(issue, index) in orderedIssues"
+            :key="`${issue.code}-${issue.listenerId}-${index}`"
+            class="migration-issue"
+          >
+            <NTag
+              size="small"
+              :bordered="false"
+              :type="issueTagType(issue.severity)"
+              >{{
+                issue.severity === PublicSiteMigrationSeverity.BLOCKER
+                  ? "Blocker"
+                  : "Warning"
+              }}</NTag
+            >
+            <div class="grow-fill">
+              <p class="copy-xs weight-semibold base-text">
+                {{ issue.summary }} · {{ listenerLabel(issue.listenerId) }}
+              </p>
+              <p class="margin-top-xs copy-xs line-normal muted-text">
+                {{ issue.detail }}
+              </p>
+              <div
+                v-if="issue.routeIds.length"
+                class="migration-issue__routes margin-top-sm"
+              >
+                <div
+                  v-for="routeId in issue.routeIds"
+                  :key="routeId.toString()"
+                  class="migration-issue__route"
+                >
+                  <div>
+                    <p class="copy-xs weight-semibold base-text">
+                      Route #{{ routeId.toString() }}
+                    </p>
+                    <p class="margin-top-xs mono-text copy-xs muted-text">
+                      {{ routeContext(routeId) }}
+                    </p>
+                  </div>
+                  <NButton
+                    secondary
+                    size="tiny"
+                    @click="emit('edit-route', routeId)"
+                    >Edit route</NButton
+                  >
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
       <div class="migration-panel__groups">
         <article
           v-for="group in preview.groups"
@@ -315,45 +424,6 @@ function listenerLabel(id: bigint) {
               </li>
             </ul>
           </details>
-        </article>
-      </div>
-      <div v-if="preview.issues.length" class="migration-panel__issues">
-        <article
-          v-for="(issue, index) in preview.issues"
-          :key="`${issue.code}-${issue.listenerId}-${index}`"
-          class="migration-issue"
-        >
-          <NTag
-            size="small"
-            :bordered="false"
-            :type="issueTagType(issue.severity)"
-            >{{
-              issue.severity === PublicSiteMigrationSeverity.BLOCKER
-                ? "Blocker"
-                : "Warning"
-            }}</NTag
-          >
-          <div class="grow-fill">
-            <p class="copy-xs weight-semibold base-text">
-              {{ issue.summary }} · {{ listenerLabel(issue.listenerId) }}
-            </p>
-            <p class="margin-top-xs copy-xs line-normal muted-text">
-              {{ issue.detail }}
-            </p>
-            <div
-              v-if="issue.routeIds.length"
-              class="margin-top-sm layout-row wrap-items space-sm"
-            >
-              <NButton
-                v-for="routeId in issue.routeIds"
-                :key="routeId.toString()"
-                text
-                size="tiny"
-                @click="emit('edit-route', routeId)"
-                >Edit route #{{ routeId.toString() }}</NButton
-              >
-            </div>
-          </div>
         </article>
       </div>
       <fieldset
@@ -420,6 +490,48 @@ function listenerLabel(id: bigint) {
 }
 .migration-panel__acknowledgements {
   margin: 0;
+}
+.migration-readiness {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--app-error) 38%, var(--app-border));
+  border-radius: 0.5rem;
+  padding: 0.875rem;
+  background: color-mix(in srgb, var(--app-error) 7%, var(--app-panel));
+}
+.migration-readiness__mark {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.375rem;
+  background: color-mix(in srgb, var(--app-error) 14%, var(--app-panel));
+  color: var(--app-error);
+}
+.migration-panel__issues-wrap {
+  display: grid;
+  gap: 0.625rem;
+}
+.migration-panel__section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.migration-issue__routes {
+  display: grid;
+  gap: 0.5rem;
+}
+.migration-issue__route {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-left: 2px solid color-mix(in srgb, var(--app-error) 55%, var(--app-border));
+  padding: 0.5rem 0.625rem;
+  background: var(--app-panel-muted);
 }
 .migration-group__routes {
   grid-column: 1/-1;
@@ -528,10 +640,19 @@ function listenerLabel(id: bigint) {
 @media (max-width: 640px) {
   .migration-panel__banner,
   .migration-panel__meta,
+  .migration-panel__section-heading,
   .migration-panel__actions,
+  .migration-readiness,
   .migration-issue {
     align-items: stretch;
     flex-direction: column;
+  }
+  .migration-issue__route {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .migration-issue__route :deep(.n-button) {
+    width: 100%;
   }
   .migration-panel__banner > :deep(.n-button),
   .migration-panel__actions > :deep(.disabled-hint),
