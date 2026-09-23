@@ -16,6 +16,10 @@ import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { messageFromError } from "@/lib/errors";
 import {
+  displayHostnamePattern,
+  displayMigratedSiteName,
+} from "@/lib/idnHostnames";
+import {
   PublicSiteMigrationHostnameMode,
   PublicSiteMigrationSeverity,
   type GetPublicProxyConfigResponse,
@@ -200,7 +204,7 @@ function routeContext(id: bigint) {
   if (!route) return `Route #${id.toString()}`;
   const hostname = route.isDefault || !route.hostPattern
     ? "Any unmatched hostname"
-    : route.hostPattern;
+    : displayHostnamePattern(route.hostPattern);
   return `${hostname} · ${routeLabel(id)}`;
 }
 function listenerLabel(id: bigint) {
@@ -476,7 +480,7 @@ function listenerLabel(id: bigint) {
           >
           <div>
             <p class="copy-sm weight-semibold base-text">
-              {{ group.proposedSiteName }}
+              {{ displayMigratedSiteName(group.proposedSiteName) }}
             </p>
             <p class="margin-top-xs copy-xs muted-text">
               {{ group.listenerName }} ·
@@ -497,7 +501,7 @@ function listenerLabel(id: bigint) {
             v-if="group.hostnamePatterns.length"
             class="mono-text copy-xs muted-text"
           >
-            {{ group.hostnamePatterns.join(" · ") }}
+            {{ group.hostnamePatterns.map(displayHostnamePattern).join(" · ") }}
           </p>
           <details class="migration-group__routes">
             <summary class="copy-xs weight-semibold base-text">

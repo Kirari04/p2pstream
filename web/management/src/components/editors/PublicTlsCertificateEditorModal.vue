@@ -21,6 +21,10 @@ import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import {
+  asciiHostnamePattern,
+  displayHostnamePattern,
+} from "@/lib/idnHostnames";
+import {
   acmeChallengeTypeForMethod,
   tlsMethodForCertificate,
   tlsSourceForMethod,
@@ -141,8 +145,8 @@ const submitDisabledReason = computed(() => {
 });
 
 function hostnameMatches(pattern: string, hostname: string): boolean {
-  const candidate = pattern.trim().toLocaleLowerCase();
-  const requested = hostname.trim().toLocaleLowerCase();
+  const candidate = asciiHostnamePattern(pattern.trim().toLocaleLowerCase());
+  const requested = asciiHostnamePattern(hostname.trim().toLocaleLowerCase());
   if (candidate === requested) return true;
   if (!candidate.startsWith("*.")) return false;
   const suffix = candidate.slice(2);
@@ -161,8 +165,14 @@ function openFor(listenerId: bigint | string = "", hostnamePattern = "") {
     )
     .sort(
       (left, right) =>
-        Number(left.hostnamePattern !== hostnamePattern) -
-        Number(right.hostnamePattern !== hostnamePattern),
+        Number(
+          asciiHostnamePattern(left.hostnamePattern) !==
+            asciiHostnamePattern(hostnamePattern),
+        ) -
+        Number(
+          asciiHostnamePattern(right.hostnamePattern) !==
+            asciiHostnamePattern(hostnamePattern),
+        ),
     )[0];
   form.id = certificate?.id.toString() ?? "";
   form.listenerId = httpsListeners.value.some(
@@ -170,7 +180,7 @@ function openFor(listenerId: bigint | string = "", hostnamePattern = "") {
   )
     ? requestedListener
     : (httpsListeners.value[0]?.id.toString() ?? "");
-  form.hostnamePattern = certificate?.hostnamePattern ?? hostnamePattern;
+  form.hostnamePattern = displayHostnamePattern(certificate?.hostnamePattern ?? hostnamePattern);
   form.method = certificate
     ? tlsMethodForCertificate(certificate)
     : hostnamePattern.startsWith("*.")
