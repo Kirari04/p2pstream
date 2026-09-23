@@ -93,6 +93,19 @@ describe("public sites", () => {
         ],
       }),
     ).toContain("listed more than once");
+    expect(
+      publicSiteValidationReason({
+        ...base,
+        primaryHostname: "züribadi.ch。",
+        aliases: [
+          {
+            id: "idn-dot-duplicate",
+            hostnamePattern: "xn--zribadi-n2a.ch",
+            behavior: PublicSiteHostBehavior.SERVE,
+          },
+        ],
+      }),
+    ).toContain("listed more than once");
   });
 
   test("surfaces the most severe TLS state", () => {

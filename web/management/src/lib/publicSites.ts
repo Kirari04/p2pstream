@@ -269,7 +269,7 @@ export function hostnamePatternValidationReason(
 }
 
 function normalizedHostnameKey(value: string): string {
-  return asciiHostnamePattern(value.trim().toLowerCase().replace(/\.$/u, ""));
+  return asciiHostnamePattern(value.trim().toLowerCase()).replace(/\.$/u, "");
 }
 
 function isIPLiteral(value: string): boolean {
