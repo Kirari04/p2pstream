@@ -576,6 +576,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 	}
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(proxyReq *httputil.ProxyRequest) {
+			removePublicManagementSessionCookie(proxyReq.Out.Header)
 			applyUpstreamTargetRequestConfig(proxyReq.Out, resolution.Target)
 			applyTrustedForwardedHeaders(proxyReq.Out, proxyReq.In, resolution.Listener)
 			applyTrustedPublicAccessHeaders(proxyReq.Out, proxyReq.In)
