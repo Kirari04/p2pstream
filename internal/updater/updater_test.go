@@ -46,6 +46,7 @@ type fakeVerifier struct {
 	release           VerifiedRelease
 	wantServerVersion string
 	calls             atomic.Int32
+	verifyHook        func()
 }
 
 func (v *fakeVerifier) Verify(manifest []byte, policy VerifyPolicy) (VerifiedRelease, error) {
@@ -61,6 +62,9 @@ func (v *fakeVerifier) Verify(manifest []byte, policy VerifyPolicy) (VerifiedRel
 	}
 	if v.wantServerVersion != "" && policy.ServerVersion != v.wantServerVersion {
 		return VerifiedRelease{}, errors.New("management server version was not bound into verification")
+	}
+	if v.verifyHook != nil {
+		v.verifyHook()
 	}
 	return v.release, nil
 }
@@ -805,6 +809,153 @@ func TestActivateRejectsSymlinkedWorkerArtifact(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("symlinked artifact was accepted")
+	}
+}
+
+func TestActivateRejectsSymlinkedCandidateDirectoryWithoutTouchingTarget(t *testing.T) {
+	f := newFixture(t)
+	stageAndRequestActivation(t, f)
+	outside := t.TempDir()
+	outsideArtifact := filepath.Join(outside, "artifact.bin")
+	outsideManifest := filepath.Join(outside, "manifest.json")
+	if err := os.WriteFile(outsideArtifact, f.body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(outsideManifest, []byte("manifest"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(f.paths.candidateDir()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, f.paths.candidateDir()); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Activate(context.Background(), ActivateOptions{
+		Paths: f.paths, Verifier: f.verifier, Service: &fakeService{},
+		Policy: VerifyPolicy{CurrentVersion: "v1.0.0"}, DiskPreflight: allowDisk,
+	})
+	if err == nil {
+		t.Fatal("symlinked candidate directory was accepted")
+	}
+	if got, readErr := os.ReadFile(outsideArtifact); readErr != nil || !bytes.Equal(got, f.body) {
+		t.Fatalf("outside artifact changed: %q, %v", got, readErr)
+	}
+	if got, readErr := os.ReadFile(outsideManifest); readErr != nil || string(got) != "manifest" {
+		t.Fatalf("outside manifest changed: %q, %v", got, readErr)
+	}
+}
+
+func TestCandidateSwapDuringManifestVerificationCannotRedirectReadsOrCleanup(t *testing.T) {
+	f := newFixture(t)
+	stageAndRequestActivation(t, f)
+	outside := t.TempDir()
+	outsideArtifact := filepath.Join(outside, "artifact.bin")
+	outsideManifest := filepath.Join(outside, "manifest.json")
+	if err := os.WriteFile(outsideArtifact, f.body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(outsideManifest, []byte("manifest"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	originalCandidate := f.paths.candidateDir() + "-original"
+	f.verifier.verifyHook = func() {
+		f.verifier.verifyHook = nil
+		if err := os.Rename(f.paths.candidateDir(), originalCandidate); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(outside, f.paths.candidateDir()); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := Activate(context.Background(), ActivateOptions{
+		Paths: f.paths, Verifier: f.verifier, Service: &fakeService{},
+		Policy: VerifyPolicy{CurrentVersion: "v1.0.0"}, DiskPreflight: allowDisk,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Changed {
+		t.Fatal("activation did not consume the pinned candidate")
+	}
+	if got, readErr := os.ReadFile(outsideArtifact); readErr != nil || !bytes.Equal(got, f.body) {
+		t.Fatalf("outside artifact changed: %q, %v", got, readErr)
+	}
+	if got, readErr := os.ReadFile(outsideManifest); readErr != nil || string(got) != "manifest" {
+		t.Fatalf("outside manifest changed: %q, %v", got, readErr)
+	}
+}
+
+func TestCandidateSwapDuringServiceRestartCannotRedirectCleanup(t *testing.T) {
+	f := newFixture(t)
+	stageAndRequestActivation(t, f)
+	outside := t.TempDir()
+	outsideArtifact := filepath.Join(outside, "artifact.bin")
+	outsideManifest := filepath.Join(outside, "manifest.json")
+	if err := os.WriteFile(outsideArtifact, f.body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(outsideManifest, []byte("manifest"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	entered := make(chan struct{}, 1)
+	releaseHealth := make(chan struct{})
+	service := &fakeService{healthBlock: releaseHealth, healthEntered: entered}
+	result := make(chan error, 1)
+	go func() {
+		_, err := Activate(context.Background(), ActivateOptions{
+			Paths: f.paths, Verifier: f.verifier, Service: service,
+			Policy: VerifyPolicy{CurrentVersion: "v1.0.0"}, DiskPreflight: allowDisk,
+		})
+		result <- err
+	}()
+	select {
+	case <-entered:
+	case err := <-result:
+		t.Fatalf("activation stopped before health check: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("activation did not enter health check")
+	}
+	originalCandidate := f.paths.candidateDir() + "-original"
+	if err := os.Rename(f.paths.candidateDir(), originalCandidate); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, f.paths.candidateDir()); err != nil {
+		t.Fatal(err)
+	}
+	close(releaseHealth)
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
+	if got, readErr := os.ReadFile(outsideArtifact); readErr != nil || !bytes.Equal(got, f.body) {
+		t.Fatalf("outside artifact changed: %q, %v", got, readErr)
+	}
+	if got, readErr := os.ReadFile(outsideManifest); readErr != nil || string(got) != "manifest" {
+		t.Fatalf("outside manifest changed: %q, %v", got, readErr)
+	}
+}
+
+func TestActivateRejectsMultiplyLinkedCandidateFiles(t *testing.T) {
+	for _, name := range []string{"manifest.json", "artifact.bin"} {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t)
+			stageAndRequestActivation(t, f)
+			outsideLink := filepath.Join(t.TempDir(), name)
+			if err := os.Link(filepath.Join(f.paths.candidateDir(), name), outsideLink); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Activate(context.Background(), ActivateOptions{
+				Paths: f.paths, Verifier: f.verifier, Service: &fakeService{},
+				Policy: VerifyPolicy{CurrentVersion: "v1.0.0"}, DiskPreflight: allowDisk,
+			})
+			if err == nil {
+				t.Fatalf("multiply-linked %s was accepted", name)
+			}
+			if _, statErr := os.Stat(outsideLink); statErr != nil {
+				t.Fatalf("outside hard link changed: %v", statErr)
+			}
+		})
 	}
 }
 
