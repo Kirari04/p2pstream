@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -714,20 +715,33 @@ func TestPublicCacheRepeatedVaryValuesSelectDistinctVariants(t *testing.T) {
 		return recorder, decision
 	}
 
-	firstRecorder, firstDecision := request("en", "fr")
-	if firstDecision.Status != publicCacheStatusStored || firstRecorder.Body.String() != "en|fr" {
-		t.Fatalf("first variant = status %q body %q, want stored en|fr", firstDecision.Status, firstRecorder.Body.String())
+	variants := []struct {
+		name   string
+		values []string
+	}{
+		{name: "ordinary ordered", values: []string{"en", "fr"}},
+		{name: "ordinary same first", values: []string{"en", "de"}},
+		{name: "ordinary reversed", values: []string{"fr", "en"}},
+		{name: "ordinary repeated multiplicity", values: []string{"en", "fr", "fr"}},
+		{name: "raw obs-text 80", values: []string{"en", "\x80"}},
+		{name: "raw obs-text 81", values: []string{"en", "\x81"}},
+		{name: "literal replacement rune", values: []string{"en", "\uFFFD"}},
 	}
-	secondRecorder, secondDecision := request("en", "de")
-	if secondDecision.Status != publicCacheStatusStored || secondRecorder.Body.String() != "en|de" {
-		t.Fatalf("second variant = status %q body %q, want distinct stored en|de", secondDecision.Status, secondRecorder.Body.String())
+	for _, variant := range variants {
+		t.Run(variant.name, func(t *testing.T) {
+			wantBody := []byte(strings.Join(variant.values, "|"))
+			firstRecorder, firstDecision := request(variant.values...)
+			if firstDecision.Status != publicCacheStatusStored || !bytes.Equal(firstRecorder.Body.Bytes(), wantBody) {
+				t.Fatalf("first variant = status %q body %q, want stored %q", firstDecision.Status, firstRecorder.Body.Bytes(), wantBody)
+			}
+			secondRecorder, secondDecision := request(variant.values...)
+			if secondDecision.Status != publicCacheStatusHit || !bytes.Equal(secondRecorder.Body.Bytes(), wantBody) {
+				t.Fatalf("repeated variant = status %q body %q, want hit %q", secondDecision.Status, secondRecorder.Body.Bytes(), wantBody)
+			}
+		})
 	}
-	thirdRecorder, thirdDecision := request("en", "de")
-	if thirdDecision.Status != publicCacheStatusHit || thirdRecorder.Body.String() != "en|de" {
-		t.Fatalf("repeated second variant = status %q body %q, want hit en|de", thirdDecision.Status, thirdRecorder.Body.String())
-	}
-	if originHits != 2 {
-		t.Fatalf("origin hits = %d, want 2 for two complete ordered Vary variants", originHits)
+	if originHits != len(variants) {
+		t.Fatalf("origin hits = %d, want %d distinct complete ordered Vary variants", originHits, len(variants))
 	}
 }
 

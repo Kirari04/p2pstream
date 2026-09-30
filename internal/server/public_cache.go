@@ -67,7 +67,7 @@ const (
 	// independently of the operator's potentially much larger disk-entry limit.
 	maxPublicCacheNegativeLookups = 4096
 	publicCacheNegativeLookupTTL  = 30 * time.Second
-	publicCacheKeyDigestVersion   = "v4"
+	publicCacheKeyDigestVersion   = "v5"
 )
 
 var defaultPublicCacheStatusCodes = []int64{200, 203, 204, 301, 308}
@@ -1280,12 +1280,19 @@ func publicCacheKeyDigest(r *http.Request, resolution publicRouteResolution, rul
 	}
 	type varyValue struct {
 		Name   string   `json:"name"`
-		Values []string `json:"values"`
+		Values [][]byte `json:"values"`
 	}
 	vary := make([]varyValue, 0, len(varyHeaders))
 	for _, header := range publicCacheRequiredVaryHeaders(varyHeaders) {
 		canonical := textproto.CanonicalMIMEHeaderKey(header)
-		vary = append(vary, varyValue{Name: canonical, Values: append([]string(nil), r.Header.Values(canonical)...)})
+		rawValues := r.Header.Values(canonical)
+		values := make([][]byte, len(rawValues))
+		for i := range rawValues {
+			// HTTP field values may contain obs-text bytes. JSON string encoding
+			// replaces invalid UTF-8 and can collapse distinct cache variants.
+			values[i] = append([]byte(nil), rawValues[i]...)
+		}
+		vary = append(vary, varyValue{Name: canonical, Values: values})
 	}
 	payload, _ := json.Marshal(struct {
 		Version string      `json:"version"`
