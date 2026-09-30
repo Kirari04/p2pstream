@@ -125,6 +125,8 @@ v0.1.53 loader does not preserve or convert that legacy flag.
 Expressions must compile and evaluate to bool. Regex literals are validated when p2pstream can see them statically.
 Regex arguments to `.matches()` must be string literals; dynamic regex patterns from request fields such as headers, cookies, or query parameters are rejected during policy validation and stored rule loading.
 
+Evaluation is bounded by the cost limit. If a request exhausts that budget or otherwise causes evaluation to fail, WAF, rate-limit, and traffic-shaper enforcement fails closed with a local `503 Service Unavailable` response. Cache evaluation errors bypass caching for that request, and retry evaluation errors skip retries. An evaluation error never selects a later cache or retry rule.
+
 For routes that allow encoded path separators, CEL still receives the decoded `path`. Use route-scoped compatibility sparingly and avoid CEL authorization logic that depends on slash boundaries that an upstream interprets differently.
 
 Literal arguments receive targeted validation:

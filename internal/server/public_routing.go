@@ -31,6 +31,7 @@ var errNoRouteTargetAvailable = errors.New("no route target available")
 var errNoPublicRouteAvailable = errors.New("no public route available")
 var errMalformedPublicAuthority = errors.New("malformed request authority")
 var errPublicSiteSNIMismatch = errors.New("TLS server name does not match request host")
+var errPublicTrafficShaperPolicyMatch = errors.New("public traffic shaper policy match failed")
 
 var agentOpenHandshakeTimeout = 10 * time.Second
 
@@ -387,15 +388,15 @@ func (a *App) redirectRouteResponse(w http.ResponseWriter, r *http.Request, reso
 
 func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
+	errorKind := ""
 	statusCode := resolution.Target.StaticStatusCode
 	if statusCode == 0 {
 		statusCode = int(defaultStaticStatusCode)
 	}
 	shaper = a.publicTrafficShaperForResponse(resolution.Snapshot, resolution.Listener.ID, r, statusCode, shaper)
-	if shaper != nil {
+	if shaper != nil && shaper.MatchError == nil {
 		applyTrafficShaperResolutionFields(&resolution, *shaper)
 	}
-	errorKind := ""
 	defer func() {
 		if trace != nil {
 			stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RESPONSE_SENT
@@ -423,6 +424,12 @@ func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resol
 			proxyRequestContextFromResolution(r, resolution),
 		)
 	}()
+	if shaper != nil && shaper.MatchError != nil {
+		statusCode = http.StatusServiceUnavailable
+		errorKind = publicPolicyMatchFailureErrorKind
+		http.Error(w, strings.TrimSuffix(publicPolicyMatchFailureBody, "\n"), statusCode)
+		return
+	}
 
 	for _, header := range resolution.Target.StaticResponseHeaders {
 		w.Header().Add(header.Name, header.Value)
@@ -596,6 +603,11 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			// telemetry so the failure map and request samples expose the origin.
 			errorKind = upstreamServerStatusErrorKind(resp.StatusCode)
 			responseShaper := a.publicTrafficShaperForResponse(resolution.Snapshot, resolution.Listener.ID, r, resp.StatusCode, shaper)
+			if responseShaper != nil && responseShaper.MatchError != nil {
+				statusCode = http.StatusServiceUnavailable
+				errorKind = publicPolicyMatchFailureErrorKind
+				return fmt.Errorf("%w: %v", errPublicTrafficShaperPolicyMatch, responseShaper.MatchError)
+			}
 			if responseShaper != nil {
 				applyTrafficShaperResolutionFields(&resolution, *responseShaper)
 			}
@@ -630,6 +642,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			if errors.Is(err, errPublicTrafficShaperPolicyMatch) {
+				statusCode = http.StatusServiceUnavailable
+				errorKind = publicPolicyMatchFailureErrorKind
+				http.Error(w, strings.TrimSuffix(publicPolicyMatchFailureBody, "\n"), statusCode)
+				return
+			}
 			if bodyStatus, bodyKind, bodyMessage, bodyErr := publicRequestBodyErrorForRequest(r, err); bodyErr {
 				statusCode = bodyStatus
 				errorKind = bodyKind

@@ -222,6 +222,59 @@ func TestPublicCacheAuthorizationStillBypasses(t *testing.T) {
 	}
 }
 
+func TestPublicCacheCredentialHeaderPresenceDoesNotPopulateOrHitCache(t *testing.T) {
+	tests := []struct {
+		name          string
+		headerName    string
+		headerValues  []string
+		bypassReason  string
+		cookieRequest bool
+	}{
+		{name: "empty cookie", headerName: "Cookie", headerValues: []string{""}, bypassReason: "cookie", cookieRequest: true},
+		{name: "empty first repeated cookie", headerName: "Cookie", headerValues: []string{"", "sid=attacker"}, bypassReason: "cookie", cookieRequest: true},
+		{name: "empty authorization", headerName: "Authorization", headerValues: []string{""}, bypassReason: "authorization"},
+		{name: "empty first repeated authorization", headerName: "Authorization", headerValues: []string{"", "Bearer attacker"}, bypassReason: "authorization"},
+		{name: "noncanonical empty authorization", headerName: "authorization", headerValues: []string{""}, bypassReason: "authorization"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app, resolution, closeDB := newTestPublicCacheApp(t)
+			defer closeDB()
+			originHits := 0
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				originHits++
+				w.Header().Set("Cache-Control", "max-age=300")
+				_, _ = w.Write([]byte("credential-response"))
+			}))
+			defer upstream.Close()
+			origin, err := url.Parse(upstream.URL)
+			if err != nil {
+				t.Fatalf("parse upstream URL: %v", err)
+			}
+			resolution.Target.ParsedURL = origin
+
+			for requestNumber := 1; requestNumber <= 2; requestNumber++ {
+				req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
+				req.Header[tt.headerName] = append([]string(nil), tt.headerValues...)
+				decision := app.checkPublicCache(req, resolution)
+				if decision.Status != publicCacheStatusBypass || decision.BypassReason != tt.bypassReason || decision.Cacheable || decision.CookieRequest != tt.cookieRequest {
+					t.Fatalf("request %d cache decision = %+v, want bypass/%s cookie=%t", requestNumber, decision, tt.bypassReason, tt.cookieRequest)
+				}
+				recorder := httptest.NewRecorder()
+				app.proxyDirectTargetRequest(recorder, req, resolution, nil, nil, &decision, proxyRequestObservability{})
+				if recorder.Code != http.StatusOK || recorder.Body.String() != "credential-response" {
+					t.Fatalf("request %d response = %d %q", requestNumber, recorder.Code, recorder.Body.String())
+				}
+			}
+			if originHits != 2 {
+				t.Fatalf("origin hits = %d, want 2 because credential requests never populate or hit cache", originHits)
+			}
+			assertPublicCacheStorageStats(t, app, 0, 0, 0)
+		})
+	}
+}
+
 func TestPublicCacheKeyCanonicalizesDottedHostWithPort(t *testing.T) {
 	resolution := publicRouteResolution{
 		Listener: publicListenerConfig{Protocol: publicListenerProtocolHTTPS},
@@ -627,6 +680,54 @@ func TestPublicCacheDirectBackendMissStoresThenHit(t *testing.T) {
 	fourthDecision := app.checkPublicCache(httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt?v=1", nil), resolution)
 	if fourthDecision.Status != publicCacheStatusMiss {
 		t.Fatalf("cache status after rejecting stale warmed generation = %q, want miss", fourthDecision.Status)
+	}
+}
+
+func TestPublicCacheRepeatedVaryValuesSelectDistinctVariants(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+
+	originHits := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		originHits++
+		w.Header().Set("Cache-Control", "max-age=300")
+		w.Header().Set("Vary", "Accept-Language")
+		_, _ = w.Write([]byte(strings.Join(r.Header.Values("Accept-Language"), "|")))
+	}))
+	defer upstream.Close()
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	resolution.Target.ParsedURL = origin
+
+	request := func(values ...string) (*httptest.ResponseRecorder, publicCacheDecision) {
+		req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
+		req.Header["Accept-Language"] = append([]string(nil), values...)
+		decision := app.checkPublicCache(req, resolution)
+		recorder := httptest.NewRecorder()
+		if decision.Status == publicCacheStatusHit {
+			app.servePublicCacheHit(recorder, req, resolution, nil, nil, decision, proxyRequestObservability{})
+		} else {
+			app.proxyDirectTargetRequest(recorder, req, resolution, nil, nil, &decision, proxyRequestObservability{})
+		}
+		return recorder, decision
+	}
+
+	firstRecorder, firstDecision := request("en", "fr")
+	if firstDecision.Status != publicCacheStatusStored || firstRecorder.Body.String() != "en|fr" {
+		t.Fatalf("first variant = status %q body %q, want stored en|fr", firstDecision.Status, firstRecorder.Body.String())
+	}
+	secondRecorder, secondDecision := request("en", "de")
+	if secondDecision.Status != publicCacheStatusStored || secondRecorder.Body.String() != "en|de" {
+		t.Fatalf("second variant = status %q body %q, want distinct stored en|de", secondDecision.Status, secondRecorder.Body.String())
+	}
+	thirdRecorder, thirdDecision := request("en", "de")
+	if thirdDecision.Status != publicCacheStatusHit || thirdRecorder.Body.String() != "en|de" {
+		t.Fatalf("repeated second variant = status %q body %q, want hit en|de", thirdDecision.Status, thirdRecorder.Body.String())
+	}
+	if originHits != 2 {
+		t.Fatalf("origin hits = %d, want 2 for two complete ordered Vary variants", originHits)
 	}
 }
 

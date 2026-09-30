@@ -202,6 +202,7 @@ type publicWafRuleRuntime struct {
 type publicWafDecision struct {
 	Rule                  publicWafRuleConfig
 	Listener              publicListenerConfig
+	MatchError            error
 	Action                string
 	StatusCode            int
 	ErrorKind             string
@@ -311,7 +312,22 @@ func (a *App) checkPublicWAFWithSnapshot(snap *publicProxySnapshot, listenerID i
 
 func (w *publicWAF) evaluate(snap *publicProxySnapshot, listener publicListenerConfig, r *http.Request, now time.Time, app *App) (publicWafDecision, bool) {
 	for _, rule := range snap.WafRules {
-		if !rule.Enabled || !rule.matches(listener, r) {
+		if !rule.Enabled {
+			continue
+		}
+		matches, err := rule.Match.evaluate(listener, r)
+		if err != nil {
+			return publicWafDecision{
+				Rule:        rule,
+				Listener:    listener,
+				MatchError:  err,
+				StatusCode:  http.StatusServiceUnavailable,
+				ErrorKind:   publicPolicyMatchFailureErrorKind,
+				Body:        publicPolicyMatchFailureBody,
+				ContentType: defaultWafBlockContentType,
+			}, false
+		}
+		if !matches {
 			continue
 		}
 		geoMatches, geoCountryCode, geoCountryKnown := evaluatePublicWafGeoRestriction(app, r, rule.GeoRestriction)
