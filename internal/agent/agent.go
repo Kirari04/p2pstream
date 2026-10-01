@@ -1168,14 +1168,14 @@ func dialTunnelNetwork(ctx context.Context, network string, address string) (net
 			_ = conn.Close()
 			return nil, fmt.Errorf("account upstream TCP buffers: %w", err)
 		}
-		// Explicit buffers are included in the initial stream charge. Auto
-		// mode reserves the kernel's larger allowance for the socket lifetime.
+		// Explicit buffers are included in the initial stream charge. Auto mode
+		// uses the same baseline while measured pressure observes queue growth.
 		capacity, _ := ctx.Value(upstreamCapacityContextKey{}).(*agentTunnelCapacityRuntime)
 		included := max(tcpsocket.BaseMemoryBytes, 4*socketBufferBytes)
-		if socketBytes <= included {
-			return conn, nil
-		}
-		release, ok := capacity.tryReserveWindowGrowth(socketBytes - included)
+		// Reserve even a zero-byte excess. The stream was admitted before the
+		// origin dial, and a fresh controller check must still fail closed if
+		// measured pressure became critical while that dial was in flight.
+		release, ok := capacity.tryReserveWindowGrowth(max(0, socketBytes-included))
 		if !ok {
 			_ = conn.Close()
 			return nil, errUpstreamSocketResourcePressure

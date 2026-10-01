@@ -36,8 +36,9 @@ const (
 )
 
 // StreamMemoryCharge covers initial receive credit and socket/relay overhead.
-// Auto TCP sockets reserve any larger kernel allowance separately at dial time.
-// GrowingConn reserves additional receive credit only for sustained traffic.
+// Linux auto TCP queues use the included baseline while actual growth is
+// observed by the resource controller. GrowingConn reserves additional receive
+// credit only for sustained traffic.
 func StreamMemoryCharge(windowBytes, socketBufferBytes int64) (int64, error) {
 	window, err := NormalizeMaxStreamWindowSizeBytes(windowBytes)
 	if err != nil {
@@ -48,7 +49,7 @@ func StreamMemoryCharge(windowBytes, socketBufferBytes int64) (int64, error) {
 		return 0, err
 	}
 	if buffer == 0 {
-		buffer = 128 * 1024 // base allowance; auto sockets reserve any excess at dial
+		buffer = 128 * 1024 // four-times accounting yields the 512 KiB auto baseline
 	}
 	// Linux may double both requested socket buffers. The remaining 256 KiB
 	// covers relay buffers, stream metadata, TLS state and allocator slack.

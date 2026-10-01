@@ -186,7 +186,7 @@ func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult
 			}
 			requestBytes += uploadCredit
 		}
-		release, ok, _ := ctx.App.agentStreamCapacity.tryReserveAdaptiveExternal(requestBytes, 0)
+		release, ok, _ := ctx.App.tryReservePublicResource(requestBytes, 0)
 		if !ok {
 			return rejectPublicRequestCapacity(ctx, "public_request_resource_pressure", "Public proxy resource pressure")
 		}

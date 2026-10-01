@@ -2,8 +2,6 @@ package tcpsocket
 
 import (
 	"net"
-	"os"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -53,7 +51,7 @@ func socketSizes(t *testing.T, conn *net.TCPConn) [2]int {
 	return sizes
 }
 
-func TestAutoPreservesTCPBuffersAndReservesKernelAllowance(t *testing.T) {
+func TestAutoPreservesTCPBuffersAndChargesBaselineAllowance(t *testing.T) {
 	client, server := tcpPair(t)
 	for _, conn := range []*net.TCPConn{client, server} {
 		before := socketSizes(t, conn)
@@ -64,17 +62,30 @@ func TestAutoPreservesTCPBuffersAndReservesKernelAllowance(t *testing.T) {
 		if after := socketSizes(t, conn); before != after {
 			t.Fatalf("autotuning overwritten: %v -> %v", before, after)
 		}
-		receive, err := readTCPMemoryMaximum("/proc/sys/net/ipv4/tcp_rmem")
-		if err != nil {
-			t.Fatal(err)
+		if memory != BaseMemoryBytes {
+			t.Fatalf("charge %d, want baseline %d", memory, BaseMemoryBytes)
 		}
-		send, err := readTCPMemoryMaximum("/proc/sys/net/ipv4/tcp_wmem")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := max(receive, int64(before[0])) + max(send, int64(before[1])); memory != want {
-			t.Fatalf("charge %d, want %d", memory, want)
-		}
+	}
+}
+
+func TestAutoPreservesLargerExistingTCPBuffers(t *testing.T) {
+	conn, _ := tcpPair(t)
+	if err := conn.SetReadBuffer(1 << 20); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.SetWriteBuffer(1 << 20); err != nil {
+		t.Fatal(err)
+	}
+	before := socketSizes(t, conn)
+	memory, err := Configure(conn, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after := socketSizes(t, conn); before != after {
+		t.Fatalf("autotuning buffers overwritten: %v -> %v", before, after)
+	}
+	if memory != BaseMemoryBytes {
+		t.Fatalf("charge %d, want baseline %d", memory, BaseMemoryBytes)
 	}
 }
 
@@ -107,26 +118,5 @@ func TestAccountedTCPCloseReleasesOnlyOnceAndKeepsHalfCloseCredit(t *testing.T) 
 	wg.Wait()
 	if released.Load() != 1 {
 		t.Fatal("physical close did not release exactly once")
-	}
-}
-
-func TestTCPMemoryAllowanceRejectsMissingOrInvalidSignal(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "tcp_rmem")
-	if _, err := readTCPMemoryMaximum(path); err == nil {
-		t.Fatal("missing signal accepted")
-	}
-	for _, text := range []string{"", "1 2", "1 2 3 4", "1 -2 3", "1 2 2147483648", "1 two 3", "0 2 3"} {
-		if err := os.WriteFile(path, []byte(text), 0600); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := readTCPMemoryMaximum(path); err == nil {
-			t.Fatalf("invalid signal %q accepted", text)
-		}
-	}
-	if err := os.WriteFile(path, []byte("4096\t131072\t65536\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if size, err := readTCPMemoryMaximum(path); err != nil || size != 131072 {
-		t.Fatalf("default larger than max under-accounted: %d %v", size, err)
 	}
 }

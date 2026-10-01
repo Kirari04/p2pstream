@@ -501,7 +501,6 @@ func (s *systemMemoryUsageSampler) SampleMemoryUsage() (MemoryUsage, error) {
 
 func (s *systemMemoryUsageSampler) SampleMemoryUsages() ([]MemoryUsage, error) {
 	candidates := make([]MemoryUsage, 0, 4)
-	hasFiniteCgroup := false
 	var paths []memoryCgroupPath
 	if s.resolveCgroups != nil {
 		paths = s.resolveCgroups(s.cgroupPath, s.mountInfoPath)
@@ -531,11 +530,19 @@ func (s *systemMemoryUsageSampler) SampleMemoryUsages() ([]MemoryUsage, error) {
 		}
 		if finite {
 			candidates = append(candidates, usage)
-			hasFiniteCgroup = true
 			currentFiniteCgroups[constraintKey] = struct{}{}
 		}
 	}
 	s.finiteCgroups = currentFiniteCgroups
+	// Kernel TCP queues are host memory and may not be represented by Go
+	// MemStats or by every cgroup-v1 configuration. A finite cgroup can also be
+	// larger than physical RAM. Require the host signal on every Linux sample
+	// and retain cgroup/Go limits as additional independent constraints.
+	host, err := readHostMemoryUsage(s.memInfoPath)
+	if err != nil {
+		return nil, fmt.Errorf("read host memory constraint: %w", err)
+	}
+	candidates = append(candidates, host)
 	if limit := debug.SetMemoryLimit(-1); finiteMemoryLimit(limit) {
 		var mem runtime.MemStats
 		runtime.ReadMemStats(&mem)
@@ -545,14 +552,6 @@ func (s *systemMemoryUsageSampler) SampleMemoryUsages() ([]MemoryUsage, error) {
 			used = math.MaxInt64
 		}
 		candidates = append(candidates, MemoryUsage{UsedBytes: used, LimitBytes: limit, Source: "go"})
-	}
-	if !hasFiniteCgroup {
-		if usage, ok := readHostMemoryUsage(s.memInfoPath); ok {
-			candidates = append(candidates, usage)
-		}
-	}
-	if len(candidates) == 0 {
-		return nil, errors.New("no finite cgroup, Go, or host memory limit is available")
 	}
 	return candidates, nil
 }
@@ -855,10 +854,10 @@ func finiteMemoryLimit(limit int64) bool {
 	return limit > 0 && limit < math.MaxInt64/2
 }
 
-func readHostMemoryUsage(path string) (MemoryUsage, bool) {
+func readHostMemoryUsage(path string) (MemoryUsage, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return MemoryUsage{}, false
+		return MemoryUsage{}, err
 	}
 	defer file.Close()
 	var total, available int64
@@ -866,26 +865,38 @@ func readHostMemoryUsage(path string) (MemoryUsage, bool) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
-		if len(fields) < 2 {
+		if len(fields) == 0 || (fields[0] != "MemTotal:" && fields[0] != "MemAvailable:") {
 			continue
+		}
+		if len(fields) != 3 || fields[2] != "kB" {
+			return MemoryUsage{}, fmt.Errorf("invalid %s metric", fields[0])
 		}
 		value, err := strconv.ParseInt(fields[1], 10, 64)
 		if err != nil || value < 0 || value > math.MaxInt64/1024 {
-			continue
+			return MemoryUsage{}, fmt.Errorf("invalid %s metric", fields[0])
 		}
 		switch fields[0] {
 		case "MemTotal:":
+			if sawTotal {
+				return MemoryUsage{}, errors.New("duplicate MemTotal metric")
+			}
 			total = value * 1024
 			sawTotal = true
 		case "MemAvailable:":
+			if sawAvailable {
+				return MemoryUsage{}, errors.New("duplicate MemAvailable metric")
+			}
 			available = value * 1024
 			sawAvailable = true
 		}
 	}
-	if !sawTotal || !sawAvailable || total <= 0 || available < 0 || available > total {
-		return MemoryUsage{}, false
+	if err := scanner.Err(); err != nil {
+		return MemoryUsage{}, err
 	}
-	return MemoryUsage{UsedBytes: total - available, LimitBytes: total, Source: "host"}, true
+	if !sawTotal || !sawAvailable || total <= 0 || available < 0 || available > total {
+		return MemoryUsage{}, errors.New("valid MemTotal and MemAvailable metrics are required")
+	}
+	return MemoryUsage{UsedBytes: total - available, LimitBytes: total, Source: "host"}, nil
 }
 
 func readProcessRSSBytes(path string) (int64, bool) {
