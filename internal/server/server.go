@@ -202,6 +202,7 @@ type App struct {
 	publicClientRequestRejected     atomic.Uint64
 	publicAdmissionReclaimMu        sync.Mutex
 	publicAdmissionLastReclaim      time.Time
+	publicAdmissionReclaimInFlight  bool
 	publicAdmissionReclaimNow       func() time.Time
 	managementClientIdentity        *ClientIdentityResolver
 	managementClientIdentityErr     error

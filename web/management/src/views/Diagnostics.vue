@@ -539,7 +539,7 @@ function capacityConstraintLabel(constraint: string): string {
             <dt>Measured memory</dt>
             <dd>{{ streamCapacity.memoryLimitBytes > 0n ? `${((Number(streamCapacity.memoryUsedBytes) / Number(streamCapacity.memoryLimitBytes)) * 100).toFixed(1)}%` : "Unknown" }}</dd>
             <small v-if="streamCapacity.memoryLimitBytes > 0n">{{ formatBytes(streamCapacity.memoryUsedBytes) }} / {{ formatBytes(streamCapacity.memoryLimitBytes) }} · {{ streamCapacity.memorySource }}</small>
-            <small v-else>No finite cgroup, Go, or host memory signal</small>
+            <small v-else>No valid memory sample</small>
           </div>
           <div v-if="streamCapacity.adaptive">
             <dt>File descriptors</dt>

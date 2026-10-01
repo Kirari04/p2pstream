@@ -1,11 +1,15 @@
 package server
 
 import (
+	"bufio"
+	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -41,9 +45,17 @@ func TestPublicAdmissionIdleReclaimRecoversDirectSocketReservation(t *testing.T)
 		t.Fatalf("idle direct reservation = %d, want %d", got, 768<<10)
 	}
 
+	firstRelease, _, constrained := app.tryReservePublicResource(2<<20, 0)
+	if !constrained {
+		t.Fatal("adaptive reservation unexpectedly unconstrained")
+	}
+	if firstRelease != nil {
+		firstRelease()
+	}
+	waitForAdaptiveExternalBytes(t, app, 0)
 	release, ok, constrained := app.tryReservePublicResource(2<<20, 0)
 	if !constrained || !ok {
-		t.Fatalf("reservation after idle reclaim = ok %t constrained %t snapshot=%+v", ok, constrained, app.agentStreamCapacity.snapshot())
+		t.Fatalf("later reservation after asynchronous idle reclaim = ok %t constrained %t snapshot=%+v", ok, constrained, app.agentStreamCapacity.snapshot())
 	}
 	if got := app.agentStreamCapacity.snapshot().AdaptiveExternalBytes; got != 2<<20 {
 		t.Fatalf("post-reclaim reservation = %d, want %d", got, 2<<20)
@@ -63,18 +75,42 @@ func TestPublicAdmissionReclaimCooldownBoundsSequentialMisses(t *testing.T) {
 		AgentTransports:           newAgentTransportPool(),
 		publicAdmissionReclaimNow: func() time.Time { return now },
 	}
-	for range 2 {
-		if _, ok, constrained := app.tryReservePublicResource(1, 0); ok || !constrained {
-			t.Fatalf("critical admission = ok %t constrained %t", ok, constrained)
-		}
+	closeStarted, unblock := installBlockingIdleDirectTransport(t, app)
+	defer closeTestChannel(unblock)
+	if _, ok, constrained := app.tryReservePublicResource(1, 0); ok || !constrained {
+		t.Fatalf("critical admission = ok %t constrained %t", ok, constrained)
 	}
+	select {
+	case <-closeStarted:
+	case <-time.After(time.Second):
+		t.Fatal("asynchronous idle sweep did not reach blocking close")
+	}
+	var wg sync.WaitGroup
+	for range 32 {
+		wg.Go(func() {
+			if _, ok, constrained := app.tryReservePublicResource(1, 0); ok || !constrained {
+				t.Errorf("concurrent critical admission = ok %t constrained %t", ok, constrained)
+			}
+		})
+	}
+	wg.Wait()
 	if got := app.AgentTransports.stats().ReclaimAttempts; got != 1 {
-		t.Fatalf("same-window reclaim attempts = %d, want 1", got)
+		t.Fatalf("concurrent in-flight reclaim attempts = %d, want 1", got)
+	}
+	closeTestChannel(unblock)
+	waitForPublicAdmissionReclaimIdle(t, app)
+	if _, ok, _ := app.tryReservePublicResource(1, 0); ok {
+		t.Fatal("critical admission recovered without resource recovery")
+	}
+	waitForPublicAdmissionReclaimIdle(t, app)
+	if got := app.AgentTransports.stats().ReclaimAttempts; got != 1 {
+		t.Fatalf("cooldown reclaim attempts = %d, want 1", got)
 	}
 	now = now.Add(publicAdmissionReclaimCooldown)
 	if _, ok, _ := app.tryReservePublicResource(1, 0); ok {
 		t.Fatal("critical admission recovered without resource recovery")
 	}
+	waitForPublicAdmissionReclaimIdle(t, app)
 	if got := app.AgentTransports.stats().ReclaimAttempts; got != 2 {
 		t.Fatalf("next-window reclaim attempts = %d, want 2", got)
 	}
@@ -95,6 +131,57 @@ func TestPublicAdmissionMissDoesNotWaitForSweepLock(t *testing.T) {
 	case <-done:
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("public admission waited behind an in-progress idle sweep")
+	}
+}
+
+func TestPublicListenerAdmissionDoesNotWaitForBlockingIdleClose(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 470 << 20, LimitBytes: 512 << 20, Source: "test"}
+	app := &App{
+		agentStreamCapacity: newAdaptiveServerCapacityForTest(t, 64, &usage),
+		AgentTransports:     newAgentTransportPool(),
+	}
+	closeStarted, unblock := installBlockingIdleDirectTransport(t, app)
+	defer closeTestChannel(unblock)
+	queued := &queuedPublicTestListener{connections: make(chan net.Conn, 2)}
+	first, firstPeer := net.Pipe()
+	defer firstPeer.Close()
+	second, secondPeer := net.Pipe()
+	defer secondPeer.Close()
+	queued.connections <- first
+	queued.connections <- second
+	var calls atomic.Int32
+	listener := resourceBoundedPublicListener{
+		Listener: queued,
+		acquire: func(net.Conn) (func(), bool) {
+			if calls.Add(1) == 1 {
+				release, ok, _ := app.tryReservePublicResource(1, 0)
+				return release, ok
+			}
+			return func() {}, true
+		},
+	}
+	accepted := make(chan net.Conn, 1)
+	errs := make(chan error, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			errs <- err
+			return
+		}
+		accepted <- conn
+	}()
+	select {
+	case conn := <-accepted:
+		_ = conn.Close()
+	case err := <-errs:
+		t.Fatal(err)
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("public listener accept waited for blocking idle connection close")
+	}
+	select {
+	case <-closeStarted:
+	case <-time.After(time.Second):
+		t.Fatal("listener miss did not start the asynchronous idle sweep")
 	}
 }
 
@@ -178,4 +265,105 @@ func TestDirectIdleReclaimRotatesPastActiveOldestTransport(t *testing.T) {
 	}
 	_ = activeResponse.Body.Close()
 	app.DirectTransports.closeAll()
+}
+
+func installBlockingIdleDirectTransport(t testing.TB, app *App) (<-chan struct{}, chan struct{}) {
+	t.Helper()
+	client, server := net.Pipe()
+	closeStarted := make(chan struct{})
+	unblock := make(chan struct{})
+	blocking := &blockingCloseConn{Conn: client, started: closeStarted, unblock: unblock}
+	transport := &http.Transport{
+		DialContext: func(context.Context, string, string) (net.Conn, error) { return blocking, nil },
+	}
+	go func() {
+		reader := bufio.NewReader(server)
+		request, err := http.ReadRequest(reader)
+		if err != nil {
+			return
+		}
+		_ = request.Body.Close()
+		_, _ = io.WriteString(server, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+		_, _ = io.Copy(io.Discard, server)
+	}()
+	request, _ := http.NewRequest(http.MethodGet, "http://idle.test/", nil)
+	response, err := transport.RoundTrip(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, response.Body)
+	_ = response.Body.Close()
+	now := time.Now()
+	app.DirectTransports = &directTransportPool{entries: map[directTransportKey]*pooledDirectTransport{
+		{RouteTargetID: 1}: {key: directTransportKey{RouteTargetID: 1}, transport: transport, createdAt: now, lastUsed: now},
+	}}
+	t.Cleanup(func() {
+		closeTestChannel(unblock)
+		_ = server.Close()
+		_ = client.Close()
+	})
+	return closeStarted, unblock
+}
+
+type blockingCloseConn struct {
+	net.Conn
+	started chan struct{}
+	unblock chan struct{}
+	once    sync.Once
+}
+
+func (c *blockingCloseConn) Close() error {
+	c.once.Do(func() {
+		close(c.started)
+		<-c.unblock
+	})
+	return c.Conn.Close()
+}
+
+type queuedPublicTestListener struct {
+	connections chan net.Conn
+}
+
+func (l *queuedPublicTestListener) Accept() (net.Conn, error) { return <-l.connections, nil }
+func (l *queuedPublicTestListener) Close() error              { return nil }
+func (l *queuedPublicTestListener) Addr() net.Addr            { return publicTestAddr("listener") }
+
+type publicTestAddr string
+
+func (a publicTestAddr) Network() string { return "test" }
+func (a publicTestAddr) String() string  { return string(a) }
+
+func waitForAdaptiveExternalBytes(t testing.TB, app *App, want int64) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if app.agentStreamCapacity.snapshot().AdaptiveExternalBytes == want {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("adaptive external bytes = %d, want %d", app.agentStreamCapacity.snapshot().AdaptiveExternalBytes, want)
+}
+
+func waitForPublicAdmissionReclaimIdle(t testing.TB, app *App) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		app.publicAdmissionReclaimMu.Lock()
+		inFlight := app.publicAdmissionReclaimInFlight
+		app.publicAdmissionReclaimMu.Unlock()
+		if !inFlight {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("public admission reclaim remained in flight")
+}
+
+func closeTestChannel(channel chan struct{}) {
+	select {
+	case <-channel:
+	default:
+		close(channel)
+	}
 }
