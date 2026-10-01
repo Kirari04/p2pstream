@@ -105,6 +105,8 @@ Do not delete the maintenance file, journal, or snapshots to unblock a failed op
 
 ## Release maintenance and verification
 
+The server and separate `p2pstream-updater` GHCR packages must be public for the documented anonymous installation. [New packages default to private](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#pushing-container-images); after the first candidate push, set the updater package visibility to public and rerun the workflow. Release CI checks both digest references with an empty Docker credential directory and blocks publication if anonymous access fails.
+
 The release workflow includes server compatibility metadata as a hashed attachment of the existing strict agent manifest. Existing agent readers keep their original manifest shape. Update `internal/serverupdate/metadata.go` deliberately when the SQLite schema or accepted agent/runtime protocols change; a test checks its schema against the migrated database.
 
 Legacy support is scheduled to end with **v0.1.53** (not yet released).

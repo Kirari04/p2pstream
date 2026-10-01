@@ -305,6 +305,23 @@ jobs:
           [[ "${UPDATER_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Updater build returned no canonical digest" >&2; exit 1; }
           printf '%s-updater@%s\n' "${IMAGE}" "${UPDATER_DIGEST}" >"p2pstream_${TAG}_updater_linux_${ARCH}.txt"
 
+      - name: Verify anonymous release image access
+        shell: bash
+        env:
+          IMAGE: ${{ needs.verify.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          UPDATER_DIGEST: ${{ steps.updater.outputs.digest }}
+        run: |
+          set -Eeuo pipefail
+          anonymous_config="$(mktemp -d)"
+          trap 'rm -rf -- "${anonymous_config}"' EXIT
+          for reference in "${IMAGE}@${DIGEST}" "${IMAGE}-updater@${UPDATER_DIGEST}"; do
+            docker --config "${anonymous_config}" manifest inspect "${reference}" >/dev/null || {
+              echo "Release image is unavailable anonymously: ${reference}. New GHCR packages default to private; set the server and updater package visibility to public and rerun before publishing installation assets." >&2
+              exit 1
+            }
+          done
+
       - name: Upload architecture image descriptor
         uses: actions/upload-artifact@v7
         with:
