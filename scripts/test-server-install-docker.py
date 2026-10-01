@@ -76,8 +76,9 @@ def fixture(version, commit, server_ref, updater_ref):
             archive.add('/review/install-bundle/' + name, arcname=name)
     assets = [{'name': name, 'size': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()} for name, raw in sorted({'p2pstream_server_update.json': metadata_raw, 'p2pstream_install.json': desc_raw, desc['bundle']: bundle_buffer.getvalue()}.items())]
     # Production index is verified by the surrounding release pipeline. This
-    # isolated catalog binds the real platform manifest used by the nested daemon.
-    manifest = {'schema_version': 1, 'channel': 'staging', 'version': version, 'commit': commit, 'sequence': 9000 if commit.startswith('a') else 9001, 'published_at': (datetime.now(timezone.utc) - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ'), 'expires_at': (datetime.now(timezone.utc) + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ'), 'minimum_safe_version': version, 'security_epoch': 1, 'compatibility': {'server': {'min': 'v0.1.53-staging.9000', 'max': 'v0.1.53-staging.9001'}, 'protocol': {'min': 1, 'max': 1}, 'updater': {'min': 'v0.1.53-staging.9000', 'max': 'v0.1.53-staging.9001'}}, 'artifacts': [{'os': 'linux', 'arch': 'amd64', 'name': 'fixture-binary', 'size': 1, 'sha256': 'a' * 64}], 'oci_images': [{'repository': 'ghcr.io/review/p2pstream', 'digest': server_ref.split('@')[1], 'media_type': 'application/vnd.oci.image.index.v1+json', 'size': 123, 'platforms': [{'os': 'linux', 'arch': 'amd64', 'digest': server_ref.split('@')[1], 'media_type': 'application/vnd.oci.image.manifest.v1+json', 'size': 123}]}], 'release_assets': assets}
+    # isolated catalog binds the real amd64 platform manifest used by the daemon;
+    # its arm64 descriptor is a metadata stub, never executed in this rehearsal.
+    manifest = {'schema_version': 1, 'channel': 'staging', 'version': version, 'commit': commit, 'sequence': 9000 if commit.startswith('a') else 9001, 'published_at': (datetime.now(timezone.utc) - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ'), 'expires_at': (datetime.now(timezone.utc) + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ'), 'minimum_safe_version': 'v0.1.52', 'security_epoch': 1, 'compatibility': {'server': {'min': 'v0.1.52', 'max': 'v0.1.54'}, 'protocol': {'min': 1, 'max': 1}, 'updater': {'min': 'v0.1.53-staging.9000', 'max': 'v0.1.53-staging.9001'}}, 'artifacts': [{'os': 'linux', 'arch': 'amd64', 'name': 'fixture-binary', 'size': 1, 'sha256': 'a' * 64}], 'oci_images': [{'repository': 'ghcr.io/review/p2pstream', 'digest': server_ref.split('@')[1], 'media_type': 'application/vnd.oci.image.index.v1+json', 'size': 123, 'platforms': [{'os': 'linux', 'arch': 'amd64', 'digest': server_ref.split('@')[1], 'media_type': 'application/vnd.oci.image.manifest.v1+json', 'size': 123}, {'os': 'linux', 'arch': 'arm64', 'digest': 'sha256:' + 'c' * 64, 'media_type': 'application/vnd.oci.image.manifest.v1+json', 'size': 123}]}], 'release_assets': assets}
     manifest_raw = json.dumps(manifest, separators=(',', ':')).encode()
     manifest['_files'] = {'p2pstream_agent_update_manifest.json': manifest_raw, 'p2pstream_install.json': desc_raw, 'p2pstream_server_update.json': metadata_raw}
     manifest_hash = hashlib.sha256(manifest_raw).hexdigest()
@@ -109,6 +110,26 @@ rejected(lambda: host.install(args, options), 'differ from the running server')
 override.write_bytes(original)
 assert info()['Id'] == initial_container and not (host.STATE / 'config.json').exists()
 checks += ['wrong-host-same-release', 'stale-command', 'unapplied-inputs-before-mutation']
+
+# A custom entrypoint can run the same binary yet is outside the supported
+# enrollment contract. Rejection must leave the original container/data intact,
+# and discarded preparation must permit fresh setup after source correction.
+model['services']['p2pstream']['entrypoint'] = ['/app/p2pstream', 'server']
+base.write_text(json.dumps(model))
+compose('up', '-d', '--no-deps', 'p2pstream')
+wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
+rejected_container = info()['Id']
+rejected(lambda: host.install(args, options), 'private diagnostic')
+assert not (host.STATE / 'config.json').exists() and info()['Id'] == rejected_container
+host.manage(argparse.Namespace(action='discard-preparation'))
+assert not (host.STATE / 'host.json').exists() and info()['Id'] == rejected_container
+assert docker('exec', info()['Id'], '/app/p2pstream', 'server-installation-identity') == installation
+del model['services']['p2pstream']['entrypoint']
+base.write_text(json.dumps(model))
+compose('up', '-d', '--no-deps', 'p2pstream')
+wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
+initial_container = info()['Id']
+checks += ['unsupported-layout-no-activation', 'discard-unactivated-preparation-preserves-container-data', 'corrected-sources-allow-fresh-setup']
 
 host.install(args, options)
 current_container = info()['Id']
@@ -199,11 +220,23 @@ checks += ['successful-removal-keeps-latest-image-settings-data']
 args = fixture('v0.1.53-staging.9001', 'b' * 40, images['candidate'], images['candidate_updater'])
 options = ['-p', project, '-f', str(host.STATE / 'detached-compose.json')]
 os.chdir(host.STATE)
+real_finish_archive = host.Host.finish_archive
+def interrupt_archive(self):
+    raise KeyboardInterrupt()
+host.Host.finish_archive = interrupt_archive
+try:
+    host.install(args, options)
+except KeyboardInterrupt:
+    pass
+else:
+    raise AssertionError('Archive interruption did not occur')
+host.Host.finish_archive = real_finish_archive
+assert not (host.STATE / 'host.json').exists() and (host.STATE / 'archive.json').exists()
 host.install(args, options)
 assert host.read_json(host.STATE / 'host.json')['phase'] == 'healthy'
 assert info()['Config']['Image'] == images['candidate']
 assert (host.STATE / 'history').exists()
-checks += ['reenroll-after-removal-current-recipe']
+checks += ['archive-interruption-after-journal-commit-resumes', 'reenroll-after-removal-current-recipe']
 
 Path('/review/installation-evidence.json').write_text(json.dumps({'checks': checks, 'project': project, 'result': 'passed'}, indent=2))
 print('PASS release host installation: ' + ', '.join(checks), flush=True)

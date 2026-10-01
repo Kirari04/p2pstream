@@ -55,6 +55,12 @@ sudo /etc/p2pstream-server-updater/manage rollback
 
 Host helpers have durable container identities. If the controller is interrupted, read-only inspection refuses to terminate a surviving helper. Explicit `repair` settles an abandoned setup/settings helper; interrupted data recovery resumes through `recover-update`, bound to the same saved update operation. When Docker access fails during helper cleanup, restore it before running that explicit recovery command. A timeout never permits competing rollback until helper termination is confirmed.
 
+Failed helper output is retained in the root-private `/etc/p2pstream-server-updater/helper-failure.log`. It can include resolved settings or secrets; inspect it locally with sudo when the reported helper diagnostic is needed.
+
+If layout validation rejects preparation before `config.json` exists, the original server has not been changed. Run `sudo /etc/p2pstream-server-updater/manage discard-preparation`, correct and apply the original Compose inputs, then copy a fresh setup block. This command first confirms helper termination and refuses any enrollment configuration, update state, maintenance marker or executor. It archives staging privately without changing containers or data. Once configuration exists, use `repair` or `rollback` to preserve credentials.
+
+Archival retains recovery tools and inputs until its journal commit, and resumes interrupted cleanup under the same host lock. Retry `discard-preparation` before that commit, or the fresh setup block after it; retained history and the exported current model remain private and available.
+
 Remove the updater explicitly when no update is active:
 
 ```bash

@@ -190,7 +190,7 @@ class Host:
         self.updater = None
 
     @contextlib.contextmanager
-    def lock(self):
+    def lock(self, allow_archive=False):
         require(os.geteuid() == 0, 'Run this host operation with sudo')
         parent = self.directory.parent.lstat()
         require(stat.S_ISDIR(parent.st_mode) and parent.st_uid == 0 and not parent.st_mode & 0o022, 'Unsafe updater directory parent')
@@ -203,6 +203,11 @@ class Host:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as error:
                 raise Failure('Another installation, host operation, or update acceptance owns this deployment; retry later') from error
+            if (self.directory / 'archive.json').exists():
+                if not (self.directory / 'host.json').exists():
+                    self.finish_archive()
+                else:
+                    require(allow_archive, 'Interrupted archival must finish before host operations. For unactivated preparation run sudo ' + str(self.directory / 'manage') + ' discard-preparation; for completed removal retry the fresh setup block.')
             if (self.directory / 'host.json').exists():
                 self.journal = read_json(self.directory / 'host.json')
             if (self.directory / 'config.json').exists():
@@ -265,7 +270,11 @@ class Host:
             result = docker('run', '--rm', '--name', name, '--label', 'p2pstream.server-update.host-helper=' + self.journal['installation'],
                             '--user', '0:0', '--env', 'COMPOSE_DISABLE_ENV_FILE=1', '--entrypoint', entrypoint,
                             '--mount', 'type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock',
-                            '--mount', mount, *mounts, image or self.updater, *args, timeout=timeout)
+                            '--mount', mount, *mounts, image or self.updater, *args, timeout=timeout, check=False)
+            if result.returncode:
+                diagnostic = self.directory / 'helper-failure.log'
+                atomic(diagnostic, result.stdout + b'\n' + result.stderr)
+                raise Failure('Host helper failed (exit ' + str(result.returncode) + '); private diagnostic: ' + str(diagnostic))
         except BaseException:
             # Killing the Docker client does not kill its container. Confirm the
             # helper is stopped before rollback or releasing host ownership.
@@ -342,15 +351,88 @@ class Host:
 
     def archive_removed(self):
         require(self.journal.get('phase') == 'removed', 'Only a completed removal can be reenrolled')
+        self.settle_helper()
         self.wait_original()
-        directory = self.directory / 'history' / str(uuid.uuid4())
-        directory.mkdir(mode=0o700, parents=True)
-        for child in self.directory.iterdir():
-            if child.name not in {'host.lock', 'history', 'detached-compose.json'}:
-                child.rename(directory / child.name)
+        self.archive_state()
         self.journal = {}
         self.config = None
         self.updater = None
+
+    def discard_preparation(self):
+        phase = self.journal.get('recovery_phase') or self.journal['phase']
+        require(phase == 'preparing' and not os.path.lexists(self.directory / 'config.json'), 'Preparation can only be discarded before enrollment configuration exists; use repair or rollback')
+        self.settle_helper()
+        phase = self.journal.get('recovery_phase') or self.journal['phase']
+        require(phase == 'preparing' and not os.path.lexists(self.directory / 'config.json'), 'Preparation can only be discarded before enrollment configuration exists; use repair or rollback')
+        require(not os.path.lexists(self.directory / 'state.json') and not os.path.lexists(self.directory / 'control' / 'maintenance'), 'Update or maintenance state exists; preparation cannot be discarded')
+        executors = docker('ps', '--all', '--quiet', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
+        require(not executors, 'An enrolled executor exists; preparation cannot be discarded')
+        self.archive_state()
+        print('Unactivated preparation archived privately. Deployment unchanged. Correct/apply your original Compose inputs, then copy a fresh setup command from the selected server.')
+
+    def archive_state(self):
+        marker = self.directory / 'archive.json'
+        if marker.exists():
+            transaction = read_json(marker)
+        else:
+            names = [p.name for p in self.directory.iterdir() if p.name not in {'host.lock', 'history', 'detached-compose.json', 'archive.json'}]
+            transaction = {'id': str(uuid.uuid4()), 'stage': 'copying', 'names': names}
+            atomic(marker, transaction)
+        archive = self.archive_directory(transaction)
+        archive.mkdir(mode=0o700, parents=True, exist_ok=True)
+        # Keep every recovery input/tool in place until the journal commit. Large
+        # completed data snapshots can move without duplicating their disk usage.
+        for name in transaction['names']:
+            source, target = self.directory / name, archive / name
+            if not os.path.lexists(source):
+                require(target.exists(), 'Archive input disappeared; inspect the private history')
+                continue
+            if name.startswith('backup-') and source.is_file():
+                source.rename(target)
+            elif source.is_dir() and not source.is_symlink():
+                shutil.copytree(source, target, dirs_exist_ok=True, symlinks=True, ignore=lambda directory, names: [n for n in names if stat.S_ISSOCK((Path(directory) / n).lstat().st_mode)])
+            else:
+                shutil.copy2(source, target, follow_symlinks=False)
+        for path in [*archive.rglob('*'), archive, archive.parent]:
+            if not path.is_symlink() and (path.is_file() or path.is_dir()):
+                fd = os.open(path, os.O_RDONLY)
+                try:
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+        transaction['stage'] = 'copied'
+        atomic(marker, transaction)
+        (self.directory / 'host.json').unlink()
+        self.sync_directory()
+        self.finish_archive()
+
+    def archive_directory(self, transaction):
+        require(str(uuid.UUID(transaction['id'])) == transaction['id'], 'Invalid archive identity')
+        require(all(isinstance(n, str) and Path(n).name == n and n not in {'', '.', '..', 'host.lock', 'history', 'detached-compose.json', 'archive.json'} for n in transaction['names']), 'Unsafe archive inventory')
+        return self.directory / 'history' / transaction['id']
+
+    def sync_directory(self):
+        fd = os.open(self.directory, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+    def finish_archive(self):
+        marker = self.directory / 'archive.json'
+        transaction = read_json(marker)
+        archive = self.archive_directory(transaction)
+        require(transaction['stage'] == 'copied' and archive.is_dir(), 'Incomplete archive; inspect the private history before proceeding')
+        for name in transaction['names']:
+            require((archive / name).exists() or (archive / name).is_symlink(), 'Missing archived input; refusing cleanup')
+            source = self.directory / name
+            if source.is_dir() and not source.is_symlink():
+                shutil.rmtree(source)
+            elif os.path.lexists(source):
+                source.unlink()
+        self.sync_directory()
+        marker.unlink()
+        self.sync_directory()
 
     def stop_executor(self):
         self.idle()  # Lock excludes new update acceptance. Never interrupt recovery.
@@ -493,7 +575,7 @@ def install(args, options):
     data_volume = validate_running(container, model, image, arch, args)
     if (STATE / 'host.json').exists():
         host = Host()
-        with host.lock():
+        with host.lock(allow_archive=True):
             require(host.journal.get('installation') == identity, 'State directory belongs to another installation')
             if host.journal['phase'] != 'removed':
                 require(host.journal.get('source_directory') == source_dir and host.journal.get('compose_options') == options, 'Use the recorded Compose context for this enrollment')
@@ -528,7 +610,7 @@ def install(args, options):
     bundle = Path(args.bundle).resolve()
     require(all((bundle / name).is_file() and not (bundle / name).is_symlink() for name in BUNDLE_FILES), 'Incomplete verified installation bundle')
     host = Host()
-    with host.lock():
+    with host.lock(allow_archive=True):
         if host.journal.get('phase') == 'removed':
             host.archive_removed()
         if host.journal:
@@ -580,8 +662,11 @@ def install(args, options):
 def manage(args):
     local_engine()
     host = Host()
-    with host.lock():
+    with host.lock(allow_archive=args.action == 'discard-preparation'):
         require(host.journal, 'No saved enrollment; use the selected server setup command')
+        if args.action == 'discard-preparation':
+            host.discard_preparation()
+            return
         if args.action == 'inspect':
             require(args.compose_args and args.compose_args[0] in {'ps', 'logs', 'config'}, 'Only read-only Compose inspection is supported')
             sys.stdout.buffer.write(host.compose(*args.compose_args).stdout)
@@ -769,7 +854,7 @@ def main():
         setup.add_argument('--expect-' + key, required=True)
     setup.add_argument('--manifest-sha256', required=True)
     setup.add_argument('--repository', required=True)
-    for action in ['status', 'logs', 'apply', 'repair', 'rollback', 'remove', 'recover-update']:
+    for action in ['status', 'logs', 'apply', 'repair', 'rollback', 'remove', 'recover-update', 'discard-preparation']:
         commands.add_parser(action)
     inspect = commands.add_parser('inspect')
     inspect.add_argument('compose_args', nargs=argparse.REMAINDER)

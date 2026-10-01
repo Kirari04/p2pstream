@@ -64,6 +64,8 @@ class Lifecycle(unittest.TestCase):
             def command(self, *args):
                 outer.commands.append(('binary', args))
                 if args[0] == 'enroll':
+                    if outer.failure == 'layout':
+                        raise host.Failure('unsupported layout')
                     cfg = {'instance_id': ID, 'repository': 'test/repo', 'project': 'custom-project', 'token': 'private-token' * 4, 'control_dir': str(outer.state / 'control'), 'data_volume': 'custom-data'}
                     model = copy.deepcopy(outer.model)
                     model['services']['p2pstream']['image'] = REF
@@ -139,7 +141,7 @@ class Lifecycle(unittest.TestCase):
         elif args[0] == 'exec':
             out = (self.identity + '\n').encode() if args[-1] == 'server-installation-identity' else b'{}'
         elif args[0] == 'ps':
-            out = b'' if any('host-helper=' in str(value) for value in args) else b'container\n'
+            out = b'' if any('host-helper=' in str(value) or 'server-update.executor=' in str(value) for value in args) else b'container\n'
         return subprocess.CompletedProcess(args, 0, out, b'')
     def install(self):
         host.install(self.args, self.options)
@@ -266,6 +268,22 @@ class Lifecycle(unittest.TestCase):
         self.assertEqual(calls, ['run', 'ps', 'kill', 'inspect', 'rm'])
         self.assertFalse((self.state / 'helper.json').exists())
 
+    def test_helper_failure_retains_private_diagnostics_and_settles(self):
+        self.install()
+        controller = host.Host()
+        base = host.Host.__mro__[1]
+        def rejected(*args, **kwargs):
+            if args[0] == 'run':
+                return subprocess.CompletedProcess(args, 1, b'', b'private validator detail')
+            return subprocess.CompletedProcess(args, 0, b'', b'')
+        with controller.lock(), patch.object(host, 'docker', rejected):
+            with self.assertRaisesRegex(host.Failure, 'private diagnostic'):
+                base.run_helper(controller, '/app/p2pstream', ['server-updater', 'enroll'])
+        diagnostic = self.state / 'helper-failure.log'
+        self.assertEqual(diagnostic.stat().st_mode & 0o777, 0o600)
+        self.assertIn(b'private validator detail', diagnostic.read_bytes())
+        self.assertFalse((self.state / 'helper.json').exists())
+
     def test_inspection_never_terminates_an_abandoned_recovery_helper(self):
         self.install()
         controller = host.Host()
@@ -334,6 +352,111 @@ class Lifecycle(unittest.TestCase):
         with patch.object(host.Host, 'command', recovered):
             host.manage(argparse.Namespace(action='recover-update'))
         self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_rejected_preparation_can_be_archived_then_fresh_setup_succeeds(self):
+        self.failure = 'layout'
+        with self.assertRaisesRegex(host.Failure, 'unsupported layout'):
+            self.install()
+        self.assertEqual(self.restart_count, 0)
+        self.assertFalse((self.state / 'config.json').exists())
+        host.manage(argparse.Namespace(action='discard-preparation'))
+        self.assertFalse((self.state / 'host.json').exists())
+        self.assertTrue((self.state / 'history').exists())
+        self.assertEqual(self.restart_count, 0)
+        self.failure = ''
+        self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_configured_preparation_cannot_be_discarded(self):
+        self.install()
+        cfg = (self.state / 'config.json').read_bytes()
+        with self.assertRaisesRegex(host.Failure, 'configuration exists'):
+            host.manage(argparse.Namespace(action='discard-preparation'))
+        self.assertEqual((self.state / 'config.json').read_bytes(), cfg)
+
+    def test_invalid_discard_never_stops_enrolled_data_recovery(self):
+        self.install()
+        journal = host.read_json(self.state / 'host.json')
+        journal.update(phase='recovering_update')
+        host.atomic(self.state / 'host.json', journal)
+        host.atomic(self.state / 'helper.json', {'name': 'p2pstream-server-update-host-' + ID, 'phase': 'recovering_update'})
+        with patch.object(host.Host, 'settle_helper') as settle:
+            with self.assertRaisesRegex(host.Failure, 'configuration exists'):
+                host.manage(argparse.Namespace(action='discard-preparation'))
+            settle.assert_not_called()
+
+    def test_interrupted_preparation_archive_keeps_tools_and_can_resume(self):
+        self.failure = 'layout'
+        with self.assertRaises(host.Failure):
+            self.install()
+        original = host.shutil.copy2
+        count = 0
+        def interrupted(*args, **kwargs):
+            nonlocal count
+            count += 1
+            if count == 3:
+                raise KeyboardInterrupt()
+            return original(*args, **kwargs)
+        with patch.object(host.shutil, 'copy2', interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                host.manage(argparse.Namespace(action='discard-preparation'))
+        self.assertTrue((self.state / 'manage').exists())
+        self.assertTrue((self.state / 'input.json').exists())
+        self.failure = ''
+        with self.assertRaisesRegex(host.Failure, 'Interrupted archival must finish'):
+            host.manage(argparse.Namespace(action='repair'))
+        with self.assertRaisesRegex(host.Failure, 'Interrupted archival must finish'):
+            self.install()
+        self.assertEqual(self.restart_count, 0)
+        host.manage(argparse.Namespace(action='discard-preparation'))
+        self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_interrupted_removal_archive_resumes_after_journal_commit(self):
+        self.install()
+        host.manage(argparse.Namespace(action='remove'))
+        with patch.object(host.Host, 'finish_archive', side_effect=KeyboardInterrupt()):
+            with self.assertRaises(KeyboardInterrupt):
+                self.install()
+        self.assertFalse((self.state / 'host.json').exists())
+        self.assertTrue((self.state / 'config.json').exists())
+        self.assertEqual(host.read_json(self.state / 'archive.json')['stage'], 'copied')
+        self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertFalse((self.state / 'archive.json').exists())
+
+    def test_discard_refuses_update_artifacts_and_executor(self):
+        self.failure = 'layout'
+        with self.assertRaises(host.Failure):
+            self.install()
+        for relative in ['state.json', 'control/maintenance']:
+            path = self.state / relative
+            path.parent.mkdir(exist_ok=True)
+            host.atomic(path, {})
+            with self.assertRaisesRegex(host.Failure, 'Update or maintenance state'):
+                host.manage(argparse.Namespace(action='discard-preparation'))
+            path.unlink()
+        original = host.docker
+        def executor(*args, **kwargs):
+            if args[0] == 'ps' and any('server-update.executor=' in str(value) for value in args):
+                return subprocess.CompletedProcess(args, 0, b'existing-executor\n', b'')
+            return original(*args, **kwargs)
+        with patch.object(host, 'docker', executor):
+            with self.assertRaisesRegex(host.Failure, 'enrolled executor exists'):
+                host.manage(argparse.Namespace(action='discard-preparation'))
+        self.assertTrue((self.state / 'host.json').exists())
+        self.assertEqual(self.restart_count, 0)
+
+    def test_discard_rechecks_config_after_settling_helper(self):
+        self.failure = 'layout'
+        with self.assertRaises(host.Failure):
+            self.install()
+        def finished(controller):
+            host.atomic(self.state / 'config.json', {'token': 'just-completed'})
+        with patch.object(host.Host, 'settle_helper', finished):
+            with self.assertRaisesRegex(host.Failure, 'configuration exists'):
+                host.manage(argparse.Namespace(action='discard-preparation'))
+        self.assertTrue((self.state / 'config.json').exists())
 
 class Metadata(unittest.TestCase):
     def test_duplicate_keys_and_restricted_compose_options(self):

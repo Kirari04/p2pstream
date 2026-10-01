@@ -51,6 +51,7 @@ cleanup() {
       echo "Could not collect the guest review artifacts." >&2
       [[ $result -ne 0 ]] || result=1
     }
+    docker cp "$daemon:/etc/p2pstream-server-updater/helper-failure.log" "$artifact_dir/helper-failure.log" >>"$artifact_dir/collect.log" 2>&1 || true
     docker rm --force --volumes "$daemon" >"$artifact_dir/cleanup.log" 2>&1 || {
       echo "Could not remove disposable daemon $daemon; remove it manually." >&2
       [[ $result -ne 0 ]] || result=1
@@ -170,6 +171,11 @@ done
 docker cp scripts/test-server-install-docker.py "$daemon:/review/test-server-install-docker.py"
 echo "Running release-based installation and host management boundary rehearsal."
 guest python3 -I /review/test-server-install-docker.py 2>&1 | tee "$artifact_dir/installation.log"
+
+if [[ ${SERVER_UPDATER_TEST_INSTALL_ONLY:-0} == 1 ]]; then
+  echo "PASS isolated release installation and host management rehearsal."
+  exit 0
+fi
 
 for scenario in success rollback retry-recovery kill-validating; do
   echo "Running server update scenario: $scenario"
