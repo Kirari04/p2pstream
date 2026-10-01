@@ -22,8 +22,9 @@ func resolveServerTunnelCapacity(cfg *Config, memoryLimitBytes int64) error {
 	}
 	// Automatic mode is intentionally not sized from MaxStreamWindowSize. The
 	// Yamux window is lazy flow-control credit, not committed resident memory.
-	// Actual cgroup/host/Go pressure dynamically gates admission at runtime; this
-	// value is only the unreachable server implementation guard.
+	// Mandatory host pressure plus finite cgroup/Go constraints dynamically gate
+	// admission at runtime; this value is only the unreachable implementation
+	// guard.
 	cfg.ServerTunnelMaxConcurrentStreams = tunnel.MaxServerConcurrentStreamsLimit
 	return nil
 }

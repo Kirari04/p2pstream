@@ -37,18 +37,19 @@ still apply.
   disables autotuning and can severely limit a connection over a WAN. The
   default agent `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES=0` leaves both untouched;
   an explicit positive value still requests fixed buffers. Non-Linux builds
-  retain the bounded 128 KiB fallback until their kernel allowances can be read.
-- Before HTTP/TLS traffic can grow TCP queues, admission reserves the possible
-  receive and send buffers from the current network namespace's `tcp_rmem` and
-  `tcp_wmem` settings, or larger already-present socket buffers. These kernel
-  maxima are actual buffer sizes, not doubled setsockopt requests. The credit
-  lasts until physical close, including pooled idle connections and half-close.
-  Missing or invalid Linux allowance information rejects the connection.
-  Reserving possible growth is conservative: larger OS maxima permit more
-  bandwidth per connection but reduce admitted concurrent sockets at a given
-  memory budget. The public peer guard includes the complete socket allowance.
-  Apply OS tuning before starting the processes; restart after raising TCP
-  maxima so existing socket reservations reflect the new allowances.
+  retain the bounded 128 KiB-per-direction fallback.
+- Automatic Linux sockets carry a 512 KiB lifetime admission allowance for
+  connection overhead. This allowance is not a hard bound on kernel queues and
+  does not pre-reserve the `tcp_rmem` and `tcp_wmem` maxima: Linux grows queues
+  on demand while the adaptive controller requires host `MemTotal` and
+  `MemAvailable` on every sample and adds every finite cgroup constraint, a
+  finite Go memory limit when configured, and required process file-descriptor
+  usage versus `RLIMIT_NOFILE`. It samples every 100 ms by default. This is a
+  fail-closed admission signal, not an instantaneous hard cap on kernel queue
+  growth between samples. A missing, stale or invalid resource sample rejects
+  new work. Explicit positive socket sizes retain their full bounded charge,
+  including Linux's possible doubling of both requested buffers. Half-close and
+  idle pooling retain the applicable charge until physical close.
 - Public request, resolved-client, direct-peer and direct-origin connection
   guards default to zero (automatic or disabled policy). Public sockets,
   logical HTTP requests and direct-origin sockets still reserve resources.
@@ -59,6 +60,12 @@ still apply.
   Under actual resource exhaustion, direct-origin admission can close idle
   keep-alive sockets before reserving a replacement. Active requests continue;
   a failed replacement dial releases its reservation for the next request.
+  Early public socket and request admission misses schedule one bounded
+  asynchronous idle-pool sweep, then retry the ledger once without waiting for
+  socket or protocol close. A 100 ms cooldown prevents request waves from
+  causing cleanup stampedes. Each sweep touches at most one agent shard and one
+  direct transport, preserves active requests and control work, and may need a
+  later request after asynchronous close returns its reservation.
   Admission does not temporarily exceed the memory/descriptor budget to keep
   idle sockets warm.
 - Pool entries follow the shared stream budget; the separate 256-target ceiling
@@ -133,6 +140,28 @@ Reproduce the CI regression without a development server:
 ```sh
 scripts/test-proxy-wan.sh
 ```
+
+## Kernel-memory admission regression
+
+`scripts/test-proxy-memory.sh` runs a finite slow-reader burst in a disposable
+Docker cgroup with a 512 MiB memory limit and no swap or host network access.
+It retains touched application ballast, admits 24 real public TCP sockets, and
+fills their automatically tuned queues while clients stop reading. The test
+uses the production resource sampler and admission ledger, records independent
+host/cgroup constraints and kernel `memory.stat` socket bytes, holds the queues
+across multiple 100 ms samples, and requires memory-driven admission rejection
+without OOM events. Physical close must return reservations and restore
+admission. It runs in CI alongside the WAN throughput regression.
+
+```sh
+scripts/test-proxy-memory.sh
+```
+
+This covers one constrained-memory burst. Admission sampling cannot bound all
+growth of already-active kernel queues between samples or after admission
+stops; deployment memory limits and the operating system remain relevant.
+Larger TCP maxima, more simultaneous transfers, and longer sampling intervals
+need workload-specific validation.
 
 ## High-bandwidth profiling
 
@@ -225,8 +254,12 @@ It smooths the measured rate, requires two growth-supporting samples,
 discards epochs spanning long idle gaps, and limits each increase.
 Existing advertised credit remains backed until
 the stream closes; it cannot safely shrink after being granted.
-Increasing Linux maxima also increases the current lifetime socket reservation,
-including idle sockets; it must be considered together with connection fan-out.
+Application-controlled Yamux receive credit, HTTP/2 upload credit, replay
+buffers, headers and request state retain strict lifetime reservations. Some
+resident application buffer memory is intentionally also present in measured
+usage; removing that conservatism requires actual per-buffer commit tracking.
+Increasing Linux TCP maxima can increase measured memory when traffic grows the
+queues, but does not increase the automatic socket's 512 KiB admission allowance.
 These measurements do not demonstrate 10 Gbit/s performance.
 
 The optional HTTP/2 diagnostic isolates receive-window behavior in a Go HTTPS
@@ -327,12 +360,14 @@ compatible peers. Reused requests normally have zero dial/open/TLS time. Normal
 traffic does not install these trace hooks or emit a per-request info log.
 
 Diagnose rejections from configured guards, queue exhaustion, memory headroom,
-file-descriptor headroom and sensor errors separately. Memory estimates are
-conservative and intentionally include resident bytes plus outstanding credit;
-they protect against simultaneous expansion between resource samples. Physical
-stream and queue structures retain a 65,536 guard. The 256 opening backlog
-bounds outstanding Yamux handshakes, not lifetime requests. Old protocol peers
-and explicit settings may impose lower ceilings.
+file-descriptor headroom and sensor errors separately. Application-memory
+estimates are conservative and intentionally include resident bytes plus
+outstanding advertised credit; they protect that credit against simultaneous
+expansion between resource samples. Host sampling observes kernel queue growth
+but does not impose an instantaneous hard cap between samples. Physical stream
+and queue structures retain a 65,536 guard. The 256 opening backlog bounds
+outstanding Yamux handshakes, not lifetime requests. Old protocol peers and
+explicit settings may impose lower ceilings.
 
 ## QUIC assessment
 

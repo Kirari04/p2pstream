@@ -1681,6 +1681,43 @@ func TestSession_PingOfDeath(t *testing.T) {
 	drainErrorsUntil(t, errCh, 2, 0, "")
 }
 
+func TestSession_PingFloodClosesBoundedReplyQueue(t *testing.T) {
+	conf := testConfNoKeepAlive()
+	conf.ConnectionWriteTimeout = 25 * time.Millisecond
+
+	conn, peer := net.Pipe()
+	server, err := Server(conn, conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	defer peer.Close()
+
+	// Do not read from peer. The first reply blocks the sender while the raw
+	// peer continues to fill the server's ping-reply backlog.
+	hdr := header(make([]byte, headerSize))
+	for id := uint32(0); id < 512; id++ {
+		hdr.encode(typePing, flagSYN, 0, id)
+		if _, err := peer.Write(hdr); err != nil {
+			break
+		}
+	}
+
+	select {
+	case <-server.CloseChan():
+	case <-time.After(time.Second):
+		t.Fatal("ping flood did not close the session")
+	}
+	if cap(server.pingReplyCh) != pingReplyQueueSize {
+		t.Fatalf("ping reply queue capacity = %d, want %d", cap(server.pingReplyCh), pingReplyQueueSize)
+	}
+	select {
+	case <-server.pingReplyDoneCh:
+	case <-time.After(time.Second):
+		t.Fatal("ping reply worker did not stop with the session")
+	}
+}
+
 func TestSession_ConnectionWriteTimeout(t *testing.T) {
 	conf := testConfNoKeepAlive()
 

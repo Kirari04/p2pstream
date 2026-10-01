@@ -278,32 +278,47 @@ func removeMatchingRollbackRequest(path string, expected assignmentAuthorization
 }
 
 func clearSupersededActivationForRollback(paths Paths, rollbackAuthorization assignmentAuthorizationRecord) error {
-	for _, path := range []string{paths.activationClaimPath(), paths.readyPath()} {
-		data, err := readRegularNoFollow(path, 64<<10)
-		if errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		var ready readyRecord
-		if strictJSON(data, &ready) != nil {
-			continue
-		}
-		old := ready.Authorization.Authorization
-		current := rollbackAuthorization.Authorization
-		if old.AgentPublicID != current.AgentPublicID || old.CommandSequence >= current.CommandSequence {
-			continue
-		}
-		if path == paths.readyPath() {
-			if err := clearStagedIfMatchingAuthorization(paths, path, ready.Authorization); err != nil {
-				return err
-			}
-		} else if err := removeAndSync(path); err != nil {
-			return err
-		}
+	if err := clearSupersededActivationPath(paths, paths.activationClaimPath(), rollbackAuthorization, nil); err != nil {
+		return err
 	}
-	return nil
+	stagedDirs, err := openStagingDirectory(paths)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("open staging directory while clearing superseded activation: %w", err)
+	}
+	defer stagedDirs.Close()
+	return clearSupersededActivationPath(paths, paths.readyPath(), rollbackAuthorization, stagedDirs)
+}
+
+func clearSupersededActivationPath(paths Paths, path string, rollbackAuthorization assignmentAuthorizationRecord, stagedDirs *stagedDirectories) error {
+	var data []byte
+	var err error
+	if stagedDirs == nil {
+		data, err = readRegularNoFollow(path, 64<<10)
+	} else {
+		data, err = readRegularNoFollowAt(stagedDirs.staging, "ready.json", 64<<10)
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var ready readyRecord
+	if strictJSON(data, &ready) != nil {
+		return nil
+	}
+	old := ready.Authorization.Authorization
+	current := rollbackAuthorization.Authorization
+	if old.AgentPublicID != current.AgentPublicID || old.CommandSequence >= current.CommandSequence {
+		return nil
+	}
+	if stagedDirs != nil {
+		return clearStagedIfMatchingAuthorization(paths, path, ready.Authorization, stagedDirs)
+	}
+	return removeAndSync(path)
 }
 
 func ensureAuthorizationConsumed(paths Paths, authorization assignmentAuthorizationRecord, action agentupdateauth.AssignmentAction, expectedSHA string) error {

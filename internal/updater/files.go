@@ -159,6 +159,97 @@ func readBounded(r io.Reader, maximum int64) ([]byte, error) {
 	return data, nil
 }
 
+type stagedDirectories struct {
+	staging   *os.File
+	candidate *os.File
+}
+
+func openStagingDirectory(paths Paths) (*stagedDirectories, error) {
+	fd, err := unix.Open(paths.stagingDir(), unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	dir := os.NewFile(uintptr(fd), paths.stagingDir())
+	if dir == nil {
+		_ = unix.Close(fd)
+		return nil, errors.New("could not wrap staging directory")
+	}
+	return &stagedDirectories{staging: dir}, nil
+}
+
+func (d *stagedDirectories) openCandidate() error {
+	if d == nil || d.staging == nil {
+		return errors.New("staging directory is not open")
+	}
+	if d.candidate != nil {
+		return nil
+	}
+	fd, err := unix.Openat(int(d.staging.Fd()), "candidate", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return err
+	}
+	d.candidate = os.NewFile(uintptr(fd), "candidate")
+	if d.candidate == nil {
+		_ = unix.Close(fd)
+		return errors.New("could not wrap staged candidate directory")
+	}
+	return nil
+}
+
+func (d *stagedDirectories) Close() error {
+	if d == nil {
+		return nil
+	}
+	var err error
+	if d.candidate != nil {
+		err = d.candidate.Close()
+		d.candidate = nil
+	}
+	if d.staging != nil {
+		err = errors.Join(err, d.staging.Close())
+		d.staging = nil
+	}
+	return err
+}
+
+func fixedBaseName(name string) bool {
+	return name != "" && name != "." && name != ".." && filepath.Base(name) == name
+}
+
+func openRegularNoFollowAt(dir *os.File, name string, maximum int64) (*os.File, error) {
+	if dir == nil || !fixedBaseName(name) {
+		return nil, errors.New("invalid staged file location")
+	}
+	fd, err := unix.Openat(int(dir.Fd()), name, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	return validateOpenedRegular(fd, name, maximum)
+}
+
+func readRegularNoFollowAt(dir *os.File, name string, maximum int64) ([]byte, error) {
+	f, err := openRegularNoFollowAt(dir, name, maximum)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return readBounded(f, maximum)
+}
+
+func unlinkAtAndSync(dir *os.File, name string) error {
+	if dir == nil || !fixedBaseName(name) {
+		return errors.New("invalid staged file location")
+	}
+	err := unix.Unlinkat(int(dir.Fd()), name, 0)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return dir.Sync()
+}
+
 // openRegularNoFollow rejects symlinks, devices, sockets, directories and
 // multiply-linked files before privileged activation consumes worker output.
 func openRegularNoFollow(path string, maximum int64) (*os.File, error) {
@@ -166,7 +257,11 @@ func openRegularNoFollow(path string, maximum int64) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	f := os.NewFile(uintptr(fd), path)
+	return validateOpenedRegular(fd, path, maximum)
+}
+
+func validateOpenedRegular(fd int, name string, maximum int64) (*os.File, error) {
+	f := os.NewFile(uintptr(fd), name)
 	if f == nil {
 		_ = unix.Close(fd)
 		return nil, errors.New("could not wrap staged file")

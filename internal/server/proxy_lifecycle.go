@@ -191,8 +191,9 @@ func (a *App) tryReservePublicConnection(conn net.Conn) (func(), bool) {
 	if a.Config != nil && a.Config.PublicMaxHeaderBytes > 0 {
 		maxHeaderBytes = a.Config.PublicMaxHeaderBytes
 	}
-	// Reserve possible autotuned queues before TLS or HTTP reads can grow
-	// them. Header parsing can transiently hold both input and parsed strings.
+	// Reserve the automatic socket baseline before TLS or HTTP reads begin.
+	// Header parsing can transiently hold both input and parsed strings; actual
+	// Linux queue growth remains governed by mandatory host pressure samples.
 	resourceBytes := int64(512*1024) + int64(maxHeaderBytes)*2
 	if tcp, ok := conn.(*net.TCPConn); ok {
 		socketBytes, err := tcpsocket.Configure(tcp, 0)
@@ -215,7 +216,7 @@ func (a *App) tryReservePublicConnection(conn net.Conn) (func(), bool) {
 		a.publicConnectionLimitRejected.Add(1)
 		return nil, false
 	}
-	resourceRelease, resourceOK, constrained := a.agentStreamCapacity.tryReserveAdaptiveExternal(resourceBytes, 1)
+	resourceRelease, resourceOK, constrained := a.tryReservePublicResource(resourceBytes, 1)
 	if constrained && !resourceOK {
 		a.publicConnectionResourceReject.Add(1)
 		connectionRelease()

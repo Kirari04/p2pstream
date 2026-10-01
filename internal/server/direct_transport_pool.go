@@ -16,9 +16,11 @@ type directTransportKey struct {
 }
 
 type pooledDirectTransport struct {
-	key       directTransportKey
-	transport *http.Transport
-	createdAt time.Time
+	key             directTransportKey
+	transport       *http.Transport
+	createdAt       time.Time
+	lastUsed        time.Time
+	lastReclaimedAt time.Time
 }
 
 type directTransportPool struct {
@@ -57,18 +59,53 @@ func (p *directTransportPool) getOrCreate(key directTransportKey, tlsSkipVerify 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if existing := p.entries[key]; existing != nil && existing.transport != nil {
+		existing.lastUsed = time.Now()
 		return existing.transport
 	}
 	transport := newDirectPooledHTTPTransport(tlsSkipVerify, timeout, p.maxConnsPerHost)
 	if p.app != nil {
 		p.accountConnections(transport)
 	}
+	now := time.Now()
 	p.entries[key] = &pooledDirectTransport{
 		key:       key,
 		transport: transport,
-		createdAt: time.Now(),
+		createdAt: now,
+		lastUsed:  now,
 	}
 	return transport
+}
+
+// reclaimOldestIdle asks one least-recently-used transport to drop idle
+// keep-alive sockets. CloseIdleConnections leaves active requests alone and
+// retaining the entry avoids rebuilding target configuration under pressure.
+func (p *directTransportPool) reclaimOldestIdle() bool {
+	if p == nil {
+		return false
+	}
+	var oldest *pooledDirectTransport
+	p.mu.Lock()
+	for _, entry := range p.entries {
+		if entry == nil || entry.transport == nil {
+			continue
+		}
+		if oldest == nil || entry.lastReclaimedAt.Before(oldest.lastReclaimedAt) ||
+			(entry.lastReclaimedAt.Equal(oldest.lastReclaimedAt) && entry.lastUsed.Before(oldest.lastUsed)) {
+			oldest = entry
+		}
+	}
+	if oldest != nil {
+		// net/http does not expose an exact idle count. Rotate subsequent
+		// bounded sweeps across transports so an old active-only entry cannot
+		// permanently hide a newer transport that owns idle sockets.
+		oldest.lastReclaimedAt = time.Now()
+	}
+	p.mu.Unlock()
+	if oldest == nil {
+		return false
+	}
+	oldest.transport.CloseIdleConnections()
+	return true
 }
 
 const defaultPublicMaxConnectionsPerTarget = 0

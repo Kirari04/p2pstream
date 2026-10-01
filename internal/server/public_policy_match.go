@@ -29,6 +29,8 @@ const (
 	maxPublicPolicyMatchConditionValues = 64
 	maxPublicPolicyMatchValueBytes      = 512
 	publicPolicyMatchCostLimit          = 20000
+	publicPolicyMatchFailureErrorKind   = "policy_match_failed"
+	publicPolicyMatchFailureBody        = "Service Unavailable\n"
 
 	publicPolicyMatchBooleanAll = "all"
 	publicPolicyMatchBooleanAny = "any"
@@ -314,29 +316,37 @@ func publicPolicyMatchStringLiteral(expr celast.Expr) (string, bool) {
 }
 
 func (match publicPolicyMatchConfig) matches(listener publicListenerConfig, r *http.Request) bool {
+	matches, _ := match.evaluate(listener, r)
+	return matches
+}
+
+func (match publicPolicyMatchConfig) evaluate(listener publicListenerConfig, r *http.Request) (bool, error) {
 	if program, ok := match.program.(cel.Program); ok && program != nil {
 		return publicPolicyMatchProgramMatches(program, listener, r)
 	}
 	if strings.TrimSpace(match.CELExpression) != "" {
 		compiled := match
 		if err := compilePublicPolicyMatch(&compiled); err != nil {
-			return false
+			return false, fmt.Errorf("compile public policy match: %w", err)
 		}
 		if program, ok := compiled.program.(cel.Program); ok && program != nil {
 			return publicPolicyMatchProgramMatches(program, listener, r)
 		}
-		return true
+		return true, nil
 	}
-	return true
+	return true, nil
 }
 
-func publicPolicyMatchProgramMatches(program cel.Program, listener publicListenerConfig, r *http.Request) bool {
+func publicPolicyMatchProgramMatches(program cel.Program, listener publicListenerConfig, r *http.Request) (bool, error) {
 	out, _, err := program.Eval(publicPolicyMatchActivation(listener, r))
 	if err != nil {
-		return false
+		return false, fmt.Errorf("evaluate public policy match: %w", err)
 	}
 	value, ok := out.Value().(bool)
-	return ok && value
+	if !ok {
+		return false, fmt.Errorf("evaluate public policy match: result is not bool")
+	}
+	return value, nil
 }
 
 func publicPolicyMatchActivation(listener publicListenerConfig, r *http.Request) map[string]any {

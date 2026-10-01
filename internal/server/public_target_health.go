@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -492,7 +493,10 @@ func runPublicRouteTargetHealthCheckWithTransport(parent context.Context, target
 			defer directTransport.CloseIdleConnections()
 		}
 	}
-	client := &http.Client{Transport: transport}
+	client := &http.Client{
+		Transport:     transport,
+		CheckRedirect: publicTargetHealthRedirectPolicy(checkURL),
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		attempt.applyContextFailure(parent, ctx, "request_failed", err)
@@ -593,7 +597,10 @@ func (a *App) runPublicRouteTargetHealthCheckViaAgent(parent context.Context, ta
 
 	healthBackend := target
 	healthBackend.UpstreamResponseHeaderTimeout = timeout
-	client := &http.Client{Transport: a.agentTargetHealthTransport(agent, publicRouteTargetConfigFromHealthTarget(healthBackend))}
+	client := &http.Client{
+		Transport:     a.agentTargetHealthTransport(agent, publicRouteTargetConfigFromHealthTarget(healthBackend)),
+		CheckRedirect: publicTargetHealthRedirectPolicy(checkURL),
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		var dialErr agentDialError
@@ -625,6 +632,55 @@ func (a *App) runPublicRouteTargetHealthCheckViaAgent(parent context.Context, ta
 	}
 	attempt.ErrorKind = "success"
 	return attempt
+}
+
+func publicTargetHealthRedirectPolicy(initial *url.URL) func(*http.Request, []*http.Request) error {
+	return func(request *http.Request, via []*http.Request) error {
+		if request == nil || !publicTargetHealthSameOrigin(initial, request.URL) {
+			return http.ErrUseLastResponse
+		}
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return nil
+	}
+}
+
+func publicTargetHealthSameOrigin(initial, redirected *url.URL) bool {
+	if initial == nil || redirected == nil {
+		return false
+	}
+	initialPort, initialOK := publicTargetHealthEffectivePort(initial)
+	redirectedPort, redirectedOK := publicTargetHealthEffectivePort(redirected)
+	return initialOK && redirectedOK &&
+		strings.EqualFold(initial.Scheme, redirected.Scheme) &&
+		publicTargetHealthHostnameEqual(initial.Hostname(), redirected.Hostname()) &&
+		initialPort == redirectedPort
+}
+
+func publicTargetHealthHostnameEqual(initial, redirected string) bool {
+	initialHost, initialZone, initialScoped := strings.Cut(initial, "%")
+	redirectedHost, redirectedZone, redirectedScoped := strings.Cut(redirected, "%")
+	return initialScoped == redirectedScoped &&
+		strings.EqualFold(initialHost, redirectedHost) &&
+		(!initialScoped || initialZone == redirectedZone)
+}
+
+func publicTargetHealthEffectivePort(target *url.URL) (string, bool) {
+	if target == nil {
+		return "", false
+	}
+	if port := target.Port(); port != "" {
+		return port, true
+	}
+	switch strings.ToLower(target.Scheme) {
+	case "http":
+		return "80", true
+	case "https":
+		return "443", true
+	default:
+		return "", false
+	}
 }
 
 func newPublicRouteTargetHealthCheckAttempt(target publicRouteTargetHealthConfig) publicRouteTargetHealthCheckAttempt {

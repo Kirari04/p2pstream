@@ -29,9 +29,12 @@ jobs:
     steps:
       - name: Require staging source for main
         shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           set -Eeuo pipefail
-          if [[ "${{ github.base_ref }}" == "main" && "${{ github.head_ref }}" != "staging" ]]; then
+          if [[ "$BASE_REF" == "main" && "$HEAD_REF" != "staging" ]]; then
             echo "Pull requests to main must come from the staging branch." >&2
             exit 1
           fi
@@ -73,6 +76,10 @@ jobs:
       - name: Test public proxy throughput over a real TCP WAN
         timeout-minutes: 6
         run: scripts/test-proxy-wan.sh
+
+      - name: Test admission under real kernel socket memory pressure
+        timeout-minutes: 3
+        run: scripts/test-proxy-memory.sh
 
       - name: Test local Yamux extension and races
         # Upstream's short mode excludes its 250 MiB and 16 GiB stress transfers,

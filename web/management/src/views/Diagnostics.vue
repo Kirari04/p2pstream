@@ -20,6 +20,7 @@ import {
   statusTone,
 } from "@/lib/dashboardStats";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
+import { admissionCapacitySignal } from "@/lib/admissionCapacity";
 import {
   DIAGNOSTICS_SECTIONS,
   filterDiagnosticSamples,
@@ -68,21 +69,7 @@ const capacityConstraintRows = computed(() => Object.entries(streamCapacity.valu
     count,
     waiting: streamCapacity.value?.waitersByConstraint[constraint] ?? 0n,
   })));
-const capacityHasPressure = computed(() => {
-  const capacity = streamCapacity.value;
-  if (!capacity) return false;
-  return capacity.waiters > 0n
-    || capacity.memoryPressure === "soft"
-    || capacity.memoryPressure === "critical"
-    || (capacity.adaptive && capacity.memoryPressure === "unknown")
-    || capacity.resourceSampleError !== ""
-    || (capacity.adaptive
-      ? capacity.adaptiveAdmissionLimit > 0n && capacity.totalInUse >= capacity.adaptiveAdmissionLimit
-      : capacity.totalCapacity > 0n && capacity.totalInUse >= capacity.totalCapacity)
-    || (capacity.adaptive
-      ? capacity.adaptivePublicAdmissionLimit > 0n && capacity.publicInUse >= capacity.adaptivePublicAdmissionLimit
-      : capacity.publicCapacity > 0n && capacity.publicInUse >= capacity.publicCapacity);
-});
+const capacitySignal = computed(() => streamCapacity.value ? admissionCapacitySignal(streamCapacity.value) : null);
 const statusCodes = computed(() => diagnostics.value?.statusCodes ?? []);
 const recentSamples = computed(() => diagnostics.value?.recentSamples ?? []);
 const filteredRecentSamples = computed(() => filterDiagnosticSamples(recentSamples.value, selectedDimension.value));
@@ -531,15 +518,15 @@ function capacityConstraintLabel(constraint: string): string {
         </dl>
       </section>
 
-      <section v-if="activeDiagnosticsSection === 'overview' && streamCapacity" class="capacity-observatory" :class="{ 'capacity-observatory--pressure': capacityHasPressure }">
+      <section v-if="activeDiagnosticsSection === 'overview' && streamCapacity && capacitySignal" class="capacity-observatory" :class="{ 'capacity-observatory--pressure': capacitySignal.constrained }">
         <div class="capacity-observatory__heading">
           <div>
             <span class="capacity-observatory__kicker">Live admission state</span>
             <h4>Tunnel capacity</h4>
-            <p>Current physical-stream pressure. These values are live at refresh time and are not scoped to the selected incident window.</p>
+            <p>Current stream allowance and application reservations. These values are live at refresh time and are not scoped to the selected incident window.</p>
           </div>
-          <NTag size="small" :bordered="false" :type="streamCapacity.memoryPressure === 'critical' ? 'error' : capacityHasPressure ? 'warning' : 'success'">
-            {{ streamCapacity.adaptive && streamCapacity.memoryPressure === "unknown" ? "Adaptive · sensor degraded" : streamCapacity.adaptive ? `Adaptive · ${streamCapacity.memoryPressure}` : capacityHasPressure ? "At capacity now" : "Headroom available" }}
+          <NTag size="small" :bordered="false" :type="capacitySignal.tone">
+            {{ capacitySignal.label }}
           </NTag>
         </div>
         <dl class="capacity-observatory__meters">
@@ -549,10 +536,10 @@ function capacityConstraintLabel(constraint: string): string {
             <small>{{ formatNumber(streamCapacity.opening) }} opening · {{ formatNumber(streamCapacity.live) }} live · {{ formatNumber(streamCapacity.closing) }} closing<span v-if="streamCapacity.adaptive"> · guard {{ formatNumber(streamCapacity.totalCapacity) }}</span></small>
           </div>
           <div v-if="streamCapacity.adaptive">
-            <dt>Memory pressure</dt>
+            <dt>Measured memory</dt>
             <dd>{{ streamCapacity.memoryLimitBytes > 0n ? `${((Number(streamCapacity.memoryUsedBytes) / Number(streamCapacity.memoryLimitBytes)) * 100).toFixed(1)}%` : "Unknown" }}</dd>
             <small v-if="streamCapacity.memoryLimitBytes > 0n">{{ formatBytes(streamCapacity.memoryUsedBytes) }} / {{ formatBytes(streamCapacity.memoryLimitBytes) }} · {{ streamCapacity.memorySource }}</small>
-            <small v-else>No finite cgroup, Go, or host memory signal</small>
+            <small v-else>No valid memory sample</small>
           </div>
           <div v-if="streamCapacity.adaptive">
             <dt>File descriptors</dt>

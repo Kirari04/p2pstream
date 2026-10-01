@@ -2,9 +2,12 @@ package sysmetrics
 
 import (
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -196,16 +199,20 @@ func TestSystemMemoryUsageSamplerFailsClosedOnFirstMalformedOptionalMountRoot(t 
 	write(filepath.Join(leaf, "memory.max"), "1073741824")
 	write(filepath.Join(mountpoint, "memory.current"), "10485760")
 	write(filepath.Join(mountpoint, "memory.max"), "not-a-number")
+	memInfo := filepath.Join(dir, "meminfo")
+	writeTestHostMemory(t, memInfo, 2<<30, 1<<30)
 	cgroupFile := filepath.Join(dir, "self.cgroup")
 	mountInfoFile := filepath.Join(dir, "mountinfo")
 	write(cgroupFile, "0::/service")
 	write(mountInfoFile, "29 23 0:26 / "+mountpoint+" rw - cgroup2 cgroup rw")
 
 	sampler := systemMemoryUsageSampler{
-		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: filepath.Join(dir, "missing"),
+		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: memInfo,
 	}
 	if _, err := sampler.SampleMemoryUsages(); err == nil {
 		t.Fatal("malformed first-sample mount-root constraint was silently skipped")
+	} else if want := "read cgroup_v2 memory constraint " + mountpoint; !strings.Contains(err.Error(), want) {
+		t.Fatalf("malformed mount-root error = %q, want %q", err, want)
 	}
 }
 
@@ -293,13 +300,15 @@ func TestSystemMemoryUsageSamplerReadsEveryNestedCgroupConstraint(t *testing.T) 
 	writeMetric(filepath.Join(filepath.Dir(leaf), "memory.max"), "107374182400")
 	writeMetric(filepath.Join(mountpoint, "memory.current"), "96636764160")
 	writeMetric(filepath.Join(mountpoint, "memory.max"), "107374182400")
+	memInfo := filepath.Join(dir, "meminfo")
+	writeTestHostMemory(t, memInfo, 200<<20, 100<<20)
 	cgroupFile := filepath.Join(dir, "self.cgroup")
 	mountInfoFile := filepath.Join(dir, "mountinfo")
 	writeMetric(cgroupFile, "0::/system.slice/p2pstream-agent.service")
 	writeMetric(mountInfoFile, "29 23 0:26 / "+mountpoint+" rw - cgroup2 cgroup rw")
 
 	sampler := systemMemoryUsageSampler{
-		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: filepath.Join(dir, "missing"),
+		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: memInfo,
 	}
 	usages, err := sampler.SampleMemoryUsages()
 	if err != nil {
@@ -335,13 +344,15 @@ func TestSystemMemoryUsageSamplerFailsClosedWhenRestrictiveLeafDisappears(t *tes
 	write(filepath.Join(filepath.Dir(leaf), "memory.max"), "1073741824")
 	write(filepath.Join(mountpoint, "memory.current"), "104857600")
 	write(filepath.Join(mountpoint, "memory.max"), "1073741824")
+	memInfo := filepath.Join(dir, "meminfo")
+	writeTestHostMemory(t, memInfo, 2<<30, 1<<30)
 	cgroupFile := filepath.Join(dir, "self.cgroup")
 	mountInfoFile := filepath.Join(dir, "mountinfo")
 	write(cgroupFile, "0::/system.slice/p2pstream-agent.service")
 	write(mountInfoFile, "29 23 0:26 / "+mountpoint+" rw - cgroup2 cgroup rw")
 
 	sampler := systemMemoryUsageSampler{
-		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: filepath.Join(dir, "missing"),
+		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: memInfo,
 	}
 	if _, err := sampler.SampleMemoryUsages(); err != nil {
 		t.Fatalf("initial sample: %v", err)
@@ -371,13 +382,15 @@ func TestSystemMemoryUsageSamplerFailsClosedOnFirstMalformedAncestor(t *testing.
 	write(filepath.Join(leaf, "memory.max"), "1073741824")
 	write(filepath.Join(mountpoint, "memory.current"), "10485760")
 	write(filepath.Join(mountpoint, "memory.max"), "not-a-number")
+	memInfo := filepath.Join(dir, "meminfo")
+	writeTestHostMemory(t, memInfo, 2<<30, 1<<30)
 	cgroupFile := filepath.Join(dir, "self.cgroup")
 	mountInfoFile := filepath.Join(dir, "mountinfo")
 	write(cgroupFile, "0::/service")
 	write(mountInfoFile, "29 23 0:26 / "+mountpoint+" rw - cgroup2 cgroup rw")
 
 	sampler := systemMemoryUsageSampler{
-		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: filepath.Join(dir, "missing"),
+		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: memInfo,
 	}
 	// The malformed path is the synthetic mount root, which v2 legitimately
 	// may omit on hybrid hosts. Add a real intermediate ancestor so a malformed
@@ -394,6 +407,8 @@ func TestSystemMemoryUsageSamplerFailsClosedOnFirstMalformedAncestor(t *testing.
 	write(cgroupFile, "0::/slice/service")
 	if _, err := sampler.SampleMemoryUsages(); err == nil {
 		t.Fatal("malformed first-sample ancestor was silently skipped")
+	} else if want := "read cgroup_v2 memory constraint " + parent; !strings.Contains(err.Error(), want) {
+		t.Fatalf("malformed ancestor error = %q, want %q", err, want)
 	}
 }
 
@@ -414,13 +429,15 @@ func TestSystemMemoryUsageSamplerReadsNestedCgroupV1Constraints(t *testing.T) {
 	writeMetric(filepath.Join(leaf, "memory.limit_in_bytes"), "104857600")
 	writeMetric(filepath.Join(mountpoint, "memory.usage_in_bytes"), "95563022336")
 	writeMetric(filepath.Join(mountpoint, "memory.limit_in_bytes"), "107374182400")
+	memInfo := filepath.Join(dir, "meminfo")
+	writeTestHostMemory(t, memInfo, 200<<30, 100<<30)
 	cgroupFile := filepath.Join(dir, "self.cgroup")
 	mountInfoFile := filepath.Join(dir, "mountinfo")
 	writeMetric(cgroupFile, "5:cpu,memory:/tenant/agent")
 	writeMetric(mountInfoFile, "31 23 0:28 /tenant "+mountpoint+" rw - cgroup cgroup rw,memory")
 
 	sampler := systemMemoryUsageSampler{
-		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: filepath.Join(dir, "missing"),
+		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: memInfo,
 	}
 	usages, err := sampler.SampleMemoryUsages()
 	if err != nil {
@@ -477,6 +494,150 @@ func TestSystemMemoryUsageSamplerHostAndFileDescriptorFallbacks(t *testing.T) {
 	fd, err := sampler.SampleFileDescriptorUsage()
 	if err != nil || fd.Used != 3 || fd.Limit != 100 {
 		t.Fatalf("fd usage = %+v err=%v", fd, err)
+	}
+}
+
+func TestSystemMemoryUsageSamplerRequiresHostAlongsideFiniteGoLimit(t *testing.T) {
+	previousLimit := debug.SetMemoryLimit(256 << 20)
+	defer debug.SetMemoryLimit(previousLimit)
+	for _, test := range []struct {
+		name    string
+		prepare func(string) error
+	}{
+		{name: "unreadable", prepare: func(string) error { return nil }},
+		{name: "malformed", prepare: func(path string) error {
+			return os.WriteFile(path, []byte("MemTotal: 1000 MB\nMemAvailable: invalid kB\n"), 0o600)
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "meminfo")
+			if err := test.prepare(path); err != nil {
+				t.Fatal(err)
+			}
+			sampler := systemMemoryUsageSampler{
+				memInfoPath:    path,
+				resolveCgroups: func(string, string) []memoryCgroupPath { return nil },
+			}
+			if usages, err := sampler.SampleMemoryUsages(); err == nil {
+				t.Fatalf("hostless Go-only sample accepted: %+v", usages)
+			}
+		})
+	}
+}
+
+func TestSystemMemoryUsageSamplerReturnsHostCgroupAndGoConstraints(t *testing.T) {
+	dir := t.TempDir()
+	memInfo := filepath.Join(dir, "meminfo")
+	writeTestHostMemory(t, memInfo, 4<<30, 3<<30)
+	cgroup := filepath.Join(dir, "cgroup")
+	if err := os.Mkdir(cgroup, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cgroup, "memory.current"), []byte(strconv.FormatInt(128<<20, 10)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cgroup, "memory.max"), []byte(strconv.FormatInt(1<<30, 10)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	previousLimit := debug.SetMemoryLimit(512 << 20)
+	defer debug.SetMemoryLimit(previousLimit)
+	sampler := systemMemoryUsageSampler{
+		memInfoPath: memInfo,
+		resolveCgroups: func(string, string) []memoryCgroupPath {
+			return []memoryCgroupPath{{source: "cgroup_v2", directory: cgroup, usageFile: "memory.current", limitFile: "memory.max", required: true}}
+		},
+	}
+	usages, err := sampler.SampleMemoryUsages()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := make(map[string]bool, len(usages))
+	for _, usage := range usages {
+		sources[usage.Source] = usage.Valid()
+	}
+	for _, source := range []string{"cgroup_v2", "host", "go"} {
+		if !sources[source] {
+			t.Fatalf("constraints = %+v, missing valid %s constraint", usages, source)
+		}
+	}
+}
+
+func TestAdaptiveMemoryControllerHonorsCriticalHostWithHealthyCgroup(t *testing.T) {
+	previousLimit := debug.SetMemoryLimit(math.MaxInt64)
+	defer debug.SetMemoryLimit(previousLimit)
+	dir := t.TempDir()
+	memInfo := filepath.Join(dir, "meminfo")
+	writeTestHostMemory(t, memInfo, 100<<20, 5<<20)
+	cgroup := filepath.Join(dir, "cgroup")
+	if err := os.Mkdir(cgroup, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cgroup, "memory.current"), []byte(strconv.FormatInt(64<<20, 10)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cgroup, "memory.max"), []byte(strconv.FormatInt(1<<30, 10)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sampler := newSystemMemorySamplerForTest(t, memInfo, []memoryCgroupPath{{
+		source: "cgroup_v2", directory: cgroup, usageFile: "memory.current", limitFile: "memory.max", required: true,
+	}})
+	controller := MustNewAdaptiveMemoryController(DefaultAdaptiveMemoryConfig(), sampler)
+	snapshot := controller.ForceRefresh(2048, 7)
+	if snapshot.Level != MemoryPressureCritical || !snapshot.RejectNew || snapshot.PressureReason != "memory" || snapshot.Usage.Source != "host" || snapshot.AdmissionLimit != 7 {
+		t.Fatalf("critical host snapshot = %+v", snapshot)
+	}
+}
+
+func TestSystemHostSampleFailureRetainsTelemetryAndFailsClosed(t *testing.T) {
+	previousLimit := debug.SetMemoryLimit(math.MaxInt64)
+	defer debug.SetMemoryLimit(previousLimit)
+	dir := t.TempDir()
+	memInfo := filepath.Join(dir, "meminfo")
+	writeTestHostMemory(t, memInfo, 1<<30, 512<<20)
+	sampler := newSystemMemorySamplerForTest(t, memInfo, nil)
+	config := DefaultAdaptiveMemoryConfig()
+	config.MaxSampleStaleness = time.Second
+	controller := MustNewAdaptiveMemoryController(config, sampler)
+	now := time.Unix(500, 0)
+	controller.now = func() time.Time { return now }
+	good := controller.ForceRefresh(2048, 3)
+	if good.RejectNew || good.Usage.Source != "host" {
+		t.Fatalf("initial host snapshot = %+v", good)
+	}
+	if err := os.WriteFile(memInfo, []byte("MemTotal: 1000 MB\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(100 * time.Millisecond)
+	failed := controller.ForceRefresh(2048, 3)
+	if failed.Level != MemoryPressureUnknown || !failed.RejectNew || failed.AdmissionLimit != 3 || failed.Usage != good.Usage || failed.LastGoodSampleAt != good.LastGoodSampleAt || failed.SampleError == "" {
+		t.Fatalf("failed host snapshot = %+v, want fail-closed with retained telemetry %+v", failed, good)
+	}
+}
+
+func writeTestHostMemory(t testing.TB, path string, total, available int64) {
+	t.Helper()
+	data := "MemTotal: " + strconv.FormatInt(total/1024, 10) + " kB\nMemAvailable: " + strconv.FormatInt(available/1024, 10) + " kB\n"
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func newSystemMemorySamplerForTest(t testing.TB, memInfo string, paths []memoryCgroupPath) *systemMemoryUsageSampler {
+	t.Helper()
+	fdPath := filepath.Join(t.TempDir(), "fd")
+	if err := os.Mkdir(fdPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return &systemMemoryUsageSampler{
+		memInfoPath: memInfo,
+		fdPath:      fdPath,
+		resolveCgroups: func(string, string) []memoryCgroupPath {
+			return append([]memoryCgroupPath(nil), paths...)
+		},
+		getRlimit: func(_ int, limit *unix.Rlimit) error {
+			limit.Cur = 1 << 20
+			return nil
+		},
 	}
 }
 

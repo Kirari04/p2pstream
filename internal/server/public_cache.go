@@ -67,7 +67,7 @@ const (
 	// independently of the operator's potentially much larger disk-entry limit.
 	maxPublicCacheNegativeLookups = 4096
 	publicCacheNegativeLookupTTL  = 30 * time.Second
-	publicCacheKeyDigestVersion   = "v3"
+	publicCacheKeyDigestVersion   = "v5"
 )
 
 var defaultPublicCacheStatusCodes = []int64{200, 203, 204, 301, 308}
@@ -995,7 +995,12 @@ func (a *App) checkPublicCacheWithSnapshot(snap *publicProxySnapshot, r *http.Re
 		return decision
 	}
 
-	rule, ok := selectPublicCacheRule(snap.CacheRules, resolution.Listener, r, resolution)
+	rule, ok, matchErr := selectPublicCacheRule(snap.CacheRules, resolution.Listener, r, resolution)
+	if matchErr != nil {
+		decision.Status = publicCacheStatusBypass
+		decision.BypassReason = publicPolicyMatchFailureErrorKind
+		return decision
+	}
 	if !ok {
 		decision.Status = publicCacheStatusBypass
 		decision.BypassReason = "no_rule"
@@ -1082,7 +1087,7 @@ func publicCacheBaseDecision(r *http.Request, resolution publicRouteResolution) 
 		Path:          path,
 		RouteID:       routeID,
 		RouteTargetID: routeTargetID,
-		CookieRequest: r.Header.Get("Cookie") != "",
+		CookieRequest: publicRequestHasHeaderField(r, "Cookie"),
 	}
 }
 
@@ -1114,10 +1119,10 @@ func publicCacheRequestBypassReason(r *http.Request) string {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return "method"
 	}
-	if r.Header.Get("Authorization") != "" {
+	if publicRequestHasHeaderField(r, "Authorization") {
 		return "authorization"
 	}
-	if r.Header.Get("Cookie") != "" {
+	if publicRequestHasHeaderField(r, "Cookie") {
 		return "cookie"
 	}
 	if r.Header.Get("Range") != "" {
@@ -1132,17 +1137,36 @@ func publicCacheRequestBypassReason(r *http.Request) string {
 	return ""
 }
 
-func selectPublicCacheRule(rules []publicCacheRuleConfig, listener publicListenerConfig, r *http.Request, resolution publicRouteResolution) (publicCacheRuleConfig, bool) {
+func publicRequestHasHeaderField(r *http.Request, name string) bool {
+	if r == nil {
+		return false
+	}
+	for field := range r.Header {
+		if strings.EqualFold(field, name) {
+			return true
+		}
+	}
+	return false
+}
+
+func selectPublicCacheRule(rules []publicCacheRuleConfig, listener publicListenerConfig, r *http.Request, resolution publicRouteResolution) (publicCacheRuleConfig, bool, error) {
 	if len(rules) == 0 {
-		return publicCacheRuleConfig{}, false
+		return publicCacheRuleConfig{}, false, nil
 	}
 	for _, rule := range rules {
-		if !rule.Enabled || !rule.matches(listener, r, resolution) {
+		if !rule.Enabled {
 			continue
 		}
-		return rule, true
+		matches, err := rule.evaluate(listener, r, resolution)
+		if err != nil {
+			return publicCacheRuleConfig{}, false, err
+		}
+		if !matches {
+			continue
+		}
+		return rule, true, nil
 	}
-	return publicCacheRuleConfig{}, false
+	return publicCacheRuleConfig{}, false, nil
 }
 
 func sortPublicCacheRules(rules []publicCacheRuleConfig) {
@@ -1155,8 +1179,14 @@ func sortPublicCacheRules(rules []publicCacheRuleConfig) {
 }
 
 func (rule publicCacheRuleConfig) matches(listener publicListenerConfig, r *http.Request, resolution publicRouteResolution) bool {
-	if !(publicRateLimitRuleConfig{Match: rule.Match}).matches(listener, r) {
-		return false
+	matches, _ := rule.evaluate(listener, r, resolution)
+	return matches
+}
+
+func (rule publicCacheRuleConfig) evaluate(listener publicListenerConfig, r *http.Request, resolution publicRouteResolution) (bool, error) {
+	matches, err := rule.Match.evaluate(listener, r)
+	if err != nil || !matches {
+		return matches, err
 	}
 	if len(rule.RouteIDs) > 0 {
 		routeID := resolution.Route.ID
@@ -1164,7 +1194,7 @@ func (rule publicCacheRuleConfig) matches(listener publicListenerConfig, r *http
 			routeID = resolution.RouteID.Int64
 		}
 		if !int64InSlice(routeID, rule.RouteIDs) {
-			return false
+			return false, nil
 		}
 	}
 	if len(rule.TargetIDs) > 0 {
@@ -1173,10 +1203,10 @@ func (rule publicCacheRuleConfig) matches(listener publicListenerConfig, r *http
 			targetID = resolution.RouteTargetID.Int64
 		}
 		if !int64InSlice(targetID, rule.TargetIDs) {
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }
 
 func int64InSlice(value int64, values []int64) bool {
@@ -1240,7 +1270,6 @@ func publicCacheKeyDigest(r *http.Request, resolution publicRouteResolution, rul
 		}
 	}
 	parts := []string{
-		publicCacheKeyDigestVersion,
 		resolution.Listener.Protocol,
 		normalizeRequestHost(r.Host),
 		r.URL.EscapedPath(),
@@ -1249,10 +1278,28 @@ func publicCacheKeyDigest(r *http.Request, resolution publicRouteResolution, rul
 		strconv.FormatInt(routeID, 10),
 		strconv.FormatInt(routeTargetID, 10),
 	}
-	for _, header := range publicCacheRequiredVaryHeaders(varyHeaders) {
-		parts = append(parts, textproto.CanonicalMIMEHeaderKey(header), r.Header.Get(header))
+	type varyValue struct {
+		Name   string   `json:"name"`
+		Values [][]byte `json:"values"`
 	}
-	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	vary := make([]varyValue, 0, len(varyHeaders))
+	for _, header := range publicCacheRequiredVaryHeaders(varyHeaders) {
+		canonical := textproto.CanonicalMIMEHeaderKey(header)
+		rawValues := r.Header.Values(canonical)
+		values := make([][]byte, len(rawValues))
+		for i := range rawValues {
+			// HTTP field values may contain obs-text bytes. JSON string encoding
+			// replaces invalid UTF-8 and can collapse distinct cache variants.
+			values[i] = append([]byte(nil), rawValues[i]...)
+		}
+		vary = append(vary, varyValue{Name: canonical, Values: values})
+	}
+	payload, _ := json.Marshal(struct {
+		Version string      `json:"version"`
+		Parts   []string    `json:"parts"`
+		Vary    []varyValue `json:"vary"`
+	}{Version: publicCacheKeyDigestVersion, Parts: parts, Vary: vary})
+	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:])
 }
 
