@@ -76,7 +76,18 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 	if err := recoverActivation(ctx, options); err != nil {
 		return Result{}, fmt.Errorf("recover interrupted activation: %w", err)
 	}
-	if _, err := os.Lstat(readyPath); errors.Is(err, os.ErrNotExist) {
+	var stagedDirs *stagedDirectories
+	if readyPath == options.Paths.readyPath() {
+		stagedDirs, err = openStagingDirectory(options.Paths)
+		if errors.Is(err, os.ErrNotExist) {
+			floor, floorErr := loadFloor(options.Paths.floorPath())
+			return Result{Version: floor.Version, Sequence: floor.Sequence, SecurityEpoch: floor.SecurityEpoch}, floorErr
+		}
+		if err != nil {
+			return Result{}, fmt.Errorf("open staging directory: %w", err)
+		}
+		defer stagedDirs.Close()
+	} else if _, err := os.Lstat(readyPath); errors.Is(err, os.ErrNotExist) {
 		floor, floorErr := loadFloor(options.Paths.floorPath())
 		return Result{Version: floor.Version, Sequence: floor.Sequence, SecurityEpoch: floor.SecurityEpoch}, floorErr
 	} else if err != nil {
@@ -88,7 +99,16 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 	}
 	applyFloor(&options.Policy, floor)
 
-	readyData, err := readRegularNoFollow(readyPath, 64<<10)
+	var readyData []byte
+	if stagedDirs != nil {
+		readyData, err = readRegularNoFollowAt(stagedDirs.staging, "ready.json", 64<<10)
+	} else {
+		readyData, err = readRegularNoFollow(readyPath, 64<<10)
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		floor, floorErr := loadFloor(options.Paths.floorPath())
+		return Result{Version: floor.Version, Sequence: floor.Sequence, SecurityEpoch: floor.SecurityEpoch}, floorErr
+	}
 	if err != nil {
 		return Result{}, fmt.Errorf("read staged ready record: %w", err)
 	}
@@ -107,10 +127,20 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 		if ready.Authorization.Authorization.CommandSequence != commandFloor.Sequence {
 			return Result{}, errors.New("activation management authorization was superseded or replayed")
 		}
-		return replayCompletedActivation(options.Paths, ready, commandFloor, readyPath)
+		return replayCompletedActivation(options.Paths, ready, commandFloor, readyPath, stagedDirs)
 	}
 	options.Policy.ServerVersion = ready.ServerVersion
-	manifest, err := readRegularNoFollow(filepath.Join(options.Paths.candidateDir(), "manifest.json"), defaultMaxMetadata)
+	if stagedDirs == nil {
+		stagedDirs, err = openStagingDirectory(options.Paths)
+		if err != nil {
+			return Result{}, fmt.Errorf("open staging directory: %w", err)
+		}
+		defer stagedDirs.Close()
+	}
+	if err := stagedDirs.openCandidate(); err != nil {
+		return Result{}, fmt.Errorf("open staged candidate directory: %w", err)
+	}
+	manifest, err := readRegularNoFollowAt(stagedDirs.candidate, "manifest.json", defaultMaxMetadata)
 	if err != nil {
 		return Result{}, fmt.Errorf("read staged manifest: %w", err)
 	}
@@ -142,7 +172,7 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 		return Result{}, err
 	}
 
-	artifact, err := openRegularNoFollow(filepath.Join(options.Paths.candidateDir(), "artifact.bin"), release.Artifact.Size)
+	artifact, err := openRegularNoFollowAt(stagedDirs.candidate, "artifact.bin", release.Artifact.Size)
 	if err != nil {
 		return Result{}, fmt.Errorf("open staged artifact: %w", err)
 	}
@@ -225,7 +255,7 @@ func Activate(ctx context.Context, options ActivateOptions) (Result, error) {
 	if err := writeJournal(options.Paths, journal); err != nil {
 		return Result{}, err
 	}
-	if err := persistHealthyActivation(options.Paths, journal, readyPath); err != nil {
+	if err := persistHealthyActivation(options.Paths, journal, readyPath, stagedDirs); err != nil {
 		return Result{}, err
 	}
 	return Result{Version: release.Version, Sequence: release.Sequence, SecurityEpoch: release.SecurityEpoch, Changed: true}, nil
@@ -464,7 +494,7 @@ func previousSlotForReactivation(paths Paths, current slotMetadata) (slotMetadat
 	return activation.PreviousSlot, nil
 }
 
-func replayCompletedActivation(paths Paths, ready readyRecord, floor rootCommandFloor, readyPath string) (Result, error) {
+func replayCompletedActivation(paths Paths, ready readyRecord, floor rootCommandFloor, readyPath string, stagedDirs *stagedDirectories) (Result, error) {
 	a := ready.Authorization.Authorization
 	digest, err := agentupdateauth.AssignmentAuthorizationDigest(a)
 	if err != nil || floor.AuthorizationSHA256 != hex.EncodeToString(digest[:]) {
@@ -514,7 +544,7 @@ func replayCompletedActivation(paths Paths, ready readyRecord, floor rootCommand
 	if err := atomicJSON(paths.rootActionReceiptPath(), activation.Receipt, 0644); err != nil {
 		return Result{}, err
 	}
-	if err := clearStagedIfMatchingAuthorization(paths, readyPath, ready.Authorization); err != nil {
+	if err := clearStagedIfMatchingAuthorization(paths, readyPath, ready.Authorization, stagedDirs); err != nil {
 		return Result{}, err
 	}
 	return Result{Version: r.ResultVersion, Sequence: r.ResultReleaseSequence, SecurityEpoch: r.ResultSecurityEpoch}, nil
@@ -537,7 +567,7 @@ func recoverActivation(ctx context.Context, options ActivateOptions) error {
 	}
 	switch journal.Phase {
 	case journalHealthy:
-		return persistHealthyActivation(options.Paths, journal, options.ReadyPath)
+		return persistHealthyActivation(options.Paths, journal, options.ReadyPath, nil)
 	case journalPrepared, journalSwitched:
 		return rollback(ctx, options, journal)
 	default:
@@ -565,25 +595,39 @@ func restartAndCheck(ctx context.Context, service ServiceController) error {
 	return service.Healthy(ctx)
 }
 
-func clearStaged(paths Paths, readyPath string) error {
+func clearStaged(paths Paths, readyPath string, stagedDirs *stagedDirectories) error {
 	if readyPath == "" {
 		readyPath = paths.readyPath()
 	}
-	if err := removeAndSync(readyPath); err != nil {
-		return err
+	if stagedDirs == nil || stagedDirs.staging == nil {
+		return errors.New("staging directory is not pinned")
 	}
-	if err := removeAndSync(paths.stagedPath()); err != nil {
-		return err
+	if stagedDirs.candidate == nil {
+		if err := stagedDirs.openCandidate(); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("open staged candidate directory for cleanup: %w", err)
+		}
 	}
-	for _, name := range []string{"artifact.bin", "manifest.json"} {
-		if err := removeAndSync(filepath.Join(paths.candidateDir(), name)); err != nil {
+	if readyPath == paths.readyPath() {
+		if err := unlinkAtAndSync(stagedDirs.staging, "ready.json"); err != nil {
 			return err
+		}
+	} else if err := removeAndSync(readyPath); err != nil {
+		return err
+	}
+	if err := unlinkAtAndSync(stagedDirs.staging, "staged.json"); err != nil {
+		return err
+	}
+	if stagedDirs.candidate != nil {
+		for _, name := range []string{"artifact.bin", "manifest.json"} {
+			if err := unlinkAtAndSync(stagedDirs.candidate, name); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func clearStagedIfMatchingAuthorization(paths Paths, readyPath string, expected assignmentAuthorizationRecord) error {
+func clearStagedIfMatchingAuthorization(paths Paths, readyPath string, expected assignmentAuthorizationRecord, stagedDirs *stagedDirectories) error {
 	if readyPath == "" {
 		readyPath = paths.readyPath()
 	}
@@ -621,7 +665,26 @@ func clearStagedIfMatchingAuthorization(paths Paths, readyPath string, expected 
 		}
 		return err
 	}
-	data, err := readRegularNoFollow(readyPath, 64<<10)
+	closeStagedDirs := false
+	if stagedDirs == nil {
+		stagedDirs, err = openStagingDirectory(paths)
+		if errors.Is(err, os.ErrNotExist) {
+			return removeOldClaim()
+		}
+		if err != nil {
+			return fmt.Errorf("open staging directory for cleanup: %w", err)
+		}
+		closeStagedDirs = true
+	}
+	if closeStagedDirs {
+		defer stagedDirs.Close()
+	}
+	var data []byte
+	if readyPath == paths.readyPath() {
+		data, err = readRegularNoFollowAt(stagedDirs.staging, "ready.json", 64<<10)
+	} else {
+		data, err = readRegularNoFollow(readyPath, 64<<10)
+	}
 	if errors.Is(err, os.ErrNotExist) {
 		// A stale completed journal must never treat a later campaign's shared
 		// candidate directory as its own when its command edge is already gone.
@@ -635,7 +698,7 @@ func clearStagedIfMatchingAuthorization(paths Paths, readyPath string, expected 
 		return nil
 	}
 	if readyPath != paths.readyPath() {
-		liveData, liveErr := readRegularNoFollow(paths.readyPath(), 64<<10)
+		liveData, liveErr := readRegularNoFollowAt(stagedDirs.staging, "ready.json", 64<<10)
 		if errors.Is(liveErr, os.ErrNotExist) {
 			// staged.json has no assignment binding. Even identical release
 			// metadata may belong to a new generation that has no ready edge yet.
@@ -650,7 +713,7 @@ func clearStagedIfMatchingAuthorization(paths Paths, readyPath string, expected 
 			return removeAndSync(readyPath)
 		}
 	}
-	stagedData, err := readRegularNoFollow(paths.stagedPath(), 64<<10)
+	stagedData, err := readRegularNoFollowAt(stagedDirs.staging, "staged.json", 64<<10)
 	if errors.Is(err, os.ErrNotExist) {
 		return removeAndSync(readyPath)
 	}
@@ -667,7 +730,7 @@ func clearStagedIfMatchingAuthorization(paths Paths, readyPath string, expected 
 	}
 	// Under the worker lock, this matching live ready edge proves ownership:
 	// Stage always removes it before it starts publishing another candidate.
-	if err := clearStaged(paths, paths.readyPath()); err != nil {
+	if err := clearStaged(paths, paths.readyPath(), stagedDirs); err != nil {
 		return err
 	}
 	if readyPath != paths.readyPath() {

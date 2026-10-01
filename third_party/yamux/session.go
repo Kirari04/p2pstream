@@ -16,6 +16,10 @@ import (
 	"time"
 )
 
+const pingReplyQueueSize = 64
+
+var errPingReplyBacklog = fmt.Errorf("ping reply backlog exceeded")
+
 // Session is used to wrap a reliable ordered connection and to
 // multiplex it into multiple streams.
 type Session struct {
@@ -47,6 +51,12 @@ type Session struct {
 	pings    map[uint32]chan struct{}
 	pingID   uint32
 	pingLock sync.Mutex
+
+	// pingReplyCh bounds peer-triggered reply work. Ping replies must not
+	// block recv, but an authenticated peer must not be able to create an
+	// unbounded goroutine for every request either.
+	pingReplyCh     chan uint32
+	pingReplyDoneCh chan struct{}
 
 	// RTT probes are shared by all streams, including newly opened streams.
 	rttNanos        atomic.Int64
@@ -105,19 +115,21 @@ func newSession(config *Config, conn io.ReadWriteCloser, client bool) *Session {
 	}
 
 	s := &Session{
-		config:     config,
-		logger:     logger,
-		conn:       conn,
-		bufRead:    bufio.NewReader(conn),
-		pings:      make(map[uint32]chan struct{}),
-		streams:    make(map[uint32]*Stream),
-		inflight:   make(map[uint32]struct{}),
-		synCh:      make(chan struct{}, config.AcceptBacklog),
-		acceptCh:   make(chan *Stream, config.AcceptBacklog),
-		sendCh:     make(chan *sendReady, 64),
-		recvDoneCh: make(chan struct{}),
-		sendDoneCh: make(chan struct{}),
-		shutdownCh: make(chan struct{}),
+		config:          config,
+		logger:          logger,
+		conn:            conn,
+		bufRead:         bufio.NewReader(conn),
+		pings:           make(map[uint32]chan struct{}),
+		pingReplyCh:     make(chan uint32, pingReplyQueueSize),
+		pingReplyDoneCh: make(chan struct{}),
+		streams:         make(map[uint32]*Stream),
+		inflight:        make(map[uint32]struct{}),
+		synCh:           make(chan struct{}, config.AcceptBacklog),
+		acceptCh:        make(chan *Stream, config.AcceptBacklog),
+		sendCh:          make(chan *sendReady, 64),
+		recvDoneCh:      make(chan struct{}),
+		sendDoneCh:      make(chan struct{}),
+		shutdownCh:      make(chan struct{}),
 	}
 	if client {
 		s.nextStreamID = 1
@@ -126,6 +138,7 @@ func newSession(config *Config, conn io.ReadWriteCloser, client bool) *Session {
 	}
 	go s.recv()
 	go s.send()
+	go s.sendPingReplies()
 	if config.EnableKeepAlive {
 		go s.keepalive()
 	}
@@ -300,6 +313,7 @@ func (s *Session) Close() error {
 	for _, stream := range s.streams {
 		stream.forceClose()
 	}
+	<-s.pingReplyDoneCh
 	<-s.sendDoneCh
 	return nil
 }
@@ -642,22 +656,54 @@ func (s *Session) handleStreamMessage(hdr header) error {
 	return nil
 }
 
-// handlePing is invokde for a typePing frame
+// sendPingReplies is the single, session-owned worker for peer-triggered ping
+// responses. A blocked connection therefore consumes a fixed amount of work.
+func (s *Session) sendPingReplies() {
+	defer close(s.pingReplyDoneCh)
+
+	for {
+		select {
+		case <-s.shutdownCh:
+			return
+		default:
+		}
+
+		select {
+		case pingID := <-s.pingReplyCh:
+			hdr := header(make([]byte, headerSize))
+			hdr.encode(typePing, flagACK, 0, pingID)
+			if err := s.sendNoWait(hdr); err != nil && err != ErrSessionShutdown {
+				s.logger.Printf("[WARN] yamux: failed to send ping reply: %v", err)
+			}
+		case <-s.shutdownCh:
+			return
+		}
+	}
+}
+
+// handlePing is invoked for a typePing frame.
 func (s *Session) handlePing(hdr header) error {
 	flags := hdr.Flags()
 	pingID := hdr.Length()
 
-	// Check if this is a query, respond back in a separate context so we
-	// don't interfere with the receiving thread blocking for the write.
+	// Queue queries without blocking the receive loop. Closing a session whose
+	// bounded backlog is full prevents an authenticated peer from accumulating
+	// unlimited reply work while writes are blocked.
 	if flags&flagSYN == flagSYN {
-		go func() {
-			hdr := header(make([]byte, headerSize))
-			hdr.encode(typePing, flagACK, 0, pingID)
-			if err := s.sendNoWait(hdr); err != nil {
-				s.logger.Printf("[WARN] yamux: failed to send ping reply: %v", err)
-			}
-		}()
-		return nil
+		select {
+		case <-s.shutdownCh:
+			return ErrSessionShutdown
+		default:
+		}
+
+		select {
+		case s.pingReplyCh <- pingID:
+			return nil
+		case <-s.shutdownCh:
+			return ErrSessionShutdown
+		default:
+			return errPingReplyBacklog
+		}
 	}
 
 	// Handle a response

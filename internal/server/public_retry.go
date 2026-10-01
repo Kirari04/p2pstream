@@ -88,25 +88,30 @@ type publicRetryRuleMutationInput struct {
 }
 
 func (rule publicRetryRuleConfig) matches(listener publicListenerConfig, r *http.Request, resolution publicRouteResolution) bool {
+	matches, _ := rule.evaluateMatch(listener, r, resolution)
+	return matches
+}
+
+func (rule publicRetryRuleConfig) evaluateMatch(listener publicListenerConfig, r *http.Request, resolution publicRouteResolution) (bool, error) {
 	if !rule.Enabled || r == nil || resolution.Target.Transport != publicRouteTargetTransportAgent {
-		return false
+		return false, nil
 	}
 	if !rule.AllMethods {
 		if _, ok := rule.methodSet[strings.ToUpper(r.Method)]; !ok {
-			return false
+			return false, nil
 		}
 	}
 	if len(rule.routeIDSet) > 0 {
 		if _, ok := rule.routeIDSet[resolution.Route.ID]; !ok {
-			return false
+			return false, nil
 		}
 	}
 	if len(rule.targetIDSet) > 0 {
 		if _, ok := rule.targetIDSet[resolution.Target.ID]; !ok {
-			return false
+			return false, nil
 		}
 	}
-	return rule.Match.matches(listener, r)
+	return rule.Match.evaluate(listener, r)
 }
 
 func selectPublicRetryRule(snap *publicProxySnapshot, r *http.Request, resolution publicRouteResolution) *publicRetryRuleConfig {
@@ -114,7 +119,11 @@ func selectPublicRetryRule(snap *publicProxySnapshot, r *http.Request, resolutio
 		return nil
 	}
 	for i := range snap.RetryRules {
-		if snap.RetryRules[i].matches(resolution.Listener, r, resolution) {
+		matches, err := snap.RetryRules[i].evaluateMatch(resolution.Listener, r, resolution)
+		if err != nil {
+			return nil
+		}
+		if matches {
 			rule := snap.RetryRules[i]
 			return &rule
 		}
