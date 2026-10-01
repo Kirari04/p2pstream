@@ -9,10 +9,12 @@ import (
 // BaseMemoryBytes is the socket allowance already included in stream overhead.
 const BaseMemoryBytes = int64(512 * 1024)
 
-// Configure returns the possible queue memory to reserve before using conn.
-// Zero leaves Linux TCP autotuning enabled; a positive value is an explicit
-// operator override per direction. Do not set SO_RCVBUF/SO_SNDBUF in auto mode:
-// even a seemingly generous value disables autotuning and imposes a WAN cap.
+// Configure returns the socket allowance to reserve before using conn. Zero
+// leaves Linux TCP autotuning enabled and returns a baseline overhead allowance;
+// real auto-grown queue memory remains governed by measured memory pressure. A
+// positive value is an explicit operator override per direction and receives a
+// full bounded charge. Do not set SO_RCVBUF/SO_SNDBUF in auto mode: even a
+// seemingly generous value disables autotuning and imposes a WAN cap.
 func Configure(conn *net.TCPConn, requested int64) (int64, error) {
 	if requested == 0 {
 		return autoMemory(conn)

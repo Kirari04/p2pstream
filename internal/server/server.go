@@ -200,6 +200,9 @@ type App struct {
 	publicConnectionLimitRejected   atomic.Uint64
 	publicConnectionResourceReject  atomic.Uint64
 	publicClientRequestRejected     atomic.Uint64
+	publicAdmissionReclaimMu        sync.Mutex
+	publicAdmissionLastReclaim      time.Time
+	publicAdmissionReclaimNow       func() time.Time
 	managementClientIdentity        *ClientIdentityResolver
 	managementClientIdentityErr     error
 	ManagementTLS                   *ManagementTLSRuntime

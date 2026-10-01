@@ -215,7 +215,7 @@ func (a *App) tryReservePublicConnection(conn net.Conn) (func(), bool) {
 		a.publicConnectionLimitRejected.Add(1)
 		return nil, false
 	}
-	resourceRelease, resourceOK, constrained := a.agentStreamCapacity.tryReserveAdaptiveExternal(resourceBytes, 1)
+	resourceRelease, resourceOK, constrained := a.tryReservePublicResource(resourceBytes, 1)
 	if constrained && !resourceOK {
 		a.publicConnectionResourceReject.Add(1)
 		connectionRelease()

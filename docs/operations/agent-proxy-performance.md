@@ -37,18 +37,16 @@ still apply.
   disables autotuning and can severely limit a connection over a WAN. The
   default agent `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES=0` leaves both untouched;
   an explicit positive value still requests fixed buffers. Non-Linux builds
-  retain the bounded 128 KiB fallback until their kernel allowances can be read.
-- Before HTTP/TLS traffic can grow TCP queues, admission reserves the possible
-  receive and send buffers from the current network namespace's `tcp_rmem` and
-  `tcp_wmem` settings, or larger already-present socket buffers. These kernel
-  maxima are actual buffer sizes, not doubled setsockopt requests. The credit
-  lasts until physical close, including pooled idle connections and half-close.
-  Missing or invalid Linux allowance information rejects the connection.
-  Reserving possible growth is conservative: larger OS maxima permit more
-  bandwidth per connection but reduce admitted concurrent sockets at a given
-  memory budget. The public peer guard includes the complete socket allowance.
-  Apply OS tuning before starting the processes; restart after raising TCP
-  maxima so existing socket reservations reflect the new allowances.
+  retain the bounded 128 KiB-per-direction fallback.
+- Automatic Linux sockets carry a 512 KiB lifetime admission allowance for
+  connection overhead. This allowance is not a hard bound on kernel queues and
+  does not pre-reserve the `tcp_rmem` and `tcp_wmem` maxima: Linux grows queues
+  on demand while the adaptive controller samples real cgroup, host and Go
+  memory plus process file descriptors every 100 ms by default. A missing,
+  stale or invalid resource sample fails closed. Explicit positive socket sizes
+  retain their full bounded charge, including Linux's possible doubling of both
+  requested buffers. Half-close and idle pooling retain the applicable charge
+  until physical close.
 - Public request, resolved-client, direct-peer and direct-origin connection
   guards default to zero (automatic or disabled policy). Public sockets,
   logical HTTP requests and direct-origin sockets still reserve resources.
@@ -59,6 +57,11 @@ still apply.
   Under actual resource exhaustion, direct-origin admission can close idle
   keep-alive sockets before reserving a replacement. Active requests continue;
   a failed replacement dial releases its reservation for the next request.
+  Early public socket and request admission misses coalesce a bounded idle-pool
+  sweep, then retry once. A 100 ms cooldown prevents request waves from causing
+  cleanup stampedes. Each sweep touches at most one agent shard and one direct
+  transport, preserves active requests and control work, and may need a later
+  sweep when asynchronous tunnel close has not yet returned its reservation.
   Admission does not temporarily exceed the memory/descriptor budget to keep
   idle sockets warm.
 - Pool entries follow the shared stream budget; the separate 256-target ceiling
@@ -225,8 +228,12 @@ It smooths the measured rate, requires two growth-supporting samples,
 discards epochs spanning long idle gaps, and limits each increase.
 Existing advertised credit remains backed until
 the stream closes; it cannot safely shrink after being granted.
-Increasing Linux maxima also increases the current lifetime socket reservation,
-including idle sockets; it must be considered together with connection fan-out.
+Application-controlled Yamux receive credit, HTTP/2 upload credit, replay
+buffers, headers and request state retain strict lifetime reservations. Some
+resident application buffer memory is intentionally also present in measured
+usage; removing that conservatism requires actual per-buffer commit tracking.
+Increasing Linux TCP maxima can increase measured memory when traffic grows the
+queues, but does not increase the automatic socket's 512 KiB admission allowance.
 These measurements do not demonstrate 10 Gbit/s performance.
 
 The optional HTTP/2 diagnostic isolates receive-window behavior in a Go HTTPS

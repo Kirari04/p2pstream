@@ -34,6 +34,9 @@ func (p *directTransportPool) accountConnections(transport *http.Transport) {
 			return nil, err
 		}
 		if tcp, ok := conn.(*net.TCPConn); ok {
+			// Auto mode leaves Linux buffer options untouched and returns the
+			// baseline already included in AdaptivePerStreamOverheadBytes. Keep
+			// the excess path for platforms or future modes with a larger charge.
 			socketBytes, socketErr := tcpsocket.Configure(tcp, 0)
 			if socketErr != nil {
 				_ = conn.Close()
