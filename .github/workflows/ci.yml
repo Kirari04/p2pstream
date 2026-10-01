@@ -67,6 +67,9 @@ jobs:
       - name: Check installer syntax
         run: bash -n scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh
 
+      - name: Test Docker release installation and host lifecycle
+        run: python3 -I scripts/test-server-updater-host.py
+
       - name: Run installer lifecycle tests
         run: scripts/test-agent-lifecycle.sh
 

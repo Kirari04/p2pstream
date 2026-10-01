@@ -22,6 +22,8 @@ baseline_image="$image_prefix:baseline"
 candidate_image="$image_prefix:candidate"
 helper_image="$image_prefix:helper"
 upstream_image="$image_prefix:upstream"
+updater_image="$image_prefix:updater"
+candidate_updater_image="$image_prefix:candidate-updater"
 baseline_version=v0.1.53-staging.9000
 candidate_version=v0.1.53-staging.9001
 baseline_commit=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -55,7 +57,7 @@ cleanup() {
     }
   fi
   # Remove only this run's tags; shared base images and their caches remain.
-  docker image rm "$baseline_image" "$candidate_image" "$helper_image" "$upstream_image" >>"$artifact_dir/cleanup.log" 2>&1
+  docker image rm "$baseline_image" "$candidate_image" "$helper_image" "$upstream_image" "$updater_image" "$candidate_updater_image" >>"$artifact_dir/cleanup.log" 2>&1
   echo "Server updater rehearsal artifacts: $artifact_dir"
   exit "$result"
 }
@@ -79,6 +81,8 @@ build_runtime "$candidate_image" "$candidate_version" "$candidate_commit" 2>&1 |
 docker build --file Dockerfile.updater-test --build-arg "REVIEW_RUNTIME=$baseline_image" \
   --tag "$helper_image" . 2>&1 | tee "$artifact_dir/build-helper.log"
 docker build --target smoke-upstream --tag "$upstream_image" . 2>&1 | tee "$artifact_dir/build-upstream.log"
+docker build --file Dockerfile.updater --build-arg "P2PSTREAM_IMAGE=$baseline_image" --tag "$updater_image" . >"$artifact_dir/build-updater.log" 2>&1
+docker build --file Dockerfile.updater --build-arg "P2PSTREAM_IMAGE=$candidate_image" --tag "$candidate_updater_image" . >"$artifact_dir/build-candidate-updater.log" 2>&1
 docker pull "$registry_image" 2>&1 | tee "$artifact_dir/pull-registry.log"
 docker pull "$dind_image" 2>&1 | tee "$artifact_dir/pull-daemon.log"
 
@@ -101,7 +105,7 @@ guest apk add --no-cache python3 2>&1 | tee "$artifact_dir/install-python.log"
 guest mkdir -p /review
 guest touch /review/ISOLATED_TEST_VM
 docker cp scripts/test-server-updater-docker.py "$daemon:/review/test-server-updater-docker.py"
-docker save "$baseline_image" "$candidate_image" "$helper_image" "$upstream_image" "$registry_image" \
+docker save "$baseline_image" "$candidate_image" "$helper_image" "$upstream_image" "$updater_image" "$candidate_updater_image" "$registry_image" \
   | guest docker load >"$artifact_dir/load-images.log"
 
 # Use precisely the Compose executable shipped in the tested updater. Enrolled
@@ -140,18 +144,32 @@ guest docker push "ghcr.io/review/p2pstream:$candidate_version" >"$artifact_dir/
 baseline_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream:$baseline_version")
 candidate_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream:$candidate_version")
 helper_ref=$(guest docker image inspect --format '{{.Id}}' "$helper_image")
-guest python3 - "$baseline_ref" "$candidate_ref" "$helper_ref" <<'PY'
+guest docker tag "$updater_image" "ghcr.io/review/p2pstream-updater:$baseline_version"
+guest docker tag "$candidate_updater_image" "ghcr.io/review/p2pstream-updater:$candidate_version"
+guest docker push "ghcr.io/review/p2pstream-updater:$baseline_version" >"$artifact_dir/push-updater.log" 2>&1
+guest docker push "ghcr.io/review/p2pstream-updater:$candidate_version" >"$artifact_dir/push-candidate-updater.log" 2>&1
+updater_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream-updater:$baseline_version")
+candidate_updater_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream-updater:$candidate_version")
+guest python3 - "$baseline_ref" "$candidate_ref" "$helper_ref" "$updater_ref" "$candidate_updater_ref" <<'PY'
 import json
 from pathlib import Path
 import re
 import sys
-baseline, candidate, helper = sys.argv[1:]
+baseline, candidate, helper, updater, candidate_updater = sys.argv[1:]
 for image in (baseline, candidate):
     assert re.fullmatch(r'ghcr\.io/review/p2pstream@sha256:[0-9a-f]{64}', image), image
 assert re.fullmatch(r'sha256:[0-9a-f]{64}', helper), helper
 assert baseline != candidate
-Path('/review/images.json').write_text(json.dumps(dict(baseline=baseline, candidate=candidate, helper=helper)))
+Path('/review/images.json').write_text(json.dumps(dict(baseline=baseline, candidate=candidate, helper=helper, updater=updater, candidate_updater=candidate_updater)))
 PY
+
+guest mkdir -p /review/install-bundle
+for source in scripts/server-updater-host.py scripts/install-server-updater.sh scripts/server-updater-compose.sh compose.yaml .env.example; do
+  docker cp "$source" "$daemon:/review/install-bundle/$(basename "$source")"
+done
+docker cp scripts/test-server-install-docker.py "$daemon:/review/test-server-install-docker.py"
+echo "Running release-based installation and host management boundary rehearsal."
+guest python3 -I /review/test-server-install-docker.py 2>&1 | tee "$artifact_dir/installation.log"
 
 for scenario in success rollback retry-recovery kill-validating; do
   echo "Running server update scenario: $scenario"

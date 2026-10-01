@@ -83,71 +83,13 @@ func TestEnrollmentChecksExistingRuntimeSocketMounts(t *testing.T) {
 	}
 }
 
-func TestInstallerRefusesUnappliedComposeBeforeEnrollment(t *testing.T) {
-	source, err := os.ReadFile("../../scripts/install-server-updater.sh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	helper, err := os.ReadFile("../../scripts/server-updater-compose.sh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, matches := range []bool{true, false} {
-		t.Run(map[bool]string{true: "matching", false: "drifted"}[matches], func(t *testing.T) {
-			directory := t.TempDir()
-			// Only relocate installation and bypass the host-root prerequisite in
-			// this copy; execute the real installer flow against an inert CLI.
-			script := strings.Replace(string(source), "if [[ ${EUID} -ne 0 ]]; then", "if false; then", 1)
-			script = strings.Replace(script, "state_dir=/etc/p2pstream-server-updater", "state_dir="+filepath.Join(directory, "state"), 1)
-			for name, data := range map[string][]byte{"install.sh": []byte(script), "server-updater-compose.sh": helper, "Dockerfile.updater": {}} {
-				if err := os.WriteFile(filepath.Join(directory, name), data, 0700); err != nil {
-					t.Fatal(err)
-				}
-			}
-			// The Dockerfile redirection is opened before the stub runs.
-			script = strings.Replace(script, "$script_dir/../Dockerfile.updater", "$script_dir/Dockerfile.updater", 1)
-			if err := os.WriteFile(filepath.Join(directory, "install.sh"), []byte(script), 0700); err != nil {
-				t.Fatal(err)
-			}
-			stub := `#!/bin/bash
-set -eu
-case "$1" in
- compose)
-  if [[ "$*" == *"--hash"* ]]; then printf 'p2pstream %s\n' "$REVIEW_SNAPSHOT_HASH"
-  elif [[ "$*" == *"--format json"* ]]; then printf '{}\n'
-  elif [[ "$*" == *" ps "* ]]; then printf 'server-container\n'
-  fi ;;
- inspect)
-  if [[ "$*" == *config-hash* ]]; then printf '%s\n' "$REVIEW_RUNNING_HASH"
-  else printf 'image-id\n'; fi ;;
- image) printf 'ghcr.io/test/repo@sha256:%064d\n' 0 ;;
- run) exit 0 ;;
- build) touch "$REVIEW_BUILD_MARKER"; exit 42 ;;
- *) exit 98 ;;
-esac
-`
-			if err := os.WriteFile(filepath.Join(directory, "docker"), []byte(stub), 0700); err != nil {
-				t.Fatal(err)
-			}
-			running := strings.Repeat("a", 64)
-			snapshot := running
-			if !matches {
-				snapshot = strings.Repeat("b", 64)
-			}
-			marker := filepath.Join(directory, "build-attempted")
-			cmd := exec.Command("bash", filepath.Join(directory, "install.sh"))
-			cmd.Env = append(os.Environ(), "PATH="+directory+":"+os.Getenv("PATH"), "REVIEW_RUNNING_HASH="+running, "REVIEW_SNAPSHOT_HASH="+snapshot, "REVIEW_BUILD_MARKER="+marker)
-			out, err := cmd.CombinedOutput()
-			if err == nil {
-				t.Fatal("expected preflight failure or intentional build stop")
-			}
-			_, built := os.Stat(marker)
-			if matches && built != nil {
-				t.Fatalf("matching model did not reach build: %s", out)
-			}
-			if !matches && (built == nil || !strings.Contains(string(out), "differs from the running server")) {
-				t.Fatalf("drift passed preflight: %s", out)
-			}
-		})
+// The former checkout-based installer has been replaced by the release host
+// controller. Its preflight/lifecycle checks run against deterministic Docker
+// boundaries in scripts/test-server-updater-host.py and the real Docker rehearsal.
+func TestInstallerRequiresExplicitVerifiedServerBinding(t *testing.T) {
+	command := exec.Command("bash", "../../scripts/install-server-updater.sh")
+	out, err := command.CombinedOutput()
+	if err == nil || !strings.Contains(string(out), "--expect-installation") {
+		t.Fatalf("unbound setup did not fail before Docker work: %v %s", err, out)
 	}
 }

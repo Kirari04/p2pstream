@@ -106,27 +106,35 @@ func (s *GitHubSource) resolve(ctx context.Context, version string, current Runt
 	if !validVersion(version, s.Channel) {
 		return Release{}, errors.New("invalid release version")
 	}
-	data, err := s.fetch(ctx, s.api+"/repos/"+s.Repository+"/releases/tags/"+url.PathEscape(version), 256<<10)
-	if err != nil {
-		return Release{}, err
-	}
-	var r githubRelease
-	if err := json.Unmarshal(data, &r); err != nil {
-		return Release{}, err
-	}
-	if r.Tag != version || r.Draft || r.Prerelease != (s.Channel == "staging") {
-		return Release{}, errors.New("release channel mismatch or draft release")
-	}
-	base := s.download + "/" + s.Repository + "/releases/download/" + version + "/"
-	manifest, err := s.fetch(ctx, base+"p2pstream_agent_update_manifest.json", 64<<10)
-	if err != nil {
-		return Release{}, err
-	}
-	metadata, err := s.fetch(ctx, base+MetadataAsset, 16<<10)
+	manifest, metadata, err := s.releaseInputs(ctx, version)
 	if err != nil {
 		return Release{}, err
 	}
 	return verifyRelease(manifest, metadata, "ghcr.io/"+strings.ToLower(s.Repository), s.Channel, version, s.Arch, current, floor, time.Now(), installed)
+}
+
+func (s *GitHubSource) releaseInputs(ctx context.Context, version string) ([]byte, []byte, error) {
+	data, err := s.fetch(ctx, s.api+"/repos/"+s.Repository+"/releases/tags/"+url.PathEscape(version), 256<<10)
+	if err != nil {
+		return nil, nil, err
+	}
+	var r githubRelease
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, nil, err
+	}
+	if r.Tag != version || r.Draft || r.Prerelease != (s.Channel == "staging") {
+		return nil, nil, errors.New("release channel mismatch or draft release")
+	}
+	base := s.download + "/" + s.Repository + "/releases/download/" + version + "/"
+	manifest, err := s.fetch(ctx, base+"p2pstream_agent_update_manifest.json", 64<<10)
+	if err != nil {
+		return nil, nil, err
+	}
+	metadata, err := s.fetch(ctx, base+MetadataAsset, 16<<10)
+	if err != nil {
+		return nil, nil, err
+	}
+	return manifest, metadata, nil
 }
 
 func (s *GitHubSource) fetch(ctx context.Context, address string, limit int64) ([]byte, error) {

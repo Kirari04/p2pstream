@@ -52,6 +52,7 @@ func (o Operation) Terminal() bool {
 }
 
 type Overview struct {
+	HostPhase  string        `json:"host_phase,omitempty"`
 	InstanceID string        `json:"instance_id"`
 	Channel    string        `json:"channel"`
 	Current    RuntimeStatus `json:"current"`

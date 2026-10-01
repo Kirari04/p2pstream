@@ -58,6 +58,11 @@ func (e *Engine) Handler(token string) http.Handler {
 		}
 		var response Response
 		switch r.URL.Path {
+		case "/status":
+			e.mu.Lock()
+			o := Overview{InstanceID: e.state.InstanceID, Channel: e.state.Channel, Operation: e.state.Operation}
+			e.mu.Unlock()
+			response.Overview = &o
 		case "/overview":
 			var o Overview
 			o, err = e.Overview(r.Context())
