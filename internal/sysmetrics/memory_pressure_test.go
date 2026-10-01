@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -198,16 +199,20 @@ func TestSystemMemoryUsageSamplerFailsClosedOnFirstMalformedOptionalMountRoot(t 
 	write(filepath.Join(leaf, "memory.max"), "1073741824")
 	write(filepath.Join(mountpoint, "memory.current"), "10485760")
 	write(filepath.Join(mountpoint, "memory.max"), "not-a-number")
+	memInfo := filepath.Join(dir, "meminfo")
+	writeTestHostMemory(t, memInfo, 2<<30, 1<<30)
 	cgroupFile := filepath.Join(dir, "self.cgroup")
 	mountInfoFile := filepath.Join(dir, "mountinfo")
 	write(cgroupFile, "0::/service")
 	write(mountInfoFile, "29 23 0:26 / "+mountpoint+" rw - cgroup2 cgroup rw")
 
 	sampler := systemMemoryUsageSampler{
-		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: filepath.Join(dir, "missing"),
+		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: memInfo,
 	}
 	if _, err := sampler.SampleMemoryUsages(); err == nil {
 		t.Fatal("malformed first-sample mount-root constraint was silently skipped")
+	} else if want := "read cgroup_v2 memory constraint " + mountpoint; !strings.Contains(err.Error(), want) {
+		t.Fatalf("malformed mount-root error = %q, want %q", err, want)
 	}
 }
 
@@ -377,13 +382,15 @@ func TestSystemMemoryUsageSamplerFailsClosedOnFirstMalformedAncestor(t *testing.
 	write(filepath.Join(leaf, "memory.max"), "1073741824")
 	write(filepath.Join(mountpoint, "memory.current"), "10485760")
 	write(filepath.Join(mountpoint, "memory.max"), "not-a-number")
+	memInfo := filepath.Join(dir, "meminfo")
+	writeTestHostMemory(t, memInfo, 2<<30, 1<<30)
 	cgroupFile := filepath.Join(dir, "self.cgroup")
 	mountInfoFile := filepath.Join(dir, "mountinfo")
 	write(cgroupFile, "0::/service")
 	write(mountInfoFile, "29 23 0:26 / "+mountpoint+" rw - cgroup2 cgroup rw")
 
 	sampler := systemMemoryUsageSampler{
-		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: filepath.Join(dir, "missing"),
+		cgroupPath: cgroupFile, mountInfoPath: mountInfoFile, memInfoPath: memInfo,
 	}
 	// The malformed path is the synthetic mount root, which v2 legitimately
 	// may omit on hybrid hosts. Add a real intermediate ancestor so a malformed
@@ -400,6 +407,8 @@ func TestSystemMemoryUsageSamplerFailsClosedOnFirstMalformedAncestor(t *testing.
 	write(cgroupFile, "0::/slice/service")
 	if _, err := sampler.SampleMemoryUsages(); err == nil {
 		t.Fatal("malformed first-sample ancestor was silently skipped")
+	} else if want := "read cgroup_v2 memory constraint " + parent; !strings.Contains(err.Error(), want) {
+		t.Fatalf("malformed ancestor error = %q, want %q", err, want)
 	}
 }
 
