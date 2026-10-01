@@ -138,6 +138,8 @@ type publicRateLimitEvaluationCandidate struct {
 type publicRateLimitDecision struct {
 	Rule       publicRateLimitRuleConfig
 	Listener   publicListenerConfig
+	MatchError error
+	ErrorKind  string
 	StatusCode int
 	Body       string
 	Headers    http.Header
@@ -202,7 +204,21 @@ func (l *publicRateLimiter) evaluate(rules []publicRateLimitRuleConfig, listener
 	}
 	candidates := make([]publicRateLimitEvaluationCandidate, 0, len(rules))
 	for _, rule := range rules {
-		if !rule.Enabled || !rule.matches(listener, r) {
+		if !rule.Enabled {
+			continue
+		}
+		matches, err := rule.Match.evaluate(listener, r)
+		if err != nil {
+			return publicRateLimitDecision{
+				Rule:       rule,
+				Listener:   listener,
+				MatchError: err,
+				ErrorKind:  publicPolicyMatchFailureErrorKind,
+				StatusCode: http.StatusServiceUnavailable,
+				Body:       publicPolicyMatchFailureBody,
+			}, false
+		}
+		if !matches {
 			continue
 		}
 		candidates = append(candidates, publicRateLimitEvaluationCandidate{
@@ -494,6 +510,12 @@ func rateLimitGeneratedHeaders(rule publicRateLimitRuleConfig, result publicRate
 }
 
 func writeRateLimitResponse(w http.ResponseWriter, decision publicRateLimitDecision) {
+	if decision.MatchError != nil {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(publicPolicyMatchFailureBody))
+		return
+	}
 	for _, header := range decision.Rule.ResponseHeaders {
 		w.Header().Set(header.Name, header.Value)
 	}

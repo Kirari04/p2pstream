@@ -533,14 +533,20 @@ func wafPolicyStage(ctx *publicProxyContext) publicProxyStageResult {
 	}
 	if ctx.Trace != nil {
 		resolution := traceResolutionFromWafDecision(decision, ctx.ListenerID)
+		stage := wafTraceStage(decision)
+		attributes := wafDebugAttributes(decision)
+		if decision.MatchError != nil {
+			stage = p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED
+			attributes["policy_match_error"] = decision.MatchError.Error()
+		}
 		ctx.Trace.emit(
-			wafTraceStage(decision),
+			stage,
 			&resolution,
 			nil,
 			statusCode,
 			decision.ErrorKind,
 			ctx.ResponseWriter.Header(),
-			wafDebugAttributes(decision),
+			attributes,
 		)
 	}
 	ctx.App.recordProxyRequestEventWithPolicyIDsAndContext(
@@ -574,26 +580,34 @@ func rateLimitStage(ctx *publicProxyContext) publicProxyStageResult {
 			RateLimitRuleName:  decision.Rule.Name,
 			RateLimitAlgorithm: decision.Rule.Algorithm,
 		}
+		stage := p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RATE_LIMITED
+		errorKind := "rate_limited"
+		attributes := map[string]string{
+			"handler":              "rate_limit",
+			"rate_limit_rule_id":   strconv.FormatInt(decision.Rule.ID, 10),
+			"rate_limit_rule_name": decision.Rule.Name,
+			"rate_limit_algorithm": decision.Rule.Algorithm,
+		}
+		if decision.MatchError != nil {
+			stage = p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED
+			errorKind = decision.ErrorKind
+			attributes["policy_match_error"] = decision.MatchError.Error()
+		}
 		ctx.Trace.emit(
-			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_RATE_LIMITED,
+			stage,
 			&resolution,
 			nil,
 			decision.StatusCode,
-			"rate_limited",
+			errorKind,
 			ctx.ResponseWriter.Header(),
-			map[string]string{
-				"handler":              "rate_limit",
-				"rate_limit_rule_id":   strconv.FormatInt(decision.Rule.ID, 10),
-				"rate_limit_rule_name": decision.Rule.Name,
-				"rate_limit_algorithm": decision.Rule.Algorithm,
-			},
+			attributes,
 		)
 	}
 	ctx.App.recordProxyRequestEventWithIDsAndContext(
 		context.Background(),
 		decision.StatusCode,
 		time.Since(ctx.StartedAt),
-		"",
+		decision.ErrorKind,
 		sql.NullInt64{Int64: ctx.ListenerID, Valid: true},
 		sql.NullInt64{},
 		sql.NullInt64{},
@@ -608,6 +622,9 @@ func trafficShaperStage(ctx *publicProxyContext) publicProxyStageResult {
 	decision, ok := ctx.App.selectPublicTrafficShaperWithSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 	if !ok {
 		return publicProxyStageContinue
+	}
+	if decision.MatchError != nil {
+		return rejectPublicPolicyMatchFailure(ctx, decision.MatchError)
 	}
 	ctx.TrafficShaperDecision = decision
 	ctx.TrafficShaperSelected = true
@@ -638,6 +655,39 @@ func trafficShaperStage(ctx *publicProxyContext) publicProxyStageResult {
 		)
 	}
 	return publicProxyStageContinue
+}
+
+func rejectPublicPolicyMatchFailure(ctx *publicProxyContext, matchErr error) publicProxyStageResult {
+	http.Error(ctx.ResponseWriter, strings.TrimSuffix(publicPolicyMatchFailureBody, "\n"), http.StatusServiceUnavailable)
+	resolution := publicRouteResolution{ListenerID: sql.NullInt64{Int64: ctx.ListenerID, Valid: true}}
+	ctx.App.recordProxyRequestEventWithIDsAndContext(
+		context.Background(),
+		http.StatusServiceUnavailable,
+		time.Since(ctx.StartedAt),
+		publicPolicyMatchFailureErrorKind,
+		resolution.ListenerID,
+		sql.NullInt64{},
+		sql.NullInt64{},
+		ctx.Observability.requestBytesValue(),
+		ctx.Observability.responseBytesValue(),
+		ctx.RequestContext,
+	)
+	if ctx.Trace != nil {
+		attributes := map[string]string{"handler": "policy_match"}
+		if matchErr != nil {
+			attributes["policy_match_error"] = matchErr.Error()
+		}
+		ctx.Trace.emit(
+			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_FAILED,
+			&resolution,
+			nil,
+			http.StatusServiceUnavailable,
+			publicPolicyMatchFailureErrorKind,
+			ctx.ResponseWriter.Header(),
+			attributes,
+		)
+	}
+	return publicProxyStageDone
 }
 
 func routeResolutionStage(ctx *publicProxyContext) publicProxyStageResult {

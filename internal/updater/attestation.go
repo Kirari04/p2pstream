@@ -183,7 +183,7 @@ func loadRootActionCounter(path string) (uint64, error) {
 	return counter.Counter, nil
 }
 
-func persistHealthyActivation(paths Paths, journal activationJournal, readyPath string) error {
+func persistHealthyActivation(paths Paths, journal activationJournal, readyPath string, stagedDirs *stagedDirectories) error {
 	if journal.Receipt == nil {
 		return errors.New("healthy activation journal has no signed root action receipt")
 	}
@@ -229,7 +229,7 @@ func persistHealthyActivation(paths Paths, journal activationJournal, readyPath 
 	if err := atomicJSON(paths.currentSlotMetadataPath(), activated, 0600); err != nil {
 		return err
 	}
-	if err := clearStagedIfMatchingAuthorization(paths, readyPath, journal.Authorization); err != nil {
+	if err := clearStagedIfMatchingAuthorization(paths, readyPath, journal.Authorization, stagedDirs); err != nil {
 		return err
 	}
 	if err := removeAndSync(paths.journalPath()); err != nil {

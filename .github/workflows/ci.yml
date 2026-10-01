@@ -29,9 +29,12 @@ jobs:
     steps:
       - name: Require staging source for main
         shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           set -Eeuo pipefail
-          if [[ "${{ github.base_ref }}" == "main" && "${{ github.head_ref }}" != "staging" ]]; then
+          if [[ "$BASE_REF" == "main" && "$HEAD_REF" != "staging" ]]; then
             echo "Pull requests to main must come from the staging branch." >&2
             exit 1
           fi
