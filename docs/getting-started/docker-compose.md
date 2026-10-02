@@ -8,18 +8,18 @@ Use this page after the quickstart when you need to change ports, understand wha
 
 ## Prerequisites
 
-- The repository `compose.yaml`.
+- The release deployment package prepared by the [quickstart](./quickstart), with `compose.yaml` and a digest pin in `.env`.
 - A `.env` file copied from `.env.example`.
 - A decision about which host ports should reach container ports `80`, `443`, and `8081`.
 
 ## Steps
 
-1. Review the included root `compose.yaml`:
+1. Review the included release `compose.yaml`:
 
    ```yaml
    services:
      p2pstream:
-       image: ghcr.io/kirari04/p2pstream:latest
+       image: "${P2PSTREAM_IMAGE:?Run verified release deployment preparation first}"
        container_name: p2pstream
        restart: unless-stopped
        environment:
@@ -61,7 +61,7 @@ Use this page after the quickstart when you need to change ports, understand wha
    MANAGEMENT_PUBLIC_URL=https://proxy.example.com:9443
    ```
 
-5. Start or update the container:
+5. Start the container before updater enrollment:
 
    ```bash
    docker compose up -d
@@ -71,6 +71,19 @@ Use this page after the quickstart when you need to change ports, understand wha
 :::warning Upgrading a Compose file from v0.1.49 or earlier
 Older Compose files inject `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=256`, even when the setting is absent from `.env`. Change that Compose default to `0`, or add `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=0` to `.env`, before recreating the container. A value of `0` lets a single busy target use the server-wide request ceiling instead of rejecting requests at the old 256-request quarter-cap.
 :::
+
+## Apply settings after updater enrollment
+
+Keep the original Compose files and `.env` as your editable inputs. The installed controller records their absolute source directory, project and ordered files. Change the host ports, management hostname or other supported settings there, then run:
+
+```bash
+sudo /etc/p2pstream-server-updater/manage apply
+sudo /etc/p2pstream-server-updater/manage status
+```
+
+The controller validates the running deployment, refuses hooks/builds, data-layout changes and changes to other services/resources, preserves the **current** software digest and private connection, restarts the server once, and verifies health. It restores the exact pre-apply configuration on failure where possible. `P2PSTREAM_IMAGE` in the original input is deliberately ignored during enrolled configuration application; choose software updates in **System → Server Updates**. Use a separate Compose project for services you want to manage independently.
+
+Read-only enrolled inspection uses `sudo /etc/p2pstream-server-updater/compose ps` or `manage logs`. Do not run the original `docker compose up` while enrolled: it bypasses this supported validation and removes the private connection. See [recovery and removal](../operations/server-updates).
 
 ## Runtime Effects
 
@@ -83,7 +96,7 @@ Older Compose files inject `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=256`, even
 | `P2PSTREAM_*_PORT` | Changes host-side publishing only; listener ports are still configured in p2pstream. |
 
 :::warning New listeners must be published explicitly
-Docker only exposes ports listed under `ports`. If you create an additional listener on container port `8088` under **Proxy -> Listeners**, it will bind inside the container but remain unreachable until you add it to the Compose port list and restart:
+Docker only exposes ports listed under `ports`. While enrolled, apply port changes with `manage apply`. If you create an additional listener on container port `8088` under **Proxy -> Listeners**, it will bind inside the container but remain unreachable until you add it to the Compose port list and restart:
 
 ```yaml
 ports:

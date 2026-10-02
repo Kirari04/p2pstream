@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -43,9 +44,9 @@ func (a *App) GetServerUpdateOverview(ctx context.Context, req *connect.Request[
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	out := &p2pstreamv1.GetServerUpdateOverviewResponse{Version: buildinfo.Version, Commit: buildinfo.Commit, Channel: buildinfo.Channel}
+	out := &p2pstreamv1.GetServerUpdateOverviewResponse{Version: buildinfo.Version, Commit: buildinfo.Commit, Channel: buildinfo.Channel, InstallationId: a.InstallationID, Architecture: runtime.GOARCH, Repository: buildinfo.RepositorySlug()}
 	if a.Config == nil || a.Config.ServerUpdateSocket == "" {
-		out.Warning = "Install the server updater on this environment's host to enable one-click updates."
+		out.SetupCommand, out.SetupUnavailable = a.serverInstallationCommand(ctx)
 		return connect.NewResponse(out), nil
 	}
 	out.ExecutorConfigured = true
@@ -58,7 +59,10 @@ func (a *App) GetServerUpdateOverview(ctx context.Context, req *connect.Request[
 	if r.Overview == nil || r.Overview.InstanceID != out.InstanceId {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("executor belongs to another instance"))
 	}
-	out.ExecutorAvailable = true
+	out.ExecutorAvailable = r.Overview.Current.Ready && r.Overview.Current.InstanceID == out.InstanceId && (r.Overview.HostPhase == "" || r.Overview.HostPhase == "healthy")
+	if r.Overview.Operation != nil && !r.Overview.Operation.Terminal() && (r.Overview.HostPhase == "" || r.Overview.HostPhase == "healthy") {
+		out.ExecutorAvailable = true
+	}
 	out.Channel = r.Overview.Channel
 	out.Warning = r.Overview.Warning
 	out.Target = serverReleaseProto(r.Overview.Target)
@@ -308,4 +312,35 @@ func serverUpdateOriginAllowed(r *http.Request) bool {
 		return err == nil && u.Host == r.Host && (u.Scheme == "https" || u.Scheme == "http") && u.User == nil && u.Path == "" && u.RawQuery == "" && u.Fragment == ""
 	}
 	return true
+}
+
+func (a *App) serverInstallationCommand(ctx context.Context) (string, string) {
+	a.installationMu.Lock()
+	defer a.installationMu.Unlock()
+	if a.Config == nil || a.Config.ConfigDir != "/data" || os.Getenv("DATABASE_URL") != "" || runtime.GOOS != "linux" {
+		return "", "Server updates require a Linux Docker Compose release with CONFIG_DIR=/data and its standard SQLite database. Use your host deployment procedure for this installation."
+	}
+	if a.InstallationID == "" {
+		return "", "This server predates installation identity support. Manually deploy a published Docker release containing the installation bundle first."
+	}
+	if time.Since(a.installationChecked) < time.Hour && time.Now().Before(a.installationExpires) {
+		return a.installationCommand, a.installationError
+	}
+	source, err := serverupdate.NewGitHubSource(buildinfo.RepositorySlug(), buildinfo.Channel, runtime.GOARCH)
+	if err == nil {
+		var recipe serverupdate.InstallationRecipe
+		recipe, err = source.Installation(ctx, a.serverUpdateRuntimeStatus(ctx))
+		if err == nil {
+			a.installationCommand, err = source.SetupCommand(recipe, a.InstallationID)
+			a.installationExpires = recipe.ExpiresAt
+		}
+	}
+	a.installationChecked = time.Now()
+	a.installationError = ""
+	if err != nil {
+		a.installationCommand = ""
+		a.installationError = "Setup is unavailable for this installed release: " + err.Error() + ". Refresh after resolving the prerequisite."
+		a.installationChecked = time.Now().Add(-59 * time.Minute)
+	}
+	return a.installationCommand, a.installationError
 }

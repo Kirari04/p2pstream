@@ -3294,6 +3294,11 @@ message GetServerUpdateOverviewResponse {
   ServerUpdateRelease target = 8;
   ServerUpdateOperation operation = 9;
   repeated string blockers = 10;
+  string installation_id = 11;
+  string setup_command = 12;
+  string setup_unavailable = 13;
+  string architecture = 14;
+  string repository = 15;
 }
 message PreviewServerUpdateRequest {
   string instance_id = 1;

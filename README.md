@@ -8,19 +8,37 @@ p2pstream is a self-hosted public reverse proxy with a web management UI, option
 
 ## Quick Start With Docker Compose
 
-Prerequisite: Docker Engine with the Docker Compose plugin installed. See Docker's install docs if Docker is not already available on your server: <https://docs.docker.com/engine/install/>.
+Prerequisites: Linux amd64/arm64, Docker Engine with Compose, Bash, curl, and Python 3.9+. See [Docker installation](https://docs.docker.com/engine/install/).
+
+Download the small deployment package from the latest published stable release, verify it before execution, and prepare editable Compose inputs with the server image pinned by digest. No checkout or image build is needed:
 
 ```bash
-git clone https://github.com/Kirari04/p2pstream.git
+(
+  set -eu
+  repo=Kirari04/p2pstream
+  release=${P2PSTREAM_RELEASE:-$(curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 15 --max-time 60 "https://api.github.com/repos/$repo/releases/latest" | python3 -I -c 'import json,re,sys; v=json.load(sys.stdin)["tag_name"]; assert re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?",v); print(v)')}
+  python3 -I -c 'import re,sys; assert re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?",sys.argv[1])' "$release"
+  work=$(mktemp -d)
+  trap 'rm -rf -- "$work"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' HUP TERM
+  base="https://github.com/$repo/releases/download/$release"
+  asset="p2pstream_${release}_docker.py"
+  curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 15 --max-time 120 --max-filesize 65536 "$base/checksums.txt" -o "$work/checksums.txt"
+  curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 15 --max-time 120 --max-filesize 65536 "$base/$asset" -o "$work/$asset" || { echo "This release has no Docker deployment package. Select a newer published release containing it." >&2; exit 1; }
+  python3 -I -c 'import hashlib,pathlib,re,sys; d=pathlib.Path(sys.argv[1]); n=sys.argv[2]; rows=[r.split() for r in (d/"checksums.txt").read_text().splitlines()]; hashes=[r[0] for r in rows if len(r)==2 and r[1]==n]; assert len(hashes)==1 and re.fullmatch(r"[0-9a-f]{64}",hashes[0]) and hashlib.sha256((d/n).read_bytes()).hexdigest()==hashes[0], "Deployment downloader checksum mismatch"' "$work" "$asset"
+  python3 -I "$work/$asset" --repository "$repo" --release "$release" --directory "$PWD/p2pstream"
+)
 cd p2pstream
-
-cp .env.example .env
-# edit MANAGEMENT_PUBLIC_URL in .env, for example:
-# MANAGEMENT_PUBLIC_URL=https://your-server:8081
-
+# Edit .env: set MANAGEMENT_PUBLIC_URL=https://your-server:8081
+# Adjust P2PSTREAM_HTTP_PORT, P2PSTREAM_HTTPS_PORT, and P2PSTREAM_MANAGEMENT_PORT if needed.
 docker compose up -d
 docker compose logs -f p2pstream
 ```
+
+To repeat an exact release, set `export P2PSTREAM_RELEASE=vX.Y.Z` before the block; staging accepts `vX.Y.Z-staging.N`. Use a published release containing `p2pstream_<version>_docker.py` and the Docker bundle. Older published releases are not rewritten: select a newer supported release or use your existing pinned-image deployment procedure first.
+
+GitHub HTTPS and the release publisher are the trust source. SHA-256 checks detect changed downloads; they are not independent publisher signatures. The private `.env` records `P2PSTREAM_IMAGE=ghcr.io/...@sha256:...`; `release.json` records the selected version, commit, channel and manifest pin. Keep `/data` backups separately.
 
 Open the management UI:
 
@@ -58,15 +76,18 @@ Runtime state is stored in the named Docker volume `p2pstream-data`. It contains
 
 ## Common Operations
 
+Before updater enrollment:
+
 ```bash
 docker compose logs -f p2pstream
 docker compose restart p2pstream
-docker compose pull
 docker compose up -d
 docker compose down
 ```
 
-`docker compose down` stops and removes the container and network, but it does not remove the named `p2pstream-data` volume. For repeatable deployments, pin a release tag in `compose.yaml` instead of using `latest`.
+`docker compose down` stops and removes the container and network, but it does not remove the named `p2pstream-data` volume. The downloaded deployment already pins an exact release digest. An explicit software update changes that pin.
+
+After updater enrollment, use the host controller for settings and recovery and the management UI for software updates, as described below. For offline backup, restore or manual upgrades, first remove enrollment through the controller and use its exported current Compose model.
 
 Published images are available from GitHub Container Registry:
 
@@ -74,7 +95,21 @@ Published images are available from GitHub Container Registry:
 ghcr.io/kirari04/p2pstream:latest
 ```
 
-Use `latest` or a pinned `vX.Y.Z` tag for stable deployments. Staging publishes immutable `vX.Y.Z-staging.N` prereleases with matching server images and Linux agent assets; the `staging` image alias moves only after that exact prerelease passes the full build and manifest verification workflow. The `nightly` tag is rebuilt from the `dev` branch as a Docker-only development channel.
+Moving `latest` and `staging` tags are convenience aliases; the deployment package pins a digest. Staging publishes exact `vX.Y.Z-staging.N` prereleases with matching server images and Linux agent assets; the `staging` image alias moves only after that exact prerelease passes the full build and manifest verification workflow. The `nightly` tag is rebuilt from the `dev` branch as a Docker-only development channel.
+
+## Optional Server Updater
+
+**System → Server Updates** provides one complete verified setup block for the selected management server's installed release and persistent installation ID. Run it on that environment's local rootful Docker host in its running Compose directory. Choose custom project/files in the card when needed. Enrollment gives a dedicated prebuilt updater host-level Docker authority and restarts the server once; later software updates always require an operator action.
+
+After enrollment, continue editing your original Compose files and `.env`, then apply settings with:
+
+```bash
+sudo /etc/p2pstream-server-updater/manage apply
+sudo /etc/p2pstream-server-updater/manage status
+sudo /etc/p2pstream-server-updater/manage logs
+```
+
+The apply command preserves the current pinned software and private updater connection. Use the management UI to change software releases. See [server update operations](docs/operations/server-updates.md) for supported layouts, interrupted setup, configuration rollback and removal. The original `docker compose up` is replaced by this supported apply workflow while enrolled.
 
 ## Default Deployment Notes
 

@@ -56,9 +56,15 @@ ports:
 - Docker only publishes what Compose maps; creating a listener in the UI does not create a new host mapping.
 - The application does not read a `PORT` environment variable for public listeners.
 - Public listener ports are stored in SQLite and managed through **Proxy -> Listeners**.
-- Use a pinned release tag instead of `latest` when repeatability matters.
+- The release deployment package pins an OCI digest. Use a digest for repeatability; moving aliases are discovery conveniences.
 - Treat `staging` as a mutable convenience alias; pin `vX.Y.Z-staging.N` or the OCI digest for a repeatable staging deployment.
 - Treat `nightly` as unstable. It follows the current `dev` branch and can change without a release note.
+
+## Release installation assets
+
+New stable and staging releases contain a small `p2pstream_<version>_docker.tar.gz` deployment/installation bundle, a checksummed `p2pstream_<version>_docker.py` downloader, and `p2pstream_install.json`. The existing canonical agent manifest binds their exact hashes/sizes; the installation descriptor binds Linux amd64/arm64 images at `ghcr.io/kirari04/p2pstream-updater@sha256:...`. The updater includes the matching release binary and the pinned Docker/Compose tools. Enrollment does not build images locally.
+
+Release publication uploads all assets to a draft, downloads and verifies them, and then publishes. Enable [GitHub release immutability](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes) in repository settings to enforce locked tags/assets at publication. The workflow reports whether GitHub actually marked the release immutable. Existing releases are not retroactively renamed or modified. OCI digests pin content; version names alone do not guarantee GitHub assets are immutable. Publisher and GitHub HTTPS remain the trust source; this workflow does not independently verify release attestations or implement publisher signatures.
 
 ## Runtime Effects
 
@@ -80,10 +86,10 @@ The endpoint remains available even when `MANAGEMENT_UI_DISABLED=true`. If you m
 
 ## Examples
 
-Start the server:
+Prepare deployment inputs through the [release download quickstart](../getting-started/quickstart), then start the server:
 
 ```bash
-cp .env.example .env
+cd p2pstream
 # edit MANAGEMENT_PUBLIC_URL in .env
 docker compose up -d
 docker compose logs -f p2pstream

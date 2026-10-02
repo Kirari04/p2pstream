@@ -5,6 +5,7 @@ import { ArrowUpRight, Check, Copy, Download, RefreshCw, ShieldCheck } from "@lu
 import { selectedEnvironmentIdKey, selectedEnvironmentLabelKey, selectedEnvironmentBlockedKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { createAgentUpdatePolling } from "@/lib/agentUpdatePolling";
+import { serverSetupCommand } from "@/lib/serverSetup";
 import { messageFromError } from "@/lib/errors";
 import { parsePendingServerUpdate, serverUpdatePhaseLabel, serverUpdateTerminal, type PendingServerUpdate } from "@/lib/serverUpdates";
 import type { GetServerUpdateOverviewResponse, PreviewServerUpdateResponse } from "@/gen/proto/p2pstream/v1/management_pb";
@@ -30,7 +31,11 @@ const storageKey = () => `p2pstream:server-update:${environmentId.value}`;
 const operation = computed(() => overview.value?.operation);
 const running = computed(() => Boolean(operation.value && !serverUpdateTerminal(operation.value.phase)));
 const planExpired = computed(() => !plan.value || Number(plan.value.expiresAtUnixMillis) <= now.value);
-const setupCommand = "sudo ./scripts/install-server-updater.sh";
+const composeProject = ref("");
+const composeFiles = ref("");
+const composeEnvFiles = ref("");
+const composeDirectory = ref("");
+const setupCommand = computed(() => serverSetupCommand(overview.value?.setupCommand ?? "", { project: composeProject.value, files: composeFiles.value, envFiles: composeEnvFiles.value, directory: composeDirectory.value }));
 const actionIsCurrent = (revision: number, requestScope: string) => !disposed && revision === actionRevision && requestScope === scope();
 
 function savePending(value: PendingServerUpdate | null) {
@@ -115,11 +120,12 @@ async function start(retry = false) {
 }
 
 async function copySetup() {
-  try { await navigator.clipboard.writeText(setupCommand); copied.value = true; } catch { error.value = "Select and copy the setup command below."; }
+  try { await navigator.clipboard.writeText(setupCommand.value); copied.value = true; } catch { error.value = "Select and copy the setup command below."; }
 }
 
 watch(() => [environmentId.value, blocked.value], () => {
   actionRevision += 1;
+  composeProject.value = ""; composeFiles.value = ""; composeEnvFiles.value = ""; composeDirectory.value = "";
   busy.value = false; overview.value = null; plan.value = null; targetVersion.value = ""; error.value = ""; copied.value = false;
   loadPending(); void polling.scopeChanged();
 });
@@ -152,16 +158,34 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       <div class="update-policy"><ShieldCheck :size="22" /><div><strong>You choose when to update</strong><p>Unattended updates are off. The installed image stays pinned until you select another release.</p></div></div>
     </div>
 
-    <NCard v-if="overview && !overview.executorConfigured" title="Enable one-click updates">
-      <p>Run this once on <strong>{{ environmentLabel }}</strong>'s Docker host, from its Compose directory, using the scripts shipped with the installed release. Setup installs the independent updater and restarts the server once.</p>
-      <div class="update-command"><code>{{ setupCommand }}</code><NButton size="small" @click="copySetup"><template #icon><Check v-if="copied" :size="16" /><Copy v-else :size="16" /></template>{{ copied ? 'Copied' : 'Copy' }}</NButton></div>
-      <p class="muted-text">The updater receives Docker access. The management container keeps only a private update connection. For native or custom deployments, use the pinned release and your host deployment procedure.</p>
+    <NCard v-if="overview && !overview.executorConfigured" title="Enable server updates">
+      <p>Run the complete block on <strong>{{ environmentLabel }}</strong>’s <strong>Docker host</strong>, from the directory containing its running Compose deployment and <code>.env</code>. It verifies this installation and release, installs the independent updater, and restarts the server once.</p>
+      <NAlert type="warning" class="update-blocker">The updater receives host-level Docker authority. Enable it only on the intended host. Public traffic and agent tunnels reconnect after the restart.</NAlert>
+      <template v-if="setupCommand">
+        <details class="update-context"><summary>Custom Compose project or files</summary>
+          <p>Use the same options as the running deployment. Paths are relative to the directory where you paste the block. Leave these blank for the default Compose context.</p>
+          <label>Project name<NInput v-model:value="composeProject" aria-label="Compose project name" placeholder="production" /></label>
+          <label>Compose files, in order (one per line)<NInput v-model:value="composeFiles" type="textarea" aria-label="Compose files" placeholder="compose.yaml&#10;production.yaml" :autosize="{ minRows: 2, maxRows: 5 }" /></label>
+          <label>Environment files (one per line)<NInput v-model:value="composeEnvFiles" type="textarea" aria-label="Compose environment files" placeholder=".env" :autosize="{ minRows: 1, maxRows: 3 }" /></label>
+          <label>Project directory override<NInput v-model:value="composeDirectory" aria-label="Compose project directory" placeholder="Leave blank to use the deployment directory" /></label>
+        </details>
+        <div class="update-command"><pre><code>{{ setupCommand }}</code></pre><NButton size="small" @click="copySetup"><template #icon><Check v-if="copied" :size="16" /><Copy v-else :size="16" /></template>{{ copied ? 'Copied' : 'Copy complete setup' }}</NButton></div>
+        <p class="muted-text">Release {{ overview.version }} · Linux {{ overview.architecture }} · Installation {{ overview.installationId.slice(0, 8) }}. Requires Bash, curl, Python 3.9+, sudo, and local rootful Docker with Compose. GitHub and the publisher are the download trust source; checksums bind the downloaded content.</p>
+        <p class="muted-text">Keep this page open: it refreshes after the restart and confirms updater availability. Edit your original Compose files and <code>.env</code> afterward, then use <code>sudo /etc/p2pstream-server-updater/manage apply</code> to apply settings while preserving the pinned release.</p>
+      </template>
+      <NAlert v-else type="info" title="Manual release upgrade required">{{ overview.setupUnavailable || 'This server does not provide a verified installation bundle and installation identity. Manually deploy a published release with Docker installation support, then refresh this page.' }}</NAlert>
+      <p class="muted-text">Supported: one Linux amd64/arm64 Compose server with a writable named <code>/data</code> volume. Native, rootless, Swarm, custom entrypoints, deployment hooks, external databases, and unsupported data layouts require host deployment procedures. Copied commands are rejected if this server’s identity, release, or deployment changed.</p>
     </NCard>
+
+    <NAlert v-if="overview?.executorConfigured" :type="overview.executorAvailable ? 'success' : 'warning'" :title="overview.executorAvailable ? (running ? 'Updater connected · update in progress' : 'Updates enabled · updater verified') : 'Updater needs attention'">
+      <template v-if="!overview.executorAvailable">Setup or the private updater connection could not be verified. On {{ environmentLabel }}’s Docker host run <code>sudo /etc/p2pstream-server-updater/manage status</code>, then <code>sudo /etc/p2pstream-server-updater/manage repair</code> if setup was interrupted. Refresh after recovery.</template>
+      <template v-else>Settings remain editable in your Compose inputs. Apply changes with <code>sudo /etc/p2pstream-server-updater/manage apply</code>. Later software updates remain your choice.</template>
+    </NAlert>
 
     <NCard v-if="operation" :title="serverUpdatePhaseLabel(operation.phase)">
       <div class="update-operation"><span>{{ operation.previousVersion }}</span><ArrowUpRight :size="18" /><strong>{{ operation.targetVersion }}</strong><NTag :type="operation.phase === 'succeeded' ? 'success' : operation.phase === 'recovery_required' ? 'error' : 'default'" size="small">{{ operation.phase.replaceAll('_', ' ') }}</NTag></div>
       <p v-if="running && operation.phase !== 'recovery_required'">The updater continues on the remote host even if this page disconnects. Public traffic and agent tunnels reconnect after the server returns.</p>
-      <p v-if="operation.phase === 'recovery_required'">Recovery is paused. Check the updater on the selected server’s host before retrying recovery.</p>
+      <p v-if="operation.phase === 'recovery_required'">Recovery is paused. On the selected server’s Docker host run <code>sudo /etc/p2pstream-server-updater/manage recover-update</code> to retry data recovery once.</p>
       <NAlert v-if="operation.detail" :type="operation.phase === 'rolled_back' ? 'warning' : 'error'">{{ operation.detail }}</NAlert>
       <small class="muted-text">Operation {{ operation.id }}</small>
     </NCard>
@@ -199,6 +223,6 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 .update-eyebrow{font-size:.68rem;letter-spacing:.09em;font-weight:600;color:var(--app-text-muted)}
 .update-summary{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--app-border);border-radius:8px;overflow:hidden}.update-version{padding:1.5rem;display:grid;gap:.65rem;min-width:0}.update-version>strong{font-family:'IBM Plex Mono',monospace;font-size:1.5rem;overflow-wrap:anywhere}.update-meta{display:flex;gap:.8rem;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:.75rem}
 .update-policy{padding:1.5rem;display:flex;gap:.8rem;align-items:flex-start;background:var(--app-panel-muted);border-left:1px solid var(--app-border)}.update-policy>svg{flex-shrink:0;color:var(--app-accent)}.update-policy p{font-size:.82rem;margin:.4rem 0 0;color:var(--app-text-muted)}
-.update-command,.update-actions,.update-operation{display:flex;align-items:center;gap:.75rem}.update-command{padding:.75rem 1rem;border:1px solid var(--app-border);border-radius:6px;justify-content:space-between;margin:1rem 0}.update-command code{overflow-wrap:anywhere;min-width:0}.update-actions .n-input{max-width:380px}.update-operation{flex-wrap:wrap;margin-bottom:.75rem}.update-blocker{margin-bottom:.75rem}.update-details{margin:1rem 0}.update-details code{display:block;overflow-wrap:anywhere;font-size:.7rem;margin-top:.75rem}.update-modal-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.25rem}.muted-text{font-size:.8rem}
+.update-command,.update-actions,.update-operation{display:flex;align-items:center;gap:.75rem}.update-context{margin:1rem 0}.update-context label{display:grid;gap:.4rem;margin:.8rem 0}.update-command pre{margin:0;min-width:0;overflow:auto;max-height:32rem;white-space:pre-wrap;overflow-wrap:anywhere}.update-command{padding:.75rem 1rem;border:1px solid var(--app-border);border-radius:6px;justify-content:space-between;margin:1rem 0}.update-command code{overflow-wrap:anywhere;min-width:0}.update-actions .n-input{max-width:380px}.update-operation{flex-wrap:wrap;margin-bottom:.75rem}.update-blocker{margin-bottom:.75rem}.update-details{margin:1rem 0}.update-details code{display:block;overflow-wrap:anywhere;font-size:.7rem;margin-top:.75rem}.update-modal-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.25rem}.muted-text{font-size:.8rem}
 @media(max-width:640px){.update-heading{flex-direction:column}.update-summary{grid-template-columns:1fr}.update-policy{border-left:0;border-top:1px solid var(--app-border)}.update-actions{align-items:stretch;flex-direction:column}.update-actions .n-input{max-width:none}.update-command{flex-direction:column;align-items:flex-start}}
 </style>

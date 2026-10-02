@@ -4,47 +4,70 @@
 
 The first implementation supports operator-triggered updates for a single Linux Docker Compose server on amd64 or arm64, using the standard named `/data` volume. Unattended updates are off. Native/systemd, rootless Docker, Swarm, external databases, custom entrypoints, inherited container mounts, temporary mounts inside `/data`, volume subpaths, and file-backed Compose secrets/configs require a manual deployment.
 
-## Install once on the deployment host
+## Install once on the selected Docker host
 
-First deploy a release containing the server-updater commands through your existing deployment procedure. Older servers cannot install this feature through their UI. Subsequent target releases must include `p2pstream_server_update.json` in their canonical release manifest.
+Use **System → Server Updates** on the intended environment. The page gets its complete setup block from that management server's actual version, commit, channel, platform and persistent installation ID. A newer browser UI cannot invent a setup command for an older remote server. If the installed release lacks the Docker bundle/identity API, or its release metadata has expired, first manually deploy a current published release containing installation support. Published releases are never rewritten to add assets.
 
-Use `scripts/install-server-updater.sh`, `scripts/server-updater-compose.sh`, and `Dockerfile.updater` from that installed release's source archive or matching repository checkout. From the directory containing the **existing deployment's** Compose file and `.env`, run:
+The ordinary Docker [quickstart](../getting-started/quickstart) downloads a small release deployment package, with editable `compose.yaml` and `.env`, and pins the image digest. A checkout is only needed for contributor/source builds.
 
-```bash
-sudo /path/to/matching-release/scripts/install-server-updater.sh
-```
+Run the copied block on the selected environment's **local rootful Docker host**, from the existing Compose deployment's directory. Requires Bash, curl, sudo, Python 3.9+, Docker Engine and its Compose plugin. Custom projects, ordered Compose files, environment files and project-directory overrides can be entered in the setup card; use exactly the options which produced the running deployment. Remote Docker contexts, rootless Docker and unsupported layouts are refused.
 
-If the Compose file and scripts share the repository root, the UI's `sudo ./scripts/install-server-updater.sh` command works directly. Pass the same Compose options used for your deployment, including the project name when overridden:
+The block downloads over HTTPS, verifies its embedded bundle hash before extraction/execution, pulls a publisher-bound prebuilt Linux amd64/arm64 updater, and cleans up temporary downloads. GitHub and the publisher remain the trust source; SHA-256 metadata is not an independent publisher signature. The release descriptor and bundle are themselves hashed attachments of the existing canonical release manifest. Server and updater references are pinned by content digest, with no local image build.
 
-```bash
-sudo /path/to/matching-release/scripts/install-server-updater.sh -p production -f compose.yaml -f production.yaml
-```
+Before activation, setup checks the selected installation ID, actual immutable running image ID and platform, release labels, real project/data volume and resolved Compose configuration hash. It repeats deployment checks after downloads, rejects pending Compose/.env changes and other data writers, then validates the supported layout. Identical version/commit on a different installation cannot satisfy the ID check. The ID lives in `/data/server-installation-id` before enrollment and survives container recreation and restore. A copied data volume intentionally retains that identity: do not run concurrent writable clones.
 
-Enrollment restarts the server once. The installer:
+The updater receives **host-level Docker authority**. The management container receives only a read-only private control directory and random credential; no public updater port is added. State and recovery information live in the root-owned private `/etc/p2pstream-server-updater`, outside application data. Enrollment preserves ports, settings, volume and other services, uses the executor's pinned Compose version, starts and authenticates the private executor first, then recreates the server **once**. It reports enabled only after both server health/configuration identity and authenticated updater reachability are verified. Public traffic and agent tunnels reconnect during this restart; setup is not zero downtime.
 
-- Requires a running published release with its canonical multi-platform registry digest and updater support.
-- Verifies the installed release against GitHub and records its release/security floor before enabling updates. Enrollment requires network access and unexpired metadata.
-- Saves the fully resolved Compose deployment under `/etc/p2pstream-server-updater/compose.json`, retaining the original snapshot separately.
-- Checks that the captured Compose configuration matches the running container before enrollment. Apply or revert pending Compose or `.env` edits through your existing deployment procedure first.
-- Pins the running image and a locally built updater image by digest/image ID.
-- Adds a separate updater container with the Docker socket, persistent recovery state, and the data volume.
-- Gives the management container a read-only control-directory mount and a random private-socket credential. It adds no public updater port.
-- Preserves a read-only management root filesystem, adding a bounded writable `/tmp` tmpfs for its private readiness socket when needed. Incompatible mounts covering that socket are rejected before activation.
+Repeated setup confirms healthy enrollment without a restart or credential reset. Interrupted setup resumes the same protected inputs and credentials. A host lock and durable phases prevent duplicate controllers and reject new updates while a host transaction is incomplete. Existing `config.json` alone never indicates success.
 
-The updater has host-level Docker authority. Keep its state directory private and outside `/data`. The installer rejects unsupported data layouts instead of assuming they can be restored safely.
+## Apply settings and operate the host
 
-Other containers may mount the data volume read-only, for example to read an agent CA certificate. An additional running writer blocks the update before downtime; the updater checks again before backup and restoration.
-
-After enrollment, use the installed **Compose wrapper** for host operations. It runs the exact Compose version pinned into the updater and reads the saved deployment, preventing version-dependent configuration hash differences:
+Your original Compose files and `.env` remain the editable deployment inputs. Setup records their absolute source directory, ordered files, project and environment-file options. After changing supported settings, apply them through the installed controller:
 
 ```bash
+sudo /etc/p2pstream-server-updater/manage apply
+sudo /etc/p2pstream-server-updater/manage status
+sudo /etc/p2pstream-server-updater/manage logs
 sudo /etc/p2pstream-server-updater/compose ps
-sudo /etc/p2pstream-server-updater/compose logs --tail 100 p2pstream-server-updater
 ```
 
-The original Compose file and `.env` no longer control the enrolled service. Running them again can replace it with different settings; the updater detects a Compose configuration-hash mismatch and refuses new updates. To change settings, first confirm no update is active, edit the private saved model, and apply it with the command above plus `up -d --no-deps p2pstream`. Keep resolved Compose dollar-sign escaping intact. Never edit its image, identity, control mount, or updater state during an operation.
+`apply` resolves the original inputs on the host, validates the running saved deployment and candidate layout, and preserves the **current** image digest, installation ID, token, control mount, data volume and prebuilt updater. A software update performed since enrollment is retained; an older `P2PSTREAM_IMAGE` or image entry in the editable inputs cannot downgrade it. Choose software releases in the UI. The same pinned Compose tools compute and apply configuration hashes. Builds, hooks, replica/platform/restart changes, unsupported state/data paths, and edits to other services/networks/volumes are rejected before stopping services. Manage independently changing services in another Compose project.
 
-The updater image remains pinned when the management image changes. Releases needing a newer executor API require a host-side upgrade of the executor; the UI cannot replace the component holding Docker authority.
+The controller records the exact pre-apply model, pauses the idle executor under the shared host lock, recreates the server once, restores the private connection, and verifies it. Configuration rollback uses that operation's current image/settings; it is **not a data restore**. No arbitrary deployment hooks run. Secrets in resolved models stay in private files and are not printed in status/errors. Logs may contain application diagnostics and should remain operator-only.
+
+While enrolled, use `manage apply` instead of the original `docker compose up`. Running the old command bypasses the supported workflow and can remove the private connection; the updater refuses a configuration-hash mismatch. The `compose` wrapper is limited to read-only `ps`, `logs` and `config`. Inspect generated resolved configuration only in a private terminal: it contains secrets.
+
+The updater image/tools remain pinned when server software changes. A future release needing a new executor API requires a deliberate host-side executor upgrade; the UI cannot replace the Docker-authorized component.
+
+## Interrupted host setup and removal
+
+If setup or application fails, the controller attempts to restore the exact pre-operation deployment. If restoration cannot be verified, it retains a durable `recovery_required` phase, private snapshots and an exact recovery command. A canceled or killed process similarly leaves durable phases. Inspect and resume from the host:
+
+```bash
+sudo /etc/p2pstream-server-updater/manage status
+sudo /etc/p2pstream-server-updater/manage logs
+sudo /etc/p2pstream-server-updater/manage repair
+# For an unfinished host configuration/removal transaction only:
+sudo /etc/p2pstream-server-updater/manage rollback
+```
+
+`repair` reuses saved credentials and pins, resumes initial activation, or restores an interrupted configuration/removal transaction before you explicitly apply again. Restore recorded input files if they changed after initial setup was staged. `rollback` is refused for healthy deployments and checks its baseline image/snapshot; it cannot restore an obsolete enrollment-era release after normal software updates. An update or paused **data** recovery blocks configuration/removal and must be resolved separately below. An external image change or lost/ambiguous data deployment requires manual host diagnosis; automatic configuration rollback never guesses a safe image or restores data.
+
+Host helpers have durable container identities. If the controller is interrupted, read-only inspection refuses to terminate a surviving helper. Explicit `repair` settles an abandoned setup/settings helper; interrupted data recovery resumes through `recover-update`, bound to the same saved update operation. When Docker access fails during helper cleanup, restore it before running that explicit recovery command. A timeout never permits competing rollback until helper termination is confirmed.
+
+Failed helper output is retained in the root-private `/etc/p2pstream-server-updater/helper-failure.log`. It can include resolved settings or secrets; inspect it locally with sudo when the reported helper diagnostic is needed.
+
+If layout validation rejects preparation before `config.json` exists, the original server has not been changed. Run `sudo /etc/p2pstream-server-updater/manage discard-preparation`, correct and apply the original Compose inputs, then copy a fresh setup block. This command first confirms helper termination and refuses any enrollment configuration, update state, maintenance marker or executor. It archives staging privately without changing containers or data. Once configuration exists, use `repair` or `rollback` to preserve credentials.
+
+Archival retains recovery tools and inputs until its journal commit, and resumes interrupted cleanup under the same host lock. Retry `discard-preparation` before that commit, or the fresh setup block after it; retained history and the exported current model remain private and available.
+
+Remove the updater explicitly when no update is active:
+
+```bash
+sudo /etc/p2pstream-server-updater/manage remove
+```
+
+Removal strips only updater credentials/identity/control mount and executor service from the **current** saved deployment, retaining the latest pinned server image, settings, ports, data and other services. It verifies server health before removing the stopped executor. Recovery tools, journal and prior model stay available if removal is interrupted. Successful removal exports the current editable deployment to `/etc/p2pstream-server-updater/detached-compose.json`; the command prints the exact `sudo docker compose -p ... -f ... up -d --no-deps --no-build p2pstream` command to manage it. Use that exported model to retain the latest software/settings rather than reverting to obsolete source-image pins. To enroll again, select this server in the UI and copy a fresh setup command, using `-f /etc/p2pstream-server-updater/detached-compose.json` and the saved project name. Completed removal state is archived privately during fresh enrollment.
 
 ## Preview and update
 
@@ -75,14 +98,14 @@ The journal and observed release/security floors live outside application data a
 A restarted updater resumes an interrupted operation from its durable phase without requiring GitHub. If recovery itself fails, the operation becomes **Host recovery required** and stays paused across restarts. New updates remain blocked. Fix the reported host problem, such as insufficient disk space or Docker failure, then retry recovery once:
 
 ```bash
-sudo /etc/p2pstream-server-updater/compose stop p2pstream-server-updater
-sudo /etc/p2pstream-server-updater/compose run --rm --no-deps p2pstream-server-updater /app/p2pstream server-updater recover
-sudo /etc/p2pstream-server-updater/compose up -d --no-deps p2pstream-server-updater
+sudo /etc/p2pstream-server-updater/manage recover-update
 ```
 
 Do not delete the maintenance file, journal, or snapshots to unblock a failed operation. Do not run another writer against `/data` while recovery is in progress. If the server cannot return, diagnose from the host logs and protected journal; its UI may be unavailable.
 
 ## Release maintenance and verification
+
+The server and separate `p2pstream-updater` GHCR packages must be public for the documented anonymous installation. [New packages default to private](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#pushing-container-images); after the first candidate push, set the updater package visibility to public and rerun the workflow. Release CI checks both digest references with an empty Docker credential directory and blocks publication if anonymous access fails.
 
 The release workflow includes server compatibility metadata as a hashed attachment of the existing strict agent manifest. Existing agent readers keep their original manifest shape. Update `internal/serverupdate/metadata.go` deliberately when the SQLite schema or accepted agent/runtime protocols change; a test checks its schema against the migrated database.
 
@@ -102,6 +125,8 @@ bun run e2e:updates
 ```
 
 They build a fixture and serve its assets through browser interception, without starting development servers. Before a production rollout, rehearse a real replacement, host restart, and failed-candidate restore on a disposable deployment matching the host's Docker/Compose versions and agent topology.
+
+The host lifecycle tests additionally cover setup identity, stale commands, unavailable downloads, custom context, interruption, idempotency, rollback/removal and pinned tooling. Run `python3 -I scripts/test-server-updater-host.py`.
 
 Run the repeatable container rehearsal on a Linux Docker host with:
 

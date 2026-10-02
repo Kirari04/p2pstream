@@ -28833,6 +28833,11 @@ type GetServerUpdateOverviewResponse struct {
 	Target             *ServerUpdateRelease   `protobuf:"bytes,8,opt,name=target,proto3" json:"target,omitempty"`
 	Operation          *ServerUpdateOperation `protobuf:"bytes,9,opt,name=operation,proto3" json:"operation,omitempty"`
 	Blockers           []string               `protobuf:"bytes,10,rep,name=blockers,proto3" json:"blockers,omitempty"`
+	InstallationId     string                 `protobuf:"bytes,11,opt,name=installation_id,json=installationId,proto3" json:"installation_id,omitempty"`
+	SetupCommand       string                 `protobuf:"bytes,12,opt,name=setup_command,json=setupCommand,proto3" json:"setup_command,omitempty"`
+	SetupUnavailable   string                 `protobuf:"bytes,13,opt,name=setup_unavailable,json=setupUnavailable,proto3" json:"setup_unavailable,omitempty"`
+	Architecture       string                 `protobuf:"bytes,14,opt,name=architecture,proto3" json:"architecture,omitempty"`
+	Repository         string                 `protobuf:"bytes,15,opt,name=repository,proto3" json:"repository,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -28935,6 +28940,41 @@ func (x *GetServerUpdateOverviewResponse) GetBlockers() []string {
 		return x.Blockers
 	}
 	return nil
+}
+
+func (x *GetServerUpdateOverviewResponse) GetInstallationId() string {
+	if x != nil {
+		return x.InstallationId
+	}
+	return ""
+}
+
+func (x *GetServerUpdateOverviewResponse) GetSetupCommand() string {
+	if x != nil {
+		return x.SetupCommand
+	}
+	return ""
+}
+
+func (x *GetServerUpdateOverviewResponse) GetSetupUnavailable() string {
+	if x != nil {
+		return x.SetupUnavailable
+	}
+	return ""
+}
+
+func (x *GetServerUpdateOverviewResponse) GetArchitecture() string {
+	if x != nil {
+		return x.Architecture
+	}
+	return ""
+}
+
+func (x *GetServerUpdateOverviewResponse) GetRepository() string {
+	if x != nil {
+		return x.Repository
+	}
+	return ""
 }
 
 type PreviewServerUpdateRequest struct {
@@ -31610,7 +31650,7 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x0etarget_version\x18\x05 \x01(\tR\rtargetVersion\x123\n" +
 	"\x16started_at_unix_millis\x18\x06 \x01(\x03R\x13startedAtUnixMillis\x123\n" +
 	"\x16updated_at_unix_millis\x18\a \x01(\x03R\x13updatedAtUnixMillis\" \n" +
-	"\x1eGetServerUpdateOverviewRequest\"\xa2\x03\n" +
+	"\x1eGetServerUpdateOverviewRequest\"\xe1\x04\n" +
 	"\x1fGetServerUpdateOverviewResponse\x12\x1f\n" +
 	"\vinstance_id\x18\x01 \x01(\tR\n" +
 	"instanceId\x12\x18\n" +
@@ -31623,7 +31663,14 @@ const file_proto_p2pstream_v1_management_proto_rawDesc = "" +
 	"\x06target\x18\b \x01(\v2!.p2pstream.v1.ServerUpdateReleaseR\x06target\x12A\n" +
 	"\toperation\x18\t \x01(\v2#.p2pstream.v1.ServerUpdateOperationR\toperation\x12\x1a\n" +
 	"\bblockers\x18\n" +
-	" \x03(\tR\bblockers\"d\n" +
+	" \x03(\tR\bblockers\x12'\n" +
+	"\x0finstallation_id\x18\v \x01(\tR\x0einstallationId\x12#\n" +
+	"\rsetup_command\x18\f \x01(\tR\fsetupCommand\x12+\n" +
+	"\x11setup_unavailable\x18\r \x01(\tR\x10setupUnavailable\x12\"\n" +
+	"\farchitecture\x18\x0e \x01(\tR\farchitecture\x12\x1e\n" +
+	"\n" +
+	"repository\x18\x0f \x01(\tR\n" +
+	"repository\"d\n" +
 	"\x1aPreviewServerUpdateRequest\x12\x1f\n" +
 	"\vinstance_id\x18\x01 \x01(\tR\n" +
 	"instanceId\x12%\n" +

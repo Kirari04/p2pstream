@@ -136,7 +136,7 @@ func TestEnvironmentProxyAgentUpdateOperations(t *testing.T) {
 				method, body, contains string
 				status                 int
 			}{
-				{"GetServerUpdateOverview", "{}", "Install the server updater", http.StatusOK},
+				{"GetServerUpdateOverview", "{}", "Server updates require a Linux Docker Compose release", http.StatusOK},
 				{"PreviewServerUpdate", `{"instanceId":"wrong","targetVersion":"v1.0.1"}`, "selected server changed", http.StatusBadRequest},
 				{"StartServerUpdate", `{"instanceId":"wrong"}`, "selected server changed", http.StatusBadRequest},
 				{"GetServerUpdateOperation", `{"instanceId":"wrong"}`, "selected server changed", http.StatusBadRequest},
