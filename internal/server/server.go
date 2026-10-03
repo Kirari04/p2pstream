@@ -150,6 +150,13 @@ func (c *AgentConn) acquireStreamOpenAdmission(ctx context.Context) (func(), boo
 }
 
 type App struct {
+	InstallationID      string
+	installationMu      sync.Mutex
+	installationCommand string
+	installationError   string
+	installationChecked time.Time
+	installationExpires time.Time
+
 	serverUpdateMu sync.RWMutex
 
 	Config              *config.Config

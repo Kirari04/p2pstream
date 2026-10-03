@@ -18,6 +18,15 @@ import (
 // host. The original model is retained verbatim for operator recovery. Only
 // trusted local installation calls this function.
 func Enroll(directory string, model []byte, image, updaterImage, version, repository string, bootstrap Floor) error {
+	return enroll(directory, model, image, updaterImage, version, repository, bootstrap, "")
+}
+func EnrollInstallation(directory string, model []byte, image, updaterImage, version, repository string, bootstrap Floor, installationID string) error {
+	if _, err := uuid.Parse(installationID); err != nil {
+		return err
+	}
+	return enroll(directory, model, image, updaterImage, version, repository, bootstrap, installationID)
+}
+func enroll(directory string, model []byte, image, updaterImage, version, repository string, bootstrap Floor, installationID string) error {
 	if !filepath.IsAbs(directory) || filepath.Clean(directory) != directory {
 		return errors.New("enrollment directory must be absolute")
 	}
@@ -30,7 +39,7 @@ func Enroll(directory string, model []byte, image, updaterImage, version, reposi
 	if releaseversion.Prerelease(version) {
 		channel = "staging"
 	}
-	if !validVersion(version, channel) || !strings.HasPrefix(image, "ghcr.io/"+strings.ToLower(repository)+"@sha256:") || !digestPattern.MatchString(strings.TrimPrefix(image, "ghcr.io/"+strings.ToLower(repository)+"@sha256:")) || !strings.HasPrefix(updaterImage, "sha256:") || !digestPattern.MatchString(strings.TrimPrefix(updaterImage, "sha256:")) {
+	if !validVersion(version, channel) || !strings.HasPrefix(image, "ghcr.io/"+strings.ToLower(repository)+"@sha256:") || !digestPattern.MatchString(strings.TrimPrefix(image, "ghcr.io/"+strings.ToLower(repository)+"@sha256:")) || !validUpdaterImage(updaterImage, repository) {
 		return errors.New("enrollment requires exact release and updater images")
 	}
 	var doc map[string]any
@@ -45,6 +54,12 @@ func Enroll(directory string, model []byte, image, updaterImage, version, reposi
 	}
 	if service["build"] != nil || service["post_start"] != nil || service["pre_stop"] != nil || service["pre_start"] != nil {
 		return errors.New("builds and lifecycle hooks require a manual deployment")
+	}
+	if service["scale"] != nil && service["scale"] != float64(1) {
+		return errors.New("multiple server replicas require a manual deployment")
+	}
+	if deploy, ok := service["deploy"].(map[string]any); ok && deploy["replicas"] != nil && deploy["replicas"] != float64(1) {
+		return errors.New("multiple server replicas require a manual deployment")
 	}
 	if service["command"] != nil {
 		return errors.New("custom server commands require a manual deployment")
@@ -65,6 +80,12 @@ func Enroll(directory string, model []byte, image, updaterImage, version, reposi
 	if env["CONFIG_DIR"] != "/data" || env["DATABASE_URL"] != nil && env["DATABASE_URL"] != "" {
 		return errors.New("enrollment currently requires CONFIG_DIR=/data and its default SQLite database")
 	}
+	for _, key := range []string{"MANAGEMENT_TLS_CERT_FILE", "MANAGEMENT_TLS_KEY_FILE", "AGENT_UPDATE_AUTHORITY_KEY_FILE", "PUBLIC_CACHE_DIR"} {
+		value, _ := env[key].(string)
+		if value != "" && !strings.HasPrefix(filepath.Clean(value), "/data/") {
+			return errors.New("custom state paths outside /data require a manual deployment")
+		}
+	}
 	volumes, _ := service["volumes"].([]any)
 	volumes, err := prepareRuntimeTmpfs(service, volumes)
 	if err != nil {
@@ -75,9 +96,15 @@ func Enroll(directory string, model []byte, image, updaterImage, version, reposi
 	if definitions == nil {
 		definitions = map[string]any{}
 	}
+	if definitions["server-updater-data"] != nil {
+		return errors.New("reserved server-updater-data volume already exists")
+	}
 	for _, value := range volumes {
 		v, _ := value.(map[string]any)
 		target, _ := v["target"].(string)
+		if target == "/" || target == "/run" || target == "/run/p2pstream-server-update" || strings.HasPrefix(target, "/run/p2pstream-server-update/") {
+			return errors.New("reserved updater control mount is already occupied")
+		}
 		if target == "/data" {
 			if volumeName != "" {
 				return errors.New("multiple data mounts are unsupported")
@@ -113,6 +140,9 @@ func Enroll(directory string, model []byte, image, updaterImage, version, reposi
 	}
 	config := ComposeConfig{BootstrapFloor: bootstrap, InstanceID: uuid.NewString(), Repository: repository, Channel: channel, Project: project, Token: hex.EncodeToString(secret),
 		StateDir: directory, ControlDir: filepath.Join(directory, "control"), DataDir: "/server-data", DataVolume: volumeName, DeploymentFile: filepath.Join(directory, "compose.json"), Docker: "/usr/local/bin/docker", Restart: restart, HealthTimeoutSeconds: 300, HealthyDwellSeconds: 120}
+	if installationID != "" {
+		config.InstanceID = installationID
+	}
 	if err := config.Validate(); err != nil {
 		return err
 	}
@@ -228,4 +258,12 @@ func prepareRuntimeTmpfs(service map[string]any, volumes []any) ([]any, error) {
 
 func coversRuntimeSocket(target string) bool {
 	return target != "" && (target == RuntimeSocket || strings.HasPrefix(RuntimeSocket, strings.TrimRight(filepath.Clean(target), "/")+"/"))
+}
+
+func validUpdaterImage(image, repository string) bool {
+	if strings.HasPrefix(image, "sha256:") {
+		return digestPattern.MatchString(strings.TrimPrefix(image, "sha256:"))
+	}
+	prefix := "ghcr.io/" + strings.ToLower(repository) + "-updater@sha256:"
+	return strings.HasPrefix(image, prefix) && digestPattern.MatchString(strings.TrimPrefix(image, prefix))
 }

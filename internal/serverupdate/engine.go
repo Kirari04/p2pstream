@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,6 +82,22 @@ func (e *Engine) Overview(ctx context.Context) (Overview, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	o := Overview{InstanceID: e.state.InstanceID, Channel: e.state.Channel, Operation: e.state.Operation}
+	if data, err := readProtected(filepath.Join(filepath.Dir(e.path), "host.json"), 2<<20); err == nil {
+		var host struct {
+			Phase string `json:"phase"`
+		}
+		if err = json.Unmarshal(data, &host); err != nil {
+			return o, err
+		}
+		o.HostPhase = host.Phase
+		if host.Phase != "healthy" {
+			o.Warning = "Host setup or configuration is incomplete. Run sudo /etc/p2pstream-server-updater/manage repair on this Docker host."
+			return clone(o), nil
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return o, err
+	}
+
 	if err := ctx.Err(); err != nil {
 		return o, err
 	}
@@ -155,6 +172,39 @@ func (e *Engine) Preview(ctx context.Context, version string) (Plan, error) {
 }
 
 func (e *Engine) Start(ctx context.Context, request StartRequest) (Operation, error) {
+	hostLock, err := os.OpenFile(filepath.Join(filepath.Dir(e.path), "host.lock"), os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		return Operation{}, err
+	}
+	defer hostLock.Close()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err = syscall.Flock(int(hostLock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, syscall.EWOULDBLOCK) || time.Now().After(deadline) {
+			return Operation{}, errors.New("a host deployment operation is in progress")
+		}
+		select {
+		case <-ctx.Done():
+			return Operation{}, ctx.Err()
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	defer syscall.Flock(int(hostLock.Fd()), syscall.LOCK_UN)
+	// A process lock disappears on interruption; the journal does not. Never
+	// accept an update while installation/configuration/removal is incomplete.
+	if data, err := readProtected(filepath.Join(filepath.Dir(e.path), "host.json"), 2<<20); err == nil {
+		var host struct {
+			Phase string `json:"phase"`
+		}
+		if err = json.Unmarshal(data, &host); err != nil || host.Phase != "healthy" {
+			return Operation{}, errors.New("host deployment setup is incomplete; run the saved host repair command")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return Operation{}, err
+	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if _, err := uuid.Parse(request.OperationID); err != nil || len(request.Actor) == 0 || len(request.Actor) > 256 {

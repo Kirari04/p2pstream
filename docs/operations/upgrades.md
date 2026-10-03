@@ -80,7 +80,7 @@ fails.
 
 For supported Docker Compose deployments, use
 [Management Server Updates](./server-updates). For a manual Compose upgrade,
-pin the `v0.1.53` image tag in your Compose configuration, then run:
+first remove updater enrollment with `sudo /etc/p2pstream-server-updater/manage remove` if enabled. Use the current exported Compose model and exact project/file command printed by removal, pin the `v0.1.53` image tag in that configuration, then run the equivalent of:
 
 ```bash
 docker compose pull

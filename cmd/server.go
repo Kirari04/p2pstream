@@ -17,6 +17,7 @@ import (
 	"p2pstream/internal/db"
 	"p2pstream/internal/logger"
 	"p2pstream/internal/server"
+	"p2pstream/internal/serverupdate"
 )
 
 const (
@@ -57,10 +58,15 @@ var serverCmd = &cobra.Command{
 		}
 		defer database.Close()
 
+		installationID, err := serverupdate.InstallationIdentity(cfg.ConfigDir, true)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize installation identity")
+		}
 		app, err := server.NewAppWithError(cfg, database)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to initialize server application")
 		}
+		app.InstallationID = installationID
 		if cfg.AgentUpdatesEnabled {
 			authority, authorityErr := server.InitializeAgentUpdateManagementAuthority(context.Background(), database, cfg.AgentUpdateAuthorityKeyFile)
 			if authorityErr != nil {
