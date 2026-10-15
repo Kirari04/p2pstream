@@ -438,6 +438,27 @@ This is functional admission recovery with retained idle-pool resources, not
 resident-memory recovery. The run had no 1 GiB ballast, so it does not by
 itself reproduce the incident's estimated 28% starting headroom.
 
+A follow-up H1 agent run touched a 1 GiB ballast inside the same 4 GiB cgroup
+before opening connections. At 1,536 concurrency, the `ee1aba7` baseline
+reached only 404 origin requests and the phased-owner candidate reached 1,221;
+neither passed the barrier. The candidate recorded 432 agent-stream
+`resource_pressure` misses. Its sampled owner peaks included 1.31 GiB for all
+1,536 physical public connections, 276 MiB of overlapping handshake work, and
+about 49 MiB each for request and response work. The colocated server and agent
+RSS peaked at 1.31 GiB, including the touched ballast; the owner promises explain
+the admission decision and are distinct from observed RSS.
+
+The bounded downward search passed all 2,560 verified requests at 1,280
+concurrency with no 503s, request errors or admission misses, then failed at
+1,400 after reaching 1,308 requests inside the origin barrier. The 1,400 point
+recorded 92 agent-stream resource-pressure misses. The measured 1 GiB-ballast
+boundary is therefore above 1,280 and below 1,400 for this colocated agent
+fixture. Larger 2,000/4,000 points were not run after the lower failure
+established the boundary. In production the agent and its origin sockets are
+remote and do not share the server cgroup; separating the fixture processes is
+required before attributing the entire boundary to server-resident allocations
+or changing the negotiated aggregate stream credit.
+
 ```sh
 scripts/qualify-proxy-performance.sh --smoke
 scripts/qualify-proxy-performance.sh \

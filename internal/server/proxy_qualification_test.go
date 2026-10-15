@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"runtime/pprof"
 	"slices"
@@ -213,15 +214,9 @@ func qualificationRuntimeHandler(app *App) http.Handler {
 		if app != nil && r.URL.Query().Get("owners") == "1" {
 			snapshot := app.agentStreamCapacity.snapshot()
 			result.OwnerStats = true
-			result.OwnerBytes = make(map[string]int64, adaptiveResourceOwnerCount)
-			result.OwnerFDs = make(map[string]int64, adaptiveResourceOwnerCount)
-			result.OwnerReservations = make(map[string]int64, adaptiveResourceOwnerCount)
-			for owner := adaptiveResourceOwner(0); owner < adaptiveResourceOwnerCount; owner++ {
-				name := owner.String()
-				result.OwnerBytes[name] = snapshot.AdaptiveExternalBytesByOwner[owner]
-				result.OwnerFDs[name] = snapshot.AdaptiveExternalFDsByOwner[owner]
-				result.OwnerReservations[name] = snapshot.AdaptiveExternalReservationsByOwner[owner]
-			}
+			result.OwnerBytes = qualificationOwnerValues(snapshot, "AdaptiveExternalBytesByOwner")
+			result.OwnerFDs = qualificationOwnerValues(snapshot, "AdaptiveExternalFDsByOwner")
+			result.OwnerReservations = qualificationOwnerValues(snapshot, "AdaptiveExternalReservationsByOwner")
 			result.AdmissionMisses = snapshot.AdmissionMissesByConstraint
 			result.PublicConnectionLimitRejected = app.publicConnectionLimitRejected.Load()
 			result.PublicConnectionResourceRejected = app.publicConnectionResourceReject.Load()
@@ -232,6 +227,19 @@ func qualificationRuntimeHandler(app *App) http.Handler {
 		}
 		_ = json.NewEncoder(w).Encode(result)
 	})
+}
+
+func qualificationOwnerValues(snapshot any, fieldName string) map[string]int64 {
+	field := reflect.ValueOf(snapshot).FieldByName(fieldName)
+	if !field.IsValid() || (field.Kind() != reflect.Array && field.Kind() != reflect.Slice) {
+		return nil
+	}
+	names := [...]string{"other", "public_connection", "public_handshake", "public_request", "public_response", "direct_connection", "replay_buffer", "receive_window"}
+	result := make(map[string]int64, min(field.Len(), len(names)))
+	for index := 0; index < field.Len() && index < len(names); index++ {
+		result[names[index]] = field.Index(index).Int()
+	}
+	return result
 }
 
 func runQualificationOrigin(t *testing.T) {
