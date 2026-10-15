@@ -41,9 +41,9 @@ func TestPublicAdmissionKernelMemoryBurst(t *testing.T) {
 	defer runtime.KeepAlive(ballast)
 
 	sampler := sysmetrics.NewSystemMemoryUsageSampler()
-	controller, err := sysmetrics.NewAdaptiveMemoryController(sysmetrics.DefaultAdaptiveMemoryConfig(), sampler)
-	if err != nil {
-		t.Fatal(err)
+	controller := newServerAdaptiveMemoryController(nil)
+	if controller == nil {
+		t.Fatal("production server resource controller unavailable")
 	}
 	app := NewApp(nil, nil)
 	app.agentStreamCapacity = mustNewDefaultAgentStreamCapacityManager(65_536)
@@ -89,12 +89,15 @@ func TestPublicAdmissionKernelMemoryBurst(t *testing.T) {
 			_ = client.Close()
 			t.Fatal(err)
 		}
-		release, ok := app.tryReservePublicConnection(server)
+		release, active, ok := app.tryReservePublicConnectionPhased(server)
 		if !ok {
 			_ = client.Close()
 			_ = server.Close()
 			t.Fatalf("baseline rejected socket %d: %+v", len(pairs), app.agentStreamCapacity.snapshot())
 		}
+		// These raw TCP pairs model established streaming connections. Drop
+		// only the transient handshake promise, as the HTTP StateActive hook does.
+		active()
 		pairs = append(pairs, pair{client, server, release})
 	}
 	baseline := stressCgroupValue(t, cgroup+"memory.current", "")

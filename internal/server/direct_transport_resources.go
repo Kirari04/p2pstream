@@ -18,12 +18,12 @@ func (p *directTransportPool) accountConnections(transport *http.Transport) {
 		dial = (&net.Dialer{}).DialContext
 	}
 	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-		release, ok, _ := p.app.agentStreamCapacity.tryReserveAdaptiveExternal(tunnel.AdaptivePerStreamOverheadBytes, 2)
+		release, ok, _ := p.app.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerDirectConnection, tunnel.AdaptivePerStreamOverheadBytes, 2)
 		if !ok {
 			// Idle sockets are reclaimable. Free them before reporting real
 			// resource exhaustion; no per-target connection ceiling is imposed.
 			p.closeIdleConnections()
-			release, ok, _ = p.app.agentStreamCapacity.tryReserveAdaptiveExternal(tunnel.AdaptivePerStreamOverheadBytes, 2)
+			release, ok, _ = p.app.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerDirectConnection, tunnel.AdaptivePerStreamOverheadBytes, 2)
 		}
 		if !ok {
 			return nil, errDirectUpstreamResourcePressure
@@ -43,10 +43,10 @@ func (p *directTransportPool) accountConnections(transport *http.Transport) {
 				release()
 				return nil, socketErr
 			}
-			extra, admitted, _ := p.app.agentStreamCapacity.tryReserveAdaptiveExternal(max(0, socketBytes-tcpsocket.BaseMemoryBytes), 0)
+			extra, admitted, _ := p.app.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerDirectConnection, max(0, socketBytes-tcpsocket.BaseMemoryBytes), 0)
 			if !admitted {
 				p.closeIdleConnections()
-				extra, admitted, _ = p.app.agentStreamCapacity.tryReserveAdaptiveExternal(max(0, socketBytes-tcpsocket.BaseMemoryBytes), 0)
+				extra, admitted, _ = p.app.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerDirectConnection, max(0, socketBytes-tcpsocket.BaseMemoryBytes), 0)
 			}
 			if !admitted {
 				_ = conn.Close()

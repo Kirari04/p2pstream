@@ -78,6 +78,17 @@ func (a *App) logTerminalAgentStreamCapacityFailure(
 			Int("adaptive_public_limit", snapshot.AdaptivePublicLimit).
 			Int64("adaptive_external_bytes", snapshot.AdaptiveExternalBytes).
 			Int64("adaptive_external_fds", snapshot.AdaptiveExternalFDs).
+			Str("adaptive_admission_role", string(snapshot.AdaptiveAdmissionRole)).
+			Int64("adaptive_stream_charge_bytes", snapshot.AdaptiveStreamChargeBytes).
+			Int64("adaptive_stream_charge_fds", snapshot.AdaptiveStreamChargeFDs).
+			Int64("resource_public_connection_bytes", snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicConnection]).
+			Int64("resource_public_handshake_bytes", snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicHandshake]).
+			Int64("resource_public_request_bytes", snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicRequest]).
+			Int64("resource_public_response_bytes", snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicResponse]).
+			Int64("resource_direct_connection_bytes", snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerDirectConnection]).
+			Int64("resource_replay_buffer_bytes", snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerReplayBuffer]).
+			Int64("resource_receive_window_bytes", snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerReceiveWindow]).
+			Int64("resource_other_bytes", snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerOther]).
 			Int64("public_connections", a.publicConnections.inUse()).
 			Uint64("public_connection_limit_rejected", a.publicConnectionLimitRejected.Load()).
 			Uint64("public_connection_resource_rejected", a.publicConnectionResourceReject.Load()).
