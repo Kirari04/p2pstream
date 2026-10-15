@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -148,6 +149,11 @@ func TestPublicProxyResolutionPointerRemainsOwnedUntilLateResponseBodyCompletes(
 		_, _ = io.WriteString(w, "late-response")
 	}))
 	defer upstream.Close()
+	var releaseOnce sync.Once
+	release := func() {
+		releaseOnce.Do(func() { close(releaseBody) })
+	}
+	defer release()
 
 	origin, err := url.Parse(upstream.URL)
 	if err != nil {
@@ -187,7 +193,7 @@ func TestPublicProxyResolutionPointerRemainsOwnedUntilLateResponseBodyCompletes(
 	if concurrent == owned {
 		t.Fatal("pooled context was reused while forwarding still consumed its response body")
 	}
-	close(releaseBody)
+	release()
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
