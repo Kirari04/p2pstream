@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -189,6 +190,93 @@ func TestPublicRequestChargesDecodedHeadersAndDefersResponseWorkingSet(t *testin
 	if s := a.agentStreamCapacity.snapshot(); s.AdaptiveExternalBytes != 0 {
 		t.Fatalf("request leaked: %+v", s)
 	}
+}
+
+func TestPublicHTTP2ConcurrentDecodedHeadersKeepIndependentLeases(t *testing.T) {
+	const streams = 96 // Below the advertised 250-stream connection ceiling.
+	a := newPublicOwnedResourceTestApp(t)
+	entered := make(chan int64, streams)
+	finish := make(chan struct{})
+	var finishOnce sync.Once
+	unblock := func() { finishOnce.Do(func() { close(finish) }) }
+	defer unblock()
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := newPublicProxyContext(a, 1, w, r)
+		defer ctx.runCleanup()
+		if publicRequestAdmissionStage(ctx) != publicProxyStageContinue {
+			return
+		}
+		entered <- publicRequestWorkingBytes + publicRequestHeaderMemory(r)
+		select {
+		case <-finish:
+			w.WriteHeader(http.StatusNoContent)
+		case <-r.Context().Done():
+		}
+	}))
+	srv.EnableHTTP2 = true
+	configurePublicHTTPServer(srv.Config)
+	srv.Config.ConnState = publicResourceConnState
+	srv.Listener = resourceBoundedPublicListener{Listener: srv.Listener, acquirePhased: a.tryReservePublicConnectionPhased}
+	srv.StartTLS()
+	defer func() { unblock(); srv.Close() }()
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	client := srv.Client()
+	errs := make(chan error, streams)
+	for range streams {
+		go func() {
+			request, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+			if err != nil {
+				errs <- err
+				return
+			}
+			// Tiny repeated values have a small wire representation but retain
+			// slice/string metadata after HPACK decode. The second field stresses
+			// the byte envelope on the same multiplexed connection.
+			request.Header["X-Many"] = make([]string, 1000)
+			for i := range request.Header["X-Many"] {
+				request.Header["X-Many"][i] = "a"
+			}
+			request.Header.Set("X-Large", strings.Repeat("b", 12<<10))
+			response, err := client.Do(request)
+			if err == nil {
+				_ = response.Body.Close()
+				if response.StatusCode != http.StatusNoContent || response.ProtoMajor != 2 {
+					err = fmt.Errorf("unexpected response %s %s", response.Proto, response.Status)
+				}
+			}
+			errs <- err
+		}()
+	}
+	var expected int64
+	for range streams {
+		select {
+		case bytes := <-entered:
+			expected += bytes
+		case err := <-errs:
+			t.Fatalf("request completed before the header barrier: %v", err)
+		case <-ctx.Done():
+			t.Fatal("HTTP/2 header barrier timed out")
+		}
+	}
+	s := a.agentStreamCapacity.snapshot()
+	if s.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicRequest] != expected || expected < streams*(96<<10) {
+		t.Fatalf("decoded header leases = %d, want %d >= %d", s.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicRequest], expected, streams*(96<<10))
+	}
+	if s.AdaptiveExternalReservationsByOwner[adaptiveResourceOwnerPublicRequest] != streams {
+		t.Fatalf("request owners = %d, want %d", s.AdaptiveExternalReservationsByOwner[adaptiveResourceOwnerPublicRequest], streams)
+	}
+	// Cancellation must return all per-stream headers even though the physical
+	// H2 connection is independently pooled. Closing it then returns its lease.
+	cancel()
+	unblock()
+	for range streams {
+		<-errs
+	}
+	waitPublicOwnedBytes(t, a, adaptiveResourceOwnerPublicRequest, 0)
+	client.CloseIdleConnections()
+	srv.CloseClientConnections()
+	waitPublicOwnedBytes(t, a, adaptiveResourceOwnerPublicConnection, 0)
 }
 
 func waitPublicOwnedBytes(t *testing.T, a *App, owner adaptiveResourceOwner, expected int64) {
