@@ -149,7 +149,9 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 	recorder := &proxyResponseRecorder{ResponseWriter: w, request: r, requestBodyState: bodyState}
 	responseWriter := http.ResponseWriter(recorder)
 	observability := proxyRequestObservability{requestBytes: &requestBytes, responseRecorder: recorder}
-	trace := app.newTrafficRequestTrace(r, recorder, publicTracePathForRequest(app, snap, listenerID, r))
+	trace := newPublicProxyTrafficTrace(app, r, recorder, func() string {
+		return publicTracePathForRequest(app, snap, listenerID, r)
+	})
 	if trace != nil {
 		trace.emitReceived(listenerID)
 	}
@@ -166,6 +168,22 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 		RequestContext: proxyRequestContextFromHTTP(r),
 		Trace:          trace,
 	}
+}
+
+func newPublicProxyTrafficTrace(app *App, r *http.Request, recorder *proxyResponseRecorder, safePath func() string) *trafficRequestTrace {
+	if app == nil || app.TrafficTracer == nil {
+		return nil
+	}
+	if _, enabled := app.TrafficTracer.enabledLevel(); !enabled {
+		return nil
+	}
+	path := "/"
+	if safePath != nil {
+		path = safePath()
+	}
+	// Keep the tracer's own enabled check: settings can change after the fast
+	// path above and before trace construction completes.
+	return app.newTrafficRequestTrace(r, recorder, path)
 }
 
 func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult {
