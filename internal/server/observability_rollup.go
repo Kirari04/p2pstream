@@ -35,8 +35,16 @@ func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Con
 	tuples := make(map[proxyRequestTupleRollupKey]db.UpsertProxyRequestTupleRollupMinuteParams)
 	statuses := make(map[proxyRequestStatusRollupKey]db.UpsertProxyRequestStatusRollupMinuteParams)
 	retries := make(map[proxyRetryRollupKey]db.UpsertProxyRetryRollupMinuteParams)
+	var eventInserter *db.ProxyRequestEventInserter
+	if len(events) > 0 {
+		eventInserter, err = db.PrepareProxyRequestEventInserter(ctx, tx)
+		if err != nil {
+			return err
+		}
+	}
 	for _, event := range events {
-		if _, err := qtx.InsertProxyRequestEventAt(ctx, event); err != nil {
+		if err := eventInserter.Insert(ctx, event); err != nil {
+			_ = eventInserter.Close()
 			return err
 		}
 		total, tuple, status := proxyRequestRollupParams(event)
@@ -45,6 +53,11 @@ func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Con
 		mergeProxyRequestStatusRollup(statuses, status)
 		if retry, ok := proxyRetryRollupParams(event); ok {
 			mergeProxyRetryRollup(retries, retry)
+		}
+	}
+	if eventInserter != nil {
+		if err := eventInserter.Close(); err != nil {
+			return err
 		}
 	}
 	for _, total := range totals {
