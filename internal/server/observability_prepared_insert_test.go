@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,23 @@ func TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t *t
 		t.Fatal(err)
 	}
 	if _, err := app.DB.ExecContext(ctx, `
+		INSERT INTO public_listeners (id, name, bind_address, port, protocol) VALUES
+			(11, 'prepared-batch-listener', '127.0.0.1', 18111, 'http');
+		INSERT INTO public_routes (id, listener_id, priority, host_pattern, path_prefix) VALUES
+			(12, 11, 10, 'all-fields.example', '/all-fields');
+		INSERT INTO public_route_targets (id, route_id, name, position) VALUES
+			(13, 12, 'prepared-batch-target', 0);
+		INSERT INTO public_waf_rules (id, name) VALUES
+			(14, 'prepared-batch-waf');
+		INSERT INTO agents (id, public_id, name, token_hash) VALUES
+			(15, 'prepared-batch-agent', 'prepared-batch-agent', 'prepared-batch-agent-hash'),
+			(16, 'prepared-batch-failed-agent', 'prepared-batch-failed-agent', 'prepared-batch-failed-agent-hash');
+		INSERT INTO public_retry_rules (id, name) VALUES
+			(17, 'prepared-batch-retry');
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.DB.ExecContext(ctx, `
 		INSERT INTO public_cache_entries (
 			key_digest, rule_id, scope, listener_protocol, host, path, query_key, method,
 			vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at
@@ -30,7 +48,31 @@ func TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t *t
 		t.Fatal(err)
 	}
 	events := []db.InsertProxyRequestEventAtParams{
-		{OccurredAt: storedAt, StatusCode: http.StatusOK, DurationMs: 10, Method: "GET", Host: "example.test", PathPrefix: "/a", ResponseBytes: 10},
+		{
+			OccurredAt:         storedAt,
+			StatusCode:         http.StatusTeapot,
+			DurationMs:         1234,
+			ErrorKind:          "binding-error",
+			Method:             "PATCH",
+			Host:               "all-fields.example",
+			PathPrefix:         "/all-fields",
+			ListenerID:         sql.NullInt64{Int64: 11, Valid: true},
+			RouteID:            sql.NullInt64{Int64: 12, Valid: true},
+			RouteTargetID:      sql.NullInt64{Int64: 13, Valid: true},
+			WafRuleID:          sql.NullInt64{Int64: 14, Valid: true},
+			WafAction:          "challenge",
+			AgentID:            sql.NullInt64{Int64: 15, Valid: true},
+			RequestBytes:       12345,
+			ResponseBytes:      67890,
+			CacheRuleID:        sql.NullInt64{Int64: 1, Valid: true},
+			CacheStatus:        "stale",
+			CacheBytes:         2222,
+			RetryRuleID:        sql.NullInt64{Int64: 17, Valid: true},
+			RetryCount:         3,
+			RetryOutcome:       "recovered",
+			RetryErrorKind:     "connection-reset",
+			RetryFailedAgentID: sql.NullInt64{Int64: 16, Valid: true},
+		},
 		{OccurredAt: storedAt, StatusCode: http.StatusNotFound, DurationMs: 20, ErrorKind: "not_found", Method: "GET", Host: "example.test", PathPrefix: "/b", ResponseBytes: 20},
 		{OccurredAt: storedAt, StatusCode: http.StatusBadGateway, DurationMs: 30, ErrorKind: "upstream", Method: "POST", Host: "example.test", PathPrefix: "/c", RequestBytes: 5},
 	}
@@ -58,7 +100,14 @@ func TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t *t
 		t.Fatalf("insert prepared event batch: %v", err)
 	}
 	assertPreparedObservabilityBatchState(t, app, 3, 3, 2)
-	rows, err := app.DB.QueryContext(ctx, `SELECT status_code, method, path_prefix FROM proxy_request_events ORDER BY id`)
+	rows, err := app.DB.QueryContext(ctx, `
+		SELECT occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix,
+			listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id,
+			request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
+			retry_rule_id, retry_count, retry_outcome, retry_error_kind, retry_failed_agent_id
+		FROM proxy_request_events
+		ORDER BY id
+	`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,13 +116,40 @@ func TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t *t
 		if !rows.Next() {
 			t.Fatalf("raw event %d is missing", index)
 		}
-		var status int64
-		var method, path string
-		if err := rows.Scan(&status, &method, &path); err != nil {
+		var got db.InsertProxyRequestEventAtParams
+		if err := rows.Scan(
+			&got.OccurredAt,
+			&got.StatusCode,
+			&got.DurationMs,
+			&got.ErrorKind,
+			&got.Method,
+			&got.Host,
+			&got.PathPrefix,
+			&got.ListenerID,
+			&got.RouteID,
+			&got.RouteTargetID,
+			&got.WafRuleID,
+			&got.WafAction,
+			&got.AgentID,
+			&got.RequestBytes,
+			&got.ResponseBytes,
+			&got.CacheRuleID,
+			&got.CacheStatus,
+			&got.CacheBytes,
+			&got.RetryRuleID,
+			&got.RetryCount,
+			&got.RetryOutcome,
+			&got.RetryErrorKind,
+			&got.RetryFailedAgentID,
+		); err != nil {
 			t.Fatal(err)
 		}
-		if status != want.StatusCode || method != want.Method || path != want.PathPrefix {
-			t.Fatalf("raw event %d = %d/%q/%q, want %d/%q/%q", index, status, method, path, want.StatusCode, want.Method, want.PathPrefix)
+		if !got.OccurredAt.Equal(want.OccurredAt) {
+			t.Fatalf("raw event %d occurred_at = %s, want %s", index, got.OccurredAt, want.OccurredAt)
+		}
+		got.OccurredAt = want.OccurredAt
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("raw event %d = %+v, want %+v", index, got, want)
 		}
 	}
 	if rows.Next() {
