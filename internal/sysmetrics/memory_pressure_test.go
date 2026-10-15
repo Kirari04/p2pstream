@@ -293,6 +293,14 @@ func TestServerLogicalStreamsDoNotConsumePhantomFileDescriptors(t *testing.T) {
 	if got := critical.AdmissionLimitWithExternal(0, 1); got != -1 {
 		t.Fatalf("FD-critical external reservation = %d, want -1", got)
 	}
+	sampler.fd.Used = 8_990
+	recovered := controller.ForceRefresh(65_536, 0)
+	if recovered.RejectNew || recovered.AdmissionLimit != snapshot.AdmissionLimit {
+		t.Fatalf("server logical allowance did not recover after FD pressure: %+v", recovered)
+	}
+	if got := recovered.AdmissionLimitWithExternal(0, 10); got != recovered.AdmissionLimit {
+		t.Fatalf("external FD headroom did not recover: allowance=%d stream-limit=%d", got, recovered.AdmissionLimit)
+	}
 }
 
 func TestCurrentProcessMemoryCgroupPathsResolvesLeafV2Cgroup(t *testing.T) {

@@ -38,6 +38,29 @@ const (
 	adaptiveResourceOwnerCount
 )
 
+func (o adaptiveResourceOwner) String() string {
+	switch o {
+	case adaptiveResourceOwnerOther:
+		return "other"
+	case adaptiveResourceOwnerPublicConnection:
+		return "public_connection"
+	case adaptiveResourceOwnerPublicHandshake:
+		return "public_handshake"
+	case adaptiveResourceOwnerPublicRequest:
+		return "public_request"
+	case adaptiveResourceOwnerPublicResponse:
+		return "public_response"
+	case adaptiveResourceOwnerDirectConnection:
+		return "direct_connection"
+	case adaptiveResourceOwnerReplayBuffer:
+		return "replay_buffer"
+	case adaptiveResourceOwnerReceiveWindow:
+		return "receive_window"
+	default:
+		return "unknown"
+	}
+}
+
 type agentStreamLeaseState uint8
 
 const (
