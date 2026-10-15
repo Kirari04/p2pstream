@@ -3,11 +3,14 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
+	"p2pstream/internal/config"
 	"p2pstream/internal/sysmetrics"
+	"p2pstream/internal/tunnel"
 )
 
 type blockingAdaptiveMemorySampler struct {
@@ -16,6 +19,23 @@ type blockingAdaptiveMemorySampler struct {
 	entered chan struct{}
 	proceed chan struct{}
 	once    sync.Once
+}
+
+func TestServerAdaptiveControllerAcceptsProtocolFloorWindow(t *testing.T) {
+	want, err := tunnel.ServerStreamResourceModel(tunnel.InitialStreamWindowSizeBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	controller := newServerAdaptiveMemoryController(&config.Config{
+		TunnelMaxStreamWindowBytes: tunnel.InitialStreamWindowSizeBytes,
+	})
+	if controller == nil {
+		t.Fatal("protocol-floor server resource model disabled adaptive safety")
+	}
+	snapshot := controller.ForceRefresh(64, 0)
+	if snapshot.AdmissionRole != sysmetrics.AdaptiveAdmissionRoleServerStream || snapshot.StreamChargeByte != want.MemoryBytes || snapshot.StreamChargeFD != 0 {
+		t.Fatalf("protocol-floor snapshot dimensions = %+v, want charge %d/0", snapshot, want.MemoryBytes)
+	}
 }
 
 func (s *blockingAdaptiveMemorySampler) SampleMemoryUsage() (sysmetrics.MemoryUsage, error) {
@@ -39,6 +59,13 @@ func newAdaptiveServerCapacityForTest(t testing.TB, total int, usage *sysmetrics
 		t.Fatal(err)
 	}
 	config := sysmetrics.DefaultAdaptiveMemoryConfig()
+	model, err := tunnel.ServerStreamResourceModel(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.AdmissionRole = sysmetrics.AdaptiveAdmissionRoleServerStream
+	config.EstimatedBytesPerAdmission = model.MemoryBytes
+	config.FileDescriptorsPerAdmission = 0
 	config.SampleInterval = time.Hour
 	controller, err := sysmetrics.NewAdaptiveMemoryController(config, sysmetrics.MemoryUsageSamplerFunc(func() (sysmetrics.MemoryUsage, error) {
 		return *usage, nil
@@ -73,6 +100,82 @@ func TestServerAdaptiveCapacityHealthyPathExceedsLegacyCeiling(t *testing.T) {
 		lease.release()
 	}
 	assertAgentStreamCapacityClean(t, manager)
+}
+
+func TestServerOwnedResourceEnvelopeExceedsFormerCapWithPublicReservations(t *testing.T) {
+	const limit = int64(4 << 30)
+	usage := sysmetrics.MemoryUsage{UsedBytes: 28 * limit / 100, LimitBytes: limit, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 65_536, &usage)
+	release, ok, constrained := manager.tryReserveAdaptiveResource(adaptiveResourceOwnerPublicConnection, 256<<20, 128)
+	if !ok || !constrained {
+		t.Fatalf("public reservation = ok %t constrained %t", ok, constrained)
+	}
+	defer release()
+	snapshot := manager.snapshot()
+	if snapshot.AdaptiveAdmissionRole != sysmetrics.AdaptiveAdmissionRoleServerStream || snapshot.AdaptiveStreamChargeFDs != 0 {
+		t.Fatalf("server dimensions = %+v", snapshot)
+	}
+	if snapshot.AdaptiveAdmissionLimit <= 950 {
+		t.Fatalf("allowance with public reservations = %d, want beyond former 950-stream cap", snapshot.AdaptiveAdmissionLimit)
+	}
+	if snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicConnection] != 256<<20 ||
+		snapshot.AdaptiveExternalFDsByOwner[adaptiveResourceOwnerPublicConnection] != 128 ||
+		snapshot.AdaptiveExternalReservationsByOwner[adaptiveResourceOwnerPublicConnection] != 1 {
+		t.Fatalf("public owner ledger = %+v", snapshot)
+	}
+}
+
+func TestAdaptiveResourceOwnerLedgerConservesConcurrentReceiveCredit(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 4 << 30, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 65_536, &usage)
+	const (
+		reservations = 128
+		bytesEach    = int64(64 << 10)
+	)
+	releases := make(chan func(), reservations)
+	errs := make(chan error, reservations)
+	var acquire sync.WaitGroup
+	for range reservations {
+		acquire.Go(func() {
+			release, ok, constrained := manager.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, bytesEach, 0)
+			if !ok || !constrained {
+				errs <- fmt.Errorf("receive credit reservation = ok %t constrained %t", ok, constrained)
+				return
+			}
+			releases <- release
+		})
+	}
+	acquire.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	snapshot := manager.snapshot()
+	if got, want := snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerReceiveWindow], reservations*bytesEach; got != want {
+		t.Fatalf("receive-window bytes = %d, want %d", got, want)
+	}
+	if got := snapshot.AdaptiveExternalReservationsByOwner[adaptiveResourceOwnerReceiveWindow]; got != reservations {
+		t.Fatalf("receive-window reservations = %d, want %d", got, reservations)
+	}
+	// Snapshots own their fixed arrays; mutating a prior value cannot corrupt
+	// the manager's ledger or later discrepancy telemetry.
+	snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerReceiveWindow] = 0
+	if got := manager.snapshot().AdaptiveExternalBytesByOwner[adaptiveResourceOwnerReceiveWindow]; got != reservations*bytesEach {
+		t.Fatalf("snapshot mutation changed live ledger: %d", got)
+	}
+	close(releases)
+	var cleanup sync.WaitGroup
+	for release := range releases {
+		cleanup.Go(release)
+	}
+	cleanup.Wait()
+	clean := manager.snapshot()
+	if clean.AdaptiveExternalBytes != 0 || clean.AdaptiveExternalReservationsByOwner[adaptiveResourceOwnerReceiveWindow] != 0 {
+		t.Fatalf("released owner ledger = %+v", clean)
+	}
+	if err := manager.validateInvariants(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestServerAdaptiveCapacityCanUseResourcesBeyondProtocolV1FixedMaximum(t *testing.T) {

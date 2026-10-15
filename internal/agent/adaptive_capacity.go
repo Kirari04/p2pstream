@@ -26,6 +26,9 @@ type agentTunnelCapacitySnapshot struct {
 	PressureReason       string
 	SampleError          string
 	LastGoodSampleAt     time.Time
+	AdmissionRole        sysmetrics.AdaptiveAdmissionRole
+	StreamChargeBytes    int64
+	StreamChargeFDs      int64
 	RejectedPressure     uint64
 	RejectedFixedLimit   uint64
 }
@@ -256,6 +259,9 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 	snapshot.PressureReason = resource.PressureReason
 	snapshot.SampleError = resource.SampleError
 	snapshot.LastGoodSampleAt = resource.LastGoodSampleAt
+	snapshot.AdmissionRole = resource.AdmissionRole
+	snapshot.StreamChargeBytes = resource.StreamChargeByte
+	snapshot.StreamChargeFDs = resource.StreamChargeFD
 	if resource.RejectNew {
 		snapshot.AdmissionLimit = r.inUse
 		snapshot.ResourceLimited = true

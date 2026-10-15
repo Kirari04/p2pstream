@@ -21,6 +21,23 @@ const (
 	agentStreamCapacityClassCount
 )
 
+// adaptiveResourceOwner is intentionally fixed-cardinality. It provides
+// discrepancy telemetry without accepting attacker-controlled labels into a
+// map or metrics backend.
+type adaptiveResourceOwner uint8
+
+const (
+	adaptiveResourceOwnerOther adaptiveResourceOwner = iota
+	adaptiveResourceOwnerPublicConnection
+	adaptiveResourceOwnerPublicHandshake
+	adaptiveResourceOwnerPublicRequest
+	adaptiveResourceOwnerPublicResponse
+	adaptiveResourceOwnerDirectConnection
+	adaptiveResourceOwnerReplayBuffer
+	adaptiveResourceOwnerReceiveWindow
+	adaptiveResourceOwnerCount
+)
+
 type agentStreamLeaseState uint8
 
 const (
@@ -109,8 +126,11 @@ type agentStreamCapacityManager struct {
 	// adaptiveExternal* is the single resource ledger shared by stream
 	// admission, pre-admission replay buffers, and accepted public sockets.
 	// Values are released only when the corresponding owner closes.
-	adaptiveExternalBytes int64
-	adaptiveExternalFDs   int64
+	adaptiveExternalBytes               int64
+	adaptiveExternalFDs                 int64
+	adaptiveExternalBytesByOwner        [adaptiveResourceOwnerCount]int64
+	adaptiveExternalFDsByOwner          [adaptiveResourceOwnerCount]int64
+	adaptiveExternalReservationsByOwner [adaptiveResourceOwnerCount]int64
 
 	stateByClass                [agentStreamCapacityClassCount][agentStreamLeaseReleased]int
 	openingBySession            map[string]int
@@ -177,41 +197,47 @@ type agentStreamCapacitySnapshot struct {
 	Pooled  agentStreamCapacityBudgetSnapshot
 	Control agentStreamCapacityBudgetSnapshot
 
-	States                      agentStreamCapacityStateSnapshot
-	StatesByClass               map[agentStreamCapacityClass]agentStreamCapacityStateSnapshot
-	WaitersByClass              map[agentStreamCapacityClass]int
-	WaitersByConstraint         map[string]int
-	OpeningBySession            map[string]int
-	PublicOpeningBySession      map[string]int
-	PublicBySession             map[string]int
-	TotalBySession              map[string]int
-	SessionLimits               map[string]int
-	RegisteredSessions          int
-	WaitersByKey                map[string]int
-	Waiters                     int
-	ActiveLeases                int
-	Granted                     uint64
-	Released                    uint64
-	AdmissionMissesByConstraint map[string]uint64
-	OldestClosingAgeMillis      int64
-	MaxSessionPublicInUse       int
-	ContendedSessionPublicLimit int
-	Adaptive                    bool
-	AdaptiveAdmissionLimit      int
-	AdaptiveRawAdmissionLimit   int
-	AdaptivePublicLimit         int
-	AdaptiveExternalBytes       int64
-	AdaptiveExternalFDs         int64
-	MemoryPressure              string
-	MemoryUsedBytes             int64
-	MemoryLimitBytes            int64
-	MemorySource                string
-	MemoryHeadroomToHardBytes   int64
-	FileDescriptorsUsed         int64
-	FileDescriptorsLimit        int64
-	ResourcePressureReason      string
-	ResourceSampleError         string
-	ResourceLastGoodAt          time.Time
+	States                              agentStreamCapacityStateSnapshot
+	StatesByClass                       map[agentStreamCapacityClass]agentStreamCapacityStateSnapshot
+	WaitersByClass                      map[agentStreamCapacityClass]int
+	WaitersByConstraint                 map[string]int
+	OpeningBySession                    map[string]int
+	PublicOpeningBySession              map[string]int
+	PublicBySession                     map[string]int
+	TotalBySession                      map[string]int
+	SessionLimits                       map[string]int
+	RegisteredSessions                  int
+	WaitersByKey                        map[string]int
+	Waiters                             int
+	ActiveLeases                        int
+	Granted                             uint64
+	Released                            uint64
+	AdmissionMissesByConstraint         map[string]uint64
+	OldestClosingAgeMillis              int64
+	MaxSessionPublicInUse               int
+	ContendedSessionPublicLimit         int
+	Adaptive                            bool
+	AdaptiveAdmissionLimit              int
+	AdaptiveRawAdmissionLimit           int
+	AdaptivePublicLimit                 int
+	AdaptiveExternalBytes               int64
+	AdaptiveExternalFDs                 int64
+	AdaptiveExternalBytesByOwner        [adaptiveResourceOwnerCount]int64
+	AdaptiveExternalFDsByOwner          [adaptiveResourceOwnerCount]int64
+	AdaptiveExternalReservationsByOwner [adaptiveResourceOwnerCount]int64
+	AdaptiveAdmissionRole               sysmetrics.AdaptiveAdmissionRole
+	AdaptiveStreamChargeBytes           int64
+	AdaptiveStreamChargeFDs             int64
+	MemoryPressure                      string
+	MemoryUsedBytes                     int64
+	MemoryLimitBytes                    int64
+	MemorySource                        string
+	MemoryHeadroomToHardBytes           int64
+	FileDescriptorsUsed                 int64
+	FileDescriptorsLimit                int64
+	ResourcePressureReason              string
+	ResourceSampleError                 string
+	ResourceLastGoodAt                  time.Time
 }
 
 func (c agentStreamCapacityClass) String() string {
@@ -743,10 +769,27 @@ func (m *agentStreamCapacityManager) adaptiveExternalPeerLimits() (memoryBytes, 
 		fairSlots = availableSlots - 1
 	}
 	total := saturatingMultiplyInt64(int64(fairSlots), m.resourceSnapshot.StreamChargeByte)
-	// Each stream is charged two descriptors because an opening Happy Eyeballs
-	// dial can temporarily own two sockets. Accepted public connections own one
-	// descriptor, so enforce the same fair share in both resource dimensions.
-	totalFDs := saturatingMultiplyInt64(int64(fairSlots), 2)
+	// Server logical streams own no descriptors. Bound a peer's accepted public
+	// sockets directly against remaining measured FD headroom instead of
+	// translating memory slots into imaginary dial descriptors.
+	totalFDs := int64(math.MaxInt64)
+	if m.resourceSnapshot.AdmissionRole == "" {
+		// Synthetic snapshots created before role-specific ownership use the
+		// historical two-FD slot conversion.
+		totalFDs = saturatingMultiplyInt64(int64(fairSlots), 2)
+	} else if m.resourceSnapshot.FDLimit > 0 {
+		availableFDs := m.resourceSnapshot.FDHeadroomToHard - m.adaptiveExternalFDs
+		if availableFDs < 0 {
+			availableFDs = 0
+		}
+		totalFDs = percentageInt64(availableFDs, adaptivePublicFairSharePercent)
+		if availableFDs > 0 && totalFDs < 1 {
+			totalFDs = 1
+		}
+		if availableFDs > 1 && totalFDs >= availableFDs {
+			totalFDs = availableFDs - 1
+		}
+	}
 	return total, totalFDs, true
 }
 
@@ -1199,6 +1242,13 @@ func (m *agentStreamCapacityManager) snapshot() agentStreamCapacitySnapshot {
 // owners (replay buffers and accepted public sockets) in the same ledger used
 // by tunnel leases. constrained reports whether adaptive accounting applied.
 func (m *agentStreamCapacityManager) tryReserveAdaptiveExternal(memoryBytes, fileDescriptors int64) (release func(), ok, constrained bool) {
+	return m.tryReserveAdaptiveResource(adaptiveResourceOwnerOther, memoryBytes, fileDescriptors)
+}
+
+// tryReserveAdaptiveResource atomically places a named lifetime owner in the
+// same resource ledger as logical streams. Owner values are internal constants
+// so public input cannot create unbounded telemetry cardinality.
+func (m *agentStreamCapacityManager) tryReserveAdaptiveResource(owner adaptiveResourceOwner, memoryBytes, fileDescriptors int64) (release func(), ok, constrained bool) {
 	if m == nil {
 		return func() {}, true, false
 	}
@@ -1208,7 +1258,7 @@ func (m *agentStreamCapacityManager) tryReserveAdaptiveExternal(memoryBytes, fil
 		m.mu.Unlock()
 		return func() {}, true, false
 	}
-	if memoryBytes < 0 || fileDescriptors < 0 || m.resourceSnapshot.RejectNew || !m.resourceSnapshot.Usage.Valid() || m.resourceSnapshot.StreamChargeByte <= 0 {
+	if owner >= adaptiveResourceOwnerCount || memoryBytes < 0 || fileDescriptors < 0 || m.resourceSnapshot.RejectNew || !m.resourceSnapshot.Usage.Valid() || m.resourceSnapshot.StreamChargeByte <= 0 {
 		m.mu.Unlock()
 		return nil, false, true
 	}
@@ -1225,6 +1275,9 @@ func (m *agentStreamCapacityManager) tryReserveAdaptiveExternal(memoryBytes, fil
 	}
 	m.adaptiveExternalBytes = proposedBytes
 	m.adaptiveExternalFDs = proposedFDs
+	m.adaptiveExternalBytesByOwner[owner] = saturatingAddInt64(m.adaptiveExternalBytesByOwner[owner], memoryBytes)
+	m.adaptiveExternalFDsByOwner[owner] = saturatingAddInt64(m.adaptiveExternalFDsByOwner[owner], fileDescriptors)
+	m.adaptiveExternalReservationsByOwner[owner] = saturatingAddInt64(m.adaptiveExternalReservationsByOwner[owner], 1)
 	m.mu.Unlock()
 
 	var once sync.Once
@@ -1233,11 +1286,23 @@ func (m *agentStreamCapacityManager) tryReserveAdaptiveExternal(memoryBytes, fil
 			m.mu.Lock()
 			m.adaptiveExternalBytes -= memoryBytes
 			m.adaptiveExternalFDs -= fileDescriptors
+			m.adaptiveExternalBytesByOwner[owner] -= memoryBytes
+			m.adaptiveExternalFDsByOwner[owner] -= fileDescriptors
+			m.adaptiveExternalReservationsByOwner[owner]--
 			if m.adaptiveExternalBytes < 0 {
 				m.adaptiveExternalBytes = 0
 			}
 			if m.adaptiveExternalFDs < 0 {
 				m.adaptiveExternalFDs = 0
+			}
+			if m.adaptiveExternalBytesByOwner[owner] < 0 {
+				m.adaptiveExternalBytesByOwner[owner] = 0
+			}
+			if m.adaptiveExternalFDsByOwner[owner] < 0 {
+				m.adaptiveExternalFDsByOwner[owner] = 0
+			}
+			if m.adaptiveExternalReservationsByOwner[owner] < 0 {
+				m.adaptiveExternalReservationsByOwner[owner] = 0
 			}
 			m.dispatchLocked()
 			m.mu.Unlock()
@@ -1257,41 +1322,47 @@ func saturatingAddInt64(left, right int64) int64 {
 
 func (m *agentStreamCapacityManager) snapshotLocked() agentStreamCapacitySnapshot {
 	snapshot := agentStreamCapacitySnapshot{
-		Total:                       agentStreamCapacityBudgetSnapshot{Capacity: m.config.Total, InUse: m.usedTotal},
-		Public:                      agentStreamCapacityBudgetSnapshot{Capacity: m.config.Public, InUse: m.usedPublic},
-		Pooled:                      agentStreamCapacityBudgetSnapshot{Capacity: m.config.Pooled, InUse: m.usedPooled},
-		Control:                     agentStreamCapacityBudgetSnapshot{Capacity: m.config.Control, InUse: m.usedControl},
-		StatesByClass:               make(map[agentStreamCapacityClass]agentStreamCapacityStateSnapshot, agentStreamCapacityClassCount),
-		WaitersByClass:              make(map[agentStreamCapacityClass]int, agentStreamCapacityClassCount),
-		WaitersByConstraint:         make(map[string]int),
-		OpeningBySession:            make(map[string]int, len(m.openingBySession)),
-		PublicOpeningBySession:      make(map[string]int, len(m.publicOpeningBySession)),
-		PublicBySession:             make(map[string]int, len(m.publicBySession)),
-		TotalBySession:              make(map[string]int, len(m.totalBySession)),
-		SessionLimits:               make(map[string]int, len(m.sessionLimits)),
-		RegisteredSessions:          len(m.registeredSessions),
-		WaitersByKey:                make(map[string]int, len(m.queues)),
-		Waiters:                     m.waiters,
-		ActiveLeases:                len(m.activeLeases),
-		Granted:                     m.granted,
-		Released:                    m.released,
-		AdmissionMissesByConstraint: make(map[string]uint64, len(m.admissionMissesByConstraint)),
-		Adaptive:                    m.adaptiveMemory != nil,
-		AdaptiveAdmissionLimit:      m.adaptiveStreamAdmissionLimitLocked(),
-		AdaptiveRawAdmissionLimit:   m.resourceSnapshot.AdmissionLimit,
-		AdaptivePublicLimit:         m.adaptivePublicLimitLocked(),
-		AdaptiveExternalBytes:       m.adaptiveExternalBytes,
-		AdaptiveExternalFDs:         m.adaptiveExternalFDs,
-		MemoryPressure:              m.resourceSnapshot.Level.String(),
-		MemoryUsedBytes:             m.resourceSnapshot.Usage.UsedBytes,
-		MemoryLimitBytes:            m.resourceSnapshot.Usage.LimitBytes,
-		MemorySource:                m.resourceSnapshot.Usage.Source,
-		MemoryHeadroomToHardBytes:   m.resourceSnapshot.HeadroomToHardByte,
-		FileDescriptorsUsed:         m.resourceSnapshot.FDUsed,
-		FileDescriptorsLimit:        m.resourceSnapshot.FDLimit,
-		ResourcePressureReason:      m.resourceSnapshot.PressureReason,
-		ResourceSampleError:         m.resourceSnapshot.SampleError,
-		ResourceLastGoodAt:          m.resourceSnapshot.LastGoodSampleAt,
+		Total:                               agentStreamCapacityBudgetSnapshot{Capacity: m.config.Total, InUse: m.usedTotal},
+		Public:                              agentStreamCapacityBudgetSnapshot{Capacity: m.config.Public, InUse: m.usedPublic},
+		Pooled:                              agentStreamCapacityBudgetSnapshot{Capacity: m.config.Pooled, InUse: m.usedPooled},
+		Control:                             agentStreamCapacityBudgetSnapshot{Capacity: m.config.Control, InUse: m.usedControl},
+		StatesByClass:                       make(map[agentStreamCapacityClass]agentStreamCapacityStateSnapshot, agentStreamCapacityClassCount),
+		WaitersByClass:                      make(map[agentStreamCapacityClass]int, agentStreamCapacityClassCount),
+		WaitersByConstraint:                 make(map[string]int),
+		OpeningBySession:                    make(map[string]int, len(m.openingBySession)),
+		PublicOpeningBySession:              make(map[string]int, len(m.publicOpeningBySession)),
+		PublicBySession:                     make(map[string]int, len(m.publicBySession)),
+		TotalBySession:                      make(map[string]int, len(m.totalBySession)),
+		SessionLimits:                       make(map[string]int, len(m.sessionLimits)),
+		RegisteredSessions:                  len(m.registeredSessions),
+		WaitersByKey:                        make(map[string]int, len(m.queues)),
+		Waiters:                             m.waiters,
+		ActiveLeases:                        len(m.activeLeases),
+		Granted:                             m.granted,
+		Released:                            m.released,
+		AdmissionMissesByConstraint:         make(map[string]uint64, len(m.admissionMissesByConstraint)),
+		Adaptive:                            m.adaptiveMemory != nil,
+		AdaptiveAdmissionLimit:              m.adaptiveStreamAdmissionLimitLocked(),
+		AdaptiveRawAdmissionLimit:           m.resourceSnapshot.AdmissionLimit,
+		AdaptivePublicLimit:                 m.adaptivePublicLimitLocked(),
+		AdaptiveExternalBytes:               m.adaptiveExternalBytes,
+		AdaptiveExternalFDs:                 m.adaptiveExternalFDs,
+		AdaptiveExternalBytesByOwner:        m.adaptiveExternalBytesByOwner,
+		AdaptiveExternalFDsByOwner:          m.adaptiveExternalFDsByOwner,
+		AdaptiveExternalReservationsByOwner: m.adaptiveExternalReservationsByOwner,
+		AdaptiveAdmissionRole:               m.resourceSnapshot.AdmissionRole,
+		AdaptiveStreamChargeBytes:           m.resourceSnapshot.StreamChargeByte,
+		AdaptiveStreamChargeFDs:             m.resourceSnapshot.StreamChargeFD,
+		MemoryPressure:                      m.resourceSnapshot.Level.String(),
+		MemoryUsedBytes:                     m.resourceSnapshot.Usage.UsedBytes,
+		MemoryLimitBytes:                    m.resourceSnapshot.Usage.LimitBytes,
+		MemorySource:                        m.resourceSnapshot.Usage.Source,
+		MemoryHeadroomToHardBytes:           m.resourceSnapshot.HeadroomToHardByte,
+		FileDescriptorsUsed:                 m.resourceSnapshot.FDUsed,
+		FileDescriptorsLimit:                m.resourceSnapshot.FDLimit,
+		ResourcePressureReason:              m.resourceSnapshot.PressureReason,
+		ResourceSampleError:                 m.resourceSnapshot.SampleError,
+		ResourceLastGoodAt:                  m.resourceSnapshot.LastGoodSampleAt,
 	}
 	if m.config.Public > 0 {
 		snapshot.ContendedSessionPublicLimit = m.config.Public - m.config.ReservedPublicForOtherSessions
@@ -1376,6 +1447,17 @@ func (m *agentStreamCapacityManager) validateInvariantsLocked() error {
 	}
 	if m.usedTotal != m.usedPublic+m.usedControl {
 		return fmt.Errorf("total usage %d != public %d + control %d", m.usedTotal, m.usedPublic, m.usedControl)
+	}
+	var ownerBytes, ownerFDs int64
+	for owner := adaptiveResourceOwner(0); owner < adaptiveResourceOwnerCount; owner++ {
+		if m.adaptiveExternalBytesByOwner[owner] < 0 || m.adaptiveExternalFDsByOwner[owner] < 0 || m.adaptiveExternalReservationsByOwner[owner] < 0 {
+			return fmt.Errorf("negative adaptive resource ledger for owner %d", owner)
+		}
+		ownerBytes = saturatingAddInt64(ownerBytes, m.adaptiveExternalBytesByOwner[owner])
+		ownerFDs = saturatingAddInt64(ownerFDs, m.adaptiveExternalFDsByOwner[owner])
+	}
+	if ownerBytes != m.adaptiveExternalBytes || ownerFDs != m.adaptiveExternalFDs {
+		return fmt.Errorf("adaptive owner totals %d bytes/%d FDs != ledger %d bytes/%d FDs", ownerBytes, ownerFDs, m.adaptiveExternalBytes, m.adaptiveExternalFDs)
 	}
 
 	var statesByClass [agentStreamCapacityClassCount]int
