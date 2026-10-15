@@ -1,7 +1,9 @@
 package server
 
 import (
+	"cmp"
 	"math/rand"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -159,11 +161,11 @@ func (r *loadBalancerRegistry) selectRouteTarget(route publicRouteConfig, candid
 	if len(candidates) == 0 {
 		return routeTargetCandidate{}, false
 	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].Position == candidates[j].Position {
-			return candidates[i].TargetID < candidates[j].TargetID
+	slices.SortStableFunc(candidates, func(a, b routeTargetCandidate) int {
+		if a.Position == b.Position {
+			return cmp.Compare(a.TargetID, b.TargetID)
 		}
-		return candidates[i].Position < candidates[j].Position
+		return cmp.Compare(a.Position, b.Position)
 	})
 
 	r.mu.Lock()

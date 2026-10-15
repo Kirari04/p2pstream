@@ -1348,7 +1348,11 @@ func (a *App) selectRouteTarget(snap *publicProxySnapshot, route publicRouteConf
 	if snap == nil {
 		return publicRouteTargetConfig{}, nil, false
 	}
-	candidates := make([]routeTargetCandidate, 0, len(route.Targets))
+	var inlineCandidates [1]routeTargetCandidate
+	candidates := inlineCandidates[:0]
+	if len(route.Targets) > len(inlineCandidates) {
+		candidates = make([]routeTargetCandidate, 0, len(route.Targets))
+	}
 	lowestPriorityGroupSet := false
 	lowestPriorityGroup := int64(0)
 	for _, target := range route.Targets {
