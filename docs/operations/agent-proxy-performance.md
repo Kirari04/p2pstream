@@ -427,17 +427,18 @@ throughput and CPU interval. This is still one diagnostic sample, not a passing
 qualification result.
 
 The later context-pool/LOWAT candidate showed that 128 closed-loop clients were
-past its useful H1 operating point on this CPU set. It completed 29,614 useful
-requests/s at concurrency 16, 28,140 at 64 and 24,810 at 128. At concurrency
-16, the stronger pooled standard-library control reached 46,917 and HAProxy
-70,055 requests/s, so p2pstream reached 42.3% of HAProxy and 63.1% of the Go
-control. The context-pool allocation profile fell from 4.38 GiB across 305,506
-warmup and timed requests to 3.70 GiB across 298,703, and
-`newPublicProxyContext` disappeared as a material allocation site. The profiled
-128-client throughput sample was 2.5% below the earlier run, so it demonstrates
-the allocation reduction but no throughput improvement. Lower concurrency
-points are required to bracket the optimum before proposing a CPU active-work
-controller.
+past its useful H1 operating point on this CPU set. Across concurrency 1, 4,
+16, 32, 64, 128 and 256, its useful rates were 5,864, 19,345, 29,614, 28,574,
+28,140, 24,810 and 21,232 requests/s. The peak therefore occurred at 16. At
+that point the stronger pooled standard-library control reached 46,917 and
+HAProxy 70,055 requests/s, so p2pstream reached 42.3% of HAProxy and 63.1% of
+the Go control. Limiting active requests may improve tail latency, but this
+sweep does not support it as a throughput-parity mechanism. The context-pool
+allocation profile fell from 4.38 GiB across 305,506 warmup and timed requests
+to 3.70 GiB across 298,703, and `newPublicProxyContext` disappeared as a
+material allocation site. The profiled 128-client throughput sample was 2.5%
+below the earlier run, so it demonstrates the allocation reduction but no
+throughput improvement.
 
 Setting `TCP_NOTSENT_LOWAT` to 32 KiB on the existing public, direct-origin and
 agent-origin TCP configuration paths reduced the 24-slow-reader socket peak

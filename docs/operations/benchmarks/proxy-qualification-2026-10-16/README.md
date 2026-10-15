@@ -34,8 +34,9 @@ comparison.
   with a three-second barrier hold, exact HTTP status codes and a separate
   512-request recovery row after each capacity point.
 - `h1-concurrency-sweep.jsonl` compares the `d1d952f` context-reuse candidate,
-  pooled standard-library controls and HAProxy at 16, 64 and 128 closed-loop
-  clients. The 128-client candidate row was CPU/allocation profiled.
+  pooled standard-library controls and HAProxy at 1, 4, 16, 32, 64, 128 and
+  256 closed-loop clients. The 128-client candidate row was CPU/allocation
+  profiled.
 - `lowat-validation.jsonl` is the sanitized paired socket-memory, controlled
   pressure and WAN result set for `TCP_NOTSENT_LOWAT`, preserving byte counts
   and MiB conversions separately.
@@ -55,14 +56,17 @@ origin high-water 1,146. Both completed the following 512-request recovery row
 without errors. Admission-miss counters can exceed final 503 counts because a
 request may miss a transient acquisition and subsequently acquire on retry.
 
-The H1 sweep found the highest sampled candidate rate at 16 clients: 29,614
-useful requests/s, versus 46,917 for the stronger pooled standard-library
-control and 70,055 for HAProxy. Candidate throughput fell to 28,140 at 64 and
-24,810 at 128. The 128-client profile allocated 3.70 GiB across 298,703 warmup
-and timed requests; the earlier pre-context-pool profile allocated 4.38 GiB
-across 305,506. `newPublicProxyContext` no longer appeared as a material
-allocation site, but the single profiled throughput sample did not establish a
-throughput gain.
+The completed H1 sweep found the highest sampled candidate rate at 16 clients:
+29,614 useful requests/s, versus 46,917 for the stronger pooled
+standard-library control and 70,055 for HAProxy. Candidate throughput was
+5,864 at one client, 19,345 at four, 28,574 at 32, 28,140 at 64, 24,810 at 128
+and 21,232 at 256. At the candidate optimum it reached 42.3% of HAProxy and
+63.1% of the Go control, so limiting active requests may improve tail latency
+but cannot close the throughput qualification gap. The 128-client profile
+allocated 3.70 GiB across 298,703 warmup and timed requests; the earlier
+pre-context-pool profile allocated 4.38 GiB across 305,506.
+`newPublicProxyContext` no longer appeared as a material allocation site, but
+the single profiled throughput sample did not establish a throughput gain.
 
 LOWAT reduced the 24-slow-reader socket peak from 66,355,200 bytes (63.28125
 MiB) to 5,996,544 bytes (5.71875 MiB). The split controlled-pressure test then
@@ -81,7 +85,7 @@ c4465a2f75d07d90174e307f4623d18201ef6a102cb4a4f60cc6b71b8d91e156  stdlib-pooled-
 c27f2eb6295a2145195947164876e546849587fe000ab45a58fd209b00132cb5  final-h1-profile.jsonl
 e3e6ff8dd4c417716068c303a391efafbed17b6a5f124e8d5affb62318666df7  ballast-capacity-boundary.jsonl
 c18c1de6751ae59597f20186035b15097d8a7fe96b5d3ffc6f2bd864f6789b0c  ballast-capacity-corrected.jsonl
-34281d5da42743508450f34ba39b5f3c05cc3c0f246f1cc11ceb98c85874118d  h1-concurrency-sweep.jsonl
+d7c3e70e4b290a304c738c149f60f75d1e2a93695ca9c3c81cb8c1110d470fa1  h1-concurrency-sweep.jsonl
 2d11a48da396e11b2d438fe097cc72f79a467b0bba4251c236c7ad8fb711cc3e  lowat-validation.jsonl
 ```
 
