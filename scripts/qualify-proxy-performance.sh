@@ -226,11 +226,12 @@ origin_url=$(jq -r .url "$process_ready")
 
 if ((capacity_only)); then
   case "$capacity_protocol" in
-    h1) scenario_rows=("capacity-$capacity_concurrency-h1 h1 delay $capacity_concurrency $((capacity_concurrency * 2)) 0") ;;
-    h2) scenario_rows=("capacity-$capacity_concurrency-h2 h2 delay $capacity_concurrency $((capacity_concurrency * 2)) 0") ;;
+    h1) scenario_rows=("capacity-$capacity_concurrency-h1 h1 delay $capacity_concurrency $capacity_concurrency 0" "recovery h2 small 64 512 0") ;;
+    h2) scenario_rows=("capacity-$capacity_concurrency-h2 h2 delay $capacity_concurrency $capacity_concurrency 0" "recovery h2 small 64 512 0") ;;
     both) scenario_rows=(
-      "capacity-$capacity_concurrency-h1 h1 delay $capacity_concurrency $((capacity_concurrency * 2)) 0"
-      "capacity-$capacity_concurrency-h2 h2 delay $capacity_concurrency $((capacity_concurrency * 2)) 0"
+      "capacity-$capacity_concurrency-h1 h1 delay $capacity_concurrency $capacity_concurrency 0"
+      "capacity-$capacity_concurrency-h2 h2 delay $capacity_concurrency $capacity_concurrency 0"
+      "recovery h2 small 64 512 0"
     ) ;;
     *) echo "--capacity-protocol must be h1, h2, or both" >&2; exit 2 ;;
   esac
@@ -312,7 +313,7 @@ run_p2pstream() {
   admin_url=$(jq -r .admin_url "$process_ready")
   local paths=(direct agent)
   if [[ -n $path_filter ]]; then paths=("$path_filter"); fi
-  if ((iteration % 2 == 0)); then paths=(agent direct); fi
+  if [[ -z $path_filter ]] && ((iteration % 2 == 0)); then paths=(agent direct); fi
   for path_name in "${paths[@]}"; do
     for scenario_row in "${scenario_rows[@]}"; do
       [[ -n $scenario_filter && ${scenario_row%% *} != "$scenario_filter" ]] && continue

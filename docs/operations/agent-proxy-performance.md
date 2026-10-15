@@ -73,9 +73,11 @@ still apply.
   connection owner plus a 256 KiB TLS-handshake phase. The handshake promise is
   released when the connection first becomes active. The 128 KiB parser,
   512 KiB automatic-kernel allowance and 256 KiB steady userspace allowance
-  remain owned until physical close; direct-peer fairness retains the original
-  accept-size charge. Each admitted request adds a 32 KiB context plus twice
-  the decoded header, path and host bytes, including bounded metadata. Upload
+  remain owned until physical close. Direct-peer fairness initially charges the
+  same lifetime plus handshake bytes, then returns the temporary handshake
+  credit when the connection becomes active. Each admitted request adds a 32
+  KiB context plus twice the decoded header, path and host bytes, including
+  bounded metadata. Upload
   credit remains capped at 1 MiB or the smaller declared body. A further 32 KiB
   body-copy working promise is acquired only after access, redirect and policy
   decisions, before cache, static or upstream work. These values are admission
@@ -424,6 +426,29 @@ drained 1,334 records in 29.6 ms and 0.02 proxy CPU-seconds outside the timed
 throughput and CPU interval. This is still one diagnostic sample, not a passing
 qualification result.
 
+The later context-pool/LOWAT candidate showed that 128 closed-loop clients were
+past its useful H1 operating point on this CPU set. It completed 29,614 useful
+requests/s at concurrency 16, 28,140 at 64 and 24,810 at 128. At concurrency
+16, the stronger pooled standard-library control reached 46,917 and HAProxy
+70,055 requests/s, so p2pstream reached 42.3% of HAProxy and 63.1% of the Go
+control. The context-pool allocation profile fell from 4.38 GiB across 305,506
+warmup and timed requests to 3.70 GiB across 298,703, and
+`newPublicProxyContext` disappeared as a material allocation site. The profiled
+128-client throughput sample was 2.5% below the earlier run, so it demonstrates
+the allocation reduction but no throughput improvement. Lower concurrency
+points are required to bracket the optimum before proposing a CPU active-work
+controller.
+
+Setting `TCP_NOTSENT_LOWAT` to 32 KiB on the existing public, direct-origin and
+agent-origin TCP configuration paths reduced the 24-slow-reader socket peak
+from 66,355,200 bytes (63.28125 MiB) to 5,996,544 bytes (5.71875 MiB). A
+separate controlled-pressure phase then peaked at 461,434,880 of 536,870,912
+cgroup bytes, rejected six acquisitions for memory, and recovered healthy with
+zero socket bytes and no OOM. Paired candidate/parent H1 and H2 WAN download
+and upload results were effectively identical. LOWAT is best-effort and does
+not change the conservative automatic socket admission promise, `SO_SNDBUF`,
+`SO_RCVBUF`, or the shared Yamux physical connection.
+
 Under the real 4 GiB cgroup, both direct and agent H1 runs opened 1,536 client
 TCP connections and reached 1,536 requests inside the origin barrier. H2
 reached the same logical concurrency over 10 direct or 8 agent client TCP
@@ -447,6 +472,22 @@ neither passed the barrier. The candidate recorded 432 agent-stream
 about 49 MiB each for request and response work. The colocated server and agent
 RSS peaked at 1.31 GiB, including the touched ballast; the owner promises explain
 the admission decision and are distinct from observed RSS.
+
+The original failed-boundary rows used a 10-second origin-barrier release and
+the same 10-second upstream response-header timeout. Their origin high-water,
+owner samples and admission-miss counters remain useful, but their final 5xx,
+error and useful-completion counts include the induced response-timeout
+cascade. Corrected boundary reruns release an unfilled barrier after three
+seconds while retaining the 10-second upstream timeout and record that hold in
+each JSON row.
+
+With that correction, the 1,400 candidate point returned 1,340 HTTP 204 and 60
+HTTP 503 responses, reached 1,315 requests inside the origin, and recorded 145
+resource-pressure acquisition misses. At 1,536 the baseline returned 688 HTTP
+204 and 848 HTTP 503 responses with origin high-water 573; the candidate
+returned 1,189 HTTP 204 and 347 HTTP 503 responses with high-water 1,146. Both
+then completed the separate 512-request recovery workload without errors. The
+503 counts now represent capacity behavior rather than an origin timeout.
 
 The bounded downward search passed all 2,560 verified requests at 1,280
 concurrency with no 503s, request errors or admission misses, then failed at

@@ -40,6 +40,8 @@ type qualificationReady struct {
 	PID      int    `json:"pid"`
 }
 
+const qualificationBarrierMaxHold = 3 * time.Second
+
 type qualificationRuntime struct {
 	HeapAlloc                        uint64            `json:"heap_alloc_bytes"`
 	HeapSys                          uint64            `json:"heap_sys_bytes"`
@@ -77,6 +79,7 @@ type qualificationResult struct {
 	Attempted                     int               `json:"attempted"`
 	UsefulCompleted               int64             `json:"useful_completed"`
 	StatusClasses                 map[string]int    `json:"status_classes"`
+	StatusCodes                   map[string]int    `json:"status_codes"`
 	Errors                        int64             `json:"errors"`
 	WallSeconds                   float64           `json:"wall_seconds"`
 	UsefulRPS                     float64           `json:"useful_requests_per_second"`
@@ -127,6 +130,7 @@ type qualificationResult struct {
 	MinimumAdaptiveAdmissionLimit int               `json:"minimum_adaptive_admission_limit,omitempty"`
 	MinimumMemoryHeadroomBytes    int64             `json:"minimum_memory_headroom_bytes,omitempty"`
 	ResourcePressureReasons       []string          `json:"resource_pressure_reasons,omitempty"`
+	BarrierMaxHoldSeconds         float64           `json:"barrier_max_hold_seconds,omitempty"`
 }
 
 // TestProxyQualificationProcess is a bounded subprocess entry point. The
@@ -272,7 +276,7 @@ func runQualificationOrigin(t *testing.T) {
 				}
 			}
 			barrier, _ := strconv.Atoi(r.URL.Query().Get("barrier"))
-			deadline := time.Now().Add(10 * time.Second)
+			deadline := time.Now().Add(qualificationBarrierMaxHold)
 			for barrier > 0 && state.peak.Load() < int64(barrier) && time.Now().Before(deadline) {
 				time.Sleep(time.Millisecond)
 			}
@@ -460,6 +464,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 	var clientConnections atomic.Int64
 	var seenConnections sync.Map
 	classes := make(map[string]int)
+	statusCodes := make(map[string]int)
 	latencies := make([]time.Duration, 0, requests)
 	var resultMu sync.Mutex
 	var inflight atomic.Int64
@@ -564,6 +569,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 				class := fmt.Sprintf("%dxx", resp.StatusCode/100)
 				resultMu.Lock()
 				classes[class]++
+				statusCodes[strconv.Itoa(resp.StatusCode)]++
 				resultMu.Unlock()
 				if err != nil || closeErr != nil || !validPayload {
 					errorsSeen.Add(1)
@@ -609,6 +615,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 		seenConnections.Range(func(key, _ any) bool { seenConnections.Delete(key); return true })
 		resultMu.Lock()
 		clear(classes)
+		clear(statusCodes)
 		latencies = latencies[:0]
 		resultMu.Unlock()
 	}
@@ -641,7 +648,8 @@ func TestProxyQualificationLoad(t *testing.T) {
 		Label: os.Getenv("P2PSTREAM_QUALIFICATION_LABEL"), Path: os.Getenv("P2PSTREAM_QUALIFICATION_PATH"), Scenario: scenario,
 		OfferedRPS: offeredRPS, WarmupSeconds: warmupSeconds, WarmupRequests: warmupRequests, DurationSeconds: durationSeconds,
 		Protocol: protocol, Concurrency: concurrency, Attempted: attempted, UsefulCompleted: useful.Load(), StatusClasses: classes,
-		Errors: errorsSeen.Load(), WallSeconds: elapsed.Seconds(), UsefulRPS: float64(useful.Load()) / elapsed.Seconds(),
+		StatusCodes: statusCodes,
+		Errors:      errorsSeen.Load(), WallSeconds: elapsed.Seconds(), UsefulRPS: float64(useful.Load()) / elapsed.Seconds(),
 		P50Milliseconds: durationQuantile(latencies, .50), P95Milliseconds: durationQuantile(latencies, .95), P99Milliseconds: durationQuantile(latencies, .99),
 		ResponseBytes: bytesSeen.Load(), PeakRSSBytes: sampler.peakRSS, FinalRSSBytes: sampler.finalRSS, PeakFDs: sampler.peakFDs, CPUSeconds: sampler.cpuSeconds(),
 		PeakHeapAlloc: sampler.peakHeap, GCCycles: sampler.gcCycles(), GCPauseSeconds: sampler.gcPauseSeconds(), ObservedHTTPMajor: int(observedMajor.Load()),
@@ -654,6 +662,9 @@ func TestProxyQualificationLoad(t *testing.T) {
 		OwnerPeakBytes: sampler.ownerPeakBytes, OwnerPeakFDs: sampler.ownerPeakFDs, OwnerPeakReservations: sampler.ownerPeakReservations,
 		AdmissionRejections: sampler.admissionRejectionDelta(), MinimumAdaptiveAdmissionLimit: sampler.minimumAdaptiveAdmissionLimit,
 		MinimumMemoryHeadroomBytes: sampler.minimumMemoryHeadroomBytes, ResourcePressureReasons: sampler.resourcePressureReasons,
+	}
+	if strings.HasPrefix(scenario, "capacity-") {
+		result.BarrierMaxHoldSeconds = qualificationBarrierMaxHold.Seconds()
 	}
 	if protocol == "h2" && result.ObservedHTTPMajor != 2 {
 		t.Fatalf("negotiated HTTP/%d, want HTTP/2", result.ObservedHTTPMajor)
