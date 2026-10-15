@@ -257,6 +257,9 @@ func (a *App) tryReservePublicConnectionPhased(conn net.Conn) (release, active f
 	// Reserve the automatic socket baseline before TLS or HTTP reads begin.
 	// Header parsing can transiently hold both input and parsed strings; actual
 	// Linux queue growth remains governed by mandatory host pressure samples.
+	// Twice the wire header limit is an allowance, not a decoded-map bound:
+	// net/http parses HTTP/1 headers before request-level admission, and many
+	// distinct short keys can allocate more than this allowance.
 	resourceBytes := publicConnectionWorkingBytes + int64(maxHeaderBytes)*2
 	if tcp, ok := conn.(*net.TCPConn); ok {
 		socketBytes, err := tcpsocket.Configure(tcp, 0)

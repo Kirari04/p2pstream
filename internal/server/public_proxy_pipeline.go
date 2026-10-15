@@ -241,8 +241,10 @@ func newPublicProxyTrafficTrace(app *App, r *http.Request, recorder *proxyRespon
 
 func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult {
 	if ctx.App != nil && ctx.App.agentStreamCapacity != nil {
-		// The physical connection owns the worst-case parser envelope. Each
-		// decoded request owns its retained headers and context independently,
+		// The physical connection holds a parser allowance, not a hard bound on
+		// pre-handler allocations: many short HTTP/1 header keys can amplify
+		// their wire size. Actual process/cgroup pressure remains a separate
+		// guard. Each decoded request owns its retained headers independently,
 		// including HTTP/2 requests multiplexed on that connection. Relay buffers
 		// are charged only after policy/redirect handling, when serving a body.
 		requestBytes := saturatingAddInt64(publicRequestWorkingBytes, publicRequestHeaderMemory(ctx.Request))
