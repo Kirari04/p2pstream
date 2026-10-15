@@ -801,16 +801,18 @@ func (m *agentStreamCapacityManager) adaptiveExternalPeerLimits() (memoryBytes, 
 		// historical two-FD slot conversion.
 		totalFDs = saturatingMultiplyInt64(int64(fairSlots), 2)
 	} else if m.resourceSnapshot.FDLimit > 0 {
-		availableFDs := m.resourceSnapshot.FDHeadroomToHard - m.adaptiveExternalFDs
-		if availableFDs < 0 {
-			availableFDs = 0
-		}
-		totalFDs = percentageInt64(availableFDs, adaptivePublicFairSharePercent)
-		if availableFDs > 0 && totalFDs < 1 {
+		// The peer limiter compares this value with the peer's cumulative
+		// connections, so derive it from gross sampled headroom. Subtracting the
+		// same live external reservations here would count them twice and reduce
+		// a documented ninety-percent share to roughly half. Global admission
+		// still checks every proposed descriptor against the net headroom.
+		grossFDs := m.resourceSnapshot.FDHeadroomToHard
+		totalFDs = percentageInt64(grossFDs, adaptivePublicFairSharePercent)
+		if grossFDs > 0 && totalFDs < 1 {
 			totalFDs = 1
 		}
-		if availableFDs > 1 && totalFDs >= availableFDs {
-			totalFDs = availableFDs - 1
+		if grossFDs > 1 && totalFDs >= grossFDs {
+			totalFDs = grossFDs - 1
 		}
 	}
 	return total, totalFDs, true
