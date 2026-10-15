@@ -138,9 +138,11 @@ type agentStreamCapacityConfig struct {
 type agentStreamCapacityManager struct {
 	mu sync.Mutex
 
-	config           agentStreamCapacityConfig
-	adaptiveMemory   *sysmetrics.AdaptiveMemoryController
-	resourceSnapshot sysmetrics.AdaptiveMemorySnapshot
+	config               agentStreamCapacityConfig
+	adaptiveMemory       *sysmetrics.AdaptiveMemoryController
+	resourceSnapshot     sysmetrics.AdaptiveMemorySnapshot
+	adaptiveSampling     int
+	adaptiveSamplingDone chan struct{}
 
 	usedTotal   int
 	usedPublic  int
@@ -344,6 +346,16 @@ func (m *agentStreamCapacityManager) enableAdaptiveMemory(controller *sysmetrics
 		return
 	}
 	m.mu.Lock()
+	if m.adaptiveMemory != controller {
+		// Generations belong to a controller instance. Fail closed until the
+		// replacement publishes its first complete resource sample.
+		m.resourceSnapshot = sysmetrics.AdaptiveMemorySnapshot{RejectNew: true}
+		if m.adaptiveSamplingDone != nil {
+			close(m.adaptiveSamplingDone)
+			m.adaptiveSamplingDone = nil
+		}
+		m.adaptiveSampling = 0
+	}
 	m.adaptiveMemory = controller
 	m.mu.Unlock()
 	m.refreshAdaptiveCapacity(true)
@@ -354,7 +366,6 @@ func (m *agentStreamCapacityManager) refreshAdaptiveCapacity(force bool) sysmetr
 		return sysmetrics.AdaptiveMemorySnapshot{}
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	controller := m.adaptiveMemory
 	// Resource accounting is independent of an operator's structural stream
 	// ceiling. Sampling with a small fixed ceiling would let accepted sockets
@@ -365,21 +376,90 @@ func (m *agentStreamCapacityManager) refreshAdaptiveCapacity(force bool) sysmetr
 	maximum := int(tunnel.MaxAdaptiveConcurrentStreamsLimit)
 	inUse := m.usedTotal
 	current := m.resourceSnapshot
+	if !force && controller != nil && !current.SampledAt.IsZero() && time.Now().Before(current.NextSampleAt) {
+		// This manager owns controller sampling. Reusing its still-fresh
+		// published sample avoids a second cache mutex and publication round
+		// trip on every request. Spending rechecks the in-flight guard under
+		// the ledger lock even if a forced refresh starts after this return.
+		m.mu.Unlock()
+		return current
+	}
+	sampling := controller != nil && (force || current.NextSampleAt.IsZero() || !time.Now().Before(current.NextSampleAt))
+	if sampling {
+		if m.adaptiveSampling == 0 {
+			m.adaptiveSamplingDone = make(chan struct{})
+		}
+		m.adaptiveSampling++
+	}
+	m.mu.Unlock()
 	if controller == nil {
 		return current
 	}
+	// Sampling may read procfs/cgroup files. Existing leases must remain able
+	// to release resources while those reads run; only publication and actual
+	// resource spending need the ledger lock. Admissions still synchronously
+	// obtain a fresh controller snapshot before attempting to spend credit.
 	var next sysmetrics.AdaptiveMemorySnapshot
 	if force {
 		next = controller.ForceRefresh(maximum, inUse)
 	} else {
 		next = controller.Snapshot(maximum, inUse)
 	}
-	if next.Generation >= m.resourceSnapshot.Generation {
-		m.resourceSnapshot = next
-		m.dispatchLocked()
-		return next
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// Controller generations are local to one controller. An old sampler
+	// cannot overwrite the state of a replacement, even with a larger number.
+	if m.adaptiveMemory != controller {
+		return m.resourceSnapshot
 	}
+	if sampling {
+		m.adaptiveSampling--
+		if m.adaptiveSampling == 0 {
+			close(m.adaptiveSamplingDone)
+			m.adaptiveSamplingDone = nil
+		}
+	}
+	if next.Generation >= m.resourceSnapshot.Generation {
+		// The controller preserves its sampled in-use count as a lower bound
+		// for existing work. That count may have fallen while sampling. Do not
+		// turn the old floor into spendable credit: actual new reservations are
+		// bounded by gross sampled headroom and the current ledger below.
+		if next.Usage.Valid() && next.StreamChargeByte > 0 && !next.RejectNew {
+			next.MemoryAdmissionLimit = min(next.MemoryAdmissionLimit, int(min(next.HeadroomToHardByte/next.StreamChargeByte, int64(math.MaxInt))))
+			if next.FDLimit > 0 && next.StreamChargeFD > 0 {
+				next.FDAdmissionLimit = min(next.FDAdmissionLimit, int(min(next.FDHeadroomToHard/next.StreamChargeFD, int64(math.MaxInt))))
+			}
+			next.AdmissionLimit = min(next.AdmissionLimit, next.MemoryAdmissionLimit, next.FDAdmissionLimit)
+		}
+		next.ReservedStreamByte = saturatingMultiplyInt64(int64(m.usedTotal), next.StreamChargeByte)
+		next.ReservedStreamFD = saturatingMultiplyInt64(int64(m.usedTotal), next.StreamChargeFD)
+		m.resourceSnapshot = next
+	}
+	// Even an out-of-order completion may clear the last sampling guard.
+	// Resume waiters against the newest published snapshot in that case.
+	m.dispatchLocked()
 	return m.resourceSnapshot
+}
+
+// lockAdaptiveAdmission returns with the ledger locked, including on error.
+// A sampler may start after the caller refreshed but before it can spend. Wait
+// outside the ledger in that case, then recheck under the same lock used for
+// the eventual grant. Existing owners remain free to release during the wait.
+func (m *agentStreamCapacityManager) lockAdaptiveAdmission(ctx context.Context) error {
+	m.mu.Lock()
+	for m.adaptiveSampling > 0 {
+		done := m.adaptiveSamplingDone
+		m.mu.Unlock()
+		select {
+		case <-done:
+		case <-ctx.Done():
+		}
+		m.mu.Lock()
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
+	return ctx.Err()
 }
 
 func (m *agentStreamCapacityManager) publishAdaptiveCapacity(next sysmetrics.AdaptiveMemorySnapshot) sysmetrics.AdaptiveMemorySnapshot {
@@ -450,7 +530,10 @@ func (m *agentStreamCapacityManager) acquire(
 	}
 	m.refreshAdaptiveCapacity(false)
 
-	m.mu.Lock()
+	if err := m.lockAdaptiveAdmission(ctx); err != nil {
+		m.mu.Unlock()
+		return nil, err
+	}
 	if !m.classEnabledLocked(class) {
 		m.recordRejectionLocked(errAgentStreamCapacityClassDisabled)
 		m.mu.Unlock()
@@ -569,7 +652,7 @@ func (m *agentStreamCapacityManager) tryAcquire(
 	}
 	m.refreshAdaptiveCapacity(false)
 
-	m.mu.Lock()
+	_ = m.lockAdaptiveAdmission(context.Background())
 	defer m.mu.Unlock()
 	if !m.classEnabledLocked(class) {
 		m.recordRejectionLocked(errAgentStreamCapacityClassDisabled)
@@ -924,6 +1007,11 @@ func (m *agentStreamCapacityManager) enqueueLocked(waiter *agentStreamCapacityWa
 }
 
 func (m *agentStreamCapacityManager) dispatchLocked() {
+	// Cleanup must not wait for slow resource sensors, but queued requests must
+	// not consume the old sample while a due/forced replacement is in flight.
+	if m.adaptiveSampling > 0 {
+		return
+	}
 	for m.waiters > 0 && len(m.queueKeys) > 0 {
 		scanned := 0
 		progress := false
@@ -1278,7 +1366,7 @@ func (m *agentStreamCapacityManager) tryReserveAdaptiveResource(owner adaptiveRe
 		return func() {}, true, false
 	}
 	m.refreshAdaptiveCapacity(false)
-	m.mu.Lock()
+	_ = m.lockAdaptiveAdmission(context.Background())
 	if m.adaptiveMemory == nil {
 		m.mu.Unlock()
 		return func() {}, true, false
