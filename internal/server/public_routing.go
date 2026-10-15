@@ -465,14 +465,22 @@ func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resol
 }
 
 func (a *App) proxyDirectTargetRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
-	a.proxyRouteTargetRequest(w, r, resolution, nil, trace, shaper, cacheDecision, observability)
+	a.proxyDirectTargetRequestWithResolution(w, r, &resolution, trace, shaper, cacheDecision, observability)
 }
 
 func (a *App) proxyAgentTargetRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
+	a.proxyAgentTargetRequestWithResolution(w, r, &resolution, trace, shaper, cacheDecision, observability)
+}
+
+func (a *App) proxyDirectTargetRequestWithResolution(w http.ResponseWriter, r *http.Request, resolution *publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
+	a.proxyRouteTargetRequest(w, r, resolution, nil, trace, shaper, cacheDecision, observability)
+}
+
+func (a *App) proxyAgentTargetRequestWithResolution(w http.ResponseWriter, r *http.Request, resolution *publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
 	a.proxyRouteTargetRequest(w, r, resolution, resolution.Agent, trace, shaper, cacheDecision, observability)
 }
 
-func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, agent *AgentConn, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
+func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, resolution *publicRouteResolution, agent *AgentConn, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
@@ -485,7 +493,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 	defer func() {
 		finalAgent := agent
 		if retryResult != nil {
-			retryResult.applyToResolution(&resolution)
+			retryResult.applyToResolution(resolution)
 			if errorKind == "" && retryResult.TerminalErrorKind != "" {
 				errorKind = retryResult.TerminalErrorKind
 			}
@@ -503,14 +511,14 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			if retryResult != nil && retryResult.ReplaySkippedReason != "" {
 				attributes["retry_skip_reason"] = retryResult.ReplaySkippedReason
 			}
-			trace.emit(stage, &resolution, finalAgent, statusCode, errorKind, w.Header(), attributes)
+			trace.emit(stage, resolution, finalAgent, statusCode, errorKind, w.Header(), attributes)
 		}
 		event := proxyRequestEvent{
 			StatusCode: statusCode, Duration: time.Since(startedAt), ErrorKind: errorKind,
 			ListenerID: resolution.ListenerID, RouteID: resolution.RouteID, RouteTargetID: resolution.RouteTargetID,
 			AgentID: selectedAgentID, CacheRuleID: cacheRuleID(cacheDecision), CacheStatus: cacheStatus(cacheDecision),
 			CacheBytes: cacheBytes(cacheDecision), RequestBytes: observability.requestBytesValue(),
-			ResponseBytes: observability.responseBytesValue(), Context: proxyRequestContextFromResolution(r, resolution),
+			ResponseBytes: observability.responseBytesValue(), Context: proxyRequestContextFromResolution(r, *resolution),
 		}
 		if retryResult != nil {
 			event.RetryRuleID = publicRetryRuleID(retryResult)
@@ -561,7 +569,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		attributes := map[string]string{"handler": handler, "upstream": redactSensitiveTraceURL(targetOrigin.String())}
 		trace.emit(
 			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_STARTED,
-			&resolution,
+			resolution,
 			agent,
 			0,
 			"",
@@ -573,9 +581,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 	var transport http.RoundTripper
 	if agent != nil {
 		retryResult = &publicRetryAttemptResult{}
+		// Retry attempts and streaming response observation can outlive an
+		// individual ReverseProxy callback, so the round tripper owns its
+		// resolution snapshot instead of retaining the pooled context pointer.
 		transport = &publicAgentAttemptRoundTripper{
-			app: a, snapshot: resolution.Snapshot, resolution: resolution, initial: agent,
-			rule: selectPublicRetryRule(resolution.Snapshot, r, resolution), trace: trace,
+			app: a, snapshot: resolution.Snapshot, resolution: *resolution, initial: agent,
+			rule: selectPublicRetryRule(resolution.Snapshot, r, *resolution), trace: trace,
 			shaper: shaper, requestID: id.String(), result: retryResult,
 		}
 	} else {
@@ -597,7 +608,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		ModifyResponse: func(resp *http.Response) error {
 			finalAgent := agent
 			if retryResult != nil {
-				retryResult.applyToResolution(&resolution)
+				retryResult.applyToResolution(resolution)
 				if retryResult.FinalAgent != nil {
 					finalAgent = retryResult.FinalAgent
 					selectedAgentID = sql.NullInt64{Int64: finalAgent.AgentID, Valid: true}
@@ -617,13 +628,16 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				return fmt.Errorf("%w: %v", errPublicTrafficShaperPolicyMatch, responseShaper.MatchError)
 			}
 			if responseShaper != nil {
-				applyTrafficShaperResolutionFields(&resolution, *responseShaper)
+				applyTrafficShaperResolutionFields(resolution, *responseShaper)
 			}
 			if cacheDecision != nil && cacheDecision.Rule.AddCacheStatusHeader {
 				resp.Header.Set("X-p2pstream-Cache", "MISS")
 			}
 			if cacheDecision != nil && cacheDecision.Cacheable {
-				resp.Body = a.capturePublicCacheResponseBody(r.Context(), r, resolution, cacheDecision, resp, trace)
+				// The cache body can finish after ReverseProxy returns from this
+				// callback, so it retains an owned resolution snapshot rather than
+				// the pooled request context's forwarding pointer.
+				resp.Body = a.capturePublicCacheResponseBody(r.Context(), r, *resolution, cacheDecision, resp, trace)
 			}
 			if responseShaper != nil {
 				if resp.StatusCode == http.StatusSwitchingProtocols {
@@ -639,7 +653,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				}
 				trace.emit(
 					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
-					&resolution,
+					resolution,
 					finalAgent,
 					resp.StatusCode,
 					errorKind,

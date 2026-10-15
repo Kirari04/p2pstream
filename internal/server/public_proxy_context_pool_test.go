@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"sync/atomic"
@@ -132,6 +133,79 @@ func TestPublicProxyContextReuseDoesNotReuseNestedBodyOrRecorderState(t *testing
 		t.Fatalf("retained recorder wrote first/second bodies %q/%q", firstWriter.Body.String(), secondWriter.Body.String())
 	}
 	pool.release(second)
+}
+
+func TestPublicProxyResolutionPointerRemainsOwnedUntilLateResponseBodyCompletes(t *testing.T) {
+	bodyStarted := make(chan struct{})
+	releaseBody := make(chan struct{})
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		close(bodyStarted)
+		<-releaseBody
+		_, _ = io.WriteString(w, "late-response")
+	}))
+	defer upstream.Close()
+
+	origin, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	pool := newBoundedPublicProxyContextPool(1)
+	owned := pool.acquire()
+	pool.release(owned)
+	app := NewApp(nil, nil)
+	recorder := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ctx := pool.acquire()
+		defer pool.release(ctx)
+		initializePublicProxyContext(ctx, app, 1, recorder, httptest.NewRequest(http.MethodGet, "http://public.test/late", nil))
+		ctx.Resolution = publicRouteResolution{
+			Listener: publicListenerConfig{Protocol: publicListenerProtocolHTTP},
+			Target: publicRouteTargetConfig{
+				ID:         1,
+				Name:       "late-body",
+				Enabled:    true,
+				TargetType: publicRouteTargetTypeProxy,
+				Transport:  publicRouteTargetTransportDirect,
+				ParsedURL:  origin,
+			},
+		}
+		app.proxyDirectTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, nil, nil, nil, ctx.Observability)
+	}()
+
+	select {
+	case <-bodyStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("upstream response body did not start")
+	}
+	concurrent := pool.acquire()
+	if concurrent == owned {
+		t.Fatal("pooled context was reused while forwarding still consumed its response body")
+	}
+	close(releaseBody)
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("proxy did not finish after response body release")
+	}
+	pool.release(concurrent)
+
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "late-response" {
+		t.Fatalf("response = status %d body %q, want 200 late-response", recorder.Code, recorder.Body.String())
+	}
+	reused := pool.acquire()
+	if reused != owned {
+		t.Fatalf("completed forwarding context = %p, want original %p", reused, owned)
+	}
+	if !reflect.DeepEqual(*reused, publicProxyContext{}) {
+		t.Fatalf("completed forwarding context retained request state: %+v", *reused)
+	}
+	pool.release(reused)
 }
 
 type panicPublicProxyResponseWriter struct{}

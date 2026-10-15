@@ -990,9 +990,9 @@ func activeTargetAccountingAndForwardStage(ctx *publicProxyContext) publicProxyS
 		return publicProxyStageDone
 	}
 	if ctx.Resolution.Target.Transport == publicRouteTargetTransportAgent {
-		ctx.App.proxyAgentTargetRequest(ctx.ResponseWriter, ctx.Request, ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
+		ctx.App.proxyAgentTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
 		return publicProxyStageDone
 	}
-	ctx.App.proxyDirectTargetRequest(ctx.ResponseWriter, ctx.Request, ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
+	ctx.App.proxyDirectTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
 	return publicProxyStageDone
 }
