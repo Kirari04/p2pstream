@@ -42,6 +42,16 @@ message types are supported:
 
 * 0x3 Go Away - Used to close a session.
 
+* 0x4 Allocation Window Update - In negotiated aggregate-flow-control mode,
+  returns allocation credit to one stream after receive-pool chunks are fully
+  consumed. Stream ID must be non-zero, flags must be zero, and Length must be
+  a positive multiple of 4 KiB.
+
+* 0x5 Window Grow - In negotiated aggregate-flow-control mode, advertises
+  receive capacity reserved before the frame is sent. Stream ID 0 grows the
+  session pool; a non-zero Stream ID grows that stream's allocation window.
+  Flags must be zero and Length must be a positive multiple of 4 KiB.
+
 ## Flag Field
 
 The flags field is used to provide additional information related
@@ -128,6 +138,24 @@ larger window.
 
 Both sides should track the number of bytes sent in Data frames
 only, as only they are tracked as part of the window size.
+
+When peers negotiate aggregate flow control outside Yamux, DATA remains
+subject to the per-stream byte window and gains two allocation windows. The
+session window represents a fixed pool of 4 KiB receive chunks. Each non-empty
+DATA frame is limited to 32 KiB and consumes `ceil(length / 4 KiB) * 4 KiB`
+from both the session and stream allocation windows. A zero-length DATA frame
+consumes no allocation credit. The receiver returns session credit only after
+the corresponding chunks are fully consumed or discarded, using Window Update
+with Stream ID 0. It returns live-stream allocation credit with Allocation
+Window Update. Resetting a stream does not restore either sender ledger; only
+receiver-issued updates restore credit.
+
+The initial and maximum aggregate windows are supplied symmetrically by the
+negotiating application. Per-stream allocation credit is capped at one quarter
+of the currently reserved session pool so one fragmented, stalled stream
+cannot consume all chunks. Session growth must be reserved and advertised
+before related stream allocation growth. Legacy sessions do not accept the two
+aggregate-only message types.
 
 ## Session termination
 

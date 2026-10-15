@@ -16,9 +16,15 @@ import (
 	"time"
 )
 
-const pingReplyQueueSize = 64
+const (
+	pingReplyQueueSize        = 64
+	aggregateControlQueueSize = 64
+)
 
-var errPingReplyBacklog = fmt.Errorf("ping reply backlog exceeded")
+var (
+	errPingReplyBacklog        = fmt.Errorf("ping reply backlog exceeded")
+	errAggregateControlBacklog = fmt.Errorf("aggregate control backlog exceeded")
+)
 
 // Session is used to wrap a reliable ordered connection and to
 // multiplex it into multiple streams.
@@ -84,11 +90,19 @@ type Session struct {
 	// sendCh is used to mark a stream as ready to send,
 	// or to send a header out directly.
 	sendCh chan *sendReady
+	// controlCh is a bounded aggregate-mode priority queue for credit and ping
+	// frames. Terminal per-stream frames remain on sendCh to preserve DATA
+	// ordering.
+	controlCh chan *sendReady
 
 	// recvDoneCh is closed when recv() exits to avoid a race
 	// between stream registration and stream shutdown
 	recvDoneCh chan struct{}
 	sendDoneCh chan struct{}
+
+	// aggregate is non-nil only when the peers negotiated aggregate DATA flow
+	// control before constructing the session.
+	aggregate *aggregateWindow
 
 	// shutdown is used to safely close a session
 	shutdown        bool
@@ -101,10 +115,11 @@ type Session struct {
 // sendReady is used to either mark a stream as ready
 // or to directly send a header
 type sendReady struct {
-	Hdr  []byte
-	mu   sync.Mutex // Protects Body from unsafe reads.
-	Body []byte
-	Err  chan error
+	Hdr    []byte
+	mu     sync.Mutex // Protects Body from unsafe reads.
+	Body   []byte
+	Err    chan error
+	Commit func()
 }
 
 // newSession is used to construct a new session
@@ -127,9 +142,13 @@ func newSession(config *Config, conn io.ReadWriteCloser, client bool) *Session {
 		synCh:           make(chan struct{}, config.AcceptBacklog),
 		acceptCh:        make(chan *Stream, config.AcceptBacklog),
 		sendCh:          make(chan *sendReady, 64),
+		controlCh:       make(chan *sendReady, aggregateControlQueueSize),
 		recvDoneCh:      make(chan struct{}),
 		sendDoneCh:      make(chan struct{}),
 		shutdownCh:      make(chan struct{}),
+	}
+	if config.InitialSessionWindowSize != 0 {
+		s.aggregate = newAggregateWindow(config)
 	}
 	if client {
 		s.nextStreamID = 1
@@ -139,6 +158,9 @@ func newSession(config *Config, conn io.ReadWriteCloser, client bool) *Session {
 	go s.recv()
 	go s.send()
 	go s.sendPingReplies()
+	if s.aggregate != nil {
+		go s.publishAggregateCredit()
+	}
 	if config.EnableKeepAlive {
 		go s.keepalive()
 	}
@@ -307,6 +329,11 @@ func (s *Session) Close() error {
 
 	s.conn.Close()
 	<-s.recvDoneCh
+	if s.aggregate != nil {
+		<-s.aggregate.publishDone
+		<-s.sendDoneCh
+		s.closeAggregatePool()
+	}
 
 	s.streamLock.Lock()
 	defer s.streamLock.Unlock()
@@ -314,7 +341,9 @@ func (s *Session) Close() error {
 		stream.forceClose()
 	}
 	<-s.pingReplyDoneCh
-	<-s.sendDoneCh
+	if s.aggregate == nil {
+		<-s.sendDoneCh
+	}
 	return nil
 }
 
@@ -419,6 +448,13 @@ func (s *Session) waitForSend(hdr header, body []byte) error {
 // potential shutdown. Since there's the expectation that sends can happen
 // in a timely manner, we enforce the connection write timeout here.
 func (s *Session) waitForSendErr(hdr header, body []byte, errCh chan error) error {
+	return s.waitForSendErrCommit(hdr, body, errCh, nil)
+}
+
+// waitForSendErrCommit invokes commit in the physical send loop immediately
+// before writing the header. This is used for receive-credit publication: a
+// peer cannot observe the WINDOW_UPDATE before local validation accepts it.
+func (s *Session) waitForSendErrCommit(hdr header, body []byte, errCh chan error, commit func()) error {
 	t := timerPool.Get()
 	timer := t.(*time.Timer)
 	timer.Reset(s.config.ConnectionWriteTimeout)
@@ -431,9 +467,13 @@ func (s *Session) waitForSendErr(hdr header, body []byte, errCh chan error) erro
 		timerPool.Put(t)
 	}()
 
-	ready := &sendReady{Hdr: hdr, Body: body, Err: errCh}
+	ready := &sendReady{Hdr: hdr, Body: body, Err: errCh, Commit: commit}
+	queue := s.sendCh
+	if s.aggregate != nil && isAggregatePriorityControl(hdr, body) {
+		queue = s.controlCh
+	}
 	select {
-	case s.sendCh <- ready:
+	case queue <- ready:
 	case <-s.shutdownCh:
 		return ErrSessionShutdown
 	case <-timer.C:
@@ -476,6 +516,9 @@ func (s *Session) waitForSendErr(hdr header, body []byte, errCh chan error) erro
 // the send happens right here, we enforce the connection write timeout if we
 // can't queue the header to be sent.
 func (s *Session) sendNoWait(hdr header) error {
+	if s.aggregate != nil && isAggregatePriorityControl(hdr, nil) {
+		return s.sendAggregateControlNoWait(hdr)
+	}
 	t := timerPool.Get()
 	timer := t.(*time.Timer)
 	timer.Reset(s.config.ConnectionWriteTimeout)
@@ -498,6 +541,43 @@ func (s *Session) sendNoWait(hdr header) error {
 	}
 }
 
+// sendAggregateControlNoWait is reserved for reader-originated controls that
+// are safe to send ahead of queued DATA. A full bounded queue is a fatal
+// publication failure; blocking the only physical reader would deadlock flow
+// control for the entire session.
+func (s *Session) sendAggregateControlNoWait(hdr header) error {
+	select {
+	case s.controlCh <- &sendReady{Hdr: hdr}:
+		return nil
+	case <-s.shutdownCh:
+		return ErrSessionShutdown
+	default:
+		s.abortAggregate(errAggregateControlBacklog)
+		return errAggregateControlBacklog
+	}
+}
+
+func (s *Session) sendReaderControlNoWait(hdr header) error {
+	if s.aggregate != nil {
+		return s.sendAggregateControlNoWait(hdr)
+	}
+	return s.sendNoWait(hdr)
+}
+
+func isAggregatePriorityControl(hdr header, body []byte) bool {
+	if len(body) != 0 || len(hdr) < headerSize {
+		return false
+	}
+	switch hdr.MsgType() {
+	case typePing, typeAllocationWindowUpdate, typeWindowGrow:
+		return true
+	case typeWindowUpdate:
+		return hdr.Flags() == 0
+	default:
+		return false
+	}
+}
+
 // send is a long running goroutine that sends data
 func (s *Session) send() {
 	if err := s.sendLoop(); err != nil {
@@ -510,50 +590,64 @@ func (s *Session) sendLoop() error {
 	var bodyBuf bytes.Buffer
 	for {
 		bodyBuf.Reset()
-
+		var ready *sendReady
+		// Once a control is queued, select it before the bulk FIFO. A control
+		// arriving concurrently may follow at most the one DATA frame selected
+		// in the fallback below.
 		select {
-		case ready := <-s.sendCh:
-			// Send a header if ready
-			if ready.Hdr != nil {
-				_, err := s.conn.Write(ready.Hdr)
-				if err != nil {
-					s.logger.Printf("[ERR] yamux: Failed to write header: %v", err)
-					asyncSendErr(ready.Err, err)
-					return err
-				}
-			}
-
-			ready.mu.Lock()
-			if ready.Body != nil {
-				// Copy the body into the buffer to avoid
-				// holding a mutex lock during the write.
-				_, err := bodyBuf.Write(ready.Body)
-				if err != nil {
-					ready.Body = nil
-					ready.mu.Unlock()
-					s.logger.Printf("[ERR] yamux: Failed to copy body into buffer: %v", err)
-					asyncSendErr(ready.Err, err)
-					return err
-				}
-				ready.Body = nil
-			}
-			ready.mu.Unlock()
-
-			if bodyBuf.Len() > 0 {
-				// Send data from a body if given
-				_, err := s.conn.Write(bodyBuf.Bytes())
-				if err != nil {
-					s.logger.Printf("[ERR] yamux: Failed to write body: %v", err)
-					asyncSendErr(ready.Err, err)
-					return err
-				}
-			}
-
-			// No error, successful send
-			asyncSendErr(ready.Err, nil)
 		case <-s.shutdownCh:
 			return nil
+		default:
 		}
+		select {
+		case ready = <-s.controlCh:
+		default:
+			select {
+			case ready = <-s.controlCh:
+			case ready = <-s.sendCh:
+			case <-s.shutdownCh:
+				return nil
+			}
+		}
+
+		// Send a header if ready.
+		if ready.Hdr != nil {
+			if ready.Commit != nil {
+				ready.Commit()
+			}
+			_, err := s.conn.Write(ready.Hdr)
+			if err != nil {
+				s.logger.Printf("[ERR] yamux: Failed to write header: %v", err)
+				asyncSendErr(ready.Err, err)
+				return err
+			}
+		}
+
+		ready.mu.Lock()
+		if ready.Body != nil {
+			// Copy the body into the buffer to avoid holding a mutex lock during
+			// the physical write.
+			_, err := bodyBuf.Write(ready.Body)
+			if err != nil {
+				ready.Body = nil
+				ready.mu.Unlock()
+				s.logger.Printf("[ERR] yamux: Failed to copy body into buffer: %v", err)
+				asyncSendErr(ready.Err, err)
+				return err
+			}
+			ready.Body = nil
+		}
+		ready.mu.Unlock()
+
+		if bodyBuf.Len() > 0 {
+			if _, err := s.conn.Write(bodyBuf.Bytes()); err != nil {
+				s.logger.Printf("[ERR] yamux: Failed to write body: %v", err)
+				asyncSendErr(ready.Err, err)
+				return err
+			}
+		}
+
+		asyncSendErr(ready.Err, nil)
 	}
 }
 
@@ -567,10 +661,12 @@ func (s *Session) recv() {
 // Ensure that the index of the handler (typeData/typeWindowUpdate/etc) matches the message type
 var (
 	handlers = []func(*Session, header) error{
-		typeData:         (*Session).handleStreamMessage,
-		typeWindowUpdate: (*Session).handleStreamMessage,
-		typePing:         (*Session).handlePing,
-		typeGoAway:       (*Session).handleGoAway,
+		typeData:                   (*Session).handleStreamMessage,
+		typeWindowUpdate:           (*Session).handleStreamMessage,
+		typePing:                   (*Session).handlePing,
+		typeGoAway:                 (*Session).handleGoAway,
+		typeAllocationWindowUpdate: (*Session).handleAllocationWindowUpdate,
+		typeWindowGrow:             (*Session).handleAggregateWindowGrow,
 	}
 )
 
@@ -594,7 +690,10 @@ func (s *Session) recvLoop() error {
 		}
 
 		mt := hdr.MsgType()
-		if mt < typeData || mt > typeGoAway {
+		if mt < typeData || mt > typeWindowGrow {
+			return ErrInvalidMsgType
+		}
+		if mt > typeGoAway && s.aggregate == nil {
 			return ErrInvalidMsgType
 		}
 
@@ -606,6 +705,13 @@ func (s *Session) recvLoop() error {
 
 // handleStreamMessage handles either a data or window update frame
 func (s *Session) handleStreamMessage(hdr header) error {
+	if s.aggregate != nil && hdr.MsgType() == typeWindowUpdate && hdr.StreamID() == 0 {
+		return s.handleAggregateWindowUpdate(hdr)
+	}
+	if s.aggregate != nil && hdr.MsgType() == typeData {
+		return s.handleAggregateData(hdr)
+	}
+
 	// Check for a new stream creation
 	id := hdr.StreamID()
 	flags := hdr.Flags()
@@ -638,7 +744,7 @@ func (s *Session) handleStreamMessage(hdr header) error {
 	// Check if this is a window update
 	if hdr.MsgType() == typeWindowUpdate {
 		if err := stream.incrSendWindow(hdr, flags); err != nil {
-			if sendErr := s.sendNoWait(s.goAway(goAwayProtoErr)); sendErr != nil {
+			if sendErr := s.sendReaderControlNoWait(s.goAway(goAwayProtoErr)); sendErr != nil {
 				s.logger.Printf("[WARN] yamux: failed to send go away: %v", sendErr)
 			}
 			return err
@@ -648,10 +754,92 @@ func (s *Session) handleStreamMessage(hdr header) error {
 
 	// Read the new data
 	if err := stream.readData(hdr, flags, s.bufRead); err != nil {
-		if sendErr := s.sendNoWait(s.goAway(goAwayProtoErr)); sendErr != nil {
+		if sendErr := s.sendReaderControlNoWait(s.goAway(goAwayProtoErr)); sendErr != nil {
 			s.logger.Printf("[WARN] yamux: failed to send go away: %v", sendErr)
 		}
 		return err
+	}
+	return nil
+}
+
+// handleAggregateData applies the session window before any attacker-sized
+// payload allocation. Credit is restored only for bytes that did not arrive,
+// while bytes actually consumed or discarded are published by the receiver
+// through the aggregate credit worker.
+func (s *Session) handleAggregateData(hdr header) error {
+	id := hdr.StreamID()
+	if id == 0 {
+		return fmt.Errorf("yamux: DATA frame cannot target the session stream")
+	}
+	length := hdr.Length()
+	if length > AggregateMaxDataFrameSize {
+		return ErrDataFrameTooLarge
+	}
+
+	flags := hdr.Flags()
+	if flags & ^uint16(flagSYN|flagACK|flagFIN|flagRST) != 0 {
+		return ErrUnexpectedFlag
+	}
+	if flags&flagSYN == flagSYN {
+		if err := s.incomingStream(id); err != nil {
+			return err
+		}
+	}
+
+	s.streamLock.Lock()
+	stream := s.streams[id]
+	s.streamLock.Unlock()
+	charge, err := s.reserveAggregateReceive(stream, length)
+	if err != nil {
+		return err
+	}
+	if stream == nil {
+		return s.discardAggregateFrame(id, length, charge)
+	}
+
+	if flags&flagRST != 0 {
+		if err := stream.processFlags(flags); err != nil {
+			s.restoreAggregateReceive(stream, charge)
+			return err
+		}
+		return s.discardAggregateFrame(id, length, charge)
+	}
+	// FIN is terminal for application reads, so publish it only after the
+	// final frame payload is completely buffered. ACK may safely establish the
+	// stream before the physical read blocks.
+	if err := stream.processFlags(flags &^ flagFIN); err != nil {
+		s.restoreAggregateReceive(stream, charge)
+		return err
+	}
+
+	_, accepted, err := stream.readAggregateDataPayload(length, charge, s.bufRead)
+	if err != nil {
+		return err
+	}
+	if !accepted {
+		return s.discardAggregateFrame(id, length, charge)
+	}
+	if flags&flagFIN != 0 {
+		if err := stream.processFlags(flagFIN); err != nil {
+			return err
+		}
+	}
+	asyncNotify(stream.recvNotifyCh)
+	return nil
+}
+
+func (s *Session) discardAggregateFrame(id, length, charge uint32) error {
+	if length == 0 {
+		return nil
+	}
+	s.logger.Printf("[WARN] yamux: Discarding data for stream: %d", id)
+	copied, err := io.CopyN(ioutil.Discard, s.bufRead, int64(length))
+	if err != nil {
+		s.logger.Printf("[ERR] yamux: Failed to discard data: %v", err)
+		return err
+	}
+	if copied == int64(length) {
+		s.refundDiscardedAggregate(charge)
 	}
 	return nil
 }
@@ -742,7 +930,7 @@ func (s *Session) incomingStream(id uint32) error {
 	if atomic.LoadInt32(&s.localGoAway) == 1 {
 		hdr := header(make([]byte, headerSize))
 		hdr.encode(typeWindowUpdate, flagRST, id, 0)
-		return s.sendNoWait(hdr)
+		return s.sendReaderControlNoWait(hdr)
 	}
 
 	// Allocate a new stream
@@ -754,7 +942,7 @@ func (s *Session) incomingStream(id uint32) error {
 	// Check if stream already exists
 	if _, ok := s.streams[id]; ok {
 		s.logger.Printf("[ERR] yamux: duplicate stream declared")
-		if sendErr := s.sendNoWait(s.goAway(goAwayProtoErr)); sendErr != nil {
+		if sendErr := s.sendReaderControlNoWait(s.goAway(goAwayProtoErr)); sendErr != nil {
 			s.logger.Printf("[WARN] yamux: failed to send go away: %v", sendErr)
 		}
 		return ErrDuplicateStream
@@ -773,7 +961,7 @@ func (s *Session) incomingStream(id uint32) error {
 		delete(s.streams, id)
 		hdr := header(make([]byte, headerSize))
 		hdr.encode(typeWindowUpdate, flagRST, id, 0)
-		return s.sendNoWait(hdr)
+		return s.sendReaderControlNoWait(hdr)
 	}
 }
 
