@@ -23,6 +23,8 @@ const (
 
 const publicInvalidRequestTargetErrorKind = "invalid_request_target"
 
+const publicProxyContextPoolCapacity = 256
+
 type publicProxyStage func(*publicProxyContext) publicProxyStageResult
 
 type publicProxyContext struct {
@@ -49,6 +51,47 @@ type publicProxyContext struct {
 	CacheDecision                *publicCacheDecision
 	RouteResolutionFailure       error
 	cleanup                      []func()
+}
+
+type boundedPublicProxyContextPool struct {
+	contexts chan *publicProxyContext
+}
+
+var reusablePublicProxyContexts = newBoundedPublicProxyContextPool(publicProxyContextPoolCapacity)
+
+func newBoundedPublicProxyContextPool(capacity int) *boundedPublicProxyContextPool {
+	if capacity < 0 {
+		capacity = 0
+	}
+	return &boundedPublicProxyContextPool{contexts: make(chan *publicProxyContext, capacity)}
+}
+
+func (p *boundedPublicProxyContextPool) acquire() *publicProxyContext {
+	if p != nil {
+		select {
+		case ctx := <-p.contexts:
+			*ctx = publicProxyContext{}
+			return ctx
+		default:
+		}
+	}
+	return &publicProxyContext{}
+}
+
+func (p *boundedPublicProxyContextPool) release(ctx *publicProxyContext) {
+	if ctx == nil {
+		return
+	}
+	// Drop every request, snapshot, decision, error, and cleanup reference
+	// before retaining the bounded container for another public request.
+	*ctx = publicProxyContext{}
+	if p == nil {
+		return
+	}
+	select {
+	case p.contexts <- ctx:
+	default:
+	}
 }
 
 var publicProxyStages = []publicProxyStage{
@@ -131,6 +174,16 @@ func validatePublicSiteAuthorityStage(ctx *publicProxyContext) publicProxyStageR
 }
 
 func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r *http.Request) *publicProxyContext {
+	ctx := &publicProxyContext{}
+	initializePublicProxyContext(ctx, app, listenerID, w, r)
+	return ctx
+}
+
+func initializePublicProxyContext(ctx *publicProxyContext, app *App, listenerID int64, w http.ResponseWriter, r *http.Request) {
+	if ctx == nil {
+		return
+	}
+	*ctx = publicProxyContext{}
 	var snap *publicProxySnapshot
 	if app != nil {
 		snap = app.currentPublicSnapshot()
@@ -155,7 +208,7 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 	if trace != nil {
 		trace.emitReceived(listenerID)
 	}
-	return &publicProxyContext{
+	*ctx = publicProxyContext{
 		App:            app,
 		ListenerID:     listenerID,
 		StartedAt:      time.Now(),

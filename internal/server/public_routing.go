@@ -299,8 +299,15 @@ func (o proxyRequestObservability) responseBytesValue() uint64 {
 
 func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		newPublicProxyContext(a, listenerID, w, r).run()
+		servePublicProxyRequest(reusablePublicProxyContexts, a, listenerID, w, r)
 	}
+}
+
+func servePublicProxyRequest(pool *boundedPublicProxyContextPool, app *App, listenerID int64, w http.ResponseWriter, r *http.Request) {
+	ctx := pool.acquire()
+	defer pool.release(ctx)
+	initializePublicProxyContext(ctx, app, listenerID, w, r)
+	ctx.run()
 }
 
 func trafficShaperDecisionIfSelected(decision publicTrafficShaperDecision, selected bool) *publicTrafficShaperDecision {
