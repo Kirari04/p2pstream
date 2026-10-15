@@ -30,6 +30,11 @@ type Config struct {
 	// window size that we allow for a stream.
 	MaxStreamWindowSize uint32
 
+	// MaxIncomingStreams bounds peer-initiated stream objects from SYN
+	// allocation through final removal. Zero preserves legacy unlimited
+	// behavior (still subject to AcceptBacklog); -1 rejects every incoming SYN.
+	MaxIncomingStreams int
+
 	// InitialSessionWindowSize enables aggregate DATA flow control when it is
 	// non-zero. Both peers must negotiate and configure the same values before
 	// constructing the session. The window is shared by all streams in one
@@ -107,6 +112,9 @@ func VerifyConfig(config *Config) error {
 	}
 	if config.MaxStreamWindowSize < initialStreamWindow {
 		return fmt.Errorf("MaxStreamWindowSize must be larger than %d", initialStreamWindow)
+	}
+	if config.MaxIncomingStreams < -1 {
+		return fmt.Errorf("MaxIncomingStreams must be -1, zero, or positive")
 	}
 	aggregateValues := config.InitialSessionWindowSize != 0 || config.MaxSessionWindowSize != 0 || config.MaxDataFrameSize != 0 || config.InitialStreamAllocationWindowSize != 0 || config.MaxStreamAllocationWindowSize != 0
 	if aggregateValues {

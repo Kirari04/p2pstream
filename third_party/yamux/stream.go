@@ -29,8 +29,9 @@ type Stream struct {
 	sendWindow       uint32
 	maxReceiveWindow uint32
 
-	id      uint32
-	session *Session
+	id       uint32
+	session  *Session
+	incoming bool
 
 	state     streamState
 	stateLock sync.Mutex
@@ -603,6 +604,17 @@ func (s *Stream) forceClose() {
 // processFlags is used to update the state of the stream
 // based on set flags, if any. Lock must be held
 func (s *Stream) processFlags(flags uint16) error {
+	return s.processFlagsMode(flags, false)
+}
+
+// processAggregateFinalFIN tolerates a local timeout/reset that crossed the
+// physical read of this already-accepted final frame. Genuine duplicate FIN
+// is still rejected in streamRemoteClose before or during flag processing.
+func (s *Stream) processAggregateFinalFIN() error {
+	return s.processFlagsMode(flagFIN, true)
+}
+
+func (s *Stream) processFlagsMode(flags uint16, allowCrossedTerminalFIN bool) error {
 	s.stateLock.Lock()
 	defer s.stateLock.Unlock()
 
@@ -639,6 +651,11 @@ func (s *Stream) processFlags(flags uint16) error {
 			s.state = streamClosed
 			closeStream = true
 			s.notifyWaiting()
+		case streamClosed, streamReset:
+			if !allowCrossedTerminalFIN {
+				s.session.logger.Printf("[ERR] yamux: unexpected FIN flag in state %d", s.state)
+				return ErrUnexpectedFlag
+			}
 		default:
 			s.session.logger.Printf("[ERR] yamux: unexpected FIN flag in state %d", s.state)
 			return ErrUnexpectedFlag

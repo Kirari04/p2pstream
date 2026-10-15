@@ -77,6 +77,7 @@ type Session struct {
 	// protected by streamLock.
 	streams    map[uint32]*Stream
 	inflight   map[uint32]struct{}
+	incoming   int
 	streamLock sync.Mutex
 
 	// synCh acts like a semaphore. It is sized to the AcceptBacklog which
@@ -558,7 +559,7 @@ func (s *Session) sendAggregateControlNoWait(hdr header) error {
 }
 
 func (s *Session) sendReaderControlNoWait(hdr header) error {
-	if s.aggregate != nil {
+	if s.aggregate != nil || s.config.MaxIncomingStreams != 0 {
 		return s.sendAggregateControlNoWait(hdr)
 	}
 	return s.sendNoWait(hdr)
@@ -820,7 +821,7 @@ func (s *Session) handleAggregateData(hdr header) error {
 		return s.discardAggregateFrame(id, length, charge)
 	}
 	if flags&flagFIN != 0 {
-		if err := stream.processFlags(flagFIN); err != nil {
+		if err := stream.processAggregateFinalFIN(); err != nil {
 			return err
 		}
 	}
@@ -933,9 +934,6 @@ func (s *Session) incomingStream(id uint32) error {
 		return s.sendReaderControlNoWait(hdr)
 	}
 
-	// Allocate a new stream
-	stream := newStream(s, id, streamSYNReceived)
-
 	s.streamLock.Lock()
 	defer s.streamLock.Unlock()
 
@@ -947,9 +945,17 @@ func (s *Session) incomingStream(id uint32) error {
 		}
 		return ErrDuplicateStream
 	}
+	if s.config.MaxIncomingStreams == -1 || (s.config.MaxIncomingStreams > 0 && s.incoming >= s.config.MaxIncomingStreams) {
+		hdr := header(make([]byte, headerSize))
+		hdr.encode(typeWindowUpdate, flagRST, id, 0)
+		return s.sendReaderControlNoWait(hdr)
+	}
 
 	// Register the stream
+	stream := newStream(s, id, streamSYNReceived)
+	stream.incoming = true
 	s.streams[id] = stream
+	s.incoming++
 
 	// Check if we've exceeded the backlog
 	select {
@@ -959,6 +965,7 @@ func (s *Session) incomingStream(id uint32) error {
 		// Backlog exceeded! RST the stream
 		s.logger.Printf("[WARN] yamux: backlog exceeded, forcing connection reset")
 		delete(s.streams, id)
+		s.incoming--
 		hdr := header(make([]byte, headerSize))
 		hdr.encode(typeWindowUpdate, flagRST, id, 0)
 		return s.sendReaderControlNoWait(hdr)
@@ -978,7 +985,12 @@ func (s *Session) closeStream(id uint32) {
 			s.logger.Printf("[ERR] yamux: SYN tracking out of sync")
 		}
 	}
-	delete(s.streams, id)
+	if stream := s.streams[id]; stream != nil {
+		if stream.incoming {
+			s.incoming--
+		}
+		delete(s.streams, id)
+	}
 	s.streamLock.Unlock()
 }
 

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"math"
@@ -67,6 +68,10 @@ func TestAggregateConfigIsOptInAndValidated(t *testing.T) {
 			*c = *aggregateTestConfig()
 			c.MaxSessionWindowSize = AggregateMaxSessionWindowSize + AggregateWindowUnitSize
 		},
+		"invalid_incoming_limit": func(c *Config) {
+			*c = *aggregateTestConfig()
+			c.MaxIncomingStreams = -2
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			config := DefaultConfig()
@@ -78,6 +83,56 @@ func TestAggregateConfigIsOptInAndValidated(t *testing.T) {
 	}
 	if err := VerifyConfig(aggregateTestConfig()); err != nil {
 		t.Fatalf("aggregate config: %v", err)
+	}
+}
+
+func TestAggregateIncomingStreamLimitRejectsBeforeObjectAllocation(t *testing.T) {
+	for _, limit := range []int{1, -1} {
+		t.Run(fmt.Sprintf("limit_%d", limit), func(t *testing.T) {
+			session := newAggregateUnitSession(nil)
+			session.config.MaxIncomingStreams = limit
+			session.controlCh = make(chan *sendReady, 2)
+			if limit > 0 {
+				if err := session.incomingStream(1); err != nil {
+					t.Fatal(err)
+				}
+			}
+			rejectedID := uint32(3)
+			if limit == -1 {
+				rejectedID = 1
+			}
+			if err := session.incomingStream(rejectedID); err != nil {
+				t.Fatalf("bounded rejection: %v", err)
+			}
+			wantObjects := 0
+			if limit > 0 {
+				wantObjects = 1
+			}
+			if got := len(session.streams); got != wantObjects {
+				t.Fatalf("stream objects=%d want=%d", got, wantObjects)
+			}
+			if got := session.incoming; got != wantObjects {
+				t.Fatalf("incoming count=%d want=%d", got, wantObjects)
+			}
+			select {
+			case ready := <-session.controlCh:
+				hdr := header(ready.Hdr)
+				if hdr.StreamID() != rejectedID || hdr.Flags() != flagRST {
+					t.Fatalf("rejection frame=%v", hdr)
+				}
+			default:
+				t.Fatal("over-limit SYN did not queue bounded reset")
+			}
+			if limit > 0 {
+				session.closeStream(1)
+				if err := session.incomingStream(3); err != nil {
+					t.Fatalf("SYN after removal: %v", err)
+				}
+				if got := session.incoming; got != 1 {
+					t.Fatalf("recovered incoming count=%d want=1", got)
+				}
+			}
+		})
 	}
 }
 
@@ -717,6 +772,60 @@ func TestAggregateDataAfterRemoteFINIsProtocolError(t *testing.T) {
 	_, _, free, total := aggregateState(session)
 	if free != total {
 		t.Fatalf("post-FIN DATA borrowed chunks: free=%d total=%d", free, total)
+	}
+}
+
+func TestAggregateFinalFINCrossingLocalTimeoutDoesNotKillSession(t *testing.T) {
+	payload := []byte("final payload crossing timeout")
+	reader := &gatedPayloadReader{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+		data:    append([]byte(nil), payload...),
+	}
+	var releaseOnce sync.Once
+	releaseReader := func() { releaseOnce.Do(func() { close(reader.release) }) }
+	defer releaseReader()
+	session := newAggregateUnitSession(nil)
+	session.bufRead = bufio.NewReader(reader)
+	session.sendCh = make(chan *sendReady, 1)
+	stream := newStream(session, 1, streamEstablished)
+	session.streams[stream.id] = stream
+	hdr := header(make([]byte, headerSize))
+	hdr.encode(typeData, flagFIN, stream.id, uint32(len(payload)))
+	handleDone := make(chan error, 1)
+	go func() { handleDone <- session.handleAggregateData(hdr) }()
+	<-reader.entered
+
+	timeoutDone := make(chan struct{})
+	go func() {
+		stream.closeTimeout()
+		close(timeoutDone)
+	}()
+	deadline := time.Now().Add(time.Second)
+	for {
+		stream.stateLock.Lock()
+		state := stream.state
+		stream.stateLock.Unlock()
+		if state == streamClosed {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("close timeout did not publish terminal state")
+		}
+		runtime.Gosched()
+	}
+	releaseReader()
+	if err := <-handleDone; err != nil {
+		t.Fatalf("final DATA|FIN crossing timeout: %v", err)
+	}
+	<-timeoutDone
+	_, pending, free, total := aggregateState(session)
+	wantCharge := uint64(aggregateDataCharge(uint32(len(payload))))
+	if pending != wantCharge || free != total {
+		t.Fatalf("crossed timeout pending=%d want=%d free=%d total=%d", pending, wantCharge, free, total)
+	}
+	if buffered, allocated := stream.ReceiveBufferStats(); buffered != 0 || allocated != 0 {
+		t.Fatalf("crossed timeout retained buffered=%d allocated=%d", buffered, allocated)
 	}
 }
 
