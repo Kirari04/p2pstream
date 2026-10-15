@@ -539,7 +539,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 	if trace != nil {
 		id = trace.uuid()
 	}
-	if id == uuid.Nil {
+	if id == uuid.Nil && (agent != nil || trace != nil) {
 		var err error
 		id, err = uuid.NewV7()
 		if err != nil {
