@@ -99,9 +99,15 @@ func newPublicConnectionCapacityLimiter(global, perClient int64) *publicConnecti
 }
 
 func (l *publicConnectionCapacityLimiter) tryAcquire(remote net.Addr, memoryBytes, peerMemoryLimit, peerFDLimit int64) (func(), bool) {
+	release, _, ok := l.tryAcquirePhased(remote, memoryBytes, 0, peerMemoryLimit, peerFDLimit)
+	return release, ok
+}
+
+func (l *publicConnectionCapacityLimiter) tryAcquirePhased(remote net.Addr, lifetimeBytes, temporaryBytes, peerMemoryLimit, peerFDLimit int64) (release, active func(), ok bool) {
 	if l == nil {
-		return func() {}, true
+		return func() {}, func() {}, true
 	}
+	memoryBytes := saturatingAddInt64(lifetimeBytes, temporaryBytes)
 	client := publicConnectionClientKey(remote)
 	l.mu.Lock()
 	peerMemoryExceeded := l.perClient > 0 && peerMemoryLimit >= 0 &&
@@ -110,26 +116,36 @@ func (l *publicConnectionCapacityLimiter) tryAcquire(remote net.Addr, memoryByte
 		(1 > peerFDLimit-l.clients[client])
 	if (l.global > 0 && l.total >= l.global) || (l.perClient > 0 && l.clients[client] >= l.perClient) || peerMemoryExceeded || peerFDExceeded {
 		l.mu.Unlock()
-		return nil, false
+		return nil, nil, false
 	}
 	l.total++
 	l.clients[client]++
 	l.clientBytes[client] = saturatingAddInt64(l.clientBytes[client], memoryBytes)
 	l.mu.Unlock()
+	var activeOnce sync.Once
+	active = func() {
+		activeOnce.Do(func() {
+			l.mu.Lock()
+			l.clientBytes[client] -= temporaryBytes
+			l.mu.Unlock()
+		})
+	}
 	var once sync.Once
-	return func() {
+	release = func() {
 		once.Do(func() {
+			active()
 			l.mu.Lock()
 			l.total--
 			l.clients[client]--
-			l.clientBytes[client] -= memoryBytes
+			l.clientBytes[client] -= lifetimeBytes
 			if l.clients[client] == 0 {
 				delete(l.clients, client)
 				delete(l.clientBytes, client)
 			}
 			l.mu.Unlock()
 		})
-	}, true
+	}
+	return release, active, true
 }
 
 func (l *publicConnectionCapacityLimiter) inUse() int64 {
@@ -258,7 +274,7 @@ func (a *App) tryReservePublicConnectionPhased(conn net.Conn) (release, active f
 			peerFDLimit = fdLimit
 		}
 	}
-	connectionRelease, ok := a.publicConnections.tryAcquire(remote, resourceBytes+publicHandshakeWorkingBytes, peerMemoryLimit, peerFDLimit)
+	connectionRelease, connectionActive, ok := a.publicConnections.tryAcquirePhased(remote, resourceBytes, publicHandshakeWorkingBytes, peerMemoryLimit, peerFDLimit)
 	if !ok {
 		a.publicConnectionLimitRejected.Add(1)
 		return nil, nil, false
@@ -283,7 +299,12 @@ func (a *App) tryReservePublicConnectionPhased(conn net.Conn) (release, active f
 		handshakeRelease = func() {}
 	}
 	var handshakeOnce sync.Once
-	active = func() { handshakeOnce.Do(handshakeRelease) }
+	active = func() {
+		handshakeOnce.Do(func() {
+			handshakeRelease()
+			connectionActive()
+		})
+	}
 	var once sync.Once
 	return func() {
 		once.Do(func() {
