@@ -68,6 +68,23 @@ still apply.
   later request after asynchronous close returns its reservation.
   Admission does not temporarily exceed the memory/descriptor budget to keep
   idle sockets warm.
+- A public TCP accept still starts with a conservative 1.125 MiB resource
+  promise for the 64 KiB header policy. Internally this is an 896 KiB physical
+  connection owner plus a 256 KiB TLS-handshake phase. The handshake promise is
+  released when the connection first becomes active. The 128 KiB parser,
+  512 KiB automatic-kernel allowance and 256 KiB steady userspace allowance
+  remain owned until physical close; direct-peer fairness retains the original
+  accept-size charge. Each admitted request adds a 32 KiB context plus twice
+  the decoded header, path and host bytes, including bounded metadata. Upload
+  credit remains capped at 1 MiB or the smaller declared body. A further 32 KiB
+  body-copy working promise is acquired only after access, redirect and policy
+  decisions, before cache, static or upstream work. These values are admission
+  envelopes, not measured heap or RSS subtraction.
+- A server-side agent stream owns the exact receive-window accounting (about
+  640.625 KiB at the 512 KiB initial window) plus 256 KiB of userspace and no
+  fictitious file descriptor. The agent side adds the automatic 512 KiB kernel
+  allowance and two real dial descriptors. These stream promises remain
+  subject to the same 100 ms measured-pressure, fail-closed controller.
 - Pool entries follow the shared stream budget; the separate 256-target ceiling
   is gone. Warm hits avoid constructing a disposable HTTP transport. Remote
   management requests now reuse pinned TLS connections, with invalidation on
@@ -310,6 +327,130 @@ go tool pprof -top /path/to/server/cpu.pprof
 go tool pprof -top -inuse_space /path/to/server/heap.pprof
 go tool pprof -top -alloc_space /path/to/server/heap.pprof
 ```
+
+## Reverse-proxy qualification
+
+`scripts/qualify-proxy-performance.sh` is the finite local qualification
+harness. It drives the production HTTPS public listener and routing pipeline
+through direct and real four-lane agent targets, and compares the direct path
+with the installed HAProxy 3.2 control. The control terminates the same P-256
+certificate, negotiates the same client HTTP version, forwards to the same
+HTTP origin, uses the same four pinned proxy CPUs, and is sampled with the same
+load generator. The origin and load generator are pinned to the remaining
+available CPUs when the host provides them.
+
+The full run puts each p2pstream server plus its in-process real agent fixture
+in a fresh 4 GiB/no-swap cgroup. This combined process envelope is conservative
+for RSS and CPU and is not a server-only measurement. HAProxy is a direct-path
+control; it has no authenticated TLS/Yamux agent hop, agent destination policy,
+or agent stream admission. Agent results therefore quantify the feature/path
+cost separately and are not HAProxy-parity claims. Empty WAF, access, traffic,
+cache and Sites policies still execute through p2pstream's production routing
+pipeline, while HAProxy has no equivalent application policy pipeline.
+
+Acceptance thresholds are fixed before examining the full results:
+
+- On feature-comparable direct scenarios, candidate useful completed
+  throughput must be at least 80% of HAProxy. At the fixed 500 request/s
+  offered load, direct p95 and p99 must be at most 1.25 times HAProxy.
+- Candidate direct and agent throughput must be at least 90% of the `ee1aba7`
+  baseline in each sampled workload. Fixed-rate p95 and p99 must be at most
+  1.10 times baseline. Closed-loop saturation latency is reported but is not
+  called tail-latency parity because the implementations can operate at
+  different achieved loads.
+- The 4 GiB run must place 1,536 requests concurrently inside the controlled
+  origin barrier through the real public listener, complete every verified
+  response, return no admission 503 below that validated budget, and complete
+  the following recovery workload. A configured client concurrency by itself
+  does not satisfy this criterion; the origin-reported inflight high-water is
+  recorded.
+- Each successful response must have the expected length and content/hash.
+  Results record status classes, useful completions/s, p50/p95/p99, CPU time,
+  process RSS, Go heap/GC where available, file descriptors, owned socket FDs,
+  cgroup current/peak memory and `memory.stat` socket bytes. A TLS-idle phase
+  records cold, 512-handshake peak and post-close values.
+
+H1 keep-alive and connection churn, H2 multiplexing, 64 KiB uploads, slow
+readers, the fixed-rate comparison and the 1,536-concurrent barrier run in each
+full iteration. Three runs alternate baseline and candidate process order;
+HAProxy follows each pair. Raw JSONL and process logs stay under ignored
+`tmp/`. The smoke mode reduces counts and does not use the 4 GiB container, so
+it validates wiring rather than capacity.
+
+The first qualification pass is recorded under
+`docs/operations/benchmarks/proxy-qualification-2026-10-16/`. It is a profile
+and correctness pass plus one warmed saturation sample, not the prescribed
+three-run qualification. The fixed-rate direct H2 case completed 500.1 useful
+requests/s with p95 1.60 ms and p99 1.75 ms, versus HAProxy's 500.2
+requests/s, 1.42 ms and 1.58 ms. The 1.13x p95 and 1.10x p99 ratios pass the
+predeclared 1.25x fixed-load gate.
+
+The warmed 10-second direct saturation sample did not pass the 80% HAProxy
+throughput gate except under connection churn:
+
+| Workload | p2pstream useful requests/s | HAProxy useful requests/s | Ratio | `ee1aba7` baseline ratio |
+| --- | ---: | ---: | ---: | ---: |
+| H1 keep-alive GET | 20,756 | 82,580 | 25.1% | 94.0% |
+| H1 connection churn GET | 4,695 | 4,503 | 104.3% | 96.7% |
+| H2 multiplexed GET | 19,118 | 58,095 | 32.9% | 97.0% |
+| H2 64 KiB upload | 6,775 | 9,821 | 69.0% | 100.6% |
+
+All responses in that sample were content-verified and no request errors were
+observed. The candidate passed the single-sample 90% baseline throughput gate.
+Its saturation p95/p99 values are not compared as a latency gate because the
+systems achieved different request rates. The raw recorder logs also show
+352,707 candidate and 371,470 baseline observability events dropped across the
+four direct and four agent workloads. Client-verified completions remain the
+throughput authority; dashboard event counts from this pass are incomplete.
+
+A later profile-directed candidate (`d3767c9`) changed observability event
+insertion from per-row `INSERT ... RETURNING` scans to a prepared `:exec`
+statement inside the existing atomic batch transaction. In one separately
+labelled H1 keep-alive diagnostic it completed 25,121 useful requests/s, with
+all 251,318 timed requests persisted, zero drops, and 383 queued events drained
+explicitly in 6.8 ms after the timed interval. That is 29.6% of the same-run
+HAProxy result and 79.9% of an unmatched standard-library reverse proxy with
+128 idle origin connections. The standard-library diagnostic used its default
+per-request copy-buffer allocation, so it is retained as an allocation-cost
+diagnostic rather than a matched application-overhead estimate.
+
+The matched standard-library control reuses the same 32 KiB copy-buffer pool
+as production. It reached 44,513 requests/s with 32 idle origin connections and
+47,361 requests/s with 128. A subsequent profiled `b4dd36b` candidate reached
+25,435 requests/s versus same-run HAProxy at 86,273: 29.5% of HAProxy and 53.7%
+of the pooled 128-idle standard-library control. All 254,493 timed candidate
+requests were persisted with no drops; the explicit post-load recorder barrier
+drained 1,334 records in 29.6 ms and 0.02 proxy CPU-seconds outside the timed
+throughput and CPU interval. This is still one diagnostic sample, not a passing
+qualification result.
+
+Under the real 4 GiB cgroup, both direct and agent H1 runs opened 1,536 client
+TCP connections and reached 1,536 requests inside the origin barrier. H2
+reached the same logical concurrency over 10 direct or 8 agent client TCP
+connections. Every path completed 3,072 verified responses with zero errors or
+503s, followed by a successful 512-request recovery phase. Peak p2pstream RSS
+was 192 MiB for direct H1, 193 MiB for direct H2, 319 MiB for agent H1 and
+394 MiB for agent H2. The agent fixture includes the server and real in-process
+agent in one process. After agent H1, about 1,536 origin keep-alive sockets
+remained pooled; the recovery workload succeeded, but RSS stayed near 398 MiB
+and 1,592 socket descriptors remained after the later agent recovery sample.
+This is functional admission recovery with retained idle-pool resources, not
+resident-memory recovery. The run had no 1 GiB ballast, so it does not by
+itself reproduce the incident's estimated 28% starting headroom.
+
+```sh
+scripts/qualify-proxy-performance.sh --smoke
+scripts/qualify-proxy-performance.sh \
+  --baseline-binary tmp/proxy-qualification/bin/server-ee1aba7.test \
+  --candidate-label candidate
+```
+
+The harness does not establish universal reverse-proxy parity. It is a
+loopback, single-host comparison without WAN loss, network namespaces, cache
+hits, WAF rules, WebSockets, retries, or mixed tenant traffic. CPU affinity
+reduces local scheduler variance but origin/load work can still contend for
+shared caches and memory bandwidth. Use the WAN regression and workload-specific
+production profiling alongside these results.
 
 ## Earlier transport measurements
 
