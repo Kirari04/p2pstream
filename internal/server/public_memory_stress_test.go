@@ -146,7 +146,9 @@ func TestPublicAdmissionControlledMemoryPressure(t *testing.T) {
 	stressRequireIsolatedCgroup(t)
 	oomBefore, killBefore := stressOOMEvents(t)
 	initial := stressCgroupValue(t, publicMemoryStressCgroup+"memory.current", "")
-	const targetBaseline = int64(376 << 20)
+	// Leave room below the controller's 75% recovery threshold for app and
+	// connection setup overhead, which varies across kernels and CI runners.
+	const targetBaseline = int64(352 << 20)
 	if initial >= targetBaseline {
 		t.Fatalf("unexpected initial memory charge %d", initial)
 	}
@@ -202,12 +204,14 @@ func TestPublicAdmissionControlledMemoryPressure(t *testing.T) {
 	deadline = time.Now().Add(5 * time.Second)
 	recovered := false
 	for time.Now().Before(deadline) {
-		app.agentStreamCapacity.refreshAdaptiveCapacity(true)
+		sample := app.agentStreamCapacity.refreshAdaptiveCapacity(true)
 		release, ok, _ := app.tryReservePublicResource(1152<<10, 1)
 		if ok {
 			release()
-			recovered = true
-			break
+			if sample.Level == sysmetrics.MemoryPressureHealthy {
+				recovered = true
+				break
+			}
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
