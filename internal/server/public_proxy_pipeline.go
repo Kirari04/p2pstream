@@ -887,7 +887,11 @@ func cacheLookupStage(ctx *publicProxyContext) publicProxyStageResult {
 		ctx.App.servePublicCacheHit(ctx.ResponseWriter, ctx.Request, ctx.Resolution, ctx.Trace, trafficShaperDecisionIfSelected(ctx.TrafficShaperDecision, ctx.TrafficShaperSelected), decision, ctx.Observability)
 		return publicProxyStageDone
 	case publicCacheStatusMiss:
-		ctx.CacheDecision = &decision
+		// Only a miss retains the decision during forwarding. Keeping this
+		// copy separate lets bypasses use stack storage, including listeners
+		// with caching disabled.
+		retainedDecision := decision
+		ctx.CacheDecision = &retainedDecision
 		if ctx.Trace != nil {
 			ctx.Trace.emit(
 				p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_CACHE_MISS,
