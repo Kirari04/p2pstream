@@ -1,0 +1,49 @@
+{
+  "acceptance": {
+    "admission_rejected_under_pressure": true,
+    "control_progress_during_pressure": false,
+    "functional_recovery": true,
+    "no_oom": true,
+    "pressure_reached": true
+  },
+  "baseline_control_roundtrip": {
+    "error": "",
+    "error_kind": "success",
+    "http_status": 200,
+    "ok": true,
+    "server_control_capacity": 64,
+    "server_control_in_use_after": 0,
+    "server_control_in_use_before": 0,
+    "server_total_in_use_after": 0,
+    "server_total_in_use_before": 0,
+    "skipped": false,
+    "status_code": 200
+  },
+  "pressure_ballast_mib": 3712,
+  "pressure_control_roundtrip": {
+    "error": "Get \"http://10.212.0.2:33199/health\": agent_resource_pressure: agent is temporarily limiting new tunnel requests to its live resource allowance",
+    "error_kind": "agent_resource_pressure",
+    "http_status": 503,
+    "ok": false,
+    "server_control_capacity": 64,
+    "server_control_in_use_after": 0,
+    "server_control_in_use_before": 0,
+    "server_total_in_use_after": 0,
+    "server_total_in_use_before": 0,
+    "skipped": true,
+    "status_code": 0
+  },
+  "recovery_control_roundtrip": {
+    "error": "",
+    "error_kind": "success",
+    "http_status": 200,
+    "ok": true,
+    "server_control_capacity": 64,
+    "server_control_in_use_after": 1,
+    "server_control_in_use_before": 0,
+    "server_total_in_use_after": 1,
+    "server_total_in_use_before": 0,
+    "skipped": false,
+    "status_code": 200
+  }
+}
