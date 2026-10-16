@@ -1,0 +1,10 @@
+gofmt_diff_lines=0
+focused_normal_exit=0 each_top_level=50/50
+focused_race_exit=0 each_top_level=20/20 race_reports=0
+original_normal_exit=0 passes=100/100
+original_race_exit=0 passes=20/20 race_reports=0
+first_full_normal_exit=1 failure=TestSession_PartialReadWindowUpdate terminal-ordering fixture conflict
+mechanical_phase1_normal=5/5 race=5/5 race_reports=0
+mechanical_final_boundedwait_normal=5/5 race=5/5 race_reports=0
+full_normal_after_fix_exit=0 package=PASS
+full_race_short_exit=0 package=PASS skips=2 race_reports=0

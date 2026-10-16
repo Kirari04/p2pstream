@@ -1,0 +1,517 @@
+diff --git a/third_party/yamux/session_test.go b/third_party/yamux/session_test.go
+index 7cd09e2..bd5f0d2 100644
+--- a/third_party/yamux/session_test.go
++++ b/third_party/yamux/session_test.go
+@@ -966,15 +966,18 @@ func TestHalfCloseSessionShutdown(t *testing.T) {
+ 	}
+ 
+ 	buf := make([]byte, dataSize)
+-	n, err := stream2.Read(buf)
++	n, err := io.ReadFull(stream2, buf)
+ 	if err != nil {
+ 		t.Fatalf("err: %v", err)
+ 	}
+-	if int64(n) != dataSize {
+-		t.Fatalf("bad: %v", n)
++	if n != len(data) {
++		t.Fatalf("read bytes: got %d, want %d", n, len(data))
++	}
++	if !bytes.Equal(buf, data) {
++		t.Fatal("read payload differs from written payload")
+ 	}
+ 
+-	// EOF after close
++	// EOF after all accepted payload has drained.
+ 	n, err = stream2.Read(buf)
+ 	if err != io.EOF {
+ 		t.Fatalf("err: %v", err)
+diff --git a/third_party/yamux/stream.go b/third_party/yamux/stream.go
+index 96a3103..e567710 100644
+--- a/third_party/yamux/stream.go
++++ b/third_party/yamux/stream.go
+@@ -175,6 +175,18 @@ START:
+ 
+ 	// Send a window update potentially
+ 	err = s.sendWindowUpdate()
++	if err != nil && n > 0 {
++		// A peer FIN or terminal session transition can become visible while
++		// the synchronous credit write is blocked. The bytes already returned
++		// remain valid, and a terminal receive side cannot consume more
++		// per-stream credit.
++		s.stateLock.Lock()
++		switch s.state {
++		case streamRemoteClose, streamClosed:
++			err = nil
++		}
++		s.stateLock.Unlock()
++	}
+ 	if err == ErrSessionShutdown {
+ 		err = nil
+ 	}
+@@ -434,6 +446,16 @@ func (s *Stream) sendWindowUpdateMode(force bool) error {
+ 	var bufLen uint32
+ 	s.stateLock.Lock()
+ 	s.recvLock.Lock()
++	// Aggregate storage and session-wide credit are returned by Read before
++	// this per-stream update. Once peer FIN or a terminal session transition is
++	// visible, no sender can consume more per-stream credit, so publishing it
++	// is obsolete.
++	switch s.state {
++	case streamRemoteClose, streamClosed:
++		s.recvLock.Unlock()
++		s.stateLock.Unlock()
++		return nil
++	}
+ 	if s.session.aggregateEnabled() {
+ 		bufLen = uint32(s.aggregateBuffered)
+ 	} else if s.recvBuf != nil {
+diff --git a/third_party/yamux/half_close_buffered_drain_test.go b/third_party/yamux/half_close_buffered_drain_test.go
+new file mode 100644
+index 0000000..c543b87
+--- /dev/null
++++ b/third_party/yamux/half_close_buffered_drain_test.go
+@@ -0,0 +1,444 @@
++package yamux
++
++import (
++	"bytes"
++	"errors"
++	"io"
++	"log"
++	"sync"
++	"testing"
++	"time"
++)
++
++type gatedWindowUpdateErrorConn struct {
++	err error
++
++	entered chan struct{}
++	release chan struct{}
++
++	enterOnce   sync.Once
++	releaseOnce sync.Once
++	mu          sync.Mutex
++	writes      [][]byte
++}
++
++func newGatedWindowUpdateErrorConn(err error, blocked bool) *gatedWindowUpdateErrorConn {
++	c := &gatedWindowUpdateErrorConn{
++		err:     err,
++		entered: make(chan struct{}),
++		release: make(chan struct{}),
++	}
++	if !blocked {
++		c.releaseWrite()
++	}
++	return c
++}
++
++func (*gatedWindowUpdateErrorConn) Read([]byte) (int, error) { return 0, io.EOF }
++func (*gatedWindowUpdateErrorConn) Close() error             { return nil }
++
++func (c *gatedWindowUpdateErrorConn) Write(p []byte) (int, error) {
++	frame := append([]byte(nil), p...)
++	c.mu.Lock()
++	c.writes = append(c.writes, frame)
++	c.mu.Unlock()
++	c.enterOnce.Do(func() { close(c.entered) })
++	<-c.release
++	return 0, c.err
++}
++
++func (c *gatedWindowUpdateErrorConn) releaseWrite() {
++	c.releaseOnce.Do(func() { close(c.release) })
++}
++
++func (c *gatedWindowUpdateErrorConn) frames() [][]byte {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	frames := make([][]byte, len(c.writes))
++	for i := range c.writes {
++		frames[i] = append([]byte(nil), c.writes[i]...)
++	}
++	return frames
++}
++
++type bufferedDrainReadResult struct {
++	n   int
++	err error
++	buf []byte
++}
++
++func newLegacyBufferedDrainStream(t *testing.T, conn io.ReadWriteCloser, payload []byte) (*Session, *Stream, <-chan error, func()) {
++	t.Helper()
++	return newLegacyBufferedDrainStreamState(t, conn, payload, streamEstablished)
++}
++
++func newLegacyBufferedDrainStreamState(t *testing.T, conn io.ReadWriteCloser, payload []byte, state streamState) (*Session, *Stream, <-chan error, func()) {
++	t.Helper()
++	config := testConfNoKeepAlive()
++	config.ConnectionWriteTimeout = time.Second
++	session := &Session{
++		config:     config,
++		logger:     log.New(io.Discard, "", 0),
++		conn:       conn,
++		sendCh:     make(chan *sendReady, 1),
++		controlCh:  make(chan *sendReady, 1),
++		sendDoneCh: make(chan struct{}),
++		shutdownCh: make(chan struct{}),
++	}
++	stream := newStream(session, 1, state)
++	copied, accepted, err := stream.readDataPayload(uint32(len(payload)), bytes.NewReader(payload))
++	if err != nil || !accepted || copied != uint32(len(payload)) {
++		t.Fatalf("buffer payload copied=%d accepted=%t err=%v", copied, accepted, err)
++	}
++
++	loopDone := make(chan error, 1)
++	go func() { loopDone <- session.sendLoop() }()
++	var stopOnce sync.Once
++	stop := func() {
++		stopOnce.Do(func() {
++			close(session.shutdownCh)
++			select {
++			case <-session.sendDoneCh:
++			case <-time.After(time.Second):
++				t.Error("send loop did not stop")
++			}
++		})
++	}
++	t.Cleanup(stop)
++	return session, stream, loopDone, stop
++}
++
++func readBufferedDrainChunk(stream *Stream, size int) bufferedDrainReadResult {
++	buf := make([]byte, size)
++	n, err := stream.Read(buf)
++	return bufferedDrainReadResult{n: n, err: err, buf: buf}
++}
++
++func requireBufferedDrainChunk(t *testing.T, result bufferedDrainReadResult, want []byte) {
++	t.Helper()
++	got := result.buf[:result.n]
++	if result.err == nil && result.n == len(want) && bytes.Equal(got, want) {
++		return
++	}
++	prefixLen := len(got)
++	if len(want) < prefixLen {
++		prefixLen = len(want)
++	}
++	if prefixLen > 16 {
++		prefixLen = 16
++	}
++	t.Fatalf("Read n=%d want=%d err=%v prefix_match=%t got_prefix=%x want_prefix=%x",
++		result.n, len(want), result.err, bytes.Equal(got[:prefixLen], want[:prefixLen]), got[:prefixLen], want[:prefixLen])
++}
++
++func awaitBufferedDrainLoop(t *testing.T, loopDone <-chan error) error {
++	t.Helper()
++	select {
++	case err := <-loopDone:
++		return err
++	case <-time.After(time.Second):
++		t.Fatal("send loop did not return")
++		return nil
++	}
++}
++
++func requireSingleWindowUpdate(t *testing.T, conn *gatedWindowUpdateErrorConn, streamID, delta uint32) {
++	t.Helper()
++	frames := conn.frames()
++	if len(frames) != 1 {
++		t.Fatalf("physical writes=%d want=1", len(frames))
++	}
++	if len(frames[0]) != headerSize {
++		t.Fatalf("physical write length=%d want=%d", len(frames[0]), headerSize)
++	}
++	hdr := header(frames[0])
++	if hdr.MsgType() != typeWindowUpdate || hdr.Flags() != 0 || hdr.StreamID() != streamID || hdr.Length() != delta {
++		t.Fatalf("physical write type=%d flags=%d stream=%d delta=%d", hdr.MsgType(), hdr.Flags(), hdr.StreamID(), hdr.Length())
++	}
++}
++
++func drainBufferedHalfClose(t *testing.T, stream *Stream, payload []byte, offset, chunkSize int) {
++	t.Helper()
++	for offset < len(payload) {
++		end := offset + chunkSize
++		if end > len(payload) {
++			end = len(payload)
++		}
++		result := readBufferedDrainChunk(stream, end-offset)
++		requireBufferedDrainChunk(t, result, payload[offset:end])
++		offset = end
++	}
++	if n, err := stream.Read(make([]byte, 1)); n != 0 || err != io.EOF {
++		t.Fatalf("terminal Read n=%d err=%v want EOF", n, err)
++	}
++	if buffered, _ := stream.ReceiveBufferStats(); buffered != 0 {
++		t.Fatalf("terminal buffered bytes=%d want=0", buffered)
++	}
++}
++
++func TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate(t *testing.T) {
++	writeErr := errors.New("injected reverse window update failure")
++	conn := newGatedWindowUpdateErrorConn(writeErr, false)
++	payload := bytes.Repeat([]byte{0x5a}, int(initialStreamWindow))
++	session, stream, loopDone, stop := newLegacyBufferedDrainStream(t, conn, payload)
++	if err := stream.processFinalFINAfterPayload(); err != nil {
++		t.Fatalf("publish FIN: %v", err)
++	}
++
++	chunkSize := int(initialStreamWindow / 8)
++	drainBufferedHalfClose(t, stream, payload, 0, chunkSize)
++	stop()
++	if err := awaitBufferedDrainLoop(t, loopDone); err != nil {
++		t.Fatalf("send loop: %v", err)
++	}
++	if frames := conn.frames(); len(frames) != 0 {
++		t.Fatalf("terminal stream published %d obsolete window updates", len(frames))
++	}
++	if stream.recvWindow != 0 {
++		t.Fatalf("terminal receive credit=%d want=0", stream.recvWindow)
++	}
++	if queued := len(session.sendCh); queued != 0 {
++		t.Fatalf("terminal send queue retained %d headers", queued)
++	}
++}
++
++func TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError(t *testing.T) {
++	writeErr := errors.New("injected reverse window update failure")
++	conn := newGatedWindowUpdateErrorConn(writeErr, true)
++	payload := bytes.Repeat([]byte{0x6b}, int(initialStreamWindow))
++	session, stream, loopDone, stop := newLegacyBufferedDrainStream(t, conn, payload)
++	defer conn.releaseWrite()
++
++	chunkSize := int(initialStreamWindow / 8)
++	first := readBufferedDrainChunk(stream, chunkSize)
++	requireBufferedDrainChunk(t, first, payload[:chunkSize])
++
++	secondDone := make(chan bufferedDrainReadResult, 1)
++	go func() { secondDone <- readBufferedDrainChunk(stream, chunkSize) }()
++	select {
++	case <-conn.entered:
++	case <-time.After(time.Second):
++		t.Fatal("quarter-window update did not reach the physical writer")
++	}
++	// Publish the already-accepted FIN before releasing the physical write.
++	// The application observes terminal stream state when the write error is
++	// returned, even though the update began while the stream was established.
++	if err := stream.processFinalFINAfterPayload(); err != nil {
++		t.Fatalf("publish pending FIN: %v", err)
++	}
++	conn.releaseWrite()
++
++	var second bufferedDrainReadResult
++	select {
++	case second = <-secondDone:
++	case <-time.After(time.Second):
++		t.Fatal("Read did not return after reverse write failed")
++	}
++	requireBufferedDrainChunk(t, second, payload[chunkSize:2*chunkSize])
++	if err := awaitBufferedDrainLoop(t, loopDone); !errors.Is(err, writeErr) {
++		t.Fatalf("send loop error=%v want=%v", err, writeErr)
++	}
++	stop()
++
++	drainBufferedHalfClose(t, stream, payload, 2*chunkSize, chunkSize)
++	requireSingleWindowUpdate(t, conn, stream.id, initialStreamWindow/4)
++	if stream.recvWindow != initialStreamWindow/4 {
++		t.Fatalf("terminal receive credit=%d want=%d", stream.recvWindow, initialStreamWindow/4)
++	}
++	if queued := len(session.sendCh); queued != 0 {
++		t.Fatalf("terminal send queue retained %d headers", queued)
++	}
++}
++
++func TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN(t *testing.T) {
++	writeErr := errors.New("injected pre-FIN reverse window update failure")
++	conn := newGatedWindowUpdateErrorConn(writeErr, true)
++	payload := bytes.Repeat([]byte{0x71}, int(initialStreamWindow))
++	_, stream, loopDone, stop := newLegacyBufferedDrainStream(t, conn, payload)
++	defer conn.releaseWrite()
++
++	chunkSize := int(initialStreamWindow / 8)
++	first := readBufferedDrainChunk(stream, chunkSize)
++	requireBufferedDrainChunk(t, first, payload[:chunkSize])
++
++	secondDone := make(chan bufferedDrainReadResult, 1)
++	go func() { secondDone <- readBufferedDrainChunk(stream, chunkSize) }()
++	select {
++	case <-conn.entered:
++	case <-time.After(time.Second):
++		t.Fatal("quarter-window update did not reach the physical writer")
++	}
++	// Release the error while FIN is deliberately still unprocessed. This is
++	// live-stream ordering: the caller must see the reverse-write failure.
++	conn.releaseWrite()
++
++	var second bufferedDrainReadResult
++	select {
++	case second = <-secondDone:
++	case <-time.After(time.Second):
++		t.Fatal("pre-FIN Read did not return after reverse write failed")
++	}
++	if second.n != chunkSize || !bytes.Equal(second.buf[:second.n], payload[chunkSize:2*chunkSize]) || !errors.Is(second.err, writeErr) {
++		prefixLen := second.n
++		if prefixLen > 16 {
++			prefixLen = 16
++		}
++		t.Fatalf("pre-FIN Read n=%d want=%d err=%v prefix_match=%t got_prefix=%x want_prefix=%x",
++			second.n, chunkSize, second.err,
++			bytes.Equal(second.buf[:prefixLen], payload[chunkSize:chunkSize+prefixLen]),
++			second.buf[:prefixLen], payload[chunkSize:chunkSize+prefixLen])
++	}
++	if err := awaitBufferedDrainLoop(t, loopDone); !errors.Is(err, writeErr) {
++		t.Fatalf("send loop error=%v want=%v", err, writeErr)
++	}
++	stop()
++
++	if err := stream.processFinalFINAfterPayload(); err != nil {
++		t.Fatalf("publish FIN after observed write error: %v", err)
++	}
++	drainBufferedHalfClose(t, stream, payload, 2*chunkSize, chunkSize)
++	requireSingleWindowUpdate(t, conn, stream.id, initialStreamWindow/4)
++	if stream.recvWindow != initialStreamWindow/4 {
++		t.Fatalf("terminal receive credit=%d want=%d", stream.recvWindow, initialStreamWindow/4)
++	}
++}
++
++func TestLegacyLiveStreamStillReturnsWindowUpdateFailure(t *testing.T) {
++	for _, test := range []struct {
++		name  string
++		state streamState
++	}{
++		{name: "established", state: streamEstablished},
++		{name: "local_half_close", state: streamLocalClose},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			writeErr := errors.New("injected live reverse window update failure")
++			conn := newGatedWindowUpdateErrorConn(writeErr, true)
++			payload := bytes.Repeat([]byte{0x7c}, int(initialStreamWindow))
++			_, stream, loopDone, stop := newLegacyBufferedDrainStreamState(t, conn, payload, test.state)
++			defer conn.releaseWrite()
++
++			chunkSize := int(initialStreamWindow / 8)
++			first := readBufferedDrainChunk(stream, chunkSize)
++			requireBufferedDrainChunk(t, first, payload[:chunkSize])
++
++			secondDone := make(chan bufferedDrainReadResult, 1)
++			go func() { secondDone <- readBufferedDrainChunk(stream, chunkSize) }()
++			select {
++			case <-conn.entered:
++			case <-time.After(time.Second):
++				t.Fatal("quarter-window update did not reach the physical writer")
++			}
++			conn.releaseWrite()
++
++			var second bufferedDrainReadResult
++			select {
++			case second = <-secondDone:
++			case <-time.After(time.Second):
++				t.Fatal("live Read did not return after reverse write failed")
++			}
++			if second.n != chunkSize || !bytes.Equal(second.buf[:second.n], payload[chunkSize:2*chunkSize]) || !errors.Is(second.err, writeErr) {
++				t.Fatalf("live Read n=%d err=%v want n=%d err=%v", second.n, second.err, chunkSize, writeErr)
++			}
++			if err := awaitBufferedDrainLoop(t, loopDone); !errors.Is(err, writeErr) {
++				t.Fatalf("send loop error=%v want=%v", err, writeErr)
++			}
++			stop()
++			requireSingleWindowUpdate(t, conn, stream.id, initialStreamWindow/4)
++			if buffered, _ := stream.ReceiveBufferStats(); buffered != uint64(len(payload)-2*chunkSize) {
++				t.Fatalf("live buffered bytes=%d want=%d", buffered, len(payload)-2*chunkSize)
++			}
++			if stream.recvWindow != initialStreamWindow/4 {
++				t.Fatalf("live receive credit=%d want=%d", stream.recvWindow, initialStreamWindow/4)
++			}
++		})
++	}
++}
++
++func TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow(t *testing.T) {
++	conn := newGatherRecordingConn()
++	session := newAggregateUnitSession(nil)
++	session.conn = conn
++	session.sendCh = make(chan *sendReady, 8)
++	session.controlCh = make(chan *sendReady, 8)
++	session.sendDoneCh = make(chan struct{})
++	loopDone := make(chan error, 1)
++	go func() { loopDone <- session.sendLoop() }()
++	go session.publishAggregateCredit()
++
++	var stopOnce sync.Once
++	stop := func() {
++		stopOnce.Do(func() {
++			close(session.shutdownCh)
++			select {
++			case <-session.aggregate.publishDone:
++			case <-time.After(time.Second):
++				t.Error("aggregate refund publisher did not stop")
++			}
++			if err := awaitBufferedDrainLoop(t, loopDone); err != nil {
++				t.Errorf("send loop: %v", err)
++			}
++		})
++	}
++	t.Cleanup(stop)
++
++	payload := bytes.Repeat([]byte{0x3d}, int(initialStreamWindow))
++	stream := newStream(session, 1, streamEstablished)
++	session.streams[stream.id] = stream
++	for offset := 0; offset < len(payload); {
++		length := int(AggregateMaxDataFrameSize)
++		if remaining := len(payload) - offset; remaining < length {
++			length = remaining
++		}
++		charge, err := session.reserveAggregateReceive(stream, uint32(length))
++		if err != nil {
++			t.Fatalf("reserve aggregate frame at %d: %v", offset, err)
++		}
++		copied, accepted, err := stream.readAggregateDataPayload(uint32(length), charge, bytes.NewReader(payload[offset:offset+length]))
++		if err != nil || !accepted || copied != uint32(length) {
++			t.Fatalf("aggregate frame at %d copied=%d accepted=%t err=%v", offset, copied, accepted, err)
++		}
++		offset += length
++	}
++	if err := stream.processFinalFINAfterPayload(); err != nil {
++		t.Fatalf("publish aggregate FIN: %v", err)
++	}
++
++	before := session.AggregateReceiveWindowStats()
++	if before.ReceiveAvailable != testAggregateInitial-initialStreamWindow ||
++		before.BufferedUnits != initialStreamWindow/AggregateWindowUnitSize ||
++		stream.allocationRecvWindow != 0 || stream.recvWindow != 0 {
++		t.Fatalf("before drain stats=%+v allocation=%d byte_credit=%d", before, stream.allocationRecvWindow, stream.recvWindow)
++	}
++	result := readBufferedDrainChunk(stream, len(payload))
++	requireBufferedDrainChunk(t, result, payload)
++	if n, err := stream.Read(make([]byte, 1)); n != 0 || err != io.EOF {
++		t.Fatalf("terminal aggregate Read n=%d err=%v want EOF", n, err)
++	}
++	select {
++	case <-conn.wrote:
++	case <-time.After(time.Second):
++		t.Fatal("session-global aggregate refund was not written")
++	}
++	stop()
++
++	conn.mu.Lock()
++	frames := append([][]byte(nil), conn.writes...)
++	conn.mu.Unlock()
++	if len(frames) != 1 {
++		t.Fatalf("aggregate refund writes=%d want=1", len(frames))
++	}
++	if len(frames[0]) != headerSize {
++		t.Fatalf("aggregate refund bytes=%d want=%d", len(frames[0]), headerSize)
++	}
++	hdr := header(frames[0])
++	if hdr.MsgType() != typeWindowUpdate || hdr.Flags() != 0 || hdr.StreamID() != 0 || hdr.Length() != initialStreamWindow {
++		t.Fatalf("aggregate refund type=%d flags=%d stream=%d delta=%d", hdr.MsgType(), hdr.Flags(), hdr.StreamID(), hdr.Length())
++	}
++	after := session.AggregateReceiveWindowStats()
++	if after.ReceiveAvailable != testAggregateInitial || after.PendingRefund != 0 ||
++		after.BufferedUnits != 0 || after.FreeUnits != after.TotalUnits ||
++		stream.allocationRecvWindow != 0 || stream.recvWindow != 0 {
++		t.Fatalf("after drain stats=%+v allocation=%d byte_credit=%d", after, stream.allocationRecvWindow, stream.recvWindow)
++	}
++}

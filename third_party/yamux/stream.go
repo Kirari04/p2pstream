@@ -175,6 +175,18 @@ START:
 
 	// Send a window update potentially
 	err = s.sendWindowUpdate()
+	if err != nil && n > 0 {
+		// A peer FIN or terminal session transition can become visible while
+		// the synchronous credit write is blocked. The bytes already returned
+		// remain valid, and a terminal receive side cannot consume more
+		// per-stream credit.
+		s.stateLock.Lock()
+		switch s.state {
+		case streamRemoteClose, streamClosed:
+			err = nil
+		}
+		s.stateLock.Unlock()
+	}
 	if err == ErrSessionShutdown {
 		err = nil
 	}
@@ -434,6 +446,16 @@ func (s *Stream) sendWindowUpdateMode(force bool) error {
 	var bufLen uint32
 	s.stateLock.Lock()
 	s.recvLock.Lock()
+	// Aggregate storage and session-wide credit are returned by Read before
+	// this per-stream update. Once peer FIN or a terminal session transition is
+	// visible, no sender can consume more per-stream credit, so publishing it
+	// is obsolete.
+	switch s.state {
+	case streamRemoteClose, streamClosed:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return nil
+	}
 	if s.session.aggregateEnabled() {
 		bufLen = uint32(s.aggregateBuffered)
 	} else if s.recvBuf != nil {

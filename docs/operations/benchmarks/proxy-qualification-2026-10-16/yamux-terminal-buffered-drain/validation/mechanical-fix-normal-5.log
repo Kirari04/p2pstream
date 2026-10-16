@@ -1,0 +1,107 @@
+=== RUN   TestSession_PartialReadWindowUpdate
+=== RUN   TestSession_PartialReadWindowUpdate/Pipes
+    session_test.go:1556: drain took 288.271µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TCP
+    session_test.go:101: Connecting to tcp: [::]:43529
+    session_test.go:1556: drain took 499.813µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TCP_Reverse
+    session_test.go:101: Connecting to tcp: [::]:33723
+    session_test.go:1556: drain took 1.276865ms (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TLS
+    session_test.go:143: Connecting to tcp: [::]:46395
+    session_test.go:1556: drain took 1.467907ms (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TLS_Reverse
+    session_test.go:143: Connecting to tcp: [::]:44825
+    session_test.go:1556: drain took 933.977µs (timeout was 0s)
+--- PASS: TestSession_PartialReadWindowUpdate (10.02s)
+    --- PASS: TestSession_PartialReadWindowUpdate/Pipes (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TCP (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TCP_Reverse (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TLS (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TLS_Reverse (2.00s)
+=== RUN   TestSession_PartialReadWindowUpdate
+=== RUN   TestSession_PartialReadWindowUpdate/Pipes
+    session_test.go:1556: drain took 796.44µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TCP
+    session_test.go:101: Connecting to tcp: [::]:39313
+    session_test.go:1556: drain took 972.532µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TCP_Reverse
+    session_test.go:101: Connecting to tcp: [::]:41961
+    session_test.go:1556: drain took 494.663µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TLS
+    session_test.go:143: Connecting to tcp: [::]:38377
+    session_test.go:1556: drain took 1.43384ms (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TLS_Reverse
+    session_test.go:143: Connecting to tcp: [::]:46337
+    session_test.go:1556: drain took 583.766µs (timeout was 0s)
+--- PASS: TestSession_PartialReadWindowUpdate (10.02s)
+    --- PASS: TestSession_PartialReadWindowUpdate/Pipes (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TCP (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TCP_Reverse (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TLS (2.01s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TLS_Reverse (2.00s)
+=== RUN   TestSession_PartialReadWindowUpdate
+=== RUN   TestSession_PartialReadWindowUpdate/Pipes
+    session_test.go:1556: drain took 680.113µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TCP
+    session_test.go:101: Connecting to tcp: [::]:44737
+    session_test.go:1556: drain took 832.86µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TCP_Reverse
+    session_test.go:101: Connecting to tcp: [::]:33965
+    session_test.go:1556: drain took 1.226847ms (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TLS
+    session_test.go:143: Connecting to tcp: [::]:36523
+    session_test.go:1556: drain took 441.63µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TLS_Reverse
+    session_test.go:143: Connecting to tcp: [::]:44285
+    session_test.go:1556: drain took 397.704µs (timeout was 0s)
+--- PASS: TestSession_PartialReadWindowUpdate (10.02s)
+    --- PASS: TestSession_PartialReadWindowUpdate/Pipes (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TCP (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TCP_Reverse (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TLS (2.01s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TLS_Reverse (2.00s)
+=== RUN   TestSession_PartialReadWindowUpdate
+=== RUN   TestSession_PartialReadWindowUpdate/Pipes
+    session_test.go:1556: drain took 133.069µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TCP
+    session_test.go:101: Connecting to tcp: [::]:45769
+    session_test.go:1556: drain took 645.025µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TCP_Reverse
+    session_test.go:101: Connecting to tcp: [::]:39931
+    session_test.go:1556: drain took 429.506µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TLS
+    session_test.go:143: Connecting to tcp: [::]:44921
+    session_test.go:1556: drain took 338.638µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TLS_Reverse
+    session_test.go:143: Connecting to tcp: [::]:41047
+    session_test.go:1556: drain took 365.712µs (timeout was 0s)
+--- PASS: TestSession_PartialReadWindowUpdate (10.02s)
+    --- PASS: TestSession_PartialReadWindowUpdate/Pipes (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TCP (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TCP_Reverse (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TLS (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TLS_Reverse (2.01s)
+=== RUN   TestSession_PartialReadWindowUpdate
+=== RUN   TestSession_PartialReadWindowUpdate/Pipes
+    session_test.go:1556: drain took 161.324µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TCP
+    session_test.go:101: Connecting to tcp: [::]:39903
+    session_test.go:1556: drain took 1.077277ms (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TCP_Reverse
+    session_test.go:101: Connecting to tcp: [::]:38935
+    session_test.go:1556: drain took 377.124µs (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TLS
+    session_test.go:143: Connecting to tcp: [::]:38295
+    session_test.go:1556: drain took 1.34664ms (timeout was 0s)
+=== RUN   TestSession_PartialReadWindowUpdate/TLS_Reverse
+    session_test.go:143: Connecting to tcp: [::]:42155
+    session_test.go:1556: drain took 887.447µs (timeout was 0s)
+--- PASS: TestSession_PartialReadWindowUpdate (10.02s)
+    --- PASS: TestSession_PartialReadWindowUpdate/Pipes (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TCP (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TCP_Reverse (2.00s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TLS (2.01s)
+    --- PASS: TestSession_PartialReadWindowUpdate/TLS_Reverse (2.01s)
+PASS
+ok  	github.com/hashicorp/yamux	50.094s

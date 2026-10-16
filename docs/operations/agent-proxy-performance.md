@@ -677,6 +677,18 @@ HTTP transport; it does not clear the original proxy WAN regression. The
 [transport-ceiling evidence](benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/README.md)
 also preserves original fixture failures and the uncombined partial attempt.
 
+A subsequent CI shutdown failure exposed a synchronous per-stream credit write
+interrupting reads of accepted buffered data after FIN or terminal session state.
+The fix skips obsolete terminal credit and rechecks state when a credit write
+fails after returning bytes. Live/local-half-close errors and aggregate
+session-wide refunds remain covered by deterministic controls. Five new tests
+pass normal ×50/race ×20; the original TLS case passes normal ×100/race ×20;
+the full Yamux normal and race-short suites pass. An older live-credit test now
+holds its writer open through the unchanged credit assertion. The
+[terminal buffered-drain evidence](benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/README.md)
+retains the initial CI and local failures. This is a correctness fix, with no
+WAN improvement claim; final integration races and current-head CI are separate.
+
 The fresh `248bad0` matched 36-row direct HTTPS reference is complete. Candidate
 throughput is 101–120% of Caddy across H1/H2 at concurrency 16/128, but only
 34–67% of HAProxy. All four original 80% HAProxy gates fail. Correctness,
@@ -687,6 +699,9 @@ uses the same CPU set on the host. Caddy's pinned official binary uses Go
 1.26.8; candidate/driver use Go 1.26.6. These are workload-specific throughput
 results, without a capacity or memory parity claim. See the
 [fresh reference evidence](benchmarks/proxy-qualification-2026-10-16/final-runtime-reference/README.md).
+Its IP-based H1 driver did not set explicit SNI or record observed certificate
+fingerprints. A later smoke exposed fallback-certificate selection, so the
+original reference does not qualify matched-certificate handshakes.
 
 The subsequent 36-row moderate-load HTTPS comparison also completed. Offered
 rates were fixed at half the lower candidate/HAProxy warmed median for each

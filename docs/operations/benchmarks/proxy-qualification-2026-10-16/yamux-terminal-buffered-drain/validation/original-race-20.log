@@ -1,0 +1,62 @@
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:44303
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:37131
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:45853
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:45951
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:36905
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:42677
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:42349
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:39195
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:41713
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:35437
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:43261
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:36085
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:44081
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:39507
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:34733
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:46745
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:38403
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:46815
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:44819
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:38683
+--- PASS: TestHalfCloseSessionShutdown (0.01s)
+PASS
+ok  	github.com/hashicorp/yamux	1.229s

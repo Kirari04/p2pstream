@@ -20,3 +20,9 @@ These results can carry forward only while the hashed module files and their
 module inputs remain byte-identical. Agent, tunnel and server integration races
 remain pending any retained physical-tunnel socket change. Passing these phases
 does not clear the repeated WAN download failure or establish performance parity.
+
+The later terminal buffered-drain correction changes Yamux inputs. Its module
+race results are recorded separately in
+[`../yamux-terminal-buffered-drain/README.md`](../yamux-terminal-buffered-drain/README.md);
+the frozen Yamux result here cannot carry across that change. System-metrics
+carry still requires byte-identical module inputs.

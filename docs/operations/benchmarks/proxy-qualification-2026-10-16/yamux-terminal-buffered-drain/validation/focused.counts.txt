@@ -1,0 +1,7 @@
+TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate normal=50/50 race=20/20
+TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError normal=50/50 race=20/20
+TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN normal=50/50 race=20/20
+TestLegacyLiveStreamStillReturnsWindowUpdateFailure normal=50/50 race=20/20
+TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow normal=50/50 race=20/20
+focused_normal_races=0
+focused_race_races=0

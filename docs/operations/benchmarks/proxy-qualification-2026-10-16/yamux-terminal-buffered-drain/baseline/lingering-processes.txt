@@ -1,0 +1,2 @@
+  66311   66233   66231 Sl+  go              go tool air serve:main
+3001051 3001049 3000529 Sl+  go              go tool air -c .air.toml

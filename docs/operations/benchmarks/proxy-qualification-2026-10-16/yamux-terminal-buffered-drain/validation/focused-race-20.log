@@ -1,0 +1,282 @@
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+PASS
+ok  	github.com/hashicorp/yamux	1.207s

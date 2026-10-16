@@ -44,6 +44,13 @@ H2 rows use one client connection; H1 includes initial connection/TLS setup.
 Independent review in `root-review.json` verifies every result and hash,
 delivery, payload/events, protocol topology and natural lifecycle.
 
+The original H1 driver sends no explicit SNI for its IP URL. These rows do not
+pin observed peer-certificate fingerprints; the calibration README records the
+later discovered fallback-certificate limitation. This matters particularly to
+claims about initial TLS establishment. The later explicit-SNI native control
+is a separate attribution experiment, without a direct causal comparison to
+these cells.
+
 These results support Caddy-class moderate-load latency for the tested direct
 tiny-GET workloads. They do not qualify latency near saturation or broad proxy
 parity. The substantial HAProxy advantage, its failed gates and the original

@@ -122,6 +122,15 @@ Shutdown reads drain accepted buffered data before returning a terminal error;
 empty reads and credit-blocked writes do not spin while cleanup completes, and
 read deadline changes still interrupt a pending reader join.
 
+Buffered reads do not publish further per-stream receive credit after peer FIN
+or terminal session closure. A FIN or terminal state observed while a credit
+write fails also preserves the bytes already read, allowing the remaining
+accepted buffer to drain. Live streams and local half-close retain credit-write
+error propagation; aggregate storage and session-wide refunds still run before
+this terminal per-stream check. A reverse write failure observed before FIN
+can still return bytes with an error. These rules do not promise graceful drain
+for every ordering of a physical connection failure.
+
 Aggregate lane zero is reserved for authenticated control work and uses bounded
 legacy per-stream DATA flow control; aggregate bulk lanes are numbered 1..N.
 The application currently uses its protected class for route health probes

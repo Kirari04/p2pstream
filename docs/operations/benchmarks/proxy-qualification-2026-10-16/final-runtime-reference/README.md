@@ -33,6 +33,16 @@ cgroups without swap. HAProxy uses the same CPU set on the host and does not
 have the 4 GiB container constraint. No memory or capacity parity follows from
 these throughput measurements. Temporary storage is owned ext4 throughout.
 
+The H1 driver uses an IP URL without explicit TLS SNI; overriding the HTTP Host
+header does not set SNI. This cohort did not record peer-certificate fingerprints.
+A later correctness smoke using the same production fixture/client behavior
+observed the app's generated fallback certificate, while the native control
+served the configured shared fixture certificate. The original reference
+therefore does not establish certificate-matched handshake behavior. Its raw
+measurements remain unchanged. The later native attribution uses explicit SNI
+and verifies the shared certificate in each arm; it is a separate experiment
+and cannot be compared causally with these no-SNI reference cells.
+
 Compilation completed in 11.36 seconds. The workload took 439.05 seconds.
 The complete manifests preserve actual commands, source tree/archive identity,
 Go environment, binary identities, timestamps, child exit and cleanup outcomes.

@@ -1,0 +1,1159 @@
+{
+  "raw_whitespace_findings": 192,
+  "authored_whitespace_findings": 0,
+  "raw_hashes_match_source_map": true,
+  "details": [
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 5,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 6,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 7,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 19,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 20,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 21,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 23,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 24,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 25,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 35,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 36,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 37,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 42,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 43,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 44,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 47,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 48,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 49,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 57,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 58,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 61,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 62,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/baseline/proposed-runtime-and-original-test.patch",
+      "line": 63,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 6,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 7,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 8,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 11,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 12,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 13,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 21,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 22,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 25,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 26,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 27,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 33,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 34,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 35,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 48,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 49,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 50,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 52,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 53,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 54,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 65,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 66,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/source-checkpoint/exact-three-file.diff",
+      "line": 67,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 6,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 7,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 8,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 11,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 12,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 13,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 21,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 22,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 25,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 26,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 27,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 29,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 30,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 31,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 45,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 46,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 47,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 49,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 50,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 51,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 53,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 54,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 55,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 56,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 57,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 58,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 60,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 61,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 62,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 64,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 65,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 66,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 69,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 70,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 71,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 73,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 74,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 75,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 91,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 92,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 103,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 105,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 111,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 112,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 113,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 126,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 127,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 128,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 130,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 131,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 132,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 143,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 144,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/final-three-file.diff",
+      "line": 145,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 4,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 5,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 6,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 20,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 21,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 22,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 24,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 25,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 26,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 28,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 29,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 30,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 31,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 32,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 33,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 35,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 36,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 37,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 39,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 40,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 41,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 44,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 45,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 46,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 48,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 49,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 50,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 61,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 63,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.diff",
+      "line": 63,
+      "reason": "new blank line at EOF.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 4,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 5,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 6,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 20,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 21,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 22,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 24,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 25,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 26,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 28,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 29,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 30,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 31,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 32,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 33,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 35,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 36,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 37,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 39,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 40,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 41,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 44,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 45,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 46,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 48,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 49,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 50,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 66,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 67,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 78,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 80,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.final.diff",
+      "line": 80,
+      "reason": "new blank line at EOF.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 4,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 5,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 6,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 20,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 21,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 22,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 24,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 25,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 26,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 28,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 29,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 30,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 31,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 32,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 33,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 35,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 36,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 37,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 39,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 40,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 41,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 44,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 45,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 46,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 48,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 49,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 50,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 61,
+      "reason": "space before tab in indent.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 63,
+      "reason": "trailing whitespace.",
+      "classification": "byte-identical raw patch context"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/yamux-terminal-buffered-drain/validation/partial-read-terminal-ordering.mechanical-fix.phase1.diff",
+      "line": 63,
+      "reason": "new blank line at EOF.",
+      "classification": "byte-identical raw patch context"
+    }
+  ]
+}

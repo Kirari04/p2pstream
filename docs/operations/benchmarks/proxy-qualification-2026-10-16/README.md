@@ -15,6 +15,10 @@ comparison.
 
 ## Files
 
+- [`yamux-terminal-buffered-drain/README.md`](yamux-terminal-buffered-drain/README.md)
+  records the terminal credit-write fix, deterministic failing baseline and
+  passing full normal/race-short suites. Its scope is buffered drain after
+  observed FIN or terminal session state; the WAN regression remains open.
 - [`final-runtime-reference/README.md`](final-runtime-reference/README.md)
   records the fresh `248bad0` matched 36-row HTTPS reference. Candidate reaches
   101–120% of Caddy and 34–67% of HAProxy; all HAProxy 80% gates fail.
@@ -30,7 +34,8 @@ comparison.
   cancellation cleanup. This lifecycle fix does not clear the WAN failure.
 - [`final-unchanged-module-races/README.md`](final-unchanged-module-races/README.md)
   preserves passing frozen-source Yamux and system-metrics race checks. Their
-  reuse requires byte-identical inputs; final integration races remain pending.
+  reuse requires byte-identical inputs. The terminal-drain fix changes Yamux,
+  which now has its own new module checks; final integration races remain pending.
 - [`final-runtime-tiny-response/README.md`](final-runtime-tiny-response/README.md)
   records the final `dc738e9` low-latency 24-row tiny-response pass.
 - [`final-runtime-standing-pools/README.md`](final-runtime-standing-pools/README.md)
@@ -242,6 +247,15 @@ HAProxy throughput and tail gates fail. A complete standalone transport
 diagnostic does not reproduce the original WAN stall and does not clear it.
 Final-runtime grown-pool pressure, combined 1,536-request recovery, final
 integration races and resolution of the original WAN failure remain outstanding.
+
+The subsequent CI shutdown failure exposes an obsolete per-stream credit write
+during accepted buffered drain. The terminal-state correction passes five new
+deterministic regressions, the original TLS test repetitions, and full Yamux
+normal/race-short suites. The original CI failure, baseline failures and the
+first full-suite fixture conflict are retained in the
+[terminal buffered-drain evidence](yamux-terminal-buffered-drain/README.md).
+This correctness fix does not clear the WAN failure or qualify performance for
+the changed runtime; frozen diagnostic binaries retain their original identities.
 
 The initial 1,400 and 1,536 failure rows used a 10-second barrier release equal
 to the upstream response-header timeout. Treat their origin high-water, owner
