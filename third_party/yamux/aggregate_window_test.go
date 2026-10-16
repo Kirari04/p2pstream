@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"net"
 	"runtime"
 	"sync"
@@ -16,6 +17,300 @@ import (
 	"time"
 	"unsafe"
 )
+
+func TestAggregateRandomizedLifecycleConservesSessionPool(t *testing.T) {
+	for _, seed := range []int64{1, 17, 99, 20261016} {
+		t.Run(fmt.Sprintf("seed_%d", seed), func(t *testing.T) {
+			random := rand.New(rand.NewSource(seed))
+			clientConn, serverConn := net.Pipe()
+			client, err := Client(clientConn, smallAggregateTestConfig())
+			if err != nil {
+				t.Fatal(err)
+			}
+			server, err := Server(serverConn, smallAggregateTestConfig())
+			if err != nil {
+				_ = client.Close()
+				t.Fatal(err)
+			}
+			defer client.Close()
+			defer server.Close()
+
+			const streamCount = 12
+			writers := make([]*Stream, streamCount)
+			readers := make([]*Stream, streamCount)
+			for i := 0; i < streamCount; i++ {
+				writers[i], err = client.OpenStream()
+				if err != nil {
+					t.Fatal(err)
+				}
+				readers[i], err = server.AcceptStream()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			type streamPlan struct {
+				chunks      [][]byte
+				expected    []byte
+				writerReset bool
+				readerReset bool
+				readSize    int
+			}
+			plans := make([]streamPlan, streamCount)
+			for i := range plans {
+				plans[i].writerReset = i%4 == 1
+				plans[i].readerReset = i%4 == 2
+				plans[i].readSize = 1 + random.Intn(6<<10)
+				for chunkIndex, chunkCount := 0, 4+random.Intn(8); chunkIndex < chunkCount; chunkIndex++ {
+					size := 1 + random.Intn(7<<10)
+					chunk := bytes.Repeat([]byte{byte(i + 1)}, size)
+					plans[i].chunks = append(plans[i].chunks, chunk)
+					plans[i].expected = append(plans[i].expected, chunk...)
+				}
+			}
+
+			monitorStop := make(chan struct{})
+			monitorDone := make(chan struct{})
+			monitorErr := make(chan error, 1)
+			go func() {
+				defer close(monitorDone)
+				ticker := time.NewTicker(100 * time.Microsecond)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-monitorStop:
+						return
+					case <-ticker.C:
+						stats := server.AggregateReceiveWindowStats()
+						if stats.FreeUnits+stats.BufferedUnits != stats.TotalUnits {
+							select {
+							case monitorErr <- fmt.Errorf("pool units free=%d buffered=%d total=%d", stats.FreeUnits, stats.BufferedUnits, stats.TotalUnits):
+							default:
+							}
+							return
+						}
+						if stats.ReceiveAvailable > stats.ReceiveLimit || stats.PendingRefund > uint64(stats.ReceiveLimit) {
+							select {
+							case monitorErr <- fmt.Errorf("credit stats %+v", stats):
+							default:
+							}
+							return
+						}
+					}
+				}
+			}()
+
+			start := make(chan struct{})
+			growthDone := make(chan struct{})
+			resultErr := make(chan error, streamCount*2+1)
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer close(growthDone)
+				<-start
+				runtime.Gosched()
+				if growErr := server.GrowReceiveWindow(128 << 10); growErr != nil {
+					resultErr <- fmt.Errorf("session growth: %w", growErr)
+					return
+				}
+				for i, reader := range readers {
+					if growErr := reader.GrowReceiveAllocationWindow(32 << 10); growErr != nil && !plans[i].writerReset && !plans[i].readerReset {
+						resultErr <- fmt.Errorf("clean stream %d allocation growth: %w", i, growErr)
+					}
+				}
+			}()
+			for i := 0; i < streamCount; i++ {
+				i, writer, reader, plan := i, writers[i], readers[i], plans[i]
+				deadline := time.Now().Add(2 * time.Second)
+				_ = writer.SetDeadline(deadline)
+				_ = reader.SetDeadline(deadline)
+				wg.Add(2)
+				go func() {
+					defer wg.Done()
+					<-start
+					for _, chunk := range plan.chunks {
+						if _, writeErr := writer.Write(chunk); writeErr != nil {
+							var netErr net.Error
+							if !plan.readerReset || errors.As(writeErr, &netErr) && netErr.Timeout() {
+								resultErr <- fmt.Errorf("stream %d write: %w", i, writeErr)
+							}
+							return
+						}
+					}
+					if !plan.writerReset && !plan.readerReset {
+						<-growthDone
+					}
+					if plan.writerReset {
+						if resetErr := writer.Reset(); resetErr != nil {
+							resultErr <- fmt.Errorf("stream %d writer reset: %w", i, resetErr)
+						}
+					} else if closeErr := writer.Close(); closeErr != nil && !plan.readerReset {
+						resultErr <- fmt.Errorf("stream %d writer close: %w", i, closeErr)
+					}
+				}()
+				go func() {
+					defer wg.Done()
+					<-start
+					buf := make([]byte, plan.readSize)
+					var received []byte
+					successfulReads := 0
+					for {
+						n, readErr := reader.Read(buf)
+						received = append(received, buf[:n]...)
+						if n > 0 {
+							successfulReads++
+						}
+						if plan.readerReset && successfulReads == 2 {
+							if resetErr := reader.Reset(); resetErr != nil {
+								resultErr <- fmt.Errorf("stream %d reader reset: %w", i, resetErr)
+							}
+							return
+						}
+						if readErr != nil {
+							if !plan.writerReset && !plan.readerReset {
+								if !errors.Is(readErr, io.EOF) {
+									resultErr <- fmt.Errorf("clean stream %d read terminal: %w", i, readErr)
+								} else if !bytes.Equal(received, plan.expected) {
+									resultErr <- fmt.Errorf("clean stream %d received %d bytes, want %d", i, len(received), len(plan.expected))
+								}
+							} else if plan.readerReset {
+								resultErr <- fmt.Errorf("reader-reset stream %d terminated after %d successful reads: %w", i, successfulReads, readErr)
+							} else if plan.writerReset && !errors.Is(readErr, ErrConnectionReset) {
+								resultErr <- fmt.Errorf("writer-reset stream %d terminal: %w", i, readErr)
+							}
+							return
+						}
+					}
+				}()
+			}
+			close(start)
+			wg.Wait()
+			close(resultErr)
+			for err := range resultErr {
+				if err != nil {
+					t.Error(err)
+				}
+			}
+			close(monitorStop)
+			<-monitorDone
+			select {
+			case err := <-monitorErr:
+				t.Fatal(err)
+			default:
+			}
+			if t.Failed() {
+				return
+			}
+			if err := server.Close(); err != nil {
+				t.Fatal(err)
+			}
+			stats := server.AggregateReceiveWindowStats()
+			if !stats.Closed || stats.TotalUnits != 0 || stats.FreeUnits != 0 || stats.BufferedUnits != 0 || stats.PendingRefund != 0 {
+				t.Fatalf("pool after close: %+v", stats)
+			}
+		})
+	}
+}
+
+func TestAggregateEarlySessionCloseClearsConcurrentTrafficCohort(t *testing.T) {
+	for iteration := 0; iteration < 8; iteration++ {
+		clientConn, serverConn := net.Pipe()
+		client, err := Client(clientConn, smallAggregateTestConfig())
+		if err != nil {
+			t.Fatal(err)
+		}
+		server, err := Server(serverConn, smallAggregateTestConfig())
+		if err != nil {
+			_ = client.Close()
+			t.Fatal(err)
+		}
+		defer client.Close()
+		defer server.Close()
+		const streams = 4
+		writers := make([]*Stream, streams)
+		readers := make([]*Stream, streams)
+		for i := 0; i < streams; i++ {
+			writers[i], err = client.OpenStream()
+			if err != nil {
+				t.Fatal(err)
+			}
+			readers[i], err = server.AcceptStream()
+			if err != nil {
+				t.Fatal(err)
+			}
+			deadline := time.Now().Add(time.Second)
+			_ = writers[i].SetDeadline(deadline)
+			_ = readers[i].SetDeadline(deadline)
+		}
+		firstRead := make(chan struct{}, 1)
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		for i := 0; i < streams; i++ {
+			writer, reader := writers[i], readers[i]
+			wg.Add(2)
+			go func() {
+				defer wg.Done()
+				<-start
+				_, _ = writer.Write(bytes.Repeat([]byte{byte(iteration + 1)}, 512<<10))
+			}()
+			go func() {
+				defer wg.Done()
+				<-start
+				buf := make([]byte, 1024)
+				for {
+					n, readErr := reader.Read(buf)
+					if n > 0 {
+						select {
+						case firstRead <- struct{}{}:
+						default:
+						}
+					}
+					if readErr != nil {
+						return
+					}
+				}
+			}()
+		}
+		growthDone := make(chan struct{})
+		go func() {
+			defer close(growthDone)
+			<-start
+			_ = server.GrowReceiveWindow(128 << 10)
+			for _, reader := range readers {
+				_ = reader.GrowReceiveAllocationWindow(32 << 10)
+			}
+		}()
+		close(start)
+		select {
+		case <-firstRead:
+		case <-time.After(time.Second):
+			t.Fatalf("iteration %d transferred no DATA before close", iteration)
+		}
+		if err := server.Close(); err != nil {
+			t.Fatal(err)
+		}
+		joined := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(joined)
+		}()
+		select {
+		case <-joined:
+		case <-time.After(time.Second):
+			t.Fatalf("iteration %d traffic did not join after session close", iteration)
+		}
+		select {
+		case <-growthDone:
+		case <-time.After(time.Second):
+			t.Fatalf("iteration %d growth did not join after session close", iteration)
+		}
+		stats := server.AggregateReceiveWindowStats()
+		if !stats.Closed || stats.TotalUnits != 0 || stats.FreeUnits != 0 || stats.BufferedUnits != 0 || stats.PendingRefund != 0 {
+			t.Fatalf("iteration %d pool after early close: %+v", iteration, stats)
+		}
+		_ = client.Close()
+	}
+}
 
 const (
 	testAggregateInitial  = 1 * 1024 * 1024

@@ -89,6 +89,20 @@ type Options struct {
 	TunnelUpstreamSocketBufferBytes int64
 	TunnelConnections               int
 	capacityObserver                func(*agentTunnelCapacityRuntime)
+	tunnelSessionObserver           func(tunnelSessionObservation)
+}
+
+// tunnelSessionObservation is an internal, fixed-cardinality hook used by
+// same-package qualification to sample the actual per-lane Yamux receive pool.
+// Disconnect is published only after Session.Close and every session-owned
+// receive reservation release have completed.
+type tunnelSessionObservation struct {
+	Lane int
+	// Aggregate reports the negotiated group mode. Lane zero remains a legacy
+	// Yamux control session even when the group uses aggregate bulk lanes.
+	Aggregate bool
+	Connected bool
+	Session   *yamux.Session
 }
 
 // Run is the main entry point to start the agent loop
@@ -166,33 +180,70 @@ func RunContext(ctx context.Context, opts Options) error {
 		<-statsDone
 	}()
 
-	runLane := func(lane tunnelLaneRegistration) error {
-		return runTunnelLaneLoop(runCtx, tunnelURL, lane, func() error {
-			return connectAndServe(
-				runCtx,
-				tunnelClient,
-				tunnelURL,
-				opts.PublicID,
-				opts.Name,
-				opts.Token,
-				destinationPolicy,
-				opts.TunnelMaxStreamWindowBytes,
-				opts.TunnelMaxConcurrentRequests,
-				opts.TunnelCapacityAdaptive,
-				capacityRuntime,
-				lane,
-			)
-		}, waitAgentReconnect)
+	connectLane := func(groupCtx context.Context, lane tunnelLaneRegistration) error {
+		return connectAndServe(
+			groupCtx,
+			tunnelClient,
+			tunnelURL,
+			opts.PublicID,
+			opts.Name,
+			opts.Token,
+			destinationPolicy,
+			opts.TunnelMaxStreamWindowBytes,
+			opts.TunnelMaxConcurrentRequests,
+			opts.TunnelCapacityAdaptive,
+			capacityRuntime,
+			lane,
+		)
 	}
 	count := opts.TunnelConnections
 	if count == 0 {
 		count = tunnel.DefaultParallelTunnels
 	}
+	return runTunnelGroupGenerations(runCtx, tunnelURL, count, connectLane, waitAgentReconnect, opts.tunnelSessionObserver)
+}
+
+type tunnelLaneConnector func(context.Context, tunnelLaneRegistration) error
+
+var errTunnelGroupDowngrade = errors.New("management server explicitly downgraded the negotiated tunnel group")
+var errLegacyTunnelGenerationEnded = errors.New("legacy tunnel generation ended")
+
+func runTunnelGroupGenerations(ctx context.Context, tunnelURL string, count int, connect tunnelLaneConnector, wait func(context.Context, time.Duration) error, observer func(tunnelSessionObservation)) error {
+	backoff := agentReconnectBackoffMin
+	for {
+		started := time.Now()
+		err := runTunnelGroupGeneration(ctx, tunnelURL, count, connect, wait, observer)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if !errors.Is(err, errTunnelGroupDowngrade) && !errors.Is(err, errLegacyTunnelGenerationEnded) {
+			return err
+		}
+		if time.Since(started) >= agentStableConnectionInterval {
+			backoff = agentReconnectBackoffMin
+		}
+		delay := jitterAgentReconnectBackoff(backoff)
+		log.Info().Err(err).Dur("retry_in", delay).Msg("Replacing complete tunnel group generation")
+		if err := wait(ctx, delay); err != nil {
+			return err
+		}
+		backoff = nextAgentReconnectBackoff(backoff)
+	}
+}
+
+func runTunnelGroupGeneration(ctx context.Context, tunnelURL string, count int, connect tunnelLaneConnector, wait func(context.Context, time.Duration) error, observer func(tunnelSessionObservation)) error {
+	groupCtx, cancel := context.WithCancel(ctx)
 	group := uuid.NewString()
 	negotiation := &tunnelGroupNegotiation{}
 	ready := make(chan struct{})
 	var acknowledged sync.Once
 	var workers sync.WaitGroup
+	runLane := func(lane tunnelLaneRegistration) error {
+		lane.sessionObserver = observer
+		return runTunnelLaneLoop(groupCtx, tunnelURL, lane, func() error {
+			return connect(groupCtx, lane)
+		}, wait)
+	}
 	// A negotiated group uses lane zero for control and lanes 1..N for N bulk
 	// connections. Starting one extra dormant worker preserves legacy's 0..N-1
 	// bounds without making the pre-negotiation state ambiguous.
@@ -201,7 +252,7 @@ func RunContext(ctx context.Context, opts Options) error {
 		go func(lane int) {
 			defer workers.Done()
 			select {
-			case <-runCtx.Done():
+			case <-groupCtx.Done():
 				return
 			case <-ready:
 			}
@@ -211,15 +262,18 @@ func RunContext(ctx context.Context, opts Options) error {
 			_ = runLane(tunnelLaneRegistration{group: group, lane: lane, negotiation: negotiation})
 		}(lane)
 	}
-	defer func() {
-		cancel()
-		workers.Wait()
-	}()
-	return runLane(tunnelLaneRegistration{group: group, lane: 0, negotiation: negotiation, accepted: func(aggregate bool) {
+	err := runLane(tunnelLaneRegistration{group: group, lane: 0, negotiation: negotiation, accepted: func(aggregate, parallel bool) {
 		negotiation.aggregate.Store(aggregate)
 		negotiation.known.Store(true)
-		acknowledged.Do(func() { close(ready) })
+		if aggregate || parallel {
+			acknowledged.Do(func() { close(ready) })
+		}
 	}})
+	// Joining every lane is part of the downgrade boundary: a new group ID is
+	// never offered while an old session or receive-pool lease remains live.
+	cancel()
+	workers.Wait()
+	return err
 }
 
 func runTunnelLaneLoop(ctx context.Context, tunnelURL string, lane tunnelLaneRegistration, connect func() error, wait func(context.Context, time.Duration) error) error {
@@ -232,6 +286,9 @@ func runTunnelLaneLoop(ctx context.Context, tunnelURL string, lane tunnelLaneReg
 
 		connectedAt := time.Now()
 		err := connect()
+		if errors.Is(err, errTunnelGroupDowngrade) {
+			return err
+		}
 		if errors.Is(err, errTunnelLaneUnsupported) {
 			log.Info().Int("tunnel_lane", lane.lane).Msg("Server no longer acknowledges parallel tunnels; stopping extra lane")
 			return nil
@@ -241,6 +298,12 @@ func runTunnelLaneLoop(ctx context.Context, tunnelURL string, lane tunnelLaneReg
 				return ctx.Err()
 			}
 			log.Warn().Err(err).Msg("Disconnected")
+		}
+		if lane.lane == 0 && lane.negotiation != nil && lane.negotiation.known.Load() && !lane.negotiation.aggregate.Load() {
+			// A completed legacy primary cannot discover a later aggregate-capable
+			// server in place. Replace the whole generation after its physical
+			// session ends, preserving lane/accounting agreement within a group.
+			return errLegacyTunnelGenerationEnded
 		}
 		if time.Since(connectedAt) >= agentStableConnectionInterval {
 			backoff = agentReconnectBackoffMin
@@ -806,10 +869,11 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
 }
 
 type tunnelLaneRegistration struct {
-	group       string
-	lane        int
-	negotiation *tunnelGroupNegotiation
-	accepted    func(aggregate bool)
+	group           string
+	lane            int
+	negotiation     *tunnelGroupNegotiation
+	accepted        func(aggregate, parallel bool)
+	sessionObserver func(tunnelSessionObservation)
 }
 
 type tunnelGroupNegotiation struct {
@@ -830,6 +894,25 @@ func (r tunnelLaneRegistration) offerAggregate() bool {
 var errTunnelLaneUnsupported = errors.New("management server does not acknowledge parallel tunnel lanes")
 var errTunnelGroupProtocol = errors.New("management server rejected the negotiated tunnel group contract")
 var errTunnelSessionResourceUnavailable = errors.New("insufficient resource headroom for aggregate tunnel session")
+
+func validateLegacyPrimaryAcknowledgment(headers http.Header, expectedGroup string) (parallel bool, err error) {
+	groups := headers.Values(tunnel.TunnelGroupHeader)
+	lanes := headers.Values(tunnel.TunnelLaneHeader)
+	// A pre-extension single-lane server returns neither header. Modern peers
+	// must echo both exactly; partial, duplicate, or mismatched state is
+	// attacker-controlled protocol input and cannot trigger a safe downgrade.
+	if len(groups) == 0 && len(lanes) == 0 {
+		return false, nil
+	}
+	if len(groups) != 1 || len(lanes) != 1 {
+		return false, errTunnelGroupProtocol
+	}
+	group, lane, err := tunnel.ParseTunnelLaneHeaders(headers, false)
+	if err != nil || group != expectedGroup || lane != 0 {
+		return false, errTunnelGroupProtocol
+	}
+	return true, nil
+}
 
 func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string, agentPublicID string, agentName string, agentToken string, destinationPolicy *agentDestinationPolicy, maxStreamWindowSizeBytes int64, maxConcurrentRequests int64, adaptiveCapacity bool, capacityRuntime *agentTunnelCapacityRuntime, registrations ...tunnelLaneRegistration) error {
 	if ctx == nil {
@@ -968,13 +1051,23 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = resp.Body.Close()
 		return errors.New("server enabled unoffered aggregate tunnel flow control")
 	}
-	if aggregateOffered && !aggregateNegotiated && (registration.lane > 0 ||
-		(registration.negotiation != nil && registration.negotiation.known.Load() && registration.negotiation.aggregate.Load())) {
-		_ = resp.Body.Close()
-		if registration.lane == 0 {
-			return errTunnelGroupProtocol
+	legacyParallelAcknowledged := false
+	if !aggregateNegotiated && registration.lane == 0 && registration.group != "" {
+		legacyParallelAcknowledged, err = validateLegacyPrimaryAcknowledgment(resp.Header, registration.group)
+		if err != nil {
+			_ = resp.Body.Close()
+			return err
 		}
-		return errTunnelLaneUnsupported
+	}
+	if aggregateOffered && !aggregateNegotiated {
+		if registration.lane > 0 {
+			_ = resp.Body.Close()
+			return errTunnelLaneUnsupported
+		}
+		if registration.negotiation != nil && registration.negotiation.known.Load() && registration.negotiation.aggregate.Load() {
+			_ = resp.Body.Close()
+			return errTunnelGroupDowngrade
+		}
 	}
 	if aggregateNegotiated && (responseRole != aggregateRole || !flowConfig.Equal(tunnel.DefaultAggregateFlowControlConfig())) {
 		_ = resp.Body.Close()
@@ -1034,14 +1127,35 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	if aggregateNegotiated && aggregateRole == tunnel.TunnelLaneRoleBulk {
 		aggregateGrowth = tunnel.NewAggregateReceiveWindowGrowth(session, capacityRuntime.tryReserveAggregateSessionGrowth)
 	}
+	observerConnected := registration.sessionObserver != nil
 	defer func() {
 		// Growth leases own attached session slabs and outlive every stream.
-		// Return them only after Close has joined Yamux cleanup.
+		// Return them and the initial session promise only after Close has joined
+		// Yamux cleanup. Clear the earlier failure-path defer before publishing
+		// the observer disconnect boundary.
 		_ = session.Close()
 		aggregateGrowth.Release()
+		releaseSessionResource()
+		releaseSessionResource = func() {}
+		if observerConnected {
+			registration.sessionObserver(tunnelSessionObservation{
+				Lane: registration.lane, Aggregate: aggregateNegotiated, Connected: false, Session: session,
+			})
+		}
 	}()
-	if registration.group != "" && responseGroup == registration.group && responseLane == registration.lane && registration.accepted != nil {
-		registration.accepted(aggregateNegotiated)
+	if observerConnected {
+		registration.sessionObserver(tunnelSessionObservation{
+			Lane: registration.lane, Aggregate: aggregateNegotiated, Connected: true, Session: session,
+		})
+	}
+	acknowledgedLane := responseGroup == registration.group && responseLane == registration.lane
+	if !aggregateNegotiated && registration.lane == 0 {
+		// validateLegacyPrimaryAcknowledgment already accepted either an exact
+		// modern echo or the fully absent old single-lane response.
+		acknowledgedLane = true
+	}
+	if registration.group != "" && acknowledgedLane && registration.accepted != nil {
+		registration.accepted(aggregateNegotiated, aggregateNegotiated || legacyParallelAcknowledged)
 	}
 
 	log.Info().
@@ -1189,9 +1303,11 @@ func serveTunnelSessionWithPolicyCapacityAndResources(ctx context.Context, sessi
 			}
 			select {
 			case boundedRejected <- struct{}{}:
-				// The session envelope owns one full receive promise for each
-				// bounded rejection. Transfer from the per-stream supplement
-				// before retaining the graceful response through peer cleanup.
+				// A legacy session envelope prepays a full receive promise for
+				// each bounded rejection; aggregate mode retains the equivalent
+				// chunks and metadata inside its session pool. Transfer from the
+				// per-stream supplement before retaining the response through
+				// peer cleanup.
 				releaseSupplement()
 				releaseSupplement = func() {}
 				if rejectAggregateTunnelStreamAtCapacity(stream, kind, message) {

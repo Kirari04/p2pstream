@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -12,6 +13,23 @@ import (
 
 	"github.com/hashicorp/yamux"
 )
+
+type gatedWriteFailureConn struct {
+	net.Conn
+	fail    atomic.Bool
+	once    sync.Once
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (c *gatedWriteFailureConn) Write(p []byte) (int, error) {
+	if !c.fail.Load() {
+		return c.Conn.Write(p)
+	}
+	c.once.Do(func() { close(c.entered) })
+	<-c.release
+	return 0, errors.New("synthetic aggregate credit publication failure")
+}
 
 func TestGrowingConnTransfersWhenGrowthGrantedOrDenied(t *testing.T) {
 	for _, maximum := range []int64{2 << 20, 0} {
@@ -258,6 +276,114 @@ func TestAggregateReceiveWindowGrowthDenialPreservesExistingTrafficAndControl(t 
 	}
 	if _, err := server.Ping(); err != nil {
 		t.Fatalf("control traffic failed after denied session growth: %v", err)
+	}
+}
+
+func TestAggregateGrowthPublicationFailureRetainsLeaseThroughClose(t *testing.T) {
+	left, right := net.Pipe()
+	failing := &gatedWriteFailureConn{
+		Conn:    right,
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	var unblockOnce sync.Once
+	unblockWriter := func() { unblockOnce.Do(func() { close(failing.release) }) }
+	clientConfig, err := NewAggregateYamuxConfig(nil, 4<<20, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverConfig, err := NewAggregateYamuxConfig(nil, 4<<20, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := yamux.Client(left, clientConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	server, err := yamux.Server(failing, serverConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer, err := client.OpenStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+	reader, err := server.AcceptStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var reserved atomic.Int64
+	var releases atomic.Int32
+	growth := NewAggregateReceiveWindowGrowth(server, func(bytes int64) (func(), bool) {
+		reserved.Add(bytes)
+		return func() {
+			releases.Add(1)
+			reserved.Add(-bytes)
+		}, true
+	})
+	defer func() {
+		unblockWriter()
+		_ = server.Close()
+		growth.Release()
+	}()
+
+	failing.fail.Store(true)
+	growDone := make(chan error, 1)
+	go func() {
+		granted, growErr := growth.Grow(reader, 1<<20)
+		if !granted && growErr == nil {
+			growErr = errors.New("ambiguous aggregate growth was not committed")
+		}
+		growDone <- growErr
+	}()
+	select {
+	case <-failing.entered:
+	case <-time.After(time.Second):
+		t.Fatal("aggregate credit publication did not reach the gated writer")
+	}
+	if got := reserved.Load(); got == 0 {
+		t.Fatal("session growth lease was not retained before publication")
+	}
+	closeDone := make(chan struct{})
+	go func() {
+		_ = server.Close()
+		close(closeDone)
+	}()
+	select {
+	case <-closeDone:
+		t.Fatal("Session.Close returned while the physical writer still owned publication")
+	case <-time.After(25 * time.Millisecond):
+	}
+	if got := reserved.Load(); got == 0 || releases.Load() != 0 {
+		t.Fatalf("growth lease released before close completed: reserved=%d releases=%d", got, releases.Load())
+	}
+	unblockWriter()
+	select {
+	case err := <-growDone:
+		if err == nil {
+			t.Fatal("aggregate growth unexpectedly published through failing writer")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("aggregate growth did not return after writer failure")
+	}
+	select {
+	case <-closeDone:
+	case <-time.After(time.Second):
+		t.Fatal("Session.Close did not join after the blocked writer returned")
+	}
+	stats := server.AggregateReceiveWindowStats()
+	if !stats.Closed || stats.TotalUnits != 0 || stats.FreeUnits != 0 || stats.BufferedUnits != 0 {
+		t.Fatalf("aggregate pool retained after Close: %+v", stats)
+	}
+	if reserved.Load() == 0 {
+		t.Fatal("ambiguous publication lease released before explicit growth cleanup")
+	}
+	growth.Release()
+	growth.Release()
+	if got := reserved.Load(); got != 0 || releases.Load() != 1 {
+		t.Fatalf("growth cleanup reserved=%d releases=%d, want zero/one", got, releases.Load())
 	}
 }
 

@@ -77,6 +77,15 @@ envelopes), so a low-memory agent can refuse a legacy lane when it cannot make
 that full compatibility promise. New agents and servers use aggregate-v1 to
 avoid that legacy idle cost.
 
+Tunnel mode is immutable within a group generation. If a previously negotiated
+aggregate primary receives a complete legacy acknowledgment during a server
+rollback, the agent closes and joins every control and bulk lane, releases the
+old generation's session resources, waits with bounded reconnect backoff, and
+offers a fresh group ID. An old server can then select legacy mode. Partial,
+duplicate, or mismatched acknowledgment headers fail closed and retry without
+triggering a downgrade. When a legacy primary later disconnects, its complete
+group is likewise replaced so an upgraded server can negotiate aggregate-v1.
+
 Compose overrides two binary defaults for stable-image compatibility:
 `PUBLIC_MAX_CONCURRENT_REQUESTS=2048` and `PUBLIC_MAX_CONNECTIONS_PER_TARGET=256`.
 

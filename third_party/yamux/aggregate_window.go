@@ -488,6 +488,10 @@ func (s *Session) closeAggregatePool() {
 	a.free = nil
 	a.freeUnits, a.totalUnits = 0, 0
 	a.slabs = nil
+	// The publisher has joined before pool cleanup. Unpublished receiver-only
+	// refunds can no longer reach the peer and carry no meaning after shutdown;
+	// clear them with the session-owned pool so diagnostics conserve to zero.
+	a.pendingGlobal, a.publishingGlobal = 0, 0
 	a.mu.Unlock()
 	for stream := pendingStreams; stream != nil; {
 		next := stream.allocationRefundNext
