@@ -95,7 +95,7 @@ server_binary=$(realpath "$server_binary")
 gather_agent_binary=$(realpath "$gather_agent_binary")
 split_agent_binary=$(realpath "$split_agent_binary")
 results="$output_dir/results.jsonl"
-summary="$output_dir/summary.json"
+summary="${results%.jsonl}.summary.json"
 
 runner_sha256=$(sha256sum "$snapshot_root/scripts/qualify-proxy-agent-gather-causal.sh" | awk '{print $1}')
 wrapper_sha256=$(sha256sum "$snapshot_root/scripts/qualify-proxy-agent-gather-causal-stability.sh" | awk '{print $1}')
@@ -253,7 +253,7 @@ PY
   cd "$output_dir"
   {
     printf '%s\0' manifest.json predeclared-gates.json results.jsonl run-command.txt run.log
-    [[ ! -f summary.json ]] || printf '%s\0' summary.json
+    [[ ! -f results.summary.json ]] || printf '%s\0' results.summary.json
     find snapshot -type f -print0
   } | sort -z | xargs -0 sha256sum > SHA256SUMS
   sha256sum -c SHA256SUMS >/dev/null
