@@ -116,7 +116,8 @@ legacy_agent_source_ref=$P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF
 smoke_mode=$P2PSTREAM_GROWTH_SMOKE_MODE
 largest_transfer_mib=$((warmup_mib > steady_mib ? warmup_mib : steady_mib))
 transfer_timeout_seconds=$((60 + (largest_transfer_mib + 1) / 2))
-transfer_mib_per_cohort=$((2 * warmup_mib + 2 * transfer_repetitions * steady_mib))
+warmup_lane_rounds=4
+transfer_mib_per_cohort=$((2 * warmup_lane_rounds * warmup_mib + 2 * transfer_repetitions * steady_mib))
 overall_timeout_seconds=$((300 + runs * 2 * (transfer_mib_per_cohort + 1) / 2))
 mkdir -p "$(dirname "$output")"
 run_dir=$(mktemp -d -p "$(dirname "$output")" proxy-agent-growth.XXXXXX)
@@ -222,6 +223,58 @@ with urllib.request.urlopen(sys.argv[1], timeout=2) as response:
 PY
 }
 
+close_idle_agent_transports() {
+  local admin_url=$1
+  python3 - "$admin_url" <<'PY'
+import sys, urllib.parse, urllib.request
+url = sys.argv[1] + ("&" if "?" in sys.argv[1] else "?") + urllib.parse.urlencode({"close_idle_agent_transports": "1"})
+with urllib.request.urlopen(url, timeout=5) as response:
+    response.read()
+PY
+}
+
+wait_aggregate_lanes_grown_and_quiescent() {
+  local server_admin=$1 agent_admin=$2 required_bytes=$3
+  local server_runtime agent_runtime
+  for ((attempt=0; attempt<600; attempt++)); do
+    server_runtime=$(python3 - "$server_admin" <<'PY'
+import json, sys, urllib.request
+with urllib.request.urlopen(sys.argv[1], timeout=2) as response:
+    json.dump(json.load(response), sys.stdout, separators=(",", ":"))
+PY
+)
+    agent_runtime=$(query_agent_json "$agent_namespace_pid" "$agent_admin")
+    if jq -e --argjson required "$required_bytes" '
+      [.agent_tunnels[0].lanes[] | select(.aggregate == true and .lane > 0)] as $lanes |
+      ($lanes | length == 4) and
+      all($lanes[];
+        .receive_limit_bytes > $required and
+        .receive_available_bytes == .receive_limit_bytes and
+        .free_units == .total_units and
+        ((.buffered_units // 0) == 0) and
+        ((.pending_refund_bytes // 0) == 0) and
+        ((.streams // 0) == 0))
+    ' <<<"$server_runtime" >/dev/null &&
+      jq -e --argjson required "$required_bytes" '
+        [.tunnel_sessions[] | select(.aggregate == true and .lane > 0)] as $lanes |
+        ($lanes | length == 4) and
+        all($lanes[];
+          .receive_limit_bytes > $required and
+          .receive_available_bytes == .receive_limit_bytes and
+          .free_units == .total_units and
+          ((.buffered_units // 0) == 0) and
+          ((.pending_refund_bytes // 0) == 0))
+      ' <<<"$agent_runtime" >/dev/null; then
+      return 0
+    fi
+    sleep .05
+  done
+  echo "aggregate receiving lanes did not become grown and quiescent" >&2
+  jq '{agent_tunnels}' <<<"$server_runtime" >&2
+  jq '{tunnel_sessions,agent_capacity}' <<<"$agent_runtime" >&2
+  return 1
+}
+
 cert=$run_dir/public.crt.pem
 key=$run_dir/public.key.pem
 openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
@@ -317,14 +370,14 @@ run_transfer() {
   if [[ $mode == aggregate-v1 && $stage == steady && $direction == download ]]; then
     if ((required_pool_mib > 0)); then
       jq -e --argjson required "$((required_pool_mib << 20))" \
-        '[.agent_tunnels_high_water[0].lanes[] | select(.lane != 0) | .receive_limit_bytes] | max > $required' "$raw" >/dev/null
+        '[.agent_tunnels_high_water[0].lanes[] | select(.aggregate == true and .lane > 0) | .receive_limit_bytes] | length == 4 and min > $required' "$raw" >/dev/null
     fi
   fi
   if [[ $mode == aggregate-v1 && $stage == steady && $direction == upload ]]; then
     jq -e --argjson required "$((required_pool_mib << 20))" '
       (.agent_capacity.aggregate_growth_pool_bytes > 0) and
       (.agent_capacity.aggregate_current_pool_bytes > .agent_capacity.aggregate_initial_pool_bytes) and
-      ([.tunnel_sessions[] | select(.aggregate == true and .lane > 0) | .receive_limit_bytes] | max > $required)
+      ([.tunnel_sessions[] | select(.aggregate == true and .lane > 0) | .receive_limit_bytes] | length == 4 and min > $required)
     ' <<<"$agent_runtime" >/dev/null
   fi
   jq -c --arg stage "$stage" --arg direction "$direction" --arg mode "$mode" \
@@ -337,8 +390,8 @@ run_transfer() {
     --arg server_source_ref "$server_source_ref" \
     --arg aggregate_agent_source_ref "$aggregate_agent_source_ref" \
     --arg legacy_agent_source_ref "$legacy_agent_source_ref" '
-      ([.agent_tunnels_high_water[0].lanes[]? | select(.lane != 0) | .receive_limit_bytes] | max // 0) as $server_pool |
-      ([$agent_runtime.tunnel_sessions[]? | select(.aggregate == true and .lane > 0) | .receive_limit_bytes] | max // 0) as $agent_pool |
+      ([.agent_tunnels_high_water[0].lanes[]? | select(.aggregate == true and .lane > 0) | .receive_limit_bytes]) as $server_pools |
+      ([$agent_runtime.tunnel_sessions[]? | select(.aggregate == true and .lane > 0) | .receive_limit_bytes]) as $agent_pools |
       . + {
         measurement_stage:$stage,
         transfer_direction:$direction,
@@ -348,8 +401,8 @@ run_transfer() {
         measured_rtt_ms:$measured_rtt_ms,
         shaped_rate_bits_per_second:1000000000,
         useful_transfer_bytes_per_second:(.configured_payload_bytes / .wall_seconds),
-        receiving_pool_observed_bytes:(if $mode != "aggregate-v1" then null elif $direction == "download" then $server_pool else $agent_pool end),
-        receiving_pool_evidence:(if $mode != "aggregate-v1" then "legacy-per-stream-window" elif $direction == "download" then "exact-server-lane" else "exact-agent-lane" end),
+        receiving_pool_observed_bytes:(if $mode != "aggregate-v1" then null elif $stage == "steady" and $direction == "download" then ($server_pools | min) elif $stage == "steady" then ($agent_pools | min) elif $direction == "download" then ($server_pools | max // 0) else ($agent_pools | max // 0) end),
+        receiving_pool_evidence:(if $mode != "aggregate-v1" then "legacy-per-stream-window" elif $stage != "steady" then "growth-high-water-max-unattributed" elif $direction == "download" then "all-server-receive-lanes-prewarmed-and-quiescent" else "all-agent-receive-lanes-prewarmed-and-quiescent" end),
         agent_aggregate_growth_reservation_bytes:($agent_runtime.agent_capacity.aggregate_growth_pool_bytes // 0),
         agent_runtime_after:$agent_runtime,
         provenance:{
@@ -416,8 +469,14 @@ run_cohort() {
   [[ $mode == aggregate-v1 ]] && expected_bulk=4
   wait_mode "$server_admin" "$mode" "$expected_bulk"
 
-  run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" warmup download "$((warmup_mib << 20))" 0
-  run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" warmup upload "$((warmup_mib << 20))" 0
+  for ((warmup_round=1; warmup_round<=warmup_lane_rounds; warmup_round++)); do
+    run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" warmup download "$((warmup_mib << 20))" "$warmup_round"
+    run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" warmup upload "$((warmup_mib << 20))" "$warmup_round"
+    close_idle_agent_transports "$server_admin"
+  done
+  if [[ $mode == aggregate-v1 ]]; then
+    wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
+  fi
   for ((repetition=1; repetition<=transfer_repetitions; repetition++)); do
     if ((repetition % 2)); then directions=(download upload); else directions=(upload download); fi
     for direction in "${directions[@]}"; do
