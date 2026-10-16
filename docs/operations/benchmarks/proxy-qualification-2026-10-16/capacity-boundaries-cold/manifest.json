@@ -1,0 +1,58 @@
+{
+  "started_at_utc": "2026-10-16T02:49:44.069000+00:00",
+  "candidate_ref": "fb1cad92c9a814f598171fa181d1a4f230dbd107",
+  "binary_source_association": "Caller asserts binaries were built from this clean commit; hashes freeze their identity.",
+  "binary_sha256": {
+    "server": "4fca0ca1ed1ebffb9c249fe7b8bd903df2d5855fffad92be9d09679b0e662937",
+    "agent": "f3e57bb2c5355971eb5b9580b117415d29bc1eb1ed1d8775ad8ce026fc6409cd",
+    "driver": "4fca0ca1ed1ebffb9c249fe7b8bd903df2d5855fffad92be9d09679b0e662937"
+  },
+  "runner_sha256": "e4ac1969005bb95daa4294c9de3a37211d02a18ba14a7bf7c8b220cba4b8307a",
+  "boundary_runner_sha256": "349c0f365c6e672b88a93e43e48506c990b219ab11f1bbaa16ac43966418fa25",
+  "fixture_sha256": {
+    "server": "8fc68aa977a581f73a74566c7dc3475b108f0640a57f335f70074eaf7687459a",
+    "agent": "7742cf376a4dbaf5635cf84e8ba83f3457bf7701e33468a3debdc90b307b1211"
+  },
+  "go_version": "go version go1.26.6 linux/amd64",
+  "kernel": "Linux srv02 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "haproxy_version": "HAProxy version 3.2.9-1ubuntu2.2 2026/06/19 - https://haproxy.org/",
+  "cpu_affinity": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "cpu_topology": "# The following is the parsable format, which can be fed to other\n# programs. Each different item in every column has an unique ID\n# starting usually from zero.\n# CPU,Core,Socket,Online\n0,0,0,Y\n1,0,0,Y\n2,1,0,Y\n3,1,0,Y\n4,2,0,Y\n5,2,0,Y\n6,3,0,Y\n7,3,0,Y\n8,4,0,Y\n9,4,0,Y\n10,5,0,Y\n11,5,0,Y\n12,6,0,Y\n13,6,0,Y\n14,7,0,Y\n15,7,0,Y",
+  "policy": {
+    "initial_points": [
+      2048,
+      4096
+    ],
+    "refinement_resolution": 256,
+    "lower_probes_if_2048_fails": [
+      1536,
+      1024,
+      512,
+      256
+    ],
+    "additional_best_point_confirmations": 1,
+    "fresh_processes_per_point": true,
+    "server_ballast_bytes": 1073741824,
+    "direct_topology": "server plus idle colocated agent in one shared 4 GiB cgroup; independent ledgers",
+    "remote_agent_topology": "server 4 GiB plus one agent 4 GiB, distinct cgroups; four bulk lanes",
+    "control_scope": "HAProxy direct host process; no ballast or matching cgroup, not an agent or memory-parity gate",
+    "meaning": "Simultaneously held tiny requests, not sustained throughput or maximum body/header capacity"
+  }
+}
