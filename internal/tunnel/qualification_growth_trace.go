@@ -141,8 +141,9 @@ func (c *GrowingConn) recordQualificationGrowthSample(
 }
 
 // DrainQualificationReceiveWindowGrowthEvents returns and clears the tagged
-// diagnostic ring. Formatting the pointer-derived opaque identity and all
-// output allocation happen here, outside the sampled growth path.
+// diagnostic ring. It is intended for one post-transfer diagnostic read, not
+// live polling: formatting the pointer-derived identity and output allocation
+// happen while producers are excluded by the private ring mutex.
 func DrainQualificationReceiveWindowGrowthEvents() QualificationReceiveWindowGrowthDrain {
 	ring := &qualificationReceiveWindowGrowthRing
 	ring.mu.Lock()
