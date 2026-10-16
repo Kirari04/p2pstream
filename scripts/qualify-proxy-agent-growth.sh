@@ -617,7 +617,10 @@ run_canceled_upload_trace() {
   local load_pid=$!
   children+=("$load_pid")
   while kill -0 "$load_pid" 2>/dev/null; do
-    query_agent_json "$agent_pid" "$agent_admin" >> "$samples"
+    {
+      query_agent_json "$agent_pid" "$agent_admin"
+      printf '\n'
+    } >> "$samples"
     sleep .02
   done
   wait "$load_pid"
