@@ -545,6 +545,10 @@ func runQualificationStdlibProxy(t *testing.T) {
 
 func qualificationRuntimeHandler(app *App, agentIDs ...int64) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("credit_snapshot") == "1" {
+			writeQualificationCreditSnapshot(w, app, agentIDs)
+			return
+		}
 		if r.URL.Query().Get("close_idle_agent_transports") == "1" && app.AgentTransports != nil {
 			app.AgentTransports.closeAll()
 		}

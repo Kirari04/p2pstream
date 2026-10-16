@@ -305,6 +305,10 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("credit_snapshot") == "1" {
+			writeExternalQualificationCreditSnapshot(w, sessions)
+			return
+		}
 		if raw := strings.TrimSpace(r.URL.Query().Get("ballast_mib")); raw != "" {
 			parsed, parseErr := strconv.Atoi(raw)
 			if parseErr != nil || parsed < 0 || parsed > 3840 {
