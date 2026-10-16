@@ -32,8 +32,9 @@ done
 
 expected_server_ref=dc738e9000e60cd7ce3a0279127486f3bc05067a
 expected_agent_ref=5eeccaaa797254d7bde4db9854a337a02c3bc28e
-expected_overlay_sha256=657b093b906cf8ab52f7ad62892425c8959da490ca5d1145e72ebc8dc3b531ff
+expected_overlay_sha256=ca680a7062735c3d1f236fc5d9d53c66b92724fd5b0dd1d82eef53f299b60d4f
 expected_overlay_readme_sha256=8da94bdb538cd98954c9847d84497df395ec5755c62f81353a4998d4a3761db0
+expected_runtime_hunk_sha256=e84c4de1351c78bcefecaac8701cae48b886e306c74118426872bfff402d942d
 
 [[ -f $runner && -f $split_overlay && -f $overlay_readme && -f $build_provenance ]] || {
   echo "runner, split overlay, overlay README and build provenance must be readable files" >&2
@@ -121,7 +122,7 @@ for expected in "$server_binary_sha256" "$gather_agent_binary_sha256" "$split_ag
     exit 2
   }
 done
-for expected in "$server_source_ref" "$agent_base_source_ref" "$overlay_sha256"; do
+for expected in "$server_source_ref" "$agent_base_source_ref" "$overlay_sha256" "$expected_runtime_hunk_sha256"; do
   grep -F "$expected" "$snapshot_root/build-provenance.txt" >/dev/null || {
     echo "build provenance does not contain source/overlay identity $expected" >&2
     exit 2
@@ -208,6 +209,7 @@ manifest = {
         "agent_base_both_variants": "$agent_base_source_ref",
     },
     "split_overlay_sha256": "$overlay_sha256",
+    "split_overlay_runtime_hunk_sha256": "$expected_runtime_hunk_sha256",
     "overlay_readme_sha256": "$overlay_readme_sha256",
     "binary_sha256": {
         "server": "$server_binary_sha256",
