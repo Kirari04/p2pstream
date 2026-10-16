@@ -305,6 +305,10 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("growth_snapshot") == "drain" {
+			writeExternalQualificationGrowthSnapshot(w, sessions)
+			return
+		}
 		if r.URL.Query().Get("credit_snapshot") == "1" {
 			writeExternalQualificationCreditSnapshot(w, sessions)
 			return

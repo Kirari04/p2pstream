@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/yamux"
+
+	"p2pstream/internal/tunnel"
 )
 
 const externalQualificationCreditSnapshotSchemaVersion = 1
@@ -60,6 +62,33 @@ type externalQualificationCreditObservedSession struct {
 	session   *yamux.Session
 }
 
+type externalQualificationGrowthEvent struct {
+	SampleUnixNano           int64   `json:"sample_unix_nano"`
+	Lane                     int     `json:"lane"`
+	SessionIdentity          string  `json:"session_identity"`
+	LocalAddress             string  `json:"local_address,omitempty"`
+	RemoteAddress            string  `json:"remote_address,omitempty"`
+	StreamID                 uint32  `json:"stream_id"`
+	Aggregate                bool    `json:"aggregate"`
+	Current                  uint32  `json:"current"`
+	Proposed                 uint32  `json:"proposed"`
+	Maximum                  uint32  `json:"maximum"`
+	RTTNanoseconds           int64   `json:"rtt_nanoseconds"`
+	RateBytesPerSecond       float64 `json:"rate_bytes_per_second"`
+	Previous                 uint32  `json:"previous"`
+	DeniedUntilUnixNano      int64   `json:"denied_until_unix_nano"`
+	DenialActiveAfterOutcome bool    `json:"denial_active_after_outcome"`
+	Outcome                  string  `json:"outcome"`
+}
+
+type externalQualificationGrowthResponse struct {
+	SchemaVersion    int                                `json:"schema_version"`
+	CapturedUnixNano int64                              `json:"captured_unix_nano"`
+	Capacity         int                                `json:"capacity"`
+	DroppedEvents    uint64                             `json:"dropped_events"`
+	Events           []externalQualificationGrowthEvent `json:"events"`
+}
+
 func writeExternalQualificationCreditSnapshot(w http.ResponseWriter, registry *externalQualificationSessionRegistry) {
 	observed := copyExternalQualificationCreditSessions(registry)
 	result := externalQualificationCreditResponse{
@@ -98,6 +127,46 @@ func writeExternalQualificationCreditSnapshot(w http.ResponseWriter, registry *e
 	_ = json.NewEncoder(w).Encode(result)
 }
 
+func writeExternalQualificationGrowthSnapshot(w http.ResponseWriter, registry *externalQualificationSessionRegistry) {
+	observed := copyExternalQualificationCreditSessions(registry)
+	lanes := make(map[*yamux.Session]int, len(observed))
+	for _, entry := range observed {
+		lanes[entry.session] = entry.lane
+	}
+	drain := tunnel.DrainQualificationReceiveWindowGrowthEvents()
+	result := externalQualificationGrowthResponse{
+		SchemaVersion:    externalQualificationCreditSnapshotSchemaVersion,
+		CapturedUnixNano: time.Now().UnixNano(), Capacity: drain.Capacity,
+		DroppedEvents: drain.DroppedEvents,
+		Events:        make([]externalQualificationGrowthEvent, 0, len(drain.Events)),
+	}
+	for _, event := range drain.Events {
+		lane := -1
+		if current, ok := lanes[event.Session]; ok {
+			lane = current
+		}
+		localAddress, remoteAddress := externalQualificationSessionAddresses(event.Session)
+		result.Events = append(result.Events, externalQualificationGrowthEvent{
+			SampleUnixNano: event.SampleUnixNano, Lane: lane,
+			SessionIdentity: event.SessionIdentity, LocalAddress: localAddress, RemoteAddress: remoteAddress,
+			StreamID: event.StreamID, Aggregate: event.Aggregate,
+			Current: event.Current, Proposed: event.Proposed, Maximum: event.Maximum,
+			RTTNanoseconds: event.RTTNanoseconds, RateBytesPerSecond: event.RateBytesPerSecond,
+			Previous: event.Previous, DeniedUntilUnixNano: event.DeniedUntilUnixNano,
+			DenialActiveAfterOutcome: event.DenialActiveAfterOutcome, Outcome: event.Outcome,
+		})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+func externalQualificationSessionAddresses(session *yamux.Session) (string, string) {
+	if session == nil {
+		return "", ""
+	}
+	return session.LocalAddr().String(), session.RemoteAddr().String()
+}
+
 func copyExternalQualificationCreditSessions(registry *externalQualificationSessionRegistry) []externalQualificationCreditObservedSession {
 	registry.mu.Lock()
 	result := make([]externalQualificationCreditObservedSession, 0, len(registry.sessions))
@@ -123,5 +192,21 @@ func TestExternalQualificationCreditSnapshotHasBoundedVersionedSchema(t *testing
 	}
 	if got.SchemaVersion != externalQualificationCreditSnapshotSchemaVersion || got.CapturedUnixNano <= 0 || len(got.Sessions) != 0 {
 		t.Fatalf("credit snapshot = %+v", got)
+	}
+}
+
+func TestExternalQualificationGrowthSnapshotHasBoundedVersionedSchema(t *testing.T) {
+	_ = tunnel.DrainQualificationReceiveWindowGrowthEvents()
+	recorder := httptest.NewRecorder()
+	writeExternalQualificationGrowthSnapshot(recorder, newExternalQualificationSessionRegistry(5))
+	if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("response = status %d content-type %q", recorder.Code, recorder.Header().Get("Content-Type"))
+	}
+	var got externalQualificationGrowthResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.SchemaVersion != externalQualificationCreditSnapshotSchemaVersion || got.CapturedUnixNano <= 0 || got.Capacity != 4096 || got.DroppedEvents != 0 || len(got.Events) != 0 {
+		t.Fatalf("growth snapshot = %+v", got)
 	}
 }

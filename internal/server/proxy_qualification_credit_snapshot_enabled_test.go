@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/yamux"
+
+	"p2pstream/internal/tunnel"
 )
 
 const qualificationCreditSnapshotSchemaVersion = 1
@@ -62,6 +64,35 @@ type qualificationCreditObservedSession struct {
 	session       *yamux.Session
 }
 
+type qualificationGrowthEvent struct {
+	SampleUnixNano           int64   `json:"sample_unix_nano"`
+	AgentID                  int64   `json:"agent_id,omitempty"`
+	AgentPublicID            string  `json:"agent_public_id,omitempty"`
+	Lane                     int     `json:"lane"`
+	SessionIdentity          string  `json:"session_identity"`
+	LocalAddress             string  `json:"local_address,omitempty"`
+	RemoteAddress            string  `json:"remote_address,omitempty"`
+	StreamID                 uint32  `json:"stream_id"`
+	Aggregate                bool    `json:"aggregate"`
+	Current                  uint32  `json:"current"`
+	Proposed                 uint32  `json:"proposed"`
+	Maximum                  uint32  `json:"maximum"`
+	RTTNanoseconds           int64   `json:"rtt_nanoseconds"`
+	RateBytesPerSecond       float64 `json:"rate_bytes_per_second"`
+	Previous                 uint32  `json:"previous"`
+	DeniedUntilUnixNano      int64   `json:"denied_until_unix_nano"`
+	DenialActiveAfterOutcome bool    `json:"denial_active_after_outcome"`
+	Outcome                  string  `json:"outcome"`
+}
+
+type qualificationGrowthResponse struct {
+	SchemaVersion    int                        `json:"schema_version"`
+	CapturedUnixNano int64                      `json:"captured_unix_nano"`
+	Capacity         int                        `json:"capacity"`
+	DroppedEvents    uint64                     `json:"dropped_events"`
+	Events           []qualificationGrowthEvent `json:"events"`
+}
+
 func writeQualificationCreditSnapshot(w http.ResponseWriter, app *App, agentIDs []int64) {
 	observed := copyQualificationCreditSessions(app, agentIDs)
 	result := qualificationCreditResponse{
@@ -99,6 +130,49 @@ func writeQualificationCreditSnapshot(w http.ResponseWriter, app *App, agentIDs 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
+}
+
+func writeQualificationGrowthSnapshot(w http.ResponseWriter, app *App, agentIDs []int64) {
+	observed := copyQualificationCreditSessions(app, agentIDs)
+	bySession := make(map[*yamux.Session]qualificationCreditObservedSession, len(observed))
+	for _, entry := range observed {
+		bySession[entry.session] = entry
+	}
+	drain := tunnel.DrainQualificationReceiveWindowGrowthEvents()
+	result := qualificationGrowthResponse{
+		SchemaVersion:    qualificationCreditSnapshotSchemaVersion,
+		CapturedUnixNano: time.Now().UnixNano(), Capacity: drain.Capacity,
+		DroppedEvents: drain.DroppedEvents,
+		Events:        make([]qualificationGrowthEvent, 0, len(drain.Events)),
+	}
+	for _, event := range drain.Events {
+		lane := -1
+		var agentID int64
+		var agentPublicID string
+		if current, ok := bySession[event.Session]; ok {
+			lane, agentID, agentPublicID = current.lane, current.agentID, current.agentPublicID
+		}
+		localAddress, remoteAddress := qualificationGrowthSessionAddresses(event.Session)
+		result.Events = append(result.Events, qualificationGrowthEvent{
+			SampleUnixNano: event.SampleUnixNano, AgentID: agentID, AgentPublicID: agentPublicID,
+			Lane: lane, SessionIdentity: event.SessionIdentity,
+			LocalAddress: localAddress, RemoteAddress: remoteAddress,
+			StreamID: event.StreamID, Aggregate: event.Aggregate,
+			Current: event.Current, Proposed: event.Proposed, Maximum: event.Maximum,
+			RTTNanoseconds: event.RTTNanoseconds, RateBytesPerSecond: event.RateBytesPerSecond,
+			Previous: event.Previous, DeniedUntilUnixNano: event.DeniedUntilUnixNano,
+			DenialActiveAfterOutcome: event.DenialActiveAfterOutcome, Outcome: event.Outcome,
+		})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+func qualificationGrowthSessionAddresses(session *yamux.Session) (string, string) {
+	if session == nil {
+		return "", ""
+	}
+	return session.LocalAddr().String(), session.RemoteAddr().String()
 }
 
 func copyQualificationCreditSessions(app *App, agentIDs []int64) []qualificationCreditObservedSession {
@@ -143,5 +217,21 @@ func TestQualificationCreditSnapshotHasBoundedVersionedSchema(t *testing.T) {
 	}
 	if got.SchemaVersion != qualificationCreditSnapshotSchemaVersion || got.CapturedUnixNano <= 0 || len(got.Sessions) != 0 {
 		t.Fatalf("credit snapshot = %+v", got)
+	}
+}
+
+func TestQualificationGrowthSnapshotHasBoundedVersionedSchema(t *testing.T) {
+	_ = tunnel.DrainQualificationReceiveWindowGrowthEvents()
+	recorder := httptest.NewRecorder()
+	writeQualificationGrowthSnapshot(recorder, nil, nil)
+	if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("response = status %d content-type %q", recorder.Code, recorder.Header().Get("Content-Type"))
+	}
+	var got qualificationGrowthResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.SchemaVersion != qualificationCreditSnapshotSchemaVersion || got.CapturedUnixNano <= 0 || got.Capacity != 4096 || got.DroppedEvents != 0 || len(got.Events) != 0 {
+		t.Fatalf("growth snapshot = %+v", got)
 	}
 }
