@@ -373,6 +373,13 @@ type qualificationProcessResult struct {
 	BallastBytes         int64                              `json:"ballast_bytes,omitempty"`
 }
 
+type qualificationOfferedSchedule struct {
+	StartedUTC               string  `json:"started_utc"`
+	PlannedSeconds           float64 `json:"planned_seconds"`
+	DispatchCompletedSeconds float64 `json:"dispatch_completed_seconds"`
+	DispatchCompletedUTC     string  `json:"dispatch_completed_utc"`
+}
+
 type qualificationResult struct {
 	Label                         string                            `json:"label"`
 	Path                          string                            `json:"path"`
@@ -383,6 +390,7 @@ type qualificationResult struct {
 	WarmupSeconds                 float64                           `json:"warmup_seconds,omitempty"`
 	WarmupRequests                int                               `json:"warmup_requests,omitempty"`
 	DurationSeconds               float64                           `json:"configured_duration_seconds,omitempty"`
+	OfferedSchedule               *qualificationOfferedSchedule     `json:"offered_schedule,omitempty"`
 	Attempted                     int                               `json:"attempted"`
 	UsefulCompleted               int64                             `json:"useful_completed"`
 	StatusClasses                 map[string]int                    `json:"status_classes"`
@@ -1208,6 +1216,73 @@ func TestQualificationH2SmallPrewarmRequiresSuccessfulH2(t *testing.T) {
 	}
 }
 
+func qualificationOfferedScheduleResult(started, completed time.Time, requests int, offeredRPS, durationSeconds float64) *qualificationOfferedSchedule {
+	if durationSeconds != 0 || offeredRPS <= 0 || requests < 1 || completed.IsZero() {
+		return nil
+	}
+	return &qualificationOfferedSchedule{
+		StartedUTC:               started.UTC().Format(time.RFC3339Nano),
+		PlannedSeconds:           float64(requests-1) / offeredRPS,
+		DispatchCompletedSeconds: completed.Sub(started).Seconds(),
+		DispatchCompletedUTC:     completed.UTC().Format(time.RFC3339Nano),
+	}
+}
+
+func TestQualificationOfferedScheduleResult(t *testing.T) {
+	started := time.Date(2026, time.October, 16, 8, 30, 0, 125000000, time.FixedZone("fixture", 2*60*60))
+
+	t.Run("single request records zero planned interval", func(t *testing.T) {
+		result := qualificationOfferedScheduleResult(started, started.Add(15*time.Millisecond), 1, 50, 0)
+		if result == nil || result.PlannedSeconds != 0 || result.DispatchCompletedSeconds != 0.015 {
+			t.Fatalf("schedule=%+v", result)
+		}
+		encoded, err := json.Marshal(result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var fields map[string]any
+		if err := json.Unmarshal(encoded, &fields); err != nil {
+			t.Fatal(err)
+		}
+		if planned, present := fields["planned_seconds"]; !present || planned != float64(0) {
+			t.Fatalf("planned_seconds=%v present=%v JSON=%s", planned, present, encoded)
+		}
+	})
+
+	t.Run("positive interval uses first-at-zero schedule", func(t *testing.T) {
+		completed := started.Add(2125 * time.Millisecond)
+		result := qualificationOfferedScheduleResult(started, completed, 5, 2, 0)
+		if result == nil {
+			t.Fatal("missing schedule")
+		}
+		if result.PlannedSeconds != 2 || result.DispatchCompletedSeconds != 2.125 {
+			t.Fatalf("schedule=%+v", result)
+		}
+		if result.StartedUTC != "2026-10-16T06:30:00.125Z" || result.DispatchCompletedUTC != "2026-10-16T06:30:02.25Z" {
+			t.Fatalf("UTC bounds=%q..%q", result.StartedUTC, result.DispatchCompletedUTC)
+		}
+	})
+
+	for _, test := range []struct {
+		name            string
+		completed       time.Time
+		requests        int
+		offeredRPS      float64
+		durationSeconds float64
+	}{
+		{name: "duration mode", completed: started.Add(time.Second), requests: 5, offeredRPS: 2, durationSeconds: 10},
+		{name: "unpaced fixed requests", completed: started.Add(time.Second), requests: 5},
+		{name: "missing completion sample", requests: 5, offeredRPS: 2},
+		{name: "empty workload", completed: started.Add(time.Second), offeredRPS: 2},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if result := qualificationOfferedScheduleResult(started, test.completed, test.requests, test.offeredRPS, test.durationSeconds); result != nil {
+				t.Fatalf("schedule=%+v", result)
+			}
+		})
+	}
+}
+
 func TestProxyQualificationLoad(t *testing.T) {
 	if os.Getenv("P2PSTREAM_QUALIFICATION_ROLE") != "load" {
 		t.Skip("qualification load subprocess only")
@@ -1573,6 +1648,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 		agentSamplers = append(agentSamplers, agentSampler)
 	}
 	started := time.Now()
+	var offeredDispatchCompleted time.Time
 	attempted := 0
 	if durationSeconds > 0 {
 		attempted = dispatchFor(time.Duration(durationSeconds * float64(time.Second)))
@@ -1588,6 +1664,9 @@ func TestProxyQualificationLoad(t *testing.T) {
 			inflight.Add(1)
 			jobs <- loadJob{scheduled: scheduled}
 			attempted++
+		}
+		if offeredRPS > 0 {
+			offeredDispatchCompleted = time.Now()
 		}
 	}
 	close(jobs)
@@ -1620,7 +1699,8 @@ func TestProxyQualificationLoad(t *testing.T) {
 	result := qualificationResult{
 		Label: os.Getenv("P2PSTREAM_QUALIFICATION_LABEL"), Path: os.Getenv("P2PSTREAM_QUALIFICATION_PATH"), Scenario: scenario,
 		OfferedRPS: offeredRPS, WarmupSeconds: warmupSeconds, WarmupRequests: warmupRequests, DurationSeconds: durationSeconds,
-		Protocol: protocol, Concurrency: concurrency, Attempted: attempted, UsefulCompleted: useful.Load(), StatusClasses: classes,
+		OfferedSchedule: qualificationOfferedScheduleResult(started, offeredDispatchCompleted, requests, offeredRPS, durationSeconds),
+		Protocol:        protocol, Concurrency: concurrency, Attempted: attempted, UsefulCompleted: useful.Load(), StatusClasses: classes,
 		StatusCodes: statusCodes,
 		Errors:      errorsSeen.Load(), CanceledErrors: canceledErrors.Load(), WallSeconds: elapsed.Seconds(), UsefulRPS: float64(useful.Load()) / elapsed.Seconds(),
 		P50Milliseconds: durationQuantile(latencies, .50), P95Milliseconds: durationQuantile(latencies, .95), P99Milliseconds: durationQuantile(latencies, .99),
