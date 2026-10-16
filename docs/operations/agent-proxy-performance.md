@@ -537,6 +537,15 @@ behind the failed tiny-response gate. See the
 and the preceding
 [native endpoint profiles](benchmarks/proxy-qualification-2026-10-16/agent-tiny-profiles/README.md).
 
+A subsequent lazy-wake checkpoint was screened only on the critical H2/c128
+cell. Median aggregate throughput reached 90.18% of legacy and passed the 90%
+gate, but p95/p99 ratios of 1.1151/1.1020 failed the unchanged 1.10 tail gate.
+All 1,062,699 requests and events were conserved without errors, drops, queue
+residue or drain errors. The screen therefore stopped without rerunning the
+full 24-row matrix, and it does not qualify the other cells or standing pools.
+See the
+[lazy-wake H2/c128 screen](benchmarks/proxy-qualification-2026-10-16/agent-tiny-response-lazy-wake-h2c128/README.md).
+
 The first qualification pass is recorded under
 `docs/operations/benchmarks/proxy-qualification-2026-10-16/`. It is a profile
 and correctness pass plus one warmed saturation sample, not the prescribed

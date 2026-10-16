@@ -46,6 +46,9 @@ comparison.
 - [`agent-tiny-response-post-refund/README.md`](agent-tiny-response-post-refund/README.md)
   repeats that gate after the paired-refund and shutdown-waiter checkpoint.
   H1 at 16 clients passes, but the overall 24-row cohort still fails.
+- [`agent-tiny-response-lazy-wake-h2c128/README.md`](agent-tiny-response-lazy-wake-h2c128/README.md)
+  records the subsequent H2/c128-only lazy-wake screen. It passes throughput
+  but fails both tail gates, so the full matrix was not rerun.
 - [`agent-tiny-profiles/README.md`](agent-tiny-profiles/README.md) records native
   CPU, allocation, mutex and block profiles of the first failed tiny-response
   candidate and its matched legacy endpoint.
