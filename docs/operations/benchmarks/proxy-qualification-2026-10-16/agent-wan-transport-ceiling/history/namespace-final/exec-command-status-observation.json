@@ -1,0 +1,16 @@
+{
+  "recorded_utc": "2026-10-16T12:31:56.733Z",
+  "scope": "observed exec_command behavior in this environment; not a Bash semantics claim",
+  "errexit_enabled": {
+    "command": "set -e; printf '%s\\n' 'durable-command-completed' > \"$PWD/exec-status-repro-errexit-enabled.txt\"; exit 0",
+    "tool_exit_code": 1,
+    "wall_time_seconds": 0.000019528,
+    "durable_file": "exec-status-repro-errexit-enabled.txt"
+  },
+  "errexit_disabled_before_exit": {
+    "command": "set -e; set +e; printf '%s\\n' 'durable-command-completed' > \"$PWD/exec-status-repro-errexit-disabled.txt\"; exit 0",
+    "tool_exit_code": 0,
+    "wall_time_seconds": 0.000019127,
+    "durable_file": "exec-status-repro-errexit-disabled.txt"
+  }
+}

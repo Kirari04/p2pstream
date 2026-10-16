@@ -1,0 +1,154 @@
+--- /tmp/p2pstream-final-reference.py.pre-build-timeout	2026-10-16 10:21:07.177976748 +0200
++++ /tmp/p2pstream-final-reference.py	2026-10-16 14:33:51.905178050 +0200
+@@ -11,6 +11,7 @@
+ import signal
+ import statistics
+ import subprocess
++import sys
+ import tarfile
+ import tempfile
+ import time
+@@ -115,15 +116,137 @@
+     binaries = root / "bin"
+     binaries.mkdir()
+     candidate = binaries / "server.test"
+-    command = [str(go), "test", "-c", "-o", str(candidate), "./internal/server"]
+-    manifest["build_command"] = command
++    compiler_command = [str(go), "test", "-c", "-o", str(candidate), "./internal/server"]
++    build_shim = root / "build-exec-shim.py"
++    build_shim.write_text(
++        "#!/usr/bin/env python3\n"
++        "import os\n"
++        "import signal\n"
++        "import sys\n\n"
++        "mask = {int(value) for value in sys.argv[1].split(',') if value}\n"
++        "signal.pthread_sigmask(signal.SIG_SETMASK, mask)\n"
++        "os.execve(sys.argv[2], sys.argv[2:], os.environ)\n"
++    )
++    build_shim.chmod(0o700)
++    shim_python = Path(sys.executable).resolve(strict=True)
++    manifest["build_compiler_command"] = compiler_command
++    manifest["build_exec_shim"] = {"path": str(build_shim), "sha256": sha(build_shim),
++        "python": str(shim_python), "python_sha256": sha(shim_python),
++        "purpose": "restore the parent pre-build signal mask before execing the exact compiler command"}
+     save()
+     started = time.monotonic()
+     with (root / "build.log").open("w") as log:
+-        result = subprocess.run(command, cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT)
+-    manifest["build"] = {"exit_code": result.returncode, "elapsed_seconds": time.monotonic() - started, "log_sha256": sha(root / "build.log")}
+-    save()
+-    if result.returncode:
++        process = None
++        build_group = None
++        failure = None
++        code = None
++        timed_out = False
++        old_sigterm = signal.getsignal(signal.SIGTERM)
++        old_sigint = signal.getsignal(signal.SIGINT)
++        old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM, signal.SIGINT})
++        def terminate_build(signum, frame):
++            signal.signal(signal.SIGTERM, signal.SIG_IGN)
++            signal.signal(signal.SIGINT, signal.SIG_IGN)
++            if signum == signal.SIGINT:
++                raise KeyboardInterrupt()
++            raise SystemExit(128 + signum)
++        signal.signal(signal.SIGTERM, terminate_build)
++        signal.signal(signal.SIGINT, terminate_build)
++        try:
++            try:
++                original_mask = ",".join(str(int(signum)) for signum in sorted(old_mask, key=int))
++                command = [str(shim_python), str(build_shim), original_mask] + compiler_command
++                manifest["build_command"] = command
++                manifest["build_original_signal_mask"] = sorted(int(signum) for signum in old_mask)
++                save()
++                process = subprocess.Popen(command, cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT,
++                    start_new_session=True)
++                build_group = process.pid
++            finally:
++                # Pending termination is delivered only after the owned group is recorded.
++                signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
++            code = process.wait(timeout=600)
++        except subprocess.TimeoutExpired as exc:
++            timed_out = True
++            failure = exc
++        except BaseException as exc:
++            failure = exc
++        finally:
++            # Once cleanup begins, repeated termination cannot skip the bounded TERM/KILL/reap path.
++            signal.signal(signal.SIGTERM, signal.SIG_IGN)
++            signal.signal(signal.SIGINT, signal.SIG_IGN)
++            cleanup_error = None
++            forced_group_cleanup = False
++            term_sent = False
++            kill_sent = False
++            group_alive_after_cleanup = False
++            def build_group_alive():
++                if build_group is None:
++                    return False
++                try:
++                    os.killpg(build_group, 0)
++                    return True
++                except ProcessLookupError:
++                    return False
++            try:
++                if build_group_alive():
++                    forced_group_cleanup = True
++                    try:
++                        os.killpg(build_group, signal.SIGTERM)
++                        term_sent = True
++                    except ProcessLookupError:
++                        pass
++                    deadline = time.monotonic() + 15
++                    while build_group_alive() and time.monotonic() < deadline:
++                        process.poll()
++                        time.sleep(.05)
++                    if build_group_alive():
++                        try:
++                            os.killpg(build_group, signal.SIGKILL)
++                            kill_sent = True
++                        except ProcessLookupError:
++                            pass
++                if process is not None and process.poll() is None:
++                    process.wait(timeout=5)
++                deadline = time.monotonic() + 5
++                while build_group_alive() and time.monotonic() < deadline:
++                    time.sleep(.05)
++                group_alive_after_cleanup = build_group_alive()
++                if group_alive_after_cleanup:
++                    raise RuntimeError("compiler process group survived bounded cleanup")
++            except BaseException as exc:
++                cleanup_error = exc
++                group_alive_after_cleanup = build_group_alive()
++            finally:
++                try:
++                    log.flush()
++                    manifest["build"] = {"exit_code": process.returncode if process else None,
++                        "wait_completed": code is not None, "timed_out": timed_out,
++                        "exception": repr(failure) if failure else None,
++                        "cleanup_exception": repr(cleanup_error) if cleanup_error else None,
++                        "elapsed_seconds": time.monotonic() - started, "finished_utc": utc(),
++                        "timeout_seconds": 600, "start_new_session": True,
++                        "process_group_id": build_group,
++                        "process_started": process is not None,
++                        "process_group_matches_leader": build_group == process.pid if process else None,
++                        "forced_group_cleanup": forced_group_cleanup,
++                        "sigterm_sent": term_sent, "sigkill_sent": kill_sent,
++                        "direct_process_reaped": process.returncode is not None if process else None,
++                        "group_alive_after_cleanup": group_alive_after_cleanup,
++                        "log_sha256": sha(root / "build.log")}
++                    save()
++                finally:
++                    signal.signal(signal.SIGTERM, old_sigterm)
++                    signal.signal(signal.SIGINT, old_sigint)
++    if cleanup_error is not None:
++        raise cleanup_error
++    if timed_out:
++        raise RuntimeError("clean build exceeded the bounded 600-second timeout; preserved build.log") from failure
++    if failure is not None:
++        raise failure
++    if forced_group_cleanup:
++        raise RuntimeError("clean build left an owned compiler process group; cleanup was required")
++    if code:
+         raise RuntimeError("clean build failed; preserved build.log")
+     caddy = binaries / "caddy"
+     shutil.copy2(caddy_input, caddy)

@@ -1,0 +1,11 @@
+{"level":"info","ts":1792156727.5892057,"msg":"maxprocs: Honoring GOMAXPROCS=\"4\" as set in environment"}
+{"level":"info","ts":1792156727.5892205,"msg":"GOMEMLIMIT is updated","GOMEMLIMIT":3865470566,"previous":9223372036854775807}
+{"level":"info","ts":1792156727.5892234,"msg":"using config from file","file":"/qualification/p2pstream-caddy-ref-1063598-3-caddy.json"}
+{"level":"warn","ts":1792156727.5892262,"logger":"admin","msg":"admin endpoint disabled"}
+{"level":"warn","ts":1792156727.5896373,"logger":"tls","msg":"unmanaged certificate expires within 1 day","not_after":1792242482,"sans":["public.test"]}
+{"level":"info","ts":1792156727.589703,"logger":"http.auto_https","msg":"automatic HTTPS is completely disabled for server","server_name":"srv0"}
+{"level":"info","ts":1792156727.5901666,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2"]}
+{"level":"info","ts":1792156727.590197,"msg":"serving initial configuration"}
+{"level":"info","ts":1792156727.590372,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x2b270fb2b800"}
+{"level":"info","ts":1792156727.5955868,"logger":"tls","msg":"cleaning storage unit","storage":"FileStorage:/tmp/caddy-data/caddy"}
+{"level":"info","ts":1792156727.6008208,"logger":"tls","msg":"finished cleaning storage units"}

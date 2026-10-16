@@ -1,0 +1,5 @@
+default64-pass	0	0	transport_ceiling_contrast_reproduced
+smoke32-pass-no-growth	0	0	fixture_smoke_pass:untested_smoke_only
+smoke32-wrong-order	2	2	inconclusive_non_timing_failure
+smoke32-wrong-rtt	2	2	inconclusive_non_timing_failure
+default64-incomplete	2	2	inconclusive_non_timing_failure

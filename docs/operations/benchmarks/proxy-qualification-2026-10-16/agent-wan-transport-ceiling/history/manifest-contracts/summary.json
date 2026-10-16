@@ -1,0 +1,20 @@
+{
+  "config_contracts_exit_code": 0,
+  "configuration_sha256": "9ac87851f1b88a92f56cedc5bcf9cd2e87113fc559de7a5c83feabf982265a2c",
+  "endpoint_binaries_rebuilt": false,
+  "manifest_contracts_exit_code": 0,
+  "new_traffic_started": false,
+  "offline_actual_aggregate": {
+    "acceptance_result": null,
+    "exit_code": 0,
+    "original_smoke_status_unchanged": true,
+    "performance_claim": false,
+    "result_rows": 16,
+    "snapshots": 3
+  },
+  "runner_sha256": "564c216683e8c721dfc2264a9a919f3040a8c989d127b5d721a2af09882c0b77",
+  "schema_version": 1,
+  "scope": "affected_manifest_configuration_contracts_and_offline_actual_replay",
+  "wrapper_preflight_exit_code": 0,
+  "wrapper_sha256": "ab414084d286876ace6d85171f5e192148a5fe60a89172e9ce4f287115d30276"
+}

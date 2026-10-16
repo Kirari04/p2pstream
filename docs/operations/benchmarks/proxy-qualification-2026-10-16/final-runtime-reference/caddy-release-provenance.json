@@ -1,0 +1,11 @@
+{
+  "release_url": "https://github.com/caddyserver/caddy/releases/tag/v2.11.7",
+  "release_published_at": "2026-10-03T05:58:33Z",
+  "archive_url": "https://github.com/caddyserver/caddy/releases/download/v2.11.7/caddy_2.11.7_linux_amd64.tar.gz",
+  "archive_sha256": "727b91701a392de6ebc5027509f548bf39979e5216340d0faed8fa5e69c84f8b",
+  "checksums_url": "https://github.com/caddyserver/caddy/releases/download/v2.11.7/caddy_2.11.7_checksums.txt",
+  "checksums_sha256": "5d27b76b95f496638d79208c55250317b8755fd9e90005f7466aa32956944a90",
+  "extracted_binary_sha256": "678ade3bfc088749c81a681adc603333ee0bb023b6a6cfe3c0f58bef8ff854e9",
+  "official_binary_go_version": "go1.26.8",
+  "p2pstream_go_version": "go1.26.6"
+}

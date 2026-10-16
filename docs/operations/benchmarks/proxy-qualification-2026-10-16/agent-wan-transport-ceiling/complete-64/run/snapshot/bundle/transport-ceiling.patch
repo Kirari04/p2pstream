@@ -1,0 +1,3029 @@
+diff --git a/internal/tunnel/transport_ceiling_qualification_linux.go b/internal/tunnel/transport_ceiling_qualification_linux.go
+new file mode 100644
+index 0000000..7dca46a
+--- /dev/null
++++ b/internal/tunnel/transport_ceiling_qualification_linux.go
+@@ -0,0 +1,1417 @@
++//go:build linux && p2pstream_transport_ceiling
++
++package tunnel
++
++// This file belongs to a temporary, test-build-only transport ceiling
++// diagnostic. The dedicated build tag deliberately differs from
++// p2pstream_qualification so the existing DATA counters and growth trace stay
++// compiled out. Nothing in this file is part of a production binary.
++
++import (
++	"context"
++	"crypto/hmac"
++	"crypto/rand"
++	"crypto/sha256"
++	"crypto/tls"
++	"encoding/binary"
++	"encoding/hex"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"net"
++	"net/http"
++	"os"
++	"runtime"
++	"slices"
++	"strings"
++	"sync"
++	"sync/atomic"
++	"time"
++
++	"golang.org/x/sys/unix"
++)
++
++const (
++	TransportCeilingSchemaVersion      = 1
++	TransportCeilingPhysicalLanes      = 5
++	TransportCeilingDataLanes          = 4
++	TransportCeilingExpectedPhases     = 16
++	TransportCeilingPayloadBytes       = int64(256 << 20)
++	TransportCeilingPoolLimitBytes     = int64(2 << 30)
++	TransportCeilingWorkingLimitBytes  = int64(64 << 20)
++	TransportCeilingRelayBufferBytes   = 32 << 10
++	TransportCeilingDownloadWriteBytes = 35 * 1024
++	TransportCeilingDownloadReadBytes  = 8 << 10
++	TransportCeilingUploadBufferBytes  = 32 << 10
++	TransportCeilingFrameHeaderBytes   = 64
++	TransportCeilingMaxFrameBodyBytes  = 4096
++	TransportCeilingAuthKeyBytes       = 32
++	TransportCeilingTLSName            = "transport-ceiling.test"
++	// Linux TCP_INFO reports TCP_ESTABLISHED as state 1. x/sys/unix does not
++	// export the internal Linux TCP state enum.
++	TransportCeilingTCPEstablished = uint8(1)
++	// The fixed payload algorithm repeats byte((index*131+17)%251) over a
++	// 1024-byte period. Download and upload use the same exact 256 MiB stream.
++	TransportCeilingPayloadSHA256 = "ad818ce955253fd9030cbefa352527321b308cfc574cb4bbee9cbcd0d4930790"
++)
++
++const (
++	TransportCeilingVariantYamux = "aggregate-yamux"
++	TransportCeilingVariantRaw   = "raw-tls"
++)
++
++const (
++	transportCeilingFrameStart uint8 = iota + 1
++	transportCeilingFrameReady
++	transportCeilingFrameComplete
++	transportCeilingFrameAck
++	transportCeilingFrameLogicalClose
++	transportCeilingFrameLogicalCloseAck
++	transportCeilingFrameTiming
++	transportCeilingFrameTimingAck
++)
++
++var transportCeilingFrameMagic = [8]byte{'P', '2', 'P', 'T', 'C', '0', '0', '1'}
++var transportCeilingAuthMagic = [8]byte{'P', '2', 'P', 'T', 'C', 'A', '0', '1'}
++
++const transportCeilingAuthPacketBytes = 80
++
++type TransportCeilingPhase struct {
++	Index     int    `json:"phase_index"`
++	Name      string `json:"phase_name"`
++	Lane      int    `json:"lane"`
++	Direction string `json:"direction"`
++	Stage     string `json:"stage"`
++	ReuseKind string `json:"reuse_kind"`
++}
++
++var TransportCeilingPhases = [...]TransportCeilingPhase{
++	{0, "conditioning-download-lane-1", 1, "download", "conditioning", "fresh-stream"},
++	{1, "conditioning-download-lane-2", 2, "download", "conditioning", "fresh-stream"},
++	{2, "conditioning-download-lane-3", 3, "download", "conditioning", "fresh-stream"},
++	{3, "conditioning-download-lane-4", 4, "download", "conditioning", "fresh-stream"},
++	{4, "conditioning-upload-lane-1", 1, "upload", "conditioning", "fresh-stream"},
++	{5, "conditioning-upload-lane-2", 2, "upload", "conditioning", "fresh-stream"},
++	{6, "conditioning-upload-lane-3", 3, "upload", "conditioning", "fresh-stream"},
++	{7, "conditioning-upload-lane-4", 4, "upload", "conditioning", "fresh-stream"},
++	{8, "retained-download-lane-1", 1, "download", "retained", "new-persistent"},
++	{9, "retained-upload-lane-2", 2, "upload", "retained", "new-persistent"},
++	{10, "timed-1-download-lane-3", 3, "download", "timed", "new-persistent"},
++	{11, "timed-1-upload-lane-4", 4, "upload", "timed", "new-persistent"},
++	{12, "timed-2-upload-lane-1", 1, "upload", "timed", "direction-transition"},
++	{13, "timed-2-download-lane-2", 2, "download", "timed", "direction-transition"},
++	{14, "timed-3-download-lane-3", 3, "download", "timed", "same-direction-reuse"},
++	{15, "timed-3-upload-lane-4", 4, "upload", "timed", "same-direction-reuse"},
++}
++
++func TransportCeilingPhaseAt(index int) (TransportCeilingPhase, error) {
++	if index < 0 || index >= len(TransportCeilingPhases) {
++		return TransportCeilingPhase{}, fmt.Errorf("transport ceiling phase %d is out of range", index)
++	}
++	return TransportCeilingPhases[index], nil
++}
++
++func ValidateTransportCeilingVariant(variant string) error {
++	switch variant {
++	case TransportCeilingVariantYamux, TransportCeilingVariantRaw:
++		return nil
++	default:
++		return fmt.Errorf("unknown transport ceiling variant %q", variant)
++	}
++}
++
++func ReadTransportCeilingAuthKey(path string) ([]byte, error) {
++	encoded, err := os.ReadFile(path)
++	if err != nil {
++		return nil, err
++	}
++	trimmed := strings.TrimSpace(string(encoded))
++	if len(trimmed) != 2*TransportCeilingAuthKeyBytes || strings.IndexFunc(trimmed, func(r rune) bool {
++		return r == ' ' || r == '\t' || r == '\r' || r == '\n'
++	}) >= 0 {
++		return nil, errors.New("transport ceiling auth key must be exactly 64 hexadecimal characters")
++	}
++	key, err := hex.DecodeString(trimmed)
++	if err != nil || len(key) != TransportCeilingAuthKeyBytes {
++		return nil, errors.New("transport ceiling auth key must encode exactly 32 bytes")
++	}
++	return key, nil
++}
++
++func transportCeilingVariantByte(variant string) (byte, error) {
++	switch variant {
++	case TransportCeilingVariantYamux:
++		return 1, nil
++	case TransportCeilingVariantRaw:
++		return 2, nil
++	default:
++		return 0, fmt.Errorf("unknown transport ceiling variant %q", variant)
++	}
++}
++
++func AuthenticateTransportCeilingClient(conn net.Conn, key []byte, variant string, lane int, timeout time.Duration) error {
++	variantByte, err := transportCeilingVariantByte(variant)
++	if err != nil {
++		return err
++	}
++	if len(key) != TransportCeilingAuthKeyBytes || lane < 0 || lane >= TransportCeilingPhysicalLanes {
++		return errors.New("invalid transport ceiling client authentication input")
++	}
++	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
++		return err
++	}
++	defer conn.SetDeadline(time.Time{})
++	var request [transportCeilingAuthPacketBytes]byte
++	copy(request[:8], transportCeilingAuthMagic[:])
++	binary.BigEndian.PutUint16(request[8:10], TransportCeilingSchemaVersion)
++	request[10], request[11] = variantByte, byte(lane)
++	if _, err := rand.Read(request[12:44]); err != nil {
++		return err
++	}
++	mac := hmac.New(sha256.New, key)
++	_, _ = mac.Write(request[:44])
++	copy(request[44:76], mac.Sum(nil))
++	if err := writeTransportCeilingAll(conn, request[:]); err != nil {
++		return err
++	}
++	var response [transportCeilingAuthPacketBytes]byte
++	if _, err := io.ReadFull(conn, response[:]); err != nil {
++		return err
++	}
++	if !slices.Equal(response[:44], request[:44]) {
++		return errors.New("transport ceiling authentication response mismatch")
++	}
++	mac.Reset()
++	_, _ = mac.Write([]byte("server-ack"))
++	_, _ = mac.Write(response[:44])
++	if !hmac.Equal(response[44:76], mac.Sum(nil)) || binary.BigEndian.Uint32(response[76:80]) != 0 {
++		return errors.New("transport ceiling authentication response MAC mismatch")
++	}
++	return nil
++}
++
++func AuthenticateTransportCeilingServer(conn net.Conn, key []byte, expectedVariant string, timeout time.Duration) (int, error) {
++	expectedVariantByte, err := transportCeilingVariantByte(expectedVariant)
++	if err != nil {
++		return 0, err
++	}
++	if len(key) != TransportCeilingAuthKeyBytes {
++		return 0, errors.New("invalid transport ceiling server authentication key")
++	}
++	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
++		return 0, err
++	}
++	defer conn.SetDeadline(time.Time{})
++	var request [transportCeilingAuthPacketBytes]byte
++	if _, err := io.ReadFull(conn, request[:]); err != nil {
++		return 0, err
++	}
++	if !slices.Equal(request[:8], transportCeilingAuthMagic[:]) || binary.BigEndian.Uint16(request[8:10]) != TransportCeilingSchemaVersion || request[10] != expectedVariantByte || request[11] >= TransportCeilingPhysicalLanes || binary.BigEndian.Uint32(request[76:80]) != 0 {
++		return 0, errors.New("invalid transport ceiling authentication request")
++	}
++	mac := hmac.New(sha256.New, key)
++	_, _ = mac.Write(request[:44])
++	if !hmac.Equal(request[44:76], mac.Sum(nil)) {
++		return 0, errors.New("transport ceiling authentication request MAC mismatch")
++	}
++	response := request
++	mac.Reset()
++	_, _ = mac.Write([]byte("server-ack"))
++	_, _ = mac.Write(response[:44])
++	copy(response[44:76], mac.Sum(nil))
++	if err := writeTransportCeilingAll(conn, response[:]); err != nil {
++		return 0, err
++	}
++	return int(request[11]), nil
++}
++
++type transportCeilingFrame struct {
++	Op        uint8
++	Direction uint8
++	Phase     uint16
++	Lane      uint16
++	Sequence  uint32
++	Length    uint64
++	Digest    [sha256.Size]byte
++}
++
++type TransportCeilingPeerPhase struct {
++	PhaseIndex           int    `json:"phase_index"`
++	Lane                 int    `json:"lane"`
++	Direction            string `json:"direction"`
++	ReceivedPayloadBytes int64  `json:"received_payload_bytes"`
++	ExpectedSHA256       string `json:"expected_sha256"`
++	ReceivedSHA256       string `json:"received_sha256"`
++}
++
++type TransportCeilingPhaseSequencer struct {
++	mu   sync.Mutex
++	next int
++}
++
++func (s *TransportCeilingPhaseSequencer) Accept(index int) error {
++	if s == nil {
++		return errors.New("nil transport ceiling phase sequencer")
++	}
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	if index != s.next {
++		return fmt.Errorf("transport ceiling phase %d arrived while waiting for %d", index, s.next)
++	}
++	s.next++
++	return nil
++}
++
++func (s *TransportCeilingPhaseSequencer) Completed() int {
++	if s == nil {
++		return 0
++	}
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	return s.next
++}
++
++func writeTransportCeilingFrame(w io.Writer, frame transportCeilingFrame) error {
++	var header [TransportCeilingFrameHeaderBytes]byte
++	copy(header[:8], transportCeilingFrameMagic[:])
++	binary.BigEndian.PutUint16(header[8:10], TransportCeilingSchemaVersion)
++	header[10] = frame.Op
++	header[11] = frame.Direction
++	binary.BigEndian.PutUint16(header[12:14], frame.Phase)
++	binary.BigEndian.PutUint16(header[14:16], frame.Lane)
++	binary.BigEndian.PutUint32(header[16:20], frame.Sequence)
++	binary.BigEndian.PutUint64(header[20:28], frame.Length)
++	copy(header[28:60], frame.Digest[:])
++	return writeTransportCeilingAll(w, header[:])
++}
++
++func writeTransportCeilingAll(w io.Writer, data []byte) error {
++	for len(data) > 0 {
++		n, err := w.Write(data)
++		if n > 0 {
++			data = data[n:]
++		}
++		if err != nil {
++			return err
++		}
++		if n == 0 {
++			return io.ErrShortWrite
++		}
++	}
++	return nil
++}
++
++func readTransportCeilingFrame(r io.Reader) (transportCeilingFrame, error) {
++	var header [TransportCeilingFrameHeaderBytes]byte
++	if _, err := io.ReadFull(r, header[:]); err != nil {
++		return transportCeilingFrame{}, err
++	}
++	if !slices.Equal(header[:8], transportCeilingFrameMagic[:]) {
++		return transportCeilingFrame{}, errors.New("transport ceiling frame magic mismatch")
++	}
++	if version := binary.BigEndian.Uint16(header[8:10]); version != TransportCeilingSchemaVersion {
++		return transportCeilingFrame{}, fmt.Errorf("transport ceiling frame version %d is unsupported", version)
++	}
++	if binary.BigEndian.Uint32(header[60:64]) != 0 {
++		return transportCeilingFrame{}, errors.New("transport ceiling frame reserved bytes are nonzero")
++	}
++	frame := transportCeilingFrame{
++		Op:        header[10],
++		Direction: header[11],
++		Phase:     binary.BigEndian.Uint16(header[12:14]),
++		Lane:      binary.BigEndian.Uint16(header[14:16]),
++		Sequence:  binary.BigEndian.Uint32(header[16:20]),
++		Length:    binary.BigEndian.Uint64(header[20:28]),
++	}
++	copy(frame.Digest[:], header[28:60])
++	if frame.Lane < 1 || frame.Lane > TransportCeilingDataLanes {
++		return transportCeilingFrame{}, fmt.Errorf("transport ceiling frame lane %d is invalid", frame.Lane)
++	}
++	if frame.Phase >= TransportCeilingExpectedPhases {
++		return transportCeilingFrame{}, fmt.Errorf("transport ceiling frame phase %d is invalid", frame.Phase)
++	}
++	if frame.Length > uint64(TransportCeilingPayloadBytes) {
++		return transportCeilingFrame{}, fmt.Errorf("transport ceiling frame length %d exceeds the fixed payload bound", frame.Length)
++	}
++	return frame, nil
++}
++
++func transportCeilingDirection(direction string) (uint8, error) {
++	switch direction {
++	case "download":
++		return 1, nil
++	case "upload":
++		return 2, nil
++	default:
++		return 0, fmt.Errorf("unknown transport ceiling direction %q", direction)
++	}
++}
++
++func validateTransportCeilingFrame(frame transportCeilingFrame, op uint8, phase TransportCeilingPhase, length uint64, digest [sha256.Size]byte) error {
++	direction, err := transportCeilingDirection(phase.Direction)
++	if err != nil {
++		return err
++	}
++	if frame.Op != op || frame.Direction != direction || int(frame.Phase) != phase.Index || int(frame.Lane) != phase.Lane || frame.Sequence != uint32(phase.Index) || frame.Length != length || frame.Digest != digest {
++		return fmt.Errorf("unexpected transport ceiling frame for phase %d: op=%d direction=%d phase=%d lane=%d sequence=%d length=%d digest=%x", phase.Index, frame.Op, frame.Direction, frame.Phase, frame.Lane, frame.Sequence, frame.Length, frame.Digest)
++	}
++	return nil
++}
++
++func makeTransportCeilingFrame(op uint8, phase TransportCeilingPhase, length uint64, digest [sha256.Size]byte) (transportCeilingFrame, error) {
++	direction, err := transportCeilingDirection(phase.Direction)
++	if err != nil {
++		return transportCeilingFrame{}, err
++	}
++	return transportCeilingFrame{Op: op, Direction: direction, Phase: uint16(phase.Index), Lane: uint16(phase.Lane), Sequence: uint32(phase.Index), Length: length, Digest: digest}, nil
++}
++
++// RunTransportCeilingCoordinatorPhase executes one fixed phase. wallStart must
++// be captured before any per-phase Yamux Open/OpenRequest work. The returned
++// wall duration ends at the exact completion ACK; stream cleanup and TCP_INFO
++// sampling deliberately occur later.
++func RunTransportCeilingCoordinatorPhase(ctx context.Context, conn net.Conn, phase TransportCeilingPhase, wallStart time.Time, timeout time.Duration, postTransfer func() TransportCeilingTCPInfo) (TransportCeilingPhaseResult, error) {
++	result := TransportCeilingPhaseResult{
++		SchemaVersion: TransportCeilingSchemaVersion, PhaseIndex: phase.Index, PhaseName: phase.Name,
++		Lane: phase.Lane, Direction: phase.Direction, Stage: phase.Stage, ReuseKind: phase.ReuseKind,
++		ConfiguredPayloadBytes: TransportCeilingPayloadBytes,
++	}
++	clearDeadline, err := SetTransportCeilingDeadline(ctx, conn, timeout)
++	if err != nil {
++		return result, err
++	}
++	defer clearDeadline()
++	expected := TransportCeilingPayloadDigest(TransportCeilingPayloadBytes)
++	start, err := makeTransportCeilingFrame(transportCeilingFrameStart, phase, uint64(TransportCeilingPayloadBytes), expected)
++	if err != nil {
++		return result, err
++	}
++	if err := writeTransportCeilingFrame(conn, start); err != nil {
++		return result, fmt.Errorf("write phase start: %w", err)
++	}
++	ready, err := readTransportCeilingFrame(conn)
++	if err != nil {
++		return result, fmt.Errorf("read phase ready: %w", err)
++	}
++	if err := validateTransportCeilingFrame(ready, transportCeilingFrameReady, phase, 0, [sha256.Size]byte{}); err != nil {
++		return result, err
++	}
++	payloadStart := time.Now()
++	var received [sha256.Size]byte
++	if phase.Direction == "download" {
++		received, err = readTransportCeilingPayload(conn, TransportCeilingPayloadBytes, TransportCeilingDownloadReadBytes)
++		if err != nil {
++			return result, fmt.Errorf("read download payload: %w", err)
++		}
++		complete, readErr := readTransportCeilingFrame(conn)
++		if readErr != nil {
++			return result, fmt.Errorf("read download completion: %w", readErr)
++		}
++		if err := validateTransportCeilingFrame(complete, transportCeilingFrameComplete, phase, uint64(TransportCeilingPayloadBytes), received); err != nil {
++			return result, err
++		}
++	} else {
++		received, err = writeTransportCeilingPayload(conn, TransportCeilingPayloadBytes, TransportCeilingUploadBufferBytes)
++		if err != nil {
++			return result, fmt.Errorf("write upload payload: %w", err)
++		}
++		complete, makeErr := makeTransportCeilingFrame(transportCeilingFrameComplete, phase, uint64(TransportCeilingPayloadBytes), received)
++		if makeErr != nil {
++			return result, makeErr
++		}
++		if err := writeTransportCeilingFrame(conn, complete); err != nil {
++			return result, fmt.Errorf("write upload completion: %w", err)
++		}
++	}
++	if received != expected {
++		return result, fmt.Errorf("phase %d payload digest = %x, want %x", phase.Index, received, expected)
++	}
++	if phase.Direction == "download" {
++		ack, makeErr := makeTransportCeilingFrame(transportCeilingFrameAck, phase, uint64(TransportCeilingPayloadBytes), received)
++		if makeErr != nil {
++			return result, makeErr
++		}
++		if err := writeTransportCeilingFrame(conn, ack); err != nil {
++			return result, fmt.Errorf("write download ACK: %w", err)
++		}
++	} else {
++		ack, readErr := readTransportCeilingFrame(conn)
++		if readErr != nil {
++			return result, fmt.Errorf("read upload ACK: %w", readErr)
++		}
++		if err := validateTransportCeilingFrame(ack, transportCeilingFrameAck, phase, uint64(TransportCeilingPayloadBytes), received); err != nil {
++			return result, err
++		}
++	}
++	finished := time.Now()
++	result.ReceivedPayloadBytes = TransportCeilingPayloadBytes
++	result.ExpectedSHA256 = hex.EncodeToString(expected[:])
++	result.ReceivedSHA256 = hex.EncodeToString(received[:])
++	result.SetupNanoseconds = payloadStart.Sub(wallStart).Nanoseconds()
++	result.PayloadCompletionNanoseconds = finished.Sub(payloadStart).Nanoseconds()
++	result.PhaseWallNanoseconds = finished.Sub(wallStart).Nanoseconds()
++	if result.PhaseWallNanoseconds > 0 {
++		result.UsefulBytesPerSecond = float64(TransportCeilingPayloadBytes) / (float64(result.PhaseWallNanoseconds) / float64(time.Second))
++	}
++	if postTransfer != nil {
++		result.TCPInfo = postTransfer()
++	}
++	var timingDigest [sha256.Size]byte
++	binary.BigEndian.PutUint64(timingDigest[0:8], uint64(result.PhaseWallNanoseconds))
++	binary.BigEndian.PutUint64(timingDigest[8:16], uint64(result.SetupNanoseconds))
++	binary.BigEndian.PutUint64(timingDigest[16:24], uint64(result.PayloadCompletionNanoseconds))
++	timing, err := makeTransportCeilingFrame(transportCeilingFrameTiming, phase, uint64(TransportCeilingPayloadBytes), timingDigest)
++	if err != nil {
++		return result, err
++	}
++	if err := writeTransportCeilingFrame(conn, timing); err != nil {
++		return result, fmt.Errorf("write phase timing: %w", err)
++	}
++	timingAck, err := readTransportCeilingFrame(conn)
++	if err != nil {
++		return result, fmt.Errorf("read phase timing ACK: %w", err)
++	}
++	if err := validateTransportCeilingFrame(timingAck, transportCeilingFrameTimingAck, phase, 0, [sha256.Size]byte{}); err != nil {
++		return result, err
++	}
++	return result, nil
++}
++
++// ServeTransportCeilingPeerPhase executes the peer half of one frame phase.
++// A single raw peer calls this repeatedly on one persistent connection; a
++// Yamux peer calls it on the stream selected by the fixed plan.
++func ServeTransportCeilingPeerPhase(ctx context.Context, conn net.Conn, sequencer *TransportCeilingPhaseSequencer, timeout time.Duration, postTransfer func() TransportCeilingTCPInfo) (TransportCeilingPhaseResult, error) {
++	clearDeadline, err := SetTransportCeilingDeadline(ctx, conn, timeout)
++	if err != nil {
++		return TransportCeilingPhaseResult{}, err
++	}
++	defer clearDeadline()
++	start, err := readTransportCeilingFrame(conn)
++	if err != nil {
++		return TransportCeilingPhaseResult{}, err
++	}
++	phase, err := TransportCeilingPhaseAt(int(start.Phase))
++	if err != nil {
++		return TransportCeilingPhaseResult{}, err
++	}
++	if start.Op == transportCeilingFrameLogicalClose {
++		if err := validateTransportCeilingFrame(start, transportCeilingFrameLogicalClose, phase, 0, [sha256.Size]byte{}); err != nil {
++			return TransportCeilingPhaseResult{}, err
++		}
++		ack, makeErr := makeTransportCeilingFrame(transportCeilingFrameLogicalCloseAck, phase, 0, [sha256.Size]byte{})
++		if makeErr != nil {
++			return TransportCeilingPhaseResult{}, makeErr
++		}
++		if err := writeTransportCeilingFrame(conn, ack); err != nil {
++			return TransportCeilingPhaseResult{}, err
++		}
++		return TransportCeilingPhaseResult{}, io.EOF
++	}
++	expected := TransportCeilingPayloadDigest(TransportCeilingPayloadBytes)
++	if err := validateTransportCeilingFrame(start, transportCeilingFrameStart, phase, uint64(TransportCeilingPayloadBytes), expected); err != nil {
++		return TransportCeilingPhaseResult{}, err
++	}
++	if err := sequencer.Accept(phase.Index); err != nil {
++		return TransportCeilingPhaseResult{}, err
++	}
++	ready, err := makeTransportCeilingFrame(transportCeilingFrameReady, phase, 0, [sha256.Size]byte{})
++	if err != nil {
++		return TransportCeilingPhaseResult{}, err
++	}
++	if err := writeTransportCeilingFrame(conn, ready); err != nil {
++		return TransportCeilingPhaseResult{}, err
++	}
++	var received [sha256.Size]byte
++	if phase.Direction == "download" {
++		received, err = writeTransportCeilingPayload(conn, TransportCeilingPayloadBytes, TransportCeilingDownloadWriteBytes)
++		if err != nil {
++			return TransportCeilingPhaseResult{}, err
++		}
++		complete, makeErr := makeTransportCeilingFrame(transportCeilingFrameComplete, phase, uint64(TransportCeilingPayloadBytes), received)
++		if makeErr != nil {
++			return TransportCeilingPhaseResult{}, makeErr
++		}
++		if err := writeTransportCeilingFrame(conn, complete); err != nil {
++			return TransportCeilingPhaseResult{}, err
++		}
++		ack, readErr := readTransportCeilingFrame(conn)
++		if readErr != nil {
++			return TransportCeilingPhaseResult{}, readErr
++		}
++		if err := validateTransportCeilingFrame(ack, transportCeilingFrameAck, phase, uint64(TransportCeilingPayloadBytes), received); err != nil {
++			return TransportCeilingPhaseResult{}, err
++		}
++	} else {
++		received, err = readTransportCeilingPayload(conn, TransportCeilingPayloadBytes, TransportCeilingUploadBufferBytes)
++		if err != nil {
++			return TransportCeilingPhaseResult{}, err
++		}
++		complete, readErr := readTransportCeilingFrame(conn)
++		if readErr != nil {
++			return TransportCeilingPhaseResult{}, readErr
++		}
++		if err := validateTransportCeilingFrame(complete, transportCeilingFrameComplete, phase, uint64(TransportCeilingPayloadBytes), received); err != nil {
++			return TransportCeilingPhaseResult{}, err
++		}
++		ack, makeErr := makeTransportCeilingFrame(transportCeilingFrameAck, phase, uint64(TransportCeilingPayloadBytes), received)
++		if makeErr != nil {
++			return TransportCeilingPhaseResult{}, makeErr
++		}
++		if err := writeTransportCeilingFrame(conn, ack); err != nil {
++			return TransportCeilingPhaseResult{}, err
++		}
++	}
++	if received != expected {
++		return TransportCeilingPhaseResult{}, fmt.Errorf("phase %d peer digest = %x, want %x", phase.Index, received, expected)
++	}
++	result := TransportCeilingPhaseResult{
++		SchemaVersion: TransportCeilingSchemaVersion, PhaseIndex: phase.Index, PhaseName: phase.Name,
++		Lane: phase.Lane, Direction: phase.Direction, Stage: phase.Stage, ReuseKind: phase.ReuseKind,
++		ConfiguredPayloadBytes: TransportCeilingPayloadBytes, ReceivedPayloadBytes: TransportCeilingPayloadBytes,
++		ExpectedSHA256: hex.EncodeToString(expected[:]), ReceivedSHA256: hex.EncodeToString(received[:]),
++	}
++	if postTransfer != nil {
++		result.TCPInfo = postTransfer()
++	}
++	timing, err := readTransportCeilingFrame(conn)
++	if err != nil {
++		return TransportCeilingPhaseResult{}, fmt.Errorf("read phase timing: %w", err)
++	}
++	if timing.Op != transportCeilingFrameTiming || timing.Direction != start.Direction || timing.Phase != start.Phase || timing.Lane != start.Lane || timing.Sequence != start.Sequence || timing.Length != uint64(TransportCeilingPayloadBytes) {
++		return TransportCeilingPhaseResult{}, errors.New("invalid transport ceiling timing frame")
++	}
++	result.PhaseWallNanoseconds = int64(binary.BigEndian.Uint64(timing.Digest[0:8]))
++	result.SetupNanoseconds = int64(binary.BigEndian.Uint64(timing.Digest[8:16]))
++	result.PayloadCompletionNanoseconds = int64(binary.BigEndian.Uint64(timing.Digest[16:24]))
++	if result.PhaseWallNanoseconds <= 0 || result.SetupNanoseconds < 0 || result.PayloadCompletionNanoseconds <= 0 || result.SetupNanoseconds+result.PayloadCompletionNanoseconds != result.PhaseWallNanoseconds {
++		return TransportCeilingPhaseResult{}, errors.New("invalid transport ceiling timing values")
++	}
++	result.UsefulBytesPerSecond = float64(TransportCeilingPayloadBytes) / (float64(result.PhaseWallNanoseconds) / float64(time.Second))
++	timingAck, err := makeTransportCeilingFrame(transportCeilingFrameTimingAck, phase, 0, [sha256.Size]byte{})
++	if err != nil {
++		return TransportCeilingPhaseResult{}, err
++	}
++	if err := writeTransportCeilingFrame(conn, timingAck); err != nil {
++		return TransportCeilingPhaseResult{}, err
++	}
++	return result, nil
++}
++
++func CloseTransportCeilingLogical(ctx context.Context, conn net.Conn, phase TransportCeilingPhase, timeout time.Duration) error {
++	clearDeadline, err := SetTransportCeilingDeadline(ctx, conn, timeout)
++	if err != nil {
++		return err
++	}
++	defer clearDeadline()
++	closeFrame, err := makeTransportCeilingFrame(transportCeilingFrameLogicalClose, phase, 0, [sha256.Size]byte{})
++	if err != nil {
++		return err
++	}
++	if err := writeTransportCeilingFrame(conn, closeFrame); err != nil {
++		return err
++	}
++	ack, err := readTransportCeilingFrame(conn)
++	if err != nil {
++		return err
++	}
++	return validateTransportCeilingFrame(ack, transportCeilingFrameLogicalCloseAck, phase, 0, [sha256.Size]byte{})
++}
++
++func AcceptTransportCeilingLogicalClose(conn net.Conn, phase TransportCeilingPhase) error {
++	closeFrame, err := readTransportCeilingFrame(conn)
++	if err != nil {
++		return err
++	}
++	if err := validateTransportCeilingFrame(closeFrame, transportCeilingFrameLogicalClose, phase, 0, [sha256.Size]byte{}); err != nil {
++		return err
++	}
++	ack, err := makeTransportCeilingFrame(transportCeilingFrameLogicalCloseAck, phase, 0, [sha256.Size]byte{})
++	if err != nil {
++		return err
++	}
++	return writeTransportCeilingFrame(conn, ack)
++}
++
++var transportCeilingPayloadBlock = func() []byte {
++	block := make([]byte, TransportCeilingDownloadWriteBytes)
++	for i := range block {
++		// Both production-facing chunk sizes are multiples of 1024. A 1024-byte
++		// period keeps the exact byte stream invariant when either relay splits a
++		// write differently.
++		block[i] = byte((uint64(i%1024)*131 + 17) % 251)
++	}
++	return block
++}()
++
++var transportCeilingFixedPayloadDigest = transportCeilingPayloadDigest(TransportCeilingPayloadBytes)
++
++func TransportCeilingPayloadDigest(size int64) [sha256.Size]byte {
++	if size == TransportCeilingPayloadBytes {
++		return transportCeilingFixedPayloadDigest
++	}
++	return transportCeilingPayloadDigest(size)
++}
++
++func transportCeilingPayloadDigest(size int64) [sha256.Size]byte {
++	h := sha256.New()
++	remaining := size
++	for remaining > 0 {
++		n := min(remaining, int64(len(transportCeilingPayloadBlock)))
++		_, _ = h.Write(transportCeilingPayloadBlock[:n])
++		remaining -= n
++	}
++	var digest [sha256.Size]byte
++	copy(digest[:], h.Sum(nil))
++	return digest
++}
++
++func writeTransportCeilingPayload(w io.Writer, size int64, chunkSize int) ([sha256.Size]byte, error) {
++	if size < 0 || size > TransportCeilingPayloadBytes || chunkSize < 1 || chunkSize > len(transportCeilingPayloadBlock) {
++		return [sha256.Size]byte{}, errors.New("invalid transport ceiling payload write bound")
++	}
++	h := sha256.New()
++	remaining := size
++	for remaining > 0 {
++		n := min(remaining, int64(chunkSize))
++		chunk := transportCeilingPayloadBlock[:n]
++		if err := writeTransportCeilingAll(w, chunk); err != nil {
++			return [sha256.Size]byte{}, err
++		}
++		_, _ = h.Write(chunk)
++		remaining -= n
++	}
++	var digest [sha256.Size]byte
++	copy(digest[:], h.Sum(nil))
++	return digest, nil
++}
++
++func readTransportCeilingPayload(r io.Reader, size int64, chunkSize int) ([sha256.Size]byte, error) {
++	if size < 0 || size > TransportCeilingPayloadBytes || chunkSize < 1 {
++		return [sha256.Size]byte{}, errors.New("invalid transport ceiling payload read bound")
++	}
++	h := sha256.New()
++	buffer := make([]byte, chunkSize)
++	remaining := size
++	for remaining > 0 {
++		n := min(remaining, int64(len(buffer)))
++		if _, err := io.ReadFull(r, buffer[:n]); err != nil {
++			return [sha256.Size]byte{}, err
++		}
++		_, _ = h.Write(buffer[:n])
++		remaining -= n
++	}
++	var digest [sha256.Size]byte
++	copy(digest[:], h.Sum(nil))
++	return digest, nil
++}
++
++type TransportCeilingLedgerSnapshot struct {
++	LimitBytes           int64            `json:"limit_bytes"`
++	InitialReservedBytes int64            `json:"initial_reserved_bytes"`
++	GrowthReservedBytes  int64            `json:"growth_reserved_bytes"`
++	CurrentBytes         int64            `json:"current_bytes"`
++	HighWaterBytes       int64            `json:"high_water_bytes"`
++	DeniedReservations   int64            `json:"denied_reservations"`
++	ReleaseCount         int64            `json:"release_count"`
++	Categories           map[string]int64 `json:"categories,omitempty"`
++	FinalBytes           int64            `json:"final_bytes"`
++	ActualHeapAllocBytes uint64           `json:"actual_heap_alloc_bytes"`
++	ActualOpenFDs        int              `json:"actual_open_fds"`
++	ActualSocketFDs      int              `json:"actual_socket_fds"`
++}
++
++type TransportCeilingLedger struct {
++	mu         sync.Mutex
++	limit      int64
++	current    int64
++	highWater  int64
++	initial    int64
++	growth     int64
++	denied     int64
++	releases   int64
++	categories map[string]int64
++}
++
++func NewTransportCeilingLedger(limit int64) *TransportCeilingLedger {
++	return &TransportCeilingLedger{limit: limit, categories: make(map[string]int64)}
++}
++
++func (l *TransportCeilingLedger) Reserve(category string, bytes int64) (func(), bool) {
++	if l == nil || bytes < 0 || category == "" {
++		return nil, false
++	}
++	l.mu.Lock()
++	if bytes == 0 {
++		if _, exists := l.categories[category]; !exists {
++			l.categories[category] = 0
++		}
++		l.mu.Unlock()
++		return func() {}, true
++	}
++	if bytes > l.limit-l.current {
++		l.denied++
++		l.mu.Unlock()
++		return nil, false
++	}
++	l.current += bytes
++	l.highWater = max(l.highWater, l.current)
++	l.categories[category] += bytes
++	if category == "initial_pool" {
++		l.initial += bytes
++	} else if category == "growth_pool" {
++		l.growth += bytes
++	}
++	l.mu.Unlock()
++	var once sync.Once
++	return func() {
++		once.Do(func() {
++			l.mu.Lock()
++			l.current -= bytes
++			l.categories[category] -= bytes
++			l.releases++
++			l.mu.Unlock()
++		})
++	}, true
++}
++
++func (l *TransportCeilingLedger) Snapshot(final bool) TransportCeilingLedgerSnapshot {
++	if l == nil {
++		return TransportCeilingLedgerSnapshot{}
++	}
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	categories := make(map[string]int64, len(l.categories))
++	for key, value := range l.categories {
++		categories[key] = value
++	}
++	snapshot := TransportCeilingLedgerSnapshot{
++		LimitBytes: l.limit, InitialReservedBytes: l.initial, GrowthReservedBytes: l.growth,
++		CurrentBytes: l.current, HighWaterBytes: l.highWater, DeniedReservations: l.denied,
++		ReleaseCount: l.releases, Categories: categories,
++	}
++	if final {
++		snapshot.FinalBytes = l.current
++	}
++	return snapshot
++}
++
++type TransportCeilingTCPInfo struct {
++	Captured            bool   `json:"captured"`
++	Error               string `json:"error"`
++	LocalAddress        string `json:"local_address"`
++	RemoteAddress       string `json:"remote_address"`
++	State               uint8  `json:"state"`
++	CAState             uint8  `json:"ca_state"`
++	Retransmits         uint8  `json:"retransmits"`
++	Probes              uint8  `json:"probes"`
++	Backoff             uint8  `json:"backoff"`
++	Options             uint8  `json:"options"`
++	RTOUsec             uint32 `json:"rto_us"`
++	ATOUsec             uint32 `json:"ato_us"`
++	SendMSS             uint32 `json:"snd_mss"`
++	ReceiveMSS          uint32 `json:"rcv_mss"`
++	Unacked             uint32 `json:"unacked"`
++	Sacked              uint32 `json:"sacked"`
++	Lost                uint32 `json:"lost"`
++	Retrans             uint32 `json:"retrans"`
++	Fackets             uint32 `json:"fackets"`
++	LastDataSentMS      uint32 `json:"last_data_sent_ms"`
++	LastAckSentMS       uint32 `json:"last_ack_sent_ms"`
++	LastDataRecvMS      uint32 `json:"last_data_recv_ms"`
++	LastAckRecvMS       uint32 `json:"last_ack_recv_ms"`
++	PMTU                uint32 `json:"pmtu"`
++	ReceiveSsthresh     uint32 `json:"rcv_ssthresh"`
++	RTTUsec             uint32 `json:"rtt_us"`
++	RTTVarUsec          uint32 `json:"rttvar_us"`
++	SendSsthresh        uint32 `json:"snd_ssthresh"`
++	SendCwnd            uint32 `json:"snd_cwnd"`
++	AdvMSS              uint32 `json:"advmss"`
++	Reordering          uint32 `json:"reordering"`
++	ReceiveRTTUsec      uint32 `json:"rcv_rtt_us"`
++	ReceiveSpace        uint32 `json:"rcv_space"`
++	TotalRetrans        uint32 `json:"total_retrans"`
++	DeliveryRate        uint64 `json:"delivery_rate"`
++	PacingRate          uint64 `json:"pacing_rate"`
++	BytesAcked          uint64 `json:"bytes_acked"`
++	BytesReceived       uint64 `json:"bytes_received"`
++	BytesSent           uint64 `json:"bytes_sent"`
++	NotSentBytes        uint32 `json:"notsent_bytes"`
++	SendWindow          uint32 `json:"snd_wnd"`
++	ReceiveWindow       uint32 `json:"rcv_wnd"`
++	AppLimitedAvailable bool   `json:"app_limited_available"`
++}
++
++func CaptureTransportCeilingTCPInfo(conn *net.TCPConn) TransportCeilingTCPInfo {
++	result := TransportCeilingTCPInfo{}
++	if conn == nil {
++		result.Error = "nil TCP connection"
++		return result
++	}
++	result.LocalAddress = conn.LocalAddr().String()
++	result.RemoteAddress = conn.RemoteAddr().String()
++	raw, err := conn.SyscallConn()
++	if err != nil {
++		result.Error = err.Error()
++		return result
++	}
++	var (
++		info  *unix.TCPInfo
++		opErr error
++	)
++	controlErr := raw.Control(func(fd uintptr) {
++		info, opErr = unix.GetsockoptTCPInfo(int(fd), unix.IPPROTO_TCP, unix.TCP_INFO)
++	})
++	if controlErr != nil {
++		result.Error = controlErr.Error()
++		return result
++	}
++	if opErr != nil {
++		result.Error = opErr.Error()
++		return result
++	}
++	result.Captured = true
++	result.State, result.CAState, result.Retransmits = info.State, info.Ca_state, info.Retransmits
++	result.Probes, result.Backoff, result.Options = info.Probes, info.Backoff, info.Options
++	result.RTOUsec, result.ATOUsec = info.Rto, info.Ato
++	result.SendMSS, result.ReceiveMSS = info.Snd_mss, info.Rcv_mss
++	result.Unacked, result.Sacked, result.Lost, result.Retrans, result.Fackets = info.Unacked, info.Sacked, info.Lost, info.Retrans, info.Fackets
++	result.LastDataSentMS, result.LastAckSentMS = info.Last_data_sent, info.Last_ack_sent
++	result.LastDataRecvMS, result.LastAckRecvMS = info.Last_data_recv, info.Last_ack_recv
++	result.PMTU, result.ReceiveSsthresh = info.Pmtu, info.Rcv_ssthresh
++	result.RTTUsec, result.RTTVarUsec = info.Rtt, info.Rttvar
++	result.SendSsthresh, result.SendCwnd, result.AdvMSS = info.Snd_ssthresh, info.Snd_cwnd, info.Advmss
++	result.Reordering, result.ReceiveRTTUsec, result.ReceiveSpace = info.Reordering, info.Rcv_rtt, info.Rcv_space
++	result.TotalRetrans, result.DeliveryRate, result.PacingRate = info.Total_retrans, info.Delivery_rate, info.Pacing_rate
++	result.BytesAcked, result.BytesReceived, result.BytesSent = info.Bytes_acked, info.Bytes_received, info.Bytes_sent
++	result.NotSentBytes, result.SendWindow, result.ReceiveWindow = info.Notsent_bytes, info.Snd_wnd, info.Rcv_wnd
++	// Linux exposes app_limited through inet_diag rather than this portable
++	// TCP_INFO struct. Keep availability explicit instead of inventing a value.
++	return result
++}
++
++func ValidateTransportCeilingEstablishedTCP(conn *net.TCPConn) error {
++	info := CaptureTransportCeilingTCPInfo(conn)
++	if !info.Captured || info.Error != "" {
++		return fmt.Errorf("transport ceiling TCP state unavailable: %s", info.Error)
++	}
++	if info.State != TransportCeilingTCPEstablished {
++		return fmt.Errorf("transport ceiling TCP state = %d, want ESTABLISHED", info.State)
++	}
++	return nil
++}
++
++func NewTransportCeilingLoopbackPair() (*net.TCPConn, *net.TCPConn, error) {
++	listener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
++	if err != nil {
++		return nil, nil, err
++	}
++	defer listener.Close()
++	if err := listener.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
++		return nil, nil, err
++	}
++	type acceptedResult struct {
++		conn *net.TCPConn
++		err  error
++	}
++	accepted := make(chan acceptedResult, 1)
++	go func() {
++		conn, acceptErr := listener.AcceptTCP()
++		accepted <- acceptedResult{conn: conn, err: acceptErr}
++	}()
++	rawClient, err := (&net.Dialer{Timeout: 5 * time.Second}).Dial("tcp", listener.Addr().String())
++	if err != nil {
++		return nil, nil, err
++	}
++	client, ok := rawClient.(*net.TCPConn)
++	if !ok {
++		_ = rawClient.Close()
++		return nil, nil, fmt.Errorf("loopback client connection is %T", rawClient)
++	}
++	var server acceptedResult
++	select {
++	case server = <-accepted:
++	case <-time.After(5 * time.Second):
++		_ = client.Close()
++		return nil, nil, errors.New("timeout accepting transport ceiling loopback connection")
++	}
++	if server.err != nil {
++		_ = client.Close()
++		return nil, nil, server.err
++	}
++	return client, server.conn, nil
++}
++
++type TransportCeilingSocket struct {
++	Lane               int    `json:"lane"`
++	LaneRole           string `json:"lane_role"`
++	LocalAddress       string `json:"local_address"`
++	RemoteAddress      string `json:"remote_address"`
++	ConnectionIdentity string `json:"connection_identity"`
++	TLSVersion         uint16 `json:"tls_version"`
++	TLSCipherSuite     uint16 `json:"tls_cipher_suite"`
++	TCPInfoCaptured    bool   `json:"tcp_info_captured"`
++	TCPInfoError       string `json:"tcp_info_error"`
++	TCPState           uint8  `json:"tcp_state"`
++	Connected          bool   `json:"connected"`
++}
++
++type TransportCeilingPhaseResult struct {
++	SchemaVersion                int                     `json:"schema_version"`
++	PhaseIndex                   int                     `json:"phase_index"`
++	PhaseName                    string                  `json:"phase_name"`
++	Lane                         int                     `json:"lane"`
++	Direction                    string                  `json:"direction"`
++	Stage                        string                  `json:"stage"`
++	ReuseKind                    string                  `json:"reuse_kind"`
++	ConfiguredPayloadBytes       int64                   `json:"configured_payload_bytes"`
++	ReceivedPayloadBytes         int64                   `json:"received_payload_bytes"`
++	ExpectedSHA256               string                  `json:"expected_sha256"`
++	ReceivedSHA256               string                  `json:"received_sha256"`
++	PhaseWallNanoseconds         int64                   `json:"phase_wall_nanoseconds"`
++	SetupNanoseconds             int64                   `json:"setup_nanoseconds"`
++	PayloadCompletionNanoseconds int64                   `json:"payload_completion_nanoseconds"`
++	UsefulBytesPerSecond         float64                 `json:"useful_bytes_per_second"`
++	TCPInfo                      TransportCeilingTCPInfo `json:"tcp_info"`
++}
++
++type TransportCeilingReport struct {
++	SchemaVersion           int                            `json:"schema_version"`
++	ProcessRole             string                         `json:"process_role"`
++	Variant                 string                         `json:"variant"`
++	SourceRef               string                         `json:"source_ref"`
++	Configuration           TransportCeilingConfiguration  `json:"configuration"`
++	Ready                   bool                           `json:"ready"`
++	GracefulShutdown        bool                           `json:"graceful_shutdown"`
++	InvalidReason           string                         `json:"invalid_reason"`
++	ExpectedPhases          int                            `json:"expected_phases"`
++	CompletedPhases         int                            `json:"completed_phases"`
++	PhysicalSockets         []TransportCeilingSocket       `json:"physical_sockets,omitempty"`
++	PhysicalSocketsInitial  []TransportCeilingSocket       `json:"physical_sockets_initial"`
++	PhysicalSocketsTerminal []TransportCeilingSocket       `json:"physical_sockets_terminal"`
++	SameSocketIdentities    bool                           `json:"same_socket_identities"`
++	ReconnectCount          int                            `json:"reconnect_count"`
++	ActiveLogicalStreams    int                            `json:"active_logical_streams"`
++	JoinedLogicalRelays     bool                           `json:"joined_logical_relays"`
++	JoinedPhysicalRelays    bool                           `json:"joined_physical_relays"`
++	Results                 []TransportCeilingPhaseResult  `json:"results"`
++	PoolLedger              TransportCeilingLedgerSnapshot `json:"pool_ledger"`
++	WorkingLedger           TransportCeilingLedgerSnapshot `json:"working_ledger"`
++	Errors                  []string                       `json:"errors"`
++}
++
++type TransportCeilingConfiguration struct {
++	PhysicalLanes                     int    `json:"physical_lanes"`
++	DataLanes                         int    `json:"data_lanes"`
++	TLSMinimumVersion                 uint16 `json:"tls_minimum_version"`
++	TLSNextProtocol                   string `json:"tls_next_protocol"`
++	TLSServerName                     string `json:"tls_server_name"`
++	TLSClientCertificates             bool   `json:"tls_client_certificates"`
++	YamuxEnabled                      bool   `json:"yamux_enabled"`
++	YamuxAcceptBacklog                int    `json:"yamux_accept_backlog"`
++	ControlIncomingHardBound          int    `json:"control_incoming_hard_bound"`
++	DataIncomingHardBound             int    `json:"data_incoming_hard_bound"`
++	InitialByteWindowBytes            uint32 `json:"initial_byte_window_bytes"`
++	MaximumByteWindowBytes            uint32 `json:"maximum_byte_window_bytes"`
++	InitialSessionAllocationBytes     uint32 `json:"initial_session_allocation_bytes"`
++	MaximumSessionAllocationBytes     uint32 `json:"maximum_session_allocation_bytes"`
++	InitialStreamAllocationBytes      uint32 `json:"initial_stream_allocation_bytes"`
++	MaximumStreamAllocationBytes      uint32 `json:"maximum_stream_allocation_bytes"`
++	MaximumDATAFrameBytes             uint32 `json:"maximum_data_frame_bytes"`
++	KeepAliveIntervalNanoseconds      int64  `json:"keepalive_interval_nanoseconds"`
++	ConnectionWriteTimeoutNanoseconds int64  `json:"connection_write_timeout_nanoseconds"`
++	StreamOpenTimeoutNanoseconds      int64  `json:"stream_open_timeout_nanoseconds"`
++	StreamCloseTimeoutNanoseconds     int64  `json:"stream_close_timeout_nanoseconds"`
++}
++
++func transportCeilingConfiguration(role, variant string) TransportCeilingConfiguration {
++	configuration := TransportCeilingConfiguration{
++		PhysicalLanes: TransportCeilingPhysicalLanes, DataLanes: TransportCeilingDataLanes,
++		TLSMinimumVersion: tls.VersionTLS12, TLSNextProtocol: "http/1.1",
++		TLSServerName: TransportCeilingTLSName, TLSClientCertificates: false,
++	}
++	if variant != TransportCeilingVariantYamux {
++		return configuration
++	}
++	configuration.YamuxEnabled = true
++	configuration.YamuxAcceptBacklog = 256
++	configuration.ControlIncomingHardBound = NegotiatedControlStreamLimit
++	configuration.DataIncomingHardBound = 16
++	if role == "server" {
++		configuration.ControlIncomingHardBound = -1
++		configuration.DataIncomingHardBound = -1
++	}
++	configuration.InitialByteWindowBytes = uint32(DefaultAdaptiveReceiveWindowBytes)
++	configuration.MaximumByteWindowBytes = uint32(DefaultMaxStreamWindowSizeBytes)
++	configuration.InitialSessionAllocationBytes = AggregateInitialSessionWindowBytes
++	configuration.MaximumSessionAllocationBytes = AggregateMaxSessionWindowBytes
++	configuration.InitialStreamAllocationBytes = AggregateInitialStreamWindowBytes
++	configuration.MaximumStreamAllocationBytes = AggregateMaxStreamWindowBytes
++	configuration.MaximumDATAFrameBytes = AggregateMaxDataFrameBytes
++	configuration.KeepAliveIntervalNanoseconds = int64(20 * time.Second)
++	configuration.ConnectionWriteTimeoutNanoseconds = int64(10 * time.Second)
++	configuration.StreamOpenTimeoutNanoseconds = int64(10 * time.Second)
++	configuration.StreamCloseTimeoutNanoseconds = int64(30 * time.Second)
++	return configuration
++}
++
++type TransportCeilingEndpoint struct {
++	mu       sync.Mutex
++	report   TransportCeilingReport
++	pool     *TransportCeilingLedger
++	working  *TransportCeilingLedger
++	live     bool
++	transfer func(context.Context, int) (TransportCeilingPhaseResult, error)
++	shutdown func()
++}
++
++func NewTransportCeilingEndpoint(role, variant, sourceRef string, pool, working *TransportCeilingLedger) (*TransportCeilingEndpoint, error) {
++	if strings.TrimSpace(sourceRef) == "" {
++		return nil, errors.New("transport ceiling source reference is required")
++	}
++	return &TransportCeilingEndpoint{
++		report: TransportCeilingReport{
++			SchemaVersion: TransportCeilingSchemaVersion, ProcessRole: role, Variant: variant,
++			SourceRef: sourceRef, Configuration: transportCeilingConfiguration(role, variant), ExpectedPhases: TransportCeilingExpectedPhases, Errors: []string{},
++		},
++		pool: pool, working: working,
++	}, nil
++}
++
++func (e *TransportCeilingEndpoint) SetCallbacks(transfer func(context.Context, int) (TransportCeilingPhaseResult, error), shutdown func()) {
++	e.mu.Lock()
++	e.transfer, e.shutdown = transfer, shutdown
++	e.mu.Unlock()
++}
++
++func (e *TransportCeilingEndpoint) SetReady(sockets []TransportCeilingSocket) {
++	e.mu.Lock()
++	e.report.Ready = true
++	e.report.PhysicalSockets = slices.Clone(sockets)
++	e.report.PhysicalSocketsInitial = slices.Clone(sockets)
++	e.report.PhysicalSocketsTerminal = slices.Clone(sockets)
++	e.mu.Unlock()
++}
++
++func (e *TransportCeilingEndpoint) SetLogicalState(active int, joined bool) {
++	e.mu.Lock()
++	e.report.ActiveLogicalStreams = active
++	e.report.JoinedLogicalRelays = joined
++	e.mu.Unlock()
++}
++
++func (e *TransportCeilingEndpoint) RecordResult(result TransportCeilingPhaseResult) error {
++	e.mu.Lock()
++	defer e.mu.Unlock()
++	if result.PhaseIndex != len(e.report.Results) {
++		return fmt.Errorf("record phase %d while waiting for %d", result.PhaseIndex, len(e.report.Results))
++	}
++	e.report.Results = append(e.report.Results, result)
++	e.report.CompletedPhases = len(e.report.Results)
++	return nil
++}
++
++func (e *TransportCeilingEndpoint) MarkLive(sockets []TransportCeilingSocket) error {
++	e.mu.Lock()
++	defer e.mu.Unlock()
++	if len(e.report.Results) != TransportCeilingExpectedPhases || e.report.ActiveLogicalStreams != 0 || !e.report.JoinedLogicalRelays {
++		return errors.New("transport ceiling endpoint cannot become live-post16 before logical cleanup")
++	}
++	for _, socket := range sockets {
++		if !socket.Connected {
++			return fmt.Errorf("transport ceiling lane %d is not connected at live-post16", socket.Lane)
++		}
++	}
++	e.report.PhysicalSockets = slices.Clone(sockets)
++	e.report.PhysicalSocketsTerminal = slices.Clone(sockets)
++	e.report.SameSocketIdentities = transportCeilingSameSocketIdentities(e.report.PhysicalSocketsInitial, sockets)
++	if !e.report.SameSocketIdentities {
++		return errors.New("transport ceiling live-post16 physical socket identities changed")
++	}
++	e.live = true
++	return nil
++}
++
++func (e *TransportCeilingEndpoint) MarkInvalid(err error) {
++	if err == nil {
++		return
++	}
++	e.mu.Lock()
++	e.report.InvalidReason = err.Error()
++	e.report.Errors = append(e.report.Errors, err.Error())
++	e.mu.Unlock()
++}
++
++func (e *TransportCeilingEndpoint) snapshot() TransportCeilingReport {
++	e.mu.Lock()
++	report := e.report
++	report.PhysicalSockets = slices.Clone(e.report.PhysicalSockets)
++	report.PhysicalSocketsInitial = slices.Clone(e.report.PhysicalSocketsInitial)
++	report.PhysicalSocketsTerminal = slices.Clone(e.report.PhysicalSocketsTerminal)
++	report.Results = slices.Clone(e.report.Results)
++	report.Errors = slices.Clone(e.report.Errors)
++	e.mu.Unlock()
++	report.PoolLedger = e.pool.Snapshot(false)
++	report.WorkingLedger = e.working.Snapshot(false)
++	_ = CaptureTransportCeilingProcessResources(&report.WorkingLedger)
++	return report
++}
++
++func (e *TransportCeilingEndpoint) Terminal(sockets []TransportCeilingSocket, joined bool) TransportCeilingReport {
++	e.mu.Lock()
++	e.report.Ready = false
++	e.report.GracefulShutdown = true
++	e.report.PhysicalSockets = nil
++	e.report.PhysicalSocketsTerminal = slices.Clone(sockets)
++	e.report.JoinedPhysicalRelays = joined
++	e.report.SameSocketIdentities = transportCeilingSameSocketIdentities(e.report.PhysicalSocketsInitial, sockets)
++	report := e.report
++	report.PhysicalSocketsInitial = slices.Clone(e.report.PhysicalSocketsInitial)
++	report.PhysicalSocketsTerminal = slices.Clone(e.report.PhysicalSocketsTerminal)
++	report.Results = slices.Clone(e.report.Results)
++	report.Errors = slices.Clone(e.report.Errors)
++	e.mu.Unlock()
++	report.PoolLedger = e.pool.Snapshot(true)
++	report.WorkingLedger = e.working.Snapshot(true)
++	_ = CaptureTransportCeilingProcessResources(&report.WorkingLedger)
++	return report
++}
++
++func transportCeilingSameSocketIdentities(initial, final []TransportCeilingSocket) bool {
++	if len(initial) != TransportCeilingPhysicalLanes || len(final) != len(initial) {
++		return false
++	}
++	for index := range initial {
++		a, b := initial[index], final[index]
++		if a.Lane != b.Lane || a.LaneRole != b.LaneRole || a.LocalAddress != b.LocalAddress || a.RemoteAddress != b.RemoteAddress || a.ConnectionIdentity != b.ConnectionIdentity || a.TLSVersion != b.TLSVersion || a.TLSCipherSuite != b.TLSCipherSuite {
++			return false
++		}
++	}
++	return true
++}
++
++func (e *TransportCeilingEndpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
++	w.Header().Set("Content-Type", "application/json")
++	switch r.URL.Path {
++	case "/transport-ceiling/readiness":
++		if r.Method != http.MethodGet {
++			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
++			return
++		}
++		_ = json.NewEncoder(w).Encode(e.snapshot())
++	case "/transport-ceiling/live-post16":
++		if r.Method != http.MethodGet {
++			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
++			return
++		}
++		e.mu.Lock()
++		live := e.live
++		e.mu.Unlock()
++		if !live {
++			http.Error(w, "logical cleanup incomplete", http.StatusConflict)
++			return
++		}
++		_ = json.NewEncoder(w).Encode(e.snapshot())
++	case "/transport-ceiling/transfer":
++		if r.Method != http.MethodPost {
++			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
++			return
++		}
++		e.mu.Lock()
++		transfer := e.transfer
++		e.mu.Unlock()
++		if transfer == nil {
++			http.NotFound(w, r)
++			return
++		}
++		var request struct {
++			SchemaVersion int `json:"schema_version"`
++			PhaseIndex    int `json:"phase_index"`
++		}
++		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
++		decoder.DisallowUnknownFields()
++		if err := decoder.Decode(&request); err != nil || request.SchemaVersion != TransportCeilingSchemaVersion {
++			http.Error(w, "invalid transfer request", http.StatusBadRequest)
++			return
++		}
++		result, err := transfer(r.Context(), request.PhaseIndex)
++		if err != nil {
++			e.MarkInvalid(err)
++			http.Error(w, err.Error(), http.StatusInternalServerError)
++			return
++		}
++		_ = json.NewEncoder(w).Encode(result)
++	case "/transport-ceiling/shutdown":
++		if r.Method != http.MethodPost {
++			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
++			return
++		}
++		e.mu.Lock()
++		shutdown, live := e.shutdown, e.live
++		e.mu.Unlock()
++		if shutdown == nil {
++			http.NotFound(w, r)
++			return
++		}
++		if !live {
++			http.Error(w, "live-post16 not reached", http.StatusConflict)
++			return
++		}
++		w.WriteHeader(http.StatusAccepted)
++		_, _ = w.Write([]byte("{\"schema_version\":1}\n"))
++		go shutdown()
++	default:
++		http.NotFound(w, r)
++	}
++}
++
++func (r *TransportCeilingReport) CaptureHeap() {
++	var stats runtime.MemStats
++	runtime.ReadMemStats(&stats)
++	r.WorkingLedger.ActualHeapAllocBytes = stats.HeapAlloc
++}
++
++func CaptureTransportCeilingProcessResources(snapshot *TransportCeilingLedgerSnapshot) error {
++	if snapshot == nil {
++		return errors.New("nil transport ceiling working-ledger snapshot")
++	}
++	var stats runtime.MemStats
++	runtime.ReadMemStats(&stats)
++	entries, err := os.ReadDir("/proc/self/fd")
++	if err != nil {
++		return err
++	}
++	sockets := 0
++	for _, entry := range entries {
++		target, readErr := os.Readlink("/proc/self/fd/" + entry.Name())
++		if readErr == nil && strings.HasPrefix(target, "socket:[") {
++			sockets++
++		}
++	}
++	snapshot.ActualHeapAllocBytes = stats.HeapAlloc
++	snapshot.ActualOpenFDs = len(entries)
++	snapshot.ActualSocketFDs = sockets
++	return nil
++}
++
++func WriteTransportCeilingReport(path string, report TransportCeilingReport) error {
++	if path == "" {
++		return errors.New("transport ceiling output path is empty")
++	}
++	encoded, err := json.MarshalIndent(report, "", "  ")
++	if err != nil {
++		return err
++	}
++	encoded = append(encoded, '\n')
++	temporary := path + ".tmp"
++	if err := os.WriteFile(temporary, encoded, 0o600); err != nil {
++		return err
++	}
++	return os.Rename(temporary, path)
++}
++
++func SetTransportCeilingDeadline(ctx context.Context, conn net.Conn, maximum time.Duration) (func(), error) {
++	if conn == nil {
++		return nil, errors.New("nil transport ceiling connection")
++	}
++	if err := ctx.Err(); err != nil {
++		return nil, err
++	}
++	deadline := time.Now().Add(maximum)
++	if contextDeadline, ok := ctx.Deadline(); ok && contextDeadline.Before(deadline) {
++		deadline = contextDeadline
++	}
++	if err := conn.SetDeadline(deadline); err != nil {
++		return nil, err
++	}
++	callbackDone := make(chan struct{})
++	stop := context.AfterFunc(ctx, func() {
++		_ = conn.SetDeadline(time.Now())
++		close(callbackDone)
++	})
++	var cleanupOnce sync.Once
++	return func() {
++		cleanupOnce.Do(func() {
++			if !stop() {
++				// A started cancellation callback owns the terminal deadline. Join
++				// it and leave that expired deadline intact so cleanup cannot
++				// clobber cancellation or a following phase's deadline.
++				<-callbackDone
++				return
++			}
++			_ = conn.SetDeadline(time.Time{})
++			if ctx.Err() != nil {
++				// Cancellation may race a successful stop. Preserve an expired
++				// deadline whenever cancellation is observable before return.
++				_ = conn.SetDeadline(time.Now())
++			}
++		})
++	}, nil
++}
++
++type TransportCeilingRelay struct {
++	once    sync.Once
++	done    chan struct{}
++	err     atomic.Pointer[error]
++	closing atomic.Bool
++	left    net.Conn
++	right   net.Conn
++}
++
++func NewTransportCeilingRelay(left, right net.Conn) *TransportCeilingRelay {
++	relay := &TransportCeilingRelay{done: make(chan struct{}), left: left, right: right}
++	go func() {
++		defer close(relay.done)
++		type result struct{ err error }
++		results := make(chan result, 2)
++		copyOne := func(destination, source net.Conn) {
++			buffer := make([]byte, TransportCeilingRelayBufferBytes)
++			_, err := io.CopyBuffer(destination, source, buffer)
++			results <- result{err: err}
++		}
++		go copyOne(left, right)
++		go copyOne(right, left)
++		first := <-results
++		_ = left.SetDeadline(time.Now())
++		_ = right.SetDeadline(time.Now())
++		_ = left.Close()
++		_ = right.Close()
++		second := <-results
++		if first.err != nil && !errors.Is(first.err, net.ErrClosed) && !(relay.closing.Load() && isTransportCeilingTimeout(first.err)) {
++			relay.err.Store(&first.err)
++		} else if second.err != nil && !errors.Is(second.err, net.ErrClosed) && !isTransportCeilingTimeout(second.err) {
++			relay.err.Store(&second.err)
++		}
++	}()
++	return relay
++}
++
++func isTransportCeilingTimeout(err error) bool {
++	var netErr net.Error
++	return errors.As(err, &netErr) && netErr.Timeout()
++}
++
++func (r *TransportCeilingRelay) Close() {
++	if r == nil {
++		return
++	}
++	r.once.Do(func() {
++		r.closing.Store(true)
++		_ = r.left.SetDeadline(time.Now())
++		_ = r.right.SetDeadline(time.Now())
++		_ = r.left.Close()
++		_ = r.right.Close()
++	})
++}
++
++func (r *TransportCeilingRelay) Wait(ctx context.Context) error {
++	select {
++	case <-r.done:
++		if err := r.err.Load(); err != nil {
++			return *err
++		}
++		return nil
++	case <-ctx.Done():
++		return ctx.Err()
++	}
++}
+diff --git a/internal/tunnel/transport_ceiling_qualification_test.go b/internal/tunnel/transport_ceiling_qualification_test.go
+new file mode 100644
+index 0000000..6417778
+--- /dev/null
++++ b/internal/tunnel/transport_ceiling_qualification_test.go
+@@ -0,0 +1,382 @@
++//go:build linux && p2pstream_transport_ceiling
++
++package tunnel
++
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++	"errors"
++	"fmt"
++	"io"
++	"net"
++	"os"
++	"path/filepath"
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestTransportCeilingPhasePlanIsExact(t *testing.T) {
++	if len(TransportCeilingPhases) != TransportCeilingExpectedPhases {
++		t.Fatalf("phase count = %d, want %d", len(TransportCeilingPhases), TransportCeilingExpectedPhases)
++	}
++	want := []struct {
++		lane      int
++		direction string
++		reuse     string
++	}{
++		{1, "download", "fresh-stream"}, {2, "download", "fresh-stream"}, {3, "download", "fresh-stream"}, {4, "download", "fresh-stream"},
++		{1, "upload", "fresh-stream"}, {2, "upload", "fresh-stream"}, {3, "upload", "fresh-stream"}, {4, "upload", "fresh-stream"},
++		{1, "download", "new-persistent"}, {2, "upload", "new-persistent"}, {3, "download", "new-persistent"}, {4, "upload", "new-persistent"},
++		{1, "upload", "direction-transition"}, {2, "download", "direction-transition"}, {3, "download", "same-direction-reuse"}, {4, "upload", "same-direction-reuse"},
++	}
++	for index, phase := range TransportCeilingPhases {
++		if phase.Index != index || phase.Lane != want[index].lane || phase.Direction != want[index].direction || phase.ReuseKind != want[index].reuse {
++			t.Fatalf("phase[%d] = %+v, want lane=%d direction=%s reuse=%s", index, phase, want[index].lane, want[index].direction, want[index].reuse)
++		}
++	}
++}
++
++func TestTransportCeilingFrameParserBackToBack(t *testing.T) {
++	first, err := makeTransportCeilingFrame(transportCeilingFrameStart, TransportCeilingPhases[0], 1234, sha256.Sum256([]byte("first")))
++	if err != nil {
++		t.Fatal(err)
++	}
++	second, err := makeTransportCeilingFrame(transportCeilingFrameComplete, TransportCeilingPhases[1], 5678, sha256.Sum256([]byte("second")))
++	if err != nil {
++		t.Fatal(err)
++	}
++	var wire bytes.Buffer
++	if err := writeTransportCeilingFrame(&wire, first); err != nil {
++		t.Fatal(err)
++	}
++	if err := writeTransportCeilingFrame(&wire, second); err != nil {
++		t.Fatal(err)
++	}
++	gotFirst, err := readTransportCeilingFrame(&wire)
++	if err != nil {
++		t.Fatal(err)
++	}
++	gotSecond, err := readTransportCeilingFrame(&wire)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if gotFirst != first || gotSecond != second || wire.Len() != 0 {
++		t.Fatalf("frames = %+v %+v, want %+v %+v with empty wire", gotFirst, gotSecond, first, second)
++	}
++}
++
++func TestTransportCeilingPayloadShortAndExtraBytesFailClosed(t *testing.T) {
++	payload := bytes.Repeat([]byte{0x42}, 1023)
++	if _, err := readTransportCeilingPayload(bytes.NewReader(payload), 1024, 128); !errors.Is(err, io.ErrUnexpectedEOF) {
++		t.Fatalf("short payload error = %v, want unexpected EOF", err)
++	}
++	phase := TransportCeilingPhases[0]
++	frame, err := makeTransportCeilingFrame(transportCeilingFrameComplete, phase, 0, [sha256.Size]byte{})
++	if err != nil {
++		t.Fatal(err)
++	}
++	var wire bytes.Buffer
++	wire.WriteByte(0xff)
++	if err := writeTransportCeilingFrame(&wire, frame); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := readTransportCeilingFrame(&wire); err == nil {
++		t.Fatal("extra byte before the next frame did not cause desynchronization failure")
++	}
++}
++
++func TestTransportCeilingPayloadInvariantAcrossRelayChunkSizes(t *testing.T) {
++	const size = int64(3*TransportCeilingDownloadWriteBytes + 137)
++	var download, upload bytes.Buffer
++	downloadDigest, err := writeTransportCeilingPayload(&download, size, TransportCeilingDownloadWriteBytes)
++	if err != nil {
++		t.Fatal(err)
++	}
++	uploadDigest, err := writeTransportCeilingPayload(&upload, size, TransportCeilingUploadBufferBytes)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(download.Bytes(), upload.Bytes()) || downloadDigest != uploadDigest {
++		t.Fatal("payload bytes changed with the application chunk size")
++	}
++}
++
++func TestTransportCeilingFixedPayloadDigest(t *testing.T) {
++	got := TransportCeilingPayloadDigest(TransportCeilingPayloadBytes)
++	if fmt.Sprintf("%x", got) != TransportCeilingPayloadSHA256 {
++		t.Fatalf("fixed payload digest = %x, want %s", got, TransportCeilingPayloadSHA256)
++	}
++}
++
++func TestTransportCeilingConfigurationRecordsEffectiveBounds(t *testing.T) {
++	agent := transportCeilingConfiguration("agent", TransportCeilingVariantYamux)
++	server := transportCeilingConfiguration("server", TransportCeilingVariantYamux)
++	if !agent.YamuxEnabled || agent.DataIncomingHardBound != 16 || agent.ControlIncomingHardBound != NegotiatedControlStreamLimit {
++		t.Fatalf("agent configuration = %+v", agent)
++	}
++	if server.DataIncomingHardBound != -1 || server.ControlIncomingHardBound != -1 {
++		t.Fatalf("server incoming configuration = %+v", server)
++	}
++	if agent.InitialByteWindowBytes != AggregateInitialStreamWindowBytes || agent.MaximumByteWindowBytes != uint32(DefaultMaxStreamWindowSizeBytes) || agent.InitialSessionAllocationBytes != AggregateInitialSessionWindowBytes || agent.MaximumSessionAllocationBytes != AggregateMaxSessionWindowBytes || agent.MaximumDATAFrameBytes != AggregateMaxDataFrameBytes {
++		t.Fatalf("aggregate configuration = %+v", agent)
++	}
++	raw := transportCeilingConfiguration("agent", TransportCeilingVariantRaw)
++	if raw.YamuxEnabled || raw.InitialSessionAllocationBytes != 0 || raw.DataIncomingHardBound != 0 {
++		t.Fatalf("raw configuration = %+v", raw)
++	}
++}
++
++func TestTransportCeilingLedgerBoundsAndReleasesExactlyOnce(t *testing.T) {
++	ledger := NewTransportCeilingLedger(100)
++	releaseZero, ok := ledger.Reserve("frame_buffers", 0)
++	if !ok {
++		t.Fatal("zero-byte category registration denied")
++	}
++	releaseZero()
++	releaseInitial, ok := ledger.Reserve("initial_pool", 60)
++	if !ok {
++		t.Fatal("initial reserve denied")
++	}
++	releaseGrowth, ok := ledger.Reserve("growth_pool", 40)
++	if !ok {
++		t.Fatal("growth reserve denied")
++	}
++	if _, ok := ledger.Reserve("growth_pool", 1); ok {
++		t.Fatal("reservation above the endpoint-wide bound succeeded")
++	}
++	snapshot := ledger.Snapshot(false)
++	if snapshot.CurrentBytes != 100 || snapshot.HighWaterBytes != 100 || snapshot.DeniedReservations != 1 {
++		t.Fatalf("live snapshot = %+v", snapshot)
++	}
++	releaseGrowth()
++	releaseGrowth()
++	releaseInitial()
++	final := ledger.Snapshot(true)
++	if final.CurrentBytes != 0 || final.FinalBytes != 0 || final.ReleaseCount != 2 || final.Categories["frame_buffers"] != 0 {
++		t.Fatalf("final snapshot = %+v", final)
++	}
++}
++
++func TestTransportCeilingAuthKeyContract(t *testing.T) {
++	path := filepath.Join(t.TempDir(), "auth-key")
++	if err := os.WriteFile(path, []byte("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\n"), 0o600); err != nil {
++		t.Fatal(err)
++	}
++	key, err := ReadTransportCeilingAuthKey(path)
++	if err != nil || len(key) != TransportCeilingAuthKeyBytes {
++		t.Fatalf("key length=%d err=%v", len(key), err)
++	}
++	if err := os.WriteFile(path, []byte("00 01"), 0o600); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := ReadTransportCeilingAuthKey(path); err == nil {
++		t.Fatal("whitespace-delimited key accepted")
++	}
++}
++
++func TestTransportCeilingApplicationAuthentication(t *testing.T) {
++	client, server := net.Pipe()
++	defer client.Close()
++	defer server.Close()
++	key := bytes.Repeat([]byte{0x5a}, TransportCeilingAuthKeyBytes)
++	serverResult := make(chan error, 1)
++	go func() {
++		lane, err := AuthenticateTransportCeilingServer(server, key, TransportCeilingVariantYamux, time.Second)
++		if err == nil && lane != 3 {
++			err = errors.New("authenticated wrong lane")
++		}
++		serverResult <- err
++	}()
++	if err := AuthenticateTransportCeilingClient(client, key, TransportCeilingVariantYamux, 3, time.Second); err != nil {
++		t.Fatal(err)
++	}
++	if err := <-serverResult; err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestTransportCeilingEndpointRejectsEmptySourceReference(t *testing.T) {
++	pool := NewTransportCeilingLedger(TransportCeilingPoolLimitBytes)
++	working := NewTransportCeilingLedger(TransportCeilingWorkingLimitBytes)
++	if _, err := NewTransportCeilingEndpoint("server", TransportCeilingVariantRaw, " \t", pool, working); err == nil {
++		t.Fatal("empty source reference accepted")
++	}
++	endpoint, err := NewTransportCeilingEndpoint("server", TransportCeilingVariantRaw, "fixture-source", pool, working)
++	if err != nil || endpoint == nil {
++		t.Fatalf("nonempty source reference rejected: endpoint=%v err=%v", endpoint, err)
++	}
++}
++
++func TestTransportCeilingPeerPhaseCancellationInterruptsFrameRead(t *testing.T) {
++	peer, coordinator := net.Pipe()
++	defer peer.Close()
++	defer coordinator.Close()
++	ctx, cancel := context.WithCancel(context.Background())
++	done := make(chan error, 1)
++	go func() {
++		_, err := ServeTransportCeilingPeerPhase(ctx, peer, &TransportCeilingPhaseSequencer{}, time.Minute, nil)
++		done <- err
++	}()
++	cancel()
++	select {
++	case err := <-done:
++		if err == nil {
++			t.Fatal("canceled frame read returned nil")
++		}
++	case <-time.After(time.Second):
++		t.Fatal("canceled frame read did not return")
++	}
++}
++
++type transportCeilingDeadlineGateConn struct {
++	net.Conn
++	started chan struct{}
++	release chan struct{}
++	once    sync.Once
++	mu      sync.Mutex
++	last    time.Time
++}
++
++func (c *transportCeilingDeadlineGateConn) SetDeadline(deadline time.Time) error {
++	if !deadline.IsZero() && time.Until(deadline) < 100*time.Millisecond {
++		c.once.Do(func() { close(c.started) })
++		<-c.release
++	}
++	c.mu.Lock()
++	c.last = deadline
++	c.mu.Unlock()
++	return c.Conn.SetDeadline(deadline)
++}
++
++func TestTransportCeilingDeadlineCleanupJoinsStartedCancellation(t *testing.T) {
++	left, right := net.Pipe()
++	defer left.Close()
++	defer right.Close()
++	conn := &transportCeilingDeadlineGateConn{Conn: left, started: make(chan struct{}), release: make(chan struct{})}
++	var releaseOnce sync.Once
++	releaseGate := func() { releaseOnce.Do(func() { close(conn.release) }) }
++	defer releaseGate()
++	ctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
++	cleanup, err := SetTransportCeilingDeadline(ctx, conn, time.Minute)
++	if err != nil {
++		t.Fatal(err)
++	}
++	cancel()
++	select {
++	case <-conn.started:
++	case <-time.After(time.Second):
++		t.Fatal("cancellation callback did not start")
++	}
++	cleanupDone := make(chan struct{})
++	go func() { cleanup(); close(cleanupDone) }()
++	select {
++	case <-cleanupDone:
++		t.Fatal("cleanup returned before the cancellation callback completed")
++	case <-time.After(20 * time.Millisecond):
++	}
++	releaseGate()
++	select {
++	case <-cleanupDone:
++	case <-time.After(time.Second):
++		t.Fatal("cleanup did not join the cancellation callback")
++	}
++	conn.mu.Lock()
++	last := conn.last
++	conn.mu.Unlock()
++	if last.IsZero() || time.Until(last) > 100*time.Millisecond {
++		t.Fatalf("cleanup cleared cancellation deadline: %v", last)
++	}
++
++	canceled, cancelCanceled := context.WithCancel(context.Background())
++	cancelCanceled()
++	if _, err := SetTransportCeilingDeadline(canceled, conn, time.Minute); !errors.Is(err, context.Canceled) {
++		t.Fatalf("already canceled context error = %v, want context canceled", err)
++	}
++}
++
++func TestTransportCeilingRelayCancellationAndJoinedClose(t *testing.T) {
++	leftClient, leftRelay := net.Pipe()
++	rightRelay, rightClient := net.Pipe()
++	relay := NewTransportCeilingRelay(leftRelay, rightRelay)
++	payload := []byte("relay-payload")
++	writeDone := make(chan error, 1)
++	go func() {
++		_, err := leftClient.Write(payload)
++		writeDone <- err
++	}()
++	got := make([]byte, len(payload))
++	if _, err := io.ReadFull(rightClient, got); err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(got, payload) {
++		t.Fatalf("relayed payload = %q, want %q", got, payload)
++	}
++	if err := <-writeDone; err != nil {
++		t.Fatal(err)
++	}
++	relay.Close()
++	_ = leftClient.Close()
++	_ = rightClient.Close()
++	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
++	defer cancel()
++	if err := relay.Wait(ctx); err != nil && !errors.Is(err, io.ErrClosedPipe) {
++		t.Fatalf("relay wait = %v", err)
++	}
++}
++
++func TestTransportCeilingTCPInfoPostTransferSnapshot(t *testing.T) {
++	client, server, err := NewTransportCeilingLoopbackPair()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer client.Close()
++	defer server.Close()
++	deadline := time.Now().Add(time.Second)
++	if err := client.SetDeadline(deadline); err != nil {
++		t.Fatal(err)
++	}
++	if err := server.SetDeadline(deadline); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := client.Write([]byte("tcp-info")); err != nil {
++		t.Fatal(err)
++	}
++	buffer := make([]byte, len("tcp-info"))
++	if _, err := io.ReadFull(server, buffer); err != nil {
++		t.Fatal(err)
++	}
++	info := CaptureTransportCeilingTCPInfo(client)
++	if !info.Captured || info.Error != "" || info.LocalAddress == "" || info.RemoteAddress == "" || info.SendMSS == 0 {
++		t.Fatalf("TCP_INFO = %+v", info)
++	}
++	if info.AppLimitedAvailable {
++		t.Fatal("TCP_INFO unexpectedly claimed portable app_limited support")
++	}
++}
++
++func TestTransportCeilingEstablishedTCPRejectsClosedIdlePeer(t *testing.T) {
++	client, server, err := NewTransportCeilingLoopbackPair()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer client.Close()
++	if err := ValidateTransportCeilingEstablishedTCP(client); err != nil {
++		t.Fatalf("live connection rejected: %v", err)
++	}
++	if err := server.Close(); err != nil {
++		t.Fatal(err)
++	}
++	if err := client.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
++		t.Fatal(err)
++	}
++	var one [1]byte
++	if _, err := client.Read(one[:]); err == nil {
++		t.Fatal("closed idle peer did not produce EOF/error")
++	}
++	if err := ValidateTransportCeilingEstablishedTCP(client); err == nil {
++		t.Fatal("closed idle peer reported ESTABLISHED")
++	}
++}
+diff --git a/internal/server/transport_ceiling_qualification_test.go b/internal/server/transport_ceiling_qualification_test.go
+new file mode 100644
+index 0000000..b5eb65e
+--- /dev/null
++++ b/internal/server/transport_ceiling_qualification_test.go
+@@ -0,0 +1,537 @@
++//go:build linux && p2pstream_transport_ceiling
++
++package server
++
++import (
++	"context"
++	"crypto/sha256"
++	"crypto/tls"
++	"errors"
++	"flag"
++	"fmt"
++	"net"
++	"net/http"
++	"os"
++	"sort"
++	"sync"
++	"testing"
++	"time"
++
++	"github.com/hashicorp/yamux"
++	"p2pstream/internal/tunnel"
++)
++
++var (
++	transportCeilingServerVariant = flag.String("transport-ceiling-variant", "", "test-only transport ceiling variant")
++	transportCeilingServerListen  = flag.String("transport-ceiling-listen", "", "test-only physical tunnel listen address")
++	transportCeilingServerAdmin   = flag.String("transport-ceiling-admin", "", "test-only loopback admin address")
++	transportCeilingServerCert    = flag.String("transport-ceiling-cert", "", "test-only TLS certificate")
++	transportCeilingServerKey     = flag.String("transport-ceiling-key", "", "test-only TLS key")
++	transportCeilingServerAuth    = flag.String("transport-ceiling-auth-key-file", "", "test-only application authentication key")
++	transportCeilingServerOutput  = flag.String("transport-ceiling-output", "", "test-only terminal report")
++)
++
++const transportCeilingPhaseTimeout = 90 * time.Second
++
++type transportCeilingServerLane struct {
++	lane           int
++	tlsConn        *tls.Conn
++	tcpConn        *net.TCPConn
++	session        *yamux.Session
++	growth         *tunnel.AggregateReceiveWindowGrowth
++	releaseInitial func()
++	releaseSession func()
++	rawApp         net.Conn
++	rawRelay       *tunnel.TransportCeilingRelay
++	persistent     *transportCeilingServerLogical
++}
++
++type transportCeilingServerLogical struct {
++	app             net.Conn
++	relay           *tunnel.TransportCeilingRelay
++	releaseMetadata func()
++}
++
++type transportCeilingServerFixture struct {
++	ctx             context.Context
++	cancel          context.CancelFunc
++	variant         string
++	endpoint        *tunnel.TransportCeilingEndpoint
++	pool            *tunnel.TransportCeilingLedger
++	working         *tunnel.TransportCeilingLedger
++	listener        net.Listener
++	admin           *http.Server
++	mu              sync.Mutex
++	lanes           [tunnel.TransportCeilingPhysicalLanes]*transportCeilingServerLane
++	nextPhase       int
++	active          int
++	errors          []error
++	workingReleases []func()
++}
++
++func TestTransportCeilingExternalServerRole(t *testing.T) {
++	if os.Getenv("P2PSTREAM_TRANSPORT_CEILING_EXTERNAL") != "1" {
++		t.Skip("external transport ceiling role")
++	}
++	fixture, err := newTransportCeilingServerFixture()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := fixture.run(); err != nil {
++		t.Fatal(err)
++	}
++}
++
++func newTransportCeilingServerFixture() (*transportCeilingServerFixture, error) {
++	if err := tunnel.ValidateTransportCeilingVariant(*transportCeilingServerVariant); err != nil {
++		return nil, err
++	}
++	if *transportCeilingServerListen == "" || *transportCeilingServerAdmin == "" || *transportCeilingServerOutput == "" {
++		return nil, fmt.Errorf("transport ceiling server addresses and output are required")
++	}
++	if os.Getenv("P2PSTREAM_TRANSPORT_CEILING_SOURCE_REF") == "" {
++		return nil, fmt.Errorf("P2PSTREAM_TRANSPORT_CEILING_SOURCE_REF is required")
++	}
++	for _, address := range []string{*transportCeilingServerListen, *transportCeilingServerAdmin} {
++		_, port, err := net.SplitHostPort(address)
++		if err != nil || port == "0" {
++			return nil, fmt.Errorf("transport ceiling address %q must have a concrete nonzero port", address)
++		}
++	}
++	ctx, cancel := context.WithCancel(context.Background())
++	pool := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingPoolLimitBytes)
++	working := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingWorkingLimitBytes)
++	fixture := &transportCeilingServerFixture{ctx: ctx, cancel: cancel, variant: *transportCeilingServerVariant, pool: pool, working: working}
++	endpoint, err := tunnel.NewTransportCeilingEndpoint("server", fixture.variant, os.Getenv("P2PSTREAM_TRANSPORT_CEILING_SOURCE_REF"), pool, working)
++	if err != nil {
++		cancel()
++		return nil, err
++	}
++	fixture.endpoint = endpoint
++	fixture.endpoint.SetCallbacks(fixture.transfer, fixture.cancel)
++	return fixture, nil
++}
++
++func (f *transportCeilingServerFixture) reserveWorking(category string, bytes int64) error {
++	release, ok := f.working.Reserve(category, bytes)
++	if !ok {
++		return fmt.Errorf("reserve transport ceiling server %s bytes=%d", category, bytes)
++	}
++	f.workingReleases = append(f.workingReleases, release)
++	return nil
++}
++
++func (f *transportCeilingServerFixture) retainWorkingRelease(release func()) {
++	if release != nil {
++		f.workingReleases = append(f.workingReleases, release)
++	}
++}
++
++func (f *transportCeilingServerFixture) run() error {
++	for _, category := range []string{"session_metadata", "stream_metadata", "relay_buffers", "frame_buffers", "tls_app_buffers"} {
++		if err := f.reserveWorking(category, 0); err != nil {
++			return err
++		}
++	}
++	if err := f.reserveWorking("frame_buffers", tunnel.TransportCeilingDownloadWriteBytes+2*tunnel.TransportCeilingFrameHeaderBytes); err != nil {
++		return err
++	}
++	certificate, err := tls.LoadX509KeyPair(*transportCeilingServerCert, *transportCeilingServerKey)
++	if err != nil {
++		return err
++	}
++	authKey, err := tunnel.ReadTransportCeilingAuthKey(*transportCeilingServerAuth)
++	if err != nil {
++		return err
++	}
++	baseListener, err := net.Listen("tcp", *transportCeilingServerListen)
++	if err != nil {
++		return err
++	}
++	f.listener = baseListener
++	defer baseListener.Close()
++	tlsConfig := &tls.Config{Certificates: []tls.Certificate{certificate}, MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}
++	for len(f.socketRows(true)) < tunnel.TransportCeilingPhysicalLanes {
++		raw, acceptErr := baseListener.Accept()
++		if acceptErr != nil {
++			return acceptErr
++		}
++		if err := raw.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
++			_ = raw.Close()
++			return err
++		}
++		tlsConn := tls.Server(raw, tlsConfig)
++		if err := tlsConn.HandshakeContext(f.ctx); err != nil {
++			_ = raw.Close()
++			return err
++		}
++		if err := raw.SetDeadline(time.Time{}); err != nil {
++			_ = tlsConn.Close()
++			return err
++		}
++		lane, err := tunnel.AuthenticateTransportCeilingServer(tlsConn, authKey, f.variant, 10*time.Second)
++		if err != nil {
++			_ = tlsConn.Close()
++			return err
++		}
++		if f.lanes[lane] != nil {
++			_ = tlsConn.Close()
++			return fmt.Errorf("duplicate transport ceiling lane %d", lane)
++		}
++		tcpConn, ok := tlsConn.NetConn().(*net.TCPConn)
++		if !ok {
++			_ = tlsConn.Close()
++			return fmt.Errorf("transport ceiling TLS underlying connection is %T", tlsConn.NetConn())
++		}
++		entry := &transportCeilingServerLane{lane: lane, tlsConn: tlsConn, tcpConn: tcpConn}
++		f.lanes[lane] = entry
++		if err := f.initializeLane(entry); err != nil {
++			return err
++		}
++	}
++	_ = baseListener.Close()
++	readySockets, err := f.liveSocketRows()
++	if err != nil {
++		return err
++	}
++	f.endpoint.SetReady(readySockets)
++	adminListener, err := net.Listen("tcp", *transportCeilingServerAdmin)
++	if err != nil {
++		return err
++	}
++	f.admin = &http.Server{Handler: f.endpoint, ReadHeaderTimeout: 2 * time.Second}
++	adminDone := make(chan error, 1)
++	go func() { adminDone <- f.admin.Serve(adminListener) }()
++	<-f.ctx.Done()
++	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
++	_ = f.admin.Shutdown(shutdownCtx)
++	cancel()
++	if err := f.closePhysical(); err != nil {
++		return err
++	}
++	for i := len(f.workingReleases) - 1; i >= 0; i-- {
++		f.workingReleases[i]()
++	}
++	report := f.endpoint.Terminal(f.socketRows(false), true)
++	if err := tunnel.WriteTransportCeilingReport(*transportCeilingServerOutput, report); err != nil {
++		return err
++	}
++	select {
++	case serveErr := <-adminDone:
++		if serveErr != nil && serveErr != http.ErrServerClosed {
++			return serveErr
++		}
++	case <-time.After(5 * time.Second):
++		return errors.New("transport ceiling server admin did not stop")
++	}
++	if report.InvalidReason != "" || report.PoolLedger.FinalBytes != 0 || report.WorkingLedger.FinalBytes != 0 {
++		return fmt.Errorf("invalid transport ceiling server terminal report: %s", report.InvalidReason)
++	}
++	return nil
++}
++
++func (f *transportCeilingServerFixture) initializeLane(lane *transportCeilingServerLane) error {
++	if err := f.reserveWorking("session_metadata", tunnel.AggregateSessionMetadataBytes); err != nil {
++		return err
++	}
++	lane.releaseSession = f.workingReleases[len(f.workingReleases)-1]
++	if f.variant == tunnel.TransportCeilingVariantRaw {
++		if lane.lane == 0 {
++			return nil
++		}
++		if err := f.reserveWorking("relay_buffers", 2*tunnel.TransportCeilingRelayBufferBytes); err != nil {
++			return err
++		}
++		relaySide, appSide, err := tunnel.NewTransportCeilingLoopbackPair()
++		if err != nil {
++			return err
++		}
++		lane.rawApp = appSide
++		lane.rawRelay = tunnel.NewTransportCeilingRelay(lane.tlsConn, relaySide)
++		return nil
++	}
++	var config *yamux.Config
++	var err error
++	if lane.lane == 0 {
++		config, err = tunnel.NewNegotiatedControlYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes, -1)
++	} else {
++		wire := tunnel.DefaultAggregateFlowControlConfig()
++		initialBytes := int64(yamux.AggregateReceiveWindowMemory(wire.InitialSessionWindow))
++		lane.releaseInitial, _ = f.pool.Reserve("initial_pool", initialBytes)
++		if lane.releaseInitial == nil {
++			return fmt.Errorf("reserve initial receive pool for server lane %d", lane.lane)
++		}
++		config, err = tunnel.NewAggregateYamuxConfig(nil, tunnel.DefaultMaxStreamWindowSizeBytes, -1)
++	}
++	if err != nil {
++		return err
++	}
++	lane.session, err = yamux.Server(lane.tlsConn, config)
++	if err != nil {
++		return err
++	}
++	if lane.lane > 0 {
++		lane.growth = tunnel.NewAggregateReceiveWindowGrowth(lane.session, func(bytes int64) (func(), bool) {
++			return f.pool.Reserve("growth_pool", bytes)
++		})
++	}
++	return nil
++}
++
++func (f *transportCeilingServerFixture) transfer(ctx context.Context, index int) (tunnel.TransportCeilingPhaseResult, error) {
++	f.mu.Lock()
++	defer f.mu.Unlock()
++	if index != f.nextPhase {
++		return tunnel.TransportCeilingPhaseResult{}, fmt.Errorf("phase %d requested while waiting for %d", index, f.nextPhase)
++	}
++	phase, err := tunnel.TransportCeilingPhaseAt(index)
++	if err != nil {
++		return tunnel.TransportCeilingPhaseResult{}, err
++	}
++	lane := f.lanes[phase.Lane]
++	wallStart := time.Now()
++	logical, temporary, err := f.logicalForPhase(phase)
++	if err != nil {
++		return tunnel.TransportCeilingPhaseResult{}, err
++	}
++	result, err := tunnel.RunTransportCeilingCoordinatorPhase(ctx, logical.app, phase, wallStart, transportCeilingPhaseTimeout, func() tunnel.TransportCeilingTCPInfo {
++		return tunnel.CaptureTransportCeilingTCPInfo(lane.tcpConn)
++	})
++	if err != nil {
++		return result, err
++	}
++	f.nextPhase++
++	if err := f.endpoint.RecordResult(result); err != nil {
++		return result, err
++	}
++	if temporary {
++		if err := tunnel.CloseTransportCeilingLogical(ctx, logical.app, phase, transportCeilingPhaseTimeout); err != nil {
++			return result, err
++		}
++		if err := f.closeLogical(logical); err != nil {
++			return result, err
++		}
++	}
++	if index == tunnel.TransportCeilingExpectedPhases-1 {
++		if err := f.closePersistentLogicals(ctx); err != nil {
++			return result, err
++		}
++		if f.active != 0 {
++			return result, fmt.Errorf("transport ceiling server retained logical count = %d after joined cleanup", f.active)
++		}
++		f.endpoint.SetLogicalState(0, true)
++		liveSockets, err := f.liveSocketRows()
++		if err != nil {
++			return result, err
++		}
++		if err := f.endpoint.MarkLive(liveSockets); err != nil {
++			return result, err
++		}
++	}
++	return result, nil
++}
++
++func (f *transportCeilingServerFixture) closePersistentLogicals(ctx context.Context) error {
++	lastPhaseByLane := [...]int{0, 12, 13, 14, 15}
++	for laneID := 1; laneID < tunnel.TransportCeilingPhysicalLanes; laneID++ {
++		lane := f.lanes[laneID]
++		phase, err := tunnel.TransportCeilingPhaseAt(lastPhaseByLane[laneID])
++		if err != nil {
++			return err
++		}
++		logical := lane.persistent
++		if f.variant == tunnel.TransportCeilingVariantRaw {
++			logical = &transportCeilingServerLogical{app: lane.rawApp}
++		}
++		if logical == nil || logical.app == nil {
++			return fmt.Errorf("transport ceiling retained logical lane %d is absent", laneID)
++		}
++		if err := tunnel.CloseTransportCeilingLogical(ctx, logical.app, phase, transportCeilingPhaseTimeout); err != nil {
++			return err
++		}
++		if f.variant == tunnel.TransportCeilingVariantYamux {
++			if err := f.closeLogical(logical); err != nil {
++				return err
++			}
++			lane.persistent = nil
++		} else {
++			f.active--
++			f.endpoint.SetLogicalState(f.active, false)
++		}
++	}
++	return nil
++}
++
++func (f *transportCeilingServerFixture) logicalForPhase(phase tunnel.TransportCeilingPhase) (*transportCeilingServerLogical, bool, error) {
++	lane := f.lanes[phase.Lane]
++	if f.variant == tunnel.TransportCeilingVariantRaw {
++		if f.active == 0 {
++			f.active = tunnel.TransportCeilingDataLanes
++			f.endpoint.SetLogicalState(f.active, false)
++		}
++		return &transportCeilingServerLogical{app: lane.rawApp}, false, nil
++	}
++	if phase.ReuseKind == "direction-transition" || phase.ReuseKind == "same-direction-reuse" {
++		if lane.persistent == nil {
++			return nil, false, fmt.Errorf("persistent lane %d stream is absent", phase.Lane)
++		}
++		return lane.persistent, false, nil
++	}
++	releaseMetadata, ok := f.working.Reserve("stream_metadata", tunnel.AdaptiveServerStreamOverheadBytes)
++	if !ok {
++		return nil, false, errors.New("transport ceiling server stream metadata reservation denied")
++	}
++	releaseRelay, ok := f.working.Reserve("relay_buffers", 2*tunnel.TransportCeilingRelayBufferBytes)
++	if !ok {
++		releaseMetadata()
++		return nil, false, errors.New("transport ceiling server relay buffer reservation denied")
++	}
++	releaseOwned := func() {
++		releaseRelay()
++		releaseMetadata()
++	}
++	stream, err := lane.session.Open()
++	if err != nil {
++		releaseOwned()
++		return nil, false, err
++	}
++	clearSetupDeadline, err := tunnel.SetTransportCeilingDeadline(f.ctx, stream, transportCeilingPhaseTimeout)
++	if err != nil {
++		f.retainWorkingRelease(releaseOwned)
++		_ = stream.Close()
++		return nil, false, err
++	}
++	growing := tunnel.NewAggregateGrowingConn(stream, tunnel.DefaultMaxStreamWindowSizeBytes, lane.growth)
++	request := tunnel.NewOpenRequest(fmt.Sprintf("transport-ceiling-%02d", phase.Index), "tcp", "127.0.0.1:1")
++	if err := tunnel.WriteOpenRequest(growing, request); err != nil {
++		clearSetupDeadline()
++		f.retainWorkingRelease(releaseOwned)
++		_ = growing.Close()
++		return nil, false, err
++	}
++	response, err := tunnel.ReadOpenResponse(growing)
++	if err != nil || !response.OK {
++		clearSetupDeadline()
++		f.retainWorkingRelease(releaseOwned)
++		_ = growing.Close()
++		return nil, false, fmt.Errorf("transport ceiling open response: %+v err=%v", response, err)
++	}
++	relaySide, appSide, err := tunnel.NewTransportCeilingLoopbackPair()
++	if err != nil {
++		clearSetupDeadline()
++		f.retainWorkingRelease(releaseOwned)
++		_ = growing.Close()
++		return nil, false, err
++	}
++	clearSetupDeadline()
++	relay := tunnel.NewTransportCeilingRelay(growing, relaySide)
++	logical := &transportCeilingServerLogical{app: appSide, relay: relay, releaseMetadata: releaseOwned}
++	f.active++
++	f.endpoint.SetLogicalState(f.active, false)
++	if phase.Stage != "conditioning" {
++		lane.persistent = logical
++	}
++	return logical, phase.Stage == "conditioning", nil
++}
++
++func (f *transportCeilingServerFixture) closeLogical(logical *transportCeilingServerLogical) error {
++	_ = logical.app.Close()
++	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
++	defer cancel()
++	if err := logical.relay.Wait(ctx); err != nil {
++		return err
++	}
++	logical.releaseMetadata()
++	f.active--
++	f.endpoint.SetLogicalState(f.active, false)
++	return nil
++}
++
++func (f *transportCeilingServerFixture) closePhysical() error {
++	var first error
++	for _, lane := range f.lanes {
++		if lane == nil {
++			continue
++		}
++		if lane.session != nil {
++			if err := lane.session.Close(); err != nil && first == nil {
++				first = err
++			}
++		}
++		if lane.rawApp != nil {
++			_ = lane.rawApp.Close()
++		}
++		if lane.tlsConn != nil {
++			_ = lane.tlsConn.Close()
++		}
++		if lane.rawRelay != nil {
++			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
++			if err := lane.rawRelay.Wait(ctx); err != nil && first == nil {
++				first = err
++			}
++			cancel()
++		}
++	}
++	if first != nil {
++		return first
++	}
++	for _, lane := range f.lanes {
++		if lane == nil {
++			continue
++		}
++		if lane.growth != nil {
++			lane.growth.Release()
++		}
++		if lane.releaseInitial != nil {
++			lane.releaseInitial()
++		}
++		if lane.releaseSession != nil {
++			lane.releaseSession()
++		}
++	}
++	return nil
++}
++
++func (f *transportCeilingServerFixture) socketRows(connected bool) []tunnel.TransportCeilingSocket {
++	rows := make([]tunnel.TransportCeilingSocket, 0, tunnel.TransportCeilingPhysicalLanes)
++	for laneID, lane := range f.lanes {
++		if lane == nil || lane.tlsConn == nil {
++			continue
++		}
++		state := lane.tlsConn.ConnectionState()
++		tcpInfo := tunnel.CaptureTransportCeilingTCPInfo(lane.tcpConn)
++		identityBytes := sha256.Sum256([]byte(fmt.Sprintf("server|%d|%s|%s|%d|%d", laneID, lane.tlsConn.LocalAddr(), lane.tlsConn.RemoteAddr(), state.Version, state.CipherSuite)))
++		role := "data"
++		if laneID == 0 {
++			role = "control"
++		}
++		rows = append(rows, tunnel.TransportCeilingSocket{Lane: laneID, LaneRole: role, LocalAddress: lane.tlsConn.LocalAddr().String(), RemoteAddress: lane.tlsConn.RemoteAddr().String(), ConnectionIdentity: fmt.Sprintf("%x", identityBytes[:16]), TLSVersion: state.Version, TLSCipherSuite: state.CipherSuite, TCPInfoCaptured: tcpInfo.Captured, TCPInfoError: tcpInfo.Error, TCPState: tcpInfo.State, Connected: connected && tcpInfo.Captured && tcpInfo.Error == "" && tcpInfo.State == tunnel.TransportCeilingTCPEstablished})
++	}
++	sort.Slice(rows, func(i, j int) bool { return rows[i].Lane < rows[j].Lane })
++	return rows
++}
++
++func (f *transportCeilingServerFixture) liveSocketRows() ([]tunnel.TransportCeilingSocket, error) {
++	rows := f.socketRows(true)
++	if len(rows) != tunnel.TransportCeilingPhysicalLanes {
++		return nil, fmt.Errorf("transport ceiling server live socket count = %d", len(rows))
++	}
++	for _, row := range rows {
++		if !row.Connected {
++			return nil, fmt.Errorf("transport ceiling server lane %d is not established: captured=%t state=%d error=%q", row.Lane, row.TCPInfoCaptured, row.TCPState, row.TCPInfoError)
++		}
++	}
++	return rows, nil
++}
++
++func TestTransportCeilingServerRoleRejectsEphemeralAddresses(t *testing.T) {
++	oldVariant, oldListen, oldAdmin, oldOutput := *transportCeilingServerVariant, *transportCeilingServerListen, *transportCeilingServerAdmin, *transportCeilingServerOutput
++	t.Cleanup(func() {
++		*transportCeilingServerVariant, *transportCeilingServerListen, *transportCeilingServerAdmin, *transportCeilingServerOutput = oldVariant, oldListen, oldAdmin, oldOutput
++	})
++	*transportCeilingServerVariant = tunnel.TransportCeilingVariantRaw
++	*transportCeilingServerListen, *transportCeilingServerAdmin, *transportCeilingServerOutput = "127.0.0.1:0", "127.0.0.1:18080", "report.json"
++	if _, err := newTransportCeilingServerFixture(); err == nil {
++		t.Fatal("ephemeral external listen address accepted")
++	}
++}
+diff --git a/internal/agent/transport_ceiling_qualification_test.go b/internal/agent/transport_ceiling_qualification_test.go
+new file mode 100644
+index 0000000..d72df97
+--- /dev/null
++++ b/internal/agent/transport_ceiling_qualification_test.go
+@@ -0,0 +1,669 @@
++//go:build linux && p2pstream_transport_ceiling
++
++package agent
++
++import (
++	"context"
++	"crypto/sha256"
++	"crypto/tls"
++	"crypto/x509"
++	"errors"
++	"flag"
++	"fmt"
++	"io"
++	"net"
++	"net/http"
++	"os"
++	"sort"
++	"sync"
++	"testing"
++	"time"
++
++	"github.com/hashicorp/yamux"
++	"p2pstream/internal/tunnel"
++)
++
++var (
++	transportCeilingAgentVariant    = flag.String("transport-ceiling-variant", "", "test-only transport ceiling variant")
++	transportCeilingAgentServer     = flag.String("transport-ceiling-server", "", "test-only transport ceiling server address")
++	transportCeilingAgentAdmin      = flag.String("transport-ceiling-admin", "", "test-only loopback admin address")
++	transportCeilingAgentCA         = flag.String("transport-ceiling-ca", "", "test-only TLS root certificate")
++	transportCeilingAgentServerName = flag.String("transport-ceiling-server-name", "", "test-only TLS server name")
++	transportCeilingAgentAuth       = flag.String("transport-ceiling-auth-key-file", "", "test-only application authentication key")
++	transportCeilingAgentOutput     = flag.String("transport-ceiling-output", "", "test-only terminal report")
++)
++
++const transportCeilingPhaseTimeout = 90 * time.Second
++
++type transportCeilingAgentLane struct {
++	lane           int
++	tlsConn        *tls.Conn
++	tcpConn        *net.TCPConn
++	session        *yamux.Session
++	growth         *tunnel.AggregateReceiveWindowGrowth
++	releaseInitial func()
++	releaseSession func()
++	rawApp         net.Conn
++	relayDone      chan error
++}
++
++type transportCeilingAgentFixture struct {
++	ctx      context.Context
++	cancel   context.CancelFunc
++	variant  string
++	endpoint *tunnel.TransportCeilingEndpoint
++	pool     *tunnel.TransportCeilingLedger
++	working  *tunnel.TransportCeilingLedger
++	admin    *http.Server
++
++	mu              sync.Mutex
++	lanes           [tunnel.TransportCeilingPhysicalLanes]*transportCeilingAgentLane
++	sequencer       tunnel.TransportCeilingPhaseSequencer
++	activeLogical   int
++	logicalJoined   bool
++	post16Live      bool
++	workingReleases []func()
++	handlerWG       sync.WaitGroup
++	relayWG         sync.WaitGroup
++	physicalWG      sync.WaitGroup
++}
++
++func TestTransportCeilingExternalAgentRole(t *testing.T) {
++	if os.Getenv("P2PSTREAM_TRANSPORT_CEILING_EXTERNAL") != "1" {
++		t.Skip("external transport ceiling role")
++	}
++	fixture, err := newTransportCeilingAgentFixture()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := fixture.run(); err != nil {
++		t.Fatal(err)
++	}
++}
++
++func newTransportCeilingAgentFixture() (*transportCeilingAgentFixture, error) {
++	if err := tunnel.ValidateTransportCeilingVariant(*transportCeilingAgentVariant); err != nil {
++		return nil, err
++	}
++	if *transportCeilingAgentServer == "" || *transportCeilingAgentAdmin == "" || *transportCeilingAgentOutput == "" {
++		return nil, errors.New("transport ceiling agent addresses and output are required")
++	}
++	for _, address := range []string{*transportCeilingAgentServer, *transportCeilingAgentAdmin} {
++		_, port, err := net.SplitHostPort(address)
++		if err != nil || port == "0" {
++			return nil, fmt.Errorf("transport ceiling address %q must have a concrete nonzero port", address)
++		}
++	}
++	if *transportCeilingAgentServerName != tunnel.TransportCeilingTLSName {
++		return nil, fmt.Errorf("transport ceiling TLS server name must be %q", tunnel.TransportCeilingTLSName)
++	}
++	ctx, cancel := context.WithCancel(context.Background())
++	pool := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingPoolLimitBytes)
++	working := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingWorkingLimitBytes)
++	endpoint, err := tunnel.NewTransportCeilingEndpoint("agent", *transportCeilingAgentVariant, os.Getenv("P2PSTREAM_TRANSPORT_CEILING_SOURCE_REF"), pool, working)
++	if err != nil {
++		cancel()
++		return nil, err
++	}
++	fixture := &transportCeilingAgentFixture{ctx: ctx, cancel: cancel, variant: *transportCeilingAgentVariant, endpoint: endpoint, pool: pool, working: working}
++	return fixture, nil
++}
++
++func (f *transportCeilingAgentFixture) reserveWorking(category string, bytes int64) (func(), error) {
++	release, ok := f.working.Reserve(category, bytes)
++	if !ok {
++		return nil, fmt.Errorf("reserve transport ceiling agent %s bytes=%d", category, bytes)
++	}
++	f.mu.Lock()
++	f.workingReleases = append(f.workingReleases, release)
++	f.mu.Unlock()
++	return release, nil
++}
++
++func (f *transportCeilingAgentFixture) retainWorkingRelease(release func()) {
++	if release == nil {
++		return
++	}
++	f.mu.Lock()
++	f.workingReleases = append(f.workingReleases, release)
++	f.mu.Unlock()
++}
++
++func (f *transportCeilingAgentFixture) run() error {
++	for _, category := range []string{"session_metadata", "stream_metadata", "relay_buffers", "frame_buffers", "tls_app_buffers"} {
++		if _, err := f.reserveWorking(category, 0); err != nil {
++			return err
++		}
++	}
++	if _, err := f.reserveWorking("frame_buffers", tunnel.TransportCeilingDownloadWriteBytes+2*tunnel.TransportCeilingFrameHeaderBytes); err != nil {
++		return err
++	}
++	caPEM, err := os.ReadFile(*transportCeilingAgentCA)
++	if err != nil {
++		return err
++	}
++	roots := x509.NewCertPool()
++	if !roots.AppendCertsFromPEM(caPEM) {
++		return errors.New("transport ceiling CA file contains no certificate")
++	}
++	authKey, err := tunnel.ReadTransportCeilingAuthKey(*transportCeilingAgentAuth)
++	if err != nil {
++		return err
++	}
++	tlsConfig := &tls.Config{RootCAs: roots, ServerName: *transportCeilingAgentServerName, MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}
++	for laneID := 0; laneID < tunnel.TransportCeilingPhysicalLanes; laneID++ {
++		raw, dialErr := (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext(f.ctx, "tcp", *transportCeilingAgentServer)
++		if dialErr != nil {
++			return dialErr
++		}
++		tlsConn := tls.Client(raw, tlsConfig.Clone())
++		handshakeCtx, cancel := context.WithTimeout(f.ctx, 10*time.Second)
++		handshakeErr := tlsConn.HandshakeContext(handshakeCtx)
++		cancel()
++		if handshakeErr != nil {
++			_ = raw.Close()
++			return handshakeErr
++		}
++		if err := tunnel.AuthenticateTransportCeilingClient(tlsConn, authKey, f.variant, laneID, 10*time.Second); err != nil {
++			_ = tlsConn.Close()
++			return err
++		}
++		tcpConn, ok := tlsConn.NetConn().(*net.TCPConn)
++		if !ok {
++			_ = tlsConn.Close()
++			return fmt.Errorf("transport ceiling TLS underlying connection is %T", tlsConn.NetConn())
++		}
++		lane := &transportCeilingAgentLane{lane: laneID, tlsConn: tlsConn, tcpConn: tcpConn}
++		f.lanes[laneID] = lane
++		if err := f.initializeLane(lane); err != nil {
++			return err
++		}
++	}
++	readySockets, err := f.liveSocketRows()
++	if err != nil {
++		return err
++	}
++	f.endpoint.SetReady(readySockets)
++	adminListener, err := net.Listen("tcp", *transportCeilingAgentAdmin)
++	if err != nil {
++		return err
++	}
++	f.admin = &http.Server{Handler: f.endpoint, ReadHeaderTimeout: 2 * time.Second}
++	adminDone := make(chan error, 1)
++	go func() { adminDone <- f.admin.Serve(adminListener) }()
++	physicalDone := make(chan struct{})
++	go func() { f.physicalWG.Wait(); close(physicalDone) }()
++	select {
++	case <-physicalDone:
++	case <-f.ctx.Done():
++		for _, lane := range f.lanes {
++			if lane == nil {
++				continue
++			}
++			if lane.session != nil {
++				_ = lane.session.Close()
++			}
++			if lane.tlsConn != nil {
++				_ = lane.tlsConn.Close()
++			}
++		}
++		select {
++		case <-physicalDone:
++		case <-time.After(35 * time.Second):
++			return errors.New("transport ceiling agent physical relays did not join after cancellation")
++		}
++	}
++	f.cancel()
++	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
++	_ = f.admin.Shutdown(shutdownCtx)
++	cancel()
++	handlersDone := make(chan struct{})
++	go func() { f.handlerWG.Wait(); close(handlersDone) }()
++	select {
++	case <-handlersDone:
++	case <-time.After(35 * time.Second):
++		return errors.New("transport ceiling agent logical handlers did not join")
++	}
++	relaysDone := make(chan struct{})
++	go func() { f.relayWG.Wait(); close(relaysDone) }()
++	select {
++	case <-relaysDone:
++	case <-time.After(35 * time.Second):
++		return errors.New("transport ceiling agent stream relays did not join")
++	}
++	if err := f.closePhysical(); err != nil {
++		return err
++	}
++	f.mu.Lock()
++	releases := append([]func(){}, f.workingReleases...)
++	f.mu.Unlock()
++	for index := len(releases) - 1; index >= 0; index-- {
++		releases[index]()
++	}
++	report := f.endpoint.Terminal(f.socketRows(false), true)
++	if err := tunnel.WriteTransportCeilingReport(*transportCeilingAgentOutput, report); err != nil {
++		return err
++	}
++	select {
++	case serveErr := <-adminDone:
++		if serveErr != nil && serveErr != http.ErrServerClosed {
++			return serveErr
++		}
++	case <-time.After(5 * time.Second):
++		return errors.New("transport ceiling agent admin did not stop")
++	}
++	if report.InvalidReason != "" || report.PoolLedger.FinalBytes != 0 || report.WorkingLedger.FinalBytes != 0 {
++		return fmt.Errorf("invalid transport ceiling agent terminal report: %s", report.InvalidReason)
++	}
++	return nil
++}
++
++func (f *transportCeilingAgentFixture) initializeLane(lane *transportCeilingAgentLane) error {
++	releaseSession, err := f.reserveWorking("session_metadata", tunnel.AggregateSessionMetadataBytes)
++	if err != nil {
++		return err
++	}
++	lane.releaseSession = releaseSession
++	if f.variant == tunnel.TransportCeilingVariantRaw {
++		if lane.lane == 0 {
++			f.physicalWG.Add(1)
++			go func() {
++				defer f.physicalWG.Done()
++				_, _ = io.Copy(io.Discard, lane.tlsConn)
++			}()
++			return nil
++		}
++		if _, err := f.reserveWorking("relay_buffers", 2*tunnel.TransportCeilingRelayBufferBytes); err != nil {
++			return err
++		}
++		relaySide, appSide, err := tunnel.NewTransportCeilingLoopbackPair()
++		if err != nil {
++			return err
++		}
++		lane.rawApp = appSide
++		lane.relayDone = make(chan error, 1)
++		f.physicalWG.Add(1)
++		go func() {
++			defer f.physicalWG.Done()
++			_, _, relayErr := relayTunnelStream(f.ctx, lane.tlsConn, relaySide)
++			lane.relayDone <- relayErr
++		}()
++		f.startRawPeer(lane)
++		return nil
++	}
++	var config *yamux.Config
++	if lane.lane == 0 {
++		config, err = tunnel.NewNegotiatedControlYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes, tunnel.NegotiatedControlStreamLimit)
++	} else {
++		wire := tunnel.DefaultAggregateFlowControlConfig()
++		initialBytes := int64(yamux.AggregateReceiveWindowMemory(wire.InitialSessionWindow))
++		lane.releaseInitial, _ = f.pool.Reserve("initial_pool", initialBytes)
++		if lane.releaseInitial == nil {
++			return fmt.Errorf("reserve initial receive pool for agent lane %d", lane.lane)
++		}
++		config, err = tunnel.NewAggregateYamuxConfig(nil, tunnel.DefaultMaxStreamWindowSizeBytes, 16)
++	}
++	if err != nil {
++		return err
++	}
++	lane.session, err = yamux.Client(lane.tlsConn, config)
++	if err != nil {
++		return err
++	}
++	if lane.lane > 0 {
++		lane.growth = tunnel.NewAggregateReceiveWindowGrowth(lane.session, func(bytes int64) (func(), bool) {
++			return f.pool.Reserve("growth_pool", bytes)
++		})
++		f.handlerWG.Add(1)
++		go f.acceptLane(lane)
++	}
++	f.physicalWG.Add(1)
++	go func() {
++		defer f.physicalWG.Done()
++		<-lane.session.CloseChan()
++	}()
++	return nil
++}
++
++func (f *transportCeilingAgentFixture) startRawPeer(lane *transportCeilingAgentLane) {
++	f.mu.Lock()
++	f.activeLogical++
++	f.endpoint.SetLogicalState(f.activeLogical, false)
++	f.mu.Unlock()
++	f.handlerWG.Add(1)
++	go func() {
++		defer f.handlerWG.Done()
++		for {
++			result, err := tunnel.ServeTransportCeilingPeerPhase(f.ctx, lane.rawApp, &f.sequencer, transportCeilingPhaseTimeout, func() tunnel.TransportCeilingTCPInfo {
++				return tunnel.CaptureTransportCeilingTCPInfo(lane.tcpConn)
++			})
++			if errors.Is(err, io.EOF) {
++				break
++			}
++			if err != nil {
++				f.endpoint.MarkInvalid(err)
++				f.cancel()
++				return
++			}
++			if err := f.endpoint.RecordResult(result); err != nil {
++				f.endpoint.MarkInvalid(err)
++				f.cancel()
++				return
++			}
++		}
++		f.logicalFinished()
++	}()
++}
++
++func (f *transportCeilingAgentFixture) acceptLane(lane *transportCeilingAgentLane) {
++	defer f.handlerWG.Done()
++	for {
++		conn, err := lane.session.Accept()
++		if err != nil {
++			f.handleAcceptLaneError(err)
++			return
++		}
++		f.handlerWG.Add(1)
++		go f.handleLogical(lane, conn)
++	}
++}
++
++func (f *transportCeilingAgentFixture) handleAcceptLaneError(err error) {
++	if errors.Is(err, yamux.ErrSessionShutdown) {
++		return
++	}
++	f.mu.Lock()
++	expectedEOF := errors.Is(err, io.EOF) &&
++		f.post16Live &&
++		f.logicalJoined &&
++		f.activeLogical == 0 &&
++		f.sequencer.Completed() == tunnel.TransportCeilingExpectedPhases
++	f.mu.Unlock()
++	if expectedEOF {
++		return
++	}
++	f.endpoint.MarkInvalid(err)
++	f.cancel()
++}
++
++func (f *transportCeilingAgentFixture) handleLogical(lane *transportCeilingAgentLane, conn net.Conn) {
++	defer f.handlerWG.Done()
++	growing := tunnel.NewAggregateGrowingConn(conn, tunnel.DefaultMaxStreamWindowSizeBytes, lane.growth)
++	clearSetupDeadline, deadlineErr := tunnel.SetTransportCeilingDeadline(f.ctx, growing, transportCeilingPhaseTimeout)
++	if deadlineErr != nil {
++		_ = growing.Close()
++		f.endpoint.MarkInvalid(deadlineErr)
++		f.cancel()
++		return
++	}
++	request, err := tunnel.ReadOpenRequest(growing)
++	if err != nil || request.Address != "127.0.0.1:1" {
++		clearSetupDeadline()
++		_ = growing.Close()
++		f.endpoint.MarkInvalid(fmt.Errorf("transport ceiling open request: %+v err=%v", request, err))
++		f.cancel()
++		return
++	}
++	releaseMetadata, ok := f.working.Reserve("stream_metadata", tunnel.AdaptiveServerStreamOverheadBytes)
++	if !ok {
++		clearSetupDeadline()
++		_ = growing.Close()
++		f.endpoint.MarkInvalid(errors.New("transport ceiling agent stream metadata reservation denied"))
++		f.cancel()
++		return
++	}
++	releaseRelay, ok := f.working.Reserve("relay_buffers", 2*tunnel.TransportCeilingRelayBufferBytes)
++	if !ok {
++		clearSetupDeadline()
++		f.retainWorkingRelease(releaseMetadata)
++		_ = growing.Close()
++		f.endpoint.MarkInvalid(errors.New("transport ceiling agent relay buffer reservation denied"))
++		f.cancel()
++		return
++	}
++	relaySide, appSide, err := tunnel.NewTransportCeilingLoopbackPair()
++	if err != nil {
++		clearSetupDeadline()
++		f.retainWorkingRelease(releaseRelay)
++		f.retainWorkingRelease(releaseMetadata)
++		_ = growing.Close()
++		f.endpoint.MarkInvalid(err)
++		f.cancel()
++		return
++	}
++	if err := tunnel.WriteOpenResponse(growing, tunnel.OpenResponse{OK: true}); err != nil {
++		clearSetupDeadline()
++		_ = appSide.Close()
++		_ = relaySide.Close()
++		f.retainWorkingRelease(releaseRelay)
++		f.retainWorkingRelease(releaseMetadata)
++		_ = growing.Close()
++		f.endpoint.MarkInvalid(err)
++		f.cancel()
++		return
++	}
++	clearSetupDeadline()
++	f.mu.Lock()
++	f.activeLogical++
++	f.endpoint.SetLogicalState(f.activeLogical, false)
++	f.mu.Unlock()
++	relayDone := make(chan error, 1)
++	f.relayWG.Add(1)
++	go func() {
++		defer f.relayWG.Done()
++		_, _, relayErr := relayTunnelStream(f.ctx, growing, relaySide)
++		relayDone <- relayErr
++	}()
++	for {
++		result, phaseErr := tunnel.ServeTransportCeilingPeerPhase(f.ctx, appSide, &f.sequencer, transportCeilingPhaseTimeout, func() tunnel.TransportCeilingTCPInfo {
++			return tunnel.CaptureTransportCeilingTCPInfo(lane.tcpConn)
++		})
++		if errors.Is(phaseErr, io.EOF) {
++			break
++		}
++		if phaseErr != nil {
++			f.endpoint.MarkInvalid(phaseErr)
++			f.cancel()
++			break
++		}
++		if err := f.endpoint.RecordResult(result); err != nil {
++			f.endpoint.MarkInvalid(err)
++			f.cancel()
++			break
++		}
++	}
++	_ = appSide.Close()
++	select {
++	case relayErr := <-relayDone:
++		if relayErr != nil {
++			f.endpoint.MarkInvalid(relayErr)
++		}
++	case <-time.After(35 * time.Second):
++		f.endpoint.MarkInvalid(errors.New("transport ceiling agent logical relay did not join"))
++		f.retainWorkingRelease(releaseRelay)
++		f.retainWorkingRelease(releaseMetadata)
++		f.cancel()
++		return
++	}
++	releaseRelay()
++	releaseMetadata()
++	f.logicalFinished()
++}
++
++func (f *transportCeilingAgentFixture) logicalFinished() {
++	f.mu.Lock()
++	f.activeLogical--
++	active := f.activeLogical
++	completed := f.sequencer.Completed()
++	if active == 0 && completed == tunnel.TransportCeilingExpectedPhases && !f.logicalJoined {
++		f.logicalJoined = true
++		f.endpoint.SetLogicalState(0, true)
++		liveSockets, err := f.liveSocketRows()
++		if err == nil {
++			err = f.endpoint.MarkLive(liveSockets)
++		}
++		if err != nil {
++			f.endpoint.MarkInvalid(err)
++			f.cancel()
++		} else {
++			// Session EOF becomes an expected server-driven shutdown only after
++			// the post-phase-16 state and the five live sockets were published.
++			f.post16Live = true
++		}
++	} else {
++		f.endpoint.SetLogicalState(active, false)
++	}
++	f.mu.Unlock()
++}
++
++func (f *transportCeilingAgentFixture) closePhysical() error {
++	var first error
++	for _, lane := range f.lanes {
++		if lane == nil {
++			continue
++		}
++		if lane.session != nil {
++			if err := lane.session.Close(); err != nil && first == nil {
++				first = err
++			}
++		}
++		if lane.rawApp != nil {
++			_ = lane.rawApp.Close()
++		}
++		if lane.tlsConn != nil {
++			_ = lane.tlsConn.Close()
++		}
++	}
++	if first != nil {
++		return first
++	}
++	for _, lane := range f.lanes {
++		if lane == nil {
++			continue
++		}
++		if lane.growth != nil {
++			lane.growth.Release()
++		}
++		if lane.releaseInitial != nil {
++			lane.releaseInitial()
++		}
++		if lane.releaseSession != nil {
++			lane.releaseSession()
++		}
++	}
++	return nil
++}
++
++func (f *transportCeilingAgentFixture) socketRows(connected bool) []tunnel.TransportCeilingSocket {
++	rows := make([]tunnel.TransportCeilingSocket, 0, tunnel.TransportCeilingPhysicalLanes)
++	for laneID, lane := range f.lanes {
++		if lane == nil || lane.tlsConn == nil {
++			continue
++		}
++		state := lane.tlsConn.ConnectionState()
++		tcpInfo := tunnel.CaptureTransportCeilingTCPInfo(lane.tcpConn)
++		identityBytes := sha256.Sum256([]byte(fmt.Sprintf("agent|%d|%s|%s|%d|%d", laneID, lane.tlsConn.LocalAddr(), lane.tlsConn.RemoteAddr(), state.Version, state.CipherSuite)))
++		role := "data"
++		if laneID == 0 {
++			role = "control"
++		}
++		rows = append(rows, tunnel.TransportCeilingSocket{Lane: laneID, LaneRole: role, LocalAddress: lane.tlsConn.LocalAddr().String(), RemoteAddress: lane.tlsConn.RemoteAddr().String(), ConnectionIdentity: fmt.Sprintf("%x", identityBytes[:16]), TLSVersion: state.Version, TLSCipherSuite: state.CipherSuite, TCPInfoCaptured: tcpInfo.Captured, TCPInfoError: tcpInfo.Error, TCPState: tcpInfo.State, Connected: connected && tcpInfo.Captured && tcpInfo.Error == "" && tcpInfo.State == tunnel.TransportCeilingTCPEstablished})
++	}
++	sort.Slice(rows, func(i, j int) bool { return rows[i].Lane < rows[j].Lane })
++	return rows
++}
++
++func (f *transportCeilingAgentFixture) liveSocketRows() ([]tunnel.TransportCeilingSocket, error) {
++	rows := f.socketRows(true)
++	if len(rows) != tunnel.TransportCeilingPhysicalLanes {
++		return nil, fmt.Errorf("transport ceiling agent live socket count = %d", len(rows))
++	}
++	for _, row := range rows {
++		if !row.Connected {
++			return nil, fmt.Errorf("transport ceiling agent lane %d is not established: captured=%t state=%d error=%q", row.Lane, row.TCPInfoCaptured, row.TCPState, row.TCPInfoError)
++		}
++	}
++	return rows, nil
++}
++
++func TestTransportCeilingAgentRoleRejectsEphemeralAdminAddress(t *testing.T) {
++	oldVariant, oldServer, oldAdmin, oldOutput, oldName := *transportCeilingAgentVariant, *transportCeilingAgentServer, *transportCeilingAgentAdmin, *transportCeilingAgentOutput, *transportCeilingAgentServerName
++	t.Cleanup(func() {
++		*transportCeilingAgentVariant, *transportCeilingAgentServer, *transportCeilingAgentAdmin, *transportCeilingAgentOutput, *transportCeilingAgentServerName = oldVariant, oldServer, oldAdmin, oldOutput, oldName
++	})
++	*transportCeilingAgentVariant = tunnel.TransportCeilingVariantRaw
++	*transportCeilingAgentServer, *transportCeilingAgentAdmin, *transportCeilingAgentOutput, *transportCeilingAgentServerName = "127.0.0.1:17443", "127.0.0.1:0", "report.json", tunnel.TransportCeilingTLSName
++	if _, err := newTransportCeilingAgentFixture(); err == nil {
++		t.Fatal("ephemeral external admin address accepted")
++	}
++}
++
++func TestTransportCeilingAgentAcceptLaneEOFRequiresPublishedPost16State(t *testing.T) {
++	newFixture := func(t *testing.T, completed, active int, joined, live bool) (*transportCeilingAgentFixture, context.Context) {
++		t.Helper()
++		pool := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingPoolLimitBytes)
++		working := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingWorkingLimitBytes)
++		endpoint, err := tunnel.NewTransportCeilingEndpoint("agent", tunnel.TransportCeilingVariantYamux, "test-source", pool, working)
++		if err != nil {
++			t.Fatal(err)
++		}
++		ctx, cancel := context.WithCancel(context.Background())
++		t.Cleanup(cancel)
++		fixture := &transportCeilingAgentFixture{ctx: ctx, cancel: cancel, endpoint: endpoint, activeLogical: active, logicalJoined: joined, post16Live: live}
++		for index := 0; index < completed; index++ {
++			if err := fixture.sequencer.Accept(index); err != nil {
++				t.Fatal(err)
++			}
++		}
++		return fixture, ctx
++	}
++
++	tests := []struct {
++		name              string
++		completed, active int
++		joined, live      bool
++		err               error
++		wantCanceled      bool
++	}{
++		{name: "early EOF", err: io.EOF, wantCanceled: true},
++		{name: "completed with active logical", completed: tunnel.TransportCeilingExpectedPhases, active: 1, joined: true, live: true, err: io.EOF, wantCanceled: true},
++		{name: "completed but not joined", completed: tunnel.TransportCeilingExpectedPhases, live: true, err: io.EOF, wantCanceled: true},
++		{name: "completed but not published live", completed: tunnel.TransportCeilingExpectedPhases, joined: true, err: io.EOF, wantCanceled: true},
++		{name: "published post16 EOF", completed: tunnel.TransportCeilingExpectedPhases, joined: true, live: true, err: io.EOF},
++		{name: "non EOF after post16", completed: tunnel.TransportCeilingExpectedPhases, joined: true, live: true, err: errors.New("accept failed"), wantCanceled: true},
++		{name: "session shutdown remains expected", err: yamux.ErrSessionShutdown},
++	}
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			fixture, ctx := newFixture(t, test.completed, test.active, test.joined, test.live)
++			fixture.handleAcceptLaneError(test.err)
++			select {
++			case <-ctx.Done():
++				if !test.wantCanceled {
++					t.Fatal("expected accept error canceled fixture")
++				}
++			default:
++				if test.wantCanceled {
++					t.Fatal("invalid accept error did not cancel fixture")
++				}
++			}
++			report := fixture.endpoint.Terminal(nil, false)
++			if test.wantCanceled {
++				if report.InvalidReason != test.err.Error() || len(report.Errors) != 1 || report.Errors[0] != test.err.Error() {
++					t.Fatalf("invalid accept error was not recorded exactly once: reason=%q errors=%v", report.InvalidReason, report.Errors)
++				}
++			} else if report.InvalidReason != "" || len(report.Errors) != 0 {
++				t.Fatalf("expected accept shutdown was recorded invalid: reason=%q errors=%v", report.InvalidReason, report.Errors)
++			}
++		})
++	}
++
++	fixture, _ := newFixture(t, tunnel.TransportCeilingExpectedPhases, 0, true, true)
++	prior := errors.New("prior diagnostic failure")
++	fixture.endpoint.MarkInvalid(prior)
++	fixture.handleAcceptLaneError(io.EOF)
++	report := fixture.endpoint.Terminal(nil, false)
++	if report.InvalidReason != prior.Error() || len(report.Errors) != 1 || report.Errors[0] != prior.Error() {
++		t.Fatalf("expected EOF changed prior invalid state: reason=%q errors=%v", report.InvalidReason, report.Errors)
++	}
++}

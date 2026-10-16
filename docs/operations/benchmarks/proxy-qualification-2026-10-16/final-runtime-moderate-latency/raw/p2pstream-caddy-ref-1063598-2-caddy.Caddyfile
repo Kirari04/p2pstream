@@ -1,0 +1,21 @@
+{
+    admin off
+    persist_config off
+    auto_https off
+    default_sni public.test
+    servers {
+        protocols h1 h2
+    }
+}
+https://:57699 {
+    bind 127.0.0.1
+    tls /qualification/public.crt.pem /qualification/public.key.pem
+    reverse_proxy 127.0.0.1:39857 {
+        transport http {
+            versions 1.1
+            keepalive 90s
+            keepalive_idle_conns 1024
+            keepalive_idle_conns_per_host 128
+        }
+    }
+}

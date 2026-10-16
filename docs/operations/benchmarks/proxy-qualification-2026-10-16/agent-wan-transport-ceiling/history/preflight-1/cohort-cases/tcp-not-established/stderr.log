@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-preflight.pcAojAfq/cohort-cases/cohort-validator.py", line 188, in <module>
+    first=sockets(value.get("physical_sockets_initial"),role,True,True); current=sockets(value.get("physical_sockets_terminal"),role,True,True)
+                                                                                 ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-preflight.pcAojAfq/cohort-cases/cohort-validator.py", line 90, in sockets
+    if require_established and (row["tcp_info_captured"] is not True or row["tcp_info_error"]!="" or row["tcp_state"]!=1): raise ValueError(f"{role} lane is not observed TCP_ESTABLISHED")
+                                                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: server lane is not observed TCP_ESTABLISHED

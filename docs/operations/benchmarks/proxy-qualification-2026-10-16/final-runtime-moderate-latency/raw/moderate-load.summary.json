@@ -1,0 +1,264 @@
+{
+  "scope": "moderate load; does not qualify near-saturation latency",
+  "row_count": 36,
+  "cells": [
+    {
+      "protocol": "h1",
+      "concurrency": 16,
+      "medians": {
+        "candidate": {
+          "p95_ms": 0.440303,
+          "p99_ms": 1.538012
+        },
+        "haproxy": {
+          "p95_ms": 0.238388,
+          "p99_ms": 0.322924
+        }
+      },
+      "candidate_to_haproxy": {
+        "p95_ms": 1.8470015269224962,
+        "p99_ms": 4.762767710049423
+      },
+      "capacity_confounded": false,
+      "passed": false
+    },
+    {
+      "protocol": "h1",
+      "concurrency": 128,
+      "medians": {
+        "candidate": {
+          "p95_ms": 0.499027,
+          "p99_ms": 2.619124
+        },
+        "haproxy": {
+          "p95_ms": 0.255985,
+          "p99_ms": 0.433092
+        }
+      },
+      "candidate_to_haproxy": {
+        "p95_ms": 1.949438443658808,
+        "p99_ms": 6.04750030016717
+      },
+      "capacity_confounded": false,
+      "passed": false
+    },
+    {
+      "protocol": "h2",
+      "concurrency": 16,
+      "medians": {
+        "candidate": {
+          "p95_ms": 0.518867,
+          "p99_ms": 1.017191
+        },
+        "haproxy": {
+          "p95_ms": 0.273849,
+          "p99_ms": 0.403659
+        }
+      },
+      "candidate_to_haproxy": {
+        "p95_ms": 1.8947193526359416,
+        "p99_ms": 2.519926472591965
+      },
+      "capacity_confounded": false,
+      "passed": false
+    },
+    {
+      "protocol": "h2",
+      "concurrency": 128,
+      "medians": {
+        "candidate": {
+          "p95_ms": 0.642162,
+          "p99_ms": 2.179775
+        },
+        "haproxy": {
+          "p95_ms": 0.284035,
+          "p99_ms": 0.401535
+        }
+      },
+      "candidate_to_haproxy": {
+        "p95_ms": 2.260855176298696,
+        "p99_ms": 5.4286052274397
+      },
+      "capacity_confounded": false,
+      "passed": false
+    }
+  ],
+  "reference_comparisons": {
+    "haproxy": {
+      "cells": [
+        {
+          "protocol": "h1",
+          "concurrency": 16,
+          "medians": {
+            "candidate": {
+              "p95_ms": 0.440303,
+              "p99_ms": 1.538012
+            },
+            "haproxy": {
+              "p95_ms": 0.238388,
+              "p99_ms": 0.322924
+            }
+          },
+          "candidate_to_haproxy": {
+            "p95_ms": 1.8470015269224962,
+            "p99_ms": 4.762767710049423
+          },
+          "capacity_confounded": false,
+          "passed": false
+        },
+        {
+          "protocol": "h1",
+          "concurrency": 128,
+          "medians": {
+            "candidate": {
+              "p95_ms": 0.499027,
+              "p99_ms": 2.619124
+            },
+            "haproxy": {
+              "p95_ms": 0.255985,
+              "p99_ms": 0.433092
+            }
+          },
+          "candidate_to_haproxy": {
+            "p95_ms": 1.949438443658808,
+            "p99_ms": 6.04750030016717
+          },
+          "capacity_confounded": false,
+          "passed": false
+        },
+        {
+          "protocol": "h2",
+          "concurrency": 16,
+          "medians": {
+            "candidate": {
+              "p95_ms": 0.518867,
+              "p99_ms": 1.017191
+            },
+            "haproxy": {
+              "p95_ms": 0.273849,
+              "p99_ms": 0.403659
+            }
+          },
+          "candidate_to_haproxy": {
+            "p95_ms": 1.8947193526359416,
+            "p99_ms": 2.519926472591965
+          },
+          "capacity_confounded": false,
+          "passed": false
+        },
+        {
+          "protocol": "h2",
+          "concurrency": 128,
+          "medians": {
+            "candidate": {
+              "p95_ms": 0.642162,
+              "p99_ms": 2.179775
+            },
+            "haproxy": {
+              "p95_ms": 0.284035,
+              "p99_ms": 0.401535
+            }
+          },
+          "candidate_to_haproxy": {
+            "p95_ms": 2.260855176298696,
+            "p99_ms": 5.4286052274397
+          },
+          "capacity_confounded": false,
+          "passed": false
+        }
+      ],
+      "capacity_confounded": false,
+      "all_tail_gates_passed": false
+    },
+    "caddy": {
+      "cells": [
+        {
+          "protocol": "h1",
+          "concurrency": 16,
+          "medians": {
+            "candidate": {
+              "p95_ms": 0.440303,
+              "p99_ms": 1.538012
+            },
+            "caddy": {
+              "p95_ms": 1.015156,
+              "p99_ms": 2.244211
+            }
+          },
+          "candidate_to_caddy": {
+            "p95_ms": 0.4337293972552002,
+            "p99_ms": 0.685324151784302
+          },
+          "capacity_confounded": false,
+          "passed": true
+        },
+        {
+          "protocol": "h1",
+          "concurrency": 128,
+          "medians": {
+            "candidate": {
+              "p95_ms": 0.499027,
+              "p99_ms": 2.619124
+            },
+            "caddy": {
+              "p95_ms": 0.851518,
+              "p99_ms": 3.023083
+            }
+          },
+          "candidate_to_caddy": {
+            "p95_ms": 0.5860439826286702,
+            "p99_ms": 0.8663751541059241
+          },
+          "capacity_confounded": false,
+          "passed": true
+        },
+        {
+          "protocol": "h2",
+          "concurrency": 16,
+          "medians": {
+            "candidate": {
+              "p95_ms": 0.518867,
+              "p99_ms": 1.017191
+            },
+            "caddy": {
+              "p95_ms": 1.07173,
+              "p99_ms": 2.184457
+            }
+          },
+          "candidate_to_caddy": {
+            "p95_ms": 0.4841396620417455,
+            "p99_ms": 0.46564935817001657
+          },
+          "capacity_confounded": false,
+          "passed": true
+        },
+        {
+          "protocol": "h2",
+          "concurrency": 128,
+          "medians": {
+            "candidate": {
+              "p95_ms": 0.642162,
+              "p99_ms": 2.179775
+            },
+            "caddy": {
+              "p95_ms": 1.541018,
+              "p99_ms": 3.803764
+            }
+          },
+          "candidate_to_caddy": {
+            "p95_ms": 0.4167128482600463,
+            "p99_ms": 0.57305737159298
+          },
+          "capacity_confounded": false,
+          "passed": true
+        }
+      ],
+      "capacity_confounded": false,
+      "all_tail_gates_passed": true
+    }
+  },
+  "delivery_failures": [],
+  "all_delivery_checks_passed": true,
+  "exact_payload_and_event_conservation": true,
+  "all_tail_gates_passed": false
+}

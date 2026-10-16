@@ -1,0 +1,90 @@
+{
+  "actual_four_arm": {
+    "configured_rtt_ms": 80,
+    "ended_utc": "2026-10-16T12:27:59.953161539Z",
+    "forced_cleanup": false,
+    "inner_status": 0,
+    "inode_recycling_observed": true,
+    "measured_rtt_ms": [
+      96.388,
+      96.463,
+      96.714,
+      96.434
+    ],
+    "one_way_netem_ms": 40,
+    "order": [
+      [
+        1,
+        1,
+        "aggregate-yamux"
+      ],
+      [
+        1,
+        2,
+        "raw-tls"
+      ],
+      [
+        2,
+        1,
+        "raw-tls"
+      ],
+      [
+        2,
+        2,
+        "aggregate-yamux"
+      ]
+    ],
+    "process_instance_count": 12,
+    "started_utc": "2026-10-16T12:27:40.539313582Z",
+    "status": "pass",
+    "stderr_bytes": 0,
+    "top_level_status": 0,
+    "topology_count": 4,
+    "unique_netns_inode_count": 8
+  },
+  "analyzer_contracts": {
+    "accepted_case_count": 2,
+    "case_count": 10,
+    "contract_only": true,
+    "passed": true,
+    "performance_interpretation": null,
+    "rejected_case_count": 8
+  },
+  "builds_run": false,
+  "disappearance_negative": {
+    "forced_cleanup": false,
+    "inner_status": 0,
+    "passed": true,
+    "stderr_bytes": 0,
+    "tool_reported_status": 1,
+    "tool_status_explanation": "observed exec_command behavior when explicit exit 0 runs with errexit enabled; see exec-command-status-observation.json",
+    "top_level_status": 0
+  },
+  "endpoints_started": false,
+  "next_step_requires_separate_authorization": "fresh full64 transport-ceiling diagnostic",
+  "payload_transfers": 0,
+  "performance_evidence": false,
+  "prior_attempt": {
+    "classification": "orchestration_inconclusive",
+    "path": "../transport-ceiling-namespace-lifetime.9GdIpEKm",
+    "preserved": true,
+    "reason": "tool reported exit1 while durable inner and top-level statuses were0; pre-fix stderr also contained expected post-TERM proc-disappearance tracebacks"
+  },
+  "process_state_contract": {
+    "generic_status": 7,
+    "live_start_ticks": 40404401,
+    "missing_state_status": 3,
+    "missing_ticks_status": 3,
+    "status": "pass"
+  },
+  "result": "pass",
+  "schema_version": 1,
+  "scope": "topology_identity_preflight_only",
+  "source": {
+    "final_analyzer_sha256": "d6daa5c6f2afa5e2e6e41648deccbc2bba8cde03c86f494f596024709b9af522",
+    "runner_sha256": "87cf7c1b008c86e5a416713f34d5c45d59774efa6d6f038b895f6da681e1a70b",
+    "topology_function_block_sha256": "9b64dc5bda4c3ff54d981fb138c6024258f8ffbb6f193b46962dfb6c2c8a93c5",
+    "topology_harness_sha256": "0b5ee3564d5832c08e6bc3f3c7be6dbf652dc78991f74e4464fb8ce737cc3238",
+    "wrapper_sha256": "beed4036380ee6da291259f0dbba43b1f46ddc7ed7515ef5a8c7924aec8b3b54"
+  }
+}

@@ -666,21 +666,47 @@ the candidate minimum is 27.2453 MB/s, below the 29.7 MB/s floor. No earlier
 no physical-tunnel option change is retained. See the
 [physical-tunnel socket comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-tunnel-lowat-causal/README.md).
 
-The next matched reference will also calibrate a separate 24-row moderate-load
-latency comparison against HAProxy. Its offered rate is fixed at half the
-lower candidate/HAProxy warmed throughput median for each protocol/concurrency
-cell. Three alternating pairs must deliver that schedule and pass exact
-correctness checks; median p95 and p99 ratios must be at most 1.25. This does
-not qualify latency near saturation. The runner and 19 synthetic calibration
-and schedule checks are committed; actual final reference and moderate-load
-results remain pending. See the [runner validation and preregistered plan](benchmarks/proxy-qualification-2026-10-16/caddy-reference/moderate-runner-validation/README.md).
-An opt-in extension adds 12 Caddy rows at exactly the same offered rates while
+The complete standalone transport comparison does not reproduce the WAN stall.
+Both aggregate Yamux arms sustain about 34–35 MB/s across all download
+transitions; both raw TLS arms pass their normalized floor. All 64 payloads,
+12 lifecycle snapshots, four fresh joined topologies and eight terminal-zero
+reports pass correctness, provenance and cleanup checks. The original exit
+remains one because the predeclared reproduction condition is absent. This
+localizes the next diagnostic to native HTTP/1 origin and the production agent
+HTTP transport; it does not clear the original proxy WAN regression. The
+[transport-ceiling evidence](benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/README.md)
+also preserves original fixture failures and the uncombined partial attempt.
+
+The fresh `248bad0` matched 36-row direct HTTPS reference is complete. Candidate
+throughput is 101–120% of Caddy across H1/H2 at concurrency 16/128, but only
+34–67% of HAProxy. All four original 80% HAProxy gates fail. Correctness,
+protocol topology, payload and request-event conservation pass with zero
+errors and natural cleanup. H2 uses one validated prewarmed client connection
+for every proxy. Candidate and Caddy have separate 4 GiB containers; HAProxy
+uses the same CPU set on the host. Caddy's pinned official binary uses Go
+1.26.8; candidate/driver use Go 1.26.6. These are workload-specific throughput
+results, without a capacity or memory parity claim. See the
+[fresh reference evidence](benchmarks/proxy-qualification-2026-10-16/final-runtime-reference/README.md).
+
+The subsequent 36-row moderate-load HTTPS comparison also completed. Offered
+rates were fixed at half the lower candidate/HAProxy warmed median for each
+protocol/concurrency cell, without adjustment after results. All 9,374,040
+requests completed exactly with zero errors and no capacity-confounded cells.
+All four candidate/Caddy p95 and p99 gates pass; all four candidate/HAProxy
+gates fail. Candidate median p95 ranges from 0.440 to 0.642 ms and p99 from
+1.017 to 2.619 ms, versus Caddy 0.852–1.541 / 2.184–3.804 ms and HAProxy
+0.238–0.284 / 0.323–0.433 ms. The evidence supports Caddy-class moderate-load
+latency for these direct tiny-GET workloads and retains the substantial HAProxy
+gap. It does not qualify near-saturation latency. See the
+[complete latency results and fixed rates](benchmarks/proxy-qualification-2026-10-16/final-runtime-moderate-latency/README.md)
+and [runner validation](benchmarks/proxy-qualification-2026-10-16/caddy-reference/moderate-runner-validation/README.md).
+The opt-in extension added 12 Caddy rows at exactly the same offered rates while
 preserving the original 24 candidate/HAProxy cases and their order. Separate
 candidate/Caddy p95 and p99 ratios must also be at most 1.25; missed Caddy
 schedule delivery makes its affected tail comparison capacity-confounded.
 The [Caddy extension plan and validation](benchmarks/proxy-qualification-2026-10-16/caddy-reference/moderate-caddy-extension/README.md)
-records 28 passing synthetic contracts and bounded wrapper cleanup checks,
-with actual calibration and moderate-load performance still pending.
+records the 28 passing synthetic contracts and bounded wrapper cleanup checks
+that preceded these complete calibration and moderate-load performance runs.
 
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured

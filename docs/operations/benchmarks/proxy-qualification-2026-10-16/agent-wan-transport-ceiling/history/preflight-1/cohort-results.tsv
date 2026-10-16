@@ -1,0 +1,7 @@
+valid	0	0
+missing-config	1	1
+bool-lane	1	1
+wrong-digest	1	1
+terminal-ledger-live	1	1
+tcp-not-established	1	1
+identity-replaced	1	1

@@ -1,0 +1,6 @@
+{"pair": 1, "variant": "aggregate-yamux", "stage": "initial", "server": {"pool_ledger": {"growth_reserved_bytes": 0}}, "agent": {"pool_ledger": {"growth_reserved_bytes": 0}}}
+{"pair": 1, "variant": "aggregate-yamux", "stage": "live-post16", "server": {"pool_ledger": {"growth_reserved_bytes": 0}}, "agent": {"pool_ledger": {"growth_reserved_bytes": 0}}}
+{"pair": 1, "variant": "aggregate-yamux", "stage": "terminal", "server": {"pool_ledger": {"growth_reserved_bytes": 0}}, "agent": {"pool_ledger": {"growth_reserved_bytes": 0}}}
+{"pair": 1, "variant": "raw-tls", "stage": "initial", "server": {"pool_ledger": {"growth_reserved_bytes": 0}}, "agent": {"pool_ledger": {"growth_reserved_bytes": 0}}}
+{"pair": 1, "variant": "raw-tls", "stage": "live-post16", "server": {"pool_ledger": {"growth_reserved_bytes": 0}}, "agent": {"pool_ledger": {"growth_reserved_bytes": 0}}}
+{"pair": 1, "variant": "raw-tls", "stage": "terminal", "server": {"pool_ledger": {"growth_reserved_bytes": 0}}, "agent": {"pool_ledger": {"growth_reserved_bytes": 0}}}

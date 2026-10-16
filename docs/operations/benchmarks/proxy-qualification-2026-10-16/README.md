@@ -15,6 +15,16 @@ comparison.
 
 ## Files
 
+- [`final-runtime-reference/README.md`](final-runtime-reference/README.md)
+  records the fresh `248bad0` matched 36-row HTTPS reference. Candidate reaches
+  101–120% of Caddy and 34–67% of HAProxy; all HAProxy 80% gates fail.
+- [`final-runtime-moderate-latency/README.md`](final-runtime-moderate-latency/README.md)
+  preserves 36 equal-offered-load HTTPS latency rows with exact delivery and
+  zero errors. All four Caddy-relative gates pass; all four HAProxy gates fail.
+- [`agent-wan-transport-ceiling/README.md`](agent-wan-transport-ceiling/README.md)
+  preserves the complete standalone Yamux/raw TLS 64-transfer nonreproduction,
+  exact ownership and cleanup checks, and separate original fixture failures.
+  Both standalone Yamux arms remain healthy; the original WAN failure is open.
 - [`agent-relay-cancellation/README.md`](agent-relay-cancellation/README.md)
   records focused and complete agent/tunnel normal and race passes for joined
   cancellation cleanup. This lifecycle fix does not clear the WAN failure.
@@ -77,11 +87,13 @@ comparison.
   unchanged, both timing screens fail, and no option change is retained.
 - [`caddy-reference/moderate-runner-validation/README.md`](caddy-reference/moderate-runner-validation/README.md)
   records 19 synthetic calibration/schedule checks for the separate
-  moderate-load latency comparison. Actual performance qualification is pending.
+  moderate-load latency comparison. Actual results are in
+  `final-runtime-moderate-latency/`.
 - [`caddy-reference/moderate-caddy-extension/README.md`](caddy-reference/moderate-caddy-extension/README.md)
   preregisters 12 additional Caddy rows at the unchanged candidate/HAProxy
   offered rates, preserving the original 24-row comparison. Its 28 synthetic
-  contracts and bounded wrapper cleanup checks pass; performance runs are pending.
+  contracts and bounded wrapper cleanup checks pass; the fresh 36-row
+  performance outcome is in `final-runtime-moderate-latency/`.
 - [`caddy-reference/matched-h2-fixture-validation/README.md`](caddy-reference/matched-h2-fixture-validation/README.md)
   records the bounded fixture checks for a future reference comparison with
   one prewarmed H2 client connection per proxy. It is not a performance result.
@@ -224,8 +236,12 @@ production change.
 
 Historical failure and optimization artifacts below remain useful for tracing
 the decisions that produced `dc738e9`; they are not the current qualification
-outcome. Final-runtime grown-pool pressure, combined 1,536-request recovery and
-the matched Caddy/HAProxy reference replay remain outstanding.
+outcome. Fresh `248bad0` direct HTTPS reference and moderate-load latency cohorts
+support Caddy-class performance for their tested tiny-GET workloads, while the
+HAProxy throughput and tail gates fail. A complete standalone transport
+diagnostic does not reproduce the original WAN stall and does not clear it.
+Final-runtime grown-pool pressure, combined 1,536-request recovery, final
+integration races and resolution of the original WAN failure remain outstanding.
 
 The initial 1,400 and 1,536 failure rows used a 10-second barrier release equal
 to the upstream response-header timeout. Treat their origin high-water, owner

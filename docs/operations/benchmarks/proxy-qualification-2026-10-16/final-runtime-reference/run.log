@@ -1,0 +1,40 @@
+Caddy diagnostic evidence: /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b/source/tmp/caddy-reference/run.r69wa0ay
+{"level":"warn","ts":1792155361.9255388,"logger":"caddyfile","msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","file":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b/source/tmp/caddy-reference/run.r69wa0ay/p2pstream-caddy-ref-1052900-1-caddy.Caddyfile","line":2}
+caddy-v2.11.7-idle128 c16 h1: 30288.7 useful/s, errors=0
+caddy-v2.11.7-idle128 c16 h2: 20150.0 useful/s, errors=0
+caddy-v2.11.7-idle128 c128 h1: 27492.3 useful/s, errors=0
+caddy-v2.11.7-idle128 c128 h2: 21614.2 useful/s, errors=0
+haproxy-reference c16 h1: 67492.5 useful/s, errors=0
+haproxy-reference c16 h2: 37676.9 useful/s, errors=0
+haproxy-reference c128 h1: 85010.6 useful/s, errors=0
+haproxy-reference c128 h2: 39523.6 useful/s, errors=0
+final-248bad09 c16 h1: 29824.4 useful/s, errors=0
+final-248bad09 c16 h2: 22484.8 useful/s, errors=0
+final-248bad09 c128 h1: 28302.2 useful/s, errors=0
+final-248bad09 c128 h2: 25115.0 useful/s, errors=0
+haproxy-reference c16 h1: 65974.5 useful/s, errors=0
+haproxy-reference c16 h2: 37592.2 useful/s, errors=0
+haproxy-reference c128 h1: 82783.6 useful/s, errors=0
+haproxy-reference c128 h2: 37659.6 useful/s, errors=0
+final-248bad09 c16 h1: 28947.0 useful/s, errors=0
+final-248bad09 c16 h2: 21929.4 useful/s, errors=0
+final-248bad09 c128 h1: 27795.9 useful/s, errors=0
+final-248bad09 c128 h2: 24786.2 useful/s, errors=0
+{"level":"warn","ts":1792155605.6874373,"logger":"caddyfile","msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","file":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b/source/tmp/caddy-reference/run.r69wa0ay/p2pstream-caddy-ref-1052900-2-caddy.Caddyfile","line":2}
+caddy-v2.11.7-idle128 c16 h1: 28093.6 useful/s, errors=0
+caddy-v2.11.7-idle128 c16 h2: 19284.6 useful/s, errors=0
+caddy-v2.11.7-idle128 c128 h1: 27695.5 useful/s, errors=0
+caddy-v2.11.7-idle128 c128 h2: 20911.6 useful/s, errors=0
+final-248bad09 c16 h1: 29287.3 useful/s, errors=0
+final-248bad09 c16 h2: 21911.5 useful/s, errors=0
+final-248bad09 c128 h1: 27829.2 useful/s, errors=0
+final-248bad09 c128 h2: 25134.2 useful/s, errors=0
+{"level":"warn","ts":1792155703.1552107,"logger":"caddyfile","msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","file":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b/source/tmp/caddy-reference/run.r69wa0ay/p2pstream-caddy-ref-1052900-3-caddy.Caddyfile","line":2}
+caddy-v2.11.7-idle128 c16 h1: 27806.1 useful/s, errors=0
+caddy-v2.11.7-idle128 c16 h2: 19239.8 useful/s, errors=0
+caddy-v2.11.7-idle128 c128 h1: 27292.8 useful/s, errors=0
+caddy-v2.11.7-idle128 c128 h2: 20917.3 useful/s, errors=0
+haproxy-reference c16 h1: 67352.3 useful/s, errors=0
+haproxy-reference c16 h2: 37029.7 useful/s, errors=0
+haproxy-reference c128 h1: 82584.7 useful/s, errors=0
+haproxy-reference c128 h2: 37440.7 useful/s, errors=0

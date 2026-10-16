@@ -1,0 +1,99 @@
+[
+  {
+    "actual_status": 0,
+    "case": "valid-actual-inode-reuse",
+    "classification": "transport_ceiling_contrast_reproduced",
+    "expected_status": 0,
+    "non_timing_failures": []
+  },
+  {
+    "actual_status": 0,
+    "case": "modeled-recycled-inode-after-join",
+    "classification": "transport_ceiling_contrast_reproduced",
+    "expected_status": 0,
+    "non_timing_failures": []
+  },
+  {
+    "actual_status": 2,
+    "case": "same-process-new-inode",
+    "classification": "inconclusive_non_timing_failure",
+    "expected_status": 2,
+    "non_timing_failures": [
+      "fresh server/router/agent helper process instances were not unique for all 4 arms"
+    ]
+  },
+  {
+    "actual_status": 2,
+    "case": "prior-helper-unjoined",
+    "classification": "inconclusive_non_timing_failure",
+    "expected_status": 2,
+    "non_timing_failures": [
+      "topology helper teardown chronology is invalid"
+    ]
+  },
+  {
+    "actual_status": 2,
+    "case": "predecessor-generation-mismatch",
+    "classification": "inconclusive_non_timing_failure",
+    "expected_status": 2,
+    "non_timing_failures": [
+      "topology helper teardown chronology is invalid"
+    ]
+  },
+  {
+    "actual_status": 2,
+    "case": "within-arm-inode-alias",
+    "classification": "inconclusive_non_timing_failure",
+    "expected_status": 2,
+    "non_timing_failures": [
+      "within-arm namespace/helper instances are aliased"
+    ]
+  },
+  {
+    "actual_status": 2,
+    "case": "within-arm-process-alias",
+    "classification": "inconclusive_non_timing_failure",
+    "expected_status": 2,
+    "non_timing_failures": [
+      "within-arm namespace/helper instances are aliased",
+      "fresh server/router/agent helper process instances were not unique for all 4 arms"
+    ]
+  },
+  {
+    "actual_status": 2,
+    "case": "runner-namespace-alias",
+    "classification": "inconclusive_non_timing_failure",
+    "expected_status": 2,
+    "non_timing_failures": [
+      "invalid topology namespace identities",
+      "fresh server/router/agent helper process instances were not unique for all 4 arms",
+      "topology helper instances do not share one captured kernel boot identity",
+      "endpoint/load CPU sets changed between arms",
+      "pair 1 raw-tls row/topology RTT mismatch"
+    ]
+  },
+  {
+    "actual_status": 2,
+    "case": "pid-one",
+    "classification": "inconclusive_non_timing_failure",
+    "expected_status": 2,
+    "non_timing_failures": [
+      "invalid agent namespace helper instance values",
+      "within-arm namespace/helper instances are aliased",
+      "fresh server/router/agent helper process instances were not unique for all 4 arms",
+      "topology helper instances do not share one captured kernel boot identity"
+    ]
+  },
+  {
+    "actual_status": 2,
+    "case": "boolean-generation",
+    "classification": "inconclusive_non_timing_failure",
+    "expected_status": 2,
+    "non_timing_failures": [
+      "invalid agent namespace helper instance values",
+      "within-arm namespace/helper instances are aliased",
+      "fresh server/router/agent helper process instances were not unique for all 4 arms",
+      "topology helper instances do not share one captured kernel boot identity"
+    ]
+  }
+]

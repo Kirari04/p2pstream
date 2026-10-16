@@ -1,0 +1,17 @@
+command=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go version
+go version go1.26.6 linux/amd64
+PATH=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin:/home/user/.local/bin:/home/user/.bun/install/global/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-path:/home/user/.codex/tmp/arg0/codex-arg0rm3wQ8:/home/user/.local/bin:/home/user/.opencode/bin:/home/user/.bun/bin:/home/user/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/local/go/bin:/home/user/go/bin:/usr/local/go/bin:/home/user/go/bin
+GOTOOLCHAIN=local
+GOWORK=off
+GOFLAGS=
+TMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-bundle.ccb9c9c.eof/tmp/TMPDIR
+TEMP=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-bundle.ccb9c9c.eof/tmp/TEMP
+TMP=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-bundle.ccb9c9c.eof/tmp/TMP
+GOTMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-bundle.ccb9c9c.eof/tmp/GOTMPDIR
+go1.26.6
+local
+off
+
+linux
+amd64
+1

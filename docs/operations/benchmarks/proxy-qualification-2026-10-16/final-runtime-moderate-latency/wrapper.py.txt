@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+"""Run the finite moderate-load gate against one completed frozen reference."""
+import argparse
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import signal
+import subprocess
+import tempfile
+import time
+
+
+def sha(path):
+    digest=hashlib.sha256()
+    with Path(path).open('rb') as source:
+        for block in iter(lambda: source.read(1<<20), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def output(command, **kwargs):
+    return subprocess.check_output(command, text=True, **kwargs).strip()
+
+
+def utc():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('calibration_root')
+    parser.add_argument('--prepare-only', action='store_true')
+    parser.add_argument('--include-moderate-caddy', action='store_true')
+    args=parser.parse_args()
+    repo=Path('/home/user/.codex/worktrees/astra-proxy-performance/p2pstream')
+    calibration=Path(args.calibration_root).resolve(strict=True)
+    if not calibration.is_relative_to(repo/'tmp/proxy-qualification'):
+        parser.error('calibration must be an owned frozen reference root')
+    prior=json.loads((calibration/'manifest.json').read_text())
+    reference=prior['source_ref']
+    if not re.fullmatch('[0-9a-f]{40}',reference):
+        parser.error('calibration source must be a full immutable commit')
+    source=calibration/'source'
+    runner=source/'scripts/qualify-proxy-caddy.sh'
+    harness=source/'internal/server/proxy_qualification_test.go'
+    candidate=Path(prior['binaries']['candidate_and_driver']['path']).resolve(strict=True)
+    caddy=calibration/'bin/caddy'
+    go=Path(prior['go_executable']['path']).resolve(strict=True)
+    for path in (candidate,caddy,source):
+        if not path.resolve().is_relative_to(calibration):
+            parser.error('binary/source escaped the frozen calibration root')
+    for path in (runner,harness):
+        committed=subprocess.check_output(['git','show',reference+':'+str(path.relative_to(source))],cwd=repo)
+        if committed!=path.read_bytes():
+            parser.error('runner/harness differs from the frozen source commit')
+    checks=[(runner,prior['runner_sha256']),(harness,prior['harness_sha256']),
+        (candidate,prior['binaries']['candidate_and_driver']['sha256']),
+        (caddy,prior['binaries']['caddy']['sha256']),(go,prior['go_executable']['sha256']),
+        (calibration/'summary.json',prior['summary_sha256'])]
+    oldrun=Path(prior['reference_run_dir']).resolve(strict=True)
+    if not oldrun.is_relative_to(calibration):
+        parser.error('reference evidence escaped the calibration root')
+    checks += [(oldrun/'results.jsonl',prior['results_sha256']),
+               (oldrun/'provenance.json',prior['reference_provenance_sha256'])]
+    for path,expected in checks:
+        if sha(path)!=expected:
+            parser.error('frozen calibration identity changed: '+str(path))
+    if (prior['workload']['exit_code']!=0 or prior['workload']['forced_group_cleanup']
+            or prior['workload']['forced_container_cleanup'] or prior['source_overlays']):
+        parser.error('calibration must have a complete clean workload without overlays')
+    root=Path(tempfile.mkdtemp(prefix='final-moderate-'+reference[:8]+'.',dir=repo/'tmp/proxy-qualification'))
+    root.chmod(0o700)
+    Path('/tmp/p2pstream-final-moderate-root-path').write_text(str(root)+'\n')
+    shutil.copyfile(__file__,root/'wrapper.py.txt')
+    preregistered=source/'docs/operations/benchmarks/proxy-qualification-2026-10-16/caddy-reference/moderate-runner-validation/preregistered-plan.json'
+    if subprocess.check_output(['git','show',reference+':'+str(preregistered.relative_to(source))],cwd=repo)!=preregistered.read_bytes():
+        parser.error('original preregistered plan differs from the frozen calibration commit')
+    shutil.copyfile(preregistered,root/'preregistered-plan.json')
+    if args.include_moderate_caddy:
+        supplement=source/'docs/operations/benchmarks/proxy-qualification-2026-10-16/caddy-reference/moderate-caddy-extension/preregistered-plan.json'
+        if subprocess.check_output(['git','show',reference+':'+str(supplement.relative_to(source))],cwd=repo)!=supplement.read_bytes():
+            parser.error('Caddy extension plan differs from the frozen calibration commit')
+        shutil.copyfile(supplement,root/'caddy-extension-plan.json')
+    temporary=root/'gotmp';temporary.mkdir()
+    env=dict(os.environ)
+    for key in ('TMPDIR','TEMP','TMP','GOTMPDIR'):
+        env[key]=str(temporary)
+    env.update(GOFLAGS='',GOWORK='off',GOTOOLCHAIN='local')
+    env['PATH']=str(go.parent)+os.pathsep+env['PATH']
+    invocation=['bash',str(runner),'--caddy-binary',str(caddy),'--driver-binary',str(candidate),
+        '--candidate-binary',str(candidate),'--candidate-label','final-moderate-'+reference[:8],
+        '--driver-source-ref',reference,'--candidate-source-ref',reference,'--harness-source',str(harness),
+        '--runs','3','--idle-per-host','128','--concurrency','16,128','--protocol','both',
+        '--matched-h2-single-connection','--moderate-load-calibration',str(calibration)]
+    if args.include_moderate_caddy:
+        invocation.append('--include-moderate-caddy')
+    manifest=dict(source_ref=reference,source_overlays=[],calibration_root=str(calibration),
+        calibration_manifest_sha256=sha(calibration/'manifest.json'),
+        runner_sha256=sha(runner),harness_sha256=sha(harness),
+        wrapper_sha256=sha(root/'wrapper.py.txt'),preregistered_plan_sha256=sha(root/'preregistered-plan.json'),
+        binaries=prior['binaries'],go_executable=prior['go_executable'],
+        temporary_environment={key:env[key] for key in ('TMPDIR','TEMP','TMP','GOTMPDIR','GOFLAGS','GOWORK','GOTOOLCHAIN')},
+        created_utc=utc(),workload_started=False,workload_command=invocation,
+        predeclared=dict(rows=36 if args.include_moderate_caddy else 24,pairs=3,rate='floor(.5*lower candidate/HAProxy per-cell median)',
+            requests='20*offeredRPS',p95_p99_ratio_maximum=1.25,
+            scope='moderate-load latency only; does not qualify near saturation'))
+    if args.include_moderate_caddy:
+        manifest['caddy_extension_plan_sha256']=sha(root/'caddy-extension-plan.json')
+    manifest_path=root/'manifest.json'
+    def save():
+        manifest_path.write_text(json.dumps(manifest,indent=2)+'\n')
+    save()
+    print('Frozen moderate-load root:',root,flush=True)
+    if args.prepare_only:
+        return
+    before=set((source/'tmp/caddy-reference').glob('run.*'))
+    manifest.update(workload_started=True,workload_started_utc=utc());save()
+    started = time.monotonic()
+    with (root / "run.log").open("w") as log:
+        process = subprocess.Popen(invocation, cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        failure = None
+        code = None
+        owned_names = []
+        old_sigterm = signal.getsignal(signal.SIGTERM)
+        def terminate(signum, frame):
+            raise SystemExit(128 + signum)
+        signal.signal(signal.SIGTERM, terminate)
+        try:
+            code = process.wait(timeout=1200)
+        except BaseException as exc:
+            failure = exc
+        finally:
+            cleanup_error = None
+            forced_group_cleanup = False
+            def group_alive():
+                try:
+                    os.killpg(process.pid, 0)
+                    return True
+                except ProcessLookupError:
+                    return False
+            try:
+                if group_alive():
+                    forced_group_cleanup = True
+                    try:
+                        os.killpg(process.pid, signal.SIGINT)
+                    except ProcessLookupError:
+                        pass
+                    deadline = time.monotonic() + 15
+                    while group_alive() and time.monotonic() < deadline:
+                        process.poll()
+                        time.sleep(.05)
+                    if group_alive():
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    if process.poll() is None:
+                        process.wait(timeout=5)
+                owned_names = output(["docker", "ps", "-a", "--filter", "name=^p2pstream-caddy-ref-" + str(process.pid) + "-", "--format", "{{.Names}}"], env=env).splitlines()
+                for name in owned_names:
+                    if not name.startswith("p2pstream-caddy-ref-" + str(process.pid) + "-"):
+                        raise RuntimeError("container cleanup ownership mismatch")
+                    subprocess.run(["docker", "rm", "-f", name], check=True, stdout=log, stderr=subprocess.STDOUT)
+            except BaseException as exc:
+                cleanup_error = exc
+            finally:
+                signal.signal(signal.SIGTERM, old_sigterm)
+                manifest["workload"] = {"exit_code": process.returncode, "wait_completed": code is not None,
+                    "exception": repr(failure) if failure else None,
+                    "cleanup_exception": repr(cleanup_error) if cleanup_error else None,
+                    "elapsed_seconds": time.monotonic() - started, "finished_utc": utc(),
+                    "forced_group_cleanup": forced_group_cleanup, "forced_container_cleanup": owned_names}
+                log.flush()
+                manifest["workload"]["log_sha256"] = sha(root / "run.log")
+                save()
+    if failure is not None:
+        raise failure
+    if cleanup_error is not None:
+        raise cleanup_error
+    if owned_names or forced_group_cleanup:
+        raise RuntimeError("moderate runner required forced owned cleanup")
+    runs=set((source/'tmp/caddy-reference').glob('run.*'))-before
+    if len(runs)!=1:
+        raise RuntimeError('expected exactly one newly owned moderate evidence directory')
+    run=runs.pop()
+    manifest['moderate_run_dir']=str(run)
+    for name,key in [('results.jsonl','results_sha256'),('provenance.json','provenance_sha256'),
+                     ('moderate-load.summary.json','summary_sha256'),
+                     ('moderate-load.delivery-failures.jsonl','delivery_failures_sha256')]:
+        if (run/name).exists():
+            manifest[key]=sha(run/name)
+    if (run/'results.jsonl').exists():
+        manifest['row_count']=len((run/'results.jsonl').read_text().splitlines())
+    save()
+    if code:
+        raise SystemExit(code)
+    summary=json.loads((run/'moderate-load.summary.json').read_text())
+    if summary['row_count']!=manifest['predeclared']['rows'] or not summary['all_delivery_checks_passed'] or not summary['exact_payload_and_event_conservation']:
+        raise RuntimeError('incomplete moderate-load matrix or failed delivery/correctness checks')
+    print(json.dumps(summary),flush=True)
+    if not summary['all_tail_gates_passed']:
+        raise SystemExit(1)
+
+
+if __name__=='__main__':
+    main()

@@ -1,0 +1,11 @@
+{
+  "acceptance_result": null,
+  "derived_analyzer_exit_code": 0,
+  "derived_summary_sha256": "485e4d13d71b90d7d0d74355084359233df032ab00463d43a212d554948f44ce",
+  "fixture_correctness_pass": true,
+  "original_smoke_exit_code": 1,
+  "original_smoke_status_unchanged": true,
+  "performance_claim": false,
+  "schema_version": 1,
+  "scope": "offline_formatter_and_final_analyzer_fixture_validation_only"
+}

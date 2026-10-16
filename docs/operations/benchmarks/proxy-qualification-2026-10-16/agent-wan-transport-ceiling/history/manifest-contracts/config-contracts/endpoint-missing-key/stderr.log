@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-manifest-config.20261016T115006Z/cohort-validator.py", line 207, in <module>
+    server_initial=readiness(initial_server,"server"); agent_initial=readiness(initial_agent,"agent"); reverse(server_initial,agent_initial)
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-manifest-config.20261016T115006Z/cohort-validator.py", line 168, in readiness
+    base(value,role,0,require_source=True)
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-manifest-config.20261016T115006Z/cohort-validator.py", line 161, in base
+    configuration(value.get("configuration"),role)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-manifest-config.20261016T115006Z/cohort-validator.py", line 90, in configuration
+    raise ValueError(f"{role} configuration schema")
+ValueError: server configuration schema

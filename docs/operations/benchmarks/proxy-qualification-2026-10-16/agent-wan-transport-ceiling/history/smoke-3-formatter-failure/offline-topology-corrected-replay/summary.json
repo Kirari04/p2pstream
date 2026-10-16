@@ -1,0 +1,20 @@
+{
+  "acceptance_result": null,
+  "actual_result_rows": 32,
+  "actual_snapshots": 6,
+  "actual_topology_objects": 2,
+  "derived_analyzer_exit_code": 0,
+  "derived_jsonl_records": 2,
+  "endpoint_binaries_rebuilt": false,
+  "fixture_correctness_pass": true,
+  "new_traffic_started": false,
+  "original_smoke_exit_code": 1,
+  "original_smoke_status_unchanged": true,
+  "performance_claim": false,
+  "runner_sha256": "6cbd86d85358b892d16092bc5ce6ac894005db9795f74d468debee13c72d9311",
+  "schema_version": 1,
+  "scope": "offline_topology_formatter_and_final_analyzer_fixture_validation_only",
+  "semantic_identity": true,
+  "wrapper_preflight_exit_code": 0,
+  "wrapper_sha256": "dbbf5ae77078485d73c0f265825249370d37bcab473da35409108ef07694e2ac"
+}

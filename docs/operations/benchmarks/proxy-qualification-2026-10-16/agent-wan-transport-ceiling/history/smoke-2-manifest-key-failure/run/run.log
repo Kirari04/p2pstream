@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "<stdin>", line 180, in <module>
+  File "<stdin>", line 141, in readiness
+  File "<stdin>", line 134, in base
+  File "<stdin>", line 59, in configuration
+ValueError: server configuration schema

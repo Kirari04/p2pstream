@@ -1,0 +1,32 @@
+agent:
+/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-bundle.ccb9c9c.eof/bin/transport-ceiling-agent.test: go1.26.6
+	path	p2pstream/internal/agent.test
+	mod	p2pstream	(devel)	
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	-tags=p2pstream_transport_ceiling
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1
+buildid=JIKNYLZonqODnNvVxDU-/9eYLU6zYGSdifdYeNA8u/RDp6yBTRhftkNRCh8uhL/Ew0Gm_iHMiRl9wzJiJ0Y
+server:
+/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-bundle.ccb9c9c.eof/bin/transport-ceiling-server.test: go1.26.6
+	path	p2pstream/internal/server.test
+	mod	p2pstream	(devel)	
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	-tags=p2pstream_transport_ceiling
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1
+buildid=BYgcXD-SYd2g-bJNeoeD/Z6HZzcwwyYyfJOEJDzW8/92rA6hgivcwJ0wvL5nse/6puSapsJomQbQ5Hv2Lzh
