@@ -57,6 +57,13 @@ comparison.
   preserves 96 exact transfers comparing gathered and split refund-control
   writes. The primary improvement gate fails in two pairs. A separate
   all-phase transition screen narrowly passes; no production fix is retained.
+- [`agent-wan-refund-queue-ack-causal/README.md`](agent-wan-refund-queue-ack-causal/README.md)
+  preserves a following 96-transfer queue/acknowledgment comparison. All transfers
+  are exact, but two pairs fail the primary improvement gate. Its all-phase
+  floor screen passes while a smaller transition penalty remains.
+- [`caddy-reference/moderate-runner-validation/README.md`](caddy-reference/moderate-runner-validation/README.md)
+  records 19 synthetic calibration/schedule checks for the separate
+  moderate-load latency comparison. Actual performance qualification is pending.
 - [`caddy-reference/matched-h2-fixture-validation/README.md`](caddy-reference/matched-h2-fixture-validation/README.md)
   records the bounded fixture checks for a future reference comparison with
   one prewarmed H2 client connection per proxy. It is not a performance result.
@@ -189,7 +196,9 @@ attempt counts are not wait durations; no production fix follows yet.
 Subsequent physical DATA-emission and historical-runtime comparisons also fail
 their predeclared improvement gates. The refund-control emission comparison
 fails its main gate twice while narrowly passing a separate all-phase floor
-screen. These diagnostics do not clear the original repeated WAN failure or
+screen. The subsequent queue/acknowledgment comparison also fails its main gate
+twice, despite exact transfers and a higher all-phase floor; a transition penalty
+remains. These diagnostics do not clear the original repeated WAN failure or
 qualify a production change.
 
 Historical failure and optimization artifacts below remain useful for tracing

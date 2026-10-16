@@ -631,6 +631,28 @@ current samples, so it does not demonstrate robust elimination of those stalls.
 The primary result remains rejected and no split-control production change is
 retained. See the [refund emission comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-refund-emission-causal/README.md).
 
+A following 96-transfer experiment uses separate queued refund-control items,
+waiting for each physical-send acknowledgment before enqueueing the next. Both
+arms retain joint accounting commit before the first byte and one bounded
+batch deadline. Download ratios are 1.08806 / 1.11149 / 1.05627, failing the
+primary improvement gate in pairs one and three. All uploads and all 96 exact
+payload/status/event checks pass. The batched control reproduces a severe
+14.2578 MB/s timed download, while all 24 separate-item download samples exceed
+29.7 MB/s, with a 29.7790 MB/s minimum. Separate-item first-direction downloads
+still run around 29.8–30.6 MB/s before reused-direction downloads reach about
+34 MB/s. This supports further refund-scheduling investigation but does not
+restore the historical phase pattern or qualify a production change. See the
+[queue/acknowledgment comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-refund-queue-ack-causal/README.md).
+
+The next matched reference will also calibrate a separate 24-row moderate-load
+latency comparison against HAProxy. Its offered rate is fixed at half the
+lower candidate/HAProxy warmed throughput median for each protocol/concurrency
+cell. Three alternating pairs must deliver that schedule and pass exact
+correctness checks; median p95 and p99 ratios must be at most 1.25. This does
+not qualify latency near saturation. The runner and 19 synthetic calibration
+and schedule checks are committed; actual final reference and moderate-load
+results remain pending. See the [runner validation and preregistered plan](benchmarks/proxy-qualification-2026-10-16/caddy-reference/moderate-runner-validation/README.md).
+
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
 RTT 96.547 ms). Four fresh 256 MiB downloads and uploads prewarm every receiving
