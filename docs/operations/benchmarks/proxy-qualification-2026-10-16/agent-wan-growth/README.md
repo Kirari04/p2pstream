@@ -23,11 +23,10 @@ refund values are zero. It then runs one retained-origin-transport 256 MiB
 warmup in each direction. Growth and retained warmup rows are preserved but
 excluded from the throughput summary.
 
-The timed workload uses three 256 MiB transfers per direction. This size is the
-lower end of the predeclared 256 MiB-to-1 GiB range and keeps the complete
-all-lane warmup plus repeated comparison bounded. The observed ratios were not
-near the 90% gate and sample variation was modest, so no selectively chosen
-1 GiB confirmation was added.
+The timed workload uses three 256 MiB transfers per direction rather than the
+runner's 1 GiB default. This keeps the complete all-lane warmup plus repeated
+comparison bounded. The observed ratios were not near the 90% gate and sample
+variation was modest, so no selectively chosen 1 GiB confirmation was added.
 
 | Direction | Legacy median | Aggregate median | Aggregate / legacy | Aggregate sample range |
 | --- | ---: | ---: | ---: | ---: |

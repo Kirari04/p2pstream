@@ -733,7 +733,36 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	admin := &http.Server{Handler: qualificationRuntimeHandler(app, agentIDs...)}
+	runtimeHandler := qualificationRuntimeHandler(app, agentIDs...)
+	healthTarget := publicRouteTargetHealthConfigFromRouteTarget(target, agents)
+	healthTarget.HealthCheck = publicRouteTargetHealthCheckConfig{
+		Enabled: true, Method: http.MethodGet, Path: "/health", Timeout: 2 * time.Second,
+		ExpectedStatusMin: defaultTargetHealthCheckExpectedStatusMin,
+		ExpectedStatusMax: defaultTargetHealthCheckExpectedStatusMax,
+	}
+	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("agent_health") != "1" {
+			runtimeHandler.ServeHTTP(w, r)
+			return
+		}
+		agent := app.AgentHub.connectedByID(agentIDs[0])
+		attempt := app.runPublicRouteTargetHealthCheckViaAgent(r.Context(), healthTarget, agent)
+		status := http.StatusOK
+		if attempt.Err != nil || attempt.Skipped {
+			status = http.StatusServiceUnavailable
+		}
+		errorText := ""
+		if attempt.Err != nil {
+			errorText = attempt.Err.Error()
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok": attempt.Err == nil && !attempt.Skipped, "skipped": attempt.Skipped,
+			"status_code": attempt.StatusCode, "error_kind": attempt.ErrorKind,
+			"error": errorText,
+		})
+	})}
 	go func() { _ = admin.Serve(adminListener) }()
 	writeQualificationReady(t, qualificationReady{
 		URL: "https://" + address, AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid(),

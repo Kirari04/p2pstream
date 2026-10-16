@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,80 @@ import (
 
 	"p2pstream/internal/tunnel"
 )
+
+const externalQualificationBallastChunkBytes = 64 << 20
+
+type externalQualificationBallast struct {
+	mu         sync.RWMutex
+	chunks     [][]byte
+	bytes      int64
+	chunkBytes int64
+}
+
+func newExternalQualificationBallast(chunkBytes int64) *externalQualificationBallast {
+	return &externalQualificationBallast{chunkBytes: chunkBytes}
+}
+
+func (b *externalQualificationBallast) setBytes(target int64) {
+	b.mu.Lock()
+	shrinking := target < b.bytes
+	if shrinking {
+		for b.bytes > target {
+			last := len(b.chunks) - 1
+			chunk := b.chunks[last]
+			without := b.bytes - int64(len(chunk))
+			if without >= target {
+				b.chunks[last] = nil
+				b.chunks = b.chunks[:last]
+				b.bytes = without
+				continue
+			}
+			keep := target - without
+			replacement := make([]byte, keep)
+			for offset := 0; offset < len(replacement); offset += os.Getpagesize() {
+				replacement[offset] = 1
+			}
+			b.chunks[last] = replacement
+			b.bytes = target
+		}
+	}
+	for b.bytes < target {
+		nextBytes := min(b.chunkBytes, target-b.bytes)
+		next := make([]byte, nextBytes)
+		for offset := 0; offset < len(next); offset += os.Getpagesize() {
+			next[offset] = 1
+		}
+		b.chunks = append(b.chunks, next)
+		b.bytes += int64(len(next))
+	}
+	b.mu.Unlock()
+	if shrinking {
+		runtime.GC()
+		debug.FreeOSMemory()
+	}
+}
+
+func (b *externalQualificationBallast) size() int64 {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.bytes
+}
+
+func (b *externalQualificationBallast) keepAlive() {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	runtime.KeepAlive(b.chunks)
+}
+
+func TestExternalQualificationBallastGrowsAndShrinksInChunks(t *testing.T) {
+	ballast := newExternalQualificationBallast(64 << 10)
+	for _, size := range []int64{0, 64 << 10, 160 << 10, 96 << 10, 0} {
+		ballast.setBytes(size)
+		if got := ballast.size(); got != size {
+			t.Fatalf("ballast size = %d, want %d", got, size)
+		}
+	}
+}
 
 type externalQualificationAgentReady struct {
 	AdminURL string `json:"admin_url"`
@@ -171,26 +246,13 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 	ballastMiB := 0
 	if raw := strings.TrimSpace(os.Getenv("P2PSTREAM_QUALIFICATION_AGENT_BALLAST_MIB")); raw != "" {
 		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed < 0 || parsed > 2048 {
+		if err != nil || parsed < 0 || parsed > 3840 {
 			t.Fatalf("invalid external qualification agent ballast MiB %q", raw)
 		}
 		ballastMiB = parsed
 	}
-	var ballastMu sync.RWMutex
-	var ballast []byte
-	setBallast := func(mib int) {
-		next := make([]byte, mib<<20)
-		for offset := 0; offset < len(next); offset += os.Getpagesize() {
-			next[offset] = 1
-		}
-		ballastMu.Lock()
-		ballast = next
-		ballastMu.Unlock()
-		if mib == 0 {
-			runtime.GC()
-		}
-	}
-	setBallast(ballastMiB)
+	ballast := newExternalQualificationBallast(externalQualificationBallastChunkBytes)
+	ballast.setBytes(int64(ballastMiB) << 20)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -236,20 +298,17 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if raw := strings.TrimSpace(r.URL.Query().Get("ballast_mib")); raw != "" {
 			parsed, parseErr := strconv.Atoi(raw)
-			if parseErr != nil || parsed < 0 || parsed > 2048 {
+			if parseErr != nil || parsed < 0 || parsed > 3840 {
 				http.Error(w, "invalid ballast_mib", http.StatusBadRequest)
 				return
 			}
-			setBallast(parsed)
+			ballast.setBytes(int64(parsed) << 20)
 		}
 		var stats runtime.MemStats
 		runtime.ReadMemStats(&stats)
-		ballastMu.RLock()
-		ballastBytes := int64(len(ballast))
-		ballastMu.RUnlock()
 		result := externalQualificationAgentRuntime{
 			HeapAlloc: stats.HeapAlloc, HeapSys: stats.HeapSys, NumGC: stats.NumGC, PauseNS: stats.PauseTotalNs,
-			BallastBytes: ballastBytes,
+			BallastBytes: ballast.size(),
 		}
 		result.TunnelSessions = sessions.snapshot(connections)
 		if current := capacity.Load(); current != nil {
@@ -279,9 +338,7 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 	writeExternalAgentQualificationJSON(t, readyPath, externalQualificationAgentReady{AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid()})
 
 	waitExternalAgentQualificationStop(t, stopPath)
-	ballastMu.RLock()
-	runtime.KeepAlive(ballast)
-	ballastMu.RUnlock()
+	ballast.keepAlive()
 	cancel()
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()

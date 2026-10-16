@@ -19,6 +19,7 @@ if [[ ${1:-} != --inside ]]; then
   aggregate_agent_source_ref=""
   legacy_agent_source_ref=""
   smoke_mode=0
+  pressure_mode=0
   while (($#)); do
     case "$1" in
       --server-binary) server_binary=$2; shift 2 ;;
@@ -30,6 +31,11 @@ if [[ ${1:-} != --inside ]]; then
       --steady-mib) steady_mib=$2; shift 2 ;;
       --transfer-repetitions) transfer_repetitions=$2; shift 2 ;;
       --required-pool-mib) required_pool_mib=$2; shift 2 ;;
+      --pressure)
+        pressure_mode=1
+        runs=1
+        shift
+        ;;
       --server-source-ref) server_source_ref=$2; shift 2 ;;
       --aggregate-agent-source-ref) aggregate_agent_source_ref=$2; shift 2 ;;
       --legacy-agent-source-ref) legacy_agent_source_ref=$2; shift 2 ;;
@@ -72,6 +78,7 @@ if [[ ${1:-} != --inside ]]; then
   export P2PSTREAM_GROWTH_WARMUP_MIB P2PSTREAM_GROWTH_STEADY_MIB P2PSTREAM_GROWTH_TRANSFER_REPETITIONS P2PSTREAM_GROWTH_REQUIRED_MIB
   export P2PSTREAM_GROWTH_SERVER_SOURCE_REF P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF
   export P2PSTREAM_GROWTH_SMOKE_MODE
+  export P2PSTREAM_GROWTH_PRESSURE_MODE
   P2PSTREAM_GROWTH_SERVER_BINARY=$(realpath "$server_binary")
   P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY=$(realpath "$aggregate_agent_binary")
   P2PSTREAM_GROWTH_LEGACY_AGENT_BINARY=$(realpath "$legacy_agent_binary")
@@ -85,11 +92,12 @@ if [[ ${1:-} != --inside ]]; then
   P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF=$aggregate_agent_source_ref
   P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF=$legacy_agent_source_ref
   P2PSTREAM_GROWTH_SMOKE_MODE=$smoke_mode
+  P2PSTREAM_GROWTH_PRESSURE_MODE=$pressure_mode
   P2PSTREAM_GROWTH_PARENT_NETNS=$(readlink /proc/self/ns/net)
   if unshare --user --map-root-user --net true 2>/dev/null; then
     exec unshare --user --map-root-user --net "$0" --inside
   fi
-  exec sudo -n --preserve-env=P2PSTREAM_GROWTH_SERVER_BINARY,P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY,P2PSTREAM_GROWTH_LEGACY_AGENT_BINARY,P2PSTREAM_GROWTH_OUTPUT,P2PSTREAM_GROWTH_RUNS,P2PSTREAM_GROWTH_PARENT_NETNS,P2PSTREAM_GROWTH_WARMUP_MIB,P2PSTREAM_GROWTH_STEADY_MIB,P2PSTREAM_GROWTH_TRANSFER_REPETITIONS,P2PSTREAM_GROWTH_REQUIRED_MIB,P2PSTREAM_GROWTH_SERVER_SOURCE_REF,P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_SMOKE_MODE \
+  exec sudo -n --preserve-env=P2PSTREAM_GROWTH_SERVER_BINARY,P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY,P2PSTREAM_GROWTH_LEGACY_AGENT_BINARY,P2PSTREAM_GROWTH_OUTPUT,P2PSTREAM_GROWTH_RUNS,P2PSTREAM_GROWTH_PARENT_NETNS,P2PSTREAM_GROWTH_WARMUP_MIB,P2PSTREAM_GROWTH_STEADY_MIB,P2PSTREAM_GROWTH_TRANSFER_REPETITIONS,P2PSTREAM_GROWTH_REQUIRED_MIB,P2PSTREAM_GROWTH_SERVER_SOURCE_REF,P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_SMOKE_MODE,P2PSTREAM_GROWTH_PRESSURE_MODE \
     unshare --net "$0" --inside
 fi
 
@@ -100,6 +108,9 @@ fi
 for tool in ip tc nsenter jq python3 taskset openssl sha256sum ping; do
   command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 1; }
 done
+if [[ ${P2PSTREAM_GROWTH_PRESSURE_MODE:-0} == 1 ]]; then
+  command -v systemd-run >/dev/null || { echo "systemd-run is required for --pressure" >&2; exit 1; }
+fi
 
 server_binary=$P2PSTREAM_GROWTH_SERVER_BINARY
 aggregate_agent_binary=$P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY
@@ -114,11 +125,12 @@ server_source_ref=$P2PSTREAM_GROWTH_SERVER_SOURCE_REF
 aggregate_agent_source_ref=$P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF
 legacy_agent_source_ref=$P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF
 smoke_mode=$P2PSTREAM_GROWTH_SMOKE_MODE
+pressure_mode=${P2PSTREAM_GROWTH_PRESSURE_MODE:-0}
 largest_transfer_mib=$((warmup_mib > steady_mib ? warmup_mib : steady_mib))
 transfer_timeout_seconds=$((60 + (largest_transfer_mib + 1) / 2))
 warmup_lane_rounds=4
 transfer_mib_per_cohort=$((2 * (warmup_lane_rounds + 1) * warmup_mib + 2 * transfer_repetitions * steady_mib))
-overall_timeout_seconds=$((300 + runs * 2 * (transfer_mib_per_cohort + 1) / 2))
+overall_timeout_seconds=$((300 + runs * 2 * (transfer_mib_per_cohort + 1) / 2 + pressure_mode * 600))
 mkdir -p "$(dirname "$output")"
 run_dir=$(mktemp -d -p "$(dirname "$output")" proxy-agent-growth.XXXXXX)
 : > "$output"
@@ -221,6 +233,110 @@ import json, sys, urllib.request
 with urllib.request.urlopen(sys.argv[1], timeout=2) as response:
     json.dump(json.load(response), sys.stdout, separators=(",", ":"))
 PY
+}
+
+query_server_json() {
+  local url=$1
+  python3 - "$url" <<'PY'
+import json, sys, urllib.request
+with urllib.request.urlopen(sys.argv[1], timeout=5) as response:
+    json.dump(json.load(response), sys.stdout, separators=(",", ":"))
+PY
+}
+
+cgroup_snapshot() {
+  local pid=$1
+  python3 - "$pid" <<'PY'
+import json, pathlib, sys
+
+pid = int(sys.argv[1])
+unified = None
+for line in pathlib.Path(f"/proc/{pid}/cgroup").read_text().splitlines():
+    hierarchy, _, path = line.partition(":")
+    _, _, path = path.partition(":")
+    if hierarchy == "0":
+        unified = path
+        break
+if not unified:
+    raise SystemExit(f"unified cgroup unavailable for pid {pid}")
+root = pathlib.Path(f"/proc/{pid}/root/sys/fs/cgroup") / unified.lstrip("/")
+def integer(name):
+    value = (root / name).read_text().strip()
+    if value == "max":
+        raise SystemExit(f"{name} is unbounded for pid {pid}")
+    return int(value)
+def pairs(name):
+    result = {}
+    for line in (root / name).read_text().splitlines():
+        key, value = line.split()
+        result[key] = int(value)
+    return result
+events = pairs("memory.events")
+stat = pairs("memory.stat")
+for required in ("oom", "oom_kill"):
+    if required not in events:
+        raise SystemExit(f"memory.events lacks {required} for pid {pid}")
+status = pathlib.Path(f"/proc/{pid}/status").read_text().splitlines()
+rss = next(int(line.split()[1]) * 1024 for line in status if line.startswith("VmRSS:"))
+print(json.dumps({
+    "pid": pid, "cgroup_path": unified, "memory_current_bytes": integer("memory.current"),
+    "memory_max_bytes": integer("memory.max"), "memory_swap_max_bytes": integer("memory.swap.max"),
+    "memory_events": events, "memory_stat_sock_bytes": stat.get("sock", 0),
+    "process_rss_bytes": rss, "process_fd_count": len(list(pathlib.Path(f"/proc/{pid}/fd").iterdir())),
+}, separators=(",", ":")))
+PY
+}
+
+set_agent_ballast() {
+  local pid=$1 admin_url=$2 ballast_mib=$3
+  nsenter -t "$pid" -n python3 - "$admin_url" "$ballast_mib" <<'PY'
+import json, sys, urllib.parse, urllib.request
+url = sys.argv[1] + ("&" if "?" in sys.argv[1] else "?") + urllib.parse.urlencode({"ballast_mib": sys.argv[2]})
+with urllib.request.urlopen(url, timeout=30) as response:
+    value = json.load(response)
+if value.get("agent_ballast_bytes", 0) != int(sys.argv[2]) << 20:
+    raise SystemExit(f"ballast setter returned unexpected size: {value.get('agent_ballast_bytes')}")
+json.dump(value, sys.stdout, separators=(",", ":"))
+PY
+}
+
+agent_health_roundtrip() {
+  local admin_url=$1
+  python3 - "$admin_url" <<'PY'
+import json, sys, urllib.error, urllib.parse, urllib.request
+url = sys.argv[1] + ("&" if "?" in sys.argv[1] else "?") + urllib.parse.urlencode({"agent_health": "1"})
+try:
+    with urllib.request.urlopen(url, timeout=5) as response:
+        body = json.load(response)
+        status = response.status
+except urllib.error.HTTPError as error:
+    status = error.code
+    body = json.load(error)
+body["http_status"] = status
+json.dump(body, sys.stdout, separators=(",", ":"))
+PY
+}
+
+append_pressure_sample() {
+  local stage=$1 ballast_mib=$2 server_pid=$3 server_admin=$4 agent_pid=$5 agent_admin=$6
+  local server_runtime agent_runtime server_cgroup agent_cgroup
+  server_runtime=$(query_server_json "$server_admin")
+  agent_runtime=$(query_agent_json "$agent_pid" "$agent_admin")
+  server_cgroup=$(cgroup_snapshot "$server_pid")
+  agent_cgroup=$(cgroup_snapshot "$agent_pid")
+  jq -cn --arg stage "$stage" --argjson ballast_mib "$ballast_mib" \
+    --argjson server_runtime "$server_runtime" --argjson agent_runtime "$agent_runtime" \
+    --argjson server_cgroup "$server_cgroup" --argjson agent_cgroup "$agent_cgroup" --arg server_source_ref "$server_source_ref" \
+    --arg aggregate_agent_source_ref "$aggregate_agent_source_ref" \
+    --arg server_binary_sha256 "$server_binary_sha256" \
+    --arg aggregate_agent_binary_sha256 "$aggregate_agent_binary_sha256" \
+    --arg script_sha256 "$script_sha256" '
+      {measurement_stage:$stage,transport_mode:"aggregate-v1",configured_agent_ballast_mib:$ballast_mib,
+       server_runtime:$server_runtime,agent_runtime:$agent_runtime,server_cgroup:$server_cgroup,agent_cgroup:$agent_cgroup,
+       provenance:{server_source_ref:$server_source_ref,aggregate_agent_source_ref:$aggregate_agent_source_ref,
+         server_binary_sha256:$server_binary_sha256,aggregate_agent_binary_sha256:$aggregate_agent_binary_sha256,
+         harness_sha256:$script_sha256}}
+    ' >> "$output"
 }
 
 close_idle_agent_transports() {
@@ -419,28 +535,212 @@ run_transfer() {
     ' "$raw" >> "$output"
 }
 
+run_pressure_rejection() {
+  local label=$1 server_pid=$2 public_url=$3 server_admin=$4 agent_pid=$5 agent_admin=$6 before_rejected=$7
+  sequence=$((sequence + 1))
+  local raw="$run_dir/$sequence-$label-pressure-rejection.json"
+  local server_spec
+  server_spec=$(jq -cn --argjson pid "$server_pid" --arg admin "$server_admin" --arg cpus "$server_cpu_set" '{role:"server",pid:$pid,admin_url:$admin,cpu_set:$cpus}')
+  P2PSTREAM_QUALIFICATION_ROLE=load \
+  P2PSTREAM_QUALIFICATION_URL="$public_url/agent/" \
+  P2PSTREAM_QUALIFICATION_SCENARIO=h2-keepalive \
+  P2PSTREAM_QUALIFICATION_PROTOCOL=h2 \
+  P2PSTREAM_QUALIFICATION_CONCURRENCY=1 \
+  P2PSTREAM_QUALIFICATION_REQUESTS=1 \
+  P2PSTREAM_QUALIFICATION_OFFERED_RPS=0 \
+  P2PSTREAM_QUALIFICATION_DURATION_SECONDS=0 \
+  P2PSTREAM_QUALIFICATION_WARMUP_SECONDS=0 \
+  P2PSTREAM_QUALIFICATION_LABEL="$label" \
+  P2PSTREAM_QUALIFICATION_PATH=agent-external-pressure \
+  P2PSTREAM_QUALIFICATION_PIDS="$server_pid" \
+  P2PSTREAM_QUALIFICATION_ADMIN_URL="$server_admin" \
+  P2PSTREAM_QUALIFICATION_PROXY_CPU_SET="$server_cpu_set" \
+  P2PSTREAM_QUALIFICATION_SERVER_PROCESS="$server_spec" \
+  P2PSTREAM_QUALIFICATION_LOAD_CPU_SET="$load_cpu_set" \
+  P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE="p2pstream-external-agent-pressure:server4GiB,agent4GiB,no-swap" \
+  P2PSTREAM_QUALIFICATION_SEQUENCE="$sequence" \
+  P2PSTREAM_QUALIFICATION_RESULT="$raw" \
+    taskset -c "$load_cpu_set" "$server_binary" -test.run '^TestProxyQualificationLoad$' -test.timeout 45s \
+    >"$raw.log" 2>&1
+  local agent_runtime after_rejected
+  agent_runtime=$(query_agent_json "$agent_pid" "$agent_admin")
+  after_rejected=$(jq -r '.agent_capacity.rejected_pressure' <<<"$agent_runtime")
+  jq -e --argjson before "$before_rejected" --argjson after "$after_rejected" '
+    (.attempted == 1 and .useful_completed == 0 and ((.status_classes["2xx"] // 0) == 0)) and
+    (.event_stats_captured == true and .persisted_event_delta == 1 and ((.dropped_event_delta // 0) == 0) and
+      ((.event_queue_after_drain // 0) == 0) and ((.event_drain_error // "") == "")) and
+    ($after > $before)
+  ' "$raw" >/dev/null
+  jq -c --argjson agent_runtime "$agent_runtime" --argjson before "$before_rejected" --argjson after "$after_rejected" \
+    '. + {measurement_stage:"pressure-rejection",transport_mode:"aggregate-v1",agent_runtime_after:$agent_runtime,
+      rejected_pressure_before:$before,rejected_pressure_after:$after}' "$raw" >> "$output"
+}
+
+run_pressure_qualification() {
+  local label=$1 server_pid=$2 public_url=$3 server_admin=$4 agent_pid=$5 agent_admin=$6
+  local server_cgroup agent_cgroup baseline_oom baseline_oom_kill server_baseline_oom server_baseline_oom_kill baseline_health
+  server_cgroup=$(cgroup_snapshot "$server_pid")
+  agent_cgroup=$(cgroup_snapshot "$agent_pid")
+  jq -e '
+    .memory_max_bytes == 4294967296 and .memory_swap_max_bytes == 0 and
+    (.memory_events | has("oom") and has("oom_kill")) and .memory_events.oom == 0 and .memory_events.oom_kill == 0
+  ' <<<"$server_cgroup" >/dev/null
+  jq -e '
+    .memory_max_bytes == 4294967296 and .memory_swap_max_bytes == 0 and
+    (.memory_events | has("oom") and has("oom_kill")) and .memory_events.oom == 0 and .memory_events.oom_kill == 0
+  ' <<<"$agent_cgroup" >/dev/null
+  [[ $(jq -r .cgroup_path <<<"$server_cgroup") != $(jq -r .cgroup_path <<<"$agent_cgroup") ]] || {
+    echo "server and agent must use distinct constrained cgroups" >&2
+    return 1
+  }
+  baseline_oom=$(jq -r '.memory_events.oom' <<<"$agent_cgroup")
+  baseline_oom_kill=$(jq -r '.memory_events.oom_kill' <<<"$agent_cgroup")
+  server_baseline_oom=$(jq -r '.memory_events.oom' <<<"$server_cgroup")
+  server_baseline_oom_kill=$(jq -r '.memory_events.oom_kill' <<<"$server_cgroup")
+  baseline_health=$(agent_health_roundtrip "$server_admin")
+  jq -e '.ok == true and .http_status == 200 and .status_code >= 200 and .status_code < 400' <<<"$baseline_health" >/dev/null
+  append_pressure_sample pressure-baseline 0 "$server_pid" "$server_admin" "$agent_pid" "$agent_admin"
+
+  local ballast_mib=0 current maximum next_limit margin pressure_reached=0
+  while ((ballast_mib < 3840)); do
+    agent_cgroup=$(cgroup_snapshot "$agent_pid")
+    current=$(jq -r .memory_current_bytes <<<"$agent_cgroup")
+    maximum=$(jq -r .memory_max_bytes <<<"$agent_cgroup")
+    next_limit=$((current + (64 << 20)))
+    ((next_limit <= maximum - (256 << 20))) || {
+      echo "cannot safely reach 90% pressure while preserving the 256 MiB cgroup margin" >&2
+      return 1
+    }
+    ballast_mib=$((ballast_mib + 64))
+    set_agent_ballast "$agent_pid" "$agent_admin" "$ballast_mib" >/dev/null
+    sleep .25
+    append_pressure_sample pressure-step "$ballast_mib" "$server_pid" "$server_admin" "$agent_pid" "$agent_admin"
+    agent_cgroup=$(cgroup_snapshot "$agent_pid")
+    jq -e --argjson oom "$baseline_oom" --argjson kill "$baseline_oom_kill" '
+      .memory_events.oom == $oom and .memory_events.oom_kill == $kill
+    ' <<<"$agent_cgroup" >/dev/null
+    current=$(jq -r .memory_current_bytes <<<"$agent_cgroup")
+    maximum=$(jq -r .memory_max_bytes <<<"$agent_cgroup")
+    if ((current * 100 >= maximum * 90)); then
+      ((maximum - current >= 256 << 20)) || {
+        echo "90% pressure sample has less than the required 256 MiB cgroup margin" >&2
+        return 1
+      }
+      pressure_reached=1
+      break
+    fi
+  done
+  ((pressure_reached)) || { echo "agent cgroup never reached 90% actual usage" >&2; return 1; }
+
+  local agent_runtime
+  for ((attempt=0; attempt<50; attempt++)); do
+    agent_runtime=$(query_agent_json "$agent_pid" "$agent_admin")
+    if jq -e '.agent_capacity.pressure == "critical" and .agent_capacity.pressure_reason == "memory" and (.agent_capacity.sample_error // "") == ""' <<<"$agent_runtime" >/dev/null; then
+      break
+    fi
+    sleep .1
+  done
+  jq -e '.agent_capacity.pressure == "critical" and .agent_capacity.pressure_reason == "memory" and (.agent_capacity.sample_error // "") == ""' <<<"$agent_runtime" >/dev/null
+  append_pressure_sample pressure-critical "$ballast_mib" "$server_pid" "$server_admin" "$agent_pid" "$agent_admin"
+  local rejected_before health_at_pressure
+  rejected_before=$(jq -r .agent_capacity.rejected_pressure <<<"$agent_runtime")
+  run_pressure_rejection "$label" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" "$rejected_before"
+  health_at_pressure=$(agent_health_roundtrip "$server_admin")
+  jq -cn --argjson health "$health_at_pressure" --argjson ballast_mib "$ballast_mib" \
+    '{measurement_stage:"pressure-control-roundtrip",transport_mode:"aggregate-v1",configured_agent_ballast_mib:$ballast_mib,
+      control_roundtrip:$health,control_progress_proven:($health.ok == true)}' >> "$output"
+
+  local server_runtime
+  server_runtime=$(query_server_json "$server_admin")
+  agent_runtime=$(query_agent_json "$agent_pid" "$agent_admin")
+  jq -e '
+    .agent_tunnels | length == 1 and .[0].connected and .[0].control_connected and .[0].bulk_sessions == 4 and
+    ([.[0].lanes[] | select(.aggregate == true)] | length == 5)
+  ' <<<"$server_runtime" >/dev/null
+  jq -e '[.tunnel_sessions[] | select(.aggregate == true)] | length == 5' <<<"$agent_runtime" >/dev/null
+
+  set_agent_ballast "$agent_pid" "$agent_admin" 0 >/dev/null
+  local recovered=0
+  for ((attempt=0; attempt<600; attempt++)); do
+    agent_cgroup=$(cgroup_snapshot "$agent_pid")
+    agent_runtime=$(query_agent_json "$agent_pid" "$agent_admin")
+    current=$(jq -r .memory_current_bytes <<<"$agent_cgroup")
+    maximum=$(jq -r .memory_max_bytes <<<"$agent_cgroup")
+    if ((current * 100 < maximum * 75)) && jq -e '.agent_capacity.pressure == "healthy" and .agent_capacity.in_use == 0' <<<"$agent_runtime" >/dev/null; then
+      recovered=1
+      break
+    fi
+    sleep .1
+  done
+  ((recovered)) || { echo "agent did not recover below 75% actual memory with healthy admission" >&2; return 1; }
+  jq -e --argjson oom "$baseline_oom" --argjson kill "$baseline_oom_kill" '
+    .memory_events.oom == $oom and .memory_events.oom_kill == $kill
+  ' <<<"$agent_cgroup" >/dev/null
+  server_cgroup=$(cgroup_snapshot "$server_pid")
+  jq -e --argjson oom "$server_baseline_oom" --argjson kill "$server_baseline_oom_kill" '
+    .memory_events.oom == $oom and .memory_events.oom_kill == $kill
+  ' <<<"$server_cgroup" >/dev/null
+  wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
+  local recovery_health
+  recovery_health=$(agent_health_roundtrip "$server_admin")
+  jq -e '.ok == true and .http_status == 200 and .status_code >= 200 and .status_code < 400' <<<"$recovery_health" >/dev/null
+  run_transfer "$label" aggregate-v1 "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" pressure-recovery download "$((16 << 20))" 1
+  run_transfer "$label" aggregate-v1 "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" pressure-recovery upload "$((16 << 20))" 1
+  append_pressure_sample pressure-recovered 0 "$server_pid" "$server_admin" "$agent_pid" "$agent_admin"
+  jq -cn --argjson baseline_health "$baseline_health" --argjson pressure_health "$health_at_pressure" \
+    --argjson recovery_health "$recovery_health" --argjson ballast_mib "$ballast_mib" \
+    '{measurement_stage:"pressure-result",transport_mode:"aggregate-v1",pressure_reached:true,
+      pressure_ballast_mib:$ballast_mib,baseline_control_roundtrip:$baseline_health,
+      pressure_control_roundtrip:$pressure_health,recovery_control_roundtrip:$recovery_health,
+      control_progress_during_pressure:($pressure_health.ok == true),functional_recovery:true}' >> "$output"
+}
+
 run_cohort() {
   local label=$1 mode=$2 agent_binary=$3 iteration=$4
+  if ((pressure_mode)) && [[ $mode != aggregate-v1 ]]; then
+    echo "pressure qualification requires aggregate-v1" >&2
+    return 2
+  fi
   local server_ready=$run_dir/$label-$iteration-server.ready.json server_stop=$run_dir/$label-$iteration-server.stop
   local management_ca=$run_dir/$label-$iteration-management-ca.pem
-  env \
-    P2PSTREAM_QUALIFICATION_ROLE=proxy-external-agent \
-    P2PSTREAM_QUALIFICATION_READY="$server_ready" \
-    P2PSTREAM_QUALIFICATION_STOP="$server_stop" \
-    P2PSTREAM_QUALIFICATION_ORIGIN_URL="$origin_url" \
-    P2PSTREAM_QUALIFICATION_CERT="$cert" \
-    P2PSTREAM_QUALIFICATION_KEY="$key" \
-    P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE="$management_ca" \
-    P2PSTREAM_QUALIFICATION_EXTERNAL_AGENTS=1 \
-    P2PSTREAM_QUALIFICATION_BIND_ADDRESS=10.211.0.1 \
-    GOMAXPROCS=4 \
-    taskset -c "$server_cpu_set" "$server_binary" -test.run '^TestExternalProxyQualificationServerProcess$' -test.timeout "${overall_timeout_seconds}s" \
-    >"$run_dir/$label-$iteration-server.log" 2>&1 &
-  local server_pid=$!
-  children+=("$server_pid")
+  local server_process_pid server_unit="p2p-qual-server-$BASHPID-$iteration"
+  if ((pressure_mode)); then
+    systemd-run --user --scope --quiet --unit="$server_unit" \
+      -p MemoryMax=4294967296 -p MemorySwapMax=0 -- \
+      nsenter -t "$$" -U -n env \
+      P2PSTREAM_QUALIFICATION_ROLE=proxy-external-agent \
+      P2PSTREAM_QUALIFICATION_READY="$server_ready" \
+      P2PSTREAM_QUALIFICATION_STOP="$server_stop" \
+      P2PSTREAM_QUALIFICATION_ORIGIN_URL="$origin_url" \
+      P2PSTREAM_QUALIFICATION_CERT="$cert" \
+      P2PSTREAM_QUALIFICATION_KEY="$key" \
+      P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE="$management_ca" \
+      P2PSTREAM_QUALIFICATION_EXTERNAL_AGENTS=1 \
+      P2PSTREAM_QUALIFICATION_BIND_ADDRESS=10.211.0.1 \
+      GOMAXPROCS=4 \
+      taskset -c "$server_cpu_set" "$server_binary" -test.run '^TestExternalProxyQualificationServerProcess$' -test.timeout "${overall_timeout_seconds}s" \
+      >"$run_dir/$label-$iteration-server.log" 2>&1 &
+  else
+    env \
+      P2PSTREAM_QUALIFICATION_ROLE=proxy-external-agent \
+      P2PSTREAM_QUALIFICATION_READY="$server_ready" \
+      P2PSTREAM_QUALIFICATION_STOP="$server_stop" \
+      P2PSTREAM_QUALIFICATION_ORIGIN_URL="$origin_url" \
+      P2PSTREAM_QUALIFICATION_CERT="$cert" \
+      P2PSTREAM_QUALIFICATION_KEY="$key" \
+      P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE="$management_ca" \
+      P2PSTREAM_QUALIFICATION_EXTERNAL_AGENTS=1 \
+      P2PSTREAM_QUALIFICATION_BIND_ADDRESS=10.211.0.1 \
+      GOMAXPROCS=4 \
+      taskset -c "$server_cpu_set" "$server_binary" -test.run '^TestExternalProxyQualificationServerProcess$' -test.timeout "${overall_timeout_seconds}s" \
+      >"$run_dir/$label-$iteration-server.log" 2>&1 &
+  fi
+  server_process_pid=$!
+  children+=("$server_process_pid")
   stops+=("$server_stop")
-  wait_ready "$server_ready" "$server_pid"
-  local public_url server_admin management_url public_id token
+  wait_ready "$server_ready" "$server_process_pid"
+  local server_pid public_url server_admin management_url public_id token
+  server_pid=$(jq -r .pid "$server_ready")
   public_url=$(jq -r .url "$server_ready")
   server_admin=$(jq -r .admin_url "$server_ready")
   management_url=$(jq -r .management_url "$server_ready")
@@ -448,23 +748,42 @@ run_cohort() {
   token=$(jq -r '.agents[0].token' "$server_ready")
 
   local agent_ready=$run_dir/$label-$iteration-agent.ready.json agent_stop=$run_dir/$label-$iteration-agent.stop
-  nsenter -t "$agent_namespace_pid" -n env \
-    P2PSTREAM_QUALIFICATION_ROLE=agent-external \
-    P2PSTREAM_QUALIFICATION_READY="$agent_ready" \
-    P2PSTREAM_QUALIFICATION_STOP="$agent_stop" \
-    P2PSTREAM_QUALIFICATION_MANAGEMENT_URL="$management_url" \
-    P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE="$management_ca" \
-    P2PSTREAM_QUALIFICATION_AGENT_PUBLIC_ID="$public_id" \
-    P2PSTREAM_QUALIFICATION_AGENT_TOKEN="$token" \
-    P2PSTREAM_QUALIFICATION_AGENT_TUNNELS=4 \
-    GOMAXPROCS=4 \
-    taskset -c "$agent_cpu_set" "$agent_binary" -test.run '^TestExternalProxyQualificationAgentProcess$' -test.timeout "${overall_timeout_seconds}s" \
-    >"$run_dir/$label-$iteration-agent.log" 2>&1 &
-  local agent_pid=$!
-  children+=("$agent_pid")
+  local agent_process_pid agent_unit="p2p-qual-agent-$BASHPID-$iteration"
+  if ((pressure_mode)); then
+    systemd-run --user --scope --quiet --unit="$agent_unit" \
+      -p MemoryMax=4294967296 -p MemorySwapMax=0 -- \
+      nsenter -t "$agent_namespace_pid" -U -n env \
+      P2PSTREAM_QUALIFICATION_ROLE=agent-external \
+      P2PSTREAM_QUALIFICATION_READY="$agent_ready" \
+      P2PSTREAM_QUALIFICATION_STOP="$agent_stop" \
+      P2PSTREAM_QUALIFICATION_MANAGEMENT_URL="$management_url" \
+      P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE="$management_ca" \
+      P2PSTREAM_QUALIFICATION_AGENT_PUBLIC_ID="$public_id" \
+      P2PSTREAM_QUALIFICATION_AGENT_TOKEN="$token" \
+      P2PSTREAM_QUALIFICATION_AGENT_TUNNELS=4 \
+      GOMAXPROCS=4 \
+      taskset -c "$agent_cpu_set" "$agent_binary" -test.run '^TestExternalProxyQualificationAgentProcess$' -test.timeout "${overall_timeout_seconds}s" \
+      >"$run_dir/$label-$iteration-agent.log" 2>&1 &
+  else
+    nsenter -t "$agent_namespace_pid" -n env \
+      P2PSTREAM_QUALIFICATION_ROLE=agent-external \
+      P2PSTREAM_QUALIFICATION_READY="$agent_ready" \
+      P2PSTREAM_QUALIFICATION_STOP="$agent_stop" \
+      P2PSTREAM_QUALIFICATION_MANAGEMENT_URL="$management_url" \
+      P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE="$management_ca" \
+      P2PSTREAM_QUALIFICATION_AGENT_PUBLIC_ID="$public_id" \
+      P2PSTREAM_QUALIFICATION_AGENT_TOKEN="$token" \
+      P2PSTREAM_QUALIFICATION_AGENT_TUNNELS=4 \
+      GOMAXPROCS=4 \
+      taskset -c "$agent_cpu_set" "$agent_binary" -test.run '^TestExternalProxyQualificationAgentProcess$' -test.timeout "${overall_timeout_seconds}s" \
+      >"$run_dir/$label-$iteration-agent.log" 2>&1 &
+  fi
+  agent_process_pid=$!
+  children+=("$agent_process_pid")
   stops+=("$agent_stop")
-  wait_ready "$agent_ready" "$agent_pid"
-  local agent_admin expected_bulk
+  wait_ready "$agent_ready" "$agent_process_pid"
+  local agent_pid agent_admin expected_bulk
+  agent_pid=$(jq -r .pid "$agent_ready")
   agent_admin=$(jq -r .admin_url "$agent_ready")
   expected_bulk=3
   [[ $mode == aggregate-v1 ]] && expected_bulk=4
@@ -481,33 +800,68 @@ run_cohort() {
   fi
   run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" retained-warmup download "$((warmup_mib << 20))" 1
   run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" retained-warmup upload "$((warmup_mib << 20))" 1
-  for ((repetition=1; repetition<=transfer_repetitions; repetition++)); do
-    if ((repetition % 2)); then directions=(download upload); else directions=(upload download); fi
-    for direction in "${directions[@]}"; do
-      run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" steady "$direction" "$((steady_mib << 20))" "$repetition"
+  if ((pressure_mode)); then
+    run_pressure_qualification "$label" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin"
+  else
+    for ((repetition=1; repetition<=transfer_repetitions; repetition++)); do
+      if ((repetition % 2)); then directions=(download upload); else directions=(upload download); fi
+      for direction in "${directions[@]}"; do
+        run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" steady "$direction" "$((steady_mib << 20))" "$repetition"
+      done
     done
-  done
+  fi
 
-  stop_process "$agent_pid" "$agent_stop"
-  stop_process "$server_pid" "$server_stop"
+  stop_process "$agent_process_pid" "$agent_stop"
+  stop_process "$server_process_pid" "$server_stop"
 }
 
 for ((iteration=1; iteration<=runs; iteration++)); do
-  if ((iteration % 2)); then
-    run_cohort current-server-legacy-agent-compat legacy "$legacy_agent_binary" "$iteration"
+  if ((pressure_mode)); then
     run_cohort current-server-aggregate-v1 aggregate-v1 "$aggregate_agent_binary" "$iteration"
+  elif ((iteration % 2)); then
+      run_cohort current-server-legacy-agent-compat legacy "$legacy_agent_binary" "$iteration"
+      run_cohort current-server-aggregate-v1 aggregate-v1 "$aggregate_agent_binary" "$iteration"
   else
-    run_cohort current-server-aggregate-v1 aggregate-v1 "$aggregate_agent_binary" "$iteration"
-    run_cohort current-server-legacy-agent-compat legacy "$legacy_agent_binary" "$iteration"
+      run_cohort current-server-aggregate-v1 aggregate-v1 "$aggregate_agent_binary" "$iteration"
+      run_cohort current-server-legacy-agent-compat legacy "$legacy_agent_binary" "$iteration"
   fi
 done
 stop_process "$origin_pid" "$origin_stop"
 summary=${output%.jsonl}.summary.json
-python3 - "$output" "$summary" "$required_pool_mib" "$smoke_mode" <<'PY'
+python3 - "$output" "$summary" "$required_pool_mib" "$smoke_mode" "$pressure_mode" <<'PY'
 import json, statistics, sys
 
-source, destination, required_pool_mib, smoke_mode = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+source, destination, required_pool_mib, smoke_mode, pressure_mode = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
 rows = [json.loads(line) for line in open(source, encoding="utf-8") if line.strip()]
+if pressure_mode:
+    result = next((row for row in rows if row.get("measurement_stage") == "pressure-result"), None)
+    rejected = next((row for row in rows if row.get("measurement_stage") == "pressure-rejection"), None)
+    recovered = next((row for row in rows if row.get("measurement_stage") == "pressure-recovered"), None)
+    if not result or not rejected or not recovered:
+        raise SystemExit("pressure qualification is missing required result, rejection, or recovery rows")
+    summary = {
+        "acceptance": {
+            "pressure_reached": result["pressure_reached"],
+            "admission_rejected_under_pressure": rejected["rejected_pressure_after"] > rejected["rejected_pressure_before"],
+            "functional_recovery": result["functional_recovery"],
+            "control_progress_during_pressure": result["control_progress_during_pressure"],
+            "no_oom": all((row["agent_cgroup"]["memory_events"]["oom"] == 0 and
+                           row["agent_cgroup"]["memory_events"]["oom_kill"] == 0 and
+                           row["server_cgroup"]["memory_events"]["oom"] == 0 and
+                           row["server_cgroup"]["memory_events"]["oom_kill"] == 0)
+                          for row in rows if "agent_cgroup" in row and "server_cgroup" in row),
+        },
+        "pressure_ballast_mib": result["pressure_ballast_mib"],
+        "baseline_control_roundtrip": result["baseline_control_roundtrip"],
+        "pressure_control_roundtrip": result["pressure_control_roundtrip"],
+        "recovery_control_roundtrip": result["recovery_control_roundtrip"],
+    }
+    with open(destination, "w", encoding="utf-8") as output_file:
+        json.dump(summary, output_file, indent=2, sort_keys=True)
+        output_file.write("\n")
+    if not all(summary["acceptance"].values()):
+        raise SystemExit(f"pressure qualification failed acceptance: {summary['acceptance']}")
+    raise SystemExit(0)
 steady = [row for row in rows if row["measurement_stage"] == "steady"]
 summary = {"acceptance": {}, "cohorts": {}}
 for mode in ("legacy", "aggregate-v1"):
