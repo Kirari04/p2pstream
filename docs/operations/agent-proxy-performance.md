@@ -8,8 +8,9 @@ still apply.
 
 ## Defaults and upgrade behavior
 
-- Four authenticated TLS/TCP tunnels per agent distribute public and remote
-  management traffic. Each origin has a reusable transport per lane, so one
+- New peers negotiate aggregate-v1 with one authenticated TLS/TCP control
+  tunnel and four bulk tunnels per agent by default. Legacy peers retain four
+  physical tunnels. Each origin has a reusable transport per bulk lane, so one
   HTTP/2 connection cannot pin all work to a single TCP tunnel. All lanes share
   stream admission, update drain, health identity and revocation. A dropped lane
   reconnects independently; a request whose connection was lost still follows
@@ -24,9 +25,17 @@ still apply.
   queued responses do not immediately inflate the target. A real increase in
   path latency can take up to 30 seconds to replace the earlier minimum.
   Every increase reserves its receive chunks and metadata before publishing
-  credit. Ordinary reads return credit at a quarter-window threshold; explicit
-  growth publishes new credit immediately. Initial and additional reservations
-  remain until peer FIN or forced stream cleanup. Receive storage uses lazy
+  credit. Aggregate-v1 also bounds allocation credit across the complete
+  physical session: each bulk lane begins with a shared 2 MiB receive pool.
+  Session pool, stream allocation and byte-window growth publish in that order;
+  a failed or ambiguous publication retains the reservation until completed
+  session shutdown. Pool reservations remain session-owned after individual
+  streams become idle or close. These pools currently grow without shrinking
+  during a session, so growth followed by idle pressure needs separate
+  qualification.
+  Legacy reads return credit at a quarter-window threshold; explicit growth
+  publishes new credit immediately. Legacy initial and additional reservations
+  remain until peer FIN or forced stream cleanup. Legacy receive storage uses lazy
   64 KiB chunks and releases drained bulk storage, keeping a cache of up to 64
   chunks (4 MiB per stream) for reuse. The cache is populated lazily rather
   than preallocated, and this retention ceiling does not change the resource
@@ -82,11 +91,20 @@ still apply.
   body-copy working promise is acquired only after access, redirect and policy
   decisions, before cache, static or upstream work. These values are admission
   envelopes, not measured heap or RSS subtraction.
-- A server-side agent stream owns the exact receive-window accounting (about
-  640.625 KiB at the 512 KiB initial window) plus 256 KiB of userspace and no
-  fictitious file descriptor. The agent side adds the automatic 512 KiB kernel
-  allowance and two real dial descriptors. These stream promises remain
-  subject to the same 100 ms measured-pressure, fail-closed controller.
+- A server-side agent stream owns a 256 KiB userspace base and no fictitious
+  file descriptor. With default origin socket accounting, the agent side owns
+  a 768 KiB base and two descriptors for peak dial demand. Aggregate receive storage belongs
+  to the session pool rather than being duplicated in each stream's charge.
+  Legacy streams acquire an exact receive supplement before opening or serving
+  the stream (about 640.625 KiB at the 512 KiB initial window), retained through
+  terminal payload cleanup. Every legacy agent lane also prepays the complete
+  historical 256-stream accept backlog, one admission transition and 16 graceful
+  rejections: about 173.2 MiB per lane, or 692.8 MiB for four. This compatibility
+  envelope remains reserved even with a lower negotiated stream limit; an
+  agent without sufficient headroom refuses the lane. Explicit historical
+  server stream estimates remain conservative base overrides, with receive
+  ownership added separately. These promises remain subject to the same
+  100 ms measured-pressure, fail-closed controller.
 - Pool entries follow the shared stream budget; the separate 256-target ceiling
   is gone. Warm hits avoid constructing a disposable HTTP transport. Remote
   management requests now reuse pinned TLS connections, with invalidation on
