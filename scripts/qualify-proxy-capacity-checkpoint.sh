@@ -44,9 +44,9 @@ cmp -s "$candidate_dir/scripts/qualify-proxy-performance.sh" scripts/qualify-pro
   exit 1
 }
 install -m 0644 "$candidate_dir/internal/server/testdata/proxy_qualification_external_legacy_test.go" \
-  "$baseline_dir/internal/server/proxy_qualification_test.go"
+  "$baseline_dir/internal/server/proxy_qualification_external_legacy_test.go"
 install -m 0644 "$candidate_dir/internal/agent/testdata/proxy_qualification_external_legacy_test.go" \
-  "$baseline_dir/internal/agent/proxy_qualification_external_test.go"
+  "$baseline_dir/internal/agent/proxy_qualification_external_legacy_test.go"
 install -m 0755 "$0" "$output_root/provenance/qualify-proxy-capacity-checkpoint.sh"
 install -m 0755 "$candidate_dir/scripts/qualify-proxy-performance.sh" "$output_root/provenance/qualify-proxy-performance.sh"
 install -m 0644 "$candidate_dir/internal/server/testdata/proxy_qualification_external_legacy_test.go" \
