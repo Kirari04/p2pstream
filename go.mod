@@ -7,7 +7,7 @@ replace github.com/hashicorp/yamux => ./third_party/yamux
 
 require (
 	connectrpc.com/connect v1.20.0
-	github.com/andybalholm/brotli v1.2.2
+	github.com/andybalholm/brotli v1.2.4
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/google/cel-go v0.31.0
 	github.com/google/uuid v1.6.0
