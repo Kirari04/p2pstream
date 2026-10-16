@@ -1,0 +1,54 @@
+File: server.test
+Build ID: c124bcafd96127015cd8fcd8fdfa1533fd0fd72e
+Type: cpu
+Time: 2026-10-16 06:05:03 CEST
+Duration: 12.49s, Total samples = 42.50s (340.23%)
+Showing nodes accounting for 13.90s, 32.71% of 42.50s total
+Dropped 1052 nodes (cum <= 0.21s)
+Showing top 45 nodes out of 308
+      flat  flat%   sum%        cum   cum%
+     0.06s  0.14%  0.14%     16.49s 38.80%  net/http.(*http2serverConn).runHandler
+     0.02s 0.047%  0.19%     15.30s 36.00%  net/http.serverHandler.ServeHTTP
+     0.01s 0.024%  0.21%     15.29s 35.98%  net/http.initALPNRequest.ServeHTTP
+         0     0%  0.21%     15.26s 35.91%  net/http.(*ServeMux).ServeHTTP
+         0     0%  0.21%     15.08s 35.48%  net/http.HandlerFunc.ServeHTTP
+     0.01s 0.024%  0.24%     15.06s 35.44%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+     0.02s 0.047%  0.28%     15.05s 35.41%  p2pstream/internal/server.servePublicProxyRequest
+     0.07s  0.16%  0.45%     13.47s 31.69%  p2pstream/internal/server.(*publicProxyContext).run
+     0.06s  0.14%  0.59%      9.51s 22.38%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+         0     0%  0.59%      9.26s 21.79%  p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution (inline)
+     0.16s  0.38%  0.96%      9.26s 21.79%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+     8.21s 19.32% 20.28%      8.21s 19.32%  internal/runtime/syscall/linux.Syscall6
+     0.18s  0.42% 20.71%      8.05s 18.94%  net/http/httputil.(*ReverseProxy).ServeHTTP
+         0     0% 20.71%      7.79s 18.33%  internal/poll.ignoringEINTRIO (inline)
+         0     0% 20.71%      7.77s 18.28%  syscall.Syscall
+     0.05s  0.12% 20.82%      7.63s 17.95%  syscall.RawSyscall6
+     0.05s  0.12% 20.94%      5.97s 14.05%  internal/poll.(*FD).Write
+     0.02s 0.047% 20.99%      5.89s 13.86%  syscall.Write (inline)
+         0     0% 20.99%      5.87s 13.81%  syscall.write
+     0.04s 0.094% 21.08%      5.78s 13.60%  crypto/tls.(*Conn).Write
+     0.04s 0.094% 21.18%      5.69s 13.39%  crypto/tls.(*Conn).writeRecordLocked
+     0.04s 0.094% 21.27%      5.33s 12.54%  crypto/tls.(*Conn).write
+         0     0% 21.27%      5.30s 12.47%  github.com/hashicorp/yamux.(*Session).send
+     0.10s  0.24% 21.51%      5.30s 12.47%  github.com/hashicorp/yamux.(*Session).sendLoop
+         0     0% 21.51%      5.28s 12.42%  net.(*conn).Write
+     0.01s 0.024% 21.53%      5.28s 12.42%  net.(*netFD).Write
+     0.23s  0.54% 22.07%      5.08s 11.95%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+     0.25s  0.59% 22.66%      3.55s  8.35%  runtime.mallocgc
+     2.86s  6.73% 29.39%      2.99s  7.04%  runtime.cgocall
+     0.10s  0.24% 29.62%      2.96s  6.96%  net/http.(*persistConn).readLoop
+     1.06s  2.49% 32.12%      2.82s  6.64%  runtime.selectgo
+         0     0% 32.12%      2.81s  6.61%  github.com/mattn/go-sqlite3.(*SQLiteStmt).exec.func1
+         0     0% 32.12%      2.80s  6.59%  github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync
+         0     0% 32.12%      2.66s  6.26%  net/http.(*conn).serve
+         0     0% 32.12%      2.64s  6.21%  github.com/hashicorp/yamux.(*Session).recv
+     0.04s 0.094% 32.21%      2.64s  6.21%  github.com/hashicorp/yamux.(*Session).recvLoop
+     0.04s 0.094% 32.31%      2.62s  6.16%  crypto/tls.(*Conn).Read
+         0     0% 32.31%      2.61s  6.14%  net/http.(*http2Server).ServeConn (inline)
+         0     0% 32.31%      2.61s  6.14%  net/http.(*http2Server).serveConn
+     0.08s  0.19% 32.49%      2.61s  6.14%  net/http.(*http2serverConn).serve
+         0     0% 32.49%      2.61s  6.14%  net/http.http2ConfigureServer.func2
+         0     0% 32.49%      2.61s  6.14%  net/http.http2ConfigureServer.func3
+     0.01s 0.024% 32.52%      2.61s  6.14%  p2pstream/internal/server.(*pooledAgentTransport).RoundTrip
+         0     0% 32.52%      2.48s  5.84%  crypto/tls.(*Conn).readRecord (inline)
+     0.08s  0.19% 32.71%      2.48s  5.84%  crypto/tls.(*Conn).readRecordOrCCS

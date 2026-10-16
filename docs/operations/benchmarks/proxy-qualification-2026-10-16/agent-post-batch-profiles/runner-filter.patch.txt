@@ -1,0 +1,24 @@
+--- original-runner
++++ focused-runner
+@@ -1049,8 +1049,8 @@
+   wait_mode "$server_admin" "$mode" "$expected_bulk"
+ 
+   if ((tiny_response_mode)); then
+-    local tiny_specs=(h1:16 h1:128 h2:16 h2:128)
+-    if ((iteration % 2 == 0)); then tiny_specs=(h2:128 h2:16 h1:128 h1:16); fi
++    local tiny_specs=(h2:128)
++    if ((iteration % 2 == 0)); then tiny_specs=(h2:128); fi
+     local tiny_spec tiny_protocol tiny_concurrency
+     for tiny_spec in "${tiny_specs[@]}"; do
+       tiny_protocol=${tiny_spec%%:*}
+@@ -1218,8 +1218,8 @@
+                            "shaped_rate_bits_per_second": 1000000000},
+                "gates": {"minimum_throughput_ratio": .90, "maximum_latency_ratio": 1.10}}
+     failed = []
+-    for protocol in ("h1", "h2"):
+-        for concurrency in (16, 128):
++    for protocol in ("h2",):
++        for concurrency in (128,):
+             key = f"{protocol}-c{concurrency}"
+             summary["workloads"][key] = {}
+             by_mode = {}

@@ -1,0 +1,53 @@
+File: agent.test
+Build ID: ab60060d1ba48cf118e7b363a081d79664ca7b6f
+Type: alloc_objects
+Time: 2026-10-16 06:05:28 CEST
+Showing nodes accounting for 2061104, 97.81% of 2107216 total
+Dropped 121 nodes (cum <= 10536)
+Showing top 45 nodes out of 67
+      flat  flat%   sum%        cum   cum%
+   1141086 54.15% 54.15%    1350817 64.10%  github.com/hashicorp/yamux.(*Session).publishAggregateRefund
+    452232 21.46% 75.61%     474078 22.50%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommitOn
+    349532 16.59% 92.20%     349532 16.59%  crypto/tls.(*Conn).readFromUntil
+     33024  1.57% 93.77%      33024  1.57%  runtime.mallocgc
+     21846  1.04% 94.80%      21846  1.04%  sync.(*poolChain).pushHead
+     21845  1.04% 95.84%      21845  1.04%  connectrpc.com/connect.newReadOnlyCompressionPools
+     21845  1.04% 96.88%      22217  1.05%  crypto/x509.(*CertPool).AppendCertsFromPEM
+     15604  0.74% 97.62%      15604  0.74%  strings.Fields
+      3727  0.18% 97.79%      26133  1.24%  p2pstream/internal/sysmetrics.resolveCurrentProcessMemoryCgroupPaths
+       363 0.017% 97.81%     258156 12.25%  io.copyBuffer
+         0     0% 97.81%     349532 16.59%  bufio.(*Reader).Read
+         0     0% 97.81%      21845  1.04%  connectrpc.com/connect.NewClient[go.shape.struct { p2pstream/gen/proto/p2pstream/v1.state google.golang.org/protobuf/internal/impl.MessageState "protogen:\"open.v1\""; Id int64 "protobuf:\"varint,1,opt,name=id,proto3\" json:\"id,omitempty\""; p2pstream/gen/proto/p2pstream/v1.unknownFields []uint8; p2pstream/gen/proto/p2pstream/v1.sizeCache int32 },go.shape.struct { p2pstream/gen/proto/p2pstream/v1.state google.golang.org/protobuf/internal/impl.MessageState "protogen:\"open.v1\""; Agent *p2pstream/gen/proto/p2pstream/v1.Agent "protobuf:\"bytes,1,opt,name=agent,proto3\" json:\"agent,omitempty\""; Token string "protobuf:\"bytes,2,opt,name=token,proto3\" json:\"token,omitempty\""; p2pstream/gen/proto/p2pstream/v1.unknownFields []uint8; p2pstream/gen/proto/p2pstream/v1.sizeCache int32 }]
+         0     0% 97.81%     349532 16.59%  crypto/tls.(*Conn).Read
+         0     0% 97.81%     349532 16.59%  crypto/tls.(*Conn).readRecord (inline)
+         0     0% 97.81%     349532 16.59%  crypto/tls.(*Conn).readRecordOrCCS
+         0     0% 97.81%      27678  1.31%  crypto/x509.SystemCertPool
+         0     0% 97.81%      27678  1.31%  crypto/x509.initSystemRoots
+         0     0% 97.81%      27678  1.31%  crypto/x509.loadSystemRoots
+         0     0% 97.81%      27678  1.31%  crypto/x509.systemRootsPool
+         0     0% 97.81%      65537  3.11%  github.com/hashicorp/yamux.(*Session).handleAggregateData
+         0     0% 97.81%      70218  3.33%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0% 97.81%    1350817 64.10%  github.com/hashicorp/yamux.(*Session).publishAggregateCredit
+         0     0% 97.81%     354213 16.81%  github.com/hashicorp/yamux.(*Session).recv
+         0     0% 97.81%     354213 16.81%  github.com/hashicorp/yamux.(*Session).recvLoop
+         0     0% 97.81%     209731  9.95%  github.com/hashicorp/yamux.(*Session).waitForAggregateControlBatchErrCommit (inline)
+         0     0% 97.81%     264347 12.54%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+         0     0% 97.81%     264347 12.54%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+         0     0% 97.81%      21846  1.04%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommitOn.func1
+         0     0% 97.81%     264347 12.54%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0% 97.81%      65537  3.11%  github.com/hashicorp/yamux.(*Stream).readAggregateDataPayload
+         0     0% 97.81%     264347 12.54%  github.com/hashicorp/yamux.(*Stream).write
+         0     0% 97.81%      65537  3.11%  github.com/hashicorp/yamux.readAggregateFrame
+         0     0% 97.81%     258156 12.25%  io.Copy (inline)
+         0     0% 97.81%     349532 16.59%  io.ReadAtLeast
+         0     0% 97.81%     349532 16.59%  io.ReadFull (inline)
+         0     0% 97.81%     258024 12.24%  net.(*TCPConn).WriteTo
+         0     0% 97.81%     258024 12.24%  net.(*TCPConn).writeTo
+         0     0% 97.81%     258024 12.24%  net.genericWriteTo
+         0     0% 97.81%     349532 16.59%  net/http.(*readWriteCloserBody).Read
+         0     0% 97.81%      22045  1.05%  p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect.NewAgentManagementServiceClient
+         0     0% 97.81%      27260  1.29%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshot
+         0     0% 97.81%      27303  1.30%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLocked (inline)
+         0     0% 97.81%      27303  1.30%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLockedWithForce
+         0     0% 97.81%      27678  1.31%  p2pstream/internal/agent.RunContext
+         0     0% 97.81%      52361  2.48%  p2pstream/internal/agent.RunContext.func1

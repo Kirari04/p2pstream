@@ -1,0 +1,53 @@
+File: server.test
+Build ID: c124bcafd96127015cd8fcd8fdfa1533fd0fd72e
+Type: alloc_objects
+Time: 2026-10-16 06:05:28 CEST
+Showing nodes accounting for 33740608, 80.39% of 41973722 total
+Dropped 327 nodes (cum <= 209868)
+Showing top 45 nodes out of 177
+      flat  flat%   sum%        cum   cum%
+   2009797  4.79%  4.79%    2009797  4.79%  p2pstream/internal/db.appendProxyRequestEventArgs
+   1683862  4.01%  8.80%   18208419 43.38%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+   1577493  3.76% 12.56%    1577493  3.76%  net/textproto.MIMEHeader.Add (inline)
+   1507349  3.59% 16.15%    1900571  4.53%  net/textproto.MIMEHeader.Set (inline)
+   1463702  3.49% 19.64%    1463702  3.49%  context.WithValue
+   1347867  3.21% 22.85%    1347867  3.21%  net/http.Header.Clone (inline)
+   1234057  2.94% 25.79%    1681906  4.01%  net/textproto.readMIMEHeader
+   1167825  2.78% 28.57%    1167825  2.78%  net/http.http2cloneHeader (inline)
+   1070440  2.55% 31.12%    1070440  2.55%  p2pstream/internal/server.(*requestCapacityLimiter).tryAcquire
+   1053515  2.51% 33.63%    1184597  2.82%  github.com/hashicorp/yamux.(*Session).publishAggregateRefund
+    978422  2.33% 35.96%    1613546  3.84%  net/http.(*persistConn).roundTrip
+    928457  2.21% 38.17%     928457  2.21%  p2pstream/internal/server.publicRouteTargetHealthConfigFromRouteTarget
+    909335  2.17% 40.34%     909335  2.17%  p2pstream/internal/server.(*publicProxyContext).deferCleanup
+    860824  2.05% 42.39%     860824  2.05%  net/http.(*http2Framer).readMetaFrame.func1
+    845780  2.02% 44.41%    1239038  2.95%  time.NewTimer
+    841071  2.00% 46.41%     841071  2.00%  net/textproto.canonicalMIMEHeaderKey
+    804698  1.92% 48.33%     804698  1.92%  net/http.(*Request).WithContext (inline)
+    712729  1.70% 50.02%    1573553  3.75%  net/http.(*http2Framer).readMetaFrame
+    711387  1.69% 51.72%    3480159  8.29%  net/http.(*persistConn).readLoop
+    688148  1.64% 53.36%     688148  1.64%  net.SplitHostPort.func1 (inline)
+    636663  1.52% 54.88%    1240577  2.96%  net/http.(*transferWriter).probeRequestBody
+    617144  1.47% 56.35%    1598641  3.81%  p2pstream/internal/server.applyPublicRequestBodyLimits
+    611703  1.46% 57.80%    8595769 20.48%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+    611690  1.46% 59.26%     630907  1.50%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+    605915  1.44% 60.70%    1195756  2.85%  net/http.(*Transport).getConn
+    565281  1.35% 62.05%   15852795 37.77%  net/http/httputil.(*ReverseProxy).ServeHTTP
+    563652  1.34% 63.39%    1008171  2.40%  context.withCancel (inline)
+    524295  1.25% 64.64%    1997560  4.76%  net/http.(*Request).write
+    502457  1.20% 65.84%    3033835  7.23%  p2pstream/internal/server.initializePublicProxyContext
+    463734  1.10% 66.94%     463734  1.10%  net/http.setupRewindBody (inline)
+    458758  1.09% 68.04%     458758  1.09%  net/netip.Addr.string4 (inline)
+    447837  1.07% 69.10%     447837  1.07%  p2pstream/internal/server.(*App).beginAgentUpdateProtectedRequest
+    444519  1.06% 70.16%     444519  1.06%  context.(*cancelCtx).propagateCancel
+    422835  1.01% 71.17%    2120274  5.05%  net/http.(*Request).Clone
+    404157  0.96% 72.13%     404157  0.96%  internal/bytealg.MakeNoZero
+    397939  0.95% 73.08%     397939  0.95%  time.newTimer
+    393912  0.94% 74.02%     393912  0.94%  strings.genSplit
+    393256  0.94% 74.96%     393256  0.94%  context.(*cancelCtx).Done
+    350176  0.83% 75.79%     350176  0.83%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommitOn
+    349572  0.83% 76.62%     349572  0.83%  net/http.cloneURL (inline)
+    344074  0.82% 77.44%     344074  0.82%  p2pstream/internal/server.(*App).eligibleTargetAgentCandidatesFromSnapshot
+    327685  0.78% 78.23%     734039  1.75%  context.WithCancel
+    327685  0.78% 79.01%     327685  0.78%  net/http.(*routingNode).matchPath
+    294916   0.7% 79.71%     294916   0.7%  net/http.NewResponseController (inline)
+    283995  0.68% 80.39%     284905  0.68%  crypto/tls.(*Conn).readFromUntil

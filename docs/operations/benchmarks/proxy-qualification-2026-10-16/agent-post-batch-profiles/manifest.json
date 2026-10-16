@@ -1,0 +1,376 @@
+{
+  "server_source_ref": "5288994b012c7566999ece140d7bdaa8bbd9d984",
+  "aggregate_agent_source_ref": "5288994b012c7566999ece140d7bdaa8bbd9d984",
+  "legacy_agent_source_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "diagnostic_only": true,
+  "profiles_cover_whole_endpoint_lifetime": true,
+  "binaries": {
+    "server": {
+      "path": "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+      "sha256": "638660fe117b5e7f5d4557f6525a6b05d38860f82141f8caec1b834b768d9446"
+    },
+    "aggregate-agent": {
+      "path": "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/agent.test",
+      "sha256": "267216d3fd76789e04ed7dd8b8b7b12214656cc3bac1554cbf38932f1a84a2ab"
+    },
+    "legacy-agent": {
+      "path": "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec"
+    }
+  },
+  "wrappers": {
+    "server": {
+      "path": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/server.sh",
+      "sha256": "b74b30ad6b2f617e41cba887dff02cfe14608e10053cec608f5a4575cd7596f6"
+    },
+    "aggregate-agent": {
+      "path": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/aggregate-agent.sh",
+      "sha256": "58c5f89b4ac3a823cc9ea7f9267ce463d4c2026e97dbc832cf442b0394e40b0f"
+    },
+    "legacy-agent": {
+      "path": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/legacy-agent.sh",
+      "sha256": "6298671422b122f3b743b1b1ac6e09f44111474cc4581d32906a7ca0dd38eef5"
+    }
+  },
+  "original_runner_sha256": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+  "filtered_runner_sha256": "5650df2e7d0c3d9b01098c95e186d22028941523031677b3032d5b21c656f155",
+  "command": [
+    "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/qualify-proxy-agent-growth.sh",
+    "--server-binary",
+    "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/server.sh",
+    "--aggregate-agent-binary",
+    "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/aggregate-agent.sh",
+    "--legacy-agent-binary",
+    "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/legacy-agent.sh",
+    "--output",
+    "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/results.jsonl",
+    "--server-source-ref",
+    "5288994b012c7566999ece140d7bdaa8bbd9d984",
+    "--aggregate-agent-source-ref",
+    "5288994b012c7566999ece140d7bdaa8bbd9d984",
+    "--legacy-agent-source-ref",
+    "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "--tiny-response",
+    "--runs",
+    "1",
+    "--rtt-ms",
+    "1"
+  ],
+  "native_profile_storage": "Native blobs stay local at the recorded paths; Git retains text reports and SHA-256 identifiers only.",
+  "profile_reports": [
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.cpu.pprof",
+      "sha256": "1ef1d995d0b3751658f13c56daf1f5915fe9dd4c0d520f1aa2ae45c25d1f8709",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/agent.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.cpu.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-aggregate-v1-1-agent.cpu.pprof.cpu.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.cpu.pprof",
+      "sha256": "1ef1d995d0b3751658f13c56daf1f5915fe9dd4c0d520f1aa2ae45c25d1f8709",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-cum",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/agent.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.cpu.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-aggregate-v1-1-agent.cpu.pprof.cpu-cumulative.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.mem.pprof",
+      "sha256": "0e29d7d8a6cbf50179bc7389c514de03241357e8221359990df0187547359863",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-sample_index=alloc_space",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/agent.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.mem.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-aggregate-v1-1-agent.mem.pprof.alloc-space.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.mem.pprof",
+      "sha256": "0e29d7d8a6cbf50179bc7389c514de03241357e8221359990df0187547359863",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-sample_index=alloc_objects",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/agent.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.mem.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-aggregate-v1-1-agent.mem.pprof.alloc-objects.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.cpu.pprof",
+      "sha256": "b668c6afafb1b59fb6e2ca04066b9b74b826b792155c62f7a943d2d731fbfa9a",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.cpu.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-aggregate-v1-1-server.cpu.pprof.cpu.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.cpu.pprof",
+      "sha256": "b668c6afafb1b59fb6e2ca04066b9b74b826b792155c62f7a943d2d731fbfa9a",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-cum",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.cpu.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-aggregate-v1-1-server.cpu.pprof.cpu-cumulative.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.mem.pprof",
+      "sha256": "a008ad5f9adfc1e72a333a9524214f59f26b523f4a70d90de59a6d97fa3c13e9",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-sample_index=alloc_space",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.mem.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-aggregate-v1-1-server.mem.pprof.alloc-space.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.mem.pprof",
+      "sha256": "a008ad5f9adfc1e72a333a9524214f59f26b523f4a70d90de59a6d97fa3c13e9",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-sample_index=alloc_objects",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.mem.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-aggregate-v1-1-server.mem.pprof.alloc-objects.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-agent.cpu.pprof",
+      "sha256": "22c4cf6f446310f98dd2c71294e94d2ed8b815ce39248ced23d26f9ca11bd829",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-agent.cpu.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-legacy-agent-compat-1-agent.cpu.pprof.cpu.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-agent.cpu.pprof",
+      "sha256": "22c4cf6f446310f98dd2c71294e94d2ed8b815ce39248ced23d26f9ca11bd829",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-cum",
+        "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-agent.cpu.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-legacy-agent-compat-1-agent.cpu.pprof.cpu-cumulative.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-agent.mem.pprof",
+      "sha256": "ed0707eb8a7fd9ccfd05a43af6a65f4aa0bfe56ecba5e3664070cc2cffbfe0ac",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-sample_index=alloc_space",
+        "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-agent.mem.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-legacy-agent-compat-1-agent.mem.pprof.alloc-space.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-agent.mem.pprof",
+      "sha256": "ed0707eb8a7fd9ccfd05a43af6a65f4aa0bfe56ecba5e3664070cc2cffbfe0ac",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-sample_index=alloc_objects",
+        "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-agent.mem.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-legacy-agent-compat-1-agent.mem.pprof.alloc-objects.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-server.cpu.pprof",
+      "sha256": "f133879465a587b860b0055b92a485e5afa140c61d4f7c036a1285df6aa48fe7",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-server.cpu.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-legacy-agent-compat-1-server.cpu.pprof.cpu.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-server.cpu.pprof",
+      "sha256": "f133879465a587b860b0055b92a485e5afa140c61d4f7c036a1285df6aa48fe7",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-cum",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-server.cpu.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-legacy-agent-compat-1-server.cpu.pprof.cpu-cumulative.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-server.mem.pprof",
+      "sha256": "2c9945b8f6dce3bfcd6d12629f7f043a3700809b991928e4dda4a5254ffd622c",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-sample_index=alloc_space",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-server.mem.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-legacy-agent-compat-1-server.mem.pprof.alloc-space.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-server.mem.pprof",
+      "sha256": "2c9945b8f6dce3bfcd6d12629f7f043a3700809b991928e4dda4a5254ffd622c",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-top",
+        "-nodecount=45",
+        "-sample_index=alloc_objects",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-legacy-agent-compat-1-server.mem.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/current-server-legacy-agent-compat-1-server.mem.pprof.alloc-objects.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.cpu.pprof",
+      "sha256": "1ef1d995d0b3751658f13c56daf1f5915fe9dd4c0d520f1aa2ae45c25d1f8709",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-list=github.com/hashicorp/yamux.\\(\\*Session\\).sendLoop$",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/agent.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.cpu.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/focus-agent-send-loop-cpu.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.mem.pprof",
+      "sha256": "0e29d7d8a6cbf50179bc7389c514de03241357e8221359990df0187547359863",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-list=github.com/hashicorp/yamux.\\(\\*Session\\).publishAggregateRefund$",
+        "-sample_index=alloc_space",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/agent.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-agent.mem.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/focus-agent-publisher-alloc.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.cpu.pprof",
+      "sha256": "b668c6afafb1b59fb6e2ca04066b9b74b826b792155c62f7a943d2d731fbfa9a",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-list=github.com/hashicorp/yamux.\\(\\*Session\\).sendLoop$",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.cpu.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/focus-server-send-loop-cpu.txt"
+    },
+    {
+      "profile": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.mem.pprof",
+      "sha256": "a008ad5f9adfc1e72a333a9524214f59f26b523f4a70d90de59a6d97fa3c13e9",
+      "command": [
+        "go",
+        "tool",
+        "pprof",
+        "-list=github.com/hashicorp/yamux.\\(\\*Session\\).publishAggregateRefund$",
+        "-sample_index=alloc_space",
+        "/tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test",
+        "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/current-server-aggregate-v1-1-server.mem.pprof"
+      ],
+      "report": "/tmp/p2pstream-post-batch-profiles.zjtqjqlk/reports/focus-server-publisher-alloc.txt"
+    }
+  ],
+  "exit": {
+    "exit_code": 1,
+    "elapsed_seconds": 29.479174624022562
+  },
+  "conservation": [
+    {
+      "mode": "legacy",
+      "attempted": 187833,
+      "useful_completed": 187833,
+      "persisted_events": 187833,
+      "warmup_completed": 37136,
+      "timed_server_cpu_seconds": 35.5,
+      "timed_agent_cpu_seconds": 15.63
+    },
+    {
+      "mode": "aggregate-v1",
+      "attempted": 168107,
+      "useful_completed": 168107,
+      "persisted_events": 168107,
+      "warmup_completed": 34000,
+      "timed_server_cpu_seconds": 35.96,
+      "timed_agent_cpu_seconds": 18.46
+    }
+  ]
+}

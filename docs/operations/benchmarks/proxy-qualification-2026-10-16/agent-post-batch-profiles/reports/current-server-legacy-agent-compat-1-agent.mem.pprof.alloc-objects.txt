@@ -1,0 +1,53 @@
+File: agent.test
+Build ID: 2c1b796d824f205535926c758377823561f6140b
+Type: alloc_objects
+Time: 2026-10-16 06:05:15 CEST
+Showing nodes accounting for 640884, 98.80% of 648683 total
+Dropped 49 nodes (cum <= 3243)
+Showing top 45 nodes out of 76
+      flat  flat%   sum%        cum   cum%
+    283995 43.78% 43.78%     283995 43.78%  crypto/tls.(*Conn).readFromUntil
+    262164 40.41% 84.20%     262164 40.41%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+     32768  5.05% 89.25%      32768  5.05%  net/http.(*Server).Serve
+     21845  3.37% 92.61%      21845  3.37%  syscall.ByteSliceFromString
+     17477  2.69% 95.31%      17477  2.69%  strings.(*trieNode).add
+      5461  0.84% 96.15%       5461  0.84%  runtime/pprof.allFrames
+      4681  0.72% 96.87%       4681  0.72%  strings.Fields
+      4681  0.72% 97.59%       4681  0.72%  time.NewTimer
+      4096  0.63% 98.22%       4096  0.63%  strings.NewReplacer (inline)
+      3277  0.51% 98.73%       3277  0.51%  compress/gzip.NewWriterLevel
+       396 0.061% 98.79%     262560 40.48%  io.copyBuffer
+        43 0.0066% 98.80%      50965  7.86%  p2pstream/internal/sysmetrics.resolveCurrentProcessMemoryCgroupPaths
+         0     0% 98.80%     283995 43.78%  bufio.(*Reader).Read
+         0     0% 98.80%     283995 43.78%  crypto/tls.(*Conn).Read
+         0     0% 98.80%     283995 43.78%  crypto/tls.(*Conn).readRecord (inline)
+         0     0% 98.80%     283995 43.78%  crypto/tls.(*Conn).readRecordOrCCS
+         0     0% 98.80%      65647 10.12%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0% 98.80%     284105 43.80%  github.com/hashicorp/yamux.(*Session).recv
+         0     0% 98.80%     284105 43.80%  github.com/hashicorp/yamux.(*Session).recvLoop
+         0     0% 98.80%     262164 40.41%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+         0     0% 98.80%     262164 40.41%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0% 98.80%      65647 10.12%  github.com/hashicorp/yamux.(*Stream).readData
+         0     0% 98.80%      65647 10.12%  github.com/hashicorp/yamux.(*Stream).readDataPayload
+         0     0% 98.80%     262164 40.41%  github.com/hashicorp/yamux.(*Stream).write
+         0     0% 98.80%      65647 10.12%  github.com/hashicorp/yamux.(*recvBuffer).readFrom
+         0     0% 98.80%     262560 40.48%  io.Copy (inline)
+         0     0% 98.80%     218458 33.68%  io.ReadAtLeast
+         0     0% 98.80%     218458 33.68%  io.ReadFull (inline)
+         0     0% 98.80%     262329 40.44%  net.(*TCPConn).WriteTo
+         0     0% 98.80%     262329 40.44%  net.(*TCPConn).writeTo
+         0     0% 98.80%     262329 40.44%  net.genericWriteTo
+         0     0% 98.80%     283995 43.78%  net/http.(*readWriteCloserBody).Read
+         0     0% 98.80%      21845  3.37%  os.Open (inline)
+         0     0% 98.80%      21845  3.37%  os.OpenFile
+         0     0% 98.80%      26280  4.05%  os.ReadFile
+         0     0% 98.80%      21845  3.37%  os.ignoringEINTR (inline)
+         0     0% 98.80%      21845  3.37%  os.open
+         0     0% 98.80%      21845  3.37%  os.openFileNolog
+         0     0% 98.80%      21845  3.37%  os.openFileNolog.func1 (inline)
+         0     0% 98.80%      46020  7.09%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshot
+         0     0% 98.80%      52574  8.10%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLocked (inline)
+         0     0% 98.80%      52574  8.10%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLockedWithForce
+         0     0% 98.80%       6554  1.01%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).tryAcquire
+         0     0% 98.80%       6898  1.06%  p2pstream/internal/agent.RunContext
+         0     0% 98.80%      46020  7.09%  p2pstream/internal/agent.RunContext.func1

@@ -1,0 +1,71 @@
+Total: 21.46s
+ROUTINE ======================== github.com/hashicorp/yamux.(*Session).sendLoop in /tmp/p2p-tiny-5288994b.nC3CM4AC/third_party/yamux/session.go
+      90ms      7.47s (flat, cum) 34.81% of Total
+         .          .    611:func (s *Session) sendLoop() error {
+         .          .    612:	defer close(s.sendDoneCh)
+         .          .    613:	var bodyBuf bytes.Buffer
+         .          .    614:	for {
+         .          .    615:		bodyBuf.Reset()
+         .          .    616:		var ready *sendReady
+         .          .    617:		// Once a control is queued, select it before the bulk FIFO. A control
+         .          .    618:		// arriving concurrently may follow at most the one DATA frame selected
+         .          .    619:		// in the fallback below.
+         .          .    620:		select {
+      10ms       10ms    621:		case <-s.shutdownCh:
+         .          .    622:			return nil
+         .          .    623:		default:
+         .          .    624:		}
+         .          .    625:		select {
+         .          .    626:		case ready = <-s.controlCh:
+         .          .    627:		default:
+         .      240ms    628:			select {
+         .          .    629:			case ready = <-s.controlCh:
+      10ms       10ms    630:			case ready = <-s.sendCh:
+         .          .    631:			case <-s.shutdownCh:
+         .          .    632:				return nil
+         .          .    633:			}
+         .          .    634:		}
+         .          .    635:
+         .          .    636:		// Send a header if ready.
+         .          .    637:		if ready.Hdr != nil {
+      10ms       10ms    638:			if ready.Commit != nil {
+         .       10ms    639:				ready.Commit()
+         .          .    640:			}
+      50ms      4.65s    641:			_, err := s.conn.Write(ready.Hdr)
+         .          .    642:			if err != nil {
+         .          .    643:				s.logger.Printf("[ERR] yamux: Failed to write header: %v", err)
+         .          .    644:				asyncSendErr(ready.Err, err)
+         .          .    645:				return err
+         .          .    646:			}
+         .          .    647:		}
+         .          .    648:
+         .          .    649:		ready.mu.Lock()
+         .          .    650:		if ready.Body != nil {
+         .          .    651:			// Copy the body into the buffer to avoid holding a mutex lock during
+         .          .    652:			// the physical write.
+         .       30ms    653:			_, err := bodyBuf.Write(ready.Body)
+         .          .    654:			if err != nil {
+         .          .    655:				ready.Body = nil
+         .          .    656:				ready.mu.Unlock()
+         .          .    657:				s.logger.Printf("[ERR] yamux: Failed to copy body into buffer: %v", err)
+         .          .    658:				asyncSendErr(ready.Err, err)
+         .          .    659:				return err
+         .          .    660:			}
+         .          .    661:			ready.Body = nil
+         .          .    662:		}
+         .       10ms    663:		ready.mu.Unlock()
+         .          .    664:
+         .          .    665:		if bodyBuf.Len() > 0 {
+      10ms      2.24s    666:			if _, err := s.conn.Write(bodyBuf.Bytes()); err != nil {
+         .          .    667:				s.logger.Printf("[ERR] yamux: Failed to write body: %v", err)
+         .          .    668:				asyncSendErr(ready.Err, err)
+         .          .    669:				return err
+         .          .    670:			}
+         .          .    671:		}
+         .          .    672:
+         .      260ms    673:		asyncSendErr(ready.Err, nil)
+         .          .    674:	}
+         .          .    675:}
+         .          .    676:
+         .          .    677:// recv is a long running goroutine that accepts new data
+         .          .    678:func (s *Session) recv() {

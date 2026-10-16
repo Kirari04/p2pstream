@@ -1,0 +1,54 @@
+Total: 3.33GB
+ROUTINE ======================== github.com/hashicorp/yamux.(*Session).publishAggregateRefund in /tmp/p2p-tiny-5288994b.nC3CM4AC/third_party/yamux/aggregate_window.go
+  160.05MB   170.05MB (flat, cum)  4.99% of Total
+   66.03MB    66.03MB    657:func (s *Session) publishAggregateRefund(work aggregateRefundWork) error {
+         .          .    658:	lockedParts := work.parts[:work.count]
+         .          .    659:	sortAggregateRefundParts(lockedParts)
+         .          .    660:	for i := range lockedParts {
+         .          .    661:		lockedParts[i].stream.controlHdrLock.Lock()
+         .          .    662:	}
+         .          .    663:	defer func() {
+         .          .    664:		for i := len(lockedParts) - 1; i >= 0; i-- {
+         .          .    665:			lockedParts[i].stream.controlHdrLock.Unlock()
+         .          .    666:		}
+         .          .    667:	}()
+         .          .    668:
+   63.02MB    63.02MB    669:	var activeParts [aggregateRefundBatchStreams]aggregateRefundPart
+         .          .    670:	active := uint8(0)
+         .          .    671:	for i := range lockedParts {
+         .          .    672:		part := lockedParts[i]
+         .          .    673:		if !part.stream.acceptsAggregateData() {
+         .          .    674:			s.discardPublishingRefundPart(part)
+         .          .    675:			continue
+         .          .    676:		}
+         .          .    677:		activeParts[active] = part
+         .          .    678:		active++
+         .          .    679:	}
+         .          .    680:	parts := activeParts[:active]
+         .          .    681:
+         .          .    682:	a := s.aggregate
+         .          .    683:	a.publishMu.Lock()
+         .          .    684:	defer a.publishMu.Unlock()
+         .          .    685:	headerCount := len(parts)
+         .          .    686:	if work.global != 0 {
+         .          .    687:		headerCount++
+         .          .    688:	}
+         .          .    689:	if headerCount == 0 {
+         .          .    690:		return nil
+         .          .    691:	}
+       9MB        9MB    692:	batch := header(make([]byte, headerCount*headerSize))
+         .          .    693:	for i, part := range parts {
+         .          .    694:		hdr := header(batch[i*headerSize : (i+1)*headerSize])
+         .          .    695:		hdr.encode(typeAllocationWindowUpdate, 0, part.stream.id, uint32(part.delta))
+         .          .    696:	}
+         .          .    697:	if work.global != 0 {
+         .          .    698:		hdr := header(batch[(headerCount-1)*headerSize:])
+         .          .    699:		hdr.encode(typeWindowUpdate, 0, 0, uint32(work.global))
+         .          .    700:	}
+   16.50MB    16.50MB    701:	errCh := make(chan error, 1)
+    5.50MB    15.50MB    702:	return s.waitForAggregateControlBatchErrCommit(batch, errCh, func() {
+         .          .    703:		a.mu.Lock()
+         .          .    704:		for _, part := range parts {
+         .          .    705:			part.stream.allocationRefundPublishing -= part.delta
+         .          .    706:			part.stream.allocationRecvWindow += uint32(part.delta)
+         .          .    707:			a.publishingRefunds[part.slot] = aggregateRefundPart{}

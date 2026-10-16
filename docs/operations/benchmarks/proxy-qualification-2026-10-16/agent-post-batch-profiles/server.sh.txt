@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+profile_flags=()
+if [[ ${P2PSTREAM_QUALIFICATION_ROLE:-} == proxy-external-agent ]]; then
+  profile_name=$(basename "$P2PSTREAM_QUALIFICATION_READY" .ready.json)
+  profile_prefix=/tmp/p2pstream-post-batch-profiles.zjtqjqlk/profiles/"$profile_name"
+  profile_flags=("-test.cpuprofile=$profile_prefix.cpu.pprof" "-test.memprofile=$profile_prefix.mem.pprof" -test.memprofilerate=524288)
+fi
+exec /tmp/p2p-tiny-5288994b.nC3CM4AC/bin/server.test "$@" "${profile_flags[@]}"
