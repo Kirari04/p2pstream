@@ -633,38 +633,45 @@ func (s *Session) sendLoop() error {
 			}
 		}
 
-		// Send a header if ready.
-		if ready.Hdr != nil {
-			if ready.Commit != nil {
-				ready.Commit()
-			}
-			_, err := s.conn.Write(ready.Hdr)
-			if err != nil {
-				s.logger.Printf("[ERR] yamux: Failed to write header: %v", err)
-				asyncSendErr(ready.Err, err)
-				return err
-			}
-		}
-
+		// A DATA caller retains ownership of its body until this worker detaches
+		// it under ready.mu. Copy both header and body before the first physical
+		// byte: a concurrent timeout can then return and reuse the body safely.
+		// A caller whose queued header times out replaces that header before
+		// reuse, so the queued backing remains stable. Header-only controls stay
+		// separate.
+		var frame []byte
 		ready.mu.Lock()
 		if ready.Body != nil {
-			// Copy the body into the buffer to avoid holding a mutex lock during
-			// the physical write.
-			_, err := bodyBuf.Write(ready.Body)
+			bodyBuf.Grow(len(ready.Hdr) + len(ready.Body))
+			_, err := bodyBuf.Write(ready.Hdr)
+			if err == nil {
+				_, err = bodyBuf.Write(ready.Body)
+			}
 			if err != nil {
 				ready.Body = nil
 				ready.mu.Unlock()
-				s.logger.Printf("[ERR] yamux: Failed to copy body into buffer: %v", err)
+				s.logger.Printf("[ERR] yamux: Failed to gather frame: %v", err)
 				asyncSendErr(ready.Err, err)
 				return err
 			}
 			ready.Body = nil
+			frame = bodyBuf.Bytes()
 		}
 		ready.mu.Unlock()
 
-		if bodyBuf.Len() > 0 {
-			if _, err := s.conn.Write(bodyBuf.Bytes()); err != nil {
-				s.logger.Printf("[ERR] yamux: Failed to write body: %v", err)
+		if frame == nil {
+			frame = ready.Hdr
+		}
+		if len(frame) > 0 {
+			if ready.Commit != nil {
+				ready.Commit()
+			}
+			written, err := s.conn.Write(frame)
+			if err == nil && written != len(frame) {
+				err = io.ErrShortWrite
+			}
+			if err != nil {
+				s.logger.Printf("[ERR] yamux: Failed to write frame: %v", err)
 				asyncSendErr(ready.Err, err)
 				return err
 			}
