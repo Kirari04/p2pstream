@@ -88,6 +88,53 @@ func (r *qualificationZeroReader) Read(p []byte) (int, error) {
 	return len(p), nil
 }
 
+type qualificationCancelReader struct {
+	remaining   int64
+	cancelAfter int64
+	delivered   *atomic.Int64
+	cancel      context.CancelFunc
+	once        sync.Once
+}
+
+func (r *qualificationCancelReader) Read(p []byte) (int, error) {
+	if r.remaining == 0 {
+		return 0, io.EOF
+	}
+	if len(p) > 32<<10 {
+		p = p[:32<<10]
+	}
+	if int64(len(p)) > r.remaining {
+		p = p[:r.remaining]
+	}
+	clear(p)
+	r.remaining -= int64(len(p))
+	delivered := r.delivered.Add(int64(len(p)))
+	if delivered >= r.cancelAfter {
+		r.once.Do(func() { time.AfterFunc(10*time.Millisecond, r.cancel) })
+	}
+	time.Sleep(2 * time.Millisecond)
+	return len(p), nil
+}
+
+func TestQualificationCancelReaderDeliversPayloadBeforeCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	var delivered atomic.Int64
+	reader := &qualificationCancelReader{
+		remaining: 256 << 10, cancelAfter: 128 << 10, delivered: &delivered, cancel: cancel,
+	}
+	if _, err := io.Copy(io.Discard, reader); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-ctx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("reader did not cancel after delivering the configured payload")
+	}
+	if got := delivered.Load(); got < 128<<10 {
+		t.Fatalf("delivered bytes = %d, want at least %d", got, 128<<10)
+	}
+}
+
 func qualificationZeroPayloadHash(size int) [sha256.Size]byte {
 	hash := sha256.New()
 	zero := make([]byte, 32<<10)
@@ -246,6 +293,7 @@ type qualificationResult struct {
 	P95Milliseconds               float64                           `json:"p95_ms"`
 	P99Milliseconds               float64                           `json:"p99_ms"`
 	ResponseBytes                 int64                             `json:"response_bytes"`
+	RequestBodyBytes              int64                             `json:"request_body_bytes,omitempty"`
 	ConfiguredPayloadBytes        int64                             `json:"configured_payload_bytes,omitempty"`
 	PeakRSSBytes                  int64                             `json:"peak_rss_bytes,omitempty"`
 	FinalRSSBytes                 int64                             `json:"final_rss_bytes,omitempty"`
@@ -938,7 +986,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 		runQualificationTLSIdle(t, target, concurrency, requests)
 		return
 	}
-	var useful, errorsSeen, bytesSeen atomic.Int64
+	var useful, errorsSeen, bytesSeen, requestBodyBytes atomic.Int64
 	var observedMajor atomic.Int64
 	var observedOriginMajor atomic.Int64
 	var originPeak atomic.Int64
@@ -968,7 +1016,17 @@ func TestProxyQualificationLoad(t *testing.T) {
 				method := http.MethodGet
 				var body io.Reader
 				requestURL := target
-				if scenario == "growth-upload" {
+				var requestCtx context.Context
+				var cancelRequest context.CancelFunc
+				if scenario == "growth-upload-cancel" {
+					method = http.MethodPost
+					requestCtx, cancelRequest = context.WithCancel(context.Background())
+					defer cancelRequest()
+					body = &qualificationCancelReader{
+						remaining: int64(growthPayloadBytes), cancelAfter: min(int64(growthPayloadBytes)/2, 8<<20),
+						delivered: &requestBodyBytes, cancel: cancelRequest,
+					}
+				} else if scenario == "growth-upload" {
 					method = http.MethodPost
 					body = &qualificationZeroReader{remaining: int64(growthPayloadBytes)}
 				} else if strings.HasPrefix(scenario, "upload") {
@@ -992,10 +1050,16 @@ func TestProxyQualificationLoad(t *testing.T) {
 					continue
 				}
 				req.Host = "public.test"
-				if scenario == "growth-upload" {
+				if scenario == "growth-upload" || scenario == "growth-upload-cancel" {
 					req.ContentLength = int64(growthPayloadBytes)
 				}
+				if requestCtx != nil {
+					req = req.WithContext(requestCtx)
+				}
 				req = req.WithContext(httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
+					if conn, ok := info.Conn.(*tls.Conn); ok && conn.ConnectionState().NegotiatedProtocol == "h2" {
+						observedMajor.CompareAndSwap(0, 2)
+					}
 					if strings.HasPrefix(scenario, "h1-churn") {
 						if !info.Reused {
 							clientConnections.Add(1)
@@ -1184,7 +1248,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 		StatusCodes: statusCodes,
 		Errors:      errorsSeen.Load(), WallSeconds: elapsed.Seconds(), UsefulRPS: float64(useful.Load()) / elapsed.Seconds(),
 		P50Milliseconds: durationQuantile(latencies, .50), P95Milliseconds: durationQuantile(latencies, .95), P99Milliseconds: durationQuantile(latencies, .99),
-		ResponseBytes: bytesSeen.Load(), ConfiguredPayloadBytes: int64(growthPayloadBytes), PeakRSSBytes: sampler.peakRSS, FinalRSSBytes: sampler.finalRSS, PeakFDs: sampler.peakFDs, CPUSeconds: sampler.cpuSeconds(),
+		ResponseBytes: bytesSeen.Load(), RequestBodyBytes: requestBodyBytes.Load(), ConfiguredPayloadBytes: int64(growthPayloadBytes), PeakRSSBytes: sampler.peakRSS, FinalRSSBytes: sampler.finalRSS, PeakFDs: sampler.peakFDs, CPUSeconds: sampler.cpuSeconds(),
 		PeakHeapAlloc: sampler.peakHeap, GCCycles: sampler.gcCycles(), GCPauseSeconds: sampler.gcPauseSeconds(), ObservedHTTPMajor: int(observedMajor.Load()), ObservedOriginHTTPMajor: int(observedOriginMajor.Load()),
 		CgroupMemoryPeak: sampler.cgroupPeak, CgroupMemoryFinal: sampler.cgroupFinal, CgroupMemoryMax: sampler.cgroupMax,
 		OriginPeakInflight: originPeak.Load(), InitialRSSBytes: sampler.initialRSS, InitialHeapAlloc: sampler.initialHeap,

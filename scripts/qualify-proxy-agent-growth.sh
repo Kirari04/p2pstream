@@ -576,6 +576,86 @@ run_pressure_rejection() {
       rejected_pressure_before:$before,rejected_pressure_after:$after}' "$raw" >> "$output"
 }
 
+run_canceled_upload_trace() {
+  local label=$1 server_pid=$2 public_url=$3 server_admin=$4 agent_pid=$5 agent_admin=$6 payload_bytes=$7
+  sequence=$((sequence + 1))
+  local raw="$run_dir/$sequence-$label-canceled-upload.json"
+  local samples="$run_dir/$sequence-$label-canceled-upload-agent-samples.jsonl"
+  local server_spec initial_agent final_agent lane_high_water
+  : > "$samples"
+  initial_agent=$(query_agent_json "$agent_pid" "$agent_admin")
+  jq -e '
+    .agent_capacity.in_use == 0 and
+    ([.tunnel_sessions[] | select(.aggregate == true and .lane > 0)] | length == 4) and
+    all(.tunnel_sessions[] | select(.aggregate == true and .lane > 0);
+      ((.buffered_units // 0) == 0) and ((.pending_refund_bytes // 0) == 0))
+  ' <<<"$initial_agent" >/dev/null
+  server_spec=$(jq -cn --argjson pid "$server_pid" --arg admin "$server_admin" --arg cpus "$server_cpu_set" '{role:"server",pid:$pid,admin_url:$admin,cpu_set:$cpus}')
+  P2PSTREAM_QUALIFICATION_ROLE=load \
+  P2PSTREAM_QUALIFICATION_URL="$public_url/agent/bulk-upload" \
+  P2PSTREAM_QUALIFICATION_SCENARIO=growth-upload-cancel \
+  P2PSTREAM_QUALIFICATION_PROTOCOL=h2 \
+  P2PSTREAM_QUALIFICATION_CONCURRENCY=1 \
+  P2PSTREAM_QUALIFICATION_REQUESTS=1 \
+  P2PSTREAM_QUALIFICATION_OFFERED_RPS=0 \
+  P2PSTREAM_QUALIFICATION_DURATION_SECONDS=0 \
+  P2PSTREAM_QUALIFICATION_WARMUP_SECONDS=0 \
+  P2PSTREAM_QUALIFICATION_GROWTH_PAYLOAD_BYTES="$payload_bytes" \
+  P2PSTREAM_QUALIFICATION_LABEL="$label" \
+  P2PSTREAM_QUALIFICATION_PATH=agent-external-canceled-upload \
+  P2PSTREAM_QUALIFICATION_PIDS="$server_pid" \
+  P2PSTREAM_QUALIFICATION_ADMIN_URL="$server_admin" \
+  P2PSTREAM_QUALIFICATION_PROXY_CPU_SET="$server_cpu_set" \
+  P2PSTREAM_QUALIFICATION_SERVER_PROCESS="$server_spec" \
+  P2PSTREAM_QUALIFICATION_LOAD_CPU_SET="$load_cpu_set" \
+  P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE="p2pstream-external-agent-canceled-upload" \
+  P2PSTREAM_QUALIFICATION_SEQUENCE="$sequence" \
+  P2PSTREAM_QUALIFICATION_RESULT="$raw" \
+    taskset -c "$load_cpu_set" "$server_binary" -test.run '^TestProxyQualificationLoad$' -test.timeout 45s \
+    >"$raw.log" 2>&1 &
+  local load_pid=$!
+  children+=("$load_pid")
+  while kill -0 "$load_pid" 2>/dev/null; do
+    query_agent_json "$agent_pid" "$agent_admin" >> "$samples"
+    sleep .02
+  done
+  wait "$load_pid"
+  jq -e --argjson bytes "$payload_bytes" '
+    .attempted == 1 and .useful_completed == 0 and .errors == 1 and .observed_http_major == 2 and
+    .configured_payload_bytes == $bytes and .request_body_bytes > 0 and .request_body_bytes < $bytes and
+    .event_stats_captured == true and .persisted_event_delta == 1 and
+    ((.dropped_event_delta // 0) == 0) and ((.event_queue_after_drain // 0) == 0) and ((.event_drain_error // "") == ""
+  ' "$raw" >/dev/null
+  wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
+  final_agent=$(query_agent_json "$agent_pid" "$agent_admin")
+  jq -e '
+    .agent_capacity.in_use == 0 and
+    ([.tunnel_sessions[] | select(.aggregate == true)] | length == 5) and
+    all(.tunnel_sessions[] | select(.aggregate == true and .lane > 0);
+      .receive_available_bytes == .receive_limit_bytes and .free_units == .total_units and
+      ((.buffered_units // 0) == 0) and ((.pending_refund_bytes // 0) == 0))
+  ' <<<"$final_agent" >/dev/null
+  lane_high_water=$(python3 - "$samples" <<'PY'
+import json, sys
+high = {}
+for line in open(sys.argv[1], encoding="utf-8"):
+    row = json.loads(line)
+    for lane in row.get("tunnel_sessions", []):
+        if not lane.get("aggregate") or lane.get("lane", 0) <= 0:
+            continue
+        target = high.setdefault(str(lane["lane"]), {"buffered_units": 0, "pending_refund_bytes": 0})
+        target["buffered_units"] = max(target["buffered_units"], lane.get("buffered_units", 0))
+        target["pending_refund_bytes"] = max(target["pending_refund_bytes"], lane.get("pending_refund_bytes", 0))
+print(json.dumps(high, separators=(",", ":")))
+PY
+)
+  jq -c --argjson initial_agent "$initial_agent" --argjson final_agent "$final_agent" \
+    --argjson lane_high_water "$lane_high_water" \
+    '. + {measurement_stage:"canceled-upload",transport_mode:"aggregate-v1",
+      agent_runtime_before:$initial_agent,agent_runtime_after:$final_agent,
+      agent_lane_cancel_high_water:$lane_high_water,agent_lane_refunds_quiescent:true}' "$raw" >> "$output"
+}
+
 run_pressure_qualification() {
   local label=$1 server_pid=$2 public_url=$3 server_admin=$4 agent_pid=$5 agent_admin=$6
   local server_cgroup agent_cgroup baseline_oom baseline_oom_kill server_baseline_oom server_baseline_oom_kill baseline_health
@@ -602,6 +682,9 @@ run_pressure_qualification() {
   baseline_health=$(agent_health_roundtrip "$server_admin")
   jq -e '.ok == true and .http_status == 200 and .status_code >= 200 and .status_code < 400' <<<"$baseline_health" >/dev/null
   wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
+  local cancel_payload_mib=$warmup_mib
+  ((cancel_payload_mib > 32)) && cancel_payload_mib=32
+  run_canceled_upload_trace "$label" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" "$((cancel_payload_mib << 20))"
   append_pressure_sample pressure-baseline 0 "$server_pid" "$server_admin" "$agent_pid" "$agent_admin"
 
   local ballast_mib=0 current maximum next_limit margin pressure_reached=0
@@ -655,6 +738,13 @@ run_pressure_qualification() {
     --argjson agent_before "$health_agent_before" --argjson agent_after "$health_agent_after" \
     '{measurement_stage:"pressure-control-roundtrip",transport_mode:"aggregate-v1",configured_agent_ballast_mib:$ballast_mib,
       control_roundtrip:$health,control_progress_proven:($health.ok == true),
+      ordinary_admission_limit_before:$agent_before.agent_capacity.ordinary_admission_limit,
+      ordinary_admission_limit_after:$agent_after.agent_capacity.ordinary_admission_limit,
+      control_in_use_before:$agent_before.agent_capacity.control_in_use,
+      control_in_use_after:$agent_after.agent_capacity.control_in_use,
+      control_reserved_slots:$agent_after.agent_capacity.control_reserved_slots,
+      control_reserved_base_bytes:$agent_after.agent_capacity.control_reserved_base_bytes,
+      control_reserved_base_fds:$agent_after.agent_capacity.control_reserved_base_fds,
       agent_rejected_pressure_before:$agent_before.agent_capacity.rejected_pressure,
       agent_rejected_pressure_after:$agent_after.agent_capacity.rejected_pressure,
       agent_runtime_before:$agent_before,agent_runtime_after:$agent_after}' >> "$output"
@@ -852,15 +942,52 @@ rows = [json.loads(line) for line in open(source, encoding="utf-8") if line.stri
 if pressure_mode:
     result = next((row for row in rows if row.get("measurement_stage") == "pressure-result"), None)
     rejected = next((row for row in rows if row.get("measurement_stage") == "pressure-rejection"), None)
+    control = next((row for row in rows if row.get("measurement_stage") == "pressure-control-roundtrip"), None)
+    canceled = next((row for row in rows if row.get("measurement_stage") == "canceled-upload"), None)
+    baseline = next((row for row in rows if row.get("measurement_stage") == "pressure-baseline"), None)
     recovered = next((row for row in rows if row.get("measurement_stage") == "pressure-recovered"), None)
-    if not result or not rejected or not recovered:
-        raise SystemExit("pressure qualification is missing required result, rejection, or recovery rows")
+    critical = next((row for row in rows if row.get("measurement_stage") == "pressure-critical"), None)
+    if not result or not rejected or not control or not canceled or not baseline or not critical or not recovered:
+        raise SystemExit("pressure qualification is missing required cancellation, pressure, control, rejection, or recovery rows")
+    def receiving_pools(row, endpoint):
+        if endpoint == "server":
+            tunnels = row["server_runtime"].get("agent_tunnels", [])
+            lanes = tunnels[0].get("lanes", []) if len(tunnels) == 1 else []
+        else:
+            lanes = row["agent_runtime"].get("tunnel_sessions", [])
+        values = sorted(lane["receive_limit_bytes"] for lane in lanes
+                        if lane.get("aggregate") is True and lane.get("lane", 0) > 0)
+        if len(values) != 4:
+            raise SystemExit(f"{row['measurement_stage']} {endpoint} receiving lane count = {len(values)}, want 4")
+        return values
+    baseline_server_pools = receiving_pools(baseline, "server")
+    baseline_agent_pools = receiving_pools(baseline, "agent")
+    recovered_server_pools = receiving_pools(recovered, "server")
+    recovered_agent_pools = receiving_pools(recovered, "agent")
+    required_pool_bytes = required_pool_mib << 20
     summary = {
         "acceptance": {
             "pressure_reached": result["pressure_reached"],
             "admission_rejected_under_pressure": rejected["rejected_pressure_after"] > rejected["rejected_pressure_before"],
             "functional_recovery": result["functional_recovery"],
             "control_progress_during_pressure": result["control_progress_during_pressure"],
+            "ordinary_admission_closed_during_pressure":
+                critical["agent_runtime"]["agent_capacity"]["ordinary_admission_limit"] == 0 and
+                control["ordinary_admission_limit_before"] == 0 and
+                control["ordinary_admission_limit_after"] == 0,
+            "control_reservation_owned":
+                control["control_reserved_slots"] > 0 and
+                control["control_reserved_base_bytes"] > 0 and
+                control["control_reserved_base_fds"] > 0,
+            "control_slot_returned_to_baseline":
+                control["control_in_use_before"] == 0 and control["control_in_use_after"] == 0,
+            "control_did_not_consume_ordinary_pressure_rejection":
+                control["agent_rejected_pressure_after"] == control["agent_rejected_pressure_before"],
+            "canceled_upload_refunds_quiescent": canceled["agent_lane_refunds_quiescent"],
+            "all_receiving_pools_exceeded_required_size_before_pressure":
+                min(baseline_server_pools + baseline_agent_pools) > required_pool_bytes,
+            "all_receiving_pools_retained_after_recovery":
+                min(recovered_server_pools + recovered_agent_pools) > required_pool_bytes,
             "no_oom": all((row["agent_cgroup"]["memory_events"]["oom"] == 0 and
                            row["agent_cgroup"]["memory_events"]["oom_kill"] == 0 and
                            row["server_cgroup"]["memory_events"]["oom"] == 0 and
@@ -871,6 +998,38 @@ if pressure_mode:
         "baseline_control_roundtrip": result["baseline_control_roundtrip"],
         "pressure_control_roundtrip": result["pressure_control_roundtrip"],
         "recovery_control_roundtrip": result["recovery_control_roundtrip"],
+        "control_reservation": {
+            "reserved_slots": control["control_reserved_slots"],
+            "reserved_base_bytes": control["control_reserved_base_bytes"],
+            "reserved_base_fds": control["control_reserved_base_fds"],
+            "in_use_before": control["control_in_use_before"],
+            "in_use_after": control["control_in_use_after"],
+            "ordinary_admission_limit_before": control["ordinary_admission_limit_before"],
+            "ordinary_admission_limit_after": control["ordinary_admission_limit_after"],
+        },
+        "receiving_pools": {
+            "required_strictly_greater_than_bytes": required_pool_bytes,
+            "pre_pressure": {
+                "server_bytes": baseline_server_pools,
+                "server_min_bytes": min(baseline_server_pools),
+                "server_max_bytes": max(baseline_server_pools),
+                "agent_bytes": baseline_agent_pools,
+                "agent_min_bytes": min(baseline_agent_pools),
+                "agent_max_bytes": max(baseline_agent_pools),
+                "server_cgroup_memory_current_bytes": baseline["server_cgroup"]["memory_current_bytes"],
+                "agent_cgroup_memory_current_bytes": baseline["agent_cgroup"]["memory_current_bytes"],
+            },
+            "post_recovery": {
+                "server_bytes": recovered_server_pools,
+                "server_min_bytes": min(recovered_server_pools),
+                "server_max_bytes": max(recovered_server_pools),
+                "agent_bytes": recovered_agent_pools,
+                "agent_min_bytes": min(recovered_agent_pools),
+                "agent_max_bytes": max(recovered_agent_pools),
+                "server_cgroup_memory_current_bytes": recovered["server_cgroup"]["memory_current_bytes"],
+                "agent_cgroup_memory_current_bytes": recovered["agent_cgroup"]["memory_current_bytes"],
+            },
+        },
     }
     with open(destination, "w", encoding="utf-8") as output_file:
         json.dump(summary, output_file, indent=2, sort_keys=True)

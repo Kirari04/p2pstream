@@ -107,7 +107,12 @@ type externalQualificationAgentCapacity struct {
 	ResourceLimited               bool   `json:"resource_limited"`
 	Maximum                       int    `json:"maximum"`
 	AdmissionLimit                int    `json:"admission_limit"`
+	OrdinaryAdmissionLimit        int    `json:"ordinary_admission_limit"`
 	InUse                         int    `json:"in_use"`
+	ControlInUse                  int    `json:"control_in_use"`
+	ControlReservedSlots          int    `json:"control_reserved_slots"`
+	ControlReservedBaseBytes      int64  `json:"control_reserved_base_bytes"`
+	ControlReservedBaseFDs        int64  `json:"control_reserved_base_fds"`
 	Pressure                      string `json:"pressure"`
 	MemoryUsedBytes               int64  `json:"memory_used_bytes"`
 	MemoryLimitBytes              int64  `json:"memory_limit_bytes"`
@@ -315,8 +320,14 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 			snapshot := current.snapshot()
 			result.Capacity = &externalQualificationAgentCapacity{
 				Adaptive: snapshot.Adaptive, ResourceLimited: snapshot.ResourceLimited,
-				Maximum: snapshot.Maximum, AdmissionLimit: snapshot.AdmissionLimit, InUse: snapshot.InUse,
-				Pressure: snapshot.Pressure.String(), MemoryUsedBytes: snapshot.MemoryUsedBytes,
+				Maximum: snapshot.Maximum, AdmissionLimit: snapshot.AdmissionLimit,
+				OrdinaryAdmissionLimit:   snapshot.OrdinaryAdmissionLimit,
+				InUse:                    snapshot.InUse,
+				ControlInUse:             snapshot.ControlInUse,
+				ControlReservedSlots:     snapshot.ControlReservedSlots,
+				ControlReservedBaseBytes: snapshot.ControlReservedBaseBytes,
+				ControlReservedBaseFDs:   snapshot.ControlReservedBaseFDs,
+				Pressure:                 snapshot.Pressure.String(), MemoryUsedBytes: snapshot.MemoryUsedBytes,
 				MemoryLimitBytes: snapshot.MemoryLimitBytes, MemorySource: snapshot.MemorySource,
 				FileDescriptorsUsed: snapshot.FileDescriptorsUsed, FileDescriptorsLimit: snapshot.FileDescriptorsLimit,
 				PressureReason: snapshot.PressureReason, SampleError: snapshot.SampleError,
