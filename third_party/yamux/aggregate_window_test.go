@@ -742,13 +742,198 @@ func TestAggregateCreditWakeBroadcastDoesNotStrandUsableWriter(t *testing.T) {
 			default:
 				t.Fatal("B did not observe broadcast")
 			}
-			if n, _ := a.reserveAggregateSend(1); n != 0 {
+			if n, wakeA = a.reserveAggregateSend(1); n != 0 {
 				t.Fatalf("A reserved without stream credit: %d", n)
 			}
 			if n, _ := b.reserveAggregateSend(1); n != 1 {
 				t.Fatalf("B reserved=%d want=1", n)
 			}
+
+			// A registered on the replacement generation because its stream
+			// allowance was still empty. Refill that allowance first; after the
+			// resulting broadcast A must re-register for session credit and wake
+			// again when it arrives. No writer may consume another's sole wakeup.
+			hdr.encode(typeAllocationWindowUpdate, 0, a.id, AggregateWindowUnitSize)
+			session.streams[a.id] = a
+			if err := session.handleAllocationWindowUpdate(hdr); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-wakeA:
+			default:
+				t.Fatal("A did not observe stream-credit broadcast")
+			}
+			if n, wakeA = a.reserveAggregateSend(1); n != 0 {
+				t.Fatalf("A reserved without session credit: %d", n)
+			}
+			hdr.encode(typeWindowUpdate, 0, 0, AggregateWindowUnitSize)
+			if err := session.handleAggregateWindowUpdate(hdr); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-wakeA:
+			default:
+				t.Fatal("A did not observe session-credit broadcast")
+			}
+			if n, _ := a.reserveAggregateSend(1); n != 1 {
+				t.Fatalf("A reserved=%d want=1", n)
+			}
 		}
+	}
+}
+
+func aggregateSendWakeState(a *aggregateWindow) (chan struct{}, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.sendNotify, a.sendNotifyRegistered
+}
+
+func TestAggregateIdleCreditUpdatesDoNotRotateSendWakeGeneration(t *testing.T) {
+	session := newAggregateUnitSession(nil)
+	stream := newStream(session, 1, streamEstablished)
+	session.streams[stream.id] = stream
+	a := session.aggregate
+	a.mu.Lock()
+	a.sendWindow -= AggregateWindowUnitSize
+	stream.allocationSendWindow -= AggregateWindowUnitSize
+	wake := a.sendNotify
+	a.mu.Unlock()
+
+	hdr := header(make([]byte, headerSize))
+	for _, update := range []struct {
+		typ      uint8
+		streamID uint32
+		length   uint32
+		handle   func(header) error
+	}{
+		{typeWindowUpdate, 0, AggregateWindowUnitSize, session.handleAggregateWindowUpdate},
+		{typeAllocationWindowUpdate, stream.id, AggregateWindowUnitSize, session.handleAllocationWindowUpdate},
+		{typeWindowGrow, 0, 4 * AggregateWindowUnitSize, session.handleAggregateWindowGrow},
+		{typeWindowGrow, stream.id, AggregateWindowUnitSize, session.handleAggregateWindowGrow},
+	} {
+		hdr.encode(update.typ, 0, update.streamID, update.length)
+		if err := update.handle(hdr); err != nil {
+			t.Fatalf("type=%d stream=%d: %v", update.typ, update.streamID, err)
+		}
+		gotWake, registered := aggregateSendWakeState(a)
+		if gotWake != wake || registered {
+			t.Fatalf("idle update type=%d stream=%d rotated wake=%t registered=%t", update.typ, update.streamID, gotWake != wake, registered)
+		}
+	}
+}
+
+func TestAggregateCreditBeforeReserveNeedsNoWakeRegistration(t *testing.T) {
+	session := newAggregateUnitSession(nil)
+	stream := newStream(session, 1, streamEstablished)
+	a := session.aggregate
+	a.mu.Lock()
+	a.sendWindow = 0
+	wake := a.sendNotify
+	a.mu.Unlock()
+	hdr := header(make([]byte, headerSize))
+	hdr.encode(typeWindowUpdate, 0, 0, AggregateWindowUnitSize)
+	if err := session.handleAggregateWindowUpdate(hdr); err != nil {
+		t.Fatal(err)
+	}
+	if n, gotWake := stream.reserveAggregateSend(1); n != 1 || gotWake != nil {
+		t.Fatalf("reserve=%d wake=%v", n, gotWake)
+	}
+	gotWake, registered := aggregateSendWakeState(a)
+	if gotWake != wake || registered {
+		t.Fatalf("available credit rotated wake=%t registered=%t", gotWake != wake, registered)
+	}
+}
+
+func waitAggregateSendWakeRegistered(t *testing.T, a *aggregateWindow) chan struct{} {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		wake, registered := aggregateSendWakeState(a)
+		if registered {
+			return wake
+		}
+		runtime.Gosched()
+	}
+	t.Fatal("aggregate writer did not register for credit")
+	return nil
+}
+
+func TestAggregateAbandonedSendWakeRegistrationRotatesOnlyOnce(t *testing.T) {
+	session := newAggregateUnitSession(nil)
+	stream := newStream(session, 1, streamEstablished)
+	session.aggregate.mu.Lock()
+	session.aggregate.sendWindow = 0
+	session.aggregate.mu.Unlock()
+	if err := stream.SetWriteDeadline(time.Now().Add(20 * time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	writeDone := make(chan error, 1)
+	go func() {
+		_, err := stream.Write([]byte("x"))
+		writeDone <- err
+	}()
+	staleWake := waitAggregateSendWakeRegistered(t, session.aggregate)
+	select {
+	case err := <-writeDone:
+		if !errors.Is(err, ErrTimeout) {
+			t.Fatalf("write error=%v want ErrTimeout", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("aggregate writer deadline did not fire")
+	}
+
+	hdr := header(make([]byte, headerSize))
+	hdr.encode(typeWindowUpdate, 0, 0, AggregateWindowUnitSize)
+	if err := session.handleAggregateWindowUpdate(hdr); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-staleWake:
+	default:
+		t.Fatal("stale waiter generation was not closed")
+	}
+	wake, registered := aggregateSendWakeState(session.aggregate)
+	if registered || wake == staleWake {
+		t.Fatalf("first update registered=%t rotated=%t", registered, wake != staleWake)
+	}
+
+	// Make room for another valid credit update without registering a writer.
+	session.aggregate.mu.Lock()
+	session.aggregate.sendWindow = 0
+	session.aggregate.mu.Unlock()
+	if err := session.handleAggregateWindowUpdate(hdr); err != nil {
+		t.Fatal(err)
+	}
+	gotWake, registered := aggregateSendWakeState(session.aggregate)
+	if registered || gotWake != wake {
+		t.Fatalf("second idle update registered=%t rotated=%t", registered, gotWake != wake)
+	}
+}
+
+func TestAggregateSessionShutdownWakesRegisteredCreditWriter(t *testing.T) {
+	session := newAggregateUnitSession(nil)
+	stream := newStream(session, 1, streamEstablished)
+	session.aggregate.mu.Lock()
+	session.aggregate.sendWindow = 0
+	session.aggregate.mu.Unlock()
+	writeDone := make(chan error, 1)
+	go func() {
+		_, err := stream.Write([]byte("x"))
+		writeDone <- err
+	}()
+	wake := waitAggregateSendWakeRegistered(t, session.aggregate)
+	close(session.shutdownCh)
+	select {
+	case err := <-writeDone:
+		if !errors.Is(err, ErrSessionShutdown) {
+			t.Fatalf("write error=%v want ErrSessionShutdown", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("session shutdown did not wake aggregate writer")
+	}
+	gotWake, registered := aggregateSendWakeState(session.aggregate)
+	if !registered || gotWake != wake {
+		t.Fatalf("shutdown mutated credit generation registered=%t rotated=%t", registered, gotWake != wake)
 	}
 }
 

@@ -58,8 +58,10 @@ type aggregateWindow struct {
 	sendLimit  uint32
 	// sendNotify is closed and replaced for every credit generation. Closing
 	// broadcasts to all competing writers; no writer can consume another's
-	// only wakeup.
-	sendNotify chan struct{}
+	// only wakeup. sendNotifyRegistered avoids allocating a replacement for
+	// credit updates when no writer observed an exhausted aggregate window.
+	sendNotify           chan struct{}
+	sendNotifyRegistered bool
 
 	recvWindow       uint32
 	recvLimit        uint32
@@ -223,14 +225,19 @@ func (s *Stream) reserveAggregateSend(max uint32) (uint32, <-chan struct{}) {
 		a.mu.Unlock()
 		return max, nil
 	}
+	a.sendNotifyRegistered = true
 	wake := a.sendNotify
 	a.mu.Unlock()
 	return 0, wake
 }
 
 func (a *aggregateWindow) broadcastSendLocked() {
+	if !a.sendNotifyRegistered {
+		return
+	}
 	close(a.sendNotify)
 	a.sendNotify = make(chan struct{})
+	a.sendNotifyRegistered = false
 }
 
 func (s *Session) handleAggregateWindowUpdate(hdr header) error {
