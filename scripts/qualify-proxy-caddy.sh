@@ -1,0 +1,308 @@
+#!/usr/bin/env bash
+# Finite Caddy/HAProxy reference pass using the existing verified load driver.
+set -Eeuo pipefail
+cd "$(dirname "$0")/.."
+exec python3 - "$@" <<'PY'
+import argparse
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import socket
+import subprocess
+import tempfile
+import time
+
+parser = argparse.ArgumentParser(description='Finite matched Caddy reverse-proxy diagnostic')
+parser.add_argument('--caddy-binary', required=True)
+parser.add_argument('--driver-binary', required=True)
+parser.add_argument('--candidate-binary')
+parser.add_argument('--candidate-label', default='candidate')
+parser.add_argument('--driver-source-ref', required=True)
+parser.add_argument('--harness-source', required=True, help='exact committed proxy_qualification_test.go used by both binaries; no overlays')
+parser.add_argument('--candidate-source-ref')
+parser.add_argument('--runs', type=int, default=3)
+parser.add_argument('--duration-seconds', type=int, default=10)
+parser.add_argument('--warmup-seconds', type=int, default=2)
+parser.add_argument('--idle-per-host', type=int, default=32)
+parser.add_argument('--concurrency', default='16,128')
+parser.add_argument('--protocol', choices=['h1', 'h2', 'both'], default='both')
+args = parser.parse_args()
+if args.candidate_binary and not args.candidate_source_ref:
+    parser.error('--candidate-source-ref is required with --candidate-binary')
+concurrencies = [int(value) for value in args.concurrency.split(',')]
+if not (1 <= args.runs <= 10 and 1 <= args.duration_seconds <= 60 and 0 <= args.warmup_seconds <= 10
+        and 1 <= args.idle_per_host <= 1024 and concurrencies and all(1 <= n <= 1536 for n in concurrencies)):
+    parser.error('run, timing, idle or concurrency value is outside the finite diagnostic bounds')
+for tool in ['docker', 'openssl', 'haproxy', 'taskset', 'go', 'git', 'findmnt']:
+    if not shutil.which(tool):
+        parser.error(f'{tool} is required')
+root = Path.cwd()
+caddy = Path(args.caddy_binary).resolve(strict=True)
+driver = Path(args.driver_binary).resolve(strict=True)
+candidate = Path(args.candidate_binary).resolve(strict=True) if args.candidate_binary else None
+harness = Path(args.harness_source).resolve(strict=True)
+harness_bytes = harness.read_bytes()
+source_commits = {}
+for label, reference in [('driver', args.driver_source_ref), ('candidate', args.candidate_source_ref)]:
+    if reference:
+        commit = subprocess.check_output(['git', 'rev-parse', reference + '^{commit}'], text=True).strip()
+        committed_harness = subprocess.check_output(['git', 'show', commit + ':internal/server/proxy_qualification_test.go'])
+        if committed_harness != harness_bytes:
+            parser.error(f'{label} harness differs from the immutable source commit; commit the harness before qualification')
+        source_commits[label] = commit
+(root / 'tmp/caddy-reference').mkdir(parents=True, exist_ok=True)
+run_dir = Path(tempfile.mkdtemp(prefix='run.', dir=root / 'tmp/caddy-reference')).resolve()
+run_dir.chmod(0o700)
+(run_dir / 'qualification-harness.go.txt').write_bytes(harness_bytes)
+(run_dir / 'runner.sh').write_bytes((root / 'scripts/qualify-proxy-caddy.sh').read_bytes())
+cpus = sorted(os.sched_getaffinity(0))
+proxy_cpus = ','.join(map(str, cpus[:4]))
+load_cpus = ','.join(map(str, cpus[4:] or cpus[:4]))
+threads = min(4, len(cpus))
+processes = []
+containers = []
+logs = []
+origin_stop = run_dir / 'origin.stop'
+
+def output(command):
+    return subprocess.check_output([str(value) for value in command], text=True).strip()
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+def launch(command, log_name, env=None):
+    log = open(run_dir / log_name, 'w')
+    logs.append(log)
+    process = subprocess.Popen([str(value) for value in command], stdout=log, stderr=subprocess.STDOUT, env=env)
+    processes.append(process)
+    return process
+
+def stop(process):
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+
+def free_port():
+    with socket.socket() as listener:
+        listener.bind(('127.0.0.1', 0))
+        return listener.getsockname()[1]
+
+def await_ready(path, process):
+    deadline = time.monotonic() + 25
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError(f'process exited before readiness; see {run_dir}')
+        try:
+            return json.loads(path.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            time.sleep(0.05)
+    raise TimeoutError(f'no readiness file {path}')
+
+def await_tls(port, process):
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError(f'proxy exited before TLS readiness; see {run_dir}')
+        try:
+            result = subprocess.run(['openssl', 's_client', '-connect', f'127.0.0.1:{port}', '-servername', 'public.test'],
+                                    input=b'', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+            if result.returncode == 0:
+                return
+        except subprocess.TimeoutExpired:
+            pass
+        time.sleep(0.05)
+    raise TimeoutError('TLS proxy did not become ready')
+
+def docker_process(binary, name, command, env):
+    # Fixture SQLite writes must use disk, just like the existing production
+    # qualification runner. A small /tmp tmpfs can fill during a sustained
+    # raw-event run and would turn a storage-fixture failure into queue loss.
+    scratch = run_dir / 'scratch' / name
+    scratch.mkdir(mode=0o700, parents=True)
+    containers.append(name)
+    invocation = ['docker', 'run', '--name', name, '--network', 'host', '--user', f'{os.getuid()}:{os.getgid()}',
+                  '--memory', '4g', '--memory-swap', '4g', '--cpuset-cpus', proxy_cpus, '--pids-limit', '8192',
+                  '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+                  '--mount', f'type=bind,source={scratch},target=/tmp',
+                  '--mount', f'type=bind,source={binary},target=/proxy,readonly',
+                  '--mount', f'type=bind,source={run_dir},target=/qualification']
+    for key, value in env.items():
+        invocation += ['--env', f'{key}={value}']
+    invocation += ['debian:trixie-slim', '/proxy'] + command
+    process = launch(invocation, f'{name}.log')
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError(f'container {name} exited; see {run_dir}')
+        inspect = subprocess.run(['docker', 'inspect', '--format', '{{.State.Pid}}', name], capture_output=True, text=True)
+        if inspect.returncode == 0 and inspect.stdout.strip().isdigit() and int(inspect.stdout) > 0:
+            return process, inspect.stdout.strip()
+        time.sleep(0.05)
+    raise TimeoutError(f'container {name} did not start')
+
+try:
+    subprocess.run(['docker', 'info'], check=True, stdout=subprocess.DEVNULL)
+    cert, key, bundle = [run_dir / name for name in ['public.crt.pem', 'public.key.pem', 'public.bundle.pem']]
+    subprocess.run(['openssl', 'req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes',
+                    '-subj', '/CN=public.test', '-days', '1', '-keyout', str(key), '-out', str(cert)],
+                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    bundle.write_bytes(key.read_bytes() + cert.read_bytes())
+    for path in [cert, key, bundle]:
+        path.chmod(0o600)
+    scratch_filesystem = output(['findmnt', '-no', 'FSTYPE', '--target', run_dir])
+    if scratch_filesystem in ['tmpfs', 'ramfs']:
+        raise RuntimeError('qualification scratch must reside on disk, not a memory filesystem')
+    scratch_available_bytes = shutil.disk_usage(run_dir).free
+    version = output([caddy, 'version'])
+    (run_dir / 'caddy-build-info.txt').write_text(output(['go', 'version', '-m', caddy]) + '\n')
+    meta = dict(started_utc=datetime.now(timezone.utc).isoformat(),
+                source_commits=source_commits, harness_sha256=sha(harness), test_overlays=[],
+                source_contract='binaries built from clean archives of source_commits, without test or production overlays',
+                caddy_version=version, caddy_binary_sha256=sha(caddy), driver_binary_sha256=sha(driver),
+                candidate_binary_sha256=sha(candidate) if candidate else None, candidate_label=args.candidate_label,
+                driver_build_info=output(['go', 'version', '-m', driver]),
+                script_sha256=sha(root / 'scripts/qualify-proxy-caddy.sh'),
+                haproxy_version=output(['haproxy', '-v']),
+                docker_image_id=output(['docker', 'image', 'inspect', '--format', '{{.Id}}', 'debian:trixie-slim']),
+                proxy_cpus=proxy_cpus, load_cpus=load_cpus, gomaxprocs=threads,
+                settings=vars(args), cgroup_limit_bytes=4 << 30, cgroup_swap_disabled=True,
+                scratch_storage='private per-container disk-backed bind mounted at /tmp',
+                scratch_host_filesystem=scratch_filesystem, scratch_available_bytes_before=scratch_available_bytes,
+                limitations=['HAProxy remains a host process; its cgroup memory is not isolated.',
+                             'Caddy official release and p2pstream may use different Go patch releases.',
+                             'p2pstream includes its full policy/recorder pipeline and an idle in-process agent fixture.'])
+    (run_dir / 'provenance.json').write_text(json.dumps(meta, indent=2) + '\n')
+    ready = run_dir / 'origin.ready.json'
+    env = os.environ.copy()
+    env.update(P2PSTREAM_QUALIFICATION_ROLE='origin', P2PSTREAM_QUALIFICATION_READY=str(ready),
+               P2PSTREAM_QUALIFICATION_STOP=str(origin_stop), P2PSTREAM_QUALIFICATION_ORIGIN_TLS='0', GOMAXPROCS=str(threads))
+    origin = launch(['taskset', '-c', load_cpus, driver, '-test.run', '^TestProxyQualificationProcess$', '-test.timeout', '15m'], 'origin.log', env)
+    origin_url = await_ready(ready, origin)['url']
+    origin_address = origin_url.removeprefix('http://')
+    results_path = run_dir / 'results.jsonl'
+    print(f'Caddy diagnostic evidence: {run_dir}', flush=True)
+    sequence = 0
+    for iteration in range(1, args.runs + 1):
+        kinds = ['caddy', 'haproxy'] + (['candidate'] if candidate else [])
+        offset = (iteration - 1) % len(kinds)
+        kinds = kinds[offset:] + kinds[:offset]
+        for kind in kinds:
+            port = free_port()
+            admin_url = ''
+            name = f'p2pstream-caddy-ref-{os.getpid()}-{iteration}-{kind}'
+            if kind == 'caddy':
+                caddyfile = run_dir / f'{name}.Caddyfile'
+                caddyfile.write_text('''{
+    admin off
+    persist_config off
+    auto_https off
+    default_sni public.test
+    servers {
+        protocols h1 h2
+    }
+}
+https://:PORT {
+    bind 127.0.0.1
+    tls /qualification/public.crt.pem /qualification/public.key.pem
+    reverse_proxy ORIGIN {
+        transport http {
+            versions 1.1
+            keepalive 90s
+            keepalive_idle_conns 1024
+            keepalive_idle_conns_per_host IDLE
+        }
+    }
+}
+'''.replace('PORT', str(port)).replace('ORIGIN', origin_address).replace('IDLE', str(args.idle_per_host)))
+                config = run_dir / f'{name}.json'
+                with open(config, 'w') as config_file:
+                    subprocess.run([str(caddy), 'adapt', '--adapter', 'caddyfile', '--config', str(caddyfile)], check=True, stdout=config_file)
+                proxy, sample_pid = docker_process(caddy, name, ['run', '--config', '/qualification/' + config.name],
+                                                  {'GOMAXPROCS': str(threads), 'XDG_DATA_HOME': '/tmp/caddy-data', 'XDG_CONFIG_HOME': '/tmp/caddy-config'})
+                label, envelope = 'caddy-' + version.split()[0] + f'-idle{args.idle_per_host}', 'caddy-process-4GiB-cgroup'
+            elif kind == 'haproxy':
+                config = run_dir / f'{name}.cfg'
+                config.write_text(f'''global
+  maxconn 4096
+  nbthread {threads}
+defaults
+  mode http
+  timeout connect 5s
+  timeout client 30s
+  timeout server 30s
+frontend public
+  bind 127.0.0.1:{port} ssl crt {bundle} alpn h2,http/1.1
+  default_backend origin
+backend origin
+  server origin {origin_address}
+''')
+                proxy = launch(['taskset', '-c', proxy_cpus, shutil.which('haproxy'), '-db', '-f', config], f'{name}.log')
+                sample_pid = str(proxy.pid)
+                label, envelope = 'haproxy-reference', 'haproxy-host-process'
+            else:
+                ready = run_dir / f'{name}.ready.json'
+                stop_file = run_dir / f'{name}.stop'
+                proxy, sample_pid = docker_process(candidate, name, ['-test.run', '^TestProxyQualificationProcess$', '-test.timeout', '15m'],
+                    {'GOMAXPROCS': str(threads), 'P2PSTREAM_QUALIFICATION_ROLE': 'proxy',
+                     'P2PSTREAM_QUALIFICATION_READY': '/qualification/' + ready.name,
+                     'P2PSTREAM_QUALIFICATION_STOP': '/qualification/' + stop_file.name,
+                     'P2PSTREAM_QUALIFICATION_ORIGIN_URL': origin_url, 'P2PSTREAM_QUALIFICATION_ORIGIN_TLS': '0',
+                     'P2PSTREAM_QUALIFICATION_CERT': '/qualification/public.crt.pem',
+                     'P2PSTREAM_QUALIFICATION_KEY': '/qualification/public.key.pem', 'P2PSTREAM_QUALIFICATION_BALLAST_MIB': '0'})
+                state = await_ready(ready, proxy)
+                port = int(state['url'].rsplit(':', 1)[1])
+                admin_url = state['admin_url']
+                label, envelope = args.candidate_label, 'p2pstream-server+in-process-real-agent'
+            await_tls(port, proxy)
+            protocols = ['h1', 'h2'] if args.protocol == 'both' else [args.protocol]
+            for concurrency in concurrencies:
+                for protocol in protocols:
+                    sequence += 1
+                    scenario = 'h1-keepalive-duration' if protocol == 'h1' else 'h2-multiplex-duration'
+                    result_file = run_dir / f'{sequence}-{kind}-c{concurrency}-{protocol}.json'
+                    load_env = os.environ.copy()
+                    load_env.update(P2PSTREAM_QUALIFICATION_ROLE='load', P2PSTREAM_QUALIFICATION_URL=f'https://127.0.0.1:{port}/direct/small',
+                        P2PSTREAM_QUALIFICATION_SCENARIO=scenario, P2PSTREAM_QUALIFICATION_PROTOCOL=protocol,
+                        P2PSTREAM_QUALIFICATION_CONCURRENCY=str(concurrency), P2PSTREAM_QUALIFICATION_REQUESTS=str(concurrency),
+                        P2PSTREAM_QUALIFICATION_OFFERED_RPS='0', P2PSTREAM_QUALIFICATION_DURATION_SECONDS=str(args.duration_seconds),
+                        P2PSTREAM_QUALIFICATION_WARMUP_SECONDS=str(args.warmup_seconds), P2PSTREAM_QUALIFICATION_LABEL=label,
+                        P2PSTREAM_QUALIFICATION_PATH='direct' if kind == 'candidate' else 'direct-control',
+                        P2PSTREAM_QUALIFICATION_PIDS=sample_pid, P2PSTREAM_QUALIFICATION_ADMIN_URL=admin_url,
+                        P2PSTREAM_QUALIFICATION_PROXY_CPU_SET=proxy_cpus, P2PSTREAM_QUALIFICATION_LOAD_CPU_SET=load_cpus,
+                        P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE=envelope, P2PSTREAM_QUALIFICATION_SEQUENCE=str(sequence),
+                        P2PSTREAM_QUALIFICATION_BALLAST_MIB='0', P2PSTREAM_QUALIFICATION_RESULT=str(result_file))
+                    load_started_utc = datetime.now(timezone.utc).isoformat()
+                    with open(str(result_file) + '.log', 'w') as log:
+                        subprocess.run(['taskset', '-c', load_cpus, str(driver), '-test.run', '^TestProxyQualificationLoad$', '-test.timeout', '2m'],
+                                       check=True, env=load_env, stdout=log, stderr=subprocess.STDOUT, timeout=125)
+                    result = json.loads(result_file.read_text())
+                    result.update(iteration=iteration, sequence=sequence, proxy_kind=kind,
+                                  load_process_started_utc=load_started_utc, load_process_finished_utc=datetime.now(timezone.utc).isoformat())
+                    with open(results_path, 'a') as combined:
+                        combined.write(json.dumps(result, separators=(',', ':')) + '\n')
+                    print(f'{label} c{concurrency} {protocol}: {result["useful_requests_per_second"]:.1f} useful/s, errors={result["errors"]}', flush=True)
+                    expected_major = 1 if protocol == 'h1' else 2
+                    if result['errors'] or result['useful_completed'] != result['attempted'] or result.get('observed_http_major') != expected_major:
+                        raise RuntimeError(f'payload/status/protocol qualification failed: {result_file}')
+                    if kind == 'candidate' and (not result.get('event_stats_captured') or result.get('persisted_event_delta') != result['attempted']
+                            or result.get('dropped_event_delta', 0) or result.get('event_drain_error') or result.get('event_stats_error')):
+                        raise RuntimeError(f'candidate event conservation failed: {result_file}')
+            if kind in ['caddy', 'candidate']:
+                subprocess.run(['docker', 'rm', '-f', name], check=True, stdout=subprocess.DEVNULL)
+            stop(proxy)
+finally:
+    origin_stop.touch(exist_ok=True)
+    for name in containers:
+        subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for process in reversed(processes):
+        stop(process)
+    for log in logs:
+        log.close()
+PY

@@ -6,7 +6,9 @@ and a cancellable flush operation. The pinned go-sqlite3 driver executes those
 contexts through a goroutine/channel cancellation path for each statement.
 Both benchmark modes now exercise the same 512-event full recorder flush,
 including raw rows, rollups and transaction commit. Table cleanup remains
-outside the timed interval.
+outside the timed interval. The benchmark database uses `b.TempDir()` under
+this host's `/tmp`, which is tmpfs. It measures SQLite execution and cancellation
+coordination with the normal WAL configuration, not physical disk-write capacity.
 
 The candidate groups raw inserts into at most 16 rows (368 bound parameters)
 per execution. It lazily prepares that statement from the generated single-row

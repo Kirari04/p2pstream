@@ -14,5 +14,6 @@
   "physical_cores": 2,
   "alternating_pairs": 3,
   "benchtime": "500ms",
-  "benchmarks_sha256": "6ac56ee10109831993968e20e5af2084967c4c08599862137b08a558e106db15"
+  "benchmarks_sha256": "6ac56ee10109831993968e20e5af2084967c4c08599862137b08a558e106db15",
+  "sqlite_benchmark_storage": "b.TempDir under host /tmp (tmpfs); not a physical disk throughput benchmark"
 }

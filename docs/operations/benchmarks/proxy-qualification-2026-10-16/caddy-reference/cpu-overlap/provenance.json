@@ -1,0 +1,46 @@
+{
+  "source_commits": {
+    "driver": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "candidate": "3ec137c3ad3d07028e867042fb00d3933912d7ab"
+  },
+  "harness_sha256": "9a3ac62225dd404d4a93cb9560678041cfb84995e0c38f7bd183547ff3ee68f0",
+  "test_overlays": [],
+  "source_contract": "binaries built from clean archives of source_commits, without test or production overlays",
+  "caddy_version": "v2.11.7 h1:yj0Y4fYZGPkSvibBJ1sTWE33xC0fxztVyXEW5iIdUT4=",
+  "caddy_binary_sha256": "678ade3bfc088749c81a681adc603333ee0bb023b6a6cfe3c0f58bef8ff854e9",
+  "driver_binary_sha256": "b5ae445e18ba781c73d81f6a6d587b0c51408dafccb7e5702a1b023d53929ea3",
+  "candidate_binary_sha256": "b5ae445e18ba781c73d81f6a6d587b0c51408dafccb7e5702a1b023d53929ea3",
+  "candidate_label": "candidate-3ec137c",
+  "driver_build_info": "/tmp/p2pstream-caddy-3ec137c.SoeRAa/server.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1",
+  "script_sha256": "1aa750bfc796d5e6ed3f18eb3159bfb84a1b72aca6d23058b6a2f9f64f64974b",
+  "haproxy_version": "HAProxy version 3.2.9-1ubuntu2.2 2026/06/19 - https://haproxy.org/\nStatus: long-term supported branch - will stop receiving fixes around Q2 2030.\nKnown bugs: http://www.haproxy.org/bugs/bugs-3.2.9.html\nRunning on: Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64",
+  "docker_image_id": "sha256:ec92d6b34c6a7e6372d87dc9ef2fd6e8ca8125353fe7d033c676f51cf923a13b",
+  "proxy_cpus": "0,1,2,3",
+  "load_cpus": "4,5,6,7,8,9,10,11,12,13,14,15",
+  "gomaxprocs": 4,
+  "settings": {
+    "caddy_binary": "tmp/caddy-reference/bin/caddy",
+    "driver_binary": "/tmp/p2pstream-caddy-3ec137c.SoeRAa/server.test",
+    "candidate_binary": "/tmp/p2pstream-caddy-3ec137c.SoeRAa/server.test",
+    "candidate_label": "candidate-3ec137c",
+    "driver_source_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "harness_source": "/tmp/p2pstream-caddy-3ec137c.SoeRAa/internal/server/proxy_qualification_test.go",
+    "candidate_source_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "runs": 3,
+    "duration_seconds": 10,
+    "warmup_seconds": 2,
+    "idle_per_host": 128,
+    "concurrency": "16,128",
+    "protocol": "both"
+  },
+  "cgroup_limit_bytes": 4294967296,
+  "cgroup_swap_disabled": true,
+  "scratch_storage": "private per-container disk-backed bind mounted at /tmp",
+  "scratch_host_filesystem": "ext4",
+  "scratch_available_bytes_before": 52758581248,
+  "limitations": [
+    "HAProxy remains a host process; its cgroup memory is not isolated.",
+    "Caddy official release and p2pstream may use different Go patch releases.",
+    "p2pstream includes its full policy/recorder pipeline and an idle in-process agent fixture."
+  ]
+}
