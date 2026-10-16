@@ -1,0 +1,54 @@
+{
+  "acceptance": {
+    "complete": true,
+    "failures": [],
+    "scope": "diagnostic_only"
+  },
+  "attempted_total": 32,
+  "dropped_events": 0,
+  "duplicate_epoch_events": 0,
+  "event_order_semantics": "ring insertion/completion order; sample time is pre-publication and may invert across concurrent streams",
+  "events_by_direction": {
+    "download": 1734,
+    "upload": 698
+  },
+  "events_by_mode": {
+    "aggregate-v1": 1724,
+    "legacy": 708
+  },
+  "events_by_role": {
+    "agent": 676,
+    "server": 1756
+  },
+  "global_sample_time_inversions": 0,
+  "growth_events": 2432,
+  "legacy_agent_skips": 16,
+  "outcome_counts": {
+    "grown": 220,
+    "no_proposal": 2212
+  },
+  "per_stream_groups": 48,
+  "per_stream_sample_time_inversions": 0,
+  "persisted_event_total": 32,
+  "post_transfer_drain_delay_ms": {
+    "count": 32,
+    "max": 93.04690361022949,
+    "median": 72.5945234298706,
+    "min": 67.25692749023438,
+    "p95": 88.23609352111816,
+    "sum": 2364.042043685913
+  },
+  "real_drains": 48,
+  "result_rows": 32,
+  "ring_capacity": 4096,
+  "threshold_timing_origin": "first retained growth-ring sample for the same transfer/role/lane/session/stream; not transfer start",
+  "thresholds_bytes": [
+    1048576,
+    4194304,
+    8388608,
+    16777216
+  ],
+  "unique_growth_epochs": 2432,
+  "unmapped_events": 0,
+  "useful_total": 32
+}

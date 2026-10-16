@@ -35,6 +35,10 @@ comparison.
 - [`agent-wan-growth-trace/README.md`](agent-wan-growth-trace/README.md)
   captures slow individual downloads with deferred bounded growth traces.
   Its full cohort median passes; it does not clear the repeated failure.
+- [`agent-wan-allocation-counters/README.md`](agent-wan-allocation-counters/README.md)
+  captures the download failure with post-transfer DATA reservation counters.
+  Roughly 32 KiB frames and a 1.00414 charge/payload ratio refute the proposed
+  eightfold allocation-amplification mechanism without establishing a fix.
 - [`caddy-reference/README.md`](caddy-reference/README.md) documents the clean
   36-row Caddy/HAProxy/p2pstream reference cohort. Its p2pstream binary is the
   frozen `3ec137c` candidate; later library and protocol foundations in `0d6a3a8`
@@ -154,8 +158,12 @@ and TCP sampling, without native profiling, also stays healthy. Neither clears
 the failed cohorts or identifies their cause. A bounded post-transfer growth
 sample trace then captures an 18.55-second retained download and a slow first
 timed download, although later transfers make that cohort median pass. It
-shows no reservation denial and stable RTT; frame allocation/payload cost and
-credit starvation need measurement before a production change.
+shows no reservation denial and stable RTT. A subsequent counter trace captures
+the failure at a 42.43% download ratio, but measures approximately 32 KiB DATA
+frames and only 1.00414 times payload allocation charge. This refutes the
+proposed eightfold allocation-amplification mechanism. Delayed receive-window
+growth remains correlated with more byte-credit-zero observations, whose
+attempt counts are not wait durations; no production fix follows yet.
 
 Historical failure and optimization artifacts below remain useful for tracing
 the decisions that produced `dc738e9`; they are not the current qualification

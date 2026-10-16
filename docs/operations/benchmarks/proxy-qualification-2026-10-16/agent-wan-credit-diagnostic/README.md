@@ -54,7 +54,9 @@ whole 267.585-second run. Endpoint work serving snapshots is additional.
 ## Healthy first-direction growth
 
 The active physical lane is selected using the largest TCP byte delta in each
-phase, then mapped to exact server tunnel connection logs and credit tuples.
+phase, then mapped through server physical tunnel tuples plus lane/session
+identity. Agent-side Yamux addresses are opaque `yamux:local` / `yamux:remote`
+values and are not treated as physical tuple evidence.
 New download directions start with 512 KiB stream receive limits. The following
 crossings are observed in the current server's byte receive limit, measured
 from each phase marker:

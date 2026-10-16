@@ -1,0 +1,31 @@
+{
+  "diagnostic_only": true,
+  "derived_from_complete_raw_rows": true,
+  "runner_exit": {
+    "exit_code": 1,
+    "elapsed_seconds": 283.75671479001176,
+    "completed_utc": "2026-10-16T05:56:27.391758+00:00"
+  },
+  "directions": {
+    "download": {
+      "median_useful_bytes_per_second": {
+        "legacy": 33776092.160352744,
+        "aggregate-v1": 14332771.831939185
+      },
+      "candidate_to_legacy_ratio": 0.4243466581004704,
+      "minimum_ratio": 0.9,
+      "passed": false
+    },
+    "upload": {
+      "median_useful_bytes_per_second": {
+        "legacy": 36023411.74481324,
+        "aggregate-v1": 35290950.624489814
+      },
+      "candidate_to_legacy_ratio": 0.9796670807997833,
+      "minimum_ratio": 0.9,
+      "passed": true
+    }
+  },
+  "complete_exact_rows": 32,
+  "note": "Original runner exits before writing its summary on a failed timing gate; this is a separate derived summary."
+}

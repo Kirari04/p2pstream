@@ -557,10 +557,23 @@ while payload rate remains about 6–8 MB/s. Successful 16 MiB growth is sampled
 15.918 seconds after its first retained growth sample, versus 1.509 seconds
 for legacy. Later healthy downloads make this diagnostic cohort median pass;
 it neither clears the fixed three-pair failure nor proves the cause. The next
-measurement checks whether 4 KiB DATA allocation rounding consumes credit
-faster than the payload-based growth heuristic observes. Complete raw drains
-and epochs are in the
+subsequent diagnostic checks whether 4 KiB DATA allocation rounding consumes
+credit faster than the payload-based growth heuristic observes. Complete raw
+drains and epochs are in the
 [deferred growth trace](benchmarks/proxy-qualification-2026-10-16/agent-wan-growth-trace/README.md).
+
+That counter diagnostic reproduces a stronger download failure: aggregate
+reaches 42.43% of the compatible legacy median while upload reaches 97.97%,
+with all 32 payloads and events exact. Across eight aggregate downloads, DATA
+frames carry about 32,005 bytes on average and allocation charge is 1.00414
+times payload; session allocation credit is never observed at zero. This
+refutes the proposed roughly eightfold allocation-amplification mechanism in
+the captured slow case, so it does not justify changing the allocation unit or
+growth policy. Slow downloads still take about 16 seconds from their first
+retained sample to a successful 16 MiB growth proposal and show more
+byte-credit-zero attempts, but those overlapping observations are not wait
+durations and do not establish the remaining cause. See the
+[allocation-counter evidence](benchmarks/proxy-qualification-2026-10-16/agent-wan-allocation-counters/README.md).
 
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured

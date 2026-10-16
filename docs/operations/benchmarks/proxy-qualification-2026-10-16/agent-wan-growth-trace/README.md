@@ -83,12 +83,13 @@ plateau. The trace rules out reservation denial and unknown/inflated RTT in
 this case. It does not yet distinguish TCP pacing, allocation-credit pressure,
 publication scheduling or their feedback into measured demand.
 
-A source hypothesis is that rounding each DATA frame's allocation charge to
-4 KiB can consume substantially more shared credit than its payload size.
-The current growth heuristic observes payload rate. Small fragmented frames
-could therefore exhaust allocation credit while payload-based growth holds
-its target steady. This requires measured frame payload/charged totals and
-credit-starvation evidence before any production change; no fix is claimed.
+A subsequent [allocation-counter diagnostic](../agent-wan-allocation-counters/README.md)
+captures the slowdown while measuring DATA reservations. Download frames carry
+about 32,005 bytes on average and allocation charge is only 1.00414 times
+payload, refuting the hypothesis that 4 KiB rounding creates roughly eightfold
+allocation amplification in the captured slow case. Delayed demand-based
+growth and byte-credit-zero observations remain correlated, but those attempt
+counts are not durations and do not establish a production fix.
 
 ## Complete artifacts and replay
 

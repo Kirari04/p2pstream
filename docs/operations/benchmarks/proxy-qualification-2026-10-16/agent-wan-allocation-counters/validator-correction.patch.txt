@@ -1,0 +1,21 @@
+--- aborted-capture-drain-growth.py
++++ fixed-drain-growth.py
+@@ -20,6 +20,7 @@
+   if response.status!=200:raise ValueError('growth drain HTTP status '+str(response.status))
+   if len(raw)>(4<<20):raise ValueError('growth drain exceeds 4 MiB bound')
+   value=json.loads(raw)
++  metadata.update(skipped=False,response_bytes=len(raw),snapshot=value)
+   if value.get('schema_version')!=1 or value.get('capacity')!=4096:raise ValueError('unexpected growth ring schema/capacity')
+   events=value.get('events')
+   if not isinstance(events,list) or len(events)>4096:raise ValueError('events missing or exceed fixed capacity')
+@@ -38,9 +39,8 @@
+   for counter in counters:
+    if not counter_keys<=counter.keys() or not {'lane','session_identity','local_address','remote_address','enabled'}<=counter.keys():raise ValueError('invalid send-counter schema')
+    if any(type(counter[k]) is not int or counter[k]<0 for k in counter_keys):raise ValueError('invalid send-counter scalar')
+-   if counter['enabled']!=(mode=='aggregate-v1'):raise ValueError('send-counter wire mode mismatch')
++   if counter['enabled']!=(mode=='aggregate-v1' and counter['lane']>0):raise ValueError('send-counter wire mode mismatch')
+    if not counter['enabled'] and any(counter[k] for k in counter_keys):raise ValueError('disabled legacy counters must stay zero')
+-  metadata.update(skipped=False,response_bytes=len(raw),snapshot=value)
+  metadata['elapsed_ns']=time.monotonic_ns()-started
+  (root/'growth'/name).write_text(json.dumps(metadata,separators=(',',':'))+'\n')
+ except BaseException as error:

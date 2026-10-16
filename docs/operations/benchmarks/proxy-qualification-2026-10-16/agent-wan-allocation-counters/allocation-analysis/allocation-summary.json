@@ -1,0 +1,54 @@
+{
+  "aggregate_direction_totals": {
+    "download": {
+      "allocation_charge_to_payload_ratio": 1.0041380861708529,
+      "byte_credit_zero_observations_total": 266,
+      "mean_frame_allocation_charge_bytes": 32137.648931413754,
+      "mean_frame_payload_bytes": 32005.20862022713,
+      "reserved_allocation_charged_bytes_total": 2156371968,
+      "reserved_data_frames_total": 67098,
+      "reserved_payload_bytes_total": 2147485488,
+      "session_allocation_zero_observations_total": 0,
+      "stream_allocation_zero_observations_total": 24,
+      "transfers": 8
+    },
+    "upload": {
+      "allocation_charge_to_payload_ratio": 1.0000595896574827,
+      "byte_credit_zero_observations_total": 159,
+      "mean_frame_allocation_charge_bytes": 32722.067284251585,
+      "mean_frame_payload_bytes": 32720.11750365675,
+      "reserved_allocation_charged_bytes_total": 2147614720,
+      "reserved_data_frames_total": 65632,
+      "reserved_payload_bytes_total": 2147486752,
+      "session_allocation_zero_observations_total": 0,
+      "stream_allocation_zero_observations_total": 22,
+      "transfers": 8
+    }
+  },
+  "aggregate_primary_sender_transfers": 16,
+  "all_session_counter_rows": 224,
+  "cohort_exit": {
+    "completed_utc": "2026-10-16T05:56:27.391758+00:00",
+    "elapsed_seconds": 283.75671479001176,
+    "exit_code": 1
+  },
+  "counter_semantics": {
+    "reserved_fields": "successful DATA reservations only",
+    "selection": "maximum reserved_payload_bytes among enabled bulk lanes for the directional sender",
+    "zero_observations": "overlapping send attempts; not wait counts, durations, or time fractions"
+  },
+  "legacy_agent_skips": 16,
+  "legacy_counter_availability": {
+    "download": "frozen legacy agent skipped; unavailable",
+    "upload": "current server legacy Yamux sessions report enabled=false; unavailable"
+  },
+  "real_drains": 48,
+  "receiving_growth_semantics": "growth events match the primary sender lane and the receiving registry session identity; threshold time begins at first retained ring sample, not transfer start; opaque yamux tuples are unavailable data rather than physical linkage",
+  "result_rows": 32,
+  "scope": "diagnostic_only",
+  "timing_outcome": "runner_failed_timing_gate_with_correctness_validated_separately",
+  "validation": {
+    "failures": [],
+    "passed": true
+  }
+}
