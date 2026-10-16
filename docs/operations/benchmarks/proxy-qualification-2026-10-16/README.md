@@ -44,6 +44,13 @@ comparison.
   each endpoint. Two mildly slower downloads have finite early slow-start
   thresholds and no observed retransmission increase; the cohort median
   passes and does not clear the repeated qualification failures.
+- [`agent-wan-data-emission-causal/README.md`](agent-wan-data-emission-causal/README.md)
+  preserves a fixed 96-transfer gather-versus-split DATA emission comparison.
+  The split overlay fails its retention gate in two of three download pairs;
+  all payloads and events are exact, and no production change is retained.
+- [`caddy-reference/matched-h2-fixture-validation/README.md`](caddy-reference/matched-h2-fixture-validation/README.md)
+  records the bounded fixture checks for a future reference comparison with
+  one prewarmed H2 client connection per proxy. It is not a performance result.
 - [`caddy-reference/README.md`](caddy-reference/README.md) documents the clean
   36-row Caddy/HAProxy/p2pstream reference cohort. Its p2pstream binary is the
   frozen `3ec137c` candidate; later library and protocol foundations in `0d6a3a8`

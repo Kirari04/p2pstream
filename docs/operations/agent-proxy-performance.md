@@ -585,6 +585,17 @@ startup hypothesis without proving its cause or clearing the repeated ordinary
 failure. Full raw TCP records and the sampling limitations are preserved in the
 [sparse TCP diagnostic](benchmarks/proxy-qualification-2026-10-16/agent-wan-sparse-tcp/README.md).
 
+A fixed three-pair comparison then isolates physical DATA emission with both
+agents using aggregate-v1 and the same server. The split overlay keeps the
+gathered copy, buffer capacity, ownership and commit timing, but writes header
+and body separately. Its download ratio to the gathered control is
+1.23342 / 0.75519 / 0.91389 across the alternating pairs; two pairs fail the
+predeclared 1.10 retention threshold. Upload ratios pass, and all 96 payloads
+and events are exact. The overlay is rejected as a reliable improvement. This
+neither clears the original WAN failure nor isolates the remaining cause; no
+production emission or payload-quantum change follows. See the complete
+[DATA emission comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-data-emission-causal/README.md).
+
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
 RTT 96.547 ms). Four fresh 256 MiB downloads and uploads prewarm every receiving
