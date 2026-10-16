@@ -1,0 +1,50 @@
+{
+  "binary_build_id": {
+    "current_agent": "nn9PVL-oEdFCy4SB3agU/qwVUx_UiPYIhDkifuux8/qYuFBMta8-0eHZA-GK6D/_VyoAVxfpl88tkyed3iZ",
+    "current_server": "to9VO6DDLurULeBEImQ_/vBU9blcpuIiz_kH22k8H/FTbEjp_IM9jZKCN5qf19/aQeJgfRbKo-lSv_BUaJZ",
+    "driver_and_origin": "to9VO6DDLurULeBEImQ_/vBU9blcpuIiz_kH22k8H/FTbEjp_IM9jZKCN5qf19/aQeJgfRbKo-lSv_BUaJZ",
+    "historical_agent": "CPOC7OEP1Udqkwxs_r36/oRiEwv5TCL4__6NVQvqi/dHPVyyL02W0UxZssa1f3/JKq7r7fYUckDcpe1LcsI",
+    "historical_server": "RQcZzV0qkQ65DcFaitLa/fIbuzMzgkCp8Y6lPzo-5/azIR_QJzxYuUiei1qtll/1Sk1Haz5L0JSchIX2Cyz"
+  },
+  "binary_sha256": {
+    "current_agent": "d838d430881498cb19d969770a5af451398d037e045eb48c01f6af81e2d39334",
+    "current_server": "363833f3d9c07d436ee7f1d523f39de662eda678f59e3e23cdc52a7d10a3b642",
+    "driver_and_origin": "363833f3d9c07d436ee7f1d523f39de662eda678f59e3e23cdc52a7d10a3b642",
+    "historical_agent": "c2f51cae23addadc3c1285f0f7597859d7d8596763e7435e5277f9f92d31b85f",
+    "historical_server": "0f205cc1aeef1b7d6d8ef0407740959e7b42be0194a664bf965f8b8db60063ab"
+  },
+  "build_manifest_sha256": "7c0d492cb652285fd305cca1e8133059cf92271fd66c819fdba34b71e0c44eaf",
+  "build_provenance_sha256": "553d264f1cee0840a00c6866c9dfda0079e056304a49c1890e436f11499a5d63",
+  "completed_utc": "2026-10-16T07:21:48Z",
+  "fixed_workload": {
+    "configured_rtt_ms": 80,
+    "order": [
+      "current-then-historical",
+      "historical-then-current",
+      "current-then-historical"
+    ],
+    "pairs": 3,
+    "required_pool_mib": 8,
+    "steady_mib": 256,
+    "timed_transfers_per_direction": 3,
+    "total_transfers": 96,
+    "transfers_per_variant": 16,
+    "transport_mode_both_variants": "aggregate-v1",
+    "warmup_mib": 256
+  },
+  "historical_overlay_sha256": "c400c60b4b20c7a2be3c695481970ae5d43e99446de4afde2a9180b644bcf8cf",
+  "implementation_difference": "same frozen application, harness, driver and origin; both endpoint processes use either current or transplanted historical Yamux production files",
+  "overlay_readme_sha256": "bad3c64546b8a3daa26db2e7774e1c8428f9374fd7f7ac572f1a8e1fdb5c3618",
+  "raw_fixture_artifacts": "local only; excluded from SHA256SUMS and evidence because they contain ephemeral fixture credentials",
+  "result_classification": "complete_timing_rejection",
+  "runner_exit_status": 1,
+  "runner_sha256": "a4c3d769b08aabb2dea5bf7d2006f5f218152c57201938ef9368fc84184df178",
+  "scope": "diagnostic_only",
+  "source_refs": {
+    "application_and_harness": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "current_yamux": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "historical_yamux": "56336cb212ecd280c926084f43d60a4365f6b843"
+  },
+  "started_utc": "2026-10-16T07:08:22Z",
+  "wrapper_sha256": "b0d69f2a8ad3d01a12296faca9e233e8a96d9665cf0c4610db9673a81fae7bca"
+}

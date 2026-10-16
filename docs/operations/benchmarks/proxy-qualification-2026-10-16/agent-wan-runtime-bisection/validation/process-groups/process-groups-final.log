@@ -1,0 +1,5 @@
+owned process group 604561 did not stop within its graceful shutdown deadline
+/tmp/p2pstream-test-stop-groups.sh: line 38: 604561 Killed                     setsid bash -c 'trap "" TERM; while :; do sleep 1; done'
+owned process group 605080 did not stop within its graceful shutdown deadline
+graceful, forced, and child-survives-parent process-group cases PASS
+elapsed=32.85 exit=0

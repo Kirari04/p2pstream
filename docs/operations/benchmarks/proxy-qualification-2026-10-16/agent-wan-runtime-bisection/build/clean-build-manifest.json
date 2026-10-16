@@ -1,0 +1,102 @@
+{
+  "binary_inputs": {
+    "control-agent.test": {
+      "build_id": "nn9PVL-oEdFCy4SB3agU/qwVUx_UiPYIhDkifuux8/qYuFBMta8-0eHZA-GK6D/_VyoAVxfpl88tkyed3iZ",
+      "bytes": 19935541,
+      "sha256": "d838d430881498cb19d969770a5af451398d037e045eb48c01f6af81e2d39334"
+    },
+    "control-server.test": {
+      "build_id": "to9VO6DDLurULeBEImQ_/vBU9blcpuIiz_kH22k8H/FTbEjp_IM9jZKCN5qf19/aQeJgfRbKo-lSv_BUaJZ",
+      "bytes": 58455576,
+      "sha256": "363833f3d9c07d436ee7f1d523f39de662eda678f59e3e23cdc52a7d10a3b642"
+    },
+    "driver-origin.test": {
+      "build_id": "to9VO6DDLurULeBEImQ_/vBU9blcpuIiz_kH22k8H/FTbEjp_IM9jZKCN5qf19/aQeJgfRbKo-lSv_BUaJZ",
+      "bytes": 58455576,
+      "sha256": "363833f3d9c07d436ee7f1d523f39de662eda678f59e3e23cdc52a7d10a3b642"
+    },
+    "prepublisher-agent.test": {
+      "build_id": "CPOC7OEP1Udqkwxs_r36/oRiEwv5TCL4__6NVQvqi/dHPVyyL02W0UxZssa1f3/JKq7r7fYUckDcpe1LcsI",
+      "bytes": 19929302,
+      "sha256": "c2f51cae23addadc3c1285f0f7597859d7d8596763e7435e5277f9f92d31b85f"
+    },
+    "prepublisher-server.test": {
+      "build_id": "RQcZzV0qkQ65DcFaitLa/fIbuzMzgkCp8Y6lPzo-5/azIR_QJzxYuUiei1qtll/1Sk1Haz5L0JSchIX2Cyz",
+      "bytes": 58453904,
+      "sha256": "0f205cc1aeef1b7d6d8ef0407740959e7b42be0194a664bf965f8b8db60063ab"
+    }
+  },
+  "build_environment_path": "meta/build-environment.txt",
+  "build_provenance_path": "meta/build-provenance.txt",
+  "build_provenance_sha256": "553d264f1cee0840a00c6866c9dfda0079e056304a49c1890e436f11499a5d63",
+  "common_source_ref": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+  "created_at": "2026-10-16T06:51:58.112050+00:00",
+  "driver_origin_alias": {
+    "byte_identical": true,
+    "source": "control-server.test",
+    "target": "driver-origin.test"
+  },
+  "historical_yamux_ref": "56336cb212ecd280c926084f43d60a4365f6b843",
+  "known_limitation": "Historical overlay restores known pre-805a8ea shutdown waiter spin and is diagnostic-only.",
+  "ordinary_tag_off": true,
+  "overlay": {
+    "changed_paths": [
+      "third_party/yamux/aggregate_window.go",
+      "third_party/yamux/session.go",
+      "third_party/yamux/stream.go"
+    ],
+    "path": "meta/prepublisher-yamux-production.patch",
+    "readme_path": "meta/overlay-README.txt",
+    "readme_sha256": "bad3c64546b8a3daa26db2e7774e1c8428f9374fd7f7ac572f1a8e1fdb5c3618",
+    "sha256": "c400c60b4b20c7a2be3c695481970ae5d43e99446de4afde2a9180b644bcf8cf"
+  },
+  "purpose": "diagnostic-only pre-publisher Yamux runtime bisection",
+  "schema_version": 1,
+  "source_files": {
+    "third_party/yamux/aggregate_window.go": {
+      "control_sha256": "0fb6b3e993a5b43a9a5d3e800822b0ac54d8373c160b96969ada2e6fcc0fd4b5",
+      "historical_sha256": "0327a5fdedc4baac9589ab413e3617ffeccf655b884146898f5155c34cbb6597",
+      "prepublisher_sha256": "0327a5fdedc4baac9589ab413e3617ffeccf655b884146898f5155c34cbb6597"
+    },
+    "third_party/yamux/session.go": {
+      "control_sha256": "268e0a49a1b2f43c5dcaf2ebf3d3d1106faa71b6091931e4041adbc2d872bf41",
+      "historical_sha256": "8f52cb39a868de5a43edb66b5f813aff8fd40422d45e54ad99048ce55cf0a721",
+      "prepublisher_sha256": "8f52cb39a868de5a43edb66b5f813aff8fd40422d45e54ad99048ce55cf0a721"
+    },
+    "third_party/yamux/stream.go": {
+      "control_sha256": "4d5503619981cf983b99d5b40c9ce46a304ed13d09ad0fbc01f16d80016f9012",
+      "historical_sha256": "1df12218632a9c65a15c9e8cbf9094fbfd31dc7b46f0abbbe3f58d6f2fe50f77",
+      "prepublisher_sha256": "1df12218632a9c65a15c9e8cbf9094fbfd31dc7b46f0abbbe3f58d6f2fe50f77"
+    }
+  },
+  "trees": {
+    "control_root": "1aaa66449b8bff7b72a5b8cd4d0aa971b6a1835e",
+    "control_yamux": "6d9622d1cb3383f78019ff164452bfd3002e0262",
+    "prepublisher_root": "f20a8a5c1f585aa1fb410d4d945c9a6b8919c293",
+    "prepublisher_yamux": "96651f7a37ef9bd64da724123c8555dbdc7642a8"
+  },
+  "verification": {
+    "actual_external_process_start_stop_tested": false,
+    "applied_diff_name_status": [
+      "M\tthird_party/yamux/aggregate_window.go",
+      "M\tthird_party/yamux/session.go",
+      "M\tthird_party/yamux/stream.go"
+    ],
+    "control_fixture": {
+      "command": "control-server.test -test.run '^(TestRealAgentParallelTunnelsSurvivePrimaryLoss|TestRealAgentProxyPhaseTimingAndReuse)$' -test.count=3 -test.timeout=3m",
+      "count": 3,
+      "result": "PASS",
+      "time": "elapsed=3.27 maxrss_kb=122164 exit=0"
+    },
+    "exported_api_diff_bytes": 0,
+    "note": "Real-agent in-process aggregate/reconnect fixtures include cleanup; the external qualification process start/stop path remains for runner preflight.",
+    "overlay_forward_dry_run_log": "logs/overlay-patch-dry-run.log",
+    "overlay_reverse_dry_run_log": "logs/overlay-reverse-dry-run.log",
+    "prepublisher_fixture": {
+      "command": "prepublisher-server.test -test.run '^(TestRealAgentParallelTunnelsSurvivePrimaryLoss|TestRealAgentProxyPhaseTimingAndReuse)$' -test.count=3 -test.timeout=3m",
+      "count": 3,
+      "result": "PASS",
+      "time": "elapsed=3.55 maxrss_kb=120048 exit=0"
+    }
+  }
+}

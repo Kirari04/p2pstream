@@ -1,0 +1,19 @@
+{
+  "scope": "diagnostic_only",
+  "runner_source_ref": "093cd31ed9aeb840696a452e08ead79a68406c0d",
+  "all_worker_bundle_hashes_verified": true,
+  "exact_common_source_tree_verified": "1aaa66449b8bff7b72a5b8cd4d0aa971b6a1835e",
+  "exact_three_historical_source_files_verified": true,
+  "driver_byte_identical_to_current_server": true,
+  "build_tags": "none in actual Go build info",
+  "tmp_free_bytes": 3317219328,
+  "workspace_free_bytes": 64718086144,
+  "runtime_environment": {
+    "GOMAXPROCS": null,
+    "GOGC": null,
+    "GOMEMLIMIT": null,
+    "GODEBUG": null
+  },
+  "external_fixture_validation_root": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/runtime-bisection-validation.4lrdYh",
+  "historical_arm": "diagnostic only; known pre805 shutdown spin is not production-retainable"
+}

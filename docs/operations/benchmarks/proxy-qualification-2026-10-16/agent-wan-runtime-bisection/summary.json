@@ -1,0 +1,833 @@
+{
+  "acceptance": {
+    "all_pair_gates_passed": false,
+    "all_rows_exact": true,
+    "complete": true,
+    "overall": false
+  },
+  "failures": [
+    "pair 2 download historical/current ratio 1.0002631445543515 below 1.1"
+  ],
+  "fixed_workload": {
+    "configured_rtt_ms": 80,
+    "mode_order": [
+      "current-then-historical",
+      "historical-then-current",
+      "current-then-historical"
+    ],
+    "pairs": 3,
+    "required_pool_mib": 8,
+    "steady_mib": 256,
+    "total_transfers": 96,
+    "transfer_repetitions": 3,
+    "transfers_per_variant": 16,
+    "transport_mode_both_variants": "aggregate-v1",
+    "warmup_mib": 256
+  },
+  "pairs": {
+    "1": {
+      "gates": {
+        "download": {
+          "current_median_useful_bytes_per_second": 28854443.684748504,
+          "historical_median_useful_bytes_per_second": 33092303.887326267,
+          "historical_to_current_ratio": 1.1468702792844956,
+          "minimum": 1.1,
+          "passed": true
+        },
+        "upload": {
+          "current_median_useful_bytes_per_second": 35523832.02188632,
+          "historical_median_useful_bytes_per_second": 35538339.68488137,
+          "historical_to_current_ratio": 1.000408392399393,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "aggregate-runtime-current",
+        "aggregate-runtime-historical"
+      ],
+      "variants": {
+        "current": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33633946.028623246,
+              "median": 33417708.786506034,
+              "minimum": 33252656.757832862,
+              "samples": [
+                33252656.757832862,
+                33321736.56694508,
+                33633946.028623246,
+                33513681.00606699
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 27218664.560382802,
+              "median": 27218664.560382802,
+              "minimum": 27218664.560382802,
+              "samples": [
+                27218664.560382802
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34211446.89944604,
+              "median": 28854443.684748504,
+              "minimum": 27497660.751386136,
+              "samples": [
+                27497660.751386136,
+                28854443.684748504,
+                34211446.89944604
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 28854443.684748504,
+              "median": 28176052.21806732,
+              "minimum": 27497660.751386136,
+              "samples": [
+                27497660.751386136,
+                28854443.684748504
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34211446.89944604,
+              "median": 34211446.89944604,
+              "minimum": 34211446.89944604,
+              "samples": [
+                34211446.89944604
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35622452.8931134,
+              "median": 35409968.1604046,
+              "minimum": 35208269.742123365,
+              "samples": [
+                35622452.8931134,
+                35439236.813905045,
+                35208269.742123365,
+                35380699.506904155
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35377600.37489041,
+              "median": 35377600.37489041,
+              "minimum": 35377600.37489041,
+              "samples": [
+                35377600.37489041
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36417964.98787475,
+              "median": 35523832.02188632,
+              "minimum": 34908880.36479726,
+              "samples": [
+                34908880.36479726,
+                35523832.02188632,
+                36417964.98787475
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35523832.02188632,
+              "median": 35216356.19334179,
+              "minimum": 34908880.36479726,
+              "samples": [
+                34908880.36479726,
+                35523832.02188632
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36417964.98787475,
+              "median": 36417964.98787475,
+              "minimum": 36417964.98787475,
+              "samples": [
+                36417964.98787475
+              ]
+            }
+          }
+        },
+        "historical": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33717975.73070058,
+              "median": 33525316.5403386,
+              "minimum": 33186835.231860142,
+              "samples": [
+                33717975.73070058,
+                33564563.841196805,
+                33486069.239480387,
+                33186835.231860142
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 33172779.63062201,
+              "median": 33172779.63062201,
+              "minimum": 33172779.63062201,
+              "samples": [
+                33172779.63062201
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34329493.32638425,
+              "median": 33092303.887326267,
+              "minimum": 33021937.84341322,
+              "samples": [
+                33021937.84341322,
+                33092303.887326267,
+                34329493.32638425
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 33092303.887326267,
+              "median": 33057120.865369745,
+              "minimum": 33021937.84341322,
+              "samples": [
+                33021937.84341322,
+                33092303.887326267
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34329493.32638425,
+              "median": 34329493.32638425,
+              "minimum": 34329493.32638425,
+              "samples": [
+                34329493.32638425
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35306503.901423015,
+              "median": 35008952.62200351,
+              "minimum": 31387920.016524516,
+              "samples": [
+                35259385.031945676,
+                35306503.901423015,
+                34758520.21206135,
+                31387920.016524516
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35137410.03782135,
+              "median": 35137410.03782135,
+              "minimum": 35137410.03782135,
+              "samples": [
+                35137410.03782135
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36493342.600227125,
+              "median": 35538339.68488137,
+              "minimum": 33310313.33401993,
+              "samples": [
+                35538339.68488137,
+                33310313.33401993,
+                36493342.600227125
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35538339.68488137,
+              "median": 34424326.509450644,
+              "minimum": 33310313.33401993,
+              "samples": [
+                35538339.68488137,
+                33310313.33401993
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36493342.600227125,
+              "median": 36493342.600227125,
+              "minimum": 36493342.600227125,
+              "samples": [
+                36493342.600227125
+              ]
+            }
+          }
+        }
+      }
+    },
+    "2": {
+      "gates": {
+        "download": {
+          "current_median_useful_bytes_per_second": 33333276.141946953,
+          "historical_median_useful_bytes_per_second": 33342047.6120424,
+          "historical_to_current_ratio": 1.0002631445543515,
+          "minimum": 1.1,
+          "passed": false
+        },
+        "upload": {
+          "current_median_useful_bytes_per_second": 35836902.50796,
+          "historical_median_useful_bytes_per_second": 35651152.97421825,
+          "historical_to_current_ratio": 0.9948168083527729,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "aggregate-runtime-historical",
+        "aggregate-runtime-current"
+      ],
+      "variants": {
+        "current": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33644137.33815161,
+              "median": 33589492.16423629,
+              "minimum": 33540604.349207368,
+              "samples": [
+                33644137.33815161,
+                33588529.94618705,
+                33590454.38228553,
+                33540604.349207368
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 27389582.101168577,
+              "median": 27389582.101168577,
+              "minimum": 27389582.101168577,
+              "samples": [
+                27389582.101168577
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 33356373.052049637,
+              "median": 33333276.141946953,
+              "minimum": 15338386.81695375,
+              "samples": [
+                33333276.141946953,
+                15338386.81695375,
+                33356373.052049637
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 33333276.141946953,
+              "median": 24335831.479450352,
+              "minimum": 15338386.81695375,
+              "samples": [
+                33333276.141946953,
+                15338386.81695375
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 33356373.052049637,
+              "median": 33356373.052049637,
+              "minimum": 33356373.052049637,
+              "samples": [
+                33356373.052049637
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35301779.04596336,
+              "median": 35179896.904305294,
+              "minimum": 34883712.079900056,
+              "samples": [
+                34883712.079900056,
+                35301779.04596336,
+                35116125.29634926,
+                35243668.51226133
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35724893.32092655,
+              "median": 35724893.32092655,
+              "minimum": 35724893.32092655,
+              "samples": [
+                35724893.32092655
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 35941828.10856595,
+              "median": 35836902.50796,
+              "minimum": 35574703.288881846,
+              "samples": [
+                35836902.50796,
+                35574703.288881846,
+                35941828.10856595
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35836902.50796,
+              "median": 35705802.89842092,
+              "minimum": 35574703.288881846,
+              "samples": [
+                35836902.50796,
+                35574703.288881846
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 35941828.10856595,
+              "median": 35941828.10856595,
+              "minimum": 35941828.10856595,
+              "samples": [
+                35941828.10856595
+              ]
+            }
+          }
+        },
+        "historical": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33647997.09909545,
+              "median": 33432172.799223505,
+              "minimum": 32925595.844447363,
+              "samples": [
+                33227975.15618598,
+                32925595.844447363,
+                33636370.44226103,
+                33647997.09909545
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 33553673.527598325,
+              "median": 33553673.527598325,
+              "minimum": 33553673.527598325,
+              "samples": [
+                33553673.527598325
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34750451.77766332,
+              "median": 33342047.6120424,
+              "minimum": 33253915.196171686,
+              "samples": [
+                33253915.196171686,
+                33342047.6120424,
+                34750451.77766332
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 33342047.6120424,
+              "median": 33297981.40410704,
+              "minimum": 33253915.196171686,
+              "samples": [
+                33253915.196171686,
+                33342047.6120424
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34750451.77766332,
+              "median": 34750451.77766332,
+              "minimum": 34750451.77766332,
+              "samples": [
+                34750451.77766332
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35330674.20408723,
+              "median": 34347103.40921728,
+              "minimum": 33240037.07178814,
+              "samples": [
+                33240037.07178814,
+                34756834.43397728,
+                35330674.20408723,
+                33937372.384457275
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35734820.66158972,
+              "median": 35734820.66158972,
+              "minimum": 35734820.66158972,
+              "samples": [
+                35734820.66158972
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36480341.814379804,
+              "median": 35651152.97421825,
+              "minimum": 35440199.95387711,
+              "samples": [
+                35651152.97421825,
+                35440199.95387711,
+                36480341.814379804
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35651152.97421825,
+              "median": 35545676.46404768,
+              "minimum": 35440199.95387711,
+              "samples": [
+                35651152.97421825,
+                35440199.95387711
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36480341.814379804,
+              "median": 36480341.814379804,
+              "minimum": 36480341.814379804,
+              "samples": [
+                36480341.814379804
+              ]
+            }
+          }
+        }
+      }
+    },
+    "3": {
+      "gates": {
+        "download": {
+          "current_median_useful_bytes_per_second": 27617978.922095943,
+          "historical_median_useful_bytes_per_second": 33643588.712847345,
+          "historical_to_current_ratio": 1.2181770725420669,
+          "minimum": 1.1,
+          "passed": true
+        },
+        "upload": {
+          "current_median_useful_bytes_per_second": 35783660.04866776,
+          "historical_median_useful_bytes_per_second": 36198063.42462909,
+          "historical_to_current_ratio": 1.0115807990406158,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "aggregate-runtime-current",
+        "aggregate-runtime-historical"
+      ],
+      "variants": {
+        "current": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33855611.22118708,
+              "median": 33662714.788216114,
+              "minimum": 33348650.119252484,
+              "samples": [
+                33730169.39111005,
+                33595260.18532218,
+                33348650.119252484,
+                33855611.22118708
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 12430520.737422751,
+              "median": 12430520.737422751,
+              "minimum": 12430520.737422751,
+              "samples": [
+                12430520.737422751
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34490223.631823584,
+              "median": 27617978.922095943,
+              "minimum": 27498709.6359858,
+              "samples": [
+                27498709.6359858,
+                27617978.922095943,
+                34490223.631823584
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 27617978.922095943,
+              "median": 27558344.279040873,
+              "minimum": 27498709.6359858,
+              "samples": [
+                27498709.6359858,
+                27617978.922095943
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34490223.631823584,
+              "median": 34490223.631823584,
+              "minimum": 34490223.631823584,
+              "samples": [
+                34490223.631823584
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35647682.071559854,
+              "median": 35294073.50686923,
+              "minimum": 35045330.077315174,
+              "samples": [
+                35045330.077315174,
+                35417522.17909988,
+                35647682.071559854,
+                35170624.83463858
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35243947.2688581,
+              "median": 35243947.2688581,
+              "minimum": 35243947.2688581,
+              "samples": [
+                35243947.2688581
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36220907.99171379,
+              "median": 35783660.04866776,
+              "minimum": 34852879.07706959,
+              "samples": [
+                34852879.07706959,
+                35783660.04866776,
+                36220907.99171379
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35783660.04866776,
+              "median": 35318269.56286867,
+              "minimum": 34852879.07706959,
+              "samples": [
+                34852879.07706959,
+                35783660.04866776
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36220907.99171379,
+              "median": 36220907.99171379,
+              "minimum": 36220907.99171379,
+              "samples": [
+                36220907.99171379
+              ]
+            }
+          }
+        },
+        "historical": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33571805.32532634,
+              "median": 33272633.435303587,
+              "minimum": 33148736.722967282,
+              "samples": [
+                33350909.92316936,
+                33571805.32532634,
+                33148736.722967282,
+                33194356.947437815
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 33649537.614596166,
+              "median": 33649537.614596166,
+              "minimum": 33649537.614596166,
+              "samples": [
+                33649537.614596166
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34763957.720336944,
+              "median": 33643588.712847345,
+              "minimum": 33486441.322086673,
+              "samples": [
+                33486441.322086673,
+                33643588.712847345,
+                34763957.720336944
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 33643588.712847345,
+              "median": 33565015.01746701,
+              "minimum": 33486441.322086673,
+              "samples": [
+                33486441.322086673,
+                33643588.712847345
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34763957.720336944,
+              "median": 34763957.720336944,
+              "minimum": 34763957.720336944,
+              "samples": [
+                34763957.720336944
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35400677.46504331,
+              "median": 33456333.72047377,
+              "minimum": 31057743.690713357,
+              "samples": [
+                34625034.348521344,
+                32287633.092426196,
+                31057743.690713357,
+                35400677.46504331
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 34615948.81048274,
+              "median": 34615948.81048274,
+              "minimum": 34615948.81048274,
+              "samples": [
+                34615948.81048274
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36649311.88929558,
+              "median": 36198063.42462909,
+              "minimum": 35164261.64290835,
+              "samples": [
+                35164261.64290835,
+                36198063.42462909,
+                36649311.88929558
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 36198063.42462909,
+              "median": 35681162.53376872,
+              "minimum": 35164261.64290835,
+              "samples": [
+                35164261.64290835,
+                36198063.42462909
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36649311.88929558,
+              "median": 36649311.88929558,
+              "minimum": 36649311.88929558,
+              "samples": [
+                36649311.88929558
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "pooled_diagnostic": {
+    "download": {
+      "current": {
+        "count": 9,
+        "maximum": 34490223.631823584,
+        "median": 28854443.684748504,
+        "minimum": 15338386.81695375,
+        "samples": [
+          27497660.751386136,
+          28854443.684748504,
+          34211446.89944604,
+          33333276.141946953,
+          15338386.81695375,
+          33356373.052049637,
+          27498709.6359858,
+          27617978.922095943,
+          34490223.631823584
+        ]
+      },
+      "historical": {
+        "count": 9,
+        "maximum": 34763957.720336944,
+        "median": 33486441.322086673,
+        "minimum": 33021937.84341322,
+        "samples": [
+          33021937.84341322,
+          33092303.887326267,
+          34329493.32638425,
+          33253915.196171686,
+          33342047.6120424,
+          34750451.77766332,
+          33486441.322086673,
+          33643588.712847345,
+          34763957.720336944
+        ]
+      },
+      "historical_to_current_ratio_of_medians": 1.1605297848728404
+    },
+    "upload": {
+      "current": {
+        "count": 9,
+        "maximum": 36417964.98787475,
+        "median": 35783660.04866776,
+        "minimum": 34852879.07706959,
+        "samples": [
+          34908880.36479726,
+          35523832.02188632,
+          36417964.98787475,
+          35836902.50796,
+          35574703.288881846,
+          35941828.10856595,
+          34852879.07706959,
+          35783660.04866776,
+          36220907.99171379
+        ]
+      },
+      "historical": {
+        "count": 9,
+        "maximum": 36649311.88929558,
+        "median": 35651152.97421825,
+        "minimum": 33310313.33401993,
+        "samples": [
+          35538339.68488137,
+          33310313.33401993,
+          36493342.600227125,
+          35651152.97421825,
+          35440199.95387711,
+          36480341.814379804,
+          35164261.64290835,
+          36198063.42462909,
+          36649311.88929558
+        ]
+      },
+      "historical_to_current_ratio_of_medians": 0.9962969949337409
+    }
+  },
+  "predeclared_gates": {
+    "every_pair_download_historical_to_current_ratio_minimum": 1.1,
+    "every_pair_upload_historical_to_current_ratio_minimum": 0.9,
+    "payload_and_event_conservation": "exact",
+    "selective_retries": false
+  },
+  "row_count": 96,
+  "scope": "diagnostic_only"
+}
