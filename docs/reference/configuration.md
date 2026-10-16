@@ -77,6 +77,18 @@ envelopes), so a low-memory agent can refuse a legacy lane when it cannot make
 that full compatibility promise. New agents and servers use aggregate-v1 to
 avoid that legacy idle cost.
 
+The negotiated control lane prepays its complete bounded working promise
+before the HTTP upgrade: up to `min(4, TUNNEL_MAX_CONCURRENT_REQUESTS)` receive
+windows, agent stream bases, origin-socket allowances, and peak dial
+descriptors. At the default window and four control slots this is about
+5.79 MiB plus eight descriptor credits. Idle prepaid slots do not consume the
+operator's active-request limit, so ordinary work may use the full configured
+concurrency while control is idle. Once active work fills that limit, a cold
+control request receives `agent_capacity`; after a slot drains, the prepaid
+control request can proceed even under later memory pressure. A server
+negotiating a smaller total releases the excess promise before Yamux starts.
+Legacy lanes retain their existing per-stream admission behavior.
+
 Tunnel mode is immutable within a group generation. If a previously negotiated
 aggregate primary receives a complete legacy acknowledgment during a server
 rollback, the agent closes and joins every control and bulk lane, releases the

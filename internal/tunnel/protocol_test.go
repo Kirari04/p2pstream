@@ -261,6 +261,21 @@ func TestNegotiatedSessionResourceModelsCoverPoolsAndPendingObjects(t *testing.T
 	if control != wantControl {
 		t.Fatalf("control session reservation = %d, want %d", control, wantControl)
 	}
+	for streams := 1; streams <= NegotiatedControlStreamLimit; streams++ {
+		got, streamErr := NegotiatedControlSessionResourceBytesForStreams(DefaultAdaptiveReceiveWindowBytes, streams)
+		if streamErr != nil {
+			t.Fatalf("control streams %d: %v", streams, streamErr)
+		}
+		want := AggregateSessionMetadataBytes + int64(streams)*(receive+AggregatePendingStreamMetadataBytes)
+		if got != want {
+			t.Fatalf("control streams %d reservation = %d, want %d", streams, got, want)
+		}
+	}
+	for _, streams := range []int{0, NegotiatedControlStreamLimit + 1} {
+		if _, streamErr := NegotiatedControlSessionResourceBytesForStreams(DefaultAdaptiveReceiveWindowBytes, streams); streamErr == nil {
+			t.Fatalf("invalid control stream count %d accepted", streams)
+		}
+	}
 }
 
 func TestAdaptiveMaxStreamWindowSizeIsCoveredByLifetimeCharge(t *testing.T) {

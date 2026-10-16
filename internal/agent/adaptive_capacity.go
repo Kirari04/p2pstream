@@ -17,7 +17,12 @@ type agentTunnelCapacitySnapshot struct {
 	ResourceLimited               bool
 	Maximum                       int
 	AdmissionLimit                int
+	OrdinaryAdmissionLimit        int
 	InUse                         int
+	ControlInUse                  int
+	ControlReservedSlots          int
+	ControlReservedBaseBytes      int64
+	ControlReservedBaseFDs        int64
 	Pressure                      sysmetrics.MemoryPressureLevel
 	MemoryUsedBytes               int64
 	MemoryLimitBytes              int64
@@ -48,10 +53,15 @@ type agentTunnelCapacitySnapshot struct {
 // follows sampled memory and descriptor headroom. Explicit production limits
 // also retain resource protection, while adding a hard operator ceiling.
 type agentTunnelCapacityRuntime struct {
-	mu                            sync.Mutex
-	adaptive                      bool
-	maximum                       int
+	mu       sync.Mutex
+	adaptive bool
+	maximum  int
+	// inUse counts ordinary streams whose base resource is charged at
+	// admission. Negotiated control streams consume a session-prepaid base and
+	// are counted separately so active control work is never charged twice.
 	inUse                         int
+	controlInUse                  int
+	controlReservedSlots          int
 	windowBytes                   int64
 	sessionBytes                  int64
 	aggregateInitialPoolBytes     int64
@@ -94,6 +104,162 @@ func (r *agentTunnelCapacityRuntime) setMaximum(maximum int64) {
 	r.mu.Unlock()
 }
 
+func (r *agentTunnelCapacityRuntime) actualInUseLocked() int {
+	return r.inUse + r.controlInUse
+}
+
+func (r *agentTunnelCapacityRuntime) chargedAdmissionsLocked() int {
+	return r.inUse + r.controlReservedSlots
+}
+
+func (r *agentTunnelCapacityRuntime) finishActiveReleaseLocked() bool {
+	shouldScavenge := r.scavengeNeeded.Swap(false)
+	if r.controller != nil && r.actualInUseLocked() == 0 {
+		pressure := r.snapshotLocked().Pressure
+		return shouldScavenge || pressure == sysmetrics.MemoryPressureSoft || pressure == sysmetrics.MemoryPressureCritical
+	}
+	// Only a complete active-work drain is a low-impact point for a forced
+	// scavenging pass. Preserve the signal for the final ordinary or control
+	// release, whichever happens last.
+	if shouldScavenge {
+		r.scavengeNeeded.Store(true)
+	}
+	return false
+}
+
+func (r *agentTunnelCapacityRuntime) runScavengeAfterRelease(shouldScavenge bool) {
+	if shouldScavenge && !r.requestMemoryScavenge() {
+		r.scavengeNeeded.Store(true)
+	}
+}
+
+// agentControlSessionReservation owns the complete receive and stream-base
+// promise for one negotiated control session. All fields are protected by the
+// runtime mutex. A replacement session can overlap an old one safely: each
+// reservation releases only its own promises, while active control work keeps
+// a separate generation-wide bound.
+type agentControlSessionReservation struct {
+	runtime  *agentTunnelCapacityRuntime
+	bytes    int64
+	slots    int
+	active   int
+	released bool
+}
+
+func (r *agentTunnelCapacityRuntime) tryReserveControlSession(bytes int64, slots int) (*agentControlSessionReservation, bool) {
+	if r == nil || bytes < 0 || slots < 1 || slots > tunnel.NegotiatedControlStreamLimit {
+		return nil, false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.windowBytes < 0 || r.sessionBytes < 0 || r.windowBytes > math.MaxInt64-r.sessionBytes {
+		return nil, false
+	}
+	external := r.windowBytes + r.sessionBytes
+	if bytes > math.MaxInt64-external || r.controlReservedSlots > math.MaxInt-slots {
+		return nil, false
+	}
+	proposedExternal := external + bytes
+	currentCharged := r.chargedAdmissionsLocked()
+	proposedCharged := currentCharged + slots
+	if proposedCharged > int(tunnel.MaxAdaptiveConcurrentStreamsLimit) {
+		return nil, false
+	}
+	if r.controller != nil {
+		// Sampling a hypothetical proposed count would floor the FD allowance at
+		// that count and manufacture capacity when real descriptor headroom is
+		// smaller. Sample current ownership, then compare its absolute allowance
+		// with the complete proposed byte/base/FD promise.
+		resource := r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), currentCharged)
+		if resource.RejectNew || resource.AdmissionLimitWithExternal(proposedExternal, 0) < proposedCharged {
+			return nil, false
+		}
+	}
+	r.sessionBytes += bytes
+	r.legacyControlSupplementBytes += bytes
+	r.controlReservedSlots += slots
+	return &agentControlSessionReservation{runtime: r, bytes: bytes, slots: slots}, true
+}
+
+// activate applies the server's negotiated total and releases promises that
+// were needed only for the larger locally configured offer. It runs before
+// Yamux starts, so no stream can observe the intermediate contract.
+func (s *agentControlSessionReservation) activate(maximum int64, bytes int64, slots int) bool {
+	if s == nil || s.runtime == nil || maximum < 1 || bytes < 0 || slots < 1 || slots > tunnel.NegotiatedControlStreamLimit {
+		return false
+	}
+	r := s.runtime
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if s.released || s.active != 0 || slots > s.slots || bytes > s.bytes {
+		return false
+	}
+	converted := agentTunnelCapacityMaximumInt(maximum)
+	if slots > converted {
+		return false
+	}
+	r.sessionBytes -= s.bytes - bytes
+	r.legacyControlSupplementBytes -= s.bytes - bytes
+	r.controlReservedSlots -= s.slots - slots
+	s.bytes = bytes
+	s.slots = slots
+	r.maximum = converted
+	return true
+}
+
+func (s *agentControlSessionReservation) tryAcquire() (func(), bool) {
+	if s == nil || s.runtime == nil {
+		return nil, false
+	}
+	r := s.runtime
+	r.mu.Lock()
+	controlLimit := min(tunnel.NegotiatedControlStreamLimit, r.maximum)
+	if s.released || s.active >= s.slots || r.controlInUse >= controlLimit || r.actualInUseLocked() >= r.maximum {
+		r.rejectedFixed.Add(1)
+		r.mu.Unlock()
+		return nil, false
+	}
+	s.active++
+	r.controlInUse++
+	r.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			r.mu.Lock()
+			if s.active > 0 {
+				s.active--
+			}
+			if r.controlInUse > 0 {
+				r.controlInUse--
+			}
+			shouldScavenge := r.finishActiveReleaseLocked()
+			r.mu.Unlock()
+			r.runScavengeAfterRelease(shouldScavenge)
+		})
+	}, true
+}
+
+func (s *agentControlSessionReservation) release() {
+	if s == nil || s.runtime == nil {
+		return
+	}
+	r := s.runtime
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if s.released {
+		return
+	}
+	// Session.Close joins all handlers before returning. Keep this defensive
+	// guard fail-closed if a future caller violates that lifetime contract.
+	if s.active != 0 {
+		return
+	}
+	s.released = true
+	r.sessionBytes -= s.bytes
+	r.legacyControlSupplementBytes -= s.bytes
+	r.controlReservedSlots -= s.slots
+}
+
 func (r *agentTunnelCapacityRuntime) tryReserveWindowGrowth(bytes int64) (func(), bool) {
 	return r.tryReserveOwnedReceiveResource(bytes, agentReceiveResourceStreamGrowth)
 }
@@ -115,7 +281,8 @@ func (r *agentTunnelCapacityRuntime) tryReserveOwnedReceiveResource(bytes int64,
 		return func() {}, true
 	}
 	r.mu.Lock()
-	resource := r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
+	charged := r.chargedAdmissionsLocked()
+	resource := r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), charged)
 	if bytes < 0 || r.windowBytes < 0 || r.sessionBytes < 0 || r.windowBytes > math.MaxInt64-r.sessionBytes {
 		r.mu.Unlock()
 		return nil, false
@@ -126,7 +293,7 @@ func (r *agentTunnelCapacityRuntime) tryReserveOwnedReceiveResource(bytes int64,
 		return nil, false
 	}
 	proposed := external + bytes
-	if resource.RejectNew || resource.AdmissionLimitWithExternal(proposed, 0) < r.inUse {
+	if resource.RejectNew || resource.AdmissionLimitWithExternal(proposed, 0) < charged {
 		r.mu.Unlock()
 		return nil, false
 	}
@@ -250,7 +417,7 @@ func (r *agentTunnelCapacityRuntime) tryAcquire() (func(), agentTunnelCapacitySn
 	}
 	r.mu.Lock()
 	snapshot := r.snapshotLocked()
-	if snapshot.AdmissionLimit < 1 || r.inUse >= snapshot.AdmissionLimit {
+	if r.actualInUseLocked() >= r.maximum || r.inUse >= snapshot.OrdinaryAdmissionLimit {
 		if snapshot.Adaptive || snapshot.ResourceLimited {
 			r.rejectedPressure.Add(1)
 			// Headroom or descriptor admission can be exhausted below the soft
@@ -266,7 +433,7 @@ func (r *agentTunnelCapacityRuntime) tryAcquire() (func(), agentTunnelCapacitySn
 		return nil, snapshot, false
 	}
 	r.inUse++
-	snapshot.InUse = r.inUse
+	snapshot.InUse = r.actualInUseLocked()
 	r.mu.Unlock()
 
 	var once sync.Once
@@ -276,24 +443,9 @@ func (r *agentTunnelCapacityRuntime) tryAcquire() (func(), agentTunnelCapacitySn
 			if r.inUse > 0 {
 				r.inUse--
 			}
-			shouldScavenge := r.scavengeNeeded.Swap(false)
-			if r.controller != nil && r.inUse == 0 {
-				pressure := r.snapshotLocked().Pressure
-				shouldScavenge = shouldScavenge || pressure == sysmetrics.MemoryPressureSoft || pressure == sysmetrics.MemoryPressureCritical
-			} else {
-				// Only the complete generation drain is a low-impact point for a
-				// forced scavenging pass. Preserve the signal for its final release.
-				if shouldScavenge {
-					r.scavengeNeeded.Store(true)
-				}
-				shouldScavenge = false
-			}
+			shouldScavenge := r.finishActiveReleaseLocked()
 			r.mu.Unlock()
-			if shouldScavenge {
-				if !r.requestMemoryScavenge() {
-					r.scavengeNeeded.Store(true)
-				}
-			}
+			r.runScavengeAfterRelease(shouldScavenge)
 		})
 	}, snapshot, true
 }
@@ -370,7 +522,10 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 		Adaptive:                      r.adaptive,
 		Maximum:                       maximum,
 		AdmissionLimit:                maximum,
-		InUse:                         r.inUse,
+		OrdinaryAdmissionLimit:        max(0, maximum-r.controlInUse),
+		InUse:                         r.actualInUseLocked(),
+		ControlInUse:                  r.controlInUse,
+		ControlReservedSlots:          r.controlReservedSlots,
 		Pressure:                      sysmetrics.MemoryPressureUnknown,
 		RejectedPressure:              r.rejectedPressure.Load(),
 		RejectedFixedLimit:            r.rejectedFixed.Load(),
@@ -387,14 +542,28 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 	if r.controller == nil {
 		return snapshot
 	}
+	charged := r.chargedAdmissionsLocked()
 	var resource sysmetrics.AdaptiveMemorySnapshot
 	if force {
-		resource = r.controller.ForceRefresh(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
+		resource = r.controller.ForceRefresh(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), charged)
 	} else {
-		resource = r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
+		resource = r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), charged)
 	}
-	snapshot.AdmissionLimit = min(maximum, resource.AdmissionLimitWithExternal(r.windowBytes+r.sessionBytes, 0))
-	snapshot.ResourceLimited = snapshot.AdmissionLimit < maximum
+	chargedLimit := resource.AdmissionLimitWithExternal(r.windowBytes+r.sessionBytes, 0)
+	ordinaryResourceLimit := max(0, chargedLimit-r.controlReservedSlots)
+	if resource.RejectNew {
+		// Existing ordinary streams are retained, but no unreserved work may
+		// enter. Session-prepaid control tokens remain usable below.
+		ordinaryResourceLimit = r.inUse
+	}
+	snapshot.OrdinaryAdmissionLimit = min(ordinaryResourceLimit, max(0, maximum-r.controlInUse))
+	controlCapacity := min(r.controlReservedSlots, min(tunnel.NegotiatedControlStreamLimit, maximum))
+	if ordinaryResourceLimit > math.MaxInt-controlCapacity {
+		snapshot.AdmissionLimit = maximum
+	} else {
+		snapshot.AdmissionLimit = min(maximum, ordinaryResourceLimit+controlCapacity)
+	}
+	snapshot.ResourceLimited = resource.RejectNew || snapshot.AdmissionLimit < maximum
 	snapshot.Pressure = resource.Level
 	snapshot.MemoryUsedBytes = resource.Usage.UsedBytes
 	snapshot.MemoryLimitBytes = resource.Usage.LimitBytes
@@ -407,9 +576,11 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 	snapshot.AdmissionRole = resource.AdmissionRole
 	snapshot.StreamChargeBytes = resource.StreamChargeByte
 	snapshot.StreamChargeFDs = resource.StreamChargeFD
-	if resource.RejectNew {
-		snapshot.AdmissionLimit = r.inUse
-		snapshot.ResourceLimited = true
+	if resource.StreamChargeByte > 0 && int64(r.controlReservedSlots) <= math.MaxInt64/resource.StreamChargeByte {
+		snapshot.ControlReservedBaseBytes = int64(r.controlReservedSlots) * resource.StreamChargeByte
+	}
+	if resource.StreamChargeFD > 0 && int64(r.controlReservedSlots) <= math.MaxInt64/resource.StreamChargeFD {
+		snapshot.ControlReservedBaseFDs = int64(r.controlReservedSlots) * resource.StreamChargeFD
 	}
 	return snapshot
 }

@@ -359,13 +359,25 @@ func AggregateSessionResourceBytes(window uint32, pendingStreams int) (int64, er
 // promises before a negotiated control session starts. The hard Yamux incoming
 // cap makes this session-lifetime envelope complete for unaccepted streams.
 func NegotiatedControlSessionResourceBytes(windowBytes int64) (int64, error) {
+	return NegotiatedControlSessionResourceBytesForStreams(windowBytes, NegotiatedControlStreamLimit)
+}
+
+// NegotiatedControlSessionResourceBytesForStreams returns the receive and
+// metadata promise for a negotiated number of control streams. The agent uses
+// the configured limit before the upgrade, then releases any excess promise
+// when the server negotiates a smaller total request limit. The separate agent
+// stream-base promises cover working buffers, origin TCP queues and dial FDs.
+func NegotiatedControlSessionResourceBytesForStreams(windowBytes int64, streams int) (int64, error) {
+	if streams < 1 || streams > NegotiatedControlStreamLimit {
+		return 0, errors.New("negotiated control stream count is out of range")
+	}
 	window, err := InitialReceiveWindow(windowBytes)
 	if err != nil {
 		return 0, err
 	}
 	receive := yamux.ReceiveWindowMemory(uint32(window))
 	perStream := receive + uint64(AggregatePendingStreamMetadataBytes)
-	total := uint64(AggregateSessionMetadataBytes) + uint64(NegotiatedControlStreamLimit)*perStream
+	total := uint64(AggregateSessionMetadataBytes) + uint64(streams)*perStream
 	if total > math.MaxInt64 {
 		return 0, errors.New("control session resource reservation exceeds accounting range")
 	}

@@ -432,7 +432,7 @@ func TestLegacyCapacityRejectionSlotsRetainReceiveSupplements(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- serveTunnelSessionWithPolicyCapacityAndResources(ctx, agentSession, nil, capacity, nil, true, tunnel.DefaultAdaptiveReceiveWindowBytes)
+		done <- serveTunnelSessionWithPolicyCapacityAndResources(ctx, agentSession, nil, capacity, nil, true, tunnel.DefaultAdaptiveReceiveWindowBytes, nil)
 	}()
 	t.Cleanup(func() {
 		releaseHeld()
@@ -530,6 +530,7 @@ func TestLegacyBacklogDrainsSimultaneousOldPeerBurst(t *testing.T) {
 			nil,
 			true,
 			tunnel.DefaultAdaptiveReceiveWindowBytes,
+			nil,
 		)
 	}()
 	t.Cleanup(func() {

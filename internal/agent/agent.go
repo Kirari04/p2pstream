@@ -949,6 +949,8 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		aggregateRole = tunnel.TunnelLaneRoleBulk
 	}
 	var releaseSessionResource func()
+	var controlReservation *agentControlSessionReservation
+	controlStreamLimit := 0
 	reserveLegacySession := func() error {
 		resourceBytes, reserveErr := tunnel.AgentLegacySessionResourceBytes(initialWindow)
 		if reserveErr != nil {
@@ -966,7 +968,8 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		var poolBytes int64
 		var metadataBytes int64
 		if aggregateRole == tunnel.TunnelLaneRoleControl {
-			resourceBytes, err = tunnel.NegotiatedControlSessionResourceBytes(initialWindow)
+			controlStreamLimit = min(tunnel.NegotiatedControlStreamLimit, agentTunnelCapacityMaximumInt(maxConcurrentRequests))
+			resourceBytes, err = tunnel.NegotiatedControlSessionResourceBytesForStreams(initialWindow, controlStreamLimit)
 		} else {
 			resourceBytes, err = tunnel.AggregateSessionResourceBytes(
 				tunnel.DefaultAggregateFlowControlConfig().InitialSessionWindow,
@@ -978,20 +981,20 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		if err != nil {
 			return err
 		}
-		var release func()
 		var ok bool
 		if aggregateRole == tunnel.TunnelLaneRoleControl {
-			release, ok = capacityRuntime.tryReserveLegacyControlResource(resourceBytes)
+			controlReservation, ok = capacityRuntime.tryReserveControlSession(resourceBytes, controlStreamLimit)
+			if ok {
+				releaseSessionResource = controlReservation.release
+			}
 		} else {
-			release, ok = capacityRuntime.tryReserveAggregateSessionResource(poolBytes, metadataBytes)
+			releaseSessionResource, ok = capacityRuntime.tryReserveAggregateSessionResource(poolBytes, metadataBytes)
 		}
-		if ok {
-			releaseSessionResource = release
-		} else if registration.lane == 0 && (registration.negotiation == nil || !registration.negotiation.known.Load()) {
+		if !ok && registration.lane == 0 && (registration.negotiation == nil || !registration.negotiation.known.Load()) {
 			// Keep the legacy primary/control path available when a new aggregate
 			// pool cannot be promised. Bulk lanes never downgrade independently.
 			aggregateOffered = false
-		} else {
+		} else if !ok {
 			return errTunnelSessionResourceUnavailable
 		}
 	}
@@ -1097,7 +1100,16 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = resp.Body.Close()
 		return err
 	}
-	capacityRuntime.setMaximum(negotiatedMaxConcurrentRequests)
+	if aggregateNegotiated && aggregateRole == tunnel.TunnelLaneRoleControl {
+		controlStreamLimit = min(tunnel.NegotiatedControlStreamLimit, agentTunnelCapacityMaximumInt(negotiatedMaxConcurrentRequests))
+		controlBytes, controlErr := tunnel.NegotiatedControlSessionResourceBytesForStreams(initialWindow, controlStreamLimit)
+		if controlErr != nil || controlReservation == nil || !controlReservation.activate(negotiatedMaxConcurrentRequests, controlBytes, controlStreamLimit) {
+			_ = resp.Body.Close()
+			return errors.New("failed to activate negotiated control resource reservation")
+		}
+	} else {
+		capacityRuntime.setMaximum(negotiatedMaxConcurrentRequests)
+	}
 	rwc, ok := resp.Body.(io.ReadWriteCloser)
 	if !ok {
 		_ = resp.Body.Close()
@@ -1107,7 +1119,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	var yamuxConfig *yamux.Config
 	if aggregateNegotiated {
 		if aggregateRole == tunnel.TunnelLaneRoleControl {
-			yamuxConfig, err = tunnel.NewNegotiatedControlYamuxConfig(nil, initialWindow, tunnel.NegotiatedControlStreamLimit)
+			yamuxConfig, err = tunnel.NewNegotiatedControlYamuxConfig(nil, initialWindow, controlStreamLimit)
 		} else {
 			yamuxConfig, err = tunnel.NewAggregateYamuxConfig(nil, maxStreamWindowSizeBytes, agentTunnelCapacityMaximumInt(negotiatedMaxConcurrentRequests))
 		}
@@ -1170,7 +1182,11 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = session.Close()
 	}()
 
-	if err := serveTunnelSessionWithPolicyCapacityAndResources(serveCtx, session, destinationPolicy, capacityRuntime, aggregateGrowth, !aggregateNegotiated, initialWindow); err != nil {
+	var activeControlReservation *agentControlSessionReservation
+	if aggregateNegotiated && aggregateRole == tunnel.TunnelLaneRoleControl {
+		activeControlReservation = controlReservation
+	}
+	if err := serveTunnelSessionWithPolicyCapacityAndResources(serveCtx, session, destinationPolicy, capacityRuntime, aggregateGrowth, !aggregateNegotiated, initialWindow, activeControlReservation); err != nil {
 		log.Debug().Err(err).Msg("Tunnel session ended")
 		return err
 	}
@@ -1228,10 +1244,10 @@ func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux
 	if len(aggregateGrowth) > 0 {
 		sessionGrowth = aggregateGrowth[0]
 	}
-	return serveTunnelSessionWithPolicyCapacityAndResources(ctx, session, destinationPolicy, capacity, sessionGrowth, false, 0)
+	return serveTunnelSessionWithPolicyCapacityAndResources(ctx, session, destinationPolicy, capacity, sessionGrowth, false, 0, nil)
 }
 
-func serveTunnelSessionWithPolicyCapacityAndResources(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy, capacity *agentTunnelCapacityRuntime, sessionGrowth *tunnel.AggregateReceiveWindowGrowth, legacySupplements bool, initialWindow int64) error {
+func serveTunnelSessionWithPolicyCapacityAndResources(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy, capacity *agentTunnelCapacityRuntime, sessionGrowth *tunnel.AggregateReceiveWindowGrowth, legacySupplements bool, initialWindow int64, controlReservation *agentControlSessionReservation) error {
 	if capacity == nil {
 		capacity = newAgentTunnelCapacityRuntime(tunnel.DefaultMaxConcurrentAgentRequests, false, nil)
 	}
@@ -1287,12 +1303,25 @@ func serveTunnelSessionWithPolicyCapacityAndResources(ctx context.Context, sessi
 				continue
 			}
 		}
-		release, capacitySnapshot, ok := capacity.tryAcquire()
+		var (
+			release          func()
+			capacitySnapshot agentTunnelCapacitySnapshot
+			ok               bool
+		)
+		if controlReservation != nil {
+			release, ok = controlReservation.tryAcquire()
+			capacitySnapshot = capacity.snapshot()
+		} else {
+			release, capacitySnapshot, ok = capacity.tryAcquire()
+		}
 		if !ok {
 			reqServerError.Add(1)
 			kind := "agent_capacity"
 			message := "agent tunnel request capacity reached"
-			if capacitySnapshot.Adaptive || capacitySnapshot.ResourceLimited {
+			// A prepaid control denial is exclusively a fixed session/global or
+			// actual-total bound. Its resource promise already exists, even when the
+			// rest of the process is under pressure.
+			if controlReservation == nil && (capacitySnapshot.Adaptive || capacitySnapshot.ResourceLimited) {
 				kind = "agent_resource_pressure"
 				message = "agent is temporarily limiting new tunnel requests to its live resource allowance"
 			}
@@ -1330,6 +1359,10 @@ func serveTunnelSessionWithPolicyCapacityAndResources(ctx context.Context, sessi
 		handlers.Add(1)
 		go func(stream net.Conn, releaseSupplement func()) {
 			defer handlers.Done()
+			handlerCtx := ctx
+			if controlReservation != nil {
+				handlerCtx = context.WithValue(handlerCtx, prepaidControlStreamContextKey{}, true)
+			}
 			maximum, _ := ctx.Value(receiveWindowContextKey{}).(int64)
 			var growing *tunnel.GrowingConn
 			if sessionGrowth != nil {
@@ -1338,7 +1371,7 @@ func serveTunnelSessionWithPolicyCapacityAndResources(ctx context.Context, sessi
 				growing = tunnel.NewGrowingConn(stream, maximum, capacity.tryReserveWindowGrowth)
 			}
 			stream = growing
-			handleTunnelStream(ctx, stream, destinationPolicy)
+			handleTunnelStream(handlerCtx, stream, destinationPolicy)
 			releaseAgentTunnelCapacityAfterPeerClose(stream, func() { growing.Release(); release(); releaseSupplement() })
 		}(stream, releaseSupplement)
 	}
@@ -1528,8 +1561,19 @@ func dialTunnelDestination(ctx context.Context, network string, address string, 
 type upstreamSocketBufferContextKey struct{}
 type upstreamCapacityContextKey struct{}
 type receiveWindowContextKey struct{}
+type prepaidControlStreamContextKey struct{}
 
 var errUpstreamSocketResourcePressure = errors.New("upstream TCP buffer resource pressure")
+
+func reserveUpstreamSocketExcess(ctx context.Context, socketBytes, included int64) (func(), bool) {
+	excess := max(0, socketBytes-included)
+	prepaidControl, _ := ctx.Value(prepaidControlStreamContextKey{}).(bool)
+	if prepaidControl && excess == 0 {
+		return func() {}, true
+	}
+	capacity, _ := ctx.Value(upstreamCapacityContextKey{}).(*agentTunnelCapacityRuntime)
+	return capacity.tryReserveWindowGrowth(excess)
+}
 
 func dialTunnelNetwork(ctx context.Context, network string, address string) (net.Conn, error) {
 	configuredBuffer, _ := ctx.Value(upstreamSocketBufferContextKey{}).(int64)
@@ -1550,12 +1594,14 @@ func dialTunnelNetwork(ctx context.Context, network string, address string) (net
 		}
 		// Explicit buffers are included in the initial stream charge. Auto mode
 		// uses the same baseline while measured pressure observes queue growth.
-		capacity, _ := ctx.Value(upstreamCapacityContextKey{}).(*agentTunnelCapacityRuntime)
 		included := max(tcpsocket.BaseMemoryBytes, 4*socketBufferBytes)
 		// Reserve even a zero-byte excess. The stream was admitted before the
 		// origin dial, and a fresh controller check must still fail closed if
-		// measured pressure became critical while that dial was in flight.
-		release, ok := capacity.tryReserveWindowGrowth(max(0, socketBytes-included))
+		// measured pressure became critical while that dial was in flight. A
+		// negotiated control stream is the sole exception: its base socket promise
+		// was prepaid before the tunnel upgrade. Unexpected positive excess still
+		// needs fresh credit and fails closed under pressure.
+		release, ok := reserveUpstreamSocketExcess(ctx, socketBytes, included)
 		if !ok {
 			_ = conn.Close()
 			return nil, errUpstreamSocketResourcePressure
