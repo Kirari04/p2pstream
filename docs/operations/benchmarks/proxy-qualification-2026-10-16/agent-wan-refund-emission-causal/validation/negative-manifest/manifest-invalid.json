@@ -1,0 +1,78 @@
+{
+  "base_ref": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+  "created_utc": "2026-10-16T07:36:18.196130+00:00",
+  "driver_origin": {
+    "build_id": "nbA2AbEB26jL51aMkUi6/nD0GkRFXzKetIlQjzQKy/6iqM6wnXz1XYoIITDh8h/TM-cZ1WI9Crgcd1KI4AP",
+    "path": "bin/driver-origin.test",
+    "sha256": "e8e1e6da00f4bc616058488c572ed3bf144839432ad3445f68361b721dafce44"
+  },
+  "driver_origin_identical_to": "refund-gathered-control.server",
+  "kind": "aggregate-refund-physical-emission-causal-diagnostic",
+  "ordinary_tags": "off",
+  "overlays": {
+    "common_scaffold": {
+      "path": "meta/common-scaffold.patch",
+      "sha256": "e78b384e8cf2fa28339ca2794dd32aaf57053a2b07aeca873fe4f2430a40c6f7"
+    },
+    "readme": {
+      "path": "meta/overlay-README.txt",
+      "sha256": "b9ff483187880bf4c395cccfc77de6604cf1b58c10053ba967472a5cad1b30e3"
+    },
+    "source_hashes": {
+      "path": "meta/source-hashes.json",
+      "sha256": "87ff187214faa13add9a54bd46a21c3a216fb1158f6d57c9f1cd6982609dea4a"
+    },
+    "split_arm_toggle": {
+      "path": "meta/split-arm-toggle.patch",
+      "sha256": "28f4c3d5ac08d32c0e146dde3b1502a2cd8250be200da6c4b7e002eeb02386ed"
+    }
+  },
+  "schema_version": 1,
+  "validation": {
+    "focused_normal": {
+      "control": "PASS",
+      "count": 10,
+      "split": "PASS"
+    },
+    "focused_race": {
+      "control": "PASS",
+      "count": 5,
+      "split": "PASS"
+    },
+    "full_yamux_normal": {
+      "control": "PASS",
+      "count": 1,
+      "split": "PASS"
+    }
+  },
+  "variants": {
+    "refund-gathered-control": {
+      "agent": {
+        "build_id": "3RzBPfFWmT5Lt2xOaJZE/lDbP7QBoCqqb98mDHKWz/ItBhCxOUvE9T-5Lm0Bki/RKlvTmkVKf7VpaIy6ceo",
+        "path": "bin/refund-gathered-control-agent.test",
+        "sha256": "3fd7b305b5d90d7c9e6548c89ffd6bbac6dd1c38fbd870b188dd842b52198bd2"
+      },
+      "diagnostic_split_aggregate_refund_writes": false,
+      "server": {
+        "build_id": "nbA2AbEB26jL51aMkUi6/nD0GkRFXzKetIlQjzQKy/6iqM6wnXz1XYoIITDh8h/TM-cZ1WI9Crgcd1KI4AP",
+        "path": "bin/refund-gathered-control-server.test",
+        "sha256": "e8e1e6da00f4bc616058488c572ed3bf144839432ad3445f68361b721dafce44"
+      },
+      "source_dir": "control"
+    },
+    "refund-split-control": {
+      "agent": {
+        "build_id": "9gWt95A3yV51wO_8D1C2/lLB23QMI58nFhLqj3T7X/-8FutlVKAByOJQPGpYvH/i5QpPiqX8WSeGSOKtxba",
+        "path": "bin/refund-split-control-agent.test",
+        "sha256": ""
+      },
+      "diagnostic_split_aggregate_refund_writes": true,
+      "server": {
+        "build_id": "GbW8ZN1CowID_I-q183t/agbhHbQqkby5KWcp9RJj/bE4lVlwafwrWIdy5YgGK/dB9pM7eTjjAFSWvLDhz_",
+        "path": "bin/refund-split-control-server.test",
+        "sha256": "197dcf54f5236e0114ec8f899f687f9c474e8c51c685490640413da658a8661d"
+      },
+      "source_dir": "candidate"
+    }
+  }
+}

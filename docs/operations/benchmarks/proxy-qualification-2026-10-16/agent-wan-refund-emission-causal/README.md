@@ -71,13 +71,17 @@ reuse behavior remain visible instead of being hidden by pooled medians.
   preserve invocation and binary identity.
 - `snapshot/` contains the exact runner, wrapper, common scaffold, boolean
   toggle, source hashes, build manifest, and build provenance used by the run.
+- `build/` retains the direct control/candidate focused normal, focused race,
+  and full-normal PASS logs, the build environment, and the exact source diff.
 - `validation/preflight/` preserves the no-workload structured preflight.
 - `validation/external-smoke/` preserves the fixture-only exact 4 MiB download
   and upload through each arm, exact event conservation, five-lane readiness,
   and natural agent/server/origin shutdown.
-- `validation/synthetic/` preserves analyzer outputs showing that wrong order,
-  malformed identity, and event-conservation errors cannot be classified as a
-  timing-only rejection.
+- `validation/synthetic/` preserves the five analyzer inputs and outputs showing
+  that wrong order, malformed identity, and event-conservation errors cannot be
+  classified as a timing-only rejection.
+- `validation/negative-manifest/` retains the malformed structured manifest and
+  its fail-closed preflight result.
 
 Runtime ready files, fixture credentials, certificates and keys, databases,
 binaries, endpoint logs, stop files, temporary source trees, and unrelated
