@@ -25,6 +25,9 @@ comparison.
   clean post-batch direct-path CPU, allocation and contention profiles.
 - [`direct-cache-readhit/README.md`](direct-cache-readhit/README.md) records
   the rejected direct-target cache read-hit experiment and its no-gain result.
+- [`lower-base-capacity/README.md`](lower-base-capacity/README.md) preserves
+  the exact constrained 1,536-request lower-base cohort, mixed-version bursts,
+  provenance and raw machine-readable rows.
 - `capacity-and-profile.jsonl` is the initial candidate `095c923` correctness,
   fixed-rate, streaming, H1/H2 1,536-barrier and recovery pass.
 - `warmed-throughput.jsonl` is one alternating baseline/candidate pass with a
