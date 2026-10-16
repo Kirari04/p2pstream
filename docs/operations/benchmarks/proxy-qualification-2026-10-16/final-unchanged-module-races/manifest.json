@@ -1,0 +1,85 @@
+{
+  "source_ref": "5f8dd01f70994dd8b3e1907ccc1f24b4f68f99e6",
+  "go_executable": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+  "go_environment": {
+    "CGO_ENABLED": "1",
+    "GOARCH": "amd64",
+    "GOFLAGS": "",
+    "GOOS": "linux",
+    "GOTOOLCHAIN": "local",
+    "GOVERSION": "go1.26.6"
+  },
+  "source_archive_sha256": "3278fcf100e2ca2ba92e9f53901af390fa4656f942c3da815c435384188198eb",
+  "owned_tmp_environment": {
+    "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-unchanged-races-5f8dd01f.yz4ywtm8/gotmp",
+    "TEMP": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-unchanged-races-5f8dd01f.yz4ywtm8/gotmp",
+    "TMP": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-unchanged-races-5f8dd01f.yz4ywtm8/gotmp",
+    "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-unchanged-races-5f8dd01f.yz4ywtm8/gotmp"
+  },
+  "source_hashes_sha256": "54d49f0e87cc9bd4a0bbc6014f12ea9838b8b1d981151d9925d1973ad58114d9",
+  "scope": "unchanged Yamux/sysmetrics races; agent/tunnel/server integration pending retained physical option",
+  "reuse_requires_byte_identical_inputs": true,
+  "phases": [
+    {
+      "name": "yamux-race-short",
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "-C",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-unchanged-races-5f8dd01f.yz4ywtm8/source/third_party/yamux",
+        "test",
+        "-json",
+        "-race",
+        "-short",
+        "-count=1",
+        "-timeout=5m",
+        "./..."
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 21.951855520019308,
+      "log": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-unchanged-races-5f8dd01f.yz4ywtm8/yamux-race-short.jsonl",
+      "log_sha256": "16be616b88713646b40e04f24390c79b138c95d24b65d31ae456b0a0b2910ace",
+      "results": {
+        "test_pass": 195,
+        "test_fail": 0,
+        "test_skip": 2,
+        "packages": [
+          {
+            "Action": "pass",
+            "Package": "github.com/hashicorp/yamux",
+            "Elapsed": 20.576
+          }
+        ]
+      }
+    },
+    {
+      "name": "sysmetrics-race",
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "-C",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-unchanged-races-5f8dd01f.yz4ywtm8/source",
+        "test",
+        "-json",
+        "-race",
+        "-count=1",
+        "-timeout=2m",
+        "./internal/sysmetrics"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 2.0863267699605785,
+      "log": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-unchanged-races-5f8dd01f.yz4ywtm8/sysmetrics-race.jsonl",
+      "log_sha256": "720208cb2a3fe0b50b252def0dae0c1d5b650116860c3b0721cc906c886a2c8a",
+      "results": {
+        "test_pass": 32,
+        "test_fail": 0,
+        "test_skip": 0,
+        "packages": [
+          {
+            "Action": "pass",
+            "Package": "p2pstream/internal/sysmetrics",
+            "Elapsed": 1.025
+          }
+        ]
+      }
+    }
+  ]
+}

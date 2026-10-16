@@ -1,0 +1,58 @@
+import hashlib, json, os, pathlib, re, subprocess, sys, tarfile, tempfile, time
+repo = pathlib.Path("/home/user/.codex/worktrees/astra-proxy-performance/p2pstream")
+ref = sys.argv[1]
+go = pathlib.Path("/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go").resolve(strict=True)
+resolved = subprocess.check_output(["git", "rev-parse", ref + "^{commit}"], cwd=repo, text=True).strip()
+assert ref == resolved and re.fullmatch(r"[0-9a-f]{40}", ref), "use full resolved immutable ref"
+artifact_parent = repo / "tmp" / "proxy-qualification"
+artifact_parent.mkdir(parents=True, exist_ok=True)
+root = pathlib.Path(tempfile.mkdtemp(prefix="final-unchanged-races-" + ref[:8] + ".", dir=artifact_parent))
+owned_tmp = root / "gotmp"; owned_tmp.mkdir()
+phase_env = dict(os.environ)
+for variable in ("TMPDIR", "TEMP", "TMP", "GOTMPDIR"):
+    phase_env[variable] = str(owned_tmp)
+phase_env.update(GOTOOLCHAIN="local", GOWORK="off", GOFLAGS="")
+phase_env["PATH"] = str(go.parent) + os.pathsep + phase_env["PATH"]
+go_environment = json.loads(subprocess.check_output([str(go), "env", "-json", "GOVERSION", "GOOS", "GOARCH", "CGO_ENABLED", "GOFLAGS", "GOTOOLCHAIN"], cwd=repo, env=phase_env, text=True))
+assert go_environment["GOVERSION"] == "go1.26.6"
+source = root / "source"; source.mkdir()
+archive = root / "source.tar"
+with archive.open("wb") as out:
+    subprocess.run(["git", "archive", ref], cwd=repo, stdout=out, check=True)
+with tarfile.open(archive) as tar:
+    tar.extractall(source, filter="data")
+phases = [
+ ("yamux-race-short", [str(go), "-C", str(source / "third_party/yamux"), "test", "-json", "-race", "-short", "-count=1", "-timeout=5m", "./..."]),
+ ("sysmetrics-race", [str(go), "-C", str(source), "test", "-json", "-race", "-count=1", "-timeout=2m", "./internal/sysmetrics"]),
+]
+source_files = [source / "go.mod", source / "go.sum"]
+for folder in ("third_party/yamux", "internal/sysmetrics"):
+    source_files.extend(sorted(path for path in (source / folder).rglob("*") if path.is_file()))
+source_hashes = {str(path.relative_to(source)): hashlib.sha256(path.read_bytes()).hexdigest() for path in source_files}
+(root / "source-hashes.json").write_text(json.dumps(source_hashes, indent=2) + "\n")
+(root / "wrapper.py.txt").write_bytes(pathlib.Path(__file__).read_bytes())
+
+manifest = {"source_ref": ref, "go_executable": str(go), "go_environment": go_environment, "source_archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(), "owned_tmp_environment": {key: phase_env[key] for key in ("TMPDIR", "TEMP", "TMP", "GOTMPDIR")}, "source_hashes_sha256": hashlib.sha256((root / "source-hashes.json").read_bytes()).hexdigest(), "scope": "unchanged Yamux/sysmetrics races; agent/tunnel/server integration pending retained physical option", "reuse_requires_byte_identical_inputs": True, "phases": []}
+(root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+pathfile = pathlib.Path("/tmp/p2pstream-final-unchanged-races-root-path"); pathfile.write_text(str(root) + "\n")
+print("Frozen unchanged-module validation root:", root, flush=True)
+for name, cmd in phases:
+    print("Starting:", name, flush=True)
+    started = time.monotonic(); log = root / (name + ".jsonl")
+    with log.open("w") as out:
+        proc = subprocess.run(cmd, cwd=source, env=phase_env, stdout=out, stderr=subprocess.STDOUT)
+    stats = {"test_pass": 0, "test_fail": 0, "test_skip": 0, "packages": []}
+    for line in log.read_text().splitlines():
+        try: row = json.loads(line)
+        except json.JSONDecodeError: continue
+        action = row.get("Action")
+        if row.get("Test") and action in ("pass", "fail", "skip"): stats["test_" + action] += 1
+        if not row.get("Test") and action in ("pass", "fail", "skip"): stats["packages"].append({k: row[k] for k in ("Action", "Package", "Elapsed") if k in row})
+    entry = {"name": name, "command": cmd, "exit_code": proc.returncode, "elapsed_seconds": time.monotonic() - started, "log": str(log), "log_sha256": hashlib.sha256(log.read_bytes()).hexdigest(), "results": stats}
+    manifest["phases"].append(entry)
+    (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    print(json.dumps(entry), flush=True)
+    if proc.returncode:
+        print(log.read_text()[-18000:], flush=True)
+        raise SystemExit(proc.returncode)
+print("Both unchanged-module race phases passed; final integration races remain pending", flush=True)

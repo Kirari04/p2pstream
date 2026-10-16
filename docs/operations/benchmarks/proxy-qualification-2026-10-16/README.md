@@ -15,6 +15,9 @@ comparison.
 
 ## Files
 
+- [`final-unchanged-module-races/README.md`](final-unchanged-module-races/README.md)
+  preserves passing frozen-source Yamux and system-metrics race checks. Their
+  reuse requires byte-identical inputs; final integration races remain pending.
 - [`final-runtime-tiny-response/README.md`](final-runtime-tiny-response/README.md)
   records the final `dc738e9` low-latency 24-row tiny-response pass.
 - [`final-runtime-standing-pools/README.md`](final-runtime-standing-pools/README.md)
@@ -61,6 +64,10 @@ comparison.
   preserves a following 96-transfer queue/acknowledgment comparison. All transfers
   are exact, but two pairs fail the primary improvement gate. Its all-phase
   floor screen passes while a smaller transition penalty remains.
+- [`agent-wan-refund-epoch-causal/README.md`](agent-wan-refund-epoch-causal/README.md)
+  preserves 96 exact transfers for bounded deferred-global scheduling. Both
+  diagnostic screens fail; the directional transition penalty remains and no
+  production publisher change is retained.
 - [`caddy-reference/moderate-runner-validation/README.md`](caddy-reference/moderate-runner-validation/README.md)
   records 19 synthetic calibration/schedule checks for the separate
   moderate-load latency comparison. Actual performance qualification is pending.
@@ -202,8 +209,9 @@ their predeclared improvement gates. The refund-control emission comparison
 fails its main gate twice while narrowly passing a separate all-phase floor
 screen. The subsequent queue/acknowledgment comparison also fails its main gate
 twice, despite exact transfers and a higher all-phase floor; a transition penalty
-remains. These diagnostics do not clear the original repeated WAN failure or
-qualify a production change.
+remains. A bounded deferred-global epoch comparison then fails both screens.
+These diagnostics do not clear the original repeated WAN failure or qualify a
+production change.
 
 Historical failure and optimization artifacts below remain useful for tracing
 the decisions that produced `dc738e9`; they are not the current qualification

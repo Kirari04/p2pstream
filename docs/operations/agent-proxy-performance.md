@@ -644,6 +644,17 @@ still run around 29.8–30.6 MB/s before reused-direction downloads reach about
 restore the historical phase pattern or qualify a production change. See the
 [queue/acknowledgment comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-refund-queue-ack-causal/README.md).
 
+A bounded deferred-global publisher experiment then fails both diagnostic
+screens. Its download ratios are 1.08133 / 0.89581 / 1.11308, below the primary
+1.10 gate in two pairs. All uploads and all 96 payload/status/protocol/event
+checks pass. The independent 29.7 MB/s transition floor fails at 29.4883 MB/s;
+first-direction downloads remain around 29.5–30.7 MB/s while reuse reaches
+about 34 MB/s. Current-control samples reach a 27.3355 MB/s minimum, without
+reproducing the earlier 12–15 MB/s stall in this cohort. The variant is
+rejected and no publisher-policy change is retained. These causal screens do
+not replace the original aggregate-versus-legacy acceptance gates. See the
+[deferred-global epoch comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-refund-epoch-causal/README.md).
+
 The next matched reference will also calibrate a separate 24-row moderate-load
 latency comparison against HAProxy. Its offered rate is fixed at half the
 lower candidate/HAProxy warmed throughput median for each protocol/concurrency
