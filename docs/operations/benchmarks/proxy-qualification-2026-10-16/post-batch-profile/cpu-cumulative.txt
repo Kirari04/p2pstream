@@ -1,0 +1,49 @@
+File: server.test
+Build ID: 487e91ba8f7bd6b5a86f29c5179dab1687f5d9a0
+Type: cpu
+Time: 2026-10-16 02:43:36 CEST
+Duration: 12.19s, Total samples = 46.29s (379.71%)
+Showing nodes accounting for 19.13s, 41.33% of 46.29s total
+Dropped 1019 nodes (cum <= 0.23s)
+Showing top 40 nodes out of 225
+      flat  flat%   sum%        cum   cum%
+     0.06s  0.13%  0.13%     25.78s 55.69%  net/http.(*conn).serve
+     0.04s 0.086%  0.22%     13.42s 28.99%  net/http.serverHandler.ServeHTTP
+     0.01s 0.022%  0.24%     13.35s 28.84%  net/http.(*ServeMux).ServeHTTP
+     0.01s 0.022%  0.26%     13.05s 28.19%  net/http.HandlerFunc.ServeHTTP
+     0.01s 0.022%  0.28%     13.01s 28.11%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+     0.02s 0.043%  0.32%        13s 28.08%  p2pstream/internal/server.servePublicProxyRequest
+         0     0%  0.32%     12.54s 27.09%  internal/poll.ignoringEINTRIO (inline)
+     0.03s 0.065%  0.39%     12.43s 26.85%  syscall.Syscall
+    12.32s 26.61% 27.00%     12.32s 26.61%  internal/runtime/syscall/linux.Syscall6
+     0.03s 0.065% 27.07%     12.30s 26.57%  syscall.RawSyscall6
+     0.12s  0.26% 27.33%     11.92s 25.75%  p2pstream/internal/server.(*publicProxyContext).run
+     0.05s  0.11% 27.44%     10.85s 23.44%  bufio.(*Writer).Flush
+     0.01s 0.022% 27.46%      9.36s 20.22%  net.(*conn).Write
+     0.02s 0.043% 27.50%      9.35s 20.20%  net.(*netFD).Write
+     0.03s 0.065% 27.57%      9.32s 20.13%  internal/poll.(*FD).Write
+         0     0% 27.57%      9.25s 19.98%  syscall.Write (inline)
+     0.03s 0.065% 27.63%      9.25s 19.98%  syscall.write
+     0.14s   0.3% 27.93%      8.96s 19.36%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+         0     0% 27.93%      8.56s 18.49%  p2pstream/internal/server.(*App).proxyDirectTargetRequestWithResolution (inline)
+     0.19s  0.41% 28.34%      8.56s 18.49%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+     0.16s  0.35% 28.69%      7.29s 15.75%  net/http/httputil.(*ReverseProxy).ServeHTTP
+     0.09s  0.19% 28.88%      6.76s 14.60%  net/http.(*response).finishRequest
+     0.01s 0.022% 28.90%      6.24s 13.48%  net/http.(*persistConn).writeLoop
+     0.01s 0.022% 28.93%      5.41s 11.69%  net/http.checkConnErrorWriter.Write
+     0.02s 0.043% 28.97%      5.40s 11.67%  crypto/tls.(*Conn).Write
+     0.02s 0.043% 29.01%      5.33s 11.51%  crypto/tls.(*Conn).writeRecordLocked
+     4.97s 10.74% 39.75%      5.15s 11.13%  runtime.cgocall
+     0.07s  0.15% 39.90%      4.82s 10.41%  crypto/tls.(*Conn).write
+     0.01s 0.022% 39.92%      4.63s 10.00%  net/http.persistConnWriter.Write
+         0     0% 39.92%      4.62s  9.98%  github.com/mattn/go-sqlite3.(*SQLiteStmt).exec.func1
+         0     0% 39.92%      4.61s  9.96%  github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync
+     0.11s  0.24% 40.16%      4.59s  9.92%  net/http.(*persistConn).readLoop
+     0.08s  0.17% 40.33%      3.99s  8.62%  bufio.(*Reader).Peek
+     0.06s  0.13% 40.46%      3.91s  8.45%  bufio.(*Reader).fill
+     0.29s  0.63% 41.09%      3.63s  7.84%  runtime.mallocgc
+     0.02s 0.043% 41.13%      3.62s  7.82%  net.(*conn).Read
+     0.03s 0.065% 41.20%      3.51s  7.58%  internal/poll.(*FD).Read
+     0.04s 0.086% 41.28%      3.51s  7.58%  net.(*netFD).Read
+     0.02s 0.043% 41.33%      3.36s  7.26%  crypto/tls.(*Conn).Read
+         0     0% 41.33%      3.34s  7.22%  github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync.func2 (inline)

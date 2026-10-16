@@ -1,0 +1,44 @@
+File: server.test
+Build ID: 487e91ba8f7bd6b5a86f29c5179dab1687f5d9a0
+Type: cpu
+Time: 2026-10-16 02:43:36 CEST
+Duration: 12.19s, Total samples = 46.29s (379.71%)
+Showing nodes accounting for 25.94s, 56.04% of 46.29s total
+Dropped 1019 nodes (cum <= 0.23s)
+Showing top 35 nodes out of 225
+      flat  flat%   sum%        cum   cum%
+    12.32s 26.61% 26.61%     12.32s 26.61%  internal/runtime/syscall/linux.Syscall6
+     4.97s 10.74% 37.35%      5.15s 11.13%  runtime.cgocall
+     0.69s  1.49% 38.84%      1.49s  3.22%  runtime.selectgo
+     0.56s  1.21% 40.05%      0.56s  1.21%  runtime.nextFreeFast (inline)
+     0.53s  1.14% 41.20%      1.06s  2.29%  net/textproto.CanonicalMIMEHeaderKey
+     0.50s  1.08% 42.28%      0.50s  1.08%  net/textproto.validHeaderFieldByte (inline)
+     0.40s  0.86% 43.14%      0.40s  0.86%  runtime.memmove
+     0.40s  0.86% 44.01%      0.40s  0.86%  time.runtimeNow
+     0.39s  0.84% 44.85%      2.48s  5.36%  runtime.newobject
+     0.36s  0.78% 45.63%      0.36s  0.78%  aeshashbody
+     0.32s  0.69% 46.32%      0.32s  0.69%  runtime.memclrNoHeapPointers
+     0.30s  0.65% 46.96%      0.35s  0.76%  runtime.(*mspan).writeHeapBitsSmall
+     0.29s  0.63% 47.59%      3.63s  7.84%  runtime.mallocgc
+     0.29s  0.63% 48.22%      2.04s  4.41%  runtime.mallocgcSmallScanNoHeader
+     0.28s   0.6% 48.82%      0.36s  0.78%  internal/sync.(*Mutex).Lock (inline)
+     0.27s  0.58% 49.41%      0.48s  1.04%  runtime.chanrecv
+     0.20s  0.43% 49.84%      0.36s  0.78%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+     0.20s  0.43% 50.27%      0.92s  1.99%  net/http.Header.writeSubset
+     0.19s  0.41% 50.68%      8.56s 18.49%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+     0.19s  0.41% 51.09%      0.27s  0.58%  runtime.lock2
+     0.19s  0.41% 51.50%      0.51s  1.10%  runtime.mapaccess1_faststr
+     0.18s  0.39% 51.89%      0.61s  1.32%  p2pstream/internal/server.(*App).proxyRouteTargetRequest.func1
+     0.18s  0.39% 52.28%      0.58s  1.25%  p2pstream/internal/server.(*App).selectRouteTarget
+     0.18s  0.39% 52.67%      0.34s  0.73%  runtime.tryDeferToSpanScan
+     0.17s  0.37% 53.04%      0.30s  0.65%  context.(*cancelCtx).Done
+     0.16s  0.35% 53.38%      7.29s 15.75%  net/http/httputil.(*ReverseProxy).ServeHTTP
+     0.16s  0.35% 53.73%      0.76s  1.64%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+     0.14s   0.3% 54.03%      0.38s  0.82%  internal/poll.runtime_pollSetDeadline
+     0.14s   0.3% 54.33%      0.34s  0.73%  net/http/httputil.(*ReverseProxy).modifyResponse
+     0.14s   0.3% 54.63%      8.96s 19.36%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+     0.13s  0.28% 54.91%      2.32s  5.01%  crypto/tls.(*atLeastReader).Read
+     0.13s  0.28% 55.20%      2.99s  6.46%  net/http.(*Transport).roundTrip
+     0.13s  0.28% 55.48%      1.53s  3.31%  net/http.(*persistConn).roundTrip
+     0.13s  0.28% 55.76%      0.44s  0.95%  net/textproto.canonicalMIMEHeaderKey
+     0.13s  0.28% 56.04%      0.78s  1.69%  runtime.mapassign_faststr

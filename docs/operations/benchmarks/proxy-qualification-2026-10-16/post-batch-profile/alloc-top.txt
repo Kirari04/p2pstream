@@ -1,0 +1,43 @@
+File: server.test
+Build ID: 487e91ba8f7bd6b5a86f29c5179dab1687f5d9a0
+Type: alloc_space
+Time: 2026-10-16 02:43:48 CEST
+Showing nodes accounting for 2.96GB, 90.34% of 3.28GB total
+Dropped 298 nodes (cum <= 0.02GB)
+Showing top 35 nodes out of 99
+      flat  flat%   sum%        cum   cum%
+    0.33GB  9.91%  9.91%     0.33GB 10.11%  database/sql.driverArgsConnLocked
+    0.31GB  9.50% 19.41%     0.34GB 10.45%  net/textproto.readMIMEHeader
+    0.28GB  8.62% 28.03%     0.28GB  8.62%  net/http.Header.Clone (inline)
+    0.18GB  5.42% 33.45%     0.18GB  5.42%  net/http.(*Request).WithContext (inline)
+    0.12GB  3.65% 37.09%     0.12GB  3.65%  net/textproto.MIMEHeader.Add (inline)
+    0.11GB  3.42% 40.52%     0.14GB  4.32%  net/http.(*Transport).getConn
+    0.11GB  3.32% 43.84%     1.60GB 48.64%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+    0.11GB  3.27% 47.11%     0.18GB  5.46%  net/http.(*persistConn).roundTrip
+    0.10GB  3.14% 50.25%     0.31GB  9.54%  net/http.readRequest
+    0.10GB  3.08% 53.33%     0.27GB  8.28%  net/http.(*Request).Clone
+    0.09GB  2.66% 56.00%     0.09GB  2.66%  context.(*cancelCtx).propagateCancel
+    0.08GB  2.49% 58.48%     0.36GB 10.94%  net/http.(*persistConn).readLoop
+    0.08GB  2.41% 60.89%     1.47GB 44.69%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+    0.08GB  2.38% 63.27%     0.08GB  2.38%  context.(*cancelCtx).Done
+    0.08GB  2.35% 65.62%     0.42GB 12.93%  net/http.(*conn).readRequest
+    0.07GB  2.08% 67.71%     0.16GB  4.73%  context.withCancel (inline)
+    0.06GB  1.84% 69.55%     0.06GB  1.84%  p2pstream/internal/server.newAppServices.newReverseProxyBufferPool.func2
+    0.06GB  1.83% 71.38%     1.37GB 41.70%  net/http/httputil.(*ReverseProxy).ServeHTTP
+    0.06GB  1.70% 73.08%     0.06GB  1.70%  p2pstream/internal/db.appendProxyRequestEventArgs
+    0.05GB  1.43% 74.51%     0.05GB  1.43%  net/http.newTransferWriter
+    0.05GB  1.43% 75.93%     0.05GB  1.43%  context.WithValue
+    0.05GB  1.41% 77.35%     0.05GB  1.41%  net/url.parse
+    0.04GB  1.32% 78.67%     0.04GB  1.32%  net/http.cloneURL (inline)
+    0.04GB  1.28% 79.95%     0.26GB  8.01%  net/http.ReadResponse
+    0.04GB  1.19% 81.14%     0.04GB  1.19%  net.SplitHostPort.func1 (inline)
+    0.04GB  1.13% 82.27%     0.04GB  1.13%  net/textproto.canonicalMIMEHeaderKey
+    0.04GB  1.10% 83.38%     0.04GB  1.10%  time.newTimer
+    0.04GB  1.09% 84.46%     0.07GB  2.19%  time.NewTimer
+    0.03GB  1.03% 85.49%     0.05GB  1.50%  p2pstream/internal/server.WithClientIdentity
+    0.03GB  0.91% 86.40%     0.03GB  0.98%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResource
+    0.03GB  0.86% 87.26%     0.03GB  0.86%  p2pstream/internal/server.(*publicProxyContext).deferCleanup
+    0.03GB  0.83% 88.09%     0.03GB  0.83%  github.com/pressly/goose/v3/internal/sqlparser.init.func1
+    0.03GB  0.82% 88.91%     0.03GB     1%  net/textproto.MIMEHeader.Set (inline)
+    0.02GB  0.71% 89.63%     0.02GB  0.71%  net.(*conn).Read
+    0.02GB  0.71% 90.34%     0.51GB 15.63%  net/http.(*Transport).roundTrip

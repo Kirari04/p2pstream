@@ -1,0 +1,37 @@
+File: server.test
+Build ID: 487e91ba8f7bd6b5a86f29c5179dab1687f5d9a0
+Type: delay
+Time: 2026-10-16 02:44:22 CEST
+Showing nodes accounting for 2426.60s, 100% of 2426.64s total
+Dropped 134 nodes (cum <= 12.13s)
+      flat  flat%   sum%        cum   cum%
+  2150.62s 88.63% 88.63%   2150.62s 88.63%  runtime.selectgo
+   217.05s  8.94% 97.57%    217.05s  8.94%  sync.(*Cond).Wait
+    38.63s  1.59% 99.16%     38.63s  1.59%  runtime.chanrecv1
+    20.30s  0.84%   100%     20.30s  0.84%  sync.(*Mutex).Lock (inline)
+         0     0%   100%    727.96s 30.00%  net/http.(*ServeMux).ServeHTTP
+         0     0%   100%    945.06s 38.95%  net/http.(*Server).Serve.gowrap3
+         0     0%   100%    685.10s 28.23%  net/http.(*Transport).RoundTrip
+         0     0%   100%     12.64s  0.52%  net/http.(*Transport).dialConn.gowrap2
+         0     0%   100%   1436.74s 59.21%  net/http.(*Transport).dialConn.gowrap3
+         0     0%   100%    685.10s 28.23%  net/http.(*Transport).roundTrip
+         0     0%   100%     35.82s  1.48%  net/http.(*bodyEOFSignal).Read
+         0     0%   100%     35.82s  1.48%  net/http.(*bodyEOFSignal).condfn (inline)
+         0     0%   100%    945.06s 38.95%  net/http.(*conn).serve
+         0     0%   100%    217.05s  8.94%  net/http.(*connReader).abortPendingRead
+         0     0%   100%     12.64s  0.52%  net/http.(*persistConn).readLoop
+         0     0%   100%     35.82s  1.48%  net/http.(*persistConn).readLoop.func4
+         0     0%   100%    676.96s 27.90%  net/http.(*persistConn).roundTrip
+         0     0%   100%   1436.74s 59.21%  net/http.(*persistConn).writeLoop
+         0     0%   100%    217.05s  8.94%  net/http.(*response).finishRequest
+         0     0%   100%       728s 30.00%  net/http.HandlerFunc.ServeHTTP
+         0     0%   100%       728s 30.00%  net/http.serverHandler.ServeHTTP
+         0     0%   100%    720.90s 29.71%  net/http/httputil.(*ReverseProxy).ServeHTTP
+         0     0%   100%     35.82s  1.48%  net/http/httputil.(*ReverseProxy).copyBuffer
+         0     0%   100%     35.82s  1.48%  net/http/httputil.(*ReverseProxy).copyResponse
+         0     0%   100%    722.56s 29.78%  p2pstream/internal/server.(*App).proxyDirectTargetRequestWithResolution (inline)
+         0     0%   100%    722.56s 29.78%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+         0     0%   100%    727.95s 30.00%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+         0     0%   100%    727.95s 30.00%  p2pstream/internal/server.(*publicProxyContext).run
+         0     0%   100%    722.56s 29.78%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+         0     0%   100%    727.95s 30.00%  p2pstream/internal/server.servePublicProxyRequest

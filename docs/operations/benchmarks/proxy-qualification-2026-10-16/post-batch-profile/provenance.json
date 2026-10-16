@@ -1,0 +1,41 @@
+{
+  "source_commit": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "source_archive": "<clean-archive>",
+  "binary": "<clean-archive>/server.test",
+  "binary_sha256": "b5ae445e18ba781c73d81f6a6d587b0c51408dafccb7e5702a1b023d53929ea3",
+  "harness_sha256": "9a3ac62225dd404d4a93cb9560678041cfb84995e0c38f7bd183547ff3ee68f0",
+  "runner_sha256": "13297f8b9fb1fa166819bbee722df431c3b68928ec5b691db146460ff1d69c6e",
+  "production_overlays": [],
+  "test_overlays": [],
+  "purpose": "Finite current direct H1/128 CPU+allocation+contention diagnosis; profiled rates are not decisive throughput evidence.",
+  "proxy_cpus": "0-3",
+  "load_origin_cpus": "4-15",
+  "gomaxprocs": 4,
+  "planned_modes": [
+    "cpu",
+    "contention"
+  ],
+  "started_utc": "2026-10-16T00:43:35.476953+00:00",
+  "cpu_coordination": "Direct exclusive CPU handoff from protocol worker; Astra and qualification worker explicitly acknowledged source-only.",
+  "raw_runs": {
+    "cpu": "/tmp/p2pstream-caddy-3ec137c.SoeRAa/tmp/proxy-qualification.S8MTwz",
+    "contention": "/tmp/p2pstream-caddy-3ec137c.SoeRAa/tmp/proxy-qualification.7QelpT"
+  },
+  "files": {
+    "cpu-top.txt": "deef57273ef75539c4c160fc31a9f785371533b25bfbe716faab65dddd95a9c4",
+    "cpu-cumulative.txt": "0386a2a912c7e992f1d26c0fe9d319c3edc0e723c68cf9524f0463203704e1c6",
+    "alloc-top.txt": "ce235db84854d41cbdbb8059154fbf2241e9ab8816f9fada67043e8f6649542b",
+    "mutex-top.txt": "8ca812c75738194790c6769437b3f9e3c4cd3f435666127546521db7c6b7aef8",
+    "block-top.txt": "0a42d7698ffc72a417bb2528b5e9ff837daeb1e5b5fe878d5caef94232d032ee",
+    "cpu-results.jsonl": "263ccd176c7c2fdfb4956ac58840d5bcd51d39738a7f91b8f9361479daa449e4",
+    "contention-results.jsonl": "63c6842040fa824e27e1d1b16712a29b24dbababc8296d544251e786d60190ac"
+  },
+  "limitations": [
+    "CPU profiles cover warmup and timed measurement; allocation profiles also include process setup and fixture initialization.",
+    "The contention pass uses mutex sampling fraction100 and block profile rate1000000ns. Shares are sampled delay, not CPU percentages.",
+    "Profiled throughput is diagnostic, not a new decisive comparison.",
+    "Proxy and idle real-agent fixture share one4GiB cgroup; this is a direct path profile, not aggregate tunnel capacity evidence."
+  ],
+  "packaged_utc": "2026-10-16T00:48:52.398174+00:00",
+  "completion_observed_utc": "2026-10-16T00:44:35+00:00"
+}
