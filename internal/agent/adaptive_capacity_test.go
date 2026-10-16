@@ -938,6 +938,84 @@ func TestFixedAgentCapacityDistinguishesResourceAndOperatorLimits(t *testing.T) 
 	release()
 }
 
+func TestAgentReceiveResourceSnapshotSeparatesSessionPoolsAndStreamGrowth(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 2 << 30, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.forceRefresh()
+	releaseSession, ok := capacity.tryReserveAggregateSessionResource(5<<20, 1<<20)
+	if !ok {
+		t.Fatal("session resource reservation denied")
+	}
+	releaseGrowth, ok := capacity.tryReserveAggregateSessionGrowth(3 << 20)
+	if !ok {
+		releaseSession()
+		t.Fatal("session growth reservation denied")
+	}
+	releaseControl, ok := capacity.tryReserveLegacyControlResource(2 << 20)
+	if !ok {
+		releaseGrowth()
+		releaseSession()
+		t.Fatal("control receive-window reservation denied")
+	}
+	releaseWindow, ok := capacity.tryReserveWindowGrowth(2 << 20)
+	if !ok {
+		releaseControl()
+		releaseGrowth()
+		releaseSession()
+		t.Fatal("stream growth reservation denied")
+	}
+	snapshot := capacity.snapshot()
+	if snapshot.SessionResourceBytes != 11<<20 || snapshot.ReceiveWindowBytes != 2<<20 ||
+		snapshot.AggregateInitialPoolBytes != 5<<20 || snapshot.AggregateGrowthPoolBytes != 3<<20 ||
+		snapshot.AggregateCurrentPoolBytes != 8<<20 || snapshot.AggregateSessionMetadataBytes != 1<<20 ||
+		snapshot.LegacyControlSupplementBytes != 2<<20 {
+		t.Fatalf("owned receive resource snapshot = %+v", snapshot)
+	}
+	releaseWindow()
+	releaseControl()
+	releaseGrowth()
+	releaseSession()
+	clean := capacity.snapshot()
+	if clean.SessionResourceBytes != 0 || clean.ReceiveWindowBytes != 0 ||
+		clean.AggregateInitialPoolBytes != 0 || clean.AggregateGrowthPoolBytes != 0 ||
+		clean.AggregateCurrentPoolBytes != 0 || clean.AggregateSessionMetadataBytes != 0 ||
+		clean.LegacyControlSupplementBytes != 0 {
+		t.Fatalf("released receive resources = %+v", clean)
+	}
+}
+
+func TestAgentSessionReservationRejectsGrossHeadroomAtZeroStreams(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.forceRefresh()
+	if release, ok := capacity.tryReserveSessionResource(1 << 30); ok {
+		release()
+		t.Fatal("oversized idle session promise exceeded real memory headroom")
+	}
+	if got := capacity.snapshot().SessionResourceBytes; got != 0 {
+		t.Fatalf("denied idle session retained %d bytes", got)
+	}
+
+	const perSession = int64(16 << 20)
+	var releases []func()
+	for len(releases) < 64 {
+		release, ok := capacity.tryReserveSessionResource(perSession)
+		if !ok {
+			break
+		}
+		releases = append(releases, release)
+	}
+	if len(releases) == 0 || len(releases) == 64 {
+		t.Fatalf("idle session reservations admitted %d; want bounded positive count", len(releases))
+	}
+	for _, release := range releases {
+		release()
+	}
+	if got := capacity.snapshot().SessionResourceBytes; got != 0 {
+		t.Fatalf("idle session cleanup retained %d bytes", got)
+	}
+}
+
 func BenchmarkAdaptiveAgentCapacityAcquireRelease(b *testing.B) {
 	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "benchmark"}
 	capacity := newTestAgentAdaptiveCapacity(b, &usage)

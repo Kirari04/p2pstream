@@ -872,14 +872,50 @@ func (a *App) dialViaAgentWithCapacity(
 		return nil, errAgentUpdateCordoned
 	}
 	lane := 0
-	if len(preferredLane) > 0 {
+	if agent != nil && agent.AggregateFlowControl {
+		if class == agentStreamCapacityTrustedHealth {
+			if len(preferredLane) > 0 && preferredLane[0] != 0 {
+				return nil, errAgentDisconnected
+			}
+			lane = 0
+		} else {
+			if len(preferredLane) > 0 {
+				lane = preferredLane[0]
+				if lane == 0 {
+					return nil, errAgentDisconnected
+				}
+			} else {
+				lane = agent.transportLane()
+			}
+		}
+	} else if len(preferredLane) > 0 {
 		lane = preferredLane[0]
 	} else if agent != nil {
 		lane = agent.transportLane()
 	}
-	session := agent.tunnelSession(lane)
-	if agent == nil || session == nil {
+	if agent == nil || lane < 0 {
 		return nil, errAgentDisconnected
+	}
+	session := agent.tunnelSession(lane)
+	if session == nil {
+		return nil, errAgentDisconnected
+	}
+	var releaseControl func()
+	controlOwned := false
+	if agent.AggregateFlowControl && class == agentStreamCapacityTrustedHealth {
+		controlCtx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+		var ok bool
+		releaseControl, ok = agent.acquireControlStream(controlCtx)
+		cancel()
+		if !ok {
+			return nil, agentDialError{Kind: "server_capacity", Err: "agent control stream capacity reached"}
+		}
+		controlOwned = true
+		defer func() {
+			if controlOwned {
+				releaseControl()
+			}
+		}()
 	}
 	if a.agentStreamCapacity == nil {
 		return nil, agentDialError{Kind: "server_capacity", Err: "server stream capacity manager unavailable"}
@@ -936,22 +972,31 @@ func (a *App) dialViaAgentWithCapacity(
 		return nil, errAgentUpdateCordoned
 	}
 
+	// From this point the async opener or the capacity-managed connection owns
+	// the control lease, including when the caller cancels before Open returns.
+	controlOwned = false
 	openCh := startCapacityManagedAgentStreamOpen(ctx, agent, func() (net.Conn, error) {
 		conn, err := session.Open()
 		if err != nil {
 			lease.release()
+			if releaseControl != nil {
+				releaseControl()
+			}
 			return nil, err
 		}
 		if !lease.markLive() {
 			_ = conn.Close()
 			lease.release()
+			if releaseControl != nil {
+				releaseControl()
+			}
 			return nil, errors.New("agent tunnel stream capacity lease left opening state")
 		}
 		maximumWindow := tunnel.DefaultMaxStreamWindowSizeBytes
 		if a.Config != nil && a.Config.TunnelMaxStreamWindowBytes > 0 {
 			maximumWindow = a.Config.TunnelMaxStreamWindowBytes
 		}
-		return newCapacityManagedAgentTunnelStreamConn(conn, agent, lease, maximumWindow), nil
+		return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, releaseControl, maximumWindow), nil
 	})
 
 	var conn net.Conn

@@ -84,6 +84,42 @@ type aggregateWindow struct {
 	publishDone chan struct{}
 }
 
+// AggregateReceiveWindowStats is a fixed-cardinality diagnostic snapshot of
+// the receiver-owned payload pool. BufferedUnits includes chunks borrowed by
+// the physical reader while a DATA frame is being copied.
+type AggregateReceiveWindowStats struct {
+	Enabled          bool
+	Closed           bool
+	ReceiveLimit     uint32
+	ReceiveAvailable uint32
+	TotalUnits       uint32
+	FreeUnits        uint32
+	BufferedUnits    uint32
+	PendingRefund    uint64
+}
+
+func (s *Session) AggregateReceiveWindowStats() AggregateReceiveWindowStats {
+	if s == nil || s.aggregate == nil {
+		return AggregateReceiveWindowStats{}
+	}
+	a := s.aggregate
+	a.mu.Lock()
+	stats := AggregateReceiveWindowStats{
+		Enabled:          true,
+		Closed:           a.poolClosed,
+		ReceiveLimit:     a.recvLimit,
+		ReceiveAvailable: a.recvWindow,
+		TotalUnits:       a.totalUnits,
+		FreeUnits:        a.freeUnits,
+		PendingRefund:    a.pendingGlobal + a.publishingGlobal,
+	}
+	if a.totalUnits >= a.freeUnits {
+		stats.BufferedUnits = a.totalUnits - a.freeUnits
+	}
+	a.mu.Unlock()
+	return stats
+}
+
 func newAggregateWindow(config *Config) *aggregateWindow {
 	a := &aggregateWindow{
 		protocolMax: config.MaxSessionWindowSize,

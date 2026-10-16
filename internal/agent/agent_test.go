@@ -3,9 +3,11 @@ package agent
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -286,6 +288,98 @@ func TestTunnelCapacityLeaseWaitsForPeerFIN(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("agent session did not stop")
+	}
+}
+
+func TestAggregateCapacityRejectionSlotsBoundUncooperativePeers(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	agentConfig, err := tunnel.NewAggregateYamuxConfig(nil, tunnel.DefaultMaxStreamWindowSizeBytes, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverConfig, err := tunnel.NewAggregateYamuxConfig(nil, tunnel.DefaultMaxStreamWindowSizeBytes, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	agentSession, err := yamux.Client(clientConn, agentConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverSession, err := yamux.Server(serverConn, serverConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capacity := newAgentTunnelCapacityRuntime(1, false, nil)
+	releaseHeld, _, ok := capacity.tryAcquire()
+	if !ok {
+		t.Fatal("failed to occupy agent capacity")
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() { done <- serveTunnelSessionWithPolicyAndCapacity(ctx, agentSession, nil, capacity) }()
+	t.Cleanup(func() {
+		releaseHeld()
+		cancel()
+		serverSession.Close()
+		agentSession.Close()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Error("aggregate rejection session did not stop")
+		}
+	})
+
+	peers := make([]*yamux.Stream, 0, tunnel.AggregateRejectedStreamLimit)
+	for index := range tunnel.AggregateRejectedStreamLimit + 1 {
+		stream, openErr := serverSession.OpenStream()
+		if openErr != nil {
+			t.Fatalf("open rejected stream %d: %v", index, openErr)
+		}
+		_ = stream.SetDeadline(time.Now().Add(time.Second))
+		writeErr := tunnel.WriteOpenRequest(stream, tunnel.NewOpenRequest(strconv.Itoa(index), "tcp", "127.0.0.1:1"))
+		if writeErr != nil && index < tunnel.AggregateRejectedStreamLimit {
+			t.Fatalf("write rejected stream %d: %v", index, writeErr)
+		}
+		var response tunnel.OpenResponse
+		readErr := writeErr
+		if writeErr == nil {
+			response, readErr = tunnel.ReadOpenResponse(stream)
+		}
+		if index < tunnel.AggregateRejectedStreamLimit {
+			if readErr != nil || response.OK || response.ErrorKind != "agent_capacity" {
+				t.Fatalf("bounded rejection %d = %+v, %v", index, response, readErr)
+			}
+			// Deliberately withhold peer FIN so the local rejection slot remains
+			// retained through the full closing lifetime.
+			peers = append(peers, stream)
+			continue
+		}
+		if !errors.Is(readErr, yamux.ErrConnectionReset) {
+			t.Fatalf("excess rejection = %+v, %v; want immediate reset", response, readErr)
+		}
+		_ = stream.Close()
+	}
+
+	if _, err := serverSession.Ping(); err != nil {
+		t.Fatalf("control traffic stalled behind rejected streams: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		stats := agentSession.AggregateReceiveWindowStats()
+		if stats.BufferedUnits == 0 && stats.PendingRefund == 0 && stats.FreeUnits == stats.TotalUnits {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	stats := agentSession.AggregateReceiveWindowStats()
+	if stats.BufferedUnits != 0 || stats.PendingRefund != 0 || stats.FreeUnits != stats.TotalUnits {
+		t.Fatalf("rejection payload pool not conserved: %+v", stats)
+	}
+	if got := agentSession.NumStreams(); got > tunnel.AggregateRejectedStreamLimit {
+		t.Fatalf("retained rejected streams = %d, limit %d", got, tunnel.AggregateRejectedStreamLimit)
+	}
+	for _, stream := range peers {
+		_ = stream.Close()
 	}
 }
 

@@ -39,6 +39,20 @@ const (
 	MaxAdaptiveConcurrentStreamsLimit = MaxServerConcurrentStreamsLimit
 	DefaultUpstreamSocketBufferBytes  = int64(0) // kernel autotuning
 	MaxUpstreamSocketBufferBytes      = int64(16 * 1024 * 1024)
+	// AggregateAcceptBacklogStreams includes Yamux's bounded accept queue plus
+	// the one stream removed from that queue while synchronous application
+	// admission is deciding whether to serve or reset it.
+	AggregateAcceptBacklogStreams = 257
+	// AggregateSessionMetadataBytes covers the Session, queues, publisher state,
+	// slab descriptors and allocator slack outside the payload pool itself.
+	AggregateSessionMetadataBytes = int64(256 * 1024)
+	// AggregatePendingStreamMetadataBytes is a conservative bound for a stream
+	// object, channels, headers and allocator slack before application admission.
+	AggregatePendingStreamMetadataBytes = int64(8 * 1024)
+	NegotiatedControlStreamLimit        = 4
+	// AggregateRejectedStreamLimit bounds graceful capacity-error responses
+	// retained until peer FIN. Excess rejected streams are reset immediately.
+	AggregateRejectedStreamLimit = 16
 )
 
 // StreamResourceModel describes resources owned by one admitted logical
@@ -199,6 +213,81 @@ func NewYamuxConfig(logger yamux.Logger, maxStreamWindowSizeBytes int64) (*yamux
 		cfg.LogOutput = io.Discard
 	}
 	return cfg, nil
+}
+
+// NewAggregateYamuxConfig enables the versioned bounded session payload pool.
+// maxStreamWindowSizeBytes remains the byte-window policy; allocation-unit
+// ceilings are a distinct wire contract. maxIncomingStreams is -1 to reject
+// all peer SYNs, or a positive hard bound enforced before stream allocation.
+func NewAggregateYamuxConfig(logger yamux.Logger, maxStreamWindowSizeBytes int64, maxIncomingStreams int) (*yamux.Config, error) {
+	cfg, err := NewYamuxConfig(logger, maxStreamWindowSizeBytes)
+	if err != nil {
+		return nil, err
+	}
+	wire := DefaultAggregateFlowControlConfig()
+	cfg.MaxIncomingStreams = maxIncomingStreams
+	cfg.InitialSessionWindowSize = wire.InitialSessionWindow
+	cfg.MaxSessionWindowSize = wire.MaxSessionWindow
+	cfg.MaxDataFrameSize = wire.MaxDataFrame
+	cfg.InitialStreamAllocationWindowSize = wire.InitialStreamWindow
+	cfg.MaxStreamAllocationWindowSize = wire.MaxStreamWindow
+	if err := yamux.VerifyConfig(cfg); err != nil {
+		return nil, fmt.Errorf("invalid aggregate Yamux configuration: %w", err)
+	}
+	return cfg, nil
+}
+
+// NewNegotiatedControlYamuxConfig preserves legacy per-stream DATA flow
+// control on the dedicated lane while enforcing its negotiated hard incoming
+// stream bound before the reader starts.
+func NewNegotiatedControlYamuxConfig(logger yamux.Logger, maxStreamWindowSizeBytes int64, maxIncomingStreams int) (*yamux.Config, error) {
+	cfg, err := NewYamuxConfig(logger, maxStreamWindowSizeBytes)
+	if err != nil {
+		return nil, err
+	}
+	cfg.MaxIncomingStreams = maxIncomingStreams
+	if err := yamux.VerifyConfig(cfg); err != nil {
+		return nil, fmt.Errorf("invalid negotiated control Yamux configuration: %w", err)
+	}
+	return cfg, nil
+}
+
+// AggregateSessionResourceBytes is the lifetime reservation required before
+// advertising an aggregate receive pool. It includes the exact conservative
+// pool allocation model plus fixed session state and a caller-selected bound
+// for peer-created streams awaiting synchronous application admission.
+func AggregateSessionResourceBytes(window uint32, pendingStreams int) (int64, error) {
+	if pendingStreams < 0 {
+		return 0, errors.New("aggregate pending stream count must not be negative")
+	}
+	pool := yamux.AggregateReceiveWindowMemory(window)
+	base := uint64(AggregateSessionMetadataBytes)
+	perStream := uint64(AggregatePendingStreamMetadataBytes)
+	if uint64(pendingStreams) > (math.MaxUint64-base)/perStream {
+		return 0, errors.New("aggregate pending stream reservation exceeds accounting range")
+	}
+	metadata := base + uint64(pendingStreams)*perStream
+	if metadata > uint64(math.MaxInt64) || pool > uint64(math.MaxInt64)-metadata {
+		return 0, errors.New("aggregate session resource reservation exceeds accounting range")
+	}
+	return int64(pool + metadata), nil
+}
+
+// NegotiatedControlSessionResourceBytes reserves the four full legacy receive
+// promises before a negotiated control session starts. The hard Yamux incoming
+// cap makes this session-lifetime envelope complete for unaccepted streams.
+func NegotiatedControlSessionResourceBytes(windowBytes int64) (int64, error) {
+	window, err := InitialReceiveWindow(windowBytes)
+	if err != nil {
+		return 0, err
+	}
+	receive := yamux.ReceiveWindowMemory(uint32(window))
+	perStream := receive + uint64(AggregatePendingStreamMetadataBytes)
+	total := uint64(AggregateSessionMetadataBytes) + uint64(NegotiatedControlStreamLimit)*perStream
+	if total > math.MaxInt64 {
+		return 0, errors.New("control session resource reservation exceeds accounting range")
+	}
+	return int64(total), nil
 }
 
 func NormalizeMaxStreamWindowSizeBytes(sizeBytes int64) (uint32, error) {

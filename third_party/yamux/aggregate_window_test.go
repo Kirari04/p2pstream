@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"net"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -133,6 +134,37 @@ func TestAggregateIncomingStreamLimitRejectsBeforeObjectAllocation(t *testing.T)
 				}
 			}
 		})
+	}
+}
+
+func TestAggregateLocalResetReclaimsStream(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	config := smallAggregateTestConfig()
+	client, server := testClientServerConfig(t, clientConn, serverConn, config.Clone(), config.Clone())
+	defer client.Close()
+	defer server.Close()
+
+	clientStream, err := client.OpenStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverStream, err := server.AcceptStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := serverStream.Reset(); err != nil {
+		t.Fatal(err)
+	}
+	buffer := make([]byte, 1)
+	if _, err := clientStream.Read(buffer); !errors.Is(err, ErrConnectionReset) {
+		t.Fatalf("read after reset = %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for server.NumStreams() != 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := server.NumStreams(); got != 0 {
+		t.Fatalf("reset retained %d server streams", got)
 	}
 }
 

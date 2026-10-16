@@ -575,6 +575,34 @@ SEND_CLOSE:
 	return nil
 }
 
+// Reset aborts the stream and releases its receive storage immediately. It is
+// serialized with local writes, but the peer is allowed to discard unread
+// DATA on RST. Unlike Close it does not retain the stream until a peer FIN or
+// close timeout.
+func (s *Stream) Reset() error {
+	s.sendLock.Lock()
+	defer s.sendLock.Unlock()
+
+	s.stateLock.Lock()
+	if s.state == streamReset || s.state == streamClosed {
+		s.stateLock.Unlock()
+		return nil
+	}
+	s.state = streamReset
+	if s.closeTimer != nil {
+		s.closeTimer.Stop()
+		s.closeTimer = nil
+	}
+	s.discardReceiveBuffer(true)
+	s.stateLock.Unlock()
+	s.notifyWaiting()
+	s.session.closeStream(s.id)
+
+	hdr := header(make([]byte, headerSize))
+	hdr.encode(typeWindowUpdate, flagRST, s.id, 0)
+	return s.session.sendNoWait(hdr)
+}
+
 // closeTimeout is called after StreamCloseTimeout during a close to
 // close this stream.
 func (s *Stream) closeTimeout() {

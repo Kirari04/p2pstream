@@ -34,6 +34,10 @@ func newAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, release func()) n
 }
 
 func newCapacityManagedAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, lease *agentStreamCapacityLease, window ...int64) net.Conn {
+	return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, nil, window...)
+}
+
+func newCapacityManagedAgentTunnelStreamConnWithRelease(conn net.Conn, agent *AgentConn, lease *agentStreamCapacityLease, releaseExtra func(), window ...int64) net.Conn {
 	maximum := tunnel.DefaultMaxStreamWindowSizeBytes
 	if len(window) > 0 {
 		maximum = window[0]
@@ -46,7 +50,13 @@ func newCapacityManagedAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, le
 		Conn:        growing,
 		agent:       agent,
 		markClosing: func() { lease.markClosing() },
-		release:     func() { growing.Release(); lease.release() },
+		release: func() {
+			growing.Release()
+			lease.release()
+			if releaseExtra != nil {
+				releaseExtra()
+			}
+		},
 	}
 }
 
@@ -64,7 +74,7 @@ func agentConnectionEnded(agent *AgentConn) bool {
 	if agent == nil {
 		return false
 	}
-	if agent.Session != nil && agent.tunnelSession(0) == nil {
+	if !agent.AggregateFlowControl && agent.Session != nil && agent.tunnelSession(0) == nil {
 		return true
 	}
 	select {

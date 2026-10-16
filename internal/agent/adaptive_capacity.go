@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"math"
 	"runtime/debug"
 	"strconv"
 	"sync"
@@ -12,25 +13,32 @@ import (
 )
 
 type agentTunnelCapacitySnapshot struct {
-	Adaptive             bool
-	ResourceLimited      bool
-	Maximum              int
-	AdmissionLimit       int
-	InUse                int
-	Pressure             sysmetrics.MemoryPressureLevel
-	MemoryUsedBytes      int64
-	MemoryLimitBytes     int64
-	MemorySource         string
-	FileDescriptorsUsed  int64
-	FileDescriptorsLimit int64
-	PressureReason       string
-	SampleError          string
-	LastGoodSampleAt     time.Time
-	AdmissionRole        sysmetrics.AdaptiveAdmissionRole
-	StreamChargeBytes    int64
-	StreamChargeFDs      int64
-	RejectedPressure     uint64
-	RejectedFixedLimit   uint64
+	Adaptive                      bool
+	ResourceLimited               bool
+	Maximum                       int
+	AdmissionLimit                int
+	InUse                         int
+	Pressure                      sysmetrics.MemoryPressureLevel
+	MemoryUsedBytes               int64
+	MemoryLimitBytes              int64
+	MemorySource                  string
+	FileDescriptorsUsed           int64
+	FileDescriptorsLimit          int64
+	PressureReason                string
+	SampleError                   string
+	LastGoodSampleAt              time.Time
+	AdmissionRole                 sysmetrics.AdaptiveAdmissionRole
+	StreamChargeBytes             int64
+	StreamChargeFDs               int64
+	ReceiveWindowBytes            int64
+	SessionResourceBytes          int64
+	AggregateInitialPoolBytes     int64
+	AggregateGrowthPoolBytes      int64
+	AggregateCurrentPoolBytes     int64
+	AggregateSessionMetadataBytes int64
+	LegacyControlSupplementBytes  int64
+	RejectedPressure              uint64
+	RejectedFixedLimit            uint64
 }
 
 // agentTunnelCapacityRuntime owns the agent-side lifetime admission count.
@@ -38,12 +46,17 @@ type agentTunnelCapacitySnapshot struct {
 // follows sampled memory and descriptor headroom. Explicit production limits
 // also retain resource protection, while adding a hard operator ceiling.
 type agentTunnelCapacityRuntime struct {
-	mu          sync.Mutex
-	adaptive    bool
-	maximum     int
-	inUse       int
-	windowBytes int64
-	controller  *sysmetrics.AdaptiveMemoryController
+	mu                            sync.Mutex
+	adaptive                      bool
+	maximum                       int
+	inUse                         int
+	windowBytes                   int64
+	sessionBytes                  int64
+	aggregateInitialPoolBytes     int64
+	aggregateGrowthPoolBytes      int64
+	aggregateSessionMetadataBytes int64
+	legacyControlSupplementBytes  int64
+	controller                    *sysmetrics.AdaptiveMemoryController
 
 	rejectedPressure atomic.Uint64
 	rejectedFixed    atomic.Uint64
@@ -78,26 +91,111 @@ func (r *agentTunnelCapacityRuntime) setMaximum(maximum int64) {
 }
 
 func (r *agentTunnelCapacityRuntime) tryReserveWindowGrowth(bytes int64) (func(), bool) {
+	return r.tryReserveOwnedReceiveResource(bytes, agentReceiveResourceStreamGrowth)
+}
+
+type agentReceiveResourceOwner uint8
+
+const (
+	agentReceiveResourceStreamGrowth agentReceiveResourceOwner = iota
+	agentReceiveResourceAggregateInitialPool
+	agentReceiveResourceAggregateGrowthPool
+	agentReceiveResourceAggregateSessionMetadata
+	agentReceiveResourceLegacyControlSupplement
+)
+
+func (r *agentTunnelCapacityRuntime) tryReserveOwnedReceiveResource(bytes int64, owner agentReceiveResourceOwner) (func(), bool) {
 	if r == nil || r.controller == nil {
 		return func() {}, true
 	}
 	r.mu.Lock()
 	resource := r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
-	proposed := r.windowBytes + bytes
-	if bytes < 0 || proposed < r.windowBytes || resource.RejectNew || resource.AdmissionLimitWithExternal(proposed, 0) < r.inUse {
+	if bytes < 0 || r.windowBytes < 0 || r.sessionBytes < 0 || r.windowBytes > math.MaxInt64-r.sessionBytes {
 		r.mu.Unlock()
 		return nil, false
 	}
-	r.windowBytes = proposed
+	external := r.windowBytes + r.sessionBytes
+	if bytes > math.MaxInt64-external {
+		r.mu.Unlock()
+		return nil, false
+	}
+	proposed := external + bytes
+	if resource.RejectNew || resource.AdmissionLimitWithExternal(proposed, 0) < r.inUse {
+		r.mu.Unlock()
+		return nil, false
+	}
+	switch owner {
+	case agentReceiveResourceStreamGrowth:
+		r.windowBytes += bytes
+	case agentReceiveResourceAggregateInitialPool:
+		r.sessionBytes += bytes
+		r.aggregateInitialPoolBytes += bytes
+	case agentReceiveResourceAggregateGrowthPool:
+		r.sessionBytes += bytes
+		r.aggregateGrowthPoolBytes += bytes
+	case agentReceiveResourceAggregateSessionMetadata:
+		r.sessionBytes += bytes
+		r.aggregateSessionMetadataBytes += bytes
+	case agentReceiveResourceLegacyControlSupplement:
+		r.sessionBytes += bytes
+		r.legacyControlSupplementBytes += bytes
+	default:
+		r.mu.Unlock()
+		return nil, false
+	}
 	r.mu.Unlock()
 	var once sync.Once
 	return func() {
 		once.Do(func() {
 			r.mu.Lock()
-			r.windowBytes -= bytes
+			switch owner {
+			case agentReceiveResourceStreamGrowth:
+				r.windowBytes -= bytes
+			case agentReceiveResourceAggregateInitialPool:
+				r.sessionBytes -= bytes
+				r.aggregateInitialPoolBytes -= bytes
+			case agentReceiveResourceAggregateGrowthPool:
+				r.sessionBytes -= bytes
+				r.aggregateGrowthPoolBytes -= bytes
+			case agentReceiveResourceAggregateSessionMetadata:
+				r.sessionBytes -= bytes
+				r.aggregateSessionMetadataBytes -= bytes
+			case agentReceiveResourceLegacyControlSupplement:
+				r.sessionBytes -= bytes
+				r.legacyControlSupplementBytes -= bytes
+			}
 			r.mu.Unlock()
 		})
 	}, true
+}
+
+// tryReserveSessionResource places a receive-pool or negotiated control
+// promise in the same lifetime ledger as stream-window growth. Callers retain
+// the returned lease until Session.Close has completed, including when credit
+// publication fails after local allocation.
+func (r *agentTunnelCapacityRuntime) tryReserveSessionResource(bytes int64) (func(), bool) {
+	return r.tryReserveOwnedReceiveResource(bytes, agentReceiveResourceAggregateInitialPool)
+}
+
+func (r *agentTunnelCapacityRuntime) tryReserveAggregateSessionResource(poolBytes, metadataBytes int64) (func(), bool) {
+	releasePool, ok := r.tryReserveOwnedReceiveResource(poolBytes, agentReceiveResourceAggregateInitialPool)
+	if !ok {
+		return nil, false
+	}
+	releaseMetadata, ok := r.tryReserveOwnedReceiveResource(metadataBytes, agentReceiveResourceAggregateSessionMetadata)
+	if !ok {
+		releasePool()
+		return nil, false
+	}
+	return func() { releaseMetadata(); releasePool() }, true
+}
+
+func (r *agentTunnelCapacityRuntime) tryReserveLegacyControlResource(bytes int64) (func(), bool) {
+	return r.tryReserveOwnedReceiveResource(bytes, agentReceiveResourceLegacyControlSupplement)
+}
+
+func (r *agentTunnelCapacityRuntime) tryReserveAggregateSessionGrowth(bytes int64) (func(), bool) {
+	return r.tryReserveOwnedReceiveResource(bytes, agentReceiveResourceAggregateGrowthPool)
 }
 
 // agentTunnelCapacityMaximumInt keeps the int64 protocol/config boundary safe
@@ -231,13 +329,20 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 		maximum = 1
 	}
 	snapshot := agentTunnelCapacitySnapshot{
-		Adaptive:           r.adaptive,
-		Maximum:            maximum,
-		AdmissionLimit:     maximum,
-		InUse:              r.inUse,
-		Pressure:           sysmetrics.MemoryPressureUnknown,
-		RejectedPressure:   r.rejectedPressure.Load(),
-		RejectedFixedLimit: r.rejectedFixed.Load(),
+		Adaptive:                      r.adaptive,
+		Maximum:                       maximum,
+		AdmissionLimit:                maximum,
+		InUse:                         r.inUse,
+		Pressure:                      sysmetrics.MemoryPressureUnknown,
+		RejectedPressure:              r.rejectedPressure.Load(),
+		RejectedFixedLimit:            r.rejectedFixed.Load(),
+		ReceiveWindowBytes:            r.windowBytes,
+		SessionResourceBytes:          r.sessionBytes,
+		AggregateInitialPoolBytes:     r.aggregateInitialPoolBytes,
+		AggregateGrowthPoolBytes:      r.aggregateGrowthPoolBytes,
+		AggregateCurrentPoolBytes:     r.aggregateInitialPoolBytes + r.aggregateGrowthPoolBytes,
+		AggregateSessionMetadataBytes: r.aggregateSessionMetadataBytes,
+		LegacyControlSupplementBytes:  r.legacyControlSupplementBytes,
 	}
 	if r.controller == nil {
 		return snapshot
@@ -248,7 +353,7 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 	} else {
 		resource = r.controller.Snapshot(int(tunnel.MaxAdaptiveConcurrentStreamsLimit), r.inUse)
 	}
-	snapshot.AdmissionLimit = min(maximum, resource.AdmissionLimitWithExternal(r.windowBytes, 0))
+	snapshot.AdmissionLimit = min(maximum, resource.AdmissionLimitWithExternal(r.windowBytes+r.sessionBytes, 0))
 	snapshot.ResourceLimited = snapshot.AdmissionLimit < maximum
 	snapshot.Pressure = resource.Level
 	snapshot.MemoryUsedBytes = resource.Usage.UsedBytes

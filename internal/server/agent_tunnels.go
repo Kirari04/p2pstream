@@ -1,17 +1,32 @@
 package server
 
 import (
+	"context"
+	"sync"
+
 	"github.com/hashicorp/yamux"
+
+	"p2pstream/internal/tunnel"
 )
 
 // All lanes belong to one authenticated agent generation and share its stream
 // admission, update drain and revocation. Losing a lane does not mark the
 // agent offline while another lane can still carry requests.
-func (a *AgentConn) installTunnel(lane int, session *yamux.Session) *yamux.Session {
+type agentTunnelOwnedResource struct {
+	AggregateInitialPoolBytes    int64
+	SessionMetadataBytes         int64
+	LegacyControlSupplementBytes int64
+}
+
+func (a *AgentConn) installTunnel(lane int, session *yamux.Session, resources ...agentTunnelOwnedResource) *yamux.Session {
 	a.tunnelMu.Lock()
 	defer a.tunnelMu.Unlock()
 	old := a.tunnels[lane]
 	a.tunnels[lane] = session
+	a.tunnelResources[lane] = agentTunnelOwnedResource{}
+	if len(resources) > 0 {
+		a.tunnelResources[lane] = resources[0]
+	}
 	a.tunnelsInitialized = true
 	return old
 }
@@ -23,6 +38,7 @@ func (a *AgentConn) removeTunnel(lane int, session *yamux.Session) (removed, las
 		return false, false
 	}
 	a.tunnels[lane] = nil
+	a.tunnelResources[lane] = agentTunnelOwnedResource{}
 	for _, other := range a.tunnels {
 		if other != nil && !other.IsClosed() {
 			return true, false
@@ -31,20 +47,74 @@ func (a *AgentConn) removeTunnel(lane int, session *yamux.Session) (removed, las
 	return true, true
 }
 
+type agentTunnelResourceSnapshot struct {
+	AggregateFlowControl         bool
+	ControlConnected             bool
+	BulkSessions                 int
+	AggregateInitialPoolBytes    int64
+	AggregateCurrentPoolBytes    int64
+	SessionMetadataBytes         int64
+	LegacyControlSupplementBytes int64
+	SessionResourceBytes         int64
+}
+
+func (a *AgentConn) tunnelResourceSnapshot() agentTunnelResourceSnapshot {
+	if a == nil {
+		return agentTunnelResourceSnapshot{}
+	}
+	a.tunnelMu.RLock()
+	defer a.tunnelMu.RUnlock()
+	snapshot := agentTunnelResourceSnapshot{AggregateFlowControl: a.AggregateFlowControl}
+	for lane, session := range a.tunnels {
+		if session == nil || session.IsClosed() {
+			continue
+		}
+		if lane == 0 {
+			snapshot.ControlConnected = true
+		} else {
+			snapshot.BulkSessions++
+		}
+		resource := a.tunnelResources[lane]
+		snapshot.AggregateInitialPoolBytes += resource.AggregateInitialPoolBytes
+		snapshot.SessionMetadataBytes += resource.SessionMetadataBytes
+		snapshot.LegacyControlSupplementBytes += resource.LegacyControlSupplementBytes
+		if stats := session.AggregateReceiveWindowStats(); stats.Enabled {
+			snapshot.AggregateCurrentPoolBytes += int64(yamux.AggregateReceiveWindowMemory(stats.ReceiveLimit))
+		}
+	}
+	snapshot.SessionResourceBytes = snapshot.AggregateCurrentPoolBytes + snapshot.SessionMetadataBytes + snapshot.LegacyControlSupplementBytes
+	return snapshot
+}
+
 func (a *AgentConn) transportLane() int {
 	if a == nil {
-		return 0
+		return -1
 	}
 	a.tunnelMu.Lock()
 	defer a.tunnelMu.Unlock()
-	for offset := range len(a.tunnels) {
-		lane := (a.nextTunnel + offset) % len(a.tunnels)
+	if !a.tunnelsInitialized {
+		if a.Session != nil && !a.Session.IsClosed() {
+			return 0
+		}
+		return -1
+	}
+	first := 0
+	count := len(a.tunnels)
+	if a.AggregateFlowControl {
+		first = 1
+		count--
+	}
+	if a.nextTunnel < first || a.nextTunnel >= len(a.tunnels) {
+		a.nextTunnel = first
+	}
+	for offset := range count {
+		lane := first + (a.nextTunnel-first+offset)%count
 		if session := a.tunnels[lane]; session != nil && !session.IsClosed() {
-			a.nextTunnel = (lane + 1) % len(a.tunnels)
+			a.nextTunnel = first + (lane-first+1)%count
 			return lane
 		}
 	}
-	return 0
+	return -1
 }
 
 func (a *AgentConn) tunnelSession(lane int) *yamux.Session {
@@ -64,12 +134,54 @@ func (a *AgentConn) tunnelSession(lane int) *yamux.Session {
 			return session
 		}
 	}
+	if a.AggregateFlowControl {
+		// Lane zero carries trusted control traffic only, and bulk lanes never
+		// substitute for it. Falling across this boundary would defeat both the
+		// independent control budget and aggregate memory accounting.
+		return nil
+	}
 	for _, session := range a.tunnels {
 		if session != nil && !session.IsClosed() {
 			return session
 		}
 	}
 	return nil
+}
+
+// acquireControlStream bounds negotiated control work independently from the
+// generation's bulk quota. The lease spans opening, live and closing states so
+// local FIN cannot admit a fifth receive-window promise before peer cleanup.
+func (a *AgentConn) acquireControlStream(ctx context.Context) (func(), bool) {
+	if a == nil {
+		return nil, false
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	a.controlGateMu.Lock()
+	if a.controlGate == nil {
+		a.controlGate = make(chan struct{}, tunnel.NegotiatedControlStreamLimit)
+	}
+	gate := a.controlGate
+	a.controlGateMu.Unlock()
+	select {
+	case gate <- struct{}{}:
+	case <-ctx.Done():
+		return nil, false
+	case <-a.Done:
+		return nil, false
+	}
+	select {
+	case <-ctx.Done():
+		<-gate
+		return nil, false
+	case <-a.Done:
+		<-gate
+		return nil, false
+	default:
+	}
+	var once sync.Once
+	return func() { once.Do(func() { <-gate }) }, true
 }
 
 func (p *agentTransportPool) closeTunnelLane(agent *AgentConn, lane int) {

@@ -178,6 +178,13 @@ func (s *Session) IsClosed() bool {
 	}
 }
 
+// AggregateFlowControlEnabled reports whether this session owns a bounded
+// aggregate receive pool. It lets an embedding application select lifecycle
+// handling that matches the negotiated wire mode without exposing the pool.
+func (s *Session) AggregateFlowControlEnabled() bool {
+	return s != nil && s.aggregateEnabled()
+}
+
 // CloseChan returns a read-only channel which is closed as
 // soon as the session is closed.
 func (s *Session) CloseChan() <-chan struct{} {
