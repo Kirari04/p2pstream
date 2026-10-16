@@ -550,6 +550,18 @@ after each transfer, without live polling. Observer cost, capture errors and
 all selected-lane samples are retained in the
 [credit/TCP diagnostic](benchmarks/proxy-qualification-2026-10-16/agent-wan-credit-diagnostic/README.md).
 
+The deferred growth trace captures an 18.548-second retained download and a
+9.745-second first timed download, with stable RTT and no reservation denial.
+The slow stream reaches about 3.938 MiB early, then holds that receive limit
+while payload rate remains about 6–8 MB/s. Successful 16 MiB growth is sampled
+15.918 seconds after its first retained growth sample, versus 1.509 seconds
+for legacy. Later healthy downloads make this diagnostic cohort median pass;
+it neither clears the fixed three-pair failure nor proves the cause. The next
+measurement checks whether 4 KiB DATA allocation rounding consumes credit
+faster than the payload-based growth heuristic observes. Complete raw drains
+and epochs are in the
+[deferred growth trace](benchmarks/proxy-qualification-2026-10-16/agent-wan-growth-trace/README.md).
+
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
 RTT 96.547 ms). Four fresh 256 MiB downloads and uploads prewarm every receiving

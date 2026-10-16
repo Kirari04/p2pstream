@@ -1,0 +1,13 @@
+--- original-runner.sh
++++ qualify-proxy-agent-growth-drain-diagnostic.sh
+@@ -570,6 +570,10 @@
+         }
+       }
+     ' "$raw" >> "$output"
++  local growth_drain_started=$EPOCHREALTIME
++  python3 /tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/drain-growth.py /tmp/p2pstream-wan-growth-diagnostic.k9m08_ma server "$server_admin" "$label" "$mode" "$stage" "$direction" "$repetition" "$sequence"
++  nsenter -t "$agent_namespace_pid" -n python3 /tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/drain-growth.py /tmp/p2pstream-wan-growth-diagnostic.k9m08_ma agent "$agent_admin" "$label" "$mode" "$stage" "$direction" "$repetition" "$sequence"
++  printf '%s\t%s\t%s\t%s\n' "$sequence" "$mode" "$growth_drain_started" "$EPOCHREALTIME" >>/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/growth/post-drain-delays.tsv
+ }
+ 
+ run_tiny_response() {

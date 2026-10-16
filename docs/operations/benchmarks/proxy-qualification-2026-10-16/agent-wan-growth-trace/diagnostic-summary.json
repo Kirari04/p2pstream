@@ -1,0 +1,54 @@
+{
+  "diagnostic_only": true,
+  "fixture_processes_after_exit": [
+    {
+      "ready_file": "current-server-aggregate-v1-1-agent.ready.json",
+      "pid": 498471,
+      "alive_after_exit": false
+    },
+    {
+      "ready_file": "current-server-aggregate-v1-1-server.ready.json",
+      "pid": 498456,
+      "alive_after_exit": false
+    },
+    {
+      "ready_file": "current-server-legacy-agent-compat-1-agent.ready.json",
+      "pid": 496580,
+      "alive_after_exit": false
+    },
+    {
+      "ready_file": "current-server-legacy-agent-compat-1-server.ready.json",
+      "pid": 496564,
+      "alive_after_exit": false
+    },
+    {
+      "ready_file": "origin.ready.json",
+      "pid": 496553,
+      "alive_after_exit": false
+    }
+  ],
+  "local_raw_root": "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma",
+  "not_committed_binary_or_archive_files": [
+    {
+      "path": "/tmp/p2pstream-growth-diagnostic.G6GeKb/source.tar",
+      "bytes": 31692800,
+      "sha256": "02e8b4329f7567b12545fdea76c1496319053967f6e2ffc1734751aeb9756ac3"
+    },
+    {
+      "path": "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/bin/legacy-agent.test",
+      "bytes": 19589806,
+      "sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec"
+    },
+    {
+      "path": "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/bin/aggregate-agent.test",
+      "bytes": 19985883,
+      "sha256": "8be1081a99e20219a04ff563eff6260c6e647886293d0817dcbb869467b1b3be"
+    },
+    {
+      "path": "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/bin/server.test",
+      "bytes": 58481008,
+      "sha256": "9dae2cfc357de60154bf2c930edc08f6a3538680472d6815cc0740058f5f9363"
+    }
+  ],
+  "scope": "Captures slow retained and first-timed download growth; overall median passes this instrumented cohort, so it does not reproduce or clear the fixed three-pair gate. No root cause or production patch is established."
+}

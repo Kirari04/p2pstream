@@ -1,0 +1,77 @@
+{
+  "diagnostic_only": true,
+  "production_base_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "tagged_diagnostic_source_ref": "6fd2e8a148229b24037c65204c3bc2bab6bd8822",
+  "build_tags": [
+    "p2pstream_qualification"
+  ],
+  "actual_binaries": {
+    "server": {
+      "path": "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/bin/server.test",
+      "original_path": "/tmp/p2pstream-growth-diagnostic.G6GeKb/server.test",
+      "sha256": "9dae2cfc357de60154bf2c930edc08f6a3538680472d6815cc0740058f5f9363"
+    },
+    "aggregate-agent": {
+      "path": "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/bin/aggregate-agent.test",
+      "original_path": "/tmp/p2pstream-growth-diagnostic.G6GeKb/agent.test",
+      "sha256": "8be1081a99e20219a04ff563eff6260c6e647886293d0817dcbb869467b1b3be"
+    },
+    "legacy-agent": {
+      "path": "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/bin/legacy-agent.test",
+      "original_path": "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec"
+    }
+  },
+  "source_archive_sha256": "02e8b4329f7567b12545fdea76c1496319053967f6e2ffc1734751aeb9756ac3",
+  "clean_build_manifest_sha256": "da8965f40131c49b0e7aad78796bdecb1abde98e0629da84f3beb8e6bcf53691",
+  "clean_build_manifest_note": "embedded self-reported digest covers the text before its final line; external final-file digest above is authoritative",
+  "command": [
+    "bash",
+    "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/scripts/qualify-proxy-agent-growth-drain-diagnostic.sh",
+    "--server-binary",
+    "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/bin/server.test",
+    "--aggregate-agent-binary",
+    "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/bin/aggregate-agent.test",
+    "--legacy-agent-binary",
+    "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/bin/legacy-agent.test",
+    "--output",
+    "/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma/results.jsonl",
+    "--runs",
+    "1",
+    "--warmup-mib",
+    "256",
+    "--steady-mib",
+    "256",
+    "--transfer-repetitions",
+    "3",
+    "--required-pool-mib",
+    "8",
+    "--rtt-ms",
+    "80",
+    "--server-source-ref",
+    "6fd2e8a148229b24037c65204c3bc2bab6bd8822",
+    "--aggregate-agent-source-ref",
+    "6fd2e8a148229b24037c65204c3bc2bab6bd8822",
+    "--legacy-agent-source-ref",
+    "3ec137c3ad3d07028e867042fb00d3933912d7ab"
+  ],
+  "native_profiles": false,
+  "live_credit_or_tcp_polling": false,
+  "ring_capacity": 4096,
+  "ring_semantics": "bounded private mutex at existing completed sample epochs; pointers retained only until bounded drain; overflow counted; diagnostic observer remains",
+  "retrieval": "server and current agent after original transfer result append; frozen legacy agent skips HTTP;2s request timeout/4MiB response cap",
+  "post_transfer_added_delay": "Bash EPOCHREALTIME bookends full two-subprocess drains in growth/post-drain-delays.tsv",
+  "go_runtime_environment": {
+    "GOMAXPROCS": null,
+    "GOGC": null,
+    "GOMEMLIMIT": null,
+    "GODEBUG": null
+  },
+  "files_sha256": {
+    "clean-build-manifest.txt": "da8965f40131c49b0e7aad78796bdecb1abde98e0629da84f3beb8e6bcf53691",
+    "runner-diagnostic.patch": "c4685aebf8c092b401e559e39f1caec1b7768d98bb6516ed5b567e00e66db27b",
+    "drain-growth.py": "9127d96c42c1090f58278381e6edad4a52f4c0495c8a98af864ba88d77b25c1b",
+    "original-runner.sh": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+    "scripts/qualify-proxy-agent-growth-drain-diagnostic.sh": "74be4f244d3ab9bfeff99eae29e1b2a0ba0003e0edc24aebe4a880ece7973665"
+  }
+}

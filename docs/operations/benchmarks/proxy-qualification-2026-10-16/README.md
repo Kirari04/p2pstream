@@ -32,6 +32,9 @@ comparison.
 - [`agent-wan-credit-diagnostic/README.md`](agent-wan-credit-diagnostic/README.md)
   records a second healthy nonreproduction with tagged cheap credit snapshots
   and TCP sampling, without native profiling. It does not clear the failures.
+- [`agent-wan-growth-trace/README.md`](agent-wan-growth-trace/README.md)
+  captures slow individual downloads with deferred bounded growth traces.
+  Its full cohort median passes; it does not clear the repeated failure.
 - [`caddy-reference/README.md`](caddy-reference/README.md) documents the clean
   36-row Caddy/HAProxy/p2pstream reference cohort. Its p2pstream binary is the
   frozen `3ec137c` candidate; later library and protocol foundations in `0d6a3a8`
@@ -149,8 +152,10 @@ the earlier passing `e2df1b1` cohort. A profiled TCP diagnostic did not
 reproduce the stall. A second replay with tagged in-flight credit snapshots
 and TCP sampling, without native profiling, also stays healthy. Neither clears
 the failed cohorts or identifies their cause. A bounded post-transfer growth
-sample trace without live polling is the next diagnostic before a production
-change.
+sample trace then captures an 18.55-second retained download and a slow first
+timed download, although later transfers make that cohort median pass. It
+shows no reservation denial and stable RTT; frame allocation/payload cost and
+credit starvation need measurement before a production change.
 
 Historical failure and optimization artifacts below remain useful for tracing
 the decisions that produced `dc738e9`; they are not the current qualification

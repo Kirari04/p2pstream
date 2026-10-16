@@ -1,0 +1,14 @@
+schema_version=1
+head=6fd2e8a148229b24037c65204c3bc2bab6bd8822
+archive_sha256=02e8b4329f7567b12545fdea76c1496319053967f6e2ffc1734751aeb9756ac3
+archive=/tmp/p2pstream-growth-diagnostic.G6GeKb/source.tar
+source=/tmp/p2pstream-growth-diagnostic.G6GeKb/source
+built_utc=2026-10-16T05:26:28Z
+go_version=go version go1.26.6 linux/amd64
+go_env=linux amd64 1 auto 
+agent_command=go test -c -tags=p2pstream_qualification -o /tmp/p2pstream-growth-diagnostic.G6GeKb/agent.test ./internal/agent
+server_command=go test -c -tags=p2pstream_qualification -o /tmp/p2pstream-growth-diagnostic.G6GeKb/server.test ./internal/server
+8be1081a99e20219a04ff563eff6260c6e647886293d0817dcbb869467b1b3be  /tmp/p2pstream-growth-diagnostic.G6GeKb/agent.test
+9dae2cfc357de60154bf2c930edc08f6a3538680472d6815cc0740058f5f9363  /tmp/p2pstream-growth-diagnostic.G6GeKb/server.test
+source_provenance=git archive of head; caller worktree had empty tracked diff and index before archive
+manifest_sha256=1273059d00fb302078c680409d72df291569944fbe31e1f7e3389a45bbfb0524
