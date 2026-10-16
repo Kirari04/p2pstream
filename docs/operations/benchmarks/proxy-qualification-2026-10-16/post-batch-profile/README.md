@@ -34,11 +34,20 @@ those delays are not CPU consumption.
 
 The direct cache serializes every hit to update last-use time. This supports
 a bounded read-lock/atomic timestamp experiment with the same physical
-transport and connection ownership. It does not support reintroducing the
-previously rejected transport sharding. SQL argument conversion remains a
+transport and connection ownership. The completed
+[read-hit experiment](../direct-cache-readhit/README.md) reduced isolated
+lookup time but did not improve sustained throughput, so production was
+restored. This does not support reintroducing the previously rejected
+transport sharding. SQL argument conversion remains a
 possible later allocation target, but replacing database/sql transaction and
 cancellation semantics requires its own evidence. Native HTTP request/header
 copies also require careful asynchronous ownership review before changing.
+
+`active-stage-alloc-list.txt` attributes 111.54 MB of flat allocation to the
+unconditional traffic-shaper decision helper call at source line 989. The
+no-policy workload never selects a shaper, but passing the decision by value
+to a helper returning its address makes that copy escape. A narrow
+selected-branch experiment is prepared separately; no gain is claimed here.
 
 The extraction commands use `go tool pprof -top`, `-top -cum`, and
 `-top -alloc_space` with the recorded executable and profiles. Raw `.pprof`

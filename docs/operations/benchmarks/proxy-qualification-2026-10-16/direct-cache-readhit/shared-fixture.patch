@@ -1,0 +1,11 @@
+--- a/internal/server/public_admission_resources_test.go
++++ b/internal/server/public_admission_resources_test.go
+@@ -295,7 +295,7 @@
+ 	_ = response.Body.Close()
+ 	now := time.Now()
+ 	app.DirectTransports = &directTransportPool{entries: map[directTransportKey]*pooledDirectTransport{
+-		{RouteTargetID: 1}: {key: directTransportKey{RouteTargetID: 1}, transport: transport, createdAt: now, lastUsed: now},
++		{RouteTargetID: 1}: {key: directTransportKey{RouteTargetID: 1}, transport: transport, createdAt: now},
+ 	}}
+ 	t.Cleanup(func() {
+ 		closeTestChannel(unblock)

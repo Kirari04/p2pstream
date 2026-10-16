@@ -1,0 +1,72 @@
+{
+  "source_commit": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "production_change": "direct_transport_pool.go read-hit RWMutex/atomic monotonic last-use experiment",
+  "test_overlays": {
+    "internal/server/direct_transport_pool_concurrency_test.go": "c1768c151bed8f44fcfa5a0b3961eeb5880fe917d69e376f5e3a334481759304",
+    "internal/server/public_admission_resources_test.go": "bb393f91a1ee33479a76868e7a11a68c13efc8bb3e40ac7d52b9e0f194d72525"
+  },
+  "production_overlay": {
+    "internal/server/direct_transport_pool.go": "c993475d3d980acf35d99a39f79e1b6a372f6608b0e2688911a4f362f215329f"
+  },
+  "status": "completed",
+  "validation_started_unix": 1792111993.071317,
+  "validation_finished_unix": 1792112052.1469996,
+  "proxy_cpus": "0-3",
+  "load_origin_cpus": "4-15",
+  "gomaxprocs": 4,
+  "paired_microbench_order": [
+    [
+      "baseline",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "baseline"
+    ],
+    [
+      "baseline",
+      "candidate"
+    ]
+  ],
+  "paired_microbench_benchtime": "500ms",
+  "sustained_cells": {
+    "protocol": "h1",
+    "clients": [
+      16,
+      128
+    ],
+    "runs": 3,
+    "duration_seconds": 10,
+    "warmup_seconds": 2,
+    "same_harness_source": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "event_conservation_required": true
+  },
+  "benchmark_started_utc": "2026-10-16T00:54:50.804236+00:00",
+  "baseline_binary_sha256": "a58968cbfa7b9138893fee90e912eeb8826c639f232bf692bf674e4a35c2ee9c",
+  "candidate_binary_sha256": "cfd2fc465ebebc5d3ce18196132f1e727ba108b653f155cccce9308d926d3a17",
+  "benchmark_completed_utc": "2026-10-16T00:58:48.850761+00:00",
+  "decision": "rejected; production pool source restored",
+  "local_pair_dir": "/tmp/p2pstream-direct-pool-pair.7e5fglav",
+  "actual_validation": [
+    "candidate focused direct pool/config/reconcile normal count3 and race count3",
+    "candidate pressure/admission/idle rotation normal count3 and race count3",
+    "candidate blocking idle close normal count3 and race count3"
+  ],
+  "files": {
+    "micro-results.jsonl": "d7b157255c4e8fd5908c2502ec0df45b46f861d1fa322dedc41f7d6e89c2ab67",
+    "sustained-c16.jsonl": "cba755d81c2d94da78c473057e80e0e7a28edcbc0e5a91827a41d71a58e0e6f5",
+    "sustained-c128.jsonl": "7622fb4601b5dfc0cced08a3b52951f262dda5483910cf5d26cf6584b910faf3",
+    "candidate-normal.log": "4fabc0a27363f512fff2342feb068f59f29301c3e8f4a4b7b3251601e2eec22b",
+    "candidate-race.log": "7757f6c6f25be0576706bf2d66660defacf87f134b47d525c89d60615d895bf0",
+    "pressure-normal.log": "d244659d60ca7241e0413124e1491a84ab3edceefa877da0acda42eede5ec29b",
+    "pressure-race.log": "2296e9e9ff867308ea09bb0e441d55125eeefd5c38d6f1aaeea020e714b415c1",
+    "blocking-close-normal.log": "99bf1c2691f3e0ccb6dcefd199156e0f0a10fc598de55a76c898439386d1b428",
+    "blocking-close-race.log": "a22186ac74a541c74ac8040be663e41b7f8259da0e0c4976987339f4453fcd38",
+    "candidate.patch": "2247b04b9a15bfdd21a0624f3f4d525f5926490d4ad814d3516ecafaf19111f0",
+    "shared-fixture.patch": "7b08e7b508e242abac1fb5f3facd2a91dae932b14cd05de5c713898d919f6d4c",
+    "benchmark-and-concurrency-test.go.txt": "c1768c151bed8f44fcfa5a0b3961eeb5880fe917d69e376f5e3a334481759304"
+  },
+  "timed_candidate_requests": 1580548,
+  "timed_baseline_requests": 1635668,
+  "conservation": "All 12 p2pstream cells correct, exact timed-event persistence, zero client/drain/query errors and drops."
+}

@@ -28,7 +28,8 @@
     "mutex-top.txt": "8ca812c75738194790c6769437b3f9e3c4cd3f435666127546521db7c6b7aef8",
     "block-top.txt": "0a42d7698ffc72a417bb2528b5e9ff837daeb1e5b5fe878d5caef94232d032ee",
     "cpu-results.jsonl": "263ccd176c7c2fdfb4956ac58840d5bcd51d39738a7f91b8f9361479daa449e4",
-    "contention-results.jsonl": "63c6842040fa824e27e1d1b16712a29b24dbababc8296d544251e786d60190ac"
+    "contention-results.jsonl": "63c6842040fa824e27e1d1b16712a29b24dbababc8296d544251e786d60190ac",
+    "active-stage-alloc-list.txt": "e3b316b0626da78ce5f35e1898bcc88fb2694bc25584aa3a044e9689f71fca09"
   },
   "limitations": [
     "CPU profiles cover warmup and timed measurement; allocation profiles also include process setup and fixture initialization.",
