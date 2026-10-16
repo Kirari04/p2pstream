@@ -406,7 +406,7 @@ run_load() {
             .connected == true and
             .flow_control == $mode and
             .control_connected == true and
-            .bulk_sessions == $bulk);
+            (.bulk_sessions // 0) == $bulk);
         (.attempted > 0) and
         (.event_stats_captured == true) and
         (.persisted_event_delta == .attempted) and
@@ -470,7 +470,7 @@ while time.monotonic() < deadline:
             item.get("connected")
             and item.get("flow_control") == mode
             and item.get("control_connected")
-            and (mode != "aggregate-v1" or item.get("bulk_sessions") == bulk)
+            and item.get("bulk_sessions", 0) == bulk
             for item in last
         ):
             raise SystemExit(0)
