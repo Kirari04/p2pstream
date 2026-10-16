@@ -1,7 +1,7 @@
 {
   "aggregate_agent_binary_sha256": "e99c619a4a1f07656b422f4c5965c874513d453afc7082939c2affbd59194793",
   "artifacts": {
-    "README.md": "f6db597410ca408c59af359b7d5d7958fb737e2796fc8558527d7a07616072dd",
+    "README.md": "cce4e5d276977325e1226f9484525a54fb50f733f0f1e1ceffe7b8953e890245",
     "derived-summary.json": "b18a1947f8eb391887e3da599ebb73fc8493e5a7c7fce5f3a9c1628bb1914f7c",
     "qualify-proxy-agent-growth.sh.txt": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
     "results.jsonl": "8661030530d0a0ae079e9a206525b0d9b8127569cbbc4ae28e80b4e8826779c9"

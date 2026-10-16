@@ -36,8 +36,8 @@ starvation. The four physical bulk TCP lanes are also long-lived under CUBIC
 with `net.ipv4.tcp_slow_start_after_idle=1`; the runner warms every download
 lane before all upload lanes, leaving the agent-to-server direction idle for
 tens of seconds before measurement. Lane-specific TCP warm state is therefore
-a real confounder, not a finding that the aggregate credit path alone caused
-the result.
+a plausible confounder to measure, not a finding that the aggregate credit path
+alone caused the result.
 
 This cohort is preserved without a selective retry. A separate diagnostic must
 map every Yamux lane to its physical socket and sample TCP congestion/window,
