@@ -21,7 +21,7 @@ misses, exact event persistence, readable zero OOM deltas and 512/512 subsequent
 recovery requests. H1 also requires exact physical connection occupancy; H2
 reports its physical connections separately from logical requests.
 
-| Path | Confirmed held-request pass | Next observed failure | Failure's useful responses | Failure's origin peak | Failure's server cgroup peak |
+| Path | Confirmed held-request pass | Next observed failure | Failure's useful responses | Failure's origin peak | Failure's sampled server cgroup peak |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | direct H1 | 1,280, twice | 1,536 | 1,352 / 1,536 | 1,352 | 1,308,069,888 B |
 | direct H2 | 2,048, twice | 2,304 | 2,083 / 2,304 | 2,083 | 1,408,294,912 B |

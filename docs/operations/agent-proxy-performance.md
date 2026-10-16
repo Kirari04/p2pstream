@@ -443,6 +443,26 @@ server with one and four legacy physical lanes. See the
 [immutable capacity evidence](benchmarks/proxy-qualification-2026-10-16/lower-base-capacity/README.md)
 for source and executable hashes, exact runner inputs and all control rows.
 
+More recent cold-client probes with 1 GiB ballast confirm 1,280 direct H1,
+2,048 direct H2 and 1,792 remote-agent H1 held requests, each twice. The direct
+H1 path refuses some work at about 30.5% actual cgroup usage because public and
+origin-socket reservations exhaust its budget; the original agent result does
+not establish capacity for that direct path. Remote-agent H2 reaches 4,096 once
+but fails confirmation. Cold H2 also accepts hundreds of transient TLS
+connections while only a few dozen carry requests. These are observed
+cold-start bounds, not exact maxima or steady multiplexed limits. All 18 rows
+conserve events, avoid OOM and complete recovery. See the
+[cold capacity evidence](benchmarks/proxy-qualification-2026-10-16/capacity-boundaries-cold/README.md).
+
+A separate remote-agent H2 check first completes one successful H2 connection
+and persists its event before the measured baseline. It then holds 3,072 origin
+requests twice, with correct responses, exact events, no admission errors or
+OOM, and complete 512-request recovery. It uses separate 4 GiB server and agent
+cgroups with 1 GiB server ballast. Surplus connection attempts remain visible;
+one established connection does not mean the whole pool is warm. The earlier
+4,096 result remains unqualified. See the
+[established-H2 evidence](benchmarks/proxy-qualification-2026-10-16/capacity-established-h2/README.md).
+
 Immediate external-agent snapshots retained the reusable upstream stream
 reservations after the wave. The recovery result proves continued service;
 it does not establish prompt reservation release or return to initial resident
@@ -472,10 +492,10 @@ The earlier external
 smoke established one legacy control plus three bulk lanes versus one
 negotiated control plus four bulk lanes, with 100/100 events on each side;
 those earlier rows only validate fixture wiring.
-The external candidate agent role also accepts a separate bounded ballast for
-that later agent-pressure trace and reports the touched bytes in its own process
-snapshot. The legacy smoke overlay and all existing results used zero agent
-ballast.
+The external candidate agent role accepts separate bounded ballast and reports
+the touched bytes in its own process snapshot. The capacity and legacy smoke
+cohorts above used zero agent ballast; the pressure trace applies it explicitly
+inside the agent's own constrained cgroup.
 
 A bounded large-transfer comparison uses the same current server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
