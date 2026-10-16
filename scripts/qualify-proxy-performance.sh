@@ -23,6 +23,7 @@ ballast_mib=0
 agent_ballast_mib=0
 decisive_only=0
 capacity_only=0
+capacity_boundary_diagnostics=0
 capacity_concurrency=1536
 capacity_protocol=both
 decisive_duration=10
@@ -71,6 +72,7 @@ while (($#)); do
     --agent-ballast-mib) agent_ballast_mib=$2; shift 2 ;;
     --decisive-only) decisive_only=1; shift ;;
     --capacity-only) capacity_only=1; shift ;;
+    --capacity-boundary-diagnostics) capacity_boundary_diagnostics=1; shift ;;
     --capacity-concurrency) capacity_concurrency=$2; shift 2 ;;
     --capacity-protocol) capacity_protocol=$2; shift 2 ;;
     --duration-seconds) decisive_duration=$2; shift 2 ;;
@@ -93,6 +95,10 @@ while (($#)); do
   esac
 done
 if ((smoke)); then use_cgroup=0; fi
+if ((capacity_boundary_diagnostics && !capacity_only)); then
+  echo "--capacity-boundary-diagnostics requires --capacity-only" >&2
+  exit 2
+fi
 if ((controls_only && !stdlib_controls && !stdlib_pooled_controls && !stdlib_sharded_controls)); then
   echo "--diagnostic-controls-only requires a standard-library control" >&2
   exit 2
@@ -402,7 +408,20 @@ run_load() {
       --argjson agents "$external_agents" \
       --argjson bulk "$external_expected_bulk" \
       --argjson agent_ballast_bytes "$((agent_ballast_mib * 1024 * 1024))" \
+      --argjson boundary_diagnostics "$capacity_boundary_diagnostics" \
       --argjson constrained "$use_cgroup" '
+        # A failed physical accept has no HTTP request event. Only this explicit
+        # diagnostic may continue to same-process recovery after such a miss.
+        # Recorder, memory, lane and recovery checks remain mandatory.
+        def classified_pre_http_events:
+          (((.status_classes // {}) | [.[]] | add) // 0) as $responses |
+          (.persisted_event_delta // 0) as $persisted |
+          (((.admission_rejections.public_connection_resource // 0) +
+            (.admission_rejections.public_connection_limit // 0))) as $early |
+          $boundary_diagnostics == 1 and ($scenario | startswith("capacity-")) and
+          .useful_completed < .attempted and $early > 0 and
+          $responses >= 0 and $responses <= $persisted and $persisted < .attempted and
+          (.attempted - $persisted) <= $early;
         def tunnel_shape:
           length == $agents and all(.[];
             .connected == true and
@@ -411,7 +430,7 @@ run_load() {
             (.bulk_sessions // 0) == $bulk);
         (.attempted > 0) and
         (.event_stats_captured == true) and
-        (.persisted_event_delta == .attempted) and
+        ((.persisted_event_delta == .attempted) or classified_pre_http_events) and
         ((.dropped_event_delta // 0) == 0) and
         ((.event_queue_after_drain // 0) == 0) and
         ((.event_drain_error // "") == "") and
@@ -448,7 +467,8 @@ run_load() {
       return 1
     fi
   fi
-  jq -c --argjson run "$sequence" '. + {sequence: $run}' "$result" >> "$output"
+  jq -c --argjson run "$sequence" --argjson diagnostics "$capacity_boundary_diagnostics" \
+    '. + {sequence: $run, capacity_boundary_diagnostics: ($diagnostics == 1)}' "$result" >> "$output"
 }
 
 sequence=0

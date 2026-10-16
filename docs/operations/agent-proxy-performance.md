@@ -436,8 +436,17 @@ for source and executable hashes, exact runner inputs and all control rows.
 Immediate external-agent snapshots retained the reusable upstream stream
 reservations after the wave. The recovery result proves continued service;
 it does not establish prompt reservation release or return to initial resident
-memory. Natural idle cleanup, agent-pressure recovery and aggregate
-growth/idle/pressure/recovery measurements remain required. The earlier external
+memory. Separate natural-idle traces now cover one and four agents: all 1,536
+warm stream reservations remain at one and five seconds, reach zero by 30
+seconds, and stay zero through 65 seconds. All five or twenty physical sessions
+remain connected. Closing only idle HTTP transports after a new 128-request
+wave releases stream ownership immediately while retaining the fixed session
+pools. RSS does not contract, so these are logical and socket lifecycle results,
+not resident-memory reclamation. See the
+[one-agent trace](benchmarks/proxy-qualification-2026-10-16/agent-idle-lifecycle/README.md)
+and [four-agent trace](benchmarks/proxy-qualification-2026-10-16/agent-idle-lifecycle-four/README.md).
+Grown-pool pressure and recovery remain separate qualification gates.
+The earlier external
 smoke established one legacy control plus three bulk lanes versus one
 negotiated control plus four bulk lanes, with 100/100 events on each side;
 those earlier rows only validate fixture wiring.
@@ -445,6 +454,20 @@ The external candidate agent role also accepts a separate bounded ballast for
 that later agent-pressure trace and reports the touched bytes in its own process
 snapshot. The legacy smoke overlay and all existing results used zero agent
 ballast.
+
+A bounded large-transfer comparison uses the same current server with either
+the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
+RTT 96.547 ms). Four fresh 256 MiB downloads and uploads prewarm every receiving
+session pool, followed by retained warmup and three timed 256 MiB transfers in
+each direction. Aggregate median throughput is 33.08 MB/s download and
+36.00 MB/s upload, respectively 96.35% and 100.75% of the legacy agent. All
+payload hashes, lengths and request events agree. Every receiving lane owns at
+least 86.5 MiB on the server or 91.5 MiB on the agent during timed rows and
+returns to fully available pool credit afterward. This single legacy-first
+cohort qualifies the bounded large-transfer regression, not a fully warmed
+per-stream ceiling, line rate, HAProxy parity or pressure recovery. Source,
+CPU/cgroup topology and limits are in the
+[WAN growth evidence](benchmarks/proxy-qualification-2026-10-16/agent-wan-growth/README.md).
 
 The first qualification pass is recorded under
 `docs/operations/benchmarks/proxy-qualification-2026-10-16/`. It is a profile
