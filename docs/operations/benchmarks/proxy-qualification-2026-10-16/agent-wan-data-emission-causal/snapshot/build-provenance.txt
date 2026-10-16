@@ -1,0 +1,39 @@
+purpose=diagnostic-only agent DATA physical-emission causal pair
+base_ref=5eeccaaa797254d7bde4db9854a337a02c3bc28e
+base_subject=test(proxy): expose tagged aggregate send counters
+build_tags=none
+qualification_counter_codegen=disabled (!p2pstream_qualification)
+go_version=go1.26.6
+GOOS=linux
+GOARCH=amd64
+CGO_ENABLED=1
+source_archive=source-5eeccaaa.tar
+source_archive_sha256=9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76
+overlay=agent-data-gather-revert.patch
+overlay_sha256=ca680a7062735c3d1f236fc5d9d53c66b92724fd5b0dd1d82eef53f299b60d4f
+overlay_semantics=preserve exact gathered copy/capacity/ownership and split DATA emission at header boundary only
+control_session_go_sha256=268e0a49a1b2f43c5dcaf2ebf3d3d1106faa71b6091931e4041adbc2d872bf41
+split_session_go_sha256=e84c4de1351c78bcefecaac8701cae48b886e306c74118426872bfff402d942d
+split_diagnostic_test_sha256=9be211036e6d05fa5d74586bea5b62a1d750d848b611a09fd63e4ee254fb5dab
+gather_agent_build_command=go test -c -o bin/gather-control-agent.test ./internal/agent
+split_agent_build_command=go test -c -o bin/split-agent.test ./internal/agent
+focused_normal_command=(cd split/third_party/yamux && go test ./... -run '^TestDiagnosticSplitWrite' -count=20)
+focused_normal_result=PASS ok github.com/hashicorp/yamux 0.437s elapsed1.13s
+focused_race_command=(cd split/third_party/yamux && go test -race ./... -run '^TestDiagnosticSplitWrite' -count=20)
+focused_race_result=PASS ok github.com/hashicorp/yamux 1.471s elapsed2.76s
+gather_agent_sha256=0402a49543908e2a0bd00d8c43b93cfdf48177992ce0f4d90c75d5d48aaff92f
+gather_agent_size=19935293
+gather_agent_buildid=wjSoGz2B_CC8FnyLo8Hs/WIIBmlvfbLkmyFXhYPQb/G9ySpW8E8DwuDX4S88bo/glUimzJkJ6nB7ZrwCAho
+split_agent_sha256=24ba03fe97f69bed60ae3230fe598789aa00e359e5cd32bc5fc4c468562c8914
+split_agent_size=19935485
+split_agent_buildid=tOPsdF8vpYcaK_7j5KTf/vpMfAIUPCThJpxd-BdxK/sDd9XT8CJ8Wo39fkZ74-/ncyM0-mlX2zdQp7t9In6
+server_build=not_required; fixed frozen server must be shared across both variants
+server_build_attempt=FAILED during optional local link: mapping output file failed: disk quota exceeded
+runtime_distinction=runner label and agent binary SHA only; both report aggregate-v1
+production_status=diagnostic overlay only; no worktree production edit
+
+server_source_ref=dc738e9000e60cd7ce3a0279127486f3bc05067a
+server_binary_sha256=c7950a1bd250233b395eb8c19d913ffb48d511656d7c41a1ad446baefb6bbaf5
+server_binary=/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test
+server_reused_from=final-runtime-tiny-response manifest; same ordinary immutable dc738e9 binary in both variants
+causal_runner_source_ref=675ee6949d75d22ad6b34130bad8f1676f216a67

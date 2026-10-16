@@ -1,0 +1,8 @@
+{
+  "tmp_free_bytes": 3324116992,
+  "workspace_free_bytes": 41083936768,
+  "fixture_disk_behavior": "Transfers stream between fixture endpoints; payloads are not stored on disk. Only finite SQLite event databases and small result/log files are written.",
+  "owned_cleanup": "None required; original evidence and user files preserved.",
+  "bundle_manifest_sha256": "8af21051c20ba5f875c542cbda1c755f10d45d6bddc6ca0ef7fb976ab832294c",
+  "source_ref": "675ee6949d75d22ad6b34130bad8f1676f216a67"
+}

@@ -1,0 +1,255 @@
+--- a/third_party/yamux/session.go
++++ b/third_party/yamux/session.go
+@@ -633,13 +633,12 @@
+ 			}
+ 		}
+ 
+-		// A DATA caller retains ownership of its body until this worker detaches
+-		// it under ready.mu. Copy both header and body before the first physical
+-		// byte: a concurrent timeout can then return and reuse the body safely.
+-		// A caller whose queued header times out replaces that header before
+-		// reuse, so the queued backing remains stable. Header-only controls stay
+-		// separate.
++		// Diagnostic overlay: preserve the gathered frame's exact copy,
++		// capacity, timeout ownership, and commit timing. Change only physical
++		// DATA emission by splitting that immutable frame at the header boundary.
++		// Header-only controls retain their existing single-write path.
+ 		var frame []byte
++		splitDataFrame := false
+ 		ready.mu.Lock()
+ 		if ready.Body != nil {
+ 			bodyBuf.Grow(len(ready.Hdr) + len(ready.Body))
+@@ -656,6 +655,7 @@
+ 			}
+ 			ready.Body = nil
+ 			frame = bodyBuf.Bytes()
++			splitDataFrame = true
+ 		}
+ 		ready.mu.Unlock()
+ 
+@@ -666,14 +666,37 @@
+ 			if ready.Commit != nil {
+ 				ready.Commit()
+ 			}
+-			written, err := s.conn.Write(frame)
+-			if err == nil && written != len(frame) {
+-				err = io.ErrShortWrite
+-			}
+-			if err != nil {
+-				s.logger.Printf("[ERR] yamux: Failed to write frame: %v", err)
+-				asyncSendErr(ready.Err, err)
+-				return err
++			if splitDataFrame {
++				headerPart := frame[:len(ready.Hdr)]
++				written, err := s.conn.Write(headerPart)
++				if err == nil && written != len(headerPart) {
++					err = io.ErrShortWrite
++				}
++				if err != nil {
++					s.logger.Printf("[ERR] yamux: Failed to write frame header: %v", err)
++					asyncSendErr(ready.Err, err)
++					return err
++				}
++				bodyPart := frame[len(ready.Hdr):]
++				written, err = s.conn.Write(bodyPart)
++				if err == nil && written != len(bodyPart) {
++					err = io.ErrShortWrite
++				}
++				if err != nil {
++					s.logger.Printf("[ERR] yamux: Failed to write frame body: %v", err)
++					asyncSendErr(ready.Err, err)
++					return err
++				}
++			} else {
++				written, err := s.conn.Write(frame)
++				if err == nil && written != len(frame) {
++					err = io.ErrShortWrite
++				}
++				if err != nil {
++					s.logger.Printf("[ERR] yamux: Failed to write frame: %v", err)
++					asyncSendErr(ready.Err, err)
++					return err
++				}
+ 			}
+ 		}
+ 
+--- /dev/null
++++ b/third_party/yamux/split_write_diagnostic_test.go
+@@ -0,0 +1,177 @@
++package yamux
++
++import (
++	"bytes"
++	"errors"
++	"io"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++)
++
++type splitWriteDiagnosticConn struct {
++	mu        sync.Mutex
++	writes    [][]byte
++	committed *atomic.Bool
++	started   chan struct{}
++	release   chan struct{}
++}
++
++func (*splitWriteDiagnosticConn) Read([]byte) (int, error) { return 0, io.EOF }
++func (*splitWriteDiagnosticConn) Close() error             { return nil }
++func (c *splitWriteDiagnosticConn) Write(p []byte) (int, error) {
++	if c.committed != nil && !c.committed.Load() {
++		return 0, errors.New("write preceded commit")
++	}
++	if c.started != nil {
++		close(c.started)
++		c.started = nil
++		<-c.release
++	}
++	got := append([]byte(nil), p...)
++	c.mu.Lock()
++	c.writes = append(c.writes, got)
++	c.mu.Unlock()
++	return len(p), nil
++}
++
++func TestDiagnosticSplitWriteOwnsBodyBeforeCommitAndFirstWrite(t *testing.T) {
++	var committed atomic.Bool
++	started := make(chan struct{})
++	conn := &splitWriteDiagnosticConn{
++		committed: &committed,
++		started:   started,
++		release:   make(chan struct{}),
++	}
++	session := newGatherSendSession(conn, time.Second)
++	go func() { _ = session.sendLoop() }()
++	body := []byte("caller-owned payload")
++	wantBody := append([]byte(nil), body...)
++	hdr := header(make([]byte, headerSize))
++	hdr.encode(typeData, 0, 9, uint32(len(body)))
++	wantHdr := append([]byte(nil), hdr...)
++	errCh := make(chan error, 1)
++	done := make(chan error, 1)
++	go func() {
++		done <- session.waitForSendErrCommit(hdr, body, errCh, func() { committed.Store(true) })
++	}()
++	select {
++	case <-started:
++	case <-time.After(time.Second):
++		t.Fatal("header write did not start")
++	}
++	for i := range body {
++		body[i] = 0
++	}
++	close(conn.release)
++	if err := <-done; err != nil {
++		t.Fatal(err)
++	}
++	stopGatherSendLoop(t, session)
++
++	conn.mu.Lock()
++	writes := append([][]byte(nil), conn.writes...)
++	conn.mu.Unlock()
++	if len(writes) != 2 || !bytes.Equal(writes[0], wantHdr) || !bytes.Equal(writes[1], wantBody) {
++		t.Fatalf("split writes=%x want header=%x body=%x", writes, wantHdr, wantBody)
++	}
++}
++
++func TestDiagnosticSplitWriteQueuedTimeoutClonesBodyBeforeReuse(t *testing.T) {
++	conn := &splitWriteDiagnosticConn{}
++	session := newGatherSendSession(conn, 20*time.Millisecond)
++	body := []byte("queued timeout payload")
++	wantBody := append([]byte(nil), body...)
++	hdr := header(make([]byte, headerSize))
++	hdr.encode(typeData, 0, 11, uint32(len(body)))
++	wantHdr := append([]byte(nil), hdr...)
++	if err := session.waitForSendErr(hdr, body, make(chan error, 1)); !errors.Is(err, ErrConnectionWriteTimeout) {
++		t.Fatalf("wait error=%v", err)
++	}
++	for i := range body {
++		body[i] = 0
++	}
++	// Production replaces its header variable after a queued timeout; the old
++	// queued backing remains immutable until the send loop consumes it.
++	hdr = header(make([]byte, headerSize))
++	go func() { _ = session.sendLoop() }()
++	deadline := time.Now().Add(time.Second)
++	for {
++		conn.mu.Lock()
++		count := len(conn.writes)
++		conn.mu.Unlock()
++		if count == 2 {
++			break
++		}
++		if time.Now().After(deadline) {
++			t.Fatal("queued split frame was not written")
++		}
++		time.Sleep(time.Millisecond)
++	}
++	stopGatherSendLoop(t, session)
++	conn.mu.Lock()
++	writes := append([][]byte(nil), conn.writes...)
++	conn.mu.Unlock()
++	if !bytes.Equal(writes[0], wantHdr) || !bytes.Equal(writes[1], wantBody) {
++		t.Fatalf("split writes=%x want header=%x body=%x", writes, wantHdr, wantBody)
++	}
++}
++
++type splitPartialDiagnosticConn struct {
++	partialCall int
++	partialN    int
++	partialErr  error
++	calls       int
++}
++
++func (*splitPartialDiagnosticConn) Read([]byte) (int, error) { return 0, io.EOF }
++func (*splitPartialDiagnosticConn) Close() error             { return nil }
++func (c *splitPartialDiagnosticConn) Write(p []byte) (int, error) {
++	c.calls++
++	if c.calls == c.partialCall {
++		n := c.partialN
++		if n > len(p) {
++			n = len(p)
++		}
++		return n, c.partialErr
++	}
++	return len(p), nil
++}
++
++func TestDiagnosticSplitWritePartialHeaderOrBodyAbortsWithoutRetry(t *testing.T) {
++	injected := errors.New("injected write failure")
++	for _, tc := range []struct {
++		name        string
++		partialCall int
++		partialN    int
++		partialErr  error
++		wantErr     error
++		wantCalls   int
++	}{
++		{name: "short_header", partialCall: 1, partialN: headerSize - 1, wantErr: io.ErrShortWrite, wantCalls: 1},
++		{name: "error_header", partialCall: 1, partialN: 0, partialErr: injected, wantErr: injected, wantCalls: 1},
++		{name: "short_body", partialCall: 2, partialN: 3, wantErr: io.ErrShortWrite, wantCalls: 2},
++		{name: "error_body", partialCall: 2, partialN: 0, partialErr: injected, wantErr: injected, wantCalls: 2},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			conn := &splitPartialDiagnosticConn{partialCall: tc.partialCall, partialN: tc.partialN, partialErr: tc.partialErr}
++			session := newGatherSendSession(conn, time.Second)
++			loopDone := make(chan error, 1)
++			go func() { loopDone <- session.sendLoop() }()
++			body := []byte("split payload")
++			hdr := header(make([]byte, headerSize))
++			hdr.encode(typeData, 0, 13, uint32(len(body)))
++			err := session.waitForSendErr(hdr, body, make(chan error, 1))
++			if !errors.Is(err, tc.wantErr) {
++				t.Fatalf("wait error=%v want=%v", err, tc.wantErr)
++			}
++			if loopErr := <-loopDone; !errors.Is(loopErr, tc.wantErr) {
++				t.Fatalf("loop error=%v want=%v", loopErr, tc.wantErr)
++			}
++			if conn.calls != tc.wantCalls {
++				t.Fatalf("physical writes=%d want=%d", conn.calls, tc.wantCalls)
++			}
++		})
++	}
++}

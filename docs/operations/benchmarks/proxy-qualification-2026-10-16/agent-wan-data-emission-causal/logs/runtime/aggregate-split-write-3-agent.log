@@ -1,0 +1,45 @@
+{"level":"info","tunnel_url":"https://10.211.0.1:38791/agent/tunnel","time":"2026-10-16T08:30:11+02:00","message":"Attempting to connect to management server..."}
+{"level":"info","advertised_max_streams":2048,"negotiated_max_streams":65536,"adaptive_capacity":true,"aggregate_flow_control":true,"time":"2026-10-16T08:30:11+02:00","message":"Connected tunnel successfully"}
+{"level":"info","tunnel_url":"https://10.211.0.1:38791/agent/tunnel","time":"2026-10-16T08:30:11+02:00","message":"Attempting to connect to management server..."}
+{"level":"info","tunnel_url":"https://10.211.0.1:38791/agent/tunnel","time":"2026-10-16T08:30:11+02:00","message":"Attempting to connect to management server..."}
+{"level":"info","tunnel_url":"https://10.211.0.1:38791/agent/tunnel","time":"2026-10-16T08:30:11+02:00","message":"Attempting to connect to management server..."}
+{"level":"info","tunnel_url":"https://10.211.0.1:38791/agent/tunnel","time":"2026-10-16T08:30:11+02:00","message":"Attempting to connect to management server..."}
+{"level":"info","advertised_max_streams":2048,"negotiated_max_streams":65536,"adaptive_capacity":true,"aggregate_flow_control":true,"time":"2026-10-16T08:30:11+02:00","message":"Connected tunnel successfully"}
+{"level":"info","advertised_max_streams":2048,"negotiated_max_streams":65536,"adaptive_capacity":true,"aggregate_flow_control":true,"time":"2026-10-16T08:30:11+02:00","message":"Connected tunnel successfully"}
+{"level":"info","advertised_max_streams":2048,"negotiated_max_streams":65536,"adaptive_capacity":true,"aggregate_flow_control":true,"time":"2026-10-16T08:30:11+02:00","message":"Connected tunnel successfully"}
+{"level":"info","advertised_max_streams":2048,"negotiated_max_streams":65536,"adaptive_capacity":true,"aggregate_flow_control":true,"time":"2026-10-16T08:30:11+02:00","message":"Connected tunnel successfully"}
+{"level":"debug","request_id":"01a14367-6456-7743-9983-ac2471c1a41a","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:30:11+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14367-6456-7743-9983-ac2471c1a41a","bytes_received":255,"bytes_sent":268435671,"duration":8172.399863,"time":"2026-10-16T08:30:20+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","request_id":"01a14367-845b-7a54-8ebe-9500cb184416","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:30:20+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14367-845b-7a54-8ebe-9500cb184416","bytes_received":255,"bytes_sent":268435671,"duration":8067.272748,"time":"2026-10-16T08:30:28+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","request_id":"01a14367-a3f7-7531-a0b7-2ae8b0c462b4","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:30:28+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14367-a3f7-7531-a0b7-2ae8b0c462b4","bytes_received":255,"bytes_sent":268435671,"duration":8112.747689,"time":"2026-10-16T08:30:36+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","request_id":"01a14367-c3c2-7276-ad57-777eb61f5e2d","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:30:36+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14367-c3c2-7276-ad57-777eb61f5e2d","bytes_received":255,"bytes_sent":268435671,"duration":8066.278337,"time":"2026-10-16T08:30:44+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","request_id":"01a14367-e35b-7efc-a9ee-d75d69260868","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:30:44+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14367-e35b-7efc-a9ee-d75d69260868","bytes_received":268435730,"bytes_sent":225,"duration":7747.015987,"time":"2026-10-16T08:30:52+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","request_id":"01a14368-01b6-7380-93aa-55df646ba410","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:30:52+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14368-01b6-7380-93aa-55df646ba410","bytes_received":268435730,"bytes_sent":225,"duration":7743.865096,"time":"2026-10-16T08:30:59+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","request_id":"01a14368-200d-7535-998a-a036b49cd215","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:30:59+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14368-200d-7535-998a-a036b49cd215","bytes_received":268435730,"bytes_sent":225,"duration":7676.049522,"time":"2026-10-16T08:31:07+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","request_id":"01a14368-3e21-7b0b-901f-2e09da047e70","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:31:07+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14368-3e21-7b0b-901f-2e09da047e70","bytes_received":268435730,"bytes_sent":225,"duration":7743.212759,"time":"2026-10-16T08:31:15+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","request_id":"01a14368-5d7e-710f-8068-753a07fdc819","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:31:15+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14368-8785-7c2e-aba6-a883ee06fabb","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:31:26+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14368-a5a9-74ec-9ffd-019d6fd6b8ff","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:31:34+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14368-cfc8-7b09-b171-4f0db81a258e","network":"tcp","address":"<host>:38473","time":"2026-10-16T08:31:44+02:00","message":"Tunnel stream accepted"}
+{"level":"debug","request_id":"01a14368-8785-7c2e-aba6-a883ee06fabb","bytes_received":0,"bytes_sent":0,"duration":60180.547269,"error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","request_id":"01a14368-5d7e-710f-8068-753a07fdc819","bytes_received":0,"bytes_sent":0,"duration":70941.031172,"error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel stream accept loop stopped by context"}
+{"level":"debug","error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel session ended"}
+{"level":"debug","request_id":"01a14368-a5a9-74ec-9ffd-019d6fd6b8ff","bytes_received":0,"bytes_sent":0,"duration":52465.9624,"error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel stream accept loop stopped by context"}
+{"level":"debug","error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel stream accept loop stopped by context"}
+{"level":"debug","error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel stream accept loop stopped by context"}
+{"level":"debug","error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel session ended"}
+{"level":"debug","error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel session ended"}
+{"level":"debug","error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel session ended"}
+{"level":"debug","error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel stream accept loop stopped by context"}
+{"level":"debug","request_id":"01a14368-cfc8-7b09-b171-4f0db81a258e","bytes_received":0,"bytes_sent":0,"duration":41681.00765,"error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel stream relay finished"}
+{"level":"debug","error":"context canceled","time":"2026-10-16T08:32:26+02:00","message":"Tunnel session ended"}
+PASS
