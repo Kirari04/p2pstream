@@ -1,0 +1,124 @@
+{
+  "diagnostic_only": true,
+  "production_base_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "tagged_diagnostic_source_ref": "c879e85284e3225fbf693f3ce98139973a124eac",
+  "build_tags": [
+    "p2pstream_qualification"
+  ],
+  "clean_build_manifest": {
+    "source_ref": "c879e85284e3225fbf693f3ce98139973a124eac",
+    "source_archive_sha256": "57d8a05174f8f6d8a983f577851c7e882c1ae9e8c409eeae446ff10a6789f5f6",
+    "source_provenance": "Fresh empty directory populated solely from immutable git archive; no overlays or worktree copies",
+    "go_env": {
+      "CGO_ENABLED": "1",
+      "GOARCH": "amd64",
+      "GOMOD": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/build-source/go.mod",
+      "GOOS": "linux",
+      "GOTOOLCHAIN": "auto",
+      "GOVERSION": "go1.26.6"
+    },
+    "builds": [
+      {
+        "role": "server",
+        "command": [
+          "go",
+          "test",
+          "-tags=p2pstream_qualification",
+          "-c",
+          "-o",
+          "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/clean-bin/server.test",
+          "./internal/server"
+        ],
+        "elapsed_seconds": 11.132941019022837,
+        "exit_code": 0,
+        "sha256": "19d784cc9b27e3d603cf441fcec049a799de2aa616b958d738027f51343a4ecb"
+      },
+      {
+        "role": "aggregate-agent",
+        "command": [
+          "go",
+          "test",
+          "-tags=p2pstream_qualification",
+          "-c",
+          "-o",
+          "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/clean-bin/aggregate-agent.test",
+          "./internal/agent"
+        ],
+        "elapsed_seconds": 1.3243125149747357,
+        "exit_code": 0,
+        "sha256": "7f26240350a512c40af025703e13ccb8a2dc4c90a87a4822077d71501baa4f30"
+      }
+    ]
+  },
+  "source_archive_sha256": "57d8a05174f8f6d8a983f577851c7e882c1ae9e8c409eeae446ff10a6789f5f6",
+  "actual_binaries": {
+    "server": {
+      "path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/bin/server.test",
+      "original_path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/clean-bin/server.test",
+      "sha256": "19d784cc9b27e3d603cf441fcec049a799de2aa616b958d738027f51343a4ecb"
+    },
+    "aggregate-agent": {
+      "path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/bin/aggregate-agent.test",
+      "original_path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/clean-bin/aggregate-agent.test",
+      "sha256": "7f26240350a512c40af025703e13ccb8a2dc4c90a87a4822077d71501baa4f30"
+    },
+    "legacy-agent": {
+      "path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/bin/legacy-agent.test",
+      "original_path": "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec"
+    }
+  },
+  "command": [
+    "bash",
+    "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/scripts/qualify-proxy-agent-growth-credit-diagnostic.sh",
+    "--server-binary",
+    "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/bin/server.test",
+    "--aggregate-agent-binary",
+    "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/bin/aggregate-agent.test",
+    "--legacy-agent-binary",
+    "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/bin/legacy-agent.test",
+    "--output",
+    "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/results.jsonl",
+    "--runs",
+    "1",
+    "--warmup-mib",
+    "256",
+    "--steady-mib",
+    "256",
+    "--transfer-repetitions",
+    "3",
+    "--required-pool-mib",
+    "8",
+    "--rtt-ms",
+    "80",
+    "--server-source-ref",
+    "c879e85284e3225fbf693f3ce98139973a124eac",
+    "--aggregate-agent-source-ref",
+    "c879e85284e3225fbf693f3ce98139973a124eac",
+    "--legacy-agent-source-ref",
+    "3ec137c3ad3d07028e867042fb00d3933912d7ab"
+  ],
+  "credit_interval_seconds": 0.02,
+  "tcp_interval_seconds": 0.1,
+  "qdisc_interval_seconds": 1,
+  "collector_cpu_set": "8-15",
+  "native_profiles": false,
+  "legacy_agent_credit_endpoint": "unavailable and skipped without requests; current server still exposes legacy byte credit",
+  "snapshot_semantics": "separate locks and atomics, observational; bounded 8 streams and 5 sessions; record truncation",
+  "workload": "original full32 order,80ms/1Gbit,256MiB initial/retained/steady transfers,8MiB assertion",
+  "files_sha256": {
+    "annotate-lanes.py": "9efe0266250b544af575f1880af7003aa234d5b54e64b315fc41a08a7d9ee03c",
+    "analyze-telemetry.py": "d1837dc75950d5389dca4cd8fd877e8201c138982bbe6cfa9f6413d0d2f4d197",
+    "build-manifest.json": "78960d701152630430a098a554b630fdc3b3bc77bc667ebd007ebfa86c66b03d",
+    "aggregate-agent.build.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "server.build.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostic-source.tar": "57d8a05174f8f6d8a983f577851c7e882c1ae9e8c409eeae446ff10a6789f5f6",
+    "analyze-credit.py": "b5984009850d7e2f9a8d7f1d358db8d81d7472835a878928c7cd7e15bbdf56d5",
+    "runner-diagnostic.patch": "8c152e6331779eda9db8b1a6bda1d1b939c99a6db4a73388e81039ba59444e6d",
+    "collector.py": "b9b65fe904429cc2657d2c5010a5dd912d1dee5f63a0097fbdcdbb401fd45b7e",
+    "credit-collector.py": "d55ef1fc9b66b6e717fc3a5f34e540998d2908b4fbacf76358ae84403d61f7f2",
+    "mark.py": "753ef7ad0972d5b3a1813ffc40967b21145f176504d78c4f88cbd73051f2cd1e",
+    "original-runner.sh": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+    "scripts/qualify-proxy-agent-growth-credit-diagnostic.sh": "c9e2d298214d56563df9ffc0fe53f638502742efc7d8536b4380703149d4cd66"
+  }
+}

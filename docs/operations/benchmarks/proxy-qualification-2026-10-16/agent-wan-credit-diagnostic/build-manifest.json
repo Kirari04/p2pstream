@@ -1,0 +1,45 @@
+{
+  "source_ref": "c879e85284e3225fbf693f3ce98139973a124eac",
+  "source_archive_sha256": "57d8a05174f8f6d8a983f577851c7e882c1ae9e8c409eeae446ff10a6789f5f6",
+  "source_provenance": "Fresh empty directory populated solely from immutable git archive; no overlays or worktree copies",
+  "go_env": {
+    "CGO_ENABLED": "1",
+    "GOARCH": "amd64",
+    "GOMOD": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/build-source/go.mod",
+    "GOOS": "linux",
+    "GOTOOLCHAIN": "auto",
+    "GOVERSION": "go1.26.6"
+  },
+  "builds": [
+    {
+      "role": "server",
+      "command": [
+        "go",
+        "test",
+        "-tags=p2pstream_qualification",
+        "-c",
+        "-o",
+        "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/clean-bin/server.test",
+        "./internal/server"
+      ],
+      "elapsed_seconds": 11.132941019022837,
+      "exit_code": 0,
+      "sha256": "19d784cc9b27e3d603cf441fcec049a799de2aa616b958d738027f51343a4ecb"
+    },
+    {
+      "role": "aggregate-agent",
+      "command": [
+        "go",
+        "test",
+        "-tags=p2pstream_qualification",
+        "-c",
+        "-o",
+        "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/clean-bin/aggregate-agent.test",
+        "./internal/agent"
+      ],
+      "elapsed_seconds": 1.3243125149747357,
+      "exit_code": 0,
+      "sha256": "7f26240350a512c40af025703e13ccb8a2dc4c90a87a4822077d71501baa4f30"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "acceptance": {
+    "download_candidate_to_legacy_ratio": 0.9968964803748449,
+    "required_receiving_pool_bytes": 8388608,
+    "upload_candidate_to_legacy_ratio": 0.9860141289482778
+  },
+  "cohorts": {
+    "aggregate-v1": {
+      "download": {
+        "max_receiving_pool_observed_bytes": 92012544,
+        "max_useful_bytes_per_second": 33831576.42147395,
+        "median_useful_bytes_per_second": 33197004.886037525,
+        "min_receiving_pool_observed_bytes": 89915392,
+        "min_useful_bytes_per_second": 32883068.54222089,
+        "receiving_pool_growth_proven": true,
+        "samples": 3
+      },
+      "upload": {
+        "max_receiving_pool_observed_bytes": 84410368,
+        "max_useful_bytes_per_second": 35118995.85092903,
+        "median_useful_bytes_per_second": 34463636.69751973,
+        "min_receiving_pool_observed_bytes": 84410368,
+        "min_useful_bytes_per_second": 34081917.8943741,
+        "receiving_pool_growth_proven": true,
+        "samples": 3
+      }
+    },
+    "legacy": {
+      "download": {
+        "max_useful_bytes_per_second": 34297166.200929485,
+        "median_useful_bytes_per_second": 33300353.18567386,
+        "min_useful_bytes_per_second": 32627871.278561935,
+        "samples": 3
+      },
+      "upload": {
+        "max_useful_bytes_per_second": 35367824.38112927,
+        "median_useful_bytes_per_second": 34952477.54135128,
+        "min_useful_bytes_per_second": 34315550.739535704,
+        "samples": 3
+      }
+    }
+  }
+}

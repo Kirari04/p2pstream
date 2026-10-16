@@ -1,0 +1,57 @@
+import bisect,csv,json,statistics
+from collections import Counter,defaultdict
+from pathlib import Path
+root=Path(__file__).resolve().parent
+assert (root/'exit.json').exists(), 'analyze only after finite runner exit'
+phases=json.loads((root/'tcp-phases-with-lanes.json').read_text())
+phase_keys=('mode','stage','direction','repetition')
+begin_marks={tuple(x[k] for k in phase_keys):x for line in (root/'telemetry/phases.jsonl').read_text().splitlines() if (x:=json.loads(line))['boundary']=='begin'}
+for phase in phases:
+ begin=begin_marks[tuple(phase[k] for k in phase_keys)]
+ phase.update(server_pid=begin['server_pid'],agent_pid=begin['agent_pid'])
+def span(values):
+ return {'min':min(values),'median':statistics.median(values),'max':max(values)} if values else None
+records={role:[json.loads(line) for line in (root/'telemetry'/('credit-'+role+'.jsonl')).read_text().splitlines()] for role in ('server','agent')}
+rows=[]; reports=[]; coverage={}
+for role,all_records in records.items():
+ credits=[r for r in all_records if r['kind']=='credit']
+ stamps=[r['started_ns'] for r in credits]
+ cadence=[(b-a)/1e6 for a,b in zip(stamps,stamps[1:]) if b-a<1e9]
+ coverage[role]={'successful_captures':len(credits),'capture_errors':[r for r in all_records if r['kind']=='credit_error'],'skipped_legacy':[r for r in all_records if r['kind']=='credit_unavailable'],'stop_records':[r for r in all_records if r['kind']=='credit_collector_stop'],'request_duration_ms':span([r['elapsed_ns']/1e6 for r in credits]),'successful_capture_interval_ms_excluding_gaps_over_one_second':span(cadence),'truncated_sessions':sum(s['snapshot']['truncated'] for r in credits for s in r['snapshot']['sessions'])}
+ for phase in phases:
+  sender='agent' if phase['direction']=='download' else 'server'
+  samples=[]
+  for r in credits:
+   if not phase['start_ns']<=r['started_ns']<=phase['end_ns']: continue
+   expected_pid=int(phase[role+'_pid'])
+   if r['pid']!=expected_pid: continue
+   for session in r['snapshot']['sessions']:
+    snap=session['snapshot']
+    if session['lane']!=phase['lane']: continue
+    row={k:phase[k] for k in ('mode','stage','direction','repetition','lane')}
+    row.update(role=role,is_sender=role==sender,monotonic_ns=r['started_ns'],phase_offset_seconds=(r['started_ns']-phase['start_ns'])/1e9,request_duration_ms=r['elapsed_ns']/1e6,session_identity=session['session_identity'],**{k:v for k,v in snap.items() if k!='streams'})
+    streams=snap['streams']
+    row['stream_ids']=','.join(str(s['id']) for s in streams)
+    for k in ('byte_send_available','byte_receive_limit','allocation_send_available','allocation_send_limit','allocation_receive_limit'):
+     values=[s[k] for s in streams]
+     row[k+'_min']=min(values) if values else None
+     row[k+'_max']=max(values) if values else None
+    rows.append(row); samples.append(row)
+  active=[r for r in samples if r['captured_streams']>0 and .2<r['phase_offset_seconds']<phase['phase_seconds']-.2]
+  report={k:phase[k] for k in ('mode','stage','direction','repetition','lane','phase_seconds')}
+  report.update(role=role,is_sender=role==sender,samples=len(samples),active_interior_samples=len(active),stream_ids=sorted({sid for r in active for sid in r['stream_ids'].split(',') if sid}),truncated_samples=sum(r['truncated'] for r in samples))
+  for k in ('send_available','send_limit','send_queue_length','control_queue_length','rtt_nanoseconds','byte_send_available_min','byte_receive_limit_max','allocation_send_available_min','allocation_send_limit_max','allocation_receive_limit_max'):
+   report[k]=span([r[k] for r in active if r[k] is not None])
+  report['byte_send_zero_samples']=sum(r['byte_send_available_min']==0 for r in active)
+  report['session_send_zero_samples']=sum(r['send_available']==0 for r in active)
+  report['allocation_send_below_one_charge_samples']=sum(r['allocation_send_available_min'] is not None and r['allocation_send_available_min']<4096 for r in active)
+  report['send_wake_registered_samples']=sum(r['send_wake_registered'] for r in active)
+  reports.append(report)
+(root/'credit-phases.json').write_text(json.dumps(reports,indent=2)+'\n')
+(root/'credit-coverage.json').write_text(json.dumps(coverage,indent=2)+'\n')
+if rows:
+ with (root/'credit-active-lanes.csv').open('w') as f:
+  writer=csv.DictWriter(f,fieldnames=list(rows[0]));writer.writeheader();writer.writerows(rows)
+print(json.dumps(coverage,indent=2))
+for r in reports:
+ if r['mode']=='aggregate-v1' and r['direction']=='download': print(json.dumps(r))

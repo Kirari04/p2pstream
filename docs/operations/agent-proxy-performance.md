@@ -524,7 +524,7 @@ fails the predeclared 90% gate. Two timed aggregate downloads run near 27.4
 MB/s and the third at 34.6 MB/s; the retained warmup is slower still. The raw
 32-row result remains failed with exact payload/event conservation. No pressure
 or reference result should be inferred from it. A separate lane/TCP and
-in-flight credit diagnostic is required before another acceptance run. See the
+in-flight credit diagnostic follows below; no acceptance pass is inferred. See the
 [final WAN failure evidence](benchmarks/proxy-qualification-2026-10-16/final-runtime-wan-failure/README.md).
 
 A fixed three-pair stability check reproduces the failure across fresh
@@ -539,7 +539,18 @@ identify the cause. See the
 and the separate
 [TCP/profile diagnostic](benchmarks/proxy-qualification-2026-10-16/agent-wan-tcp-diagnostic/README.md).
 
-A bounded large-transfer comparison uses the same current server with either
+A second diagnostic samples bounded test-tag credit snapshots every 20 ms and
+TCP state every 100 ms without native profiles. It also stays healthy: all 32
+transfers are exact, and new receive windows reach 16 MiB in about 1.3–1.6
+seconds with sender allocation limits following about 40 ms later. Because
+the failed timing does not reproduce under observation, these results do not
+clear the three-pair failure or justify a runtime patch. The next trace records
+existing growth samples into a bounded test-only buffer and reads them only
+after each transfer, without live polling. Observer cost, capture errors and
+all selected-lane samples are retained in the
+[credit/TCP diagnostic](benchmarks/proxy-qualification-2026-10-16/agent-wan-credit-diagnostic/README.md).
+
+An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
 RTT 96.547 ms). Four fresh 256 MiB downloads and uploads prewarm every receiving
 session pool, followed by retained warmup and three timed 256 MiB transfers in

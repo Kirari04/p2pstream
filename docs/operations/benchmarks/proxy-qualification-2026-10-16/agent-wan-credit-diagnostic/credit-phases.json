@@ -1,0 +1,3810 @@
+[
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 0,
+    "phase_seconds": 8.181714188,
+    "role": "server",
+    "is_sender": false,
+    "samples": 406,
+    "active_interior_samples": 386,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80242534,
+      "median": 80242534.0,
+      "max": 80242534
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919.0,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 19791872.0,
+      "max": 19791872
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 386,
+    "allocation_send_below_one_charge_samples": 386,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "2",
+    "lane": 1,
+    "phase_seconds": 8.183224757,
+    "role": "server",
+    "is_sender": false,
+    "samples": 406,
+    "active_interior_samples": 386,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80259325,
+      "median": 80259325.0,
+      "max": 80259325
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919.0,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 26869760.0,
+      "max": 26869760
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 386,
+    "allocation_send_below_one_charge_samples": 386,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "3",
+    "lane": 2,
+    "phase_seconds": 8.114380871,
+    "role": "server",
+    "is_sender": false,
+    "samples": 404,
+    "active_interior_samples": 384,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80314030,
+      "median": 80314030.0,
+      "max": 80314030
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919.0,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 19726336.0,
+      "max": 25821184
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 384,
+    "allocation_send_below_one_charge_samples": 384,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "4",
+    "lane": 3,
+    "phase_seconds": 8.147261367,
+    "role": "server",
+    "is_sender": false,
+    "samples": 406,
+    "active_interior_samples": 386,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80166642,
+      "median": 80166642.0,
+      "max": 80166642
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919.0,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 21233664.0,
+      "max": 21233664
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 386,
+    "allocation_send_below_one_charge_samples": 386,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 0,
+    "phase_seconds": 7.861895277,
+    "role": "server",
+    "is_sender": true,
+    "samples": 390,
+    "active_interior_samples": 372,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 1
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80152994,
+      "median": 80152994.0,
+      "max": 80152994
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16875520.0,
+      "max": 21102592
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 26,
+    "session_send_zero_samples": 372,
+    "allocation_send_below_one_charge_samples": 372,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "2",
+    "lane": 1,
+    "phase_seconds": 7.802019261,
+    "role": "server",
+    "is_sender": true,
+    "samples": 387,
+    "active_interior_samples": 369,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80266273,
+      "median": 80266273,
+      "max": 80266273
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16973824,
+      "max": 21397504
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 29,
+    "session_send_zero_samples": 369,
+    "allocation_send_below_one_charge_samples": 369,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "3",
+    "lane": 2,
+    "phase_seconds": 7.857082181,
+    "role": "server",
+    "is_sender": true,
+    "samples": 391,
+    "active_interior_samples": 371,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80200684,
+      "median": 80200684,
+      "max": 80200684
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16580608,
+      "max": 20807680
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 28,
+    "session_send_zero_samples": 371,
+    "allocation_send_below_one_charge_samples": 371,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "4",
+    "lane": 3,
+    "phase_seconds": 7.86332177,
+    "role": "server",
+    "is_sender": true,
+    "samples": 391,
+    "active_interior_samples": 371,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80221985,
+      "median": 80221985,
+      "max": 80221985
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 17088512,
+      "max": 22265856
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 30,
+    "session_send_zero_samples": 371,
+    "allocation_send_below_one_charge_samples": 371,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "retained-warmup",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 0,
+    "phase_seconds": 8.100307553,
+    "role": "server",
+    "is_sender": false,
+    "samples": 403,
+    "active_interior_samples": 383,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80227664,
+      "median": 80227664,
+      "max": 80227664
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 24707072,
+      "max": 24707072
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 383,
+    "allocation_send_below_one_charge_samples": 383,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "retained-warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 1,
+    "phase_seconds": 7.807715358,
+    "role": "server",
+    "is_sender": true,
+    "samples": 389,
+    "active_interior_samples": 369,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80196917,
+      "median": 80196917,
+      "max": 80358678
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16941056,
+      "max": 21528576
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 39,
+    "session_send_zero_samples": 369,
+    "allocation_send_below_one_charge_samples": 369,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 2,
+    "phase_seconds": 8.266811141,
+    "role": "server",
+    "is_sender": false,
+    "samples": 411,
+    "active_interior_samples": 391,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80269717,
+      "median": 80269717,
+      "max": 80269717
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 23461888,
+      "max": 23461888
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 391,
+    "allocation_send_below_one_charge_samples": 391,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 3,
+    "phase_seconds": 7.861277673,
+    "role": "server",
+    "is_sender": true,
+    "samples": 391,
+    "active_interior_samples": 371,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80131453,
+      "median": 80131453,
+      "max": 80131453
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16465920,
+      "max": 20774912
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 38,
+    "session_send_zero_samples": 371,
+    "allocation_send_below_one_charge_samples": 371,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "2",
+    "lane": 0,
+    "phase_seconds": 7.718218315,
+    "role": "server",
+    "is_sender": true,
+    "samples": 384,
+    "active_interior_samples": 364,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 1
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80165501,
+      "median": 80165501.0,
+      "max": 80165501
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 17006592.0,
+      "max": 21528576
+    },
+    "byte_receive_limit_max": {
+      "min": 24707072,
+      "median": 24707072.0,
+      "max": 24707072
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 35,
+    "session_send_zero_samples": 364,
+    "allocation_send_below_one_charge_samples": 364,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "2",
+    "lane": 1,
+    "phase_seconds": 8.103212597,
+    "role": "server",
+    "is_sender": false,
+    "samples": 403,
+    "active_interior_samples": 383,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80145740,
+      "median": 80145740,
+      "max": 80145740
+    },
+    "byte_send_available_min": {
+      "min": 22626049,
+      "median": 22626049,
+      "max": 22626049
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 23658496,
+      "max": 23658496
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 383,
+    "allocation_send_below_one_charge_samples": 383,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "3",
+    "lane": 2,
+    "phase_seconds": 7.864159528,
+    "role": "server",
+    "is_sender": false,
+    "samples": 391,
+    "active_interior_samples": 371,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80149417,
+      "median": 80149417,
+      "max": 80149417
+    },
+    "byte_send_available_min": {
+      "min": 523664,
+      "median": 523664,
+      "max": 523664
+    },
+    "byte_receive_limit_max": {
+      "min": 23461888,
+      "median": 23461888,
+      "max": 23461888
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 371,
+    "allocation_send_below_one_charge_samples": 371,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "3",
+    "lane": 3,
+    "phase_seconds": 7.626673793,
+    "role": "server",
+    "is_sender": true,
+    "samples": 380,
+    "active_interior_samples": 360,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_limit": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 1
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80204034,
+      "median": 80204034.0,
+      "max": 80204034
+    },
+    "byte_send_available_min": {
+      "min": 14270464,
+      "median": 17301504.0,
+      "max": 21069824
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_send_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "allocation_receive_limit_max": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 360,
+    "allocation_send_below_one_charge_samples": 360,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 1,
+    "phase_seconds": 8.145177522,
+    "role": "server",
+    "is_sender": false,
+    "samples": 404,
+    "active_interior_samples": 385,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 2097152,
+      "median": 2097152,
+      "max": 2097152
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 2097152,
+      "max": 2097152
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80247574,
+      "median": 80247574,
+      "max": 80247574
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 23068672,
+      "max": 23068672
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 23068672,
+      "max": 23068672
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "2",
+    "lane": 2,
+    "phase_seconds": 8.208722508,
+    "role": "server",
+    "is_sender": false,
+    "samples": 408,
+    "active_interior_samples": 389,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 2097152,
+      "median": 2097152,
+      "max": 2097152
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 2097152,
+      "max": 2097152
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80178128,
+      "median": 80178128,
+      "max": 80178128
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 22478848,
+      "max": 22478848
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 22478848,
+      "max": 22478848
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "3",
+    "lane": 3,
+    "phase_seconds": 8.132116276,
+    "role": "server",
+    "is_sender": false,
+    "samples": 404,
+    "active_interior_samples": 384,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 2097152,
+      "median": 2097152.0,
+      "max": 2097152
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 2097152.0,
+      "max": 2097152
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80290596,
+      "median": 80290596.0,
+      "max": 80290596
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919.0,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 21626880.0,
+      "max": 21626880
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 21626880.0,
+      "max": 21626880
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "4",
+    "lane": 4,
+    "phase_seconds": 8.144164025,
+    "role": "server",
+    "is_sender": false,
+    "samples": 405,
+    "active_interior_samples": 385,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 2097152,
+      "median": 2097152,
+      "max": 2097152
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 2097152,
+      "max": 2097152
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80170891,
+      "median": 80170891,
+      "max": 80170891
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 23003136,
+      "max": 23003136
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 23003136,
+      "max": 23003136
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 1,
+    "phase_seconds": 7.915812498,
+    "role": "server",
+    "is_sender": true,
+    "samples": 394,
+    "active_interior_samples": 374,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 1572864,
+      "median": 92536832.0,
+      "max": 93847552
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 95944704.0,
+      "max": 95944704
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80194387,
+      "median": 80194387.0,
+      "max": 80194387
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16760832.0,
+      "max": 21102592
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 20578304.0,
+      "max": 21889024
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 23986176.0,
+      "max": 23986176
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 39,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 5,
+    "send_wake_registered_samples": 2
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "2",
+    "lane": 2,
+    "phase_seconds": 7.921983715,
+    "role": "server",
+    "is_sender": true,
+    "samples": 393,
+    "active_interior_samples": 374,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 1572864,
+      "median": 88080384.0,
+      "max": 89161728
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 91488256.0,
+      "max": 91488256
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80122966,
+      "median": 80122966.0,
+      "max": 80122966
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 15990784.0,
+      "max": 20119552
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 19464192.0,
+      "max": 20545536
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 22872064.0,
+      "max": 22872064
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 37,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 5,
+    "send_wake_registered_samples": 2
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "3",
+    "lane": 3,
+    "phase_seconds": 7.912164554,
+    "role": "server",
+    "is_sender": true,
+    "samples": 393,
+    "active_interior_samples": 373,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 1572864,
+      "median": 92536832,
+      "max": 94191616
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 95944704,
+      "max": 95944704
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80168754,
+      "median": 80168754,
+      "max": 80168754
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16777216,
+      "max": 21397504
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 20578304,
+      "max": 22233088
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 23986176,
+      "max": 23986176
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 37,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 5,
+    "send_wake_registered_samples": 2
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "4",
+    "lane": 4,
+    "phase_seconds": 10.311213499,
+    "role": "server",
+    "is_sender": true,
+    "samples": 513,
+    "active_interior_samples": 493,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 1572864,
+      "median": 80674816,
+      "max": 81821696
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 84410368,
+      "max": 84410368
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 2
+    },
+    "rtt_nanoseconds": {
+      "min": 80129226,
+      "median": 80129226,
+      "max": 80129226
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 12681216,
+      "max": 18251776
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 17367040,
+      "max": 18513920
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 21102592,
+      "max": 21102592
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 107,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 11,
+    "send_wake_registered_samples": 2
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "retained-warmup",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 1,
+    "phase_seconds": 8.200564097,
+    "role": "server",
+    "is_sender": false,
+    "samples": 408,
+    "active_interior_samples": 388,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 95944704,
+      "median": 95944704.0,
+      "max": 95944704
+    },
+    "send_limit": {
+      "min": 95944704,
+      "median": 95944704.0,
+      "max": 95944704
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80135758,
+      "median": 80135758.0,
+      "max": 80135758
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919.0,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 20905984.0,
+      "max": 20905984
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 20905984.0,
+      "max": 20905984
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "retained-warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 2,
+    "phase_seconds": 7.915916847,
+    "role": "server",
+    "is_sender": true,
+    "samples": 394,
+    "active_interior_samples": 374,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 87752704,
+      "median": 93323264.0,
+      "max": 95535104
+    },
+    "send_limit": {
+      "min": 91488256,
+      "median": 96731136.0,
+      "max": 96731136
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80131499,
+      "median": 80131499.0,
+      "max": 80131499
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 17072128.0,
+      "max": 21528576
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 20774912.0,
+      "max": 22986752
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 24182784.0,
+      "max": 24182784
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 41,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 3,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 3,
+    "phase_seconds": 8.200798185,
+    "role": "server",
+    "is_sender": false,
+    "samples": 407,
+    "active_interior_samples": 388,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 95944704,
+      "median": 95944704.0,
+      "max": 95944704
+    },
+    "send_limit": {
+      "min": 95944704,
+      "median": 95944704.0,
+      "max": 95944704
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80200793,
+      "median": 80200793.0,
+      "max": 80200793
+    },
+    "byte_send_available_min": {
+      "min": 523919,
+      "median": 523919.0,
+      "max": 523919
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 23003136.0,
+      "max": 23003136
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 23003136.0,
+      "max": 23003136
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 4,
+    "phase_seconds": 7.91364193,
+    "role": "server",
+    "is_sender": true,
+    "samples": 393,
+    "active_interior_samples": 373,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 80363520,
+      "median": 81035264,
+      "max": 83984384
+    },
+    "send_limit": {
+      "min": 84410368,
+      "median": 84410368,
+      "max": 84410368
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80124687,
+      "median": 80124687,
+      "max": 80124687
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 14188544,
+      "max": 17858560
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 17072128,
+      "max": 18104320
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 20447232,
+      "max": 20447232
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 37,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 5,
+    "send_wake_registered_samples": 2
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "2",
+    "lane": 1,
+    "phase_seconds": 7.829550578,
+    "role": "server",
+    "is_sender": true,
+    "samples": 389,
+    "active_interior_samples": 370,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 92110848,
+      "median": 92569600.0,
+      "max": 95518720
+    },
+    "send_limit": {
+      "min": 95944704,
+      "median": 95944704.0,
+      "max": 95944704
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80250378,
+      "median": 80250378.0,
+      "max": 80250378
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16777216.0,
+      "max": 21299200
+    },
+    "byte_receive_limit_max": {
+      "min": 20905984,
+      "median": 20905984.0,
+      "max": 20905984
+    },
+    "allocation_send_available_min": {
+      "min": 28672,
+      "median": 20512768.0,
+      "max": 22282240
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 23920640.0,
+      "max": 23920640
+    },
+    "allocation_receive_limit_max": {
+      "min": 20905984,
+      "median": 20905984.0,
+      "max": 20905984
+    },
+    "byte_send_zero_samples": 35,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "2",
+    "lane": 2,
+    "phase_seconds": 8.123269878,
+    "role": "server",
+    "is_sender": false,
+    "samples": 404,
+    "active_interior_samples": 384,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 96731136,
+      "median": 96731136.0,
+      "max": 96731136
+    },
+    "send_limit": {
+      "min": 96731136,
+      "median": 96731136.0,
+      "max": 96731136
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80131499,
+      "median": 80168077.0,
+      "max": 80168077
+    },
+    "byte_send_available_min": {
+      "min": 19250945,
+      "median": 19250945.0,
+      "max": 19250945
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 23461888.0,
+      "max": 23461888
+    },
+    "allocation_send_available_min": {
+      "min": 24182784,
+      "median": 24182784.0,
+      "max": 24182784
+    },
+    "allocation_send_limit_max": {
+      "min": 24182784,
+      "median": 24182784.0,
+      "max": 24182784
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 23461888.0,
+      "max": 23461888
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "3",
+    "lane": 3,
+    "phase_seconds": 7.974310308,
+    "role": "server",
+    "is_sender": false,
+    "samples": 396,
+    "active_interior_samples": 376,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 95944704,
+      "median": 95944704.0,
+      "max": 95944704
+    },
+    "send_limit": {
+      "min": 95944704,
+      "median": 95944704.0,
+      "max": 95944704
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80200793,
+      "median": 80275636.0,
+      "max": 80275636
+    },
+    "byte_send_available_min": {
+      "min": 523664,
+      "median": 523664.0,
+      "max": 523664
+    },
+    "byte_receive_limit_max": {
+      "min": 23003136,
+      "median": 23003136.0,
+      "max": 23003136
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 23003136,
+      "median": 23003136.0,
+      "max": 23003136
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "3",
+    "lane": 4,
+    "phase_seconds": 7.68327283,
+    "role": "server",
+    "is_sender": true,
+    "samples": 382,
+    "active_interior_samples": 362,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 80248832,
+      "median": 81035264.0,
+      "max": 82657280
+    },
+    "send_limit": {
+      "min": 84410368,
+      "median": 84410368.0,
+      "max": 84410368
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80187064,
+      "median": 80187064.0,
+      "max": 80187064
+    },
+    "byte_send_available_min": {
+      "min": 11583214,
+      "median": 14680064.0,
+      "max": 17088512
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 16285696,
+      "median": 17072128.0,
+      "max": 18694144
+    },
+    "allocation_send_limit_max": {
+      "min": 20447232,
+      "median": 20447232.0,
+      "max": 20447232
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 0,
+    "phase_seconds": 8.181714188,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "2",
+    "lane": 1,
+    "phase_seconds": 8.183224757,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "3",
+    "lane": 2,
+    "phase_seconds": 8.114380871,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "4",
+    "lane": 3,
+    "phase_seconds": 8.147261367,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 0,
+    "phase_seconds": 7.861895277,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "2",
+    "lane": 1,
+    "phase_seconds": 7.802019261,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "3",
+    "lane": 2,
+    "phase_seconds": 7.857082181,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "4",
+    "lane": 3,
+    "phase_seconds": 7.86332177,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "retained-warmup",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 0,
+    "phase_seconds": 8.100307553,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "retained-warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 1,
+    "phase_seconds": 7.807715358,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 2,
+    "phase_seconds": 8.266811141,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 3,
+    "phase_seconds": 7.861277673,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "2",
+    "lane": 0,
+    "phase_seconds": 7.718218315,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "2",
+    "lane": 1,
+    "phase_seconds": 8.103212597,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "3",
+    "lane": 2,
+    "phase_seconds": 7.864159528,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "3",
+    "lane": 3,
+    "phase_seconds": 7.626673793,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 0,
+    "active_interior_samples": 0,
+    "stream_ids": [],
+    "truncated_samples": 0,
+    "send_available": null,
+    "send_limit": null,
+    "send_queue_length": null,
+    "control_queue_length": null,
+    "rtt_nanoseconds": null,
+    "byte_send_available_min": null,
+    "byte_receive_limit_max": null,
+    "allocation_send_available_min": null,
+    "allocation_send_limit_max": null,
+    "allocation_receive_limit_max": null,
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 1,
+    "phase_seconds": 8.145177522,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 405,
+    "active_interior_samples": 385,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 1671168,
+      "median": 89001984,
+      "max": 89649152
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 92274688,
+      "max": 92274688
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80155926,
+      "median": 80155926,
+      "max": 80155926
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16154624,
+      "max": 19958415
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 24576,
+      "median": 19795968,
+      "max": 20443136
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 23068672,
+      "max": 23068672
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 31,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "2",
+    "lane": 2,
+    "phase_seconds": 8.208722508,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 409,
+    "active_interior_samples": 389,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 1589248,
+      "median": 86671360,
+      "max": 87293952
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 89915392,
+      "max": 89915392
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80180683,
+      "median": 80180683,
+      "max": 80180683
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 15597568,
+      "max": 19693568
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 16384,
+      "median": 19234816,
+      "max": 19857408
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 22478848,
+      "max": 22478848
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 28,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "3",
+    "lane": 3,
+    "phase_seconds": 8.132116276,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 404,
+    "active_interior_samples": 384,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 1622016,
+      "median": 83267584.0,
+      "max": 83918848
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 86507520.0,
+      "max": 86507520
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 2
+    },
+    "rtt_nanoseconds": {
+      "min": 80164761,
+      "median": 80164761.0,
+      "max": 80164761
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 15084103.0,
+      "max": 18640896
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 4096,
+      "median": 18386944.0,
+      "max": 19038208
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 21626880.0,
+      "max": 21626880
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 26,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "4",
+    "lane": 4,
+    "phase_seconds": 8.144164025,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 405,
+    "active_interior_samples": 385,
+    "stream_ids": [
+      "2"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 1671168,
+      "median": 88752128,
+      "max": 89407488
+    },
+    "send_limit": {
+      "min": 2097152,
+      "median": 92012544,
+      "max": 92012544
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80151223,
+      "median": 80151223,
+      "max": 80151223
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16255968,
+      "max": 20178539
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 12288,
+      "median": 19742720,
+      "max": 20398080
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 23003136,
+      "max": 23003136
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 32,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 1,
+    "phase_seconds": 7.915812498,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 394,
+    "active_interior_samples": 374,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 92274688,
+      "median": 92274688.0,
+      "max": 92274688
+    },
+    "send_limit": {
+      "min": 92274688,
+      "median": 92274688.0,
+      "max": 92274688
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80151563,
+      "median": 80151563.0,
+      "max": 80151563
+    },
+    "byte_send_available_min": {
+      "min": 524273,
+      "median": 524273.0,
+      "max": 524273
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 23986176.0,
+      "max": 23986176
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 23986176.0,
+      "max": 23986176
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "2",
+    "lane": 2,
+    "phase_seconds": 7.921983715,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 394,
+    "active_interior_samples": 374,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 89915392,
+      "median": 89915392.0,
+      "max": 89915392
+    },
+    "send_limit": {
+      "min": 89915392,
+      "median": 89915392.0,
+      "max": 89915392
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80164257,
+      "median": 80164257.0,
+      "max": 80164257
+    },
+    "byte_send_available_min": {
+      "min": 524273,
+      "median": 524273.0,
+      "max": 524273
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 22872064.0,
+      "max": 22872064
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 22872064.0,
+      "max": 22872064
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "3",
+    "lane": 3,
+    "phase_seconds": 7.912164554,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 393,
+    "active_interior_samples": 373,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 86507520,
+      "median": 86507520,
+      "max": 86507520
+    },
+    "send_limit": {
+      "min": 86507520,
+      "median": 86507520,
+      "max": 86507520
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80178132,
+      "median": 80178132,
+      "max": 80178132
+    },
+    "byte_send_available_min": {
+      "min": 524273,
+      "median": 524273,
+      "max": 524273
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 23986176,
+      "max": 23986176
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 23986176,
+      "max": 23986176
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "4",
+    "lane": 4,
+    "phase_seconds": 10.311213499,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 513,
+    "active_interior_samples": 493,
+    "stream_ids": [
+      "4"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 92012544,
+      "median": 92012544,
+      "max": 92012544
+    },
+    "send_limit": {
+      "min": 92012544,
+      "median": 92012544,
+      "max": 92012544
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80157674,
+      "median": 80157674,
+      "max": 80157674
+    },
+    "byte_send_available_min": {
+      "min": 524273,
+      "median": 524273,
+      "max": 524273
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 21102592,
+      "max": 21102592
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 21102592,
+      "max": 21102592
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "retained-warmup",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 1,
+    "phase_seconds": 8.200564097,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 408,
+    "active_interior_samples": 388,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 88408064,
+      "median": 89063424.0,
+      "max": 91856896
+    },
+    "send_limit": {
+      "min": 92274688,
+      "median": 92274688.0,
+      "max": 92274688
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80168562,
+      "median": 80168562.0,
+      "max": 80168562
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 14553088.0,
+      "max": 17891328
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 17661952.0,
+      "max": 18317312
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 20905984.0,
+      "max": 20905984
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 39,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 5,
+    "send_wake_registered_samples": 1
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "retained-warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 2,
+    "phase_seconds": 7.915916847,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 394,
+    "active_interior_samples": 374,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 89915392,
+      "median": 89915392.0,
+      "max": 89915392
+    },
+    "send_limit": {
+      "min": 89915392,
+      "median": 89915392.0,
+      "max": 89915392
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80173672,
+      "median": 80173672.0,
+      "max": 80173672
+    },
+    "byte_send_available_min": {
+      "min": 524273,
+      "median": 524273.0,
+      "max": 524273
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 24182784.0,
+      "max": 24182784
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 24182784.0,
+      "max": 24182784
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "1",
+    "lane": 3,
+    "phase_seconds": 8.200798185,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 407,
+    "active_interior_samples": 388,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 82616320,
+      "median": 88768512.0,
+      "max": 89423872
+    },
+    "send_limit": {
+      "min": 86507520,
+      "median": 92012544.0,
+      "max": 92012544
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80171856,
+      "median": 80171856.0,
+      "max": 80171856
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 15990784.0,
+      "max": 19922944
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 19759104.0,
+      "max": 20414464
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 23003136.0,
+      "max": 23003136
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 39,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 5,
+    "send_wake_registered_samples": 1
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "1",
+    "lane": 4,
+    "phase_seconds": 7.91364193,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 393,
+    "active_interior_samples": 373,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 92012544,
+      "median": 92012544,
+      "max": 92012544
+    },
+    "send_limit": {
+      "min": 92012544,
+      "median": 92012544,
+      "max": 92012544
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80178729,
+      "median": 80178729,
+      "max": 80178729
+    },
+    "byte_send_available_min": {
+      "min": 524273,
+      "median": 524273,
+      "max": 524273
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 20447232,
+      "max": 20447232
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 20447232,
+      "max": 20447232
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "2",
+    "lane": 1,
+    "phase_seconds": 7.829550578,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 389,
+    "active_interior_samples": 370,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 92274688,
+      "median": 92274688.0,
+      "max": 92274688
+    },
+    "send_limit": {
+      "min": 92274688,
+      "median": 92274688.0,
+      "max": 92274688
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80140534,
+      "median": 80140534.0,
+      "max": 80278603
+    },
+    "byte_send_available_min": {
+      "min": 20812439,
+      "median": 20812439.0,
+      "max": 20812439
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 23920640.0,
+      "max": 23920640
+    },
+    "allocation_send_available_min": {
+      "min": 20905984,
+      "median": 20905984.0,
+      "max": 20905984
+    },
+    "allocation_send_limit_max": {
+      "min": 20905984,
+      "median": 20905984.0,
+      "max": 20905984
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 23920640.0,
+      "max": 23920640
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "2",
+    "lane": 2,
+    "phase_seconds": 8.123269878,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 404,
+    "active_interior_samples": 384,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 86020096,
+      "median": 90603520.0,
+      "max": 91226112
+    },
+    "send_limit": {
+      "min": 89915392,
+      "median": 93847552.0,
+      "max": 93847552
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 1
+    },
+    "rtt_nanoseconds": {
+      "min": 80165573,
+      "median": 80165573.0,
+      "max": 80165573
+    },
+    "byte_send_available_min": {
+      "min": 0,
+      "median": 16572832.5,
+      "max": 20383269
+    },
+    "byte_receive_limit_max": {
+      "min": 24182784,
+      "median": 24182784.0,
+      "max": 24182784
+    },
+    "allocation_send_available_min": {
+      "min": 0,
+      "median": 20217856.0,
+      "max": 20840448
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 23461888.0,
+      "max": 23461888
+    },
+    "allocation_receive_limit_max": {
+      "min": 24182784,
+      "median": 24182784.0,
+      "max": 24182784
+    },
+    "byte_send_zero_samples": 37,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 5,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "3",
+    "lane": 3,
+    "phase_seconds": 7.974310308,
+    "role": "agent",
+    "is_sender": true,
+    "samples": 396,
+    "active_interior_samples": 376,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 87818240,
+      "median": 88801280.0,
+      "max": 89423872
+    },
+    "send_limit": {
+      "min": 92012544,
+      "median": 92012544.0,
+      "max": 92012544
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 2
+    },
+    "rtt_nanoseconds": {
+      "min": 80192935,
+      "median": 80192935.0,
+      "max": 80192935
+    },
+    "byte_send_available_min": {
+      "min": 13604550,
+      "median": 17109702.0,
+      "max": 20286307
+    },
+    "byte_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_available_min": {
+      "min": 18808832,
+      "median": 19791872.0,
+      "max": 20414464
+    },
+    "allocation_send_limit_max": {
+      "min": 23003136,
+      "median": 23003136.0,
+      "max": 23003136
+    },
+    "allocation_receive_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "3",
+    "lane": 4,
+    "phase_seconds": 7.68327283,
+    "role": "agent",
+    "is_sender": false,
+    "samples": 382,
+    "active_interior_samples": 362,
+    "stream_ids": [
+      "6"
+    ],
+    "truncated_samples": 0,
+    "send_available": {
+      "min": 92012544,
+      "median": 92012544.0,
+      "max": 92012544
+    },
+    "send_limit": {
+      "min": 92012544,
+      "median": 92012544.0,
+      "max": 92012544
+    },
+    "send_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "control_queue_length": {
+      "min": 0,
+      "median": 0.0,
+      "max": 0
+    },
+    "rtt_nanoseconds": {
+      "min": 80178729,
+      "median": 80185880.0,
+      "max": 80185880
+    },
+    "byte_send_available_min": {
+      "min": 524048,
+      "median": 524048.0,
+      "max": 524048
+    },
+    "byte_receive_limit_max": {
+      "min": 20447232,
+      "median": 20447232.0,
+      "max": 20447232
+    },
+    "allocation_send_available_min": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_send_limit_max": {
+      "min": 524288,
+      "median": 524288.0,
+      "max": 524288
+    },
+    "allocation_receive_limit_max": {
+      "min": 20447232,
+      "median": 20447232.0,
+      "max": 20447232
+    },
+    "byte_send_zero_samples": 0,
+    "session_send_zero_samples": 0,
+    "allocation_send_below_one_charge_samples": 0,
+    "send_wake_registered_samples": 0
+  }
+]

@@ -1,0 +1,178 @@
+{
+  "diagnostic_only": true,
+  "phases": 32,
+  "unmatched_phase_begins": 0,
+  "records": 5745,
+  "capture_errors": [],
+  "capture_error_count": 0,
+  "collector_stop": [
+    {
+      "kind": "collector_stop",
+      "monotonic_ns": 377914021188643,
+      "wall_ns": 1792127795716464093,
+      "iterations": 2628,
+      "requested_stop": true,
+      "deadline_reached": false,
+      "user_cpu_seconds": 2.603825,
+      "system_cpu_seconds": 0.891706,
+      "children_user_cpu_seconds": 4.149618,
+      "children_system_cpu_seconds": 68.445167
+    }
+  ],
+  "cadence": {
+    "server": {
+      "samples": 2628,
+      "interval_ms_min": 100.04889,
+      "interval_ms_median": 100.120061,
+      "interval_ms_p95": 100.182197,
+      "interval_ms_max": 101.086764
+    },
+    "agent": {
+      "samples": 2628,
+      "interval_ms_min": 94.572195,
+      "interval_ms_median": 100.115283,
+      "interval_ms_p95": 101.359546,
+      "interval_ms_max": 103.03424
+    }
+  },
+  "qdiscs": {
+    "growth-rs": {
+      "first": {
+        "kind": "netem",
+        "handle": "8045:",
+        "root": true,
+        "refcnt": 17,
+        "options": {
+          "limit": 100000,
+          "delay": {
+            "delay": 0.04,
+            "jitter": 0,
+            "correlation": 0
+          },
+          "rate": {
+            "rate": 125000000,
+            "packetoverhead": 0,
+            "cellsize": 0,
+            "celloverhead": 0
+          },
+          "seed": 17896630556150826604,
+          "ecn": false,
+          "gap": 0
+        },
+        "bytes": 872,
+        "packets": 10,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0,
+        "backlog": 0,
+        "qlen": 0
+      },
+      "last": {
+        "kind": "netem",
+        "handle": "8045:",
+        "root": true,
+        "refcnt": 17,
+        "options": {
+          "limit": 100000,
+          "delay": {
+            "delay": 0.04,
+            "jitter": 0,
+            "correlation": 0
+          },
+          "rate": {
+            "rate": 125000000,
+            "packetoverhead": 0,
+            "cellsize": 0,
+            "celloverhead": 0
+          },
+          "seed": 17896630556150826604,
+          "ecn": false,
+          "gap": 0
+        },
+        "bytes": 4548309886,
+        "packets": 3635219,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0,
+        "backlog": 0,
+        "qlen": 0
+      },
+      "delta": {
+        "bytes": 4548309014,
+        "packets": 3635209,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0
+      }
+    },
+    "growth-rr": {
+      "first": {
+        "kind": "netem",
+        "handle": "8046:",
+        "root": true,
+        "refcnt": 17,
+        "options": {
+          "limit": 100000,
+          "delay": {
+            "delay": 0.04,
+            "jitter": 0,
+            "correlation": 0
+          },
+          "rate": {
+            "rate": 125000000,
+            "packetoverhead": 0,
+            "cellsize": 0,
+            "celloverhead": 0
+          },
+          "seed": 10766282299914339477,
+          "ecn": false,
+          "gap": 0
+        },
+        "bytes": 958,
+        "packets": 11,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0,
+        "backlog": 0,
+        "qlen": 0
+      },
+      "last": {
+        "kind": "netem",
+        "handle": "8046:",
+        "root": true,
+        "refcnt": 17,
+        "options": {
+          "limit": 100000,
+          "delay": {
+            "delay": 0.04,
+            "jitter": 0,
+            "correlation": 0
+          },
+          "rate": {
+            "rate": 125000000,
+            "packetoverhead": 0,
+            "cellsize": 0,
+            "celloverhead": 0
+          },
+          "seed": 10766282299914339477,
+          "ecn": false,
+          "gap": 0
+        },
+        "bytes": 4548140634,
+        "packets": 3632414,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0,
+        "backlog": 0,
+        "qlen": 0
+      },
+      "delta": {
+        "bytes": 4548139676,
+        "packets": 3632403,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0
+      }
+    }
+  }
+}

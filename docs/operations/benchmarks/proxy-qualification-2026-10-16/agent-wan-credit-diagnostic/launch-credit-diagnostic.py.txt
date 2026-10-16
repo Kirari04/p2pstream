@@ -1,0 +1,34 @@
+import datetime,hashlib,json,pathlib,shlex,shutil,subprocess,time
+root=pathlib.Path('/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk')
+repo=pathlib.Path('/home/user/.codex/worktrees/astra-proxy-performance/p2pstream')
+source='c879e85284e3225fbf693f3ce98139973a124eac'
+production='dc738e9000e60cd7ce3a0279127486f3bc05067a'
+legacy='3ec137c3ad3d07028e867042fb00d3933912d7ab'
+runner=root/'scripts/qualify-proxy-agent-growth-credit-diagnostic.sh'
+runner.write_text(runner.read_text().replace('agent_ns taskset -c 8-15 python3','nsenter -t "$agent_namespace_pid" -n taskset -c 8-15 python3'))
+for name in ('analyze-telemetry.py','annotate-lanes.py'):
+ shutil.copy2(pathlib.Path('/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd')/name,root/name)
+(root/'bin').mkdir(exist_ok=True)
+build_manifest=json.loads((root/'build-manifest.json').read_text())
+assert build_manifest['source_ref']==source
+provided={r['role']:(str(root/'clean-bin'/(r['role']+'.test')),r['sha256']) for r in build_manifest['builds']}
+provided['legacy-agent']=('/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test','e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec')
+binaries={}
+for role,(original,expected) in provided.items():
+ dest=root/'bin'/(role+'.test');shutil.copy2(original,dest)
+ got=hashlib.sha256(dest.read_bytes()).hexdigest(); assert got==expected
+ binaries[role]={'path':str(dest),'original_path':original,'sha256':got}
+archive=root/'diagnostic-source.tar'
+with archive.open('wb') as out: subprocess.run(['git','archive',source],cwd=repo,stdout=out,check=True)
+original=(root/'original-runner.sh').read_text();modified=runner.read_text()
+import difflib
+(root/'runner-diagnostic.patch').write_text(''.join(difflib.unified_diff(original.splitlines(True),modified.splitlines(True),fromfile='original-runner.sh',tofile='qualify-proxy-agent-growth-credit-diagnostic.sh')))
+command=['bash',str(runner),'--server-binary',binaries['server']['path'],'--aggregate-agent-binary',binaries['aggregate-agent']['path'],'--legacy-agent-binary',binaries['legacy-agent']['path'],'--output',str(root/'results.jsonl'),'--runs','1','--warmup-mib','256','--steady-mib','256','--transfer-repetitions','3','--required-pool-mib','8','--rtt-ms','80','--server-source-ref',source,'--aggregate-agent-source-ref',source,'--legacy-agent-source-ref',legacy]
+files={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file() and not ({'bin','clean-bin','build-source'} & set(p.relative_to(root).parts))}
+manifest={'diagnostic_only':True,'production_base_ref':production,'tagged_diagnostic_source_ref':source,'build_tags':['p2pstream_qualification'],'clean_build_manifest':build_manifest,'source_archive_sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'actual_binaries':binaries,'command':command,'credit_interval_seconds':.02,'tcp_interval_seconds':.1,'qdisc_interval_seconds':1,'collector_cpu_set':'8-15','native_profiles':False,'legacy_agent_credit_endpoint':'unavailable and skipped without requests; current server still exposes legacy byte credit','snapshot_semantics':'separate locks and atomics, observational; bounded 8 streams and 5 sessions; record truncation','workload':'original full32 order,80ms/1Gbit,256MiB initial/retained/steady transfers,8MiB assertion','files_sha256':files}
+(root/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n');(root/'run-command.txt').write_text(shlex.join(command)+'\n')
+subprocess.run(['bash','-n',str(runner)],check=True)
+print(str(root),flush=True);start=time.monotonic()
+with (root/'run.log').open('w') as out: result=subprocess.run(command,cwd=root,stdout=out,stderr=subprocess.STDOUT)
+(root/'exit.json').write_text(json.dumps({'exit_code':result.returncode,'elapsed_seconds':time.monotonic()-start,'completed_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()},indent=2)+'\n')
+print('diagnostic completed',result.returncode,flush=True)

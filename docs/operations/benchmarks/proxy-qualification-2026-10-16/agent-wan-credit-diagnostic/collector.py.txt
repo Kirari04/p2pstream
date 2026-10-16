@@ -1,0 +1,41 @@
+import json,os,pathlib,resource,signal,subprocess,sys,time
+root=pathlib.Path(sys.argv[1]); agent_ns=sys.argv[2]; router_ns=sys.argv[3]; run_dir=pathlib.Path(sys.argv[4])
+stop=root/'telemetry'/'collector.stop'
+os.sched_setaffinity(0,set(range(8,16)))
+out=(root/'telemetry'/'tcp-qdisc.jsonl').open('w',buffering=1)
+def emit(kind,**fields):
+    out.write(json.dumps(dict(kind=kind,monotonic_ns=time.monotonic_ns(),wall_ns=time.time_ns(),**fields),separators=(',',':'))+'\n')
+def capture(kind,side,command):
+    begin=time.monotonic_ns()
+    try:
+        p=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=1)
+        emit(kind,side=side,command=command,started_ns=begin,elapsed_ns=time.monotonic_ns()-begin,exit_code=p.returncode,stdout=p.stdout,stderr=p.stderr)
+    except subprocess.TimeoutExpired:
+        emit(kind,side=side,command=command,started_ns=begin,error='capture timeout after 1s')
+def qdiscs():
+    for iface in ('growth-rs','growth-rr'):
+        capture('qdisc',iface,['nsenter','-t',router_ns,'-n','tc','-s','-j','qdisc','show','dev',iface])
+seen_ready=set(); deadline=time.monotonic()+1800; last_q=0.; last_ready=0.; iterations=0
+emit('collector_start',cpu_affinity=sorted(os.sched_getaffinity(0)),ss_interval_seconds=.1,qdisc_interval_seconds=1)
+qdiscs()
+while not stop.exists() and time.monotonic()<deadline:
+    begin=time.monotonic()
+    capture('tcp','server',['ss','-Htinm','dst','10.212.0.2'])
+    capture('tcp','agent',['nsenter','-t',agent_ns,'-n','ss','-Htinm','dst','10.211.0.1'])
+    now=time.monotonic()
+    if now-last_q>=1:
+        qdiscs(); last_q=time.monotonic()
+    if now-last_ready>=.5:
+        for path in run_dir.glob('*.ready.json'):
+            if path.name in seen_ready: continue
+            try:
+                value=json.loads(path.read_text())
+            except (OSError,json.JSONDecodeError): continue
+            emit('endpoint_ready',ready_file=path.name,metadata={k:value[k] for k in ('pid','url','admin_url','management_url') if k in value})
+            seen_ready.add(path.name)
+        last_ready=now
+    iterations+=1
+    time.sleep(max(0,.1-(time.monotonic()-begin)))
+qdiscs(); usage=resource.getrusage(resource.RUSAGE_SELF); children_usage=resource.getrusage(resource.RUSAGE_CHILDREN)
+emit('collector_stop',iterations=iterations,requested_stop=stop.exists(),deadline_reached=time.monotonic()>=deadline,user_cpu_seconds=usage.ru_utime,system_cpu_seconds=usage.ru_stime,children_user_cpu_seconds=children_usage.ru_utime,children_system_cpu_seconds=children_usage.ru_stime)
+out.close()

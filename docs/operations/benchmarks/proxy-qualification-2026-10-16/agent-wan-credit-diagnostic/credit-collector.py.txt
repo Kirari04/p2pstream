@@ -1,0 +1,63 @@
+# Source-only template; the diagnostic run will freeze a copy with its manifest.
+import http.client,json,os,pathlib,resource,socket,sys,time
+from urllib.parse import urlsplit,urlunsplit,parse_qsl,urlencode
+root=pathlib.Path(sys.argv[1]); run_dir=pathlib.Path(sys.argv[2]); role=sys.argv[3]
+assert role in ('server','agent')
+os.sched_setaffinity(0,set(range(8,16)))
+stop=root/'telemetry'/'collector.stop'
+out=(root/'telemetry'/('credit-'+role+'.jsonl')).open('w',buffering=1)
+interval=.02; deadline=time.monotonic()+1800; last_discovery=0.; current=None; conn=None
+success=0; failures=0; skipped=set()
+def emit(kind,**fields):
+ out.write(json.dumps(dict(kind=kind,role=role,monotonic_ns=time.monotonic_ns(),wall_ns=time.time_ns(),**fields),separators=(',',':'))+'\n')
+def discover():
+ candidates=[]
+ for p in run_dir.glob('*-'+role+'.ready.json'):
+  try:
+   value=json.loads(p.read_text()); pid=int(value['pid']); os.kill(pid,0)
+   candidates.append((p.stat().st_mtime_ns,p,value))
+  except (OSError,ValueError,KeyError,json.JSONDecodeError): continue
+ if not candidates: return None
+ _,p,value=max(candidates,key=lambda x:x[0])
+ return (p.name,int(value['pid']),value['admin_url'])
+emit('credit_collector_start',cpu_affinity=sorted(os.sched_getaffinity(0)),requested_interval_seconds=interval,timeout_seconds=.3)
+while not stop.exists() and time.monotonic()<deadline:
+ begin=time.monotonic()
+ if begin-last_discovery>=.2:
+  selected=discover(); last_discovery=begin
+  if selected!=current:
+   if conn is not None: conn.close()
+   current=selected; conn=None
+   if current: emit('credit_endpoint',ready_file=current[0],pid=current[1],admin_url=current[2])
+ if current is None:
+  time.sleep(.02); continue
+ name,pid,url=current
+ if role=='agent' and 'legacy-agent-compat' in name:
+  if name not in skipped:
+   emit('credit_unavailable',ready_file=name,pid=pid,reason='frozen legacy agent has no diagnostic snapshot API; no request sent')
+   skipped.add(name)
+  time.sleep(.02); continue
+ parsed=urlsplit(url); assert parsed.scheme=='http' and parsed.hostname in ('127.0.0.1','localhost')
+ query=dict(parse_qsl(parsed.query)); query['credit_snapshot']='1'
+ path=urlunsplit(('', '',parsed.path or '/',urlencode(query),''))
+ started=time.monotonic_ns()
+ try:
+  if conn is None: conn=http.client.HTTPConnection(parsed.hostname,parsed.port,timeout=.3)
+  conn.request('GET',path,headers={'Accept':'application/json'})
+  response=conn.getresponse(); raw=response.read((256<<10)+1)
+  if response.status!=200: raise ValueError('HTTP status '+str(response.status))
+  if len(raw)>(256<<10): raise ValueError('snapshot exceeds256KiB capture bound')
+  value=json.loads(raw)
+  if value.get('schema_version')!=1 or not isinstance(value.get('sessions'),list): raise ValueError('unexpected snapshot schema')
+  if len(value['sessions'])>5: raise ValueError('more than5physical sessions in single-agent diagnostic')
+  emit('credit',ready_file=name,pid=pid,started_ns=started,elapsed_ns=time.monotonic_ns()-started,snapshot=value)
+  success+=1
+ except (OSError,ValueError,http.client.HTTPException,json.JSONDecodeError) as error:
+  failures+=1; emit('credit_error',ready_file=name,pid=pid,started_ns=started,elapsed_ns=time.monotonic_ns()-started,error=str(error))
+  if conn is not None: conn.close()
+  conn=None
+ time.sleep(max(0,interval-(time.monotonic()-begin)))
+if conn is not None: conn.close()
+usage=resource.getrusage(resource.RUSAGE_SELF)
+emit('credit_collector_stop',successful_captures=success,capture_errors=failures,user_cpu_seconds=usage.ru_utime,system_cpu_seconds=usage.ru_stime,requested_stop=stop.exists(),deadline_reached=time.monotonic()>=deadline)
+out.close()
