@@ -409,6 +409,7 @@ children+=("$origin_pid")
 stops+=("$origin_stop")
 wait_ready "$origin_ready" "$origin_pid"
 origin_url=$(jq -r .url "$origin_ready")
+origin_admin=$(jq -r .admin_url "$origin_ready")
 
 wait_mode() {
   local admin_url=$1 mode=$2 bulk=$3
@@ -581,8 +582,9 @@ run_canceled_upload_trace() {
   sequence=$((sequence + 1))
   local raw="$run_dir/$sequence-$label-canceled-upload.json"
   local samples="$run_dir/$sequence-$label-canceled-upload-agent-samples.jsonl"
-  local server_spec initial_agent final_agent lane_high_water initial_session_identities final_session_identities
+  local server_spec initial_agent final_agent lane_high_water initial_session_identities final_session_identities observation_token origin_observation
   : > "$samples"
+  observation_token="cancel-$sequence"
   initial_agent=$(query_agent_json "$agent_pid" "$agent_admin")
   initial_session_identities=$(jq -c '[.tunnel_sessions[] | {lane,session_identity}] | sort_by(.lane)' <<<"$initial_agent")
   jq -e '
@@ -593,7 +595,7 @@ run_canceled_upload_trace() {
   ' <<<"$initial_agent" >/dev/null
   server_spec=$(jq -cn --argjson pid "$server_pid" --arg admin "$server_admin" --arg cpus "$server_cpu_set" '{role:"server",pid:$pid,admin_url:$admin,cpu_set:$cpus}')
   P2PSTREAM_QUALIFICATION_ROLE=load \
-  P2PSTREAM_QUALIFICATION_URL="$public_url/agent/bulk-upload" \
+  P2PSTREAM_QUALIFICATION_URL="$public_url/agent/bulk-upload?qualification_cancel=$observation_token" \
   P2PSTREAM_QUALIFICATION_SCENARIO=growth-upload-cancel \
   P2PSTREAM_QUALIFICATION_PROTOCOL=h2 \
   P2PSTREAM_QUALIFICATION_CONCURRENCY=1 \
@@ -602,6 +604,8 @@ run_canceled_upload_trace() {
   P2PSTREAM_QUALIFICATION_DURATION_SECONDS=0 \
   P2PSTREAM_QUALIFICATION_WARMUP_SECONDS=0 \
   P2PSTREAM_QUALIFICATION_GROWTH_PAYLOAD_BYTES="$payload_bytes" \
+  P2PSTREAM_QUALIFICATION_ORIGIN_OBSERVER_URL="$origin_admin" \
+  P2PSTREAM_QUALIFICATION_UPLOAD_OBSERVATION_TOKEN="$observation_token" \
   P2PSTREAM_QUALIFICATION_LABEL="$label" \
   P2PSTREAM_QUALIFICATION_PATH=agent-external-canceled-upload \
   P2PSTREAM_QUALIFICATION_PIDS="$server_pid" \
@@ -627,9 +631,21 @@ run_canceled_upload_trace() {
   jq -e --argjson bytes "$payload_bytes" '
     .attempted == 1 and .useful_completed == 0 and .errors == 1 and .canceled_errors == 1 and .observed_http_major == 2 and
     .configured_payload_bytes == $bytes and .request_body_bytes > 0 and .request_body_bytes < $bytes and
+    .origin_request_body_bytes > 0 and .origin_request_body_bytes < $bytes and
+    ((.origin_body_barrier_timed_out // false) == false) and
     .event_stats_captured == true and .persisted_event_delta == 1 and
     ((.dropped_event_delta // 0) == 0) and ((.event_queue_after_drain // 0) == 0) and ((.event_drain_error // "") == "")
   ' "$raw" >/dev/null
+  origin_observation=$(python3 - "$origin_admin" "$observation_token" <<'PY'
+import json, sys, urllib.parse, urllib.request
+url = sys.argv[1] + "?" + urllib.parse.urlencode({"upload_token": sys.argv[2]})
+with urllib.request.urlopen(url, timeout=2) as response:
+    json.dump(json.load(response), sys.stdout, separators=(",", ":"))
+PY
+)
+  jq -e --arg token "$observation_token" --argjson bytes "$(jq -r .origin_request_body_bytes "$raw")" '
+    .token == $token and .received_body_bytes >= $bytes and .received_body_bytes > 0
+  ' <<<"$origin_observation" >/dev/null
   wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
   final_agent=$(query_agent_json "$agent_pid" "$agent_admin")
   final_session_identities=$(jq -c '[.tunnel_sessions[] | {lane,session_identity}] | sort_by(.lane)' <<<"$final_agent")
@@ -658,13 +674,14 @@ for line in open(sys.argv[1], encoding="utf-8"):
 print(json.dumps(high, separators=(",", ":")))
 PY
 )
-  jq -e '([.[] | .buffered_units] | max // 0) > 0' <<<"$lane_high_water" >/dev/null
   jq -c --argjson initial_agent "$initial_agent" --argjson final_agent "$final_agent" \
     --argjson lane_high_water "$lane_high_water" --argjson session_identities "$initial_session_identities" \
+    --argjson origin_observation "$origin_observation" \
     '. + {measurement_stage:"canceled-upload",transport_mode:"aggregate-v1",
       agent_runtime_before:$initial_agent,agent_runtime_after:$final_agent,
       agent_session_identities:$session_identities,
-      agent_lane_cancel_high_water:$lane_high_water,agent_receiving_payload_observed:true,
+      agent_lane_cancel_high_water:$lane_high_water,origin_upload_observation:$origin_observation,
+      origin_receiving_payload_observed:true,
       agent_lane_refunds_quiescent:true}' "$raw" >> "$output"
 }
 
@@ -1021,7 +1038,7 @@ if pressure_mode:
             "control_did_not_consume_ordinary_pressure_rejection":
                 control["agent_rejected_pressure_after"] == control["agent_rejected_pressure_before"],
             "canceled_upload_refunds_quiescent": canceled["agent_lane_refunds_quiescent"],
-            "canceled_upload_reached_receiving_agent": canceled["agent_receiving_payload_observed"],
+            "canceled_upload_reached_origin": canceled["origin_receiving_payload_observed"],
             "all_receiving_pools_exceeded_required_size_before_pressure":
                 min(baseline_server_pools + baseline_agent_pools) > required_pool_bytes,
             "all_receiving_pools_retained_after_recovery":

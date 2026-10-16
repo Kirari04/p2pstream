@@ -90,11 +90,16 @@ func (r *qualificationZeroReader) Read(p []byte) (int, error) {
 }
 
 type qualificationCancelReader struct {
-	remaining   int64
-	cancelAfter int64
-	delivered   *atomic.Int64
-	cancel      context.CancelFunc
-	once        sync.Once
+	remaining        int64
+	cancelAfter      int64
+	delivered        *atomic.Int64
+	originReceived   *atomic.Int64
+	barrierTimedOut  *atomic.Bool
+	observerURL      string
+	observationToken string
+	cancel           context.CancelFunc
+	done             chan struct{}
+	once             sync.Once
 }
 
 func (r *qualificationCancelReader) Read(p []byte) (int, error) {
@@ -111,17 +116,50 @@ func (r *qualificationCancelReader) Read(p []byte) (int, error) {
 	r.remaining -= int64(len(p))
 	delivered := r.delivered.Add(int64(len(p)))
 	if delivered >= r.cancelAfter {
-		r.once.Do(func() { time.AfterFunc(10*time.Millisecond, r.cancel) })
+		r.once.Do(func() { go r.cancelAfterOriginReceipt() })
 	}
 	time.Sleep(2 * time.Millisecond)
 	return len(p), nil
 }
 
+func (r *qualificationCancelReader) cancelAfterOriginReceipt() {
+	defer close(r.done)
+	if r.observerURL == "" {
+		r.originReceived.Store(r.delivered.Load())
+		r.cancel()
+		return
+	}
+	client := http.Client{Timeout: 250 * time.Millisecond}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		endpoint := r.observerURL + "?upload_token=" + url.QueryEscape(r.observationToken)
+		resp, err := client.Get(endpoint)
+		if err == nil {
+			var observation struct {
+				ReceivedBodyBytes int64 `json:"received_body_bytes"`
+			}
+			decodeErr := json.NewDecoder(io.LimitReader(resp.Body, 4<<10)).Decode(&observation)
+			_ = resp.Body.Close()
+			if decodeErr == nil && resp.StatusCode == http.StatusOK && observation.ReceivedBodyBytes > 0 {
+				r.originReceived.Store(observation.ReceivedBodyBytes)
+				r.cancel()
+				return
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	r.barrierTimedOut.Store(true)
+	r.cancel()
+}
+
 func TestQualificationCancelReaderDeliversPayloadBeforeCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
-	var delivered atomic.Int64
+	var delivered, originReceived atomic.Int64
+	var barrierTimedOut atomic.Bool
 	reader := &qualificationCancelReader{
-		remaining: 256 << 10, cancelAfter: 128 << 10, delivered: &delivered, cancel: cancel,
+		remaining: 256 << 10, cancelAfter: 128 << 10, delivered: &delivered,
+		originReceived: &originReceived, barrierTimedOut: &barrierTimedOut,
+		cancel: cancel, done: make(chan struct{}),
 	}
 	if _, err := io.Copy(io.Discard, reader); err != nil {
 		t.Fatal(err)
@@ -134,6 +172,67 @@ func TestQualificationCancelReaderDeliversPayloadBeforeCancel(t *testing.T) {
 	if got := delivered.Load(); got < 128<<10 {
 		t.Fatalf("delivered bytes = %d, want at least %d", got, 128<<10)
 	}
+	if got := originReceived.Load(); got == 0 || barrierTimedOut.Load() {
+		t.Fatalf("origin observation = %d, timeout = %t", got, barrierTimedOut.Load())
+	}
+}
+
+type qualificationUploadObservation struct {
+	mu       sync.RWMutex
+	token    string
+	received int64
+}
+
+func (o *qualificationUploadObservation) begin(token string) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.token = token
+	o.received = 0
+}
+
+func (o *qualificationUploadObservation) add(token string, received int) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.token == token {
+		o.received += int64(received)
+	}
+}
+
+func (o *qualificationUploadObservation) snapshot(token string) (int64, bool) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	return o.received, token != "" && token == o.token
+}
+
+func TestQualificationUploadObservationTracksOnlyCurrentToken(t *testing.T) {
+	var observation qualificationUploadObservation
+	observation.begin("first")
+	observation.add("first", 7)
+	observation.add("other", 100)
+	if received, ok := observation.snapshot("first"); !ok || received != 7 {
+		t.Fatalf("first observation = (%d, %t), want (7, true)", received, ok)
+	}
+	observation.begin("second")
+	if _, ok := observation.snapshot("first"); ok {
+		t.Fatal("replaced token remained observable")
+	}
+	if received, ok := observation.snapshot("second"); !ok || received != 0 {
+		t.Fatalf("second observation = (%d, %t), want (0, true)", received, ok)
+	}
+}
+
+type qualificationObservedUploadReader struct {
+	reader      io.Reader
+	observation *qualificationUploadObservation
+	token       string
+}
+
+func (r *qualificationObservedUploadReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if n > 0 {
+		r.observation.add(r.token, n)
+	}
+	return n, err
 }
 
 func qualificationZeroPayloadHash(size int) [sha256.Size]byte {
@@ -296,6 +395,8 @@ type qualificationResult struct {
 	P99Milliseconds               float64                           `json:"p99_ms"`
 	ResponseBytes                 int64                             `json:"response_bytes"`
 	RequestBodyBytes              int64                             `json:"request_body_bytes,omitempty"`
+	OriginRequestBodyBytes        int64                             `json:"origin_request_body_bytes,omitempty"`
+	OriginBodyBarrierTimedOut     bool                              `json:"origin_body_barrier_timed_out,omitempty"`
 	ConfiguredPayloadBytes        int64                             `json:"configured_payload_bytes,omitempty"`
 	PeakRSSBytes                  int64                             `json:"peak_rss_bytes,omitempty"`
 	FinalRSSBytes                 int64                             `json:"final_rss_bytes,omitempty"`
@@ -560,18 +661,25 @@ func runQualificationOrigin(t *testing.T) {
 	data := bytes.Repeat([]byte("p2pstream-qualification-payload-"), 1<<15)
 	type barrierState struct{ active, peak atomic.Int64 }
 	var barriers sync.Map
+	var uploadObservation qualificationUploadObservation
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Qualification-Origin-Connection", r.RemoteAddr)
 		w.Header().Set("X-Qualification-Origin-HTTP-Major", strconv.Itoa(r.ProtoMajor))
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/upload") || strings.HasSuffix(r.URL.Path, "/bulk-upload"):
 			destination := io.Writer(io.Discard)
+			source := io.Reader(r.Body)
+			observationToken := r.URL.Query().Get("qualification_cancel")
+			if observationToken != "" {
+				uploadObservation.begin(observationToken)
+				source = &qualificationObservedUploadReader{reader: r.Body, observation: &uploadObservation, token: observationToken}
+			}
 			var uploadHash hash.Hash
 			if strings.HasSuffix(r.URL.Path, "/bulk-upload") {
 				uploadHash = sha256.New()
 				destination = uploadHash
 			}
-			n, err := io.Copy(destination, r.Body)
+			n, err := io.Copy(destination, source)
 			if err != nil {
 				http.Error(w, "body read failed", http.StatusBadRequest)
 				return
@@ -635,6 +743,20 @@ func runQualificationOrigin(t *testing.T) {
 		t.Fatal(err)
 	}
 	srv := &http.Server{Handler: handler}
+	adminListener, err := net.Listen("tcp", net.JoinHostPort(bindAddress, "0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := r.URL.Query().Get("upload_token")
+		received, ok := uploadObservation.snapshot(token)
+		if !ok {
+			http.Error(w, "upload token not observed", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"token": token, "received_body_bytes": received})
+	})}
 	if originTLS && originHTTP1 {
 		srv.TLSConfig = &tls.Config{NextProtos: []string{"http/1.1"}}
 	}
@@ -645,7 +767,10 @@ func runQualificationOrigin(t *testing.T) {
 		certPath = requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_CERT")
 		keyPath = requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_KEY")
 	}
-	writeQualificationReady(t, qualificationReady{URL: scheme + "://" + ln.Addr().String(), PID: os.Getpid()})
+	writeQualificationReady(t, qualificationReady{
+		URL: scheme + "://" + ln.Addr().String(), AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid(),
+	})
+	go func() { _ = admin.Serve(adminListener) }()
 	go func() {
 		if originTLS {
 			_ = srv.ServeTLS(ln, certPath, keyPath)
@@ -657,6 +782,9 @@ func runQualificationOrigin(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
+		t.Error(err)
+	}
+	if err := admin.Shutdown(ctx); err != nil {
 		t.Error(err)
 	}
 }
@@ -968,6 +1096,11 @@ func TestProxyQualificationLoad(t *testing.T) {
 	if strings.HasPrefix(scenario, "growth-") && (growthPayloadBytes < 1 || growthPayloadBytes > qualificationGrowthPayloadMaximum) {
 		t.Fatalf("invalid growth payload bytes %d", growthPayloadBytes)
 	}
+	originObserverURL, uploadObservationToken := "", ""
+	if scenario == "growth-upload-cancel" {
+		originObserverURL = requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_ORIGIN_OBSERVER_URL")
+		uploadObservationToken = requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_UPLOAD_OBSERVATION_TOKEN")
+	}
 	if concurrency < 1 || requests < 1 || concurrency > requests {
 		t.Fatalf("invalid concurrency=%d requests=%d", concurrency, requests)
 	}
@@ -988,7 +1121,8 @@ func TestProxyQualificationLoad(t *testing.T) {
 		runQualificationTLSIdle(t, target, concurrency, requests)
 		return
 	}
-	var useful, errorsSeen, canceledErrors, bytesSeen, requestBodyBytes atomic.Int64
+	var useful, errorsSeen, canceledErrors, bytesSeen, requestBodyBytes, originRequestBodyBytes atomic.Int64
+	var originBodyBarrierTimedOut atomic.Bool
 	var observedMajor atomic.Int64
 	var observedOriginMajor atomic.Int64
 	var originPeak atomic.Int64
@@ -1020,14 +1154,19 @@ func TestProxyQualificationLoad(t *testing.T) {
 				requestURL := target
 				var requestCtx context.Context
 				var cancelRequest context.CancelFunc
+				var cancelReader *qualificationCancelReader
 				if scenario == "growth-upload-cancel" {
 					method = http.MethodPost
 					requestCtx, cancelRequest = context.WithCancel(context.Background())
 					defer cancelRequest()
-					body = &qualificationCancelReader{
+					cancelReader = &qualificationCancelReader{
 						remaining: int64(growthPayloadBytes), cancelAfter: min(int64(growthPayloadBytes)/2, 8<<20),
-						delivered: &requestBodyBytes, cancel: cancelRequest,
+						delivered: &requestBodyBytes, originReceived: &originRequestBodyBytes,
+						barrierTimedOut: &originBodyBarrierTimedOut,
+						observerURL:     originObserverURL, observationToken: uploadObservationToken,
+						cancel: cancelRequest, done: make(chan struct{}),
 					}
+					body = cancelReader
 				} else if scenario == "growth-upload" {
 					method = http.MethodPost
 					body = &qualificationZeroReader{remaining: int64(growthPayloadBytes)}
@@ -1073,6 +1212,13 @@ func TestProxyQualificationLoad(t *testing.T) {
 					}
 				}}))
 				resp, err := client.Do(req)
+				if cancelReader != nil {
+					select {
+					case <-cancelReader.done:
+					case <-time.After(6 * time.Second):
+						originBodyBarrierTimedOut.Store(true)
+					}
+				}
 				if err != nil {
 					errorsSeen.Add(1)
 					if errors.Is(err, context.Canceled) {
@@ -1263,7 +1409,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 		StatusCodes: statusCodes,
 		Errors:      errorsSeen.Load(), CanceledErrors: canceledErrors.Load(), WallSeconds: elapsed.Seconds(), UsefulRPS: float64(useful.Load()) / elapsed.Seconds(),
 		P50Milliseconds: durationQuantile(latencies, .50), P95Milliseconds: durationQuantile(latencies, .95), P99Milliseconds: durationQuantile(latencies, .99),
-		ResponseBytes: bytesSeen.Load(), RequestBodyBytes: requestBodyBytes.Load(), ConfiguredPayloadBytes: int64(growthPayloadBytes), PeakRSSBytes: sampler.peakRSS, FinalRSSBytes: sampler.finalRSS, PeakFDs: sampler.peakFDs, CPUSeconds: sampler.cpuSeconds(),
+		ResponseBytes: bytesSeen.Load(), RequestBodyBytes: requestBodyBytes.Load(), OriginRequestBodyBytes: originRequestBodyBytes.Load(), OriginBodyBarrierTimedOut: originBodyBarrierTimedOut.Load(), ConfiguredPayloadBytes: int64(growthPayloadBytes), PeakRSSBytes: sampler.peakRSS, FinalRSSBytes: sampler.finalRSS, PeakFDs: sampler.peakFDs, CPUSeconds: sampler.cpuSeconds(),
 		PeakHeapAlloc: sampler.peakHeap, GCCycles: sampler.gcCycles(), GCPauseSeconds: sampler.gcPauseSeconds(), ObservedHTTPMajor: int(observedMajor.Load()), ObservedOriginHTTPMajor: int(observedOriginMajor.Load()),
 		CgroupMemoryPeak: sampler.cgroupPeak, CgroupMemoryFinal: sampler.cgroupFinal, CgroupMemoryMax: sampler.cgroupMax,
 		OriginPeakInflight: originPeak.Load(), InitialRSSBytes: sampler.initialRSS, InitialHeapAlloc: sampler.initialHeap,
