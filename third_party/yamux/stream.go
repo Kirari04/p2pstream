@@ -635,10 +635,10 @@ func (s *Stream) processFlags(flags uint16) error {
 	return s.processFlagsMode(flags, false)
 }
 
-// processAggregateFinalFIN tolerates a local timeout/reset that crossed the
-// physical read of this already-accepted final frame. Genuine duplicate FIN
-// is still rejected in streamRemoteClose before or during flag processing.
-func (s *Stream) processAggregateFinalFIN() error {
+// processFinalFINAfterPayload tolerates a local timeout/reset that crossed the
+// physical read of an already-accepted final frame. Genuine duplicate FIN is
+// rejected in streamRemoteClose before payload acceptance.
+func (s *Stream) processFinalFINAfterPayload() error {
 	return s.processFlagsMode(flagFIN, true)
 }
 
@@ -761,29 +761,74 @@ func (s *Stream) incrSendWindow(hdr header, flags uint16) error {
 
 // readData is used to handle a data frame
 func (s *Stream) readData(hdr header, flags uint16, conn io.Reader) error {
-	if err := s.processFlags(flags); err != nil {
+	// RST discards its payload. Applying it first fences concurrent local
+	// cleanup before the physical reader drains attacker-controlled bytes.
+	if flags&flagRST != 0 {
+		if err := s.processFlags(flags); err != nil {
+			return err
+		}
+		_, accepted, err := s.readDataPayload(hdr.Length(), conn)
+		if err != nil {
+			return err
+		}
+		if !accepted {
+			return s.discardDataPayload(hdr.Length(), conn)
+		}
+		return nil
+	}
+	// FIN becomes visible to application Read only after its final payload is
+	// buffered. ACK/SYN state may safely publish before the physical read.
+	if err := s.processFlags(flags &^ flagFIN); err != nil {
 		return err
 	}
-	_, err := s.readDataPayload(hdr.Length(), conn)
-	if err == nil {
-		asyncNotify(s.recvNotifyCh)
+	_, accepted, err := s.readDataPayload(hdr.Length(), conn)
+	if err != nil {
+		return err
 	}
-	return err
+	if !accepted {
+		return s.discardDataPayload(hdr.Length(), conn)
+	}
+	if flags&flagFIN != 0 {
+		if err := s.processFinalFINAfterPayload(); err != nil {
+			return err
+		}
+	}
+	asyncNotify(s.recvNotifyCh)
+	return nil
 }
 
-func (s *Stream) readDataPayload(length uint32, conn io.Reader) (uint32, error) {
-	// Check that our recv window is not exceeded
-	if length == 0 {
-		return 0, nil
-	}
-
-	// Check the attacker-controlled length before allocating receive storage.
+func (s *Stream) readDataPayload(length uint32, conn io.Reader) (uint32, bool, error) {
+	// Recheck terminal state after the session map lookup while preserving the
+	// global state -> receive lock order. Reset/timeout cleanup that starts
+	// after this point waits for recvLock and discards any appended bytes before
+	// returning the stream's lifetime resource lease.
+	s.stateLock.Lock()
 	s.recvLock.Lock()
-
 	if length > s.recvWindow {
 		s.session.logger.Printf("[ERR] yamux: receive window exceeded (stream: %d, remain: %d, recv: %d)", s.id, s.recvWindow, length)
 		s.recvLock.Unlock()
-		return 0, ErrRecvWindowExceeded
+		s.stateLock.Unlock()
+		return 0, true, ErrRecvWindowExceeded
+	}
+	switch s.state {
+	case streamInit, streamSYNSent, streamSYNReceived, streamEstablished, streamLocalClose:
+		s.stateLock.Unlock()
+	case streamRemoteClose:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return 0, false, ErrUnexpectedFlag
+	case streamClosed, streamReset:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return 0, false, nil
+	default:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return 0, false, ErrUnexpectedFlag
+	}
+	if length == 0 {
+		s.recvLock.Unlock()
+		return 0, true, nil
 	}
 
 	if s.recvBuf == nil {
@@ -797,11 +842,22 @@ func (s *Stream) readDataPayload(length uint32, conn io.Reader) (uint32, error) 
 	if err != nil {
 		s.session.logger.Printf("[ERR] yamux: Failed to read stream data: %v", err)
 		s.recvLock.Unlock()
-		return uint32(copiedLength), err
+		return uint32(copiedLength), true, err
 	}
 
 	s.recvLock.Unlock()
-	return uint32(copiedLength), nil
+	return uint32(copiedLength), true, nil
+}
+
+func (s *Stream) discardDataPayload(length uint32, conn io.Reader) error {
+	if length == 0 {
+		return nil
+	}
+	if _, err := io.CopyN(io.Discard, conn, int64(length)); err != nil {
+		s.session.logger.Printf("[ERR] yamux: Failed to discard terminal stream data: %v", err)
+		return err
+	}
+	return nil
 }
 
 func (s *Stream) readAggregateDataPayload(length, charge uint32, conn io.Reader) (uint32, bool, error) {

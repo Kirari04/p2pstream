@@ -828,7 +828,7 @@ func (s *Session) handleAggregateData(hdr header) error {
 		return s.discardAggregateFrame(id, length, charge)
 	}
 	if flags&flagFIN != 0 {
-		if err := stream.processAggregateFinalFIN(); err != nil {
+		if err := stream.processFinalFINAfterPayload(); err != nil {
 			return err
 		}
 	}
