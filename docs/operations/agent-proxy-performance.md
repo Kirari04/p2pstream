@@ -110,6 +110,16 @@ still apply.
   server stream estimates remain conservative base overrides, with receive
   ownership added separately. These promises remain subject to the same
   100 ms measured-pressure, fail-closed controller.
+- A negotiated control lane prepays up to four receive windows and agent
+  working bases, including origin-socket memory and peak dial descriptors,
+  before its upgrade. With default accounting this is about 5.79 MiB and eight
+  descriptor credits. Idle promises consume resource headroom while leaving
+  the configured active-request limit available to public work. Active control
+  and public requests share that total limit. Once a real slot is free, prepaid
+  control work can proceed under later pressure without reserving the same
+  resources again; unexpected extra socket demand still needs fresh credit.
+  A smaller negotiated total releases excess unused promises before the
+  session starts. Legacy lanes retain ordinary per-stream pressure checks.
 - Pool entries follow the shared stream budget; the separate 256-target ceiling
   is gone. Warm hits avoid constructing a disposable HTTP transport. Remote
   management requests now reuse pinned TLS connections, with invalidation on
