@@ -21,6 +21,10 @@ comparison.
   were not present in that binary.
 - [`recorder-batch/README.md`](recorder-batch/README.md) records the bounded
   prepared-recorder batch experiment and its focused correctness checks.
+- [`post-batch-profile/README.md`](post-batch-profile/README.md) records the
+  clean post-batch direct-path CPU, allocation and contention profiles.
+- [`direct-cache-readhit/README.md`](direct-cache-readhit/README.md) records
+  the rejected direct-target cache read-hit experiment and its no-gain result.
 - `capacity-and-profile.jsonl` is the initial candidate `095c923` correctness,
   fixed-rate, streaming, H1/H2 1,536-barrier and recovery pass.
 - `warmed-throughput.jsonl` is one alternating baseline/candidate pass with a

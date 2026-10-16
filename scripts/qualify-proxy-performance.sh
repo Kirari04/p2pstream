@@ -49,6 +49,8 @@ server_process_json=""
 agent_processes_json=""
 external_expected_mode=""
 external_expected_bulk=""
+candidate_external_mode=aggregate-v1
+baseline_external_mode=legacy
 while (($#)); do
   case "$1" in
     --smoke) smoke=1; runs=1; shift ;;
@@ -83,6 +85,8 @@ while (($#)); do
     --diagnostic-controls-only) controls_only=1; shift ;;
     --external-agents) external_agents=$2; shift 2 ;;
     --external-agent-tunnels) external_agent_tunnels=$2; shift 2 ;;
+    --candidate-external-mode) candidate_external_mode=$2; shift 2 ;;
+    --baseline-external-mode) baseline_external_mode=$2; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -131,6 +135,10 @@ if [[ ! $external_agents =~ ^[0-4]$ || ! $external_agent_tunnels =~ ^[1-9][0-9]*
   echo "--external-agents must be 0..4 and --external-agent-tunnels must be 1..32" >&2
   exit 2
 fi
+case "$candidate_external_mode:$baseline_external_mode" in
+  legacy:legacy|legacy:aggregate-v1|aggregate-v1:legacy|aggregate-v1:aggregate-v1) ;;
+  *) echo "external modes must be legacy or aggregate-v1" >&2; exit 2 ;;
+esac
 if [[ ! $agent_ballast_mib =~ ^[0-9]+$ || $agent_ballast_mib -gt 2048 ]]; then
   echo "--agent-ballast-mib must be 0..2048" >&2
   exit 2
@@ -419,10 +427,16 @@ run_load() {
         (if $constrained == 1 then
           (.server_process.container | length > 0) and
           (.server_process.cgroup_memory_max_bytes == 4294967296) and
+          (.server_process.cgroup_memory_events_captured == true) and
+          ((.server_process.oom_delta // 0) == 0) and
+          ((.server_process.oom_kill_delta // 0) == 0) and
           (.agent_processes | length == $agents) and
           (all(.agent_processes[];
             (.container | length > 0) and
-            .cgroup_memory_max_bytes == 4294967296)) and
+            .cgroup_memory_max_bytes == 4294967296 and
+            .cgroup_memory_events_captured == true and
+            ((.oom_delta // 0) == 0) and
+            ((.oom_kill_delta // 0) == 0))) and
           ([.server_process.cgroup_inode] + [.agent_processes[].cgroup_inode] |
             all(.[]; . > 0) and (unique | length == ($agents + 1)))
         else true end)
@@ -544,9 +558,12 @@ run_p2pstream() {
   start_test_process "$binary" proxy "${label}-${iteration}"
   local pid=$process_pid stop=$process_stop
   local sample_pid=$process_sample_pid
+  local container=$process_container
   local base_url admin_url
   base_url=$(jq -r .url "$process_ready")
   admin_url=$(jq -r .admin_url "$process_ready")
+  server_process_json=$(qualification_process_json "server+colocated-agent" "$sample_pid" "$admin_url" "$proxy_cpu_set" "$container")
+  agent_processes_json='[]'
   local paths=(direct agent)
   if [[ -n $path_filter ]]; then paths=("$path_filter"); fi
   if [[ -z $path_filter ]] && ((iteration % 2 == 0)); then paths=(agent direct); fi
@@ -562,6 +579,8 @@ run_p2pstream() {
     done
   done
   stop_process "$pid" "$stop"
+  server_process_json=""
+  agent_processes_json=""
 }
 
 run_haproxy() {
@@ -647,14 +666,14 @@ for ((iteration=1; iteration<=runs; iteration++)); do
     :
   elif ((external_agents > 0)) && [[ -n $baseline_binary ]]; then
     if ((iteration % 2)); then
-      run_external_p2pstream "$baseline_label" "$baseline_binary" "$baseline_agent_binary" "$iteration" legacy
-      run_external_p2pstream "$candidate_label" "$candidate_binary" "$candidate_agent_binary" "$iteration" aggregate-v1
+      run_external_p2pstream "$baseline_label" "$baseline_binary" "$baseline_agent_binary" "$iteration" "$baseline_external_mode"
+      run_external_p2pstream "$candidate_label" "$candidate_binary" "$candidate_agent_binary" "$iteration" "$candidate_external_mode"
     else
-      run_external_p2pstream "$candidate_label" "$candidate_binary" "$candidate_agent_binary" "$iteration" aggregate-v1
-      run_external_p2pstream "$baseline_label" "$baseline_binary" "$baseline_agent_binary" "$iteration" legacy
+      run_external_p2pstream "$candidate_label" "$candidate_binary" "$candidate_agent_binary" "$iteration" "$candidate_external_mode"
+      run_external_p2pstream "$baseline_label" "$baseline_binary" "$baseline_agent_binary" "$iteration" "$baseline_external_mode"
     fi
   elif ((external_agents > 0)); then
-    run_external_p2pstream "$candidate_label" "$candidate_binary" "$candidate_agent_binary" "$iteration" aggregate-v1
+    run_external_p2pstream "$candidate_label" "$candidate_binary" "$candidate_agent_binary" "$iteration" "$candidate_external_mode"
   elif [[ -n $baseline_binary ]]; then
     if ((iteration % 2)); then
       run_p2pstream "$baseline_label" "$baseline_binary" "$iteration"

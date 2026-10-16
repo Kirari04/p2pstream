@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -47,6 +48,8 @@ type externalQualificationAgentCapacity struct {
 	AggregateCurrentPoolBytes     int64  `json:"aggregate_current_pool_bytes"`
 	AggregateSessionMetadataBytes int64  `json:"aggregate_session_metadata_bytes"`
 	LegacyControlSupplementBytes  int64  `json:"legacy_control_supplement_bytes"`
+	LegacySessionEnvelopeBytes    int64  `json:"legacy_session_envelope_bytes"`
+	LegacyStreamSupplementBytes   int64  `json:"legacy_stream_supplement_bytes"`
 	RejectedPressure              uint64 `json:"rejected_pressure"`
 	RejectedFixedLimit            uint64 `json:"rejected_fixed_limit"`
 }
@@ -90,10 +93,21 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 		}
 		ballastMiB = parsed
 	}
-	ballast := make([]byte, ballastMiB<<20)
-	for offset := 0; offset < len(ballast); offset += os.Getpagesize() {
-		ballast[offset] = 1
+	var ballastMu sync.RWMutex
+	var ballast []byte
+	setBallast := func(mib int) {
+		next := make([]byte, mib<<20)
+		for offset := 0; offset < len(next); offset += os.Getpagesize() {
+			next[offset] = 1
+		}
+		ballastMu.Lock()
+		ballast = next
+		ballastMu.Unlock()
+		if mib == 0 {
+			runtime.GC()
+		}
 	}
+	setBallast(ballastMiB)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -123,16 +137,34 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 		t.Fatal("external qualification agent capacity runtime was not created")
 	}
 
-	adminListener, err := net.Listen("tcp", "127.0.0.1:0")
+	adminBindAddress := strings.TrimSpace(os.Getenv("P2PSTREAM_QUALIFICATION_AGENT_ADMIN_BIND_ADDRESS"))
+	if adminBindAddress == "" {
+		adminBindAddress = "127.0.0.1"
+	}
+	if net.ParseIP(adminBindAddress) == nil {
+		t.Fatalf("invalid external qualification agent admin bind address %q", adminBindAddress)
+	}
+	adminListener, err := net.Listen("tcp", net.JoinHostPort(adminBindAddress, "0"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if raw := strings.TrimSpace(r.URL.Query().Get("ballast_mib")); raw != "" {
+			parsed, parseErr := strconv.Atoi(raw)
+			if parseErr != nil || parsed < 0 || parsed > 2048 {
+				http.Error(w, "invalid ballast_mib", http.StatusBadRequest)
+				return
+			}
+			setBallast(parsed)
+		}
 		var stats runtime.MemStats
 		runtime.ReadMemStats(&stats)
+		ballastMu.RLock()
+		ballastBytes := int64(len(ballast))
+		ballastMu.RUnlock()
 		result := externalQualificationAgentRuntime{
 			HeapAlloc: stats.HeapAlloc, HeapSys: stats.HeapSys, NumGC: stats.NumGC, PauseNS: stats.PauseTotalNs,
-			BallastBytes: int64(len(ballast)),
+			BallastBytes: ballastBytes,
 		}
 		if current := capacity.Load(); current != nil {
 			snapshot := current.snapshot()
@@ -150,6 +182,8 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 				AggregateCurrentPoolBytes:     snapshot.AggregateCurrentPoolBytes,
 				AggregateSessionMetadataBytes: snapshot.AggregateSessionMetadataBytes,
 				LegacyControlSupplementBytes:  snapshot.LegacyControlSupplementBytes,
+				LegacySessionEnvelopeBytes:    snapshot.LegacySessionEnvelopeBytes,
+				LegacyStreamSupplementBytes:   snapshot.LegacyStreamSupplementBytes,
 				RejectedPressure:              snapshot.RejectedPressure, RejectedFixedLimit: snapshot.RejectedFixedLimit,
 			}
 		}
@@ -159,7 +193,9 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 	writeExternalAgentQualificationJSON(t, readyPath, externalQualificationAgentReady{AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid()})
 
 	waitExternalAgentQualificationStop(t, stopPath)
+	ballastMu.RLock()
 	runtime.KeepAlive(ballast)
+	ballastMu.RUnlock()
 	cancel()
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()

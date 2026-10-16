@@ -13,12 +13,11 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
+	"hash"
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"net/http/httptrace"
 	"net/http/httputil"
 	"net/url"
@@ -57,6 +56,51 @@ type qualificationAgentCredential struct {
 }
 
 const qualificationBarrierMaxHold = 3 * time.Second
+const qualificationBarrierPostReleaseHold = 200 * time.Millisecond
+const qualificationGrowthPayloadMaximum = 1 << 30
+
+var qualificationGrowthBlock = bytes.Repeat([]byte("p2pstream-aggregate-growth-payload-"), 1024)
+
+func qualificationGrowthPayloadHash(size int) [sha256.Size]byte {
+	hash := sha256.New()
+	remaining := size
+	for remaining > 0 {
+		written := min(remaining, len(qualificationGrowthBlock))
+		_, _ = hash.Write(qualificationGrowthBlock[:written])
+		remaining -= written
+	}
+	var result [sha256.Size]byte
+	copy(result[:], hash.Sum(nil))
+	return result
+}
+
+type qualificationZeroReader struct{ remaining int64 }
+
+func (r *qualificationZeroReader) Read(p []byte) (int, error) {
+	if r.remaining == 0 {
+		return 0, io.EOF
+	}
+	if int64(len(p)) > r.remaining {
+		p = p[:r.remaining]
+	}
+	clear(p)
+	r.remaining -= int64(len(p))
+	return len(p), nil
+}
+
+func qualificationZeroPayloadHash(size int) [sha256.Size]byte {
+	hash := sha256.New()
+	zero := make([]byte, 32<<10)
+	remaining := size
+	for remaining > 0 {
+		written := min(remaining, len(zero))
+		_, _ = hash.Write(zero[:written])
+		remaining -= written
+	}
+	var result [sha256.Size]byte
+	copy(result[:], hash.Sum(nil))
+	return result
+}
 
 type qualificationRuntime struct {
 	HeapAlloc                        uint64                             `json:"heap_alloc_bytes"`
@@ -86,17 +130,29 @@ type qualificationRuntime struct {
 }
 
 type qualificationAgentTunnelRuntime struct {
-	ID                           int64  `json:"id"`
-	PublicID                     string `json:"public_id"`
-	Connected                    bool   `json:"connected"`
-	FlowControl                  string `json:"flow_control,omitempty"`
-	ControlConnected             bool   `json:"control_connected,omitempty"`
-	BulkSessions                 int    `json:"bulk_sessions,omitempty"`
-	AggregateInitialPoolBytes    int64  `json:"aggregate_initial_pool_bytes,omitempty"`
-	AggregateCurrentPoolBytes    int64  `json:"aggregate_current_pool_bytes,omitempty"`
-	SessionMetadataBytes         int64  `json:"session_metadata_bytes,omitempty"`
-	LegacyControlSupplementBytes int64  `json:"legacy_control_supplement_bytes,omitempty"`
-	SessionResourceBytes         int64  `json:"session_resource_bytes,omitempty"`
+	ID                           int64                           `json:"id"`
+	PublicID                     string                          `json:"public_id"`
+	Connected                    bool                            `json:"connected"`
+	FlowControl                  string                          `json:"flow_control,omitempty"`
+	ControlConnected             bool                            `json:"control_connected,omitempty"`
+	BulkSessions                 int                             `json:"bulk_sessions,omitempty"`
+	AggregateInitialPoolBytes    int64                           `json:"aggregate_initial_pool_bytes,omitempty"`
+	AggregateCurrentPoolBytes    int64                           `json:"aggregate_current_pool_bytes,omitempty"`
+	SessionMetadataBytes         int64                           `json:"session_metadata_bytes,omitempty"`
+	LegacyControlSupplementBytes int64                           `json:"legacy_control_supplement_bytes,omitempty"`
+	SessionResourceBytes         int64                           `json:"session_resource_bytes,omitempty"`
+	Lanes                        []qualificationAgentLaneRuntime `json:"lanes,omitempty"`
+}
+
+type qualificationAgentLaneRuntime struct {
+	Lane             int    `json:"lane"`
+	Aggregate        bool   `json:"aggregate"`
+	ReceiveLimit     uint32 `json:"receive_limit_bytes,omitempty"`
+	ReceiveAvailable uint32 `json:"receive_available_bytes,omitempty"`
+	TotalUnits       uint32 `json:"total_units,omitempty"`
+	FreeUnits        uint32 `json:"free_units,omitempty"`
+	BufferedUnits    uint32 `json:"buffered_units,omitempty"`
+	PendingRefund    uint64 `json:"pending_refund_bytes,omitempty"`
 }
 
 type qualificationAgentCapacityRuntime struct {
@@ -157,6 +213,7 @@ type qualificationProcessResult struct {
 	CgroupMaxBytes       int64                              `json:"cgroup_memory_max_bytes,omitempty"`
 	PeakCgroupSockBytes  int64                              `json:"peak_cgroup_sock_bytes,omitempty"`
 	FinalCgroupSockBytes int64                              `json:"final_cgroup_sock_bytes,omitempty"`
+	CgroupEventsCaptured bool                               `json:"cgroup_memory_events_captured"`
 	OOMDelta             uint64                             `json:"oom_delta,omitempty"`
 	OOMKillDelta         uint64                             `json:"oom_kill_delta,omitempty"`
 	AgentCapacityInitial *qualificationAgentCapacityRuntime `json:"agent_capacity_initial,omitempty"`
@@ -186,6 +243,7 @@ type qualificationResult struct {
 	P95Milliseconds               float64                           `json:"p95_ms"`
 	P99Milliseconds               float64                           `json:"p99_ms"`
 	ResponseBytes                 int64                             `json:"response_bytes"`
+	ConfiguredPayloadBytes        int64                             `json:"configured_payload_bytes,omitempty"`
 	PeakRSSBytes                  int64                             `json:"peak_rss_bytes,omitempty"`
 	FinalRSSBytes                 int64                             `json:"final_rss_bytes,omitempty"`
 	PeakFDs                       int                               `json:"peak_fds,omitempty"`
@@ -232,6 +290,7 @@ type qualificationResult struct {
 	MinimumMemoryHeadroomBytes    int64                             `json:"minimum_memory_headroom_bytes,omitempty"`
 	ResourcePressureReasons       []string                          `json:"resource_pressure_reasons,omitempty"`
 	BarrierMaxHoldSeconds         float64                           `json:"barrier_max_hold_seconds,omitempty"`
+	BarrierPostReleaseHoldMS      int64                             `json:"barrier_post_release_hold_ms,omitempty"`
 	ServerProcess                 *qualificationProcessResult       `json:"server_process,omitempty"`
 	AgentProcesses                []qualificationProcessResult      `json:"agent_processes,omitempty"`
 	AgentTunnelsInitial           []qualificationAgentTunnelRuntime `json:"agent_tunnels_initial,omitempty"`
@@ -388,12 +447,35 @@ func qualificationRuntimeHandler(app *App, agentIDs ...int64) http.Handler {
 					row.SessionMetadataBytes = resource.SessionMetadataBytes
 					row.LegacyControlSupplementBytes = resource.LegacyControlSupplementBytes
 					row.SessionResourceBytes = resource.SessionResourceBytes
+					row.Lanes = qualificationAgentLaneStats(agent)
 				}
 				result.AgentTunnels = append(result.AgentTunnels, row)
 			}
 		}
 		_ = json.NewEncoder(w).Encode(result)
 	})
+}
+
+func qualificationAgentLaneStats(agent *AgentConn) []qualificationAgentLaneRuntime {
+	if agent == nil {
+		return nil
+	}
+	agent.tunnelMu.RLock()
+	defer agent.tunnelMu.RUnlock()
+	result := make([]qualificationAgentLaneRuntime, 0, len(agent.tunnels))
+	for lane, session := range agent.tunnels {
+		if session == nil || session.IsClosed() {
+			continue
+		}
+		stats := session.AggregateReceiveWindowStats()
+		result = append(result, qualificationAgentLaneRuntime{
+			Lane: lane, Aggregate: stats.Enabled, ReceiveLimit: stats.ReceiveLimit,
+			ReceiveAvailable: stats.ReceiveAvailable, TotalUnits: stats.TotalUnits,
+			FreeUnits: stats.FreeUnits, BufferedUnits: stats.BufferedUnits, PendingRefund: stats.PendingRefund,
+		})
+	}
+	slices.SortFunc(result, func(a, b qualificationAgentLaneRuntime) int { return a.Lane - b.Lane })
+	return result
 }
 
 func qualificationOwnerValues(snapshot any, fieldName string) map[string]int64 {
@@ -412,6 +494,13 @@ func qualificationOwnerValues(snapshot any, fieldName string) map[string]int64 {
 func runQualificationOrigin(t *testing.T) {
 	originTLS := os.Getenv("P2PSTREAM_QUALIFICATION_ORIGIN_TLS") == "1"
 	originHTTP1 := os.Getenv("P2PSTREAM_QUALIFICATION_ORIGIN_HTTP1") == "1"
+	bindAddress := strings.TrimSpace(os.Getenv("P2PSTREAM_QUALIFICATION_BIND_ADDRESS"))
+	if bindAddress == "" {
+		bindAddress = "127.0.0.1"
+	}
+	if net.ParseIP(bindAddress) == nil {
+		t.Fatalf("invalid qualification origin bind address %q", bindAddress)
+	}
 	data := bytes.Repeat([]byte("p2pstream-qualification-payload-"), 1<<15)
 	type barrierState struct{ active, peak atomic.Int64 }
 	var barriers sync.Map
@@ -419,17 +508,42 @@ func runQualificationOrigin(t *testing.T) {
 		w.Header().Set("X-Qualification-Origin-Connection", r.RemoteAddr)
 		w.Header().Set("X-Qualification-Origin-HTTP-Major", strconv.Itoa(r.ProtoMajor))
 		switch {
-		case strings.HasSuffix(r.URL.Path, "/upload"):
-			n, err := io.Copy(io.Discard, r.Body)
+		case strings.HasSuffix(r.URL.Path, "/upload") || strings.HasSuffix(r.URL.Path, "/bulk-upload"):
+			destination := io.Writer(io.Discard)
+			var uploadHash hash.Hash
+			if strings.HasSuffix(r.URL.Path, "/bulk-upload") {
+				uploadHash = sha256.New()
+				destination = uploadHash
+			}
+			n, err := io.Copy(destination, r.Body)
 			if err != nil {
 				http.Error(w, "body read failed", http.StatusBadRequest)
 				return
 			}
 			w.Header().Set("Content-Type", "text/plain")
-			_, _ = fmt.Fprintf(w, "%d", n)
+			if uploadHash != nil {
+				_, _ = w.Write(uploadHash.Sum(nil))
+			} else {
+				_, _ = fmt.Fprintf(w, "%d", n)
+			}
 		case strings.HasSuffix(r.URL.Path, "/slow"):
 			w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 			_, _ = w.Write(data)
+		case strings.HasSuffix(r.URL.Path, "/bulk"):
+			growthBytes, _ := strconv.Atoi(r.URL.Query().Get("bytes"))
+			if growthBytes < 1 || growthBytes > qualificationGrowthPayloadMaximum {
+				http.Error(w, "invalid growth payload size", http.StatusBadRequest)
+				return
+			}
+			w.Header().Set("Content-Length", strconv.Itoa(growthBytes))
+			remaining := growthBytes
+			for remaining > 0 {
+				written := min(remaining, len(qualificationGrowthBlock))
+				if _, err := w.Write(qualificationGrowthBlock[:written]); err != nil {
+					return
+				}
+				remaining -= written
+			}
 		case strings.HasSuffix(r.URL.Path, "/delay"):
 			token := r.URL.Query().Get("token")
 			stateValue, _ := barriers.LoadOrStore(token, &barrierState{})
@@ -460,7 +574,7 @@ func runQualificationOrigin(t *testing.T) {
 			_, _ = w.Write(make([]byte, 256))
 		}
 	})
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := net.Listen("tcp", net.JoinHostPort(bindAddress, "0"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -496,6 +610,13 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 	certPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_CERT")
 	keyPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_KEY")
 	managementCAFile := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE")
+	bindAddress := strings.TrimSpace(os.Getenv("P2PSTREAM_QUALIFICATION_BIND_ADDRESS"))
+	if bindAddress == "" {
+		bindAddress = "127.0.0.1"
+	}
+	if net.ParseIP(bindAddress) == nil {
+		t.Fatalf("invalid external qualification bind address %q", bindAddress)
+	}
 	agentCount := qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_EXTERNAL_AGENTS")
 	if agentCount == 0 {
 		agentCount = 1
@@ -514,16 +635,19 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	database, err := db.Open(filepath.Join(t.TempDir(), "external-agent-qualification.db"))
+	configDir := t.TempDir()
+	database, err := db.Open(filepath.Join(configDir, "external-agent-qualification.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	app := NewApp(&config.Config{
-		ManagementUIDisabled: true, ConfigDir: t.TempDir(),
+	appConfig := &config.Config{
+		ManagementUIDisabled: true, ConfigDir: configDir,
+		ManagementTLSMode: "auto", ManagementAdvertiseHost: bindAddress,
 		ServerTunnelMaxConcurrentStreams: tunnel.MaxServerConcurrentStreamsLimit,
 		ServerTunnelCapacityAuto:         true,
-	}, database)
+	}
+	app := NewApp(appConfig, database)
 	app.StartAdaptiveTunnelCapacity(ctx)
 	defer app.CloseAgentTransports()
 
@@ -547,11 +671,21 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 
 	managementMux := http.NewServeMux()
 	app.RegisterManagementRoutes(managementMux)
-	management := httptest.NewUnstartedServer(managementMux)
-	management.StartTLS()
-	defer management.Close()
-	managementCA := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: management.Certificate().Raw})
-	if err := os.WriteFile(managementCAFile, managementCA, 0600); err != nil {
+	managementTLS, enabled, err := NewManagementTLSConfig(appConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !enabled || managementTLS == nil {
+		t.Fatal("external qualification management TLS was not enabled")
+	}
+	managementListener, err := net.Listen("tcp", net.JoinHostPort(bindAddress, "0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	management := &http.Server{Handler: managementMux}
+	go func() { _ = management.Serve(tls.NewListener(managementListener, managementTLS)) }()
+	managementURL := "https://" + managementListener.Addr().String()
+	if err := os.WriteFile(managementCAFile, []byte(appConfig.ManagementCAPEM), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -566,7 +700,7 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 		AgentSelector:                 publicAgentSelectorConfig{MatchLabels: map[string]string{"qualification": "external"}},
 		UpstreamResponseHeaderTimeout: 10 * time.Second,
 	}
-	listener := publicListenerConfig{ID: 1, Name: "qualification-external", Protocol: publicListenerProtocolHTTPS, BindAddress: "127.0.0.1", Enabled: true}
+	listener := publicListenerConfig{ID: 1, Name: "qualification-external", Protocol: publicListenerProtocolHTTPS, BindAddress: bindAddress, Enabled: true}
 	snapshot := &publicProxySnapshot{
 		Listeners: map[int64]publicListenerConfig{1: listener},
 		RoutesByListener: map[int64][]publicRouteConfig{1: {{
@@ -597,7 +731,7 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 	go func() { _ = admin.Serve(adminListener) }()
 	writeQualificationReady(t, qualificationReady{
 		URL: "https://" + address, AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid(),
-		ManagementURL: management.URL, ManagementCAFile: managementCAFile, Agents: credentials,
+		ManagementURL: managementURL, ManagementCAFile: managementCAFile, Agents: credentials,
 	})
 	waitQualificationStop(t)
 	runtime.KeepAlive(ballast)
@@ -605,6 +739,7 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 	defer shutdownCancel()
 	_, _ = app.stopPublicListenerRuntime(shutdownCtx, 1)
 	_ = admin.Shutdown(shutdownCtx)
+	_ = management.Shutdown(shutdownCtx)
 }
 
 func runQualificationProxy(t *testing.T) {
@@ -737,6 +872,10 @@ func TestProxyQualificationLoad(t *testing.T) {
 	durationSeconds, _ := strconv.ParseFloat(os.Getenv("P2PSTREAM_QUALIFICATION_DURATION_SECONDS"), 64)
 	warmupSeconds, _ := strconv.ParseFloat(os.Getenv("P2PSTREAM_QUALIFICATION_WARMUP_SECONDS"), 64)
 	protocol := os.Getenv("P2PSTREAM_QUALIFICATION_PROTOCOL")
+	growthPayloadBytes := qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_GROWTH_PAYLOAD_BYTES")
+	if strings.HasPrefix(scenario, "growth-") && (growthPayloadBytes < 1 || growthPayloadBytes > qualificationGrowthPayloadMaximum) {
+		t.Fatalf("invalid growth payload bytes %d", growthPayloadBytes)
+	}
 	if concurrency < 1 || requests < 1 || concurrency > requests {
 		t.Fatalf("invalid concurrency=%d requests=%d", concurrency, requests)
 	}
@@ -787,12 +926,22 @@ func TestProxyQualificationLoad(t *testing.T) {
 				method := http.MethodGet
 				var body io.Reader
 				requestURL := target
-				if strings.HasPrefix(scenario, "upload") {
+				if scenario == "growth-upload" {
+					method = http.MethodPost
+					body = &qualificationZeroReader{remaining: int64(growthPayloadBytes)}
+				} else if strings.HasPrefix(scenario, "upload") {
 					method = http.MethodPost
 					body = bytes.NewReader(make([]byte, 64<<10))
 				} else if strings.HasPrefix(scenario, "capacity-") {
 					token := os.Getenv("P2PSTREAM_QUALIFICATION_SEQUENCE")
-					requestURL += "?barrier=" + strconv.Itoa(concurrency) + "&token=" + url.QueryEscape(token)
+					requestURL += "?barrier=" + strconv.Itoa(concurrency) + "&ms=" + strconv.FormatInt(qualificationBarrierPostReleaseHold.Milliseconds(), 10) + "&token=" + url.QueryEscape(token)
+				}
+				if scenario == "growth-download" {
+					separator := "?"
+					if strings.Contains(requestURL, "?") {
+						separator = "&"
+					}
+					requestURL += separator + "bytes=" + strconv.Itoa(growthPayloadBytes)
 				}
 				req, err := http.NewRequest(method, requestURL, body)
 				if err != nil {
@@ -801,6 +950,9 @@ func TestProxyQualificationLoad(t *testing.T) {
 					continue
 				}
 				req.Host = "public.test"
+				if scenario == "growth-upload" {
+					req.ContentLength = int64(growthPayloadBytes)
+				}
 				req = req.WithContext(httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
 					if strings.HasPrefix(scenario, "h1-churn") {
 						if !info.Reused {
@@ -837,7 +989,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 				}
 				var n int64
 				validPayload := true
-				if scenario == "slow-reader" || scenario == "large-stream" {
+				if scenario == "slow-reader" || scenario == "large-stream" || scenario == "growth-download" {
 					buf := make([]byte, 8<<10)
 					hash := sha256.New()
 					for {
@@ -855,8 +1007,13 @@ func TestProxyQualificationLoad(t *testing.T) {
 							break
 						}
 					}
-					want := sha256.Sum256(bytes.Repeat([]byte("p2pstream-qualification-payload-"), 1<<15))
-					validPayload = n == 1<<20 && bytes.Equal(hash.Sum(nil), want[:])
+					if scenario == "growth-download" {
+						want := qualificationGrowthPayloadHash(growthPayloadBytes)
+						validPayload = n == int64(growthPayloadBytes) && bytes.Equal(hash.Sum(nil), want[:])
+					} else {
+						want := sha256.Sum256(bytes.Repeat([]byte("p2pstream-qualification-payload-"), 1<<15))
+						validPayload = n == 1<<20 && bytes.Equal(hash.Sum(nil), want[:])
+					}
 				} else {
 					var responseBody []byte
 					responseBody, err = io.ReadAll(resp.Body)
@@ -864,6 +1021,9 @@ func TestProxyQualificationLoad(t *testing.T) {
 					switch scenario {
 					case "upload", "upload-duration":
 						validPayload = string(responseBody) == "65536"
+					case "growth-upload":
+						want := qualificationZeroPayloadHash(growthPayloadBytes)
+						validPayload = bytes.Equal(responseBody, want[:])
 					case "capacity-1536-h1", "capacity-1536-h2":
 						validPayload = len(responseBody) == 0
 					default:
@@ -982,7 +1142,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 		StatusCodes: statusCodes,
 		Errors:      errorsSeen.Load(), WallSeconds: elapsed.Seconds(), UsefulRPS: float64(useful.Load()) / elapsed.Seconds(),
 		P50Milliseconds: durationQuantile(latencies, .50), P95Milliseconds: durationQuantile(latencies, .95), P99Milliseconds: durationQuantile(latencies, .99),
-		ResponseBytes: bytesSeen.Load(), PeakRSSBytes: sampler.peakRSS, FinalRSSBytes: sampler.finalRSS, PeakFDs: sampler.peakFDs, CPUSeconds: sampler.cpuSeconds(),
+		ResponseBytes: bytesSeen.Load(), ConfiguredPayloadBytes: int64(growthPayloadBytes), PeakRSSBytes: sampler.peakRSS, FinalRSSBytes: sampler.finalRSS, PeakFDs: sampler.peakFDs, CPUSeconds: sampler.cpuSeconds(),
 		PeakHeapAlloc: sampler.peakHeap, GCCycles: sampler.gcCycles(), GCPauseSeconds: sampler.gcPauseSeconds(), ObservedHTTPMajor: int(observedMajor.Load()), ObservedOriginHTTPMajor: int(observedOriginMajor.Load()),
 		CgroupMemoryPeak: sampler.cgroupPeak, CgroupMemoryFinal: sampler.cgroupFinal, CgroupMemoryMax: sampler.cgroupMax,
 		OriginPeakInflight: originPeak.Load(), InitialRSSBytes: sampler.initialRSS, InitialHeapAlloc: sampler.initialHeap,
@@ -1006,6 +1166,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 	result.AgentTunnelsFinal = sampler.agentTunnelsFinal
 	if strings.HasPrefix(scenario, "capacity-") {
 		result.BarrierMaxHoldSeconds = qualificationBarrierMaxHold.Seconds()
+		result.BarrierPostReleaseHoldMS = qualificationBarrierPostReleaseHold.Milliseconds()
 	}
 	if protocol == "h2" && result.ObservedHTTPMajor != 2 {
 		t.Fatalf("negotiated HTTP/%d, want HTTP/2", result.ObservedHTTPMajor)
@@ -1526,11 +1687,31 @@ func (s *qualificationSampler) observeAgentStats(stats qualificationRuntime) {
 		peak.SessionMetadataBytes = max(peak.SessionMetadataBytes, current.SessionMetadataBytes)
 		peak.LegacyControlSupplementBytes = max(peak.LegacyControlSupplementBytes, current.LegacyControlSupplementBytes)
 		peak.SessionResourceBytes = max(peak.SessionResourceBytes, current.SessionResourceBytes)
+		for _, lane := range current.Lanes {
+			index := slices.IndexFunc(peak.Lanes, func(value qualificationAgentLaneRuntime) bool { return value.Lane == lane.Lane })
+			if index < 0 {
+				peak.Lanes = append(peak.Lanes, lane)
+				continue
+			}
+			lanePeak := &peak.Lanes[index]
+			lanePeak.Aggregate = lanePeak.Aggregate || lane.Aggregate
+			lanePeak.ReceiveLimit = max(lanePeak.ReceiveLimit, lane.ReceiveLimit)
+			lanePeak.ReceiveAvailable = max(lanePeak.ReceiveAvailable, lane.ReceiveAvailable)
+			lanePeak.TotalUnits = max(lanePeak.TotalUnits, lane.TotalUnits)
+			lanePeak.FreeUnits = max(lanePeak.FreeUnits, lane.FreeUnits)
+			lanePeak.BufferedUnits = max(lanePeak.BufferedUnits, lane.BufferedUnits)
+			lanePeak.PendingRefund = max(lanePeak.PendingRefund, lane.PendingRefund)
+		}
+		slices.SortFunc(peak.Lanes, func(a, b qualificationAgentLaneRuntime) int { return a.Lane - b.Lane })
 		s.agentTunnelPeaks[current.ID] = peak
 	}
 }
 
 func (s *qualificationSampler) processResult(spec qualificationProcessSpec) qualificationProcessResult {
+	_, initialOOM := s.initialMemoryEvents["oom"]
+	_, initialOOMKill := s.initialMemoryEvents["oom_kill"]
+	_, finalOOM := s.finalMemoryEvents["oom"]
+	_, finalOOMKill := s.finalMemoryEvents["oom_kill"]
 	result := qualificationProcessResult{
 		Role: spec.Role, PID: spec.PID, Container: spec.Container, CPUSet: spec.CPUSet,
 		CgroupPath: s.cgroupPath(), CgroupInode: s.cgroupInode(), InitialRSSBytes: s.initialRSS, PeakRSSBytes: s.peakRSS, FinalRSSBytes: s.finalRSS,
@@ -1539,6 +1720,7 @@ func (s *qualificationSampler) processResult(spec qualificationProcessSpec) qual
 		InitialHeapBytes: s.initialHeap, PeakHeapBytes: s.peakHeap,
 		InitialCgroupBytes: s.initialCgroup, PeakCgroupBytes: s.cgroupPeak, FinalCgroupBytes: s.cgroupFinal,
 		CgroupMaxBytes: s.cgroupMax, PeakCgroupSockBytes: s.peakCgroupSock, FinalCgroupSockBytes: s.finalCgroupSock,
+		CgroupEventsCaptured: initialOOM && initialOOMKill && finalOOM && finalOOMKill,
 		OOMDelta:             counterDelta(s.initialMemoryEvents["oom"], s.finalMemoryEvents["oom"]),
 		OOMKillDelta:         counterDelta(s.initialMemoryEvents["oom_kill"], s.finalMemoryEvents["oom_kill"]),
 		AgentCapacityInitial: s.agentCapacityInitial, AgentCapacityPeak: s.agentCapacityPeak, AgentCapacityFinal: s.agentCapacityFinal,
