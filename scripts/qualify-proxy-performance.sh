@@ -9,11 +9,14 @@ cd "$(dirname "$0")/.."
 smoke=0
 runs=3
 baseline_binary=""
+baseline_label="baseline-ee1aba7"
 candidate_binary=""
 driver_binary=""
 candidate_label="candidate"
 output=""
 use_cgroup=1
+origin_tls=0
+origin_http1=0
 ballast_mib=0
 decisive_only=0
 capacity_only=0
@@ -28,19 +31,24 @@ scenario_filter=""
 path_filter=""
 stdlib_controls=0
 stdlib_pooled_controls=0
+stdlib_sharded_controls=0
 controls_only=0
 stdlib_max_idle=""
 stdlib_pool=0
+stdlib_shards=1
 while (($#)); do
   case "$1" in
     --smoke) smoke=1; runs=1; shift ;;
     --runs) runs=$2; shift 2 ;;
     --baseline-binary) baseline_binary=$2; shift 2 ;;
+    --baseline-label) baseline_label=$2; shift 2 ;;
     --candidate-binary) candidate_binary=$2; shift 2 ;;
     --driver-binary) driver_binary=$2; shift 2 ;;
     --candidate-label) candidate_label=$2; shift 2 ;;
     --output) output=$2; shift 2 ;;
     --host-processes) use_cgroup=0; shift ;;
+    --origin-tls) origin_tls=1; shift ;;
+    --origin-http1) origin_http1=1; shift ;;
     --ballast-mib) ballast_mib=$2; shift 2 ;;
     --decisive-only) decisive_only=1; shift ;;
     --capacity-only) capacity_only=1; shift ;;
@@ -55,12 +63,13 @@ while (($#)); do
     --path-filter) path_filter=$2; shift 2 ;;
     --stdlib-controls) stdlib_controls=1; shift ;;
     --stdlib-pooled-controls) stdlib_pooled_controls=1; shift ;;
+    --stdlib-sharded-controls) stdlib_sharded_controls=1; shift ;;
     --diagnostic-controls-only) controls_only=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 if ((smoke)); then use_cgroup=0; fi
-if ((controls_only && !stdlib_controls && !stdlib_pooled_controls)); then
+if ((controls_only && !stdlib_controls && !stdlib_pooled_controls && !stdlib_sharded_controls)); then
   echo "--diagnostic-controls-only requires a standard-library control" >&2
   exit 2
 fi
@@ -167,6 +176,8 @@ start_test_process() {
       --env P2PSTREAM_QUALIFICATION_READY="/qualification/$name.ready.json" \
       --env P2PSTREAM_QUALIFICATION_STOP="/qualification/$name.stop" \
       --env P2PSTREAM_QUALIFICATION_ORIGIN_URL="${origin_url:-}" \
+      --env P2PSTREAM_QUALIFICATION_ORIGIN_TLS="$origin_tls" \
+      --env P2PSTREAM_QUALIFICATION_ORIGIN_HTTP1="$origin_http1" \
       --env P2PSTREAM_QUALIFICATION_CERT=/qualification/public.crt.pem \
       --env P2PSTREAM_QUALIFICATION_KEY=/qualification/public.key.pem \
       --env GOMAXPROCS="$proxy_cpu_count" \
@@ -175,6 +186,7 @@ start_test_process() {
       --env P2PSTREAM_QUALIFICATION_PROFILE_MODE="$profile_mode" \
       --env P2PSTREAM_QUALIFICATION_STDLIB_MAX_IDLE="${stdlib_max_idle:-32}" \
       --env P2PSTREAM_QUALIFICATION_STDLIB_POOL="$stdlib_pool" \
+      --env P2PSTREAM_QUALIFICATION_STDLIB_SHARDS="$stdlib_shards" \
       debian:trixie-slim /server.test -test.run '^TestProxyQualificationProcess$' -test.timeout 15m >"$log" 2>&1 &
   else
     role_cpu_set=$proxy_cpu_set
@@ -183,6 +195,8 @@ start_test_process() {
     P2PSTREAM_QUALIFICATION_READY="$ready" \
     P2PSTREAM_QUALIFICATION_STOP="$stop" \
     P2PSTREAM_QUALIFICATION_ORIGIN_URL="${origin_url:-}" \
+    P2PSTREAM_QUALIFICATION_ORIGIN_TLS="$origin_tls" \
+    P2PSTREAM_QUALIFICATION_ORIGIN_HTTP1="$origin_http1" \
     P2PSTREAM_QUALIFICATION_CERT="$cert" \
     P2PSTREAM_QUALIFICATION_KEY="$key" \
     GOMAXPROCS="$proxy_cpu_count" \
@@ -191,6 +205,7 @@ start_test_process() {
     P2PSTREAM_QUALIFICATION_PROFILE_MODE="$profile_mode" \
     P2PSTREAM_QUALIFICATION_STDLIB_MAX_IDLE="${stdlib_max_idle:-32}" \
     P2PSTREAM_QUALIFICATION_STDLIB_POOL="$stdlib_pool" \
+    P2PSTREAM_QUALIFICATION_STDLIB_SHARDS="$stdlib_shards" \
       taskset -c "$role_cpu_set" "$binary" -test.run '^TestProxyQualificationProcess$' -test.timeout 15m >"$log" 2>&1 &
   fi
   process_pid=$!
@@ -339,7 +354,7 @@ print(s.getsockname()[1])
 s.close()
 PY
 )
-  local origin_address=${origin_url#http://}
+  local origin_address=${origin_url#*://}
   local cfg="$run_dir/haproxy-$iteration.cfg" log="$run_dir/haproxy-$iteration.log"
   {
     echo 'global'
@@ -354,7 +369,11 @@ PY
     echo "  bind 127.0.0.1:$port ssl crt $bundle alpn h2,http/1.1"
     echo '  default_backend origin'
     echo 'backend origin'
-    echo "  server origin $origin_address"
+    if [[ $origin_url == https://* ]]; then
+      echo "  server origin $origin_address ssl verify none"
+    else
+      echo "  server origin $origin_address"
+    fi
   } > "$cfg"
   taskset -c "$proxy_cpu_set" /usr/sbin/haproxy -db -f "$cfg" >"$log" 2>&1 &
   local pid=$!
@@ -378,11 +397,13 @@ PY
 }
 
 run_stdlib_control() {
-  local iteration=$1 idle=$2 pooled=$3
+  local iteration=$1 idle=$2 pooled=$3 shards=${4:-1}
   stdlib_max_idle=$idle
   stdlib_pool=$pooled
+  stdlib_shards=$shards
   local label="go-stdlib-idle-$idle"
   ((pooled)) && label="go-stdlib-pooled-idle-$idle"
+  ((shards > 1)) && label="go-stdlib-pooled-shards-${shards}-total-idle-${idle}"
   start_test_process "$driver_binary" stdlib "${label}-${iteration}"
   local pid=$process_pid stop=$process_stop base_url admin_url
   base_url=$(jq -r .url "$process_ready")
@@ -390,13 +411,14 @@ run_stdlib_control() {
   for scenario_row in "${scenario_rows[@]}"; do
     [[ -n $scenario_filter && ${scenario_row%% *} != "$scenario_filter" ]] && continue
     sequence=$((sequence + 1))
-    resource_envelope=go-stdlib-reverse-proxy-diagnostic
+    resource_envelope="go-stdlib-reverse-proxy-diagnostic:shards=$shards,total_idle=$idle,per_shard_idle=$((idle / shards)),pooled_buffer=$pooled"
     result_ballast_mib=0
     run_load "$label" "direct-diagnostic" "$base_url" "$admin_url" "$process_sample_pid" "$scenario_row" "$sequence"
   done
   stop_process "$pid" "$stop"
   stdlib_max_idle=""
   stdlib_pool=0
+  stdlib_shards=1
 }
 
 for ((iteration=1; iteration<=runs; iteration++)); do
@@ -404,11 +426,11 @@ for ((iteration=1; iteration<=runs; iteration++)); do
     :
   elif [[ -n $baseline_binary ]]; then
     if ((iteration % 2)); then
-      run_p2pstream baseline-ee1aba7 "$baseline_binary" "$iteration"
+      run_p2pstream "$baseline_label" "$baseline_binary" "$iteration"
       run_p2pstream "$candidate_label" "$candidate_binary" "$iteration"
     else
       run_p2pstream "$candidate_label" "$candidate_binary" "$iteration"
-      run_p2pstream baseline-ee1aba7 "$baseline_binary" "$iteration"
+      run_p2pstream "$baseline_label" "$baseline_binary" "$iteration"
     fi
   else
     run_p2pstream "$candidate_label" "$candidate_binary" "$iteration"
@@ -420,6 +442,9 @@ for ((iteration=1; iteration<=runs; iteration++)); do
   if ((stdlib_pooled_controls)); then
     run_stdlib_control "$iteration" 32 1
     run_stdlib_control "$iteration" 128 1
+  fi
+  if ((stdlib_sharded_controls)); then
+    run_stdlib_control "$iteration" 128 1 4
   fi
   ((controls_only)) || run_haproxy "$iteration"
 done

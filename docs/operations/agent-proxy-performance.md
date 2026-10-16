@@ -440,6 +440,49 @@ material allocation site. The profiled 128-client throughput sample was 2.5%
 below the earlier run, so it demonstrates the allocation reduction but no
 throughput improvement.
 
+The subsequent forwarding-pointer change removed the remaining route
+resolution copy while preserving owned snapshots in the retry transport and
+cache response body. Its allocation profile fell to 3.42 GiB across 318,884
+warmup and timed requests, about 15% less per request than the `d1d952f`
+profile. At 128 clients it reached 31.45% of its same-run HAProxy result versus
+31.44% for `d1d952f`, so the change has a measured allocation/GC benefit but no
+measured normalized throughput benefit. A current mutex profile attributed
+79.6% of sampled delay to the standard-library transport idle-connection path;
+application adaptive-capacity, admission, selector and recorder paths were
+3.05%, 1.45%, 1.17% and 0.77% respectively.
+
+A matched test-only transport experiment compared one pooled Go transport with
+32 or 128 idle origin connections against four round-robin transports with 32
+each. At 128 clients, single-128 and four-by-32 were effectively equal at
+46,392 and 46,493 useful requests/s, but sharding opened 700 new timed origin
+connections instead of 19, increased peak FDs from 264 to 310 and worsened
+p95/p99. Single-32 reached 42,621 requests/s and opened 7,973 new timed origin
+connections. Sharding is therefore not supported. A larger idle budget on the
+existing single transport remains a separately qualified production
+experiment; the diagnostic does not change operator `MaxConns`, request
+admission or cache semantics.
+
+An isolated production overlay then changed only the existing transport's
+`MaxIdleConnsPerHost` from 32 to 128. Two alternating H1 runs at 128 clients
+improved useful throughput by 5.3% in both orders, reduced p95 by 8--9% and
+p99 by 5--10%, and reduced roughly 7,500 timed origin reconnects to 0--21.
+H2 throughput improved only 0.9--1.3%, but p95 improved 7--8%, p99 12--13%,
+and 5,600--6,600 reconnects fell to zero. Neither H1 nor H2 improved at 16
+clients. A TLS origin negotiating upstream HTTP/2 also showed no benefit. With
+the TLS origin restricted to HTTP/1.1, 128 improved throughput by 50.9%, cut
+p95/p99 from 22.29/34.10 to 12.08/18.02 ms, and eliminated 7,413 reconnects.
+
+The 1 GiB-ballast retention check completed H1 and H2 capacity 128 plus a
+512-request recovery for both settings without errors, 503s or admission
+misses. The 128 setting retained 142 socket FDs after recovery versus 46 for
+32; both reported approximately 1.154 GiB RSS and 4,096 cgroup socket bytes.
+This is a measured FD tradeoff, not proof of zero memory cost. The transport's
+existing real-TCP pressure-reclaim regression and focused lifecycle suite pass
+normally and under the race detector with the larger pool, so the bounded
+per-origin idle default is now 128. The total idle budget, accounting and
+pressure-reclaim behavior are unchanged, and a positive operator `MaxConns`
+continues to use one transport rather than sharding.
+
 Setting `TCP_NOTSENT_LOWAT` to 32 KiB on the existing public, direct-origin and
 agent-origin TCP configuration paths reduced the 24-slow-reader socket peak
 from 66,355,200 bytes (63.28125 MiB) to 5,996,544 bytes (5.71875 MiB). A

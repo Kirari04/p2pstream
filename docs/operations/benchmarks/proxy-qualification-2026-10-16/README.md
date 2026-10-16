@@ -40,6 +40,21 @@ comparison.
 - `lowat-validation.jsonl` is the sanitized paired socket-memory, controlled
   pressure and WAN result set for `TCP_NOTSENT_LOWAT`, preserving byte counts
   and MiB conversions separately.
+- `post-forwarding-qualification.jsonl` contains the clean `ca8a081` H1
+  allocation/CPU/contention diagnostics, one full baseline/candidate/control
+  regression matrix and the 500 request/s offered-load tail check. The full
+  matrix rows carry an explicit note because a competing compile briefly
+  overlapped the late candidate agent phase; use those rows for correctness and
+  regression visibility rather than decisive agent throughput.
+- `stdlib-transport-sharding.jsonl` is the test-only pooled Go transport
+  diagnostic at 16 and 128 clients. Each row records its shard count, total and
+  per-shard idle budgets in `resource_envelope`, plus newly opened origin TCP
+  connections after warmup.
+- `production-idle-pool.jsonl` compares the unchanged single production
+  transport at 32 idle connections per origin with an isolated one-line 128
+  overlay. It includes low/high-concurrency H1/H2, alternating repeats, a 1 GiB
+  ballast retention/recovery run and TLS-origin runs with negotiated origin
+  protocol recorded.
 
 The initial 1,400 and 1,536 failure rows used a 10-second barrier release equal
 to the upstream response-header timeout. Treat their origin high-water, owner
@@ -68,6 +83,50 @@ pre-context-pool profile allocated 4.38 GiB across 305,506.
 `newPublicProxyContext` no longer appeared as a material allocation site, but
 the single profiled throughput sample did not establish a throughput gain.
 
+Passing the pooled route resolution into forwarding by pointer removed the
+former approximately 414 MiB allocation site. The `ca8a081` profile allocated
+3.42 GiB across 318,884 warmup and timed requests, versus 3.788 GiB across
+298,703 for `d1d952f`, about 15% less per request. Normalized throughput did not
+improve: at 128 clients `ca8a081` and `d1d952f` were respectively 31.45% and
+31.44% of their same-run HAProxy controls. All eight direct/agent sustained
+candidate rows completed without client errors and persisted exactly one event
+per useful response after draining. The clean 500 request/s direct row had
+p95/p99 1.662/1.827 ms versus HAProxy 1.436/1.586 ms, ratios 1.157/1.152 that
+pass the predeclared 1.25 tail gate.
+
+Four pooled Go transports with 32 idle connections each did not improve over
+one transport with 128 total idle connections. At 128 clients they completed
+46,493 and 46,392 useful requests/s respectively, while sharding opened 700
+new timed origin connections instead of 19, increased peak FDs from 264 to 310
+and worsened both tails. One transport with only 32 idle connections reached
+42,621 requests/s and opened 7,973 new origin connections. This rejects
+sharding and isolates the single-transport idle budget as a separate production
+experiment; it does not authorize a default change.
+
+The production overlay confirmed a narrower benefit. At 128 clients, two
+alternating H1 repeats improved by 5.3% in both orders, reduced p95 by 8--9%
+and p99 by 5--10%, and cut approximately 7,500 timed origin reconnects to
+0--21. H2 throughput improved only 0.9--1.3%, while p95 improved 7--8%, p99
+12--13%, and 5,600--6,600 reconnects fell to zero. At 16 clients neither H1
+nor H2 improved. With a TLS origin that negotiated upstream HTTP/2, neither
+pool reconnected and 128 did not help. When the TLS origin advertised only
+HTTP/1.1, 128 reached 25,263 versus 16,741 requests/s, reduced p95/p99 from
+22.29/34.10 to 12.08/18.02 ms, and eliminated 7,413 reconnects. The candidate
+still reached only 35.7% of HAProxy in that workload.
+
+The 1 GiB-ballast H1/H2 capacity and recovery run completed 128/128 and then
+512/512 requests for both configurations with zero errors, 503s or admission
+misses and exact event conservation. After recovery, idle-128 retained 142
+socket FDs versus 46 for idle-32, while both reported 4,096 cgroup socket bytes
+and approximately 1.154 GiB RSS. This shows the FD retention tradeoff at this
+scale; it is not evidence that extra idle sockets have no memory cost.
+
+The existing real-TCP pressure-reclaim regression and focused direct-transport
+lifecycle suite passed normally and under the race detector with the 128
+overlay. The bounded per-origin idle default is therefore retained at 128.
+The total idle budget, positive operator `MaxConns`, accounting and pressure
+reclaim behavior are unchanged.
+
 LOWAT reduced the 24-slow-reader socket peak from 66,355,200 bytes (63.28125
 MiB) to 5,996,544 bytes (5.71875 MiB). The split controlled-pressure test then
 peaked at 461,434,880 of 536,870,912 cgroup bytes, rejected six acquisitions,
@@ -85,8 +144,11 @@ c4465a2f75d07d90174e307f4623d18201ef6a102cb4a4f60cc6b71b8d91e156  stdlib-pooled-
 c27f2eb6295a2145195947164876e546849587fe000ab45a58fd209b00132cb5  final-h1-profile.jsonl
 e3e6ff8dd4c417716068c303a391efafbed17b6a5f124e8d5affb62318666df7  ballast-capacity-boundary.jsonl
 c18c1de6751ae59597f20186035b15097d8a7fe96b5d3ffc6f2bd864f6789b0c  ballast-capacity-corrected.jsonl
-d7c3e70e4b290a304c738c149f60f75d1e2a93695ca9c3c81cb8c1110d470fa1  h1-concurrency-sweep.jsonl
+a2c9f590486d21b662c3915e07cc87208cd92c366f46ca2ab4ba53f056e32517  h1-concurrency-sweep.jsonl
 2d11a48da396e11b2d438fe097cc72f79a467b0bba4251c236c7ad8fb711cc3e  lowat-validation.jsonl
+432ee9596ef0355fe8308149479728bb1a51555f4b3cc87cfe26895102e2b568  post-forwarding-qualification.jsonl
+b4ab546fa295fc17f7eeacdccf0b47ace151cdd686a3ff6a24ed3e9f66e638bb  stdlib-transport-sharding.jsonl
+404fe7b47c19b847213f99fc2756044cd7ab7a2651eca93ae3228a12543b42d8  production-idle-pool.jsonl
 ```
 
 ## Source and binary provenance
@@ -99,6 +161,19 @@ d7c3e70e4b290a304c738c149f60f75d1e2a93695ca9c3c81cb8c1110d470fa1  h1-concurrency
 | `candidate-b4dd36b` | `b4dd36bffd57dc959c936e2eac1cced55a8cae7a` | `96b85f9adb748835e9922ef4b539311af9ba2e71afae1ffca3ce626d567343c3` | `ddd5dea5b8f9cf219ca0ffaf13370dc786f4a40ca2f4b247e16146226b7a0e57` |
 | `candidate-b4dd36b` ballast capacity | `b4dd36bffd57dc959c936e2eac1cced55a8cae7a` | `cdbc6007a7dc5ea0979219af5dbd9dd153f9c259fdb4608d62e302d1547d0dd4` | `71a3268b7cbd048a3055064b32a6f5b47a58434b597a4144f2c0ee1990f2a86a` |
 | `candidate-d1d952f` H1 sweep | `d1d952f0bbe18481a65c3b45e9e16fc6f9738382` | `27d5185a1e2d1923eb8183ef87f694b45b862989746f349aa44c5591ff3d25c9` | `2965a9af3f48907eeaafa364e13bcd019d634914be7f99969150b98ac462659b` |
+| `candidate-ca8a081` forwarding | `ca8a0818312fbefbd8af9699cd9469f29ed82b0b` | `27d5185a1e2d1923eb8183ef87f694b45b862989746f349aa44c5591ff3d25c9` | `b9fb8cd02c43a4d1179be50f28b5716edb85d8329113c1ec73d02c28c7e2322a` |
+| sharding diagnostic driver | `ca8a0818312fbefbd8af9699cd9469f29ed82b0b` plus test-only harness | `1e3652a5716727fef32ae53ac166d2a0200b8b5a26f641ebc867298953821b3c` | `2fafa0220f0beaa0a3f09ec8c0f9c2b4b587e89464a006bc0cb868bf622c3ac7` |
+| idle-32 alternating/TLS proxy | `ca8a0818312fbefbd8af9699cd9469f29ed82b0b` | `89c4ce099ab3237c298653206752a7457f684aaa9e6b8d33fb3036f2f3efefdb` | `45fd2509c41c1160b7ec2d6d4d775bfd1fd1616f5689f5f62c289620cbe06b0b` |
+| idle-128 alternating/TLS proxy | `ca8a0818312fbefbd8af9699cd9469f29ed82b0b` plus `MaxIdleConnsPerHost=128` overlay `bbddfe2c21628622e74ff478d2767d6e05ab7f5698b084810b23dbda7e3807c4` | `89c4ce099ab3237c298653206752a7457f684aaa9e6b8d33fb3036f2f3efefdb` | `1b8f72e618bbde0c9f2ad776e5497dcb151bc2dc73b3e014e65bd1bd16bfbc63` |
+| origin-protocol diagnostic driver | `ca8a0818312fbefbd8af9699cd9469f29ed82b0b` plus test-only harness | `9a3ac62225dd404d4a93cb9560678041cfb84995e0c38f7bd183547ff3ee68f0` | `805d6f2f028fa0fa72a478840b485a0eca646e6bf3223ebd37907b8d709b4093` |
+
+The qualification script SHA-256 was
+`5e93c56e781b912b52867f0338781ec3733fd5287a11d003ee57a3af059df25b`
+for the sharding diagnostic,
+`a31074f8c19864eb8f83a679cfa9e64122710ea04246ef9a64bf9f58facd6493`
+for the alternating idle-pool runs, and
+`13297f8b9fb1fa166819bbee722df431c3b68928ec5b691db146460ff1d69c6e`
+for the origin-protocol runs.
 
 The baseline and candidates were built from clean archives. Only the
 qualification test harness was overlaid, so unrelated shared-worktree edits

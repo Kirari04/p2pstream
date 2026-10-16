@@ -118,7 +118,7 @@ func newDirectPooledHTTPTransport(tlsSkipVerify bool, timeout time.Duration, con
 	transport := base.Clone()
 	transport.DisableKeepAlives = false
 	transport.MaxIdleConns = 1024
-	transport.MaxIdleConnsPerHost = 32
+	transport.MaxIdleConnsPerHost = 128
 	maxConns := defaultPublicMaxConnectionsPerTarget
 	if len(configuredMaxConns) > 0 && configuredMaxConns[0] > 0 {
 		maxConns = configuredMaxConns[0]

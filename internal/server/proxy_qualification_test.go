@@ -98,6 +98,7 @@ type qualificationResult struct {
 	GCCycles                      uint32            `json:"gc_cycles,omitempty"`
 	GCPauseSeconds                float64           `json:"gc_pause_seconds,omitempty"`
 	ObservedHTTPMajor             int               `json:"observed_http_major,omitempty"`
+	ObservedOriginHTTPMajor       int               `json:"observed_origin_http_major,omitempty"`
 	OriginPeakInflight            int64             `json:"origin_peak_inflight,omitempty"`
 	InitialRSSBytes               int64             `json:"initial_rss_bytes,omitempty"`
 	InitialHeapAlloc              uint64            `json:"initial_heap_alloc_bytes,omitempty"`
@@ -110,6 +111,7 @@ type qualificationResult struct {
 	LoadCPUSet                    string            `json:"load_cpu_set,omitempty"`
 	ResourceEnvelope              string            `json:"resource_envelope,omitempty"`
 	ClientConnections             int64             `json:"client_tcp_connections,omitempty"`
+	NewOriginConnections          int64             `json:"new_origin_tcp_connections,omitempty"`
 	BallastBytes                  int64             `json:"server_ballast_bytes,omitempty"`
 	EventStatsCaptured            bool              `json:"event_stats_captured,omitempty"`
 	PersistedAfterLoad            int64             `json:"persisted_events_after_load,omitempty"`
@@ -158,20 +160,44 @@ func runQualificationStdlibProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	maxIdle := qualificationEnvInt(t, "P2PSTREAM_QUALIFICATION_STDLIB_MAX_IDLE")
+	shards := qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_STDLIB_SHARDS")
+	if shards == 0 {
+		shards = 1
+	}
+	if shards < 1 || maxIdle < shards || maxIdle%shards != 0 {
+		t.Fatalf("invalid standard-library transport shards=%d total idle=%d", shards, maxIdle)
+	}
 	certPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_CERT")
 	keyPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_KEY")
-	transport := &http.Transport{MaxIdleConns: maxIdle, MaxIdleConnsPerHost: maxIdle, MaxConnsPerHost: 0, ForceAttemptHTTP2: false}
-	defer transport.CloseIdleConnections()
-	proxy := httputil.NewSingleHostReverseProxy(origin)
-	proxy.Transport = transport
-	if os.Getenv("P2PSTREAM_QUALIFICATION_STDLIB_POOL") == "1" {
-		proxy.BufferPool = newReverseProxyBufferPool()
+	proxies := make([]*httputil.ReverseProxy, 0, shards)
+	transports := make([]*http.Transport, 0, shards)
+	perShardIdle := maxIdle / shards
+	bufferPool := newReverseProxyBufferPool()
+	for range shards {
+		transport := &http.Transport{MaxIdleConns: perShardIdle, MaxIdleConnsPerHost: perShardIdle, MaxConnsPerHost: 0, ForceAttemptHTTP2: false}
+		transports = append(transports, transport)
+		proxy := httputil.NewSingleHostReverseProxy(origin)
+		proxy.Transport = transport
+		if os.Getenv("P2PSTREAM_QUALIFICATION_STDLIB_POOL") == "1" {
+			proxy.BufferPool = bufferPool
+		}
+		proxies = append(proxies, proxy)
 	}
+	defer func() {
+		for _, transport := range transports {
+			transport.CloseIdleConnections()
+		}
+	}()
+	var next atomic.Uint64
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		index := (next.Add(1) - 1) % uint64(len(proxies))
+		proxies[index].ServeHTTP(w, r)
+	})
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := &http.Server{Handler: proxy}
+	srv := &http.Server{Handler: handler}
 	configurePublicHTTPServer(srv, 0)
 	adminListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -247,10 +273,14 @@ func qualificationOwnerValues(snapshot any, fieldName string) map[string]int64 {
 }
 
 func runQualificationOrigin(t *testing.T) {
+	originTLS := os.Getenv("P2PSTREAM_QUALIFICATION_ORIGIN_TLS") == "1"
+	originHTTP1 := os.Getenv("P2PSTREAM_QUALIFICATION_ORIGIN_HTTP1") == "1"
 	data := bytes.Repeat([]byte("p2pstream-qualification-payload-"), 1<<15)
 	type barrierState struct{ active, peak atomic.Int64 }
 	var barriers sync.Map
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Qualification-Origin-Connection", r.RemoteAddr)
+		w.Header().Set("X-Qualification-Origin-HTTP-Major", strconv.Itoa(r.ProtoMajor))
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/upload"):
 			n, err := io.Copy(io.Discard, r.Body)
@@ -298,8 +328,24 @@ func runQualificationOrigin(t *testing.T) {
 		t.Fatal(err)
 	}
 	srv := &http.Server{Handler: handler}
-	writeQualificationReady(t, qualificationReady{URL: "http://" + ln.Addr().String(), PID: os.Getpid()})
-	go func() { _ = srv.Serve(ln) }()
+	if originTLS && originHTTP1 {
+		srv.TLSConfig = &tls.Config{NextProtos: []string{"http/1.1"}}
+	}
+	scheme := "http"
+	certPath, keyPath := "", ""
+	if originTLS {
+		scheme = "https"
+		certPath = requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_CERT")
+		keyPath = requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_KEY")
+	}
+	writeQualificationReady(t, qualificationReady{URL: scheme + "://" + ln.Addr().String(), PID: os.Getpid()})
+	go func() {
+		if originTLS {
+			_ = srv.ServeTLS(ln, certPath, keyPath)
+			return
+		}
+		_ = srv.Serve(ln)
+	}()
 	waitQualificationStop(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -329,7 +375,7 @@ func runQualificationProxy(t *testing.T) {
 	}
 	direct := publicRouteTargetConfig{ID: 801, RouteID: 701, Name: "qualification-direct", Enabled: true, Position: 0, Weight: 100,
 		TargetType: publicRouteTargetTypeProxy, Transport: publicRouteTargetTransportDirect, URL: originURL, ParsedURL: parsed,
-		UpstreamResponseHeaderTimeout: 10 * time.Second}
+		TLSSkipVerify: parsed.Scheme == "https", UpstreamResponseHeaderTimeout: 10 * time.Second}
 	agent := direct
 	agent.ID, agent.RouteID, agent.Name, agent.Transport = 802, 702, "qualification-agent", publicRouteTargetTransportAgent
 	agent.AgentSelector = publicAgentSelectorConfig{MatchLabels: map[string]string{"qualification": "true"}}
@@ -460,9 +506,12 @@ func TestProxyQualificationLoad(t *testing.T) {
 	}
 	var useful, errorsSeen, bytesSeen atomic.Int64
 	var observedMajor atomic.Int64
+	var observedOriginMajor atomic.Int64
 	var originPeak atomic.Int64
 	var clientConnections atomic.Int64
+	var newOriginConnections atomic.Int64
 	var seenConnections sync.Map
+	var seenOriginConnections sync.Map
 	classes := make(map[string]int)
 	statusCodes := make(map[string]int)
 	latencies := make([]time.Duration, 0, requests)
@@ -517,6 +566,14 @@ func TestProxyQualificationLoad(t *testing.T) {
 					continue
 				}
 				observedMajor.CompareAndSwap(0, int64(resp.ProtoMajor))
+				if originMajor, parseErr := strconv.ParseInt(resp.Header.Get("X-Qualification-Origin-HTTP-Major"), 10, 64); parseErr == nil {
+					observedOriginMajor.CompareAndSwap(0, originMajor)
+				}
+				if originConnection := resp.Header.Get("X-Qualification-Origin-Connection"); originConnection != "" {
+					if _, loaded := seenOriginConnections.LoadOrStore(originConnection, struct{}{}); !loaded {
+						newOriginConnections.Add(1)
+					}
+				}
 				if value, parseErr := strconv.ParseInt(resp.Header.Get("X-Qualification-Peak-Inflight"), 10, 64); parseErr == nil {
 					for {
 						previous := originPeak.Load()
@@ -610,8 +667,10 @@ func TestProxyQualificationLoad(t *testing.T) {
 		errorsSeen.Store(0)
 		bytesSeen.Store(0)
 		observedMajor.Store(0)
+		observedOriginMajor.Store(0)
 		originPeak.Store(0)
 		clientConnections.Store(0)
+		newOriginConnections.Store(0)
 		seenConnections.Range(func(key, _ any) bool { seenConnections.Delete(key); return true })
 		resultMu.Lock()
 		clear(classes)
@@ -652,13 +711,13 @@ func TestProxyQualificationLoad(t *testing.T) {
 		Errors:      errorsSeen.Load(), WallSeconds: elapsed.Seconds(), UsefulRPS: float64(useful.Load()) / elapsed.Seconds(),
 		P50Milliseconds: durationQuantile(latencies, .50), P95Milliseconds: durationQuantile(latencies, .95), P99Milliseconds: durationQuantile(latencies, .99),
 		ResponseBytes: bytesSeen.Load(), PeakRSSBytes: sampler.peakRSS, FinalRSSBytes: sampler.finalRSS, PeakFDs: sampler.peakFDs, CPUSeconds: sampler.cpuSeconds(),
-		PeakHeapAlloc: sampler.peakHeap, GCCycles: sampler.gcCycles(), GCPauseSeconds: sampler.gcPauseSeconds(), ObservedHTTPMajor: int(observedMajor.Load()),
+		PeakHeapAlloc: sampler.peakHeap, GCCycles: sampler.gcCycles(), GCPauseSeconds: sampler.gcPauseSeconds(), ObservedHTTPMajor: int(observedMajor.Load()), ObservedOriginHTTPMajor: int(observedOriginMajor.Load()),
 		CgroupMemoryPeak: sampler.cgroupPeak, CgroupMemoryFinal: sampler.cgroupFinal, CgroupMemoryMax: sampler.cgroupMax,
 		OriginPeakInflight: originPeak.Load(), InitialRSSBytes: sampler.initialRSS, InitialHeapAlloc: sampler.initialHeap,
 		InitialCgroupBytes: sampler.initialCgroup, PeakSocketFDs: sampler.peakSocketFDs, FinalSocketFDs: sampler.finalSocketFDs,
 		PeakCgroupSock: sampler.peakCgroupSock, FinalCgroupSock: sampler.finalCgroupSock,
 		ProxyCPUSet: os.Getenv("P2PSTREAM_QUALIFICATION_PROXY_CPU_SET"), LoadCPUSet: os.Getenv("P2PSTREAM_QUALIFICATION_LOAD_CPU_SET"), ResourceEnvelope: os.Getenv("P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE"),
-		ClientConnections: clientConnections.Load(), BallastBytes: int64(qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_BALLAST_MIB")) << 20,
+		ClientConnections: clientConnections.Load(), NewOriginConnections: newOriginConnections.Load(), BallastBytes: int64(qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_BALLAST_MIB")) << 20,
 		OwnerPeakBytes: sampler.ownerPeakBytes, OwnerPeakFDs: sampler.ownerPeakFDs, OwnerPeakReservations: sampler.ownerPeakReservations,
 		AdmissionRejections: sampler.admissionRejectionDelta(), MinimumAdaptiveAdmissionLimit: sampler.minimumAdaptiveAdmissionLimit,
 		MinimumMemoryHeadroomBytes: sampler.minimumMemoryHeadroomBytes, ResourcePressureReasons: sampler.resourcePressureReasons,
