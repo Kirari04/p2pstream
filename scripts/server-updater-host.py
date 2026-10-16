@@ -249,10 +249,11 @@ class Host:
                 info = docker('inspect', name, check=False, timeout=30)
                 if info.returncode == 0:
                     require(not decode(info.stdout)[0]['State']['Running'], 'Host helper is still running')
-                    docker('rm', '--force', name, timeout=30)
-                else:
-                    names = docker('ps', '--all', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation'], '--format', '{{.Names}}', timeout=30).stdout.decode().split()
-                    require(name not in names, 'Cannot confirm host helper termination')
+                    # A --rm helper may disappear between inspect and remove.
+                    # Its exit status is advisory; the final inventory is proof.
+                    docker('rm', '--force', name, check=False, timeout=30)
+            names = docker('ps', '--all', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation'], '--format', '{{.Names}}', timeout=30).stdout.decode().split()
+            require(not names, 'Cannot confirm host helper termination')
             path.unlink()
         except Exception as error:
             previous = self.journal.get('recovery_phase') or pending.get('phase', self.journal['phase'])

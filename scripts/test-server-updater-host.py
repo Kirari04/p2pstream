@@ -265,8 +265,110 @@ class Lifecycle(unittest.TestCase):
         with controller.lock(), patch.object(host, 'docker', daemon):
             with self.assertRaises(subprocess.TimeoutExpired):
                 base.run_helper(controller, '/app/p2pstream', ['server-updater', 'configure'])
-        self.assertEqual(calls, ['run', 'ps', 'kill', 'inspect', 'rm'])
+        self.assertEqual(calls, ['run', 'ps', 'kill', 'inspect', 'rm', 'ps'])
         self.assertFalse((self.state / 'helper.json').exists())
+
+    def test_helper_auto_remove_race_accepts_nonzero_rm_after_confirmed_absence(self):
+        self.install()
+        controller = host.Host()
+        base = host.Host.__mro__[1]
+        helper = self.state / 'helper.json'
+        name = 'p2pstream-server-update-host-' + ID
+        pending = {'name': name, 'phase': 'healthy'}
+        host.atomic(helper, pending)
+        calls = []
+        inventories = iter([(name + '\n').encode(), b''])
+        def daemon(*args, **kwargs):
+            calls.append((args, kwargs))
+            if args[0] == 'ps':
+                return subprocess.CompletedProcess(args, 0, next(inventories), b'')
+            if args[0] == 'inspect':
+                return subprocess.CompletedProcess(args, 0, b'[{"State":{"Running":false}}]', b'')
+            if args[0] == 'rm':
+                return subprocess.CompletedProcess(args, 1, b'', b'')
+            return subprocess.CompletedProcess(args, 0, b'', b'')
+        with controller.lock(), patch.object(host, 'docker', daemon):
+            base.settle_helper(controller)
+        self.assertEqual([args[0] for args, _ in calls], ['ps', 'kill', 'inspect', 'rm', 'ps'])
+        remove = next(kwargs for args, kwargs in calls if args[0] == 'rm')
+        self.assertIs(remove['check'], False)
+        self.assertFalse(helper.exists())
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_helper_remove_success_still_requires_empty_final_inventory(self):
+        self.install()
+        controller = host.Host()
+        base = host.Host.__mro__[1]
+        helper = self.state / 'helper.json'
+        name = 'p2pstream-server-update-host-' + ID
+        pending = {'name': name, 'phase': 'healthy'}
+        host.atomic(helper, pending)
+        calls = []
+        def daemon(*args, **kwargs):
+            calls.append(args[0])
+            if args[0] == 'ps':
+                return subprocess.CompletedProcess(args, 0, (name + '\n').encode(), b'')
+            if args[0] == 'inspect':
+                return subprocess.CompletedProcess(args, 0, b'[{"State":{"Running":false}}]', b'')
+            return subprocess.CompletedProcess(args, 0, b'', b'')
+        with controller.lock(), patch.object(host, 'docker', daemon):
+            with self.assertRaises(host.UnsettledHelper):
+                base.settle_helper(controller)
+        self.assertEqual(calls, ['ps', 'kill', 'inspect', 'rm', 'ps'])
+        self.assertEqual(host.read_json(helper), pending)
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual((journal['phase'], journal['recovery_phase']), ('recovery_required', 'healthy'))
+
+    def test_helper_final_inventory_error_preserves_recovery(self):
+        self.install()
+        controller = host.Host()
+        base = host.Host.__mro__[1]
+        helper = self.state / 'helper.json'
+        name = 'p2pstream-server-update-host-' + ID
+        pending = {'name': name, 'phase': 'healthy'}
+        host.atomic(helper, pending)
+        inventories = 0
+        def daemon(*args, **kwargs):
+            nonlocal inventories
+            if args[0] == 'ps':
+                inventories += 1
+                if inventories == 2:
+                    raise host.Failure('daemon unavailable')
+                return subprocess.CompletedProcess(args, 0, (name + '\n').encode(), b'')
+            if args[0] == 'inspect':
+                return subprocess.CompletedProcess(args, 0, b'[{"State":{"Running":false}}]', b'')
+            return subprocess.CompletedProcess(args, 0, b'', b'')
+        with controller.lock(), patch.object(host, 'docker', daemon):
+            with self.assertRaises(host.UnsettledHelper):
+                base.settle_helper(controller)
+        self.assertEqual(host.read_json(helper), pending)
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual((journal['phase'], journal['recovery_phase']), ('recovery_required', 'healthy'))
+
+    def test_helper_final_inventory_rejects_unexpected_labeled_name(self):
+        self.install()
+        controller = host.Host()
+        base = host.Host.__mro__[1]
+        helper = self.state / 'helper.json'
+        name = 'p2pstream-server-update-host-' + ID
+        pending = {'name': name, 'phase': 'healthy'}
+        host.atomic(helper, pending)
+        calls = []
+        inventories = iter([(name + '\n').encode(), b'unexpected-helper\n'])
+        def daemon(*args, **kwargs):
+            calls.append(args[0])
+            if args[0] == 'ps':
+                return subprocess.CompletedProcess(args, 0, next(inventories), b'')
+            if args[0] == 'inspect':
+                return subprocess.CompletedProcess(args, 0, b'[{"State":{"Running":false}}]', b'')
+            return subprocess.CompletedProcess(args, 0, b'', b'')
+        with controller.lock(), patch.object(host, 'docker', daemon):
+            with self.assertRaises(host.UnsettledHelper):
+                base.settle_helper(controller)
+        self.assertEqual(calls, ['ps', 'kill', 'inspect', 'rm', 'ps'])
+        self.assertEqual(host.read_json(helper), pending)
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual((journal['phase'], journal['recovery_phase']), ('recovery_required', 'healthy'))
 
     def test_helper_failure_retains_private_diagnostics_and_settles(self):
         self.install()
