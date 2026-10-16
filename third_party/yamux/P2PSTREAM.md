@@ -94,6 +94,19 @@ abort the session; they never retry a subset or revoke credit. Selected stream
 references survive outside the pending queue until commit or joined cleanup,
 including streams that receive more pending refunds while a batch is in flight.
 
+The physical sender gathers each DATA header and payload into one reusable
+buffer and performs one write in both legacy and aggregate modes. It detaches
+borrowed payload storage under the send-item lock before writing, so a caller
+returning after timeout or shutdown may reuse its payload. A timed-out queued
+header retains its old backing array; callers replace their header before reuse.
+Credit is committed before the first wire byte. A short write is fatal, including
+a short write without an error; no remainder is retried. Header-only controls
+remain separate queue items. The reusable buffer includes allocator rounding:
+a 32 KiB payload plus its 12-byte header uses 40 KiB capacity on the qualified
+Go toolchain. Larger legacy frames retain their existing payload-copy behavior
+with additional header and allocator rounding; this is not a 12-byte resident
+memory increase.
+
 The priority queue remains bounded and separate from the DATA/terminal FIFO.
 Local FIN and growth serialization is preserved; a reset crossing an already
 selected refund remains tolerated without reviving its stream. A registered
