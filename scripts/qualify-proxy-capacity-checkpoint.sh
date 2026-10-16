@@ -245,6 +245,13 @@ for path in sorted(glob.glob(os.path.join(results_dir, "compat-*.jsonl"))):
     if compatible:
         capacity_row, recovery_row = capacity[0], recovery[0]
         rejections = capacity_row.get("admission_rejections", {})
+        tunnel_samples = (
+            capacity_row.get("agent_tunnels_initial", [])
+            + capacity_row.get("agent_tunnels_high_water", [])
+            + capacity_row.get("agent_tunnels_final", [])
+        )
+        agent_processes = capacity_row.get("agent_processes", [])
+        agent_initial = agent_processes[0].get("agent_capacity_initial", {}) if len(agent_processes) == 1 else {}
         compatible = (
             capacity_row.get("attempted") == 128
             and capacity_row.get("useful_completed") == 128
@@ -254,6 +261,10 @@ for path in sorted(glob.glob(os.path.join(results_dir, "compat-*.jsonl"))):
             and capacity_row.get("barrier_post_release_hold_ms") == 200
             and isinstance(rejections, dict) and len(rejections) > 0
             and all(value == 0 for value in rejections.values())
+            and len(tunnel_samples) == 3
+            and all(tunnel.get("connected") is True and tunnel.get("control_connected") is True and tunnel.get("flow_control") == "legacy" for tunnel in tunnel_samples)
+            and agent_initial.get("aggregate_current_pool_bytes", 0) == 0
+            and agent_initial.get("legacy_session_envelope_bytes", 0) > 0
             and recovery_row.get("useful_completed") == recovery_row.get("attempted")
             and recovery_row.get("attempted") == 512
             and recovery_row.get("errors") == 0
@@ -270,9 +281,23 @@ for path in sorted(glob.glob(os.path.join(results_dir, "compat-*.jsonl"))):
         failures.append(f"{name}: mixed-version burst or recovery failed")
     summary["compatibility_bursts"][name] = {
         "accepted": compatible,
+        "legacy_session_envelope_bytes": (
+            capacity[0].get("agent_processes", [{}])[0].get("agent_capacity_initial", {}).get("legacy_session_envelope_bytes")
+            if len(capacity) == 1 and len(capacity[0].get("agent_processes", [])) == 1 else None
+        ),
         "capacity": capacity[0] if len(capacity) == 1 else None,
         "recovery": recovery[0] if len(recovery) == 1 else None,
     }
+one = summary["compatibility_bursts"].get("compat-current-agent-old-server-1-lane", {})
+four = summary["compatibility_bursts"].get("compat-current-agent-old-server-4-lane", {})
+one_envelope = one.get("legacy_session_envelope_bytes")
+four_envelope = four.get("legacy_session_envelope_bytes")
+if not isinstance(one_envelope, int) or one_envelope <= 0 or four_envelope != 4 * one_envelope:
+    failures.append("mixed-version configured physical-lane envelopes were not observed at an exact 1:4 ratio")
+    if one:
+        one["accepted"] = False
+    if four:
+        four["accepted"] = False
 summary["accepted"] = not failures and len(summary["topologies"]) == 3 and len(summary["compatibility_bursts"]) == 2
 summary["failures"] = failures
 with open(destination, "w", encoding="utf-8") as output:

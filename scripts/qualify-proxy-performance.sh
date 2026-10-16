@@ -470,7 +470,7 @@ while time.monotonic() < deadline:
             item.get("connected")
             and item.get("flow_control") == mode
             and item.get("control_connected")
-            and item.get("bulk_sessions") == bulk
+            and (mode != "aggregate-v1" or item.get("bulk_sessions") == bulk)
             for item in last
         ):
             raise SystemExit(0)

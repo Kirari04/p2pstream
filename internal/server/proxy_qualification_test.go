@@ -178,6 +178,8 @@ type qualificationAgentCapacityRuntime struct {
 	AggregateCurrentPoolBytes     int64  `json:"aggregate_current_pool_bytes"`
 	AggregateSessionMetadataBytes int64  `json:"aggregate_session_metadata_bytes"`
 	LegacyControlSupplementBytes  int64  `json:"legacy_control_supplement_bytes"`
+	LegacySessionEnvelopeBytes    int64  `json:"legacy_session_envelope_bytes"`
+	LegacyStreamSupplementBytes   int64  `json:"legacy_stream_supplement_bytes"`
 	RejectedPressure              uint64 `json:"rejected_pressure"`
 	RejectedFixedLimit            uint64 `json:"rejected_fixed_limit"`
 }
@@ -1662,6 +1664,8 @@ func (s *qualificationSampler) observeAgentStats(stats qualificationRuntime) {
 			peak.AggregateCurrentPoolBytes = max(peak.AggregateCurrentPoolBytes, current.AggregateCurrentPoolBytes)
 			peak.AggregateSessionMetadataBytes = max(peak.AggregateSessionMetadataBytes, current.AggregateSessionMetadataBytes)
 			peak.LegacyControlSupplementBytes = max(peak.LegacyControlSupplementBytes, current.LegacyControlSupplementBytes)
+			peak.LegacySessionEnvelopeBytes = max(peak.LegacySessionEnvelopeBytes, current.LegacySessionEnvelopeBytes)
+			peak.LegacyStreamSupplementBytes = max(peak.LegacyStreamSupplementBytes, current.LegacyStreamSupplementBytes)
 			peak.RejectedPressure = max(peak.RejectedPressure, current.RejectedPressure)
 			peak.RejectedFixedLimit = max(peak.RejectedFixedLimit, current.RejectedFixedLimit)
 			if current.ResourceLimited {
