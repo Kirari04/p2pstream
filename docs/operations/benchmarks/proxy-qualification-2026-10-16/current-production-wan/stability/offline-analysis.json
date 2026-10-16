@@ -1,0 +1,940 @@
+{
+  "acceptance": {
+    "accepted": false,
+    "canonical_pooled_gates": {
+      "download": {
+        "aggregate_median_bytes_per_second": 27732159.992270734,
+        "legacy_median_bytes_per_second": 33954466.47461747,
+        "ratio": 0.816745567567725
+      },
+      "upload": {
+        "aggregate_median_bytes_per_second": 35815665.7557832,
+        "legacy_median_bytes_per_second": 36165057.808149196,
+        "ratio": 0.9903389604899991
+      }
+    },
+    "canonical_stderr": "download candidate/legacy median throughput ratio 0.8167 is below 0.90",
+    "canonical_summary_written": false,
+    "pair_gates": [
+      {
+        "download": {
+          "aggregate_median_bytes_per_second": 27683059.173456077,
+          "legacy_median_bytes_per_second": 34134738.17413673,
+          "pass": false,
+          "ratio": 0.8109937457915242
+        },
+        "minimum_ratio": 0.9,
+        "order": [
+          "legacy",
+          "aggregate-v1"
+        ],
+        "pair": 1,
+        "upload": {
+          "aggregate_median_bytes_per_second": 35788545.30786516,
+          "legacy_median_bytes_per_second": 36306627.722400114,
+          "pass": true,
+          "ratio": 0.985730362552639
+        }
+      },
+      {
+        "download": {
+          "aggregate_median_bytes_per_second": 33851595.80919043,
+          "legacy_median_bytes_per_second": 33194778.340084758,
+          "pass": true,
+          "ratio": 1.0197867707497996
+        },
+        "minimum_ratio": 0.9,
+        "order": [
+          "aggregate-v1",
+          "legacy"
+        ],
+        "pair": 2,
+        "upload": {
+          "aggregate_median_bytes_per_second": 36067261.270434976,
+          "legacy_median_bytes_per_second": 36165057.808149196,
+          "pass": true,
+          "ratio": 0.9972958279720436
+        }
+      },
+      {
+        "download": {
+          "aggregate_median_bytes_per_second": 27537132.631338067,
+          "legacy_median_bytes_per_second": 33954466.47461747,
+          "pass": false,
+          "ratio": 0.8110017765092362
+        },
+        "minimum_ratio": 0.9,
+        "order": [
+          "legacy",
+          "aggregate-v1"
+        ],
+        "pair": 3,
+        "upload": {
+          "aggregate_median_bytes_per_second": 35815665.7557832,
+          "legacy_median_bytes_per_second": 35991966.77774856,
+          "pass": true,
+          "ratio": 0.9951016563486507
+        }
+      }
+    ],
+    "rule": "every pair and both directions must be >= 0.90",
+    "validator_stderr": "timing acceptance failed after exact complete cohort: pair 1 download ratio 0.810994; pair 3 download ratio 0.811002"
+  },
+  "analysis_scope": "offline only; immutable canonical rows preserved; prior single pair excluded",
+  "conservation": {
+    "attempted": 96,
+    "configured_rtt_ms": [
+      80
+    ],
+    "download_response_bytes_rows": 48,
+    "dropped_event_delta": 0,
+    "errors": 0,
+    "event_drain_error_rows": 0,
+    "event_stats_captured_rows": 96,
+    "exact_http_200_rows": 96,
+    "exact_payload_rows": 96,
+    "max_event_queue_after_drain": 0,
+    "measured_rtt_ms": [
+      96.245
+    ],
+    "observed_http_majors": {
+      "2": 96
+    },
+    "persisted_event_delta": 96,
+    "protocols": {
+      "h2": 96
+    },
+    "rows": 96,
+    "stage_counts": {
+      "retained-warmup": 12,
+      "steady": 36,
+      "warmup": 48
+    },
+    "upload_response_bytes_rows": 48,
+    "useful_completed": 96
+  },
+  "lifecycle": {
+    "labels": [
+      "current-server-legacy-agent-compat-1-agent",
+      "current-server-legacy-agent-compat-1-server",
+      "current-server-aggregate-v1-1-agent",
+      "current-server-aggregate-v1-1-server",
+      "current-server-aggregate-v1-2-agent",
+      "current-server-aggregate-v1-2-server",
+      "current-server-legacy-agent-compat-2-agent",
+      "current-server-legacy-agent-compat-2-server",
+      "current-server-legacy-agent-compat-3-agent",
+      "current-server-legacy-agent-compat-3-server",
+      "current-server-aggregate-v1-3-agent",
+      "current-server-aggregate-v1-3-server",
+      "origin",
+      "agent-namespace",
+      "router-namespace"
+    ],
+    "namespace_start_rows": 1,
+    "natural_zero_exit_rows": 15,
+    "outer": {
+      "all_private": true,
+      "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+      "nspid": [
+        2
+      ],
+      "owned": {
+        "mnt": "mnt:[4026532932]",
+        "net": "net:[4026532935]",
+        "pid": "pid:[4026532934]",
+        "user": "user:[4026532931]"
+      },
+      "parent": {
+        "mnt": "mnt:[4026531832]",
+        "net": "net:[4026531833]",
+        "pid": "pid:[4026531836]",
+        "user": "user:[4026531837]"
+      },
+      "python_parent_is_one": true,
+      "python_parent_pid": 1,
+      "schema_version": 1,
+      "shell_pid": 1,
+      "shell_pid_is_one": true
+    },
+    "process_exit_rows": 15,
+    "supervisor": {
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "runner_status": 1
+    }
+  },
+  "phase_distributions": [
+    {
+      "count": 4,
+      "direction": "download",
+      "max_bytes_per_second": 34274791.48349278,
+      "median_bytes_per_second": 33811422.62701489,
+      "min_bytes_per_second": 33422552.6525373,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        34011229.62750049,
+        33611615.6265293,
+        33422552.6525373,
+        34274791.48349278
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 4,
+      "direction": "upload",
+      "max_bytes_per_second": 35932232.18463659,
+      "median_bytes_per_second": 35778247.683630705,
+      "min_bytes_per_second": 35663401.53283661,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        35708078.102984,
+        35663401.53283661,
+        35848417.264277406,
+        35932232.18463659
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 1,
+      "direction": "download",
+      "max_bytes_per_second": 34151712.182300776,
+      "median_bytes_per_second": 34151712.182300776,
+      "min_bytes_per_second": 34151712.182300776,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        34151712.182300776
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 1,
+      "direction": "upload",
+      "max_bytes_per_second": 35927606.07823962,
+      "median_bytes_per_second": 35927606.07823962,
+      "min_bytes_per_second": 35927606.07823962,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        35927606.07823962
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 3,
+      "direction": "download",
+      "max_bytes_per_second": 35108936.88135506,
+      "median_bytes_per_second": 34134738.17413673,
+      "min_bytes_per_second": 33695713.260884285,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        34134738.17413673,
+        33695713.260884285,
+        35108936.88135506
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 3,
+      "direction": "upload",
+      "max_bytes_per_second": 37374936.15194956,
+      "median_bytes_per_second": 36306627.722400114,
+      "min_bytes_per_second": 35891081.526133575,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        35891081.526133575,
+        36306627.722400114,
+        37374936.15194956
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 4,
+      "direction": "download",
+      "max_bytes_per_second": 33896219.03771635,
+      "median_bytes_per_second": 33528004.332061835,
+      "min_bytes_per_second": 33453998.17972673,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        33896219.03771635,
+        33551469.06976645,
+        33453998.17972673,
+        33504539.594357222
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 4,
+      "direction": "upload",
+      "max_bytes_per_second": 35944122.434877,
+      "median_bytes_per_second": 35519279.527960315,
+      "min_bytes_per_second": 35382049.9929147,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        35643218.00013786,
+        35944122.434877,
+        35382049.9929147,
+        35395341.05578277
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 1,
+      "direction": "download",
+      "max_bytes_per_second": 27320539.636157185,
+      "median_bytes_per_second": 27320539.636157185,
+      "min_bytes_per_second": 27320539.636157185,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        27320539.636157185
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 1,
+      "direction": "upload",
+      "max_bytes_per_second": 35959945.24346302,
+      "median_bytes_per_second": 35959945.24346302,
+      "min_bytes_per_second": 35959945.24346302,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        35959945.24346302
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 3,
+      "direction": "download",
+      "max_bytes_per_second": 34656209.24282566,
+      "median_bytes_per_second": 27683059.173456077,
+      "min_bytes_per_second": 27319945.162169233,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        27319945.162169233,
+        27683059.173456077,
+        34656209.24282566
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 3,
+      "direction": "upload",
+      "max_bytes_per_second": 36513634.18756826,
+      "median_bytes_per_second": 35788545.30786516,
+      "min_bytes_per_second": 35769732.21719818,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "samples_bytes_per_second": [
+        35769732.21719818,
+        35788545.30786516,
+        36513634.18756826
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 4,
+      "direction": "download",
+      "max_bytes_per_second": 34104592.2419215,
+      "median_bytes_per_second": 33733067.77567534,
+      "min_bytes_per_second": 33577578.926484436,
+      "mode": "aggregate-v1",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        33597920.61507717,
+        33868214.93627352,
+        33577578.926484436,
+        34104592.2419215
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 4,
+      "direction": "upload",
+      "max_bytes_per_second": 35675253.95768845,
+      "median_bytes_per_second": 35409551.01539283,
+      "min_bytes_per_second": 35194548.49944582,
+      "mode": "aggregate-v1",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        35451459.930115595,
+        35194548.49944582,
+        35367642.10067007,
+        35675253.95768845
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 1,
+      "direction": "download",
+      "max_bytes_per_second": 27439689.51611712,
+      "median_bytes_per_second": 27439689.51611712,
+      "min_bytes_per_second": 27439689.51611712,
+      "mode": "aggregate-v1",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        27439689.51611712
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 1,
+      "direction": "upload",
+      "max_bytes_per_second": 35409020.77198138,
+      "median_bytes_per_second": 35409020.77198138,
+      "min_bytes_per_second": 35409020.77198138,
+      "mode": "aggregate-v1",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        35409020.77198138
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 3,
+      "direction": "download",
+      "max_bytes_per_second": 34350808.37576456,
+      "median_bytes_per_second": 33851595.80919043,
+      "min_bytes_per_second": 27732159.992270734,
+      "mode": "aggregate-v1",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        33851595.80919043,
+        27732159.992270734,
+        34350808.37576456
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 3,
+      "direction": "upload",
+      "max_bytes_per_second": 36817849.66084049,
+      "median_bytes_per_second": 36067261.270434976,
+      "min_bytes_per_second": 35366055.23053954,
+      "mode": "aggregate-v1",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        35366055.23053954,
+        36067261.270434976,
+        36817849.66084049
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 4,
+      "direction": "download",
+      "max_bytes_per_second": 34580118.41652651,
+      "median_bytes_per_second": 33880957.55985761,
+      "min_bytes_per_second": 33852896.55332943,
+      "mode": "legacy",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        33856634.02575905,
+        33905281.093956165,
+        33852896.55332943,
+        34580118.41652651
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 4,
+      "direction": "upload",
+      "max_bytes_per_second": 35901363.75862839,
+      "median_bytes_per_second": 35637437.22675897,
+      "min_bytes_per_second": 35382622.278866954,
+      "mode": "legacy",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        35901363.75862839,
+        35631848.68734699,
+        35382622.278866954,
+        35643025.76617096
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 1,
+      "direction": "download",
+      "max_bytes_per_second": 33144401.703343,
+      "median_bytes_per_second": 33144401.703343,
+      "min_bytes_per_second": 33144401.703343,
+      "mode": "legacy",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        33144401.703343
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 1,
+      "direction": "upload",
+      "max_bytes_per_second": 35882962.13244815,
+      "median_bytes_per_second": 35882962.13244815,
+      "min_bytes_per_second": 35882962.13244815,
+      "mode": "legacy",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        35882962.13244815
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 3,
+      "direction": "download",
+      "max_bytes_per_second": 35103420.74350927,
+      "median_bytes_per_second": 33194778.340084758,
+      "min_bytes_per_second": 31029543.919942636,
+      "mode": "legacy",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        33194778.340084758,
+        31029543.919942636,
+        35103420.74350927
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 3,
+      "direction": "upload",
+      "max_bytes_per_second": 36815889.152675614,
+      "median_bytes_per_second": 36165057.808149196,
+      "min_bytes_per_second": 35873350.26978184,
+      "mode": "legacy",
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "samples_bytes_per_second": [
+        36165057.808149196,
+        35873350.26978184,
+        36815889.152675614
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 4,
+      "direction": "download",
+      "max_bytes_per_second": 34350680.38048055,
+      "median_bytes_per_second": 33708620.00391446,
+      "min_bytes_per_second": 33652114.36675214,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        33757016.94353534,
+        33652114.36675214,
+        34350680.38048055,
+        33660223.064293586
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 4,
+      "direction": "upload",
+      "max_bytes_per_second": 36236899.50461511,
+      "median_bytes_per_second": 35894843.72434127,
+      "min_bytes_per_second": 35629045.93900731,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        35629045.93900731,
+        35928402.34354041,
+        35861285.10514214,
+        36236899.50461511
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 1,
+      "direction": "download",
+      "max_bytes_per_second": 34064845.395788915,
+      "median_bytes_per_second": 34064845.395788915,
+      "min_bytes_per_second": 34064845.395788915,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        34064845.395788915
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 1,
+      "direction": "upload",
+      "max_bytes_per_second": 35910566.76783836,
+      "median_bytes_per_second": 35910566.76783836,
+      "min_bytes_per_second": 35910566.76783836,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        35910566.76783836
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 3,
+      "direction": "download",
+      "max_bytes_per_second": 35090192.070012316,
+      "median_bytes_per_second": 33954466.47461747,
+      "min_bytes_per_second": 33783616.6686727,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        33954466.47461747,
+        33783616.6686727,
+        35090192.070012316
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 3,
+      "direction": "upload",
+      "max_bytes_per_second": 37065882.25514722,
+      "median_bytes_per_second": 35991966.77774856,
+      "min_bytes_per_second": 35637369.583549306,
+      "mode": "legacy",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        35637369.583549306,
+        35991966.77774856,
+        37065882.25514722
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 4,
+      "direction": "download",
+      "max_bytes_per_second": 34218199.81372467,
+      "median_bytes_per_second": 33635545.76351881,
+      "min_bytes_per_second": 33559906.0066086,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        33669882.094744146,
+        33601209.43229348,
+        33559906.0066086,
+        34218199.81372467
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 4,
+      "direction": "upload",
+      "max_bytes_per_second": 35747604.95212412,
+      "median_bytes_per_second": 35647942.990456454,
+      "min_bytes_per_second": 26329968.48504839,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        35747604.95212412,
+        26329968.48504839,
+        35639617.32021827,
+        35656268.66069464
+      ],
+      "stage": "warmup"
+    },
+    {
+      "count": 1,
+      "direction": "download",
+      "max_bytes_per_second": 27323609.8424537,
+      "median_bytes_per_second": 27323609.8424537,
+      "min_bytes_per_second": 27323609.8424537,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        27323609.8424537
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 1,
+      "direction": "upload",
+      "max_bytes_per_second": 35373745.92739448,
+      "median_bytes_per_second": 35373745.92739448,
+      "min_bytes_per_second": 35373745.92739448,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        35373745.92739448
+      ],
+      "stage": "retained-warmup"
+    },
+    {
+      "count": 3,
+      "direction": "download",
+      "max_bytes_per_second": 34360865.351605244,
+      "median_bytes_per_second": 27537132.631338067,
+      "min_bytes_per_second": 27335330.785277434,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        27335330.785277434,
+        27537132.631338067,
+        34360865.351605244
+      ],
+      "stage": "steady"
+    },
+    {
+      "count": 3,
+      "direction": "upload",
+      "max_bytes_per_second": 36232031.995283075,
+      "median_bytes_per_second": 35815665.7557832,
+      "min_bytes_per_second": 35662446.15059657,
+      "mode": "aggregate-v1",
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "samples_bytes_per_second": [
+        35662446.15059657,
+        35815665.7557832,
+        36232031.995283075
+      ],
+      "stage": "steady"
+    }
+  ],
+  "receiving_pools": [
+    {
+      "all_above_required": true,
+      "direction": "download",
+      "max_bytes": 94371840,
+      "min_bytes": 92798976,
+      "pair": 1,
+      "required_pool_bytes": 8388608,
+      "samples_bytes": [
+        92798976,
+        94371840,
+        94371840
+      ]
+    },
+    {
+      "all_above_required": true,
+      "direction": "upload",
+      "max_bytes": 99352576,
+      "min_bytes": 99352576,
+      "pair": 1,
+      "required_pool_bytes": 8388608,
+      "samples_bytes": [
+        99352576,
+        99352576,
+        99352576
+      ]
+    },
+    {
+      "all_above_required": true,
+      "direction": "download",
+      "max_bytes": 85721088,
+      "min_bytes": 85721088,
+      "pair": 2,
+      "required_pool_bytes": 8388608,
+      "samples_bytes": [
+        85721088,
+        85721088,
+        85721088
+      ]
+    },
+    {
+      "all_above_required": true,
+      "direction": "upload",
+      "max_bytes": 97779712,
+      "min_bytes": 91226112,
+      "pair": 2,
+      "required_pool_bytes": 8388608,
+      "samples_bytes": [
+        91226112,
+        97779712,
+        97779712
+      ]
+    },
+    {
+      "all_above_required": true,
+      "direction": "download",
+      "max_bytes": 87293952,
+      "min_bytes": 87293952,
+      "pair": 3,
+      "required_pool_bytes": 8388608,
+      "samples_bytes": [
+        87293952,
+        87293952,
+        87293952
+      ]
+    },
+    {
+      "all_above_required": true,
+      "direction": "upload",
+      "max_bytes": 93847552,
+      "min_bytes": 93847552,
+      "pair": 3,
+      "required_pool_bytes": 8388608,
+      "samples_bytes": [
+        93847552,
+        93847552,
+        93847552
+      ]
+    }
+  ],
+  "result": {
+    "end_utc": "2026-10-16T16:33:42.659142908Z",
+    "last_write_utc": "2026-10-16T16:33:42.185504047Z",
+    "lifecycle_last_write_utc": "2026-10-16T16:33:42.534527793Z",
+    "lifecycle_sha256": "29666352372ce9e51e1b073be910dd49ef576faf108f0e311253972aaf5576d5",
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runs/original-h2-stability-1/results.jsonl",
+    "sha256": "0b194973977d60080f027f8ee97e6bde89c233d6a2d90af5c6b5ab40b10c5cb7",
+    "start_utc": "2026-10-16T16:20:41.682587108Z"
+  },
+  "schema_version": 1,
+  "statuses": {
+    "canonical_runner": 1,
+    "forced_cleanup": false,
+    "launch_shell": 1,
+    "offline_validator": 1,
+    "tool_envelope": 1,
+    "wrapper": 1
+  }
+}

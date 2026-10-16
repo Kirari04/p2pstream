@@ -539,6 +539,25 @@ identify the cause. See the
 and the separate
 [TCP/profile diagnostic](benchmarks/proxy-qualification-2026-10-16/agent-wan-tcp-diagnostic/README.md).
 
+The original workload was repeated again against current production source
+`8ac4c8d`, which includes the `4477c0b` terminal buffered-drain fix, using a
+freshly rebuilt compatible `3ec137c` legacy agent. One 32-transfer pair passes
+at 100.04% download and 99.39% upload, but remains a separate diagnostic and
+cannot clear the gate. The required fresh three-pair/96-transfer cohort still
+fails: download ratios are 81.10%, 101.98% and 81.10%, while upload ratios are
+98.57%, 99.73% and 99.51%. The pooled download ratio is 81.67%. All 96 rows are
+exact HTTP/2 200 responses with verified payload hashes and event conservation;
+all 15 endpoint, origin and namespace-helper processes exit naturally with
+joined process groups. This establishes that the current production runtime
+has not fixed the original WAN regression. It neither attributes the result to
+`4477c0b` nor supports pull-request readiness, merge, release, deployment or
+broad proxy-parity claims. The faithful historical client uses `InsecureSkipVerify`,
+an IP URL and no SNI, so it also does not establish matched, verified
+certificate handshakes. See the
+[current-production WAN evidence](benchmarks/proxy-qualification-2026-10-16/current-production-wan/README.md).
+A matched verified H1/H2 diagnostic is separate and is not part of these
+qualification results.
+
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while
 the selector still uses lanes 0–3. Aggregate-v1 uses lanes 1–4 and reserves

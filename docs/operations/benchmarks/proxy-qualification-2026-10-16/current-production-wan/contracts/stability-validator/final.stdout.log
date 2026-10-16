@@ -1,0 +1,40 @@
+{
+  "duplicate-lifecycle": {
+    "attested": false,
+    "status": 1
+  },
+  "failed-pair-hidden-by-pooled-median": {
+    "attested": true,
+    "pair_2_download_ratio": 0.8003388689705346,
+    "pooled_download_ratio": 1.0239872151135023,
+    "status": 1
+  },
+  "missing-join": {
+    "attested": false,
+    "status": 1
+  },
+  "pass": {
+    "accepted": true,
+    "status": 0
+  },
+  "reversed-second-pair": {
+    "attested": false,
+    "status": 1
+  },
+  "runner-status-one": {
+    "accepted": false,
+    "all_pair_gates_pass": true,
+    "attested": true,
+    "status": 1
+  },
+  "upload-only-failed-pair": {
+    "attested": true,
+    "failed_gates": [
+      [
+        2,
+        "upload"
+      ]
+    ],
+    "status": 1
+  }
+}

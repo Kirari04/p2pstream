@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "purpose": "fresh three-pair alternating H2 WAN stability cohort; separate from original-h2-pair-1",
+  "source": {
+    "current_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+    "current_archive_sha256": "b625da9ccbe17c8b43ff1e5c1078bd8fb24aff4c995fcfd23302ac83c0c3d9f9",
+    "terminal_drain_ref": "4477c0b",
+    "legacy_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "legacy_archive_sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+    "legacy_overlay_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb"
+  },
+  "toolchain": {
+    "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "version": "go version go1.26.6 linux/amd64",
+    "binary_sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+  },
+  "sha256": {
+    "current_server_binary": "4271d5c53e2289108ab5c7977a2a6073046baa5a1889249955dd0c340750e9ff",
+    "current_agent_binary": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+    "legacy_agent_binary": "162f8f19361bb13cf2cbb998ed2886a57a63eb36dc6ef21a4cdae4c2865b3f45",
+    "owned_runner": "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f",
+    "stability_supervisor": "39f0d40afc38e7f97d73d51f80a8f5a6818f3399fc15365cf6cd55ffcceee699",
+    "stability_validator": "47b4c1b938d57aba0585689a182b1a7c302e6f3dd4274388c9574f4a7033095c",
+    "stability_supervisor_patch": "ef7faf88816191f6d1130f0614e95ea507c6cdbeefc4c531d3028c5de7c5f6f1",
+    "stability_validator_patch": "d99d1c0a6fc6ffdbf2bdafe9213d93331a0221f571f33b5ed390e4aa45ed2517"
+  },
+  "fixed_workload": {
+    "runs": 3,
+    "pair_order": [["legacy", "aggregate-v1"], ["aggregate-v1", "legacy"], ["legacy", "aggregate-v1"]],
+    "flags": ["--runs", "3", "--warmup-mib", "256", "--steady-mib", "256", "--transfer-repetitions", "3", "--required-pool-mib", "8", "--rtt-ms", "80"],
+    "expected_rows": 96,
+    "expected_natural_process_exits": 15,
+    "every_pair_minimum_download_ratio": 0.90,
+    "every_pair_minimum_upload_ratio": 0.90,
+    "cpu_sets": {"server": "0-3", "agent_and_origin": "4-7", "load": "8-15"},
+    "canonical_runner_timeout_seconds": 12591,
+    "outer_timeout_seconds": 13200,
+    "topology_scope": "one shared owned user/PID/mount/network boundary and one shared routed namespace topology for all three fresh endpoint pairs"
+  },
+  "historical_tls_reproduction": {
+    "label": "faithful reproduction",
+    "client_public_listener": "H2 over public HTTPS with canonical InsecureSkipVerify load behavior",
+    "url_identity": "IP URL and no SNI retained",
+    "protocol_or_tls_changes": false
+  },
+  "separation": {
+    "prior_single_pair_path": "runs/original-h2-pair-1",
+    "combine_rows": false,
+    "selective_retry": false
+  }
+}

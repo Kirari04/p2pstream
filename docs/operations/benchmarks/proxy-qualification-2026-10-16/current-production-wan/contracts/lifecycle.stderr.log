@@ -1,0 +1,4 @@
+natural-nonzero exited with status 7
+stuck required forced process-group cleanup
+residual-descendant required forced process-group cleanup
+early-registration-failure pid 106667 does not own process group 

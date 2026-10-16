@@ -15,6 +15,11 @@ comparison.
 
 ## Files
 
+- [`current-production-wan/README.md`](current-production-wan/README.md)
+  records the original H2 WAN workload against current source `8ac4c8d` and a
+  rebuilt compatible legacy agent. The required fresh three-pair cohort fails
+  download in pairs 1 and 3 with all 96 payloads, events and lifecycle exits
+  exact; a separate passing single pair does not clear the gate.
 - [`sql-hierarchical64-rejected/README.md`](sql-hierarchical64-rejected/README.md)
   preserves the rejected 64→16→single event-insert screen. Large flushes improve,
   but a smaller-flush pair exceeds the fixed regression ceiling; no code is retained.
@@ -221,9 +226,28 @@ comparison.
 
 ## Latest-runtime status
 
-The latest measured production runtime in this evidence set is
-`dc738e9000e60cd7ce3a0279127486f3bc05067a`. Its low-latency tiny-response
-matrix passes all 12 throughput and tail gates with exact conservation. Its
+The latest measured original-H2 WAN runtime in this evidence set is current
+source `8ac4c8df8237e37777ba2fac0da6f949da17bdea`, including the `4477c0b`
+terminal buffered-drain fix. Its required fresh alternating three-pair cohort
+fails download in pairs 1 and 3: aggregate/legacy ratios are 81.10%, 101.98%
+and 81.10%; uploads pass at 98.57%, 99.73% and 99.51%. The pooled download
+ratio also fails at 81.67%. All 96 transfers are exact HTTP/2 200 responses
+with exact payload and persisted-event conservation, and all 15 endpoint,
+origin and namespace-helper process exits are natural and joined. A separate
+32-transfer pair passes both directions but is not combined with the required
+cohort. The source contains `4477c0b`; the comparison does not establish that
+change as the cause.
+It uses the historical `InsecureSkipVerify` IP-URL/no-SNI load configuration,
+so it is not matched verified-certificate evidence. The complete evidence is
+in [`current-production-wan/`](current-production-wan/README.md). The WAN gate
+remains failed, and the result does not support readiness, merge, release,
+deployment or a broad proxy-parity claim.
+A matched verified H1/H2 diagnostic is separate and is not part of these
+qualification results.
+
+The earlier final-runtime checkpoint
+`dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response
+matrix that passes all 12 throughput and tail gates with exact conservation. Its
 16- and 32-agent idle standing-pool cohorts also pass exact topology, identity,
 promise, cgroup, health, cleanup and OOM gates. The final-runtime WAN cohort
 fails the download gate at 80.53% of the compatible legacy median while upload

@@ -1,0 +1,54 @@
+--- tmp/continuation-20261016/current-wan-prep/runner/run-owned-wan-pair.sh	2026-10-16 18:05:34.437354143 +0200
++++ tmp/continuation-20261016/current-wan-prep/runner/run-owned-wan-stability.sh	2026-10-16 18:17:17.054244766 +0200
+@@ -19,11 +19,11 @@
+ settings=$output_dir/host-settings.txt
+ outer_namespaces=$output_dir/outer-namespaces.json
+ runner=$prep/runner/qualify-proxy-agent-growth-owned.sh
+-validator=$prep/runner/validate-owned-h2-result.py
+-for tool in lscpu python3 readlink setsid sha256sum taskset timeout unshare; do
++validator=$prep/runner/validate-owned-h2-stability.py
++for tool in awk lscpu python3 readlink setsid sha256sum taskset timeout unshare; do
+   command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 2; }
+ done
+-(cd "$prep" && sha256sum -c provenance/expected-artifacts.sha256) > "$output_dir/preflight-sha256.log"
++(cd "$prep" && sha256sum -c provenance/expected-stability-artifacts.sha256) > "$output_dir/preflight-sha256.log"
+ for name in P2PSTREAM_QUALIFICATION_PROFILE_DIR P2PSTREAM_QUALIFICATION_PROFILE_MODE; do
+   [[ -z ${!name+x} ]] || { echo "$name must be unset" >&2; exit 2; }
+ done
+@@ -51,7 +51,7 @@
+   --aggregate-agent-binary "$prep/bin/current-agent.test"
+   --legacy-agent-binary "$prep/bin/legacy-agent.test"
+   --output "$results"
+-  --runs 1
++  --runs 3
+   --warmup-mib 256
+   --steady-mib 256
+   --transfer-repetitions 3
+@@ -98,7 +98,7 @@
+ parent_pid_ns=$(readlink /proc/self/ns/pid)
+ parent_mount_ns=$(readlink /proc/self/ns/mnt)
+ parent_net_ns=$(readlink /proc/self/ns/net)
+-setsid timeout --signal=TERM --kill-after=10s 4800s \
++setsid timeout --signal=TERM --kill-after=10s 13200s \
+   unshare --user --map-root-user --pid --fork --kill-child=TERM --mount --mount-proc --net \
+   bash -c '
+     out=$1 parent_user=$2 parent_pid=$3 parent_mount=$4 parent_net=$5
+@@ -153,10 +153,15 @@
+ fi
+ 
+ set +e
+-"$validator" "$results" "${results%.jsonl}.lifecycle.jsonl" "$output_dir/h2-attestation.json" "$outer_namespaces" "$output_dir/supervisor-lifecycle.json" "$prep/provenance/build-manifest.json" \
++"$validator" "$results" "${results%.jsonl}.lifecycle.jsonl" "$output_dir/h2-stability-attestation.json" "$outer_namespaces" "$output_dir/supervisor-lifecycle.json" "$prep/provenance/stability-manifest.json" \
+   > "$output_dir/validation.stdout.log" 2> "$output_dir/validation.stderr.log"
+ validation_status=$?
+ set -e
+ printf '%s\n' "$validation_status" > "$output_dir/validation.status"
+-((validation_status == 0)) || exit "$validation_status"
+-exit "$runner_status"
++final_status=$runner_status
++((validation_status == 0)) || final_status=$validation_status
++printf '%s\n' "$final_status" > "$output_dir/wrapper.status"
++results_hash=$(sha256sum "$results" | awk '{print $1}')
++printf 'OWNED_WAN_STABILITY_FINAL runner_status=%s validation_status=%s wrapper_status=%s results=%q results_sha256=%s\n' \
++  "$runner_status" "$validation_status" "$final_status" "$results" "$results_hash"
++exit "$final_status"

@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+import copy
+import json
+import pathlib
+import statistics
+import subprocess
+
+
+here = pathlib.Path(__file__).resolve().parent
+prep = here.parents[1]
+artifacts = here / "artifacts-v3"
+if artifacts.exists():
+    raise SystemExit(f"refusing to overwrite {artifacts}")
+artifacts.mkdir()
+
+prior = prep / "runs/original-h2-pair-1"
+base = [json.loads(line) for line in (prior / "results.jsonl").read_text().splitlines() if line.strip()]
+legacy = base[:16]
+aggregate = base[16:]
+
+
+def clone_sequence(*blocks):
+    return [copy.deepcopy(row) for block in blocks for row in block]
+
+
+pass_rows = clone_sequence(legacy, aggregate, aggregate, legacy, legacy, aggregate)
+base_lifecycle = [json.loads(line) for line in (prior / "results.lifecycle.jsonl").read_text().splitlines() if line.strip()]
+namespace_start = next(row for row in base_lifecycle if row.get("event") == "namespace-helpers-start")
+
+
+def natural_lifecycle():
+    rows = [copy.deepcopy(namespace_start)]
+    pid = 100
+    for pair in range(1, 4):
+        for prefix in ("current-server-legacy-agent-compat", "current-server-aggregate-v1"):
+            for role in ("agent", "server"):
+                rows.append({"event": "process-exit", "label": f"{prefix}-{pair}-{role}", "pid": pid,
+                             "status": 0, "forced": False, "group_joined": True, "invalidates_success": False})
+                pid += 1
+    for label in ("origin", "agent-namespace", "router-namespace"):
+        rows.append({"event": "process-exit", "label": label, "pid": pid, "status": 0,
+                     "forced": False, "group_joined": True, "invalidates_success": False})
+        pid += 1
+    return rows
+
+
+def scale_rate(rows, pair, direction, factor):
+    start = (pair - 1) * 32
+    for row in rows[start:start + 32]:
+        if row["transport_mode"] == "aggregate-v1" and row["measurement_stage"] == "steady" and row["transfer_direction"] == direction:
+            row["useful_transfer_bytes_per_second"] *= factor
+            row["wall_seconds"] = row["configured_payload_bytes"] / row["useful_transfer_bytes_per_second"]
+
+
+def pooled_ratio(rows, direction):
+    medians = {}
+    for mode in ("legacy", "aggregate-v1"):
+        medians[mode] = statistics.median(
+            row["useful_transfer_bytes_per_second"] for row in rows
+            if row["transport_mode"] == mode and row["measurement_stage"] == "steady" and row["transfer_direction"] == direction
+        )
+    return medians["aggregate-v1"] / medians["legacy"]
+
+
+def run_case(name, rows, lifecycle, runner_status, expect_attestation):
+    case = artifacts / name
+    case.mkdir()
+    results = case / "results.jsonl"
+    lifecycle_path = case / "results.lifecycle.jsonl"
+    attestation = case / "attestation.json"
+    outer = case / "outer.json"
+    supervisor = case / "supervisor.json"
+    results.write_text("".join(json.dumps(row, separators=(",", ":")) + "\n" for row in rows))
+    lifecycle_path.write_text("".join(json.dumps(row, separators=(",", ":")) + "\n" for row in lifecycle))
+    outer.write_bytes((prior / "outer-namespaces.json").read_bytes())
+    supervisor.write_text(json.dumps({"runner_status": runner_status, "group_joined": True, "forced": False,
+                                      "invalidates_success": False}) + "\n")
+    command = [str(prep / "runner/validate-owned-h2-stability.py"), str(results), str(lifecycle_path), str(attestation),
+               str(outer), str(supervisor), str(prep / "provenance/stability-manifest.json")]
+    completed = subprocess.run(command, text=True, capture_output=True)
+    (case / "status").write_text(f"{completed.returncode}\n")
+    (case / "stdout.log").write_text(completed.stdout)
+    (case / "stderr.log").write_text(completed.stderr)
+    if (completed.returncode == 0) != (name == "pass"):
+        raise AssertionError(f"{name}: unexpected status {completed.returncode}: {completed.stderr}")
+    if attestation.exists() != expect_attestation:
+        raise AssertionError(f"{name}: attestation existence={attestation.exists()}, expected {expect_attestation}")
+    return json.loads(attestation.read_text()) if attestation.exists() else None
+
+
+summary = {}
+attestation = run_case("pass", pass_rows, natural_lifecycle(), 0, True)
+assert attestation["accepted"] is True and all(gate[d]["pass"] for gate in attestation["pair_gates"] for d in ("download", "upload"))
+summary["pass"] = {"status": 0, "accepted": True}
+
+attestation = run_case("runner-status-one", pass_rows, natural_lifecycle(), 1, True)
+assert attestation["accepted"] is False and attestation["original_runner_status"] == 1
+assert all(gate[d]["pass"] for gate in attestation["pair_gates"] for d in ("download", "upload"))
+summary["runner-status-one"] = {"status": 1, "attested": True, "accepted": False, "all_pair_gates_pass": True}
+
+hidden = copy.deepcopy(pass_rows)
+scale_rate(hidden, 1, "download", 1.20)
+scale_rate(hidden, 2, "download", .80)
+scale_rate(hidden, 3, "download", 1.20)
+attestation = run_case("failed-pair-hidden-by-pooled-median", hidden, natural_lifecycle(), 1, True)
+pooled = pooled_ratio(hidden, "download")
+assert pooled >= .90 and attestation["pair_gates"][1]["download"]["pass"] is False
+summary["failed-pair-hidden-by-pooled-median"] = {"status": 1, "attested": True, "pooled_download_ratio": pooled,
+                                                    "pair_2_download_ratio": attestation["pair_gates"][1]["download"]["ratio"]}
+
+upload = copy.deepcopy(pass_rows)
+scale_rate(upload, 2, "upload", .80)
+attestation = run_case("upload-only-failed-pair", upload, natural_lifecycle(), 1, True)
+failures = [(gate["pair"], direction) for gate in attestation["pair_gates"] for direction in ("download", "upload") if not gate[direction]["pass"]]
+assert failures == [(2, "upload")]
+summary["upload-only-failed-pair"] = {"status": 1, "attested": True, "failed_gates": failures}
+
+reversed_second = clone_sequence(legacy, aggregate, legacy, aggregate, legacy, aggregate)
+run_case("reversed-second-pair", reversed_second, natural_lifecycle(), 0, False)
+summary["reversed-second-pair"] = {"status": 1, "attested": False}
+
+duplicate = natural_lifecycle()
+duplicate.append(copy.deepcopy(duplicate[1]))
+run_case("duplicate-lifecycle", pass_rows, duplicate, 0, False)
+summary["duplicate-lifecycle"] = {"status": 1, "attested": False}
+
+missing_join = natural_lifecycle()
+missing_join[1]["group_joined"] = False
+run_case("missing-join", pass_rows, missing_join, 0, False)
+summary["missing-join"] = {"status": 1, "attested": False}
+
+(artifacts / "control-summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+print(json.dumps(summary, indent=2, sort_keys=True))

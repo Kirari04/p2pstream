@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+runner=$(realpath "$(dirname "$0")/../runner/qualify-proxy-agent-growth-owned.sh")
+contract_dir=$(mktemp -d -p "$(dirname "$0")" lifecycle.XXXXXXXX)
+trap 'kill "${case_pid:-}" 2>/dev/null || true' EXIT
+
+extract_function() {
+  local name=$1
+  awk -v signature="$name() {" '
+    $0 == signature {printing=1}
+    printing {print}
+    printing && $0 == "}" {exit}
+  ' "$runner"
+}
+source <({ extract_function cleanup; extract_function register_owned_group; extract_function stop_process; })
+
+reset_case() {
+  lifecycle_output=$contract_dir/$1.lifecycle.jsonl
+  : > "$lifecycle_output"
+  declare -gA owned_groups=()
+}
+
+reset_case natural-zero
+stop=$contract_dir/natural-zero.stop
+setsid bash -c 'while [[ ! -e $1 ]]; do sleep .02; done' bash "$stop" &
+case_pid=$!
+register_owned_group "$case_pid" natural-zero
+stop_process natural-zero "$case_pid" "$stop"
+jq -e 'select(.status == 0 and .forced == false and .group_joined == true and .invalidates_success == false)' "$lifecycle_output" >/dev/null
+
+reset_case natural-nonzero
+stop=$contract_dir/natural-nonzero.stop
+setsid bash -c 'while [[ ! -e $1 ]]; do sleep .02; done; exit 7' bash "$stop" &
+case_pid=$!
+register_owned_group "$case_pid" natural-nonzero
+if stop_process natural-nonzero "$case_pid" "$stop"; then
+  echo "natural nonzero was accepted" >&2
+  exit 1
+else
+  status=$?
+fi
+[[ $status == 7 ]]
+jq -e 'select(.status == 7 and .forced == false and .group_joined == true and .invalidates_success == true)' "$lifecycle_output" >/dev/null
+
+reset_case stuck
+stop=$contract_dir/stuck.stop
+setsid bash -c 'trap "" TERM; while :; do sleep .1; done' &
+case_pid=$!
+register_owned_group "$case_pid" stuck
+if stop_process stuck "$case_pid" "$stop"; then
+  echo "stuck endpoint was accepted" >&2
+  exit 1
+fi
+jq -e 'select(.forced == true and .group_joined == true and .invalidates_success == true)' "$lifecycle_output" >/dev/null
+
+reset_case residual-descendant
+stop=$contract_dir/residual.stop
+child_file=$contract_dir/residual.child
+setsid bash -c '(trap "" TERM; exec sleep 60) & echo $! > "$2"; while [[ ! -e $1 ]]; do sleep .02; done' bash "$stop" "$child_file" &
+case_pid=$!
+register_owned_group "$case_pid" residual-descendant
+while [[ ! -s $child_file ]]; do sleep .01; done
+if stop_process residual-descendant "$case_pid" "$stop"; then
+  echo "residual descendant was accepted" >&2
+  exit 1
+fi
+jq -e 'select(.forced == true and .group_joined == true and .invalidates_success == true)' "$lifecycle_output" >/dev/null
+
+reset_case early-registration-failure
+setsid bash -c 'exit 9' &
+case_pid=$!
+sleep .05
+if register_owned_group "$case_pid" early-registration-failure; then
+  echo "exited process registered as a live owned group" >&2
+  exit 1
+fi
+[[ ${owned_groups[$case_pid]} == early-registration-failure ]]
+wait "$case_pid" 2>/dev/null || true
+unset 'owned_groups[$case_pid]'
+
+export -f cleanup
+setsid bash -c 'set -Eeuo pipefail; declare -A owned_groups=(); stops=(); lifecycle_output=$1; trap cleanup EXIT; trap "exit 130" INT; trap "exit 143" TERM; kill -STOP $$; sleep 60' bash "$contract_dir/signal.lifecycle.jsonl" &
+case_pid=$!
+while [[ $(ps -o stat= -p "$case_pid" 2>/dev/null) != T* ]]; do sleep .01; done
+kill -CONT "$case_pid"
+kill -TERM "$case_pid"
+set +e
+wait "$case_pid"
+status=$?
+set -e
+[[ $status == 143 ]]
+
+printf 'natural zero, natural nonzero, stuck endpoint, residual descendant, early registration failure, and TERM status contracts PASS\n'

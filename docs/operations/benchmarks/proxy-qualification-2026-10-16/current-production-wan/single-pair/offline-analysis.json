@@ -1,0 +1,347 @@
+{
+  "conservation": {
+    "attempted": 32,
+    "drain_errors": [],
+    "dropped_events": 0,
+    "errors": 0,
+    "event_queue_after_drain": 0,
+    "http_200": 32,
+    "http_major_2_rows": 32,
+    "persisted_events": 32,
+    "rows": 32,
+    "useful_completed": 32
+  },
+  "end_utc": "2026-10-16T16:12:00.688590615Z",
+  "fixed_gate": {
+    "download_pass": true,
+    "download_ratio": 1.0004235862131683,
+    "minimum_ratio": 0.9,
+    "upload_pass": true,
+    "upload_ratio": 0.9938761289237098
+  },
+  "interpretation": "This one pair passes both fixed median gates. It does not supersede the prior repeated WAN failure or establish causality for 4477c0b.",
+  "last_write_utc": "2026-10-16T16:12:00.682730Z",
+  "lifecycle": {
+    "all_natural_joined": true,
+    "all_status_zero": true,
+    "process_exit_rows": 7,
+    "rows": [
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "current-server-legacy-agent-compat-1-agent",
+        "pid": 179,
+        "status": 0
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "current-server-legacy-agent-compat-1-server",
+        "pid": 154,
+        "status": 0
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "current-server-aggregate-v1-1-agent",
+        "pid": 556,
+        "status": 0
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "current-server-aggregate-v1-1-server",
+        "pid": 532,
+        "status": 0
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "origin",
+        "pid": 140,
+        "status": 0
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "agent-namespace",
+        "pid": 19,
+        "status": 0
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "router-namespace",
+        "pid": 24,
+        "status": 0
+      }
+    ]
+  },
+  "network": {
+    "configured_rtt_ms": [
+      80
+    ],
+    "measured_rtt_ms": [
+      96.825
+    ],
+    "shaped_rate_bits_per_second": [
+      1000000000
+    ]
+  },
+  "phase_distributions": [
+    {
+      "direction": "download",
+      "max": 34472760.892029755,
+      "median": 34464794.57940355,
+      "min": 33637231.52965308,
+      "mode": "legacy",
+      "pool_max": null,
+      "pool_min": null,
+      "rates_bytes_per_second": [
+        34472760.892029755,
+        33637231.52965308,
+        34463409.628621824,
+        34466179.53018527
+      ],
+      "receiving_pool_observed_bytes": [],
+      "samples": 4,
+      "stage": "warmup"
+    },
+    {
+      "direction": "upload",
+      "max": 35923841.293553054,
+      "median": 35908133.35368699,
+      "min": 35897303.60421913,
+      "mode": "legacy",
+      "pool_max": null,
+      "pool_min": null,
+      "rates_bytes_per_second": [
+        35916684.26650559,
+        35923841.293553054,
+        35897303.60421913,
+        35899582.44086838
+      ],
+      "receiving_pool_observed_bytes": [],
+      "samples": 4,
+      "stage": "warmup"
+    },
+    {
+      "direction": "download",
+      "max": 33552063.26627348,
+      "median": 33552063.26627348,
+      "min": 33552063.26627348,
+      "mode": "legacy",
+      "pool_max": null,
+      "pool_min": null,
+      "rates_bytes_per_second": [
+        33552063.26627348
+      ],
+      "receiving_pool_observed_bytes": [],
+      "samples": 1,
+      "stage": "retained-warmup"
+    },
+    {
+      "direction": "upload",
+      "max": 35880880.791685455,
+      "median": 35880880.791685455,
+      "min": 35880880.791685455,
+      "mode": "legacy",
+      "pool_max": null,
+      "pool_min": null,
+      "rates_bytes_per_second": [
+        35880880.791685455
+      ],
+      "receiving_pool_observed_bytes": [],
+      "samples": 1,
+      "stage": "retained-warmup"
+    },
+    {
+      "direction": "download",
+      "max": 35247688.189587995,
+      "median": 33827759.2076813,
+      "min": 33710002.43926964,
+      "mode": "legacy",
+      "pool_max": null,
+      "pool_min": null,
+      "rates_bytes_per_second": [
+        33827759.2076813,
+        33710002.43926964,
+        35247688.189587995
+      ],
+      "receiving_pool_observed_bytes": [],
+      "samples": 3,
+      "stage": "steady"
+    },
+    {
+      "direction": "upload",
+      "max": 36815722.016734354,
+      "median": 35882062.502892114,
+      "min": 35855917.39212883,
+      "mode": "legacy",
+      "pool_max": null,
+      "pool_min": null,
+      "rates_bytes_per_second": [
+        35855917.39212883,
+        35882062.502892114,
+        36815722.016734354
+      ],
+      "receiving_pool_observed_bytes": [],
+      "samples": 3,
+      "stage": "steady"
+    },
+    {
+      "direction": "download",
+      "max": 33853565.66507267,
+      "median": 33840562.90358043,
+      "min": 33588542.86149727,
+      "mode": "aggregate-v1",
+      "pool_max": 95682560,
+      "pool_min": 95682560,
+      "rates_bytes_per_second": [
+        33853565.66507267,
+        33834889.67116339,
+        33588542.86149727,
+        33846236.13599746
+      ],
+      "receiving_pool_observed_bytes": [
+        95682560,
+        95682560,
+        95682560,
+        95682560
+      ],
+      "samples": 4,
+      "stage": "warmup"
+    },
+    {
+      "direction": "upload",
+      "max": 35671382.82165387,
+      "median": 35535323.28973158,
+      "min": 35404044.21162799,
+      "mode": "aggregate-v1",
+      "pool_max": 104071168,
+      "pool_min": 104071168,
+      "rates_bytes_per_second": [
+        35404044.21162799,
+        35662982.93945513,
+        35407663.64000803,
+        35671382.82165387
+      ],
+      "receiving_pool_observed_bytes": [
+        104071168,
+        104071168,
+        104071168,
+        104071168
+      ],
+      "samples": 4,
+      "stage": "warmup"
+    },
+    {
+      "direction": "download",
+      "max": 34326012.67938646,
+      "median": 34326012.67938646,
+      "min": 34326012.67938646,
+      "mode": "aggregate-v1",
+      "pool_max": 96731136,
+      "pool_min": 96731136,
+      "rates_bytes_per_second": [
+        34326012.67938646
+      ],
+      "receiving_pool_observed_bytes": [
+        96731136
+      ],
+      "samples": 1,
+      "stage": "retained-warmup"
+    },
+    {
+      "direction": "upload",
+      "max": 35946514.9199909,
+      "median": 35946514.9199909,
+      "min": 35946514.9199909,
+      "mode": "aggregate-v1",
+      "pool_max": 104071168,
+      "pool_min": 104071168,
+      "rates_bytes_per_second": [
+        35946514.9199909
+      ],
+      "receiving_pool_observed_bytes": [
+        104071168
+      ],
+      "samples": 1,
+      "stage": "retained-warmup"
+    },
+    {
+      "direction": "download",
+      "max": 34895791.24553351,
+      "median": 33842088.18010405,
+      "min": 28865994.120503094,
+      "mode": "aggregate-v1",
+      "pool_max": 91750400,
+      "pool_min": 91750400,
+      "rates_bytes_per_second": [
+        33842088.18010405,
+        28865994.120503094,
+        34895791.24553351
+      ],
+      "receiving_pool_observed_bytes": [
+        91750400,
+        91750400,
+        91750400
+      ],
+      "samples": 3,
+      "stage": "steady"
+    },
+    {
+      "direction": "upload",
+      "max": 37233511.15861238,
+      "median": 35662325.378173016,
+      "min": 35500657.70088825,
+      "mode": "aggregate-v1",
+      "pool_max": 96731136,
+      "pool_min": 96731136,
+      "rates_bytes_per_second": [
+        35662325.378173016,
+        35500657.70088825,
+        37233511.15861238
+      ],
+      "receiving_pool_observed_bytes": [
+        96731136,
+        96731136,
+        96731136
+      ],
+      "samples": 3,
+      "stage": "steady"
+    }
+  ],
+  "results_last_write_utc": "2026-10-16T16:12:00.308693Z",
+  "schema_version": 1,
+  "scope": "single original H2 legacy-then-aggregate pair; separate from any later cohort",
+  "sha256": {
+    "h2_attestation": "99130a35299f5cd9bb195ae551a45ed560c544891d917402b85087fab86e8827",
+    "lifecycle": "b3f4987b41e4660c9ed2d361f0d848a902fa2150bd78517eac13dc91f42808e1",
+    "results": "1cf22fb126080aee135dc996895641fb5ab82acc12e1d54f7b28638cd7ffd4e0",
+    "summary": "7b516dbb8dfc6fde2ecbcff623c9c01f6bc92b64162d9075065445c80a6cb2a3"
+  },
+  "start_utc": "2026-10-16T16:07:42.437007520Z",
+  "statuses": {
+    "captured_supervisor": 0,
+    "forced_cleanup": false,
+    "runner": 0,
+    "tool_wait_discrepancy_note": "tool envelope disagreed with all persisted process statuses and lifecycle evidence; no rerun",
+    "tool_wait_envelope_reported_exit_code": 1,
+    "validator": 0
+  }
+}

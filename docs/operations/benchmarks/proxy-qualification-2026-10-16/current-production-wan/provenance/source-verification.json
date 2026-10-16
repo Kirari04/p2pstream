@@ -1,0 +1,28 @@
+{
+  "all_verified": true,
+  "checks": [
+    {
+      "allowed_extras": [],
+      "archive_file_count": 4866,
+      "byte_mismatches": [],
+      "extras": [],
+      "missing": [],
+      "role": "current",
+      "verified": true
+    },
+    {
+      "allowed_extras": [
+        "internal/agent/proxy_qualification_external_legacy_test.go"
+      ],
+      "archive_file_count": 782,
+      "byte_mismatches": [],
+      "extras": [
+        "internal/agent/proxy_qualification_external_legacy_test.go"
+      ],
+      "missing": [],
+      "role": "legacy",
+      "verified": true
+    }
+  ],
+  "schema_version": 1
+}
