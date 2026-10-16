@@ -46,8 +46,10 @@ copies also require careful asynchronous ownership review before changing.
 `active-stage-alloc-list.txt` attributes 111.54 MB of flat allocation to the
 unconditional traffic-shaper decision helper call at source line 989. The
 no-policy workload never selects a shaper, but passing the decision by value
-to a helper returning its address makes that copy escape. A narrow
-selected-branch experiment is prepared separately; no gain is claimed here.
+to a helper returning its address makes that copy escape. The completed
+[selected-branch experiment](../shaper-bypass-guard/README.md) removed that
+allocation site, but its mixed paired throughput and tails did not establish
+a sustained benefit. The production call site remains unchanged.
 
 The extraction commands use `go tool pprof -top`, `-top -cum`, and
 `-top -alloc_space` with the recorded executable and profiles. Raw `.pprof`
