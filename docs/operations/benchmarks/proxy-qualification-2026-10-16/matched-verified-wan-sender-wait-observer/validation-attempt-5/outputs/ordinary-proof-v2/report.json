@@ -1,0 +1,30 @@
+{
+  "accepted": true,
+  "gates": {
+    "code": true,
+    "compiler": true,
+    "compiler_data": true,
+    "escape": true,
+    "layout": true,
+    "nm": true
+  },
+  "input_sha256": {
+    "baseline_asm": "82937ba11e068735973f1cb0f1568a8075e970427e8be3b1a883655aa4483a17",
+    "baseline_escape": "7a3fb62596b3535f347a8ea4a3745a759ddcf25455b00e05e40d230c1c329051",
+    "baseline_layout": "d2776d79609c7a3636942a9b997260e59eaaf0eb0c9fc048b244961ec13edf62",
+    "baseline_nm": "9dd9b8bd9f44615fa00106d1c7ff0ea681fd36b0c86449344074433c477b7426",
+    "baseline_objdump": "11b0ce96d5e693dcc35b1d3601b79420cebd390a330ad343cf33b9c752b12d29",
+    "candidate_asm": "4056d315523c9f682dfebd875e237d9879961b360c542f8ffa155bd4945d262d",
+    "candidate_escape": "6115975b19c84fec9aaec9cad3344c3173a0c620eb364693fdba1f28e481920a",
+    "candidate_layout": "d2776d79609c7a3636942a9b997260e59eaaf0eb0c9fc048b244961ec13edf62",
+    "candidate_nm": "5d69c65c8cfcad5b45d1730dda692e7bcf014c6fe40f6e16827eda52ac573db2",
+    "candidate_objdump": "06b13f0db38e2096ef342930108e40399212027a95b9ea6b45f36031ed4cf97c"
+  },
+  "normalization": {
+    "code": "whole-function load addresses and in-function targets only",
+    "compiler": "source positions excluded; frames, PCDATA/FUNCDATA, and all referenced data blocks preserved",
+    "escape": "all diagnostics whose primary source location is within each parent function span; source positions only normalized; records sorted per function",
+    "layout": "none",
+    "nm": "addresses excluded; exact relevant text-symbol cardinality and sizes preserved"
+  }
+}

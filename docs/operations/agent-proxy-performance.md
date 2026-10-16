@@ -627,6 +627,15 @@ and clears none of the original WAN, HAProxy, pressure, capacity, integration,
 release or merge gates. See the
 [compact read-wait evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-stack-intern/README.md).
 
+A separate sender-duration observer now passes offline validation: 19 focused
+tests in each normal and race run, schema checks, and exact ordinary-build
+comparison across nine affected functions and four type layouts. The evidence
+preserves all five attempts, including the rejected ordinary-code differences
+and the later successful proof. This validates the bounded observer source;
+it establishes no runtime cause, performance fix or WAN gate clearance.
+Authenticated fixture integration and endpoint traffic are separate work. See
+the [sender observer evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-sender-wait-observer/README.md).
+
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while
 the selector still uses lanes 0–3. Aggregate-v1 uses lanes 1–4 and reserves

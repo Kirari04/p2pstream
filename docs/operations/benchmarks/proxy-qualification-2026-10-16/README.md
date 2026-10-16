@@ -42,6 +42,11 @@ comparison.
   observations, separate generation-status reductions and exact omitted-H2
   trace bindings. Production source remains unchanged; the package establishes
   no cause or runtime fix and clears no qualification gate.
+- [`matched-verified-wan-sender-wait-observer/README.md`](matched-verified-wan-sender-wait-observer/README.md)
+  preserves five offline observer-validation attempts, including rejected
+  ordinary-code differences and the final passing normal/race, schema and
+  exact code/layout proof. It contains no endpoint traffic or runtime fix and
+  clears no performance qualification gate.
 - [`sql-hierarchical64-rejected/README.md`](sql-hierarchical64-rejected/README.md)
   preserves the rejected 64→16→single event-insert screen. Large flushes improve,
   but a smaller-flush pair exceeds the fixed regression ceiling; no code is retained.
@@ -327,6 +332,14 @@ design is a proposed source-only checkpoint, with later work in progress
 outside the package. Production source remains unchanged, and all WAN, HAProxy,
 pressure, capacity, integration, release and merge gates remain open. See the
 [compact read-wait evidence](matched-verified-wan-read-wait-stack-intern/README.md).
+
+A separate tagged sender-duration observer passes offline validation in its
+fifth preserved attempt. Nineteen focused tests pass in both normal and race
+runs; the ordinary-build proof matches nine affected functions, their compiler
+metadata and escape records, and four type layouts. Earlier failed attempts
+remain unchanged. This is source-validation evidence only, with no runtime
+cause, performance fix or WAN clearance. See the
+[sender observer evidence](matched-verified-wan-sender-wait-observer/README.md).
 
 The earlier final-runtime checkpoint
 `dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response

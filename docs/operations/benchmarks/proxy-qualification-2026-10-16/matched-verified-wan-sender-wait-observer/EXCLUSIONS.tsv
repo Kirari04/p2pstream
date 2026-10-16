@@ -1,0 +1,8 @@
+pattern	reason	retained_binding
+source/**	full mutable/materialized source tree	checkpoint source files and manifests
+validation-attempt-{1..5}/{cache,gopath,tmp}/**	build caches and temporary trees	attempt manifests and inventories
+validation-attempt-{1..5}/{baseline,candidate}/source/**	full materialized repositories	source archive hashes, checkpoint manifests and attempt inventories
+validation-attempt-{1..5}/inputs/{source.tar,source-8ac4c8d.tar}	duplicate full source archives	source-archive.sha256 and attempt manifests
+validation-attempt-{1..5}/**/*.{a,test}	compiled archives and test binaries	build/test raw outputs and attempt manifests
+review/source-checkpoint-1/SOURCE-PATCH.diff	87,479,482-byte whole-repository patch	review/source-checkpoint-1/SHA256SUMS.txt
+symlinks and non-regular files	unsafe or nonportable archive entries	none selected
