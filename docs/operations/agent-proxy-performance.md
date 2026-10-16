@@ -527,6 +527,18 @@ or reference result should be inferred from it. A separate lane/TCP and
 in-flight credit diagnostic is required before another acceptance run. See the
 [final WAN failure evidence](benchmarks/proxy-qualification-2026-10-16/final-runtime-wan-failure/README.md).
 
+A fixed three-pair stability check reproduces the failure across fresh
+endpoints and both mode orders. Aggregate/legacy download median ratios are
+80.40%, 81.61% and 79.72%; the corresponding upload ratios are 100.51%, 98.26%
+and 98.33%. All 96 transfers return verified HTTP 200 payloads with exactly 96
+persisted events and zero client errors. The repeated aggregate download shape
+is approximately 14--15, 27.3--27.4 and 34.4--34.7 MB/s within each pair. This
+correlates with first and repeated directional lane use but does not by itself
+identify the cause. See the
+[WAN stability evidence](benchmarks/proxy-qualification-2026-10-16/final-runtime-wan-stability/README.md)
+and the separate
+[TCP/profile diagnostic](benchmarks/proxy-qualification-2026-10-16/agent-wan-tcp-diagnostic/README.md).
+
 A bounded large-transfer comparison uses the same current server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
 RTT 96.547 ms). Four fresh 256 MiB downloads and uploads prewarm every receiving

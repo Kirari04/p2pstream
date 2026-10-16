@@ -22,6 +22,13 @@ comparison.
 - [`final-runtime-wan-failure/README.md`](final-runtime-wan-failure/README.md)
   preserves the final-runtime large-transfer download regression, its nonzero
   outcome and a separate derived diagnostic summary.
+- [`final-runtime-wan-stability/README.md`](final-runtime-wan-stability/README.md)
+  repeats the unchanged workload across three fresh alternating endpoint pairs.
+  All three independently reproduce the download regression with exact payload
+  and event conservation.
+- [`agent-wan-tcp-diagnostic/README.md`](agent-wan-tcp-diagnostic/README.md)
+  records a separate frozen-binary TCP/profile diagnostic that did not
+  reproduce the stall and does not supersede the failed acceptance cohorts.
 - [`caddy-reference/README.md`](caddy-reference/README.md) documents the clean
   36-row Caddy/HAProxy/p2pstream reference cohort. Its p2pstream binary is the
   frozen `3ec137c` candidate; later library and protocol foundations in `0d6a3a8`
@@ -132,9 +139,12 @@ matrix passes all 12 throughput and tail gates with exact conservation. Its
 16- and 32-agent idle standing-pool cohorts also pass exact topology, identity,
 promise, cgroup, health, cleanup and OOM gates. The final-runtime WAN cohort
 fails the download gate at 80.53% of the compatible legacy median while upload
-passes at 101.70%. The failed raw WAN result is retained and is not superseded
-by the earlier passing `e2df1b1` cohort. TCP/lane and in-flight credit
-diagnostics are required before another acceptance run or production change.
+passes at 101.70%. A fixed three-pair stability check then reproduces the
+download failure in every fresh pair at 80.40%, 81.61% and 79.72%, while all
+uploads pass. Both failed raw results are retained and are not superseded by
+the earlier passing `e2df1b1` cohort. A profiled TCP diagnostic did not
+reproduce the stall; an unprofiled in-flight sender-credit and TCP diagnostic
+is required before a production change.
 
 Historical failure and optimization artifacts below remain useful for tracing
 the decisions that produced `dc738e9`; they are not the current qualification
