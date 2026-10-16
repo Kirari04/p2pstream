@@ -32,6 +32,11 @@ comparison.
   exact key and origin on its slow sequence 14, then expires the intended
   sequence-15/16 revisits; its upstream-reuse classification is inconclusive.
   The observed `Read` duration does not establish a cause or clear the WAN gate.
+- [`matched-verified-wan-read-wait-trace/README.md`](matched-verified-wan-read-wait-trace/README.md)
+  preserves completed tiny H1 and H2 execution-trace diagnostics, their
+  original analyzer failures, separate offline reductions and independent
+  handler-state partitions. It retains no runtime change and does not establish
+  a cause or clear the WAN gate.
 - [`sql-hierarchical64-rejected/README.md`](sql-hierarchical64-rejected/README.md)
   preserves the rejected 64→16→single event-insert screen. Large flushes improve,
   but a smaller-flush pair exceeds the fixed regression ceiling; no code is retained.
@@ -282,9 +287,27 @@ therefore remains `inconclusive-upstream-reuse`. All 32 payloads, protocols,
 certificate observations, events and copy totals are exact, and all ten
 process exits are natural. This localizes an observed boundary without
 establishing a cause. The original 90% WAN blocker
-and the HAProxy, pressure, capacity and integration gates remain open. A
-narrower inside-`Read` direction is pending architecture review; no rerun is
-authorized. See the [copy-timing evidence](matched-verified-wan-copy-attribution/README.md).
+and the HAProxy, pressure, capacity and integration gates remain open. This
+result prompted the completed bounded read-wait trace follow-up described
+below. See the [copy-timing evidence](matched-verified-wan-copy-attribution/README.md).
+
+A bounded read-wait trace follow-up also retains no runtime change. The H1 tiny
+arm completed 13 rows with natural lifecycle and clean resources, but its
+original analyzer rejected all three selected traces. The standalone H2 arm
+completed 13 exact HTTP/2 rows with verified TLS, reuse, trace, copy, resource
+and lifecycle evidence; its original analyzer statuses are 1, 1 and 0, so the
+arm, validation and wrapper remain failed. Separate offline reductions return
+0 for all three traces in each arm while remaining attribution-incomplete.
+Independent audits conserve every handler-region nanosecond and place the
+zero-PC events outside the relevant handler paths; these scheduler-state
+partitions do not identify a cause. Reviewed export safety permits three small
+raw traces per arm and omits expanded parsed and wire intermediates. The
+original 90% WAN blocker and the HAProxy, pressure, capacity and integration
+gates remain open. Full-text sustained analysis was rejected before traffic
+because its projected parsed output exceeds the 512 MiB physical-file budget.
+A lossless stack-interning source direction with a separate 4 GiB logical
+expanded budget is under architecture review; it has no traffic result. See the
+[read-wait trace evidence](matched-verified-wan-read-wait-trace/README.md).
 
 The earlier final-runtime checkpoint
 `dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response

@@ -1,0 +1,15 @@
+{
+  "cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h1-504346-d40f737b.scope",
+  "namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026531832]",
+    "net": "net:[4026531833]",
+    "pid": "pid:[4026531836]",
+    "user": "user:[4026531837]"
+  },
+  "pgid": 504549,
+  "pid": 504549,
+  "schema_version": 1,
+  "sid": 504549,
+  "start_ticks": 1895749
+}

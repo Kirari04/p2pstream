@@ -1,0 +1,2 @@
+{"event":"namespace-helpers-start","boot_id":"1811fe8e-5c3c-4428-ab82-9b38d6519500","runner_namespace":"net:[4026533520]","agent":{"pid":23,"start_ticks":1657724,"namespace":"net:[4026533254]"},"router":{"pid":28,"start_ticks":1657725,"namespace":"net:[4026533841]"}}
+{"event":"forced-cleanup","invalidates_success":true}

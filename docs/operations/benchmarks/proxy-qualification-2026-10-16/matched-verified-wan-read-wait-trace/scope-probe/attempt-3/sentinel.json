@@ -1,0 +1,17 @@
+{
+  "cgroup_lines": [
+    "1:net_cls:/",
+    "0::/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-trace-scope-probe-20261016-c.scope"
+  ],
+  "namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026531832]",
+    "net": "net:[4026531833]",
+    "pid": "pid:[4026531836]",
+    "user": "user:[4026531837]"
+  },
+  "pgid": 373542,
+  "pid": 373546,
+  "sid": 373542,
+  "start_ticks": 1411981
+}

@@ -1,0 +1,16 @@
+memory.current=4759552
+memory.peak=7933952
+memory.high=max
+memory.max=4294967296
+memory.swap.max=0
+memory.events=low 0
+high 0
+max 0
+oom 0
+oom_kill 0
+oom_group_kill 0
+sock_throttled 0
+cgroup.procs=366656
+366678
+366684
+366686

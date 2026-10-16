@@ -1,0 +1,17 @@
+{
+  "attempt": "tiny-read-wait-capacity-smoke-1",
+  "failure_audit_sha256": "0f3eb7ebcb814c13609254d319636dc399345e9a25cdc1c8e0fa8886a227d464",
+  "memory_source_explanation_sha256": "6c3aa9c9a4c6689ecd4502d18e2bfb32d0f1882abb59c679ab98e05208c570c2",
+  "notes": [
+    "The run directory is preserved byte-for-byte and remains accepted:false.",
+    "RUN-ARTIFACT-SHA256SUMS.txt hashes every file, including private key and transient endpoint state; it does not copy their contents.",
+    "Private key, bearer/control files, readiness files, endpoint logs/state, and raw traces require a separate export allowlist."
+  ],
+  "outer_sidecar_manifest_sha256": "70bf82211164439be2a4e4c870783f45ebdbc33932f1050373ecfc7a39256eef",
+  "raw_tool_results_sha256": "5bad1fa917fe4d79d12a9e03fe8361d343bb08d9b5156e5537c0519652a37ab4",
+  "run_directory": "tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-1",
+  "run_file_count": 128,
+  "run_manifest_sha256": "ef6f4b584a547cd41b0d032853f27806598ef087a4cbefbe7d62b4ec61222536",
+  "run_total_bytes": 2152881,
+  "schema_version": 1
+}

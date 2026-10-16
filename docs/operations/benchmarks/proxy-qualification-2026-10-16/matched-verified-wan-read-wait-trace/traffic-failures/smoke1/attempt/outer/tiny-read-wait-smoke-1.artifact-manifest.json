@@ -1,0 +1,66 @@
+{
+  "artifacts": {
+    "FINAL": {
+      "bytes": 9,
+      "sha256": "37a40f08d8548dba289b9b0bb35bcf63b359f6d37ee86044ebc6b6da080b9ec1"
+    },
+    "final-status.json": {
+      "bytes": 499,
+      "sha256": "1f2cb4d3d1bcd507205bf3bee4880bfbc59c592a50b71d37a415a983ae6564ed"
+    },
+    "h1-arm.status": {
+      "bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    "h1-safe-to-continue.status": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "h1-supervisor.stderr.log": {
+      "bytes": 48,
+      "sha256": "7afe5816f2fd9b565efa7c0182aded4244ddd9b7856a1b32ce9a5529f7d66333"
+    },
+    "h1-supervisor.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "h2-arm.status": {
+      "bytes": 4,
+      "sha256": "a5e45837a2959db847f7e67a915d0ecaddd47f943af2af5fa6453be497faabca"
+    },
+    "h2-not-started.txt": {
+      "bytes": 79,
+      "sha256": "73b1f2ffa2c45f7515d199258819ecf80a39f03acf917c0123967b64fbf6ed4c"
+    },
+    "h2-started.status": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "post-hashes.json": {
+      "bytes": 4948,
+      "sha256": "98dd9bc914bf5b181e1b6845c1e2a919f5c8001e6a3f0c0926443cd1d963d10b"
+    },
+    "pre-hashes.json": {
+      "bytes": 4948,
+      "sha256": "98dd9bc914bf5b181e1b6845c1e2a919f5c8001e6a3f0c0926443cd1d963d10b"
+    },
+    "preflight/generated-runner-consistency.status": {
+      "bytes": 9,
+      "sha256": "672eb8316fec83f94119a4193f9fc552513d56a147502f8be4830e017d817831"
+    },
+    "preflight/runner-rebuilt.sh": {
+      "bytes": 106400,
+      "sha256": "127da1ef1f1a8923fa00b218bf8458cb83f67f8c2b97f5fb2a353162c4624ed6"
+    },
+    "tls/public.test.crt.pem": {
+      "bytes": 615,
+      "sha256": "ba10836808bf4005aa0ef6bc0123815ddb32c85e6a096d72a0db11c7346e2827"
+    },
+    "tls/public.test.key.pem": {
+      "bytes": 241,
+      "sha256": "68e03205edbd858379c36ff5122f1f9dced19672fe122664fd4d905506ae1df0"
+    }
+  },
+  "attempt": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-1",
+  "schema_version": 1
+}

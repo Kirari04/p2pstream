@@ -1,0 +1,22 @@
+{
+  "cgroup_namespace_unchanged": true,
+  "namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026532932]",
+    "net": "net:[4026532935]",
+    "pid": "pid:[4026532934]",
+    "user": "user:[4026532931]"
+  },
+  "owned_four_private": true,
+  "parent_namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026531832]",
+    "net": "net:[4026531833]",
+    "pid": "pid:[4026531836]",
+    "user": "user:[4026531837]"
+  },
+  "pid": 1,
+  "pid_is_one": true,
+  "python_parent_is_one": true,
+  "python_parent_pid": 1
+}

@@ -1,0 +1,18 @@
+{
+  "arm_status": 2,
+  "attempt": "tiny-read-wait-smoke-1",
+  "canonical_gomod": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-monotonic-source/build/source/go.mod",
+  "canonical_matches": true,
+  "h1_safe_to_continue": false,
+  "h2_started": false,
+  "lexical_matches": false,
+  "manifest_gomod": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-monotonic-source/build/source/go.mod",
+  "manifest_sha256": "0ba246408bdabdb31bad837d0163b9957c93cbe8888eef2ed3fd4c29d2fed38b",
+  "output_path_matches": true,
+  "phase": "h1 preflight before output/endpoint/scope creation",
+  "schema_version": 1,
+  "server_hash_matches": true,
+  "sole_failed_predicate": ".metadata_inspection.gomod == $gomod with lexical ../ path",
+  "stderr": "audited monotonic server build manifest changed\n",
+  "supplied_lexical_gomod": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/../wan-copy-monotonic-source/build/source/go.mod"
+}

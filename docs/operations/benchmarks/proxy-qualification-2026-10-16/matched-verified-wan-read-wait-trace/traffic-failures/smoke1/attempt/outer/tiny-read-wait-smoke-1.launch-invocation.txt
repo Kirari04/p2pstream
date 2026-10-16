@@ -1,0 +1,8 @@
+cd /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source
+./run-wan-read-wait-diagnostic.sh \
+  --server-binary build/bin/current-server-wan-read-wait-audited.test \
+  --aggregate-agent-binary ../current-wan-prep/bin/current-agent.test \
+  --server-source-ref 8ac4c8df8237e37777ba2fac0da6f949da17bdea \
+  --aggregate-agent-source-ref 8ac4c8df8237e37777ba2fac0da6f949da17bdea \
+  --output-dir runs/tiny-read-wait-smoke-1 \
+  --smoke

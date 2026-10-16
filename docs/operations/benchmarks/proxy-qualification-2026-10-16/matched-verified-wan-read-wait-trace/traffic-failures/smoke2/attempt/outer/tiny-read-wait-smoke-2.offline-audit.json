@@ -1,0 +1,287 @@
+{
+  "accepted": false,
+  "analyzer_status": 1,
+  "certificate_leaf_der_sha256": "80ce1bad36befd7262a7e31149d3e1cc5290ca4d7c94e33f9251132f8f45dac8",
+  "completed_rows": [
+    {
+      "direction": "download",
+      "origin_connection_id": "10.212.0.2:44526",
+      "repetition": 1,
+      "sequence": 1,
+      "stage": "warmup",
+      "useful_transfer_bytes_per_second": 5080339.226704115,
+      "wall_seconds": 0.825595263
+    },
+    {
+      "direction": "download",
+      "origin_connection_id": "10.212.0.2:44540",
+      "repetition": 2,
+      "sequence": 2,
+      "stage": "warmup",
+      "useful_transfer_bytes_per_second": 4677876.3002990335,
+      "wall_seconds": 0.896625676
+    },
+    {
+      "direction": "download",
+      "origin_connection_id": "10.212.0.2:44542",
+      "repetition": 3,
+      "sequence": 3,
+      "stage": "warmup",
+      "useful_transfer_bytes_per_second": 4674438.257137175,
+      "wall_seconds": 0.897285143
+    },
+    {
+      "direction": "download",
+      "origin_connection_id": "10.212.0.2:44558",
+      "repetition": 4,
+      "sequence": 4,
+      "stage": "warmup",
+      "useful_transfer_bytes_per_second": 4647135.132615447,
+      "wall_seconds": 0.902556926
+    },
+    {
+      "direction": "upload",
+      "origin_connection_id": "10.212.0.2:44562",
+      "repetition": 1,
+      "sequence": 5,
+      "stage": "warmup",
+      "useful_transfer_bytes_per_second": 4634767.06750157,
+      "wall_seconds": 0.904965436
+    },
+    {
+      "direction": "upload",
+      "origin_connection_id": "10.212.0.2:44576",
+      "repetition": 2,
+      "sequence": 6,
+      "stage": "warmup",
+      "useful_transfer_bytes_per_second": 4290527.15479954,
+      "wall_seconds": 0.977573116
+    },
+    {
+      "direction": "upload",
+      "origin_connection_id": "10.212.0.2:44580",
+      "repetition": 3,
+      "sequence": 7,
+      "stage": "warmup",
+      "useful_transfer_bytes_per_second": 4307212.506262553,
+      "wall_seconds": 0.973786177
+    },
+    {
+      "direction": "upload",
+      "origin_connection_id": "10.212.0.2:44586",
+      "repetition": 4,
+      "sequence": 8,
+      "stage": "warmup",
+      "useful_transfer_bytes_per_second": 4653630.923525185,
+      "wall_seconds": 0.901297088
+    }
+  ],
+  "failure": {
+    "cause": "server runtime snapshot has agent_tunnels and no agent_capacity; generated runner tested .agent_capacity.pressure",
+    "gate": "pre_healthy_status",
+    "phase": "H1 before target sequence 9 transfer",
+    "trace_record": {
+      "complete": false,
+      "control_boundary": "start-before-run_transfer-stop-after-run_transfer-including-postqueries",
+      "direction": "download",
+      "handler_region_boundary": "unchanged-public-proxy-handler-only",
+      "pre_cgroup": {
+        "cgroup_path": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h1-436874-09bf1ba0.scope",
+        "memory_current_bytes": 47828992,
+        "memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "memory_high_bytes": "max",
+        "memory_max_bytes": 4294967296,
+        "memory_peak_bytes": 48893952,
+        "memory_stat_sock_bytes": 0,
+        "memory_swap_max_bytes": 0,
+        "pid": 154,
+        "process_fd_count": 21,
+        "process_rss_bytes": 78721024
+      },
+      "pre_cgroup_status": 0,
+      "pre_healthy_status": 1,
+      "pre_resource_status": 0,
+      "pre_runtime": {
+        "agent_tunnels": [
+          {
+            "aggregate_current_pool_bytes": 61276160,
+            "aggregate_initial_pool_bytes": 10485760,
+            "bulk_sessions": 4,
+            "connected": true,
+            "control_connected": true,
+            "flow_control": "aggregate-v1",
+            "id": 1,
+            "lanes": [
+              {
+                "aggregate": false,
+                "lane": 0,
+                "streams": 0
+              },
+              {
+                "aggregate": true,
+                "free_units": 2368,
+                "lane": 1,
+                "receive_available_bytes": 9699328,
+                "receive_limit_bytes": 9699328,
+                "streams": 0,
+                "total_units": 2368
+              },
+              {
+                "aggregate": true,
+                "free_units": 3200,
+                "lane": 2,
+                "receive_available_bytes": 13107200,
+                "receive_limit_bytes": 13107200,
+                "streams": 0,
+                "total_units": 3200
+              },
+              {
+                "aggregate": true,
+                "free_units": 3264,
+                "lane": 3,
+                "receive_available_bytes": 13369344,
+                "receive_limit_bytes": 13369344,
+                "streams": 0,
+                "total_units": 3264
+              },
+              {
+                "aggregate": true,
+                "free_units": 3136,
+                "lane": 4,
+                "receive_available_bytes": 12845056,
+                "receive_limit_bytes": 12845056,
+                "streams": 0,
+                "total_units": 3136
+              }
+            ],
+            "legacy_control_supplement_bytes": 2918912,
+            "public_id": "qualification-external-agent-1",
+            "session_metadata_bytes": 1048576,
+            "session_resource_bytes": 65243648
+          }
+        ],
+        "heap_alloc_bytes": 68673344,
+        "heap_sys_bytes": 87228416,
+        "num_gc": 4,
+        "pause_total_ns": 305604
+      },
+      "pre_runtime_status": 0,
+      "repetition": 1,
+      "schema_version": 1,
+      "sequence": 9,
+      "stage": "retained-warmup",
+      "valid": false
+    }
+  },
+  "inner_lifecycle": [
+    {
+      "agent": {
+        "namespace": "net:[4026533254]",
+        "pid": 23,
+        "start_ticks": 1657724
+      },
+      "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+      "event": "namespace-helpers-start",
+      "router": {
+        "namespace": "net:[4026533841]",
+        "pid": 28,
+        "start_ticks": 1657725
+      },
+      "runner_namespace": "net:[4026533520]"
+    },
+    {
+      "event": "forced-cleanup",
+      "invalidates_success": true
+    }
+  ],
+  "issues": [],
+  "no_retry": true,
+  "offline_audit_complete": true,
+  "pair_final": {
+    "accepted": false,
+    "diagnostic_only": true,
+    "finished_unix_nano": 1792179038694977298,
+    "fresh_outer_topology_per_started_arm": true,
+    "h1": {
+      "accepted": false,
+      "safe_to_continue": false,
+      "status": 1
+    },
+    "h2": {
+      "accepted": false,
+      "started": false,
+      "status": 125
+    },
+    "order": [
+      "h1",
+      "h2"
+    ],
+    "pre_post_hashes_equal": true,
+    "same_binaries_both_arms": true,
+    "same_verified_certificate_both_arms": true,
+    "schema_version": 1,
+    "smoke": true
+  },
+  "parser_status": 1,
+  "pre_traffic_cgroup": {
+    "members": [
+      437314
+    ],
+    "memory_current_bytes": 13815808,
+    "memory_events": {
+      "high": 0,
+      "low": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_group_kill": 0,
+      "oom_kill": 0,
+      "sock_throttled": 0
+    },
+    "memory_high_bytes": "max",
+    "memory_max_bytes": 4294967296,
+    "memory_peak_bytes": 13815808,
+    "memory_swap_max_bytes": 0,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h1-436874-09bf1ba0.scope"
+  },
+  "resource_post_status": 1,
+  "schema_version": 1,
+  "supervisor_lifecycle": {
+    "forced": false,
+    "group_joined": true,
+    "invalidates_success": true,
+    "runner_status": 1,
+    "server_scope": {
+      "resource_status": 1,
+      "systemd_run_status": 0,
+      "unit_active_state": "inactive",
+      "unit_joined": true,
+      "unit_load_state": "not-found",
+      "unit_query_status": 0,
+      "unit_sub_state": "dead"
+    },
+    "trace_reduction": {
+      "analyzer_status": 1,
+      "parser_status": 1
+    }
+  },
+  "trace_files_created": 0,
+  "unit_final": {
+    "active_state": "inactive",
+    "confirmation": "show",
+    "failed_state_rejected": true,
+    "joined": true,
+    "load_state": "not-found",
+    "query_status": 0,
+    "schema_version": 1,
+    "show_status": 0,
+    "sub_state": "dead"
+  }
+}

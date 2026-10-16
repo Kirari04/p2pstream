@@ -1,0 +1,21 @@
+{
+  "accepted": false,
+  "errors": [
+    "pinned go tool trace parsed status is not exact zero"
+  ],
+  "fixed_bounds": {
+    "max_event_bytes": 4194304,
+    "max_event_continuations": 4096,
+    "max_events": 5000000,
+    "max_input_bytes": 536870912,
+    "max_line_bytes": 1048576,
+    "max_output_bytes": 8388608,
+    "max_wait_stack_groups": 4096
+  },
+  "input": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-1/h1/read-wait-reductions/sequence-13.parsed.txt",
+  "input_bytes": 0,
+  "parsed_tool_status_file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-1/h1/read-wait-reductions/sequence-13.parser.status",
+  "region_type": "public-proxy-handler",
+  "schema_version": 1,
+  "task_type": "wan-read-wait-request"
+}

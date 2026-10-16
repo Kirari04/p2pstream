@@ -1,0 +1,7 @@
+{
+  "chunk_id": "00227f",
+  "wall_time_seconds": 0.000012324,
+  "exit_code": 126,
+  "original_token_count": 53,
+  "output": "/bin/bash: line 15: /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-2.outer-command.sh: Permission denied\n"
+}

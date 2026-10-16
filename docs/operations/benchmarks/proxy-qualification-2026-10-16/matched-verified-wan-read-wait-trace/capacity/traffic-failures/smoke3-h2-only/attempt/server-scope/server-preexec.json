@@ -1,0 +1,42 @@
+{
+  "after_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h2-522742-c4a7d697.scope",
+  "before_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/app-t3code.slice/app-t3code-agents.slice/app-t3code-agents-a29d81d75689.slice/t3code-codex-f83127a3.scope",
+  "cpu_affinity": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "exec_command": [
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/bin/current-server-wan-read-wait-capacity-audited.test",
+    "-test.run",
+    "^TestExternalProxyQualificationServerProcess$",
+    "-test.timeout",
+    "349s"
+  ],
+  "expected_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h2-522742-c4a7d697.scope",
+  "expected_nonce": "c4a7d697-2cd1-4ff3-922b-6d7ae2cff7e4",
+  "gomaxprocs": "4",
+  "join_error": "",
+  "join_status": 0,
+  "namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026532934]",
+    "net": "net:[4026533520]",
+    "pid": "pid:[4026532935]",
+    "user": "user:[4026533519]"
+  },
+  "nonce": "c4a7d697-2cd1-4ff3-922b-6d7ae2cff7e4",
+  "nspgid": [
+    154
+  ],
+  "nspid": [
+    154
+  ],
+  "pgid": 154,
+  "pid": 154,
+  "role": "server",
+  "schema_version": 1,
+  "sid": 154,
+  "start_ticks": 1966536
+}

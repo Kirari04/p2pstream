@@ -585,9 +585,27 @@ unchanged 30-second deadline, so both open new origins and the H2 result remains
 events and copy totals are exact, with ten natural exits. This localizes an
 observed boundary without establishing a cause. It does not clear the original
 90% WAN blocker or the separate HAProxy,
-pressure, capacity and integration gates. A narrower inside-`Read` direction
-is pending architecture review; no rerun is authorized. See the
+pressure, capacity and integration gates. This result prompted the completed
+bounded read-wait trace follow-up described below. See the
 [matched verified copy-timing evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-copy-attribution/README.md).
+
+A bounded read-wait trace follow-up also retains no runtime change. The H1 tiny
+arm completed 13 rows with natural lifecycle and clean resources, but its
+original analyzer rejected all three selected traces. The standalone H2 arm
+completed 13 exact HTTP/2 rows with verified TLS, reuse, trace, copy, resource
+and lifecycle evidence; its original analyzer statuses are 1, 1 and 0, so the
+arm, validation and wrapper remain failed. Separate offline reductions return
+0 for all three traces in each arm while remaining attribution-incomplete.
+Independent audits conserve every handler-region nanosecond and place the
+zero-PC events outside the relevant handler paths; these scheduler-state
+partitions do not identify a cause. Reviewed export safety permits three small
+raw traces per arm and omits expanded parsed and wire intermediates. This does
+not clear the original WAN blocker or the HAProxy, pressure, capacity and
+integration gates. Full-text sustained analysis was rejected before traffic
+because its projected parsed output exceeds the 512 MiB physical-file budget.
+A lossless stack-interning source direction with a separate 4 GiB logical
+expanded budget is under architecture review and has no traffic result. See the
+[read-wait trace evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-trace/README.md).
 
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while

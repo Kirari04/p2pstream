@@ -1,0 +1,13 @@
+{
+  "command": "python3 runs/tiny-read-wait-smoke-2.offline-audit.py runs/tiny-read-wait-smoke-2",
+  "functions_exec": {
+    "chunk_id": "efa9e2",
+    "exit_code": 1,
+    "original_token_count": 0,
+    "output": "",
+    "wall_time_seconds": 0.021462107
+  },
+  "interpretation": "saved direct audit status is 0; functions.exec envelope discrepancy retained without rerun",
+  "saved_direct_status": 0,
+  "schema_version": 1
+}

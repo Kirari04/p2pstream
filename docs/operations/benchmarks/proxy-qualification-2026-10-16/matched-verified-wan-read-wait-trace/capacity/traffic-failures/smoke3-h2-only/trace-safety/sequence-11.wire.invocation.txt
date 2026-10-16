@@ -1,0 +1,1 @@
+/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go tool trace -d=wire /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/results.read-wait-traces/runtime-trace-sequence-11.out

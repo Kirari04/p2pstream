@@ -1,0 +1,345 @@
+{
+  "entries": [
+    {
+      "handler_region": {
+        "clipped_interval_count": 1011,
+        "duration_ns": 892117440,
+        "end_ns": 19677165536768,
+        "partition_exact": true,
+        "partition_sum_ns": 892117440,
+        "positive_interval_count": 1011,
+        "start_ns": 19676273419328,
+        "state_interval_counts_including_zero_duration": {
+          "Runnable": 336,
+          "Running": 338,
+          "Syscall": 1,
+          "Waiting": 336
+        },
+        "state_totals_ns": {
+          "Runnable": 2586059,
+          "Running": 1916738,
+          "Syscall": 16832,
+          "Waiting": 887597811
+        }
+      },
+      "marker_validation": {
+        "handler_gid": 3495,
+        "marker_gid_consistent": true,
+        "marker_order_valid": true,
+        "marker_task_id_consistent": true,
+        "region_begin": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 3495,
+          "kind": "RegionBegin",
+          "line": 6986,
+          "marker_id": 1,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 562,
+          "time_ns": 19676273419328
+        },
+        "region_end": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 3495,
+          "kind": "RegionEnd",
+          "line": 491725,
+          "marker_id": 1,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 26301,
+          "time_ns": 19677165536768
+        },
+        "task_begin": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 3495,
+          "kind": "TaskBegin",
+          "line": 6963,
+          "marker_id": 1,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 561,
+          "time_ns": 19676273414464
+        },
+        "task_end": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 3495,
+          "kind": "TaskEnd",
+          "line": 491749,
+          "marker_id": 1,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 26303,
+          "time_ns": 19677165537088
+        },
+        "task_id": 1
+      },
+      "parsed_main_event_count": 27881,
+      "public_protocol": "h2",
+      "sequence": 9,
+      "source_binding": {
+        "parsed_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/read-wait-reductions/sequence-9.parsed.txt",
+        "parsed_sha256": "6469dc2cc0717f5b5cd6dda90997e58349ba92fe4d4051591859952a09fb5ae6",
+        "parser_status": 0,
+        "parser_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/read-wait-reductions/sequence-9.parser.status",
+        "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/results.read-wait-traces/runtime-trace-sequence-9.out",
+        "raw_sha256": "f002fca480f697b0acf6027cdbdff50353af36b94ac2903cd6679ab3db65c9aa",
+        "runner_sha256": "e9e453206cd479e1d29b78c05cf4d0eaf0cbaefe3c6ff13f0ba9594235c3bea0",
+        "server_binary_sha256": "57d77ddc5ee8ec6ab49cab0b7d0dd29641a70fa8598f0c7ba3eac73f46632ff5",
+        "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+      },
+      "transition_validation": {
+        "continuity_failures": [],
+        "global_event_order_nondecreasing": true,
+        "handler_old_state_continuity_valid": true,
+        "handler_transition_count": 1016,
+        "handler_transition_order_valid": true
+      },
+      "zero_pc_frames": [
+        {
+          "file": "",
+          "frame_line": 510277,
+          "function": "",
+          "inside_handler_region_time": false,
+          "owner_event": {
+            "header_gid": 3437,
+            "kind": "StateTransition",
+            "line": 510275,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 27329,
+            "reason": "",
+            "resource_gid": 3436,
+            "time_ns": 19677251980736
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        }
+      ],
+      "zero_pc_summary": {
+        "count": 1,
+        "relevant_handler_transition_path_count": 0
+      }
+    },
+    {
+      "handler_region": {
+        "clipped_interval_count": 981,
+        "duration_ns": 891638400,
+        "end_ns": 19679780605056,
+        "partition_exact": true,
+        "partition_sum_ns": 891638400,
+        "positive_interval_count": 981,
+        "start_ns": 19678888966656,
+        "state_interval_counts_including_zero_duration": {
+          "Runnable": 326,
+          "Running": 328,
+          "Syscall": 1,
+          "Waiting": 326
+        },
+        "state_totals_ns": {
+          "Runnable": 2182786,
+          "Running": 2378627,
+          "Syscall": 15232,
+          "Waiting": 887061755
+        }
+      },
+      "marker_validation": {
+        "handler_gid": 4286,
+        "marker_gid_consistent": true,
+        "marker_order_valid": true,
+        "marker_task_id_consistent": true,
+        "region_begin": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 4286,
+          "kind": "RegionBegin",
+          "line": 7051,
+          "marker_id": 2,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 587,
+          "time_ns": 19678888966656
+        },
+        "region_end": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 4286,
+          "kind": "RegionEnd",
+          "line": 495319,
+          "marker_id": 2,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 26707,
+          "time_ns": 19679780605056
+        },
+        "task_begin": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 4286,
+          "kind": "TaskBegin",
+          "line": 7028,
+          "marker_id": 2,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 586,
+          "time_ns": 19678888965760
+        },
+        "task_end": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 4286,
+          "kind": "TaskEnd",
+          "line": 495342,
+          "marker_id": 2,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 26708,
+          "time_ns": 19679780605248
+        },
+        "task_id": 2
+      },
+      "parsed_main_event_count": 28309,
+      "public_protocol": "h2",
+      "sequence": 11,
+      "source_binding": {
+        "parsed_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/read-wait-reductions/sequence-11.parsed.txt",
+        "parsed_sha256": "c82538a12e03c710e7ca0806cda4e6af4cefeb4c043c5fab35ecc90fe6b6d724",
+        "parser_status": 0,
+        "parser_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/read-wait-reductions/sequence-11.parser.status",
+        "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/results.read-wait-traces/runtime-trace-sequence-11.out",
+        "raw_sha256": "097446f00dfc8bdaee6f50ac862adea4dcb8ef5cc78fba663798975a0182bddb",
+        "runner_sha256": "e9e453206cd479e1d29b78c05cf4d0eaf0cbaefe3c6ff13f0ba9594235c3bea0",
+        "server_binary_sha256": "57d77ddc5ee8ec6ab49cab0b7d0dd29641a70fa8598f0c7ba3eac73f46632ff5",
+        "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+      },
+      "transition_validation": {
+        "continuity_failures": [],
+        "global_event_order_nondecreasing": true,
+        "handler_old_state_continuity_valid": true,
+        "handler_transition_count": 986,
+        "handler_transition_order_valid": true
+      },
+      "zero_pc_frames": [
+        {
+          "file": "",
+          "frame_line": 514222,
+          "function": "",
+          "inside_handler_region_time": false,
+          "owner_event": {
+            "header_gid": 4281,
+            "kind": "StateTransition",
+            "line": 514220,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 27770,
+            "reason": "",
+            "resource_gid": 4280,
+            "time_ns": 19679867724416
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        }
+      ],
+      "zero_pc_summary": {
+        "count": 1,
+        "relevant_handler_transition_path_count": 0
+      }
+    },
+    {
+      "handler_region": {
+        "clipped_interval_count": 828,
+        "duration_ns": 726153344,
+        "end_ns": 19682207954560,
+        "partition_exact": true,
+        "partition_sum_ns": 726153344,
+        "positive_interval_count": 828,
+        "start_ns": 19681481801216,
+        "state_interval_counts_including_zero_duration": {
+          "Runnable": 275,
+          "Running": 277,
+          "Syscall": 1,
+          "Waiting": 275
+        },
+        "state_totals_ns": {
+          "Runnable": 1936644,
+          "Running": 1636476,
+          "Syscall": 19968,
+          "Waiting": 722560256
+        }
+      },
+      "marker_validation": {
+        "handler_gid": 5141,
+        "marker_gid_consistent": true,
+        "marker_order_valid": true,
+        "marker_task_id_consistent": true,
+        "region_begin": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 5141,
+          "kind": "RegionBegin",
+          "line": 7340,
+          "marker_id": 3,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 590,
+          "time_ns": 19681481801216
+        },
+        "region_end": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 5141,
+          "kind": "RegionEnd",
+          "line": 430641,
+          "marker_id": 3,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 23519,
+          "time_ns": 19682207954560
+        },
+        "task_begin": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 5141,
+          "kind": "TaskBegin",
+          "line": 7317,
+          "marker_id": 3,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 589,
+          "time_ns": 19681481799296
+        },
+        "task_end": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 5141,
+          "kind": "TaskEnd",
+          "line": 430664,
+          "marker_id": 3,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 23520,
+          "time_ns": 19682207954752
+        },
+        "task_id": 3
+      },
+      "parsed_main_event_count": 24964,
+      "public_protocol": "h2",
+      "sequence": 13,
+      "source_binding": {
+        "parsed_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/read-wait-reductions/sequence-13.parsed.txt",
+        "parsed_sha256": "c1ec9c0458cd397640d3be6ecbcb8332e6896b086f043aacc684777f11bbf130",
+        "parser_status": 0,
+        "parser_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/read-wait-reductions/sequence-13.parser.status",
+        "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/results.read-wait-traces/runtime-trace-sequence-13.out",
+        "raw_sha256": "5c1210d27747dd6c9b89e963e335757150fc5afa021a643b25b69381620039a8",
+        "runner_sha256": "e9e453206cd479e1d29b78c05cf4d0eaf0cbaefe3c6ff13f0ba9594235c3bea0",
+        "server_binary_sha256": "57d77ddc5ee8ec6ab49cab0b7d0dd29641a70fa8598f0c7ba3eac73f46632ff5",
+        "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+      },
+      "transition_validation": {
+        "continuity_failures": [],
+        "global_event_order_nondecreasing": true,
+        "handler_old_state_continuity_valid": true,
+        "handler_transition_count": 833,
+        "handler_transition_order_valid": true
+      },
+      "zero_pc_frames": [],
+      "zero_pc_summary": {
+        "count": 0,
+        "relevant_handler_transition_path_count": 0
+      }
+    }
+  ],
+  "index_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1/read-wait-reductions/index.json",
+  "index_sha256": "92d33ce0540671ca168d3f8a978fead362a85509ea65c2bae4e762900ccbbe20",
+  "method": "independent parsed-trace state-transition partition",
+  "schema_version": 1
+}

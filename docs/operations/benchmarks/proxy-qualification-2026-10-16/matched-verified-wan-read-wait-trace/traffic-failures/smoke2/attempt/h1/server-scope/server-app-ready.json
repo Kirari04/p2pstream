@@ -1,0 +1,15 @@
+{
+  "runner_namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026532934]",
+    "net": "net:[4026533520]",
+    "pid": "pid:[4026532935]",
+    "user": "user:[4026533519]"
+  },
+  "runner_sha256": "127da1ef1f1a8923fa00b218bf8458cb83f67f8c2b97f5fb2a353162c4624ed6",
+  "schema_version": 1,
+  "server_binary_sha256": "47981bcd767fb7eb3e1456ae4d99c6d80d9fffc62eecb6be0fb67f9245f8b2aa",
+  "server_local_pid": 154,
+  "server_ready_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/proxy-agent-growth.Znkxor/current-server-aggregate-v1-h1-1-server.ready.json",
+  "server_ready_sha256": "a09b5cfc1334cb7686f6799b69f63ab6a99ddf34d1f711a6f613414032111af0"
+}
