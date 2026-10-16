@@ -43,6 +43,15 @@ comparison.
 - [`agent-tiny-response/README.md`](agent-tiny-response/README.md) records the
   failed 1 ms aggregate-versus-legacy tiny-response gate across H1/H2 at 16
   and 128 concurrent requests, with exact payload and event conservation.
+- [`agent-tiny-response-post-refund/README.md`](agent-tiny-response-post-refund/README.md)
+  repeats that gate after the paired-refund and shutdown-waiter checkpoint.
+  H1 at 16 clients passes, but the overall 24-row cohort still fails.
+- [`agent-tiny-profiles/README.md`](agent-tiny-profiles/README.md) records native
+  CPU, allocation, mutex and block profiles of the first failed tiny-response
+  candidate and its matched legacy endpoint.
+- [`proxy-public-parser-ownership.md`](../../proxy-public-parser-ownership.md)
+  records the separate public-parser ownership decision and the bounds that
+  still require implementation and qualification.
 - [`capacity-boundaries-cold/README.md`](capacity-boundaries-cold/README.md)
   records cold-start direct and remote-agent H1/H2 constrained boundaries.
 - [`capacity-established-h2/README.md`](capacity-established-h2/README.md)

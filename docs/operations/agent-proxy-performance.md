@@ -523,6 +523,20 @@ no drain errors. This is a small-frame transport regression, while the bulk-WAN
 and constrained-capacity results above remain workload-specific passes. See the
 [tiny-response evidence](benchmarks/proxy-qualification-2026-10-16/agent-tiny-response/README.md).
 
+The combined paired-refund and shutdown-waiter checkpoint was then measured
+with the same 24-row gate. H1 at 16 clients passes at 98.05% of legacy
+throughput with p95/p99 ratios of 1.030/1.021. The cohort still fails: H1 at
+128 clients has a 1.1029 p95 ratio, H2 at 16 streams has a 1.1036 p99 ratio,
+and H2 at 128 streams reaches 88.04% throughput with 1.150/1.143 p95/p99
+ratios. All 3,547,693 requests completed with verified payloads and exactly
+3,547,693 events persisted, with zero drops and no drain errors. These are
+combined-checkpoint results; the evidence does not assign the changes solely
+to either implementation change. The standing-pool cohort remains blocked
+behind the failed tiny-response gate. See the
+[post-refund tiny-response evidence](benchmarks/proxy-qualification-2026-10-16/agent-tiny-response-post-refund/README.md)
+and the preceding
+[native endpoint profiles](benchmarks/proxy-qualification-2026-10-16/agent-tiny-profiles/README.md).
+
 The first qualification pass is recorded under
 `docs/operations/benchmarks/proxy-qualification-2026-10-16/`. It is a profile
 and correctness pass plus one warmed saturation sample, not the prescribed
