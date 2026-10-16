@@ -1,0 +1,10 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "upstream_read stall 0 call invalid"
+  ],
+  "name": "stall-call-bound",
+  "stderr": "copy attribution validation failed: upstream_read stall 0 call invalid\n",
+  "stdout": ""
+}

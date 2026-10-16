@@ -1,0 +1,10 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "downstream_write bytes 9 != 4194304"
+  ],
+  "name": "wrong-write-bytes",
+  "stderr": "copy attribution validation failed: downstream_write bytes 9 != 4194304\n",
+  "stdout": ""
+}

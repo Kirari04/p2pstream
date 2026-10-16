@@ -1,0 +1,10 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "upstream_read bytes 9 != 4194304"
+  ],
+  "name": "wrong-read-bytes",
+  "stderr": "copy attribution validation failed: upstream_read bytes 9 != 4194304\n",
+  "stdout": ""
+}

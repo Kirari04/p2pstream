@@ -1,0 +1,10 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "copy record is incomplete or wrapper/ReadFrom cardinality changed"
+  ],
+  "name": "body-wrap-count",
+  "stderr": "copy attribution validation failed: copy record is incomplete or wrapper/ReadFrom cardinality changed\n",
+  "stdout": ""
+}

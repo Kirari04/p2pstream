@@ -573,6 +573,22 @@ release blocker. HAProxy, pressure, capacity and integration qualifications
 remain separate. See the
 [matched verified H1/H2 diagnostic evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-protocol/README.md).
 
+A bounded same-clock copy-timing follow-up retains no runtime change. Its
+single sustained 16-row-per-arm cohort is rejected: H1 is observationally
+complete but fails the 29.7 MB/s floor at sequences 9 and 11 (29.452 and
+29.673 MB/s). H2 sequence 14 retains the exact key and origin but reaches
+14.550 MB/s; 17.334 seconds of its 18.305-second handler interval are observed
+in upstream `Read`, versus 0.803 seconds in downstream `Write`. The delay moves
+the intended sequence-15/16 revisits to 34.588/35.001 seconds idle, beyond the
+unchanged 30-second deadline, so both open new origins and the H2 result remains
+`inconclusive-upstream-reuse`. All 32 payloads, protocol/TLS observations,
+events and copy totals are exact, with ten natural exits. This localizes an
+observed boundary without establishing a cause. It does not clear the original
+90% WAN blocker or the separate HAProxy,
+pressure, capacity and integration gates. A narrower inside-`Read` direction
+is pending architecture review; no rerun is authorized. See the
+[matched verified copy-timing evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-copy-attribution/README.md).
+
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while
 the selector still uses lanes 0–3. Aggregate-v1 uses lanes 1–4 and reserves

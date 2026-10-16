@@ -1,0 +1,29 @@
+{
+  "accepted": true,
+  "recorded_unix_nano": 1792173896237431745,
+  "schema_version": 1,
+  "sha256": {
+    "approved_lifecycle_runner": "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f",
+    "copy_runner_patch": "2be3634deee247d26fa31d5ae174d3fdd536a87c208371467875923025af32d8",
+    "frozen_copy_runner": "4c76336266bceaab9d2639a5d81e3ce272b4dc924d15154bb6ccbdea4b58f852",
+    "frozen_protocol_runner": "309d90622ad36f8f082bfd010ec85a7f87d13d80d9d8ce9a8b97ec883a12bad7",
+    "generated_monotonic_runner": "959cec45868ceaf080bd26560c3ea0fb90d6da695f8ae77679fe3ba40b9bbdb2",
+    "monotonic_runner_patch": "23cb24cd59481005ae83e580a8d20dedc0c4e1167df01ffd3ec8c854a807263a",
+    "reconstructed_runner": "959cec45868ceaf080bd26560c3ea0fb90d6da695f8ae77679fe3ba40b9bbdb2",
+    "wan_protocol_runner_patch": "5bdfbb4d5ae6abdc3912f001f0b37d726888a255587cd0a478d5a120281db983"
+  },
+  "stages": [
+    {
+      "name": "protocol",
+      "status": 0
+    },
+    {
+      "name": "copy-attribution",
+      "status": 0
+    },
+    {
+      "name": "monotonic-label",
+      "status": 0
+    }
+  ]
+}

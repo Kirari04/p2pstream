@@ -1,0 +1,62 @@
+{
+  "aggregate_agent_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "base_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "base_source_sha256": {
+    "internal/server/proxy_qualification_test.go": "48bb7f2d5b7efcecf29ca4d46b5358713d50c7686530417ce8f784deb653b0bd",
+    "internal/server/public_proxy_pipeline.go": "e4c82d3683955c15f4842d41c1401a1596d57faf807042dc93596ed431252795",
+    "internal/server/public_routing.go": "19d9cfa3a3c2f3ae98c43885f1e1396ebab9d220180225fec2b450acda735931",
+    "internal/server/traffic_trace_request.go": "144b5d589f536d8e408e1d708800884ba3eebef978fc03af5cf8aa2412913a69"
+  },
+  "build_status": 0,
+  "filesystem": "ext2/ext3",
+  "focused_tests": {
+    "normal_status": 0,
+    "normal_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "normal_stdout_sha256": "5f103857dcb0c339235252608c67961cd6ac4b8fec753020a5d4a7d144935662",
+    "race_status": 0,
+    "race_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "race_stdout_sha256": "3f65d095a1b7c8d7f80c167d85bd2aa2bd67d501774af432e86dced5fc93ec42"
+  },
+  "go_toolchain": "go1.26.6 linux/amd64",
+  "overlay_source_sha256": {
+    "internal/server/proxy_copy_attribution.go": "1f8ef9fdb834e36f45d8cc05724f5d9a1e1ec484098091fd18c76c58b00e6625",
+    "internal/server/proxy_copy_attribution_test.go": "d64933683b9847f96230480b57a6a3b7e22fb27b36fd090886259d139859c258",
+    "internal/server/proxy_qualification_test.go": "879d88ce6d23c6b79558f0f29c864f3ed9d52c660d51793fe7300330b86422cf",
+    "internal/server/proxy_qualification_wan_copy_attribution_test.go": "1aa490060e838184e26faa5eff691edf3ab9ae33f33ea8e259ead06e92a4c3f1",
+    "internal/server/proxy_qualification_wan_protocol_test.go": "b0b6d037d51892e89d39e6f55107f73c30647ad9a20283a026007fd69b3be42d",
+    "internal/server/public_proxy_pipeline.go": "4669d98df47c491432227e88524759a360addf114207de2f38edf179a5bdee81",
+    "internal/server/public_routing.go": "3172fb9bcdaf0d3a5fc3695a96357b263d354dfc3178149ceda265319db9936c",
+    "internal/server/traffic_trace_request.go": "ecedf74872a2cb9507fb3a3bb3a55d61699ce81e0937daa946e9a33fb3ff950a"
+  },
+  "preserved_failures": [
+    {
+      "kind": "pre-execution-log-path",
+      "path": "logs/focused-normal-attempt1-preexec.status",
+      "status": 1
+    },
+    {
+      "bad_overlay_sha256": "fc9e27fcc0706e7cfc1c2d2e22ff1a6d1e7aa1e3ca04cbbe6f8655a744473f00",
+      "kind": "accidental-source-corruption-compile-failure",
+      "path": "failures/focused-normal-attempt2",
+      "status": 1
+    },
+    {
+      "kind": "overflow-test-expectation-failure",
+      "overlay_sha256": "cddf07175e00a69a421454200597c63b47453f150255c4b1cf92c2a61df42d1a",
+      "path": "failures/focused-normal-attempt3",
+      "status": 1
+    }
+  ],
+  "reconstruction_status": 0,
+  "schema_version": 1,
+  "scope": "source-only matched public copy-path attribution diagnostic",
+  "sha256": {
+    "aggregate_agent_test_binary": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+    "copy_attribution_overlay_patch": "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f",
+    "design": "a52431ddf9439a7424a9da6e81e26b2121ba0590e32ae8603b4ad20478aa1baf",
+    "frozen_wan_base_patch": "b2c90d2ee6bf9ade304163795022071b4d368b61f0e9d5bc73d0e52d2569538b",
+    "frozen_wan_test_helper": "b0b6d037d51892e89d39e6f55107f73c30647ad9a20283a026007fd69b3be42d",
+    "server_test_binary": "59eb8af1e6c767776f639b014074d542abb23d4ad019c7558182670372ea92a7"
+  },
+  "traffic_run": false
+}

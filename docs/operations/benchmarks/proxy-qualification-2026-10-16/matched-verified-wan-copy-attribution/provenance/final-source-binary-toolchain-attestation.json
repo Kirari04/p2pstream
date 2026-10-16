@@ -1,0 +1,105 @@
+{
+  "base_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "binaries": {
+    "agent": {
+      "go_version_m_path": "provenance/agent.go-version-m.txt",
+      "go_version_m_sha256": "e33a1447928fb48db12829c68ab1fce7eb0ffa358f23c280be8b0157d526279c",
+      "path": "../current-wan-prep/bin/current-agent.test",
+      "sha256": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137"
+    },
+    "server": {
+      "go_version_m_path": "provenance/server.go-version-m.txt",
+      "go_version_m_sha256": "09ab01946062b4b22782050c41a1e632b8862e2644d6b59450c60e08a7e18853",
+      "path": "build/bin/current-server-wan-copy-attribution.test",
+      "sha256": "59eb8af1e6c767776f639b014074d542abb23d4ad019c7558182670372ea92a7"
+    }
+  },
+  "focused_attempts": [
+    {
+      "file_sha256": {
+        "logs/focused-normal-attempt1-preexec.status": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "logs/focused-normal-attempt1-preexec.stderr.log": "61907f42ea639050d176a3054b885dc09a9129e25f7137643d53d817d7329428"
+      },
+      "name": "focused-normal-attempt1-preexec",
+      "source_binding": "unavailable: execution failed before a source or invocation manifest was written",
+      "status": 1
+    },
+    {
+      "file_sha256": {
+        "logs/focused-normal-attempt4.status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "logs/focused-normal-attempt4.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logs/focused-normal-attempt4.stdout.log": "5f103857dcb0c339235252608c67961cd6ac4b8fec753020a5d4a7d144935662"
+      },
+      "name": "focused-normal-attempt4",
+      "overlay_sha256": "583672ced49fcb3c7a7c78b752819a068325079fce02c1393e90401c9a46bfd6",
+      "source_binding": "copy-attribution-overlay.raw-attempt4.patch; seven-test suite before allocation/publication-barrier additions",
+      "status": 0
+    },
+    {
+      "file_sha256": {
+        "logs/focused-race.status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "logs/focused-race.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logs/focused-race.stdout.log": "edebb55ebb3f211ac9180d78719f53c995244111d7741c4cec6a7b6f3670790f"
+      },
+      "name": "focused-race-attempt1",
+      "overlay_sha256": "583672ced49fcb3c7a7c78b752819a068325079fce02c1393e90401c9a46bfd6",
+      "source_binding": "copy-attribution-overlay.raw-attempt4.patch; seven-test suite before allocation/publication-barrier additions",
+      "status": 0
+    },
+    {
+      "file_sha256": {
+        "logs/focused-normal-attempt5.status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "logs/focused-normal-attempt5.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logs/focused-normal-attempt5.stdout.log": "5f103857dcb0c339235252608c67961cd6ac4b8fec753020a5d4a7d144935662"
+      },
+      "name": "focused-normal-attempt5",
+      "normalized_overlay_sha256": "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f",
+      "overlay_sha256": "68357711a8e9bdd5dc592125f5370f0ba06367c04b5645c7a82bd3619bfc5731",
+      "source_binding": "copy-attribution-overlay.raw-attempt5.patch; same source content as normalized final overlay",
+      "status": 0
+    },
+    {
+      "file_sha256": {
+        "logs/focused-race-attempt2.status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "logs/focused-race-attempt2.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logs/focused-race-attempt2.stdout.log": "3f65d095a1b7c8d7f80c167d85bd2aa2bd67d501774af432e86dced5fc93ec42"
+      },
+      "name": "focused-race-attempt2",
+      "normalized_overlay_sha256": "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f",
+      "overlay_sha256": "68357711a8e9bdd5dc592125f5370f0ba06367c04b5645c7a82bd3619bfc5731",
+      "source_binding": "copy-attribution-overlay.raw-attempt5.patch; same source content as normalized final overlay",
+      "status": 0
+    }
+  ],
+  "historical_build": {
+    "exact_invocation": "unavailable: the historical build captured status/stdout/stderr but no invocation file; no invocation is inferred or backdated",
+    "status": 0,
+    "status_path": "logs/build-server.status",
+    "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "recorded_unix_nano": 1792172378072364038,
+  "schema_version": 1,
+  "scope": "copy-attribution final source, binary, and toolchain verification",
+  "source_verification": {
+    "build_source_equals_independent_reconstruction": true,
+    "diff_path": "provenance/final-source-tree.diff",
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final_design_sha256": "a52431ddf9439a7424a9da6e81e26b2121ba0590e32ae8603b4ad20478aa1baf",
+    "final_normalized_overlay_sha256": "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f",
+    "status": 0,
+    "status_path": "provenance/final-source-tree.status"
+  },
+  "superseded_historical_input_hashes": {
+    "note": "preserved historical file binds failed fc9e27 overlay and is not the final artifact index",
+    "path": "provenance/input-hashes.txt",
+    "sha256": "31494a34fa419f0327e2be61f5e5b494f40e248dc848351daf9036362ee17486"
+  },
+  "toolchain": {
+    "go_binary_sha256": "d68b7abbc40d0844f673f6cf06ae3cded225c50437c6454fa37ef178d079fe65",
+    "go_path": "/usr/local/go/bin/go",
+    "go_version": "go version go1.26.6 linux/amd64"
+  },
+  "traffic_run": false
+}

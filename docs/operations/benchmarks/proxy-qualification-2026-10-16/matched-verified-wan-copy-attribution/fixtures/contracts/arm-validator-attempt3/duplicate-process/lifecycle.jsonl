@@ -1,0 +1,6 @@
+{"event": "namespace-helpers-start", "agent": {"namespace": "net:[2]", "start_ticks": 2}, "router": {"namespace": "net:[3]", "start_ticks": 3}}
+{"event": "process-exit", "label": "current-server-aggregate-v1-h1-1-agent", "pid": 10, "status": 0, "forced": false, "group_joined": true, "invalidates_success": false}
+{"event": "process-exit", "label": "current-server-aggregate-v1-h1-1-server", "pid": 11, "status": 0, "forced": false, "group_joined": true, "invalidates_success": false}
+{"event": "process-exit", "label": "origin", "pid": 12, "status": 0, "forced": false, "group_joined": true, "invalidates_success": false}
+{"event": "process-exit", "label": "agent-namespace", "pid": 13, "status": 0, "forced": false, "group_joined": true, "invalidates_success": false}
+{"event": "process-exit", "label": "router-namespace", "pid": 13, "status": 0, "forced": false, "group_joined": true, "invalidates_success": false}

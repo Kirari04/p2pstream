@@ -1,0 +1,16 @@
+{
+  "base_copy_overlay_sha256": "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f",
+  "build_run": false,
+  "design_sha256": "e7f10f81978626e1afc094401d51f932fd92dfa1628570b9f0f0d91470797bc8",
+  "focused_tests_run": false,
+  "patches": {
+    "observer": "5567198f60054467fb8b5719ac4dcd634ce2058d4245b36b9bd83fef8789f5cd",
+    "validator_contract": "43c6ff828b8f2ada02c2b20e8d2531b86ce6b32ed5dee788b963463604f59a0a"
+  },
+  "preserved_smoke2_offline_audit_sha256": "c7f774a8c6eeaab9659d5f3e749421e721e8e2412bfee8319357c37d11e265a7",
+  "reconstruction_status": 0,
+  "recorded_unix_nano": 1792173271914849178,
+  "schema_version": 1,
+  "scope": "source-only monotonic clock-domain correction proposal",
+  "traffic_run": false
+}

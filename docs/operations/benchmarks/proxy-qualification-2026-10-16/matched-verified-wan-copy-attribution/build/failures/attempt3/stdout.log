@@ -1,0 +1,5 @@
+--- FAIL: TestQualificationWANCopyAttributionStoreBoundedAndCompleted (0.00s)
+    proxy_copy_attribution_test.go:232: missing attribution context
+FAIL
+FAIL	p2pstream/internal/server	0.023s
+FAIL

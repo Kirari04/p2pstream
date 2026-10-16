@@ -1,0 +1,146 @@
+--- qualify-proxy-agent-growth-wan-protocol.sh
++++ qualify-proxy-agent-growth-wan-copy-attribution.sh
+@@ -146,6 +146,8 @@
+ for tool in ip tc nsenter jq python3 taskset openssl sha256sum ping ps readlink setsid; do
+   command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 1; }
+ done
++copy_record_validator=./validate-copy-record.py
++[[ -x $copy_record_validator ]] || { echo "copy record validator is required" >&2; exit 1; }
+ if [[ ${P2PSTREAM_GROWTH_PRESSURE_MODE:-0} == 1 ]]; then
+   command -v systemd-run >/dev/null || { echo "systemd-run is required for --pressure" >&2; exit 1; }
+ fi
+@@ -416,6 +418,33 @@
+ PY
+ }
+ 
++query_completed_copy_json() {
++  local url=$1
++  python3 - "$url" <<'PY'
++import json, sys, time, urllib.request
++deadline = time.monotonic() + 5
++last = None
++last_error = None
++while time.monotonic() < deadline:
++    try:
++        with urllib.request.urlopen(sys.argv[1], timeout=.5) as response:
++            last = json.load(response)
++        matches = last.get("matches", []) if isinstance(last, dict) else []
++        if len(matches) != 1 or matches[0].get("copy", {}).get("complete") is True:
++            json.dump(last, sys.stdout, separators=(",", ":"))
++            raise SystemExit(0)
++    except SystemExit:
++        raise
++    except Exception as error:
++        last_error = repr(error)
++    time.sleep(.01)
++if last is not None:
++    json.dump(last, sys.stdout, separators=(",", ":"))
++    raise SystemExit(0)
++raise SystemExit(f"copy attribution query failed before any snapshot: {last_error}")
++PY
++}
++
+ cgroup_snapshot() {
+   local pid=$1
+   python3 - "$pid" <<'PY'
+@@ -649,9 +678,10 @@
+   P2PSTREAM_QUALIFICATION_RESULT="$raw" \
+     taskset -c "$load_cpu_set" "$server_binary" -test.run '^TestProxyQualificationLoad$' -test.timeout "${transfer_timeout_seconds}s" \
+     >"$raw.log" 2>&1
+-  local agent_runtime upstream_trace
++  local agent_runtime upstream_trace copy_attribution
+   agent_runtime=$(query_agent_json "$agent_namespace_pid" "$agent_admin")
+   upstream_trace=$(query_server_json "$server_admin?wan_trace=$sequence")
++  copy_attribution=$(query_completed_copy_json "$server_admin?wan_copy_trace=$sequence")
+   jq -e --argjson major "$expected_major" --arg alpn "$expected_alpn" --arg fingerprint "$expected_leaf_sha256" '
+     ((.wan_response_tls | length) == .attempted) and .attempted == 1 and
+     all(.wan_response_tls[]; .http_major == $major and .negotiated_alpn == $alpn and .peer_leaf_der_sha256 == $fingerprint and .origin_connection_id != "" and ((.validation_error // "") == ""))
+@@ -679,7 +709,7 @@
+   fi
+   jq -c --arg stage "$stage" --arg direction "$direction" --arg mode "$mode" \
+     --argjson repetition "$repetition" --argjson agent_runtime "$agent_runtime" \
+-    --argjson upstream_trace "$upstream_trace" --arg public_protocol "$protocol" \
++    --argjson upstream_trace "$upstream_trace" --argjson copy_attribution "$copy_attribution" --arg public_protocol "$protocol" \
+     --argjson diagnostic_sequence "$sequence" \
+     --argjson configured_rtt_ms "$configured_rtt_ms" --argjson measured_rtt_ms "$measured_rtt_ms" \
+     --arg server_binary_sha256 "$server_binary_sha256" \
+@@ -697,6 +727,7 @@
+         public_protocol:$public_protocol,
+         diagnostic_sequence:$diagnostic_sequence,
+         upstream_transport_trace:$upstream_trace,
++        response_copy_attribution:$copy_attribution,
+         repetition:$repetition,
+         configured_rtt_ms:$configured_rtt_ms,
+         measured_rtt_ms:$measured_rtt_ms,
+@@ -1121,6 +1152,7 @@
+       P2PSTREAM_QUALIFICATION_KEY="$key" \
+       P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE="$management_ca" \
+       P2PSTREAM_QUALIFICATION_WAN_PROTOCOL_DIAGNOSTIC=1 \
++      P2PSTREAM_QUALIFICATION_WAN_COPY_ATTRIBUTION=1 \
+       P2PSTREAM_QUALIFICATION_EXTERNAL_AGENTS=1 \
+       P2PSTREAM_QUALIFICATION_BIND_ADDRESS=10.211.0.1 \
+       GOMAXPROCS=4 \
+@@ -1136,6 +1168,7 @@
+       P2PSTREAM_QUALIFICATION_KEY="$key" \
+       P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE="$management_ca" \
+       P2PSTREAM_QUALIFICATION_WAN_PROTOCOL_DIAGNOSTIC=1 \
++      P2PSTREAM_QUALIFICATION_WAN_COPY_ATTRIBUTION=1 \
+       P2PSTREAM_QUALIFICATION_EXTERNAL_AGENTS=1 \
+       P2PSTREAM_QUALIFICATION_BIND_ADDRESS=10.211.0.1 \
+       GOMAXPROCS=4 \
+@@ -1250,10 +1283,13 @@
+ stop_process agent-namespace "$agent_namespace_pid" "$agent_namespace_stop"
+ stop_process router-namespace "$router_namespace_pid" "$router_namespace_stop"
+ summary=${output%.jsonl}.summary.json
+-python3 - "$output" "$summary" "$required_pool_mib" "$smoke_mode" "$pressure_mode" "$tiny_response_mode" "$protocol" "$expected_leaf_sha256" <<'PY'
+-import json, statistics, sys
++python3 - "$output" "$summary" "$required_pool_mib" "$smoke_mode" "$pressure_mode" "$tiny_response_mode" "$protocol" "$expected_leaf_sha256" "$copy_record_validator" <<'PY'
++import importlib.util, json, statistics, sys
+ 
+-source, destination, required_pool_mib, smoke_mode, pressure_mode, tiny_response_mode, protocol, expected_fingerprint = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6]), sys.argv[7], sys.argv[8]
++source, destination, required_pool_mib, smoke_mode, pressure_mode, tiny_response_mode, protocol, expected_fingerprint, copy_validator_path = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6]), sys.argv[7], sys.argv[8], sys.argv[9]
++spec = importlib.util.spec_from_file_location("copy_record_validator", copy_validator_path)
++copy_record_validator = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(copy_record_validator)
+ rows = [json.loads(line) for line in open(source, encoding="utf-8") if line.strip()]
+ if protocol in ("h1", "h2"):
+     expected_major = 1 if protocol == "h1" else 2
+@@ -1302,6 +1338,14 @@
+         row["wan_response_tls"][0].get("origin_connection_id") and
+         not row["wan_response_tls"][0].get("validation_error")
+         for row in rows)
++    copy_issues_by_sequence = {}
++    for expected_sequence, row in enumerate(rows, 1):
++        found = copy_record_validator.validate_copy_envelope(
++            row.get("response_copy_attribution", {}), expected_sequence,
++            row.get("transfer_direction"), row.get("configured_payload_bytes"))
++        if found:
++            copy_issues_by_sequence[str(expected_sequence)] = found
++    copy_complete = not copy_issues_by_sequence
+     trace_rows = []
+     trace_complete = True
+     for expected_sequence, row in enumerate(rows, 1):
+@@ -1394,18 +1438,21 @@
+     if len(revisits) != (1 if smoke_mode else 4):
+         reuse_issues.append(f"same-key revisit count {len(revisits)} changed")
+         expected_reuse = False
+-    classification = "invalid" if not (correctness and tls_complete and trace_complete) else ("inconclusive-upstream-reuse" if not expected_reuse else "observational-complete")
++    classification = "invalid" if not (correctness and tls_complete and trace_complete and copy_complete) else ("inconclusive-upstream-reuse" if not expected_reuse else "observational-complete")
+     summary = {
+         "diagnostic_only": True, "public_protocol": protocol, "classification": classification,
+         "acceptance": {"correctness": correctness, "verified_tls_and_protocol_every_response": tls_complete,
+                        "transport_trace_complete": trace_complete, "expected_upstream_reuse": expected_reuse,
++                       "response_copy_attribution_complete": copy_complete,
+                        "download_floor_every_phase": floor_gate_pass},
+         "gates": {"download_bytes_per_second_floor": download_floor}, "download_by_phase": floor_by_stage,
+         "transport_traces": trace_rows, "reuse_expectations": reuse_expectations, "reuse_issues": reuse_issues,
+         "reuse_counts": {"reused": sum(trace["reused"] is True for trace in trace_rows),
+                          "new": sum(trace["reused"] is False for trace in trace_rows),
+                          "put_idle_absent": sum(not trace["put_idle_conn"] for trace in trace_rows)},
+-        "interpretation": "Observational diagnostic only; medians do not establish health or causality. Warmup rows explicitly close idle transports. Sequences 9-12 are the first post-close visits to four concrete lane keys; only later same-key visits classify reuse, bound to the prior successful PutIdleConn timestamp and exact origin connection identity.",
++        "copy_attribution_issues_by_sequence": copy_issues_by_sequence,
++        "copy_attribution_interpretation": "Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with handler wall time. Inter-read gaps include downstream Write time and bookkeeping and are never added as an independent component. POST observations cover only the 32-byte response copy, not upload request-body handling.",
++        "interpretation": "Observational diagnostic only; throughput is not qualification evidence and medians do not establish health or causality. Warmup rows explicitly close idle transports. Sequences 9-12 are the first post-close visits to four concrete lane keys; only later same-key visits classify reuse, bound to the prior successful PutIdleConn timestamp and exact origin connection identity.",
+     }
+     with open(destination, "w", encoding="utf-8") as output_file:
+         json.dump(summary, output_file, indent=2, sort_keys=True)

@@ -1,0 +1,282 @@
+{
+  "scope": "independent Astra sustained raw review; diagnostic only",
+  "certificate_der_sha256": "7d3625723c898ac278292007eab9dc19ec5df4dcd5b544fe0528149eeb38f0c8",
+  "arms": {
+    "h1": {
+      "raw_sha256": "a20bf6ef0ca185dacb7eb471a2ad5928277030c233592198635a42a846e85e07",
+      "rows": 16,
+      "natural_exits": 5,
+      "classification": "observational-complete",
+      "downloads": [
+        {
+          "sequence": 1,
+          "stage": "warmup",
+          "MB_per_second": 33.5003306702968,
+          "handler_ns": 7835841011,
+          "read_ns": 7354540826,
+          "write_ns": 314490005,
+          "nonadditive_gap_ns": 319194908
+        },
+        {
+          "sequence": 2,
+          "stage": "warmup",
+          "MB_per_second": 34.075148251612156,
+          "handler_ns": 7698501815,
+          "read_ns": 7206509501,
+          "write_ns": 324406710,
+          "nonadditive_gap_ns": 329285696
+        },
+        {
+          "sequence": 3,
+          "stage": "warmup",
+          "MB_per_second": 33.93705095829746,
+          "handler_ns": 7751065883,
+          "read_ns": 7274521678,
+          "write_ns": 310087162,
+          "nonadditive_gap_ns": 314752684
+        },
+        {
+          "sequence": 4,
+          "stage": "warmup",
+          "MB_per_second": 33.83777365513167,
+          "handler_ns": 7756444978,
+          "read_ns": 7276298562,
+          "write_ns": 313972558,
+          "nonadditive_gap_ns": 318721757
+        },
+        {
+          "sequence": 9,
+          "stage": "retained-warmup",
+          "MB_per_second": 29.451921189327244,
+          "handler_ns": 8936369902,
+          "read_ns": 8441698193,
+          "write_ns": 328358581,
+          "nonadditive_gap_ns": 333305099
+        },
+        {
+          "sequence": 11,
+          "stage": "steady",
+          "MB_per_second": 29.67300116984449,
+          "handler_ns": 8870668643,
+          "read_ns": 8392723107,
+          "write_ns": 310711785,
+          "nonadditive_gap_ns": 315457002
+        },
+        {
+          "sequence": 14,
+          "stage": "steady",
+          "MB_per_second": 29.738119003528865,
+          "handler_ns": 8908624556,
+          "read_ns": 8521379206,
+          "write_ns": 301975659,
+          "nonadditive_gap_ns": 306629447
+        },
+        {
+          "sequence": 15,
+          "stage": "steady",
+          "MB_per_second": 34.17410728553925,
+          "handler_ns": 7693072835,
+          "read_ns": 7337393049,
+          "write_ns": 270949367,
+          "nonadditive_gap_ns": 274953538
+        }
+      ],
+      "revisits": [
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38013|10.212.0.2:59302",
+          "elapsed_idle_ns": 25420482156,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38013|10.212.0.2:59302",
+          "got_conn_unix_ns": 1792174405831943789,
+          "httptrace_idle_time_ns": 25420482707,
+          "kind": "same-key-revisit",
+          "lane_position": 1,
+          "observed_origin_connection_id": "10.212.0.2:33882",
+          "prior_origin_connection_id": "10.212.0.2:33882",
+          "prior_put_idle_unix_ns": 1792174380411461633,
+          "satisfied": true,
+          "sequence": 13
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38013|10.212.0.2:59306",
+          "elapsed_idle_ns": 25153014120,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38013|10.212.0.2:59306",
+          "got_conn_unix_ns": 1792174413511760952,
+          "httptrace_idle_time_ns": 25153015121,
+          "kind": "same-key-revisit",
+          "lane_position": 2,
+          "observed_origin_connection_id": "10.212.0.2:34076",
+          "prior_origin_connection_id": "10.212.0.2:34076",
+          "prior_put_idle_unix_ns": 1792174388358746832,
+          "satisfied": true,
+          "sequence": 14
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38013|10.212.0.2:59312",
+          "elapsed_idle_ns": 25194542937,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38013|10.212.0.2:59312",
+          "got_conn_unix_ns": 1792174422729400578,
+          "httptrace_idle_time_ns": 25194545020,
+          "kind": "same-key-revisit",
+          "lane_position": 3,
+          "observed_origin_connection_id": "10.212.0.2:58092",
+          "prior_origin_connection_id": "10.212.0.2:58092",
+          "prior_put_idle_unix_ns": 1792174397534857641,
+          "satisfied": true,
+          "sequence": 15
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38013|10.212.0.2:59300",
+          "elapsed_idle_ns": 25296285769,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38013|10.212.0.2:59300",
+          "got_conn_unix_ns": 1792174430764299313,
+          "httptrace_idle_time_ns": 25296285990,
+          "kind": "same-key-revisit",
+          "lane_position": 4,
+          "observed_origin_connection_id": "10.212.0.2:35666",
+          "prior_origin_connection_id": "10.212.0.2:35666",
+          "prior_put_idle_unix_ns": 1792174405468013544,
+          "satisfied": true,
+          "sequence": 16
+        }
+      ]
+    },
+    "h2": {
+      "raw_sha256": "38a35f13f0901056cd7261ca3c2023ffea3f7b656437caa0fa67cefe8824b792",
+      "rows": 16,
+      "natural_exits": 5,
+      "classification": "inconclusive-upstream-reuse",
+      "downloads": [
+        {
+          "sequence": 1,
+          "stage": "warmup",
+          "MB_per_second": 33.589914908152714,
+          "handler_ns": 7812033591,
+          "read_ns": 7032550399,
+          "write_ns": 610680978,
+          "nonadditive_gap_ns": 616323917
+        },
+        {
+          "sequence": 2,
+          "stage": "warmup",
+          "MB_per_second": 33.305725991593995,
+          "handler_ns": 7931298511,
+          "read_ns": 7132344890,
+          "write_ns": 551835116,
+          "nonadditive_gap_ns": 556879738
+        },
+        {
+          "sequence": 3,
+          "stage": "warmup",
+          "MB_per_second": 33.94659383426024,
+          "handler_ns": 7747485507,
+          "read_ns": 6908355314,
+          "write_ns": 590802677,
+          "nonadditive_gap_ns": 596196537
+        },
+        {
+          "sequence": 4,
+          "stage": "warmup",
+          "MB_per_second": 33.60309562504937,
+          "handler_ns": 7810850412,
+          "read_ns": 7046616261,
+          "write_ns": 596932729,
+          "nonadditive_gap_ns": 602463793
+        },
+        {
+          "sequence": 9,
+          "stage": "retained-warmup",
+          "MB_per_second": 33.387702228770486,
+          "handler_ns": 7870141802,
+          "read_ns": 7150884045,
+          "write_ns": 551374792,
+          "nonadditive_gap_ns": 556596673
+        },
+        {
+          "sequence": 11,
+          "stage": "steady",
+          "MB_per_second": 33.841245536542736,
+          "handler_ns": 7755608237,
+          "read_ns": 6967184528,
+          "write_ns": 620028643,
+          "nonadditive_gap_ns": 625834312
+        },
+        {
+          "sequence": 14,
+          "stage": "steady",
+          "MB_per_second": 14.550217209139335,
+          "handler_ns": 18305309991,
+          "read_ns": 17333641799,
+          "write_ns": 802516204,
+          "nonadditive_gap_ns": 809879911
+        },
+        {
+          "sequence": 15,
+          "stage": "steady",
+          "MB_per_second": 33.603938439439936,
+          "handler_ns": 7810570420,
+          "read_ns": 7048708871,
+          "write_ns": 594716254,
+          "nonadditive_gap_ns": 600290539
+        }
+      ],
+      "revisits": [
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46315|10.212.0.2:60950",
+          "elapsed_idle_ns": 24031760384,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46315|10.212.0.2:60950",
+          "got_conn_unix_ns": 1792174543246964126,
+          "httptrace_idle_time_ns": 24031760755,
+          "kind": "same-key-revisit",
+          "lane_position": 1,
+          "observed_origin_connection_id": "10.212.0.2:56986",
+          "prior_origin_connection_id": "10.212.0.2:56986",
+          "prior_put_idle_unix_ns": 1792174519215203742,
+          "satisfied": true,
+          "sequence": 13
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46315|10.212.0.2:60932",
+          "elapsed_idle_ns": 23982017568,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46315|10.212.0.2:60932",
+          "got_conn_unix_ns": 1792174550966545108,
+          "httptrace_idle_time_ns": 23982017879,
+          "kind": "same-key-revisit",
+          "lane_position": 2,
+          "observed_origin_connection_id": "10.212.0.2:57666",
+          "prior_origin_connection_id": "10.212.0.2:57666",
+          "prior_put_idle_unix_ns": 1792174526984527540,
+          "satisfied": true,
+          "sequence": 14
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46315|10.212.0.2:60938",
+          "elapsed_idle_ns": 34587811824,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46315|10.212.0.2:60938",
+          "got_conn_unix_ns": 1792174569689291928,
+          "httptrace_idle_time_ns": 0,
+          "kind": "same-key-revisit",
+          "lane_position": 3,
+          "observed_origin_connection_id": "10.212.0.2:35288",
+          "prior_origin_connection_id": "10.212.0.2:48334",
+          "prior_put_idle_unix_ns": 1792174535101480104,
+          "satisfied": false,
+          "sequence": 15
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46315|10.212.0.2:60960",
+          "elapsed_idle_ns": 35000628464,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46315|10.212.0.2:60960",
+          "got_conn_unix_ns": 1792174577875113878,
+          "httptrace_idle_time_ns": 0,
+          "kind": "same-key-revisit",
+          "lane_position": 4,
+          "observed_origin_connection_id": "10.212.0.2:42064",
+          "prior_origin_connection_id": "10.212.0.2:48338",
+          "prior_put_idle_unix_ns": 1792174542874485414,
+          "satisfied": false,
+          "sequence": 16
+        }
+      ]
+    }
+  }
+}

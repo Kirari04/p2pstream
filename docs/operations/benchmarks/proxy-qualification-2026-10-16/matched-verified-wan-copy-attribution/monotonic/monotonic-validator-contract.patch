@@ -1,0 +1,138 @@
+--- a/validate-copy-record.py
++++ b/validate-copy-record.py
+@@ -23,6 +23,7 @@
+     max_ns = metric.get("max_ns")
+     first_ns = metric.get("first_unix_ns", 0)
+     last_ns = metric.get("last_unix_ns", 0)
++    span_ns = metric.get("span_ns", 0)
+     buckets = metric.get("duration_bucket_counts")
+     stalls = metric.get("longest_stalls")
+     if not nonnegative_int(calls):
+@@ -30,11 +31,13 @@
+         return
+     if byte_count != expected_bytes:
+         issues.append(f"{name} bytes {byte_count!r} != {expected_bytes}")
+-    durations_valid = all(nonnegative_int(value) for value in (total_ns, max_ns))
++    durations_valid = all(nonnegative_int(value) for value in (total_ns, max_ns, span_ns))
+     if not durations_valid:
+         issues.append(f"{name} duration totals invalid")
+     elif max_ns > total_ns:
+         issues.append(f"{name} max exceeds total")
++    elif total_ns > span_ns:
++        issues.append(f"{name} total exceeds monotonic span")
+     if not isinstance(buckets, list) or len(buckets) != 8 or not all(nonnegative_int(value) for value in buckets):
+         issues.append(f"{name} histogram invalid")
+     elif sum(buckets) != calls:
+@@ -42,9 +45,7 @@
+     if calls:
+         if not (isinstance(first_ns, int) and isinstance(last_ns, int) and started_ns <= first_ns <= last_ns <= returned_ns):
+             issues.append(f"{name} timestamps outside handler interval")
+-        elif durations_valid and total_ns > last_ns - first_ns:
+-            issues.append(f"{name} total exceeds observed metric span")
+-    elif first_ns != 0 or last_ns != 0 or total_ns != 0 or max_ns != 0 or byte_count != 0:
++    elif first_ns != 0 or last_ns != 0 or total_ns != 0 or max_ns != 0 or span_ns != 0 or byte_count != 0:
+         issues.append(f"{name} empty metric has observations")
+     if not isinstance(stalls, list) or len(stalls) != 8:
+         issues.append(f"{name} longest stalls are not fixed at eight")
+@@ -72,8 +73,7 @@
+                 issues.append(f"{name} stall {offset} bytes invalid")
+             if not (durations_valid and duration <= total_ns):
+                 issues.append(f"{name} stall {offset} duration invalid")
+-            if not (isinstance(stall_started, int) and started_ns <= stall_started <= returned_ns and
+-                    isinstance(duration, int) and stall_started + duration <= returned_ns):
++            if not (isinstance(stall_started, int) and started_ns <= stall_started <= returned_ns):
+                 issues.append(f"{name} stall {offset} timestamp invalid")
+             if prior_duration is not None and isinstance(duration, int) and duration > prior_duration:
+                 issues.append(f"{name} longest stalls are not descending")
+@@ -106,6 +106,7 @@
+         return ["copy payload is not an object"]
+     started_ns = record.get("started_unix_ns")
+     returned_ns = record.get("handler_return_unix_ns")
++    handler_elapsed_ns = record.get("handler_elapsed_ns")
+     if not (record.get("sequence") == str(sequence) and record.get("scope") == "response-body-copy" and
+             record.get("method") == expected_method and record.get("path") == expected_path):
+         issues.append("copy record scope/request correlation changed")
+@@ -119,6 +120,9 @@
+             0 < started_ns <= returned_ns):
+         issues.append("copy handler timestamps invalid")
+         started_ns, returned_ns = 0, 0
++    if not nonnegative_int(handler_elapsed_ns):
++        issues.append("copy handler monotonic duration invalid")
++        handler_elapsed_ns = -1
+     for name, key in (("upstream_read", "upstream_read"), ("downstream_write", "downstream_write")):
+         validate_metric(name, copy.get(key), expected_bytes, started_ns, returned_ns, issues)
+     read = copy.get("upstream_read", {})
+@@ -140,16 +144,24 @@
+         issues.append("copy recorded a read/write error or short write")
+     if copy.get("read_eof") not in (0, 1):
+         issues.append("copy EOF count is outside the exact Content-Length contract")
+-    handler_ns = returned_ns - started_ns
+     read_total = read.get("total_ns") if isinstance(read, dict) else None
+     write_total = write.get("total_ns") if isinstance(write, dict) else None
+     if not (isinstance(read_total, int) and isinstance(write_total, int) and
+-            read_total >= 0 and write_total >= 0 and read_total + write_total <= handler_ns):
++            read_total >= 0 and write_total >= 0 and read_total + write_total <= handler_elapsed_ns):
+         issues.append("read plus write duration exceeds handler interval")
+     gap_total = gap.get("total_ns") if isinstance(gap, dict) else None
+     if not (isinstance(read_total, int) and isinstance(gap_total, int) and
+-            read_total >= 0 and gap_total >= 0 and read_total + gap_total <= handler_ns):
++            read_total >= 0 and gap_total >= 0 and read_total + gap_total <= handler_elapsed_ns):
+         issues.append("read plus inter-read-gap duration exceeds handler interval")
++    for name, metric in (("upstream read", read), ("downstream write", write), ("inter-read gap", gap)):
++        span_ns = metric.get("span_ns") if isinstance(metric, dict) else None
++        if not (nonnegative_int(span_ns) and nonnegative_int(handler_elapsed_ns) and
++                span_ns <= handler_elapsed_ns):
++            issues.append(f"{name} monotonic span exceeds handler duration")
++    read_span = read.get("span_ns") if isinstance(read, dict) else None
++    if not (nonnegative_int(read_span) and nonnegative_int(read_total) and nonnegative_int(gap_total) and
++            read_span == read_total + gap_total):
++        issues.append("upstream read span does not equal read plus inter-read-gap totals")
+     return issues
+ 
+ 
+--- a/contracts/run-copy-record-contracts.py
++++ b/contracts/run-copy-record-contracts.py
+@@ -27,6 +27,7 @@
+     stalls += [{"call": 0, "bytes": 0, "duration_ns": 0, "started_unix_ns": 0} for _ in range(8 - len(stalls))]
+     buckets = [calls, 0, 0, 0, 0, 0, 0, 0]
+     return {"calls": calls, "bytes": byte_count, "total_ns": sum(durations), "max_ns": max(durations, default=0),
++            "span_ns": sum(durations),
+             "first_unix_ns": started, "last_unix_ns": started + max(sum(durations), 1_000_000),
+             "duration_bucket_counts": buckets, "longest_stalls": stalls}
+ 
+@@ -37,11 +38,12 @@
+     read = metric(2, expected, durations)
+     write = metric(1, expected, [0] if zero_timing else [100])
+     gap = metric(1, 0, [0] if zero_timing else [50])
++    read["span_ns"] = read["total_ns"] + gap["total_ns"]
+     record = {
+         "sequence": "1", "method": "GET" if direction == "download" else "POST",
+         "path": "/agent/bulk" if direction == "download" else "/agent/bulk-upload",
+         "scope": "response-body-copy", "started_unix_ns": 1_000_000_000_000,
+-        "handler_return_unix_ns": 1_000_010_000_000,
++        "handler_return_unix_ns": 1_000_010_000_000, "handler_elapsed_ns": 10_000_000,
+         "copy": {"complete": True, "body_wraps": 1, "upstream_read": read, "downstream_write": write,
+                  "inter_read_gap": gap, "duration_bucket_upper_bounds_ns": validator.DURATION_BOUNDS_NS,
+                  "read_eof": 0, "read_errors": 0, "write_errors": 0, "short_writes": 0,
+@@ -66,6 +68,10 @@
+     cases.append(("valid-download", envelope(), "download", None))
+     cases.append(("valid-upload-response-only", envelope("upload"), "upload", None))
+     cases.append(("valid-zero-duration-observations", envelope(zero_timing=True), "download", None))
++    wall_divergence = envelope()
++    wall_divergence["matches"][0]["copy"]["upstream_read"]["last_unix_ns"] = wall_divergence["matches"][0]["copy"]["upstream_read"]["first_unix_ns"] + 290
++    wall_divergence["matches"][0]["copy"]["downstream_write"]["last_unix_ns"] = wall_divergence["matches"][0]["copy"]["downstream_write"]["first_unix_ns"] + 90
++    cases.append(("valid-monotonic-duration-with-shorter-wall-span", wall_divergence, "download", None))
+ 
+     def bad(name, path, replacement, expected):
+         value = envelope()
+@@ -92,7 +98,9 @@
+     bad("stall-call-bound", ["matches", 0, "copy", "upstream_read", "longest_stalls", 0, "call"], 9, "call invalid")
+     bad("stall-order", ["matches", 0, "copy", "upstream_read", "longest_stalls", 1, "duration_ns"], 300, "not descending")
+     bad("handler-time-bound", ["matches", 0, "handler_return_unix_ns"], 1_000_000_000_050, "timestamps")
+-    bad("metric-span", ["matches", 0, "copy", "upstream_read", "total_ns"], 2_000_000, "metric span")
++    bad("monotonic-metric-span", ["matches", 0, "copy", "upstream_read", "span_ns"], 299, "monotonic span")
++    bad("metric-span-over-handler", ["matches", 0, "copy", "downstream_write", "span_ns"], 10_000_001, "span exceeds handler duration")
++    bad("read-gap-telescope", ["matches", 0, "copy", "upstream_read", "span_ns"], 351, "read plus inter-read-gap totals")
+     bad("read-write-handler-budget", ["matches", 0, "copy", "downstream_write", "total_ns"], 10_000_000_000, "handler interval")
+     malformed = envelope(); malformed["matches"][0]["copy"]["upstream_read"] = []
+     cases.append(("malformed-metric", malformed, "download", "metric missing"))

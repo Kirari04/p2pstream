@@ -1,0 +1,10 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "upstream_read histogram does not conserve calls"
+  ],
+  "name": "histogram-conservation",
+  "stderr": "copy attribution validation failed: upstream_read histogram does not conserve calls\n",
+  "stdout": ""
+}

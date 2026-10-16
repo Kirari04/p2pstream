@@ -1,0 +1,74 @@
+{
+  "aggregate_agent_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "base_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "build": {
+    "output_sha256": "0530cdc308bf06964f61d55ca730309e125cabd3c296ed3c22f0cfe218552013",
+    "source_compare_status": 0,
+    "status": 0,
+    "tool_envelope_outer_status": 1,
+    "tool_envelope_sha256": "6b576560a3ea87c1d69b0497772e4e32a49e862e3ef5290ae3a885292c434bde",
+    "wrapper_status": 0
+  },
+  "focused_tests": {
+    "copy_record_contracts": {
+      "cases": 29,
+      "status": 0,
+      "summary_sha256": "68f611196a207d411a57f50fbf4ca8c0ac68aaa820683eccb23132e005af8e48"
+    },
+    "normal": {
+      "invocation_sha256": "eb98048acc45ed142448bfc65c50b8bac8cd5219daa3d51c81b62213b303b1a1",
+      "status": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "5f103857dcb0c339235252608c67961cd6ac4b8fec753020a5d4a7d144935662"
+    },
+    "race": {
+      "invocation_sha256": "a3ee51b68211765b50f8c1a3fb377837233469345db175bec6533aca5ce6c3bf",
+      "status": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "8d0828baf9d64238bc424d4a1146315b9d39941477c845efbbbf3e31c5cdf770",
+      "tool_envelope_outer_status": 1,
+      "tool_envelope_sha256": "5c78359a3f2d049ad07f0f5f92c4c119ae13f85d283c4be4b4b6493a391a2448"
+    }
+  },
+  "frozen_input": {
+    "copy_attribution_overlay_path": "../wan-copy-attribution-source/copy-attribution-overlay.patch",
+    "copy_attribution_overlay_sha256": "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f"
+  },
+  "go_toolchain": {
+    "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+    "version": "go version go1.26.6 linux/amd64"
+  },
+  "recorded_unix_nano": 1792173770297464442,
+  "schema_version": 1,
+  "scope": "monotonic-clock correction for diagnostic response-copy attribution; diagnostic only",
+  "sha256": {
+    "aggregate_agent_test_binary": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+    "design": "9ce306d5b126e970c873eb1a7d1b38917fc7c5a12ccb2d3d2846d4ceb521bd2d",
+    "monotonic_arm_validator_patch": "fcae97fd6653cb438e5b85295844b394aa1108e0f66d064cdee5942b412d04f3",
+    "monotonic_observer_patch": "a8cc867dc9e12681e74b6a51396941d0a03c5145450eabff2e0bae0d8e79965a",
+    "monotonic_runner_patch": "23cb24cd59481005ae83e580a8d20dedc0c4e1167df01ffd3ec8c854a807263a",
+    "monotonic_validator_contract_patch": "f1dafaabc985842bc7cbc18a199e79abdc709e9021f4c5d7695ad17eb5e90f63",
+    "server_test_binary": "0530cdc308bf06964f61d55ca730309e125cabd3c296ed3c22f0cfe218552013",
+    "source_manifest": "e3fd8a14551dd2ba1fb50b2bd05a62f692214c6935529fc7a9394577e0e78fe9"
+  },
+  "source_verification": {
+    "changed_paths_contract": {
+      "accepted": true,
+      "actual_changed_paths": [
+        "internal/server/proxy_copy_attribution.go",
+        "internal/server/proxy_copy_attribution_test.go",
+        "internal/server/proxy_qualification_wan_copy_attribution_test.go"
+      ],
+      "expected_changed_paths": [
+        "internal/server/proxy_copy_attribution.go",
+        "internal/server/proxy_copy_attribution_test.go",
+        "internal/server/proxy_qualification_wan_copy_attribution_test.go"
+      ],
+      "schema_version": 1
+    },
+    "reconstruction_status": 0,
+    "source_pre_post_test_equal": true
+  },
+  "traffic_run": false
+}

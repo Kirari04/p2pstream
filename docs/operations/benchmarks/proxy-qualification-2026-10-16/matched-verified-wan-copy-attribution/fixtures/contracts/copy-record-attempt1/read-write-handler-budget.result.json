@@ -1,0 +1,11 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "downstream_write total exceeds observed metric span",
+    "read plus write duration exceeds handler interval"
+  ],
+  "name": "read-write-handler-budget",
+  "stderr": "copy attribution validation failed: downstream_write total exceeds observed metric span; read plus write duration exceeds handler interval\n",
+  "stdout": ""
+}

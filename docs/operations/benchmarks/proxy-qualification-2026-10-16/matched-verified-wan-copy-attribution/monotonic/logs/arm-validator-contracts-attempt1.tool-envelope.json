@@ -1,0 +1,7 @@
+{
+  "chunk_id": "ec07a7",
+  "explanation": "The unified exec result reported exit_code 1 after the shell wrote arm-validator-contracts-attempt1.status=0 and printed 'validator contracts passed'. Stderr is empty. The shell ended with exit \"$status\", where status was recorded as 0. Preserved without rerun of attempt1; attempt2 was required only by a later source assertion addition and also recorded inner status 0.",
+  "outer_exit_code": 1,
+  "test_status_file": 0,
+  "wall_time_seconds": 0.732161606
+}

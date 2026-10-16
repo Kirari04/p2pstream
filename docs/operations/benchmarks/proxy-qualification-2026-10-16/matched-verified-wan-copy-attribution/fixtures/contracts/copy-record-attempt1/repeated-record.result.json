@@ -1,0 +1,10 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "copy envelope correlation/cardinality changed"
+  ],
+  "name": "repeated-record",
+  "stderr": "copy attribution validation failed: copy envelope correlation/cardinality changed\n",
+  "stdout": ""
+}

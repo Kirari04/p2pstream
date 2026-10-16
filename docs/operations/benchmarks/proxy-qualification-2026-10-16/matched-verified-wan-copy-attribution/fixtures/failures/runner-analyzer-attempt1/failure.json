@@ -1,0 +1,14 @@
+{
+  "failure": "contract fixture fingerprint literal had 58 hex characters while rows correctly contained 64; analyzer therefore rejected verified TLS before copy assertions",
+  "files": {
+    "analyzer.py": "6cfb854d90139c747e1fdb04e423cca8831ba50d69de06fdb01154edfab0310b",
+    "run-runner-analyzer-contract.failed.sh": "612c8dc17a732e1a03b5b3da6652026e8d66ab771e393f82081857ec3395f4bd",
+    "runner-analyzer-contracts-attempt1.status": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "runner-analyzer-contracts-attempt1.stderr.log": "e0a7952ff272766f9f110f584639a7b52a83d5da7a2c352a87000ed1b70737a3",
+    "runner-analyzer-contracts-attempt1.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "valid-results.jsonl": "2fe14d39b78b82d67961e440df3f508035409c8d315fa999241fafb7878c8014"
+  },
+  "no_traffic": true,
+  "schema_version": 1,
+  "status": 1
+}

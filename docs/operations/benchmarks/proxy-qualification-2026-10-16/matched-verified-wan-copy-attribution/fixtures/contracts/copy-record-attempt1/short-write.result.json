@@ -1,0 +1,10 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "copy recorded a read/write error or short write"
+  ],
+  "name": "short-write",
+  "stderr": "copy attribution validation failed: copy recorded a read/write error or short write\n",
+  "stdout": ""
+}

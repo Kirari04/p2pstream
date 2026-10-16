@@ -1,0 +1,189 @@
+--- a/internal/server/proxy_copy_attribution.go
++++ b/internal/server/proxy_copy_attribution.go
+@@ -34,6 +34,8 @@
+ 	lastUnixNS  int64
+ 	buckets     [8]uint64
+ 	longest     [8]proxyCopyAttributionStall
++	firstTime   time.Time
++	lastTime    time.Time
+ }
+ 
+ type proxyCopyAttributionStall struct {
+@@ -44,14 +46,17 @@
+ }
+ 
+ type proxyCopyAttributionMetricSnapshot struct {
+-	Calls      uint64                       `json:"calls"`
+-	Bytes      uint64                       `json:"bytes"`
+-	TotalNanos uint64                       `json:"total_ns"`
+-	MaxNanos   uint64                       `json:"max_ns"`
+-	FirstUnix  int64                        `json:"first_unix_ns,omitempty"`
+-	LastUnix   int64                        `json:"last_unix_ns,omitempty"`
+-	Buckets    [8]uint64                    `json:"duration_bucket_counts"`
+-	Longest    [8]proxyCopyAttributionStall `json:"longest_stalls"`
++	Calls      uint64 `json:"calls"`
++	Bytes      uint64 `json:"bytes"`
++	TotalNanos uint64 `json:"total_ns"`
++	MaxNanos   uint64 `json:"max_ns"`
++	// Unix timestamps are retained only for coarse event correlation. SpanNanos
++	// is derived from time.Time.Sub so duration conservation stays monotonic.
++	FirstUnix int64                        `json:"first_unix_ns,omitempty"`
++	LastUnix  int64                        `json:"last_unix_ns,omitempty"`
++	SpanNanos uint64                       `json:"span_ns"`
++	Buckets   [8]uint64                    `json:"duration_bucket_counts"`
++	Longest   [8]proxyCopyAttributionStall `json:"longest_stalls"`
+ }
+ 
+ type proxyCopyAttributionSnapshot struct {
+@@ -111,8 +116,10 @@
+ 	}
+ 	if metric.firstUnixNS == 0 {
+ 		metric.firstUnixNS = started.UnixNano()
++		metric.firstTime = started
+ 	}
+ 	metric.lastUnixNS = ended.UnixNano()
++	metric.lastTime = ended
+ 	metric.buckets[proxyCopyAttributionBucket(duration)]++
+ 	stall := proxyCopyAttributionStall{Call: metric.calls, Bytes: uint64(max(bytes, int64(0))), DurationNS: nanos, StartedUnix: started.UnixNano()}
+ 	for index := range metric.longest {
+@@ -125,9 +132,14 @@
+ }
+ 
+ func (metric proxyCopyAttributionMetric) snapshot() proxyCopyAttributionMetricSnapshot {
++	span := metric.lastTime.Sub(metric.firstTime)
++	if metric.firstTime.IsZero() || metric.lastTime.IsZero() || span < 0 {
++		span = 0
++	}
+ 	return proxyCopyAttributionMetricSnapshot{
+ 		Calls: metric.calls, Bytes: metric.bytes, TotalNanos: metric.totalNanos, MaxNanos: metric.maxNanos,
+-		FirstUnix: metric.firstUnixNS, LastUnix: metric.lastUnixNS, Buckets: metric.buckets, Longest: metric.longest,
++		FirstUnix: metric.firstUnixNS, LastUnix: metric.lastUnixNS, SpanNanos: uint64(span.Nanoseconds()),
++		Buckets: metric.buckets, Longest: metric.longest,
+ 	}
+ }
+ 
+--- a/internal/server/proxy_qualification_wan_copy_attribution_test.go
++++ b/internal/server/proxy_qualification_wan_copy_attribution_test.go
+@@ -17,17 +17,22 @@
+ 	Path              string
+ 	StartedUnixNano   int64
+ 	HandlerReturnNano int64
++	Started           time.Time
++	Returned          time.Time
+ 	Attribution       *proxyCopyAttribution
+ }
+ 
+ type qualificationWANCopyAttributionRecord struct {
+-	Sequence          string                       `json:"sequence"`
+-	Method            string                       `json:"method"`
+-	Path              string                       `json:"path"`
+-	Scope             string                       `json:"scope"`
+-	StartedUnixNano   int64                        `json:"started_unix_ns"`
+-	HandlerReturnNano int64                        `json:"handler_return_unix_ns,omitempty"`
+-	Attribution       proxyCopyAttributionSnapshot `json:"copy"`
++	Sequence          string `json:"sequence"`
++	Method            string `json:"method"`
++	Path              string `json:"path"`
++	Scope             string `json:"scope"`
++	StartedUnixNano   int64  `json:"started_unix_ns"`
++	HandlerReturnNano int64  `json:"handler_return_unix_ns,omitempty"`
++	// HandlerElapsedNS is monotonic. The Unix fields remain coarse correlation
++	// stamps and are not combined arithmetically with monotonic durations.
++	HandlerElapsedNS uint64                       `json:"handler_elapsed_ns,omitempty"`
++	Attribution      proxyCopyAttributionSnapshot `json:"copy"`
+ }
+ 
+ func (entry *qualificationWANCopyAttributionEntry) snapshot() qualificationWANCopyAttributionRecord {
+@@ -36,8 +41,10 @@
+ 		Sequence: entry.Sequence, Method: entry.Method, Path: entry.Path, Scope: "response-body-copy", Attribution: attribution,
+ 	}
+ 	if attribution.Complete {
++		elapsed := entry.Returned.Sub(entry.Started)
+ 		record.StartedUnixNano = entry.StartedUnixNano
+ 		record.HandlerReturnNano = entry.HandlerReturnNano
++		record.HandlerElapsedNS = uint64(max(elapsed.Nanoseconds(), int64(0)))
+ 	}
+ 	return record
+ }
+@@ -60,9 +67,10 @@
+ 			next.ServeHTTP(w, r)
+ 			return
+ 		}
++		started := time.Now()
+ 		entry := &qualificationWANCopyAttributionEntry{
+ 			Sequence: sequence, Method: r.Method, Path: r.URL.EscapedPath(),
+-			StartedUnixNano: time.Now().UnixNano(), Attribution: &proxyCopyAttribution{},
++			StartedUnixNano: started.UnixNano(), Started: started, Attribution: &proxyCopyAttribution{},
+ 		}
+ 		store.mu.Lock()
+ 		if store.count >= 32 {
+@@ -76,7 +84,9 @@
+ 		store.mu.Unlock()
+ 
+ 		next.ServeHTTP(w, r.WithContext(withProxyCopyAttribution(r.Context(), entry.Attribution)))
+-		entry.HandlerReturnNano = time.Now().UnixNano()
++		returned := time.Now()
++		entry.HandlerReturnNano = returned.UnixNano()
++		entry.Returned = returned
+ 		entry.Attribution.markComplete()
+ 	})
+ }
+--- a/internal/server/proxy_copy_attribution_test.go
++++ b/internal/server/proxy_copy_attribution_test.go
+@@ -109,6 +109,9 @@
+ 	if sumProxyCopyBuckets(snapshot.Read.Buckets) != snapshot.Read.Calls {
+ 		t.Fatalf("read histogram = %v calls=%d", snapshot.Read.Buckets, snapshot.Read.Calls)
+ 	}
++	if snapshot.Read.SpanNanos < snapshot.Read.TotalNanos {
++		t.Fatalf("read monotonic span=%d total=%d", snapshot.Read.SpanNanos, snapshot.Read.TotalNanos)
++	}
+ }
+ 
+ func TestProxyCopyAttributionPartialReadErrorAndPublication(t *testing.T) {
+@@ -156,6 +159,37 @@
+ 	}
+ 	if snapshot.Longest[0].DurationNS != uint64((3*time.Second).Nanoseconds()) || snapshot.Longest[7].DurationNS == 0 {
+ 		t.Fatalf("bounded longest stalls = %+v", snapshot.Longest)
++	}
++	expectedSpan := durations[len(durations)-1] + time.Duration(len(durations)-1)*4*time.Second
++	if snapshot.SpanNanos != uint64(expectedSpan.Nanoseconds()) || snapshot.TotalNanos > snapshot.SpanNanos {
++		t.Fatalf("monotonic span=%d want=%d total=%d", snapshot.SpanNanos, expectedSpan.Nanoseconds(), snapshot.TotalNanos)
++	}
++}
++
++func TestProxyCopyAttributionMonotonicDurationsIgnoreUnixFields(t *testing.T) {
++	base := time.Now()
++	metric := proxyCopyAttributionMetric{}
++	metric.observe(base, base.Add(10*time.Millisecond), 1)
++	metric.observe(base.Add(25*time.Millisecond), base.Add(40*time.Millisecond), 1)
++	metric.firstUnixNS = 9_000_000_000
++	metric.lastUnixNS = 9_000_000_001
++	snapshot := metric.snapshot()
++	if snapshot.TotalNanos != uint64((25*time.Millisecond).Nanoseconds()) ||
++		snapshot.SpanNanos != uint64((40*time.Millisecond).Nanoseconds()) ||
++		snapshot.LastUnix-snapshot.FirstUnix != 1 {
++		t.Fatalf("metric snapshot = %+v", snapshot)
++	}
++
++	attribution := &proxyCopyAttribution{}
++	attribution.markComplete()
++	entry := &qualificationWANCopyAttributionEntry{
++		StartedUnixNano: 50, HandlerReturnNano: 51,
++		Started: base, Returned: base.Add(75 * time.Millisecond), Attribution: attribution,
++	}
++	record := entry.snapshot()
++	if record.HandlerElapsedNS != uint64((75*time.Millisecond).Nanoseconds()) ||
++		record.HandlerReturnNano-record.StartedUnixNano != 1 {
++		t.Fatalf("handler snapshot = %+v", record)
+ 	}
+ }
+ 
+@@ -406,7 +440,7 @@
+ 	close(release)
+ 	<-done
+ 	complete := entry.snapshot()
+-	if !complete.Attribution.Complete || complete.StartedUnixNano == 0 || complete.HandlerReturnNano == 0 || complete.Attribution.Read.Calls != 1 || complete.Attribution.Read.Bytes != 7 {
++	if !complete.Attribution.Complete || complete.StartedUnixNano == 0 || complete.HandlerReturnNano == 0 || complete.HandlerElapsedNS == 0 || complete.Attribution.Read.Calls != 1 || complete.Attribution.Read.Bytes != 7 {
+ 		t.Fatalf("completed publication = %+v", complete)
+ 	}
+ }

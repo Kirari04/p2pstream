@@ -1,0 +1,11 @@
+--- a/qualify-proxy-agent-growth-wan-copy-attribution.sh
++++ b/qualify-proxy-agent-growth-wan-copy-attribution.sh
+@@ -1451,7 +1451,7 @@
+                          "new": sum(trace["reused"] is False for trace in trace_rows),
+                          "put_idle_absent": sum(not trace["put_idle_conn"] for trace in trace_rows)},
+         "copy_attribution_issues_by_sequence": copy_issues_by_sequence,
+-        "copy_attribution_interpretation": "Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with handler wall time. Inter-read gaps include downstream Write time and bookkeeping and are never added as an independent component. POST observations cover only the 32-byte response copy, not upload request-body handling.",
++        "copy_attribution_interpretation": "Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with monotonic handler elapsed time. Unix timestamps are retained only for coarse correlation. Inter-read gaps include downstream Write time and bookkeeping and are never added as an independent component. POST observations cover only the 32-byte response copy, not upload request-body handling.",
+         "interpretation": "Observational diagnostic only; throughput is not qualification evidence and medians do not establish health or causality. Warmup rows explicitly close idle transports. Sequences 9-12 are the first post-close visits to four concrete lane keys; only later same-key visits classify reuse, bound to the prior successful PutIdleConn timestamp and exact origin connection identity.",
+     }
+     with open(destination, "w", encoding="utf-8") as output_file:

@@ -1,0 +1,7 @@
+tmp/continuation-20261016/wan-copy-attribution-source/run-wan-copy-attribution-diagnostic.sh \
+  --server-binary tmp/continuation-20261016/wan-copy-attribution-source/build/bin/current-server-wan-copy-attribution-audited.test \
+  --aggregate-agent-binary tmp/continuation-20261016/current-wan-prep/bin/current-agent.test \
+  --server-source-ref 8ac4c8df8237e37777ba2fac0da6f949da17bdea \
+  --aggregate-agent-source-ref 8ac4c8df8237e37777ba2fac0da6f949da17bdea \
+  --output-dir tmp/continuation-20261016/wan-copy-attribution-source/runs/tiny-copy-attribution-smoke-1 \
+  --smoke

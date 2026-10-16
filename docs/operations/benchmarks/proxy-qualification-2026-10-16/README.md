@@ -26,6 +26,12 @@ comparison.
   every 29.7 MB/s phase floor; H2 fails retained-warmup at 14.242 MB/s and
   steady state at 27.327 MB/s. Exact protocol, reuse and natural cleanup checks
   pass in both arms. This diagnostic does not clear the original WAN gate.
+- [`matched-verified-wan-copy-attribution/README.md`](matched-verified-wan-copy-attribution/README.md)
+  preserves the failed and corrected copy-timing fixtures and a one-shot
+  32-row sustained diagnostic. H1 fails two download floors. H2 retains the
+  exact key and origin on its slow sequence 14, then expires the intended
+  sequence-15/16 revisits; its upstream-reuse classification is inconclusive.
+  The observed `Read` duration does not establish a cause or clear the WAN gate.
 - [`sql-hierarchical64-rejected/README.md`](sql-hierarchical64-rejected/README.md)
   preserves the rejected 64→16→single event-insert screen. Large flushes improve,
   but a smaller-flush pair exceeds the fixed regression ceiling; no code is retained.
@@ -263,6 +269,22 @@ the failed floors. This is a failed protocol diagnostic, not a causal finding
 or original-gate clearance; HAProxy, pressure, capacity and integration gates
 remain separate. See the
 [matched verified H1/H2 evidence](matched-verified-wan-protocol/README.md).
+
+A bounded follow-up adds same-clock response-copy timings without retaining a
+runtime change. Its single 16-row-per-arm sustained cohort is rejected. H1 is
+observationally complete but falls below 29.7 MB/s at sequences 9 and 11
+(29.452 and 29.673 MB/s). H2 sequence 14 reuses the exact key and origin, but
+reaches only 14.550 MB/s; 17.334 seconds of its 18.305-second handler interval
+are observed in upstream `Read`, versus 0.803 seconds in downstream `Write`.
+That delay moves the intended sequence-15/16 revisits to 34.588/35.001 seconds
+idle, beyond the unchanged 30-second deadline, and both open new origins. H2
+therefore remains `inconclusive-upstream-reuse`. All 32 payloads, protocols,
+certificate observations, events and copy totals are exact, and all ten
+process exits are natural. This localizes an observed boundary without
+establishing a cause. The original 90% WAN blocker
+and the HAProxy, pressure, capacity and integration gates remain open. A
+narrower inside-`Read` direction is pending architecture review; no rerun is
+authorized. See the [copy-timing evidence](matched-verified-wan-copy-attribution/README.md).
 
 The earlier final-runtime checkpoint
 `dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response

@@ -1,0 +1,10 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "upstream_read longest stalls are not descending"
+  ],
+  "name": "stall-order",
+  "stderr": "copy attribution validation failed: upstream_read longest stalls are not descending\n",
+  "stdout": ""
+}

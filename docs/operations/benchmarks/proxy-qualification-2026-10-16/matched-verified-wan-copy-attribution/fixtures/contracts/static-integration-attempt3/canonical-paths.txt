@@ -1,0 +1,4 @@
+server=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-attribution-source/build/bin/current-server-wan-copy-attribution.test
+agent=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/bin/current-agent.test
+cert=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-protocol-source/runs/sustained-matched-1/tls/public.test.crt.pem
+key=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-protocol-source/runs/sustained-matched-1/tls/public.test.key.pem

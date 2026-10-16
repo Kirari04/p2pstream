@@ -1,0 +1,304 @@
+{
+  "accepted": true,
+  "cases": [
+    {
+      "actual_status": 0,
+      "expected_status": 0,
+      "issues": [],
+      "name": "valid-download",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "actual_status": 0,
+      "expected_status": 0,
+      "issues": [],
+      "name": "valid-upload-response-only",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "actual_status": 0,
+      "expected_status": 0,
+      "issues": [],
+      "name": "valid-zero-duration-observations",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "actual_status": 0,
+      "expected_status": 0,
+      "issues": [],
+      "name": "valid-monotonic-duration-with-shorter-wall-span",
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy envelope correlation/cardinality changed"
+      ],
+      "name": "overflow",
+      "stderr": "copy attribution validation failed: copy envelope correlation/cardinality changed\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy envelope correlation/cardinality changed"
+      ],
+      "name": "wrong-store-count",
+      "stderr": "copy attribution validation failed: copy envelope correlation/cardinality changed\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy envelope correlation/cardinality changed"
+      ],
+      "name": "repeated-record",
+      "stderr": "copy attribution validation failed: copy envelope correlation/cardinality changed\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy record is incomplete or wrapper/ReadFrom cardinality changed"
+      ],
+      "name": "incomplete",
+      "stderr": "copy attribution validation failed: copy record is incomplete or wrapper/ReadFrom cardinality changed\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy record scope/request correlation changed"
+      ],
+      "name": "wrong-scope",
+      "stderr": "copy attribution validation failed: copy record scope/request correlation changed\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy record scope/request correlation changed"
+      ],
+      "name": "wrong-method",
+      "stderr": "copy attribution validation failed: copy record scope/request correlation changed\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy record scope/request correlation changed"
+      ],
+      "name": "wrong-path",
+      "stderr": "copy attribution validation failed: copy record scope/request correlation changed\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy record is incomplete or wrapper/ReadFrom cardinality changed"
+      ],
+      "name": "body-wrap-count",
+      "stderr": "copy attribution validation failed: copy record is incomplete or wrapper/ReadFrom cardinality changed\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy record is incomplete or wrapper/ReadFrom cardinality changed"
+      ],
+      "name": "read-from",
+      "stderr": "copy attribution validation failed: copy record is incomplete or wrapper/ReadFrom cardinality changed\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "upstream_read bytes 9 != 4194304"
+      ],
+      "name": "wrong-read-bytes",
+      "stderr": "copy attribution validation failed: upstream_read bytes 9 != 4194304\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "downstream_write bytes 9 != 4194304"
+      ],
+      "name": "wrong-write-bytes",
+      "stderr": "copy attribution validation failed: downstream_write bytes 9 != 4194304\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy recorded a read/write error or short write"
+      ],
+      "name": "read-error",
+      "stderr": "copy attribution validation failed: copy recorded a read/write error or short write\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy recorded a read/write error or short write"
+      ],
+      "name": "write-error",
+      "stderr": "copy attribution validation failed: copy recorded a read/write error or short write\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy recorded a read/write error or short write"
+      ],
+      "name": "short-write",
+      "stderr": "copy attribution validation failed: copy recorded a read/write error or short write\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "upstream_read histogram does not conserve calls"
+      ],
+      "name": "histogram-conservation",
+      "stderr": "copy attribution validation failed: upstream_read histogram does not conserve calls\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "inter_read_gap histogram does not conserve calls",
+        "inter_read_gap empty metric has observations",
+        "inter_read_gap stall 0 call invalid",
+        "inter-read gap calls do not equal read calls minus one"
+      ],
+      "name": "gap-call-conservation",
+      "stderr": "copy attribution validation failed: inter_read_gap histogram does not conserve calls; inter_read_gap empty metric has observations; inter_read_gap stall 0 call invalid; inter-read gap calls do not equal read calls minus one\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "upstream_read stall 0 call invalid"
+      ],
+      "name": "stall-call-bound",
+      "stderr": "copy attribution validation failed: upstream_read stall 0 call invalid\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "upstream_read longest stalls are not descending"
+      ],
+      "name": "stall-order",
+      "stderr": "copy attribution validation failed: upstream_read longest stalls are not descending\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "upstream_read timestamps outside handler interval",
+        "upstream_read stall 0 timestamp invalid",
+        "upstream_read stall 1 timestamp invalid",
+        "downstream_write timestamps outside handler interval",
+        "downstream_write stall 0 timestamp invalid",
+        "inter_read_gap timestamps outside handler interval",
+        "inter_read_gap stall 0 timestamp invalid"
+      ],
+      "name": "handler-time-bound",
+      "stderr": "copy attribution validation failed: upstream_read timestamps outside handler interval; upstream_read stall 0 timestamp invalid; upstream_read stall 1 timestamp invalid; downstream_write timestamps outside handler interval; downstream_write stall 0 timestamp invalid; inter_read_gap timestamps outside handler interval; inter_read_gap stall 0 timestamp invalid\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "upstream_read total exceeds monotonic span",
+        "upstream read span does not equal read plus inter-read-gap totals"
+      ],
+      "name": "monotonic-metric-span",
+      "stderr": "copy attribution validation failed: upstream_read total exceeds monotonic span; upstream read span does not equal read plus inter-read-gap totals\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "downstream write monotonic span exceeds handler duration"
+      ],
+      "name": "metric-span-over-handler",
+      "stderr": "copy attribution validation failed: downstream write monotonic span exceeds handler duration\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "upstream read span does not equal read plus inter-read-gap totals"
+      ],
+      "name": "read-gap-telescope",
+      "stderr": "copy attribution validation failed: upstream read span does not equal read plus inter-read-gap totals\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "downstream_write total exceeds monotonic span",
+        "read plus write duration exceeds handler interval"
+      ],
+      "name": "read-write-handler-budget",
+      "stderr": "copy attribution validation failed: downstream_write total exceeds monotonic span; read plus write duration exceeds handler interval\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "upstream_read metric missing",
+        "upstream read calls invalid",
+        "inter-read gap calls do not equal read calls minus one",
+        "read plus write duration exceeds handler interval",
+        "read plus inter-read-gap duration exceeds handler interval",
+        "upstream read monotonic span exceeds handler duration",
+        "upstream read span does not equal read plus inter-read-gap totals"
+      ],
+      "name": "malformed-metric",
+      "stderr": "copy attribution validation failed: upstream_read metric missing; upstream read calls invalid; inter-read gap calls do not equal read calls minus one; read plus write duration exceeds handler interval; read plus inter-read-gap duration exceeds handler interval; upstream read monotonic span exceeds handler duration; upstream read span does not equal read plus inter-read-gap totals\n",
+      "stdout": ""
+    },
+    {
+      "actual_status": 1,
+      "expected_status": 1,
+      "issues": [
+        "copy record is not an object"
+      ],
+      "name": "malformed-record",
+      "stderr": "copy attribution validation failed: copy record is not an object\n",
+      "stdout": ""
+    }
+  ]
+}

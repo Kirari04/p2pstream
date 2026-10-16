@@ -1,0 +1,9 @@
+{
+  "accepted": true,
+  "agent_sha256": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+  "generated_runner_sha256": "959cec45868ceaf080bd26560c3ea0fb90d6da695f8ae77679fe3ba40b9bbdb2",
+  "runner_reconstruction_sha256": "959cec45868ceaf080bd26560c3ea0fb90d6da695f8ae77679fe3ba40b9bbdb2",
+  "schema_version": 1,
+  "server_sha256": "0530cdc308bf06964f61d55ca730309e125cabd3c296ed3c22f0cfe218552013",
+  "traffic_run": false
+}

@@ -1,0 +1,14 @@
+{
+  "accepted": true,
+  "actual_changed_paths": [
+    "internal/server/proxy_copy_attribution.go",
+    "internal/server/proxy_copy_attribution_test.go",
+    "internal/server/proxy_qualification_wan_copy_attribution_test.go"
+  ],
+  "expected_changed_paths": [
+    "internal/server/proxy_copy_attribution.go",
+    "internal/server/proxy_copy_attribution_test.go",
+    "internal/server/proxy_qualification_wan_copy_attribution_test.go"
+  ],
+  "schema_version": 1
+}

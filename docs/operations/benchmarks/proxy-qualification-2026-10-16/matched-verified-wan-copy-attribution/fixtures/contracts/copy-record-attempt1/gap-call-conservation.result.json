@@ -1,0 +1,13 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "inter_read_gap histogram does not conserve calls",
+    "inter_read_gap empty metric has observations",
+    "inter_read_gap stall 0 call invalid",
+    "inter-read gap calls do not equal read calls minus one"
+  ],
+  "name": "gap-call-conservation",
+  "stderr": "copy attribution validation failed: inter_read_gap histogram does not conserve calls; inter_read_gap empty metric has observations; inter_read_gap stall 0 call invalid; inter-read gap calls do not equal read calls minus one\n",
+  "stdout": ""
+}

@@ -1,0 +1,149 @@
+{
+  "agent_sha256": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+  "artifacts": {
+    "arm_supervisor": {
+      "path": "run-wan-copy-monotonic-arm.sh",
+      "sha256": "2eaf7ca1898313f8f3d1b145dc9a91278d3c78c45936714d12a7bc9c91cc24e0"
+    },
+    "arm_validator": {
+      "path": "validate-wan-copy-monotonic-arm.py",
+      "sha256": "3427533d04541048838afe171ae70be2c07449a6b2e84480ee0a62339daa9a26"
+    },
+    "arm_validator_patch": {
+      "path": "monotonic-arm-validator.patch",
+      "sha256": "fcae97fd6653cb438e5b85295844b394aa1108e0f66d064cdee5942b412d04f3"
+    },
+    "audited_build_manifest": {
+      "path": "provenance/audited-server-build-manifest.json",
+      "sha256": "0ba246408bdabdb31bad837d0163b9957c93cbe8888eef2ed3fd4c29d2fed38b"
+    },
+    "audited_build_script": {
+      "path": "provenance/run-audited-server-build.sh",
+      "sha256": "49d7f4a6cf14d400193b1400a6e53ff4c1cbc03f63fa507e9c0a2d5a4c7f3187"
+    },
+    "build_invocation": {
+      "path": "provenance/audited-server-build/invocation.txt",
+      "sha256": "d8924d134e1aa079fe615170ba034e062b01a71dfad5044674876ac6f0fee804"
+    },
+    "build_manifest": {
+      "path": "provenance/monotonic-build-manifest.json",
+      "sha256": "f505bcd62f1bd050f21f4ddc6d407b377ebb5039029ec66980439f050023ada3"
+    },
+    "copy_contract_summary": {
+      "path": "contracts/results/approved-invariants-attempt1/summary.json",
+      "sha256": "68f611196a207d411a57f50fbf4ca8c0ac68aaa820683eccb23132e005af8e48"
+    },
+    "copy_record_validator": {
+      "path": "validate-copy-record.py",
+      "sha256": "f1c70a2f347a77975a00330d4d37929700b1a38bac5fa195c3dff02b3f773c26"
+    },
+    "design": {
+      "path": "DESIGN.md",
+      "sha256": "9ce306d5b126e970c873eb1a7d1b38917fc7c5a12ccb2d3d2846d4ceb521bd2d"
+    },
+    "generated_runner": {
+      "path": "generated/qualify-proxy-agent-growth-wan-copy-monotonic.sh",
+      "sha256": "959cec45868ceaf080bd26560c3ea0fb90d6da695f8ae77679fe3ba40b9bbdb2"
+    },
+    "go_version_m": {
+      "path": "provenance/audited-server-build/output.go-version-m.txt",
+      "sha256": "d19cf445e9e408bb13313058adee25d76463b38a905bd97ec0a62b4838aa4771"
+    },
+    "integration_notes": {
+      "path": "INTEGRATION-NOTES.md",
+      "sha256": "892aa83eb2d81fb172df68e3a6029ddfb07e3f64402c38238892165ff4c9da6d"
+    },
+    "observer_patch": {
+      "path": "monotonic-observer.patch",
+      "sha256": "a8cc867dc9e12681e74b6a51396941d0a03c5145450eabff2e0bae0d8e79965a"
+    },
+    "pair_wrapper": {
+      "path": "run-wan-copy-monotonic-diagnostic.sh",
+      "sha256": "990077dbececd5f0c92ef0b845cc95b50a0af1b415e301048ab35ea53a67b5e5"
+    },
+    "runner_integration_patch": {
+      "path": "monotonic-runner-integration.patch",
+      "sha256": "8941160d144a28b45043870d3997768d9eeb1fce45272afa304a6dac9dca613d"
+    },
+    "runner_label_patch": {
+      "path": "monotonic-runner.patch",
+      "sha256": "23cb24cd59481005ae83e580a8d20dedc0c4e1167df01ffd3ec8c854a807263a"
+    },
+    "runner_reconstruction_attestation": {
+      "path": "provenance/runner-reconstruction-attestation.json",
+      "sha256": "30a2b3aed64bb485dac1fcbe10a47d85839fb22ed6ed5bf6c784607f3a240b83"
+    },
+    "server_binary": {
+      "path": "build/bin/current-server-wan-copy-monotonic-audited.test",
+      "sha256": "0530cdc308bf06964f61d55ca730309e125cabd3c296ed3c22f0cfe218552013"
+    },
+    "source_attestation": {
+      "path": "provenance/final-source-binary-toolchain-attestation.json",
+      "sha256": "18a25434183eeecf08d3214eb6748c528a89fa2f74bc7c98854075eafb3ed37a"
+    },
+    "source_diff_contract": {
+      "path": "build/source-diff-contract.json",
+      "sha256": "4aedac0180fafcfd58b57aae3ac4c584eb2888617dea4715a1b89460c28fdfd3"
+    },
+    "source_manifest": {
+      "path": "build/source-post-test.json",
+      "sha256": "e3fd8a14551dd2ba1fb50b2bd05a62f692214c6935529fc7a9394577e0e78fe9"
+    },
+    "static_contract_result": {
+      "path": "contracts/static-integration-attempt1/result.json",
+      "sha256": "fa8ffba2c5ae5e57ecac309a257995f104df821a864321d69a75c138efcf6060"
+    },
+    "validator_contract_patch": {
+      "path": "monotonic-validator-contract.patch",
+      "sha256": "f1dafaabc985842bc7cbc18a199e79abdc709e9021f4c5d7695ad17eb5e90f63"
+    }
+  },
+  "base_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "canonical_go_sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+  "recorded_unix_nano": 1792174071208165263,
+  "schema_version": 1,
+  "scope": "review checkpoint; no traffic authorized or run",
+  "server_sha256": "0530cdc308bf06964f61d55ca730309e125cabd3c296ed3c22f0cfe218552013",
+  "statuses": {
+    "arm_validator_contracts_attempt1": 0,
+    "arm_validator_contracts_attempt2_final": 0,
+    "audited_build_wrapper": 0,
+    "audited_compile": 0,
+    "audited_source_pre_post": 0,
+    "copy_record_contracts_29_cases": 0,
+    "focused_normal": 0,
+    "focused_race": 0,
+    "patch_reconstruction": 0,
+    "python_compile": 0,
+    "source_pre_post_test": 0,
+    "static_integration_contract": 0
+  },
+  "tool_envelope_limitations": [
+    {
+      "inner_status": 0,
+      "operation": "focused race",
+      "outer_status": 1,
+      "record": "logs/focused-race-attempt1.tool-envelope.json"
+    },
+    {
+      "inner_status": 0,
+      "operation": "audited compile wrapper",
+      "outer_status": 1,
+      "record": "logs/audited-build.tool-envelope.json"
+    },
+    {
+      "inner_status": 0,
+      "operation": "arm contracts attempt1",
+      "outer_status": 1,
+      "record": "logs/arm-validator-contracts-attempt1.tool-envelope.json"
+    },
+    {
+      "inner_status": 0,
+      "operation": "static integration",
+      "outer_status": 1,
+      "record": "logs/static-integration-attempt1.tool-envelope.json"
+    }
+  ],
+  "tracked_worktree_clean": true,
+  "traffic_run": false
+}
