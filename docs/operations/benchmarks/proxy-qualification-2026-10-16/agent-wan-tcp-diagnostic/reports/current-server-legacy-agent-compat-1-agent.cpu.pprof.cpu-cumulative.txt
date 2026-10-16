@@ -1,0 +1,64 @@
+File: agent.test
+Build ID: 2c1b796d824f205535926c758377823561f6140b
+Type: cpu
+Time: 2026-10-16 06:44:35 CEST
+Duration: 129.68s, Total samples = 9.89s ( 7.63%)
+Showing nodes accounting for 6.77s, 68.45% of 9.89s total
+Dropped 258 nodes (cum <= 0.05s)
+Showing top 55 nodes out of 143
+      flat  flat%   sum%        cum   cum%
+     5.28s 53.39% 53.39%      5.28s 53.39%  internal/runtime/syscall/linux.Syscall6
+     0.01s   0.1% 53.49%      4.89s 49.44%  syscall.Syscall
+         0     0% 53.49%      4.80s 48.53%  internal/poll.ignoringEINTRIO (inline)
+     0.01s   0.1% 53.59%      4.79s 48.43%  syscall.RawSyscall6
+         0     0% 53.59%      3.20s 32.36%  github.com/hashicorp/yamux.(*Session).send
+     0.01s   0.1% 53.69%      3.20s 32.36%  github.com/hashicorp/yamux.(*Session).sendLoop
+     0.01s   0.1% 53.79%      3.08s 31.14%  net.(*conn).Write
+     0.02s   0.2% 53.99%      3.07s 31.04%  net.(*netFD).Write
+         0     0% 53.99%      3.05s 30.84%  internal/poll.(*FD).Write
+     0.01s   0.1% 54.10%      3.03s 30.64%  syscall.Write (inline)
+     0.01s   0.1% 54.20%      3.02s 30.54%  syscall.write
+     0.02s   0.2% 54.40%      2.86s 28.92%  crypto/tls.(*Conn).Write
+         0     0% 54.40%      2.81s 28.41%  crypto/tls.(*Conn).writeRecordLocked
+         0     0% 54.40%      2.49s 25.18%  io.Copy (inline)
+     0.02s   0.2% 54.60%      2.49s 25.18%  io.copyBuffer
+     0.02s   0.2% 54.80%      2.04s 20.63%  crypto/tls.(*Conn).write
+         0     0% 54.80%         2s 20.22%  github.com/hashicorp/yamux.(*Session).recv
+         0     0% 54.80%         2s 20.22%  github.com/hashicorp/yamux.(*Session).recvLoop
+     0.03s   0.3% 55.11%      1.83s 18.50%  internal/poll.(*FD).Read
+     0.04s   0.4% 55.51%      1.79s 18.10%  bufio.(*Reader).Read
+         0     0% 55.51%      1.77s 17.90%  syscall.Read (inline)
+         0     0% 55.51%      1.77s 17.90%  syscall.read
+     0.01s   0.1% 55.61%      1.73s 17.49%  net/http.(*readWriteCloserBody).Read
+     0.01s   0.1% 55.71%      1.72s 17.39%  crypto/tls.(*Conn).Read
+         0     0% 55.71%      1.63s 16.48%  crypto/tls.(*Conn).readRecord (inline)
+     0.02s   0.2% 55.92%      1.63s 16.48%  crypto/tls.(*Conn).readRecordOrCCS
+         0     0% 55.92%      1.62s 16.38%  net.(*conn).Read
+     0.02s   0.2% 56.12%      1.62s 16.38%  net.(*netFD).Read
+         0     0% 56.12%      1.52s 15.37%  net.(*TCPConn).ReadFrom
+         0     0% 56.12%      1.52s 15.37%  net.(*TCPConn).readFrom
+         0     0% 56.12%      1.52s 15.37%  net.genericReadFrom
+         0     0% 56.12%      1.52s 15.37%  p2pstream/internal/agent.relayTunnelStream.func1
+     0.01s   0.1% 56.22%      1.41s 14.26%  runtime.mcall
+     0.03s   0.3% 56.52%      1.40s 14.16%  runtime.park_m
+     0.02s   0.2% 56.72%      1.35s 13.65%  runtime.schedule
+     0.07s  0.71% 57.43%      1.32s 13.35%  runtime.findRunnable
+         0     0% 57.43%      1.06s 10.72%  io.ReadAtLeast
+         0     0% 57.43%      1.06s 10.72%  io.ReadFull (inline)
+     0.01s   0.1% 57.53%      1.03s 10.41%  crypto/tls.(*Conn).readFromUntil
+         0     0% 57.53%      1.02s 10.31%  bytes.(*Buffer).ReadFrom
+     0.03s   0.3% 57.84%      1.02s 10.31%  crypto/tls.(*atLeastReader).Read
+         0     0% 57.84%      0.97s  9.81%  net.(*TCPConn).WriteTo
+         0     0% 57.84%      0.97s  9.81%  net.(*TCPConn).writeTo
+         0     0% 57.84%      0.97s  9.81%  net.genericWriteTo
+         0     0% 57.84%      0.97s  9.81%  p2pstream/internal/agent.relayTunnelStream.func2
+     0.01s   0.1% 57.94%      0.93s  9.40%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+     0.93s  9.40% 67.34%      0.93s  9.40%  runtime.futex
+         0     0% 67.34%      0.92s  9.30%  github.com/hashicorp/yamux.(*Stream).readData
+     0.01s   0.1% 67.44%      0.76s  7.68%  crypto/tls.(*halfConn).encrypt
+         0     0% 67.44%      0.76s  7.68%  github.com/hashicorp/yamux.(*Stream).readDataPayload
+     0.03s   0.3% 67.75%      0.76s  7.68%  github.com/hashicorp/yamux.(*recvBuffer).readFrom
+     0.01s   0.1% 67.85%      0.67s  6.77%  crypto/tls.(*xorNonceAEAD).Seal
+     0.03s   0.3% 68.15%      0.66s  6.67%  crypto/internal/fips140/aes/gcm.(*GCM).sealAfterIndicator
+         0     0% 68.15%      0.66s  6.67%  crypto/internal/fips140/aes/gcm.(*GCMWithXORCounterNonce).Seal
+     0.03s   0.3% 68.45%      0.66s  6.67%  runtime.systemstack

@@ -1,0 +1,119 @@
+[
+  {
+    "mode": "aggregate-v1",
+    "remote_addr": "10.212.0.2:53016",
+    "lane": 0,
+    "server_log": "current-server-aggregate-v1-1-server.log",
+    "connected_at": "2026-10-16T06:46:45+02:00",
+    "server_metadata": {
+      "pid": 437472,
+      "url": "https://10.211.0.1:35345",
+      "admin_url": "http://127.0.0.1:44519",
+      "management_url": "https://10.211.0.1:46353"
+    }
+  },
+  {
+    "mode": "aggregate-v1",
+    "remote_addr": "10.212.0.2:53030",
+    "lane": 1,
+    "server_log": "current-server-aggregate-v1-1-server.log",
+    "connected_at": "2026-10-16T06:46:45+02:00",
+    "server_metadata": {
+      "pid": 437472,
+      "url": "https://10.211.0.1:35345",
+      "admin_url": "http://127.0.0.1:44519",
+      "management_url": "https://10.211.0.1:46353"
+    }
+  },
+  {
+    "mode": "aggregate-v1",
+    "remote_addr": "10.212.0.2:53050",
+    "lane": 4,
+    "server_log": "current-server-aggregate-v1-1-server.log",
+    "connected_at": "2026-10-16T06:46:45+02:00",
+    "server_metadata": {
+      "pid": 437472,
+      "url": "https://10.211.0.1:35345",
+      "admin_url": "http://127.0.0.1:44519",
+      "management_url": "https://10.211.0.1:46353"
+    }
+  },
+  {
+    "mode": "aggregate-v1",
+    "remote_addr": "10.212.0.2:53032",
+    "lane": 2,
+    "server_log": "current-server-aggregate-v1-1-server.log",
+    "connected_at": "2026-10-16T06:46:45+02:00",
+    "server_metadata": {
+      "pid": 437472,
+      "url": "https://10.211.0.1:35345",
+      "admin_url": "http://127.0.0.1:44519",
+      "management_url": "https://10.211.0.1:46353"
+    }
+  },
+  {
+    "mode": "aggregate-v1",
+    "remote_addr": "10.212.0.2:53028",
+    "lane": 3,
+    "server_log": "current-server-aggregate-v1-1-server.log",
+    "connected_at": "2026-10-16T06:46:45+02:00",
+    "server_metadata": {
+      "pid": 437472,
+      "url": "https://10.211.0.1:35345",
+      "admin_url": "http://127.0.0.1:44519",
+      "management_url": "https://10.211.0.1:46353"
+    }
+  },
+  {
+    "mode": "legacy",
+    "remote_addr": "10.212.0.2:52800",
+    "lane": 0,
+    "server_log": "current-server-legacy-agent-compat-1-server.log",
+    "connected_at": "2026-10-16T06:44:35+02:00",
+    "server_metadata": {
+      "pid": 432173,
+      "url": "https://10.211.0.1:45223",
+      "admin_url": "http://127.0.0.1:39567",
+      "management_url": "https://10.211.0.1:34883"
+    }
+  },
+  {
+    "mode": "legacy",
+    "remote_addr": "10.212.0.2:52816",
+    "lane": 2,
+    "server_log": "current-server-legacy-agent-compat-1-server.log",
+    "connected_at": "2026-10-16T06:44:35+02:00",
+    "server_metadata": {
+      "pid": 432173,
+      "url": "https://10.211.0.1:45223",
+      "admin_url": "http://127.0.0.1:39567",
+      "management_url": "https://10.211.0.1:34883"
+    }
+  },
+  {
+    "mode": "legacy",
+    "remote_addr": "10.212.0.2:52826",
+    "lane": 3,
+    "server_log": "current-server-legacy-agent-compat-1-server.log",
+    "connected_at": "2026-10-16T06:44:35+02:00",
+    "server_metadata": {
+      "pid": 432173,
+      "url": "https://10.211.0.1:45223",
+      "admin_url": "http://127.0.0.1:39567",
+      "management_url": "https://10.211.0.1:34883"
+    }
+  },
+  {
+    "mode": "legacy",
+    "remote_addr": "10.212.0.2:52818",
+    "lane": 1,
+    "server_log": "current-server-legacy-agent-compat-1-server.log",
+    "connected_at": "2026-10-16T06:44:35+02:00",
+    "server_metadata": {
+      "pid": 432173,
+      "url": "https://10.211.0.1:45223",
+      "admin_url": "http://127.0.0.1:39567",
+      "management_url": "https://10.211.0.1:34883"
+    }
+  }
+]

@@ -1,0 +1,156 @@
+{
+  "diagnostic_only": true,
+  "original_failed_output": "/tmp/p2p-final-wan-dc738e90.TwXS9XWY/results.jsonl",
+  "source_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "actual_binaries": {
+    "server": {
+      "path": "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+      "sha256": "c7950a1bd250233b395eb8c19d913ffb48d511656d7c41a1ad446baefb6bbaf5"
+    },
+    "aggregate-agent": {
+      "path": "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/agent.test",
+      "sha256": "e99c619a4a1f07656b422f4c5965c874513d453afc7082939c2affbd59194793"
+    },
+    "legacy-agent": {
+      "path": "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec"
+    }
+  },
+  "command": [
+    "bash",
+    "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/scripts/qualify-proxy-agent-growth-diagnostic.sh",
+    "--server-binary",
+    "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/server.sh",
+    "--aggregate-agent-binary",
+    "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/aggregate-agent.sh",
+    "--legacy-agent-binary",
+    "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/legacy-agent.sh",
+    "--output",
+    "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/results.jsonl",
+    "--runs",
+    "1",
+    "--warmup-mib",
+    "256",
+    "--steady-mib",
+    "256",
+    "--transfer-repetitions",
+    "3",
+    "--required-pool-mib",
+    "80",
+    "--rtt-ms",
+    "80",
+    "--server-source-ref",
+    "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+    "--aggregate-agent-source-ref",
+    "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+    "--legacy-agent-source-ref",
+    "3ec137c3ad3d07028e867042fb00d3933912d7ab"
+  ],
+  "ss_interval_seconds": 0.1,
+  "qdisc_interval_seconds": 1,
+  "collector_cpu_set": "8-15",
+  "native_profiles": [
+    {
+      "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-agent.block.pprof",
+      "sha256": "7ed602a4519f0f3a726457d9f165ee8c346c69472f7784c9a03363f492364eb8",
+      "size_bytes": 10312
+    },
+    {
+      "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-agent.cpu.pprof",
+      "sha256": "f7532b175b3bfa7c2a544a84beb855dc3db9c380f7ef9207f856640eea494654",
+      "size_bytes": 28912
+    },
+    {
+      "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-server.block.pprof",
+      "sha256": "249d5c9b417c6f005db6a1223f4342b496f27b256ae0925311f6dab40c289dcb",
+      "size_bytes": 17280
+    },
+    {
+      "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-server.cpu.pprof",
+      "sha256": "76ea19a7ae3f85a086bdb68c7f8a79a993309a89a65c7538cfb6e8bdd2b414df",
+      "size_bytes": 57385
+    },
+    {
+      "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-agent.block.pprof",
+      "sha256": "2f75c585a75fd229914f0f1bcdedc73dbba99695f69b32405a7e504110569d6a",
+      "size_bytes": 8769
+    },
+    {
+      "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-agent.cpu.pprof",
+      "sha256": "dc9edbb10cc25fba1cf7210079d7e01bc047ffd2c3f49bdd055c1decdec14aa1",
+      "size_bytes": 23425
+    },
+    {
+      "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-server.block.pprof",
+      "sha256": "6b36494133f74559a3a8087e5a0c6923e3786bb15587f032e02b866f578adbc8",
+      "size_bytes": 16976
+    },
+    {
+      "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-server.cpu.pprof",
+      "sha256": "d481dae8aaab0f915a9bc0e48413987ad55514dbaf9c1c270f3ac85c1b474a65",
+      "size_bytes": 53922
+    }
+  ],
+  "unchanged_workload": "full32 rows, same order,80ms/1Gbit,256MiB payloads,initialfourwarmups/direction,retainedwarmups,threepairedtimedtransfers/direction",
+  "files_sha256": {
+    "runner-diagnostic.patch": "e1d2454e43b9aedcf5577795ebba32e00b7a7ee8d68a00dace04db410ba5ae0f",
+    "original-runner.sh": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+    "legacy-agent.sh": "3e7456c147fcda6c582f44317c2defea4a71119849c05ebe2ceb5297e9e84d69",
+    "aggregate-agent.sh": "dc50692d6d3a3aea47210d0e69ef22ec59f3a14ed301bc56b749073a57526f98",
+    "server.sh": "df76e9e441597ad9810f54bbad47fd3e39502025f56d03cb0fdf58b1d0437ece",
+    "mark.py": "753ef7ad0972d5b3a1813ffc40967b21145f176504d78c4f88cbd73051f2cd1e",
+    "collector.py": "0ee785d416a8182265a9962e32a06574f23c1e7ebc6a50b0bcadcfafbb113f69",
+    "scripts/qualify-proxy-agent-growth-diagnostic.sh": "33a8960801564d26333e8f6d8e9ae296bdbb638666dce9ff8c37377ae2659fb8"
+  },
+  "original_failed_results": {
+    "path": "/tmp/p2p-final-wan-dc738e90.TwXS9XWY/results.jsonl",
+    "sha256": "8661030530d0a0ae079e9a206525b0d9b8127569cbbc4ae28e80b4e8826779c9",
+    "size_bytes": 181997
+  },
+  "diagnostic_pool_assertion_mib": 80,
+  "original_failed_pool_assertion_mib": 8,
+  "assertion_difference_scope": "Post-warmup pool-state assertions only; protocol windows/payload/order/throughput gate unchanged. Profiling and sampling prevent qualification.",
+  "large_local_telemetry": {
+    "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/telemetry/tcp-qdisc.jsonl",
+    "sha256": "d6de51df7893ea9f0294438a1e6728ddd19e2cffa1d094eef22620cdf7e14ff2",
+    "size_bytes": 20402213
+  },
+  "large_local_telemetry_note": "Full raw TCP/qdisc capture stays local. All32 selected active-sender time series, lane map, full per-phase reductions and qdisc endpoints are tracked; reductions cannot reconstruct every raw socket snapshot.",
+  "postprocessing_commands": [
+    [
+      "python3",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/analyze-telemetry.py"
+    ],
+    [
+      "python3",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/analyze-profiles.py"
+    ],
+    [
+      "python3",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/annotate-lanes.py"
+    ]
+  ],
+  "source_logs": [
+    {
+      "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/proxy-agent-growth.GjFvkr/current-server-aggregate-v1-1-server.log",
+      "sha256": "e960c0c90fb9ae0636cd2b12dfcefe47b73b722a2979ab72a9d6ee85542e0d08",
+      "size_bytes": 12170
+    },
+    {
+      "path": "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/proxy-agent-growth.GjFvkr/current-server-legacy-agent-compat-1-server.log",
+      "sha256": "670f2a63d524371c26d2b885604b91ede6ddb737e3f0f7ada8c8f027c89c861c",
+      "size_bytes": 11921
+    }
+  ],
+  "conservation": {
+    "rows": 32,
+    "attempted": 32,
+    "useful_completed": 32,
+    "persisted_events": 32,
+    "errors": 0,
+    "dropped_events": 0,
+    "queue_after_drain": 0,
+    "drain_errors": 0,
+    "payload_validation": "Exact full length/hash inherited from unchanged load driver and runner before row append"
+  }
+}

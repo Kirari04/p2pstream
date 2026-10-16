@@ -1,0 +1,23 @@
+import hashlib,json,subprocess
+from pathlib import Path
+root=Path(__file__).resolve().parent
+assert (root/'exit.json').exists(), 'profile analysis starts after the runner exits'
+m=json.loads((root/'manifest.json').read_text()); reports=root/'reports'; reports.mkdir(exist_ok=True)
+commands=[]
+for path in sorted((root/'profiles').glob('*.pprof')):
+ assert path.stat().st_size>0,path
+ name=path.name
+ binary=m['actual_binaries']['server' if '-server.' in name else 'aggregate-agent' if 'aggregate-v1' in name else 'legacy-agent']['path']
+ is_cpu='.cpu.' in name
+ variants=[('cpu-top',['-top','-nodecount=55']),('cpu-cumulative',['-top','-cum','-nodecount=55'])] if is_cpu else [('block-top',['-top','-nodecount=65','-sample_index=delay'])]
+ if not is_cpu:
+  variants.append(('stream-write',['-list',r'yamux\.\(\*Stream\)\.write','-sample_index=delay']))
+ for label,args in variants:
+  command=['go','tool','pprof',*args,binary,str(path)]
+  out=reports/(name+'.'+label+'.txt')
+  with out.open('w') as f: p=subprocess.run(command,stdout=f,stderr=subprocess.STDOUT)
+  commands.append({'command':command,'exit_code':p.returncode,'report':str(out.relative_to(root)),'sha256':hashlib.sha256(out.read_bytes()).hexdigest()})
+  print(path.name,label,p.returncode,flush=True)
+(root/'profile-commands.json').write_text(json.dumps(commands,indent=2)+'\n')
+assert len(list((root/'profiles').glob('*.pprof')))==8,'expected CPU+block for4endpoints'
+print('Finished profile reports',len(commands),flush=True)

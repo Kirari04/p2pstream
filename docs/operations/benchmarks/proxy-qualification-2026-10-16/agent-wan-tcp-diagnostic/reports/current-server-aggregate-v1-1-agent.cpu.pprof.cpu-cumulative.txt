@@ -1,0 +1,64 @@
+File: agent.test
+Build ID: 88a816a5f91a383c7691378cbb98944e8684eb41
+Type: cpu
+Time: 2026-10-16 06:46:45 CEST
+Duration: 130.32s, Total samples = 13.51s (10.37%)
+Showing nodes accounting for 9.42s, 69.73% of 13.51s total
+Dropped 330 nodes (cum <= 0.07s)
+Showing top 55 nodes out of 150
+      flat  flat%   sum%        cum   cum%
+     7.33s 54.26% 54.26%      7.33s 54.26%  internal/runtime/syscall/linux.Syscall6
+     0.01s 0.074% 54.33%      6.72s 49.74%  syscall.Syscall
+         0     0% 54.33%      6.66s 49.30%  internal/poll.ignoringEINTRIO (inline)
+     0.02s  0.15% 54.48%      6.52s 48.26%  syscall.RawSyscall6
+         0     0% 54.48%      4.16s 30.79%  github.com/hashicorp/yamux.(*Session).send
+     0.02s  0.15% 54.63%      4.16s 30.79%  github.com/hashicorp/yamux.(*Session).sendLoop
+     0.01s 0.074% 54.70%      3.87s 28.65%  net.(*conn).Write
+         0     0% 54.70%      3.86s 28.57%  net.(*netFD).Write
+         0     0% 54.70%      3.85s 28.50%  internal/poll.(*FD).Write
+         0     0% 54.70%      3.83s 28.35%  syscall.Write (inline)
+         0     0% 54.70%      3.83s 28.35%  syscall.write
+         0     0% 54.70%      3.58s 26.50%  crypto/tls.(*Conn).Write
+     0.04s   0.3% 55.00%      3.56s 26.35%  crypto/tls.(*Conn).writeRecordLocked
+         0     0% 55.00%      3.08s 22.80%  github.com/hashicorp/yamux.(*Session).recv
+     0.04s   0.3% 55.29%      3.08s 22.80%  github.com/hashicorp/yamux.(*Session).recvLoop
+     0.01s 0.074% 55.37%      2.88s 21.32%  internal/poll.(*FD).Read
+     0.01s 0.074% 55.44%      2.85s 21.10%  io.ReadAtLeast
+         0     0% 55.44%      2.85s 21.10%  io.ReadFull (inline)
+     0.01s 0.074% 55.51%      2.84s 21.02%  bufio.(*Reader).Read
+     0.03s  0.22% 55.74%      2.81s 20.80%  net/http.(*readWriteCloserBody).Read
+     0.01s 0.074% 55.81%      2.80s 20.73%  syscall.Read (inline)
+         0     0% 55.81%      2.79s 20.65%  syscall.read
+     0.01s 0.074% 55.88%      2.78s 20.58%  crypto/tls.(*Conn).Read
+     0.01s 0.074% 55.96%      2.73s 20.21%  crypto/tls.(*Conn).write
+         0     0% 55.96%      2.66s 19.69%  crypto/tls.(*Conn).readRecord (inline)
+     0.06s  0.44% 56.40%      2.66s 19.69%  crypto/tls.(*Conn).readRecordOrCCS
+     0.01s 0.074% 56.48%      2.63s 19.47%  net.(*conn).Read
+         0     0% 56.48%      2.62s 19.39%  net.(*netFD).Read
+     0.03s  0.22% 56.70%      2.50s 18.50%  io.copyBuffer
+         0     0% 56.70%      2.49s 18.43%  io.Copy (inline)
+         0     0% 56.70%      2.43s 17.99%  runtime.mcall
+     0.01s 0.074% 56.77%      2.43s 17.99%  runtime.park_m
+     0.01s 0.074% 56.85%      2.40s 17.76%  runtime.schedule
+     0.10s  0.74% 57.59%      2.22s 16.43%  runtime.findRunnable
+     0.01s 0.074% 57.66%      2.06s 15.25%  crypto/tls.(*Conn).readFromUntil
+     0.03s  0.22% 57.88%      2.01s 14.88%  bytes.(*Buffer).ReadFrom
+     0.02s  0.15% 58.03%      1.97s 14.58%  crypto/tls.(*atLeastReader).Read
+         0     0% 58.03%      1.48s 10.95%  net.(*TCPConn).ReadFrom
+         0     0% 58.03%      1.48s 10.95%  net.(*TCPConn).readFrom
+         0     0% 58.03%      1.48s 10.95%  net.genericReadFrom
+         0     0% 58.03%      1.48s 10.95%  p2pstream/internal/agent.relayTunnelStream.func1
+     1.43s 10.58% 68.62%      1.43s 10.58%  runtime.futex
+     0.01s 0.074% 68.69%      1.20s  8.88%  github.com/hashicorp/yamux.(*Session).handleAggregateData
+         0     0% 68.69%      1.20s  8.88%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0% 68.69%      1.01s  7.48%  github.com/hashicorp/yamux.(*Stream).readAggregateDataPayload
+         0     0% 68.69%      1.01s  7.48%  github.com/hashicorp/yamux.readAggregateFrame
+         0     0% 68.69%      1.01s  7.48%  net.(*TCPConn).WriteTo
+         0     0% 68.69%      1.01s  7.48%  net.(*TCPConn).writeTo
+         0     0% 68.69%      1.01s  7.48%  net.genericWriteTo
+         0     0% 68.69%      1.01s  7.48%  p2pstream/internal/agent.relayTunnelStream.func2
+     0.08s  0.59% 69.28%      0.91s  6.74%  runtime.netpoll
+     0.02s  0.15% 69.43%      0.88s  6.51%  runtime.systemstack
+     0.03s  0.22% 69.65%      0.82s  6.07%  internal/runtime/syscall/linux.EpollWait
+     0.01s 0.074% 69.73%      0.77s  5.70%  runtime.notewakeup
+         0     0% 69.73%      0.76s  5.63%  crypto/tls.(*halfConn).encrypt

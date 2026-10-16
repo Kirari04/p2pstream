@@ -1,0 +1,238 @@
+[
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-nodecount=65",
+      "-sample_index=delay",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/agent.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-agent.block.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-aggregate-v1-1-agent.block.pprof.block-top.txt",
+    "sha256": "078f1c0aa221fc31f0b51ff465b7b1511001db3c0b2464deec57b5fbd7d32e11"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-list",
+      "yamux\\.\\(\\*Stream\\)\\.write",
+      "-sample_index=delay",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/agent.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-agent.block.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-aggregate-v1-1-agent.block.pprof.stream-write.txt",
+    "sha256": "d163da047b89ddd6352be7211266700f7dc3aef8f65a2c5389ec24ccd84ae0b3"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-nodecount=55",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/agent.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-agent.cpu.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-aggregate-v1-1-agent.cpu.pprof.cpu-top.txt",
+    "sha256": "93ecbfa75e5b9813996360d1053f305ce4e128c5dffe169d2e998436695ab7a1"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-cum",
+      "-nodecount=55",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/agent.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-agent.cpu.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-aggregate-v1-1-agent.cpu.pprof.cpu-cumulative.txt",
+    "sha256": "512c4005b7eb300178f72aec25eb5f0d472f670bf55bcf67abb14a67347da3cb"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-nodecount=65",
+      "-sample_index=delay",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-server.block.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-aggregate-v1-1-server.block.pprof.block-top.txt",
+    "sha256": "00559732ec83fdd95308e78611413a7a9b160600c3b1ac500357ecadec3fd069"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-list",
+      "yamux\\.\\(\\*Stream\\)\\.write",
+      "-sample_index=delay",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-server.block.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-aggregate-v1-1-server.block.pprof.stream-write.txt",
+    "sha256": "9826c3e64fe630d6dd80329ac88df1930aa114354ce33b412e246a36bb19320d"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-nodecount=55",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-server.cpu.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-aggregate-v1-1-server.cpu.pprof.cpu-top.txt",
+    "sha256": "873cfa39d8f893430d973a4d7aa5fdb5cc0951a18093ad109f713fe5a982e002"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-cum",
+      "-nodecount=55",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-aggregate-v1-1-server.cpu.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-aggregate-v1-1-server.cpu.pprof.cpu-cumulative.txt",
+    "sha256": "41083c4b4b07a89b1f716f4745af7f3269265786b9f92fe68ab7915e455f073b"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-nodecount=65",
+      "-sample_index=delay",
+      "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-agent.block.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-legacy-agent-compat-1-agent.block.pprof.block-top.txt",
+    "sha256": "3890a7cdafcb7cc1bd4413d0a8257d3e9877aecdf62965dad48a97752fa587f8"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-list",
+      "yamux\\.\\(\\*Stream\\)\\.write",
+      "-sample_index=delay",
+      "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-agent.block.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-legacy-agent-compat-1-agent.block.pprof.stream-write.txt",
+    "sha256": "e0137ea70e0f6e73c7bd3f8b43025d9ee3a954c031f667dac1ddb1cb4b82b9df"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-nodecount=55",
+      "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-agent.cpu.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-legacy-agent-compat-1-agent.cpu.pprof.cpu-top.txt",
+    "sha256": "7dc9a223e423e0b5eb8781afa516f81789046a8afa03b10f2cbeb5cbfe3535ad"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-cum",
+      "-nodecount=55",
+      "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-agent.cpu.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-legacy-agent-compat-1-agent.cpu.pprof.cpu-cumulative.txt",
+    "sha256": "6016a6e53f5452674b5b1cd96d20dd81b40df073d5a3cfc7fbb04967774e5f17"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-nodecount=65",
+      "-sample_index=delay",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-server.block.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-legacy-agent-compat-1-server.block.pprof.block-top.txt",
+    "sha256": "f740d32f669facd66237bec528239969499f167854927180c96c3b1c5ddd8290"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-list",
+      "yamux\\.\\(\\*Stream\\)\\.write",
+      "-sample_index=delay",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-server.block.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-legacy-agent-compat-1-server.block.pprof.stream-write.txt",
+    "sha256": "7a4e5b1738e16f24c76bce3e80b1cb882f915a51bd562a5981df4648397b8e08"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-nodecount=55",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-server.cpu.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-legacy-agent-compat-1-server.cpu.pprof.cpu-top.txt",
+    "sha256": "9eea260073d735d6af37abbf91b16e6d0d81324651249bddc69aa270f88e8978"
+  },
+  {
+    "command": [
+      "go",
+      "tool",
+      "pprof",
+      "-top",
+      "-cum",
+      "-nodecount=55",
+      "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+      "/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/current-server-legacy-agent-compat-1-server.cpu.pprof"
+    ],
+    "exit_code": 0,
+    "report": "reports/current-server-legacy-agent-compat-1-server.cpu.pprof.cpu-cumulative.txt",
+    "sha256": "0e585ea0e4c15f213d6f4e75fd96d8fc21e3c45bd89753662259216ff76dfd45"
+  }
+]

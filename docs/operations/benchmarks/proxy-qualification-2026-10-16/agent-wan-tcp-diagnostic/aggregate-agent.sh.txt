@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+flags=()
+if [[ ${P2PSTREAM_QUALIFICATION_ROLE:-} == agent-external ]]; then
+  profile_name=$(basename "$P2PSTREAM_QUALIFICATION_READY" .ready.json)
+  profile_prefix=/tmp/p2pstream-wan-tcp-diagnostic.6ncl3xxd/profiles/"$profile_name"
+  flags=("-test.cpuprofile=$profile_prefix.cpu.pprof" "-test.blockprofile=$profile_prefix.block.pprof" -test.blockprofilerate=1)
+fi
+exec /tmp/p2p-final-dc738e90.OkWZWjbi/bin/agent.test "$@" "${flags[@]}"
