@@ -22,6 +22,13 @@ parser.add_argument('--candidate-agent-binary', required=True)
 parser.add_argument('--driver-binary', required=True)
 parser.add_argument('--output-parent', default='tmp/capacity-boundary')
 args = parser.parse_args()
+
+def interrupted(signum, frame):
+    raise KeyboardInterrupt
+
+# Let the active point's exception path stop only its own process group and
+# allow the frozen runner to clean up its named containers and children.
+signal.signal(signal.SIGTERM, interrupted)
 for tool in ('git', 'docker', 'go', 'jq', 'openssl', 'haproxy', 'python3', 'taskset', 'lscpu'):
     if not shutil.which(tool):
         parser.error(f'{tool} is required')
