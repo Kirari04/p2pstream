@@ -52,9 +52,15 @@ comparison.
 - [`agent-tiny-response-refund-batch/README.md`](agent-tiny-response-refund-batch/README.md)
   records the batched-refund H2/c128 screen and full matrix. The screen passes;
   the full matrix fails only the H2/c128 p95 gate.
+- [`agent-tiny-response-data-gather/README.md`](agent-tiny-response-data-gather/README.md)
+  records the DATA-gather H2/c128 screen and full 24-row pass, with exact
+  request and event conservation and a later-runtime revalidation caveat.
 - [`agent-tiny-profiles/README.md`](agent-tiny-profiles/README.md) records native
   CPU, allocation, mutex and block profiles of the first failed tiny-response
   candidate and its matched legacy endpoint.
+- [`agent-post-batch-profiles/README.md`](agent-post-batch-profiles/README.md)
+  records the post-refund-batch native CPU and allocation profiles that guided
+  the bounded DATA gathering change.
 - [`proxy-public-parser-ownership.md`](../../proxy-public-parser-ownership.md)
   records the separate public-parser ownership decision and the bounds that
   still require implementation and qualification.

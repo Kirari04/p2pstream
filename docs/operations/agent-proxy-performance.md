@@ -555,6 +555,18 @@ and events were conserved with zero errors, drops, queue residue or drain
 errors. See the
 [batched-refund tiny-response evidence](benchmarks/proxy-qualification-2026-10-16/agent-tiny-response-refund-batch/README.md).
 
+The next DATA-gather checkpoint passes the complete 24-row matrix. Aggregate
+throughput is 97.45% and 96.87% of legacy for H1 at 16 and 128 clients, and
+97.71% and 93.18% for H2 at 16 and 128 streams. All median p95/p99 ratios are
+at or below 1.067. All 3,717,428 requests and events are conserved with zero
+errors, drops, queue residue or drain errors. This qualifies the measured
+tiny-response workload at that checkpoint; final integrated runtime still
+requires revalidation after the later publisher cleanup and its separate
+standing, WAN, pressure and capacity repeats. See the
+[DATA-gather tiny-response evidence](benchmarks/proxy-qualification-2026-10-16/agent-tiny-response-data-gather/README.md)
+and its preceding
+[post-batch profiles](benchmarks/proxy-qualification-2026-10-16/agent-post-batch-profiles/README.md).
+
 The first qualification pass is recorded under
 `docs/operations/benchmarks/proxy-qualification-2026-10-16/`. It is a profile
 and correctness pass plus one warmed saturation sample, not the prescribed

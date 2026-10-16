@@ -1,0 +1,12 @@
+--- /tmp/p2p-tiny-f18c27bc.tK8GrEe8/scripts/qualify-proxy-agent-growth.sh	2026-10-16 06:13:08.000000000 +0200
++++ /tmp/p2p-tiny-f18c27bc.tK8GrEe8/scripts/qualify-proxy-agent-growth-h2c128.sh	2026-10-16 06:13:51.374594143 +0200
+@@ -1052,2 +1052,2 @@
+-    local tiny_specs=(h1:16 h1:128 h2:16 h2:128)
+-    if ((iteration % 2 == 0)); then tiny_specs=(h2:128 h2:16 h1:128 h1:16); fi
++    local tiny_specs=(h2:128)
++    if ((iteration % 2 == 0)); then tiny_specs=(h2:128); fi
+@@ -1221,2 +1221,2 @@
+-    for protocol in ("h1", "h2"):
+-        for concurrency in (16, 128):
++    for protocol in ("h2",):
++        for concurrency in (128,):
