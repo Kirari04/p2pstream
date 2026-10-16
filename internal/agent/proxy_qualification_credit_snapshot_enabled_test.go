@@ -82,11 +82,26 @@ type externalQualificationGrowthEvent struct {
 }
 
 type externalQualificationGrowthResponse struct {
-	SchemaVersion    int                                `json:"schema_version"`
-	CapturedUnixNano int64                              `json:"captured_unix_nano"`
-	Capacity         int                                `json:"capacity"`
-	DroppedEvents    uint64                             `json:"dropped_events"`
-	Events           []externalQualificationGrowthEvent `json:"events"`
+	SchemaVersion    int                                        `json:"schema_version"`
+	CapturedUnixNano int64                                      `json:"captured_unix_nano"`
+	Capacity         int                                        `json:"capacity"`
+	DroppedEvents    uint64                                     `json:"dropped_events"`
+	Events           []externalQualificationGrowthEvent         `json:"events"`
+	SendCounters     []externalQualificationSendCounterSnapshot `json:"send_counters"`
+}
+
+type externalQualificationSendCounterSnapshot struct {
+	Lane                              int    `json:"lane"`
+	SessionIdentity                   string `json:"session_identity"`
+	LocalAddress                      string `json:"local_address"`
+	RemoteAddress                     string `json:"remote_address"`
+	Enabled                           bool   `json:"enabled"`
+	ReservedDataFrames                uint64 `json:"reserved_data_frames"`
+	ReservedPayloadBytes              uint64 `json:"reserved_payload_bytes"`
+	ReservedAllocationChargedBytes    uint64 `json:"reserved_allocation_charged_bytes"`
+	ByteCreditZeroObservations        uint64 `json:"byte_credit_zero_observations"`
+	StreamAllocationZeroObservations  uint64 `json:"stream_allocation_zero_observations"`
+	SessionAllocationZeroObservations uint64 `json:"session_allocation_zero_observations"`
 }
 
 func writeExternalQualificationCreditSnapshot(w http.ResponseWriter, registry *externalQualificationSessionRegistry) {
@@ -139,6 +154,21 @@ func writeExternalQualificationGrowthSnapshot(w http.ResponseWriter, registry *e
 		CapturedUnixNano: time.Now().UnixNano(), Capacity: drain.Capacity,
 		DroppedEvents: drain.DroppedEvents,
 		Events:        make([]externalQualificationGrowthEvent, 0, len(drain.Events)),
+		SendCounters:  make([]externalQualificationSendCounterSnapshot, 0, len(observed)),
+	}
+	for _, entry := range observed {
+		counter := entry.session.DrainQualificationAggregateSendCounters()
+		localAddress, remoteAddress := externalQualificationSessionAddresses(entry.session)
+		result.SendCounters = append(result.SendCounters, externalQualificationSendCounterSnapshot{
+			Lane: entry.lane, SessionIdentity: fmt.Sprintf("%p", entry.session),
+			LocalAddress: localAddress, RemoteAddress: remoteAddress, Enabled: counter.Enabled,
+			ReservedDataFrames:                counter.ReservedDataFrames,
+			ReservedPayloadBytes:              counter.ReservedPayloadBytes,
+			ReservedAllocationChargedBytes:    counter.ReservedAllocationChargedBytes,
+			ByteCreditZeroObservations:        counter.ByteCreditZeroObservations,
+			StreamAllocationZeroObservations:  counter.StreamAllocationZeroObservations,
+			SessionAllocationZeroObservations: counter.SessionAllocationZeroObservations,
+		})
 	}
 	for _, event := range drain.Events {
 		lane := -1
@@ -206,7 +236,7 @@ func TestExternalQualificationGrowthSnapshotHasBoundedVersionedSchema(t *testing
 	if err := json.NewDecoder(recorder.Body).Decode(&got); err != nil {
 		t.Fatal(err)
 	}
-	if got.SchemaVersion != externalQualificationCreditSnapshotSchemaVersion || got.CapturedUnixNano <= 0 || got.Capacity != 4096 || got.DroppedEvents != 0 || len(got.Events) != 0 {
+	if got.SchemaVersion != externalQualificationCreditSnapshotSchemaVersion || got.CapturedUnixNano <= 0 || got.Capacity != 4096 || got.DroppedEvents != 0 || len(got.Events) != 0 || len(got.SendCounters) != 0 {
 		t.Fatalf("growth snapshot = %+v", got)
 	}
 }

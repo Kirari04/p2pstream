@@ -86,11 +86,28 @@ type qualificationGrowthEvent struct {
 }
 
 type qualificationGrowthResponse struct {
-	SchemaVersion    int                        `json:"schema_version"`
-	CapturedUnixNano int64                      `json:"captured_unix_nano"`
-	Capacity         int                        `json:"capacity"`
-	DroppedEvents    uint64                     `json:"dropped_events"`
-	Events           []qualificationGrowthEvent `json:"events"`
+	SchemaVersion    int                                `json:"schema_version"`
+	CapturedUnixNano int64                              `json:"captured_unix_nano"`
+	Capacity         int                                `json:"capacity"`
+	DroppedEvents    uint64                             `json:"dropped_events"`
+	Events           []qualificationGrowthEvent         `json:"events"`
+	SendCounters     []qualificationSendCounterSnapshot `json:"send_counters"`
+}
+
+type qualificationSendCounterSnapshot struct {
+	AgentID                           int64  `json:"agent_id"`
+	AgentPublicID                     string `json:"agent_public_id"`
+	Lane                              int    `json:"lane"`
+	SessionIdentity                   string `json:"session_identity"`
+	LocalAddress                      string `json:"local_address"`
+	RemoteAddress                     string `json:"remote_address"`
+	Enabled                           bool   `json:"enabled"`
+	ReservedDataFrames                uint64 `json:"reserved_data_frames"`
+	ReservedPayloadBytes              uint64 `json:"reserved_payload_bytes"`
+	ReservedAllocationChargedBytes    uint64 `json:"reserved_allocation_charged_bytes"`
+	ByteCreditZeroObservations        uint64 `json:"byte_credit_zero_observations"`
+	StreamAllocationZeroObservations  uint64 `json:"stream_allocation_zero_observations"`
+	SessionAllocationZeroObservations uint64 `json:"session_allocation_zero_observations"`
 }
 
 func writeQualificationCreditSnapshot(w http.ResponseWriter, app *App, agentIDs []int64) {
@@ -144,6 +161,22 @@ func writeQualificationGrowthSnapshot(w http.ResponseWriter, app *App, agentIDs 
 		CapturedUnixNano: time.Now().UnixNano(), Capacity: drain.Capacity,
 		DroppedEvents: drain.DroppedEvents,
 		Events:        make([]qualificationGrowthEvent, 0, len(drain.Events)),
+		SendCounters:  make([]qualificationSendCounterSnapshot, 0, len(observed)),
+	}
+	for _, entry := range observed {
+		counter := entry.session.DrainQualificationAggregateSendCounters()
+		localAddress, remoteAddress := qualificationGrowthSessionAddresses(entry.session)
+		result.SendCounters = append(result.SendCounters, qualificationSendCounterSnapshot{
+			AgentID: entry.agentID, AgentPublicID: entry.agentPublicID,
+			Lane: entry.lane, SessionIdentity: fmt.Sprintf("%p", entry.session),
+			LocalAddress: localAddress, RemoteAddress: remoteAddress, Enabled: counter.Enabled,
+			ReservedDataFrames:                counter.ReservedDataFrames,
+			ReservedPayloadBytes:              counter.ReservedPayloadBytes,
+			ReservedAllocationChargedBytes:    counter.ReservedAllocationChargedBytes,
+			ByteCreditZeroObservations:        counter.ByteCreditZeroObservations,
+			StreamAllocationZeroObservations:  counter.StreamAllocationZeroObservations,
+			SessionAllocationZeroObservations: counter.SessionAllocationZeroObservations,
+		})
 	}
 	for _, event := range drain.Events {
 		lane := -1
@@ -231,7 +264,7 @@ func TestQualificationGrowthSnapshotHasBoundedVersionedSchema(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&got); err != nil {
 		t.Fatal(err)
 	}
-	if got.SchemaVersion != qualificationCreditSnapshotSchemaVersion || got.CapturedUnixNano <= 0 || got.Capacity != 4096 || got.DroppedEvents != 0 || len(got.Events) != 0 {
+	if got.SchemaVersion != qualificationCreditSnapshotSchemaVersion || got.CapturedUnixNano <= 0 || got.Capacity != 4096 || got.DroppedEvents != 0 || len(got.Events) != 0 || len(got.SendCounters) != 0 {
 		t.Fatalf("growth snapshot = %+v", got)
 	}
 }
