@@ -160,15 +160,11 @@ func (c AdaptiveMemoryConfig) Validate() error {
 }
 
 func minimumServerStreamAdmissionBytes() int64 {
-	model, err := tunnel.ServerStreamResourceModel(tunnel.InitialStreamWindowSizeBytes)
-	if err != nil {
-		return math.MaxInt64
-	}
-	return model.MemoryBytes
+	return tunnel.ServerStreamBaseResourceModel().MemoryBytes
 }
 
 func minimumAgentStreamAdmissionBytes() int64 {
-	model, err := tunnel.AgentStreamResourceModel(tunnel.InitialStreamWindowSizeBytes, 16*1024)
+	model, err := tunnel.AgentStreamBaseResourceModel(16 * 1024)
 	if err != nil {
 		return math.MaxInt64
 	}

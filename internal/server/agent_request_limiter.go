@@ -65,6 +65,27 @@ func newCapacityManagedAgentTunnelStreamConnWithRelease(conn net.Conn, agent *Ag
 	}
 }
 
+// fenceFailedAgentStream returns opening resources only after a terminal Yamux
+// reset or, for alternate net.Conn implementations, after the peer close is
+// observable. Local FIN alone does not end the receive-window promise.
+func fenceFailedAgentStream(conn net.Conn, agent *AgentConn, release func()) {
+	if conn == nil {
+		if release != nil {
+			release()
+		}
+		return
+	}
+	if resetter, ok := conn.(interface{ Reset() error }); ok {
+		_ = resetter.Reset()
+		if release != nil {
+			release()
+		}
+		return
+	}
+	failed := newAgentTunnelStreamConn(conn, agent, release)
+	_ = failed.Close()
+}
+
 func (c *agentTunnelStreamConn) Read(p []byte) (int, error) {
 	c.readMu.Lock()
 	defer c.readMu.Unlock()

@@ -971,6 +971,32 @@ func (a *App) dialViaAgentWithCapacity(
 		lease.release()
 		return nil, errAgentUpdateCordoned
 	}
+	maximumWindow := tunnel.DefaultMaxStreamWindowSizeBytes
+	if a.Config != nil && a.Config.TunnelMaxStreamWindowBytes > 0 {
+		maximumWindow = a.Config.TunnelMaxStreamWindowBytes
+	}
+	var releaseLegacySupplement func()
+	if !agent.AggregateFlowControl {
+		supplementBytes, supplementErr := tunnel.LegacyReceiveWindowSupplementBytes(maximumWindow)
+		if supplementErr != nil {
+			lease.release()
+			return nil, agentDialError{Kind: "server_capacity", Err: "invalid legacy stream receive-window accounting"}
+		}
+		var ok bool
+		releaseLegacySupplement, ok, _ = a.agentStreamCapacity.tryReserveLegacyStreamSupplement(supplementBytes)
+		if !ok {
+			lease.release()
+			return nil, agentDialError{Kind: "server_capacity", Err: "server legacy stream receive-window capacity reached"}
+		}
+	}
+	releaseStreamResources := func() {
+		if releaseControl != nil {
+			releaseControl()
+		}
+		if releaseLegacySupplement != nil {
+			releaseLegacySupplement()
+		}
+	}
 
 	// From this point the async opener or the capacity-managed connection owns
 	// the control lease, including when the caller cancels before Open returns.
@@ -979,25 +1005,18 @@ func (a *App) dialViaAgentWithCapacity(
 		conn, err := session.Open()
 		if err != nil {
 			lease.release()
-			if releaseControl != nil {
-				releaseControl()
-			}
+			releaseStreamResources()
 			return nil, err
 		}
 		if !lease.markLive() {
-			_ = conn.Close()
-			lease.release()
-			if releaseControl != nil {
-				releaseControl()
-			}
+			fenceFailedAgentStream(conn, agent, func() {
+				lease.release()
+				releaseStreamResources()
+			})
 			return nil, errors.New("agent tunnel stream capacity lease left opening state")
 		}
-		maximumWindow := tunnel.DefaultMaxStreamWindowSizeBytes
-		if a.Config != nil && a.Config.TunnelMaxStreamWindowBytes > 0 {
-			maximumWindow = a.Config.TunnelMaxStreamWindowBytes
-		}
 		aggregateGrowth := agent.tunnelAggregateGrowth(lane, session)
-		return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, releaseControl, aggregateGrowth, maximumWindow), nil
+		return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, releaseStreamResources, aggregateGrowth, maximumWindow), nil
 	})
 
 	var conn net.Conn

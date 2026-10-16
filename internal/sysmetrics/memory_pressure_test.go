@@ -144,7 +144,7 @@ func TestAdaptiveMemoryControllerConservesLifetimeStreamReservations(t *testing.
 }
 
 func TestAdaptiveMemoryConfigAcceptsExactProtocolFloorAgentOwnership(t *testing.T) {
-	model, err := tunnel.AgentStreamResourceModel(tunnel.InitialStreamWindowSizeBytes, 16*1024)
+	model, err := tunnel.AgentStreamBaseResourceModel(16 * 1024)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,10 +259,7 @@ func TestAdaptiveMemoryControllerEnforcesFileDescriptorHeadroom(t *testing.T) {
 }
 
 func TestServerLogicalStreamsDoNotConsumePhantomFileDescriptors(t *testing.T) {
-	model, err := tunnel.ServerStreamResourceModel(0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	model := tunnel.ServerStreamBaseResourceModel()
 	config := DefaultAdaptiveMemoryConfig()
 	config.AdmissionRole = AdaptiveAdmissionRoleServerStream
 	config.EstimatedBytesPerAdmission = model.MemoryBytes

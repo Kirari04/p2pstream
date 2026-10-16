@@ -223,6 +223,10 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.ServerTunnelEstimatedStreamBytes != 0 && (cfg.ServerTunnelEstimatedStreamBytes < tunnel.MinimumAdaptiveStreamChargeBytes || cfg.ServerTunnelEstimatedStreamBytes > tunnel.MaxStreamWindowSizeBytesLimit) {
 		return fmt.Errorf("SERVER_TUNNEL_ESTIMATED_STREAM_BYTES must be between %d and %d", tunnel.MinimumAdaptiveStreamChargeBytes, tunnel.MaxStreamWindowSizeBytesLimit)
 	}
+	// Preserve the historical full-stream override contract. Production treats
+	// a non-zero value as a conservative admitted-stream base while separately
+	// charging negotiated session pools or legacy receive supplements; keeping
+	// this validation avoids silently reinterpreting an operator safety setting.
 	if _, err := tunnel.AdaptiveMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes, cfg.ServerTunnelEstimatedStreamBytes); err != nil {
 		return err
 	}

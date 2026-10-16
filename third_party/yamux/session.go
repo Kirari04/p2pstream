@@ -249,6 +249,10 @@ GET_ID:
 	// Send the window update to create
 	if err := stream.sendWindowUpdate(); err != nil {
 		stream.forceClose()
+		// A peer DATA frame may already have passed the session lookup and be
+		// appending under recvLock. Fence and discard it synchronously before
+		// returning Open's receive-window ownership to the caller.
+		stream.discardReceiveBuffer(true)
 		s.closeStream(id)
 		return nil, err
 	}

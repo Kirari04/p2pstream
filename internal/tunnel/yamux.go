@@ -53,6 +53,14 @@ const (
 	// AggregateRejectedStreamLimit bounds graceful capacity-error responses
 	// retained until peer FIN. Excess rejected streams are reset immediately.
 	AggregateRejectedStreamLimit = 16
+	// AgentLegacyAcceptBacklogStreams preserves the historical 256-stream SYN
+	// burst accepted by an old peer. One additional transition stream may have
+	// been removed from this queue while admission synchronously acquires its
+	// lifetime leases. The complete finite envelope is prepaid for legacy
+	// compatibility; aggregate-v1 removes this idle per-stream promise cost.
+	AgentLegacyAcceptBacklogStreams = 256
+	AgentLegacyPendingStreams       = AgentLegacyAcceptBacklogStreams + 1
+	AgentLegacyRejectedStreamLimit  = 16
 )
 
 // StreamResourceModel describes resources owned by one admitted logical
@@ -61,6 +69,48 @@ const (
 type StreamResourceModel struct {
 	MemoryBytes     int64
 	FileDescriptors int64
+}
+
+// ServerStreamBaseResourceModel accounts for the bounded metadata, relay and
+// TLS state owned by an admitted server-side logical stream. Receive storage
+// is supplied either by the aggregate session pool or by a separate legacy
+// supplement acquired before Open publishes a stream promise.
+func ServerStreamBaseResourceModel() StreamResourceModel {
+	return StreamResourceModel{MemoryBytes: AdaptiveServerStreamOverheadBytes}
+}
+
+// AgentStreamBaseResourceModel adds the actual origin TCP queues and peak dial
+// descriptors owned by the agent to the shared logical-stream base. Receive
+// storage is accounted separately by the negotiated session or legacy lease.
+func AgentStreamBaseResourceModel(socketBufferBytes int64) (StreamResourceModel, error) {
+	model := ServerStreamBaseResourceModel()
+	buffer, err := NormalizeUpstreamSocketBufferBytes(socketBufferBytes)
+	if err != nil {
+		return StreamResourceModel{}, err
+	}
+	if buffer == 0 {
+		buffer = 128 * 1024
+	}
+	if buffer > (math.MaxInt64-model.MemoryBytes)/4 {
+		return StreamResourceModel{}, errors.New("agent origin socket memory exceeds accounting range")
+	}
+	model.MemoryBytes += 4 * buffer
+	model.FileDescriptors = 2
+	return model, nil
+}
+
+// LegacyReceiveWindowSupplementBytes returns the exact conservative storage
+// reservation for one legacy per-stream receive promise.
+func LegacyReceiveWindowSupplementBytes(windowBytes int64) (int64, error) {
+	window, err := InitialReceiveWindow(windowBytes)
+	if err != nil {
+		return 0, err
+	}
+	receive := yamux.ReceiveWindowMemory(uint32(window))
+	if receive > math.MaxInt64 {
+		return 0, errors.New("legacy stream receive memory exceeds accounting range")
+	}
+	return int64(receive), nil
 }
 
 // ServerStreamResourceModel accounts only for resources created by a logical
@@ -88,22 +138,18 @@ func ServerStreamResourceModel(windowBytes int64) (StreamResourceModel, error) {
 // ReceiveWindowMemory includes chunk rounding and slack, so the default agent
 // charge is deliberately higher than the legacy 1.25 MiB estimate.
 func AgentStreamResourceModel(windowBytes, socketBufferBytes int64) (StreamResourceModel, error) {
-	model, err := ServerStreamResourceModel(windowBytes)
+	model, err := AgentStreamBaseResourceModel(socketBufferBytes)
 	if err != nil {
 		return StreamResourceModel{}, err
 	}
-	buffer, err := NormalizeUpstreamSocketBufferBytes(socketBufferBytes)
+	receive, err := LegacyReceiveWindowSupplementBytes(windowBytes)
 	if err != nil {
 		return StreamResourceModel{}, err
 	}
-	if buffer == 0 {
-		buffer = 128 * 1024
+	if receive > math.MaxInt64-model.MemoryBytes {
+		return StreamResourceModel{}, errors.New("agent stream receive memory exceeds accounting range")
 	}
-	if buffer > (math.MaxInt64-model.MemoryBytes)/4 {
-		return StreamResourceModel{}, errors.New("agent origin socket memory exceeds accounting range")
-	}
-	model.MemoryBytes += 4 * buffer
-	model.FileDescriptors = 2
+	model.MemoryBytes += receive
 	return model, nil
 }
 
@@ -264,6 +310,30 @@ func NewNegotiatedControlYamuxConfig(logger yamux.Logger, maxStreamWindowSizeByt
 	return cfg, nil
 }
 
+// NewAgentLegacyYamuxConfig bounds all peer-created legacy stream objects.
+// admittedStreams covers streams with application base+receive leases;
+// pending and graceful-rejection residents are covered by the session envelope
+// returned from AgentLegacySessionResourceBytes.
+func NewAgentLegacyYamuxConfig(logger yamux.Logger, maxStreamWindowSizeBytes int64, admittedStreams int) (*yamux.Config, error) {
+	if admittedStreams < 1 || admittedStreams > int(MaxAdaptiveConcurrentStreamsLimit) {
+		return nil, errors.New("legacy admitted stream limit is out of range")
+	}
+	resident := int64(admittedStreams) + AgentLegacyPendingStreams + AgentLegacyRejectedStreamLimit
+	if resident > math.MaxInt32 {
+		return nil, errors.New("legacy incoming stream bound exceeds protocol range")
+	}
+	cfg, err := NewYamuxConfig(logger, maxStreamWindowSizeBytes)
+	if err != nil {
+		return nil, err
+	}
+	cfg.AcceptBacklog = AgentLegacyAcceptBacklogStreams
+	cfg.MaxIncomingStreams = int(resident)
+	if err := yamux.VerifyConfig(cfg); err != nil {
+		return nil, fmt.Errorf("invalid agent legacy Yamux configuration: %w", err)
+	}
+	return cfg, nil
+}
+
 // AggregateSessionResourceBytes is the lifetime reservation required before
 // advertising an aggregate receive pool. It includes the exact conservative
 // pool allocation model plus fixed session state and a caller-selected bound
@@ -300,6 +370,30 @@ func NegotiatedControlSessionResourceBytes(windowBytes int64) (int64, error) {
 		return 0, errors.New("control session resource reservation exceeds accounting range")
 	}
 	return int64(total), nil
+}
+
+// AgentLegacySessionResourceBytes reserves every receive promise and metadata
+// object that can exist before per-stream application admission, including the
+// bounded graceful-rejection set used when pressure prevents acquiring a new
+// supplement. The fixed envelope remains for the session lifetime because the
+// accept queue can refill immediately while an accepted stream transfers to its
+// own supplement.
+func AgentLegacySessionResourceBytes(windowBytes int64) (int64, error) {
+	receive, err := LegacyReceiveWindowSupplementBytes(windowBytes)
+	if err != nil {
+		return 0, err
+	}
+	perPending := receive + AggregatePendingStreamMetadataBytes
+	pending := int64(AgentLegacyPendingStreams)
+	rejected := int64(AgentLegacyRejectedStreamLimit)
+	if perPending > (math.MaxInt64-AggregateSessionMetadataBytes)/pending {
+		return 0, errors.New("legacy session pending reservation exceeds accounting range")
+	}
+	total := AggregateSessionMetadataBytes + pending*perPending
+	if perPending > (math.MaxInt64-total)/rejected {
+		return 0, errors.New("legacy session rejection reservation exceeds accounting range")
+	}
+	return total + rejected*perPending, nil
 }
 
 func NormalizeMaxStreamWindowSizeBytes(sizeBytes int64) (uint32, error) {

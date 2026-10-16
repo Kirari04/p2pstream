@@ -37,6 +37,8 @@ type agentTunnelCapacitySnapshot struct {
 	AggregateCurrentPoolBytes     int64
 	AggregateSessionMetadataBytes int64
 	LegacyControlSupplementBytes  int64
+	LegacySessionEnvelopeBytes    int64
+	LegacyStreamSupplementBytes   int64
 	RejectedPressure              uint64
 	RejectedFixedLimit            uint64
 }
@@ -56,6 +58,8 @@ type agentTunnelCapacityRuntime struct {
 	aggregateGrowthPoolBytes      int64
 	aggregateSessionMetadataBytes int64
 	legacyControlSupplementBytes  int64
+	legacySessionEnvelopeBytes    int64
+	legacyStreamSupplementBytes   int64
 	controller                    *sysmetrics.AdaptiveMemoryController
 
 	rejectedPressure atomic.Uint64
@@ -102,6 +106,8 @@ const (
 	agentReceiveResourceAggregateGrowthPool
 	agentReceiveResourceAggregateSessionMetadata
 	agentReceiveResourceLegacyControlSupplement
+	agentReceiveResourceLegacySessionEnvelope
+	agentReceiveResourceLegacyStreamSupplement
 )
 
 func (r *agentTunnelCapacityRuntime) tryReserveOwnedReceiveResource(bytes int64, owner agentReceiveResourceOwner) (func(), bool) {
@@ -139,6 +145,12 @@ func (r *agentTunnelCapacityRuntime) tryReserveOwnedReceiveResource(bytes int64,
 	case agentReceiveResourceLegacyControlSupplement:
 		r.sessionBytes += bytes
 		r.legacyControlSupplementBytes += bytes
+	case agentReceiveResourceLegacySessionEnvelope:
+		r.sessionBytes += bytes
+		r.legacySessionEnvelopeBytes += bytes
+	case agentReceiveResourceLegacyStreamSupplement:
+		r.windowBytes += bytes
+		r.legacyStreamSupplementBytes += bytes
 	default:
 		r.mu.Unlock()
 		return nil, false
@@ -163,6 +175,12 @@ func (r *agentTunnelCapacityRuntime) tryReserveOwnedReceiveResource(bytes int64,
 			case agentReceiveResourceLegacyControlSupplement:
 				r.sessionBytes -= bytes
 				r.legacyControlSupplementBytes -= bytes
+			case agentReceiveResourceLegacySessionEnvelope:
+				r.sessionBytes -= bytes
+				r.legacySessionEnvelopeBytes -= bytes
+			case agentReceiveResourceLegacyStreamSupplement:
+				r.windowBytes -= bytes
+				r.legacyStreamSupplementBytes -= bytes
 			}
 			r.mu.Unlock()
 		})
@@ -192,6 +210,14 @@ func (r *agentTunnelCapacityRuntime) tryReserveAggregateSessionResource(poolByte
 
 func (r *agentTunnelCapacityRuntime) tryReserveLegacyControlResource(bytes int64) (func(), bool) {
 	return r.tryReserveOwnedReceiveResource(bytes, agentReceiveResourceLegacyControlSupplement)
+}
+
+func (r *agentTunnelCapacityRuntime) tryReserveLegacySessionEnvelope(bytes int64) (func(), bool) {
+	return r.tryReserveOwnedReceiveResource(bytes, agentReceiveResourceLegacySessionEnvelope)
+}
+
+func (r *agentTunnelCapacityRuntime) tryReserveLegacyStreamSupplement(bytes int64) (func(), bool) {
+	return r.tryReserveOwnedReceiveResource(bytes, agentReceiveResourceLegacyStreamSupplement)
 }
 
 func (r *agentTunnelCapacityRuntime) tryReserveAggregateSessionGrowth(bytes int64) (func(), bool) {
@@ -272,6 +298,18 @@ func (r *agentTunnelCapacityRuntime) tryAcquire() (func(), agentTunnelCapacitySn
 	}, snapshot, true
 }
 
+// recordPressureRejection accounts for a request rejected before base admission
+// because its independently owned receive resource could not be reserved.
+// Session setup and receive-window growth failures are not request rejections
+// and must not call this method.
+func (r *agentTunnelCapacityRuntime) recordPressureRejection() {
+	if r == nil {
+		return
+	}
+	r.rejectedPressure.Add(1)
+	r.scavengeNeeded.Store(true)
+}
+
 func (r *agentTunnelCapacityRuntime) requestMemoryScavenge() bool {
 	if r == nil || r.controller == nil || !r.scavengeRunning.CompareAndSwap(false, true) {
 		return false
@@ -343,6 +381,8 @@ func (r *agentTunnelCapacityRuntime) snapshotLockedWithForce(force bool) agentTu
 		AggregateCurrentPoolBytes:     r.aggregateInitialPoolBytes + r.aggregateGrowthPoolBytes,
 		AggregateSessionMetadataBytes: r.aggregateSessionMetadataBytes,
 		LegacyControlSupplementBytes:  r.legacyControlSupplementBytes,
+		LegacySessionEnvelopeBytes:    r.legacySessionEnvelopeBytes,
+		LegacyStreamSupplementBytes:   r.legacyStreamSupplementBytes,
 	}
 	if r.controller == nil {
 		return snapshot

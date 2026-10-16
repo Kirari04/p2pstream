@@ -585,6 +585,11 @@ func (s *Stream) Reset() error {
 
 	s.stateLock.Lock()
 	if s.state == streamReset || s.state == streamClosed {
+		// A terminal state may have been published by closeTimeout or session
+		// shutdown while the physical reader still owns recvLock. Wait for that
+		// accepted payload and discard it before Reset promises its caller that
+		// receive storage is fenced.
+		s.discardReceiveBuffer(true)
 		s.stateLock.Unlock()
 		return nil
 	}

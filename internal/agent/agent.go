@@ -127,7 +127,7 @@ func RunContext(ctx context.Context, opts Options) error {
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	resourceModel, err := tunnel.AgentStreamResourceModel(opts.TunnelMaxStreamWindowBytes, opts.TunnelUpstreamSocketBufferBytes)
+	resourceModel, err := tunnel.AgentStreamBaseResourceModel(opts.TunnelUpstreamSocketBufferBytes)
 	if err != nil {
 		return err
 	}
@@ -866,6 +866,18 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		aggregateRole = tunnel.TunnelLaneRoleBulk
 	}
 	var releaseSessionResource func()
+	reserveLegacySession := func() error {
+		resourceBytes, reserveErr := tunnel.AgentLegacySessionResourceBytes(initialWindow)
+		if reserveErr != nil {
+			return reserveErr
+		}
+		release, ok := capacityRuntime.tryReserveLegacySessionEnvelope(resourceBytes)
+		if !ok {
+			return errTunnelSessionResourceUnavailable
+		}
+		releaseSessionResource = release
+		return nil
+	}
 	if aggregateOffered {
 		var resourceBytes int64
 		var poolBytes int64
@@ -898,6 +910,11 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 			aggregateOffered = false
 		} else {
 			return errTunnelSessionResourceUnavailable
+		}
+	}
+	if !aggregateOffered {
+		if err := reserveLegacySession(); err != nil {
+			return err
 		}
 	}
 	if releaseSessionResource == nil {
@@ -977,6 +994,10 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	if aggregateOffered && !aggregateNegotiated {
 		releaseSessionResource()
 		releaseSessionResource = func() {}
+		if err := reserveLegacySession(); err != nil {
+			_ = resp.Body.Close()
+			return err
+		}
 	}
 	negotiatedMaxConcurrentRequests, err := negotiatedAgentTunnelCapacity(resp.Header, maxConcurrentRequests, adaptiveCapacity)
 	if err != nil {
@@ -998,7 +1019,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 			yamuxConfig, err = tunnel.NewAggregateYamuxConfig(nil, maxStreamWindowSizeBytes, agentTunnelCapacityMaximumInt(negotiatedMaxConcurrentRequests))
 		}
 	} else {
-		yamuxConfig, err = tunnel.NewYamuxConfig(nil, initialWindow)
+		yamuxConfig, err = tunnel.NewAgentLegacyYamuxConfig(nil, initialWindow, agentTunnelCapacityMaximumInt(negotiatedMaxConcurrentRequests))
 	}
 	if err != nil {
 		_ = rwc.Close()
@@ -1035,7 +1056,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = session.Close()
 	}()
 
-	if err := serveTunnelSessionWithPolicyAndCapacity(serveCtx, session, destinationPolicy, capacityRuntime, aggregateGrowth); err != nil {
+	if err := serveTunnelSessionWithPolicyCapacityAndResources(serveCtx, session, destinationPolicy, capacityRuntime, aggregateGrowth, !aggregateNegotiated, initialWindow); err != nil {
 		log.Debug().Err(err).Msg("Tunnel session ended")
 		return err
 	}
@@ -1089,18 +1110,30 @@ func serveTunnelSessionWithPolicyAndLimit(ctx context.Context, session *yamux.Se
 }
 
 func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy, capacity *agentTunnelCapacityRuntime, aggregateGrowth ...*tunnel.AggregateReceiveWindowGrowth) error {
+	var sessionGrowth *tunnel.AggregateReceiveWindowGrowth
+	if len(aggregateGrowth) > 0 {
+		sessionGrowth = aggregateGrowth[0]
+	}
+	return serveTunnelSessionWithPolicyCapacityAndResources(ctx, session, destinationPolicy, capacity, sessionGrowth, false, 0)
+}
+
+func serveTunnelSessionWithPolicyCapacityAndResources(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy, capacity *agentTunnelCapacityRuntime, sessionGrowth *tunnel.AggregateReceiveWindowGrowth, legacySupplements bool, initialWindow int64) error {
 	if capacity == nil {
 		capacity = newAgentTunnelCapacityRuntime(tunnel.DefaultMaxConcurrentAgentRequests, false, nil)
 	}
 	ctx = context.WithValue(ctx, upstreamCapacityContextKey{}, capacity)
 	var handlers sync.WaitGroup
-	var aggregateRejected chan struct{}
-	var sessionGrowth *tunnel.AggregateReceiveWindowGrowth
+	var boundedRejected chan struct{}
+	var legacySupplementBytes int64
 	if session.AggregateFlowControlEnabled() {
-		aggregateRejected = make(chan struct{}, tunnel.AggregateRejectedStreamLimit)
-		if len(aggregateGrowth) > 0 {
-			sessionGrowth = aggregateGrowth[0]
+		boundedRejected = make(chan struct{}, tunnel.AggregateRejectedStreamLimit)
+	} else if legacySupplements {
+		var err error
+		legacySupplementBytes, err = tunnel.LegacyReceiveWindowSupplementBytes(initialWindow)
+		if err != nil {
+			return err
 		}
+		boundedRejected = make(chan struct{}, tunnel.AgentLegacyRejectedStreamLimit)
 	}
 	defer func() {
 		_ = session.Close()
@@ -1116,6 +1149,30 @@ func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux
 			log.Debug().Err(err).Msg("Tunnel stream accept loop stopped")
 			return fmt.Errorf("accept tunnel stream: %w", err)
 		}
+		releaseSupplement := func() {}
+		if legacySupplements {
+			var ok bool
+			releaseSupplement, ok = capacity.tryReserveLegacyStreamSupplement(legacySupplementBytes)
+			if !ok {
+				reqServerError.Add(1)
+				capacity.recordPressureRejection()
+				select {
+				case boundedRejected <- struct{}{}:
+					if rejectAggregateTunnelStreamAtCapacity(stream, "agent_resource_pressure", "agent is temporarily limiting new tunnel requests to its live resource allowance") {
+						handlers.Add(1)
+						go func(rejected net.Conn) {
+							defer handlers.Done()
+							releaseAgentTunnelCapacityAfterPeerClose(rejected, func() { <-boundedRejected })
+						}(stream)
+					} else {
+						<-boundedRejected
+					}
+				default:
+					resetRejectedTunnelStream(stream)
+				}
+				continue
+			}
+		}
 		release, capacitySnapshot, ok := capacity.tryAcquire()
 		if !ok {
 			reqServerError.Add(1)
@@ -1125,28 +1182,37 @@ func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux
 				kind = "agent_resource_pressure"
 				message = "agent is temporarily limiting new tunnel requests to its live resource allowance"
 			}
-			if aggregateRejected == nil {
+			if boundedRejected == nil {
 				rejectTunnelStreamAtCapacityKind(stream, kind, message)
+				releaseSupplement()
 				continue
 			}
 			select {
-			case aggregateRejected <- struct{}{}:
+			case boundedRejected <- struct{}{}:
+				// The session envelope owns one full receive promise for each
+				// bounded rejection. Transfer from the per-stream supplement
+				// before retaining the graceful response through peer cleanup.
+				releaseSupplement()
+				releaseSupplement = func() {}
 				if rejectAggregateTunnelStreamAtCapacity(stream, kind, message) {
 					handlers.Add(1)
-					go func() {
+					go func(rejected net.Conn) {
 						defer handlers.Done()
-						releaseAgentTunnelCapacityAfterPeerClose(stream, func() { <-aggregateRejected })
-					}()
+						releaseAgentTunnelCapacityAfterPeerClose(rejected, func() {
+							<-boundedRejected
+						})
+					}(stream)
 				} else {
-					<-aggregateRejected
+					<-boundedRejected
 				}
 			default:
 				resetRejectedTunnelStream(stream)
+				releaseSupplement()
 			}
 			continue
 		}
 		handlers.Add(1)
-		go func(stream net.Conn) {
+		go func(stream net.Conn, releaseSupplement func()) {
 			defer handlers.Done()
 			maximum, _ := ctx.Value(receiveWindowContextKey{}).(int64)
 			var growing *tunnel.GrowingConn
@@ -1157,8 +1223,8 @@ func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux
 			}
 			stream = growing
 			handleTunnelStream(ctx, stream, destinationPolicy)
-			releaseAgentTunnelCapacityAfterPeerClose(stream, func() { growing.Release(); release() })
-		}(stream)
+			releaseAgentTunnelCapacityAfterPeerClose(stream, func() { growing.Release(); release(); releaseSupplement() })
+		}(stream, releaseSupplement)
 	}
 }
 

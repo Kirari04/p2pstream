@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/yamux"
 
+	"p2pstream/internal/sysmetrics"
 	"p2pstream/internal/tunnel"
 )
 
@@ -380,6 +383,220 @@ func TestAggregateCapacityRejectionSlotsBoundUncooperativePeers(t *testing.T) {
 	}
 	for _, stream := range peers {
 		_ = stream.Close()
+	}
+}
+
+func TestLegacyCapacityRejectionSlotsRetainReceiveSupplements(t *testing.T) {
+	resetAgentRequestCounters()
+	t.Cleanup(resetAgentRequestCounters)
+	clientConn, serverConn := net.Pipe()
+	agentConfig, err := tunnel.NewAgentLegacyYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverConfig, err := tunnel.NewYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	agentSession, err := yamux.Client(clientConn, agentConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverSession, err := yamux.Server(serverConn, serverConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 2 << 30, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.setMaximum(1)
+	capacity.forceRefresh()
+	envelopeBytes, err := tunnel.AgentLegacySessionResourceBytes(tunnel.DefaultAdaptiveReceiveWindowBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	releaseEnvelope, ok := capacity.tryReserveLegacySessionEnvelope(envelopeBytes)
+	if !ok {
+		t.Fatal("failed to reserve legacy session envelope")
+	}
+	releaseHeld, _, ok := capacity.tryAcquire()
+	if !ok {
+		t.Fatal("failed to occupy agent capacity")
+	}
+	// Force all new per-stream supplement reservations to fail. The sixteen
+	// session-prepaid rejection promises must still deliver structured errors;
+	// the next stream is reset without exceeding the resident bound.
+	usage.UsedBytes = 1900 << 20
+	if pressured := capacity.forceRefresh(); pressured.Pressure != sysmetrics.MemoryPressureCritical {
+		t.Fatalf("legacy rejection pressure = %+v", pressured)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		done <- serveTunnelSessionWithPolicyCapacityAndResources(ctx, agentSession, nil, capacity, nil, true, tunnel.DefaultAdaptiveReceiveWindowBytes)
+	}()
+	t.Cleanup(func() {
+		releaseHeld()
+		cancel()
+		serverSession.Close()
+		agentSession.Close()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Error("legacy rejection session did not stop")
+		}
+		releaseEnvelope()
+	})
+
+	peers := make([]*yamux.Stream, 0, tunnel.AgentLegacyRejectedStreamLimit)
+	for index := range tunnel.AgentLegacyRejectedStreamLimit + 1 {
+		stream, openErr := serverSession.OpenStream()
+		if openErr != nil {
+			t.Fatalf("open rejected stream %d: %v", index, openErr)
+		}
+		_ = stream.SetDeadline(time.Now().Add(time.Second))
+		writeErr := tunnel.WriteOpenRequest(stream, tunnel.NewOpenRequest(strconv.Itoa(index), "tcp", "127.0.0.1:1"))
+		var response tunnel.OpenResponse
+		readErr := writeErr
+		if writeErr == nil {
+			response, readErr = tunnel.ReadOpenResponse(stream)
+		}
+		if index < tunnel.AgentLegacyRejectedStreamLimit {
+			if readErr != nil || response.OK || (response.ErrorKind != "agent_capacity" && response.ErrorKind != "agent_resource_pressure") {
+				t.Fatalf("bounded legacy rejection %d = %+v, %v", index, response, readErr)
+			}
+			peers = append(peers, stream)
+			continue
+		}
+		if !errors.Is(readErr, yamux.ErrConnectionReset) {
+			t.Fatalf("excess legacy rejection = %+v, %v; want immediate reset", response, readErr)
+		}
+		_ = stream.Close()
+	}
+
+	snapshot := capacity.snapshot()
+	if snapshot.LegacySessionEnvelopeBytes != envelopeBytes || snapshot.LegacyStreamSupplementBytes != 0 {
+		t.Fatalf("legacy rejection ownership = %+v, want envelope=%d and transferred supplements", snapshot, envelopeBytes)
+	}
+	wantRejected := uint64(tunnel.AgentLegacyRejectedStreamLimit + 1)
+	if snapshot.RejectedPressure != wantRejected {
+		t.Fatalf("legacy pressure rejection count = %d, want %d", snapshot.RejectedPressure, wantRejected)
+	}
+	if got := reqServerError.Load(); got != int32(wantRejected) {
+		t.Fatalf("legacy server error count = %d, want %d", got, wantRejected)
+	}
+	if _, err := serverSession.Ping(); err != nil {
+		t.Fatalf("legacy control traffic stalled behind rejected streams: %v", err)
+	}
+	for _, stream := range peers {
+		_ = stream.Close()
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for capacity.snapshot().LegacyStreamSupplementBytes != 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := capacity.snapshot().LegacyStreamSupplementBytes; got != 0 {
+		t.Fatalf("legacy rejection cleanup retained %d supplement bytes", got)
+	}
+}
+
+func TestLegacyBacklogDrainsSimultaneousOldPeerBurst(t *testing.T) {
+	const burst = tunnel.AgentLegacyAcceptBacklogStreams
+	echo := startEchoListener(t)
+	clientConn, serverConn := net.Pipe()
+	agentConfig, err := tunnel.NewAgentLegacyYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes, burst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverConfig, err := tunnel.NewYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	agentSession, err := yamux.Client(clientConn, agentConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverSession, err := yamux.Server(serverConn, serverConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		done <- serveTunnelSessionWithPolicyCapacityAndResources(
+			ctx,
+			agentSession,
+			nil,
+			newAgentTunnelCapacityRuntime(burst, false, nil),
+			nil,
+			true,
+			tunnel.DefaultAdaptiveReceiveWindowBytes,
+		)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		_ = serverSession.Close()
+		_ = agentSession.Close()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Error("legacy burst session did not stop")
+		}
+	})
+
+	start := make(chan struct{})
+	errs := make(chan error, burst)
+	var workers sync.WaitGroup
+	for index := range burst {
+		workers.Add(1)
+		go func(index int) {
+			defer workers.Done()
+			<-start
+			stream, openErr := serverSession.OpenStream()
+			if openErr != nil {
+				errs <- fmt.Errorf("open %d: %w", index, openErr)
+				return
+			}
+			defer stream.Close()
+			_ = stream.SetDeadline(time.Now().Add(3 * time.Second))
+			if writeErr := tunnel.WriteOpenRequest(stream, tunnel.NewOpenRequest(strconv.Itoa(index), "tcp", echo.Addr().String())); writeErr != nil {
+				errs <- fmt.Errorf("write request %d: %w", index, writeErr)
+				return
+			}
+			response, readErr := tunnel.ReadOpenResponse(stream)
+			if readErr != nil {
+				errs <- fmt.Errorf("read response %d: %w", index, readErr)
+				return
+			}
+			if !response.OK {
+				errs <- fmt.Errorf("response %d: %+v", index, response)
+				return
+			}
+			payload := []byte{byte(index)}
+			if _, writeErr := stream.Write(payload); writeErr != nil {
+				errs <- fmt.Errorf("write payload %d: %w", index, writeErr)
+				return
+			}
+			var echoed [1]byte
+			if _, readErr := io.ReadFull(stream, echoed[:]); readErr != nil {
+				errs <- fmt.Errorf("read payload %d: %w", index, readErr)
+				return
+			}
+			if echoed[0] != payload[0] {
+				errs <- fmt.Errorf("echo %d = %d", index, echoed[0])
+			}
+		}(index)
+	}
+	close(start)
+	workers.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+	if t.Failed() {
+		return
+	}
+	if _, err := serverSession.Ping(); err != nil {
+		t.Fatalf("legacy session did not recover after burst: %v", err)
 	}
 }
 

@@ -1111,10 +1111,9 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	sessionRegistrationOwned = false
 }
 
-// effectiveServerTunnelStreamWindowBytes keeps the Yamux receive credit within
-// the per-stream lifetime charge whenever the server resource ledger is active.
-// An explicit stream count is only an additional ceiling; it must not disable
-// the memory/FD safety model used for automatic capacity.
+// effectiveServerTunnelStreamWindowBytes returns the initial legacy receive
+// promise. Negotiated aggregate sessions own that storage in their shared pool;
+// legacy sessions acquire an exact per-stream supplement before Open.
 func effectiveServerTunnelStreamWindowBytes(cfg *config.Config) (int64, error) {
 	if cfg == nil {
 		return tunnel.DefaultAdaptiveReceiveWindowBytes, nil

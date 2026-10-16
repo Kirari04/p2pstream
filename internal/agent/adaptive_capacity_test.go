@@ -111,6 +111,7 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 	const (
 		requestCount = 500
 		requestRate  = 100
+		tunnelGroup  = "production-load1"
 	)
 	previousLogLevel := zerolog.GlobalLevel()
 	zerolog.SetGlobalLevel(zerolog.WarnLevel)
@@ -158,6 +159,13 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 			http.Error(w, "adaptive capacity headers missing", http.StatusBadRequest)
 			return
 		}
+		flow, role, aggregate, parseErr := tunnel.ParseAggregateFlowControlHeaders(r.Header)
+		group, lane, laneErr := tunnel.ParseTunnelLaneHeaders(r.Header, aggregate)
+		if parseErr != nil || laneErr != nil || !aggregate || role != tunnel.TunnelLaneRoleBulk ||
+			!flow.Equal(tunnel.DefaultAggregateFlowControlConfig()) || group != tunnelGroup || lane != 1 {
+			http.Error(w, "aggregate bulk contract missing", http.StatusBadRequest)
+			return
+		}
 		hijacker, ok := w.(http.Hijacker)
 		if !ok {
 			http.Error(w, "hijack unavailable", http.StatusInternalServerError)
@@ -167,16 +175,31 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 		if hijackErr != nil {
 			return
 		}
-		_, _ = fmt.Fprintf(rw, "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: %s\r\n%s: %s\r\n%s: %d\r\n\r\n",
+		wire := tunnel.DefaultAggregateFlowControlConfig()
+		_, _ = fmt.Fprintf(rw, "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: %s\r\n%s: %s\r\n%s: %d\r\n%s: %s\r\n%s: %d\r\n%s: %s\r\n%s: %s\r\n%s: %d\r\n%s: %d\r\n%s: %d\r\n%s: %d\r\n%s: %d\r\n\r\n",
 			tunnel.UpgradeToken,
 			tunnel.TunnelCapacityModeHeader, tunnel.TunnelCapacityModeAdaptive,
 			tunnel.TunnelMaxConcurrentStreamsHeader, tunnel.MaxAdaptiveConcurrentStreamsLimit,
+			tunnel.TunnelGroupHeader, tunnelGroup,
+			tunnel.TunnelLaneHeader, 1,
+			tunnel.TunnelFlowControlHeader, tunnel.TunnelFlowControlAggregateV1,
+			tunnel.TunnelLaneRoleHeader, tunnel.TunnelLaneRoleBulk,
+			tunnel.TunnelSessionWindowHeader, wire.InitialSessionWindow,
+			tunnel.TunnelSessionWindowMaxHeader, wire.MaxSessionWindow,
+			tunnel.TunnelAllocationWindowHeader, wire.InitialStreamWindow,
+			tunnel.TunnelAllocationWindowMaxHeader, wire.MaxStreamWindow,
+			tunnel.TunnelDataFrameMaxHeader, wire.MaxDataFrame,
 		)
 		if flushErr := rw.Flush(); flushErr != nil {
 			_ = conn.Close()
 			return
 		}
-		serverSession, sessionErr := yamux.Server(conn, tunnel.DefaultYamuxConfig(nil))
+		serverConfig, configErr := tunnel.NewAggregateYamuxConfig(nil, tunnel.DefaultMaxStreamWindowSizeBytes, -1)
+		if configErr != nil {
+			_ = conn.Close()
+			return
+		}
+		serverSession, sessionErr := yamux.Server(conn, serverConfig)
 		if sessionErr != nil {
 			_ = conn.Close()
 			return
@@ -189,6 +212,13 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 
 	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
 	config := sysmetrics.DefaultAdaptiveMemoryConfig()
+	model, err := tunnel.AgentStreamBaseResourceModel(128 << 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.AdmissionRole = sysmetrics.AdaptiveAdmissionRoleAgentStream
+	config.EstimatedBytesPerAdmission = model.MemoryBytes
+	config.FileDescriptorsPerAdmission = model.FileDescriptors
 	controller, err := sysmetrics.NewAdaptiveMemoryController(config, sysmetrics.MemoryUsageSamplerFunc(func() (sysmetrics.MemoryUsage, error) {
 		return usage, nil
 	}))
@@ -202,9 +232,13 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 	}
 	agentDone := make(chan error, 1)
 	go func() {
+		negotiation := &tunnelGroupNegotiation{}
+		negotiation.known.Store(true)
+		negotiation.aggregate.Store(true)
 		agentDone <- connectAndServe(
 			runCtx, http.DefaultClient, management.URL, "load-agent", "Load agent", "token",
 			policy, tunnel.DefaultMaxStreamWindowSizeBytes, tunnel.MaxConcurrentAgentRequestsLimit, true, capacity,
+			tunnelLaneRegistration{group: tunnelGroup, lane: 1, negotiation: negotiation},
 		)
 	}()
 
@@ -957,21 +991,41 @@ func TestAgentReceiveResourceSnapshotSeparatesSessionPoolsAndStreamGrowth(t *tes
 		releaseSession()
 		t.Fatal("control receive-window reservation denied")
 	}
+	releaseLegacySession, ok := capacity.tryReserveLegacySessionEnvelope(4 << 20)
+	if !ok {
+		releaseControl()
+		releaseGrowth()
+		releaseSession()
+		t.Fatal("legacy session envelope reservation denied")
+	}
+	releaseLegacyStream, ok := capacity.tryReserveLegacyStreamSupplement(1 << 20)
+	if !ok {
+		releaseLegacySession()
+		releaseControl()
+		releaseGrowth()
+		releaseSession()
+		t.Fatal("legacy stream supplement reservation denied")
+	}
 	releaseWindow, ok := capacity.tryReserveWindowGrowth(2 << 20)
 	if !ok {
+		releaseLegacyStream()
+		releaseLegacySession()
 		releaseControl()
 		releaseGrowth()
 		releaseSession()
 		t.Fatal("stream growth reservation denied")
 	}
 	snapshot := capacity.snapshot()
-	if snapshot.SessionResourceBytes != 11<<20 || snapshot.ReceiveWindowBytes != 2<<20 ||
+	if snapshot.SessionResourceBytes != 15<<20 || snapshot.ReceiveWindowBytes != 3<<20 ||
 		snapshot.AggregateInitialPoolBytes != 5<<20 || snapshot.AggregateGrowthPoolBytes != 3<<20 ||
 		snapshot.AggregateCurrentPoolBytes != 8<<20 || snapshot.AggregateSessionMetadataBytes != 1<<20 ||
-		snapshot.LegacyControlSupplementBytes != 2<<20 {
+		snapshot.LegacyControlSupplementBytes != 2<<20 || snapshot.LegacySessionEnvelopeBytes != 4<<20 ||
+		snapshot.LegacyStreamSupplementBytes != 1<<20 {
 		t.Fatalf("owned receive resource snapshot = %+v", snapshot)
 	}
 	releaseWindow()
+	releaseLegacyStream()
+	releaseLegacySession()
 	releaseControl()
 	releaseGrowth()
 	releaseSession()
@@ -979,7 +1033,8 @@ func TestAgentReceiveResourceSnapshotSeparatesSessionPoolsAndStreamGrowth(t *tes
 	if clean.SessionResourceBytes != 0 || clean.ReceiveWindowBytes != 0 ||
 		clean.AggregateInitialPoolBytes != 0 || clean.AggregateGrowthPoolBytes != 0 ||
 		clean.AggregateCurrentPoolBytes != 0 || clean.AggregateSessionMetadataBytes != 0 ||
-		clean.LegacyControlSupplementBytes != 0 {
+		clean.LegacyControlSupplementBytes != 0 || clean.LegacySessionEnvelopeBytes != 0 ||
+		clean.LegacyStreamSupplementBytes != 0 {
 		t.Fatalf("released receive resources = %+v", clean)
 	}
 }
@@ -1013,6 +1068,38 @@ func TestAgentSessionReservationRejectsGrossHeadroomAtZeroStreams(t *testing.T) 
 	}
 	if got := capacity.snapshot().SessionResourceBytes; got != 0 {
 		t.Fatalf("idle session cleanup retained %d bytes", got)
+	}
+}
+
+func TestAgentLegacySessionEnvelopeFailsClosedAndReleases(t *testing.T) {
+	envelope, err := tunnel.AgentLegacySessionResourceBytes(tunnel.DefaultAdaptiveReceiveWindowBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	usage := sysmetrics.MemoryUsage{UsedBytes: 350 << 20, LimitBytes: 512 << 20, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.forceRefresh()
+	if release, ok := capacity.tryReserveLegacySessionEnvelope(envelope); ok {
+		release()
+		t.Fatal("legacy session envelope exceeded memory headroom")
+	}
+	if got := capacity.snapshot().LegacySessionEnvelopeBytes; got != 0 {
+		t.Fatalf("denied legacy envelope retained %d bytes", got)
+	}
+
+	usage.UsedBytes = 64 << 20
+	capacity.forceRefresh()
+	release, ok := capacity.tryReserveLegacySessionEnvelope(envelope)
+	if !ok {
+		t.Fatal("legacy session envelope denied after memory recovery")
+	}
+	if got := capacity.snapshot().LegacySessionEnvelopeBytes; got != envelope {
+		t.Fatalf("legacy envelope ledger = %d, want %d", got, envelope)
+	}
+	release()
+	release()
+	if got := capacity.snapshot().LegacySessionEnvelopeBytes; got != 0 {
+		t.Fatalf("legacy envelope cleanup retained %d bytes", got)
 	}
 }
 
