@@ -1,0 +1,148 @@
+{
+  "kind": "sql-hierarchical64-independent-screen-v1",
+  "classification": "reject_and_stop",
+  "cpu_slot_released": true,
+  "http_e2e_executed": false,
+  "production_change_retained": false,
+  "reason": "127-event pair 2 exceeds preregistered 1.10 time-ratio ceiling",
+  "rows": [
+    {
+      "pair": 1,
+      "events": 63,
+      "baseline": {
+        "ns": 1425654.0,
+        "bytes": 126849.0,
+        "allocs": 1427.0
+      },
+      "candidate": {
+        "ns": 1385547.0,
+        "bytes": 126868.0,
+        "allocs": 1427.0
+      },
+      "time_ratio": 0.9718676481109723
+    },
+    {
+      "pair": 1,
+      "events": 127,
+      "baseline": {
+        "ns": 2230590.0,
+        "bytes": 211568.0,
+        "allocs": 2375.0
+      },
+      "candidate": {
+        "ns": 2292900.0,
+        "bytes": 211043.0,
+        "allocs": 2355.0
+      },
+      "time_ratio": 1.0279343133431065
+    },
+    {
+      "pair": 1,
+      "events": 512,
+      "baseline": {
+        "ns": 4860373.0,
+        "bytes": 716474.0,
+        "allocs": 7858.0
+      },
+      "candidate": {
+        "ns": 4164897.0,
+        "bytes": 709634.0,
+        "allocs": 7642.0
+      },
+      "time_ratio": 0.8569089244796644
+    },
+    {
+      "pair": 2,
+      "events": 63,
+      "baseline": {
+        "ns": 1414626.0,
+        "bytes": 126859.0,
+        "allocs": 1427.0
+      },
+      "candidate": {
+        "ns": 1411546.0,
+        "bytes": 126839.0,
+        "allocs": 1427.0
+      },
+      "time_ratio": 0.9978227460827102
+    },
+    {
+      "pair": 2,
+      "events": 127,
+      "baseline": {
+        "ns": 2212667.0,
+        "bytes": 211548.0,
+        "allocs": 2375.0
+      },
+      "candidate": {
+        "ns": 2545719.0,
+        "bytes": 211053.0,
+        "allocs": 2355.0
+      },
+      "time_ratio": 1.1505206160710129
+    },
+    {
+      "pair": 2,
+      "events": 512,
+      "baseline": {
+        "ns": 4878048.0,
+        "bytes": 716493.0,
+        "allocs": 7858.0
+      },
+      "candidate": {
+        "ns": 4209616.0,
+        "bytes": 709566.0,
+        "allocs": 7642.0
+      },
+      "time_ratio": 0.8629714180754269
+    },
+    {
+      "pair": 3,
+      "events": 63,
+      "baseline": {
+        "ns": 1404911.0,
+        "bytes": 126861.0,
+        "allocs": 1427.0
+      },
+      "candidate": {
+        "ns": 1400827.0,
+        "bytes": 126848.0,
+        "allocs": 1427.0
+      },
+      "time_ratio": 0.9970930542931189
+    },
+    {
+      "pair": 3,
+      "events": 127,
+      "baseline": {
+        "ns": 2262091.0,
+        "bytes": 211558.0,
+        "allocs": 2375.0
+      },
+      "candidate": {
+        "ns": 2327911.0,
+        "bytes": 211052.0,
+        "allocs": 2355.0
+      },
+      "time_ratio": 1.0290969726682082
+    },
+    {
+      "pair": 3,
+      "events": 512,
+      "baseline": {
+        "ns": 4893550.0,
+        "bytes": 716472.0,
+        "allocs": 7858.0
+      },
+      "candidate": {
+        "ns": 4309623.0,
+        "bytes": 709585.0,
+        "allocs": 7642.0
+      },
+      "time_ratio": 0.880674152711222
+    }
+  ],
+  "source_commit": "8d97b45d7f6c7dc5cf510cc3f4b29e1a54b0debf",
+  "original_archive_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/artifacts/source-8d97b45.tar",
+  "original_archive_sha256": "1028e17f0af1be75826be4dbdc1f9570b63dddea60c1b59ccd60c6374ee4c231"
+}

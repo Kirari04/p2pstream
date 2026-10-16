@@ -1,0 +1,23 @@
+=== RUN   TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndT898107231/001/server-test.db","time":"2026-10-16T17:39:43+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:39:43+02:00","message":"Database connected and configured successfully"}
+--- PASS: TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches (0.08s)
+=== RUN   TestPreparedProxyRequestEventHierarchicalBatchPreserves131RowsRollupsAndTouches
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/TestPreparedProxyRequestEventHierarchicalBatchPreserves131RowsRo1925817617/001/server-test.db","time":"2026-10-16T17:39:43+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:39:43+02:00","message":"Database connected and configured successfully"}
+--- PASS: TestPreparedProxyRequestEventHierarchicalBatchPreserves131RowsRollupsAndTouches (0.07s)
+=== RUN   TestPreparedProxyRequestEventBatchCancellationRollsBack
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/TestPreparedProxyRequestEventBatchCancellationRollsBack1187880306/001/server-test.db","time":"2026-10-16T17:39:44+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:39:44+02:00","message":"Database connected and configured successfully"}
+--- PASS: TestPreparedProxyRequestEventBatchCancellationRollsBack (0.07s)
+=== RUN   TestPreparedProxyRequestEventHierarchicalBatchCancellationAfterFirst64RollsBack
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/TestPreparedProxyRequestEventHierarchicalBatchCancellationAfterF3567448031/001/server-test.db","time":"2026-10-16T17:39:44+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:39:44+02:00","message":"Database connected and configured successfully"}
+--- PASS: TestPreparedProxyRequestEventHierarchicalBatchCancellationAfterFirst64RollsBack (0.07s)
+=== RUN   TestPreparedProxyRequestEventHierarchicalBatchFitsActualSQLiteVariableCeiling
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/TestPreparedProxyRequestEventHierarchicalBatchFitsActualSQLiteVa3080927845/001/server-test.db","time":"2026-10-16T17:39:44+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:39:44+02:00","message":"Database connected and configured successfully"}
+    observability_prepared_insert_test.go:324: SQLite MAX_VARIABLE_NUMBER=32766 supports 1472 bound parameters
+--- PASS: TestPreparedProxyRequestEventHierarchicalBatchFitsActualSQLiteVariableCeiling (0.07s)
+PASS
+ok  	p2pstream/internal/server	0.371s

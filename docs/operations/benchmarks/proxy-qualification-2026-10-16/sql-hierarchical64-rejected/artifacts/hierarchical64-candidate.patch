@@ -1,0 +1,116 @@
+--- tmp/continuation-20261016/sql-hierarchical64/source-baseline/internal/db/proxy_request_event_inserter.go	2026-10-16 17:24:24.000000000 +0200
++++ tmp/continuation-20261016/sql-hierarchical64/source-candidate/internal/db/proxy_request_event_inserter.go	2026-10-16 17:35:48.674793126 +0200
+@@ -11,24 +11,34 @@
+ // events and their remainder. SQL columns come from sql/query.sql; this wrapper
+ // binds the generated parameter type within the caller's transaction.
+ type ProxyRequestEventInserter struct {
+-	tx        *sql.Tx
+-	stmt      *sql.Stmt
+-	batchStmt *sql.Stmt
++	tx          *sql.Tx
++	stmt        *sql.Stmt
++	batch16Stmt *sql.Stmt
++	batch64Stmt *sql.Stmt
+ }
+ 
+-const proxyRequestEventInsertBatchRows = 16
++const (
++	proxyRequestEventInsertBatchRows      = 16
++	proxyRequestEventInsertLargeBatchRows = 64
++	proxyRequestEventInsertColumns        = 23
++)
+ 
+ // Derive the fixed multirow statement from the generated single-row SQL so
+ // the column contract remains in sql/query.sql. Only the fixed VALUES tuple
+ // is repeated; request data is always bound through statement parameters.
+-var insertProxyRequestEventsBatch = func() string {
++func insertProxyRequestEventsBatchSQL(rows int) string {
+ 	prefix, values, ok := strings.Cut(insertProxyRequestEventAt, " VALUES ")
+ 	if !ok {
+ 		panic("generated proxy request event insert is missing VALUES")
+ 	}
+ 	tuple := strings.TrimSpace(values)
+-	return prefix + " VALUES " + strings.Repeat(tuple+",", proxyRequestEventInsertBatchRows-1) + tuple
+-}()
++	return prefix + " VALUES " + strings.Repeat(tuple+",", rows-1) + tuple
++}
++
++var (
++	insertProxyRequestEventsBatch16 = insertProxyRequestEventsBatchSQL(proxyRequestEventInsertBatchRows)
++	insertProxyRequestEventsBatch64 = insertProxyRequestEventsBatchSQL(proxyRequestEventInsertLargeBatchRows)
++)
+ 
+ func PrepareProxyRequestEventInserter(ctx context.Context, tx *sql.Tx) (*ProxyRequestEventInserter, error) {
+ 	if tx == nil {
+@@ -57,25 +67,40 @@
+ 	if i == nil || i.stmt == nil {
+ 		return errors.New("proxy request event inserter is not prepared")
+ 	}
+-	if len(events) >= proxyRequestEventInsertBatchRows && i.batchStmt == nil {
+-		stmt, err := i.tx.PrepareContext(ctx, insertProxyRequestEventsBatch)
++	if len(events) >= proxyRequestEventInsertLargeBatchRows && i.batch64Stmt == nil {
++		stmt, err := i.tx.PrepareContext(ctx, insertProxyRequestEventsBatch64)
+ 		if err != nil {
+ 			return err
+ 		}
+-		i.batchStmt = stmt
++		i.batch64Stmt = stmt
+ 	}
+-	if len(events) >= proxyRequestEventInsertBatchRows {
+-		var storage [proxyRequestEventInsertBatchRows * 23]any
+-		for len(events) >= proxyRequestEventInsertBatchRows {
+-			args := storage[:0]
+-			for _, event := range events[:proxyRequestEventInsertBatchRows] {
+-				args = appendProxyRequestEventArgs(args, event)
+-			}
+-			if _, err := i.batchStmt.ExecContext(ctx, args...); err != nil {
+-				return err
+-			}
+-			events = events[proxyRequestEventInsertBatchRows:]
++	var storage [proxyRequestEventInsertLargeBatchRows * proxyRequestEventInsertColumns]any
++	for len(events) >= proxyRequestEventInsertLargeBatchRows {
++		args := storage[:0]
++		for _, event := range events[:proxyRequestEventInsertLargeBatchRows] {
++			args = appendProxyRequestEventArgs(args, event)
++		}
++		if _, err := i.batch64Stmt.ExecContext(ctx, args...); err != nil {
++			return err
+ 		}
++		events = events[proxyRequestEventInsertLargeBatchRows:]
++	}
++	if len(events) >= proxyRequestEventInsertBatchRows && i.batch16Stmt == nil {
++		stmt, err := i.tx.PrepareContext(ctx, insertProxyRequestEventsBatch16)
++		if err != nil {
++			return err
++		}
++		i.batch16Stmt = stmt
++	}
++	for len(events) >= proxyRequestEventInsertBatchRows {
++		args := storage[:0]
++		for _, event := range events[:proxyRequestEventInsertBatchRows] {
++			args = appendProxyRequestEventArgs(args, event)
++		}
++		if _, err := i.batch16Stmt.ExecContext(ctx, args...); err != nil {
++			return err
++		}
++		events = events[proxyRequestEventInsertBatchRows:]
+ 	}
+ 	for _, event := range events {
+ 		if err := i.Insert(ctx, event); err != nil {
+@@ -117,9 +142,12 @@
+ 	if i == nil || i.stmt == nil {
+ 		return nil
+ 	}
+-	var batchErr error
+-	if i.batchStmt != nil {
+-		batchErr = i.batchStmt.Close()
++	var batch64Err, batch16Err error
++	if i.batch64Stmt != nil {
++		batch64Err = i.batch64Stmt.Close()
++	}
++	if i.batch16Stmt != nil {
++		batch16Err = i.batch16Stmt.Close()
+ 	}
+-	return errors.Join(batchErr, i.stmt.Close())
++	return errors.Join(batch64Err, batch16Err, i.stmt.Close())
+ }

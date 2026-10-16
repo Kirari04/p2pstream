@@ -1,0 +1,187 @@
+--- internal/server/observability_prepared_insert_test.go	2026-10-16 01:52:50.904669945 +0200
++++ tmp/continuation-20261016/sql-hierarchical64/source-baseline/internal/server/observability_prepared_insert_test.go	2026-10-16 17:37:29.242937997 +0200
+@@ -8,6 +8,7 @@
+ 	"net/http"
+ 	"path/filepath"
+ 	"reflect"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -19,6 +20,15 @@
+ )
+ 
+ func TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t *testing.T) {
++	testPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t, 35)
++}
++
++func TestPreparedProxyRequestEventHierarchicalBatchPreserves131RowsRollupsAndTouches(t *testing.T) {
++	testPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t, 131)
++}
++
++func testPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t *testing.T, eventCount int) {
++	t.Helper()
+ 	ctx := context.Background()
+ 	app := NewApp(nil, newServerTestDB(t))
+ 	storedAt := time.Now().UTC().Round(0)
+@@ -80,10 +90,10 @@
+ 		{OccurredAt: storedAt, StatusCode: http.StatusNotFound, DurationMs: 20, ErrorKind: "not_found", Method: "GET", Host: "example.test", PathPrefix: "/b", ResponseBytes: 20},
+ 		{OccurredAt: storedAt, StatusCode: http.StatusBadGateway, DurationMs: 30, ErrorKind: "upstream", Method: "POST", Host: "example.test", PathPrefix: "/c", RequestBytes: 5},
+ 	}
+-	// Cross both full 16-row groups and the short final remainder while
++	// Cross full prepared groups and the short final remainder while
+ 	// retaining distinct values, valid foreign keys, NULLs and timestamps.
+ 	examples := append([]db.InsertProxyRequestEventAtParams(nil), events...)
+-	for index := len(events); index < 35; index++ {
++	for index := len(events); index < eventCount; index++ {
+ 		event := examples[index%len(examples)]
+ 		event.OccurredAt = storedAt.Add(time.Duration(index) * time.Millisecond)
+ 		event.DurationMs += int64(index)
+@@ -187,6 +197,15 @@
+ }
+ 
+ func TestPreparedProxyRequestEventBatchCancellationRollsBack(t *testing.T) {
++	testPreparedProxyRequestEventBatchCancellationRollsBack(t, 35, 17)
++}
++
++func TestPreparedProxyRequestEventHierarchicalBatchCancellationAfterFirst64RollsBack(t *testing.T) {
++	testPreparedProxyRequestEventBatchCancellationRollsBack(t, 131, 65)
++}
++
++func testPreparedProxyRequestEventBatchCancellationRollsBack(t *testing.T, eventCount, blockedRow int) {
++	t.Helper()
+ 	app := NewApp(nil, newServerTestDB(t))
+ 	// Keep the registered trigger callback on the same physical connection as
+ 	// the flush transaction. No custom process-wide SQLite driver is needed.
+@@ -215,12 +234,12 @@
+ 		t.Fatal(err)
+ 	}
+ 	storedAt := time.Now().UTC().Round(0)
+-	if _, err := app.DB.ExecContext(t.Context(), `
++	if _, err := app.DB.ExecContext(t.Context(), fmt.Sprintf(`
+ 		INSERT INTO public_cache_rules (id, name) VALUES (1, 'cancel-batch-rule');
+ 		CREATE TRIGGER block_second_proxy_batch AFTER INSERT ON proxy_request_events
+-		WHEN NEW.duration_ms = 17
++		WHEN NEW.duration_ms = %d
+ 		BEGIN SELECT block_proxy_batch(); END;
+-	`); err != nil {
++	`, blockedRow)); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if _, err := app.DB.ExecContext(t.Context(), `
+@@ -232,7 +251,7 @@
+ 	`, storedAt, storedAt.Add(time.Hour)); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	events := make([]db.InsertProxyRequestEventAtParams, 35)
++	events := make([]db.InsertProxyRequestEventAtParams, eventCount)
+ 	for index := range events {
+ 		events[index] = db.InsertProxyRequestEventAtParams{
+ 			OccurredAt: storedAt, StatusCode: http.StatusOK, DurationMs: int64(index + 1), Method: "GET", Host: "cancel.example",
+@@ -247,8 +266,8 @@
+ 	}()
+ 	select {
+ 	case <-entered:
+-		// The first full group has executed; cancel while the second group
+-		// is inside SQLite, then let the bounded callback finish.
++		// Earlier groups have executed; cancel while the blocked row is
++		// inside SQLite, then let the bounded callback finish.
+ 		cancel()
+ 		unblock()
+ 	case err := <-result:
+@@ -273,37 +292,75 @@
+ 	}
+ }
+ 
++func TestPreparedProxyRequestEventHierarchicalBatchFitsActualSQLiteVariableCeiling(t *testing.T) {
++	database := newServerTestDB(t)
++	rows, err := database.QueryContext(t.Context(), `PRAGMA compile_options`)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer rows.Close()
++	maximum := 0
++	for rows.Next() {
++		var option string
++		if err := rows.Scan(&option); err != nil {
++			t.Fatal(err)
++		}
++		value, ok := strings.CutPrefix(option, "MAX_VARIABLE_NUMBER=")
++		if !ok {
++			continue
++		}
++		maximum, err = strconv.Atoi(value)
++		if err != nil {
++			t.Fatalf("SQLite variable ceiling %q: %v", value, err)
++		}
++	}
++	if err := rows.Err(); err != nil {
++		t.Fatal(err)
++	}
++	const required = 64 * 23
++	if maximum < required {
++		t.Fatalf("SQLite MAX_VARIABLE_NUMBER = %d, need at least %d for 64 rows", maximum, required)
++	}
++	t.Logf("SQLite MAX_VARIABLE_NUMBER=%d supports %d bound parameters", maximum, required)
++}
++
+ func assertPreparedObservabilityBatchState(t *testing.T, app *App, rawEvents, rollupRequests, cacheHits int64) {
+ 	t.Helper()
+ 	ctx := context.Background()
+-	var gotRaw, gotRollup, gotHits int64
++	var gotRaw, gotRollup, gotTupleRollup, gotStatusRollup, gotRetryRollup, gotHits int64
+ 	if err := app.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM proxy_request_events`).Scan(&gotRaw); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if err := app.DB.QueryRowContext(ctx, `SELECT COALESCE(SUM(requests), 0) FROM proxy_request_rollup_minutes`).Scan(&gotRollup); err != nil {
+ 		t.Fatal(err)
+ 	}
++	if err := app.DB.QueryRowContext(ctx, `SELECT COALESCE(SUM(requests), 0) FROM proxy_request_tuple_rollup_minutes`).Scan(&gotTupleRollup); err != nil {
++		t.Fatal(err)
++	}
++	if err := app.DB.QueryRowContext(ctx, `SELECT COALESCE(SUM(requests), 0) FROM proxy_request_status_rollup_minutes`).Scan(&gotStatusRollup); err != nil {
++		t.Fatal(err)
++	}
++	if err := app.DB.QueryRowContext(ctx, `SELECT COALESCE(SUM(matched_requests), 0) FROM proxy_retry_rollup_minutes`).Scan(&gotRetryRollup); err != nil {
++		t.Fatal(err)
++	}
+ 	if err := app.DB.QueryRowContext(ctx, `SELECT hit_count FROM public_cache_entries WHERE key_digest = 'prepared-batch-key'`).Scan(&gotHits); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if gotRaw != rawEvents || gotRollup != rollupRequests || gotHits != cacheHits {
+-		t.Fatalf("observability state = raw %d/rollup %d/hits %d, want %d/%d/%d", gotRaw, gotRollup, gotHits, rawEvents, rollupRequests, cacheHits)
++	wantRetryRollup := (rollupRequests + 2) / 3
++	if gotRaw != rawEvents || gotRollup != rollupRequests || gotTupleRollup != rollupRequests || gotStatusRollup != rollupRequests || gotRetryRollup != wantRetryRollup || gotHits != cacheHits {
++		t.Fatalf("observability state = raw %d/rollup %d/tuple %d/status %d/retry %d/hits %d, want %d/%d/%d/%d/%d/%d", gotRaw, gotRollup, gotTupleRollup, gotStatusRollup, gotRetryRollup, gotHits, rawEvents, rollupRequests, rollupRequests, rollupRequests, wantRetryRollup, cacheHits)
+ 	}
+ }
+ 
+ func BenchmarkPreparedProxyRequestEventBatchFlush(b *testing.B) {
+-	for _, productionDeadline := range []bool{false, true} {
+-		name := "background"
+-		if productionDeadline {
+-			name = "production_deadline"
+-		}
+-		b.Run(name, func(b *testing.B) {
+-			benchmarkPreparedProxyRequestEventBatchFlush(b, productionDeadline)
++	for _, eventCount := range []int{63, 127, observabilityRecorderMaxBatch} {
++		b.Run(fmt.Sprintf("production_deadline/events_%d", eventCount), func(b *testing.B) {
++			benchmarkPreparedProxyRequestEventBatchFlush(b, true, eventCount)
+ 		})
+ 	}
+ }
+ 
+-func benchmarkPreparedProxyRequestEventBatchFlush(b *testing.B, productionDeadline bool) {
++func benchmarkPreparedProxyRequestEventBatchFlush(b *testing.B, productionDeadline bool, eventCount int) {
+ 	database, err := db.Open(filepath.Join(b.TempDir(), "observability-benchmark.db"))
+ 	if err != nil {
+ 		b.Fatal(err)
+@@ -312,7 +369,7 @@
+ 	app := NewApp(nil, database)
+ 	recorder := newObservabilityRecorder(app)
+ 	now := time.Now().UTC()
+-	events := make([]db.InsertProxyRequestEventAtParams, observabilityRecorderMaxBatch)
++	events := make([]db.InsertProxyRequestEventAtParams, eventCount)
+ 	for index := range events {
+ 		events[index] = db.InsertProxyRequestEventAtParams{
+ 			OccurredAt: now,

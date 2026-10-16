@@ -753,10 +753,12 @@ lifetimes symmetrically. Per warmup-plus-timed completion, production samples
 bytes. Common syscall/header costs are close; SQLite/cgo persistence is the
 clearest distinct stack. Cumulative/flat stack totals overlap and are not
 removable-speedup estimates. A separately hashed binding preserves a final
-provenance-overwrite discrepancy without rerunning traffic. The next bounded
-experiment retains the 16-row remainder path while measuring a 64-row primary
-insert; no candidate production change is qualified. See the
-[matched profile and limitations](benchmarks/proxy-qualification-2026-10-16/native-go-profile/README.md).
+provenance-overwrite discrepancy without rerunning traffic. The subsequent hierarchical 64→16→single insert screen passes expanded field,
+rollup/touch and cancellation controls, but a 127-event pair regresses 15.05%,
+above its unchanged 10% ceiling. It is rejected without HTTP/E2E advancement;
+production batching stays at 16 rows. See the
+[matched profile and limitations](benchmarks/proxy-qualification-2026-10-16/native-go-profile/README.md)
+and [rejected SQL screen](benchmarks/proxy-qualification-2026-10-16/sql-hierarchical64-rejected/README.md).
 
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured

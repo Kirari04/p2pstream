@@ -15,6 +15,9 @@ comparison.
 
 ## Files
 
+- [`sql-hierarchical64-rejected/README.md`](sql-hierarchical64-rejected/README.md)
+  preserves the rejected 64→16→single event-insert screen. Large flushes improve,
+  but a smaller-flush pair exceeds the fixed regression ceiling; no code is retained.
 - [`native-go-profile/README.md`](native-go-profile/README.md)
   records one matched production/native CPU/allocation pair, per-completion
   costs, natural cleanup and an independent binding of preserved metadata.

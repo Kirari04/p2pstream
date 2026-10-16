@@ -1,0 +1,78 @@
+{
+  "REPORT.md": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/REPORT.md",
+    "sha256": "fb56f8508691063fddc96ef42bc4c39d843ceaf1926eaef678b166aecfbb3933"
+  },
+  "MANIFEST.sha256": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/MANIFEST.sha256",
+    "sha256": "00ffb686f477ac555062d78f338b6a66cc40802485bb5522340ae134ba697617"
+  },
+  "results/pair1-C.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/pair1-C.txt",
+    "sha256": "15afc0f40a07c63344355162cae7f55fafc4967afc167487383b7a4d118ac330"
+  },
+  "results/pair3-B.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/pair3-B.txt",
+    "sha256": "e576ab57e433c1b4cadffdf8a5d98468aba6f4551aaba38220a8754a65e44dd2"
+  },
+  "results/pair2-C.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/pair2-C.txt",
+    "sha256": "9ff70987ae205f83a778b5bccdf68655e4afa37f2df260977ac47698f87bf521"
+  },
+  "results/pair3-C.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/pair3-C.txt",
+    "sha256": "a90fb0b76f950c3bb12fef85e5d0c28de732d286e5ef0752f8ee7548d26a8904"
+  },
+  "results/pair1-B.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/pair1-B.txt",
+    "sha256": "ce8a212b158c56335921ad0d58a5d8e65dd3291e63f073b539033c6c5542caec"
+  },
+  "results/candidate-focused-normal.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/candidate-focused-normal.txt",
+    "sha256": "824bcdfa4aada96f49ac7a85b4dfe1c30d3afa665bec3a4d87400d307565ed61"
+  },
+  "results/pair2-B.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/pair2-B.txt",
+    "sha256": "b4f4c0a12950f61a34e809fd72473047a575873821386323b4a38b53fb53bb80"
+  },
+  "results/baseline-focused-normal.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/baseline-focused-normal.txt",
+    "sha256": "53c8cab4f85e4ec9ecf002d1ecad4eedebef8ca0536cbcdaf4cc122bdea74528"
+  },
+  "results/candidate-focused-race.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/candidate-focused-race.txt",
+    "sha256": "edca202aa3908cc6b1547cad67fa1755a323174a6a520dffb84f1e3dbf8855d5"
+  },
+  "results/baseline-focused-race.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/baseline-focused-race.txt",
+    "sha256": "99dc049a2d81d8af4dc68ce09934c07339b90b93557c9e2632325e0c379641e7"
+  },
+  "results/SUMMARY.tsv": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/results/SUMMARY.tsv",
+    "sha256": "ba126ade3fea91ca23a0af95d81ba9810511336ef09ed0a392b5d53f277c99db"
+  },
+  "artifacts/hierarchical64-candidate.patch": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/artifacts/hierarchical64-candidate.patch",
+    "sha256": "ddfcbcca27d67e43936da052bff227d2c9d057a6561c908ab6a51a2787cc6dcf"
+  },
+  "artifacts/source-tree-diff.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/artifacts/source-tree-diff.txt",
+    "sha256": "1985f3b369e242bf58c8a611f73f3313f1253e6d6172c851c7047556763e5cfa"
+  },
+  "artifacts/SHA256SUMS": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/artifacts/SHA256SUMS",
+    "sha256": "a1816223aac19297f26fb52d6be02b46f6a1457d12c110db08bce28fed6128d7"
+  },
+  "artifacts/COMMANDS.sh": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/artifacts/COMMANDS.sh",
+    "sha256": "0bb3b1da2d22172a1620bcad01ea87df60422d53aad1dfe23b6b981986779a96"
+  },
+  "artifacts/test-benchmark-overlay.patch": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/artifacts/test-benchmark-overlay.patch",
+    "sha256": "b559742e0564eeab4a750430f27f3b0f0c2788d5b63c3e8b440896ff05a54fb8"
+  },
+  "artifacts/SOURCE_PLAN.md": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/artifacts/SOURCE_PLAN.md",
+    "sha256": "3b89e2979a8a9f9b24733afc4d2ea5d608094ee46835b9aab822ba585ec377e3"
+  }
+}
