@@ -85,7 +85,8 @@ descriptors. At the default window and four control slots this is about
 operator's active-request limit, so ordinary work may use the full configured
 concurrency while control is idle. Once active work fills that limit, a cold
 control request receives `agent_capacity`; after a slot drains, the prepaid
-control request can proceed even under later memory pressure. A server
+control request can proceed even under later agent memory pressure. Server-side
+resource admission still applies to the request. A server
 negotiating a smaller total releases the excess promise before Yamux starts.
 Legacy lanes retain their existing per-stream admission behavior.
 

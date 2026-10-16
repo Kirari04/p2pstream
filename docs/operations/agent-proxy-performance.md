@@ -116,7 +116,7 @@ still apply.
   descriptor credits. Idle promises consume resource headroom while leaving
   the configured active-request limit available to public work. Active control
   and public requests share that total limit. Once a real slot is free, prepaid
-  control work can proceed under later pressure without reserving the same
+  control work can proceed under later agent pressure without reserving the same
   resources again; unexpected extra socket demand still needs fresh credit.
   A smaller negotiated total releases excess unused promises before the
   session starts. Legacy lanes retain ordinary per-stream pressure checks.
