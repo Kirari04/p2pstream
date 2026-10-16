@@ -1,0 +1,35 @@
+{
+  "candidate_ref": "e2df1b110283886f529b438f549a8da32a1fd3ce",
+  "protocol_checkpoint": "d385925311c91f806d2a43055d08c756cc303232",
+  "legacy_agent_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "legacy_agent_overlay_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+  "binaries": {
+    "server_sha256": "7a104f4c968c28bd991fbd7b5eb83cdf9680af4d01bb2075a8504eb69f02612c",
+    "aggregate_agent_sha256": "c95a16ae594abe50e5c5abd6b60cd222b7bface7c4f1823bb1ddede4c4b96bfd",
+    "legacy_agent_sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec"
+  },
+  "runner_sha256": "46ee4fa19e45892b9a4e97b8cfc0f7b60911a5cd85f3acec1fd894ef066e5e71",
+  "results_sha256": "35fc6628bc04f0cd3985ac16d0236b62f4165a67a32717bb107375748707300c",
+  "summary_sha256": "3f559aae1789d0e54d36d5f423554dd3afbd8016526738615e9f74c4f51bbe5d",
+  "go_version": "go version go1.26.6 linux/amd64",
+  "kernel": "Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "configured_rtt_ms": 80,
+  "measured_rtt_ms": 96.547,
+  "shaped_rate_bits_per_second": 1000000000,
+  "cpu_sets": {
+    "server": "0,1,2,3",
+    "agent_and_origin": "4,5,6,7",
+    "load": "8,9,10,11,12,13,14,15",
+    "topology_note": "Each adjacent pair is two SMT siblings on one physical core."
+  },
+  "workload": {
+    "runs": 1,
+    "lane_growth_warmups_per_direction": 4,
+    "lane_growth_warmup_bytes": 268435456,
+    "retained_transport_warmups_per_direction": 1,
+    "retained_transport_warmup_bytes": 268435456,
+    "timed_repetitions_per_direction": 3,
+    "timed_transfer_bytes": 268435456,
+    "required_minimum_receiving_lane_bytes": 8388608
+  }
+}

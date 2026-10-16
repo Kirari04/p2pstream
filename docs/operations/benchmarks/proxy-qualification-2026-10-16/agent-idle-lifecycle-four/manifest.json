@@ -1,0 +1,24 @@
+{
+  "candidate_ref": "73adc8a4898b85b52decf988112bbfc36e9fa68f",
+  "protocol_checkpoint": "d385925311c91f806d2a43055d08c756cc303232",
+  "binaries": {
+    "server_sha256": "62baa60e2126d9d444bdf87f80e147fa911b9ef23e5632e5c4217dac0cffa5f8",
+    "agent_sha256": "733b8262614a84d4eff9c82fb2f2ba368925dec7dfc42723793bcd1eab3e3bd4"
+  },
+  "runner_sha256": "232ff65560f266eefe89179b7eafa016f465ba0ed1e3ef35790711d46f4e7345",
+  "results_sha256": "5ddc46a21e69ab8bbf7d2ddae7c7261660b0b50f4ceb66bb055d7d7dc3b2253e",
+  "go_version": "go version go1.26.6 linux/amd64",
+  "kernel": "Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "docker_version": "28.3.3",
+  "workload": {
+    "external_agents": 4,
+    "aggregate_physical_lanes_per_agent": 5,
+    "public_h1_connections": 1536,
+    "server_memory_max_bytes": 4294967296,
+    "agent_memory_max_bytes_each": 4294967296,
+    "server_ballast_bytes": 1073741824,
+    "natural_offsets_seconds": [1, 5, 30, 35, 65],
+    "forced_idle_close_offsets_seconds": [0, 1, 5, 35],
+    "repopulate_requests": 128
+  }
+}

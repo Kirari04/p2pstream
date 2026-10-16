@@ -31,6 +31,11 @@ comparison.
 - [`agent-idle-lifecycle/README.md`](agent-idle-lifecycle/README.md) follows
   1,536 retained aggregate streams through natural and forced idle cleanup
   without disconnecting the five physical tunnel lanes.
+- [`agent-idle-lifecycle-four/README.md`](agent-idle-lifecycle-four/README.md)
+  repeats that cleanup across four external agents and 20 physical lanes.
+- [`agent-wan-growth/README.md`](agent-wan-growth/README.md) records the
+  80 ms / 1 Gbit/s aggregate-versus-legacy large-transfer comparison and exact
+  server- and agent-side receiving-pool growth.
 - `capacity-and-profile.jsonl` is the initial candidate `095c923` correctness,
   fixed-rate, streaming, H1/H2 1,536-barrier and recovery pass.
 - `warmed-throughput.jsonl` is one alternating baseline/candidate pass with a
