@@ -41,24 +41,25 @@ func (o qualificationGrowthOutcome) String() string {
 
 // QualificationReceiveWindowGrowthEvent describes one completed demand
 // sampling epoch. SampleUnixNano is the epoch's sample-start timestamp reused
-// by the growth controller; the outcome is recorded after any publication.
+// by the growth controller; Outcome and the denial fields describe resulting
+// state after any attempted publication, without claiming a completion time.
 // Session is exposed only so the tagged qualification adapter can resolve a
 // lane without adding labels or state to the production data path.
 type QualificationReceiveWindowGrowthEvent struct {
-	SampleUnixNano      int64
-	Session             *yamux.Session `json:"-"`
-	SessionIdentity     string
-	StreamID            uint32
-	Aggregate           bool
-	Current             uint32
-	Proposed            uint32
-	Maximum             uint32
-	RTTNanoseconds      int64
-	RateBytesPerSecond  float64
-	Previous            uint32
-	DeniedUntilUnixNano int64
-	DeniedAtSample      bool
-	Outcome             string
+	SampleUnixNano           int64
+	Session                  *yamux.Session `json:"-"`
+	SessionIdentity          string
+	StreamID                 uint32
+	Aggregate                bool
+	Current                  uint32
+	Proposed                 uint32
+	Maximum                  uint32
+	RTTNanoseconds           int64
+	RateBytesPerSecond       float64
+	Previous                 uint32
+	DeniedUntilUnixNano      int64
+	DenialActiveAfterOutcome bool
+	Outcome                  string
 }
 
 // QualificationReceiveWindowGrowthDrain is a destructive, bounded diagnostic
@@ -71,19 +72,19 @@ type QualificationReceiveWindowGrowthDrain struct {
 }
 
 type qualificationReceiveWindowGrowthEvent struct {
-	sampleUnixNano      int64
-	session             *yamux.Session
-	streamID            uint32
-	aggregate           bool
-	current             uint32
-	proposed            uint32
-	maximum             uint32
-	rttNanoseconds      int64
-	rateBytesPerSecond  float64
-	previous            uint32
-	deniedUntilUnixNano int64
-	deniedAtSample      bool
-	outcome             qualificationGrowthOutcome
+	sampleUnixNano           int64
+	session                  *yamux.Session
+	streamID                 uint32
+	aggregate                bool
+	current                  uint32
+	proposed                 uint32
+	maximum                  uint32
+	rttNanoseconds           int64
+	rateBytesPerSecond       float64
+	previous                 uint32
+	deniedUntilUnixNano      int64
+	denialActiveAfterOutcome bool
+	outcome                  qualificationGrowthOutcome
 }
 
 var qualificationReceiveWindowGrowthRing struct {
@@ -110,19 +111,19 @@ func (c *GrowingConn) recordQualificationGrowthSample(
 		deniedUntilUnixNano = deniedUntil.UnixNano()
 	}
 	event := qualificationReceiveWindowGrowthEvent{
-		sampleUnixNano:      now.UnixNano(),
-		session:             c.stream.Session(),
-		streamID:            c.stream.StreamID(),
-		aggregate:           c.aggregateGrowth != nil,
-		current:             current,
-		proposed:            proposed,
-		maximum:             c.maximum,
-		rttNanoseconds:      rtt.Nanoseconds(),
-		rateBytesPerSecond:  c.growth.rate,
-		previous:            c.growth.previous,
-		deniedUntilUnixNano: deniedUntilUnixNano,
-		deniedAtSample:      !deniedUntil.IsZero() && now.Before(deniedUntil),
-		outcome:             outcome,
+		sampleUnixNano:           now.UnixNano(),
+		session:                  c.stream.Session(),
+		streamID:                 c.stream.StreamID(),
+		aggregate:                c.aggregateGrowth != nil,
+		current:                  current,
+		proposed:                 proposed,
+		maximum:                  c.maximum,
+		rttNanoseconds:           rtt.Nanoseconds(),
+		rateBytesPerSecond:       c.growth.rate,
+		previous:                 c.growth.previous,
+		deniedUntilUnixNano:      deniedUntilUnixNano,
+		denialActiveAfterOutcome: !deniedUntil.IsZero() && now.Before(deniedUntil),
+		outcome:                  outcome,
 	}
 
 	ring := &qualificationReceiveWindowGrowthRing
@@ -156,20 +157,20 @@ func DrainQualificationReceiveWindowGrowthEvents() QualificationReceiveWindowGro
 		index := (ring.head + i) % qualificationGrowthTraceCapacity
 		raw := ring.events[index]
 		drain.Events[i] = QualificationReceiveWindowGrowthEvent{
-			SampleUnixNano:      raw.sampleUnixNano,
-			Session:             raw.session,
-			SessionIdentity:     fmt.Sprintf("%p", raw.session),
-			StreamID:            raw.streamID,
-			Aggregate:           raw.aggregate,
-			Current:             raw.current,
-			Proposed:            raw.proposed,
-			Maximum:             raw.maximum,
-			RTTNanoseconds:      raw.rttNanoseconds,
-			RateBytesPerSecond:  raw.rateBytesPerSecond,
-			Previous:            raw.previous,
-			DeniedUntilUnixNano: raw.deniedUntilUnixNano,
-			DeniedAtSample:      raw.deniedAtSample,
-			Outcome:             raw.outcome.String(),
+			SampleUnixNano:           raw.sampleUnixNano,
+			Session:                  raw.session,
+			SessionIdentity:          fmt.Sprintf("%p", raw.session),
+			StreamID:                 raw.streamID,
+			Aggregate:                raw.aggregate,
+			Current:                  raw.current,
+			Proposed:                 raw.proposed,
+			Maximum:                  raw.maximum,
+			RTTNanoseconds:           raw.rttNanoseconds,
+			RateBytesPerSecond:       raw.rateBytesPerSecond,
+			Previous:                 raw.previous,
+			DeniedUntilUnixNano:      raw.deniedUntilUnixNano,
+			DenialActiveAfterOutcome: raw.denialActiveAfterOutcome,
+			Outcome:                  raw.outcome.String(),
 		}
 		ring.events[index] = qualificationReceiveWindowGrowthEvent{}
 	}

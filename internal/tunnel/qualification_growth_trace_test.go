@@ -72,7 +72,7 @@ func TestQualificationGrowthTraceRecordsControllerOutcomes(t *testing.T) {
 		if first.Outcome != "no_proposal" || second.Outcome != "grown" {
 			t.Fatalf("outcomes=%q,%q", first.Outcome, second.Outcome)
 		}
-		if first.DeniedUntilUnixNano != 0 || first.DeniedAtSample {
+		if first.DeniedUntilUnixNano != 0 || first.DenialActiveAfterOutcome {
 			t.Fatalf("ordinary sample reported denial: %+v", first)
 		}
 		if first.SampleUnixNano != now.Add(80*time.Millisecond).UnixNano() {
@@ -101,7 +101,7 @@ func TestQualificationGrowthTraceRecordsControllerOutcomes(t *testing.T) {
 		}
 		events := DrainQualificationReceiveWindowGrowthEvents().Events
 		denied := events[len(events)-1]
-		if denied.Outcome != "reservation_denied" || !denied.DeniedAtSample || denied.DeniedUntilUnixNano != now.Add(1160*time.Millisecond).UnixNano() {
+		if denied.Outcome != "reservation_denied" || !denied.DenialActiveAfterOutcome || denied.DeniedUntilUnixNano != now.Add(1160*time.Millisecond).UnixNano() {
 			t.Fatalf("denial event=%+v", denied)
 		}
 	})
