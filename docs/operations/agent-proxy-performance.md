@@ -618,6 +618,19 @@ localizes a cause. The historical runtime also predates the shutdown-waiter
 correction and is not a production rollback candidate. See the
 [historical runtime comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-runtime-bisection/README.md).
 
+The next fixed 96-transfer experiment changes only the physical emission of
+refund controls, with identical common code and object layouts in both arms.
+Splitting the same priority item's control headers into separate writes gives
+download ratios of 0.88289 / 1.07248 / 1.23137, failing the main every-pair
+1.10 threshold twice. All uploads pass and all payloads and events are exact.
+A separately predeclared transition screen passes: all 24 split-arm download
+samples, including conditioning, exceed 29.7 MB/s, while every current pair has
+a sample below that floor. The minimum is only 29.702647 MB/s, about 0.009%
+above the threshold. This cohort does not reproduce the earlier 12–15 MB/s
+current samples, so it does not demonstrate robust elimination of those stalls.
+The primary result remains rejected and no split-control production change is
+retained. See the [refund emission comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-refund-emission-causal/README.md).
+
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
 RTT 96.547 ms). Four fresh 256 MiB downloads and uploads prewarm every receiving

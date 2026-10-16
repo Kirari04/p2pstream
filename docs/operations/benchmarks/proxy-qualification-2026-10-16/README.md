@@ -53,6 +53,10 @@ comparison.
   application, harness and driver. All 96 transfers are exact, but the
   historical arm fails the every-pair download improvement threshold. Its
   steadier phase distribution is a diagnostic clue, not a qualified fix.
+- [`agent-wan-refund-emission-causal/README.md`](agent-wan-refund-emission-causal/README.md)
+  preserves 96 exact transfers comparing gathered and split refund-control
+  writes. The primary improvement gate fails in two pairs. A separate
+  all-phase transition screen narrowly passes; no production fix is retained.
 - [`caddy-reference/matched-h2-fixture-validation/README.md`](caddy-reference/matched-h2-fixture-validation/README.md)
   records the bounded fixture checks for a future reference comparison with
   one prewarmed H2 client connection per proxy. It is not a performance result.
@@ -181,6 +185,12 @@ frames and only 1.00414 times payload allocation charge. This refutes the
 proposed eightfold allocation-amplification mechanism. Delayed receive-window
 growth remains correlated with more byte-credit-zero observations, whose
 attempt counts are not wait durations; no production fix follows yet.
+
+Subsequent physical DATA-emission and historical-runtime comparisons also fail
+their predeclared improvement gates. The refund-control emission comparison
+fails its main gate twice while narrowly passing a separate all-phase floor
+screen. These diagnostics do not clear the original repeated WAN failure or
+qualify a production change.
 
 Historical failure and optimization artifacts below remain useful for tracing
 the decisions that produced `dc738e9`; they are not the current qualification
