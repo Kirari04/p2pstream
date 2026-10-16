@@ -1,0 +1,23 @@
+kind	name	sha256_or_git_oid	bytes	canonical_location_or_note
+git-commit	read-wait-package-commit	0895fdd8323708612f2137a63e743b79d6410665	-	Frozen predecessor evidence commit.
+git-tree	read-wait-package-tree	3e9d3baf587c9750fd907a6de11aa66fd8b47b74	-	docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-trace
+package-index	SHA256SUMS	692948f66cb2fcbc53ac656b5213df2ec0211532522213db7ebb386c4c9127b6	85718	docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-trace/SHA256SUMS
+package-map	PACKAGE-MAP.tsv	ffdd0a89d5de76f20555b2f49127768597d42082b9ec823f03fceb527d102eb7	-	docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-trace/PACKAGE-MAP.tsv
+package-archive	ancillary-source-contracts.tar.gz	92d6b24d7a7f1e8c313b0385087db9f9eff0235fb6d69a34b5afc1c4cb141e09	-	docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-trace/ancillary-source-contracts.tar.gz
+source-predecessor-index	PREDECESSOR-SHA256.txt	bb1a57fcee8e2a30ee20cc1c2119aae7078945222878675111490d13d6e7f08d	908	stack-intern source checkpoint 8
+partition-index	h1-independent-partition	6f24881744cde99cd3f5c3ad63200daf127a0a79d0bcf74ceec7658d46e107e0	-	predecessor package capacity smoke-3 H1 partition review
+partition-index	h2-independent-partition	e3efecffc7339ccab3045f8bf2ae7425f3cc731be8947d953066b0296d55ccb0	-	predecessor package capacity smoke-3 H2 partition review
+trace-safety-index	h2-trace-export-safety	5e5077f8f14ca6b867269656498fc02611ca3360c008a59c8b4b4a6a3e08ded3	-	predecessor package H2 trace-safety review
+trace-safety-allowlist	h2-raw-trace-allowlist	c6751af664c4d78d4abef1492511523e57a0adab91bc0051d744cada95b85754	-	predecessor package H2 EXPORT-ALLOWLIST.txt
+tiny-raw	h1-sequence-9	c3f9f63ea873a1a1f0ebcb8de293d252c7de1126ab790142ac038311241aaeb5	155433	capacity/traffic-failures/smoke3/attempt/h1/results.read-wait-traces/runtime-trace-sequence-9.out
+tiny-raw	h1-sequence-11	67ae2b06badb01e358be0d69ebb6ea2b1d3c44bc7c6375472203f889e98636de	156367	capacity/traffic-failures/smoke3/attempt/h1/results.read-wait-traces/runtime-trace-sequence-11.out
+tiny-raw	h1-sequence-13	3268b31959925b62675f8863aadb4ab758218e0f4db2d3b84afb6745dc65e216	132528	capacity/traffic-failures/smoke3/attempt/h1/results.read-wait-traces/runtime-trace-sequence-13.out
+tiny-raw	h2-sequence-9	f002fca480f697b0acf6027cdbdff50353af36b94ac2903cd6679ab3db65c9aa	233691	capacity/traffic-failures/smoke3-h2-only/attempt/results.read-wait-traces/runtime-trace-sequence-9.out
+tiny-raw	h2-sequence-11	097446f00dfc8bdaee6f50ac862adea4dcb8ef5cc78fba663798975a0182bddb	238665	capacity/traffic-failures/smoke3-h2-only/attempt/results.read-wait-traces/runtime-trace-sequence-11.out
+tiny-raw	h2-sequence-13	5c1210d27747dd6c9b89e963e335757150fc5afa021a643b25b69381620039a8	190193	capacity/traffic-failures/smoke3-h2-only/attempt/results.read-wait-traces/runtime-trace-sequence-13.out
+parsed-hash-only	h1-sequence-9	22949b93e2f1f54c4470e952b34ed479a56cfa3b8f3e8e7a8aa0a34bd3433879	26145119	Bound by focused attempt 4 ledger and attempt 5 summary; parsed bytes omitted.
+parsed-hash-only	h1-sequence-11	3dad5811599ca86f475c56af5959de184fd5fad4b5e9cafe0b7d8a2c01c49fd1	24951894	Bound by focused attempt 4 ledger and attempt 5 summary; parsed bytes omitted.
+parsed-hash-only	h1-sequence-13	16818ef9617bb2cc454d86348a1292cbbbaefa928409ad5a70c2dc2fee7f99b8	22482033	Bound by focused attempt 4 ledger and attempt 5 summary; parsed bytes omitted.
+parsed-hash-only	h2-sequence-9	6469dc2cc0717f5b5cd6dda90997e58349ba92fe4d4051591859952a09fb5ae6	39822804	Bound by focused attempt 4 ledger and attempt 5 summary; parsed bytes omitted.
+parsed-hash-only	h2-sequence-11	c82538a12e03c710e7ca0806cda4e6af4cefeb4c043c5fab35ecc90fe6b6d724	40049279	Bound by focused attempt 4 ledger and attempt 5 summary; parsed bytes omitted.
+parsed-hash-only	h2-sequence-13	c1ec9c0458cd397640d3be6ecbcb8332e6896b086f043aacc684777f11bbf130	34662270	Bound by focused attempt 4 ledger and attempt 5 summary; parsed bytes omitted.

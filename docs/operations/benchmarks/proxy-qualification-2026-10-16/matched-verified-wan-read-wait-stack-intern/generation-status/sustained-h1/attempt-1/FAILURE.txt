@@ -1,0 +1,1 @@
+Pre-execution provenance path error: canonical_trace_format.py was referenced at the derivative root, where it does not exist. No analyzer invocation or output reduction occurred. Preserved without relabeling; corrected attempt uses a distinct output root.

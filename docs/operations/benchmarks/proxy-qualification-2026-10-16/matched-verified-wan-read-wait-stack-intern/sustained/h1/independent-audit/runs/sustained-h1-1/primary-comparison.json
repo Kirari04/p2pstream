@@ -1,0 +1,90 @@
+{
+  "accepted": false,
+  "comparisons": [
+    {
+      "equal": false,
+      "handler_transition_count_equal": false,
+      "marker_equal": {
+        "handler_gid": true,
+        "region_begin": true,
+        "region_end": true,
+        "task_begin": true,
+        "task_end": true,
+        "task_id": true
+      },
+      "partition_sum_equal": true,
+      "primary_attribution_complete": false,
+      "primary_missing_stack_ns": 12032,
+      "primary_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.reduction.json",
+      "primary_sha256": "cd173d73fb4ff7afc6f90fc4990ec376c093649eb9da97cd988e8ee84712c289",
+      "region_duration_equal": true,
+      "sequence": 9,
+      "state_ns_equal": true
+    },
+    {
+      "equal": false,
+      "handler_transition_count_equal": false,
+      "marker_equal": {
+        "handler_gid": true,
+        "region_begin": true,
+        "region_end": true,
+        "task_begin": true,
+        "task_end": true,
+        "task_id": true
+      },
+      "partition_sum_equal": true,
+      "primary_attribution_complete": false,
+      "primary_missing_stack_ns": 4224,
+      "primary_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.reduction.json",
+      "primary_sha256": "d16a14cd3b403c082ccd7e386bd1957331b7b913acf1e253080952360ddf25e8",
+      "region_duration_equal": true,
+      "sequence": 11,
+      "state_ns_equal": true
+    },
+    {
+      "equal": false,
+      "handler_transition_count_equal": false,
+      "marker_equal": {
+        "handler_gid": true,
+        "region_begin": true,
+        "region_end": true,
+        "task_begin": true,
+        "task_end": true,
+        "task_id": true
+      },
+      "partition_sum_equal": true,
+      "primary_attribution_complete": false,
+      "primary_missing_stack_ns": 7168,
+      "primary_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.reduction.json",
+      "primary_sha256": "f21dd253df822eaee799c242842e76840c20e9cba0b8e4ee6391ae9c8e040fad",
+      "region_duration_equal": true,
+      "sequence": 14,
+      "state_ns_equal": true
+    },
+    {
+      "equal": false,
+      "handler_transition_count_equal": false,
+      "marker_equal": {
+        "handler_gid": true,
+        "region_begin": true,
+        "region_end": true,
+        "task_begin": true,
+        "task_end": true,
+        "task_id": true
+      },
+      "partition_sum_equal": true,
+      "primary_attribution_complete": false,
+      "primary_missing_stack_ns": 3392,
+      "primary_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.reduction.json",
+      "primary_sha256": "14e712fbe76b0688227bbfbb379e7362579c2a493a23e65ebafe08163ec5a7a0",
+      "region_duration_equal": true,
+      "sequence": 15,
+      "state_ns_equal": true
+    }
+  ],
+  "independent_path": "tmp/continuation-20261016/wan-read-wait-stack-intern-source/independent-canonical-partition-source/runs/sustained-h1-1/audit.json",
+  "independent_sha256": "b8d6fd60e3d5ce66613b439d3197835ecfa124e986aee61af636d83de7053ab7",
+  "index_path": "tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/index.json",
+  "index_sha256": "43e4f9dc7be2dda55b7e388c2dbc951a2ff8f87a4b0b7ac758f4dcb152863dc4",
+  "schema_version": 1
+}

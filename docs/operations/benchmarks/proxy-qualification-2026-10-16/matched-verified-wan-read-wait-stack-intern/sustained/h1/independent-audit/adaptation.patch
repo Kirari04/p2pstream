@@ -1,0 +1,207 @@
+--- predecessor/audit_handler_partitions.py
++++ proposed/audit_canonical_handler_partitions.py
+@@ -1,18 +1,22 @@
+ #!/usr/bin/env python3
+-"""Independent, streaming audit of handler goroutine state partitions.
++"""Independent handler-state audit over the compact canonical trace stream.
+ 
+-This intentionally consumes only `go tool trace -d=parsed` text plus the frozen
+-index. It does not import or invoke the qualification analyzer.
++Marker, GID, transition continuity, interval clipping, and exact partition
++logic are retained from the prior independent parsed-text audit. Decoding is
++shared with the compact pipeline through the exact hash-bound CanonicalReader;
++this audit therefore does not independently verify the canonical format.
+ """
+ 
+ import argparse
+ import hashlib
++import importlib.util
+ import json
+ import os
+ import re
+ import shlex
+ import stat
+ import sys
++from pathlib import Path
+ 
+ 
+ MARKERS = {
+@@ -22,6 +26,7 @@
+     "RegionEnd": ("public-proxy-handler", "Task"),
+ }
+ EXPECTED_STATES = {"Running", "Runnable", "Syscall", "Waiting"}
++EXPECTED_FORMAT_SHA256 = "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf"
+ MAIN_RE = re.compile(r"^M=(\S+) P=(\S+) G=(\S+) (\w+)(?: |$)")
+ TYPE_RE = re.compile(r'(?:^| )Type="([^"]*)"(?: |$)')
+ REASON_RE = re.compile(r'(?:^| )Reason="([^"]*)"(?: |$)')
+@@ -45,7 +50,24 @@
+     return values[0]
+ 
+ 
+-def parse_trace(path):
++def load_canonical_reader(format_module_path):
++    path = Path(format_module_path).resolve(strict=True)
++    if not stat.S_ISREG(path.stat().st_mode):
++        raise ValueError(f"format module is not a regular file: {path}")
++    observed = sha256(path)
++    if observed != EXPECTED_FORMAT_SHA256:
++        raise ValueError(f"format module SHA-256 mismatch: {observed}")
++    specification = importlib.util.spec_from_file_location(
++        "reviewed_stack_intern_format_for_independent_audit", path
++    )
++    if specification is None or specification.loader is None:
++        raise ValueError("could not construct canonical format import")
++    module = importlib.util.module_from_spec(specification)
++    specification.loader.exec_module(module)
++    return module.CanonicalReader, path, observed
++
++
++def parse_trace(path, canonical_reader_type):
+     markers = {name: [] for name in MARKERS}
+     transitions = []
+     zero_pc = []
+@@ -62,8 +84,9 @@
+                 zero_pc.append(pending_frame)
+             pending_frame = None
+ 
+-    with open(path, "r", encoding="utf-8", errors="strict", newline="") as handle:
+-        for line_number, raw in enumerate(handle, 1):
++    reader = canonical_reader_type(Path(path))
++    for line_number, raw_bytes in enumerate(reader.iter_lines(), 1):
++            raw = raw_bytes.decode("utf-8", errors="strict")
+             if len(raw) > 1024 * 1024:
+                 raise ValueError(f"line {line_number} exceeds 1 MiB")
+             line = raw.rstrip("\r\n")
+@@ -156,42 +179,50 @@
+                 section = None
+ 
+     finish_frame()
++    if reader.summary is None:
++        raise ValueError("canonical reader did not validate a footer")
++    if reader.summary.get("event_count") != event_ordinal:
++        raise ValueError("canonical reader and independent event counts differ")
+     return {
+         "markers": markers,
+         "transitions": transitions,
+         "zero_pc_frames": zero_pc,
+         "event_count": event_ordinal,
+         "global_event_order_nondecreasing": True,
++        "canonical_reader_summary": reader.summary,
+     }
+ 
+ 
+-def analyze_one(entry):
+-    parsed_path = entry["parsed_path"]
++def analyze_one(entry, canonical_reader_type):
++    canonical_path = entry["canonical_path"]
+     raw_path = entry["raw_path"]
+-    status_path = entry["parser_status_path"]
+-    for path in (parsed_path, raw_path, status_path):
++    status_paths = {
++        "adapter": entry["adapter_status_path"],
++        "parser": entry["parser_status_path"],
++        "canonicalizer": entry["canonicalizer_status_path"],
++    }
++    for path in (canonical_path, raw_path, *status_paths.values()):
+         mode = os.stat(path).st_mode
+         if not stat.S_ISREG(mode):
+             raise ValueError(f"not a regular file: {path}")
+ 
+     observed_hashes = {
+         "raw_sha256": sha256(raw_path),
+-        "parsed_sha256": sha256(parsed_path),
+-        "parser_status_sha256": sha256(status_path),
++        "canonical_sha256": sha256(canonical_path),
++        **{f"{name}_status_sha256": sha256(path) for name, path in status_paths.items()},
+     }
+     for key, observed in observed_hashes.items():
+         if observed != entry[key]:
+             raise ValueError(
+                 f"sequence {entry['sequence']} {key} mismatch: {observed} != {entry[key]}"
+             )
+-    with open(status_path, "r", encoding="ascii") as handle:
+-        parser_status_text = handle.read()
+-    if parser_status_text.strip() != "0":
+-        raise ValueError(
+-            f"sequence {entry['sequence']} parser status is {parser_status_text!r}"
+-        )
++    for name, path in status_paths.items():
++        with open(path, "rb") as handle:
++            status = handle.read()
++        if status != b"0\n":
++            raise ValueError(f"sequence {entry['sequence']} {name} status is {status!r}")
+ 
+-    parsed = parse_trace(parsed_path)
++    parsed = parse_trace(canonical_path, canonical_reader_type)
+     marker = {}
+     for kind, rows in parsed["markers"].items():
+         if len(rows) != 1:
+@@ -324,11 +355,17 @@
+         "source_binding": {
+             "raw_path": raw_path,
+             "raw_sha256": observed_hashes["raw_sha256"],
+-            "parsed_path": parsed_path,
+-            "parsed_sha256": observed_hashes["parsed_sha256"],
+-            "parser_status_path": status_path,
++            "canonical_path": canonical_path,
++            "canonical_sha256": observed_hashes["canonical_sha256"],
++            "adapter_status_path": status_paths["adapter"],
++            "adapter_status_sha256": observed_hashes["adapter_status_sha256"],
++            "adapter_status": 0,
++            "parser_status_path": status_paths["parser"],
+             "parser_status_sha256": observed_hashes["parser_status_sha256"],
+             "parser_status": 0,
++            "canonicalizer_status_path": status_paths["canonicalizer"],
++            "canonicalizer_status_sha256": observed_hashes["canonicalizer_status_sha256"],
++            "canonicalizer_status": 0,
+             "server_binary_sha256": entry["server_binary_sha256"],
+             "server_source_ref": entry["server_source_ref"],
+             "runner_sha256": entry["runner_sha256"],
+@@ -370,26 +407,43 @@
+             ),
+         },
+         "parsed_main_event_count": parsed["event_count"],
++        "canonical_reader_summary": parsed["canonical_reader_summary"],
+     }
+ 
+ 
+ def main():
+     parser = argparse.ArgumentParser()
+     parser.add_argument("--index", required=True)
++    parser.add_argument("--format-module", required=True)
+     parser.add_argument("--output", required=True)
+     args = parser.parse_args()
+     if os.path.exists(args.output):
+         raise SystemExit(f"refusing to overwrite {args.output}")
+     with open(args.index, "r", encoding="utf-8") as handle:
+         index = json.load(handle)
+-    if [entry["sequence"] for entry in index["entries"]] != [9, 11, 13]:
+-        raise SystemExit("expected exactly sequences 9, 11, 13 in that order")
++    if not (index.get("schema_version") == 2 and index.get("diagnostic_only") is True
++            and index.get("input_representation") == "p2pstream-parsed-stack-intern-v1"):
++        raise SystemExit("unexpected compact reduction index scope or representation")
++    if [entry["sequence"] for entry in index["entries"]] != [9, 11, 14, 15]:
++        raise SystemExit("expected exactly sustained sequences 9, 11, 14, 15 in that order")
++    protocols = {entry.get("public_protocol") for entry in index["entries"]}
++    if len(protocols) != 1 or not protocols <= {"h1", "h2"}:
++        raise SystemExit(f"expected one exact public protocol, got {protocols!r}")
++    canonical_reader, format_path, format_sha = load_canonical_reader(args.format_module)
+     report = {
+         "schema_version": 1,
+-        "method": "independent parsed-trace state-transition partition",
++        "method": "independent state-transition partition over reviewed compact canonical decoding",
++        "independence_limit": (
++            "Marker, GID, continuity, clipping, and partition logic are independent; "
++            "canonical decoding is shared with the qualification analyzer and does not "
++            "independently verify the compact format."
++        ),
+         "index_path": os.path.abspath(args.index),
+         "index_sha256": sha256(args.index),
+-        "entries": [analyze_one(entry) for entry in index["entries"]],
++        "format_module_path": str(format_path),
++        "format_module_sha256": format_sha,
++        "public_protocol": next(iter(protocols)),
++        "entries": [analyze_one(entry, canonical_reader) for entry in index["entries"]],
+     }
+     with open(args.output, "x", encoding="utf-8") as handle:
+         json.dump(report, handle, indent=2, sort_keys=True)

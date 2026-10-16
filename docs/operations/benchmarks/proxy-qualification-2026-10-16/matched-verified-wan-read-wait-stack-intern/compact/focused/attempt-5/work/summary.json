@@ -1,0 +1,146 @@
+{
+  "accepted": true,
+  "case_count": 6,
+  "contract_count": 17,
+  "coverage_note": "bounded format/status/collision/cleanup plus six natural adapter joins; signal TERM/KILL injection remains a later dedicated adapter contract",
+  "focused_invalid": [
+    {
+      "error": "canonical footer is missing",
+      "name": "missing-footer"
+    },
+    {
+      "error": "dangling stack reference",
+      "name": "dangling-reference"
+    },
+    {
+      "error": "stack record lacks preceding stack marker",
+      "name": "stack-without-marker"
+    },
+    {
+      "error": "literal record replaces required stack record",
+      "name": "literal-replaces-stack"
+    },
+    {
+      "error": "stack definition has incomplete frame pair",
+      "name": "malformed-stack"
+    },
+    {
+      "error": "unknown canonical record tag",
+      "name": "unknown-tag"
+    },
+    {
+      "error": "logical expanded text exceeds fixed 4 GiB bound",
+      "name": "logical-expanded-bound"
+    },
+    {
+      "error": "stack definition count exceeds fixed bound",
+      "name": "definition-count-bound"
+    },
+    {
+      "error": "decoded stack dictionary exceeds fixed 64 MiB bound",
+      "name": "definition-bytes-bound"
+    },
+    {
+      "error": "canonical record length exceeds physical file bound",
+      "name": "physical-record-bound"
+    }
+  ],
+  "six": [
+    {
+      "canonical_bytes": 2652472,
+      "canonical_sha256": "9786de82ab25d9cebe45b867772cfc11b129dca35b4efa7cbd052532d6734816",
+      "definition_bytes": 665583,
+      "definition_count": 307,
+      "expanded_sha256": "22949b93e2f1f54c4470e952b34ed479a56cfa3b8f3e8e7a8aa0a34bd3433879",
+      "name": "h1-sequence-9",
+      "parsed_bytes": 26145119,
+      "raw_bytes": 155433,
+      "record_count": 18865,
+      "reduction_equal": true,
+      "reused_verified_run": true,
+      "sync_count": 3,
+      "sync_timezone": "Europe/Zurich +02:00",
+      "sync_wall_count": 2
+    },
+    {
+      "canonical_bytes": 2629435,
+      "canonical_sha256": "f77e8b46c7b79f3fee15e9cde248d54d5bac50d69743f5e156e4c0ce8aa6337e",
+      "definition_bytes": 709438,
+      "definition_count": 316,
+      "expanded_sha256": "3dad5811599ca86f475c56af5959de184fd5fad4b5e9cafe0b7d8a2c01c49fd1",
+      "name": "h1-sequence-11",
+      "parsed_bytes": 24951894,
+      "raw_bytes": 156367,
+      "record_count": 18165,
+      "reduction_equal": true,
+      "reused_verified_run": true,
+      "sync_count": 3,
+      "sync_timezone": "Europe/Zurich +02:00",
+      "sync_wall_count": 2
+    },
+    {
+      "canonical_bytes": 2309999,
+      "canonical_sha256": "6daa649ee1a234517eb65005e098cd99275637c589d9fd0f05eef9638339304e",
+      "definition_bytes": 605938,
+      "definition_count": 291,
+      "expanded_sha256": "16818ef9617bb2cc454d86348a1292cbbbaefa928409ad5a70c2dc2fee7f99b8",
+      "name": "h1-sequence-13",
+      "parsed_bytes": 22482033,
+      "raw_bytes": 132528,
+      "record_count": 16127,
+      "reduction_equal": true,
+      "reused_verified_run": true,
+      "sync_count": 3,
+      "sync_timezone": "Europe/Zurich +02:00",
+      "sync_wall_count": 2
+    },
+    {
+      "canonical_bytes": 4845291,
+      "canonical_sha256": "672d5c8ccb91df4235e36fae5c683d3a5174b8b5fbaa84dd998a2fac1501c34a",
+      "definition_bytes": 704314,
+      "definition_count": 340,
+      "expanded_sha256": "6469dc2cc0717f5b5cd6dda90997e58349ba92fe4d4051591859952a09fb5ae6",
+      "name": "h2-sequence-9",
+      "parsed_bytes": 39822804,
+      "raw_bytes": 233691,
+      "record_count": 42843,
+      "reduction_equal": true,
+      "reused_verified_run": true,
+      "sync_count": 3,
+      "sync_timezone": "Europe/Zurich +02:00",
+      "sync_wall_count": 2
+    },
+    {
+      "canonical_bytes": 4953837,
+      "canonical_sha256": "b9e8d202b0152f548334769cc9cbf7b5d08e92b60ce76c8300058112049d379d",
+      "definition_bytes": 769021,
+      "definition_count": 352,
+      "expanded_sha256": "c82538a12e03c710e7ca0806cda4e6af4cefeb4c043c5fab35ecc90fe6b6d724",
+      "name": "h2-sequence-11",
+      "parsed_bytes": 40049279,
+      "raw_bytes": 238665,
+      "record_count": 43057,
+      "reduction_equal": true,
+      "reused_verified_run": true,
+      "sync_count": 3,
+      "sync_timezone": "Europe/Zurich +02:00",
+      "sync_wall_count": 2
+    },
+    {
+      "canonical_bytes": 4299509,
+      "canonical_sha256": "80b13edf7a3bccb45332da359c3035b96117855942b5073a7cfba3eac70b0e96",
+      "definition_bytes": 602449,
+      "definition_count": 300,
+      "expanded_sha256": "c1ec9c0458cd397640d3be6ecbcb8332e6896b086f043aacc684777f11bbf130",
+      "name": "h2-sequence-13",
+      "parsed_bytes": 34662270,
+      "raw_bytes": 190193,
+      "record_count": 38167,
+      "reduction_equal": true,
+      "reused_verified_run": true,
+      "sync_count": 2,
+      "sync_timezone": "Europe/Zurich +02:00",
+      "sync_wall_count": 1
+    }
+  ]
+}

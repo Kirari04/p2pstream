@@ -1,0 +1,1 @@
+Source-only correction requested after review. The exact reviewed original is reconstructed and hash-verified against the prior checkpoint. The corrected invocation captures each analyzer's actual status under set +e, persists it, and stops on nonzero. Nothing in this directory was executed as an analyzer or endpoint workload.

@@ -1,0 +1,16 @@
+--- tmp/continuation-20261016/wan-read-wait-stack-intern-generation-status-source/review/sustained-h2-complement-plan-1-status-correction/offline-reduction.invocation.reviewed-original.sh	2026-10-16 23:32:02.825010367 +0200
++++ tmp/continuation-20261016/wan-read-wait-stack-intern-generation-status-source/review/sustained-h2-complement-plan-1-status-correction/offline-reduction.invocation.corrected.sh	2026-10-16 23:32:02.808249080 +0200
+@@ -12,6 +12,12 @@
+ # old-analyzer/validator result. Require parser/canonicalizer direct status 0 per sequence.
+ mkdir -m 700 "$out"
+ for seq in 9 11 14 15; do
++  set +e
+   /usr/bin/python3 "$analyzer"     --input "$inputs/sequence-$seq.intern"     --tool-status "$inputs/sequence-$seq.parser.status"     --canonicalizer-status "$inputs/sequence-$seq.canonicalizer.status"     --ledger "$inputs/sequence-$seq.ledger.json"     --output "$out/sequence-$seq.reduction.json"     >"$out/sequence-$seq.stdout" 2>"$out/sequence-$seq.stderr"
+-  printf '0\n' >"$out/sequence-$seq.status"
++  analyzer_status=$?
++  set -e
++  printf '%s\n' "$analyzer_status" >"$out/sequence-$seq.status"
++  if ((analyzer_status != 0)); then
++    exit "$analyzer_status"
++  fi
+ done

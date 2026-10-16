@@ -1,0 +1,10 @@
+direct.status: OK
+direct.stderr: OK
+direct.stdout: OK
+end-utc.txt: OK
+invocation.txt: OK
+saved-outer.status: OK
+source-compare.status: OK
+source-post.sha256: OK
+source-pre.sha256: OK
+start-utc.txt: OK

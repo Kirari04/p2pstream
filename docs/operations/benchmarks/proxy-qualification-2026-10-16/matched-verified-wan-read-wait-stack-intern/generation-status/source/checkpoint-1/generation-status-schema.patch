@@ -1,0 +1,26 @@
+--- predecessor/OUTPUT-SCHEMA.json
++++ generation-status/OUTPUT-SCHEMA.json
+@@ -154,6 +154,8 @@
+         "waiting_stack_groups",
+         "top_wait_intervals",
+         "handler_transition_count",
++        "waiting_status_snapshot_count",
++        "waiting_status_snapshot_carried_ns",
+         "zero_duration_state_interval_counts",
+         "unblock_header_gid_diff_count",
+         "missing_stack_ns",
+@@ -207,6 +209,14 @@
+           "type": "integer",
+           "minimum": 0
+         },
++        "waiting_status_snapshot_count": {
++          "type": "integer",
++          "minimum": 0
++        },
++        "waiting_status_snapshot_carried_ns": {
++          "type": "integer",
++          "minimum": 0
++        },
+         "zero_duration_state_interval_counts": {
+           "$ref": "#/$defs/stateDurations"
+         },

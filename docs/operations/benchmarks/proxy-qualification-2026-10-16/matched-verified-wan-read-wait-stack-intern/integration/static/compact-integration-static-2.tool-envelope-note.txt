@@ -1,0 +1,1 @@
+The returned tool envelope exit_code was 1. The saved direct.status and saved-outer.status are 0, source-compare.status is 0, and the reviewed static command output reports success. No retry was performed.

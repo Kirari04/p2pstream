@@ -1,0 +1,99 @@
+--- tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/run_contracts.py	2026-10-16 22:54:23.009460805 +0200
++++ tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-8/run_contracts.py	2026-10-16 22:57:06.027591832 +0200
+@@ -61,17 +61,24 @@
+ def rec(tag,payload):return fmt.RECORD_HEADER.pack(tag,len(payload))+payload
+ 
+ def main():
+- ap=argparse.ArgumentParser();ap.add_argument('--output',required=True,type=Path);a=ap.parse_args()
++ ap=argparse.ArgumentParser();ap.add_argument('--output',required=True,type=Path)
++ ap.add_argument('--verified-six-root',type=Path);a=ap.parse_args()
+  out=a.output.resolve(); assert out.is_dir() and not any(out.iterdir());os.chmod(out,0o700)
++ verified_six=None if a.verified_six_root is None else a.verified_six_root.resolve(strict=True)
++ if verified_six is not None:assert verified_six.is_dir()
+  results=[]
+  for case in CASES:
+-  d=out/case['name'];d.mkdir(mode=0o700)
++  d=(out/case['name']) if verified_six is None else (verified_six/case['name'])
++  if verified_six is None:d.mkdir(mode=0o700)
+   canon=d/'trace.intern';ledger=d/'trace.ledger.json';ps=d/'parser.status';cs=d/'canonicalizer.status'
+-  argv=['/usr/bin/python3.14',BASE/'run_interned_trace_parser.py','--raw-trace',case['raw'],
+-   '--working-directory',d,'--canonical-output',canon,'--ledger',ledger,
+-   '--parser-status',ps,'--canonicalizer-status',cs,'--parser-stderr',d/'parser.stderr',
+-   '--canonicalizer-stderr',d/'canonicalizer.stderr','--process-record',d/'process.json']
+-  ast=invoke('adapter',argv,ROOT,d);assert ast==0
++  if verified_six is None:
++   argv=['/usr/bin/python3.14',BASE/'run_interned_trace_parser.py','--raw-trace',case['raw'],
++    '--working-directory',d,'--canonical-output',canon,'--ledger',ledger,
++    '--parser-status',ps,'--canonicalizer-status',cs,'--parser-stderr',d/'parser.stderr',
++    '--canonicalizer-stderr',d/'canonicalizer.stderr','--process-record',d/'process.json']
++   ast=invoke('adapter',argv,ROOT,d);assert ast==0
++  else:
++   assert (d/'adapter.status').read_bytes()==b'0\n'
+   proc=json.loads((d/'process.json').read_text());assert proc['accepted'] is True
+   for k in ('parser','canonicalizer'):
+    assert proc[k]['status']==0 and proc[k]['joined'] is True and proc[k]['group_gone'] is True
+@@ -80,9 +87,12 @@
+   assert sync_count>0 and wall_sync_count>0 and bad_sync==[]
+   assert n==case['parsed'].stat().st_size and h==sha(case['parsed'])
+   reduction=d/'reduction.json'
+-  argv=['/usr/bin/python3.14',BASE/'analyze_interned_trace.py','--input',canon,
+-   '--tool-status',ps,'--canonicalizer-status',cs,'--ledger',ledger,'--output',reduction]
+-  rs=invoke('analyzer',argv,ROOT,d);assert rs==0
++  if verified_six is None:
++   argv=['/usr/bin/python3.14',BASE/'analyze_interned_trace.py','--input',canon,
++    '--tool-status',ps,'--canonicalizer-status',cs,'--ledger',ledger,'--output',reduction]
++   rs=invoke('analyzer',argv,ROOT,d);assert rs==0
++  else:
++   assert (d/'analyzer.status').read_bytes()==b'0\n'
+   actual=json.loads(reduction.read_text());baseline=json.loads(case['baseline'].read_text())
+   assert actual['accepted'] is True and actual['errors']==[]
+   assert actual['markers']==baseline['markers'] and actual['reduction']==baseline['reduction']
+@@ -91,7 +101,8 @@
+    definition_bytes=meta['definition_bytes'],record_count=meta['record_count'],
+    expanded_sha256=h,canonical_sha256=sha(canon),sync_count=sync_count,
+    sync_wall_count=wall_sync_count,
+-   sync_timezone='Europe/Zurich +02:00',reduction_equal=True))
++   sync_timezone='Europe/Zurich +02:00',reduction_equal=True,
++   reused_verified_run=verified_six is not None))
+ 
+  cdir=out/'focused-contracts';cdir.mkdir(mode=0o700)
+  fixture=(ZERO/'fixtures/valid-resource-goid.txt').read_bytes()
+@@ -103,7 +114,7 @@
+   st=invoke('canonicalizer',['/usr/bin/python3.14',BASE/'intern_parsed_trace.py','--input',src,
+    '--output',canon,'--ledger',ledger],ROOT,d);assert st==0
+   n,h,_,_,_,_=expanded_identity(canon);assert n==len(data) and h==hashlib.sha256(data).hexdigest()
+-  fresh_write(d/'parser.status',b'0\n');fresh_write(d/'canonicalizer.status',b'0\n')
++  fresh_write(d/'parser.status',b'0\n')
+   st=invoke('analyzer',['/usr/bin/python3.14',BASE/'analyze_interned_trace.py','--input',canon,
+    '--tool-status',d/'parser.status','--canonicalizer-status',d/'canonicalizer.status',
+    '--ledger',ledger,'--output',d/'reduction.json'],ROOT,d)
+@@ -139,7 +150,7 @@
+  for name,data in bad.items():
+   p=md/f'{name}.intern';fresh_write(p,data);invalid.append({'name':name,'error':require_invalid(p,needles[name])})
+  # Bounded-state contracts use reduced test-only constants and restore them.
+- sample=out/'h1-sequence-9/trace.intern'
++ sample=(out if verified_six is None else verified_six)/'h1-sequence-9/trace.intern'
+  for name,attribute,value,needle in (
+   ('logical-expanded-bound','MAX_EXPANDED_BYTES',10,'logical expanded text exceeds'),
+   ('definition-count-bound','MAX_STACK_DEFINITIONS',0,'definition count exceeds'),
+@@ -153,8 +164,9 @@
+ 
+  # Deterministic status mutation between analyzer passes must fail closed.
+  d=cdir/'status-mutated-between-passes';d.mkdir(mode=0o700)
+- shutil.copyfile(out/'h1-sequence-9/parser.status',d/'parser.status')
+- shutil.copyfile(out/'h1-sequence-9/canonicalizer.status',d/'canonicalizer.status')
++ six_status_root=out if verified_six is None else verified_six
++ shutil.copyfile(six_status_root/'h1-sequence-9/parser.status',d/'parser.status')
++ shutil.copyfile(six_status_root/'h1-sequence-9/canonicalizer.status',d/'canonicalizer.status')
+  original_reduce=analyzer_module.reduce_states
+  def mutate_status(path,markers):
+   value=original_reduce(path,markers);(d/'parser.status').write_bytes(b'1\n');return value
+@@ -162,7 +174,7 @@
+  old_argv=sys.argv[:]
+  try:
+   sys.argv=['analyze_interned_trace.py','--input',str(sample),'--tool-status',str(d/'parser.status'),
+-   '--canonicalizer-status',str(d/'canonicalizer.status'),'--ledger',str(out/'h1-sequence-9/trace.ledger.json'),
++   '--canonicalizer-status',str(d/'canonicalizer.status'),'--ledger',str(six_status_root/'h1-sequence-9/trace.ledger.json'),
+    '--output',str(d/'reduction.json')]
+   assert analyzer_module.main()==1
+  finally:

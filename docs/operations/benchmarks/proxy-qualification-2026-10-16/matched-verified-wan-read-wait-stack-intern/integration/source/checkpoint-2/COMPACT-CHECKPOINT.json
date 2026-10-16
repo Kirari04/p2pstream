@@ -1,0 +1,29 @@
+{
+  "diagnostic_only": true,
+  "fixed_bounds": {
+    "canonical_bytes": 536870912,
+    "definition_bytes": 67108864,
+    "event_bytes": 4194304,
+    "events": 5000000,
+    "expanded_parsed_bytes": 4294967296,
+    "line_bytes": 1048576,
+    "raw_trace_bytes": 67108864,
+    "reducer_output_bytes": 8388608,
+    "stack_definitions": 4096
+  },
+  "schema_version": 1,
+  "sha256": {
+    "adapter": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+    "adapter_lifecycle_manifest": "22a87032adbc4096fde3dc97db2de80a2cad6ae86994cbacb37aec6366915897",
+    "adapter_lifecycle_summary": "37159578894bc8a4706d9bc191e7c4986a259b01973c527f174b56736d5f7cd6",
+    "analyzer": "ebb8e1a48b10f966df026a475d6217c83f117ac70e7a9195d66aadc7e1bdf895",
+    "canonicalizer": "4d1bbcdd2140d148741775842e1ba9d2d74f2541b15933a6232b18cf3473e793",
+    "focused_result_manifest": "e5c1832565bb77818a4c40e5e00faab66ac19ea0a556885cabccd3f8be1803d2",
+    "focused_summary": "669fdeb61e44fb35bcda0c9b3f1e42d3097f4d42a36596bd6defd94f2d0b332f",
+    "format": "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf",
+    "schema": "fc81d1afe93b8f805f98cae922f21032948b15a3985470f238545bb8663e4df7",
+    "source_checkpoint_manifest": "59a25b09de27905c9a558cae9f64c370517e283b014edb2b562142eeb3a21563"
+  },
+  "source_checkpoint": 8,
+  "traffic_run": false
+}

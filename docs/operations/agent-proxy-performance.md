@@ -603,9 +603,29 @@ raw traces per arm and omits expanded parsed and wire intermediates. This does
 not clear the original WAN blocker or the HAProxy, pressure, capacity and
 integration gates. Full-text sustained analysis was rejected before traffic
 because its projected parsed output exceeds the 512 MiB physical-file budget.
-A lossless stack-interning source direction with a separate 4 GiB logical
-expanded budget is under architecture review and has no traffic result. See the
-[read-wait trace evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-trace/README.md).
+See the [read-wait trace evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-trace/README.md).
+
+A following lossless stack-intern diagnostic preserves the 64 MiB raw and
+512 MiB physical-file limits while adding a separate 4 GiB logical expanded
+budget. Focused format and adapter contracts pass after four preserved failed
+attempts. A sustained H1 launch completes 16 rows but fails retained download
+at 15.781 MB/s; its standalone H2 complement completes 16 exact rows but fails
+download at sequences 9, 11 and 14 (27.543945, 27.497200 and 27.571749 MB/s).
+Both original four-trace analyzer sets reject missing `TransitionStack`
+records. Eight separate generation-status-aware offline reductions return zero
+without changing either failed performance arm, and all remain attribution
+incomplete. The independent partition audit applies to H1; the H2 corrected
+comparison preserves original inputs, markers and states but is not an
+independent decoder or partition audit. H2 raw traces and canonical streams are
+omitted by an exact 183-file manifest; no H2 wire decode or raw safety scan was
+performed. Read-only source review localizes the H1 delay to receive-data and
+`recvLock` waits without distinguishing sender credit starvation from transport
+pacing. The included tagged sender-duration design is a proposed source-only
+checkpoint; later work in progress remains outside the package. Production
+source remains unchanged. This diagnostic establishes no cause or runtime fix
+and clears none of the original WAN, HAProxy, pressure, capacity, integration,
+release or merge gates. See the
+[compact read-wait evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-stack-intern/README.md).
 
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while

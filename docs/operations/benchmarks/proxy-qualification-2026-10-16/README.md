@@ -37,6 +37,11 @@ comparison.
   original analyzer failures, separate offline reductions and independent
   handler-state partitions. It retains no runtime change and does not establish
   a cause or clear the WAN gate.
+- [`matched-verified-wan-read-wait-stack-intern/README.md`](matched-verified-wan-read-wait-stack-intern/README.md)
+  preserves focused compact-format validation, both rejected 16-row sustained
+  observations, separate generation-status reductions and exact omitted-H2
+  trace bindings. Production source remains unchanged; the package establishes
+  no cause or runtime fix and clears no qualification gate.
 - [`sql-hierarchical64-rejected/README.md`](sql-hierarchical64-rejected/README.md)
   preserves the rejected 64→16→single event-insert screen. Large flushes improve,
   but a smaller-flush pair exceeds the fixed regression ceiling; no code is retained.
@@ -305,9 +310,23 @@ raw traces per arm and omits expanded parsed and wire intermediates. The
 original 90% WAN blocker and the HAProxy, pressure, capacity and integration
 gates remain open. Full-text sustained analysis was rejected before traffic
 because its projected parsed output exceeds the 512 MiB physical-file budget.
-A lossless stack-interning source direction with a separate 4 GiB logical
-expanded budget is under architecture review; it has no traffic result. See the
-[read-wait trace evidence](matched-verified-wan-read-wait-trace/README.md).
+See the [read-wait trace evidence](matched-verified-wan-read-wait-trace/README.md).
+
+A following lossless stack-intern diagnostic keeps the 512 MiB physical-file
+limit and adds a separate 4 GiB logical expanded budget. Its sustained H1
+launch fails retained download at 15.781 MB/s. The standalone 16-row H2
+complement fails download at sequences 9, 11 and 14 (27.543945, 27.497200 and
+27.571749 MB/s). Both original four-trace analyzer sets reject missing
+`TransitionStack` records; eight separate corrected offline reductions return
+zero but remain attribution incomplete and do not change either failed
+performance arm. The independent partition audit applies to H1; the H2
+comparison is not an independent decoder or audit. H2 raw traces and canonical
+streams are omitted by exact hash, and no H2 wire decode or raw safety scan was
+performed. Source review establishes no cause. The tagged sender-duration
+design is a proposed source-only checkpoint, with later work in progress
+outside the package. Production source remains unchanged, and all WAN, HAProxy,
+pressure, capacity, integration, release and merge gates remain open. See the
+[compact read-wait evidence](matched-verified-wan-read-wait-stack-intern/README.md).
 
 The earlier final-runtime checkpoint
 `dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response

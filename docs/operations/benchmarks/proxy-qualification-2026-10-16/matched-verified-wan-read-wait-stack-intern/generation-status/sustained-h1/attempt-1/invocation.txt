@@ -1,0 +1,4 @@
+interpreter=/usr/bin/python3
+analyzer=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-generation-status-source/analyze_interned_trace.py
+inputs=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-{9,11,14,15}.intern
+operation=one corrected analyzer invocation per frozen canonical input; no parser/canonicalizer rerun
