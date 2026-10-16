@@ -99,12 +99,24 @@ func (c *GrowingConn) growMeasured(n uint64, now time.Time, rtt time.Duration) e
 		c.stream.Session().RequestRTT()
 	}
 	if next <= current {
+		if qualificationGrowthTraceEnabled && sampled {
+			c.recordQualificationGrowthSample(now, rtt, current, next, qualificationGrowthOutcomeNoProposal)
+		}
 		return nil
 	}
 	if c.aggregateGrowth != nil {
 		granted, err := c.aggregateGrowth.Grow(c.stream, next)
 		if !granted {
 			c.growth.deniedUntil = now.Add(time.Second)
+		}
+		if qualificationGrowthTraceEnabled && sampled {
+			outcome := qualificationGrowthOutcomeGrown
+			if err != nil {
+				outcome = qualificationGrowthOutcomePublicationError
+			} else if !granted {
+				outcome = qualificationGrowthOutcomeReservationDenied
+			}
+			c.recordQualificationGrowthSample(now, rtt, current, next, outcome)
 		}
 		return err
 	}
@@ -114,12 +126,23 @@ func (c *GrowingConn) growMeasured(n uint64, now time.Time, rtt time.Duration) e
 	release, ok := c.reserve(int64(extra))
 	if !ok {
 		c.growth.deniedUntil = now.Add(time.Second)
+		if qualificationGrowthTraceEnabled && sampled {
+			c.recordQualificationGrowthSample(now, rtt, current, next, qualificationGrowthOutcomeReservationDenied)
+		}
 		return nil
 	}
 	c.releases = append(c.releases, release)
 	// Keep the reservation even if the write fails: credit might have reached
 	// the peer before the error became observable locally.
-	return c.stream.GrowReceiveWindow(next)
+	err := c.stream.GrowReceiveWindow(next)
+	if qualificationGrowthTraceEnabled && sampled {
+		outcome := qualificationGrowthOutcomeGrown
+		if err != nil {
+			outcome = qualificationGrowthOutcomePublicationError
+		}
+		c.recordQualificationGrowthSample(now, rtt, current, next, outcome)
+	}
+	return err
 }
 
 // AggregateReceiveWindowGrowth serializes irrevocable pool and window growth
