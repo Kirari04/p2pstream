@@ -1,0 +1,271 @@
+{
+  "expected_leaf_der_sha256": "4270bd6441e7895f8afaa6ebc4b44cc5026abde538614bc6d536166c11ae96d7",
+  "h1": {
+    "rows": 12,
+    "protocols": [
+      "h1"
+    ],
+    "observed_http_majors": [
+      1
+    ],
+    "observed_alpn": [
+      "http/1.1"
+    ],
+    "leaf_fingerprints": [
+      "4270bd6441e7895f8afaa6ebc4b44cc5026abde538614bc6d536166c11ae96d7"
+    ],
+    "status_codes": [
+      {
+        "200": 1
+      }
+    ],
+    "all_useful": true,
+    "trace_store_counts": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "got_conn_reused": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "got_conn_was_idle": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "got_conn_idle_ns": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "put_idle_counts": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "callback_overflow": [
+      false
+    ],
+    "store_overflow": [
+      false
+    ],
+    "origin_ids": [
+      "10.212.0.2:48244",
+      "10.212.0.2:48252",
+      "10.212.0.2:48262",
+      "10.212.0.2:48276",
+      "10.212.0.2:48280",
+      "10.212.0.2:48290",
+      "10.212.0.2:48300",
+      "10.212.0.2:57406",
+      "10.212.0.2:57408",
+      "10.212.0.2:57416",
+      "10.212.0.2:57428",
+      "10.212.0.2:57430"
+    ],
+    "upstream_remote_addresses": [
+      "10.212.0.2:48658",
+      "10.212.0.2:48642",
+      "10.212.0.2:48628",
+      "10.212.0.2:48614",
+      "10.212.0.2:48658",
+      "10.212.0.2:48642",
+      "10.212.0.2:48628",
+      "10.212.0.2:48614",
+      "10.212.0.2:48658",
+      "10.212.0.2:48642",
+      "10.212.0.2:48628",
+      "10.212.0.2:48614"
+    ],
+    "steady_pool_bytes": [
+      12582912,
+      11010048
+    ],
+    "download_min_by_stage": {
+      "warmup": 4664798.221555465,
+      "retained-warmup": 4684935.830341098,
+      "steady": 4649349.314468048
+    }
+  },
+  "h2": {
+    "rows": 12,
+    "protocols": [
+      "h2"
+    ],
+    "observed_http_majors": [
+      2
+    ],
+    "observed_alpn": [
+      "h2"
+    ],
+    "leaf_fingerprints": [
+      "4270bd6441e7895f8afaa6ebc4b44cc5026abde538614bc6d536166c11ae96d7"
+    ],
+    "status_codes": [
+      {
+        "200": 1
+      }
+    ],
+    "all_useful": true,
+    "trace_store_counts": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "got_conn_reused": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "got_conn_was_idle": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "got_conn_idle_ns": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "put_idle_counts": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "callback_overflow": [
+      false
+    ],
+    "store_overflow": [
+      false
+    ],
+    "origin_ids": [
+      "10.212.0.2:58430",
+      "10.212.0.2:58438",
+      "10.212.0.2:58440",
+      "10.212.0.2:58444",
+      "10.212.0.2:58448",
+      "10.212.0.2:58456",
+      "10.212.0.2:58472",
+      "10.212.0.2:55888",
+      "10.212.0.2:55904",
+      "10.212.0.2:55920",
+      "10.212.0.2:55932",
+      "10.212.0.2:55936"
+    ],
+    "upstream_remote_addresses": [
+      "10.212.0.2:33388",
+      "10.212.0.2:33424",
+      "10.212.0.2:33412",
+      "10.212.0.2:33402",
+      "10.212.0.2:33388",
+      "10.212.0.2:33424",
+      "10.212.0.2:33412",
+      "10.212.0.2:33402",
+      "10.212.0.2:33388",
+      "10.212.0.2:33424",
+      "10.212.0.2:33412",
+      "10.212.0.2:33402"
+    ],
+    "steady_pool_bytes": [
+      11796480,
+      10747904
+    ],
+    "download_min_by_stage": {
+      "warmup": 4639516.565644516,
+      "retained-warmup": 4654594.954038801,
+      "steady": 4661580.726123989
+    }
+  }
+}

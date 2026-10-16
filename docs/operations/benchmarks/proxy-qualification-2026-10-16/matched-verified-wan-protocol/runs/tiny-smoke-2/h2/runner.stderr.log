@@ -1,0 +1,1 @@
+WAN protocol diagnostic failed: {'correctness': True, 'verified_tls_and_protocol_every_response': True, 'transport_trace_complete': True, 'download_floor_every_phase': True}

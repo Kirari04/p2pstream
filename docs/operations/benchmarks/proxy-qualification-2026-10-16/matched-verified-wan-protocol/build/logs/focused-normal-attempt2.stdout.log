@@ -1,0 +1,7 @@
+2026/10/16 18:44:31 http: TLS handshake error from 127.0.0.1:41828: remote error: tls: bad certificate
+2026/10/16 18:44:31 http: TLS handshake error from 127.0.0.1:41844: remote error: tls: bad certificate
+--- FAIL: TestQualificationWANForcedH2DoesNotFallback (0.00s)
+    proxy_qualification_wan_protocol_test.go:420: H2-only diagnostic transport fell back to HTTP/1
+FAIL
+FAIL	p2pstream/internal/server	0.019s
+FAIL

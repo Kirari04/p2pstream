@@ -555,8 +555,23 @@ broad proxy-parity claims. The faithful historical client uses `InsecureSkipVeri
 an IP URL and no SNI, so it also does not establish matched, verified
 certificate handshakes. See the
 [current-production WAN evidence](benchmarks/proxy-qualification-2026-10-16/current-production-wan/README.md).
-A matched verified H1/H2 diagnostic is separate and is not part of these
-qualification results.
+A separate matched verified H1/H2 diagnostic on the same source checkpoint is
+now complete. Its production files remain byte-identical; diagnostic-only test
+overlays select the public protocol, verify RootCAs and
+`ServerName=public.test`, bind the certificate DER hash, and correlate bounded
+transport traces. H1 passes all three independent 29.7 MB/s download floors,
+with minima of 33.592 MB/s warmup, 29.729 MB/s retained warmup and 30.034 MB/s
+steady state. H2 passes warmup at 33.586 MB/s but fails retained warmup at
+14.242 MB/s and steady state at 27.327 MB/s. All 32 rows preserve exact HTTP
+200 payloads, negotiated protocol, event conservation and trace correlation.
+Sequences 9–12 establish the first post-close lane-key visits; sequences
+13–16 reuse those same keys and bound origin connections after 23.94–27.71
+seconds idle in both arms. All lifecycle exits are natural and joined; the H2
+runner returns 1 after cleanup solely for the failed phase floors. This failed
+diagnostic does not establish protocol causality or clear the original WAN
+release blocker. HAProxy, pressure, capacity and integration qualifications
+remain separate. See the
+[matched verified H1/H2 diagnostic evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-protocol/README.md).
 
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while

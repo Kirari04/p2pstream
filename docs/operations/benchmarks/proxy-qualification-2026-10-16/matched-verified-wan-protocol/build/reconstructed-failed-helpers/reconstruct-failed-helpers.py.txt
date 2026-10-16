@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Reconstruct the two superseded helper snapshots from the final helper.
+
+This is a text-only reversal of the two documented fixture corrections. It
+does not modify the frozen source bundle and does not execute Go tooling.
+"""
+
+from __future__ import annotations
+
+import hashlib
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[3]
+FINAL = ROOT / "tmp/continuation-20261016/wan-protocol-source/proxy_qualification_wan_protocol_test.go"
+OUTPUT = Path(__file__).resolve().parent / "reconstructed-failed-helpers"
+
+EXPECTED = {
+    "focused-normal-attempt1-helper.go.txt": "a1b82b984ec77769f8f27e7d593764819b6de06aef5a140daee9ad30dde84f05",
+    "focused-normal-attempt2-helper.go.txt": "6bddf6b6b46910edacdfc67570469998d06b5289c6be8d9f7fd0b7377b500220",
+}
+
+FINAL_SERVER_BLOCK = '''\tnextProtos := []string{"http/1.1"}
+\tif enableHTTP2 {
+\t\tnextProtos = []string{"h2", "http/1.1"}
+\t}
+\tserver.TLS = &tls.Config{Certificates: []tls.Certificate{certificate}, NextProtos: nextProtos}
+'''
+ATTEMPT2_SERVER_BLOCK = '''\tserver.TLS = &tls.Config{Certificates: []tls.Certificate{certificate}, NextProtos: []string{"h2", "http/1.1"}}
+'''
+ATTEMPT1_SERVER_BLOCK = '''\tserver.TLS = &tls.Config{Certificates: []tls.Certificate{certificate}}
+'''
+TRACE_TEST_MARKER = "\nfunc TestQualificationWANTraceStoreBoundedAndComposes(t *testing.T) {"
+
+
+def digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def main() -> None:
+    final = FINAL.read_text()
+    if final.count(FINAL_SERVER_BLOCK) != 1:
+        raise SystemExit("final server fixture block changed")
+    if final.count(TRACE_TEST_MARKER) != 1 or final.count('\t"net"\n') != 1:
+        raise SystemExit("final trace-test markers changed")
+
+    attempt2 = final.replace(FINAL_SERVER_BLOCK, ATTEMPT2_SERVER_BLOCK)
+    attempt1 = final.replace(FINAL_SERVER_BLOCK, ATTEMPT1_SERVER_BLOCK)
+    attempt1 = attempt1.replace('\t"net"\n', "")
+    # The marker begins at the second newline after the preceding function, so
+    # truncating at it retains the original single trailing newline exactly.
+    attempt1 = attempt1[: attempt1.index(TRACE_TEST_MARKER)]
+
+    values = {
+        "focused-normal-attempt1-helper.go.txt": attempt1.encode(),
+        "focused-normal-attempt2-helper.go.txt": attempt2.encode(),
+    }
+    for name, data in values.items():
+        actual = digest(data)
+        if actual != EXPECTED[name]:
+            raise SystemExit(f"{name}: reconstructed {actual}, expected {EXPECTED[name]}")
+
+    OUTPUT.mkdir(exist_ok=True)
+    for name, data in values.items():
+        (OUTPUT / name).write_bytes(data)
+    (OUTPUT / "SHA256SUMS").write_text(
+        "".join(f"{EXPECTED[name]}  {name}\n" for name in sorted(values))
+    )
+    print("exact failed-helper reconstruction verified")
+    for name in sorted(values):
+        print(EXPECTED[name], name)
+
+
+if __name__ == "__main__":
+    main()

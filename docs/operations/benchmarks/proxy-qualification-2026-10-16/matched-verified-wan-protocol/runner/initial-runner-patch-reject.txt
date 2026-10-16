@@ -1,0 +1,22 @@
+--- qualify-proxy-agent-growth-owned.sh
++++ qualify-proxy-agent-growth-wan-protocol.sh
+@@ -673,17 +691,16 @@ run_transfer() {
+   if [[ $mode == aggregate-v1 && $stage == steady && $direction == upload ]]; then
+     jq -e --argjson required "$((required_pool_mib << 20))" '
+       (.agent_capacity.aggregate_growth_pool_bytes > 0) and
+       (.agent_capacity.aggregate_current_pool_bytes > .agent_capacity.aggregate_initial_pool_bytes) and
+       ([.tunnel_sessions[] | select(.aggregate == true and .lane > 0) | .receive_limit_bytes] | length == 4 and min > $required)
+     ' <<<"$agent_runtime" >/dev/null
+   fi
+   jq -c --arg stage "$stage" --arg direction "$direction" --arg mode "$mode" \
+     --argjson repetition "$repetition" --argjson agent_runtime "$agent_runtime" \
++    --argjson upstream_trace "$upstream_trace" --arg public_protocol "$protocol" \
+     --argjson configured_rtt_ms "$configured_rtt_ms" --argjson measured_rtt_ms "$measured_rtt_ms" \
+     --arg server_binary_sha256 "$server_binary_sha256" \
+     --arg aggregate_agent_binary_sha256 "$aggregate_agent_binary_sha256" \
+-    --arg legacy_agent_binary_sha256 "$legacy_agent_binary_sha256" \
+     --arg script_sha256 "$script_sha256" \
+     --arg server_source_ref "$server_source_ref" \
+-    --arg aggregate_agent_source_ref "$aggregate_agent_source_ref" \
+-    --arg legacy_agent_source_ref "$legacy_agent_source_ref" '
++    --arg aggregate_agent_source_ref "$aggregate_agent_source_ref" '

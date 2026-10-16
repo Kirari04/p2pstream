@@ -1,0 +1,131 @@
+{
+  "accepted": false,
+  "all_observed_http_major": 2,
+  "classification": "observational-complete",
+  "diagnostic_only": true,
+  "download_floor_bytes_per_second": 29700000,
+  "download_phase_classification": {
+    "retained-warmup": {
+      "all_at_or_above_floor": false,
+      "gating": true,
+      "minimum_bytes_per_second": 14242381.453010485,
+      "samples": 1
+    },
+    "steady": {
+      "all_at_or_above_floor": false,
+      "gating": true,
+      "minimum_bytes_per_second": 27327104.401894663,
+      "samples": 3
+    },
+    "warmup": {
+      "all_at_or_above_floor": true,
+      "gating": true,
+      "minimum_bytes_per_second": 33586396.92544958,
+      "samples": 4
+    }
+  },
+  "lifecycle_sha256": "a863d8c29c99be93da03a4d2139dcfe44525fa4b5b545d23eb52f01e821c3701",
+  "natural_endpoint_and_namespace_statuses": true,
+  "outer_private_user_pid_mount_net": true,
+  "outer_runner_group_joined": true,
+  "protocol": "h2",
+  "results_sha256": "63fa32e254429d9e756470aae7c59ec35e57cf7c5a0c0d731ac9d2d2c4cac049",
+  "reuse_expectations": [
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47542",
+      "kind": "first-post-close-visit",
+      "lane_position": 1,
+      "satisfied": true,
+      "sequence": 9
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47522",
+      "kind": "first-post-close-visit",
+      "lane_position": 2,
+      "satisfied": true,
+      "sequence": 10
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47506",
+      "kind": "first-post-close-visit",
+      "lane_position": 3,
+      "satisfied": true,
+      "sequence": 11
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47526",
+      "kind": "first-post-close-visit",
+      "lane_position": 4,
+      "satisfied": true,
+      "sequence": 12
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47542",
+      "elapsed_idle_ns": 25712687135,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47542",
+      "got_conn_unix_ns": 1792170705096950026,
+      "httptrace_idle_time_ns": 25712687466,
+      "kind": "same-key-revisit",
+      "lane_position": 1,
+      "observed_origin_connection_id": "10.212.0.2:53432",
+      "prior_origin_connection_id": "10.212.0.2:53432",
+      "prior_put_idle_unix_ns": 1792170679384262891,
+      "satisfied": true,
+      "sequence": 13
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47522",
+      "elapsed_idle_ns": 27590952102,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47522",
+      "got_conn_unix_ns": 1792170714694923354,
+      "httptrace_idle_time_ns": 27590952704,
+      "kind": "same-key-revisit",
+      "lane_position": 2,
+      "observed_origin_connection_id": "10.212.0.2:48328",
+      "prior_origin_connection_id": "10.212.0.2:48328",
+      "prior_put_idle_unix_ns": 1792170687103971252,
+      "satisfied": true,
+      "sequence": 14
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47506",
+      "elapsed_idle_ns": 27481581362,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47506",
+      "got_conn_unix_ns": 1792170724563402989,
+      "httptrace_idle_time_ns": 27481584849,
+      "kind": "same-key-revisit",
+      "lane_position": 3,
+      "observed_origin_connection_id": "10.212.0.2:43654",
+      "prior_origin_connection_id": "10.212.0.2:43654",
+      "prior_put_idle_unix_ns": 1792170697081821627,
+      "satisfied": true,
+      "sequence": 15
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47526",
+      "elapsed_idle_ns": 27710095685,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:36219|10.212.0.2:47526",
+      "got_conn_unix_ns": 1792170732454356664,
+      "httptrace_idle_time_ns": 27710096296,
+      "kind": "same-key-revisit",
+      "lane_position": 4,
+      "observed_origin_connection_id": "10.212.0.2:56080",
+      "prior_origin_connection_id": "10.212.0.2:56080",
+      "prior_put_idle_unix_ns": 1792170704744260979,
+      "satisfied": true,
+      "sequence": 16
+    }
+  ],
+  "row_count": 16,
+  "runner_status": 1,
+  "schema_version": 1,
+  "smoke": false,
+  "summary_sha256": "8b7934f057986baa2227ddf99ec23ceae4c3e0cff415ede3b7a32ee92695a7fb",
+  "validation_issues": [
+    "retained-warmup download phase failed independent 29700000 B/s floor",
+    "steady download phase failed independent 29700000 B/s floor",
+    "diagnostic acceptance failed or incomplete: {'correctness': True, 'download_floor_every_phase': False, 'expected_upstream_reuse': True, 'transport_trace_complete': True, 'verified_tls_and_protocol_every_response': True}",
+    "runner exited nonzero after preserving evidence: 1"
+  ],
+  "verified_alpn": "h2"
+}

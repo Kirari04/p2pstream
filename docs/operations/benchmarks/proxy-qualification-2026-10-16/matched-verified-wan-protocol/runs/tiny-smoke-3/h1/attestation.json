@@ -1,0 +1,84 @@
+{
+  "accepted": true,
+  "all_observed_http_major": 1,
+  "classification": "observational-complete",
+  "diagnostic_only": true,
+  "download_floor_bytes_per_second": 29700000,
+  "download_phase_classification": {
+    "retained-warmup": {
+      "all_at_or_above_floor": false,
+      "gating": false,
+      "minimum_bytes_per_second": 4679481.3487964505,
+      "samples": 1
+    },
+    "steady": {
+      "all_at_or_above_floor": false,
+      "gating": false,
+      "minimum_bytes_per_second": 4684191.115422786,
+      "samples": 1
+    },
+    "warmup": {
+      "all_at_or_above_floor": false,
+      "gating": false,
+      "minimum_bytes_per_second": 4268012.029988384,
+      "samples": 4
+    }
+  },
+  "lifecycle_sha256": "94e1765212f4bd6a1ca4f0c5e758b0cbe4be157151cd00d97c47b8d134bf7673",
+  "natural_endpoint_and_namespace_statuses": true,
+  "outer_private_user_pid_mount_net": true,
+  "outer_runner_group_joined": true,
+  "protocol": "h1",
+  "results_sha256": "ca1643146da3e40cbee8fbf5302316829c4fe8617551997c5452a2da36ea8fbd",
+  "reuse_expectations": [
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34625|10.212.0.2:53276",
+      "kind": "first-post-close-visit",
+      "lane_position": 1,
+      "satisfied": true,
+      "sequence": 9
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34625|10.212.0.2:53262",
+      "kind": "first-post-close-visit",
+      "lane_position": 2,
+      "satisfied": true,
+      "sequence": 10
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34625|10.212.0.2:53292",
+      "kind": "first-post-close-visit",
+      "lane_position": 3,
+      "satisfied": true,
+      "sequence": 11
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34625|10.212.0.2:53288",
+      "kind": "first-post-close-visit",
+      "lane_position": 4,
+      "satisfied": true,
+      "sequence": 12
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34625|10.212.0.2:53276",
+      "elapsed_idle_ns": 3431321579,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34625|10.212.0.2:53276",
+      "got_conn_unix_ns": 1792170349448667308,
+      "httptrace_idle_time_ns": 3431321890,
+      "kind": "same-key-revisit",
+      "lane_position": 1,
+      "observed_origin_connection_id": "10.212.0.2:53664",
+      "prior_origin_connection_id": "10.212.0.2:53664",
+      "prior_put_idle_unix_ns": 1792170346017345729,
+      "satisfied": true,
+      "sequence": 13
+    }
+  ],
+  "row_count": 13,
+  "runner_status": 0,
+  "schema_version": 1,
+  "smoke": true,
+  "summary_sha256": "faf9c80b23da791d25e8960c283fa7468cc8d9fc45ca1967bd944a85187519b3",
+  "validation_issues": [],
+  "verified_alpn": "http/1.1"
+}

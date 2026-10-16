@@ -1,0 +1,305 @@
+--- qualify-proxy-agent-growth-owned.sh
++++ qualify-proxy-agent-growth-wan-protocol.sh
+@@ -8,7 +8,6 @@ if [[ ${1:-} != --inside ]]; then
+   cd "$(dirname "$0")/.."
+   server_binary=""
+   aggregate_agent_binary=""
+-  legacy_agent_binary=""
+   output=""
+   runs=2
+   warmup_mib=256
+@@ -18,7 +17,10 @@ if [[ ${1:-} != --inside ]]; then
+   configured_rtt_ms=80
+   server_source_ref=""
+   aggregate_agent_source_ref=""
+-  legacy_agent_source_ref=""
++  protocol=""
++  cert=""
++  key=""
++  expected_leaf_sha256=""
+   smoke_mode=0
+   pressure_mode=0
+   tiny_response_mode=0
+@@ -26,7 +28,6 @@ if [[ ${1:-} != --inside ]]; then
+     case "$1" in
+       --server-binary) server_binary=$2; shift 2 ;;
+       --aggregate-agent-binary) aggregate_agent_binary=$2; shift 2 ;;
+-      --legacy-agent-binary) legacy_agent_binary=$2; shift 2 ;;
+       --output) output=$2; shift 2 ;;
+       --runs) runs=$2; shift 2 ;;
+       --warmup-mib) warmup_mib=$2; shift 2 ;;
+@@ -47,7 +48,10 @@ if [[ ${1:-} != --inside ]]; then
+         ;;
+       --server-source-ref) server_source_ref=$2; shift 2 ;;
+       --aggregate-agent-source-ref) aggregate_agent_source_ref=$2; shift 2 ;;
+-      --legacy-agent-source-ref) legacy_agent_source_ref=$2; shift 2 ;;
++      --protocol) protocol=$2; shift 2 ;;
++      --cert) cert=$2; shift 2 ;;
++      --key) key=$2; shift 2 ;;
++      --expected-leaf-sha256) expected_leaf_sha256=$2; shift 2 ;;
+       --smoke)
+         smoke_mode=1
+         runs=1
+@@ -61,6 +65,6 @@ if [[ ${1:-} != --inside ]]; then
+   done
+-  [[ -x $server_binary && -x $aggregate_agent_binary && -x $legacy_agent_binary ]] || {
+-    echo "executable --server-binary, --aggregate-agent-binary and --legacy-agent-binary are required" >&2
++  [[ -x $server_binary && -x $aggregate_agent_binary ]] || {
++    echo "executable --server-binary and --aggregate-agent-binary are required" >&2
+     exit 2
+   }
+-  [[ $runs =~ ^[1-9][0-9]*$ ]] || { echo "--runs must be positive" >&2; exit 2; }
++  [[ $runs == 1 ]] || { echo "WAN protocol diagnostic requires exactly --runs 1" >&2; exit 2; }
+@@ -94,10 +98,14 @@ if [[ ${1:-} != --inside ]]; then
+-  [[ -n $server_source_ref && -n $aggregate_agent_source_ref && -n $legacy_agent_source_ref ]] || {
+-    echo "--server-source-ref, --aggregate-agent-source-ref and --legacy-agent-source-ref are required" >&2
++  [[ -n $server_source_ref && -n $aggregate_agent_source_ref ]] || {
++    echo "--server-source-ref and --aggregate-agent-source-ref are required" >&2
+     exit 2
+   }
++  [[ $protocol == h1 || $protocol == h2 ]] || { echo "--protocol must be h1 or h2" >&2; exit 2; }
++  [[ -f $cert && -f $key ]] || { echo "--cert and --key are required" >&2; exit 2; }
++  [[ $expected_leaf_sha256 =~ ^[0-9a-f]{64}$ ]] || { echo "--expected-leaf-sha256 must be lowercase SHA-256 hex" >&2; exit 2; }
+   mkdir -p tmp/proxy-agent-growth
+   [[ -n $output ]] || output=tmp/proxy-agent-growth/results.jsonl
+-  export P2PSTREAM_GROWTH_SERVER_BINARY P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY P2PSTREAM_GROWTH_LEGACY_AGENT_BINARY
++  export P2PSTREAM_GROWTH_SERVER_BINARY P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY
+   export P2PSTREAM_GROWTH_OUTPUT P2PSTREAM_GROWTH_RUNS P2PSTREAM_GROWTH_PARENT_NETNS
+   export P2PSTREAM_GROWTH_WARMUP_MIB P2PSTREAM_GROWTH_STEADY_MIB P2PSTREAM_GROWTH_TRANSFER_REPETITIONS P2PSTREAM_GROWTH_REQUIRED_MIB
+-  export P2PSTREAM_GROWTH_SERVER_SOURCE_REF P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF
++  export P2PSTREAM_GROWTH_SERVER_SOURCE_REF P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF
++  export P2PSTREAM_GROWTH_PROTOCOL P2PSTREAM_GROWTH_CERT P2PSTREAM_GROWTH_KEY P2PSTREAM_GROWTH_EXPECTED_LEAF_SHA256
+@@ -106,6 +116,5 @@ if [[ ${1:-} != --inside ]]; then
+   export P2PSTREAM_GROWTH_CONFIGURED_RTT_MS
+   P2PSTREAM_GROWTH_SERVER_BINARY=$(realpath "$server_binary")
+   P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY=$(realpath "$aggregate_agent_binary")
+-  P2PSTREAM_GROWTH_LEGACY_AGENT_BINARY=$(realpath "$legacy_agent_binary")
+   P2PSTREAM_GROWTH_OUTPUT=$(realpath -m "$output")
+   P2PSTREAM_GROWTH_RUNS=$runs
+@@ -116,5 +125,8 @@ if [[ ${1:-} != --inside ]]; then
+   P2PSTREAM_GROWTH_REQUIRED_MIB=$required_pool_mib
+   P2PSTREAM_GROWTH_SERVER_SOURCE_REF=$server_source_ref
+   P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF=$aggregate_agent_source_ref
+-  P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF=$legacy_agent_source_ref
++  P2PSTREAM_GROWTH_PROTOCOL=$protocol
++  P2PSTREAM_GROWTH_CERT=$(realpath "$cert")
++  P2PSTREAM_GROWTH_KEY=$(realpath "$key")
++  P2PSTREAM_GROWTH_EXPECTED_LEAF_SHA256=$expected_leaf_sha256
+   P2PSTREAM_GROWTH_SMOKE_MODE=$smoke_mode
+@@ -128,5 +140,5 @@ if [[ ${1:-} != --inside ]]; then
+     exec unshare --user --map-root-user --net "$0" --inside
+   fi
+-  exec sudo -n --preserve-env=P2PSTREAM_GROWTH_SERVER_BINARY,P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY,P2PSTREAM_GROWTH_LEGACY_AGENT_BINARY,P2PSTREAM_GROWTH_OUTPUT,P2PSTREAM_GROWTH_RUNS,P2PSTREAM_GROWTH_PARENT_NETNS,P2PSTREAM_GROWTH_WARMUP_MIB,P2PSTREAM_GROWTH_STEADY_MIB,P2PSTREAM_GROWTH_TRANSFER_REPETITIONS,P2PSTREAM_GROWTH_REQUIRED_MIB,P2PSTREAM_GROWTH_SERVER_SOURCE_REF,P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_SMOKE_MODE,P2PSTREAM_GROWTH_PRESSURE_MODE,P2PSTREAM_GROWTH_TINY_RESPONSE_MODE,P2PSTREAM_GROWTH_CONFIGURED_RTT_MS \
++  exec sudo -n --preserve-env=P2PSTREAM_GROWTH_SERVER_BINARY,P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY,P2PSTREAM_GROWTH_OUTPUT,P2PSTREAM_GROWTH_RUNS,P2PSTREAM_GROWTH_PARENT_NETNS,P2PSTREAM_GROWTH_WARMUP_MIB,P2PSTREAM_GROWTH_STEADY_MIB,P2PSTREAM_GROWTH_TRANSFER_REPETITIONS,P2PSTREAM_GROWTH_REQUIRED_MIB,P2PSTREAM_GROWTH_SERVER_SOURCE_REF,P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_PROTOCOL,P2PSTREAM_GROWTH_CERT,P2PSTREAM_GROWTH_KEY,P2PSTREAM_GROWTH_EXPECTED_LEAF_SHA256,P2PSTREAM_GROWTH_SMOKE_MODE,P2PSTREAM_GROWTH_PRESSURE_MODE,P2PSTREAM_GROWTH_TINY_RESPONSE_MODE,P2PSTREAM_GROWTH_CONFIGURED_RTT_MS \
+     unshare --net "$0" --inside
+ fi
+@@ -142,5 +154,4 @@ fi
+ 
+ server_binary=$P2PSTREAM_GROWTH_SERVER_BINARY
+ aggregate_agent_binary=$P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY
+-legacy_agent_binary=$P2PSTREAM_GROWTH_LEGACY_AGENT_BINARY
+ output=$P2PSTREAM_GROWTH_OUTPUT
+@@ -151,4 +162,7 @@ required_pool_mib=$P2PSTREAM_GROWTH_REQUIRED_MIB
+ server_source_ref=$P2PSTREAM_GROWTH_SERVER_SOURCE_REF
+ aggregate_agent_source_ref=$P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF
+-legacy_agent_source_ref=$P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF
++protocol=$P2PSTREAM_GROWTH_PROTOCOL
++cert=$P2PSTREAM_GROWTH_CERT
++key=$P2PSTREAM_GROWTH_KEY
++expected_leaf_sha256=$P2PSTREAM_GROWTH_EXPECTED_LEAF_SHA256
+ smoke_mode=$P2PSTREAM_GROWTH_SMOKE_MODE
+@@ -327,5 +341,4 @@ measured_rtt_ms=$(agent_ns ping -c 5 -q 10.211.0.1 | awk -F/ '/rtt|round-trip/
+ 
+ server_binary_sha256=$(sha256sum "$server_binary" | awk '{print $1}')
+ aggregate_agent_binary_sha256=$(sha256sum "$aggregate_agent_binary" | awk '{print $1}')
+-legacy_agent_binary_sha256=$(sha256sum "$legacy_agent_binary" | awk '{print $1}')
+ script_sha256=$(sha256sum "$0" | awk '{print $1}')
+@@ -552,8 +565,4 @@ wait_aggregate_lanes_grown_and_quiescent() {
+   return 1
+ }
+ 
+-cert=$run_dir/public.crt.pem
+-key=$run_dir/public.key.pem
+-openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+-  -subj /CN=public.test -days 1 -keyout "$key" -out "$cert" >/dev/null 2>&1
+ origin_ready=$run_dir/origin.ready.json
+@@ -611,4 +619,6 @@ run_transfer() {
+   fi
+   sequence=$((sequence + 1))
+   local raw="$run_dir/$sequence-$label-$stage-$direction-$repetition.json"
++  local expected_major=1 expected_alpn=http/1.1
++  [[ $protocol == h2 ]] && { expected_major=2; expected_alpn=h2; }
+   local server_spec
+@@ -626,3 +636,7 @@ run_transfer() {
+   P2PSTREAM_QUALIFICATION_URL="$public_url/agent/$suffix" \
+   P2PSTREAM_QUALIFICATION_SCENARIO="$scenario" \
+-  P2PSTREAM_QUALIFICATION_PROTOCOL=h2 \
++  P2PSTREAM_QUALIFICATION_PROTOCOL="$protocol" \
++  P2PSTREAM_QUALIFICATION_WAN_PROTOCOL_DIAGNOSTIC=1 \
++  P2PSTREAM_QUALIFICATION_WAN_ROOT_CA_FILE="$cert" \
++  P2PSTREAM_QUALIFICATION_WAN_SERVER_NAME=public.test \
++  P2PSTREAM_QUALIFICATION_WAN_EXPECTED_LEAF_SHA256="$expected_leaf_sha256" \
+@@ -640,3 +654,3 @@ run_transfer() {
+   P2PSTREAM_QUALIFICATION_SERVER_PROCESS="$server_spec" \
+   P2PSTREAM_QUALIFICATION_LOAD_CPU_SET="$load_cpu_set" \
+-  P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE="p2pstream-external-agent-tunnel-netns:${configured_rtt_ms}ms,1gbit,current-server,mode=$mode" \
++  P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE="p2pstream-external-agent-tunnel-netns:${configured_rtt_ms}ms,1gbit,current-server,mode=$mode,public=$protocol,verified-tls" \
+@@ -650,3 +664,8 @@ run_transfer() {
+     >"$raw.log" 2>&1
+-  local agent_runtime
++  local agent_runtime upstream_trace
+   agent_runtime=$(query_agent_json "$agent_namespace_pid" "$agent_admin")
++  upstream_trace=$(query_server_json "$server_admin?wan_trace=$sequence")
++  jq -e --argjson major "$expected_major" --arg alpn "$expected_alpn" --arg fingerprint "$expected_leaf_sha256" '
++    (.wan_response_tls | length == .attempted) and .attempted == 1 and
++    all(.wan_response_tls[]; .http_major == $major and .negotiated_alpn == $alpn and .peer_leaf_der_sha256 == $fingerprint and .origin_connection_id != "" and ((.validation_error // "") == ""))
++  ' "$raw" >/dev/null
+@@ -655,17 +673,16 @@ run_transfer() {
+   if [[ $mode == aggregate-v1 && $stage == steady && $direction == upload ]]; then
+     jq -e --argjson required "$((required_pool_mib << 20))" '
+       (.agent_capacity.aggregate_growth_pool_bytes > 0) and
+       (.agent_capacity.aggregate_current_pool_bytes > .agent_capacity.aggregate_initial_pool_bytes) and
+       ([.tunnel_sessions[] | select(.aggregate == true and .lane > 0) | .receive_limit_bytes] | length == 4 and min > $required)
+     ' <<<"$agent_runtime" >/dev/null
+   fi
+   jq -c --arg stage "$stage" --arg direction "$direction" --arg mode "$mode" \
+     --argjson repetition "$repetition" --argjson agent_runtime "$agent_runtime" \
++    --argjson upstream_trace "$upstream_trace" --arg public_protocol "$protocol" \
+     --argjson configured_rtt_ms "$configured_rtt_ms" --argjson measured_rtt_ms "$measured_rtt_ms" \
+     --arg server_binary_sha256 "$server_binary_sha256" \
+     --arg aggregate_agent_binary_sha256 "$aggregate_agent_binary_sha256" \
+-    --arg legacy_agent_binary_sha256 "$legacy_agent_binary_sha256" \
+     --arg script_sha256 "$script_sha256" \
+     --arg server_source_ref "$server_source_ref" \
+-    --arg aggregate_agent_source_ref "$aggregate_agent_source_ref" \
+-    --arg legacy_agent_source_ref "$legacy_agent_source_ref" '
++    --arg aggregate_agent_source_ref "$aggregate_agent_source_ref" '
+@@ -681,3 +699,5 @@ run_transfer() {
+         transfer_direction:$direction,
+         transport_mode:$mode,
++        public_protocol:$public_protocol,
++        upstream_transport_trace:$upstream_trace,
+         repetition:$repetition,
+@@ -688,8 +708,6 @@ run_transfer() {
+           server_binary_sha256:$server_binary_sha256,
+           aggregate_agent_binary_sha256:$aggregate_agent_binary_sha256,
+-          legacy_agent_binary_sha256:$legacy_agent_binary_sha256,
+           harness_sha256:$script_sha256,
+           server_source_ref:$server_source_ref,
+-          aggregate_agent_source_ref:$aggregate_agent_source_ref,
+-          legacy_agent_source_ref:$legacy_agent_source_ref
++          aggregate_agent_source_ref:$aggregate_agent_source_ref
+         }
+@@ -1096,3 +1114,4 @@ run_cohort() {
+       P2PSTREAM_QUALIFICATION_KEY="$key" \
+       P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE="$management_ca" \
++      P2PSTREAM_QUALIFICATION_WAN_PROTOCOL_DIAGNOSTIC=1 \
+       P2PSTREAM_QUALIFICATION_EXTERNAL_AGENTS=1 \
+@@ -1110,3 +1129,4 @@ run_cohort() {
+       P2PSTREAM_QUALIFICATION_KEY="$key" \
+       P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE="$management_ca" \
++      P2PSTREAM_QUALIFICATION_WAN_PROTOCOL_DIAGNOSTIC=1 \
+       P2PSTREAM_QUALIFICATION_EXTERNAL_AGENTS=1 \
+@@ -1218,14 +1238,4 @@ run_cohort() {
+ }
+ 
+-for ((iteration=1; iteration<=runs; iteration++)); do
+-  if ((pressure_mode)); then
+-    run_cohort current-server-aggregate-v1 aggregate-v1 "$aggregate_agent_binary" "$iteration"
+-  elif ((iteration % 2)); then
+-      run_cohort current-server-legacy-agent-compat legacy "$legacy_agent_binary" "$iteration"
+-      run_cohort current-server-aggregate-v1 aggregate-v1 "$aggregate_agent_binary" "$iteration"
+-  else
+-      run_cohort current-server-aggregate-v1 aggregate-v1 "$aggregate_agent_binary" "$iteration"
+-      run_cohort current-server-legacy-agent-compat legacy "$legacy_agent_binary" "$iteration"
+-  fi
+-done
++run_cohort "current-server-aggregate-v1-$protocol" aggregate-v1 "$aggregate_agent_binary" 1
+ stop_process origin "$origin_pid" "$origin_stop"
+@@ -1238,7 +1248,84 @@ stop_process router-namespace "$router_namespace_pid" "$router_namespace_stop"
+ summary=${output%.jsonl}.summary.json
+-python3 - "$output" "$summary" "$required_pool_mib" "$smoke_mode" "$pressure_mode" "$tiny_response_mode" <<'PY'
++python3 - "$output" "$summary" "$required_pool_mib" "$smoke_mode" "$pressure_mode" "$tiny_response_mode" "$protocol" "$expected_leaf_sha256" <<'PY'
+ import json, statistics, sys
+ 
+-source, destination, required_pool_mib, smoke_mode, pressure_mode, tiny_response_mode = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6])
++source, destination, required_pool_mib, smoke_mode, pressure_mode, tiny_response_mode, protocol, expected_fingerprint = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6]), sys.argv[7], sys.argv[8]
+ rows = [json.loads(line) for line in open(source, encoding="utf-8") if line.strip()]
++if protocol in ("h1", "h2"):
++    expected_major = 1 if protocol == "h1" else 2
++    expected_alpn = "http/1.1" if protocol == "h1" else "h2"
++    expected_stages = {"warmup": 8, "retained-warmup": 2, "steady": 6}
++    stage_counts = {stage: sum(row.get("measurement_stage") == stage for row in rows) for stage in expected_stages}
++    if len(rows) != 16 or stage_counts != expected_stages:
++        raise SystemExit(f"diagnostic row schedule mismatch: rows={len(rows)} stages={stage_counts}")
++    correctness = all(
++        row.get("attempted") == 1 and row.get("useful_completed") == 1 and row.get("errors") == 0 and
++        row.get("status_classes", {}).get("2xx") == 1 and row.get("event_stats_captured") is True and
++        row.get("persisted_event_delta") == 1 and row.get("dropped_event_delta", 0) == 0 and
++        row.get("event_queue_after_drain", 0) == 0 and not row.get("event_drain_error")
++        for row in rows)
++    tls_complete = all(
++        len(row.get("wan_response_tls", [])) == 1 and
++        row["wan_response_tls"][0].get("http_major") == expected_major and
++        row["wan_response_tls"][0].get("negotiated_alpn") == expected_alpn and
++        row["wan_response_tls"][0].get("peer_leaf_der_sha256") == expected_fingerprint and
++        row["wan_response_tls"][0].get("origin_connection_id") and
++        not row["wan_response_tls"][0].get("validation_error")
++        for row in rows)
++    trace_rows = []
++    trace_complete = True
++    for row in rows:
++        envelope = row.get("upstream_transport_trace", {})
++        matches = envelope.get("matches", [])
++        # Sequence is retained in the raw trace and the runner query; method/path and
++        # callback cardinality are the fail-closed correlation checks.
++        if len(matches) == 1:
++            trace = matches[0]
++            expected_method = "GET" if row["transfer_direction"] == "download" else "POST"
++            expected_path = "/agent/bulk" if row["transfer_direction"] == "download" else "/agent/bulk-upload"
++            valid = (envelope.get("overflow") is False and envelope.get("store_count", 0) <= 16 and
++                     trace.get("sequence") == envelope.get("sequence") and trace.get("method") == expected_method and
++                     trace.get("path") == expected_path and trace.get("callback_overflow") is False and
++                     len(trace.get("got_conn", [])) == 1 and len(trace.get("put_idle_conn", [])) <= 1)
++        else:
++            trace = {}
++            valid = False
++        trace_complete = trace_complete and valid
++        got = trace.get("got_conn", [{}])[0] if len(trace.get("got_conn", [])) == 1 else {}
++        trace_rows.append({
++            "stage": row["measurement_stage"], "direction": row["transfer_direction"],
++            "repetition": row["repetition"], "valid": valid, "reused": got.get("reused"),
++            "was_idle": got.get("was_idle"), "idle_time_ns": got.get("idle_time_ns"),
++            "connection_type": got.get("connection_type"), "local_address": got.get("local_address"),
++            "remote_address": got.get("remote_address"),
++            "put_idle_conn": trace.get("put_idle_conn", []),
++            "origin_connection_id": row["wan_response_tls"][0].get("origin_connection_id") if row.get("wan_response_tls") else None,
++        })
++    download_floor = 29_700_000
++    download_rows = [row for row in rows if row["transfer_direction"] == "download"]
++    floor_by_stage = {}
++    for stage in expected_stages:
++        values = [row["useful_transfer_bytes_per_second"] for row in download_rows if row["measurement_stage"] == stage]
++        floor_by_stage[stage] = {"samples": len(values), "minimum_bytes_per_second": min(values),
++                                 "all_at_or_above_floor": all(value >= download_floor for value in values)}
++    floor_pass = all(value["all_at_or_above_floor"] for value in floor_by_stage.values())
++    possible_expiry = [trace for trace in trace_rows if trace["stage"] == "steady" and trace["reused"] is False]
++    classification = "invalid" if not (correctness and tls_complete and trace_complete) else ("inconclusive-possible-idle-expiry" if possible_expiry else "observational-complete")
++    summary = {
++        "diagnostic_only": True, "public_protocol": protocol, "classification": classification,
++        "acceptance": {"correctness": correctness, "verified_tls_and_protocol_every_response": tls_complete,
++                       "transport_trace_complete": trace_complete, "download_floor_every_phase": floor_pass},
++        "gates": {"download_bytes_per_second_floor": download_floor}, "download_by_phase": floor_by_stage,
++        "transport_traces": trace_rows, "possible_idle_expiry_rows": possible_expiry,
++        "reuse_counts": {"reused": sum(trace["reused"] is True for trace in trace_rows),
++                         "new": sum(trace["reused"] is False for trace in trace_rows),
++                         "put_idle_absent": sum(not trace["put_idle_conn"] for trace in trace_rows)},
++        "interpretation": "Observational diagnostic only; medians do not establish health or causality. A non-reused steady request is retained as possible idle-expiry ambiguity because lane identity is unavailable.",
++    }
++    with open(destination, "w", encoding="utf-8") as output_file:
++        json.dump(summary, output_file, indent=2, sort_keys=True)
++        output_file.write("\n")
++    if not all(summary["acceptance"].values()):
++        raise SystemExit(f"WAN protocol diagnostic failed: {summary['acceptance']}")
++    raise SystemExit(0)
+ if pressure_mode:

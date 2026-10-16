@@ -1,0 +1,293 @@
+{
+  "acceptance": {
+    "correctness": true,
+    "download_floor_every_phase": true,
+    "transport_trace_complete": true,
+    "verified_tls_and_protocol_every_response": true
+  },
+  "classification": "inconclusive-possible-idle-expiry",
+  "diagnostic_only": true,
+  "download_by_phase": {
+    "retained-warmup": {
+      "all_at_or_above_floor": false,
+      "minimum_bytes_per_second": 4654594.954038801,
+      "samples": 1
+    },
+    "steady": {
+      "all_at_or_above_floor": false,
+      "minimum_bytes_per_second": 4661580.726123989,
+      "samples": 1
+    },
+    "warmup": {
+      "all_at_or_above_floor": false,
+      "minimum_bytes_per_second": 4639516.565644516,
+      "samples": 4
+    }
+  },
+  "gates": {
+    "download_bytes_per_second_floor": 29700000
+  },
+  "interpretation": "Observational diagnostic only; medians do not establish health or causality. A non-reused steady request is retained as possible idle-expiry ambiguity because lane identity is unavailable.",
+  "possible_idle_expiry_rows": [
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:55932",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169802285228083
+        }
+      ],
+      "remote_address": "10.212.0.2:33412",
+      "repetition": 1,
+      "reused": false,
+      "stage": "steady",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:55936",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169803386972435
+        }
+      ],
+      "remote_address": "10.212.0.2:33402",
+      "repetition": 1,
+      "reused": false,
+      "stage": "steady",
+      "valid": true,
+      "was_idle": false
+    }
+  ],
+  "public_protocol": "h2",
+  "reuse_counts": {
+    "new": 12,
+    "put_idle_absent": 0,
+    "reused": 0
+  },
+  "transport_traces": [
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:58430",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169790543246260
+        }
+      ],
+      "remote_address": "10.212.0.2:33388",
+      "repetition": 1,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:58438",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169791705463461
+        }
+      ],
+      "remote_address": "10.212.0.2:33424",
+      "repetition": 2,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:58440",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169792865243592
+        }
+      ],
+      "remote_address": "10.212.0.2:33412",
+      "repetition": 3,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:58444",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169794020653349
+        }
+      ],
+      "remote_address": "10.212.0.2:33402",
+      "repetition": 4,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:58448",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169795174854229
+        }
+      ],
+      "remote_address": "10.212.0.2:33388",
+      "repetition": 1,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:58456",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169796285495895
+        }
+      ],
+      "remote_address": "10.212.0.2:33424",
+      "repetition": 2,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:58472",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169797446257450
+        }
+      ],
+      "remote_address": "10.212.0.2:33412",
+      "repetition": 3,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:55888",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169798623888910
+        }
+      ],
+      "remote_address": "10.212.0.2:33402",
+      "repetition": 4,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:55904",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169800109160740
+        }
+      ],
+      "remote_address": "10.212.0.2:33388",
+      "repetition": 1,
+      "reused": false,
+      "stage": "retained-warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:55920",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169801187917227
+        }
+      ],
+      "remote_address": "10.212.0.2:33424",
+      "repetition": 1,
+      "reused": false,
+      "stage": "retained-warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:55932",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169802285228083
+        }
+      ],
+      "remote_address": "10.212.0.2:33412",
+      "repetition": 1,
+      "reused": false,
+      "stage": "steady",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:33675",
+      "origin_connection_id": "10.212.0.2:55936",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792169803386972435
+        }
+      ],
+      "remote_address": "10.212.0.2:33402",
+      "repetition": 1,
+      "reused": false,
+      "stage": "steady",
+      "valid": true,
+      "was_idle": false
+    }
+  ]
+}

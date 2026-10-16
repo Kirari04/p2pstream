@@ -20,6 +20,12 @@ comparison.
   rebuilt compatible legacy agent. The required fresh three-pair cohort fails
   download in pairs 1 and 3 with all 96 payloads, events and lifecycle exits
   exact; a separate passing single pair does not clear the gate.
+- [`matched-verified-wan-protocol/README.md`](matched-verified-wan-protocol/README.md)
+  records a separate 32-row matched verified-certificate H1/H2 diagnostic on
+  the same source checkpoint with production files byte-identical. H1 passes
+  every 29.7 MB/s phase floor; H2 fails retained-warmup at 14.242 MB/s and
+  steady state at 27.327 MB/s. Exact protocol, reuse and natural cleanup checks
+  pass in both arms. This diagnostic does not clear the original WAN gate.
 - [`sql-hierarchical64-rejected/README.md`](sql-hierarchical64-rejected/README.md)
   preserves the rejected 64→16→single event-insert screen. Large flushes improve,
   but a smaller-flush pair exceeds the fixed regression ceiling; no code is retained.
@@ -242,8 +248,21 @@ so it is not matched verified-certificate evidence. The complete evidence is
 in [`current-production-wan/`](current-production-wan/README.md). The WAN gate
 remains failed, and the result does not support readiness, merge, release,
 deployment or a broad proxy-parity claim.
-A matched verified H1/H2 diagnostic is separate and is not part of these
-qualification results.
+A separate matched verified H1/H2 diagnostic on the same source checkpoint is
+complete. Its production files are byte-identical; its overlays only add the
+bounded test transport selection, TLS observations and trace correlation. H1
+passes all three independent 29.7 MB/s download-phase floors, with minima of
+33.592 MB/s warmup, 29.729 MB/s retained warmup and 30.034 MB/s steady state.
+H2 passes warmup at 33.586 MB/s but fails retained warmup at 14.242 MB/s and
+steady state at 27.327 MB/s. All 32 rows have exact HTTP 200 payloads, verified
+certificate and ALPN observations, event conservation and trace correlation.
+The four actual retained revisits in each arm preserve the same bound origin
+connection after 23.94–27.71 seconds idle, and every endpoint and namespace
+exit is natural and joined. The H2 runner returns 1 after cleanup solely for
+the failed floors. This is a failed protocol diagnostic, not a causal finding
+or original-gate clearance; HAProxy, pressure, capacity and integration gates
+remain separate. See the
+[matched verified H1/H2 evidence](matched-verified-wan-protocol/README.md).
 
 The earlier final-runtime checkpoint
 `dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response

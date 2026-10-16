@@ -1,0 +1,9 @@
+--- FAIL: TestQualificationWANVerifiedProtocolNegotiation (0.01s)
+    --- FAIL: TestQualificationWANVerifiedProtocolNegotiation/h1 (0.00s)
+        proxy_qualification_wan_protocol_test.go:361: WAN diagnostic negotiated ALPN "", want "http/1.1"
+2026/10/16 18:43:21 http: TLS handshake error from 127.0.0.1:53994: remote error: tls: bad certificate
+2026/10/16 18:43:21 http: TLS handshake error from 127.0.0.1:54006: remote error: tls: bad certificate
+2026/10/16 18:43:21 http: TLS handshake error from 127.0.0.1:54852: tls: client requested unsupported application protocols (["h2"])
+FAIL
+FAIL	p2pstream/internal/server	0.018s
+FAIL

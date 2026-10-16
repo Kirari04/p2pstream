@@ -1,0 +1,129 @@
+--- a/qualify-proxy-agent-growth-wan-protocol.sh
++++ b/qualify-proxy-agent-growth-wan-protocol.sh
+@@ -1233,6 +1233,12 @@
+         run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" steady "$direction" "$((steady_mib << 20))" "$repetition"
+       done
+     done
++    if ((smoke_mode)); then
++      # The original twelve smoke rows stop after the first post-close visit to
++      # each of four lane-specific transport keys. This non-gating thirteenth
++      # row revisits the first key so the diagnostic can actually test reuse.
++      run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" reuse-probe download "$((steady_mib << 20))" 1
++    fi
+   fi
+ 
+   stop_process "$label-$iteration-agent" "$agent_process_pid" "$agent_stop"
+@@ -1261,7 +1267,7 @@
+         ("retained-warmup", "upload", 1),
+     ]
+     if smoke_mode:
+-        expected += [("steady", "download", 1), ("steady", "upload", 1)]
++        expected += [("steady", "download", 1), ("steady", "upload", 1), ("reuse-probe", "download", 1)]
+     else:
+         expected += [
+             ("steady", "download", 1), ("steady", "upload", 1),
+@@ -1269,6 +1275,8 @@
+             ("steady", "download", 3), ("steady", "upload", 3),
+         ]
+     expected_stages = {"warmup": 8, "retained-warmup": 2, "steady": 2 if smoke_mode else 6}
++    if smoke_mode:
++        expected_stages["reuse-probe"] = 1
+     stage_counts = {stage: sum(row.get("measurement_stage") == stage for row in rows) for stage in expected_stages}
+     expected_rows = sum(expected_stages.values())
+     actual = [(row.get("measurement_stage"), row.get("transfer_direction"), row.get("repetition")) for row in rows]
+@@ -1316,36 +1324,88 @@
+             valid = False
+         trace_complete = trace_complete and valid
+         got = trace.get("got_conn", [{}])[0] if len(trace.get("got_conn", [])) == 1 else {}
++        connection_parts = (got.get("connection_type"), got.get("local_address"), got.get("remote_address"))
++        connection_key = "|".join(connection_parts) if all(isinstance(part, str) and part for part in connection_parts) else ""
+         trace_rows.append({
+             "stage": row["measurement_stage"], "direction": row["transfer_direction"],
+             "repetition": row["repetition"], "valid": valid, "reused": got.get("reused"),
+             "was_idle": got.get("was_idle"), "idle_time_ns": got.get("idle_time_ns"),
++            "got_conn_observed_unix_ns": got.get("observed_unix_ns"), "connection_key": connection_key,
+             "connection_type": got.get("connection_type"), "local_address": got.get("local_address"),
+             "remote_address": got.get("remote_address"),
+             "put_idle_conn": trace.get("put_idle_conn", []),
+             "origin_connection_id": row["wan_response_tls"][0].get("origin_connection_id") if row.get("wan_response_tls") else None,
+         })
+     download_floor = 29_700_000
+-    download_rows = [row for row in rows if row["transfer_direction"] == "download"]
++    download_rows = [row for row in rows if row["transfer_direction"] == "download" and row["measurement_stage"] != "reuse-probe"]
+     floor_by_stage = {}
+-    for stage in expected_stages:
++    for stage in ("warmup", "retained-warmup", "steady"):
+         values = [row["useful_transfer_bytes_per_second"] for row in download_rows if row["measurement_stage"] == stage]
+         floor_by_stage[stage] = {"samples": len(values), "minimum_bytes_per_second": min(values),
+                                  "all_at_or_above_floor": all(value >= download_floor for value in values)}
+     floor_pass = all(value["all_at_or_above_floor"] for value in floor_by_stage.values())
+     floor_gate_pass = floor_pass or bool(smoke_mode)
+-    possible_expiry = [trace for trace in trace_rows if trace["stage"] == "steady" and trace["reused"] is False]
+-    classification = "invalid" if not (correctness and tls_complete and trace_complete) else ("inconclusive-possible-idle-expiry" if possible_expiry else "observational-complete")
++    reuse_issues = []
++    reuse_expectations = []
++    first_visits = trace_rows[8:12]
++    if len(first_visits) != 4:
++        reuse_issues.append("missing four first post-close lane-key visits")
++    first_by_key = {}
++    for position, trace in enumerate(first_visits, 1):
++        key = trace["connection_key"]
++        put = trace["put_idle_conn"]
++        successful_put = (len(put) == 1 and isinstance(put[0].get("observed_unix_ns"), int)
++                          and put[0]["observed_unix_ns"] > 0 and not put[0].get("error"))
++        expected_fresh = (key and key not in first_by_key and trace["reused"] is False
++                          and trace["was_idle"] is False and trace["idle_time_ns"] == 0)
++        if not expected_fresh:
++            reuse_issues.append(f"sequence {position + 8} is not a distinct expected-fresh post-close key")
++        if not successful_put:
++            reuse_issues.append(f"sequence {position + 8} lacks a successful PutIdleConn timestamp")
++        if key:
++            first_by_key[key] = trace
++        reuse_expectations.append({"sequence": position + 8, "kind": "first-post-close-visit", "lane_position": position,
++                                   "connection_key": key, "satisfied": bool(expected_fresh and successful_put)})
++    revisits = trace_rows[12:]
++    for revisit_index, trace in enumerate(revisits):
++        expected_first = first_visits[revisit_index % 4] if len(first_visits) == 4 else {}
++        expected_key = expected_first.get("connection_key")
++        prior_put = expected_first.get("put_idle_conn", [])
++        got_ns = trace.get("got_conn_observed_unix_ns")
++        put_ns = prior_put[0].get("observed_unix_ns") if len(prior_put) == 1 else None
++        elapsed_idle_ns = got_ns - put_ns if isinstance(got_ns, int) and isinstance(put_ns, int) else None
++        satisfied = bool(expected_key and trace["connection_key"] == expected_key and
++                         trace["reused"] is True and trace["was_idle"] is True and
++                         isinstance(trace["idle_time_ns"], int) and trace["idle_time_ns"] >= 0 and
++                         isinstance(elapsed_idle_ns, int) and 0 <= elapsed_idle_ns < 30_000_000_000 and
++                         trace["origin_connection_id"] == expected_first.get("origin_connection_id"))
++        if not satisfied:
++            reuse_issues.append(f"sequence {revisit_index + 13} did not reuse its bound post-close lane key")
++        reuse_expectations.append({
++            "sequence": revisit_index + 13, "kind": "same-key-revisit", "lane_position": revisit_index % 4 + 1,
++            "connection_key": trace["connection_key"],
++            "expected_connection_key": expected_key, "prior_put_idle_unix_ns": put_ns,
++            "got_conn_unix_ns": got_ns, "elapsed_idle_ns": elapsed_idle_ns,
++            "httptrace_idle_time_ns": trace.get("idle_time_ns"),
++            "prior_origin_connection_id": expected_first.get("origin_connection_id"),
++            "observed_origin_connection_id": trace.get("origin_connection_id"), "satisfied": satisfied,
++        })
++    expected_reuse = not reuse_issues and len(revisits) == (1 if smoke_mode else 4)
++    if len(revisits) != (1 if smoke_mode else 4):
++        reuse_issues.append(f"same-key revisit count {len(revisits)} changed")
++        expected_reuse = False
++    classification = "invalid" if not (correctness and tls_complete and trace_complete) else ("inconclusive-upstream-reuse" if not expected_reuse else "observational-complete")
+     summary = {
+         "diagnostic_only": True, "public_protocol": protocol, "classification": classification,
+         "acceptance": {"correctness": correctness, "verified_tls_and_protocol_every_response": tls_complete,
+-                       "transport_trace_complete": trace_complete, "download_floor_every_phase": floor_gate_pass},
++                       "transport_trace_complete": trace_complete, "expected_upstream_reuse": expected_reuse,
++                       "download_floor_every_phase": floor_gate_pass},
+         "gates": {"download_bytes_per_second_floor": download_floor}, "download_by_phase": floor_by_stage,
+-        "transport_traces": trace_rows, "possible_idle_expiry_rows": possible_expiry,
++        "transport_traces": trace_rows, "reuse_expectations": reuse_expectations, "reuse_issues": reuse_issues,
+         "reuse_counts": {"reused": sum(trace["reused"] is True for trace in trace_rows),
+                          "new": sum(trace["reused"] is False for trace in trace_rows),
+                          "put_idle_absent": sum(not trace["put_idle_conn"] for trace in trace_rows)},
+-        "interpretation": "Observational diagnostic only; medians do not establish health or causality. A non-reused steady request is retained as possible idle-expiry ambiguity because lane identity is unavailable.",
++        "interpretation": "Observational diagnostic only; medians do not establish health or causality. Warmup rows explicitly close idle transports. Sequences 9-12 are the first post-close visits to four concrete lane keys; only later same-key visits classify reuse, bound to the prior successful PutIdleConn timestamp and exact origin connection identity.",
+     }
+     with open(destination, "w", encoding="utf-8") as output_file:
+         json.dump(summary, output_file, indent=2, sort_keys=True)

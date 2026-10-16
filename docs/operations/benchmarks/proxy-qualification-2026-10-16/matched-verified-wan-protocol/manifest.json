@@ -1,0 +1,31 @@
+{
+  "arms": {
+    "h1": {
+      "accepted": true,
+      "lifecycle_sha256": "073ab486f9e4ea134835feeaad1d17dfbd98a9c745baeb9e7883676aaf2ba133",
+      "results_sha256": "3e71c9bd794a1937d55410e4610b1ebef9b0c18f760bb7720abad9735fd90f41",
+      "row_count": 16,
+      "summary_sha256": "68f7d026e76ef9460d129b0231e21426fd2f9f4c594a8eba4a7190874e865149"
+    },
+    "h2": {
+      "accepted": false,
+      "lifecycle_sha256": "a863d8c29c99be93da03a4d2139dcfe44525fa4b5b545d23eb52f01e821c3701",
+      "results_sha256": "63fa32e254429d9e756470aae7c59ec35e57cf7c5a0c0d731ac9d2d2c4cac049",
+      "row_count": 16,
+      "summary_sha256": "8b7934f057986baa2227ddf99ec23ceae4c3e0cff415ede3b7a32ee92695a7fb"
+    }
+  },
+  "classification": "matched_verified_h1_h2_diagnostic",
+  "copied_file_count": 270,
+  "diagnostic_accepted": false,
+  "excluded": [
+    "binaries and source archives",
+    "build trees and caches",
+    "private keys and certificates",
+    "databases, readiness files, and credentials",
+    "per-request scratch files and raw endpoint logs"
+  ],
+  "original_wan_release_gate_cleared": false,
+  "schema_version": 1,
+  "source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+}
