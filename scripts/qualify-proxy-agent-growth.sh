@@ -696,6 +696,7 @@ run_pressure_qualification() {
     .memory_events.oom == $oom and .memory_events.oom_kill == $kill
   ' <<<"$server_cgroup" >/dev/null
   wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
+  append_pressure_sample pressure-released 0 "$server_pid" "$server_admin" "$agent_pid" "$agent_admin"
   local recovery_health
   recovery_health=$(agent_health_roundtrip "$server_admin")
   jq -e '.ok == true and .http_status == 200 and .status_code >= 200 and .status_code < 400' <<<"$recovery_health" >/dev/null
