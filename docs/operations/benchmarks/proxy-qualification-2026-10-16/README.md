@@ -48,6 +48,11 @@ comparison.
   preserves a fixed 96-transfer gather-versus-split DATA emission comparison.
   The split overlay fails its retention gate in two of three download pairs;
   all payloads and events are exact, and no production change is retained.
+- [`agent-wan-runtime-bisection/README.md`](agent-wan-runtime-bisection/README.md)
+  compares current and historical Yamux at both endpoints with one current
+  application, harness and driver. All 96 transfers are exact, but the
+  historical arm fails the every-pair download improvement threshold. Its
+  steadier phase distribution is a diagnostic clue, not a qualified fix.
 - [`caddy-reference/matched-h2-fixture-validation/README.md`](caddy-reference/matched-h2-fixture-validation/README.md)
   records the bounded fixture checks for a future reference comparison with
   one prewarmed H2 client connection per proxy. It is not a performance result.

@@ -539,6 +539,16 @@ identify the cause. See the
 and the separate
 [TCP/profile diagnostic](benchmarks/proxy-qualification-2026-10-16/agent-wan-tcp-diagnostic/README.md).
 
+Both WAN modes provide four public data lanes. The legacy runtime's
+`bulk_sessions: 3` display excludes its mixed control/data lane zero, while
+the selector still uses lanes 0–3. Aggregate-v1 uses lanes 1–4 and reserves
+lane zero for control. Source review of the selector and all sixteen matching
+transfer phases in the ordinary-binary TCP capture confirm the exact mapping
+from legacy lane N to aggregate lane N+1. The extra physical aggregate control
+connection therefore does not add a public data lane or explain the failed
+comparison through different directional lane reuse. The complete phase map is
+in the [sparse TCP evidence](benchmarks/proxy-qualification-2026-10-16/agent-wan-sparse-tcp/tcp-phases-with-lanes.json).
+
 A second diagnostic samples bounded test-tag credit snapshots every 20 ms and
 TCP state every 100 ms without native profiles. It also stays healthy: all 32
 transfers are exact, and new receive windows reach 16 MiB in about 1.3–1.6
@@ -595,6 +605,18 @@ and events are exact. The overlay is rejected as a reliable improvement. This
 neither clears the original WAN failure nor isolates the remaining cause; no
 production emission or payload-quantum change follows. See the complete
 [DATA emission comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-data-emission-causal/README.md).
+
+A separate fixed 96-transfer comparison transplants the three historical Yamux
+production files into the same current application and harness, changing both
+endpoints while keeping one current driver/origin. Historical/current download
+ratios are 1.14687 / 1.00026 / 1.21818, so pair two fails the predeclared
+every-pair 1.10 gate. All uploads pass and all 96 payloads and events are exact.
+Historical retained and timed downloads stay near 33–35 MB/s, while current
+retained and timed samples still fall to 12–15 MB/s. This phase pattern
+prioritizes further diagnostics; it neither clears the original failure nor
+localizes a cause. The historical runtime also predates the shutdown-waiter
+correction and is not a production rollback candidate. See the
+[historical runtime comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-runtime-bisection/README.md).
 
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
