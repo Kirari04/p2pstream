@@ -1,0 +1,107 @@
+File: agent.test
+Build ID: 2c1b796d824f205535926c758377823561f6140b
+Type: alloc_space
+Time: 2026-10-16 05:19:29 CEST
+Showing nodes accounting for 60.22MB, 96.78% of 62.23MB total
+Showing top 100 nodes out of 122
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%    26.82MB 43.10%  io.Copy (inline)
+   10.32MB 16.58% 16.58%    26.82MB 43.10%  io.copyBuffer
+         0     0% 16.58%    21.66MB 34.81%  net.(*TCPConn).WriteTo
+         0     0% 16.58%    21.66MB 34.81%  net.(*TCPConn).writeTo
+         0     0% 16.58%    21.66MB 34.81%  net.genericWriteTo
+         0     0% 16.58%    21.66MB 34.81%  p2pstream/internal/agent.relayTunnelStream.func2
+         0     0% 16.58%    16.61MB 26.69%  github.com/hashicorp/yamux.(*Session).recv
+         0     0% 16.58%    16.61MB 26.69%  github.com/hashicorp/yamux.(*Session).recvLoop
+         0     0% 16.58%    16.50MB 26.52%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+   16.50MB 26.52% 43.10%    16.50MB 26.52%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+         0     0% 43.10%    16.50MB 26.52%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0% 43.10%    16.50MB 26.52%  github.com/hashicorp/yamux.(*Stream).write
+         0     0% 43.10%    12.11MB 19.46%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0% 43.10%    12.11MB 19.46%  github.com/hashicorp/yamux.(*Stream).readData
+         0     0% 43.10%    12.11MB 19.46%  github.com/hashicorp/yamux.(*Stream).readDataPayload
+         0     0% 43.10%    12.11MB 19.46%  github.com/hashicorp/yamux.(*recvBuffer).readFrom
+   10.11MB 16.24% 59.34%    10.11MB 16.24%  github.com/hashicorp/yamux.(*recvBuffer).allocateChunk (inline)
+         0     0% 59.34%     9.60MB 15.42%  p2pstream/internal/agent.RunContext.func1
+         0     0% 59.34%     9.60MB 15.42%  p2pstream/internal/agent.startStatsReporterWithCapacity
+         0     0% 59.34%     8.04MB 12.92%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshot
+         0     0% 59.34%     8.04MB 12.92%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLocked (inline)
+         0     0% 59.34%     8.04MB 12.92%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLockedWithForce
+         0     0% 59.34%     8.04MB 12.92%  p2pstream/internal/agent.runStatsReporterWithCapacity
+         0     0% 59.34%     8.04MB 12.92%  p2pstream/internal/sysmetrics.(*AdaptiveMemoryController).Snapshot (inline)
+         0     0% 59.34%     8.04MB 12.92%  p2pstream/internal/sysmetrics.(*AdaptiveMemoryController).snapshotAt
+         0     0% 59.34%     8.04MB 12.92%  p2pstream/internal/sysmetrics.(*systemMemoryUsageSampler).SampleMemoryUsages
+         0     0% 59.34%     8.04MB 12.92%  p2pstream/internal/sysmetrics.sampleMemoryUsages
+         0     0% 59.34%     6.50MB 10.45%  bufio.(*Reader).Read
+         0     0% 59.34%     6.50MB 10.45%  crypto/tls.(*Conn).Read
+    6.50MB 10.45% 69.78%     6.50MB 10.45%  crypto/tls.(*Conn).readFromUntil
+         0     0% 69.78%     6.50MB 10.45%  crypto/tls.(*Conn).readRecord (inline)
+         0     0% 69.78%     6.50MB 10.45%  crypto/tls.(*Conn).readRecordOrCCS
+         0     0% 69.78%     6.50MB 10.45%  net/http.(*readWriteCloserBody).Read
+    1.52MB  2.44% 72.22%     5.53MB  8.89%  p2pstream/internal/sysmetrics.resolveCurrentProcessMemoryCgroupPaths
+         0     0% 72.22%     5.16MB  8.29%  net.(*TCPConn).ReadFrom
+         0     0% 72.22%     5.16MB  8.29%  net.(*TCPConn).readFrom
+         0     0% 72.22%     5.16MB  8.29%  net.genericReadFrom
+         0     0% 72.22%     5.16MB  8.29%  p2pstream/internal/agent.relayTunnelStream.func1
+         0     0% 72.22%     4.50MB  7.23%  io.ReadAtLeast
+         0     0% 72.22%     4.50MB  7.23%  io.ReadFull (inline)
+         0     0% 72.22%     4.11MB  6.61%  os.ReadFile
+    1.60MB  2.56% 74.79%     4.11MB  6.61%  os.readFileContents
+    0.50MB   0.8% 75.59%     3.60MB  5.78%  p2pstream/internal/agent.RunContext
+         0     0% 75.59%     3.60MB  5.78%  p2pstream/internal/agent.TestExternalProxyQualificationAgentProcess.func1
+         0     0% 75.59%     3.10MB  4.98%  crypto/x509.SystemCertPool
+         0     0% 75.59%     3.10MB  4.98%  crypto/x509.initSystemRoots
+         0     0% 75.59%     3.10MB  4.98%  crypto/x509.loadSystemRoots
+         0     0% 75.59%     3.10MB  4.98%  crypto/x509.systemRootsPool
+         0     0% 75.59%     3.10MB  4.98%  p2pstream/internal/agent.managementRootPool
+         0     0% 75.59%     3.10MB  4.98%  p2pstream/internal/agent.newManagementTrustStore
+         0     0% 75.59%     3.10MB  4.98%  sync.(*Once).Do (inline)
+         0     0% 75.59%     3.10MB  4.98%  sync.(*Once).doSlow
+    2.52MB  4.04% 79.63%     2.52MB  4.04%  slices.Grow[go.shape.[]uint8,go.shape.uint8] (inline)
+         0     0% 79.63%     2.50MB  4.02%  crypto/x509.(*CertPool).AppendCertsFromPEM
+       2MB  3.21% 82.85%        2MB  3.21%  strings.Fields
+         0     0% 82.85%     1.72MB  2.76%  runtime.main
+         0     0% 82.85%     1.56MB  2.51%  p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect.NewAgentManagementServiceClient
+         0     0% 82.85%     1.50MB  2.41%  p2pstream/internal/sysmetrics.readHostMemoryUsage
+    1.50MB  2.41% 85.26%     1.50MB  2.41%  runtime.mallocgc
+         0     0% 85.26%     1.50MB  2.41%  runtime.newobject
+         0     0% 85.26%     1.50MB  2.41%  crypto/x509.ParseCertificate
+    0.50MB   0.8% 86.07%     1.50MB  2.41%  crypto/x509.parseCertificate
+         0     0% 86.07%     1.50MB  2.41%  p2pstream/internal/sysmetrics.parseCgroupMounts
+         0     0% 86.07%     1.39MB  2.23%  runtime/pprof.profileWriter
+         0     0% 86.07%     1.16MB  1.86%  main.main
+    1.16MB  1.86% 87.92%     1.16MB  1.86%  runtime/pprof.StartCPUProfile
+         0     0% 87.92%     1.16MB  1.86%  testing.(*M).Run
+         0     0% 87.92%     1.16MB  1.86%  testing.(*M).before
+         0     0% 87.92%     1.16MB  1.86%  testing/internal/testdeps.TestDeps.StartCPUProfile
+         0     0% 87.92%     1.06MB  1.70%  google.golang.org/protobuf/internal/filedesc.(*File).lazyInit (inline)
+         0     0% 87.92%     1.06MB  1.70%  google.golang.org/protobuf/internal/filedesc.(*File).lazyInitOnce
+         0     0% 87.92%     1.06MB  1.70%  google.golang.org/protobuf/internal/filedesc.(*File).lazyRawInit
+         0     0% 87.92%     1.06MB  1.70%  google.golang.org/protobuf/internal/filedesc.(*File).unmarshalFull
+    0.50MB  0.81% 88.73%     1.06MB  1.70%  google.golang.org/protobuf/internal/filedesc.(*Message).unmarshalFull
+         0     0% 88.73%     1.06MB  1.70%  google.golang.org/protobuf/internal/filedesc.(*Service).Methods
+         0     0% 88.73%     1.06MB  1.70%  google.golang.org/protobuf/internal/filedesc.(*Service).lazyInit (inline)
+       1MB  1.61% 90.34%        1MB  1.61%  encoding/pem.Decode
+         0     0% 90.34%        1MB  1.61%  p2pstream/internal/sysmetrics.readMemoryMetricFile
+         0     0% 90.34%        1MB  1.61%  p2pstream/internal/sysmetrics.readMemoryUsagePair
+         0     0% 90.34%        1MB  1.61%  runtime.malg
+         0     0% 90.34%        1MB  1.61%  runtime.newproc.func1
+         0     0% 90.34%        1MB  1.61%  runtime.newproc1
+         0     0% 90.34%        1MB  1.61%  runtime.systemstack
+       1MB  1.61% 91.95%        1MB  1.61%  crypto/x509/pkix.(*Name).FillFromRDNSequence
+    0.88MB  1.42% 93.36%     0.88MB  1.42%  compress/flate.NewWriter (inline)
+         0     0% 93.36%     0.88MB  1.42%  compress/gzip.(*Writer).Write
+         0     0% 93.36%     0.88MB  1.42%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         0     0% 93.36%     0.88MB  1.42%  runtime/pprof.(*profileBuilder).build
+         0     0% 93.36%     0.88MB  1.42%  runtime/pprof.(*profileBuilder).emitLocation
+         0     0% 93.36%     0.88MB  1.42%  runtime/pprof.(*profileBuilder).flush
+    0.56MB   0.9% 94.27%     0.56MB   0.9%  p2pstream/gen/proto/p2pstream/v1.init
+         0     0% 94.27%     0.56MB   0.9%  runtime.doInit (inline)
+         0     0% 94.27%     0.56MB   0.9%  runtime.doInit1
+         0     0% 94.27%     0.56MB  0.89%  google.golang.org/protobuf/internal/filedesc.(*Field).unmarshalFull
+         0     0% 94.27%     0.56MB  0.89%  google.golang.org/protobuf/internal/strs.(*Builder).MakeString (inline)
+    0.56MB  0.89% 95.16%     0.56MB  0.89%  google.golang.org/protobuf/internal/strs.(*Builder).grow (inline)
+    0.51MB  0.82% 95.98%     0.51MB  0.82%  runtime/pprof.(*profMap).lookup
+         0     0% 95.98%     0.51MB  0.82%  runtime/pprof.(*profileBuilder).addCPUData
+    0.50MB  0.81% 96.78%     0.50MB  0.81%  bufio.(*Scanner).Scan
+         0     0% 96.78%     0.50MB  0.81%  runtime.allocm

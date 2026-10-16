@@ -1,0 +1,53 @@
+File: agent.test
+Build ID: 2c1b796d824f205535926c758377823561f6140b
+Type: delay
+Time: 2026-10-16 05:20:18 CEST
+Showing nodes accounting for 2.86s, 100% of 2.86s total
+Dropped 24 nodes (cum <= 0.01s)
+Showing top 45 nodes out of 55
+      flat  flat%   sum%        cum   cum%
+     2.86s   100%   100%      2.86s   100%  runtime.unlock (inline)
+         0     0%   100%      0.61s 21.41%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0%   100%      0.62s 21.55%  github.com/hashicorp/yamux.(*Session).recv
+         0     0%   100%      0.62s 21.55%  github.com/hashicorp/yamux.(*Session).recvLoop
+         0     0%   100%      0.52s 18.32%  github.com/hashicorp/yamux.(*Session).send
+         0     0%   100%      0.52s 18.32%  github.com/hashicorp/yamux.(*Session).sendLoop
+         0     0%   100%      0.16s  5.54%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+         0     0%   100%      0.16s  5.54%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+         0     0%   100%      0.16s  5.54%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0%   100%      0.61s 21.41%  github.com/hashicorp/yamux.(*Stream).readData
+         0     0%   100%      0.16s  5.54%  github.com/hashicorp/yamux.(*Stream).write
+         0     0%   100%      0.61s 21.41%  github.com/hashicorp/yamux.asyncNotify (inline)
+         0     0%   100%      0.39s 13.49%  github.com/hashicorp/yamux.asyncSendErr (inline)
+         0     0%   100%      0.02s  0.54%  internal/poll.(*FD).Read
+         0     0%   100%      0.02s  0.54%  internal/poll.ignoringEINTRIO (inline)
+         0     0%   100%      0.17s  5.94%  io.Copy (inline)
+         0     0%   100%      0.17s  5.94%  io.copyBuffer
+         0     0%   100%      0.17s  5.94%  net.(*TCPConn).WriteTo
+         0     0%   100%      0.17s  5.94%  net.(*TCPConn).writeTo
+         0     0%   100%      0.02s  0.54%  net.(*conn).Read
+         0     0%   100%      0.02s  0.54%  net.(*netFD).Read
+         0     0%   100%      0.17s  5.94%  net.genericWriteTo
+         0     0%   100%      0.17s  5.94%  p2pstream/internal/agent.relayTunnelStream.func2
+         0     0%   100%         1s 34.90%  runtime.chansend
+         0     0%   100%      0.10s  3.66%  runtime.checkRunqsNoP
+         0     0%   100%      0.02s  0.54%  runtime.entersyscall
+         0     0%   100%      0.02s  0.54%  runtime.entersyscallWakeSysmon
+         0     0%   100%      0.81s 28.27%  runtime.findRunnable
+         0     0%   100%      1.12s 39.11%  runtime.goready (inline)
+         0     0%   100%      0.54s 19.01%  runtime.incidlelocked
+         0     0%   100%      0.14s  4.88%  runtime.injectglist
+         0     0%   100%      0.05s  1.80%  runtime.injectglist.func1
+         0     0%   100%         1s 35.13%  runtime.mcall
+         0     0%   100%      0.54s 19.06%  runtime.mstart
+         0     0%   100%      0.54s 19.06%  runtime.mstart0
+         0     0%   100%      0.54s 19.06%  runtime.mstart1
+         0     0%   100%         1s 35.13%  runtime.park_m
+         0     0%   100%      1.12s 39.11%  runtime.ready
+         0     0%   100%      0.02s  0.54%  runtime.reentersyscall
+         0     0%   100%      0.54s 19.01%  runtime.retake
+         0     0%   100%      0.81s 28.44%  runtime.schedule
+         0     0%   100%      0.30s 10.37%  runtime.selectgo
+         0     0%   100%         1s 34.90%  runtime.selectnbsend
+         0     0%   100%      0.19s  6.69%  runtime.selparkcommit
+         0     0%   100%      0.17s  6.00%  runtime.selunlock

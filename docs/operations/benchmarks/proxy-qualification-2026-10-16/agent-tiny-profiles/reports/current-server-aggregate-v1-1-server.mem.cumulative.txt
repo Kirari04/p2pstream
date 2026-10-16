@@ -1,0 +1,107 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: alloc_space
+Time: 2026-10-16 05:19:44 CEST
+Showing nodes accounting for 2490.44MB, 79.28% of 3141.19MB total
+Showing top 100 nodes out of 513
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%  1925.69MB 61.30%  net/http.(*http2serverConn).runHandler
+         0     0%     0%  1900.68MB 60.51%  net/http.serverHandler.ServeHTTP
+         0     0%     0%  1898.18MB 60.43%  net/http.HandlerFunc.ServeHTTP
+         0     0%     0%  1897.68MB 60.41%  net/http.(*ServeMux).ServeHTTP
+         0     0%     0%  1890.68MB 60.19%  net/http.initALPNRequest.ServeHTTP
+         0     0%     0%  1888.18MB 60.11%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+         0     0%     0%  1888.18MB 60.11%  p2pstream/internal/server.servePublicProxyRequest
+         0     0%     0%  1670.14MB 53.17%  p2pstream/internal/server.(*publicProxyContext).run
+   59.02MB  1.88%  1.88%  1557.63MB 49.59%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+         0     0%  1.88%  1485.61MB 47.29%  p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution (inline)
+  310.80MB  9.89% 11.77%  1485.61MB 47.29%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+      41MB  1.31% 13.08%  1154.80MB 36.76%  net/http/httputil.(*ReverseProxy).ServeHTTP
+      37MB  1.18% 14.26%   664.10MB 21.14%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+    9.50MB   0.3% 14.56%   386.05MB 12.29%  p2pstream/internal/server.(*pooledAgentTransport).RoundTrip
+         0     0% 14.56%   376.55MB 11.99%  net/http.(*Transport).RoundTrip (inline)
+   13.50MB  0.43% 14.99%   376.55MB 11.99%  net/http.(*Transport).roundTrip
+  104.53MB  3.33% 18.32%   329.58MB 10.49%  net/http.(*Request).Clone
+         0     0% 18.32%   291.07MB  9.27%  net/http.(*conn).serve
+         0     0% 18.32%   277.07MB  8.82%  net/http.(*http2Server).ServeConn (inline)
+    0.50MB 0.016% 18.33%   277.07MB  8.82%  net/http.(*http2Server).serveConn
+         0     0% 18.33%   277.07MB  8.82%  net/http.http2ConfigureServer.func2
+         0     0% 18.33%   277.07MB  8.82%  net/http.http2ConfigureServer.func3
+         0     0% 18.33%   276.57MB  8.80%  net/http.(*http2serverConn).serve
+         0     0% 18.33%   260.56MB  8.30%  net/http.(*http2serverConn).processFrame
+         0     0% 18.33%   260.56MB  8.30%  net/http.(*http2serverConn).processFrameFromReader
+    7.50MB  0.24% 18.57%   260.56MB  8.30%  net/http.(*http2serverConn).processHeaders
+  231.57MB  7.37% 25.94%   231.57MB  7.37%  net/http.(*Request).WithContext (inline)
+   12.50MB   0.4% 26.34%   218.04MB  6.94%  p2pstream/internal/server.initializePublicProxyContext
+      49MB  1.56% 27.90%   216.53MB  6.89%  net/http.(*persistConn).readLoop
+         0     0% 27.90%   215.76MB  6.87%  p2pstream/internal/server.(*App).insertProxyRequestEventsWithRollupsAndCacheTouches
+         0     0% 27.90%   215.76MB  6.87%  p2pstream/internal/server.(*observabilityRecorder).flushBatch
+         0     0% 27.90%   215.76MB  6.87%  p2pstream/internal/server.(*observabilityRecorder).run
+         0     0% 27.90%   215.76MB  6.87%  p2pstream/internal/server.(*observabilityRecorder).runFlushOperation
+         0     0% 27.90%   214.26MB  6.82%  p2pstream/internal/db.(*ProxyRequestEventInserter).InsertBatch
+         0     0% 27.90%   214.24MB  6.82%  p2pstream/internal/server.(*observabilityRecorder).runBackgroundFlush
+         0     0% 27.90%   196.52MB  6.26%  p2pstream/internal/server.(*observabilityRecorder).run.func1
+         0     0% 27.90%   183.26MB  5.83%  database/sql.(*DB).retry
+         0     0% 27.90%   182.76MB  5.82%  database/sql.(*Stmt).ExecContext
+         0     0% 27.90%   182.76MB  5.82%  database/sql.(*Stmt).ExecContext.func1
+       1MB 0.032% 27.93%   182.76MB  5.82%  database/sql.resultFromStatement
+  178.76MB  5.69% 33.62%   179.76MB  5.72%  database/sql.driverArgsConnLocked
+  174.55MB  5.56% 39.18%   174.55MB  5.56%  net/http.Header.Clone (inline)
+    8.50MB  0.27% 39.45%   171.05MB  5.45%  net/http.(*http2serverConn).newWriterAndRequest
+         0     0% 39.45%   158.53MB  5.05%  net/http.(*persistConn).readResponse
+      21MB  0.67% 40.12%   158.53MB  5.05%  net/http.ReadResponse
+         0     0% 40.12%   151.03MB  4.81%  net/http.(*http2Framer).ReadFrame
+         0     0% 40.12%   151.03MB  4.81%  net/http.(*http2serverConn).readFrames
+         0     0% 40.12%   150.53MB  4.79%  net/http.(*http2Framer).ReadFrameForHeader
+         0     0% 40.12%   146.54MB  4.67%  net/http.Header.Add (inline)
+  146.54MB  4.67% 44.79%   146.54MB  4.67%  net/textproto.MIMEHeader.Add (inline)
+      25MB   0.8% 45.58%   138.52MB  4.41%  net/http.(*http2Framer).readMetaFrame
+   72.51MB  2.31% 47.89%   120.01MB  3.82%  net/http.(*persistConn).roundTrip
+         0     0% 47.89%   118.52MB  3.77%  net/textproto.(*Reader).ReadMIMEHeader (inline)
+   98.02MB  3.12% 51.01%   118.52MB  3.77%  net/textproto.readMIMEHeader
+         0     0% 51.01%   117.01MB  3.73%  net/http.(*persistConn).writeLoop
+  113.52MB  3.61% 54.62%   113.52MB  3.61%  net/http.(*http2Framer).readMetaFrame.func1
+         0     0% 54.62%   113.52MB  3.61%  vendor/golang.org/x/net/http2/hpack.(*Decoder).Write
+         0     0% 54.62%   113.52MB  3.61%  vendor/golang.org/x/net/http2/hpack.(*Decoder).callEmit
+         0     0% 54.62%   113.52MB  3.61%  vendor/golang.org/x/net/http2/hpack.(*Decoder).parseFieldIndexed
+         0     0% 54.62%   113.52MB  3.61%  vendor/golang.org/x/net/http2/hpack.(*Decoder).parseHeaderFieldRepr
+    7.50MB  0.24% 54.86%   102.01MB  3.25%  net/http.(*Request).write
+   14.50MB  0.46% 55.32%   100.02MB  3.18%  p2pstream/internal/server.applyPublicRequestBodyLimits
+         0     0% 55.32%    99.52MB  3.17%  p2pstream/internal/server.(*ClientIdentityResolver).ResolveRequest
+         0     0% 55.32%    99.52MB  3.17%  p2pstream/internal/server.resolvePublicRequestIdentity
+      10MB  0.32% 55.64%    95.53MB  3.04%  net/http.(*http2serverConn).newWriterAndRequestNoBody
+   33.01MB  1.05% 56.69%    94.51MB  3.01%  net/http.newTransferWriter
+      40MB  1.27% 57.97%    90.51MB  2.88%  context.withCancel (inline)
+   66.01MB  2.10% 60.07%    86.01MB  2.74%  net/http.(*Transport).getConn
+         0     0% 60.07%    85.02MB  2.71%  net/http.(*http2responseWriter).WriteHeader
+         0     0% 60.07%    85.02MB  2.71%  net/http.(*http2responseWriterState).writeHeader
+   85.02MB  2.71% 62.77%    85.02MB  2.71%  net/http.http2cloneHeader (inline)
+         0     0% 62.77%    85.02MB  2.71%  p2pstream/internal/server.(*proxyResponseRecorder).WriteHeader
+         0     0% 62.77%    79.52MB  2.53%  net/http/httputil.copyHeader
+   46.50MB  1.48% 64.26%    78.51MB  2.50%  time.NewTimer
+         0     0% 64.26%    78.51MB  2.50%  github.com/hashicorp/yamux.(*Session).publishAggregateCredit
+   36.01MB  1.15% 65.40%    74.01MB  2.36%  net/http.(*http2serverConn).newStream
+       4MB  0.13% 65.53%    68.01MB  2.17%  context.WithCancelCause
+   30.50MB  0.97% 66.50%    61.51MB  1.96%  net/http.(*transferWriter).probeRequestBody
+         0     0% 66.50%    61.51MB  1.96%  net/http.(*transferWriter).shouldSendChunkedRequestBody
+   53.02MB  1.69% 68.19%    53.02MB  1.69%  net/http.setupRewindBody (inline)
+   51.50MB  1.64% 69.83%    51.50MB  1.64%  context.WithValue
+   50.51MB  1.61% 71.44%    50.51MB  1.61%  context.(*cancelCtx).propagateCancel
+   50.51MB  1.61% 73.04%    50.51MB  1.61%  net/http.cloneURL (inline)
+   50.51MB  1.61% 74.65%    50.51MB  1.61%  context.(*cancelCtx).Done
+         0     0% 74.65%    49.01MB  1.56%  bufio.(*Writer).Flush
+      32MB  1.02% 75.67%       49MB  1.56%  github.com/hashicorp/yamux.(*Session).publishStreamAllocationRefund
+         0     0% 75.67%    47.50MB  1.51%  github.com/hashicorp/yamux.(*Session).recv
+         0     0% 75.67%    47.50MB  1.51%  github.com/hashicorp/yamux.(*Session).recvLoop
+   44.50MB  1.42% 77.09%    44.50MB  1.42%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+      39MB  1.24% 78.33%       39MB  1.24%  github.com/hashicorp/yamux.(*aggregateWindow).broadcastSendLocked (inline)
+         0     0% 78.33%       37MB  1.18%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+         0     0% 78.33%       37MB  1.18%  p2pstream/internal/server.(*App).selectRouteTarget
+         0     0% 78.33%       37MB  1.18%  p2pstream/internal/server.routeResolutionStage
+         0     0% 78.33%    35.01MB  1.11%  net/http.(*http2responseWriter).handlerDone
+         0     0% 78.33%    35.01MB  1.11%  net/http.(*http2serverConn).runHandler.func1
+         0     0% 78.33%       34MB  1.08%  net/http.(*http2responseWriter).Flush (inline)
+         0     0% 78.33%       34MB  1.08%  net/http.(*http2responseWriter).FlushError
+      30MB  0.96% 79.28%       34MB  1.08%  net/http.(*http2responseWriterState).writeChunk
+         0     0% 79.28%       34MB  1.08%  net/http.http2chunkWriter.Write
+         0     0% 79.28%    33.12MB  1.05%  sync.(*Pool).Get

@@ -1,0 +1,53 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: delay
+Time: 2026-10-16 05:20:18 CEST
+Showing nodes accounting for 1.44hrs, 99.47% of 1.44hrs total
+Dropped 206 nodes (cum <= 0.01hrs)
+Showing top 45 nodes out of 49
+      flat  flat%   sum%        cum   cum%
+   1.44hrs 99.47% 99.47%    1.44hrs 99.47%  runtime.selectgo
+         0     0% 99.47%    0.58hrs 40.34%  bufio.(*Reader).Peek
+         0     0% 99.47%    0.58hrs 40.34%  bufio.(*Reader).fill
+         0     0% 99.47%    0.10hrs  7.20%  bufio.(*Writer).Flush
+         0     0% 99.47%    0.01hrs  0.94%  github.com/hashicorp/yamux.(*Session).keepalive
+         0     0% 99.47%    0.01hrs  0.83%  github.com/hashicorp/yamux.(*Session).send
+         0     0% 99.47%    0.01hrs  0.83%  github.com/hashicorp/yamux.(*Session).sendLoop
+         0     0% 99.47%    0.01hrs  0.94%  github.com/hashicorp/yamux.(*Session).sendPingReplies
+         0     0% 99.47%    0.58hrs 40.36%  github.com/hashicorp/yamux.(*Stream).Read
+         0     0% 99.47%    0.01hrs  0.83%  github.com/hashicorp/yamux.newSession.gowrap2
+         0     0% 99.47%    0.01hrs  0.94%  github.com/hashicorp/yamux.newSession.gowrap3
+         0     0% 99.47%    0.01hrs  0.94%  github.com/hashicorp/yamux.newSession.gowrap5
+         0     0% 99.47%    0.09hrs  6.39%  net/http.(*ServeMux).ServeHTTP
+         0     0% 99.47%    0.09hrs  6.27%  net/http.(*Transport).RoundTrip (inline)
+         0     0% 99.47%    0.58hrs 40.38%  net/http.(*Transport).dialConn.gowrap2
+         0     0% 99.47%    0.59hrs 40.60%  net/http.(*Transport).dialConn.gowrap3
+         0     0% 99.47%    0.09hrs  6.27%  net/http.(*Transport).roundTrip
+         0     0% 99.47%    0.10hrs  7.08%  net/http.(*http2responseWriter).Flush (inline)
+         0     0% 99.47%    0.10hrs  7.08%  net/http.(*http2responseWriter).FlushError
+         0     0% 99.47%    0.10hrs  7.08%  net/http.(*http2responseWriter).handlerDone
+         0     0% 99.47%    0.10hrs  7.08%  net/http.(*http2responseWriterState).writeChunk
+         0     0% 99.47%    0.20hrs 13.93%  net/http.(*http2serverConn).runHandler
+         0     0% 99.47%    0.10hrs  7.09%  net/http.(*http2serverConn).runHandler.func1
+         0     0% 99.47%    0.20hrs 13.93%  net/http.(*http2serverConn).scheduleHandler.gowrap1
+         0     0% 99.47%    0.05hrs  3.41%  net/http.(*http2serverConn).writeDataFromHandler
+         0     0% 99.47%    0.02hrs  1.59%  net/http.(*http2serverConn).writeFrameFromHandler
+         0     0% 99.47%    0.05hrs  3.67%  net/http.(*http2serverConn).writeHeaders
+         0     0% 99.47%    0.09hrs  6.39%  net/http.(*initALPNRequest).ServeHTTP
+         0     0% 99.47%    0.58hrs 40.34%  net/http.(*persistConn).Read
+         0     0% 99.47%    0.58hrs 40.38%  net/http.(*persistConn).readLoop
+         0     0% 99.47%    0.09hrs  6.26%  net/http.(*persistConn).roundTrip
+         0     0% 99.47%    0.59hrs 40.60%  net/http.(*persistConn).writeLoop
+         0     0% 99.47%    0.09hrs  6.39%  net/http.Handler.ServeHTTP-fm
+         0     0% 99.47%    0.09hrs  6.39%  net/http.HandlerFunc.ServeHTTP
+         0     0% 99.47%    0.10hrs  7.08%  net/http.http2chunkWriter.Write
+         0     0% 99.47%    0.09hrs  6.39%  net/http.initALPNRequest.ServeHTTP
+         0     0% 99.47%    0.09hrs  6.39%  net/http.serverHandler.ServeHTTP
+         0     0% 99.47%    0.09hrs  6.31%  net/http/httputil.(*ReverseProxy).ServeHTTP
+         0     0% 99.47%    0.01hrs  0.94%  p2pstream/internal/server.(*App).agentTunnelHandler.func6
+         0     0% 99.47%    0.09hrs  6.31%  p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution (inline)
+         0     0% 99.47%    0.09hrs  6.31%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+         0     0% 99.47%    0.09hrs  6.39%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+         0     0% 99.47%    0.58hrs 40.36%  p2pstream/internal/server.(*agentTunnelStreamConn).Read
+         0     0% 99.47%    0.09hrs  6.27%  p2pstream/internal/server.(*pooledAgentTransport).RoundTrip
+         0     0% 99.47%    0.09hrs  6.29%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip

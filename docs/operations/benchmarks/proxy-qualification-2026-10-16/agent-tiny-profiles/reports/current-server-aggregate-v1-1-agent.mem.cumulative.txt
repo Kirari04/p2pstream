@@ -1,0 +1,107 @@
+File: agent.test
+Build ID: 6348dbe52ed03eaad5cbdae6114c39eb12517a24
+Type: alloc_space
+Time: 2026-10-16 05:19:44 CEST
+Showing nodes accounting for 185.80MB, 97.07% of 191.41MB total
+Showing top 100 nodes out of 176
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%    93.51MB 48.85%  github.com/hashicorp/yamux.(*Session).publishAggregateCredit
+      32MB 16.72% 16.72%       51MB 26.65%  github.com/hashicorp/yamux.(*Session).publishStreamAllocationRefund
+         0     0% 16.72%    47.50MB 24.82%  github.com/hashicorp/yamux.(*Session).recv
+         0     0% 16.72%    47.50MB 24.82%  github.com/hashicorp/yamux.(*Session).recvLoop
+      45MB 23.51% 40.23%       45MB 23.51%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+   26.50MB 13.85% 54.08%    42.50MB 22.21%  github.com/hashicorp/yamux.(*Session).publishGlobalRefund
+      41MB 21.42% 75.50%       41MB 21.42%  github.com/hashicorp/yamux.(*aggregateWindow).broadcastSendLocked (inline)
+         0     0% 75.50%    24.50MB 12.80%  github.com/hashicorp/yamux.(*Session).handleAllocationWindowUpdate
+         0     0% 75.50%    24.44MB 12.77%  io.Copy (inline)
+   14.44MB  7.55% 83.04%    24.44MB 12.77%  io.copyBuffer
+         0     0% 83.04%       18MB  9.40%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0% 83.04%    16.50MB  8.62%  github.com/hashicorp/yamux.(*Session).handleAggregateWindowUpdate
+         0     0% 83.04%    15.67MB  8.19%  net.(*TCPConn).WriteTo
+         0     0% 83.04%    15.67MB  8.19%  net.(*TCPConn).writeTo
+         0     0% 83.04%    15.67MB  8.19%  net.genericWriteTo
+         0     0% 83.04%    15.67MB  8.19%  p2pstream/internal/agent.relayTunnelStream.func2
+         0     0% 83.04%       10MB  5.22%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+         0     0% 83.04%       10MB  5.22%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0% 83.04%       10MB  5.22%  github.com/hashicorp/yamux.(*Stream).write
+         0     0% 83.04%     9.16MB  4.79%  p2pstream/internal/agent.runTunnelGroupGeneration.func1
+         0     0% 83.04%     9.16MB  4.79%  p2pstream/internal/agent.runTunnelGroupGeneration.func2
+         0     0% 83.04%     9.16MB  4.79%  p2pstream/internal/agent.runTunnelLaneLoop
+         0     0% 83.04%     8.77MB  4.58%  net.(*TCPConn).ReadFrom
+         0     0% 83.04%     8.77MB  4.58%  net.(*TCPConn).readFrom
+         0     0% 83.04%     8.77MB  4.58%  net.genericReadFrom
+         0     0% 83.04%     8.77MB  4.58%  p2pstream/internal/agent.relayTunnelStream.func1
+         0     0% 83.04%     8.66MB  4.52%  github.com/hashicorp/yamux.Client
+    8.66MB  4.52% 87.57%     8.66MB  4.52%  github.com/hashicorp/yamux.makeAggregateSlab (inline)
+         0     0% 87.57%     8.66MB  4.52%  github.com/hashicorp/yamux.newAggregateWindow
+         0     0% 87.57%     8.66MB  4.52%  github.com/hashicorp/yamux.newSession
+         0     0% 87.57%     8.66MB  4.52%  p2pstream/internal/agent.RunContext.func3
+         0     0% 87.57%     8.66MB  4.52%  p2pstream/internal/agent.connectAndServe
+         0     0% 87.57%     8.66MB  4.52%  p2pstream/internal/agent.runTunnelGroupGeneration.func1.1
+         0     0% 87.57%     7.03MB  3.68%  p2pstream/internal/agent.RunContext.func1
+         0     0% 87.57%     7.03MB  3.68%  p2pstream/internal/agent.startStatsReporterWithCapacity
+       7MB  3.66% 91.23%        7MB  3.66%  crypto/tls.(*Conn).readFromUntil
+         0     0% 91.23%        7MB  3.66%  crypto/tls.(*Conn).readRecord (inline)
+         0     0% 91.23%        7MB  3.66%  crypto/tls.(*Conn).readRecordOrCCS
+         0     0% 91.23%     6.50MB  3.40%  bufio.(*Reader).Read
+         0     0% 91.23%     6.50MB  3.40%  crypto/tls.(*Conn).Read
+         0     0% 91.23%     6.50MB  3.40%  io.ReadAtLeast
+         0     0% 91.23%     6.50MB  3.40%  io.ReadFull (inline)
+         0     0% 91.23%     6.50MB  3.40%  net/http.(*readWriteCloserBody).Read
+         0     0% 91.23%     6.03MB  3.15%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLockedWithForce
+         0     0% 91.23%     6.03MB  3.15%  p2pstream/internal/sysmetrics.(*AdaptiveMemoryController).snapshotAt
+         0     0% 91.23%     6.03MB  3.15%  p2pstream/internal/sysmetrics.(*systemMemoryUsageSampler).SampleMemoryUsages
+         0     0% 91.23%     6.03MB  3.15%  p2pstream/internal/sysmetrics.sampleMemoryUsages
+         0     0% 91.23%     5.53MB  2.89%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLocked (inline)
+         0     0% 91.23%     5.53MB  2.89%  p2pstream/internal/sysmetrics.(*AdaptiveMemoryController).Snapshot (inline)
+         0     0% 91.23%     5.02MB  2.62%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshot
+         0     0% 91.23%     5.02MB  2.62%  p2pstream/internal/agent.runStatsReporterWithCapacity
+         0     0% 91.23%     4.52MB  2.36%  os.ReadFile
+    0.51MB  0.26% 91.49%     4.03MB  2.10%  p2pstream/internal/sysmetrics.resolveCurrentProcessMemoryCgroupPaths
+         0     0% 91.49%        4MB  2.09%  sync.(*Once).Do (inline)
+         0     0% 91.49%        4MB  2.09%  sync.(*Once).doSlow
+    0.50MB  0.26% 91.75%     3.52MB  1.84%  os.readFileContents
+         0     0% 91.75%     3.51MB  1.83%  p2pstream/internal/agent.RunContext
+         0     0% 91.75%     3.51MB  1.83%  p2pstream/internal/agent.runExternalProxyQualificationAgent.func1
+    3.02MB  1.58% 93.33%     3.02MB  1.58%  slices.Grow[go.shape.[]uint8,go.shape.uint8] (inline)
+         0     0% 93.33%        3MB  1.57%  crypto/x509.SystemCertPool
+         0     0% 93.33%        3MB  1.57%  crypto/x509.initSystemRoots
+         0     0% 93.33%        3MB  1.57%  crypto/x509.loadSystemRoots
+         0     0% 93.33%        3MB  1.57%  crypto/x509.systemRootsPool
+         0     0% 93.33%        3MB  1.57%  p2pstream/internal/agent.managementRootPool
+         0     0% 93.33%        3MB  1.57%  p2pstream/internal/agent.newManagementTrustStore
+         0     0% 93.33%     2.15MB  1.12%  runtime/pprof.(*profileBuilder).build
+         0     0% 93.33%     2.15MB  1.12%  runtime/pprof.profileWriter
+         0     0% 93.33%     2.01MB  1.05%  p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect.NewAgentManagementServiceClient
+         0     0% 93.33%        2MB  1.05%  crypto/x509.(*CertPool).AppendCertsFromPEM
+         0     0% 93.33%     1.64MB  0.86%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.54MB  0.28% 93.61%     1.64MB  0.86%  runtime/pprof.(*profileBuilder).emitLocation
+         0     0% 93.61%     1.51MB  0.79%  google.golang.org/protobuf/internal/filedesc.(*File).lazyInit (inline)
+         0     0% 93.61%     1.51MB  0.79%  google.golang.org/protobuf/internal/filedesc.(*File).lazyInitOnce
+         0     0% 93.61%     1.51MB  0.79%  google.golang.org/protobuf/internal/filedesc.(*File).lazyRawInit
+         0     0% 93.61%     1.51MB  0.79%  google.golang.org/protobuf/internal/filedesc.(*File).unmarshalFull
+    1.51MB  0.79% 94.40%     1.51MB  0.79%  google.golang.org/protobuf/internal/filedesc.(*Message).unmarshalFull
+         0     0% 94.40%     1.51MB  0.79%  google.golang.org/protobuf/internal/filedesc.(*Service).Methods
+         0     0% 94.40%     1.51MB  0.79%  google.golang.org/protobuf/internal/filedesc.(*Service).lazyInit (inline)
+         0     0% 94.40%     1.50MB  0.78%  p2pstream/internal/sysmetrics.readMemoryMetricFile
+         0     0% 94.40%     1.50MB  0.78%  p2pstream/internal/sysmetrics.readMemoryUsagePair
+         0     0% 94.40%     1.50MB  0.78%  github.com/hashicorp/yamux.(*Session).handleAggregateData
+         0     0% 94.40%     1.50MB  0.78%  github.com/hashicorp/yamux.(*Stream).readAggregateDataPayload
+         0     0% 94.40%     1.50MB  0.78%  github.com/hashicorp/yamux.readAggregateFrame
+         0     0% 94.40%     1.10MB  0.58%  compress/flate.(*compressor).init
+         0     0% 94.40%     1.10MB  0.58%  compress/flate.NewWriter (inline)
+    1.10MB  0.58% 94.98%     1.10MB  0.58%  compress/flate.newDeflateFast (inline)
+         0     0% 94.98%     1.10MB  0.58%  compress/gzip.(*Writer).Write
+         0     0% 94.98%     1.10MB  0.58%  runtime/pprof.(*profileBuilder).flush
+         0     0% 94.98%     1.10MB  0.58%  runtime.doInit (inline)
+         0     0% 94.98%     1.10MB  0.58%  runtime.doInit1
+         0     0% 94.98%     1.10MB  0.58%  runtime.main
+    0.50MB  0.26% 95.24%        1MB  0.52%  p2pstream/internal/agent.releaseAgentTunnelCapacityAfterPeerClose
+         0     0% 95.24%        1MB  0.52%  p2pstream/internal/agent.serveTunnelSessionWithPolicyCapacityAndResources.func6
+       1MB  0.52% 95.76%        1MB  0.52%  runtime.mallocgc
+         0     0% 95.76%        1MB  0.52%  crypto/x509.ParseCertificate
+    0.50MB  0.26% 96.02%        1MB  0.52%  crypto/x509.parseCertificate
+       1MB  0.52% 96.55%        1MB  0.52%  encoding/pem.Decode
+       1MB  0.52% 97.07%        1MB  0.52%  os.(*File).Stat
+         0     0% 97.07%        1MB  0.52%  os.statOrZero
+         0     0% 97.07%        1MB  0.52%  p2pstream/internal/sysmetrics.parseCgroupMounts

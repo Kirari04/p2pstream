@@ -1,0 +1,53 @@
+File: agent.test
+Build ID: 6348dbe52ed03eaad5cbdae6114c39eb12517a24
+Type: alloc_space
+Time: 2026-10-16 05:19:44 CEST
+Showing nodes accounting for 185.80MB, 97.07% of 191.41MB total
+Dropped 76 nodes (cum <= 0.96MB)
+Showing top 45 nodes out of 100
+      flat  flat%   sum%        cum   cum%
+      45MB 23.51% 23.51%       45MB 23.51%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+      41MB 21.42% 44.93%       41MB 21.42%  github.com/hashicorp/yamux.(*aggregateWindow).broadcastSendLocked (inline)
+      32MB 16.72% 61.65%       51MB 26.65%  github.com/hashicorp/yamux.(*Session).publishStreamAllocationRefund
+   26.50MB 13.85% 75.50%    42.50MB 22.21%  github.com/hashicorp/yamux.(*Session).publishGlobalRefund
+   14.44MB  7.55% 83.04%    24.44MB 12.77%  io.copyBuffer
+    8.66MB  4.52% 87.57%     8.66MB  4.52%  github.com/hashicorp/yamux.makeAggregateSlab (inline)
+       7MB  3.66% 91.23%        7MB  3.66%  crypto/tls.(*Conn).readFromUntil
+    3.02MB  1.58% 92.80%     3.02MB  1.58%  slices.Grow[go.shape.[]uint8,go.shape.uint8] (inline)
+    1.51MB  0.79% 93.59%     1.51MB  0.79%  google.golang.org/protobuf/internal/filedesc.(*Message).unmarshalFull
+    1.10MB  0.58% 94.17%     1.10MB  0.58%  compress/flate.newDeflateFast (inline)
+       1MB  0.52% 94.69%        1MB  0.52%  runtime.mallocgc
+       1MB  0.52% 95.22%        1MB  0.52%  encoding/pem.Decode
+       1MB  0.52% 95.74%        1MB  0.52%  os.(*File).Stat
+    0.54MB  0.28% 96.02%     1.64MB  0.86%  runtime/pprof.(*profileBuilder).emitLocation
+    0.51MB  0.26% 96.28%     4.03MB  2.10%  p2pstream/internal/sysmetrics.resolveCurrentProcessMemoryCgroupPaths
+    0.50MB  0.26% 96.55%        1MB  0.52%  p2pstream/internal/agent.releaseAgentTunnelCapacityAfterPeerClose
+    0.50MB  0.26% 96.81%        1MB  0.52%  crypto/x509.parseCertificate
+    0.50MB  0.26% 97.07%     3.52MB  1.84%  os.readFileContents
+         0     0% 97.07%     6.50MB  3.40%  bufio.(*Reader).Read
+         0     0% 97.07%     1.10MB  0.58%  compress/flate.(*compressor).init
+         0     0% 97.07%     1.10MB  0.58%  compress/flate.NewWriter (inline)
+         0     0% 97.07%     1.10MB  0.58%  compress/gzip.(*Writer).Write
+         0     0% 97.07%     6.50MB  3.40%  crypto/tls.(*Conn).Read
+         0     0% 97.07%        7MB  3.66%  crypto/tls.(*Conn).readRecord (inline)
+         0     0% 97.07%        7MB  3.66%  crypto/tls.(*Conn).readRecordOrCCS
+         0     0% 97.07%        2MB  1.05%  crypto/x509.(*CertPool).AppendCertsFromPEM
+         0     0% 97.07%        1MB  0.52%  crypto/x509.ParseCertificate
+         0     0% 97.07%        3MB  1.57%  crypto/x509.SystemCertPool
+         0     0% 97.07%        3MB  1.57%  crypto/x509.initSystemRoots
+         0     0% 97.07%        3MB  1.57%  crypto/x509.loadSystemRoots
+         0     0% 97.07%        3MB  1.57%  crypto/x509.systemRootsPool
+         0     0% 97.07%     1.50MB  0.78%  github.com/hashicorp/yamux.(*Session).handleAggregateData
+         0     0% 97.07%    16.50MB  8.62%  github.com/hashicorp/yamux.(*Session).handleAggregateWindowUpdate
+         0     0% 97.07%    24.50MB 12.80%  github.com/hashicorp/yamux.(*Session).handleAllocationWindowUpdate
+         0     0% 97.07%       18MB  9.40%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0% 97.07%    93.51MB 48.85%  github.com/hashicorp/yamux.(*Session).publishAggregateCredit
+         0     0% 97.07%    47.50MB 24.82%  github.com/hashicorp/yamux.(*Session).recv
+         0     0% 97.07%    47.50MB 24.82%  github.com/hashicorp/yamux.(*Session).recvLoop
+         0     0% 97.07%       10MB  5.22%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+         0     0% 97.07%       10MB  5.22%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0% 97.07%     1.50MB  0.78%  github.com/hashicorp/yamux.(*Stream).readAggregateDataPayload
+         0     0% 97.07%       10MB  5.22%  github.com/hashicorp/yamux.(*Stream).write
+         0     0% 97.07%     8.66MB  4.52%  github.com/hashicorp/yamux.Client
+         0     0% 97.07%     8.66MB  4.52%  github.com/hashicorp/yamux.newAggregateWindow
+         0     0% 97.07%     8.66MB  4.52%  github.com/hashicorp/yamux.newSession

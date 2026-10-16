@@ -1,0 +1,53 @@
+File: agent.test
+Build ID: 6348dbe52ed03eaad5cbdae6114c39eb12517a24
+Type: alloc_objects
+Time: 2026-10-16 05:19:44 CEST
+Showing nodes accounting for 2590655, 98.24% of 2637184 total
+Dropped 109 nodes (cum <= 13185)
+Showing top 45 nodes out of 67
+      flat  flat%   sum%        cum   cum%
+    685817 26.01% 26.01%     934872 35.45%  github.com/hashicorp/yamux.(*Session).publishStreamAllocationRefund
+    589868 22.37% 48.37%     589868 22.37%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+    558642 21.18% 69.56%     768373 29.14%  github.com/hashicorp/yamux.(*Session).publishGlobalRefund
+    383894 14.56% 84.11%     383894 14.56%  github.com/hashicorp/yamux.(*aggregateWindow).broadcastSendLocked (inline)
+    305840 11.60% 95.71%     305840 11.60%  crypto/tls.(*Conn).readFromUntil
+     33109  1.26% 96.97%      33109  1.26%  encoding/pem.Decode
+     33024  1.25% 98.22%      33024  1.25%  runtime.mallocgc
+       461 0.017% 98.24%     131543  4.99%  io.copyBuffer
+         0     0% 98.24%     283995 10.77%  bufio.(*Reader).Read
+         0     0% 98.24%      21845  0.83%  crypto/tls.(*Conn).HandshakeContext (inline)
+         0     0% 98.24%     283995 10.77%  crypto/tls.(*Conn).Read
+         0     0% 98.24%      21845  0.83%  crypto/tls.(*Conn).clientHandshake
+         0     0% 98.24%      21845  0.83%  crypto/tls.(*Conn).handshakeContext
+         0     0% 98.24%      21845  0.83%  crypto/tls.(*Conn).readHandshake
+         0     0% 98.24%      21845  0.83%  crypto/tls.(*Conn).readHandshakeBytes
+         0     0% 98.24%     305840 11.60%  crypto/tls.(*Conn).readRecord (inline)
+         0     0% 98.24%     305840 11.60%  crypto/tls.(*Conn).readRecordOrCCS
+         0     0% 98.24%      44373  1.68%  crypto/x509.(*CertPool).AppendCertsFromPEM
+         0     0% 98.24%      52975  2.01%  crypto/x509.SystemCertPool
+         0     0% 98.24%      52975  2.01%  crypto/x509.initSystemRoots
+         0     0% 98.24%      52975  2.01%  crypto/x509.loadSystemRoots
+         0     0% 98.24%      52975  2.01%  crypto/x509.systemRootsPool
+         0     0% 98.24%      65537  2.49%  github.com/hashicorp/yamux.(*Session).handleAggregateData
+         0     0% 98.24%     154494  5.86%  github.com/hashicorp/yamux.(*Session).handleAggregateWindowUpdate
+         0     0% 98.24%     229400  8.70%  github.com/hashicorp/yamux.(*Session).handleAllocationWindowUpdate
+         0     0% 98.24%     220031  8.34%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0% 98.24%    1703245 64.59%  github.com/hashicorp/yamux.(*Session).publishAggregateCredit
+         0     0% 98.24%     667889 25.33%  github.com/hashicorp/yamux.(*Session).recv
+         0     0% 98.24%     667889 25.33%  github.com/hashicorp/yamux.(*Session).recvLoop
+         0     0% 98.24%     131082  4.97%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+         0     0% 98.24%     131082  4.97%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0% 98.24%      65537  2.49%  github.com/hashicorp/yamux.(*Stream).readAggregateDataPayload
+         0     0% 98.24%     131082  4.97%  github.com/hashicorp/yamux.(*Stream).write
+         0     0% 98.24%      65537  2.49%  github.com/hashicorp/yamux.readAggregateFrame
+         0     0% 98.24%     131543  4.99%  io.Copy (inline)
+         0     0% 98.24%     283995 10.77%  io.ReadAtLeast
+         0     0% 98.24%     283995 10.77%  io.ReadFull (inline)
+         0     0% 98.24%     131263  4.98%  net.(*TCPConn).WriteTo
+         0     0% 98.24%     131263  4.98%  net.(*TCPConn).writeTo
+         0     0% 98.24%     131263  4.98%  net.genericWriteTo
+         0     0% 98.24%      21845  0.83%  net/http.(*persistConn).addTLS.func2
+         0     0% 98.24%     283995 10.77%  net/http.(*readWriteCloserBody).Read
+         0     0% 98.24%      17187  0.65%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshot
+         0     0% 98.24%      17315  0.66%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLocked (inline)
+         0     0% 98.24%      17358  0.66%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLockedWithForce

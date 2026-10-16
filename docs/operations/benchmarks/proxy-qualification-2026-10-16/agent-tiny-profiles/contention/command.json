@@ -1,0 +1,22 @@
+[
+  "/tmp/p2pstream-tiny-profiles.nz_mznb9/qualify-proxy-agent-growth.sh",
+  "--server-binary",
+  "/tmp/p2pstream-tiny-profiles.nz_mznb9/contention/server.sh",
+  "--aggregate-agent-binary",
+  "/tmp/p2pstream-tiny-profiles.nz_mznb9/contention/aggregate-agent.sh",
+  "--legacy-agent-binary",
+  "/tmp/p2pstream-tiny-profiles.nz_mznb9/contention/legacy-agent.sh",
+  "--output",
+  "/tmp/p2pstream-tiny-profiles.nz_mznb9/contention/results.jsonl",
+  "--server-source-ref",
+  "15b0354cdbc2c3862fadc68c938f3c3185320e5e",
+  "--aggregate-agent-source-ref",
+  "15b0354cdbc2c3862fadc68c938f3c3185320e5e",
+  "--legacy-agent-source-ref",
+  "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "--tiny-response",
+  "--runs",
+  "1",
+  "--rtt-ms",
+  "1"
+]

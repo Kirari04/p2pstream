@@ -1,0 +1,53 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: alloc_space
+Time: 2026-10-16 05:19:29 CEST
+Showing nodes accounting for 3.17GB, 88.41% of 3.58GB total
+Dropped 379 nodes (cum <= 0.02GB)
+Showing top 45 nodes out of 137
+      flat  flat%   sum%        cum   cum%
+    0.36GB 10.06% 10.06%     1.74GB 48.52%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+    0.28GB  7.79% 17.85%     0.28GB  7.79%  net/http.(*Request).WithContext (inline)
+    0.24GB  6.67% 24.52%     0.24GB  6.81%  database/sql.driverArgsConnLocked
+    0.19GB  5.41% 29.93%     0.19GB  5.41%  net/http.Header.Clone (inline)
+    0.17GB  4.87% 34.80%     0.17GB  4.87%  net/textproto.MIMEHeader.Add (inline)
+    0.14GB  3.79% 38.59%     0.39GB 10.92%  net/http.(*Request).Clone
+    0.12GB  3.45% 42.04%     0.12GB  3.45%  net/http.(*http2Framer).readMetaFrame.func1
+    0.11GB  3.20% 45.25%     0.14GB  3.91%  net/textproto.readMIMEHeader
+    0.10GB  2.74% 47.99%     0.10GB  2.74%  net/http.http2cloneHeader (inline)
+    0.08GB  2.24% 50.23%     1.83GB 51.09%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+    0.08GB  2.17% 52.40%     0.13GB  3.55%  net/http.(*persistConn).roundTrip
+    0.08GB  2.15% 54.55%     0.08GB  2.15%  net/http.setupRewindBody (inline)
+    0.07GB  1.87% 56.42%     0.10GB  2.67%  net/http.(*Transport).getConn
+    0.06GB  1.77% 58.19%     0.06GB  1.77%  context.WithValue
+    0.06GB  1.72% 59.91%     0.06GB  1.72%  net/http.cloneURL (inline)
+    0.06GB  1.68% 61.59%     0.06GB  1.68%  context.(*cancelCtx).propagateCancel
+    0.06GB  1.54% 63.13%     0.25GB  7.08%  net/http.(*persistConn).readLoop
+    0.06GB  1.54% 64.67%     0.12GB  3.22%  context.withCancel (inline)
+    0.05GB  1.45% 66.11%     0.10GB  2.85%  time.NewTimer
+    0.05GB  1.43% 67.55%     0.05GB  1.43%  p2pstream/internal/db.appendProxyRequestEventArgs
+    0.05GB  1.40% 68.95%     0.05GB  1.40%  time.newTimer
+    0.05GB  1.38% 70.33%     0.05GB  1.38%  context.(*cancelCtx).Done
+    0.05GB  1.30% 71.62%     1.35GB 37.75%  net/http/httputil.(*ReverseProxy).ServeHTTP
+    0.04GB  1.05% 72.67%     0.76GB 21.20%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+    0.04GB  1.04% 73.71%     0.09GB  2.50%  net/http.(*transferWriter).probeRequestBody
+    0.04GB  1.01% 74.72%     0.13GB  3.50%  net/http.newTransferWriter
+    0.04GB  0.98% 75.70%     0.04GB  0.98%  p2pstream/internal/server.publicRouteTargetHealthConfigFromRouteTarget
+    0.03GB  0.97% 76.67%     0.04GB  1.05%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+    0.03GB  0.91% 77.58%     0.03GB  0.91%  net/url.parse
+    0.03GB  0.91% 78.49%     0.16GB  4.38%  net/http.(*http2Framer).readMetaFrame
+    0.03GB  0.87% 79.37%     0.08GB  2.18%  net/http.(*http2serverConn).newStream
+    0.03GB  0.86% 80.23%     0.19GB  5.26%  net/http.ReadResponse
+    0.03GB  0.82% 81.04%     0.03GB  0.82%  net/textproto.canonicalMIMEHeaderKey
+    0.03GB  0.76% 81.81%     0.03GB  0.76%  github.com/pressly/goose/v3/internal/sqlparser.init.func1
+    0.03GB  0.75% 82.56%     0.03GB  0.85%  net/http.(*http2responseWriterState).writeChunk
+    0.03GB  0.74% 83.29%     0.03GB  0.74%  net/http.(*http2closeWaiter).Init (inline)
+    0.03GB  0.74% 84.03%     0.03GB  0.74%  p2pstream/internal/server.(*publicProxyContext).deferCleanup
+    0.03GB  0.71% 84.74%     0.04GB  0.98%  p2pstream/internal/server.WithClientIdentity
+    0.02GB  0.61% 85.35%     0.02GB  0.61%  net.SplitHostPort.func1 (inline)
+    0.02GB  0.55% 85.90%     0.02GB  0.55%  internal/bytealg.MakeNoZero
+    0.02GB  0.53% 86.43%     0.44GB 12.22%  net/http.(*Transport).roundTrip
+    0.02GB  0.52% 86.95%     0.12GB  3.35%  p2pstream/internal/server.applyPublicRequestBodyLimits
+    0.02GB  0.52% 87.47%     0.02GB  0.52%  p2pstream/internal/server.(*requestCapacityLimiter).tryAcquire (inline)
+    0.02GB  0.52% 87.99%     0.02GB  0.63%  net/textproto.MIMEHeader.Set (inline)
+    0.02GB  0.42% 88.41%     0.26GB  7.23%  p2pstream/internal/server.initializePublicProxyContext

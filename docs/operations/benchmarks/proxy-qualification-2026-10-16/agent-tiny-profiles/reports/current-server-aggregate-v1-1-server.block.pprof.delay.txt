@@ -1,0 +1,53 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: delay
+Time: 2026-10-16 05:20:32 CEST
+Showing nodes accounting for 4432.71s, 99.37% of 4460.95s total
+Dropped 216 nodes (cum <= 22.30s)
+Showing top 45 nodes out of 53
+      flat  flat%   sum%        cum   cum%
+  4432.71s 99.37% 99.37%   4432.71s 99.37%  runtime.selectgo
+         0     0% 99.37%   1685.08s 37.77%  bufio.(*Reader).Peek
+         0     0% 99.37%   1685.08s 37.77%  bufio.(*Reader).fill
+         0     0% 99.37%    412.30s  9.24%  bufio.(*Writer).Flush
+         0     0% 99.37%     61.07s  1.37%  github.com/hashicorp/yamux.(*Session).keepalive
+         0     0% 99.37%     38.34s  0.86%  github.com/hashicorp/yamux.(*Session).publishAggregateCredit
+         0     0% 99.37%     52.02s  1.17%  github.com/hashicorp/yamux.(*Session).send
+         0     0% 99.37%     52.02s  1.17%  github.com/hashicorp/yamux.(*Session).sendLoop
+         0     0% 99.37%     61.06s  1.37%  github.com/hashicorp/yamux.(*Session).sendPingReplies
+         0     0% 99.37%   1685.66s 37.79%  github.com/hashicorp/yamux.(*Stream).Read
+         0     0% 99.37%     52.02s  1.17%  github.com/hashicorp/yamux.newSession.gowrap2
+         0     0% 99.37%     61.06s  1.37%  github.com/hashicorp/yamux.newSession.gowrap3
+         0     0% 99.37%     38.34s  0.86%  github.com/hashicorp/yamux.newSession.gowrap4
+         0     0% 99.37%     61.07s  1.37%  github.com/hashicorp/yamux.newSession.gowrap5
+         0     0% 99.37%    289.51s  6.49%  net/http.(*ServeMux).ServeHTTP
+         0     0% 99.37%    284.48s  6.38%  net/http.(*Transport).RoundTrip (inline)
+         0     0% 99.37%   1687.01s 37.82%  net/http.(*Transport).dialConn.gowrap2
+         0     0% 99.37%   1697.90s 38.06%  net/http.(*Transport).dialConn.gowrap3
+         0     0% 99.37%    284.48s  6.38%  net/http.(*Transport).roundTrip
+         0     0% 99.37%    406.60s  9.11%  net/http.(*http2responseWriter).Flush (inline)
+         0     0% 99.37%    406.60s  9.11%  net/http.(*http2responseWriter).FlushError
+         0     0% 99.37%    406.60s  9.11%  net/http.(*http2responseWriter).handlerDone
+         0     0% 99.37%    406.60s  9.11%  net/http.(*http2responseWriterState).writeChunk
+         0     0% 99.37%    724.34s 16.24%  net/http.(*http2serverConn).runHandler
+         0     0% 99.37%     28.23s  0.63%  net/http.(*http2serverConn).runHandler.deferwrap1
+         0     0% 99.37%    406.60s  9.11%  net/http.(*http2serverConn).runHandler.func1
+         0     0% 99.37%    724.34s 16.24%  net/http.(*http2serverConn).scheduleHandler.gowrap1
+         0     0% 99.37%     28.23s  0.63%  net/http.(*http2serverConn).sendServeMsg
+         0     0% 99.37%    187.58s  4.20%  net/http.(*http2serverConn).writeDataFromHandler
+         0     0% 99.37%    113.17s  2.54%  net/http.(*http2serverConn).writeFrameFromHandler
+         0     0% 99.37%    219.02s  4.91%  net/http.(*http2serverConn).writeHeaders
+         0     0% 99.37%    289.51s  6.49%  net/http.(*initALPNRequest).ServeHTTP
+         0     0% 99.37%   1685.08s 37.77%  net/http.(*persistConn).Read
+         0     0% 99.37%   1687.01s 37.82%  net/http.(*persistConn).readLoop
+         0     0% 99.37%    283.81s  6.36%  net/http.(*persistConn).roundTrip
+         0     0% 99.37%   1697.90s 38.06%  net/http.(*persistConn).writeLoop
+         0     0% 99.37%    289.51s  6.49%  net/http.Handler.ServeHTTP-fm
+         0     0% 99.37%    289.52s  6.49%  net/http.HandlerFunc.ServeHTTP
+         0     0% 99.37%    406.60s  9.11%  net/http.http2chunkWriter.Write
+         0     0% 99.37%    289.51s  6.49%  net/http.initALPNRequest.ServeHTTP
+         0     0% 99.37%    289.52s  6.49%  net/http.serverHandler.ServeHTTP
+         0     0% 99.37%    286.11s  6.41%  net/http/httputil.(*ReverseProxy).ServeHTTP
+         0     0% 99.37%     61.07s  1.37%  p2pstream/internal/server.(*App).agentTunnelHandler.func6
+         0     0% 99.37%    286.23s  6.42%  p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution (inline)
+         0     0% 99.37%    286.23s  6.42%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
