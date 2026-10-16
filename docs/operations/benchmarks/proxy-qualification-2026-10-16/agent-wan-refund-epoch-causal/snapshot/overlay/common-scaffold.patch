@@ -1,0 +1,785 @@
+diff --git a/third_party/yamux/aggregate_window.go b/third_party/yamux/aggregate_window.go
+index 6069548..edcfd92 100644
+--- a/third_party/yamux/aggregate_window.go
++++ b/third_party/yamux/aggregate_window.go
+@@ -6,6 +6,7 @@ import (
+ 	"io"
+ 	"math"
+ 	"sync"
++	"time"
+ )
+ 
+ const (
+@@ -22,6 +23,10 @@ const (
+ 	aggregateRefundBatchStreams  = 16
+ )
+ 
++// diagnosticDeferredGlobalEpoch differs only in the causal diagnostic arm.
++// Both arms retain this scaffold and the same aggregateWindow layout.
++var diagnosticDeferredGlobalEpoch = false
++
+ type aggregateChunk struct {
+ 	next        *aggregateChunk
+ 	read, write uint16
+@@ -545,6 +550,19 @@ func (s *Session) publishAggregateCredit() {
+ 			return
+ 		}
+ 		for {
++			if diagnosticDeferredGlobalEpoch {
++				published, err := s.publishDeferredGlobalRefundEpoch()
++				if err != nil {
++					if !errors.Is(err, ErrSessionShutdown) {
++						s.abortAggregate(err)
++					}
++					return
++				}
++				if !published {
++					break
++				}
++				continue
++			}
+ 			work := s.takeAggregateRefundWork()
+ 			if work.count == 0 && work.global == 0 {
+ 				break
+@@ -559,6 +577,222 @@ func (s *Session) publishAggregateCredit() {
+ 	}
+ }
+ 
++// takeDeferredGlobalRefundPart atomically reserves one stream refund and its
++// matching session refund. If consuming that stream empties the queue, the
++// same locked observation may also reserve global-only credit. The selected
++// stream remains session-owned in publishingRefunds until its item commits or
++// Close joins the publisher and sender.
++func (s *Session) takeDeferredGlobalRefundPart(room uint64) (aggregateRefundPart, uint64, bool, error) {
++	a := s.aggregate
++	a.mu.Lock()
++	defer a.mu.Unlock()
++	if a.publishingRefundsCount != 0 {
++		return aggregateRefundPart{}, 0, false, fmt.Errorf("yamux: deferred aggregate refund selected while another stream refund is publishing")
++	}
++	if room < uint64(AggregateWindowUnitSize) {
++		return aggregateRefundPart{}, 0, false, nil
++	}
++	stream := a.pendingStreamHead
++	if stream == nil {
++		delta := a.pendingGlobal
++		if delta > room {
++			delta = room
++		}
++		delta -= delta % uint64(AggregateWindowUnitSize)
++		if delta == 0 {
++			return aggregateRefundPart{}, 0, false, nil
++		}
++		a.pendingGlobal -= delta
++		a.publishingGlobal += delta
++		return aggregateRefundPart{}, delta, false, nil
++	}
++	delta := stream.allocationRefundPending
++	if delta > a.pendingGlobal {
++		delta = a.pendingGlobal
++	}
++	if delta > room {
++		delta = room
++	}
++	delta -= delta % uint64(AggregateWindowUnitSize)
++	if delta == 0 {
++		return aggregateRefundPart{}, 0, false, fmt.Errorf("yamux: invalid deferred aggregate refund ledger for stream %d", stream.id)
++	}
++	part := aggregateRefundPart{stream: stream, delta: delta, slot: 0}
++	stream.allocationRefundPending -= delta
++	stream.allocationRefundPublishing += delta
++	a.pendingGlobal -= delta
++	a.publishingGlobal += delta
++	a.publishingRefunds[0] = part
++	a.publishingRefundsCount = 1
++	if stream.allocationRefundPending == 0 {
++		a.pendingStreamHead = stream.allocationRefundNext
++		if a.pendingStreamHead == nil {
++			a.pendingStreamTail = nil
++		}
++		stream.allocationRefundNext = nil
++		stream.allocationRefundQueued = false
++	}
++	global := delta
++	// Credit beyond all queued stream matches is known to be global-only. Take
++	// it only while the empty-queue observation is protected by this lock; a
++	// later read may otherwise enqueue a new stream match concurrently.
++	if a.pendingStreamHead == nil && global < room {
++		extra := a.pendingGlobal
++		if extra > room-global {
++			extra = room - global
++		}
++		extra -= extra % uint64(AggregateWindowUnitSize)
++		a.pendingGlobal -= extra
++		a.publishingGlobal += extra
++		global += extra
++	}
++	return part, global, true, nil
++}
++
++func (s *Session) deferredGlobalEpochTermination(timeout <-chan time.Time) error {
++	select {
++	case <-s.shutdownCh:
++		return ErrSessionShutdown
++	default:
++	}
++	select {
++	case <-timeout:
++		return ErrConnectionWriteTimeout
++	default:
++		return nil
++	}
++}
++
++// waitForDeferredGlobalEpochItem uses the caller's single epoch deadline. A
++// successful acknowledgement is the only point at which errCh may be reused.
++func (s *Session) waitForDeferredGlobalEpochItem(hdr header, errCh chan error, commit func(), timeout <-chan time.Time) error {
++	if err := s.deferredGlobalEpochTermination(timeout); err != nil {
++		return err
++	}
++	ready := &sendReady{Hdr: hdr, Err: errCh, Commit: commit}
++	select {
++	case s.controlCh <- ready:
++	case <-s.shutdownCh:
++		return ErrSessionShutdown
++	case <-timeout:
++		return ErrConnectionWriteTimeout
++	}
++	select {
++	case err := <-errCh:
++		if err != nil {
++			return err
++		}
++	case <-s.shutdownCh:
++		return ErrSessionShutdown
++	case <-timeout:
++		return ErrConnectionWriteTimeout
++	}
++	// Do not allow a simultaneously ready acknowledgement to win repeatedly
++	// over an expired epoch or shutdown and enable another publication.
++	return s.deferredGlobalEpochTermination(timeout)
++}
++
++func (s *Session) finishDeferredGlobalStreamPart(part aggregateRefundPart, grant bool) {
++	a := s.aggregate
++	a.mu.Lock()
++	part.stream.allocationRefundPublishing -= part.delta
++	if grant {
++		part.stream.allocationRecvWindow += uint32(part.delta)
++	}
++	a.publishingRefunds[0] = aggregateRefundPart{}
++	a.publishingRefundsCount = 0
++	a.mu.Unlock()
++}
++
++func (s *Session) publishDeferredGlobalStreamPart(part aggregateRefundPart, errCh chan error, timeout <-chan time.Time) error {
++	if err := s.deferredGlobalEpochTermination(timeout); err != nil {
++		return err
++	}
++	stream := part.stream
++	stream.controlHdrLock.Lock()
++	defer stream.controlHdrLock.Unlock()
++	if !stream.acceptsAggregateData() {
++		s.finishDeferredGlobalStreamPart(part, false)
++		return nil
++	}
++	a := s.aggregate
++	a.publishMu.Lock()
++	defer a.publishMu.Unlock()
++	hdr := header(make([]byte, headerSize))
++	hdr.encode(typeAllocationWindowUpdate, 0, stream.id, uint32(part.delta))
++	return s.waitForDeferredGlobalEpochItem(hdr, errCh, func() {
++		s.finishDeferredGlobalStreamPart(part, true)
++	}, timeout)
++}
++
++func (s *Session) publishDeferredGlobalSessionRefund(delta uint64, errCh chan error, timeout <-chan time.Time) error {
++	a := s.aggregate
++	a.publishMu.Lock()
++	defer a.publishMu.Unlock()
++	hdr := header(make([]byte, headerSize))
++	hdr.encode(typeWindowUpdate, 0, 0, uint32(delta))
++	return s.waitForDeferredGlobalEpochItem(hdr, errCh, func() {
++		a.mu.Lock()
++		a.publishingGlobal -= delta
++		a.recvWindow += uint32(delta)
++		a.mu.Unlock()
++	}, timeout)
++}
++
++// publishDeferredGlobalRefundEpoch publishes at most 16 selected stream parts
++// and one accumulated session refund. Same-stream requeues and terminal parts
++// consume the stream budget. The aligned session delta is bounded to one wire
++// update. This bounded epoch is a causal diagnostic rather than a restoration
++// of the historical unbounded drain. Lock acquisition is synchronous and
++// therefore not interruptible; once a lock is acquired, the shared deadline
++// is checked before enqueueing.
++func (s *Session) publishDeferredGlobalRefundEpoch() (bool, error) {
++	t := timerPool.Get()
++	timer := t.(*time.Timer)
++	timer.Reset(s.config.ConnectionWriteTimeout)
++	defer func() {
++		timer.Stop()
++		select {
++		case <-timer.C:
++		default:
++		}
++		timerPool.Put(t)
++	}()
++	errCh := make(chan error, 1)
++	var global uint64
++	selections := 0
++	published := false
++	for selections < aggregateRefundBatchStreams && global < aggregateMaxWindowUpdate {
++		if err := s.deferredGlobalEpochTermination(timer.C); err != nil {
++			return published, err
++		}
++		room := aggregateMaxWindowUpdate - global
++		part, delta, hasStream, err := s.takeDeferredGlobalRefundPart(room)
++		if err != nil {
++			return published, err
++		}
++		if delta == 0 {
++			break
++		}
++		published = true
++		global += delta
++		if !hasStream {
++			break
++		}
++		selections++
++		if err := s.publishDeferredGlobalStreamPart(part, errCh, timer.C); err != nil {
++			return true, err
++		}
++	}
++	if global == 0 {
++		return published, nil
++	}
++	if err := s.publishDeferredGlobalSessionRefund(global, errCh, timer.C); err != nil {
++		return true, err
++	}
++	return true, nil
++}
++
+ type aggregateRefundPart struct {
+ 	stream *Stream
+ 	delta  uint64
+diff --git a/third_party/yamux/deferred_global_diagnostic_test.go b/third_party/yamux/deferred_global_diagnostic_test.go
+new file mode 100644
+index 0000000..177caba
+--- /dev/null
++++ b/third_party/yamux/deferred_global_diagnostic_test.go
+@@ -0,0 +1,513 @@
++package yamux
++
++import (
++	"bytes"
++	"errors"
++	"fmt"
++	"io"
++	"log"
++	"sync/atomic"
++	"testing"
++	"time"
++)
++
++func requireDeferredGlobalDiagnostic(t *testing.T) {
++	t.Helper()
++	if !diagnosticDeferredGlobalEpoch {
++		t.Skip("deferred-global diagnostic arm only")
++	}
++}
++
++func newDeferredGlobalQueueSession(timeout time.Duration, capacity int) *Session {
++	config := DefaultConfig()
++	config.ConnectionWriteTimeout = timeout
++	return &Session{
++		config:     config,
++		logger:     log.New(io.Discard, "", 0),
++		controlCh:  make(chan *sendReady, capacity),
++		shutdownCh: make(chan struct{}),
++		aggregate:  &aggregateWindow{},
++	}
++}
++
++func acknowledgeDeferredGlobalItem(t *testing.T, ready *sendReady) {
++	t.Helper()
++	if ready.Commit != nil {
++		ready.Commit()
++	}
++	ready.Err <- nil
++}
++
++func TestDeferredGlobalEpochPublishesSixteenThenGlobal(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session, conn := newAggregateRefundPublishTestSession(t)
++	const streamCount = aggregateRefundBatchStreams + 1
++	streams := make([]*Stream, 0, streamCount)
++	deltas := make([]uint64, 0, streamCount)
++	for i := 0; i < streamCount; i++ {
++		streams = append(streams, newStream(session, uint32(2*i+1), streamEstablished))
++		deltas = append(deltas, uint64(AggregateWindowUnitSize))
++	}
++	queueAggregateRefundTestStreams(session, streams, deltas, 0)
++
++	published, err := session.publishDeferredGlobalRefundEpoch()
++	if err != nil || !published {
++		t.Fatalf("first epoch published=%t error=%v", published, err)
++	}
++	conn.mu.Lock()
++	firstWrites := append([][]byte(nil), conn.writes...)
++	conn.mu.Unlock()
++	if got, want := len(firstWrites), aggregateRefundBatchStreams+1; got != want {
++		t.Fatalf("first epoch writes=%d want=%d", got, want)
++	}
++	for i := 0; i < aggregateRefundBatchStreams; i++ {
++		hdr := header(firstWrites[i])
++		if hdr.MsgType() != typeAllocationWindowUpdate || hdr.StreamID() != streams[i].id || hdr.Length() != AggregateWindowUnitSize {
++			t.Fatalf("first epoch header %d=%v", i, hdr)
++		}
++	}
++	global := header(firstWrites[len(firstWrites)-1])
++	if global.MsgType() != typeWindowUpdate || global.StreamID() != 0 || global.Length() != aggregateRefundBatchStreams*AggregateWindowUnitSize {
++		t.Fatalf("first epoch global=%v", global)
++	}
++	session.aggregate.mu.Lock()
++	if session.aggregate.pendingStreamHead != streams[aggregateRefundBatchStreams] || session.aggregate.pendingGlobal != uint64(AggregateWindowUnitSize) || session.aggregate.publishingGlobal != 0 || session.aggregate.publishingRefundsCount != 0 {
++		t.Fatalf("first epoch ledger head=%p pending_global=%d publishing_global=%d selected=%d", session.aggregate.pendingStreamHead, session.aggregate.pendingGlobal, session.aggregate.publishingGlobal, session.aggregate.publishingRefundsCount)
++	}
++	session.aggregate.mu.Unlock()
++
++	published, err = session.publishDeferredGlobalRefundEpoch()
++	if err != nil || !published {
++		t.Fatalf("second epoch published=%t error=%v", published, err)
++	}
++	conn.mu.Lock()
++	writes := append([][]byte(nil), conn.writes...)
++	conn.mu.Unlock()
++	if got, want := len(writes), aggregateRefundBatchStreams+3; got != want {
++		t.Fatalf("total writes=%d want=%d", got, want)
++	}
++	if hdr := header(writes[len(writes)-2]); hdr.MsgType() != typeAllocationWindowUpdate || hdr.StreamID() != streams[len(streams)-1].id {
++		t.Fatalf("second epoch stream=%v", hdr)
++	}
++	if hdr := header(writes[len(writes)-1]); hdr.MsgType() != typeWindowUpdate || hdr.Length() != AggregateWindowUnitSize {
++		t.Fatalf("second epoch global=%v", hdr)
++	}
++}
++
++func TestDeferredGlobalEpochCountsSameStreamRequeues(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 4)
++	stream := newStream(session, 1, streamEstablished)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++	done := make(chan error, 1)
++	go func() {
++		_, err := session.publishDeferredGlobalRefundEpoch()
++		done <- err
++	}()
++	for i := 0; i < aggregateRefundBatchStreams; i++ {
++		ready := <-session.controlCh
++		hdr := header(ready.Hdr)
++		if hdr.MsgType() != typeAllocationWindowUpdate || hdr.StreamID() != stream.id {
++			t.Fatalf("stream item %d=%v", i, hdr)
++		}
++		if ready.Commit == nil {
++			t.Fatalf("stream item %d omitted commit", i)
++		}
++		ready.Commit()
++		queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++		ready.Err <- nil
++	}
++	globalReady := <-session.controlCh
++	global := header(globalReady.Hdr)
++	if global.MsgType() != typeWindowUpdate || global.Length() != aggregateRefundBatchStreams*AggregateWindowUnitSize {
++		t.Fatalf("global=%v", global)
++	}
++	acknowledgeDeferredGlobalItem(t, globalReady)
++	if err := <-done; err != nil {
++		t.Fatal(err)
++	}
++	session.aggregate.mu.Lock()
++	defer session.aggregate.mu.Unlock()
++	if session.aggregate.pendingStreamHead != stream || stream.allocationRefundPending != uint64(AggregateWindowUnitSize) || session.aggregate.pendingGlobal != uint64(AggregateWindowUnitSize) {
++		t.Fatalf("requeued stream head=%p pending=%d global=%d", session.aggregate.pendingStreamHead, stream.allocationRefundPending, session.aggregate.pendingGlobal)
++	}
++}
++
++func TestDeferredGlobalSelectionPreservesNewStreamMatch(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 1)
++	session.aggregate.pendingGlobal = uint64(AggregateWindowUnitSize)
++	part, delta, hasStream, err := session.takeDeferredGlobalRefundPart(aggregateMaxWindowUpdate)
++	if err != nil || hasStream || part.stream != nil || delta != uint64(AggregateWindowUnitSize) {
++		t.Fatalf("global-only selection part=%+v delta=%d stream=%t error=%v", part, delta, hasStream, err)
++	}
++	stream := newStream(session, 1, streamEstablished)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++	session.aggregate.mu.Lock()
++	defer session.aggregate.mu.Unlock()
++	if session.aggregate.publishingGlobal != uint64(AggregateWindowUnitSize) || session.aggregate.pendingGlobal != uint64(AggregateWindowUnitSize) || session.aggregate.pendingStreamHead != stream {
++		t.Fatalf("publishing=%d pending=%d head=%p", session.aggregate.publishingGlobal, session.aggregate.pendingGlobal, session.aggregate.pendingStreamHead)
++	}
++}
++
++func TestDeferredGlobalSelectionTakesExtraOnlyWithEmptyStreamQueue(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 1)
++	stream := newStream(session, 1, streamEstablished)
++	const extra = 3 * uint64(AggregateWindowUnitSize)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, extra)
++	part, global, hasStream, err := session.takeDeferredGlobalRefundPart(aggregateMaxWindowUpdate)
++	if err != nil || !hasStream || part.delta != uint64(AggregateWindowUnitSize) || global != uint64(AggregateWindowUnitSize)+extra {
++		t.Fatalf("part=%+v global=%d stream=%t error=%v", part, global, hasStream, err)
++	}
++	session.aggregate.mu.Lock()
++	defer session.aggregate.mu.Unlock()
++	if session.aggregate.pendingStreamHead != nil || session.aggregate.pendingGlobal != 0 || session.aggregate.publishingGlobal != global {
++		t.Fatalf("head=%p pending=%d publishing=%d", session.aggregate.pendingStreamHead, session.aggregate.pendingGlobal, session.aggregate.publishingGlobal)
++	}
++}
++
++func TestDeferredGlobalSelectionFailsClosedOnMissingMatch(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 1)
++	stream := newStream(session, 1, streamEstablished)
++	stream.allocationRefundPending = uint64(AggregateWindowUnitSize)
++	stream.allocationRefundQueued = true
++	session.aggregate.pendingStreamHead = stream
++	session.aggregate.pendingStreamTail = stream
++	if _, delta, _, err := session.takeDeferredGlobalRefundPart(aggregateMaxWindowUpdate); err == nil || delta != 0 {
++		t.Fatalf("delta=%d error=%v", delta, err)
++	}
++	if stream.allocationRefundPending != uint64(AggregateWindowUnitSize) || stream.allocationRefundPublishing != 0 || session.aggregate.publishingRefundsCount != 0 {
++		t.Fatalf("ledger mutated pending=%d publishing=%d selected=%d", stream.allocationRefundPending, stream.allocationRefundPublishing, session.aggregate.publishingRefundsCount)
++	}
++}
++
++func TestDeferredGlobalSelectionCapsAlignedUint32Epoch(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 1)
++	stream := newStream(session, 1, streamEstablished)
++	wantPending := aggregateMaxWindowUpdate + uint64(AggregateWindowUnitSize)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{wantPending}, 0)
++	part, delta, hasStream, err := session.takeDeferredGlobalRefundPart(aggregateMaxWindowUpdate)
++	if err != nil || !hasStream || delta != aggregateMaxWindowUpdate || part.delta != aggregateMaxWindowUpdate {
++		t.Fatalf("part=%+v delta=%d stream=%t error=%v", part, delta, hasStream, err)
++	}
++	if stream.allocationRefundPending != uint64(AggregateWindowUnitSize) || session.aggregate.pendingGlobal != uint64(AggregateWindowUnitSize) || session.aggregate.publishingGlobal != aggregateMaxWindowUpdate {
++		t.Fatalf("pending=%d pending_global=%d publishing_global=%d", stream.allocationRefundPending, session.aggregate.pendingGlobal, session.aggregate.publishingGlobal)
++	}
++	session.closeAggregatePool()
++}
++
++func TestDeferredGlobalTerminalStreamKeepsMatchedGlobal(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 2)
++	stream := newStream(session, 1, streamClosed)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++	done := make(chan error, 1)
++	go func() {
++		_, err := session.publishDeferredGlobalRefundEpoch()
++		done <- err
++	}()
++	ready := <-session.controlCh
++	hdr := header(ready.Hdr)
++	if hdr.MsgType() != typeWindowUpdate || hdr.StreamID() != 0 || hdr.Length() != AggregateWindowUnitSize {
++		t.Fatalf("terminal epoch emitted=%v", hdr)
++	}
++	acknowledgeDeferredGlobalItem(t, ready)
++	if err := <-done; err != nil {
++		t.Fatal(err)
++	}
++	if stream.allocationRefundPublishing != 0 || session.aggregate.publishingRefundsCount != 0 || session.aggregate.publishingGlobal != 0 || session.aggregate.recvWindow != AggregateWindowUnitSize {
++		t.Fatalf("stream publishing=%d selected=%d global=%d recv=%d", stream.allocationRefundPublishing, session.aggregate.publishingRefundsCount, session.aggregate.publishingGlobal, session.aggregate.recvWindow)
++	}
++}
++
++func TestDeferredGlobalEpochCloseClearsAmbiguousSelectedOwnership(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 1)
++	stream := newStream(session, 1, streamEstablished)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++	done := make(chan error, 1)
++	go func() {
++		_, err := session.publishDeferredGlobalRefundEpoch()
++		done <- err
++	}()
++	ready := <-session.controlCh // Selected by a sender, but not committed.
++	close(session.shutdownCh)
++	if err := <-done; !errors.Is(err, ErrSessionShutdown) {
++		t.Fatalf("epoch error=%v", err)
++	}
++	if ready.Commit == nil || stream.allocationRefundPublishing != uint64(AggregateWindowUnitSize) || session.aggregate.publishingGlobal != uint64(AggregateWindowUnitSize) || session.aggregate.publishingRefundsCount != 1 {
++		t.Fatalf("pre-cleanup commit=%t stream=%d global=%d selected=%d", ready.Commit != nil, stream.allocationRefundPublishing, session.aggregate.publishingGlobal, session.aggregate.publishingRefundsCount)
++	}
++	session.closeAggregatePool()
++	if stream.allocationRefundPublishing != 0 || session.aggregate.publishingGlobal != 0 || session.aggregate.publishingRefundsCount != 0 {
++		t.Fatalf("post-cleanup stream=%d global=%d selected=%d", stream.allocationRefundPublishing, session.aggregate.publishingGlobal, session.aggregate.publishingRefundsCount)
++	}
++}
++
++func TestDeferredGlobalEpochCloseClearsHeldGlobalAfterStreamCommit(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 1)
++	stream := newStream(session, 1, streamEstablished)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++	done := make(chan error, 1)
++	go func() {
++		_, err := session.publishDeferredGlobalRefundEpoch()
++		done <- err
++	}()
++	streamReady := <-session.controlCh
++	acknowledgeDeferredGlobalItem(t, streamReady)
++	globalReady := <-session.controlCh // Queued, but the physical sender has not committed it.
++	close(session.shutdownCh)
++	if err := <-done; !errors.Is(err, ErrSessionShutdown) {
++		t.Fatalf("epoch error=%v", err)
++	}
++	if globalReady.Commit == nil || stream.allocationRefundPublishing != 0 || session.aggregate.publishingRefundsCount != 0 || session.aggregate.publishingGlobal != uint64(AggregateWindowUnitSize) {
++		t.Fatalf("pre-cleanup commit=%t stream=%d selected=%d global=%d", globalReady.Commit != nil, stream.allocationRefundPublishing, session.aggregate.publishingRefundsCount, session.aggregate.publishingGlobal)
++	}
++	session.closeAggregatePool()
++	if session.aggregate.publishingGlobal != 0 {
++		t.Fatalf("post-cleanup global=%d", session.aggregate.publishingGlobal)
++	}
++}
++
++func TestDeferredGlobalEpochLateCommitClearsOnlySelectedStream(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(100*time.Millisecond, 1)
++	stream := newStream(session, 1, streamEstablished)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++	done := make(chan error, 1)
++	go func() {
++		_, err := session.publishDeferredGlobalRefundEpoch()
++		done <- err
++	}()
++	ready := <-session.controlCh
++	if err := <-done; !errors.Is(err, ErrConnectionWriteTimeout) {
++		t.Fatalf("epoch error=%v", err)
++	}
++	if stream.allocationRefundPublishing != uint64(AggregateWindowUnitSize) || session.aggregate.publishingGlobal != uint64(AggregateWindowUnitSize) || session.aggregate.publishingRefundsCount != 1 {
++		t.Fatalf("before late commit stream=%d global=%d selected=%d", stream.allocationRefundPublishing, session.aggregate.publishingGlobal, session.aggregate.publishingRefundsCount)
++	}
++	ready.Commit() // The physical sender may have crossed after the waiter timed out.
++	if stream.allocationRefundPublishing != 0 || stream.allocationRecvWindow != AggregateWindowUnitSize || session.aggregate.publishingGlobal != uint64(AggregateWindowUnitSize) || session.aggregate.publishingRefundsCount != 0 {
++		t.Fatalf("after late commit stream=%d recv=%d global=%d selected=%d", stream.allocationRefundPublishing, stream.allocationRecvWindow, session.aggregate.publishingGlobal, session.aggregate.publishingRefundsCount)
++	}
++	session.closeAggregatePool()
++}
++
++func TestDeferredGlobalEpochTerminationWinsBeforeReadyEnqueue(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 4)
++	stream := newStream(session, 1, streamEstablished)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++	close(session.shutdownCh)
++	published, err := session.publishDeferredGlobalRefundEpoch()
++	if !errors.Is(err, ErrSessionShutdown) || published || len(session.controlCh) != 0 {
++		t.Fatalf("published=%t error=%v queued=%d", published, err, len(session.controlCh))
++	}
++}
++
++func TestDeferredGlobalEpochShutdownAfterAckStopsBeforeGlobal(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 2)
++	stream := newStream(session, 1, streamEstablished)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++	done := make(chan error, 1)
++	go func() {
++		_, err := session.publishDeferredGlobalRefundEpoch()
++		done <- err
++	}()
++	ready := <-session.controlCh
++	ready.Commit()
++	close(session.shutdownCh)
++	ready.Err <- nil
++	if err := <-done; !errors.Is(err, ErrSessionShutdown) {
++		t.Fatalf("epoch error=%v", err)
++	}
++	if len(session.controlCh) != 0 {
++		t.Fatalf("queued controls after shutdown=%d", len(session.controlCh))
++	}
++	session.aggregate.mu.Lock()
++	if stream.allocationRefundPublishing != 0 || session.aggregate.publishingRefundsCount != 0 || session.aggregate.publishingGlobal != uint64(AggregateWindowUnitSize) {
++		t.Fatalf("stream=%d selected=%d global=%d", stream.allocationRefundPublishing, session.aggregate.publishingRefundsCount, session.aggregate.publishingGlobal)
++	}
++	session.aggregate.mu.Unlock()
++	session.closeAggregatePool()
++}
++
++func TestDeferredGlobalEpochUsesOneDeadline(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	const timeout = 400 * time.Millisecond
++	session := newDeferredGlobalQueueSession(timeout, 2)
++	streams := []*Stream{newStream(session, 1, streamEstablished), newStream(session, 3, streamEstablished)}
++	queueAggregateRefundTestStreams(session, streams, []uint64{uint64(AggregateWindowUnitSize), uint64(AggregateWindowUnitSize)}, 0)
++	done := make(chan error, 1)
++	start := time.Now()
++	go func() {
++		_, err := session.publishDeferredGlobalRefundEpoch()
++		done <- err
++	}()
++	first := <-session.controlCh
++	first.Commit()
++	time.Sleep(250 * time.Millisecond)
++	first.Err <- nil
++	<-session.controlCh // Select the second item but never acknowledge it.
++	if err := <-done; !errors.Is(err, ErrConnectionWriteTimeout) {
++		t.Fatalf("epoch error=%v", err)
++	}
++	if elapsed := time.Since(start); elapsed >= 550*time.Millisecond {
++		t.Fatalf("epoch deadline multiplied across items: %v", elapsed)
++	}
++}
++
++func TestDeferredGlobalEpochReaderControlPrecedesNextRefund(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	session := newDeferredGlobalQueueSession(time.Second, 4)
++	streams := []*Stream{newStream(session, 1, streamEstablished), newStream(session, 3, streamEstablished)}
++	queueAggregateRefundTestStreams(session, streams, []uint64{uint64(AggregateWindowUnitSize), uint64(AggregateWindowUnitSize)}, 0)
++	done := make(chan error, 1)
++	go func() {
++		_, err := session.publishDeferredGlobalRefundEpoch()
++		done <- err
++	}()
++	first := <-session.controlCh
++	ping := header(make([]byte, headerSize))
++	ping.encode(typePing, flagACK, 0, 7)
++	if err := session.sendAggregateControlNoWait(ping); err != nil {
++		t.Fatal(err)
++	}
++	acknowledgeDeferredGlobalItem(t, first)
++	readerControl := <-session.controlCh
++	if !bytes.Equal(readerControl.Hdr, ping) {
++		t.Fatalf("next control=%v want reader PING", header(readerControl.Hdr))
++	}
++	second := <-session.controlCh
++	if hdr := header(second.Hdr); hdr.MsgType() != typeAllocationWindowUpdate || hdr.StreamID() != streams[1].id {
++		t.Fatalf("second refund=%v", hdr)
++	}
++	acknowledgeDeferredGlobalItem(t, second)
++	global := <-session.controlCh
++	acknowledgeDeferredGlobalItem(t, global)
++	if err := <-done; err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestDeferredGlobalEpochAllowsGrowthBetweenRefundItems(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	config := DefaultConfig()
++	config.ConnectionWriteTimeout = time.Second
++	config.InitialSessionWindowSize = 64 << 10
++	config.MaxSessionWindowSize = 128 << 10
++	config.InitialStreamAllocationWindowSize = 16 << 10
++	config.MaxStreamAllocationWindowSize = 32 << 10
++	session := &Session{
++		config:     config,
++		logger:     log.New(io.Discard, "", 0),
++		controlCh:  make(chan *sendReady, 4),
++		shutdownCh: make(chan struct{}),
++	}
++	session.aggregate = newAggregateWindow(config)
++	stream := newStream(session, 1, streamEstablished)
++	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++	epochDone := make(chan error, 1)
++	go func() {
++		_, err := session.publishDeferredGlobalRefundEpoch()
++		epochDone <- err
++	}()
++	streamRefund := <-session.controlCh
++	growDone := make(chan error, 1)
++	go func() { growDone <- session.GrowReceiveWindow(128 << 10) }()
++	select {
++	case err := <-growDone:
++		t.Fatalf("growth crossed held refund publication lock: %v", err)
++	case <-time.After(20 * time.Millisecond):
++	}
++	acknowledgeDeferredGlobalItem(t, streamRefund)
++	seenGlobal, seenGrow := false, false
++	for !seenGlobal || !seenGrow {
++		ready := <-session.controlCh
++		switch header(ready.Hdr).MsgType() {
++		case typeWindowUpdate:
++			seenGlobal = true
++		case typeWindowGrow:
++			seenGrow = true
++		default:
++			t.Fatalf("unexpected control=%v", header(ready.Hdr))
++		}
++		acknowledgeDeferredGlobalItem(t, ready)
++	}
++	if err := <-epochDone; err != nil {
++		t.Fatalf("epoch: %v", err)
++	}
++	if err := <-growDone; err != nil {
++		t.Fatalf("growth: %v", err)
++	}
++	if session.aggregate.recvLimit != 128<<10 {
++		t.Fatalf("receive limit=%d want=%d", session.aggregate.recvLimit, 128<<10)
++	}
++}
++
++type deferredGlobalFailureConn struct {
++	failCall int
++	short    bool
++	calls    atomic.Int32
++	err      error
++}
++
++func (*deferredGlobalFailureConn) Read([]byte) (int, error) { return 0, io.EOF }
++func (*deferredGlobalFailureConn) Close() error             { return nil }
++func (c *deferredGlobalFailureConn) Write(p []byte) (int, error) {
++	call := int(c.calls.Add(1) - 1)
++	if call == c.failCall {
++		if c.short {
++			return len(p) - 1, nil
++		}
++		return 0, c.err
++	}
++	return len(p), nil
++}
++
++func TestDeferredGlobalEpochWriteFailureNeverRetries(t *testing.T) {
++	requireDeferredGlobalDiagnostic(t)
++	for _, short := range []bool{false, true} {
++		for _, failCall := range []int{0, 1} {
++			t.Run(fmt.Sprintf("short_%t_call_%d", short, failCall), func(t *testing.T) {
++				writeErr := errors.New("injected deferred-global write failure")
++				conn := &deferredGlobalFailureConn{failCall: failCall, short: short, err: writeErr}
++				config := DefaultConfig()
++				config.ConnectionWriteTimeout = time.Second
++				session := &Session{
++					config:     config,
++					logger:     log.New(io.Discard, "", 0),
++					conn:       conn,
++					sendCh:     make(chan *sendReady, 4),
++					controlCh:  make(chan *sendReady, 4),
++					sendDoneCh: make(chan struct{}),
++					shutdownCh: make(chan struct{}),
++					aggregate:  &aggregateWindow{},
++				}
++				stream := newStream(session, 1, streamEstablished)
++				queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{uint64(AggregateWindowUnitSize)}, 0)
++				loopDone := make(chan error, 1)
++				go func() { loopDone <- session.sendLoop() }()
++				_, err := session.publishDeferredGlobalRefundEpoch()
++				wantErr := error(writeErr)
++				if short {
++					wantErr = io.ErrShortWrite
++				}
++				if !errors.Is(err, wantErr) {
++					t.Fatalf("epoch error=%v want=%v", err, wantErr)
++				}
++				if loopErr := <-loopDone; !errors.Is(loopErr, wantErr) {
++					t.Fatalf("send error=%v want=%v", loopErr, wantErr)
++				}
++				if got, want := int(conn.calls.Load()), failCall+1; got != want {
++					t.Fatalf("writes=%d want=%d", got, want)
++				}
++			})
++		}
++	}
++}

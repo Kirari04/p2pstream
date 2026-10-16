@@ -1,0 +1,30 @@
+{
+  "origin_natural_exit": true,
+  "performance_evidence": false,
+  "scope": "fixture_only",
+  "variants": [
+    {
+      "agent_natural_exit": true,
+      "agent_sha256": "bae850a2c81085148098d90f4d27dd88617a5023f3dd67665bda742806ae6dcf",
+      "exact_download_4mib": true,
+      "exact_upload_4mib": true,
+      "physical_lanes": 5,
+      "server_natural_exit": true,
+      "server_sha256": "453924e217f211e575440613925c27651e7c14fa3a3316851469ebd70c4b79aa",
+      "transport_mode": "aggregate-v1",
+      "variant": "control"
+    },
+    {
+      "agent_natural_exit": true,
+      "agent_sha256": "3a7b45294921e633f9e13a825c8ec572c43e45076aa6e243b5f3baeeb6ddcbde",
+      "exact_download_4mib": true,
+      "exact_upload_4mib": true,
+      "physical_lanes": 5,
+      "server_natural_exit": true,
+      "server_sha256": "ad7f3b2605f9375fa2f5015a73dd10e6f32946124fff21e7494f7185d5019699",
+      "transport_mode": "aggregate-v1",
+      "variant": "deferred"
+    }
+  ],
+  "workload": "one exact 4MiB download and upload per runtime solely to establish active bulk streams before shutdown"
+}

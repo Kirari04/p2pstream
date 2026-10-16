@@ -1,0 +1,1934 @@
+{
+  "acceptance": {
+    "all_pair_gates_passed": false,
+    "all_rows_exact": true,
+    "complete": true,
+    "no_non_timing_failures": true,
+    "overall": false
+  },
+  "all_phase_rows": [
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 1,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33811766.695400655,
+      "wall_seconds": 7.9391135760000004,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 2,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33273279.0433014,
+      "wall_seconds": 8.067598497,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 3,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33499419.032131784,
+      "wall_seconds": 8.013137653,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 4,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33651026.569302,
+      "wall_seconds": 7.977036167,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 5,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35925676.17250297,
+      "wall_seconds": 7.471966699,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 6,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 26407811.471411906,
+      "wall_seconds": 10.165001984,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 7,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35206132.886467874,
+      "wall_seconds": 7.624678827,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 8,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35408753.601606995,
+      "wall_seconds": 7.581047868,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 9,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27351864.87491343,
+      "wall_seconds": 9.814155533,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 10,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35438423.148363866,
+      "wall_seconds": 7.574700908,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 11,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27387339.9344747,
+      "wall_seconds": 9.801443172,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 12,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35422618.420332894,
+      "wall_seconds": 7.578080559,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 13,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 28480607.404818114,
+      "wall_seconds": 9.425201232,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 14,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27525768.488154735,
+      "wall_seconds": 9.752151193,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 15,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34402088.22149585,
+      "wall_seconds": 7.802882612,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 16,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35780224.87338153,
+      "wall_seconds": 7.502341222,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 17,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33872136.64134527,
+      "wall_seconds": 7.9249637790000005,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 18,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33852596.615419015,
+      "wall_seconds": 7.92953814,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 19,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33827504.973657414,
+      "wall_seconds": 7.935419896,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 20,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33965512.74567521,
+      "wall_seconds": 7.903176908,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 21,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 31601760.714438893,
+      "wall_seconds": 8.494319618,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 22,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35641526.36222775,
+      "wall_seconds": 7.53153648,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 23,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35953463.25184334,
+      "wall_seconds": 7.466191897,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 24,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 31556006.731592778,
+      "wall_seconds": 8.506635782,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 25,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33846744.40294874,
+      "wall_seconds": 7.930909183,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 26,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35415439.088936344,
+      "wall_seconds": 7.579616769,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 27,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29582922.69104568,
+      "wall_seconds": 9.074000524,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 28,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35425873.70002187,
+      "wall_seconds": 7.57738421,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 29,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35420657.25015064,
+      "wall_seconds": 7.578500142,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 30,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29764489.98932864,
+      "wall_seconds": 9.018647929,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 31,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34443807.32273646,
+      "wall_seconds": 7.793431588,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 32,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 36245024.88949402,
+      "wall_seconds": 7.406132478,
+      "within_pair": 32
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 33,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34115561.48880281,
+      "wall_seconds": 7.868416766,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 34,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34130331.42288519,
+      "wall_seconds": 7.865011701,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 35,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33929029.15311136,
+      "wall_seconds": 7.9116751260000004,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 36,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33638422.524169356,
+      "wall_seconds": 7.9800250980000005,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 37,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 31483810.493334323,
+      "wall_seconds": 8.526142541,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 38,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34581175.52712668,
+      "wall_seconds": 7.7624734239999995,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 39,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35502835.79872406,
+      "wall_seconds": 7.560958159,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 40,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34989369.05220962,
+      "wall_seconds": 7.671914735,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 41,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29488343.75081709,
+      "wall_seconds": 9.103103866,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 42,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35442740.24458228,
+      "wall_seconds": 7.573778273,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 43,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29897579.47125183,
+      "wall_seconds": 8.978501295000001,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 44,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35392015.4641772,
+      "wall_seconds": 7.584633214,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 45,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35411292.92233536,
+      "wall_seconds": 7.580504236,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 46,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29652841.712008297,
+      "wall_seconds": 9.052604759,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 47,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34730101.04125821,
+      "wall_seconds": 7.729187303,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 48,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 36519251.67427979,
+      "wall_seconds": 7.350519074,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 49,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33577344.35714438,
+      "wall_seconds": 7.994540996,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 50,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33937930.41429621,
+      "wall_seconds": 7.909600047,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 51,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33394615.808731176,
+      "wall_seconds": 8.038285499,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 52,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34105602.35251671,
+      "wall_seconds": 7.870714413,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 53,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35642994.03815834,
+      "wall_seconds": 7.531226353,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 54,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34618679.90330284,
+      "wall_seconds": 7.754063897,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 55,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35389523.3286762,
+      "wall_seconds": 7.5851673250000005,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 56,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35415559.93779588,
+      "wall_seconds": 7.579590905,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 57,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27335534.29392379,
+      "wall_seconds": 9.820018629,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 58,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34596353.22766455,
+      "wall_seconds": 7.759067964,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 59,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33375053.87225415,
+      "wall_seconds": 8.042996935,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 60,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35951932.51221919,
+      "wall_seconds": 7.466509788,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 61,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35412410.85235062,
+      "wall_seconds": 7.580264928,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 62,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 28396758.394225433,
+      "wall_seconds": 9.453031655,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 63,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34345495.136200145,
+      "wall_seconds": 7.815739879,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 64,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 36524591.47569634,
+      "wall_seconds": 7.349444447,
+      "within_pair": 32
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 65,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33804204.548825614,
+      "wall_seconds": 7.94088959,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 66,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33588072.99520272,
+      "wall_seconds": 7.991987395,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 67,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33930288.90540969,
+      "wall_seconds": 7.911381384,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 68,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33844233.89248544,
+      "wall_seconds": 7.9314974849999995,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 69,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35669371.17872429,
+      "wall_seconds": 7.525657087,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 70,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35405650.776634775,
+      "wall_seconds": 7.581712244,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 71,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35174471.90794725,
+      "wall_seconds": 7.631541895,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 72,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35307726.36188344,
+      "wall_seconds": 7.602739787,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 73,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27393488.59885339,
+      "wall_seconds": 9.799243168,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 74,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35675110.520762414,
+      "wall_seconds": 7.524446374,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 75,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27336572.20202877,
+      "wall_seconds": 9.819645785,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 76,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35424131.6709825,
+      "wall_seconds": 7.577756838,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 77,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35749867.59716391,
+      "wall_seconds": 7.508711893,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 78,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27575713.16390405,
+      "wall_seconds": 9.734488258,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 79,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34619345.44290311,
+      "wall_seconds": 7.753914829,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 80,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35946125.64023987,
+      "wall_seconds": 7.467715956,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 81,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33898263.24082997,
+      "wall_seconds": 7.918855727,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 82,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33744159.50697254,
+      "wall_seconds": 7.95501977,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 83,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33644403.076268636,
+      "wall_seconds": 7.978606587,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 84,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33631621.24134027,
+      "wall_seconds": 7.981638889,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 85,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30979437.872312024,
+      "wall_seconds": 8.664955675,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 86,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35416816.86809812,
+      "wall_seconds": 7.579321908,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 87,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35150665.08712044,
+      "wall_seconds": 7.636710581,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 88,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 31681668.6183329,
+      "wall_seconds": 8.472895138,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 89,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29704015.59819628,
+      "wall_seconds": 9.03700899,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 90,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35136421.12003092,
+      "wall_seconds": 7.63980643,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 91,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30231883.459005162,
+      "wall_seconds": 8.879217081,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 92,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35519874.52455175,
+      "wall_seconds": 7.557331201,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 93,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35830432.86137224,
+      "wall_seconds": 7.491828442,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 94,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30693975.19520591,
+      "wall_seconds": 8.745542221000001,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 95,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34224461.48018956,
+      "wall_seconds": 7.84337998,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 96,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 36444700.80988105,
+      "wall_seconds": 7.365555212,
+      "within_pair": 32
+    }
+  ],
+  "failures": [
+    "pair 1 download deferred/control ratio 1.0813318437280799 below 1.1",
+    "pair 2 download deferred/control ratio 0.8958061786413095 below 1.1"
+  ],
+  "fixed_workload": {
+    "configured_rtt_ms": 80,
+    "mode_order": [
+      "control-then-deferred",
+      "deferred-then-control",
+      "control-then-deferred"
+    ],
+    "pairs": 3,
+    "required_pool_mib": 8,
+    "steady_mib": 256,
+    "total_transfers": 96,
+    "transfer_repetitions": 3,
+    "transfers_per_variant": 16,
+    "transport_mode_both_variants": "aggregate-v1",
+    "warmup_mib": 256
+  },
+  "non_timing_failures": [],
+  "pairs": {
+    "1": {
+      "gates": {
+        "download": {
+          "control_median_useful_bytes_per_second": 27525768.488154735,
+          "deferred_median_useful_bytes_per_second": 29764489.98932864,
+          "deferred_to_control_ratio": 1.0813318437280799,
+          "minimum": 1.1,
+          "passed": false
+        },
+        "upload": {
+          "control_median_useful_bytes_per_second": 35422618.420332894,
+          "deferred_median_useful_bytes_per_second": 35425873.70002187,
+          "deferred_to_control_ratio": 1.0000918983359826,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "refund-current-batch-control",
+        "refund-streams-before-global-epoch"
+      ],
+      "transition_screen": {
+        "control_download_minimum": 27351864.87491343,
+        "control_has_subthreshold_sample": true,
+        "deferred_all_eight_download_samples_pass": false,
+        "deferred_download_minimum": 29582922.69104568,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "control": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33811766.695400655,
+              "median": 33575222.80071689,
+              "minimum": 33273279.0433014,
+              "samples": [
+                33811766.695400655,
+                33273279.0433014,
+                33499419.032131784,
+                33651026.569302
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 27351864.87491343,
+              "median": 27351864.87491343,
+              "minimum": 27351864.87491343,
+              "samples": [
+                27351864.87491343
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34402088.22149585,
+              "median": 27525768.488154735,
+              "minimum": 27387339.9344747,
+              "samples": [
+                27387339.9344747,
+                27525768.488154735,
+                34402088.22149585
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 27525768.488154735,
+              "median": 27456554.211314715,
+              "minimum": 27387339.9344747,
+              "samples": [
+                27387339.9344747,
+                27525768.488154735
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34402088.22149585,
+              "median": 34402088.22149585,
+              "minimum": 34402088.22149585,
+              "samples": [
+                34402088.22149585
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35925676.17250297,
+              "median": 35307443.244037434,
+              "minimum": 26407811.471411906,
+              "samples": [
+                35925676.17250297,
+                26407811.471411906,
+                35206132.886467874,
+                35408753.601606995
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35438423.148363866,
+              "median": 35438423.148363866,
+              "minimum": 35438423.148363866,
+              "samples": [
+                35438423.148363866
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 35780224.87338153,
+              "median": 35422618.420332894,
+              "minimum": 28480607.404818114,
+              "samples": [
+                35422618.420332894,
+                28480607.404818114,
+                35780224.87338153
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35422618.420332894,
+              "median": 31951612.912575506,
+              "minimum": 28480607.404818114,
+              "samples": [
+                35422618.420332894,
+                28480607.404818114
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 35780224.87338153,
+              "median": 35780224.87338153,
+              "minimum": 35780224.87338153,
+              "samples": [
+                35780224.87338153
+              ]
+            }
+          }
+        },
+        "deferred": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33965512.74567521,
+              "median": 33862366.62838215,
+              "minimum": 33827504.973657414,
+              "samples": [
+                33872136.64134527,
+                33852596.615419015,
+                33827504.973657414,
+                33965512.74567521
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 33846744.40294874,
+              "median": 33846744.40294874,
+              "minimum": 33846744.40294874,
+              "samples": [
+                33846744.40294874
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34443807.32273646,
+              "median": 29764489.98932864,
+              "minimum": 29582922.69104568,
+              "samples": [
+                29582922.69104568,
+                29764489.98932864,
+                34443807.32273646
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 29764489.98932864,
+              "median": 29673706.340187162,
+              "minimum": 29582922.69104568,
+              "samples": [
+                29582922.69104568,
+                29764489.98932864
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34443807.32273646,
+              "median": 34443807.32273646,
+              "minimum": 34443807.32273646,
+              "samples": [
+                34443807.32273646
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35953463.25184334,
+              "median": 33621643.53833333,
+              "minimum": 31556006.731592778,
+              "samples": [
+                31601760.714438893,
+                35641526.36222775,
+                35953463.25184334,
+                31556006.731592778
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35415439.088936344,
+              "median": 35415439.088936344,
+              "minimum": 35415439.088936344,
+              "samples": [
+                35415439.088936344
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36245024.88949402,
+              "median": 35425873.70002187,
+              "minimum": 35420657.25015064,
+              "samples": [
+                35425873.70002187,
+                35420657.25015064,
+                36245024.88949402
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35425873.70002187,
+              "median": 35423265.47508626,
+              "minimum": 35420657.25015064,
+              "samples": [
+                35425873.70002187,
+                35420657.25015064
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36245024.88949402,
+              "median": 36245024.88949402,
+              "minimum": 36245024.88949402,
+              "samples": [
+                36245024.88949402
+              ]
+            }
+          }
+        }
+      }
+    },
+    "2": {
+      "gates": {
+        "download": {
+          "control_median_useful_bytes_per_second": 33375053.87225415,
+          "deferred_median_useful_bytes_per_second": 29897579.47125183,
+          "deferred_to_control_ratio": 0.8958061786413095,
+          "minimum": 1.1,
+          "passed": false
+        },
+        "upload": {
+          "control_median_useful_bytes_per_second": 35951932.51221919,
+          "deferred_median_useful_bytes_per_second": 35411292.92233536,
+          "deferred_to_control_ratio": 0.9849621549634339,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "refund-streams-before-global-epoch",
+        "refund-current-batch-control"
+      ],
+      "transition_screen": {
+        "control_download_minimum": 27335534.29392379,
+        "control_has_subthreshold_sample": true,
+        "deferred_all_eight_download_samples_pass": false,
+        "deferred_download_minimum": 29488343.75081709,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "control": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 34105602.35251671,
+              "median": 33757637.3857203,
+              "minimum": 33394615.808731176,
+              "samples": [
+                33577344.35714438,
+                33937930.41429621,
+                33394615.808731176,
+                34105602.35251671
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 27335534.29392379,
+              "median": 27335534.29392379,
+              "minimum": 27335534.29392379,
+              "samples": [
+                27335534.29392379
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34345495.136200145,
+              "median": 33375053.87225415,
+              "minimum": 28396758.394225433,
+              "samples": [
+                33375053.87225415,
+                28396758.394225433,
+                34345495.136200145
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 33375053.87225415,
+              "median": 30885906.13323979,
+              "minimum": 28396758.394225433,
+              "samples": [
+                33375053.87225415,
+                28396758.394225433
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34345495.136200145,
+              "median": 34345495.136200145,
+              "minimum": 34345495.136200145,
+              "samples": [
+                34345495.136200145
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35642994.03815834,
+              "median": 35402541.633236036,
+              "minimum": 34618679.90330284,
+              "samples": [
+                35642994.03815834,
+                34618679.90330284,
+                35389523.3286762,
+                35415559.93779588
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 34596353.22766455,
+              "median": 34596353.22766455,
+              "minimum": 34596353.22766455,
+              "samples": [
+                34596353.22766455
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36524591.47569634,
+              "median": 35951932.51221919,
+              "minimum": 35412410.85235062,
+              "samples": [
+                35951932.51221919,
+                35412410.85235062,
+                36524591.47569634
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35951932.51221919,
+              "median": 35682171.68228491,
+              "minimum": 35412410.85235062,
+              "samples": [
+                35951932.51221919,
+                35412410.85235062
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36524591.47569634,
+              "median": 36524591.47569634,
+              "minimum": 36524591.47569634,
+              "samples": [
+                36524591.47569634
+              ]
+            }
+          }
+        },
+        "deferred": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 34130331.42288519,
+              "median": 34022295.32095709,
+              "minimum": 33638422.524169356,
+              "samples": [
+                34115561.48880281,
+                34130331.42288519,
+                33929029.15311136,
+                33638422.524169356
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 29488343.75081709,
+              "median": 29488343.75081709,
+              "minimum": 29488343.75081709,
+              "samples": [
+                29488343.75081709
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34730101.04125821,
+              "median": 29897579.47125183,
+              "minimum": 29652841.712008297,
+              "samples": [
+                29897579.47125183,
+                29652841.712008297,
+                34730101.04125821
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 29897579.47125183,
+              "median": 29775210.591630064,
+              "minimum": 29652841.712008297,
+              "samples": [
+                29897579.47125183,
+                29652841.712008297
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34730101.04125821,
+              "median": 34730101.04125821,
+              "minimum": 34730101.04125821,
+              "samples": [
+                34730101.04125821
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35502835.79872406,
+              "median": 34785272.28966815,
+              "minimum": 31483810.493334323,
+              "samples": [
+                31483810.493334323,
+                34581175.52712668,
+                35502835.79872406,
+                34989369.05220962
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35442740.24458228,
+              "median": 35442740.24458228,
+              "minimum": 35442740.24458228,
+              "samples": [
+                35442740.24458228
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36519251.67427979,
+              "median": 35411292.92233536,
+              "minimum": 35392015.4641772,
+              "samples": [
+                35392015.4641772,
+                35411292.92233536,
+                36519251.67427979
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35411292.92233536,
+              "median": 35401654.193256274,
+              "minimum": 35392015.4641772,
+              "samples": [
+                35392015.4641772,
+                35411292.92233536
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36519251.67427979,
+              "median": 36519251.67427979,
+              "minimum": 36519251.67427979,
+              "samples": [
+                36519251.67427979
+              ]
+            }
+          }
+        }
+      }
+    },
+    "3": {
+      "gates": {
+        "download": {
+          "control_median_useful_bytes_per_second": 27575713.16390405,
+          "deferred_median_useful_bytes_per_second": 30693975.19520591,
+          "deferred_to_control_ratio": 1.1130800140242099,
+          "minimum": 1.1,
+          "passed": true
+        },
+        "upload": {
+          "control_median_useful_bytes_per_second": 35749867.59716391,
+          "deferred_median_useful_bytes_per_second": 35830432.86137224,
+          "deferred_to_control_ratio": 1.0022535821703218,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "refund-current-batch-control",
+        "refund-streams-before-global-epoch"
+      ],
+      "transition_screen": {
+        "control_download_minimum": 27336572.20202877,
+        "control_has_subthreshold_sample": true,
+        "deferred_all_eight_download_samples_pass": true,
+        "deferred_download_minimum": 29704015.59819628,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "control": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33930288.90540969,
+              "median": 33824219.22065553,
+              "minimum": 33588072.99520272,
+              "samples": [
+                33804204.548825614,
+                33588072.99520272,
+                33930288.90540969,
+                33844233.89248544
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 27393488.59885339,
+              "median": 27393488.59885339,
+              "minimum": 27393488.59885339,
+              "samples": [
+                27393488.59885339
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34619345.44290311,
+              "median": 27575713.16390405,
+              "minimum": 27336572.20202877,
+              "samples": [
+                27336572.20202877,
+                27575713.16390405,
+                34619345.44290311
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 27575713.16390405,
+              "median": 27456142.68296641,
+              "minimum": 27336572.20202877,
+              "samples": [
+                27336572.20202877,
+                27575713.16390405
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34619345.44290311,
+              "median": 34619345.44290311,
+              "minimum": 34619345.44290311,
+              "samples": [
+                34619345.44290311
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35669371.17872429,
+              "median": 35356688.56925911,
+              "minimum": 35174471.90794725,
+              "samples": [
+                35669371.17872429,
+                35405650.776634775,
+                35174471.90794725,
+                35307726.36188344
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35675110.520762414,
+              "median": 35675110.520762414,
+              "minimum": 35675110.520762414,
+              "samples": [
+                35675110.520762414
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 35946125.64023987,
+              "median": 35749867.59716391,
+              "minimum": 35424131.6709825,
+              "samples": [
+                35424131.6709825,
+                35749867.59716391,
+                35946125.64023987
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35749867.59716391,
+              "median": 35586999.634073205,
+              "minimum": 35424131.6709825,
+              "samples": [
+                35424131.6709825,
+                35749867.59716391
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 35946125.64023987,
+              "median": 35946125.64023987,
+              "minimum": 35946125.64023987,
+              "samples": [
+                35946125.64023987
+              ]
+            }
+          }
+        },
+        "deferred": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33898263.24082997,
+              "median": 33694281.29162058,
+              "minimum": 33631621.24134027,
+              "samples": [
+                33898263.24082997,
+                33744159.50697254,
+                33644403.076268636,
+                33631621.24134027
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 29704015.59819628,
+              "median": 29704015.59819628,
+              "minimum": 29704015.59819628,
+              "samples": [
+                29704015.59819628
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34224461.48018956,
+              "median": 30693975.19520591,
+              "minimum": 30231883.459005162,
+              "samples": [
+                30231883.459005162,
+                30693975.19520591,
+                34224461.48018956
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30693975.19520591,
+              "median": 30462929.327105537,
+              "minimum": 30231883.459005162,
+              "samples": [
+                30231883.459005162,
+                30693975.19520591
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34224461.48018956,
+              "median": 34224461.48018956,
+              "minimum": 34224461.48018956,
+              "samples": [
+                34224461.48018956
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35416816.86809812,
+              "median": 33416166.85272667,
+              "minimum": 30979437.872312024,
+              "samples": [
+                30979437.872312024,
+                35416816.86809812,
+                35150665.08712044,
+                31681668.6183329
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35136421.12003092,
+              "median": 35136421.12003092,
+              "minimum": 35136421.12003092,
+              "samples": [
+                35136421.12003092
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36444700.80988105,
+              "median": 35830432.86137224,
+              "minimum": 35519874.52455175,
+              "samples": [
+                35519874.52455175,
+                35830432.86137224,
+                36444700.80988105
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35830432.86137224,
+              "median": 35675153.69296199,
+              "minimum": 35519874.52455175,
+              "samples": [
+                35519874.52455175,
+                35830432.86137224
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36444700.80988105,
+              "median": 36444700.80988105,
+              "minimum": 36444700.80988105,
+              "samples": [
+                36444700.80988105
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "pooled_diagnostic": {
+    "download": {
+      "control": {
+        "count": 9,
+        "maximum": 34619345.44290311,
+        "median": 28396758.394225433,
+        "minimum": 27336572.20202877,
+        "samples": [
+          27387339.9344747,
+          27525768.488154735,
+          34402088.22149585,
+          33375053.87225415,
+          28396758.394225433,
+          34345495.136200145,
+          27336572.20202877,
+          27575713.16390405,
+          34619345.44290311
+        ]
+      },
+      "deferred": {
+        "count": 9,
+        "maximum": 34730101.04125821,
+        "median": 30231883.459005162,
+        "minimum": 29582922.69104568,
+        "samples": [
+          29582922.69104568,
+          29764489.98932864,
+          34443807.32273646,
+          29897579.47125183,
+          29652841.712008297,
+          34730101.04125821,
+          30231883.459005162,
+          30693975.19520591,
+          34224461.48018956
+        ]
+      },
+      "deferred_to_control_ratio_of_medians": 1.0646244560489309
+    },
+    "upload": {
+      "control": {
+        "count": 9,
+        "maximum": 36524591.47569634,
+        "median": 35749867.59716391,
+        "minimum": 28480607.404818114,
+        "samples": [
+          35422618.420332894,
+          28480607.404818114,
+          35780224.87338153,
+          35951932.51221919,
+          35412410.85235062,
+          36524591.47569634,
+          35424131.6709825,
+          35749867.59716391,
+          35946125.64023987
+        ]
+      },
+      "deferred": {
+        "count": 9,
+        "maximum": 36519251.67427979,
+        "median": 35519874.52455175,
+        "minimum": 35392015.4641772,
+        "samples": [
+          35425873.70002187,
+          35420657.25015064,
+          36245024.88949402,
+          35392015.4641772,
+          35411292.92233536,
+          36519251.67427979,
+          35519874.52455175,
+          35830432.86137224,
+          36444700.80988105
+        ]
+      },
+      "deferred_to_control_ratio_of_medians": 0.9935666035129482
+    }
+  },
+  "predeclared_gates": {
+    "control_pairs_with_subthreshold_download_sample_minimum": 2,
+    "deferred_all_24_download_samples_minimum_bytes_per_second": 29700000,
+    "every_pair_download_deferred_to_control_ratio_minimum": 1.1,
+    "every_pair_upload_deferred_to_control_ratio_minimum": 0.9,
+    "payload_and_event_conservation": "exact",
+    "selective_retries": false
+  },
+  "row_count": 96,
+  "scope": "diagnostic_only",
+  "timing_gate_failures": [
+    "pair 1 download deferred/control ratio 1.0813318437280799 below 1.1",
+    "pair 2 download deferred/control ratio 0.8958061786413095 below 1.1"
+  ],
+  "transition_screen": {
+    "all_pair_upload_gates_passed": true,
+    "consistent_with_stall_elimination": false,
+    "control_pairs_with_subthreshold_download_sample": 3,
+    "control_pairs_with_subthreshold_download_sample_minimum": 2,
+    "deferred_all_24_download_samples_pass": false,
+    "deferred_download_minimum": 29488343.75081709,
+    "deferred_download_sample_count": 24,
+    "diagnostic_only": true,
+    "does_not_override_main_pair_gates": true,
+    "exact_correctness_and_cleanup": true,
+    "threshold_bytes_per_second": 29700000
+  }
+}

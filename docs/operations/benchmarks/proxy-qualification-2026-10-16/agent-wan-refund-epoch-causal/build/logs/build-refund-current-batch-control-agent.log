@@ -1,0 +1,8 @@
+go: downloading github.com/google/uuid v1.6.0
+go: downloading github.com/rs/zerolog v1.35.1
+go: downloading connectrpc.com/connect v1.20.0
+go: downloading google.golang.org/protobuf v1.36.12
+go: downloading golang.org/x/sys v0.47.0
+go: downloading github.com/mattn/go-colorable v0.1.14
+go: downloading github.com/mattn/go-isatty v0.0.23
+elapsed=7.65 maxrss_kb=723112 exit=0

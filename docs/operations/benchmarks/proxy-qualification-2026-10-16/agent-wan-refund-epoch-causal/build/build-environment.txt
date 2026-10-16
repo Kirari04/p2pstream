@@ -1,0 +1,15 @@
+created_utc=2026-10-16T09:07:19,626310963+00:00
+base_source_ref=5eeccaaa797254d7bde4db9854a337a02c3bc28e
+base_archive_sha256=9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76
+go_binary=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go
+go version go1.26.6 linux/amd64
+linux
+amd64
+v1
+1
+/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64
+go1.26.6
+local
+
+off
+

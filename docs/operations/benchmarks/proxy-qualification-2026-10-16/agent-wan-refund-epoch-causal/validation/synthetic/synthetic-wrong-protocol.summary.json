@@ -1,0 +1,1932 @@
+{
+  "acceptance": {
+    "all_pair_gates_passed": true,
+    "all_rows_exact": false,
+    "complete": true,
+    "no_non_timing_failures": false,
+    "overall": false
+  },
+  "all_phase_rows": [
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 1,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 7.995120382,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 2,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 8.105886367,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 3,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 8.028615368,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 4,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 7.9339363469999995,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 5,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.475066065,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 6,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.620148227,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 7,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.579605576,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 8,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.523568425,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 9,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 9.820051111,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 10,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.567883037,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 11,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 9.874390932,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 12,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.56465794,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 13,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.669408881,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 14,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 7.848943168,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 15,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 7.812512408,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 16,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.351433701,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 17,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.941334224,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 18,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.992898084,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 19,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.932704708,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 20,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.919912408,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 21,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.617289561,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 22,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.699190974,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 23,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.690265596,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 24,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.640298078,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 25,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 9.009639048,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 26,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.627457192,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 27,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 9.027961243,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 28,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.738681673,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 29,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.681907831,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 30,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 8.890036852,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 31,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.813315017,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 32,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.352471099,
+      "within_pair": 32
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 33,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.977439218,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 34,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 8.104391238,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 35,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 8.049846268,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 36,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.981076092,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 37,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 9.280604363,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 38,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.58941075,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 39,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.680895094,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 40,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.687438496,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 41,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.941182095,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 42,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.585544076,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 43,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 9.010029733,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 44,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.63204867,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 45,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.608414215,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 46,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 8.845931768,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 47,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.814713944,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 48,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.510208028,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 49,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 7.994370515,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 50,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 8.041783593,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 51,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 8.043234065,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 52,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 8.054126931,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 53,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.641123785,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 54,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.701947223,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 55,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.702620029,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 56,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.702753303,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 57,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 9.763661013,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 58,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.580033588,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 59,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 9.813014453,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 60,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.631920594,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 61,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.444775005,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 62,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 9.487092504,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 63,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 7.813194673,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 64,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.468634806,
+      "within_pair": 32
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 65,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 8.087530291,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 66,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 7.978788607,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 67,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 7.927763991,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 68,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 7.953213522,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 69,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.536088104,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 70,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.637964224,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 71,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.655287975,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 72,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.641056668,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 73,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 8.085864128,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 74,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.644364904,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 75,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 9.805913399,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 76,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.755278305,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 77,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.479707301,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 78,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 9.758753278,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 79,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000,
+      "wall_seconds": 7.812442398,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-current-batch-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 80,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.293076576,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 81,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 8.040285098,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 82,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.9856753860000005,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 83,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.956280796,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 84,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.980963516,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 85,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.62017792,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 86,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.64343835,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 87,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.643188929,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 88,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 9.243959449,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 89,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 9.03742535,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 90,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.604392873,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 91,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.925127747,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 92,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.5814235,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 93,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.565300108,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 94,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 8.795431839,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 95,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 32000000,
+      "wall_seconds": 7.816235858,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-streams-before-global-epoch",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 96,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 7.349130981,
+      "within_pair": 32
+    }
+  ],
+  "failures": [
+    "row 1 failed request/payload/event conservation"
+  ],
+  "fixed_workload": {
+    "configured_rtt_ms": 80,
+    "mode_order": [
+      "control-then-deferred",
+      "deferred-then-control",
+      "control-then-deferred"
+    ],
+    "pairs": 3,
+    "required_pool_mib": 8,
+    "steady_mib": 256,
+    "total_transfers": 96,
+    "transfer_repetitions": 3,
+    "transfers_per_variant": 16,
+    "transport_mode_both_variants": "aggregate-v1",
+    "warmup_mib": 256
+  },
+  "non_timing_failures": [
+    "row 1 failed request/payload/event conservation"
+  ],
+  "pairs": {
+    "1": {
+      "gates": {
+        "download": {
+          "control_median_useful_bytes_per_second": 25000000,
+          "deferred_median_useful_bytes_per_second": 32000000,
+          "deferred_to_control_ratio": 1.28,
+          "minimum": 1.1,
+          "passed": true
+        },
+        "upload": {
+          "control_median_useful_bytes_per_second": 30000000,
+          "deferred_median_useful_bytes_per_second": 30000000,
+          "deferred_to_control_ratio": 1.0,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "refund-current-batch-control",
+        "refund-streams-before-global-epoch"
+      ],
+      "transition_screen": {
+        "control_download_minimum": 25000000,
+        "control_has_subthreshold_sample": true,
+        "deferred_all_eight_download_samples_pass": true,
+        "deferred_download_minimum": 32000000,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "control": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 25000000,
+              "median": 25000000.0,
+              "minimum": 25000000,
+              "samples": [
+                25000000,
+                25000000,
+                25000000,
+                25000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 25000000,
+              "median": 25000000,
+              "minimum": 25000000,
+              "samples": [
+                25000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 25000000,
+              "median": 25000000,
+              "minimum": 25000000,
+              "samples": [
+                25000000,
+                25000000,
+                25000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 25000000,
+              "median": 25000000.0,
+              "minimum": 25000000,
+              "samples": [
+                25000000,
+                25000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 25000000,
+              "median": 25000000,
+              "minimum": 25000000,
+              "samples": [
+                25000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        },
+        "deferred": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 32000000,
+              "median": 32000000.0,
+              "minimum": 32000000,
+              "samples": [
+                32000000,
+                32000000,
+                32000000,
+                32000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 32000000,
+              "median": 32000000,
+              "minimum": 32000000,
+              "samples": [
+                32000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 32000000,
+              "median": 32000000,
+              "minimum": 32000000,
+              "samples": [
+                32000000,
+                32000000,
+                32000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 32000000,
+              "median": 32000000.0,
+              "minimum": 32000000,
+              "samples": [
+                32000000,
+                32000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 32000000,
+              "median": 32000000,
+              "minimum": 32000000,
+              "samples": [
+                32000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        }
+      }
+    },
+    "2": {
+      "gates": {
+        "download": {
+          "control_median_useful_bytes_per_second": 25000000,
+          "deferred_median_useful_bytes_per_second": 32000000,
+          "deferred_to_control_ratio": 1.28,
+          "minimum": 1.1,
+          "passed": true
+        },
+        "upload": {
+          "control_median_useful_bytes_per_second": 30000000,
+          "deferred_median_useful_bytes_per_second": 30000000,
+          "deferred_to_control_ratio": 1.0,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "refund-streams-before-global-epoch",
+        "refund-current-batch-control"
+      ],
+      "transition_screen": {
+        "control_download_minimum": 25000000,
+        "control_has_subthreshold_sample": true,
+        "deferred_all_eight_download_samples_pass": true,
+        "deferred_download_minimum": 32000000,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "control": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 25000000,
+              "median": 25000000.0,
+              "minimum": 25000000,
+              "samples": [
+                25000000,
+                25000000,
+                25000000,
+                25000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 25000000,
+              "median": 25000000,
+              "minimum": 25000000,
+              "samples": [
+                25000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 25000000,
+              "median": 25000000,
+              "minimum": 25000000,
+              "samples": [
+                25000000,
+                25000000,
+                25000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 25000000,
+              "median": 25000000.0,
+              "minimum": 25000000,
+              "samples": [
+                25000000,
+                25000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 25000000,
+              "median": 25000000,
+              "minimum": 25000000,
+              "samples": [
+                25000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        },
+        "deferred": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 32000000,
+              "median": 32000000.0,
+              "minimum": 32000000,
+              "samples": [
+                32000000,
+                32000000,
+                32000000,
+                32000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 32000000,
+              "median": 32000000,
+              "minimum": 32000000,
+              "samples": [
+                32000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 32000000,
+              "median": 32000000,
+              "minimum": 32000000,
+              "samples": [
+                32000000,
+                32000000,
+                32000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 32000000,
+              "median": 32000000.0,
+              "minimum": 32000000,
+              "samples": [
+                32000000,
+                32000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 32000000,
+              "median": 32000000,
+              "minimum": 32000000,
+              "samples": [
+                32000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        }
+      }
+    },
+    "3": {
+      "gates": {
+        "download": {
+          "control_median_useful_bytes_per_second": 25000000,
+          "deferred_median_useful_bytes_per_second": 32000000,
+          "deferred_to_control_ratio": 1.28,
+          "minimum": 1.1,
+          "passed": true
+        },
+        "upload": {
+          "control_median_useful_bytes_per_second": 30000000,
+          "deferred_median_useful_bytes_per_second": 30000000,
+          "deferred_to_control_ratio": 1.0,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "refund-current-batch-control",
+        "refund-streams-before-global-epoch"
+      ],
+      "transition_screen": {
+        "control_download_minimum": 25000000,
+        "control_has_subthreshold_sample": true,
+        "deferred_all_eight_download_samples_pass": true,
+        "deferred_download_minimum": 32000000,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "control": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 25000000,
+              "median": 25000000.0,
+              "minimum": 25000000,
+              "samples": [
+                25000000,
+                25000000,
+                25000000,
+                25000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 25000000,
+              "median": 25000000,
+              "minimum": 25000000,
+              "samples": [
+                25000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 25000000,
+              "median": 25000000,
+              "minimum": 25000000,
+              "samples": [
+                25000000,
+                25000000,
+                25000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 25000000,
+              "median": 25000000.0,
+              "minimum": 25000000,
+              "samples": [
+                25000000,
+                25000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 25000000,
+              "median": 25000000,
+              "minimum": 25000000,
+              "samples": [
+                25000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        },
+        "deferred": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 32000000,
+              "median": 32000000.0,
+              "minimum": 32000000,
+              "samples": [
+                32000000,
+                32000000,
+                32000000,
+                32000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 32000000,
+              "median": 32000000,
+              "minimum": 32000000,
+              "samples": [
+                32000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 32000000,
+              "median": 32000000,
+              "minimum": 32000000,
+              "samples": [
+                32000000,
+                32000000,
+                32000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 32000000,
+              "median": 32000000.0,
+              "minimum": 32000000,
+              "samples": [
+                32000000,
+                32000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 32000000,
+              "median": 32000000,
+              "minimum": 32000000,
+              "samples": [
+                32000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "pooled_diagnostic": {
+    "download": {
+      "control": {
+        "count": 9,
+        "maximum": 25000000,
+        "median": 25000000,
+        "minimum": 25000000,
+        "samples": [
+          25000000,
+          25000000,
+          25000000,
+          25000000,
+          25000000,
+          25000000,
+          25000000,
+          25000000,
+          25000000
+        ]
+      },
+      "deferred": {
+        "count": 9,
+        "maximum": 32000000,
+        "median": 32000000,
+        "minimum": 32000000,
+        "samples": [
+          32000000,
+          32000000,
+          32000000,
+          32000000,
+          32000000,
+          32000000,
+          32000000,
+          32000000,
+          32000000
+        ]
+      },
+      "deferred_to_control_ratio_of_medians": 1.28
+    },
+    "upload": {
+      "control": {
+        "count": 9,
+        "maximum": 30000000,
+        "median": 30000000,
+        "minimum": 30000000,
+        "samples": [
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000
+        ]
+      },
+      "deferred": {
+        "count": 9,
+        "maximum": 30000000,
+        "median": 30000000,
+        "minimum": 30000000,
+        "samples": [
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000
+        ]
+      },
+      "deferred_to_control_ratio_of_medians": 1.0
+    }
+  },
+  "predeclared_gates": {
+    "control_pairs_with_subthreshold_download_sample_minimum": 2,
+    "deferred_all_24_download_samples_minimum_bytes_per_second": 29700000,
+    "every_pair_download_deferred_to_control_ratio_minimum": 1.1,
+    "every_pair_upload_deferred_to_control_ratio_minimum": 0.9,
+    "payload_and_event_conservation": "exact",
+    "selective_retries": false
+  },
+  "row_count": 96,
+  "scope": "diagnostic_only",
+  "timing_gate_failures": [],
+  "transition_screen": {
+    "all_pair_upload_gates_passed": true,
+    "consistent_with_stall_elimination": false,
+    "control_pairs_with_subthreshold_download_sample": 3,
+    "control_pairs_with_subthreshold_download_sample_minimum": 2,
+    "deferred_all_24_download_samples_pass": true,
+    "deferred_download_minimum": 32000000,
+    "deferred_download_sample_count": 24,
+    "diagnostic_only": true,
+    "does_not_override_main_pair_gates": true,
+    "exact_correctness_and_cleanup": false,
+    "threshold_bytes_per_second": 29700000
+  }
+}

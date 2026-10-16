@@ -1,0 +1,69 @@
+Aggregate refund deferred-global epoch causal build provenance
+created_utc=2026-10-16T09:08:14,070546028+00:00
+kind=p2pstream-refund-deferred-global-epoch-causal-bundle-v1
+base_source_ref=5eeccaaa797254d7bde4db9854a337a02c3bc28e
+base_archive_sha256=9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76
+common_scaffold_path=common-scaffold.patch
+common_scaffold_sha256=3fa10c967b69d4d371c64dd6bb2ca175ffbd9f98d80193d3d41b2722809bfe59
+deferred_global_overlay_path=deferred-global-toggle.patch
+deferred_global_overlay_sha256=d07cac9d6f5dac0311416282c0c0e19ece2d3369e1d372abc43b406b3e33b81d
+readme_sha256=56b792868181965c2e82b75f61380ba238f541401cf35be78e46fc38486c3e5f
+source_hashes_sha256=24d37dbe261ab15f7f949595879117bb7afac8cd1b40597a0062eb3fd4d6dfba
+build_env_sha256=a8b33736336017a49cadf5d540a92c935d61e169f30631a3f020bd189514aa13
+refund_current_batch_control_source_identity=5eeccaaa797254d7bde4db9854a337a02c3bc28e+refund-current-batch-control@sha256:3fa10c967b69d4d371c64dd6bb2ca175ffbd9f98d80193d3d41b2722809bfe59
+refund_streams_before_global_epoch_source_identity=5eeccaaa797254d7bde4db9854a337a02c3bc28e+refund-streams-before-global-epoch@sha256:3fa10c967b69d4d371c64dd6bb2ca175ffbd9f98d80193d3d41b2722809bfe59+sha256:d07cac9d6f5dac0311416282c0c0e19ece2d3369e1d372abc43b406b3e33b81d
+
+Final toolchain/environment:
+created_utc=2026-10-16T09:07:19,626310963+00:00
+base_source_ref=5eeccaaa797254d7bde4db9854a337a02c3bc28e
+base_archive_sha256=9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76
+go_binary=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go
+go version go1.26.6 linux/amd64
+linux
+amd64
+v1
+1
+/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64
+go1.26.6
+local
+
+off
+
+
+Successful deferred-arm validation commands (from third_party/yamux):
+go test ./... -run '^TestDeferredGlobal' -count=10 -timeout=120s
+go test -race ./... -run '^TestDeferredGlobal' -count=5 -timeout=180s
+go test ./... -run '^TestAggregate(RandomizedLifecycleConservesSessionPool|EarlySessionCloseClearsConcurrentTrafficCohort|RefundBatchCapsDistinctStreamsAndLeavesFIFO|RefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary|RefundBatchCloseClearsQueuedPrecommitOwnership|GrowAfterAndConcurrentWithCloseRetainsNoSlabs)$' -count=3 -timeout=180s
+go test -race ./... -run '^TestAggregate(RandomizedLifecycleConservesSessionPool|EarlySessionCloseClearsConcurrentTrafficCohort|RefundBatchCapsDistinctStreamsAndLeavesFIFO|RefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary|RefundBatchCloseClearsQueuedPrecommitOwnership|GrowAfterAndConcurrentWithCloseRetainsNoSlabs)$' -count=3 -timeout=240s
+go test ./... -count=1 -timeout=240s
+
+Successful current-arm validation commands (from third_party/yamux):
+go test ./... -run '^(TestAggregateRefundBatch|TestAggregateRefundSelection|TestAggregateTerminalSelectedRefund|TestAggregatePairedRefund)' -count=10 -timeout=180s
+go test -race ./... -run '^(TestAggregateRefundBatch|TestAggregateRefundSelection|TestAggregateTerminalSelectedRefund|TestAggregatePairedRefund)' -count=5 -timeout=240s
+go test ./... -count=1 -timeout=240s
+
+Ordinary tag-off build commands (from each source root):
+go test -c -o bundle/refund-current-batch-control.agent.test ./internal/agent
+go test -c -o bundle/refund-current-batch-control.server.test ./internal/server
+go test -c -o bundle/refund-streams-before-global-epoch.agent.test ./internal/agent
+go test -c -o bundle/refund-streams-before-global-epoch.server.test ./internal/server
+cp bundle/refund-current-batch-control.server.test bundle/driver-origin.test
+
+All final commands invoked /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go explicitly with its directory first in PATH, GOTOOLCHAIN=local, GOWORK=off, empty GOFLAGS, and all temporary/cache paths on the owned ext4 tree.
+The preserved Go 1.26.3 focused pass is superseded and non-final.
+
+driver-origin.test_sha256=453924e217f211e575440613925c27651e7c14fa3a3316851469ebd70c4b79aa
+driver-origin.test_build_id=AoY8OBIxVeSpgtQOCr3w/OCEdbba-lwbN0a1BptkW/1rZMnNi3kIuMU7zefMTj/295gYmXem_xeuGWMoqX3
+driver-origin.test_go_version=go1.26.6
+refund-current-batch-control.agent.test_sha256=bae850a2c81085148098d90f4d27dd88617a5023f3dd67665bda742806ae6dcf
+refund-current-batch-control.agent.test_build_id=_5_3wnEQIV91bIwurS9Z/hbvwhIKopFLf8Yo3HIjP/5csZ2Ew2-DAD59F5XnNw/I_oZXDONDOTviDMzXDSg
+refund-current-batch-control.agent.test_go_version=go1.26.6
+refund-current-batch-control.server.test_sha256=453924e217f211e575440613925c27651e7c14fa3a3316851469ebd70c4b79aa
+refund-current-batch-control.server.test_build_id=AoY8OBIxVeSpgtQOCr3w/OCEdbba-lwbN0a1BptkW/1rZMnNi3kIuMU7zefMTj/295gYmXem_xeuGWMoqX3
+refund-current-batch-control.server.test_go_version=go1.26.6
+refund-streams-before-global-epoch.agent.test_sha256=3a7b45294921e633f9e13a825c8ec572c43e45076aa6e243b5f3baeeb6ddcbde
+refund-streams-before-global-epoch.agent.test_build_id=bvYuIBn2H6oEuTmrSGbb/9vYnx1FFx2a_w58hrELS/VnfkxNRxUuE9Y9rxyHp-/EtNMcU8wq-zawt4LEs09
+refund-streams-before-global-epoch.agent.test_go_version=go1.26.6
+refund-streams-before-global-epoch.server.test_sha256=ad7f3b2605f9375fa2f5015a73dd10e6f32946124fff21e7494f7185d5019699
+refund-streams-before-global-epoch.server.test_build_id=mXw7eDF7q6xva94H80W1/dpQUmCQMo6U3b7opND6M/oZrtqgDqJxd6qOlqiiCT/wueRvQRKhZjg17hvrwml
+refund-streams-before-global-epoch.server.test_go_version=go1.26.6
