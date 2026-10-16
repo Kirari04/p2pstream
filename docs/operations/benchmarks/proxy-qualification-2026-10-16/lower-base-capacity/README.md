@@ -51,3 +51,8 @@ was 181,586,560 bytes for one lane and 726,346,240 bytes for four, an exact
 `results/` retains all baseline, candidate and HAProxy JSONL rows. The copied
 runner, orchestrator and overlays are the exact inputs identified by the
 manifest. `SHA256SUMS` covers the checked-in evidence.
+
+The copied source overlays use `.go.txt` filenames so Go package discovery
+does not compile the evidence directory. Their contents and manifest hashes
+are unchanged; restore the `.go` extension only when installing an overlay
+into its corresponding clean source package.
