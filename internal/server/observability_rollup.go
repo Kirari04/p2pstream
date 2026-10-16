@@ -42,22 +42,22 @@ func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Con
 			return err
 		}
 	}
-	for _, event := range events {
-		if err := eventInserter.Insert(ctx, event); err != nil {
+	if eventInserter != nil {
+		if err := eventInserter.InsertBatch(ctx, events); err != nil {
 			_ = eventInserter.Close()
 			return err
 		}
+		if err := eventInserter.Close(); err != nil {
+			return err
+		}
+	}
+	for _, event := range events {
 		total, tuple, status := proxyRequestRollupParams(event)
 		mergeProxyRequestRollup(totals, total)
 		mergeProxyRequestTupleRollup(tuples, tuple)
 		mergeProxyRequestStatusRollup(statuses, status)
 		if retry, ok := proxyRetryRollupParams(event); ok {
 			mergeProxyRetryRollup(retries, retry)
-		}
-	}
-	if eventInserter != nil {
-		if err := eventInserter.Close(); err != nil {
-			return err
 		}
 	}
 	for _, total := range totals {

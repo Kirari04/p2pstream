@@ -4,14 +4,31 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 )
 
-// ProxyRequestEventInserter reuses one SQLite statement for every raw event in
-// an observability batch. The SQL remains generated from sql/query.sql; this
-// wrapper only binds the generated parameter type to a transaction statement.
+// ProxyRequestEventInserter reuses SQLite statements for bounded groups of raw
+// events and their remainder. SQL columns come from sql/query.sql; this wrapper
+// binds the generated parameter type within the caller's transaction.
 type ProxyRequestEventInserter struct {
-	stmt *sql.Stmt
+	tx        *sql.Tx
+	stmt      *sql.Stmt
+	batchStmt *sql.Stmt
 }
+
+const proxyRequestEventInsertBatchRows = 16
+
+// Derive the fixed multirow statement from the generated single-row SQL so
+// the column contract remains in sql/query.sql. Only the fixed VALUES tuple
+// is repeated; request data is always bound through statement parameters.
+var insertProxyRequestEventsBatch = func() string {
+	prefix, values, ok := strings.Cut(insertProxyRequestEventAt, " VALUES ")
+	if !ok {
+		panic("generated proxy request event insert is missing VALUES")
+	}
+	tuple := strings.TrimSpace(values)
+	return prefix + " VALUES " + strings.Repeat(tuple+",", proxyRequestEventInsertBatchRows-1) + tuple
+}()
 
 func PrepareProxyRequestEventInserter(ctx context.Context, tx *sql.Tx) (*ProxyRequestEventInserter, error) {
 	if tx == nil {
@@ -21,14 +38,55 @@ func PrepareProxyRequestEventInserter(ctx context.Context, tx *sql.Tx) (*ProxyRe
 	if err != nil {
 		return nil, err
 	}
-	return &ProxyRequestEventInserter{stmt: stmt}, nil
+	return &ProxyRequestEventInserter{tx: tx, stmt: stmt}, nil
 }
 
 func (i *ProxyRequestEventInserter) Insert(ctx context.Context, arg InsertProxyRequestEventAtParams) error {
 	if i == nil || i.stmt == nil {
 		return errors.New("proxy request event inserter is not prepared")
 	}
-	_, err := i.stmt.ExecContext(ctx,
+	var args [23]any
+	_, err := i.stmt.ExecContext(ctx, appendProxyRequestEventArgs(args[:0], arg)...)
+	return err
+}
+
+// InsertBatch amortizes SQLite execution and cancellation coordination over
+// bounded groups. All groups and the short final remainder use the caller's
+// existing transaction and cancellation context.
+func (i *ProxyRequestEventInserter) InsertBatch(ctx context.Context, events []InsertProxyRequestEventAtParams) error {
+	if i == nil || i.stmt == nil {
+		return errors.New("proxy request event inserter is not prepared")
+	}
+	if len(events) >= proxyRequestEventInsertBatchRows && i.batchStmt == nil {
+		stmt, err := i.tx.PrepareContext(ctx, insertProxyRequestEventsBatch)
+		if err != nil {
+			return err
+		}
+		i.batchStmt = stmt
+	}
+	if len(events) >= proxyRequestEventInsertBatchRows {
+		var storage [proxyRequestEventInsertBatchRows * 23]any
+		for len(events) >= proxyRequestEventInsertBatchRows {
+			args := storage[:0]
+			for _, event := range events[:proxyRequestEventInsertBatchRows] {
+				args = appendProxyRequestEventArgs(args, event)
+			}
+			if _, err := i.batchStmt.ExecContext(ctx, args...); err != nil {
+				return err
+			}
+			events = events[proxyRequestEventInsertBatchRows:]
+		}
+	}
+	for _, event := range events {
+		if err := i.Insert(ctx, event); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func appendProxyRequestEventArgs(args []any, arg InsertProxyRequestEventAtParams) []any {
+	return append(args,
 		arg.OccurredAt,
 		arg.StatusCode,
 		arg.DurationMs,
@@ -53,12 +111,15 @@ func (i *ProxyRequestEventInserter) Insert(ctx context.Context, arg InsertProxyR
 		arg.RetryErrorKind,
 		arg.RetryFailedAgentID,
 	)
-	return err
 }
 
 func (i *ProxyRequestEventInserter) Close() error {
 	if i == nil || i.stmt == nil {
 		return nil
 	}
-	return i.stmt.Close()
+	var batchErr error
+	if i.batchStmt != nil {
+		batchErr = i.batchStmt.Close()
+	}
+	return errors.Join(batchErr, i.stmt.Close())
 }

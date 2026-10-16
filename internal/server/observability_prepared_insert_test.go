@@ -3,13 +3,17 @@ package server
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/mattn/go-sqlite3"
 
 	"p2pstream/internal/db"
 )
@@ -76,6 +80,16 @@ func TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t *t
 		{OccurredAt: storedAt, StatusCode: http.StatusNotFound, DurationMs: 20, ErrorKind: "not_found", Method: "GET", Host: "example.test", PathPrefix: "/b", ResponseBytes: 20},
 		{OccurredAt: storedAt, StatusCode: http.StatusBadGateway, DurationMs: 30, ErrorKind: "upstream", Method: "POST", Host: "example.test", PathPrefix: "/c", RequestBytes: 5},
 	}
+	// Cross both full 16-row groups and the short final remainder while
+	// retaining distinct values, valid foreign keys, NULLs and timestamps.
+	examples := append([]db.InsertProxyRequestEventAtParams(nil), events...)
+	for index := len(events); index < 35; index++ {
+		event := examples[index%len(examples)]
+		event.OccurredAt = storedAt.Add(time.Duration(index) * time.Millisecond)
+		event.DurationMs += int64(index)
+		event.PathPrefix = fmt.Sprintf("%s/%d", event.PathPrefix, index)
+		events = append(events, event)
+	}
 	touch := db.TouchPublicCacheEntryParams{
 		KeyDigest: "prepared-batch-key", StoredAt: storedAt,
 		LastAccessedAt: storedAt.Add(time.Minute), HitCount: 2,
@@ -99,7 +113,7 @@ func TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t *t
 	if err := app.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, events, []db.TouchPublicCacheEntryParams{touch}); err != nil {
 		t.Fatalf("insert prepared event batch: %v", err)
 	}
-	assertPreparedObservabilityBatchState(t, app, 3, 3, 2)
+	assertPreparedObservabilityBatchState(t, app, int64(len(events)), int64(len(events)), 2)
 	rows, err := app.DB.QueryContext(ctx, `
 		SELECT occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix,
 			listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id,
@@ -159,14 +173,104 @@ func TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches(t *t
 		t.Fatal(err)
 	}
 
-	invalid := []db.InsertProxyRequestEventAtParams{
-		{OccurredAt: storedAt.Add(time.Minute), StatusCode: http.StatusNoContent},
-		{OccurredAt: storedAt.Add(time.Minute), StatusCode: http.StatusNoContent, AgentID: sql.NullInt64{Int64: 999_999, Valid: true}},
+	for _, invalidIndex := range []int{0, 17, 32} {
+		invalid := make([]db.InsertProxyRequestEventAtParams, 33)
+		for index := range invalid {
+			invalid[index] = db.InsertProxyRequestEventAtParams{OccurredAt: storedAt.Add(time.Minute), StatusCode: http.StatusNoContent}
+		}
+		invalid[invalidIndex].AgentID = sql.NullInt64{Int64: 999_999, Valid: true}
+		if err := app.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, invalid, nil); err == nil {
+			t.Fatalf("invalid foreign key at row %d committed", invalidIndex)
+		}
+		assertPreparedObservabilityBatchState(t, app, int64(len(events)), int64(len(events)), 2)
 	}
-	if err := app.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, invalid, nil); err == nil {
-		t.Fatal("invalid foreign key batch committed")
+}
+
+func TestPreparedProxyRequestEventBatchCancellationRollsBack(t *testing.T) {
+	app := NewApp(nil, newServerTestDB(t))
+	// Keep the registered trigger callback on the same physical connection as
+	// the flush transaction. No custom process-wide SQLite driver is needed.
+	app.DB.SetMaxOpenConns(1)
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	t.Cleanup(unblock)
+	conn, err := app.DB.Conn(t.Context())
+	if err != nil {
+		t.Fatal(err)
 	}
-	assertPreparedObservabilityBatchState(t, app, 3, 3, 2)
+	err = conn.Raw(func(driverConn any) error {
+		return driverConn.(*sqlite3.SQLiteConn).RegisterFunc("block_proxy_batch", func() int64 {
+			close(entered)
+			select {
+			case <-release:
+			case <-time.After(3 * time.Second):
+			}
+			return 0
+		}, false)
+	})
+	_ = conn.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	storedAt := time.Now().UTC().Round(0)
+	if _, err := app.DB.ExecContext(t.Context(), `
+		INSERT INTO public_cache_rules (id, name) VALUES (1, 'cancel-batch-rule');
+		CREATE TRIGGER block_second_proxy_batch AFTER INSERT ON proxy_request_events
+		WHEN NEW.duration_ms = 17
+		BEGIN SELECT block_proxy_batch(); END;
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.DB.ExecContext(t.Context(), `
+		INSERT INTO public_cache_entries (
+			key_digest, rule_id, scope, listener_protocol, host, path, query_key, method,
+			vary_headers_json, response_headers_json, status_code, body_path, size_bytes, stored_at, expires_at
+		) VALUES ('prepared-batch-key', 1, 'selected_backend', 'http', 'example.test', '/asset', '', 'GET',
+			'[]', '{}', 200, '/tmp/body', 10, ?, ?)
+	`, storedAt, storedAt.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	events := make([]db.InsertProxyRequestEventAtParams, 35)
+	for index := range events {
+		events[index] = db.InsertProxyRequestEventAtParams{
+			OccurredAt: storedAt, StatusCode: http.StatusOK, DurationMs: int64(index + 1), Method: "GET", Host: "cancel.example",
+		}
+	}
+	touch := db.TouchPublicCacheEntryParams{KeyDigest: "prepared-batch-key", StoredAt: storedAt, LastAccessedAt: storedAt.Add(time.Minute), HitCount: 2}
+	ctx, cancel := context.WithTimeout(t.Context(), observabilityRecorderFlushTimeout)
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		result <- app.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, events, []db.TouchPublicCacheEntryParams{touch})
+	}()
+	select {
+	case <-entered:
+		// The first full group has executed; cancel while the second group
+		// is inside SQLite, then let the bounded callback finish.
+		cancel()
+		unblock()
+	case err := <-result:
+		t.Fatalf("flush returned before second group: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("flush did not reach second group")
+	}
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancelled batch error = %v, want context.Canceled", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("cancelled batch did not return")
+	}
+	assertPreparedObservabilityBatchState(t, app, 0, 0, 0)
+	for _, table := range []string{"proxy_request_tuple_rollup_minutes", "proxy_request_status_rollup_minutes", "proxy_retry_rollup_minutes"} {
+		var rows int
+		if err := app.DB.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM "+table).Scan(&rows); err != nil || rows != 0 {
+			t.Fatalf("cancelled batch left %s rows=%d err=%v", table, rows, err)
+		}
+	}
 }
 
 func assertPreparedObservabilityBatchState(t *testing.T, app *App, rawEvents, rollupRequests, cacheHits int64) {
@@ -188,6 +292,18 @@ func assertPreparedObservabilityBatchState(t *testing.T, app *App, rawEvents, ro
 }
 
 func BenchmarkPreparedProxyRequestEventBatchFlush(b *testing.B) {
+	for _, productionDeadline := range []bool{false, true} {
+		name := "background"
+		if productionDeadline {
+			name = "production_deadline"
+		}
+		b.Run(name, func(b *testing.B) {
+			benchmarkPreparedProxyRequestEventBatchFlush(b, productionDeadline)
+		})
+	}
+}
+
+func benchmarkPreparedProxyRequestEventBatchFlush(b *testing.B, productionDeadline bool) {
 	database, err := db.Open(filepath.Join(b.TempDir(), "observability-benchmark.db"))
 	if err != nil {
 		b.Fatal(err)
@@ -210,12 +326,22 @@ func BenchmarkPreparedProxyRequestEventBatchFlush(b *testing.B) {
 	}
 	batch := make([]db.InsertProxyRequestEventAtParams, 0, len(events))
 	touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
-	b.ReportMetric(float64(len(events)), "events/op")
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
 		batch = append(batch[:0], events...)
-		if err := recorder.flushBatch(context.Background(), &batch, touches, now, true); err != nil {
+		var err error
+		if productionDeadline {
+			// Match the production five-second timeout and cancellable flush
+			// operation. SQLite's context-aware execution takes a different
+			// path when Done is non-nil, even if no cancellation occurs.
+			err = recorder.runBackgroundFlush(func(ctx context.Context) error {
+				return recorder.flushBatch(ctx, &batch, touches, now, true)
+			})
+		} else {
+			err = recorder.flushBatch(context.Background(), &batch, touches, now, true)
+		}
+		if err != nil {
 			b.Fatal(err)
 		}
 		b.StopTimer()
@@ -232,4 +358,5 @@ func BenchmarkPreparedProxyRequestEventBatchFlush(b *testing.B) {
 		}
 		b.StartTimer()
 	}
+	b.ReportMetric(float64(len(events)), "events/op")
 }
