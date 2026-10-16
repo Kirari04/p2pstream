@@ -68,6 +68,10 @@ comparison.
   preserves 96 exact transfers for bounded deferred-global scheduling. Both
   diagnostic screens fail; the directional transition penalty remains and no
   production publisher change is retained.
+- [`agent-wan-tunnel-lowat-causal/README.md`](agent-wan-tunnel-lowat-causal/README.md)
+  preserves a 96-transfer physical-tunnel socket comparison with verified
+  settings and 12 stable paired socket snapshots. Download performance is effectively
+  unchanged, both timing screens fail, and no option change is retained.
 - [`caddy-reference/moderate-runner-validation/README.md`](caddy-reference/moderate-runner-validation/README.md)
   records 19 synthetic calibration/schedule checks for the separate
   moderate-load latency comparison. Actual performance qualification is pending.
@@ -210,6 +214,8 @@ fails its main gate twice while narrowly passing a separate all-phase floor
 screen. The subsequent queue/acknowledgment comparison also fails its main gate
 twice, despite exact transfers and a higher all-phase floor; a transition penalty
 remains. A bounded deferred-global epoch comparison then fails both screens.
+A physical-tunnel unsent-queue setting is subsequently verified at both
+endpoints but remains effectively neutral and fails both timing screens.
 These diagnostics do not clear the original repeated WAN failure or qualify a
 production change.
 

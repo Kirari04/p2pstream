@@ -655,6 +655,17 @@ rejected and no publisher-policy change is retained. These causal screens do
 not replace the original aggregate-versus-legacy acceptance gates. See the
 [deferred-global epoch comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-refund-epoch-causal/README.md).
 
+A physical-tunnel `TCP_NOTSENT_LOWAT=32768` experiment also fails both screens.
+Download ratios are 0.98729 / 0.99145 / 0.99838, with all upload gates passing.
+All 96 transfers and 12 paired snapshots of startup observations pass correctness,
+provenance, five-socket correlation and natural-shutdown checks. The actual
+candidate setting is verified at both endpoints, while socket buffer autotuning
+remains enabled. Both arms retain the roughly 27 MB/s directional transition;
+the candidate minimum is 27.2453 MB/s, below the 29.7 MB/s floor. No earlier
+12–15 MB/s severe stall reproduces in this cohort. The setting is rejected;
+no physical-tunnel option change is retained. See the
+[physical-tunnel socket comparison](benchmarks/proxy-qualification-2026-10-16/agent-wan-tunnel-lowat-causal/README.md).
+
 The next matched reference will also calibrate a separate 24-row moderate-load
 latency comparison against HAProxy. Its offered rate is fixed at half the
 lower candidate/HAProxy warmed throughput median for each protocol/concurrency
