@@ -474,14 +474,10 @@ func (s *Session) waitForSendErrCommit(hdr header, body []byte, errCh chan error
 	return s.waitForSendErrCommitOn(queue, hdr, body, errCh, commit)
 }
 
-// waitForAggregateControlBatchErrCommit writes an allocation refund followed
-// by its matching session refund as one bounded priority-queue item and one
-// physical write. The peer still observes two ordinary protocol headers, in
-// the same order as separate publication.
-func (s *Session) waitForAggregateControlBatchErrCommit(first, second header, errCh chan error, commit func()) error {
-	batch := header(make([]byte, 2*headerSize))
-	copy(batch, first)
-	copy(batch[headerSize:], second)
+// waitForAggregateControlBatchErrCommit writes a bounded sequence of ordinary
+// allocation refunds followed by their summed session refund as one priority
+// queue item and one physical write.
+func (s *Session) waitForAggregateControlBatchErrCommit(batch header, errCh chan error, commit func()) error {
 	return s.waitForSendErrCommitOn(s.controlCh, batch, nil, errCh, commit)
 }
 

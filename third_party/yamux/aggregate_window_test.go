@@ -1077,6 +1077,339 @@ func newAggregateRefundPublishTestSession(t *testing.T) (*Session, *priorityReco
 	return session, conn
 }
 
+func queueAggregateRefundTestStreams(session *Session, streams []*Stream, deltas []uint64, globalExtra uint64) {
+	a := session.aggregate
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for i, stream := range streams {
+		delta := deltas[i]
+		stream.allocationRefundPending = delta
+		stream.allocationRefundQueued = true
+		if a.pendingStreamTail == nil {
+			a.pendingStreamHead = stream
+		} else {
+			a.pendingStreamTail.allocationRefundNext = stream
+		}
+		a.pendingStreamTail = stream
+		a.pendingGlobal += delta
+	}
+	a.pendingGlobal += globalExtra
+}
+
+func TestAggregateRefundBatchCapsDistinctStreamsAndLeavesFIFO(t *testing.T) {
+	session, conn := newAggregateRefundPublishTestSession(t)
+	const streamCount = aggregateRefundBatchStreams + 2
+	streams := make([]*Stream, 0, streamCount)
+	deltas := make([]uint64, 0, streamCount)
+	for i := 0; i < streamCount; i++ {
+		// Reverse IDs prove wire lock/header order is independent of FIFO order.
+		streams = append(streams, newStream(session, uint32(2*(streamCount-i)+1), streamEstablished))
+		deltas = append(deltas, uint64(AggregateWindowUnitSize))
+	}
+	queueAggregateRefundTestStreams(session, streams, deltas, 0)
+
+	first := session.takeAggregateRefundWork()
+	if first.count != aggregateRefundBatchStreams || first.global != aggregateRefundBatchStreams*uint64(AggregateWindowUnitSize) {
+		t.Fatalf("first batch count=%d global=%d", first.count, first.global)
+	}
+	seen := make(map[*Stream]bool, first.count)
+	for _, part := range first.parts[:first.count] {
+		if seen[part.stream] {
+			t.Fatalf("stream %d selected twice", part.stream.id)
+		}
+		seen[part.stream] = true
+	}
+	if session.aggregate.pendingStreamHead != streams[aggregateRefundBatchStreams] {
+		t.Fatalf("remaining FIFO head=%p want stream %d", session.aggregate.pendingStreamHead, streams[aggregateRefundBatchStreams].id)
+	}
+	if err := session.publishAggregateRefund(first); err != nil {
+		t.Fatal(err)
+	}
+
+	second := session.takeAggregateRefundWork()
+	if second.count != 2 || second.global != 2*uint64(AggregateWindowUnitSize) {
+		t.Fatalf("second batch count=%d global=%d", second.count, second.global)
+	}
+	if err := session.publishAggregateRefund(second); err != nil {
+		t.Fatal(err)
+	}
+
+	conn.mu.Lock()
+	writes := append([][]byte(nil), conn.writes...)
+	conn.mu.Unlock()
+	if len(writes) != 2 {
+		t.Fatalf("physical writes=%d want=2", len(writes))
+	}
+	for batchIndex, wantStreams := range []int{aggregateRefundBatchStreams, 2} {
+		written := writes[batchIndex]
+		if len(written) != (wantStreams+1)*headerSize {
+			t.Fatalf("batch %d bytes=%d want=%d", batchIndex, len(written), (wantStreams+1)*headerSize)
+		}
+		lastID := uint32(0)
+		for i := 0; i < wantStreams; i++ {
+			hdr := header(written[i*headerSize : (i+1)*headerSize])
+			if hdr.MsgType() != typeAllocationWindowUpdate || (i > 0 && hdr.StreamID() <= lastID) {
+				t.Fatalf("batch %d header %d type=%d stream=%d after=%d", batchIndex, i, hdr.MsgType(), hdr.StreamID(), lastID)
+			}
+			lastID = hdr.StreamID()
+		}
+		global := header(written[wantStreams*headerSize:])
+		if global.MsgType() != typeWindowUpdate || global.StreamID() != 0 {
+			t.Fatalf("batch %d global type=%d stream=%d", batchIndex, global.MsgType(), global.StreamID())
+		}
+	}
+}
+
+func TestAggregateRefundBatchCapsUint32SumAndStopsOnPartialHead(t *testing.T) {
+	session := newAggregateUnitSession(nil)
+	first := newStream(session, 1, streamEstablished)
+	second := newStream(session, 3, streamEstablished)
+	deltas := []uint64{aggregateMaxWindowUpdate - uint64(AggregateWindowUnitSize), 2 * uint64(AggregateWindowUnitSize)}
+	queueAggregateRefundTestStreams(session, []*Stream{first, second}, deltas, 0)
+
+	work := session.takeAggregateRefundWork()
+	if work.count != 2 || work.global != aggregateMaxWindowUpdate {
+		t.Fatalf("work count=%d global=%d want=%d", work.count, work.global, aggregateMaxWindowUpdate)
+	}
+	if work.parts[0].delta != deltas[0] || work.parts[1].delta != uint64(AggregateWindowUnitSize) {
+		t.Fatalf("part deltas=%d,%d", work.parts[0].delta, work.parts[1].delta)
+	}
+	if session.aggregate.pendingStreamHead != second || second.allocationRefundPending != uint64(AggregateWindowUnitSize) || !second.allocationRefundQueued {
+		t.Fatalf("partial head=%p pending=%d queued=%t", session.aggregate.pendingStreamHead, second.allocationRefundPending, second.allocationRefundQueued)
+	}
+	if work.global > math.MaxUint32 || work.global%uint64(AggregateWindowUnitSize) != 0 {
+		t.Fatalf("invalid global header delta=%d", work.global)
+	}
+	// Pool shutdown is the safe precommit cleanup path for this deliberately
+	// oversized synthetic selection; it must clear every in-flight counter.
+	session.closeAggregatePool()
+	if first.allocationRefundPublishing != 0 || second.allocationRefundPublishing != 0 || session.aggregate.publishingGlobal != 0 {
+		t.Fatalf("shutdown retained publishing first=%d second=%d global=%d", first.allocationRefundPublishing, second.allocationRefundPublishing, session.aggregate.publishingGlobal)
+	}
+}
+
+func TestAggregateRefundBatchDropsTerminalStreamHalfAndKeepsGlobal(t *testing.T) {
+	session, conn := newAggregateRefundPublishTestSession(t)
+	const delta = uint64(AggregateWindowUnitSize)
+	streams := []*Stream{
+		newStream(session, 9, streamEstablished),
+		newStream(session, 3, streamEstablished),
+		newStream(session, 7, streamEstablished),
+	}
+	queueAggregateRefundTestStreams(session, streams, []uint64{delta, delta, delta}, delta)
+	work := session.takeAggregateRefundWork()
+	streams[1].state = streamReset
+	if err := session.publishAggregateRefund(work); err != nil {
+		t.Fatal(err)
+	}
+
+	conn.mu.Lock()
+	written := append([]byte(nil), conn.writes[0]...)
+	conn.mu.Unlock()
+	if len(written) != 3*headerSize {
+		t.Fatalf("batch bytes=%d want=%d", len(written), 3*headerSize)
+	}
+	first, second, global := header(written[:headerSize]), header(written[headerSize:2*headerSize]), header(written[2*headerSize:])
+	if first.StreamID() != 7 || second.StreamID() != 9 || global.StreamID() != 0 || global.Length() != uint32(4*delta) {
+		t.Fatalf("headers stream=%d,%d global=%d/%d", first.StreamID(), second.StreamID(), global.StreamID(), global.Length())
+	}
+	if streams[1].allocationRecvWindow != 0 || streams[1].allocationRefundPublishing != 0 {
+		t.Fatalf("terminal stream window=%d publishing=%d", streams[1].allocationRecvWindow, streams[1].allocationRefundPublishing)
+	}
+	if session.aggregate.recvWindow != uint32(4*delta) || session.aggregate.publishingGlobal != 0 {
+		t.Fatalf("global window=%d publishing=%d", session.aggregate.recvWindow, session.aggregate.publishingGlobal)
+	}
+}
+
+func TestAggregateRefundBatchWaitsForControlWithoutBlockingReaderProgress(t *testing.T) {
+	session, _ := newAggregateRefundPublishTestSession(t)
+	config := smallAggregateTestConfig()
+	session.config = config
+	session.aggregate = newAggregateWindow(config)
+	session.streams = make(map[uint32]*Stream)
+	session.pingReplyCh = make(chan uint32, 1)
+	session.bufRead = bufio.NewReader(bytes.NewReader([]byte{0x42}))
+	selected := newStream(session, 1, streamEstablished)
+	receiver := newStream(session, 3, streamEstablished)
+	session.streams[selected.id] = selected
+	session.streams[receiver.id] = receiver
+	const delta = uint64(AggregateWindowUnitSize)
+	queueAggregateRefundTestStreams(session, []*Stream{selected}, []uint64{delta}, 0)
+	session.aggregate.mu.Lock()
+	session.aggregate.recvWindow -= uint32(delta)
+	selected.allocationRecvWindow -= uint32(delta)
+	session.aggregate.mu.Unlock()
+	work := session.takeAggregateRefundWork()
+
+	selected.controlHdrLock.Lock()
+	publishDone := make(chan error, 1)
+	go func() { publishDone <- session.publishAggregateRefund(work) }()
+	select {
+	case err := <-publishDone:
+		selected.controlHdrLock.Unlock()
+		t.Fatalf("publisher passed held control lock: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	ping := header(make([]byte, headerSize))
+	ping.encode(typePing, flagSYN, 0, 17)
+	if err := session.handlePing(ping); err != nil {
+		selected.controlHdrLock.Unlock()
+		t.Fatalf("reader ping progress: %v", err)
+	}
+	if got := <-session.pingReplyCh; got != 17 {
+		selected.controlHdrLock.Unlock()
+		t.Fatalf("ping id=%d", got)
+	}
+	data := header(make([]byte, headerSize))
+	data.encode(typeData, 0, receiver.id, 1)
+	if err := session.handleAggregateData(data); err != nil {
+		selected.controlHdrLock.Unlock()
+		t.Fatalf("reader DATA progress: %v", err)
+	}
+	if buffered, _ := receiver.ReceiveBufferStats(); buffered != 1 {
+		selected.controlHdrLock.Unlock()
+		t.Fatalf("reader DATA buffered=%d want=1", buffered)
+	}
+	if err := session.GrowReceiveWindow(config.InitialSessionWindowSize + AggregateWindowUnitSize); err != nil {
+		selected.controlHdrLock.Unlock()
+		t.Fatalf("session growth while publisher waits: %v", err)
+	}
+
+	selected.controlHdrLock.Unlock()
+	select {
+	case err := <-publishDone:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("publisher did not resume after control release")
+	}
+}
+
+type aggregateBoundaryWriteErrorConn struct {
+	boundary int
+	err      error
+	writes   int
+}
+
+func (c *aggregateBoundaryWriteErrorConn) Read([]byte) (int, error) { return 0, io.EOF }
+func (c *aggregateBoundaryWriteErrorConn) Close() error             { return nil }
+func (c *aggregateBoundaryWriteErrorConn) Write(p []byte) (int, error) {
+	c.writes++
+	written := c.boundary
+	if written > len(p) {
+		written = len(p)
+	}
+	return written, c.err
+}
+
+func TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary(t *testing.T) {
+	for boundaryHeaders := 0; boundaryHeaders <= 4; boundaryHeaders++ {
+		t.Run(fmt.Sprintf("headers_%d", boundaryHeaders), func(t *testing.T) {
+			writeErr := errors.New("injected aggregate batch write failure")
+			conn := &aggregateBoundaryWriteErrorConn{boundary: boundaryHeaders * headerSize, err: writeErr}
+			config := DefaultConfig()
+			config.ConnectionWriteTimeout = time.Second
+			session := &Session{
+				config:     config,
+				logger:     log.New(io.Discard, "", 0),
+				conn:       conn,
+				sendCh:     make(chan *sendReady, 1),
+				controlCh:  make(chan *sendReady, 1),
+				sendDoneCh: make(chan struct{}),
+				shutdownCh: make(chan struct{}),
+				aggregate:  &aggregateWindow{},
+			}
+			loopDone := make(chan error, 1)
+			go func() { loopDone <- session.sendLoop() }()
+			const delta = uint64(AggregateWindowUnitSize)
+			streams := []*Stream{
+				newStream(session, 5, streamEstablished),
+				newStream(session, 1, streamEstablished),
+				newStream(session, 3, streamEstablished),
+			}
+			queueAggregateRefundTestStreams(session, streams, []uint64{delta, delta, delta}, 0)
+			work := session.takeAggregateRefundWork()
+			if err := session.publishAggregateRefund(work); !errors.Is(err, writeErr) {
+				t.Fatalf("publish error=%v", err)
+			}
+			if err := <-loopDone; !errors.Is(err, writeErr) {
+				t.Fatalf("send loop error=%v", err)
+			}
+			if conn.writes != 1 {
+				t.Fatalf("physical writes=%d want=1", conn.writes)
+			}
+			for _, stream := range streams {
+				if stream.allocationRefundPublishing != 0 || stream.allocationRecvWindow != uint32(delta) {
+					t.Fatalf("stream %d publishing/window=%d/%d", stream.id, stream.allocationRefundPublishing, stream.allocationRecvWindow)
+				}
+			}
+			if session.aggregate.publishingRefundsCount != 0 || session.aggregate.publishingGlobal != 0 || session.aggregate.recvWindow != uint32(3*delta) {
+				t.Fatalf("batch publishing_count=%d global=%d window=%d", session.aggregate.publishingRefundsCount, session.aggregate.publishingGlobal, session.aggregate.recvWindow)
+			}
+		})
+	}
+}
+
+func TestAggregateRefundBatchCloseClearsQueuedPrecommitOwnership(t *testing.T) {
+	config := DefaultConfig()
+	config.ConnectionWriteTimeout = time.Second
+	a := &aggregateWindow{publishDone: closedShutdownWaitChannel()}
+	session := &Session{
+		config:          config,
+		logger:          log.New(io.Discard, "", 0),
+		conn:            shutdownWaitConn{},
+		streams:         make(map[uint32]*Stream),
+		sendCh:          make(chan *sendReady, 1),
+		controlCh:       make(chan *sendReady, 1),
+		shutdownCh:      make(chan struct{}),
+		recvDoneCh:      closedShutdownWaitChannel(),
+		sendDoneCh:      closedShutdownWaitChannel(),
+		pingReplyDoneCh: closedShutdownWaitChannel(),
+		aggregate:       a,
+	}
+	const delta = uint64(AggregateWindowUnitSize)
+	streams := []*Stream{
+		newStream(session, 1, streamEstablished),
+		newStream(session, 3, streamEstablished),
+	}
+	for _, stream := range streams {
+		session.streams[stream.id] = stream
+	}
+	queueAggregateRefundTestStreams(session, streams, []uint64{delta, delta}, 0)
+	work := session.takeAggregateRefundWork()
+	publishDone := make(chan error, 1)
+	go func() { publishDone <- session.publishAggregateRefund(work) }()
+	deadline := time.Now().Add(time.Second)
+	for len(session.controlCh) != 1 && time.Now().Before(deadline) {
+		runtime.Gosched()
+	}
+	if len(session.controlCh) != 1 {
+		t.Fatal("refund batch was not queued")
+	}
+
+	if err := session.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-publishDone:
+		if !errors.Is(err, ErrSessionShutdown) {
+			t.Fatalf("publish error=%v want ErrSessionShutdown", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("publisher did not join session close")
+	}
+	for _, stream := range streams {
+		if stream.allocationRefundPublishing != 0 || stream.allocationRecvWindow != 0 {
+			t.Fatalf("stream %d retained publishing/window=%d/%d", stream.id, stream.allocationRefundPublishing, stream.allocationRecvWindow)
+		}
+	}
+	if a.publishingRefundsCount != 0 || a.publishingGlobal != 0 || a.recvWindow != 0 || !a.poolClosed {
+		t.Fatalf("closed pool publishing_count=%d global=%d window=%d closed=%t", a.publishingRefundsCount, a.publishingGlobal, a.recvWindow, a.poolClosed)
+	}
+}
+
 func TestAggregateRefundSelectionPairsStreamAndGlobalInOneWrite(t *testing.T) {
 	session, conn := newAggregateRefundPublishTestSession(t)
 	stream := newStream(session, 7, streamEstablished)
@@ -1088,16 +1421,16 @@ func TestAggregateRefundSelectionPairsStreamAndGlobalInOneWrite(t *testing.T) {
 	stream.allocationRefundQueued = true
 
 	paired := session.takeAggregateRefundWork()
-	if paired.stream != stream || paired.streamDelta != delta || paired.global != delta {
+	if paired.count != 1 || paired.parts[0].stream != stream || paired.parts[0].delta != delta || paired.global != 2*delta {
 		t.Fatalf("paired work = %+v", paired)
 	}
-	if session.aggregate.pendingGlobal != delta || session.aggregate.publishingGlobal != delta ||
+	if session.aggregate.pendingGlobal != 0 || session.aggregate.publishingGlobal != 2*delta ||
 		stream.allocationRefundPending != 0 || stream.allocationRefundPublishing != delta || stream.allocationRefundQueued {
 		t.Fatalf("paired counters pending_global=%d publishing_global=%d stream_pending=%d stream_publishing=%d queued=%v",
 			session.aggregate.pendingGlobal, session.aggregate.publishingGlobal,
 			stream.allocationRefundPending, stream.allocationRefundPublishing, stream.allocationRefundQueued)
 	}
-	if err := session.publishStreamAllocationRefund(paired); err != nil {
+	if err := session.publishAggregateRefund(paired); err != nil {
 		t.Fatal(err)
 	}
 	<-conn.wrote
@@ -1116,19 +1449,18 @@ func TestAggregateRefundSelectionPairsStreamAndGlobalInOneWrite(t *testing.T) {
 	if first.MsgType() != typeAllocationWindowUpdate || first.StreamID() != stream.id || first.Length() != uint32(delta) {
 		t.Fatalf("first paired header type=%d stream=%d length=%d", first.MsgType(), first.StreamID(), first.Length())
 	}
-	if second.MsgType() != typeWindowUpdate || second.StreamID() != 0 || second.Length() != uint32(delta) {
+	if second.MsgType() != typeWindowUpdate || second.StreamID() != 0 || second.Length() != uint32(2*delta) {
 		t.Fatalf("second paired header type=%d stream=%d length=%d", second.MsgType(), second.StreamID(), second.Length())
 	}
 	if stream.allocationRefundPublishing != 0 || stream.allocationRecvWindow != uint32(delta) ||
-		session.aggregate.publishingGlobal != 0 || session.aggregate.recvWindow != uint32(delta) {
+		session.aggregate.publishingGlobal != 0 || session.aggregate.recvWindow != uint32(2*delta) {
 		t.Fatalf("committed stream publishing/window=%d/%d global publishing/window=%d/%d",
 			stream.allocationRefundPublishing, stream.allocationRecvWindow,
 			session.aggregate.publishingGlobal, session.aggregate.recvWindow)
 	}
 
-	globalOnly := session.takeAggregateRefundWork()
-	if globalOnly.stream != nil || globalOnly.global != delta {
-		t.Fatalf("residual global work = %+v", globalOnly)
+	if residual := session.takeAggregateRefundWork(); residual.count != 0 || residual.global != 0 {
+		t.Fatalf("residual work = %+v", residual)
 	}
 }
 
@@ -1143,7 +1475,7 @@ func TestAggregateTerminalSelectedRefundPublishesOnlyGlobalCredit(t *testing.T) 
 	stream.allocationRefundQueued = true
 	work := session.takeAggregateRefundWork()
 	stream.state = streamClosed
-	if err := session.publishStreamAllocationRefund(work); err != nil {
+	if err := session.publishAggregateRefund(work); err != nil {
 		t.Fatal(err)
 	}
 	<-conn.wrote
@@ -1175,7 +1507,7 @@ func TestAggregateRefundSelectionDoesNotConsumeConcurrentStreamMatch(t *testing.
 	const delta = uint64(AggregateWindowUnitSize)
 	session.aggregate.pendingGlobal = delta
 	first := session.takeAggregateRefundWork()
-	if first.stream != nil || first.global != delta {
+	if first.count != 0 || first.global != delta {
 		t.Fatalf("initial global work = %+v", first)
 	}
 
@@ -1192,8 +1524,37 @@ func TestAggregateRefundSelectionDoesNotConsumeConcurrentStreamMatch(t *testing.
 	stream.allocationRefundQueued = true
 	session.aggregate.mu.Unlock()
 	second := session.takeAggregateRefundWork()
-	if second.stream != stream || second.streamDelta != delta || second.global != delta {
+	if second.count != 1 || second.parts[0].stream != stream || second.parts[0].delta != delta || second.global != delta {
 		t.Fatalf("concurrent paired work = %+v", second)
+	}
+}
+
+func TestAggregateRefundBatchRequeuesSelectedStreamForNextBatch(t *testing.T) {
+	session, _ := newAggregateRefundPublishTestSession(t)
+	stream := newStream(session, 15, streamEstablished)
+	const delta = uint64(AggregateWindowUnitSize)
+	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{delta}, 0)
+	first := session.takeAggregateRefundWork()
+	if first.count != 1 || first.parts[0].stream != stream {
+		t.Fatalf("first work=%+v", first)
+	}
+
+	// A read can return more credit after selection removed this stream from
+	// the queue. It is queued for the next batch while the first delta remains
+	// separately owned by allocationRefundPublishing.
+	queueAggregateRefundTestStreams(session, []*Stream{stream}, []uint64{delta}, 0)
+	if err := session.publishAggregateRefund(first); err != nil {
+		t.Fatal(err)
+	}
+	second := session.takeAggregateRefundWork()
+	if second.count != 1 || second.parts[0].stream != stream || second.parts[0].delta != delta || second.global != delta {
+		t.Fatalf("second work=%+v", second)
+	}
+	if err := session.publishAggregateRefund(second); err != nil {
+		t.Fatal(err)
+	}
+	if stream.allocationRefundPending != 0 || stream.allocationRefundPublishing != 0 || stream.allocationRecvWindow != uint32(2*delta) {
+		t.Fatalf("stream pending/publishing/window=%d/%d/%d", stream.allocationRefundPending, stream.allocationRefundPublishing, stream.allocationRecvWindow)
 	}
 }
 
@@ -1235,7 +1596,7 @@ func TestAggregatePairedRefundAmbiguousWriteCommitsBothHalves(t *testing.T) {
 	stream.allocationRefundPending = delta
 	stream.allocationRefundQueued = true
 	work := session.takeAggregateRefundWork()
-	if err := session.publishStreamAllocationRefund(work); !errors.Is(err, writeErr) {
+	if err := session.publishAggregateRefund(work); !errors.Is(err, writeErr) {
 		t.Fatalf("paired refund write error = %v", err)
 	}
 	if err := <-loopDone; !errors.Is(err, writeErr) {
