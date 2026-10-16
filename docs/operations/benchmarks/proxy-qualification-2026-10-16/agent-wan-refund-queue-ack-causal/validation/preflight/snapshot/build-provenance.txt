@@ -1,0 +1,45 @@
+Refund queue/ACK causal build provenance
+created_utc=2026-10-16T08:17:29.064705+00:00
+kind=p2pstream-refund-queue-ack-causal-bundle-v1
+base_source_ref=5eeccaaa797254d7bde4db9854a337a02c3bc28e
+base_archive_sha256=9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76
+common_scaffold_path=common-scaffold.patch
+common_scaffold_sha256=dd1b8a0ef22a7e29fc112bdd201bb758031eaafbaff8e912f90b0e8e50fef53c
+separate_items_overlay_path=separate-items-toggle.patch
+separate_items_overlay_sha256=b50b28cbafdb4b7609a547f781154446c484efe381b623dfac4524d5e01a4431
+readme_sha256=6acb3e2114bb3cdf469bfee4dfe5b12055eb238a550853af2ce0db0a818c0f6c
+source_hashes_sha256=357dcfc0fbbfcb0f09a09d632a5bdac33f26c98c613fbd024b45c8229eb17bc1
+build_env_sha256=3b3729ecd244fd67769d85fd8acbd11860d9fe7af48e94e6e777cfa94c600996
+refund_batched_item_control_source_identity=5eeccaaa797254d7bde4db9854a337a02c3bc28e+refund-batched-item-control@sha256:dd1b8a0ef22a7e29fc112bdd201bb758031eaafbaff8e912f90b0e8e50fef53c
+refund_separate_items_ack_source_identity=5eeccaaa797254d7bde4db9854a337a02c3bc28e+refund-separate-items-ack@sha256:dd1b8a0ef22a7e29fc112bdd201bb758031eaafbaff8e912f90b0e8e50fef53c+sha256:b50b28cbafdb4b7609a547f781154446c484efe381b623dfac4524d5e01a4431
+
+Successful validation commands (run from each arm's third_party/yamux module):
+go test . -run '^(TestDiagnosticAggregateRefundQueue|TestAggregateRefundBatch|TestAggregateRefundSelection|TestAggregateTerminalSelectedRefund|TestSendLoop|TestAggregateGatheredDataWriteError)' -count=10
+go test -race . -run '^(TestDiagnosticAggregateRefundQueue|TestAggregateRefundBatch|TestAggregateRefundSelection|TestAggregateTerminalSelectedRefund|TestSendLoop|TestAggregateGatheredDataWriteError)' -count=5
+go test . -count=1
+
+Ordinary tag-off endpoint build commands (run from each arm source root):
+go test -c -o bundle/refund-batched-item-control.agent.test ./internal/agent
+go test -c -o bundle/refund-batched-item-control.server.test ./internal/server
+go test -c -o bundle/refund-separate-items-ack.agent.test ./internal/agent
+go test -c -o bundle/refund-separate-items-ack.server.test ./internal/server
+cp bundle/refund-batched-item-control.server.test bundle/driver-origin.test
+
+All successful Go commands used TMPDIR, TEMP, TMP, GOTMPDIR, and GOCACHE beneath the owned ext4 diagnostic tree. No build tags were set.
+
+Binary identities:
+refund-batched-item-control.agent_path=refund-batched-item-control.agent.test
+refund-batched-item-control.agent_sha256=fc35f33359e69277a8cc25808faea3270789c92d86f872037dac63c20afe2ae1
+refund-batched-item-control.agent_build_id=jiybri0HdF3g98KPVbcc/XpGYT8ozHde8GLmN_CF5/1wba_Ennmxzj-XDiqE2Z/5fCtceRpjCxZyvtoSu1_
+refund-batched-item-control.server_path=refund-batched-item-control.server.test
+refund-batched-item-control.server_sha256=dbbe77ffa01be06ea9e60827f29485d0d4f654d5e3d3c37af426a492b572c6a9
+refund-batched-item-control.server_build_id=H4CVnTldrhq275mvh0Wj/usNuflVOZ8h90dXeODsU/zC6uzZlPTR2tckEt5VtV/Aout3DTmJbXQYHsR5pHT
+refund-separate-items-ack.agent_path=refund-separate-items-ack.agent.test
+refund-separate-items-ack.agent_sha256=353066727ad1823eb44e65d86a62087514cd2d224fcbf69b484ba9f66313f48d
+refund-separate-items-ack.agent_build_id=pQAcB16H6domDf5lLVfw/IN4F9yC3370IEVORpC6l/-JCI6KE3JIE7az5yqPEU/-HBdIA-cCaf--IPB8_15
+refund-separate-items-ack.server_path=refund-separate-items-ack.server.test
+refund-separate-items-ack.server_sha256=c7b2eb8889d41251711c0d46dc30d05e6e3f471ce2a992e8a6347102d52a3f3c
+refund-separate-items-ack.server_build_id=AQAflZHSGtt1A_7fSFt1/HPF6_zP49boL2P40Y1Tw/WlpdIOeRdKSqJvVF5WRw/SrM99lVc2ocNHLE0XR6A
+driver-origin_path=driver-origin.test
+driver-origin_sha256=dbbe77ffa01be06ea9e60827f29485d0d4f654d5e3d3c37af426a492b572c6a9
+driver-origin_build_id=H4CVnTldrhq275mvh0Wj/usNuflVOZ8h90dXeODsU/zC6uzZlPTR2tckEt5VtV/Aout3DTmJbXQYHsR5pHT

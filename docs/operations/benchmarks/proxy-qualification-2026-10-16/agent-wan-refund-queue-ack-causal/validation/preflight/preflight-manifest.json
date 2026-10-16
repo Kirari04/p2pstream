@@ -1,0 +1,33 @@
+{
+  "acceptance_result": null,
+  "binary_build_id": {
+    "batched_agent": "jiybri0HdF3g98KPVbcc/XpGYT8ozHde8GLmN_CF5/1wba_Ennmxzj-XDiqE2Z/5fCtceRpjCxZyvtoSu1_",
+    "batched_server": "H4CVnTldrhq275mvh0Wj/usNuflVOZ8h90dXeODsU/zC6uzZlPTR2tckEt5VtV/Aout3DTmJbXQYHsR5pHT",
+    "driver_and_origin": "H4CVnTldrhq275mvh0Wj/usNuflVOZ8h90dXeODsU/zC6uzZlPTR2tckEt5VtV/Aout3DTmJbXQYHsR5pHT",
+    "separate_agent": "pQAcB16H6domDf5lLVfw/IN4F9yC3370IEVORpC6l/-JCI6KE3JIE7az5yqPEU/-HBdIA-cCaf--IPB8_15",
+    "separate_server": "AQAflZHSGtt1A_7fSFt1/HPF6_zP49boL2P40Y1Tw/WlpdIOeRdKSqJvVF5WRw/SrM99lVc2ocNHLE0XR6A"
+  },
+  "binary_sha256": {
+    "batched_agent": "fc35f33359e69277a8cc25808faea3270789c92d86f872037dac63c20afe2ae1",
+    "batched_server": "dbbe77ffa01be06ea9e60827f29485d0d4f654d5e3d3c37af426a492b572c6a9",
+    "driver_and_origin": "dbbe77ffa01be06ea9e60827f29485d0d4f654d5e3d3c37af426a492b572c6a9",
+    "separate_agent": "353066727ad1823eb44e65d86a62087514cd2d224fcbf69b484ba9f66313f48d",
+    "separate_server": "c7b2eb8889d41251711c0d46dc30d05e6e3f471ce2a992e8a6347102d52a3f3c"
+  },
+  "build_manifest_sha256": "48d157ded31ec26e812fffd2b233d0d1ad132053bb7e8e12d12a872a88488dbe",
+  "build_provenance_sha256": "f3811a802d27e4e34b62d403ad96f336517bb4d7f46107b672092d27858cad7d",
+  "common_scaffold_sha256": "dd1b8a0ef22a7e29fc112bdd201bb758031eaafbaff8e912f90b0e8e50fef53c",
+  "overlay_readme_sha256": "6acb3e2114bb3cdf469bfee4dfe5b12055eb238a550853af2ce0db0a818c0f6c",
+  "runner_sha256": "235e6b807edc44d23524f506d5589d528c13017a148aa1639868070d34914387",
+  "schema_version": 1,
+  "scope": "fixture_preflight_only",
+  "separate_items_overlay_sha256": "b50b28cbafdb4b7609a547f781154446c484efe381b623dfac4524d5e01a4431",
+  "source_hashes_sha256": "357dcfc0fbbfcb0f09a09d632a5bdac33f26c98c613fbd024b45c8229eb17bc1",
+  "source_refs": {
+    "application_and_harness": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "batched_item_control_base": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "separate_items_ack_base": "5eeccaaa797254d7bde4db9854a337a02c3bc28e"
+  },
+  "workload_started": false,
+  "wrapper_sha256": "0fa78c926d57655c54ea1debaee41e12c106f037adb8fd64375b6b596c67dd88"
+}
