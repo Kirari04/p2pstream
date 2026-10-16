@@ -70,7 +70,15 @@ topologies_output=${output%.jsonl}.topologies.jsonl
 : > "$topologies_output"
 
 declare -A owned_groups=()
-declare -A seen_namespace_identities=()
+declare -A seen_helper_process_instances=()
+topology_generation=0
+last_joined_generation=0
+boot_id=$(tr -d '\n' < /proc/sys/kernel/random/boot_id)
+runner_namespace_identity=$(readlink /proc/self/ns/net)
+[[ $boot_id =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ && $runner_namespace_identity =~ ^net:\[[0-9]+\]$ ]] || {
+  echo "kernel boot/network namespace identity is unavailable" >&2
+  exit 2
+}
 cleanup() {
   local pid attempt live
   for pid in "${!owned_groups[@]}"; do kill -TERM -- "-$pid" 2>/dev/null || true; done
@@ -96,8 +104,83 @@ server_ns() { nsenter -t "$server_namespace_pid" -n "$@"; }
 router_ns() { nsenter -t "$router_namespace_pid" -n "$@"; }
 agent_ns() { nsenter -t "$agent_namespace_pid" -n "$@"; }
 
+process_start_state() {
+  python3 - "$1" <<'PY'
+import sys
+from pathlib import Path
+try:
+    text=Path(f"/proc/{int(sys.argv[1])}/stat").read_text()
+except FileNotFoundError:
+    raise SystemExit(3)
+right=text.rfind(")")
+if right < 0:
+    raise SystemExit("malformed /proc PID stat")
+fields=text[right+2:].split()
+if len(fields) < 20:
+    raise SystemExit("short /proc PID stat")
+print(int(fields[19]),fields[0])
+PY
+}
+
+process_start_ticks() {
+  local line start state status
+  if line=$(process_start_state "$1"); then
+    read -r start state <<<"$line" || return 1
+  else
+    status=$?
+    return "$status"
+  fi
+  printf '%s\n' "$start"
+}
+
+capture_namespace_instances() {
+  python3 - "$boot_id" "$runner_namespace_identity" "$topology_generation" \
+    server "$server_namespace_pid" router "$router_namespace_pid" agent "$agent_namespace_pid" <<'PY'
+import json,os,re,sys
+boot_id,runner_identity,generation,*items=sys.argv[1:]
+generation=int(generation)
+if len(items)!=6 or generation<1:
+    raise SystemExit("invalid namespace instance inputs")
+def capture(role,pid_text):
+    pid=int(pid_text)
+    def sample():
+        text=open(f"/proc/{pid}/stat").read()
+        right=text.rfind(")")
+        if right<0: raise SystemExit(f"malformed stat for {role}")
+        fields=text[right+2:].split()
+        if len(fields)<20: raise SystemExit(f"short stat for {role}")
+        start_ticks=int(fields[19])
+        identity=os.readlink(f"/proc/{pid}/ns/net")
+        match=re.fullmatch(r"net:\[([0-9]+)\]",identity)
+        if not match: raise SystemExit(f"invalid netns identity for {role}")
+        return start_ticks,identity,int(match.group(1))
+    first=sample(); second=sample()
+    if first!=second: raise SystemExit(f"changing process/netns identity for {role}")
+    start_ticks,identity,inode=first
+    if pid<=1 or start_ticks<=0 or identity==runner_identity:
+        raise SystemExit(f"invalid helper identity for {role}")
+    return identity,{"boot_id":boot_id,"helper_pid":pid,"helper_start_ticks":start_ticks,
+                     "netns_inode":inode,"arm_generation":generation}
+rows={}; identities={}
+for index in range(0,len(items),2):
+    role=items[index]
+    identity,row=capture(role,items[index+1])
+    identities[role]=identity; rows[role]=row
+if set(rows)!={"server","router","agent"} or len({row["netns_inode"] for row in rows.values()})!=3:
+    raise SystemExit("within-arm network namespaces are aliased")
+if len({(row["boot_id"],row["helper_pid"],row["helper_start_ticks"]) for row in rows.values()})!=3:
+    raise SystemExit("within-arm helper process instances are aliased")
+print(json.dumps({"identities":identities,"instances":rows},sort_keys=True,separators=(",",":")))
+PY
+}
+
 start_topology() {
-  local pid attempt iface
+  local pid attempt iface key
+  ((last_joined_generation == topology_generation && ${#owned_groups[@]} == 0)) || {
+    echo "prior topology helpers were not fully joined" >&2
+    return 1
+  }
+  ((topology_generation+=1))
   setsid unshare --net sleep "$overall_timeout_seconds" &
   server_namespace_pid=$!
   owned_groups[$server_namespace_pid]=1
@@ -109,21 +192,24 @@ start_topology() {
   owned_groups[$agent_namespace_pid]=1
   for pid in "$server_namespace_pid" "$router_namespace_pid" "$agent_namespace_pid"; do
     for ((attempt=0; attempt<100; attempt++)); do
-      [[ -e /proc/$pid/ns/net && $(readlink "/proc/$pid/ns/net") != "$(readlink /proc/self/ns/net)" ]] && break
+      [[ -e /proc/$pid/ns/net && $(readlink "/proc/$pid/ns/net") != "$runner_namespace_identity" ]] && break
       sleep .01
     done
-    [[ -e /proc/$pid/ns/net && $(readlink "/proc/$pid/ns/net") != "$(readlink /proc/self/ns/net)" ]]
+    [[ -e /proc/$pid/ns/net && $(readlink "/proc/$pid/ns/net") != "$runner_namespace_identity" ]]
   done
-  server_namespace_identity=$(readlink "/proc/$server_namespace_pid/ns/net")
-  router_namespace_identity=$(readlink "/proc/$router_namespace_pid/ns/net")
-  agent_namespace_identity=$(readlink "/proc/$agent_namespace_pid/ns/net")
-  for identity in "$server_namespace_identity" "$router_namespace_identity" "$agent_namespace_identity"; do
-    [[ $identity =~ ^net:\[[0-9]+\]$ && -z ${seen_namespace_identities[$identity]+x} ]] || {
-      echo "network namespace identity $identity is invalid or reused" >&2
+  namespace_capture_before=$(capture_namespace_instances)
+  namespace_instances_json=$(jq -c .instances <<<"$namespace_capture_before")
+  server_namespace_identity=$(jq -r .identities.server <<<"$namespace_capture_before")
+  router_namespace_identity=$(jq -r .identities.router <<<"$namespace_capture_before")
+  agent_namespace_identity=$(jq -r .identities.agent <<<"$namespace_capture_before")
+  while IFS=$'\t' read -r role instance_boot instance_pid instance_start instance_inode instance_generation; do
+    key="$instance_boot:$instance_pid:$instance_start"
+    [[ $instance_generation == "$topology_generation" && -z ${seen_helper_process_instances[$key]+x} ]] || {
+      echo "network namespace helper process instance $key is invalid or reused" >&2
       return 1
     }
-    seen_namespace_identities[$identity]=1
-  done
+    seen_helper_process_instances[$key]=1
+  done < <(jq -r '.instances|to_entries[]|[.key,.value.boot_id,.value.helper_pid,.value.helper_start_ticks,.value.netns_inode,.value.arm_generation]|@tsv' <<<"$namespace_capture_before")
 
   server_ns ip link set lo up
   agent_ns ip link set lo up
@@ -157,11 +243,18 @@ minimum,maximum=((5,25) if configured==10 else (60,120))
 if not minimum <= measured <= maximum:
     raise SystemExit(f"measured RTT {measured}ms is outside the configured {configured}ms diagnostic envelope")
 PY
+  namespace_capture_after=$(capture_namespace_instances)
+  [[ $namespace_capture_before == "$namespace_capture_after" ]] || {
+    echo "network namespace helper identity changed during topology setup" >&2
+    return 1
+  }
 }
 
 capture_topology() {
-  local pair=$1 order_position=$2 variant=$3 destination=$4
+  local pair=$1 order_position=$2 variant=$3 destination=$4 capture_before capture_after
   local server_addresses server_routes router_addresses router_routes router_qdisc agent_addresses agent_routes
+  capture_before=$(capture_namespace_instances)
+  [[ $capture_before == "$namespace_capture_before" ]] || { echo "network namespace helper identity changed before topology capture" >&2; return 1; }
   server_addresses=$(server_ns ip -j address show)
   server_routes=$(server_ns ip -j route show)
   router_addresses=$(router_ns ip -j address show)
@@ -169,11 +262,16 @@ capture_topology() {
   router_qdisc=$(router_ns tc -j qdisc show)
   agent_addresses=$(agent_ns ip -j address show)
   agent_routes=$(agent_ns ip -j route show)
+  capture_after=$(capture_namespace_instances)
+  [[ $capture_before == "$capture_after" ]] || { echo "network namespace helper identity changed during topology capture" >&2; return 1; }
   jq -n \
     --argjson pair "$pair" --argjson order_position "$order_position" --arg variant "$variant" \
     --arg server_namespace_identity "$server_namespace_identity" \
     --arg router_namespace_identity "$router_namespace_identity" \
     --arg agent_namespace_identity "$agent_namespace_identity" \
+    --arg runner_namespace_identity "$runner_namespace_identity" \
+    --argjson namespace_instances "$namespace_instances_json" \
+    --argjson prior_joined_generation "$last_joined_generation" \
     --arg server_cpu_set "$server_cpu_set" --arg agent_cpu_set "$agent_cpu_set" --arg load_cpu_set "$load_cpu_set" \
     --argjson measured_rtt_ms "$measured_rtt_ms" \
     --argjson configured_rtt_ms "$configured_rtt_ms" --argjson one_way_netem_ms "$one_way_netem_ms" \
@@ -181,33 +279,77 @@ capture_topology() {
     --argjson router_addresses "$router_addresses" --argjson router_routes "$router_routes" --argjson router_qdisc "$router_qdisc" \
     --argjson agent_addresses "$agent_addresses" --argjson agent_routes "$agent_routes" \
     '{schema_version:1,pair:$pair,order_position:$order_position,variant:$variant,
-      namespace_identities:{server:$server_namespace_identity,router:$router_namespace_identity,agent:$agent_namespace_identity},
+      namespace_identities:{server:$server_namespace_identity,router:$router_namespace_identity,agent:$agent_namespace_identity},runner_namespace_identity:$runner_namespace_identity,
+      namespace_instances:$namespace_instances,prior_joined_generation:$prior_joined_generation,namespace_helpers_joined:false,
       configured:{rtt_ms:$configured_rtt_ms,one_way_netem_ms:$one_way_netem_ms,rate_bits_per_second:1000000000,server_tunnel:"10.211.0.1:17443",server_admin:"127.0.0.1:18080",agent_admin:"127.0.0.1:18080"},
       cpu_sets:{server:$server_cpu_set,agent:$agent_cpu_set,load:$load_cpu_set},measured_rtt_ms:$measured_rtt_ms,
       network_state:{server:{addresses:$server_addresses,routes:$server_routes},router:{addresses:$router_addresses,routes:$router_routes,qdisc:$router_qdisc},agent:{addresses:$agent_addresses,routes:$agent_routes}}}' > "$destination"
-  jq -c . "$destination" >> "$topologies_output"
 }
 
 stop_namespace_helper() {
-  local pid=$1 attempt
-  [[ -n $pid ]] || return 0
-  kill -TERM -- "-$pid" 2>/dev/null || true
+  local pid=$1 expected_start=$2 expected_inode=$3 expected_boot=$4 attempt current_start current_state current_identity state_line state_status forced=0
+  [[ -n $pid && $expected_start =~ ^[0-9]+$ && $expected_inode =~ ^[0-9]+$ && $expected_boot == "$boot_id" ]] || return 1
+  current_start=$(process_start_ticks "$pid") || return 1
+  current_identity=$(readlink "/proc/$pid/ns/net") || return 1
+  [[ $current_start == "$expected_start" && $current_identity == "net:[$expected_inode]" && $(tr -d '\n' < /proc/sys/kernel/random/boot_id) == "$expected_boot" ]] || return 1
+  kill -TERM -- "-$pid" 2>/dev/null || return 1
   for ((attempt=0; attempt<50; attempt++)); do
-    kill -0 -- "-$pid" 2>/dev/null || break
+    if state_line=$(process_start_state "$pid"); then
+      read -r current_start current_state <<<"$state_line" || return 1
+    else
+      state_status=$?
+      ((state_status == 3)) && break
+      return 1
+    fi
+    [[ $current_start == "$expected_start" ]] || return 1
+    [[ $current_state == Z ]] && break
     sleep .02
   done
-  kill -KILL -- "-$pid" 2>/dev/null || true
+  if state_line=$(process_start_state "$pid"); then
+    read -r current_start current_state <<<"$state_line" || return 1
+  else
+    state_status=$?
+    ((state_status == 3)) || return 1
+    current_start=""
+    current_state=""
+  fi
+  if [[ -n $current_start && $current_start == "$expected_start" && $current_state != Z ]]; then
+    forced=1
+    current_identity=$(readlink "/proc/$pid/ns/net") || return 1
+    [[ $current_identity == "net:[$expected_inode]" ]] || return 1
+    kill -KILL -- "-$pid" 2>/dev/null || true
+  fi
   wait "$pid" 2>/dev/null || true
+  kill -0 -- "-$pid" 2>/dev/null && return 1
   unset "owned_groups[$pid]"
+  if current_start=$(process_start_ticks "$pid"); then
+    [[ $current_start != "$expected_start" ]] || return 1
+  else
+    state_status=$?
+    ((state_status == 3)) || return 1
+  fi
+  ((forced == 0))
 }
 
 stop_topology() {
-  stop_namespace_helper "$agent_namespace_pid"
-  stop_namespace_helper "$router_namespace_pid"
-  stop_namespace_helper "$server_namespace_pid"
-  agent_namespace_pid=""
-  router_namespace_pid=""
-  server_namespace_pid=""
+  local destination=$1 status=0 tmp
+  local server_start router_start agent_start server_inode router_inode agent_inode
+  server_start=$(jq -r .server.helper_start_ticks <<<"$namespace_instances_json")
+  router_start=$(jq -r .router.helper_start_ticks <<<"$namespace_instances_json")
+  agent_start=$(jq -r .agent.helper_start_ticks <<<"$namespace_instances_json")
+  server_inode=$(jq -r .server.netns_inode <<<"$namespace_instances_json")
+  router_inode=$(jq -r .router.netns_inode <<<"$namespace_instances_json")
+  agent_inode=$(jq -r .agent.netns_inode <<<"$namespace_instances_json")
+  stop_namespace_helper "$agent_namespace_pid" "$agent_start" "$agent_inode" "$boot_id" || status=1
+  stop_namespace_helper "$router_namespace_pid" "$router_start" "$router_inode" "$boot_id" || status=1
+  stop_namespace_helper "$server_namespace_pid" "$server_start" "$server_inode" "$boot_id" || status=1
+  agent_namespace_pid=""; router_namespace_pid=""; server_namespace_pid=""
+  ((status == 0 && ${#owned_groups[@]} == 0)) || return 1
+  last_joined_generation=$topology_generation
+  tmp=$destination.tmp
+  jq --argjson generation "$last_joined_generation" '.namespace_helpers_joined=true|.joined_generation=$generation' "$destination" > "$tmp"
+  mv "$tmp" "$destination"
+  jq -c . "$destination" >> "$topologies_output"
 }
 
 mapfile -t cpus < <(python3 - <<'PY'
@@ -640,7 +782,7 @@ run_cohort() {
   wait_json_file "$server_terminal" "$variant server"
   wait_json_file "$agent_terminal" "$variant agent"
   validate_and_append_cohort "$pair" "$order_position" "$variant" "$initial_server" "$initial_agent" "$live_server" "$live_agent" "$server_terminal" "$agent_terminal" "$phases_dir"
-  stop_topology
+  stop_topology "$prefix-topology.json"
 }
 
 for ((pair=1; pair<=pair_count; pair++)); do
@@ -721,16 +863,60 @@ expected_topology_sequence=[(pair,position,variant) for pair in pairs for positi
 actual_topology_sequence=[(t.get("pair"),t.get("order_position"),t.get("variant")) if isinstance(t,dict) else None for t in topologies]
 if actual_topology_sequence!=expected_topology_sequence: non_timing.append(f"{expected_topologies}-topology chronological pair/arm sequence mismatch")
 namespace_ids=[]
+helper_process_instances=[]
+boot_ids_seen=[]
 cpu_sets_seen=[]
 topology_rtts={}
-for topology in topologies:
-    if not isinstance(topology,dict) or topology.get("schema_version")!=1 or not isinstance(topology.get("namespace_identities"),dict):
+boot_id_pattern=re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z")
+instance_keys={"boot_id","helper_pid","helper_start_ticks","netns_inode","arm_generation"}
+for generation,topology in enumerate(topologies,1):
+    if (not isinstance(topology,dict) or isinstance(topology.get("schema_version"),bool) or topology.get("schema_version")!=1 or
+        isinstance(topology.get("pair"),bool) or not isinstance(topology.get("pair"),int) or
+        isinstance(topology.get("order_position"),bool) or not isinstance(topology.get("order_position"),int) or
+        not isinstance(topology.get("variant"),str) or not isinstance(topology.get("namespace_identities"),dict)):
         non_timing.append("malformed topology record")
         continue
     identities=topology["namespace_identities"]
-    if set(identities)!={"server","router","agent"} or not all(isinstance(v,str) and re.fullmatch(r"net:\[[0-9]+\]",v) for v in identities.values()):
+    instances=topology.get("namespace_instances")
+    runner_identity=topology.get("runner_namespace_identity")
+    if (set(identities)!={"server","router","agent"} or
+        not all(isinstance(v,str) and re.fullmatch(r"net:\[[0-9]+\]",v) for v in identities.values()) or
+        not isinstance(runner_identity,str) or not re.fullmatch(r"net:\[[0-9]+\]",runner_identity) or
+        runner_identity in identities.values()):
         non_timing.append("invalid topology namespace identities")
-    namespace_ids.extend(identities.values())
+        continue
+    if not isinstance(instances,dict) or set(instances)!={"server","router","agent"}:
+        non_timing.append("invalid topology namespace helper instances")
+        continue
+    arm_inodes=[]; arm_processes=[]
+    for role in ("server","router","agent"):
+        instance=instances.get(role)
+        if not isinstance(instance,dict) or set(instance)!=instance_keys:
+            non_timing.append(f"invalid {role} namespace helper instance schema")
+            continue
+        instance_boot=instance.get("boot_id")
+        instance_pid=instance.get("helper_pid")
+        instance_start=instance.get("helper_start_ticks")
+        instance_inode=instance.get("netns_inode")
+        instance_generation=instance.get("arm_generation")
+        if (not isinstance(instance_boot,str) or not boot_id_pattern.fullmatch(instance_boot) or
+            isinstance(instance_pid,bool) or not isinstance(instance_pid,int) or instance_pid<=1 or
+            any(isinstance(item,bool) or not isinstance(item,int) or item<=0 for item in (instance_start,instance_inode,instance_generation))):
+            non_timing.append(f"invalid {role} namespace helper instance values")
+            continue
+        if instance_generation!=generation or identities[role]!=f"net:[{instance_inode}]":
+            non_timing.append(f"{role} namespace helper binding/generation mismatch")
+        arm_inodes.append(instance_inode)
+        arm_processes.append((instance_boot,instance_pid,instance_start))
+        namespace_ids.append(identities[role])
+        helper_process_instances.append((instance_boot,instance_pid,instance_start))
+        boot_ids_seen.append(instance_boot)
+    if len(arm_inodes)!=3 or len(set(arm_inodes))!=3 or len(arm_processes)!=3 or len(set(arm_processes))!=3:
+        non_timing.append("within-arm namespace/helper instances are aliased")
+    prior=topology.get("prior_joined_generation")
+    joined=topology.get("joined_generation")
+    if isinstance(prior,bool) or not isinstance(prior,int) or prior!=generation-1 or topology.get("namespace_helpers_joined") is not True or isinstance(joined,bool) or not isinstance(joined,int) or joined!=generation:
+        non_timing.append("topology helper teardown chronology is invalid")
     configured=topology.get("configured")
     if not isinstance(configured,dict) or configured!={"rtt_ms":configured_rtt,"one_way_netem_ms":one_way_netem,"rate_bits_per_second":1000000000,"server_tunnel":"10.211.0.1:17443","server_admin":"127.0.0.1:18080","agent_admin":"127.0.0.1:18080"}:
         non_timing.append("topology configuration differs from the predeclared fixture")
@@ -746,7 +932,8 @@ for topology in topologies:
         non_timing.append("topology measured RTT is outside the diagnostic envelope")
     else:
         topology_rtts[(topology.get("pair"),topology.get("variant"))]=topology_rtt
-if len(namespace_ids)!=expected_namespaces or len(set(namespace_ids))!=expected_namespaces: non_timing.append(f"fresh server/router/agent network namespace identities were not unique for all {expected_topologies} arms")
+if len(helper_process_instances)!=expected_namespaces or len(set(helper_process_instances))!=expected_namespaces: non_timing.append(f"fresh server/router/agent helper process instances were not unique for all {expected_topologies} arms")
+if len(boot_ids_seen)!=expected_namespaces or len(set(boot_ids_seen))!=1: non_timing.append("topology helper instances do not share one captured kernel boot identity")
 if len(cpu_sets_seen)!=expected_topologies or any(value!=cpu_sets_seen[0] for value in cpu_sets_seen[1:]): non_timing.append("endpoint/load CPU sets changed between arms")
 by_pair={}
 rtt_by_pair_arm={}
@@ -817,7 +1004,7 @@ smoke_passed=fixture_smoke and not non_timing
 classification=("fixture_smoke_pass" if smoke_passed else "inconclusive_non_timing_failure") if fixture_smoke else ("transport_ceiling_contrast_reproduced" if diagnostic_reproduced else ("complete_timing_rejection" if not non_timing else "inconclusive_non_timing_failure"))
 summary={"scope":"fixture_smoke_only" if fixture_smoke else "diagnostic_only","classification":classification,
          "diagnostic_reproduced":diagnostic_reproduced,"fixture_smoke_passed":smoke_passed,"row_count":len(rows),"snapshot_count":len(snapshots),
-         "topology_count":len(topologies),"fresh_namespace_identity_count":len(set(namespace_ids)),
+         "topology_count":len(topologies),"fresh_namespace_instance_count":len(set(helper_process_instances)),"unique_netns_inode_count":len(set(namespace_ids)),
          "fixed_workload":{"pairs":pair_count,"order":["yamux-then-raw"] if fixture_smoke else ["yamux-then-raw","raw-then-yamux"],"transfers_per_variant":16,"total_transfers":expected_rows,"payload_bytes":268435456,"expected_payload_sha256":expected_payload_sha,"configured_rtt_ms":configured_rtt,"configured_one_way_netem_ms":one_way_netem,"measured_rtt_envelope_ms":{"minimum":minimum_rtt,"maximum":maximum_rtt},"measured_rtt_ms_by_pair_arm":rtt_by_pair_arm,
                            "total_phase_wall_used_for_both_arms":True,"tcp_info_collection":"post-transfer-only",
                            "tcp_info_unavailable_fields":["app_limited"],
