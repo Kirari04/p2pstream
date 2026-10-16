@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -149,6 +150,7 @@ type externalQualificationAgentRuntime struct {
 type externalQualificationAgentTunnelSession struct {
 	Lane                  int    `json:"lane"`
 	Aggregate             bool   `json:"aggregate"`
+	SessionIdentity       string `json:"session_identity"`
 	ReceiveLimitBytes     uint32 `json:"receive_limit_bytes,omitempty"`
 	ReceiveAvailableBytes uint32 `json:"receive_available_bytes,omitempty"`
 	TotalUnits            uint32 `json:"total_units,omitempty"`
@@ -195,7 +197,9 @@ func (r *externalQualificationSessionRegistry) snapshot(maxLane int) []externalQ
 		if !ok {
 			continue
 		}
-		row := externalQualificationAgentTunnelSession{Lane: lane, Aggregate: observed.aggregate}
+		row := externalQualificationAgentTunnelSession{
+			Lane: lane, Aggregate: observed.aggregate, SessionIdentity: fmt.Sprintf("%p", observed.session),
+		}
 		if observed.aggregate && lane > 0 {
 			pool := observed.session.AggregateReceiveWindowStats()
 			row.ReceiveLimitBytes = pool.ReceiveLimit

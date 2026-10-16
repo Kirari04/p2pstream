@@ -581,9 +581,10 @@ run_canceled_upload_trace() {
   sequence=$((sequence + 1))
   local raw="$run_dir/$sequence-$label-canceled-upload.json"
   local samples="$run_dir/$sequence-$label-canceled-upload-agent-samples.jsonl"
-  local server_spec initial_agent final_agent lane_high_water
+  local server_spec initial_agent final_agent lane_high_water initial_session_identities final_session_identities
   : > "$samples"
   initial_agent=$(query_agent_json "$agent_pid" "$agent_admin")
+  initial_session_identities=$(jq -c '[.tunnel_sessions[] | {lane,session_identity}] | sort_by(.lane)' <<<"$initial_agent")
   jq -e '
     .agent_capacity.in_use == 0 and
     ([.tunnel_sessions[] | select(.aggregate == true and .lane > 0)] | length == 4) and
@@ -621,13 +622,18 @@ run_canceled_upload_trace() {
   done
   wait "$load_pid"
   jq -e --argjson bytes "$payload_bytes" '
-    .attempted == 1 and .useful_completed == 0 and .errors == 1 and .observed_http_major == 2 and
+    .attempted == 1 and .useful_completed == 0 and .errors == 1 and .canceled_errors == 1 and .observed_http_major == 2 and
     .configured_payload_bytes == $bytes and .request_body_bytes > 0 and .request_body_bytes < $bytes and
     .event_stats_captured == true and .persisted_event_delta == 1 and
-    ((.dropped_event_delta // 0) == 0) and ((.event_queue_after_drain // 0) == 0) and ((.event_drain_error // "") == ""
+    ((.dropped_event_delta // 0) == 0) and ((.event_queue_after_drain // 0) == 0) and ((.event_drain_error // "") == "")
   ' "$raw" >/dev/null
   wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
   final_agent=$(query_agent_json "$agent_pid" "$agent_admin")
+  final_session_identities=$(jq -c '[.tunnel_sessions[] | {lane,session_identity}] | sort_by(.lane)' <<<"$final_agent")
+  [[ $initial_session_identities == "$final_session_identities" ]] || {
+    echo "canceled upload replaced an aggregate tunnel session" >&2
+    return 1
+  }
   jq -e '
     .agent_capacity.in_use == 0 and
     ([.tunnel_sessions[] | select(.aggregate == true)] | length == 5) and
@@ -649,11 +655,14 @@ for line in open(sys.argv[1], encoding="utf-8"):
 print(json.dumps(high, separators=(",", ":")))
 PY
 )
+  jq -e '([.[] | .buffered_units] | max // 0) > 0' <<<"$lane_high_water" >/dev/null
   jq -c --argjson initial_agent "$initial_agent" --argjson final_agent "$final_agent" \
-    --argjson lane_high_water "$lane_high_water" \
+    --argjson lane_high_water "$lane_high_water" --argjson session_identities "$initial_session_identities" \
     '. + {measurement_stage:"canceled-upload",transport_mode:"aggregate-v1",
       agent_runtime_before:$initial_agent,agent_runtime_after:$final_agent,
-      agent_lane_cancel_high_water:$lane_high_water,agent_lane_refunds_quiescent:true}' "$raw" >> "$output"
+      agent_session_identities:$session_identities,
+      agent_lane_cancel_high_water:$lane_high_water,agent_receiving_payload_observed:true,
+      agent_lane_refunds_quiescent:true}' "$raw" >> "$output"
 }
 
 run_pressure_qualification() {
@@ -728,26 +737,51 @@ run_pressure_qualification() {
   done
   jq -e '.agent_capacity.pressure == "critical" and .agent_capacity.pressure_reason == "memory" and (.agent_capacity.sample_error // "") == ""' <<<"$agent_runtime" >/dev/null
   append_pressure_sample pressure-critical "$ballast_mib" "$server_pid" "$server_admin" "$agent_pid" "$agent_admin"
-  local rejected_before health_at_pressure health_agent_before health_agent_after
+  local rejected_before health_at_pressure health_agent_before health_agent_after health_agent_quiescent
   rejected_before=$(jq -r .agent_capacity.rejected_pressure <<<"$agent_runtime")
   run_pressure_rejection "$label" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" "$rejected_before"
   health_agent_before=$(query_agent_json "$agent_pid" "$agent_admin")
   health_at_pressure=$(agent_health_roundtrip "$server_admin")
   health_agent_after=$(query_agent_json "$agent_pid" "$agent_admin")
+  health_agent_quiescent=$health_agent_after
+  local control_baseline
+  control_baseline=$(jq -r '.agent_capacity.control_in_use' <<<"$health_agent_before")
+  for ((attempt=0; attempt<100; attempt++)); do
+    health_agent_quiescent=$(query_agent_json "$agent_pid" "$agent_admin")
+    if jq -e --argjson baseline "$control_baseline" '
+      .agent_capacity.control_in_use == $baseline and .agent_capacity.in_use == $baseline
+    ' <<<"$health_agent_quiescent" >/dev/null; then
+      break
+    fi
+    sleep .05
+  done
+  jq -e --argjson baseline "$control_baseline" '
+    .agent_capacity.control_in_use == $baseline and .agent_capacity.in_use == $baseline
+  ' <<<"$health_agent_quiescent" >/dev/null
+  local health_sessions_before health_sessions_quiescent
+  health_sessions_before=$(jq -c '[.tunnel_sessions[] | {lane,session_identity}] | sort_by(.lane)' <<<"$health_agent_before")
+  health_sessions_quiescent=$(jq -c '[.tunnel_sessions[] | {lane,session_identity}] | sort_by(.lane)' <<<"$health_agent_quiescent")
+  [[ $health_sessions_before == "$health_sessions_quiescent" ]] || {
+    echo "pressure control roundtrip replaced a tunnel session" >&2
+    return 1
+  }
   jq -cn --argjson health "$health_at_pressure" --argjson ballast_mib "$ballast_mib" \
-    --argjson agent_before "$health_agent_before" --argjson agent_after "$health_agent_after" \
+    --argjson agent_before "$health_agent_before" --argjson agent_immediate "$health_agent_after" \
+    --argjson agent_after "$health_agent_quiescent" --argjson session_identities "$health_sessions_before" \
     '{measurement_stage:"pressure-control-roundtrip",transport_mode:"aggregate-v1",configured_agent_ballast_mib:$ballast_mib,
       control_roundtrip:$health,control_progress_proven:($health.ok == true),
       ordinary_admission_limit_before:$agent_before.agent_capacity.ordinary_admission_limit,
       ordinary_admission_limit_after:$agent_after.agent_capacity.ordinary_admission_limit,
       control_in_use_before:$agent_before.agent_capacity.control_in_use,
+      control_in_use_immediate:$agent_immediate.agent_capacity.control_in_use,
       control_in_use_after:$agent_after.agent_capacity.control_in_use,
       control_reserved_slots:$agent_after.agent_capacity.control_reserved_slots,
       control_reserved_base_bytes:$agent_after.agent_capacity.control_reserved_base_bytes,
       control_reserved_base_fds:$agent_after.agent_capacity.control_reserved_base_fds,
       agent_rejected_pressure_before:$agent_before.agent_capacity.rejected_pressure,
       agent_rejected_pressure_after:$agent_after.agent_capacity.rejected_pressure,
-      agent_runtime_before:$agent_before,agent_runtime_after:$agent_after}' >> "$output"
+      agent_session_identities:$session_identities,
+      agent_runtime_before:$agent_before,agent_runtime_immediate:$agent_immediate,agent_runtime_after:$agent_after}' >> "$output"
 
   local server_runtime
   server_runtime=$(query_server_json "$server_admin")
@@ -984,6 +1018,7 @@ if pressure_mode:
             "control_did_not_consume_ordinary_pressure_rejection":
                 control["agent_rejected_pressure_after"] == control["agent_rejected_pressure_before"],
             "canceled_upload_refunds_quiescent": canceled["agent_lane_refunds_quiescent"],
+            "canceled_upload_reached_receiving_agent": canceled["agent_receiving_payload_observed"],
             "all_receiving_pools_exceeded_required_size_before_pressure":
                 min(baseline_server_pools + baseline_agent_pools) > required_pool_bytes,
             "all_receiving_pools_retained_after_recovery":
@@ -1003,6 +1038,7 @@ if pressure_mode:
             "reserved_base_bytes": control["control_reserved_base_bytes"],
             "reserved_base_fds": control["control_reserved_base_fds"],
             "in_use_before": control["control_in_use_before"],
+            "in_use_immediate": control["control_in_use_immediate"],
             "in_use_after": control["control_in_use_after"],
             "ordinary_admission_limit_before": control["ordinary_admission_limit_before"],
             "ordinary_admission_limit_after": control["ordinary_admission_limit_after"],

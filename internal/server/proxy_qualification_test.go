@@ -13,6 +13,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -287,6 +288,7 @@ type qualificationResult struct {
 	StatusClasses                 map[string]int                    `json:"status_classes"`
 	StatusCodes                   map[string]int                    `json:"status_codes"`
 	Errors                        int64                             `json:"errors"`
+	CanceledErrors                int64                             `json:"canceled_errors,omitempty"`
 	WallSeconds                   float64                           `json:"wall_seconds"`
 	UsefulRPS                     float64                           `json:"useful_requests_per_second"`
 	P50Milliseconds               float64                           `json:"p50_ms"`
@@ -986,7 +988,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 		runQualificationTLSIdle(t, target, concurrency, requests)
 		return
 	}
-	var useful, errorsSeen, bytesSeen, requestBodyBytes atomic.Int64
+	var useful, errorsSeen, canceledErrors, bytesSeen, requestBodyBytes atomic.Int64
 	var observedMajor atomic.Int64
 	var observedOriginMajor atomic.Int64
 	var originPeak atomic.Int64
@@ -1073,6 +1075,9 @@ func TestProxyQualificationLoad(t *testing.T) {
 				resp, err := client.Do(req)
 				if err != nil {
 					errorsSeen.Add(1)
+					if errors.Is(err, context.Canceled) {
+						canceledErrors.Add(1)
+					}
 					inflight.Add(-1)
 					continue
 				}
@@ -1226,6 +1231,16 @@ func TestProxyQualificationLoad(t *testing.T) {
 	}
 	close(jobs)
 	workers.Wait()
+	if scenario == "growth-upload-cancel" {
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			stats, ok := sampler.readRuntime(true)
+			if ok && (stats.PersistedEvents > sampler.initialEvents.PersistedEvents || stats.PendingEvents > 0 || stats.QueuedEvents > 0) {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
 	elapsed := time.Since(started)
 	// End every process measurement window before the server recorder drain.
 	// Otherwise the agent CPU samples include server-only persistence work while
@@ -1246,7 +1261,7 @@ func TestProxyQualificationLoad(t *testing.T) {
 		OfferedRPS: offeredRPS, WarmupSeconds: warmupSeconds, WarmupRequests: warmupRequests, DurationSeconds: durationSeconds,
 		Protocol: protocol, Concurrency: concurrency, Attempted: attempted, UsefulCompleted: useful.Load(), StatusClasses: classes,
 		StatusCodes: statusCodes,
-		Errors:      errorsSeen.Load(), WallSeconds: elapsed.Seconds(), UsefulRPS: float64(useful.Load()) / elapsed.Seconds(),
+		Errors:      errorsSeen.Load(), CanceledErrors: canceledErrors.Load(), WallSeconds: elapsed.Seconds(), UsefulRPS: float64(useful.Load()) / elapsed.Seconds(),
 		P50Milliseconds: durationQuantile(latencies, .50), P95Milliseconds: durationQuantile(latencies, .95), P99Milliseconds: durationQuantile(latencies, .99),
 		ResponseBytes: bytesSeen.Load(), RequestBodyBytes: requestBodyBytes.Load(), ConfiguredPayloadBytes: int64(growthPayloadBytes), PeakRSSBytes: sampler.peakRSS, FinalRSSBytes: sampler.finalRSS, PeakFDs: sampler.peakFDs, CPUSeconds: sampler.cpuSeconds(),
 		PeakHeapAlloc: sampler.peakHeap, GCCycles: sampler.gcCycles(), GCPauseSeconds: sampler.gcPauseSeconds(), ObservedHTTPMajor: int(observedMajor.Load()), ObservedOriginHTTPMajor: int(observedOriginMajor.Load()),
