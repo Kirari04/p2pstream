@@ -510,8 +510,9 @@ func (s *Session) publishAggregateCredit() {
 			return
 		}
 		for {
-			if stream, delta := s.takeStreamAllocationRefund(); stream != nil {
-				if err := s.publishStreamAllocationRefund(stream, delta); err != nil {
+			work := s.takeAggregateRefundWork()
+			if work.stream != nil {
+				if err := s.publishStreamAllocationRefund(work); err != nil {
 					if !errors.Is(err, ErrSessionShutdown) {
 						s.abortAggregate(err)
 					}
@@ -519,11 +520,10 @@ func (s *Session) publishAggregateCredit() {
 				}
 				continue
 			}
-			delta := s.takeGlobalRefund()
-			if delta == 0 {
+			if work.global == 0 {
 				break
 			}
-			if err := s.publishGlobalRefund(delta); err != nil {
+			if err := s.publishGlobalRefund(work.global); err != nil {
 				if !errors.Is(err, ErrSessionShutdown) {
 					s.abortAggregate(err)
 				}
@@ -533,69 +533,97 @@ func (s *Session) publishAggregateCredit() {
 	}
 }
 
-func (s *Session) takeStreamAllocationRefund() (*Stream, uint64) {
+type aggregateRefundWork struct {
+	stream      *Stream
+	streamDelta uint64
+	global      uint64
+}
+
+// takeAggregateRefundWork chooses stream and session credit under one lock.
+// Every ordinary read adds equal stream and global credit under this same
+// mutex. Global-only discard credit never adds a stream entry. Selecting a
+// queued stream first and moving both counters atomically therefore prevents a
+// concurrent global-only publication from consuming its matching credit.
+func (s *Session) takeAggregateRefundWork() aggregateRefundWork {
 	a := s.aggregate
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	stream := a.pendingStreamHead
-	if stream == nil {
-		return nil, 0
+	if stream != nil {
+		streamDelta := stream.allocationRefundPending
+		if streamDelta > math.MaxUint32 {
+			streamDelta = math.MaxUint32 - math.MaxUint32%uint64(AggregateWindowUnitSize)
+		}
+		globalDelta := streamDelta
+		if globalDelta > a.pendingGlobal {
+			globalDelta = a.pendingGlobal
+		}
+		globalDelta -= globalDelta % uint64(AggregateWindowUnitSize)
+		if streamDelta == 0 {
+			return aggregateRefundWork{}
+		}
+		stream.allocationRefundPending -= streamDelta
+		stream.allocationRefundPublishing += streamDelta
+		a.pendingGlobal -= globalDelta
+		a.publishingGlobal += globalDelta
+		if stream.allocationRefundPending == 0 {
+			a.pendingStreamHead = stream.allocationRefundNext
+			if a.pendingStreamHead == nil {
+				a.pendingStreamTail = nil
+			}
+			stream.allocationRefundNext = nil
+			stream.allocationRefundQueued = false
+		}
+		return aggregateRefundWork{stream: stream, streamDelta: streamDelta, global: globalDelta}
 	}
-	a.pendingStreamHead = stream.allocationRefundNext
-	if a.pendingStreamHead == nil {
-		a.pendingStreamTail = nil
+	delta := a.pendingGlobal
+	if delta > math.MaxUint32 {
+		delta = math.MaxUint32 - math.MaxUint32%uint64(AggregateWindowUnitSize)
 	}
-	stream.allocationRefundNext = nil
-	stream.allocationRefundQueued = false
-	delta := stream.allocationRefundPending
-	stream.allocationRefundPending = 0
-	stream.allocationRefundPublishing += delta
-	return stream, delta
+	if delta == 0 {
+		return aggregateRefundWork{}
+	}
+	a.pendingGlobal -= delta
+	a.publishingGlobal += delta
+	return aggregateRefundWork{global: delta}
 }
 
-func (s *Session) publishStreamAllocationRefund(stream *Stream, delta uint64) error {
+func (s *Session) publishStreamAllocationRefund(work aggregateRefundWork) error {
+	stream, delta := work.stream, work.streamDelta
 	stream.controlHdrLock.Lock()
 	defer stream.controlHdrLock.Unlock()
 	if !stream.acceptsAggregateData() {
 		s.aggregate.mu.Lock()
 		stream.allocationRefundPublishing -= delta
 		s.aggregate.mu.Unlock()
-		return nil
+		if work.global == 0 {
+			return nil
+		}
+		return s.publishGlobalRefund(work.global)
 	}
 	s.aggregate.publishMu.Lock()
 	defer s.aggregate.publishMu.Unlock()
-	for delta > 0 {
-		part := delta
-		if part > math.MaxUint32 {
-			part = math.MaxUint32 - math.MaxUint32%uint64(AggregateWindowUnitSize)
-		}
-		hdr := header(make([]byte, headerSize))
-		hdr.encode(typeAllocationWindowUpdate, 0, stream.id, uint32(part))
-		errCh := make(chan error, 1)
-		if err := s.waitForSendErrCommit(hdr, nil, errCh, func() {
+	streamHdr := header(make([]byte, headerSize))
+	streamHdr.encode(typeAllocationWindowUpdate, 0, stream.id, uint32(delta))
+	errCh := make(chan error, 1)
+	if work.global == 0 {
+		return s.waitForSendErrCommit(streamHdr, nil, errCh, func() {
 			s.aggregate.mu.Lock()
-			stream.allocationRefundPublishing -= part
-			stream.allocationRecvWindow += uint32(part)
+			stream.allocationRefundPublishing -= delta
+			stream.allocationRecvWindow += uint32(delta)
 			s.aggregate.mu.Unlock()
-		}); err != nil {
-			return err
-		}
-		delta -= part
+		})
 	}
-	return nil
-}
-
-func (s *Session) takeGlobalRefund() uint64 {
-	a := s.aggregate
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	delta := a.pendingGlobal
-	if delta > math.MaxUint32 {
-		delta = math.MaxUint32 - math.MaxUint32%uint64(AggregateWindowUnitSize)
-	}
-	a.pendingGlobal -= delta
-	a.publishingGlobal += delta
-	return delta
+	globalHdr := header(make([]byte, headerSize))
+	globalHdr.encode(typeWindowUpdate, 0, 0, uint32(work.global))
+	return s.waitForAggregateControlBatchErrCommit(streamHdr, globalHdr, errCh, func() {
+		s.aggregate.mu.Lock()
+		stream.allocationRefundPublishing -= delta
+		stream.allocationRecvWindow += uint32(delta)
+		s.aggregate.publishingGlobal -= work.global
+		s.aggregate.recvWindow += uint32(work.global)
+		s.aggregate.mu.Unlock()
+	})
 }
 
 func (s *Session) publishGlobalRefund(delta uint64) error {

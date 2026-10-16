@@ -467,6 +467,25 @@ func (s *Session) waitForSendErr(hdr header, body []byte, errCh chan error) erro
 // before writing the header. This is used for receive-credit publication: a
 // peer cannot observe the WINDOW_UPDATE before local validation accepts it.
 func (s *Session) waitForSendErrCommit(hdr header, body []byte, errCh chan error, commit func()) error {
+	queue := s.sendCh
+	if s.aggregate != nil && isAggregatePriorityControl(hdr, body) {
+		queue = s.controlCh
+	}
+	return s.waitForSendErrCommitOn(queue, hdr, body, errCh, commit)
+}
+
+// waitForAggregateControlBatchErrCommit writes an allocation refund followed
+// by its matching session refund as one bounded priority-queue item and one
+// physical write. The peer still observes two ordinary protocol headers, in
+// the same order as separate publication.
+func (s *Session) waitForAggregateControlBatchErrCommit(first, second header, errCh chan error, commit func()) error {
+	batch := header(make([]byte, 2*headerSize))
+	copy(batch, first)
+	copy(batch[headerSize:], second)
+	return s.waitForSendErrCommitOn(s.controlCh, batch, nil, errCh, commit)
+}
+
+func (s *Session) waitForSendErrCommitOn(queue chan *sendReady, hdr header, body []byte, errCh chan error, commit func()) error {
 	t := timerPool.Get()
 	timer := t.(*time.Timer)
 	timer.Reset(s.config.ConnectionWriteTimeout)
@@ -480,10 +499,6 @@ func (s *Session) waitForSendErrCommit(hdr header, body []byte, errCh chan error
 	}()
 
 	ready := &sendReady{Hdr: hdr, Body: body, Err: errCh, Commit: commit}
-	queue := s.sendCh
-	if s.aggregate != nil && isAggregatePriorityControl(hdr, body) {
-		queue = s.controlCh
-	}
 	select {
 	case queue <- ready:
 	case <-s.shutdownCh:
