@@ -64,6 +64,10 @@ comparison.
 - [`caddy-reference/moderate-runner-validation/README.md`](caddy-reference/moderate-runner-validation/README.md)
   records 19 synthetic calibration/schedule checks for the separate
   moderate-load latency comparison. Actual performance qualification is pending.
+- [`caddy-reference/moderate-caddy-extension/README.md`](caddy-reference/moderate-caddy-extension/README.md)
+  preregisters 12 additional Caddy rows at the unchanged candidate/HAProxy
+  offered rates, preserving the original 24-row comparison. Its 28 synthetic
+  contracts and bounded wrapper cleanup checks pass; performance runs are pending.
 - [`caddy-reference/matched-h2-fixture-validation/README.md`](caddy-reference/matched-h2-fixture-validation/README.md)
   records the bounded fixture checks for a future reference comparison with
   one prewarmed H2 client connection per proxy. It is not a performance result.

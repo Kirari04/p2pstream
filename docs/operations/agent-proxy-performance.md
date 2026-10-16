@@ -652,6 +652,13 @@ correctness checks; median p95 and p99 ratios must be at most 1.25. This does
 not qualify latency near saturation. The runner and 19 synthetic calibration
 and schedule checks are committed; actual final reference and moderate-load
 results remain pending. See the [runner validation and preregistered plan](benchmarks/proxy-qualification-2026-10-16/caddy-reference/moderate-runner-validation/README.md).
+An opt-in extension adds 12 Caddy rows at exactly the same offered rates while
+preserving the original 24 candidate/HAProxy cases and their order. Separate
+candidate/Caddy p95 and p99 ratios must also be at most 1.25; missed Caddy
+schedule delivery makes its affected tail comparison capacity-confounded.
+The [Caddy extension plan and validation](benchmarks/proxy-qualification-2026-10-16/caddy-reference/moderate-caddy-extension/README.md)
+records 28 passing synthetic contracts and bounded wrapper cleanup checks,
+with actual calibration and moderate-load performance still pending.
 
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured

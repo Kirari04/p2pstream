@@ -35,9 +35,13 @@ parser.add_argument('--matched-h2-single-connection', action='store_true',
                     help='prewarm one H2 client connection and require every timed H2 row to reuse only that connection')
 parser.add_argument('--moderate-load-calibration',
                     help='completed frozen 36-row reference root; run three alternating candidate/HAProxy pairs at half the lower per-cell median')
+parser.add_argument('--include-moderate-caddy', action='store_true',
+                    help='add Caddy to the moderate-load matrix at the same fixed rates, preserving the 24 candidate/HAProxy rows')
 args = parser.parse_args()
 if args.candidate_binary and not args.candidate_source_ref:
     parser.error('--candidate-source-ref is required with --candidate-binary')
+if args.include_moderate_caddy and not args.moderate_load_calibration:
+    parser.error('--include-moderate-caddy requires --moderate-load-calibration')
 concurrencies = [int(value) for value in args.concurrency.split(',')]
 if not (1 <= args.runs <= 10 and 1 <= args.duration_seconds <= 60 and 0 <= args.warmup_seconds <= 10
         and 1 <= args.idle_per_host <= 1024 and concurrencies and all(1 <= n <= 1536 for n in concurrencies)):
@@ -64,7 +68,7 @@ for label, reference in [('driver', args.driver_source_ref), ('candidate', args.
 def digest_file(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
-def moderate_calibration(calibration_root):
+def moderate_calibration(calibration_root, include_caddy=False):
     calibration_root = Path(calibration_root).resolve(strict=True)
     manifest_path = calibration_root / 'manifest.json'
     summary_path = calibration_root / 'summary.json'
@@ -149,16 +153,22 @@ def moderate_calibration(calibration_root):
                 raise ValueError('the fixed offered schedule has fewer requests than clients')
             selected[f'{protocol}-c{concurrency}'] = dict(offered_rps=offered, requests=20*offered,
                                                         calibration=rates)
+    orders = ([['candidate', 'caddy', 'haproxy'], ['haproxy', 'caddy', 'candidate'], ['candidate', 'haproxy', 'caddy']]
+              if include_caddy else [['candidate', 'haproxy'], ['haproxy', 'candidate'], ['candidate', 'haproxy']])
     return dict(root=str(calibration_root), source_ref=manifest['source_ref'],
                 manifest_sha256=digest_file(manifest_path), summary_sha256=digest_file(summary_path),
                 results_sha256=digest_file(results), reference_provenance_sha256=digest_file(provenance_path), cells=selected,
                 calibration_scope='complete warmed three-repeat medians; spread reported without a variance rejection threshold',
                 selection='floor(0.5 * lower candidate/HAProxy useful-throughput median); N=floor(20 * offeredRPS)',
-                pairs=3, order=['candidate-then-haproxy', 'haproxy-then-candidate', 'candidate-then-haproxy'],
+                pairs=3, order=['-then-'.join(order) for order in orders], proxy_orders=orders,
+                references=['haproxy', 'caddy'] if include_caddy else ['haproxy'], row_count=36 if include_caddy else 24,
                 effective_duration_seconds=0, effective_warmup_seconds=0,
                 h1_initial_client_establishment_included=True, h2_validated_prewarm_requests=1,
                 delivery=dict(useful_rps_minimum_fraction=.99, elapsed_maximum_fraction=1.01),
                 p95_p99_ratio_maximum=1.25, scope='moderate load; does not qualify near-saturation latency')
+
+class ModerateDeliveryError(ValueError):
+    pass
 
 def validate_moderate_result(result, rate):
     if (result.get('response_bytes') != 256 * rate['requests']
@@ -176,10 +186,42 @@ def validate_moderate_result(result, rate):
             or not math.isclose(schedule.get('planned_seconds', -1), planned, rel_tol=1e-12, abs_tol=1e-9)
             or not planned - 1e-6 <= schedule.get('dispatch_completed_seconds', -1) <= result['wall_seconds']
             or result.get('offered_requests_per_second') != rate['offered_rps']
-            or result['attempted'] != rate['requests']
-            or result['useful_requests_per_second'] < .99 * rate['offered_rps']
+            or result['attempted'] != rate['requests']):
+        raise ValueError('schedule metadata validation failed')
+    if (result['useful_requests_per_second'] < .99 * rate['offered_rps']
             or result['wall_seconds'] > 1.01 * rate['requests'] / rate['offered_rps']):
-        raise ValueError('schedule delivery failed')
+        raise ModerateDeliveryError('schedule delivery failed')
+
+def summarize_moderate_results(rows, plan, delivery_failures):
+    comparisons = {}
+    if len(rows) != plan['row_count']:
+        raise ValueError('incomplete moderate-load matrix')
+    for reference in plan['references']:
+        cells = []
+        for protocol in ('h1', 'h2'):
+            for concurrency in (16, 128):
+                medians = {}
+                for kind in ('candidate', reference):
+                    selected = [row for row in rows if row['protocol'] == protocol
+                                and row['concurrency'] == concurrency and row['proxy_kind'] == kind]
+                    if len(selected) != 3 or {row['iteration'] for row in selected} != {1, 2, 3}:
+                        raise ValueError('incomplete moderate-load latency cell')
+                    medians[kind] = {field: statistics.median(row[field] for row in selected)
+                                     for field in ('p95_ms', 'p99_ms')}
+                ratios = {field: medians['candidate'][field]/medians[reference][field]
+                          for field in ('p95_ms', 'p99_ms')}
+                confounded = any(failure['proxy_kind'] in ('candidate', reference)
+                                 and failure['protocol'] == protocol and failure['concurrency'] == concurrency
+                                 for failure in delivery_failures)
+                cells.append(dict(protocol=protocol, concurrency=concurrency, medians=medians,
+                                  **{f'candidate_to_{reference}': ratios}, capacity_confounded=confounded,
+                                  passed=not confounded and all(value <= 1.25 for value in ratios.values())))
+        comparisons[reference] = dict(cells=cells, capacity_confounded=any(cell['capacity_confounded'] for cell in cells),
+                                     all_tail_gates_passed=all(cell['passed'] for cell in cells))
+    return dict(scope=plan['scope'], row_count=len(rows), cells=comparisons['haproxy']['cells'],
+                reference_comparisons=comparisons, delivery_failures=delivery_failures,
+                all_delivery_checks_passed=not delivery_failures, exact_payload_and_event_conservation=True,
+                all_tail_gates_passed=all(comparison['all_tail_gates_passed'] for comparison in comparisons.values()))
 
 moderate_plan = None
 if args.moderate_load_calibration:
@@ -187,7 +229,7 @@ if args.moderate_load_calibration:
             or not args.matched_h2_single_connection or args.idle_per_host != 128):
         parser.error('moderate load requires candidate, three pairs, both protocols, clients 16,128, idle128 and matched H2')
     try:
-        moderate_plan = moderate_calibration(args.moderate_load_calibration)
+        moderate_plan = moderate_calibration(args.moderate_load_calibration, args.include_moderate_caddy)
     except (OSError, ValueError, KeyError, TypeError) as error:
         parser.error(f'invalid moderate-load calibration: {error}')
 (root / 'tmp/caddy-reference').mkdir(parents=True, exist_ok=True)
@@ -339,10 +381,14 @@ try:
     print(f'{"Moderate-load" if moderate_plan else "Caddy"} diagnostic evidence: {run_dir}', flush=True)
     sequence = 0
     result_rows = []
+    delivery_failures = []
     for iteration in range(1, args.runs + 1):
-        kinds = ['candidate', 'haproxy'] if moderate_plan else ['caddy', 'haproxy'] + (['candidate'] if candidate else [])
-        offset = (iteration - 1) % len(kinds)
-        kinds = kinds[offset:] + kinds[:offset]
+        if moderate_plan:
+            kinds = moderate_plan['proxy_orders'][iteration - 1]
+        else:
+            kinds = ['caddy', 'haproxy'] + (['candidate'] if candidate else [])
+            offset = (iteration - 1) % len(kinds)
+            kinds = kinds[offset:] + kinds[:offset]
         for kind in kinds:
             port = free_port()
             admin_url = ''
@@ -451,6 +497,14 @@ backend origin
                     if rate:
                         try:
                             validate_moderate_result(result, rate)
+                        except ModerateDeliveryError as error:
+                            if kind != 'caddy':
+                                raise RuntimeError(f'moderate-load delivery failed: {result_file}: {error}') from error
+                            failure = dict(proxy_kind=kind, protocol=protocol, concurrency=concurrency,
+                                           iteration=iteration, sequence=sequence, result_file=str(result_file), error=str(error))
+                            delivery_failures.append(failure)
+                            with open(run_dir / 'moderate-load.delivery-failures.jsonl', 'a') as failed:
+                                failed.write(json.dumps(failure, separators=(',', ':')) + '\n')
                         except (ValueError, TypeError, KeyError, OverflowError) as error:
                             raise RuntimeError(f'moderate-load validation failed: {result_file}: {error}') from error
                     expected_major = 1 if protocol == 'h1' else 2
@@ -471,24 +525,7 @@ backend origin
                 subprocess.run(['docker', 'rm', '-f', name], check=True, stdout=subprocess.DEVNULL)
             stop(proxy)
     if moderate_plan:
-        cells = []
-        for protocol in ('h1', 'h2'):
-            for concurrency in (16, 128):
-                medians = {}
-                for kind in ('candidate', 'haproxy'):
-                    selected = [row for row in result_rows if row['protocol'] == protocol
-                                and row['concurrency'] == concurrency and row['proxy_kind'] == kind]
-                    if len(selected) != 3:
-                        raise RuntimeError('incomplete moderate-load latency matrix')
-                    medians[kind] = {field: statistics.median(row[field] for row in selected)
-                                     for field in ('p95_ms', 'p99_ms')}
-                ratios = {field: medians['candidate'][field]/medians['haproxy'][field]
-                          for field in ('p95_ms', 'p99_ms')}
-                cells.append(dict(protocol=protocol, concurrency=concurrency, medians=medians,
-                                  candidate_to_haproxy=ratios, passed=all(value <= 1.25 for value in ratios.values())))
-        summary = dict(scope=moderate_plan['scope'], row_count=len(result_rows), cells=cells,
-                       all_delivery_checks_passed=True, exact_payload_and_event_conservation=True,
-                       all_tail_gates_passed=all(cell['passed'] for cell in cells))
+        summary = summarize_moderate_results(result_rows, moderate_plan, delivery_failures)
         (run_dir / 'moderate-load.summary.json').write_text(json.dumps(summary, indent=2) + '\n')
         if not summary['all_tail_gates_passed']:
             raise RuntimeError('moderate-load p95/p99 qualification failed; complete results preserved')

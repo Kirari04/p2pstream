@@ -1,0 +1,74 @@
+[
+  {
+    "case": "natural",
+    "outcome": {
+      "workload": {
+        "exit_code": 0,
+        "wait_completed": true,
+        "exception": null,
+        "cleanup_exception": null,
+        "elapsed_seconds": 0.01634591701440513,
+        "finished_utc": "2026-10-16T09:37:11.433415+00:00",
+        "forced_group_cleanup": false,
+        "forced_container_cleanup": [],
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "exception_type": null,
+    "wrapper_sha256": "c113d45ce1256722222c655bc360123f3d4a9f774df309e67d5a580460fbb219"
+  },
+  {
+    "case": "timeout",
+    "outcome": {
+      "workload": {
+        "exit_code": -2,
+        "wait_completed": false,
+        "exception": "TimeoutExpired(['/usr/bin/python3', '/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/moderate-wrapper-cleanup.moz4btlh/timeout/fixture.py'], 0.3)",
+        "cleanup_exception": null,
+        "elapsed_seconds": 0.40191104204859585,
+        "finished_utc": "2026-10-16T09:37:11.933188+00:00",
+        "forced_group_cleanup": true,
+        "forced_container_cleanup": [],
+        "log_sha256": "a791b2206a21e6ef4cc9f0b082c84fc2e54b8641e3e4198df579962aaee7b1f8"
+      }
+    },
+    "exception_type": "TimeoutExpired",
+    "wrapper_sha256": "c113d45ce1256722222c655bc360123f3d4a9f774df309e67d5a580460fbb219"
+  },
+  {
+    "case": "sigterm",
+    "outcome": {
+      "workload": {
+        "exit_code": -2,
+        "wait_completed": false,
+        "exception": "SystemExit(143)",
+        "cleanup_exception": null,
+        "elapsed_seconds": 0.12299672595690936,
+        "finished_utc": "2026-10-16T09:37:12.120931+00:00",
+        "forced_group_cleanup": true,
+        "forced_container_cleanup": [],
+        "log_sha256": "8d21c251034143fb296e7868021f9c89de8786549a6367d41af544da3ebc3572"
+      }
+    },
+    "exception_type": "SystemExit",
+    "wrapper_sha256": "c113d45ce1256722222c655bc360123f3d4a9f774df309e67d5a580460fbb219"
+  },
+  {
+    "case": "parent-exit",
+    "outcome": {
+      "workload": {
+        "exit_code": 0,
+        "wait_completed": true,
+        "exception": null,
+        "cleanup_exception": null,
+        "elapsed_seconds": 0.08256803802214563,
+        "finished_utc": "2026-10-16T09:37:12.258941+00:00",
+        "forced_group_cleanup": true,
+        "forced_container_cleanup": [],
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "exception_type": null,
+    "wrapper_sha256": "c113d45ce1256722222c655bc360123f3d4a9f774df309e67d5a580460fbb219"
+  }
+]

@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Bounded execution of the reference wrapper's exact owned-cleanup block."""
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+WRAPPER = Path('/tmp/p2pstream-final-moderate.py')
+
+
+def child(root, case):
+    text = WRAPPER.read_text()
+    first = text.index('    started = time.monotonic()\n    with (root / "run.log").open("w") as log:')
+    last = text.index('    if failure is not None:', first)
+    block = text[first:last]
+    # Only shorten the two wait bounds; control flow and cleanup remain exact.
+    block = block.replace('timeout=1200', 'timeout=.3').replace('time.monotonic() + 15', 'time.monotonic() + .3')
+    setup = '''def exercise(root, invocation, source, env):
+    manifest = {}
+    def save():
+        (root / "outcome.json").write_text(json.dumps(manifest, indent=2) + "\\n")
+'''
+    code = setup + block + '    return manifest, failure\n'
+    scope = dict(subprocess=subprocess, signal=signal, time=time, os=os, json=json,
+        sha=lambda path: hashlib.sha256(Path(path).read_bytes()).hexdigest(),
+        utc=lambda: datetime.now(timezone.utc).isoformat(),
+        output=lambda command, **kwargs: '')
+    exec(compile(code, str(WRAPPER) + ':owned-cleanup-test', 'exec'), scope)
+    script = root / 'fixture.py'
+    if case == 'natural':
+        script.write_text('pass\n')
+    elif case == 'parent-exit':
+        script.write_text('import subprocess\nfrom pathlib import Path\np = subprocess.Popen(["sleep", "5"])\nPath("descendant.pid").write_text(str(p.pid))\n')
+    else:
+        script.write_text('import os, time\nfrom pathlib import Path\nPath("fixture.pid").write_text(str(os.getpid()))\nwhile True: time.sleep(.05)\n')
+    outcome, failure = scope['exercise'](root, [sys.executable, str(script)], root, dict(os.environ))
+    (root / 'result.json').write_text(json.dumps({'case': case, 'outcome': outcome,
+        'exception_type': type(failure).__name__ if failure else None,
+        'wrapper_sha256': hashlib.sha256(WRAPPER.read_bytes()).hexdigest()}) + '\n')
+
+
+def live(pid):
+    try:
+        return Path(f'/proc/{pid}/stat').read_text().split()[2] not in ('Z', 'X')
+    except FileNotFoundError:
+        return False
+
+
+def main():
+    if len(sys.argv) == 4 and sys.argv[1] == '--child':
+        child(Path(sys.argv[2]), sys.argv[3])
+        return
+    parent = Path('/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification')
+    parent.mkdir(parents=True, exist_ok=True)
+    root = Path(tempfile.mkdtemp(prefix='moderate-wrapper-cleanup.', dir=parent))
+    print(root, flush=True)
+    results = []
+    for case in ('natural', 'timeout', 'sigterm', 'parent-exit'):
+        folder = root / case
+        folder.mkdir()
+        with (folder / 'child.log').open('w') as log:
+            process = subprocess.Popen([sys.executable, __file__, '--child', str(folder), case], stdout=log, stderr=subprocess.STDOUT)
+            if case == 'sigterm':
+                deadline = time.monotonic() + 2
+                while not (folder / 'fixture.pid').exists() and process.poll() is None and time.monotonic() < deadline:
+                    time.sleep(.01)
+                assert (folder / 'fixture.pid').exists(), 'SIGTERM fixture did not start'
+                process.send_signal(signal.SIGTERM)
+            process.wait(timeout=5)
+        assert process.returncode == 0, (case, (folder / 'child.log').read_text())
+        result = json.loads((folder / 'result.json').read_text())
+        outcome = result['outcome']['workload']
+        assert outcome['cleanup_exception'] is None and outcome['forced_container_cleanup'] == []
+        assert outcome['forced_group_cleanup'] == (case != 'natural')
+        expected_exception = {'natural': None, 'timeout': 'TimeoutExpired', 'sigterm': 'SystemExit', 'parent-exit': None}[case]
+        assert result['exception_type'] == expected_exception, result
+        for name in ('fixture.pid', 'descendant.pid'):
+            path = folder / name
+            if path.exists():
+                pid = int(path.read_text())
+                deadline = time.monotonic() + 1
+                while live(pid) and time.monotonic() < deadline:
+                    time.sleep(.01)
+                assert not live(pid), (case, 'owned fixture still live', pid)
+        results.append(result)
+    (root / 'results.json').write_text(json.dumps(results, indent=2) + '\n')
+    print('PASS: natural, timeout, SIGTERM and parent-exit owned-group cleanup. Docker discovery mocked empty; no Docker/Go/proxy workload.', flush=True)
+
+
+if __name__ == '__main__':
+    main()
