@@ -49,6 +49,9 @@ comparison.
 - [`agent-tiny-response-lazy-wake-h2c128/README.md`](agent-tiny-response-lazy-wake-h2c128/README.md)
   records the subsequent H2/c128-only lazy-wake screen. It passes throughput
   but fails both tail gates, so the full matrix was not rerun.
+- [`agent-tiny-response-refund-batch/README.md`](agent-tiny-response-refund-batch/README.md)
+  records the batched-refund H2/c128 screen and full matrix. The screen passes;
+  the full matrix fails only the H2/c128 p95 gate.
 - [`agent-tiny-profiles/README.md`](agent-tiny-profiles/README.md) records native
   CPU, allocation, mutex and block profiles of the first failed tiny-response
   candidate and its matched legacy endpoint.

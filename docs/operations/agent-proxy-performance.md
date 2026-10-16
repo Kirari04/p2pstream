@@ -546,6 +546,15 @@ full 24-row matrix, and it does not qualify the other cells or standing pools.
 See the
 [lazy-wake H2/c128 screen](benchmarks/proxy-qualification-2026-10-16/agent-tiny-response-lazy-wake-h2c128/README.md).
 
+The subsequent bounded refund-batch checkpoint passed the H2/c128 screen, so
+the full matrix was rerun. H1 at 16 and 128 clients and H2 at 16 streams pass
+all three gates. H2 at 128 streams reaches 90.08% of legacy throughput and a
+1.085 p99 ratio, but its 1.111 p95 ratio still exceeds the 1.10 gate. The full
+cohort therefore remains failed without a gate waiver. All 3,564,363 requests
+and events were conserved with zero errors, drops, queue residue or drain
+errors. See the
+[batched-refund tiny-response evidence](benchmarks/proxy-qualification-2026-10-16/agent-tiny-response-refund-batch/README.md).
+
 The first qualification pass is recorded under
 `docs/operations/benchmarks/proxy-qualification-2026-10-16/`. It is a profile
 and correctness pass plus one warmed saturation sample, not the prescribed

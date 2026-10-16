@@ -1,0 +1,85 @@
+{
+  "aggregate_agent_binary_sha256": "267216d3fd76789e04ed7dd8b8b7b12214656cc3bac1554cbf38932f1a84a2ab",
+  "build_commands": [
+    "git archive 5288994b012c7566999ece140d7bdaa8bbd9d984 | tar -x -C \"$BUILD_ROOT\"",
+    "(cd \"$BUILD_ROOT\" && go test -c -o bin/server.test ./internal/server)",
+    "(cd \"$BUILD_ROOT\" && go test -c -o bin/agent.test ./internal/agent)",
+    "git archive 3ec137c3ad3d07028e867042fb00d3933912d7ab | tar -x -C \"$LEGACY_BUILD_ROOT\"",
+    "cp proxy_qualification_external_legacy_agent_test.go.txt \"$LEGACY_BUILD_ROOT/internal/agent/proxy_qualification_external_legacy_test.go\"",
+    "(cd \"$LEGACY_BUILD_ROOT\" && go test -c -o bin/agent.test ./internal/agent)"
+  ],
+  "candidate_ref": "5288994b012c7566999ece140d7bdaa8bbd9d984",
+  "conservation": {
+    "focused_h2c128": {
+      "attempted": 1065418,
+      "drain_errors": 0,
+      "dropped_events": 0,
+      "persisted_events": 1065418,
+      "useful_completed": 1065418
+    },
+    "full_matrix": {
+      "attempted": 3564363,
+      "drain_errors": 0,
+      "dropped_events": 0,
+      "persisted_events": 3564363,
+      "useful_completed": 3564363
+    }
+  },
+  "cpu_sets": {
+    "agent_and_origin": "4,5,6,7",
+    "load": "8,9,10,11,12,13,14,15",
+    "server": "0,1,2,3",
+    "topology_note": "Each four-logical-CPU proxy or agent set spans two physical cores with two SMT siblings per core."
+  },
+  "full_matrix": {
+    "configured_rtt_ms": 1,
+    "measured_rtt_ms": 1.336,
+    "qualification_exit": 1,
+    "qualification_outcome": "failed only h2-c128 p95: 1.1114406818758 exceeded the unchanged 1.10 gate",
+    "results_sha256": "a02fde68c5b86ba164bdd9275fd94b245ad6e037c4fed88434e8020afc2c80fc",
+    "run_finished_at": "2026-10-16T06:03:19+02:00",
+    "summary_sha256": "66b1daf05868fc54cee92b8431f58bad2a9a52d35ac4eebe1e2cc8808b51e56f"
+  },
+  "focused_h2c128": {
+    "configured_rtt_ms": 1,
+    "measured_rtt_ms": 1.32,
+    "qualification_exit": 0,
+    "qualification_outcome": "passed the focused throughput, p95, and p99 median gates; full matrix was then required",
+    "results_sha256": "c4d0728a6913808e6b3f432467f574123e2ff35533ae7cc93bce4a6e79cbeed1",
+    "run_finished_at": "2026-10-16T05:58:01+02:00",
+    "summary_sha256": "d186687b0b557f583c3f9fc00ad3633312882b38d59e44c177330c12b5623368"
+  },
+  "gates": {
+    "maximum_median_p95_ratio": 1.1,
+    "maximum_median_p99_ratio": 1.1,
+    "minimum_median_throughput_ratio": 0.9
+  },
+  "go_version": "go version go1.26.6 linux/amd64",
+  "harness_sha256": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+  "kernel": "Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep 4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "legacy_agent_binary_sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec",
+  "legacy_agent_overlay_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+  "legacy_agent_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "parent_lazy_wake_ref": "79650caf4f028f4680748d33dbe1f038e7c3d109",
+  "run_commands": {
+    "focused_h2c128": "bash qualify-proxy-agent-growth-h2c128.sh.txt --server-binary \"$BUILD_ROOT/bin/server.test\" --aggregate-agent-binary \"$BUILD_ROOT/bin/agent.test\" --legacy-agent-binary \"$LEGACY_BUILD_ROOT/bin/agent.test\" --output focused-h2c128-results.jsonl --server-source-ref 5288994b012c7566999ece140d7bdaa8bbd9d984 --aggregate-agent-source-ref 5288994b012c7566999ece140d7bdaa8bbd9d984 --legacy-agent-source-ref 3ec137c3ad3d07028e867042fb00d3933912d7ab --tiny-response --rtt-ms 1",
+    "full_matrix": "bash qualify-proxy-agent-growth.sh.txt --server-binary \"$BUILD_ROOT/bin/server.test\" --aggregate-agent-binary \"$BUILD_ROOT/bin/agent.test\" --legacy-agent-binary \"$LEGACY_BUILD_ROOT/bin/agent.test\" --output results.jsonl --server-source-ref 5288994b012c7566999ece140d7bdaa8bbd9d984 --aggregate-agent-source-ref 5288994b012c7566999ece140d7bdaa8bbd9d984 --legacy-agent-source-ref 3ec137c3ad3d07028e867042fb00d3933912d7ab --tiny-response --rtt-ms 1"
+  },
+  "runner_filter_patch_sha256": "9ec3a7719a3573701dee461314931e96d36b15ae71cea6fa0088c225778f683b",
+  "server_binary_sha256": "638660fe117b5e7f5d4557f6525a6b05d38860f82141f8caec1b834b768d9446",
+  "systemd": "systemd 259 (259.5-0ubuntu3.4)",
+  "workload": {
+    "closed_loop": true,
+    "concurrency": [16, 128],
+    "mode_order": [
+      "legacy then aggregate-v1 on odd repetitions",
+      "aggregate-v1 then legacy on even repetitions"
+    ],
+    "payload_bytes": 256,
+    "protocols": ["h1", "h2"],
+    "runs_per_mode_and_workload": 3,
+    "shaped_rate_bits_per_second": 1000000000,
+    "timed_seconds": 10,
+    "warmup_seconds": 2
+  }
+}
