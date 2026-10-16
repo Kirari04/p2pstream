@@ -1,0 +1,77 @@
+{
+  "checks": [
+    {
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "./internal/agent",
+        "-run",
+        "^TestRelayTunnelStream",
+        "-count=10",
+        "-timeout=3m"
+      ],
+      "exit_code": 0,
+      "log": "focused-normal.log",
+      "log_sha256": "da85c63afe9826873891ec149ce21c78938323f5fdecd1458d2dd682a8802e29"
+    },
+    {
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-race",
+        "./internal/agent",
+        "-run",
+        "^TestRelayTunnelStream",
+        "-count=5",
+        "-timeout=4m"
+      ],
+      "exit_code": 0,
+      "log": "focused-race.log",
+      "log_sha256": "cb76fcac2710ab89bbefec6e64d67d9350df2ac46dccf70762587ad0a5ad1be0"
+    },
+    {
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "./internal/agent",
+        "./internal/tunnel",
+        "-count=1",
+        "-timeout=8m"
+      ],
+      "exit_code": 0,
+      "log": "full-normal.log",
+      "log_sha256": "a8d47e2330e4651ea2971ae105d8b0ea13ebc1e770073fa0f33d29de938e2897"
+    },
+    {
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-race",
+        "./internal/agent",
+        "./internal/tunnel",
+        "-count=1",
+        "-timeout=12m"
+      ],
+      "exit_code": 0,
+      "log": "full-race.log",
+      "log_sha256": "f43e28af04829ddc88e87e742d84ce9a3a31761b94e01c873445d2a2f7d058f7"
+    }
+  ],
+  "environment": {
+    "GOFLAGS": "",
+    "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/relay-cancel-join",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off",
+    "PATH_prefix": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin",
+    "TEMP": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/relay-cancel-join",
+    "TMP": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/relay-cancel-join",
+    "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/relay-cancel-join"
+  },
+  "go_binary": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+  "go_binary_sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+  "sources": {
+    "internal/agent/agent.go": "db72d5947cae3f6c841a039947d288f72d6d64d04f97c7518b4107e0a31ad733",
+    "internal/agent/relay_cancellation_test.go": "3919caf4d8ca5541f7d76fa8a1f302103ab1f3d1b831da41ea5f921e5c82a5b3"
+  },
+  "validated_parent": "56a455e97b13f33b7293f2a2b753afd6da081cea"
+}

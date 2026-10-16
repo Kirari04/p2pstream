@@ -1656,33 +1656,55 @@ func relayTunnelStream(ctx context.Context, stream net.Conn, upstream net.Conn) 
 		errCh <- relayResult{direction: "sent", bytes: n, err: err}
 	}()
 
+	var first, second relayResult
+	var cancelErr error
+	select {
+	case first = <-errCh:
+		_ = stream.Close()
+		_ = upstream.Close()
+	case <-ctx.Done():
+		cancelErr = ctx.Err()
+		cancelTunnelRelay(stream, upstream)
+		first = <-errCh
+		second = <-errCh
+	}
+
+	if cancelErr == nil {
+		select {
+		case second = <-errCh:
+		case <-ctx.Done():
+			cancelErr = ctx.Err()
+			cancelTunnelRelay(stream, upstream)
+			second = <-errCh
+		}
+	}
+
 	var received uint64
 	var sent uint64
-	select {
-	case first := <-errCh:
-		_ = stream.Close()
-		_ = upstream.Close()
-		second := <-errCh
-		for _, result := range []relayResult{first, second} {
-			if result.direction == "received" {
-				received = uint64(result.bytes)
-			} else {
-				sent = uint64(result.bytes)
-			}
+	for _, result := range []relayResult{first, second} {
+		if result.direction == "received" {
+			received = uint64(result.bytes)
+		} else {
+			sent = uint64(result.bytes)
 		}
-		err := first.err
-		if err == nil || errors.Is(err, net.ErrClosed) {
-			err = second.err
-		}
-		if errors.Is(err, net.ErrClosed) {
-			return received, sent, nil
-		}
-		return received, sent, err
-	case <-ctx.Done():
-		_ = stream.Close()
-		_ = upstream.Close()
-		return 0, 0, ctx.Err()
 	}
+	if cancelErr != nil {
+		return received, sent, cancelErr
+	}
+	err := first.err
+	if err == nil || errors.Is(err, net.ErrClosed) {
+		err = second.err
+	}
+	if errors.Is(err, net.ErrClosed) {
+		return received, sent, nil
+	}
+	return received, sent, err
+}
+
+func cancelTunnelRelay(stream net.Conn, upstream net.Conn) {
+	_ = stream.SetDeadline(time.Now())
+	_ = stream.Close()
+	_ = upstream.Close()
 }
 
 func redactTunnelAddress(address string) string {

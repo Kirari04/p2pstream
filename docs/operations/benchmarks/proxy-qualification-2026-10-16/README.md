@@ -15,6 +15,9 @@ comparison.
 
 ## Files
 
+- [`agent-relay-cancellation/README.md`](agent-relay-cancellation/README.md)
+  records focused and complete agent/tunnel normal and race passes for joined
+  cancellation cleanup. This lifecycle fix does not clear the WAN failure.
 - [`final-unchanged-module-races/README.md`](final-unchanged-module-races/README.md)
   preserves passing frozen-source Yamux and system-metrics race checks. Their
   reuse requires byte-identical inputs; final integration races remain pending.
