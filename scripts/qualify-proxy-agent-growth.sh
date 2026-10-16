@@ -15,11 +15,13 @@ if [[ ${1:-} != --inside ]]; then
   steady_mib=1024
   transfer_repetitions=3
   required_pool_mib=8
+  configured_rtt_ms=80
   server_source_ref=""
   aggregate_agent_source_ref=""
   legacy_agent_source_ref=""
   smoke_mode=0
   pressure_mode=0
+  tiny_response_mode=0
   while (($#)); do
     case "$1" in
       --server-binary) server_binary=$2; shift 2 ;;
@@ -31,9 +33,15 @@ if [[ ${1:-} != --inside ]]; then
       --steady-mib) steady_mib=$2; shift 2 ;;
       --transfer-repetitions) transfer_repetitions=$2; shift 2 ;;
       --required-pool-mib) required_pool_mib=$2; shift 2 ;;
+      --rtt-ms) configured_rtt_ms=$2; shift 2 ;;
       --pressure)
         pressure_mode=1
         runs=1
+        shift
+        ;;
+      --tiny-response)
+        tiny_response_mode=1
+        runs=3
         shift
         ;;
       --server-source-ref) server_source_ref=$2; shift 2 ;;
@@ -59,12 +67,28 @@ if [[ ${1:-} != --inside ]]; then
   for value in "$warmup_mib" "$steady_mib" "$transfer_repetitions" "$required_pool_mib"; do
     [[ $value =~ ^[0-9]+$ ]] || { echo "transfer sizes, repetitions and required growth must be non-negative integers" >&2; exit 2; }
   done
+  [[ $configured_rtt_ms =~ ^[0-9]+$ ]] && ((configured_rtt_ms <= 1000)) || {
+    echo "--rtt-ms must be an integer from 0 through 1000" >&2
+    exit 2
+  }
+  ((configured_rtt_ms == 1 || configured_rtt_ms % 2 == 0)) || {
+    echo "--rtt-ms must be 1 or an even integer so the two path halves match" >&2
+    exit 2
+  }
   ((warmup_mib > 0 && steady_mib > 0 && transfer_repetitions > 0)) || {
     echo "transfer sizes and repetitions must be positive" >&2
     exit 2
   }
   ((required_pool_mib > 2 || (smoke_mode == 1 && required_pool_mib == 2))) || {
     echo "--required-pool-mib must be greater than the 2 MiB initial pool (exactly 2 is allowed only with --smoke)" >&2
+    exit 2
+  }
+  ((pressure_mode == 0 || tiny_response_mode == 0)) || {
+    echo "--pressure and --tiny-response are mutually exclusive" >&2
+    exit 2
+  }
+  ((smoke_mode == 0 || tiny_response_mode == 0)) || {
+    echo "--smoke and --tiny-response are mutually exclusive" >&2
     exit 2
   }
   [[ -n $server_source_ref && -n $aggregate_agent_source_ref && -n $legacy_agent_source_ref ]] || {
@@ -79,6 +103,8 @@ if [[ ${1:-} != --inside ]]; then
   export P2PSTREAM_GROWTH_SERVER_SOURCE_REF P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF
   export P2PSTREAM_GROWTH_SMOKE_MODE
   export P2PSTREAM_GROWTH_PRESSURE_MODE
+  export P2PSTREAM_GROWTH_TINY_RESPONSE_MODE
+  export P2PSTREAM_GROWTH_CONFIGURED_RTT_MS
   P2PSTREAM_GROWTH_SERVER_BINARY=$(realpath "$server_binary")
   P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY=$(realpath "$aggregate_agent_binary")
   P2PSTREAM_GROWTH_LEGACY_AGENT_BINARY=$(realpath "$legacy_agent_binary")
@@ -93,11 +119,13 @@ if [[ ${1:-} != --inside ]]; then
   P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF=$legacy_agent_source_ref
   P2PSTREAM_GROWTH_SMOKE_MODE=$smoke_mode
   P2PSTREAM_GROWTH_PRESSURE_MODE=$pressure_mode
+  P2PSTREAM_GROWTH_TINY_RESPONSE_MODE=$tiny_response_mode
+  P2PSTREAM_GROWTH_CONFIGURED_RTT_MS=$configured_rtt_ms
   P2PSTREAM_GROWTH_PARENT_NETNS=$(readlink /proc/self/ns/net)
   if unshare --user --map-root-user --net true 2>/dev/null; then
     exec unshare --user --map-root-user --net "$0" --inside
   fi
-  exec sudo -n --preserve-env=P2PSTREAM_GROWTH_SERVER_BINARY,P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY,P2PSTREAM_GROWTH_LEGACY_AGENT_BINARY,P2PSTREAM_GROWTH_OUTPUT,P2PSTREAM_GROWTH_RUNS,P2PSTREAM_GROWTH_PARENT_NETNS,P2PSTREAM_GROWTH_WARMUP_MIB,P2PSTREAM_GROWTH_STEADY_MIB,P2PSTREAM_GROWTH_TRANSFER_REPETITIONS,P2PSTREAM_GROWTH_REQUIRED_MIB,P2PSTREAM_GROWTH_SERVER_SOURCE_REF,P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_SMOKE_MODE,P2PSTREAM_GROWTH_PRESSURE_MODE \
+  exec sudo -n --preserve-env=P2PSTREAM_GROWTH_SERVER_BINARY,P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY,P2PSTREAM_GROWTH_LEGACY_AGENT_BINARY,P2PSTREAM_GROWTH_OUTPUT,P2PSTREAM_GROWTH_RUNS,P2PSTREAM_GROWTH_PARENT_NETNS,P2PSTREAM_GROWTH_WARMUP_MIB,P2PSTREAM_GROWTH_STEADY_MIB,P2PSTREAM_GROWTH_TRANSFER_REPETITIONS,P2PSTREAM_GROWTH_REQUIRED_MIB,P2PSTREAM_GROWTH_SERVER_SOURCE_REF,P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_SMOKE_MODE,P2PSTREAM_GROWTH_PRESSURE_MODE,P2PSTREAM_GROWTH_TINY_RESPONSE_MODE,P2PSTREAM_GROWTH_CONFIGURED_RTT_MS \
     unshare --net "$0" --inside
 fi
 
@@ -126,11 +154,14 @@ aggregate_agent_source_ref=$P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF
 legacy_agent_source_ref=$P2PSTREAM_GROWTH_LEGACY_AGENT_SOURCE_REF
 smoke_mode=$P2PSTREAM_GROWTH_SMOKE_MODE
 pressure_mode=${P2PSTREAM_GROWTH_PRESSURE_MODE:-0}
+tiny_response_mode=${P2PSTREAM_GROWTH_TINY_RESPONSE_MODE:-0}
+configured_rtt_ms=${P2PSTREAM_GROWTH_CONFIGURED_RTT_MS:-80}
 largest_transfer_mib=$((warmup_mib > steady_mib ? warmup_mib : steady_mib))
 transfer_timeout_seconds=$((60 + (largest_transfer_mib + 1) / 2))
 warmup_lane_rounds=4
 transfer_mib_per_cohort=$((2 * (warmup_lane_rounds + 1) * warmup_mib + 2 * transfer_repetitions * steady_mib))
 overall_timeout_seconds=$((300 + runs * 2 * (transfer_mib_per_cohort + 1) / 2 + pressure_mode * 600))
+if ((tiny_response_mode)); then overall_timeout_seconds=1200; fi
 mkdir -p "$(dirname "$output")"
 run_dir=$(mktemp -d -p "$(dirname "$output")" proxy-agent-growth.XXXXXX)
 : > "$output"
@@ -178,16 +209,21 @@ agent_ns ip link set growth-agent up
 ip route add 10.212.0.0/24 via 10.211.0.2
 agent_ns ip route add 10.211.0.0/24 via 10.212.0.1
 router_ns sysctl -qw net.ipv4.ip_forward=1
+if ((configured_rtt_ms == 1)); then one_way_delay=500us; else one_way_delay=$((configured_rtt_ms / 2))ms; fi
 for iface in growth-rs growth-rr; do
-  router_ns tc qdisc add dev "$iface" root netem delay 40ms rate 1gbit limit 100000
+  router_ns tc qdisc add dev "$iface" root netem delay "$one_way_delay" rate 1gbit limit 100000
 done
 
 measured_rtt_ms=$(agent_ns ping -c 5 -q 10.211.0.1 | awk -F/ '/rtt|round-trip/ {print $5}')
-python3 - "$measured_rtt_ms" <<'PY'
+python3 - "$configured_rtt_ms" "$measured_rtt_ms" <<'PY'
 import sys
-rtt = float(sys.argv[1])
-if not 60 <= rtt <= 120:
-    raise SystemExit(f"measured RTT {rtt}ms is outside the expected 60..120ms envelope")
+configured, measured = float(sys.argv[1]), float(sys.argv[2])
+if configured <= 1:
+    valid = 0 <= measured <= 5
+else:
+    valid = configured * .75 <= measured <= configured * 1.5
+if not valid:
+    raise SystemExit(f"measured RTT {measured}ms is outside the expected envelope for configured {configured}ms")
 PY
 
 server_binary_sha256=$(sha256sum "$server_binary" | awk '{print $1}')
@@ -469,7 +505,7 @@ run_transfer() {
   P2PSTREAM_QUALIFICATION_PROXY_CPU_SET="$server_cpu_set" \
   P2PSTREAM_QUALIFICATION_SERVER_PROCESS="$server_spec" \
   P2PSTREAM_QUALIFICATION_LOAD_CPU_SET="$load_cpu_set" \
-  P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE="p2pstream-external-agent-tunnel-netns:80ms,1gbit,current-server,mode=$mode" \
+  P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE="p2pstream-external-agent-tunnel-netns:${configured_rtt_ms}ms,1gbit,current-server,mode=$mode" \
   P2PSTREAM_QUALIFICATION_SEQUENCE="$sequence" \
   P2PSTREAM_QUALIFICATION_RESULT="$raw" \
     taskset -c "$load_cpu_set" "$server_binary" -test.run '^TestProxyQualificationLoad$' -test.timeout "${transfer_timeout_seconds}s" \
@@ -499,7 +535,7 @@ run_transfer() {
   fi
   jq -c --arg stage "$stage" --arg direction "$direction" --arg mode "$mode" \
     --argjson repetition "$repetition" --argjson agent_runtime "$agent_runtime" \
-    --argjson measured_rtt_ms "$measured_rtt_ms" \
+    --argjson configured_rtt_ms "$configured_rtt_ms" --argjson measured_rtt_ms "$measured_rtt_ms" \
     --arg server_binary_sha256 "$server_binary_sha256" \
     --arg aggregate_agent_binary_sha256 "$aggregate_agent_binary_sha256" \
     --arg legacy_agent_binary_sha256 "$legacy_agent_binary_sha256" \
@@ -515,7 +551,7 @@ run_transfer() {
         transfer_direction:$direction,
         transport_mode:$mode,
         repetition:$repetition,
-        configured_rtt_ms:80,
+        configured_rtt_ms:$configured_rtt_ms,
         measured_rtt_ms:$measured_rtt_ms,
         shaped_rate_bits_per_second:1000000000,
         useful_transfer_bytes_per_second:(.configured_payload_bytes / .wall_seconds),
@@ -533,6 +569,69 @@ run_transfer() {
           legacy_agent_source_ref:$legacy_agent_source_ref
         }
       }
+    ' "$raw" >> "$output"
+}
+
+run_tiny_response() {
+  local label=$1 mode=$2 server_pid=$3 public_url=$4 server_admin=$5 agent_pid=$6 agent_admin=$7
+  local protocol=$8 concurrency=$9 repetition=${10}
+  sequence=$((sequence + 1))
+  local scenario="${protocol}-keepalive"
+  local raw="$run_dir/$sequence-$label-tiny-$protocol-c$concurrency-r$repetition.json"
+  local server_spec agent_specs expected_major agent_runtime
+  server_spec=$(jq -cn --argjson pid "$server_pid" --arg admin "$server_admin" --arg cpus "$server_cpu_set" \
+    '{role:"server",pid:$pid,admin_url:$admin,cpu_set:$cpus}')
+  agent_specs=$(jq -cn --argjson pid "$agent_pid" --arg admin "$agent_admin" --arg cpus "$agent_cpu_set" \
+    '[{role:"agent",pid:$pid,admin_url:$admin,cpu_set:$cpus}]')
+  expected_major=1
+  [[ $protocol == h2 ]] && expected_major=2
+  P2PSTREAM_QUALIFICATION_ROLE=load \
+  P2PSTREAM_QUALIFICATION_URL="$public_url/agent/" \
+  P2PSTREAM_QUALIFICATION_SCENARIO="$scenario" \
+  P2PSTREAM_QUALIFICATION_PROTOCOL="$protocol" \
+  P2PSTREAM_QUALIFICATION_CONCURRENCY="$concurrency" \
+  P2PSTREAM_QUALIFICATION_REQUESTS="$concurrency" \
+  P2PSTREAM_QUALIFICATION_OFFERED_RPS=0 \
+  P2PSTREAM_QUALIFICATION_DURATION_SECONDS=10 \
+  P2PSTREAM_QUALIFICATION_WARMUP_SECONDS=2 \
+  P2PSTREAM_QUALIFICATION_LABEL="$label" \
+  P2PSTREAM_QUALIFICATION_PATH=agent-external-tiny \
+  P2PSTREAM_QUALIFICATION_PIDS="$server_pid" \
+  P2PSTREAM_QUALIFICATION_ADMIN_URL="$server_admin" \
+  P2PSTREAM_QUALIFICATION_PROXY_CPU_SET="$server_cpu_set" \
+  P2PSTREAM_QUALIFICATION_SERVER_PROCESS="$server_spec" \
+  P2PSTREAM_QUALIFICATION_AGENT_PROCESSES="$agent_specs" \
+  P2PSTREAM_QUALIFICATION_LOAD_CPU_SET="$load_cpu_set" \
+  P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE="p2pstream-external-agent-tiny:${configured_rtt_ms}ms,1gbit,current-server,mode=$mode" \
+  P2PSTREAM_QUALIFICATION_SEQUENCE="$sequence" \
+  P2PSTREAM_QUALIFICATION_RESULT="$raw" \
+    taskset -c "$load_cpu_set" "$server_binary" -test.run '^TestProxyQualificationLoad$' -test.timeout 60s \
+    >"$raw.log" 2>&1
+  agent_runtime=$(query_agent_json "$agent_pid" "$agent_admin")
+  jq -e --arg mode "$mode" --argjson major "$expected_major" '
+    .attempted > 0 and .useful_completed == .attempted and .errors == 0 and
+    .status_classes["2xx"] == .attempted and .response_bytes == (.attempted * 256) and
+    .observed_http_major == $major and
+    .event_stats_captured == true and .persisted_event_delta == .attempted and
+    ((.dropped_event_delta // 0) == 0) and ((.event_queue_after_drain // 0) == 0) and
+    ((.event_drain_error // "") == "") and
+    (.agent_tunnels_final | length == 1 and .[0].flow_control == $mode)
+  ' "$raw" >/dev/null
+  jq -c --arg stage tiny-response --arg mode "$mode" --arg protocol "$protocol" \
+    --argjson repetition "$repetition" --argjson agent_runtime "$agent_runtime" \
+    --argjson configured_rtt_ms "$configured_rtt_ms" --argjson measured_rtt_ms "$measured_rtt_ms" \
+    --arg server_binary_sha256 "$server_binary_sha256" \
+    --arg aggregate_agent_binary_sha256 "$aggregate_agent_binary_sha256" \
+    --arg legacy_agent_binary_sha256 "$legacy_agent_binary_sha256" \
+    --arg script_sha256 "$script_sha256" --arg server_source_ref "$server_source_ref" \
+    --arg aggregate_agent_source_ref "$aggregate_agent_source_ref" --arg legacy_agent_source_ref "$legacy_agent_source_ref" '
+      . + {measurement_stage:$stage,transport_mode:$mode,measured_protocol:$protocol,repetition:$repetition,
+        configured_rtt_ms:$configured_rtt_ms,measured_rtt_ms:$measured_rtt_ms,
+        agent_runtime_after:$agent_runtime,
+        provenance:{server_source_ref:$server_source_ref,aggregate_agent_source_ref:$aggregate_agent_source_ref,
+          legacy_agent_source_ref:$legacy_agent_source_ref,server_binary_sha256:$server_binary_sha256,
+          aggregate_agent_binary_sha256:$aggregate_agent_binary_sha256,
+          legacy_agent_binary_sha256:$legacy_agent_binary_sha256,harness_sha256:$script_sha256}}
     ' "$raw" >> "$output"
 }
 
@@ -949,6 +1048,21 @@ run_cohort() {
   [[ $mode == aggregate-v1 ]] && expected_bulk=4
   wait_mode "$server_admin" "$mode" "$expected_bulk"
 
+  if ((tiny_response_mode)); then
+    local tiny_specs=(h1:16 h1:128 h2:16 h2:128)
+    if ((iteration % 2 == 0)); then tiny_specs=(h2:128 h2:16 h1:128 h1:16); fi
+    local tiny_spec tiny_protocol tiny_concurrency
+    for tiny_spec in "${tiny_specs[@]}"; do
+      tiny_protocol=${tiny_spec%%:*}
+      tiny_concurrency=${tiny_spec##*:}
+      run_tiny_response "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" \
+        "$tiny_protocol" "$tiny_concurrency" "$iteration"
+    done
+    stop_process "$agent_process_pid" "$agent_stop"
+    stop_process "$server_process_pid" "$server_stop"
+    return
+  fi
+
   for direction in download upload; do
     for ((warmup_round=1; warmup_round<=warmup_lane_rounds; warmup_round++)); do
       run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" warmup "$direction" "$((warmup_mib << 20))" "$warmup_round"
@@ -988,10 +1102,10 @@ for ((iteration=1; iteration<=runs; iteration++)); do
 done
 stop_process "$origin_pid" "$origin_stop"
 summary=${output%.jsonl}.summary.json
-python3 - "$output" "$summary" "$required_pool_mib" "$smoke_mode" "$pressure_mode" <<'PY'
+python3 - "$output" "$summary" "$required_pool_mib" "$smoke_mode" "$pressure_mode" "$tiny_response_mode" <<'PY'
 import json, statistics, sys
 
-source, destination, required_pool_mib, smoke_mode, pressure_mode = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
+source, destination, required_pool_mib, smoke_mode, pressure_mode, tiny_response_mode = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6])
 rows = [json.loads(line) for line in open(source, encoding="utf-8") if line.strip()]
 if pressure_mode:
     result = next((row for row in rows if row.get("measurement_stage") == "pressure-result"), None)
@@ -1092,6 +1206,75 @@ if pressure_mode:
         output_file.write("\n")
     if not all(summary["acceptance"].values()):
         raise SystemExit(f"pressure qualification failed acceptance: {summary['acceptance']}")
+    raise SystemExit(0)
+if tiny_response_mode:
+    tiny = [row for row in rows if row.get("measurement_stage") == "tiny-response"]
+    measured_rtts = sorted({row["measured_rtt_ms"] for row in tiny})
+    configured_rtts = sorted({row["configured_rtt_ms"] for row in tiny})
+    if len(measured_rtts) != 1 or len(configured_rtts) != 1:
+        raise SystemExit(f"tiny-response RTT metadata changed within cohort: configured={configured_rtts}, measured={measured_rtts}")
+    summary = {"acceptance": {}, "workloads": {},
+               "network": {"configured_rtt_ms": configured_rtts[0], "measured_rtt_ms": measured_rtts[0],
+                           "shaped_rate_bits_per_second": 1000000000},
+               "gates": {"minimum_throughput_ratio": .90, "maximum_latency_ratio": 1.10}}
+    failed = []
+    for protocol in ("h1", "h2"):
+        for concurrency in (16, 128):
+            key = f"{protocol}-c{concurrency}"
+            summary["workloads"][key] = {}
+            by_mode = {}
+            for mode in ("legacy", "aggregate-v1"):
+                selected = sorted((row for row in tiny if row["transport_mode"] == mode and
+                                   row["measured_protocol"] == protocol and row["concurrency"] == concurrency),
+                                  key=lambda row: row["repetition"])
+                if len(selected) != 3:
+                    raise SystemExit(f"{key} {mode} sample count = {len(selected)}, want 3")
+                by_mode[mode] = selected
+                summary["workloads"][key][mode] = {
+                    "samples": len(selected),
+                    "useful_requests_per_second": [row["useful_requests_per_second"] for row in selected],
+                    "median_useful_requests_per_second": statistics.median(row["useful_requests_per_second"] for row in selected),
+                    "p95_ms": [row["p95_ms"] for row in selected],
+                    "median_p95_ms": statistics.median(row["p95_ms"] for row in selected),
+                    "p99_ms": [row["p99_ms"] for row in selected],
+                    "median_p99_ms": statistics.median(row["p99_ms"] for row in selected),
+                }
+            candidate = summary["workloads"][key]["aggregate-v1"]
+            baseline = summary["workloads"][key]["legacy"]
+            throughput_ratio = candidate["median_useful_requests_per_second"] / baseline["median_useful_requests_per_second"]
+            p95_ratio = candidate["median_p95_ms"] / baseline["median_p95_ms"]
+            p99_ratio = candidate["median_p99_ms"] / baseline["median_p99_ms"]
+            pairs = []
+            for candidate_row, baseline_row in zip(by_mode["aggregate-v1"], by_mode["legacy"]):
+                if candidate_row["repetition"] != baseline_row["repetition"]:
+                    raise SystemExit(f"{key} repetition mismatch")
+                pairs.append({
+                    "repetition": candidate_row["repetition"],
+                    "throughput_ratio": candidate_row["useful_requests_per_second"] / baseline_row["useful_requests_per_second"],
+                    "p95_ratio": candidate_row["p95_ms"] / baseline_row["p95_ms"],
+                    "p99_ratio": candidate_row["p99_ms"] / baseline_row["p99_ms"],
+                })
+            summary["workloads"][key]["candidate_to_legacy"] = {
+                "median_throughput_ratio": throughput_ratio,
+                "median_p95_ratio": p95_ratio,
+                "median_p99_ratio": p99_ratio,
+                "paired_ratios": pairs,
+                "paired_throughput_ratio_range": [min(pair["throughput_ratio"] for pair in pairs), max(pair["throughput_ratio"] for pair in pairs)],
+                "paired_throughput_ratio_population_stddev": statistics.pstdev(pair["throughput_ratio"] for pair in pairs),
+            }
+            throughput_pass = throughput_ratio >= .90
+            p95_pass = p95_ratio <= 1.10
+            p99_pass = p99_ratio <= 1.10
+            summary["acceptance"][f"{key}_throughput"] = throughput_pass
+            summary["acceptance"][f"{key}_p95"] = p95_pass
+            summary["acceptance"][f"{key}_p99"] = p99_pass
+            if not (throughput_pass and p95_pass and p99_pass):
+                failed.append(key)
+    with open(destination, "w", encoding="utf-8") as output_file:
+        json.dump(summary, output_file, indent=2, sort_keys=True)
+        output_file.write("\n")
+    if failed:
+        raise SystemExit(f"tiny-response qualification failed: {sorted(set(failed))}")
     raise SystemExit(0)
 steady = [row for row in rows if row["measurement_stage"] == "steady"]
 summary = {"acceptance": {}, "cohorts": {}}
