@@ -249,8 +249,9 @@ func (s *agentControlSessionReservation) release() {
 	if s.released {
 		return
 	}
-	// Session.Close joins all handlers before returning. Keep this defensive
-	// guard fail-closed if a future caller violates that lifetime contract.
+	// The surrounding serve lifecycle closes Yamux and then joins its application
+	// handlers before releasing this reservation. Keep this defensive guard
+	// fail-closed if a future caller violates that lifetime contract.
 	if s.active != 0 {
 		return
 	}
