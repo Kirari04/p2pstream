@@ -12,9 +12,13 @@ still apply.
   tunnel and four bulk tunnels per agent by default. Legacy peers retain four
   physical tunnels. Each origin has a reusable transport per bulk lane, so one
   HTTP/2 connection cannot pin all work to a single TCP tunnel. All lanes share
-  stream admission, update drain, health identity and revocation. A dropped lane
-  reconnects independently; a request whose connection was lost still follows
-  the configured replay rules.
+  stream admission, update drain, health identity and revocation. A dropped
+  aggregate lane reconnects independently. A legacy primary disconnect or a
+  complete legacy acknowledgment after an aggregate server rollback replaces
+  the whole group after joining its old sessions and releasing their resources.
+  Malformed acknowledgments fail closed without triggering that downgrade;
+  old peers that omit lane support keep a single physical tunnel. A request
+  whose connection was lost still follows the configured replay rules.
 - Streams begin with at most 512 KiB receive credit. Smoothed consumption
   and the recent minimum session RTT guide growth toward eight bandwidth-delay
   products, using at least 2 ms for relay scheduling. Two supporting samples
