@@ -93,8 +93,9 @@ still apply.
   envelopes, not measured heap or RSS subtraction.
 - A server-side agent stream owns a 256 KiB userspace base and no fictitious
   file descriptor. With default origin socket accounting, the agent side owns
-  a 768 KiB base and two descriptors for peak dial demand. Aggregate receive storage belongs
-  to the session pool rather than being duplicated in each stream's charge.
+  a 768 KiB base and two descriptors for peak dial demand. Aggregate receive
+  storage belongs to the session pool rather than being duplicated in each
+  stream's charge.
   Legacy streams acquire an exact receive supplement before opening or serving
   the stream (about 640.625 KiB at the 512 KiB initial window), retained through
   terminal payload cleanup. Every legacy agent lane also prepays the complete
@@ -352,7 +353,7 @@ go tool pprof -top -alloc_space /path/to/server/heap.pprof
 
 `scripts/qualify-proxy-performance.sh` is the finite local qualification
 harness. It drives the production HTTPS public listener and routing pipeline
-through direct and real four-lane agent targets, and compares the direct path
+through direct and real parallel agent targets, and compares the direct path
 with the installed HAProxy 3.2 control. The control terminates the same P-256
 certificate, negotiates the same client HTTP version, forwards to the same
 HTTP origin, uses the same four pinned proxy CPUs, and is sampled with the same
@@ -378,8 +379,9 @@ Acceptance thresholds are fixed before examining the full results:
   1.10 times baseline. Closed-loop saturation latency is reported but is not
   called tail-latency parity because the implementations can operate at
   different achieved loads.
-- The 4 GiB run must place 1,536 requests concurrently inside the controlled
-  origin barrier through the real public listener, complete every verified
+- The 4 GiB run with 1 GiB touched background ballast must place 1,536 requests
+  concurrently inside the controlled origin barrier through the real public
+  listener, complete every verified
   response, return no admission 503 below that validated budget, and complete
   the following recovery workload. A configured client concurrency by itself
   does not satisfy this criterion; the origin-reported inflight high-water is
@@ -413,12 +415,28 @@ they were a simultaneous combined peak.
 This topology has a total envelope of one 4 GiB server cgroup plus one or four
 4 GiB agent cgroups. Its optional 1 GiB ballast is server-only. It supplements
 the original combined server-and-agent 4 GiB result and cannot establish that
-the same workload fits in one 4 GiB deployment. The checked-in external smoke
-only validates fixture wiring: the legacy side established one control plus
-three bulk lanes, while the aggregate side explicitly negotiated one control
-plus four bulk lanes, and each persisted 100 of 100 verified requests. Separate
-constrained capacity, agent-pressure recovery and aggregate
-growth/idle/pressure/recovery measurements remain required.
+the same workload fits in one 4 GiB deployment.
+
+The frozen lower-base checkpoint `1e52b45` passed the exact 1,536-held-H1-request
+gate in the combined topology and in both separate-agent topologies. Each
+established all 1,536 requests inside the origin simultaneously, completed
+every response correctly, conserved all events and recorded readable zero OOM
+and OOM-kill deltas. The combined cgroup peaked at 1,391,091,712 bytes including
+its 1 GiB ballast. The combined process still uses separate production server
+and agent reservation ledgers. Each topology also completed and recorded all
+512 recovery requests. Current agents passed 128 held requests against the old
+server with one and four legacy physical lanes. See the
+[immutable capacity evidence](benchmarks/proxy-qualification-2026-10-16/lower-base-capacity/README.md)
+for source and executable hashes, exact runner inputs and all control rows.
+
+Immediate external-agent snapshots retained the reusable upstream stream
+reservations after the wave. The recovery result proves continued service;
+it does not establish prompt reservation release or return to initial resident
+memory. Natural idle cleanup, agent-pressure recovery and aggregate
+growth/idle/pressure/recovery measurements remain required. The earlier external
+smoke established one legacy control plus three bulk lanes versus one
+negotiated control plus four bulk lanes, with 100/100 events on each side;
+those earlier rows only validate fixture wiring.
 The external candidate agent role also accepts a separate bounded ballast for
 that later agent-pressure trace and reports the touched bytes in its own process
 snapshot. The legacy smoke overlay and all existing results used zero agent
@@ -582,8 +600,9 @@ The bounded downward search passed all 2,560 verified requests at 1,280
 concurrency with no 503s, request errors or admission misses, then failed at
 1,400 after reaching 1,308 requests inside the origin barrier. The 1,400 point
 recorded 92 agent-stream resource-pressure misses. The measured 1 GiB-ballast
-boundary is therefore above 1,280 and below 1,400 for this colocated agent
-fixture. Larger 2,000/4,000 points were not run after the lower failure
+boundary was therefore above 1,280 and below 1,400 for that earlier colocated
+agent checkpoint; the lower-base checkpoint described above now passes 1,536.
+Larger 2,000/4,000 points were not run after the earlier failure
 established the boundary. In production the agent and its origin sockets are
 remote and do not share the server cgroup; separating the fixture processes is
 required before attributing the entire boundary to server-resident allocations
