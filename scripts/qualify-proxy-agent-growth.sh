@@ -707,7 +707,7 @@ run_cohort() {
   if ((pressure_mode)); then
     systemd-run --user --scope --quiet --unit="$server_unit" \
       -p MemoryMax=4294967296 -p MemorySwapMax=0 -- \
-      nsenter -t "$$" -U -n env \
+      nsenter -t "$$" -n env \
       P2PSTREAM_QUALIFICATION_ROLE=proxy-external-agent \
       P2PSTREAM_QUALIFICATION_READY="$server_ready" \
       P2PSTREAM_QUALIFICATION_STOP="$server_stop" \
@@ -752,7 +752,7 @@ run_cohort() {
   if ((pressure_mode)); then
     systemd-run --user --scope --quiet --unit="$agent_unit" \
       -p MemoryMax=4294967296 -p MemorySwapMax=0 -- \
-      nsenter -t "$agent_namespace_pid" -U -n env \
+      nsenter -t "$agent_namespace_pid" -n env \
       P2PSTREAM_QUALIFICATION_ROLE=agent-external \
       P2PSTREAM_QUALIFICATION_READY="$agent_ready" \
       P2PSTREAM_QUALIFICATION_STOP="$agent_stop" \
