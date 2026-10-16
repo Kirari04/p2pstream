@@ -92,13 +92,13 @@ func newRealAgentProxyFixture(tb testing.TB, lanes int, window int64, rtt time.D
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		connected = app.AgentHub.connectedByID(row.ID)
-		if connected != nil && realAgentLaneCount(connected) == lanes {
+		if connected != nil && realAgentAggregateLaneShape(connected, lanes) {
 			break
 		}
 		time.Sleep(time.Millisecond)
 	}
-	if connected == nil || realAgentLaneCount(connected) != lanes {
-		tb.Fatal("real agent did not establish all lanes")
+	if connected == nil || !realAgentAggregateLaneShape(connected, lanes) {
+		tb.Fatalf("real agent did not establish negotiated control+%d bulk lanes", lanes)
 	}
 	data := bytes.Repeat([]byte("download"), 512*1024)
 	upstream := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -130,6 +130,14 @@ func realAgentLaneCount(agent *AgentConn) int {
 		}
 	}
 	return count
+}
+
+func realAgentAggregateLaneShape(agent *AgentConn, bulk int) bool {
+	if agent == nil {
+		return false
+	}
+	resources := agent.tunnelResourceSnapshot()
+	return resources.AggregateFlowControl && resources.ControlConnected && resources.BulkSessions == bulk && realAgentLaneCount(agent) == bulk+1
 }
 
 func (f *realAgentProxyFixture) roundTrip(ctx context.Context, path string, trace *trafficRequestTrace) (int64, error) {
@@ -164,10 +172,10 @@ func TestRealAgentParallelTunnelsSurvivePrimaryLoss(t *testing.T) {
 		}
 	}
 	deadline := time.Now().Add(5 * time.Second)
-	for realAgentLaneCount(initial) != 4 && time.Now().Before(deadline) {
+	for !realAgentAggregateLaneShape(initial, 4) && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if got := f.app.AgentHub.connectedByID(initial.AgentID); got != initial || realAgentLaneCount(initial) != 4 {
+	if got := f.app.AgentHub.connectedByID(initial.AgentID); got != initial || !realAgentAggregateLaneShape(initial, 4) {
 		t.Fatal("primary reconnect replaced the agent generation or failed to restore its lane")
 	}
 	if got := f.app.agentStreamCapacity.snapshot().RegisteredSessions; got != 1 {
