@@ -1,0 +1,4 @@
+HAProxy version 3.2.9-1ubuntu2.2 2026/06/19 - https://haproxy.org/
+Status: long-term supported branch - will stop receiving fixes around Q2 2030.
+Known bugs: http://www.haproxy.org/bugs/bugs-3.2.9.html
+Running on: Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64

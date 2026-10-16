@@ -29,6 +29,8 @@ parser.add_argument('--warmup-seconds', type=int, default=2)
 parser.add_argument('--idle-per-host', type=int, default=32)
 parser.add_argument('--concurrency', default='16,128')
 parser.add_argument('--protocol', choices=['h1', 'h2', 'both'], default='both')
+parser.add_argument('--matched-h2-single-connection', action='store_true',
+                    help='prewarm one H2 client connection and require every timed H2 row to reuse only that connection')
 args = parser.parse_args()
 if args.candidate_binary and not args.candidate_source_ref:
     parser.error('--candidate-source-ref is required with --candidate-binary')
@@ -36,13 +38,14 @@ concurrencies = [int(value) for value in args.concurrency.split(',')]
 if not (1 <= args.runs <= 10 and 1 <= args.duration_seconds <= 60 and 0 <= args.warmup_seconds <= 10
         and 1 <= args.idle_per_host <= 1024 and concurrencies and all(1 <= n <= 1536 for n in concurrencies)):
     parser.error('run, timing, idle or concurrency value is outside the finite diagnostic bounds')
-for tool in ['docker', 'openssl', 'haproxy', 'taskset', 'go', 'git', 'findmnt']:
+for tool in ['docker', 'openssl', 'haproxy', 'taskset', 'go', 'git', 'findmnt', 'lscpu']:
     if not shutil.which(tool):
         parser.error(f'{tool} is required')
 root = Path.cwd()
 caddy = Path(args.caddy_binary).resolve(strict=True)
 driver = Path(args.driver_binary).resolve(strict=True)
 candidate = Path(args.candidate_binary).resolve(strict=True) if args.candidate_binary else None
+haproxy = Path(shutil.which('haproxy')).resolve(strict=True)
 harness = Path(args.harness_source).resolve(strict=True)
 harness_bytes = harness.read_bytes()
 source_commits = {}
@@ -168,16 +171,26 @@ try:
                 caddy_version=version, caddy_binary_sha256=sha(caddy), driver_binary_sha256=sha(driver),
                 candidate_binary_sha256=sha(candidate) if candidate else None, candidate_label=args.candidate_label,
                 driver_build_info=output(['go', 'version', '-m', driver]),
+                candidate_build_info=output(['go', 'version', '-m', candidate]) if candidate else None,
                 script_sha256=sha(root / 'scripts/qualify-proxy-caddy.sh'),
-                haproxy_version=output(['haproxy', '-v']),
+                haproxy_path=str(haproxy), haproxy_binary_sha256=sha(haproxy), haproxy_version=output([haproxy, '-v']),
+                go_version=output(['go', 'version']),
+                kernel=dict(sysname=os.uname().sysname, release=os.uname().release,
+                            version=os.uname().version, machine=os.uname().machine),
+                cpu_topology=output(['lscpu', '-e=CPU,CORE,SOCKET,NODE,ONLINE']),
                 docker_image_id=output(['docker', 'image', 'inspect', '--format', '{{.Id}}', 'debian:trixie-slim']),
                 proxy_cpus=proxy_cpus, load_cpus=load_cpus, gomaxprocs=threads,
                 settings=vars(args), cgroup_limit_bytes=4 << 30, cgroup_swap_disabled=True,
                 scratch_storage='private per-container disk-backed bind mounted at /tmp',
                 scratch_host_filesystem=scratch_filesystem, scratch_available_bytes_before=scratch_available_bytes,
+                h2_connection_contract=('one validated prewarmed client connection reused by each timed H2 row'
+                                        if args.matched_h2_single_connection else 'unmatched observed client connections'),
                 limitations=['HAProxy remains a host process; its cgroup memory is not isolated.',
                              'Caddy official release and p2pstream may use different Go patch releases.',
-                             'p2pstream includes its full policy/recorder pipeline and an idle in-process agent fixture.'])
+                             'p2pstream includes its full policy/recorder pipeline and an idle in-process agent fixture.',
+                             ('Matched single-connection H2 is a topology-controlled comparison, not HAProxy maximum multi-thread throughput.'
+                              if args.matched_h2_single_connection else
+                              'Public H2 connection counts are observed but not constrained across proxies.')])
     (run_dir / 'provenance.json').write_text(json.dumps(meta, indent=2) + '\n')
     ready = run_dir / 'origin.ready.json'
     env = os.environ.copy()
@@ -229,10 +242,11 @@ https://:PORT {
                 label, envelope = 'caddy-' + version.split()[0] + f'-idle{args.idle_per_host}', 'caddy-process-4GiB-cgroup'
             elif kind == 'haproxy':
                 config = run_dir / f'{name}.cfg'
+                h2_stream_setting = '  tune.h2.fe.max-concurrent-streams 256\n' if args.matched_h2_single_connection else ''
                 config.write_text(f'''global
   maxconn 4096
   nbthread {threads}
-defaults
+{h2_stream_setting}defaults
   mode http
   timeout connect 5s
   timeout client 30s
@@ -243,7 +257,7 @@ frontend public
 backend origin
   server origin {origin_address}
 ''')
-                proxy = launch(['taskset', '-c', proxy_cpus, shutil.which('haproxy'), '-db', '-f', config], f'{name}.log')
+                proxy = launch(['taskset', '-c', proxy_cpus, haproxy, '-db', '-f', config], f'{name}.log')
                 sample_pid = str(proxy.pid)
                 label, envelope = 'haproxy-reference', 'haproxy-host-process'
             else:
@@ -278,6 +292,8 @@ backend origin
                         P2PSTREAM_QUALIFICATION_PROXY_CPU_SET=proxy_cpus, P2PSTREAM_QUALIFICATION_LOAD_CPU_SET=load_cpus,
                         P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE=envelope, P2PSTREAM_QUALIFICATION_SEQUENCE=str(sequence),
                         P2PSTREAM_QUALIFICATION_BALLAST_MIB='0', P2PSTREAM_QUALIFICATION_RESULT=str(result_file))
+                    if protocol == 'h2' and args.matched_h2_single_connection:
+                        load_env['P2PSTREAM_QUALIFICATION_H2_PREWARM'] = '1'
                     load_started_utc = datetime.now(timezone.utc).isoformat()
                     with open(str(result_file) + '.log', 'w') as log:
                         subprocess.run(['taskset', '-c', load_cpus, str(driver), '-test.run', '^TestProxyQualificationLoad$', '-test.timeout', '2m'],
@@ -285,12 +301,21 @@ backend origin
                     result = json.loads(result_file.read_text())
                     result.update(iteration=iteration, sequence=sequence, proxy_kind=kind,
                                   load_process_started_utc=load_started_utc, load_process_finished_utc=datetime.now(timezone.utc).isoformat())
+                    if protocol == 'h2' and args.matched_h2_single_connection:
+                        result['h2_connection_contract'] = 'single-prewarmed-client-connection'
                     with open(results_path, 'a') as combined:
                         combined.write(json.dumps(result, separators=(',', ':')) + '\n')
                     print(f'{label} c{concurrency} {protocol}: {result["useful_requests_per_second"]:.1f} useful/s, errors={result["errors"]}', flush=True)
                     expected_major = 1 if protocol == 'h1' else 2
                     if result['errors'] or result['useful_completed'] != result['attempted'] or result.get('observed_http_major') != expected_major:
                         raise RuntimeError(f'payload/status/protocol qualification failed: {result_file}')
+                    if protocol == 'h2' and args.matched_h2_single_connection:
+                        if (result.get('h2_prewarm_requests') != 1 or result.get('client_tcp_connections') != 1
+                                or not result.get('h2_prewarm_connection_reused')
+                                or result.get('h2_prewarm_additional_connection', False)):
+                            raise RuntimeError(f'matched H2 single-connection contract failed: {result_file}')
+                        if kind == 'candidate' and result.get('h2_prewarm_persisted_events') != 1:
+                            raise RuntimeError(f'candidate H2 prewarm event conservation failed: {result_file}')
                     if kind == 'candidate' and (not result.get('event_stats_captured') or result.get('persisted_event_delta') != result['attempted']
                             or result.get('dropped_event_delta', 0) or result.get('event_drain_error') or result.get('event_stats_error')):
                         raise RuntimeError(f'candidate event conservation failed: {result_file}')

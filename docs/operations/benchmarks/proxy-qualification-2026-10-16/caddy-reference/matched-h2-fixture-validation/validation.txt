@@ -1,0 +1,13 @@
+source_scope=internal/server/proxy_qualification_test.go scripts/qualify-proxy-caddy.sh
+source_format=gofmt PASS; git diff --check PASS
+runner_shell_syntax=bash -n scripts/qualify-proxy-caddy.sh PASS
+runner_python_parse=scripts/qualify-proxy-caddy.sh --help PASS
+focused_normal_command=GOTMPDIR=<workspace>/tmp/caddy-h2-prewarm-gotmp go test ./internal/server -run '^TestQualificationH2(Small)?PrewarmRequiresSuccessfulH2$' -count=20
+focused_normal_result=PASS ok p2pstream/internal/server 0.209s elapsed1.44s maxrss481680KiB
+focused_race_command=GOTMPDIR=<workspace>/tmp/caddy-h2-prewarm-gotmp go test -race ./internal/server -run '^TestQualificationH2(Small)?PrewarmRequiresSuccessfulH2$' -count=10
+focused_race_result=PASS ok p2pstream/internal/server 1.344s elapsed2.65s maxrss532400KiB
+initial_default_tmp_attempt=FAILED before tests during Go link: mapping output file failed: disk quota exceeded
+rerun_tmp_contract=owned workspace GOTMPDIR; removed after both passing runs
+haproxy_config_command=/usr/sbin/haproxy -c -f <sanitized-haproxy-matched-h2.cfg>
+haproxy_config_result=PASS exit0 with HAProxy 3.2.9; parser output was empty
+performance_loads=none
