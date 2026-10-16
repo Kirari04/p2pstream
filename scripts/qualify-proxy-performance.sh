@@ -54,6 +54,7 @@ external_expected_bulk=""
 candidate_external_mode=aggregate-v1
 baseline_external_mode=legacy
 external_lifecycle=0
+external_standing=0
 while (($#)); do
   case "$1" in
     --smoke) smoke=1; runs=1; shift ;;
@@ -93,6 +94,7 @@ while (($#)); do
     --candidate-external-mode) candidate_external_mode=$2; shift 2 ;;
     --baseline-external-mode) baseline_external_mode=$2; shift 2 ;;
     --external-lifecycle) external_lifecycle=1; shift ;;
+    --external-standing) external_standing=1; runs=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -145,8 +147,18 @@ if [[ ! $runs =~ ^[1-9][0-9]*$ ]]; then
   echo "--runs must be a positive integer" >&2
   exit 2
 fi
-if [[ ! $external_agents =~ ^[0-4]$ || ! $external_agent_tunnels =~ ^[1-9][0-9]*$ || $external_agent_tunnels -gt 32 ]]; then
-  echo "--external-agents must be 0..4 and --external-agent-tunnels must be 1..32" >&2
+external_agent_max=4
+((external_standing)) && external_agent_max=32
+if [[ ! $external_agents =~ ^[0-9]+$ ]] || ((external_agents > external_agent_max)) || ! [[ $external_agent_tunnels =~ ^[1-9][0-9]*$ ]] || ((external_agent_tunnels > 32)); then
+  echo "--external-agents must be 0..$external_agent_max and --external-agent-tunnels must be 1..32" >&2
+  exit 2
+fi
+if ((external_standing)) && {
+  [[ $external_agents != 16 && $external_agents != 32 ]] ||
+  ((external_agent_tunnels != 4 || use_cgroup == 0 || capacity_only || decisive_only || external_lifecycle || controls_only || ballast_mib || agent_ballast_mib)) ||
+  [[ $candidate_external_mode != aggregate-v1 || -n $baseline_binary || -n $scenario_filter || -n $path_filter ]];
+}; then
+  echo "--external-standing requires exactly 16 or 32 constrained aggregate-v1 agents with four bulk lanes and no load/baseline/ballast mode" >&2
   exit 2
 fi
 case "$candidate_external_mode:$baseline_external_mode" in
@@ -208,7 +220,9 @@ cleanup() {
   done
   wait || true
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 wait_ready() {
   local file=$1 pid=$2
@@ -324,7 +338,9 @@ origin_pid=$process_pid
 origin_stop=$process_stop
 origin_url=$(jq -r .url "$process_ready")
 
-if ((capacity_only)); then
+if ((external_standing)); then
+  scenario_rows=()
+elif ((capacity_only)); then
   case "$capacity_protocol" in
     h1) scenario_rows=("capacity-$capacity_concurrency-h1 h1 delay $capacity_concurrency $capacity_concurrency 0" "recovery h2 small 64 512 0") ;;
     h2) scenario_rows=("capacity-$capacity_concurrency-h2 h2 delay $capacity_concurrency $capacity_concurrency 0" "recovery h2 small 64 512 0") ;;
@@ -644,6 +660,270 @@ if not shape_ok or final_streams != baseline_streams or not agents_idle or not e
 PY
 }
 
+capture_external_standing() {
+  local label=$1 server_spec=$2 agent_specs=$3
+  python3 - "$label" "$server_spec" "$agent_specs" "$output" "$external_expected_mode" "$external_expected_bulk" "$external_agents" <<'PY'
+import concurrent.futures
+import json
+import os
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+label, raw_server_spec, raw_agent_specs, destination, mode, raw_bulk, raw_agents = sys.argv[1:]
+server_spec = json.loads(raw_server_spec)
+agent_specs = json.loads(raw_agent_specs)
+bulk = int(raw_bulk)
+agents = int(raw_agents)
+expected_initial_pool = 10 << 20
+expected_server_metadata = 1 << 20
+expected_server_control = 2_918_912
+expected_server_session = 14_453_248
+expected_agent_metadata = 9_994_240
+expected_agent_control = 2_918_912
+expected_agent_session = 23_398_912
+expected_control_slots = 4
+expected_control_base_bytes = 3_145_728
+expected_control_base_fds = 8
+
+def fetch(url, timeout=3):
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        return response.status, json.load(response)
+
+def read_int(path):
+    value = open(path, encoding="utf-8").read().strip()
+    return None if value == "max" else int(value)
+
+def process_stats(spec):
+    pid = int(spec["pid"])
+    cgroup_lines = open(f"/proc/{pid}/cgroup", encoding="utf-8").read().splitlines()
+    unified = next((line.split("::", 1)[1] for line in cgroup_lines if "::" in line), None)
+    if unified is None or not unified.startswith("/"):
+        raise RuntimeError(f"{spec['role']} has no readable unified cgroup path")
+    root = "/sys/fs/cgroup" + unified
+    memory_stat = {}
+    memory_events = {}
+    for line in open(f"{root}/memory.stat", encoding="utf-8"):
+        key, value = line.split()
+        memory_stat[key] = int(value)
+    for line in open(f"{root}/memory.events", encoding="utf-8"):
+        key, value = line.split()
+        memory_events[key] = int(value)
+    statm = open(f"/proc/{pid}/statm", encoding="utf-8").read().split()
+    fd_dir = f"/proc/{pid}/fd"
+    fds = os.listdir(fd_dir)
+    sockets = 0
+    for fd in fds:
+        try:
+            sockets += os.readlink(f"{fd_dir}/{fd}").startswith("socket:")
+        except OSError:
+            pass
+    runtime_url = spec["admin_url"]
+    if spec["role"] == "server":
+        runtime_url += ("&" if "?" in runtime_url else "?") + "owners=1"
+    status, runtime = fetch(runtime_url)
+    if status != 200:
+        raise RuntimeError(f"{spec['role']} runtime returned HTTP {status}")
+    return {
+        "role": spec["role"], "pid": pid, "container": spec["container"],
+        "cpu_set": spec["cpu_set"], "cgroup_path": unified,
+        "cgroup_inode": os.stat(root).st_ino,
+        "rss_bytes": int(statm[1]) * os.sysconf("SC_PAGE_SIZE"),
+        "file_descriptors": len(fds), "socket_descriptors": sockets,
+        "cgroup_memory_current_bytes": read_int(f"{root}/memory.current"),
+        "cgroup_memory_max_bytes": read_int(f"{root}/memory.max"),
+        "cgroup_swap_max_bytes": read_int(f"{root}/memory.swap.max"),
+        "cgroup_sock_bytes": memory_stat.get("sock"),
+        "cgroup_memory_events": memory_events, "runtime": runtime,
+    }
+
+def collect():
+    specs = [server_spec, *agent_specs]
+    started = time.monotonic()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(specs)) as pool:
+        processes = list(pool.map(process_stats, specs))
+    finished = time.monotonic()
+    return {
+        "sample_span_seconds": finished - started,
+        "server_process": processes[0], "agent_processes": processes[1:],
+        "parallel_cgroup_memory_current_sum_bytes": sum(
+            process["cgroup_memory_current_bytes"] for process in processes),
+    }
+
+def shape_and_promises(sample):
+    server_runtime = sample["server_process"]["runtime"]
+    tunnels = server_runtime.get("agent_tunnels", [])
+    shape = len(tunnels) == agents and all(
+        tunnel.get("connected") is True
+        and tunnel.get("control_connected") is True
+        and tunnel.get("flow_control") == mode
+        and tunnel.get("bulk_sessions") == bulk
+        and len(tunnel.get("lanes", [])) == bulk + 1
+        and all(lane.get("streams", 0) == 0 for lane in tunnel.get("lanes", []))
+        for tunnel in tunnels)
+    server_promises = all(
+        tunnel.get("aggregate_initial_pool_bytes") == expected_initial_pool
+        and tunnel.get("aggregate_current_pool_bytes") == expected_initial_pool
+        and tunnel.get("session_metadata_bytes") == expected_server_metadata
+        and tunnel.get("legacy_control_supplement_bytes") == expected_server_control
+        and tunnel.get("session_resource_bytes") == expected_server_session
+        for tunnel in tunnels)
+    owner_reservations = server_runtime.get("owner_reservations", {})
+    owner_bytes = server_runtime.get("owner_bytes", {})
+    server_idle = (
+        owner_reservations.get("receive_window") == agents * (bulk + 1)
+        and owner_bytes.get("receive_window") == agents * expected_server_session
+        and all(value == 0 for key, value in owner_reservations.items() if key != "receive_window"))
+    agent_promises = True
+    agents_idle = True
+    for process in sample["agent_processes"]:
+        runtime = process["runtime"]
+        capacity = runtime.get("agent_capacity", {})
+        sessions = runtime.get("tunnel_sessions", [])
+        agent_promises = agent_promises and (
+            len(sessions) == bulk + 1
+            and capacity.get("aggregate_initial_pool_bytes") == expected_initial_pool
+            and capacity.get("aggregate_growth_pool_bytes") == 0
+            and capacity.get("aggregate_current_pool_bytes") == expected_initial_pool
+            and capacity.get("aggregate_session_metadata_bytes") == expected_agent_metadata
+            and capacity.get("legacy_control_supplement_bytes") == expected_agent_control
+            and capacity.get("session_resource_bytes") == expected_agent_session
+            and capacity.get("control_reserved_slots") == expected_control_slots
+            and capacity.get("control_reserved_base_bytes") == expected_control_base_bytes
+            and capacity.get("control_reserved_base_fds") == expected_control_base_fds)
+        agents_idle = agents_idle and (
+            capacity.get("in_use") == 0 and capacity.get("control_in_use") == 0
+            and capacity.get("receive_window_bytes", 0) == 0
+            and capacity.get("legacy_stream_supplement_bytes", 0) == 0)
+    return shape, server_promises, server_idle, agent_promises, agents_idle
+
+def session_identities(sample):
+    tunnels = sample["server_process"]["runtime"].get("agent_tunnels", [])
+    server = sorted((
+        tunnel.get("id"), tunnel.get("public_id"),
+        tuple((lane.get("lane"), lane.get("aggregate")) for lane in tunnel.get("lanes", [])))
+        for tunnel in tunnels)
+    agent = sorted((
+        process["role"], tuple(sorted(
+            (session.get("lane"), session.get("session_identity"))
+            for session in process["runtime"].get("tunnel_sessions", []))))
+        for process in sample["agent_processes"])
+    return server, agent
+
+def agent_session_identities_valid(sample):
+    for process in sample["agent_processes"]:
+        sessions = process["runtime"].get("tunnel_sessions", [])
+        lanes = sorted(session.get("lane") for session in sessions)
+        identities = [session.get("session_identity") for session in sessions]
+        if lanes != list(range(bulk + 1)) or any(not identity for identity in identities) or len(set(identities)) != bulk + 1:
+            return False
+    return True
+
+initial = collect()
+initial_checks = shape_and_promises(initial)
+health = []
+initial_tunnels_by_id = {
+    tunnel["id"]: tunnel
+    for tunnel in initial["server_process"]["runtime"].get("agent_tunnels", [])
+}
+initial_tunnels_by_index = {
+    index: tunnel for index, tunnel in enumerate(
+        sorted(initial_tunnels_by_id.values(), key=lambda tunnel: tunnel["id"]), start=1)
+}
+for index in range(1, agents + 1):
+    query = urllib.parse.urlencode({"agent_health": index})
+    status, response = fetch(server_spec["admin_url"] + "?" + query, timeout=5)
+    health.append({"requested_agent_index": index, "http_status": status, "response": response})
+
+deadline = time.monotonic() + 15
+quiescent = None
+while time.monotonic() < deadline:
+    quiescent = collect()
+    if all(shape_and_promises(quiescent)):
+        break
+    time.sleep(.05)
+else:
+    quiescent = quiescent or collect()
+time.sleep(1)
+final = collect()
+final_checks = shape_and_promises(final)
+
+processes = [initial["server_process"], *initial["agent_processes"],
+             final["server_process"], *final["agent_processes"]]
+readable_envelopes = all(
+    process.get("cgroup_memory_current_bytes") is not None
+    and process.get("cgroup_memory_current_bytes") > 0
+    and process.get("cgroup_memory_max_bytes") == 4 << 30
+    and process.get("cgroup_swap_max_bytes") == 0
+    and process.get("cgroup_sock_bytes") is not None
+    and process.get("rss_bytes", 0) > 0
+    and process.get("file_descriptors", 0) > 0
+    and process.get("socket_descriptors", 0) > 0
+    and isinstance(process.get("runtime"), dict) and len(process["runtime"]) > 0
+    and all(key in process.get("cgroup_memory_events", {}) for key in ("oom", "oom_kill"))
+    for process in processes)
+initial_processes = [initial["server_process"], *initial["agent_processes"]]
+final_processes = [final["server_process"], *final["agent_processes"]]
+zero_oom = all(
+    final_processes[index]["cgroup_memory_events"][key]
+        == initial_processes[index]["cgroup_memory_events"][key]
+    for index in range(len(initial_processes)) for key in ("oom", "oom_kill"))
+distinct_cgroups = len({process["cgroup_inode"] for process in initial_processes}) == agents + 1
+cgroup_identities_stable = [process["cgroup_inode"] for process in initial_processes] == [
+    process["cgroup_inode"] for process in final_processes]
+session_identities_stable = session_identities(initial) == session_identities(final)
+agent_session_identities_exact = agent_session_identities_valid(initial) and agent_session_identities_valid(final)
+health_ok = len(health) == agents and all(
+    row["http_status"] == 200 and row["response"].get("ok") is True
+    and row["response"].get("agent_index") == row["requested_agent_index"]
+    and row["requested_agent_index"] in initial_tunnels_by_index
+    and row["response"].get("agent_id")
+        == initial_tunnels_by_index[row["requested_agent_index"]].get("id")
+    and row["response"].get("agent_public_id")
+        == initial_tunnels_by_index[row["requested_agent_index"]].get("public_id")
+    and row["response"].get("status_code", 0) >= 200
+    and row["response"].get("status_code", 0) < 300
+    for row in health)
+acceptance = {
+    "expected_aggregate_mode_and_four_bulk_lanes": mode == "aggregate-v1" and bulk == 4,
+    "strict_process_counts": len(initial["agent_processes"]) == agents and len(final["agent_processes"]) == agents,
+    "initial_exact_lane_shape": initial_checks[0],
+    "initial_server_session_promises": initial_checks[1],
+    "initial_server_owners_idle": initial_checks[2],
+    "initial_agent_session_promises": initial_checks[3],
+    "initial_agents_idle": initial_checks[4],
+    "health_each_agent": health_ok,
+    "post_health_exact_lane_shape": final_checks[0],
+    "post_health_server_session_promises": final_checks[1],
+    "post_health_server_owners_idle": final_checks[2],
+    "post_health_agent_session_promises": final_checks[3],
+    "post_health_agents_idle": final_checks[4],
+    "readable_4g_no_swap_envelopes": readable_envelopes,
+    "distinct_process_cgroups": distinct_cgroups,
+    "cgroup_identities_stable": cgroup_identities_stable,
+    "session_identities_stable": session_identities_stable,
+    "agent_session_identities_nonempty_and_exact": agent_session_identities_exact,
+    "zero_oom_deltas": zero_oom,
+}
+row = {
+    "label": label, "scenario": "agent-standing-pool", "transport_mode": mode,
+    "external_agents": agents, "bulk_sessions_per_agent": bulk,
+    "physical_sessions_per_agent": bulk + 1,
+    "resource_envelope": f"server-4g+{agents}x-agent-4g:no-swap,separate-cgroups",
+    "envelope_allowance_bytes": (agents + 1) * (4 << 30),
+    "current_sum_sampling_note": "parallel per-process reads; no nonsimultaneous peaks are summed",
+    "initial": initial, "health_roundtrips": health,
+    "post_health_quiescent": quiescent, "final": final,
+    "acceptance": acceptance,
+}
+with open(destination, "a", encoding="utf-8") as output:
+    output.write(json.dumps(row, separators=(",", ":"), sort_keys=True) + "\n")
+if not all(acceptance.values()):
+    raise SystemExit(f"standing-pool qualification failed: {acceptance}")
+PY
+}
+
 run_external_p2pstream() {
   local label=$1 binary=$2 agent_binary=$3 iteration=$4 expected_mode=$5
   local name="${label}-${iteration}-external"
@@ -694,6 +974,9 @@ with urllib.request.urlopen(url, timeout=2) as response:
     json.dump(json.load(response), sys.stdout, separators=(",", ":"))
 PY
 )
+  fi
+  if ((external_standing)); then
+    capture_external_standing "$label" "$server_process_json" "$agent_processes_json"
   fi
   for scenario_row in "${scenario_rows[@]}"; do
     [[ -n $scenario_filter && ${scenario_row%% *} != "$scenario_filter" ]] && continue

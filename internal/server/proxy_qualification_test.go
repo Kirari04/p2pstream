@@ -808,7 +808,7 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 	if agentCount == 0 {
 		agentCount = 1
 	}
-	if agentCount < 1 || agentCount > 4 {
+	if agentCount < 1 || agentCount > 32 {
 		t.Fatalf("invalid external agent count %d", agentCount)
 	}
 	ballastMiB := qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_BALLAST_MIB")
@@ -922,11 +922,18 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 		ExpectedStatusMax: defaultTargetHealthCheckExpectedStatusMax,
 	}
 	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("agent_health") != "1" {
+		healthAgent := r.URL.Query().Get("agent_health")
+		if healthAgent == "" {
 			runtimeHandler.ServeHTTP(w, r)
 			return
 		}
-		agent := app.AgentHub.connectedByID(agentIDs[0])
+		healthIndex, parseErr := strconv.Atoi(healthAgent)
+		if parseErr != nil || healthIndex < 1 || healthIndex > len(agentIDs) {
+			http.Error(w, "invalid agent_health index", http.StatusBadRequest)
+			return
+		}
+		agentID := agentIDs[healthIndex-1]
+		agent := app.AgentHub.connectedByID(agentID)
 		capacityBefore := app.agentStreamCapacity.snapshot()
 		attempt := app.runPublicRouteTargetHealthCheckViaAgent(r.Context(), healthTarget, agent)
 		capacityAfter := app.agentStreamCapacity.snapshot()
@@ -941,6 +948,7 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
 		_ = json.NewEncoder(w).Encode(map[string]any{
+			"agent_index": healthIndex, "agent_id": agentID, "agent_public_id": agents[agentID].PublicID,
 			"ok": attempt.Err == nil && !attempt.Skipped, "skipped": attempt.Skipped,
 			"status_code": attempt.StatusCode, "error_kind": attempt.ErrorKind,
 			"error":                        errorText,
