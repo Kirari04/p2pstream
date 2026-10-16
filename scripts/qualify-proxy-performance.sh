@@ -24,6 +24,7 @@ agent_ballast_mib=0
 decisive_only=0
 capacity_only=0
 capacity_boundary_diagnostics=0
+capacity_established_h2=0
 capacity_concurrency=1536
 capacity_protocol=both
 decisive_duration=10
@@ -73,6 +74,7 @@ while (($#)); do
     --decisive-only) decisive_only=1; shift ;;
     --capacity-only) capacity_only=1; shift ;;
     --capacity-boundary-diagnostics) capacity_boundary_diagnostics=1; shift ;;
+    --capacity-established-h2) capacity_established_h2=1; shift ;;
     --capacity-concurrency) capacity_concurrency=$2; shift 2 ;;
     --capacity-protocol) capacity_protocol=$2; shift 2 ;;
     --duration-seconds) decisive_duration=$2; shift 2 ;;
@@ -97,6 +99,10 @@ done
 if ((smoke)); then use_cgroup=0; fi
 if ((capacity_boundary_diagnostics && !capacity_only)); then
   echo "--capacity-boundary-diagnostics requires --capacity-only" >&2
+  exit 2
+fi
+if ((capacity_established_h2)) && { ((!capacity_only)) || [[ $capacity_protocol != h2 ]]; }; then
+  echo "--capacity-established-h2 requires --capacity-only --capacity-protocol h2" >&2
   exit 2
 fi
 if ((controls_only && !stdlib_controls && !stdlib_pooled_controls && !stdlib_sharded_controls)); then
@@ -382,6 +388,7 @@ run_load() {
   P2PSTREAM_QUALIFICATION_URL="$base_url/$suffix" \
   P2PSTREAM_QUALIFICATION_SCENARIO="$scenario" \
   P2PSTREAM_QUALIFICATION_PROTOCOL="$protocol" \
+  P2PSTREAM_QUALIFICATION_CAPACITY_ESTABLISHED_H2="$capacity_established_h2" \
   P2PSTREAM_QUALIFICATION_CONCURRENCY="$concurrency" \
   P2PSTREAM_QUALIFICATION_REQUESTS="$requests" \
   P2PSTREAM_QUALIFICATION_OFFERED_RPS="$offered_rps" \
@@ -468,7 +475,8 @@ run_load() {
     fi
   fi
   jq -c --argjson run "$sequence" --argjson diagnostics "$capacity_boundary_diagnostics" \
-    '. + {sequence: $run, capacity_boundary_diagnostics: ($diagnostics == 1)}' "$result" >> "$output"
+    --argjson established_h2 "$capacity_established_h2" \
+    '. + {sequence: $run, capacity_boundary_diagnostics: ($diagnostics == 1), capacity_established_h2: ($established_h2 == 1)}' "$result" >> "$output"
 }
 
 sequence=0

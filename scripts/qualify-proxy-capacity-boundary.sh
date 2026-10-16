@@ -21,6 +21,7 @@ parser.add_argument('--candidate-binary', required=True)
 parser.add_argument('--candidate-agent-binary', required=True)
 parser.add_argument('--driver-binary', required=True)
 parser.add_argument('--output-parent', default='tmp/capacity-boundary')
+parser.add_argument('--established-h2', action='store_true', help='separate remote-H2 3072/repeat, with 2048 fallback; one successful prewarm')
 args = parser.parse_args()
 
 def interrupted(signum, frame):
@@ -105,6 +106,14 @@ manifest = {
         'meaning': 'Simultaneously held tiny requests, not sustained throughput or maximum body/header capacity',
     },
 }
+if args.established_h2:
+    manifest['policy'].update({
+        'initial_points': [3072], 'lower_probes_if_3072_fails': [2048],
+        'lower_probes_if_2048_fails': [], 'refinement_resolution': None,
+        'mode': 'remote-agent H2 after exactly one successful H2 prewarm',
+        'prewarm_event_policy': 'persist exactly one prewarm event before measured event baseline',
+        'ceiling': 'No new 4096 attempt; cold 4096 instability remains preserved separately',
+    })
 (destination / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 print(f'evidence={destination}', flush=True)
 summary = {'candidate_ref': commit, 'shapes': {}, 'points': []}
@@ -177,6 +186,8 @@ def point(path, protocol, count, confirmation=False):
         invocation += ['--path-filter', 'direct']
     else:
         invocation += ['--external-agents', '1', '--external-agent-tunnels', '4']
+    if args.established_h2:
+        invocation += ['--capacity-established-h2']
     (target / 'command.json').write_text(json.dumps(invocation, indent=2) + '\n')
     with open(target / 'runner.log', 'w') as log:
         process = subprocess.Popen(invocation, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
@@ -212,6 +223,9 @@ def point(path, protocol, count, confirmation=False):
             event_mode = 'exact'
         elif classified_pre_http_events(row):
             event_mode = 'classified_pre_http_admission; failed point only'
+        if args.established_h2:
+            checks['one_successful_h2_prewarm'] = row.get('capacity_h2_prewarm_requests') == 1
+            checks['one_prewarm_event_before_baseline'] = row.get('capacity_h2_prewarm_persisted_events') == 1
         for agent in row.get('agent_processes', []):
             before, after = agent.get('agent_capacity_initial', {}), agent.get('agent_capacity_final', {})
             checks['agent_no_admission_rejections'] = checks.get('agent_no_admission_rejections', True) and all(
@@ -223,6 +237,8 @@ def point(path, protocol, count, confirmation=False):
     safe = event_mode != 'unproven' and all(checks.get(key, False) for key in (
         'runner_completed', 'capacity_row', 'recovery_row', 'constrained_no_oom', 'recovery', 'ballast',
     ))
+    if args.established_h2:
+        safe = safe and checks.get('one_successful_h2_prewarm', False) and checks.get('one_prewarm_event_before_baseline', False)
     result = {'path': path, 'protocol': protocol, 'concurrency': count, 'confirmation': confirmation,
               'checks': checks, 'accepted': all(checks.values()), 'safe_to_continue': safe,
               'capacity_event_conservation': event_mode,
@@ -235,6 +251,24 @@ def point(path, protocol, count, confirmation=False):
     return result['accepted']
 
 try:
+    if args.established_h2:
+        shape = {'highest_confirmed_pass': None, 'tested_ceiling': 3072,
+                 'interpretation': 'Separate established-H2 diagnostic; original cold matrix remains unchanged'}
+        summary['shapes']['remote-agent-h2-established'] = shape
+        first = point('remote-agent', 'h2', 3072)
+        repeated = point('remote-agent', 'h2', 3072, confirmation=True) if first else False
+        if first and repeated:
+            shape['highest_confirmed_pass'] = 3072
+        else:
+            shape['3072_initial_passed'] = first
+            shape['3072_repeat_passed'] = repeated
+            if not point('remote-agent', 'h2', 2048) or not point('remote-agent', 'h2', 2048, confirmation=True):
+                raise RuntimeError('Established-H2 fallback did not confirm 2048')
+            shape['highest_confirmed_pass'] = 2048
+        summary['completed'] = True
+        write_summary()
+        print(f'summary={destination / "summary.json"}', flush=True)
+        raise SystemExit(0)
     for path in ('direct', 'remote-agent'):
         for protocol in ('h1', 'h2'):
             shape = {'highest_confirmed_pass': None, 'lowest_observed_failure': None, 'tested_ceiling': 4096}

@@ -19,6 +19,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/http/httptrace"
 	"net/http/httputil"
 	"net/url"
@@ -445,6 +446,8 @@ type qualificationResult struct {
 	ResourcePressureReasons       []string                          `json:"resource_pressure_reasons,omitempty"`
 	BarrierMaxHoldSeconds         float64                           `json:"barrier_max_hold_seconds,omitempty"`
 	BarrierPostReleaseHoldMS      int64                             `json:"barrier_post_release_hold_ms,omitempty"`
+	CapacityH2PrewarmRequests     int                               `json:"capacity_h2_prewarm_requests,omitempty"`
+	CapacityH2PrewarmEvents       int64                             `json:"capacity_h2_prewarm_persisted_events,omitempty"`
 	ServerProcess                 *qualificationProcessResult       `json:"server_process,omitempty"`
 	AgentProcesses                []qualificationProcessResult      `json:"agent_processes,omitempty"`
 	AgentTunnelsInitial           []qualificationAgentTunnelRuntime `json:"agent_tunnels_initial,omitempty"`
@@ -1080,6 +1083,54 @@ func startQualificationProfiles(t *testing.T, dir, mode string) func() {
 	}
 }
 
+func qualificationPrewarmH2(ctx context.Context, client *http.Client, target string) error {
+	parsed, err := url.Parse(target)
+	if err != nil {
+		return err
+	}
+	query := parsed.Query()
+	query.Del("barrier")
+	query.Set("ms", "1")
+	parsed.RawQuery = query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
+	if err != nil {
+		return err
+	}
+	req.Host = "public.test"
+	response, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	body, readErr := io.ReadAll(io.LimitReader(response.Body, 1))
+	if readErr != nil || response.ProtoMajor != 2 || response.StatusCode != http.StatusNoContent || len(body) != 0 {
+		return fmt.Errorf("H2 capacity prewarm: protocol=%d status=%d bytes=%d read=%v", response.ProtoMajor, response.StatusCode, len(body), readErr)
+	}
+	return nil
+}
+
+func TestQualificationH2PrewarmRequiresSuccessfulH2(t *testing.T) {
+	for _, h2 := range []bool{false, true} {
+		t.Run(strconv.FormatBool(h2), func(t *testing.T) {
+			var requests atomic.Int64
+			origin := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				if r.Host != "public.test" || r.URL.Query().Has("barrier") {
+					t.Error("prewarm changed host or retained the held-request barrier")
+				}
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			origin.EnableHTTP2 = h2
+			origin.StartTLS()
+			defer origin.Close()
+			err := qualificationPrewarmH2(t.Context(), origin.Client(), origin.URL+"/delay?barrier=3072")
+			if (err == nil) != h2 || requests.Load() != 1 {
+				t.Fatalf("prewarm h2=%v error=%v requests=%d", h2, err, requests.Load())
+			}
+		})
+	}
+}
+
 func TestProxyQualificationLoad(t *testing.T) {
 	if os.Getenv("P2PSTREAM_QUALIFICATION_ROLE") != "load" {
 		t.Skip("qualification load subprocess only")
@@ -1120,6 +1171,44 @@ func TestProxyQualificationLoad(t *testing.T) {
 	if scenario == "tls-idle" {
 		runQualificationTLSIdle(t, target, concurrency, requests)
 		return
+	}
+	capacityH2PrewarmRequests, capacityH2PrewarmEvents := 0, int64(0)
+	if protocol == "h2" && strings.HasPrefix(scenario, "capacity-") && os.Getenv("P2PSTREAM_QUALIFICATION_CAPACITY_ESTABLISHED_H2") == "1" {
+		adminURL := os.Getenv("P2PSTREAM_QUALIFICATION_ADMIN_URL")
+		flushQualificationEvents(t, adminURL)
+		probe := newQualificationSampler("", adminURL, false)
+		before, readable := probe.readRuntime(true)
+		if adminURL != "" && (!readable || !before.EventStats) {
+			t.Fatal("H2 prewarm requires a readable recorder baseline")
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		err := qualificationPrewarmH2(ctx, client, target)
+		cancel()
+		if err != nil {
+			t.Fatal(err)
+		}
+		capacityH2PrewarmRequests = 1
+		if adminURL != "" {
+			// A client can finish before the handler queues its deferred event.
+			// Observe that event before flushing and taking the measured baseline.
+			deadline := time.Now().Add(5 * time.Second)
+			for {
+				after, ok := probe.readRuntime(true)
+				if ok && after.EventStats && after.PersistedEvents+after.PendingEvents+int64(after.QueuedEvents) > before.PersistedEvents {
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal("H2 prewarm event did not reach the recorder")
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			flushQualificationEvents(t, adminURL)
+			after, ok := probe.readRuntime(true)
+			capacityH2PrewarmEvents = after.PersistedEvents - before.PersistedEvents
+			if !ok || !after.EventStats || capacityH2PrewarmEvents != 1 || after.DroppedEvents != before.DroppedEvents || after.PendingEvents != 0 || after.QueuedEvents != 0 {
+				t.Fatalf("H2 prewarm recorder did not persist exactly one event: before=%+v after=%+v", before, after)
+			}
+		}
 	}
 	var useful, errorsSeen, canceledErrors, bytesSeen, requestBodyBytes, originRequestBodyBytes atomic.Int64
 	var originBodyBarrierTimedOut atomic.Bool
@@ -1434,6 +1523,8 @@ func TestProxyQualificationLoad(t *testing.T) {
 	if strings.HasPrefix(scenario, "capacity-") {
 		result.BarrierMaxHoldSeconds = qualificationBarrierMaxHold.Seconds()
 		result.BarrierPostReleaseHoldMS = qualificationBarrierPostReleaseHold.Milliseconds()
+		result.CapacityH2PrewarmRequests = capacityH2PrewarmRequests
+		result.CapacityH2PrewarmEvents = capacityH2PrewarmEvents
 	}
 	if protocol == "h2" && result.ObservedHTTPMajor != 2 {
 		t.Fatalf("negotiated HTTP/%d, want HTTP/2", result.ObservedHTTPMajor)
