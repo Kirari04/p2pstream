@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/yamux"
+
 	"p2pstream/internal/tunnel"
 )
 
@@ -55,12 +57,93 @@ type externalQualificationAgentCapacity struct {
 }
 
 type externalQualificationAgentRuntime struct {
-	HeapAlloc    uint64                              `json:"heap_alloc_bytes"`
-	HeapSys      uint64                              `json:"heap_sys_bytes"`
-	NumGC        uint32                              `json:"num_gc"`
-	PauseNS      uint64                              `json:"pause_total_ns"`
-	BallastBytes int64                               `json:"agent_ballast_bytes,omitempty"`
-	Capacity     *externalQualificationAgentCapacity `json:"agent_capacity,omitempty"`
+	HeapAlloc      uint64                                    `json:"heap_alloc_bytes"`
+	HeapSys        uint64                                    `json:"heap_sys_bytes"`
+	NumGC          uint32                                    `json:"num_gc"`
+	PauseNS        uint64                                    `json:"pause_total_ns"`
+	BallastBytes   int64                                     `json:"agent_ballast_bytes,omitempty"`
+	Capacity       *externalQualificationAgentCapacity       `json:"agent_capacity,omitempty"`
+	TunnelSessions []externalQualificationAgentTunnelSession `json:"tunnel_sessions,omitempty"`
+}
+
+type externalQualificationAgentTunnelSession struct {
+	Lane                  int    `json:"lane"`
+	Aggregate             bool   `json:"aggregate"`
+	ReceiveLimitBytes     uint32 `json:"receive_limit_bytes,omitempty"`
+	ReceiveAvailableBytes uint32 `json:"receive_available_bytes,omitempty"`
+	TotalUnits            uint32 `json:"total_units,omitempty"`
+	FreeUnits             uint32 `json:"free_units,omitempty"`
+	BufferedUnits         uint32 `json:"buffered_units,omitempty"`
+	PendingRefundBytes    uint64 `json:"pending_refund_bytes,omitempty"`
+}
+
+type externalQualificationObservedSession struct {
+	aggregate bool
+	session   *yamux.Session
+}
+
+type externalQualificationSessionRegistry struct {
+	mu       sync.Mutex
+	sessions map[int]externalQualificationObservedSession
+}
+
+func newExternalQualificationSessionRegistry(size int) *externalQualificationSessionRegistry {
+	return &externalQualificationSessionRegistry{sessions: make(map[int]externalQualificationObservedSession, size)}
+}
+
+func (r *externalQualificationSessionRegistry) observe(observation tunnelSessionObservation) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if observation.Connected {
+		r.sessions[observation.Lane] = externalQualificationObservedSession{
+			aggregate: observation.Aggregate,
+			session:   observation.Session,
+		}
+		return
+	}
+	if current, ok := r.sessions[observation.Lane]; ok && current.session == observation.Session {
+		delete(r.sessions, observation.Lane)
+	}
+}
+
+func (r *externalQualificationSessionRegistry) snapshot(maxLane int) []externalQualificationAgentTunnelSession {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	result := make([]externalQualificationAgentTunnelSession, 0, len(r.sessions))
+	for lane := 0; lane <= maxLane; lane++ {
+		observed, ok := r.sessions[lane]
+		if !ok {
+			continue
+		}
+		row := externalQualificationAgentTunnelSession{Lane: lane, Aggregate: observed.aggregate}
+		if observed.aggregate && lane > 0 {
+			pool := observed.session.AggregateReceiveWindowStats()
+			row.ReceiveLimitBytes = pool.ReceiveLimit
+			row.ReceiveAvailableBytes = pool.ReceiveAvailable
+			row.TotalUnits = pool.TotalUnits
+			row.FreeUnits = pool.FreeUnits
+			row.BufferedUnits = pool.BufferedUnits
+			row.PendingRefundBytes = pool.PendingRefund
+		}
+		result = append(result, row)
+	}
+	return result
+}
+
+func TestExternalQualificationSessionRegistryIgnoresStaleDisconnect(t *testing.T) {
+	registry := newExternalQualificationSessionRegistry(2)
+	oldSession := &yamux.Session{}
+	newSession := &yamux.Session{}
+	registry.observe(tunnelSessionObservation{Lane: 1, Aggregate: true, Connected: true, Session: oldSession})
+	registry.observe(tunnelSessionObservation{Lane: 1, Aggregate: true, Connected: true, Session: newSession})
+	registry.observe(tunnelSessionObservation{Lane: 1, Aggregate: true, Session: oldSession})
+	if got := registry.snapshot(1); len(got) != 1 || got[0].Lane != 1 || !got[0].Aggregate {
+		t.Fatalf("stale disconnect removed replacement session: %+v", got)
+	}
+	registry.observe(tunnelSessionObservation{Lane: 1, Aggregate: true, Session: newSession})
+	if got := registry.snapshot(1); len(got) != 0 {
+		t.Fatalf("replacement disconnect left session registered: %+v", got)
+	}
 }
 
 func TestExternalProxyQualificationAgentProcess(t *testing.T) {
@@ -112,6 +195,7 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	var capacity atomic.Pointer[agentTunnelCapacityRuntime]
+	sessions := newExternalQualificationSessionRegistry(connections + 1)
 	runDone := make(chan error, 1)
 	go func() {
 		runDone <- RunContext(ctx, Options{
@@ -122,6 +206,7 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 			capacityObserver: func(runtime *agentTunnelCapacityRuntime) {
 				capacity.Store(runtime)
 			},
+			tunnelSessionObserver: sessions.observe,
 		})
 	}()
 	deadline := time.Now().Add(5 * time.Second)
@@ -166,6 +251,7 @@ func runExternalProxyQualificationAgent(t *testing.T) {
 			HeapAlloc: stats.HeapAlloc, HeapSys: stats.HeapSys, NumGC: stats.NumGC, PauseNS: stats.PauseTotalNs,
 			BallastBytes: ballastBytes,
 		}
+		result.TunnelSessions = sessions.snapshot(connections)
 		if current := capacity.Load(); current != nil {
 			snapshot := current.snapshot()
 			result.Capacity = &externalQualificationAgentCapacity{

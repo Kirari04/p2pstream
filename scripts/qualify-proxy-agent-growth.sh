@@ -321,7 +321,11 @@ run_transfer() {
     fi
   fi
   if [[ $mode == aggregate-v1 && $stage == steady && $direction == upload ]]; then
-    jq -e '.agent_capacity.aggregate_growth_pool_bytes > 0 and .agent_capacity.aggregate_current_pool_bytes > .agent_capacity.aggregate_initial_pool_bytes' <<<"$agent_runtime" >/dev/null
+    jq -e --argjson required "$((required_pool_mib << 20))" '
+      (.agent_capacity.aggregate_growth_pool_bytes > 0) and
+      (.agent_capacity.aggregate_current_pool_bytes > .agent_capacity.aggregate_initial_pool_bytes) and
+      ([.tunnel_sessions[] | select(.aggregate == true and .lane > 0) | .receive_limit_bytes] | max > $required)
+    ' <<<"$agent_runtime" >/dev/null
   fi
   jq -c --arg stage "$stage" --arg direction "$direction" --arg mode "$mode" \
     --argjson repetition "$repetition" --argjson agent_runtime "$agent_runtime" \
@@ -334,6 +338,7 @@ run_transfer() {
     --arg aggregate_agent_source_ref "$aggregate_agent_source_ref" \
     --arg legacy_agent_source_ref "$legacy_agent_source_ref" '
       ([.agent_tunnels_high_water[0].lanes[]? | select(.lane != 0) | .receive_limit_bytes] | max // 0) as $server_pool |
+      ([$agent_runtime.tunnel_sessions[]? | select(.aggregate == true and .lane > 0) | .receive_limit_bytes] | max // 0) as $agent_pool |
       . + {
         measurement_stage:$stage,
         transfer_direction:$direction,
@@ -343,8 +348,8 @@ run_transfer() {
         measured_rtt_ms:$measured_rtt_ms,
         shaped_rate_bits_per_second:1000000000,
         useful_transfer_bytes_per_second:(.configured_payload_bytes / .wall_seconds),
-        receiving_pool_observed_bytes:(if $direction == "download" then $server_pool else null end),
-        receiving_pool_evidence:(if $direction == "download" then "exact-server-lane" else "agent-aggregate-growth-only-per-lane-pending" end),
+        receiving_pool_observed_bytes:(if $mode != "aggregate-v1" then null elif $direction == "download" then $server_pool else $agent_pool end),
+        receiving_pool_evidence:(if $mode != "aggregate-v1" then "legacy-per-stream-window" elif $direction == "download" then "exact-server-lane" else "exact-agent-lane" end),
         agent_aggregate_growth_reservation_bytes:($agent_runtime.agent_capacity.aggregate_growth_pool_bytes // 0),
         agent_runtime_after:$agent_runtime,
         provenance:{
