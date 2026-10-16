@@ -1,0 +1,1934 @@
+{
+  "acceptance": {
+    "all_pair_gates_passed": false,
+    "all_rows_exact": true,
+    "complete": true,
+    "no_non_timing_failures": true,
+    "overall": false
+  },
+  "all_phase_rows": [
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 1,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33574911.09256446,
+      "wall_seconds": 7.995120382,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 2,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33116113.876556642,
+      "wall_seconds": 8.105886367,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 3,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33434838.225021318,
+      "wall_seconds": 8.028615368,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 4,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33833830.303100616,
+      "wall_seconds": 7.9339363469999995,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 5,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35910780.40860098,
+      "wall_seconds": 7.475066065,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 6,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35227064.88160811,
+      "wall_seconds": 7.620148227,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 7,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35415491.38783313,
+      "wall_seconds": 7.579605576,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 8,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35679273.56226577,
+      "wall_seconds": 7.523568425,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 9,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27335443.875573125,
+      "wall_seconds": 9.820051111,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 10,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35470349.46068763,
+      "wall_seconds": 7.567883037,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 11,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27185014.027556833,
+      "wall_seconds": 9.874390932,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 12,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35485471.79913861,
+      "wall_seconds": 7.56465794,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 13,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35000801.25666728,
+      "wall_seconds": 7.669408881,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 14,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34200203.8050685,
+      "wall_seconds": 7.848943168,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 15,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34359683.79712556,
+      "wall_seconds": 7.812512408,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 16,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 36514708.13964973,
+      "wall_seconds": 7.351433701,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 17,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33802311.85696032,
+      "wall_seconds": 7.941334224,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 18,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33584246.06180678,
+      "wall_seconds": 7.992898084,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 19,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33839083.374588154,
+      "wall_seconds": 7.932704708,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 20,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33893740.50764123,
+      "wall_seconds": 7.919912408,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 21,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35240285.12377567,
+      "wall_seconds": 7.617289561,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 22,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34865410.78231475,
+      "wall_seconds": 7.699190974,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 23,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34905875.830819614,
+      "wall_seconds": 7.690265596,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 24,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35134160.11515984,
+      "wall_seconds": 7.640298078,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 25,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29794251.975009862,
+      "wall_seconds": 9.009639048,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 26,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35193308.758461006,
+      "wall_seconds": 7.627457192,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 27,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29733784.713368867,
+      "wall_seconds": 9.027961243,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 28,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34687491.66108774,
+      "wall_seconds": 7.738681673,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 29,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34943852.73886528,
+      "wall_seconds": 7.681907831,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 30,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30195089.229535628,
+      "wall_seconds": 8.890036852,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 31,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34356154.259228684,
+      "wall_seconds": 7.813315017,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 32,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 36509556.09149005,
+      "wall_seconds": 7.352471099,
+      "within_pair": 32
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 33,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33649326.38964044,
+      "wall_seconds": 7.977439218,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 34,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33122223.263526015,
+      "wall_seconds": 8.104391238,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 35,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33346656.20473934,
+      "wall_seconds": 8.049846268,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 36,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33633992.823232435,
+      "wall_seconds": 7.981076092,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 37,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 28924350.77506385,
+      "wall_seconds": 9.280604363,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 38,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35369736.18142884,
+      "wall_seconds": 7.58941075,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 39,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34948460.13581031,
+      "wall_seconds": 7.680895094,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 40,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34918712.66868344,
+      "wall_seconds": 7.687438496,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 41,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33802959.406889156,
+      "wall_seconds": 7.941182095,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 42,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35387765.63823634,
+      "wall_seconds": 7.585544076,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 43,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29792960.06281004,
+      "wall_seconds": 9.010029733,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 44,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35172136.29089711,
+      "wall_seconds": 7.63204867,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 45,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35281393.522289984,
+      "wall_seconds": 7.608414215,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 46,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30345639.44649228,
+      "wall_seconds": 8.845931768,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 47,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34350004.09785953,
+      "wall_seconds": 7.814713944,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 48,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35742745.74009177,
+      "wall_seconds": 7.510208028,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 49,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33578060.39841775,
+      "wall_seconds": 7.994370515,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 50,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33380089.490801595,
+      "wall_seconds": 8.041783593,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 51,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33374069.91151637,
+      "wall_seconds": 8.043234065,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 52,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33328932.89362042,
+      "wall_seconds": 8.054126931,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 53,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35130363.48487842,
+      "wall_seconds": 7.641123785,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 54,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34852933.7098523,
+      "wall_seconds": 7.701947223,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 55,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34849889.38690383,
+      "wall_seconds": 7.702620029,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 56,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34849286.40976366,
+      "wall_seconds": 7.702753303,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 57,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27493319.938349646,
+      "wall_seconds": 9.763661013,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 58,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35413491.626865864,
+      "wall_seconds": 7.580033588,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 59,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27355045.41297551,
+      "wall_seconds": 9.813014453,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 60,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35172726.53636312,
+      "wall_seconds": 7.631920594,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 61,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 36056893.0316518,
+      "wall_seconds": 7.444775005,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 62,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 28294807.485730827,
+      "wall_seconds": 9.487092504,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 63,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34356683.435474925,
+      "wall_seconds": 7.813194673,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 64,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35941703.26608416,
+      "wall_seconds": 7.468634806,
+      "within_pair": 32
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 65,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33191276.736078687,
+      "wall_seconds": 8.087530291,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 66,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33643635.54694187,
+      "wall_seconds": 7.978788607,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 67,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33860172.46536874,
+      "wall_seconds": 7.927763991,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 68,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33751823.11621081,
+      "wall_seconds": 7.953213522,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 69,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35619999.699515186,
+      "wall_seconds": 7.536088104,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 70,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35144895.69832266,
+      "wall_seconds": 7.637964224,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 71,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35065363.560016826,
+      "wall_seconds": 7.655287975,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 72,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35130672.060604066,
+      "wall_seconds": 7.641056668,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 73,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33198116.088848528,
+      "wall_seconds": 8.085864128,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 74,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35115468.632265076,
+      "wall_seconds": 7.644364904,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 75,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27374854.85313126,
+      "wall_seconds": 9.805913399,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 76,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 34613258.92417474,
+      "wall_seconds": 7.755278305,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 77,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35888497.3966978,
+      "wall_seconds": 7.479707301,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 78,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27507146.492283724,
+      "wall_seconds": 9.758753278,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 79,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34359991.70614301,
+      "wall_seconds": 7.812442398,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 80,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 36806888.45135198,
+      "wall_seconds": 7.293076576,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 81,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33386310.65044853,
+      "wall_seconds": 8.040285098,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 82,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33614621.55982507,
+      "wall_seconds": 7.9856753860000005,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 83,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33738811.24645013,
+      "wall_seconds": 7.956280796,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 84,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33634467.24970594,
+      "wall_seconds": 7.980963516,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 85,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35226927.61483449,
+      "wall_seconds": 7.62017792,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 86,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35119725.40473228,
+      "wall_seconds": 7.64343835,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 87,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35120871.470479384,
+      "wall_seconds": 7.643188929,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 88,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 29039012.717547026,
+      "wall_seconds": 9.243959449,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 89,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29702647.11508793,
+      "wall_seconds": 9.03742535,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 90,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35300050.96831614,
+      "wall_seconds": 7.604392873,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 91,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33871435.83920326,
+      "wall_seconds": 7.925127747,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 92,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35406999.22646453,
+      "wall_seconds": 7.5814235,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 93,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 35482459.67349535,
+      "wall_seconds": 7.565300108,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 94,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30519872.23750913,
+      "wall_seconds": 8.795431839,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 95,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34343315.743888855,
+      "wall_seconds": 7.816235858,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 96,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 36526149.37657212,
+      "wall_seconds": 7.349130981,
+      "within_pair": 32
+    }
+  ],
+  "failures": [
+    "pair 1 download split/current ratio 0.8828920845512824 below 1.1",
+    "pair 2 download split/current ratio 1.0724808593165265 below 1.1"
+  ],
+  "fixed_workload": {
+    "configured_rtt_ms": 80,
+    "mode_order": [
+      "gathered-then-split",
+      "split-then-gathered",
+      "gathered-then-split"
+    ],
+    "pairs": 3,
+    "required_pool_mib": 8,
+    "steady_mib": 256,
+    "total_transfers": 96,
+    "transfer_repetitions": 3,
+    "transfers_per_variant": 16,
+    "transport_mode_both_variants": "aggregate-v1",
+    "warmup_mib": 256
+  },
+  "non_timing_failures": [],
+  "pairs": {
+    "1": {
+      "gates": {
+        "download": {
+          "current_median_useful_bytes_per_second": 34200203.8050685,
+          "minimum": 1.1,
+          "passed": false,
+          "split_median_useful_bytes_per_second": 30195089.229535628,
+          "split_to_current_ratio": 0.8828920845512824
+        },
+        "upload": {
+          "current_median_useful_bytes_per_second": 35485471.79913861,
+          "minimum": 0.9,
+          "passed": true,
+          "split_median_useful_bytes_per_second": 34943852.73886528,
+          "split_to_current_ratio": 0.9847368787052034
+        }
+      },
+      "label_order": [
+        "refund-gathered-control",
+        "refund-split-control"
+      ],
+      "transition_screen": {
+        "current_download_minimum": 27185014.027556833,
+        "current_has_subthreshold_sample": true,
+        "split_all_eight_download_samples_pass": true,
+        "split_download_minimum": 29733784.713368867,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "current": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33833830.303100616,
+              "median": 33504874.65879289,
+              "minimum": 33116113.876556642,
+              "samples": [
+                33574911.09256446,
+                33116113.876556642,
+                33434838.225021318,
+                33833830.303100616
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 27335443.875573125,
+              "median": 27335443.875573125,
+              "minimum": 27335443.875573125,
+              "samples": [
+                27335443.875573125
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34359683.79712556,
+              "median": 34200203.8050685,
+              "minimum": 27185014.027556833,
+              "samples": [
+                27185014.027556833,
+                34200203.8050685,
+                34359683.79712556
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 34200203.8050685,
+              "median": 30692608.916312665,
+              "minimum": 27185014.027556833,
+              "samples": [
+                27185014.027556833,
+                34200203.8050685
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34359683.79712556,
+              "median": 34359683.79712556,
+              "minimum": 34359683.79712556,
+              "samples": [
+                34359683.79712556
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35910780.40860098,
+              "median": 35547382.47504945,
+              "minimum": 35227064.88160811,
+              "samples": [
+                35910780.40860098,
+                35227064.88160811,
+                35415491.38783313,
+                35679273.56226577
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35470349.46068763,
+              "median": 35470349.46068763,
+              "minimum": 35470349.46068763,
+              "samples": [
+                35470349.46068763
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36514708.13964973,
+              "median": 35485471.79913861,
+              "minimum": 35000801.25666728,
+              "samples": [
+                35485471.79913861,
+                35000801.25666728,
+                36514708.13964973
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35485471.79913861,
+              "median": 35243136.527902946,
+              "minimum": 35000801.25666728,
+              "samples": [
+                35485471.79913861,
+                35000801.25666728
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36514708.13964973,
+              "median": 36514708.13964973,
+              "minimum": 36514708.13964973,
+              "samples": [
+                36514708.13964973
+              ]
+            }
+          }
+        },
+        "split": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33893740.50764123,
+              "median": 33820697.61577424,
+              "minimum": 33584246.06180678,
+              "samples": [
+                33802311.85696032,
+                33584246.06180678,
+                33839083.374588154,
+                33893740.50764123
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 29794251.975009862,
+              "median": 29794251.975009862,
+              "minimum": 29794251.975009862,
+              "samples": [
+                29794251.975009862
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34356154.259228684,
+              "median": 30195089.229535628,
+              "minimum": 29733784.713368867,
+              "samples": [
+                29733784.713368867,
+                30195089.229535628,
+                34356154.259228684
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30195089.229535628,
+              "median": 29964436.971452247,
+              "minimum": 29733784.713368867,
+              "samples": [
+                29733784.713368867,
+                30195089.229535628
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34356154.259228684,
+              "median": 34356154.259228684,
+              "minimum": 34356154.259228684,
+              "samples": [
+                34356154.259228684
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35240285.12377567,
+              "median": 35020017.97298972,
+              "minimum": 34865410.78231475,
+              "samples": [
+                35240285.12377567,
+                34865410.78231475,
+                34905875.830819614,
+                35134160.11515984
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35193308.758461006,
+              "median": 35193308.758461006,
+              "minimum": 35193308.758461006,
+              "samples": [
+                35193308.758461006
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36509556.09149005,
+              "median": 34943852.73886528,
+              "minimum": 34687491.66108774,
+              "samples": [
+                34687491.66108774,
+                34943852.73886528,
+                36509556.09149005
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 34943852.73886528,
+              "median": 34815672.199976504,
+              "minimum": 34687491.66108774,
+              "samples": [
+                34687491.66108774,
+                34943852.73886528
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36509556.09149005,
+              "median": 36509556.09149005,
+              "minimum": 36509556.09149005,
+              "samples": [
+                36509556.09149005
+              ]
+            }
+          }
+        }
+      }
+    },
+    "2": {
+      "gates": {
+        "download": {
+          "current_median_useful_bytes_per_second": 28294807.485730827,
+          "minimum": 1.1,
+          "passed": false,
+          "split_median_useful_bytes_per_second": 30345639.44649228,
+          "split_to_current_ratio": 1.0724808593165265
+        },
+        "upload": {
+          "current_median_useful_bytes_per_second": 35941703.26608416,
+          "minimum": 0.9,
+          "passed": true,
+          "split_median_useful_bytes_per_second": 35281393.522289984,
+          "split_to_current_ratio": 0.9816283124117475
+        }
+      },
+      "label_order": [
+        "refund-split-control",
+        "refund-gathered-control"
+      ],
+      "transition_screen": {
+        "current_download_minimum": 27355045.41297551,
+        "current_has_subthreshold_sample": true,
+        "split_all_eight_download_samples_pass": true,
+        "split_download_minimum": 29792960.06281004,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "current": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33578060.39841775,
+              "median": 33377079.70115898,
+              "minimum": 33328932.89362042,
+              "samples": [
+                33578060.39841775,
+                33380089.490801595,
+                33374069.91151637,
+                33328932.89362042
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 27493319.938349646,
+              "median": 27493319.938349646,
+              "minimum": 27493319.938349646,
+              "samples": [
+                27493319.938349646
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34356683.435474925,
+              "median": 28294807.485730827,
+              "minimum": 27355045.41297551,
+              "samples": [
+                27355045.41297551,
+                28294807.485730827,
+                34356683.435474925
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 28294807.485730827,
+              "median": 27824926.449353166,
+              "minimum": 27355045.41297551,
+              "samples": [
+                27355045.41297551,
+                28294807.485730827
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34356683.435474925,
+              "median": 34356683.435474925,
+              "minimum": 34356683.435474925,
+              "samples": [
+                34356683.435474925
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35130363.48487842,
+              "median": 34851411.548378065,
+              "minimum": 34849286.40976366,
+              "samples": [
+                35130363.48487842,
+                34852933.7098523,
+                34849889.38690383,
+                34849286.40976366
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35413491.626865864,
+              "median": 35413491.626865864,
+              "minimum": 35413491.626865864,
+              "samples": [
+                35413491.626865864
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36056893.0316518,
+              "median": 35941703.26608416,
+              "minimum": 35172726.53636312,
+              "samples": [
+                35172726.53636312,
+                36056893.0316518,
+                35941703.26608416
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 36056893.0316518,
+              "median": 35614809.78400746,
+              "minimum": 35172726.53636312,
+              "samples": [
+                35172726.53636312,
+                36056893.0316518
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 35941703.26608416,
+              "median": 35941703.26608416,
+              "minimum": 35941703.26608416,
+              "samples": [
+                35941703.26608416
+              ]
+            }
+          }
+        },
+        "split": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33649326.38964044,
+              "median": 33490324.513985887,
+              "minimum": 33122223.263526015,
+              "samples": [
+                33649326.38964044,
+                33122223.263526015,
+                33346656.20473934,
+                33633992.823232435
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 33802959.406889156,
+              "median": 33802959.406889156,
+              "minimum": 33802959.406889156,
+              "samples": [
+                33802959.406889156
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34350004.09785953,
+              "median": 30345639.44649228,
+              "minimum": 29792960.06281004,
+              "samples": [
+                29792960.06281004,
+                30345639.44649228,
+                34350004.09785953
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30345639.44649228,
+              "median": 30069299.75465116,
+              "minimum": 29792960.06281004,
+              "samples": [
+                29792960.06281004,
+                30345639.44649228
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34350004.09785953,
+              "median": 34350004.09785953,
+              "minimum": 34350004.09785953,
+              "samples": [
+                34350004.09785953
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35369736.18142884,
+              "median": 34933586.40224688,
+              "minimum": 28924350.77506385,
+              "samples": [
+                28924350.77506385,
+                35369736.18142884,
+                34948460.13581031,
+                34918712.66868344
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35387765.63823634,
+              "median": 35387765.63823634,
+              "minimum": 35387765.63823634,
+              "samples": [
+                35387765.63823634
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 35742745.74009177,
+              "median": 35281393.522289984,
+              "minimum": 35172136.29089711,
+              "samples": [
+                35172136.29089711,
+                35281393.522289984,
+                35742745.74009177
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35281393.522289984,
+              "median": 35226764.906593546,
+              "minimum": 35172136.29089711,
+              "samples": [
+                35172136.29089711,
+                35281393.522289984
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 35742745.74009177,
+              "median": 35742745.74009177,
+              "minimum": 35742745.74009177,
+              "samples": [
+                35742745.74009177
+              ]
+            }
+          }
+        }
+      }
+    },
+    "3": {
+      "gates": {
+        "download": {
+          "current_median_useful_bytes_per_second": 27507146.492283724,
+          "minimum": 1.1,
+          "passed": true,
+          "split_median_useful_bytes_per_second": 33871435.83920326,
+          "split_to_current_ratio": 1.2313685772061032
+        },
+        "upload": {
+          "current_median_useful_bytes_per_second": 35888497.3966978,
+          "minimum": 0.9,
+          "passed": true,
+          "split_median_useful_bytes_per_second": 35482459.67349535,
+          "split_to_current_ratio": 0.9886861319738673
+        }
+      },
+      "label_order": [
+        "refund-gathered-control",
+        "refund-split-control"
+      ],
+      "transition_screen": {
+        "current_download_minimum": 27374854.85313126,
+        "current_has_subthreshold_sample": true,
+        "split_all_eight_download_samples_pass": true,
+        "split_download_minimum": 29702647.11508793,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "current": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33860172.46536874,
+              "median": 33697729.33157634,
+              "minimum": 33191276.736078687,
+              "samples": [
+                33191276.736078687,
+                33643635.54694187,
+                33860172.46536874,
+                33751823.11621081
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 33198116.088848528,
+              "median": 33198116.088848528,
+              "minimum": 33198116.088848528,
+              "samples": [
+                33198116.088848528
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34359991.70614301,
+              "median": 27507146.492283724,
+              "minimum": 27374854.85313126,
+              "samples": [
+                27374854.85313126,
+                27507146.492283724,
+                34359991.70614301
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 27507146.492283724,
+              "median": 27441000.67270749,
+              "minimum": 27374854.85313126,
+              "samples": [
+                27374854.85313126,
+                27507146.492283724
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34359991.70614301,
+              "median": 34359991.70614301,
+              "minimum": 34359991.70614301,
+              "samples": [
+                34359991.70614301
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35619999.699515186,
+              "median": 35137783.87946336,
+              "minimum": 35065363.560016826,
+              "samples": [
+                35619999.699515186,
+                35144895.69832266,
+                35065363.560016826,
+                35130672.060604066
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35115468.632265076,
+              "median": 35115468.632265076,
+              "minimum": 35115468.632265076,
+              "samples": [
+                35115468.632265076
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36806888.45135198,
+              "median": 35888497.3966978,
+              "minimum": 34613258.92417474,
+              "samples": [
+                34613258.92417474,
+                35888497.3966978,
+                36806888.45135198
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35888497.3966978,
+              "median": 35250878.16043627,
+              "minimum": 34613258.92417474,
+              "samples": [
+                34613258.92417474,
+                35888497.3966978
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36806888.45135198,
+              "median": 36806888.45135198,
+              "minimum": 36806888.45135198,
+              "samples": [
+                36806888.45135198
+              ]
+            }
+          }
+        },
+        "split": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 33738811.24645013,
+              "median": 33624544.4047655,
+              "minimum": 33386310.65044853,
+              "samples": [
+                33386310.65044853,
+                33614621.55982507,
+                33738811.24645013,
+                33634467.24970594
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 29702647.11508793,
+              "median": 29702647.11508793,
+              "minimum": 29702647.11508793,
+              "samples": [
+                29702647.11508793
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 34343315.743888855,
+              "median": 33871435.83920326,
+              "minimum": 30519872.23750913,
+              "samples": [
+                33871435.83920326,
+                30519872.23750913,
+                34343315.743888855
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 33871435.83920326,
+              "median": 32195654.038356196,
+              "minimum": 30519872.23750913,
+              "samples": [
+                33871435.83920326,
+                30519872.23750913
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 34343315.743888855,
+              "median": 34343315.743888855,
+              "minimum": 34343315.743888855,
+              "samples": [
+                34343315.743888855
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 35226927.61483449,
+              "median": 35120298.43760583,
+              "minimum": 29039012.717547026,
+              "samples": [
+                35226927.61483449,
+                35119725.40473228,
+                35120871.470479384,
+                29039012.717547026
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 35300050.96831614,
+              "median": 35300050.96831614,
+              "minimum": 35300050.96831614,
+              "samples": [
+                35300050.96831614
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 36526149.37657212,
+              "median": 35482459.67349535,
+              "minimum": 35406999.22646453,
+              "samples": [
+                35406999.22646453,
+                35482459.67349535,
+                36526149.37657212
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 35482459.67349535,
+              "median": 35444729.449979946,
+              "minimum": 35406999.22646453,
+              "samples": [
+                35406999.22646453,
+                35482459.67349535
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 36526149.37657212,
+              "median": 36526149.37657212,
+              "minimum": 36526149.37657212,
+              "samples": [
+                36526149.37657212
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "pooled_diagnostic": {
+    "download": {
+      "current": {
+        "count": 9,
+        "maximum": 34359991.70614301,
+        "median": 28294807.485730827,
+        "minimum": 27185014.027556833,
+        "samples": [
+          27185014.027556833,
+          34200203.8050685,
+          34359683.79712556,
+          27355045.41297551,
+          28294807.485730827,
+          34356683.435474925,
+          27374854.85313126,
+          27507146.492283724,
+          34359991.70614301
+        ]
+      },
+      "split": {
+        "count": 9,
+        "maximum": 34356154.259228684,
+        "median": 30519872.23750913,
+        "minimum": 29733784.713368867,
+        "samples": [
+          29733784.713368867,
+          30195089.229535628,
+          34356154.259228684,
+          29792960.06281004,
+          30345639.44649228,
+          34350004.09785953,
+          33871435.83920326,
+          30519872.23750913,
+          34343315.743888855
+        ]
+      },
+      "split_to_current_ratio_of_medians": 1.0786386248749142
+    },
+    "upload": {
+      "current": {
+        "count": 9,
+        "maximum": 36806888.45135198,
+        "median": 35888497.3966978,
+        "minimum": 34613258.92417474,
+        "samples": [
+          35485471.79913861,
+          35000801.25666728,
+          36514708.13964973,
+          35172726.53636312,
+          36056893.0316518,
+          35941703.26608416,
+          34613258.92417474,
+          35888497.3966978,
+          36806888.45135198
+        ]
+      },
+      "split": {
+        "count": 9,
+        "maximum": 36526149.37657212,
+        "median": 35406999.22646453,
+        "minimum": 34687491.66108774,
+        "samples": [
+          34687491.66108774,
+          34943852.73886528,
+          36509556.09149005,
+          35172136.29089711,
+          35281393.522289984,
+          35742745.74009177,
+          35406999.22646453,
+          35482459.67349535,
+          36526149.37657212
+        ]
+      },
+      "split_to_current_ratio_of_medians": 0.986583495962203
+    }
+  },
+  "predeclared_gates": {
+    "current_pairs_with_subthreshold_download_sample_minimum": 2,
+    "every_pair_download_split_to_current_ratio_minimum": 1.1,
+    "every_pair_upload_split_to_current_ratio_minimum": 0.9,
+    "payload_and_event_conservation": "exact",
+    "selective_retries": false,
+    "split_all_24_download_samples_minimum_bytes_per_second": 29700000
+  },
+  "row_count": 96,
+  "scope": "diagnostic_only",
+  "timing_gate_failures": [
+    "pair 1 download split/current ratio 0.8828920845512824 below 1.1",
+    "pair 2 download split/current ratio 1.0724808593165265 below 1.1"
+  ],
+  "transition_screen": {
+    "all_pair_upload_gates_passed": true,
+    "consistent_with_stall_elimination": true,
+    "current_pairs_with_subthreshold_download_sample": 3,
+    "current_pairs_with_subthreshold_download_sample_minimum": 2,
+    "diagnostic_only": true,
+    "does_not_override_main_pair_gates": true,
+    "exact_correctness_and_cleanup": true,
+    "split_all_24_download_samples_pass": true,
+    "split_download_minimum": 29702647.11508793,
+    "split_download_sample_count": 24,
+    "threshold_bytes_per_second": 29700000
+  }
+}

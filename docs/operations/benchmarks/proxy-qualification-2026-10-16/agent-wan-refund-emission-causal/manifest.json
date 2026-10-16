@@ -1,0 +1,65 @@
+{
+  "binary_build_id": {
+    "current_agent": "3RzBPfFWmT5Lt2xOaJZE/lDbP7QBoCqqb98mDHKWz/ItBhCxOUvE9T-5Lm0Bki/RKlvTmkVKf7VpaIy6ceo",
+    "current_server": "nbA2AbEB26jL51aMkUi6/nD0GkRFXzKetIlQjzQKy/6iqM6wnXz1XYoIITDh8h/TM-cZ1WI9Crgcd1KI4AP",
+    "driver_and_origin": "nbA2AbEB26jL51aMkUi6/nD0GkRFXzKetIlQjzQKy/6iqM6wnXz1XYoIITDh8h/TM-cZ1WI9Crgcd1KI4AP",
+    "split_agent": "9gWt95A3yV51wO_8D1C2/lLB23QMI58nFhLqj3T7X/-8FutlVKAByOJQPGpYvH/i5QpPiqX8WSeGSOKtxba",
+    "split_server": "GbW8ZN1CowID_I-q183t/agbhHbQqkby5KWcp9RJj/bE4lVlwafwrWIdy5YgGK/dB9pM7eTjjAFSWvLDhz_"
+  },
+  "binary_sha256": {
+    "current_agent": "3fd7b305b5d90d7c9e6548c89ffd6bbac6dd1c38fbd870b188dd842b52198bd2",
+    "current_server": "e8e1e6da00f4bc616058488c572ed3bf144839432ad3445f68361b721dafce44",
+    "driver_and_origin": "e8e1e6da00f4bc616058488c572ed3bf144839432ad3445f68361b721dafce44",
+    "split_agent": "04ba7219b6108bbcfbf6242c1316ce4cb287906f965448db54be90be25c3a36f",
+    "split_server": "197dcf54f5236e0114ec8f899f687f9c474e8c51c685490640413da658a8661d"
+  },
+  "build_manifest_sha256": "6e9f1e212b9f0cfffb93b4b93e05decb881e42653cf210007c7d3f0ff025386a",
+  "build_provenance_sha256": "5ceda0f9e3fe1f14fc5d010e988e9968b62032b58e12822651dc21c75fc5fb93",
+  "common_scaffold_sha256": "e78b384e8cf2fa28339ca2794dd32aaf57053a2b07aeca873fe4f2430a40c6f7",
+  "completed_utc": "2026-10-16T07:58:13Z",
+  "fixed_workload": {
+    "configured_rtt_ms": 80,
+    "order": [
+      "gathered-then-split",
+      "split-then-gathered",
+      "gathered-then-split"
+    ],
+    "pairs": 3,
+    "required_pool_mib": 8,
+    "steady_mib": 256,
+    "timed_transfers_per_direction": 3,
+    "total_transfers": 96,
+    "transfers_per_variant": 16,
+    "transport_mode_both_variants": "aggregate-v1",
+    "warmup_mib": 256
+  },
+  "implementation_difference": "identical common 5ee application/Yamux scaffold and sendReady layout; split changes only a private bool initializer so validated aggregate refund batches with 2..17 ordinary 12-byte headers use one physical Write per header inside the same bounded priority item and joint pre-wire commit; DATA, unrelated frames, and singleton controls are unchanged",
+  "overlay_readme_sha256": "b9ff483187880bf4c395cccfc77de6604cf1b58c10053ba967472a5cad1b30e3",
+  "raw_fixture_artifacts": "local only; excluded from SHA256SUMS and evidence because they contain ephemeral fixture credentials",
+  "result_classification": "complete_timing_rejection",
+  "runner_exit_status": 1,
+  "runner_sha256": "075ee4caa5c2d233aefee9203a14e00f813cd894e35ed6cf21a594192ebb8d76",
+  "scope": "diagnostic_only",
+  "secondary_transition_screen": {
+    "all_pair_upload_gates_passed": true,
+    "consistent_with_stall_elimination": true,
+    "current_pairs_with_subthreshold_download_sample": 3,
+    "current_pairs_with_subthreshold_download_sample_minimum": 2,
+    "diagnostic_only": true,
+    "does_not_override_main_pair_gates": true,
+    "exact_correctness_and_cleanup": true,
+    "split_all_24_download_samples_pass": true,
+    "split_download_minimum": 29702647.11508793,
+    "split_download_sample_count": 24,
+    "threshold_bytes_per_second": 29700000
+  },
+  "source_hashes_sha256": "87ff187214faa13add9a54bd46a21c3a216fb1158f6d57c9f1cd6982609dea4a",
+  "source_refs": {
+    "application_and_harness": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "gathered_control_base": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "split_control_base": "5eeccaaa797254d7bde4db9854a337a02c3bc28e"
+  },
+  "split_overlay_sha256": "28f4c3d5ac08d32c0e146dde3b1502a2cd8250be200da6c4b7e002eeb02386ed",
+  "started_utc": "2026-10-16T07:45:03Z",
+  "wrapper_sha256": "c5a5e36d8490af8f1c927e761f1547349da9122ad0c25fcf171b78361528fc4a"
+}
