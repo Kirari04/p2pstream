@@ -3,7 +3,10 @@
   "build_commands": [
     "git archive 15b0354cdbc2c3862fadc68c938f3c3185320e5e | tar -x -C \"$BUILD_ROOT\"",
     "(cd \"$BUILD_ROOT\" && go test -c -o bin/server.test ./internal/server)",
-    "(cd \"$BUILD_ROOT\" && go test -c -o bin/agent.test ./internal/agent)"
+    "(cd \"$BUILD_ROOT\" && go test -c -o bin/agent.test ./internal/agent)",
+    "git archive 3ec137c3ad3d07028e867042fb00d3933912d7ab | tar -x -C \"$LEGACY_BUILD_ROOT\"",
+    "cp proxy_qualification_external_legacy_agent_test.go.txt \"$LEGACY_BUILD_ROOT/internal/agent/proxy_qualification_external_legacy_test.go\"",
+    "(cd \"$LEGACY_BUILD_ROOT\" && go test -c -o bin/agent.test ./internal/agent)"
   ],
   "candidate_ref": "15b0354cdbc2c3862fadc68c938f3c3185320e5e",
   "conservation": {
