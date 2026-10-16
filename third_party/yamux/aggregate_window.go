@@ -655,7 +655,24 @@ func (s *Session) discardPublishingRefundPart(part aggregateRefundPart) {
 }
 
 func (s *Session) publishAggregateRefund(work aggregateRefundWork) error {
-	lockedParts := work.parts[:work.count]
+	a := s.aggregate
+	// Snapshot the fixed in-flight ledger into function-local storage before
+	// taking stream locks. Some lock-bearing stream operations make their
+	// receiver escape; sourcing those pointers from the session ledger keeps
+	// the by-value selection work and its fixed array on the caller's stack.
+	var lockedStorage [aggregateRefundBatchStreams]aggregateRefundPart
+	lockedCount := uint8(0)
+	a.mu.Lock()
+	for i := uint8(0); i < a.publishingRefundsCount; i++ {
+		part := a.publishingRefunds[i]
+		if part.stream == nil {
+			continue
+		}
+		lockedStorage[lockedCount] = part
+		lockedCount++
+	}
+	a.mu.Unlock()
+	lockedParts := lockedStorage[:lockedCount]
 	sortAggregateRefundParts(lockedParts)
 	for i := range lockedParts {
 		lockedParts[i].stream.controlHdrLock.Lock()
@@ -679,11 +696,11 @@ func (s *Session) publishAggregateRefund(work aggregateRefundWork) error {
 	}
 	parts := activeParts[:active]
 
-	a := s.aggregate
 	a.publishMu.Lock()
 	defer a.publishMu.Unlock()
+	global := work.global
 	headerCount := len(parts)
-	if work.global != 0 {
+	if global != 0 {
 		headerCount++
 	}
 	if headerCount == 0 {
@@ -694,21 +711,28 @@ func (s *Session) publishAggregateRefund(work aggregateRefundWork) error {
 		hdr := header(batch[i*headerSize : (i+1)*headerSize])
 		hdr.encode(typeAllocationWindowUpdate, 0, part.stream.id, uint32(part.delta))
 	}
-	if work.global != 0 {
+	if global != 0 {
 		hdr := header(batch[(headerCount-1)*headerSize:])
-		hdr.encode(typeWindowUpdate, 0, 0, uint32(work.global))
+		hdr.encode(typeWindowUpdate, 0, 0, uint32(global))
 	}
 	errCh := make(chan error, 1)
 	return s.waitForAggregateControlBatchErrCommit(batch, errCh, func() {
 		a.mu.Lock()
-		for _, part := range parts {
+		// The session ledger owns selected parts until this single publisher's
+		// queued send commits or shutdown joins it. Reading the fixed ledger here
+		// avoids retaining the work and active-parts arrays in the closure.
+		for i := uint8(0); i < a.publishingRefundsCount; i++ {
+			part := a.publishingRefunds[i]
+			if part.stream == nil {
+				continue
+			}
 			part.stream.allocationRefundPublishing -= part.delta
 			part.stream.allocationRecvWindow += uint32(part.delta)
-			a.publishingRefunds[part.slot] = aggregateRefundPart{}
+			a.publishingRefunds[i] = aggregateRefundPart{}
 		}
 		a.publishingRefundsCount = 0
-		a.publishingGlobal -= work.global
-		a.recvWindow += uint32(work.global)
+		a.publishingGlobal -= global
+		a.recvWindow += uint32(global)
 		a.mu.Unlock()
 	})
 }

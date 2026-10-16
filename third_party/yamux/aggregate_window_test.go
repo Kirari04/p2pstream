@@ -1216,6 +1216,11 @@ func TestAggregateRefundBatchDropsTerminalStreamHalfAndKeepsGlobal(t *testing.T)
 	if streams[1].allocationRecvWindow != 0 || streams[1].allocationRefundPublishing != 0 {
 		t.Fatalf("terminal stream window=%d publishing=%d", streams[1].allocationRecvWindow, streams[1].allocationRefundPublishing)
 	}
+	for _, stream := range []*Stream{streams[0], streams[2]} {
+		if stream.allocationRecvWindow != uint32(delta) || stream.allocationRefundPublishing != 0 {
+			t.Fatalf("live stream %d window=%d publishing=%d", stream.id, stream.allocationRecvWindow, stream.allocationRefundPublishing)
+		}
+	}
 	if session.aggregate.recvWindow != uint32(4*delta) || session.aggregate.publishingGlobal != 0 {
 		t.Fatalf("global window=%d publishing=%d", session.aggregate.recvWindow, session.aggregate.publishingGlobal)
 	}
