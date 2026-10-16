@@ -379,6 +379,33 @@ HAProxy follows each pair. Raw JSONL and process logs stay under ignored
 `tmp/`. The smoke mode reduces counts and does not use the 4 GiB container, so
 it validates wiring rather than capacity.
 
+The external-agent mode starts the server and each production agent runtime in
+separate processes and separate 4 GiB/no-swap cgroups. It requires the expected
+legacy or aggregate-v1 negotiation and exact physical lane shape before load,
+then records per-process cgroup identity, CPU sampling duration, RSS, descriptor,
+socket-memory and OOM data. Every accepted external result must conserve all
+request events through the final recorder flush and, outside capacity probes,
+must complete every payload-verified request without errors. All process sample
+windows end before the server recorder drain, whose wall and CPU cost remain
+separate. Aggregate snapshots distinguish initial and grown shared pool bytes,
+session metadata, the lane-zero legacy supplement and per-stream legacy growth.
+Per-process peaks have distinct sampling intervals and are never summed as if
+they were a simultaneous combined peak.
+
+This topology has a total envelope of one 4 GiB server cgroup plus one or four
+4 GiB agent cgroups. Its optional 1 GiB ballast is server-only. It supplements
+the original combined server-and-agent 4 GiB result and cannot establish that
+the same workload fits in one 4 GiB deployment. The checked-in external smoke
+only validates fixture wiring: the legacy side established one control plus
+three bulk lanes, while the aggregate side explicitly negotiated one control
+plus four bulk lanes, and each persisted 100 of 100 verified requests. Separate
+constrained capacity, agent-pressure recovery and aggregate
+growth/idle/pressure/recovery measurements remain required.
+The external candidate agent role also accepts a separate bounded ballast for
+that later agent-pressure trace and reports the touched bytes in its own process
+snapshot. The legacy smoke overlay and all existing results used zero agent
+ballast.
+
 The first qualification pass is recorded under
 `docs/operations/benchmarks/proxy-qualification-2026-10-16/`. It is a profile
 and correctness pass plus one warmed saturation sample, not the prescribed

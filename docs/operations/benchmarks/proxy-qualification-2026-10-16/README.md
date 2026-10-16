@@ -15,6 +15,12 @@ comparison.
 
 ## Files
 
+- [`caddy-reference/README.md`](caddy-reference/README.md) documents the clean
+  36-row Caddy/HAProxy/p2pstream reference cohort. Its p2pstream binary is the
+  frozen `3ec137c` candidate; later library and protocol foundations in `0d6a3a8`
+  were not present in that binary.
+- [`recorder-batch/README.md`](recorder-batch/README.md) records the bounded
+  prepared-recorder batch experiment and its focused correctness checks.
 - `capacity-and-profile.jsonl` is the initial candidate `095c923` correctness,
   fixed-rate, streaming, H1/H2 1,536-barrier and recovery pass.
 - `warmed-throughput.jsonl` is one alternating baseline/candidate pass with a
@@ -55,6 +61,14 @@ comparison.
   overlay. It includes low/high-concurrency H1/H2, alternating repeats, a 1 GiB
   ballast retention/recovery run and TLS-origin runs with negotiated origin
   protocol recorded.
+- `external-agent-smoke.jsonl` is a host-process correctness smoke for the
+  separate-process fixture. The frozen `3ec137c` legacy overlay established one
+  control plus three bulk lanes; the `1418407` candidate explicitly negotiated
+  aggregate-v1 with one control plus four bulk lanes. The first pair and the
+  final `81f5bc6` harness pair each completed and persisted 100/100 responses.
+  The final pair also records matched per-process sampling intervals and passed
+  the fail-closed mode, lane, payload and recorder-conservation checks. These
+  rows are not timing or cgroup-capacity evidence.
 
 The initial 1,400 and 1,536 failure rows used a 10-second barrier release equal
 to the upstream response-header timeout. Treat their origin high-water, owner
@@ -127,6 +141,28 @@ overlay. The bounded per-origin idle default is therefore retained at 128.
 The total idle budget, positive operator `MaxConns`, accounting and pressure
 reclaim behavior are unchanged.
 
+The external-agent fixture removes the earlier server/agent process and ledger
+co-location. It starts the server and each production `agent.RunContext` in an
+independent process, requires the expected negotiated mode and physical lane
+shape before load, and records each process PID, container name, CPU set,
+cgroup path/inode, RSS, descriptors, cgroup memory/socket values and OOM
+deltas. Aggregate rows separately record initial pool, current grown pool,
+growth reservation, session metadata, lane-zero legacy supplement and legacy
+per-stream growth. The frozen legacy overlay uses the same application setup
+and event recorder while leaving candidate-only private capacity fields absent.
+Each process has its own sampling interval. Peak values from independent
+processes are not summed or described as a simultaneous combined peak.
+
+The decisive external topology is one 4 GiB server cgroup plus one or four
+independent 4 GiB agent cgroups. Its 1 GiB ballast belongs only to the server.
+It supplements rather than replaces the original combined server+agent 4 GiB
+cgroup rows, including the failed 1 GiB-ballast 1,536-request gate. Separate
+agent pressure/recovery and aggregate growth/idle/pressure/recovery traces are
+still required before this fixture supports a capacity claim.
+The current candidate agent role can apply and report a distinct bounded agent
+ballast for that future pressure trace. The legacy smoke overlay and all rows
+in this directory used zero agent ballast.
+
 LOWAT reduced the 24-slow-reader socket peak from 66,355,200 bytes (63.28125
 MiB) to 5,996,544 bytes (5.71875 MiB). The split controlled-pressure test then
 peaked at 461,434,880 of 536,870,912 cgroup bytes, rejected six acquisitions,
@@ -149,6 +185,7 @@ a2c9f590486d21b662c3915e07cc87208cd92c366f46ca2ab4ba53f056e32517  h1-concurrency
 432ee9596ef0355fe8308149479728bb1a51555f4b3cc87cfe26895102e2b568  post-forwarding-qualification.jsonl
 b4ab546fa295fc17f7eeacdccf0b47ace151cdd686a3ff6a24ed3e9f66e638bb  stdlib-transport-sharding.jsonl
 404fe7b47c19b847213f99fc2756044cd7ab7a2651eca93ae3228a12543b42d8  production-idle-pool.jsonl
+3c4bb8783903bf91b0d92a87e76ae13c7943339be1d69d5ce6c9db696b8a008c  external-agent-smoke.jsonl
 ```
 
 ## Source and binary provenance
@@ -166,6 +203,12 @@ b4ab546fa295fc17f7eeacdccf0b47ace151cdd686a3ff6a24ed3e9f66e638bb  stdlib-transpo
 | idle-32 alternating/TLS proxy | `ca8a0818312fbefbd8af9699cd9469f29ed82b0b` | `89c4ce099ab3237c298653206752a7457f684aaa9e6b8d33fb3036f2f3efefdb` | `45fd2509c41c1160b7ec2d6d4d775bfd1fd1616f5689f5f62c289620cbe06b0b` |
 | idle-128 alternating/TLS proxy | `ca8a0818312fbefbd8af9699cd9469f29ed82b0b` plus `MaxIdleConnsPerHost=128` overlay `bbddfe2c21628622e74ff478d2767d6e05ab7f5698b084810b23dbda7e3807c4` | `89c4ce099ab3237c298653206752a7457f684aaa9e6b8d33fb3036f2f3efefdb` | `1b8f72e618bbde0c9f2ad776e5497dcb151bc2dc73b3e014e65bd1bd16bfbc63` |
 | origin-protocol diagnostic driver | `ca8a0818312fbefbd8af9699cd9469f29ed82b0b` plus test-only harness | `9a3ac62225dd404d4a93cb9560678041cfb84995e0c38f7bd183547ff3ee68f0` | `805d6f2f028fa0fa72a478840b485a0eca646e6bf3223ebd37907b8d709b4093` |
+| external legacy server | `3ec137c3ad3d07028e867042fb00d3933912d7ab` plus frozen overlay `32425482c29081d7c41410ecad206d8938fecb0f4e9308e6670be1a413d3952c` | existing `3ec137c` server harness | `669918fe63e3f305cdb0c4f3dab843df61791a75ccfa27668edee4cfbd7867fc` |
+| external legacy agent | `3ec137c3ad3d07028e867042fb00d3933912d7ab` plus frozen overlay `43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb` | frozen external agent role | `16d9ca0744ca2696d6177bb7066572b3707c219181377eebcf22bae754b37599` |
+| external aggregate server | `1418407376fdaeefb6808826f379ce68ace9e89e` | `fe5139188b59e18faaef7127e45dd653edfac635eb1d950251812e3715a3c339` | `dd7a902932634966d8c19a3c2da57dcda4211f43ad2e20135b4afa050a68958f` |
+| external aggregate agent | `1418407376fdaeefb6808826f379ce68ace9e89e` | `d8424a0873000b918887a398e65e8365312b0a7fb34e20e0ebba1c1f108cb272` | `a053ec3ffa9f96192f6ced4fc5777c2a56bfcfd076a2adbeaccb91bc95d58e77` |
+| final external aggregate server | `81f5bc6c41507e952b9b4202c86643fb51cb378b` plus frozen overlay | `1e1a2cf1b40f9454774c2930a341dfb97c93f5e30bfcd300d32f8766174f9b30` | `1e49b0821ca175cf4ae1493146c6cfeb76ef5ca2b8d16b37fb2aa4ec8fb8eed2` |
+| final external aggregate agent | `81f5bc6c41507e952b9b4202c86643fb51cb378b` plus frozen overlay | `da88194ef9968058721e3e5ea56d3f73c0588693b59130fb60fa2ea8974efbb6` | `b4d08ccb0deb0d72e38e6cbba2440185a1a4cc39d173f181a182583aef9e15dd` |
 
 The qualification script SHA-256 was
 `5e93c56e781b912b52867f0338781ec3733fd5287a11d003ee57a3af059df25b`
@@ -173,7 +216,10 @@ for the sharding diagnostic,
 `a31074f8c19864eb8f83a679cfa9e64122710ea04246ef9a64bf9f58facd6493`
 for the alternating idle-pool runs, and
 `13297f8b9fb1fa166819bbee722df431c3b68928ec5b691db146460ff1d69c6e`
-for the origin-protocol runs.
+for the origin-protocol runs. The external-agent smoke used script SHA-256
+`abeac5a6ddbbe049f65ba3fe02c67f96b8437b3567244f45cd3580b72d7c05fc`.
+The final accepted external smoke used frozen script SHA-256
+`d8708bb496c8aee9c90e9c217e6095e74be164893102487af7df9613d06cd2bc`.
 
 The baseline and candidates were built from clean archives. Only the
 qualification test harness was overlaid, so unrelated shared-worktree edits
@@ -188,6 +234,65 @@ install -m 0644 internal/server/proxy_qualification_test.go \
 output=$(realpath tmp/proxy-qualification/bin/server-ee1aba7.test)
 (cd "$build_dir" && go test -c -o "$output" ./internal/server)
 sha256sum "$output" "$build_dir/internal/server/proxy_qualification_test.go"
+```
+
+The external smoke used frozen server and agent overlays for both sides. These
+commands reconstruct the exact source inputs; Go binary hashes can still carry
+absolute build-directory metadata:
+
+```sh
+legacy_dir=$(mktemp -d -p tmp/proxy-qualification/builds external-legacy.XXXXXX)
+git archive 3ec137c3ad3d07028e867042fb00d3933912d7ab | tar -x -C "$legacy_dir"
+install -m 0644 internal/server/testdata/proxy_qualification_external_legacy_test.go \
+  "$legacy_dir/internal/server/proxy_qualification_external_legacy_test.go"
+install -m 0644 internal/agent/testdata/proxy_qualification_external_legacy_test.go \
+  "$legacy_dir/internal/agent/proxy_qualification_external_legacy_test.go"
+(cd "$legacy_dir" && go test -c -o /tmp/external-legacy-server.test ./internal/server)
+(cd "$legacy_dir" && go test -c -o /tmp/external-legacy-agent.test ./internal/agent)
+
+aggregate_dir=$(mktemp -d -p tmp/proxy-qualification/builds external-aggregate.XXXXXX)
+git archive 1418407376fdaeefb6808826f379ce68ace9e89e | tar -x -C "$aggregate_dir"
+install -m 0644 internal/server/testdata/proxy_qualification_external_1418407_test.go.txt \
+  "$aggregate_dir/internal/server/proxy_qualification_test.go"
+install -m 0644 internal/agent/testdata/proxy_qualification_external_1418407_test.go.txt \
+  "$aggregate_dir/internal/agent/proxy_qualification_external_test.go"
+(cd "$aggregate_dir" && go test -c -o /tmp/external-aggregate-server.test ./internal/server)
+(cd "$aggregate_dir" && go test -c -o /tmp/external-aggregate-agent.test ./internal/agent)
+
+sha256sum \
+  internal/server/testdata/proxy_qualification_external_1418407_test.go.txt \
+  internal/agent/testdata/proxy_qualification_external_1418407_test.go.txt \
+  internal/server/testdata/proxy_qualification_external_legacy_test.go \
+  internal/agent/testdata/proxy_qualification_external_legacy_test.go
+```
+
+The final accepted aggregate pair used production source `81f5bc6` and the
+frozen `*_external_81f5bc6_test.go.txt` overlays. Its exact orchestrator is
+`scripts/testdata/qualify-proxy-performance-external-81f5bc6.sh.txt`:
+
+```sh
+final_dir=$(mktemp -d -p tmp/proxy-qualification/builds external-final.XXXXXX)
+git archive 81f5bc6c41507e952b9b4202c86643fb51cb378b | tar -x -C "$final_dir"
+install -m 0644 internal/server/testdata/proxy_qualification_external_81f5bc6_test.go.txt \
+  "$final_dir/internal/server/proxy_qualification_test.go"
+install -m 0644 internal/agent/testdata/proxy_qualification_external_81f5bc6_test.go.txt \
+  "$final_dir/internal/agent/proxy_qualification_external_test.go"
+(cd "$final_dir" && go test -c -o /tmp/external-final-server.test ./internal/server)
+(cd "$final_dir" && go test -c -o /tmp/external-final-agent.test ./internal/agent)
+```
+
+The host-process correctness smoke was then run with one external agent and
+the `steady-100` scenario. Capacity runs omit `--smoke`, create distinct 4 GiB
+cgroups, and use one or four agents:
+
+```sh
+scripts/qualify-proxy-performance.sh --smoke --external-agents 1 \
+  --scenario-filter steady-100 \
+  --baseline-binary /tmp/external-legacy-server.test \
+  --baseline-agent-binary /tmp/external-legacy-agent.test \
+  --candidate-binary /tmp/external-aggregate-server.test \
+  --candidate-agent-binary /tmp/external-aggregate-agent.test \
+  --driver-binary /tmp/external-aggregate-server.test
 ```
 
 Replace `ee1aba7` and the output label to replay a candidate. The current

@@ -13,10 +13,12 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/http/httptrace"
 	"net/http/httputil"
 	"net/url"
@@ -30,109 +32,211 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
+
+	"p2pstream/internal/config"
+	"p2pstream/internal/db"
+	"p2pstream/internal/tunnel"
 )
 
 type qualificationReady struct {
-	URL      string `json:"url"`
-	AdminURL string `json:"admin_url,omitempty"`
-	PID      int    `json:"pid"`
+	URL              string                         `json:"url"`
+	AdminURL         string                         `json:"admin_url,omitempty"`
+	PID              int                            `json:"pid"`
+	ManagementURL    string                         `json:"management_url,omitempty"`
+	ManagementCAFile string                         `json:"management_ca_file,omitempty"`
+	Agents           []qualificationAgentCredential `json:"agents,omitempty"`
+}
+
+type qualificationAgentCredential struct {
+	ID       int64  `json:"id"`
+	PublicID string `json:"public_id"`
+	Token    string `json:"token"`
 }
 
 const qualificationBarrierMaxHold = 3 * time.Second
 
 type qualificationRuntime struct {
-	HeapAlloc                        uint64            `json:"heap_alloc_bytes"`
-	HeapSys                          uint64            `json:"heap_sys_bytes"`
-	NumGC                            uint32            `json:"num_gc"`
-	PauseNS                          uint64            `json:"pause_total_ns"`
-	EventStats                       bool              `json:"event_stats,omitempty"`
-	PersistedEvents                  int64             `json:"persisted_events,omitempty"`
-	DroppedEvents                    int64             `json:"dropped_events,omitempty"`
-	PendingEvents                    int64             `json:"pending_events,omitempty"`
-	QueuedEvents                     int               `json:"queued_events,omitempty"`
-	EventStatsError                  string            `json:"event_stats_error,omitempty"`
-	OwnerStats                       bool              `json:"owner_stats,omitempty"`
-	OwnerBytes                       map[string]int64  `json:"owner_bytes,omitempty"`
-	OwnerFDs                         map[string]int64  `json:"owner_fds,omitempty"`
-	OwnerReservations                map[string]int64  `json:"owner_reservations,omitempty"`
-	AdmissionMisses                  map[string]uint64 `json:"admission_misses,omitempty"`
-	PublicConnectionLimitRejected    uint64            `json:"public_connection_limit_rejected,omitempty"`
-	PublicConnectionResourceRejected uint64            `json:"public_connection_resource_rejected,omitempty"`
-	PublicClientRequestRejected      uint64            `json:"public_client_request_rejected,omitempty"`
-	AdaptiveAdmissionLimit           int               `json:"adaptive_admission_limit,omitempty"`
-	MemoryHeadroomBytes              int64             `json:"memory_headroom_bytes,omitempty"`
-	ResourcePressureReason           string            `json:"resource_pressure_reason,omitempty"`
+	HeapAlloc                        uint64                             `json:"heap_alloc_bytes"`
+	HeapSys                          uint64                             `json:"heap_sys_bytes"`
+	NumGC                            uint32                             `json:"num_gc"`
+	PauseNS                          uint64                             `json:"pause_total_ns"`
+	EventStats                       bool                               `json:"event_stats,omitempty"`
+	PersistedEvents                  int64                              `json:"persisted_events,omitempty"`
+	DroppedEvents                    int64                              `json:"dropped_events,omitempty"`
+	PendingEvents                    int64                              `json:"pending_events,omitempty"`
+	QueuedEvents                     int                                `json:"queued_events,omitempty"`
+	EventStatsError                  string                             `json:"event_stats_error,omitempty"`
+	OwnerStats                       bool                               `json:"owner_stats,omitempty"`
+	OwnerBytes                       map[string]int64                   `json:"owner_bytes,omitempty"`
+	OwnerFDs                         map[string]int64                   `json:"owner_fds,omitempty"`
+	OwnerReservations                map[string]int64                   `json:"owner_reservations,omitempty"`
+	AdmissionMisses                  map[string]uint64                  `json:"admission_misses,omitempty"`
+	PublicConnectionLimitRejected    uint64                             `json:"public_connection_limit_rejected,omitempty"`
+	PublicConnectionResourceRejected uint64                             `json:"public_connection_resource_rejected,omitempty"`
+	PublicClientRequestRejected      uint64                             `json:"public_client_request_rejected,omitempty"`
+	AdaptiveAdmissionLimit           int                                `json:"adaptive_admission_limit,omitempty"`
+	MemoryHeadroomBytes              int64                              `json:"memory_headroom_bytes,omitempty"`
+	ResourcePressureReason           string                             `json:"resource_pressure_reason,omitempty"`
+	AgentTunnels                     []qualificationAgentTunnelRuntime  `json:"agent_tunnels,omitempty"`
+	AgentCapacity                    *qualificationAgentCapacityRuntime `json:"agent_capacity,omitempty"`
+	AgentBallastBytes                int64                              `json:"agent_ballast_bytes,omitempty"`
+}
+
+type qualificationAgentTunnelRuntime struct {
+	ID                           int64  `json:"id"`
+	PublicID                     string `json:"public_id"`
+	Connected                    bool   `json:"connected"`
+	FlowControl                  string `json:"flow_control,omitempty"`
+	ControlConnected             bool   `json:"control_connected,omitempty"`
+	BulkSessions                 int    `json:"bulk_sessions,omitempty"`
+	AggregateInitialPoolBytes    int64  `json:"aggregate_initial_pool_bytes,omitempty"`
+	AggregateCurrentPoolBytes    int64  `json:"aggregate_current_pool_bytes,omitempty"`
+	SessionMetadataBytes         int64  `json:"session_metadata_bytes,omitempty"`
+	LegacyControlSupplementBytes int64  `json:"legacy_control_supplement_bytes,omitempty"`
+	SessionResourceBytes         int64  `json:"session_resource_bytes,omitempty"`
+}
+
+type qualificationAgentCapacityRuntime struct {
+	Adaptive                      bool   `json:"adaptive"`
+	ResourceLimited               bool   `json:"resource_limited"`
+	Maximum                       int    `json:"maximum"`
+	AdmissionLimit                int    `json:"admission_limit"`
+	InUse                         int    `json:"in_use"`
+	Pressure                      string `json:"pressure"`
+	MemoryUsedBytes               int64  `json:"memory_used_bytes"`
+	MemoryLimitBytes              int64  `json:"memory_limit_bytes"`
+	MemorySource                  string `json:"memory_source"`
+	FileDescriptorsUsed           int64  `json:"file_descriptors_used"`
+	FileDescriptorsLimit          int64  `json:"file_descriptors_limit"`
+	PressureReason                string `json:"pressure_reason"`
+	SampleError                   string `json:"sample_error,omitempty"`
+	StreamChargeBytes             int64  `json:"stream_charge_bytes"`
+	StreamChargeFDs               int64  `json:"stream_charge_fds"`
+	ReceiveWindowBytes            int64  `json:"receive_window_bytes"`
+	SessionResourceBytes          int64  `json:"session_resource_bytes"`
+	AggregateInitialPoolBytes     int64  `json:"aggregate_initial_pool_bytes"`
+	AggregateGrowthPoolBytes      int64  `json:"aggregate_growth_pool_bytes"`
+	AggregateCurrentPoolBytes     int64  `json:"aggregate_current_pool_bytes"`
+	AggregateSessionMetadataBytes int64  `json:"aggregate_session_metadata_bytes"`
+	LegacyControlSupplementBytes  int64  `json:"legacy_control_supplement_bytes"`
+	RejectedPressure              uint64 `json:"rejected_pressure"`
+	RejectedFixedLimit            uint64 `json:"rejected_fixed_limit"`
+}
+
+type qualificationProcessSpec struct {
+	Role      string `json:"role"`
+	PID       int    `json:"pid"`
+	AdminURL  string `json:"admin_url,omitempty"`
+	CPUSet    string `json:"cpu_set,omitempty"`
+	Container string `json:"container,omitempty"`
+}
+
+type qualificationProcessResult struct {
+	Role                 string                             `json:"role"`
+	PID                  int                                `json:"pid"`
+	Container            string                             `json:"container,omitempty"`
+	CPUSet               string                             `json:"cpu_set,omitempty"`
+	CgroupPath           string                             `json:"cgroup_path,omitempty"`
+	CgroupInode          uint64                             `json:"cgroup_inode,omitempty"`
+	InitialRSSBytes      int64                              `json:"initial_rss_bytes,omitempty"`
+	PeakRSSBytes         int64                              `json:"peak_rss_bytes,omitempty"`
+	FinalRSSBytes        int64                              `json:"final_rss_bytes,omitempty"`
+	PeakFDs              int                                `json:"peak_fds,omitempty"`
+	PeakSocketFDs        int                                `json:"peak_socket_fds,omitempty"`
+	FinalSocketFDs       int                                `json:"final_socket_fds,omitempty"`
+	CPUSeconds           float64                            `json:"cpu_seconds,omitempty"`
+	SamplingSeconds      float64                            `json:"sampling_seconds,omitempty"`
+	InitialHeapBytes     uint64                             `json:"initial_heap_alloc_bytes,omitempty"`
+	PeakHeapBytes        uint64                             `json:"peak_heap_alloc_bytes,omitempty"`
+	InitialCgroupBytes   int64                              `json:"initial_cgroup_memory_bytes,omitempty"`
+	PeakCgroupBytes      int64                              `json:"peak_cgroup_memory_bytes,omitempty"`
+	FinalCgroupBytes     int64                              `json:"final_cgroup_memory_bytes,omitempty"`
+	CgroupMaxBytes       int64                              `json:"cgroup_memory_max_bytes,omitempty"`
+	PeakCgroupSockBytes  int64                              `json:"peak_cgroup_sock_bytes,omitempty"`
+	FinalCgroupSockBytes int64                              `json:"final_cgroup_sock_bytes,omitempty"`
+	OOMDelta             uint64                             `json:"oom_delta,omitempty"`
+	OOMKillDelta         uint64                             `json:"oom_kill_delta,omitempty"`
+	AgentCapacityInitial *qualificationAgentCapacityRuntime `json:"agent_capacity_initial,omitempty"`
+	AgentCapacityPeak    *qualificationAgentCapacityRuntime `json:"agent_capacity_high_water,omitempty"`
+	AgentCapacityFinal   *qualificationAgentCapacityRuntime `json:"agent_capacity_final,omitempty"`
+	BallastBytes         int64                              `json:"ballast_bytes,omitempty"`
 }
 
 type qualificationResult struct {
-	Label                         string            `json:"label"`
-	Path                          string            `json:"path"`
-	Scenario                      string            `json:"scenario"`
-	Protocol                      string            `json:"protocol"`
-	Concurrency                   int               `json:"concurrency"`
-	OfferedRPS                    float64           `json:"offered_requests_per_second,omitempty"`
-	WarmupSeconds                 float64           `json:"warmup_seconds,omitempty"`
-	WarmupRequests                int               `json:"warmup_requests,omitempty"`
-	DurationSeconds               float64           `json:"configured_duration_seconds,omitempty"`
-	Attempted                     int               `json:"attempted"`
-	UsefulCompleted               int64             `json:"useful_completed"`
-	StatusClasses                 map[string]int    `json:"status_classes"`
-	StatusCodes                   map[string]int    `json:"status_codes"`
-	Errors                        int64             `json:"errors"`
-	WallSeconds                   float64           `json:"wall_seconds"`
-	UsefulRPS                     float64           `json:"useful_requests_per_second"`
-	P50Milliseconds               float64           `json:"p50_ms"`
-	P95Milliseconds               float64           `json:"p95_ms"`
-	P99Milliseconds               float64           `json:"p99_ms"`
-	ResponseBytes                 int64             `json:"response_bytes"`
-	PeakRSSBytes                  int64             `json:"peak_rss_bytes,omitempty"`
-	FinalRSSBytes                 int64             `json:"final_rss_bytes,omitempty"`
-	PeakFDs                       int               `json:"peak_fds,omitempty"`
-	CPUSeconds                    float64           `json:"cpu_seconds,omitempty"`
-	PeakHeapAlloc                 uint64            `json:"peak_heap_alloc_bytes,omitempty"`
-	CgroupMemoryPeak              int64             `json:"cgroup_memory_peak_bytes,omitempty"`
-	CgroupMemoryFinal             int64             `json:"cgroup_memory_final_bytes,omitempty"`
-	CgroupMemoryMax               int64             `json:"cgroup_memory_max_bytes,omitempty"`
-	GCCycles                      uint32            `json:"gc_cycles,omitempty"`
-	GCPauseSeconds                float64           `json:"gc_pause_seconds,omitempty"`
-	ObservedHTTPMajor             int               `json:"observed_http_major,omitempty"`
-	ObservedOriginHTTPMajor       int               `json:"observed_origin_http_major,omitempty"`
-	OriginPeakInflight            int64             `json:"origin_peak_inflight,omitempty"`
-	InitialRSSBytes               int64             `json:"initial_rss_bytes,omitempty"`
-	InitialHeapAlloc              uint64            `json:"initial_heap_alloc_bytes,omitempty"`
-	InitialCgroupBytes            int64             `json:"initial_cgroup_memory_bytes,omitempty"`
-	PeakSocketFDs                 int               `json:"peak_socket_fds,omitempty"`
-	FinalSocketFDs                int               `json:"final_socket_fds,omitempty"`
-	PeakCgroupSock                int64             `json:"peak_cgroup_sock_bytes,omitempty"`
-	FinalCgroupSock               int64             `json:"final_cgroup_sock_bytes,omitempty"`
-	ProxyCPUSet                   string            `json:"proxy_cpu_set,omitempty"`
-	LoadCPUSet                    string            `json:"load_cpu_set,omitempty"`
-	ResourceEnvelope              string            `json:"resource_envelope,omitempty"`
-	ClientConnections             int64             `json:"client_tcp_connections,omitempty"`
-	NewOriginConnections          int64             `json:"new_origin_tcp_connections,omitempty"`
-	BallastBytes                  int64             `json:"server_ballast_bytes,omitempty"`
-	EventStatsCaptured            bool              `json:"event_stats_captured,omitempty"`
-	PersistedAfterLoad            int64             `json:"persisted_events_after_load,omitempty"`
-	PersistedAfterDrain           int64             `json:"persisted_events_after_drain,omitempty"`
-	PersistedEventDelta           int64             `json:"persisted_event_delta,omitempty"`
-	DroppedEvents                 int64             `json:"dropped_events,omitempty"`
-	DroppedEventDelta             int64             `json:"dropped_event_delta,omitempty"`
-	EventQueueAfterLoad           int64             `json:"event_queue_after_load,omitempty"`
-	EventQueueAfterDrain          int64             `json:"event_queue_after_drain,omitempty"`
-	EventDrainSeconds             float64           `json:"event_drain_seconds,omitempty"`
-	EventDrainCPUSeconds          float64           `json:"event_drain_cpu_seconds,omitempty"`
-	EventDrainError               string            `json:"event_drain_error,omitempty"`
-	EventStatsError               string            `json:"event_stats_error,omitempty"`
-	OwnerPeakBytes                map[string]int64  `json:"owner_peak_bytes,omitempty"`
-	OwnerPeakFDs                  map[string]int64  `json:"owner_peak_fds,omitempty"`
-	OwnerPeakReservations         map[string]int64  `json:"owner_peak_reservations,omitempty"`
-	AdmissionRejections           map[string]uint64 `json:"admission_rejections,omitempty"`
-	MinimumAdaptiveAdmissionLimit int               `json:"minimum_adaptive_admission_limit,omitempty"`
-	MinimumMemoryHeadroomBytes    int64             `json:"minimum_memory_headroom_bytes,omitempty"`
-	ResourcePressureReasons       []string          `json:"resource_pressure_reasons,omitempty"`
-	BarrierMaxHoldSeconds         float64           `json:"barrier_max_hold_seconds,omitempty"`
+	Label                         string                            `json:"label"`
+	Path                          string                            `json:"path"`
+	Scenario                      string                            `json:"scenario"`
+	Protocol                      string                            `json:"protocol"`
+	Concurrency                   int                               `json:"concurrency"`
+	OfferedRPS                    float64                           `json:"offered_requests_per_second,omitempty"`
+	WarmupSeconds                 float64                           `json:"warmup_seconds,omitempty"`
+	WarmupRequests                int                               `json:"warmup_requests,omitempty"`
+	DurationSeconds               float64                           `json:"configured_duration_seconds,omitempty"`
+	Attempted                     int                               `json:"attempted"`
+	UsefulCompleted               int64                             `json:"useful_completed"`
+	StatusClasses                 map[string]int                    `json:"status_classes"`
+	StatusCodes                   map[string]int                    `json:"status_codes"`
+	Errors                        int64                             `json:"errors"`
+	WallSeconds                   float64                           `json:"wall_seconds"`
+	UsefulRPS                     float64                           `json:"useful_requests_per_second"`
+	P50Milliseconds               float64                           `json:"p50_ms"`
+	P95Milliseconds               float64                           `json:"p95_ms"`
+	P99Milliseconds               float64                           `json:"p99_ms"`
+	ResponseBytes                 int64                             `json:"response_bytes"`
+	PeakRSSBytes                  int64                             `json:"peak_rss_bytes,omitempty"`
+	FinalRSSBytes                 int64                             `json:"final_rss_bytes,omitempty"`
+	PeakFDs                       int                               `json:"peak_fds,omitempty"`
+	CPUSeconds                    float64                           `json:"cpu_seconds,omitempty"`
+	PeakHeapAlloc                 uint64                            `json:"peak_heap_alloc_bytes,omitempty"`
+	CgroupMemoryPeak              int64                             `json:"cgroup_memory_peak_bytes,omitempty"`
+	CgroupMemoryFinal             int64                             `json:"cgroup_memory_final_bytes,omitempty"`
+	CgroupMemoryMax               int64                             `json:"cgroup_memory_max_bytes,omitempty"`
+	GCCycles                      uint32                            `json:"gc_cycles,omitempty"`
+	GCPauseSeconds                float64                           `json:"gc_pause_seconds,omitempty"`
+	ObservedHTTPMajor             int                               `json:"observed_http_major,omitempty"`
+	ObservedOriginHTTPMajor       int                               `json:"observed_origin_http_major,omitempty"`
+	OriginPeakInflight            int64                             `json:"origin_peak_inflight,omitempty"`
+	InitialRSSBytes               int64                             `json:"initial_rss_bytes,omitempty"`
+	InitialHeapAlloc              uint64                            `json:"initial_heap_alloc_bytes,omitempty"`
+	InitialCgroupBytes            int64                             `json:"initial_cgroup_memory_bytes,omitempty"`
+	PeakSocketFDs                 int                               `json:"peak_socket_fds,omitempty"`
+	FinalSocketFDs                int                               `json:"final_socket_fds,omitempty"`
+	PeakCgroupSock                int64                             `json:"peak_cgroup_sock_bytes,omitempty"`
+	FinalCgroupSock               int64                             `json:"final_cgroup_sock_bytes,omitempty"`
+	ProxyCPUSet                   string                            `json:"proxy_cpu_set,omitempty"`
+	LoadCPUSet                    string                            `json:"load_cpu_set,omitempty"`
+	ResourceEnvelope              string                            `json:"resource_envelope,omitempty"`
+	ClientConnections             int64                             `json:"client_tcp_connections,omitempty"`
+	NewOriginConnections          int64                             `json:"new_origin_tcp_connections,omitempty"`
+	BallastBytes                  int64                             `json:"server_ballast_bytes,omitempty"`
+	EventStatsCaptured            bool                              `json:"event_stats_captured,omitempty"`
+	PersistedAfterLoad            int64                             `json:"persisted_events_after_load,omitempty"`
+	PersistedAfterDrain           int64                             `json:"persisted_events_after_drain,omitempty"`
+	PersistedEventDelta           int64                             `json:"persisted_event_delta,omitempty"`
+	DroppedEvents                 int64                             `json:"dropped_events,omitempty"`
+	DroppedEventDelta             int64                             `json:"dropped_event_delta,omitempty"`
+	EventQueueAfterLoad           int64                             `json:"event_queue_after_load,omitempty"`
+	EventQueueAfterDrain          int64                             `json:"event_queue_after_drain,omitempty"`
+	EventDrainSeconds             float64                           `json:"event_drain_seconds,omitempty"`
+	EventDrainCPUSeconds          float64                           `json:"event_drain_cpu_seconds,omitempty"`
+	EventDrainError               string                            `json:"event_drain_error,omitempty"`
+	EventStatsError               string                            `json:"event_stats_error,omitempty"`
+	OwnerPeakBytes                map[string]int64                  `json:"owner_peak_bytes,omitempty"`
+	OwnerPeakFDs                  map[string]int64                  `json:"owner_peak_fds,omitempty"`
+	OwnerPeakReservations         map[string]int64                  `json:"owner_peak_reservations,omitempty"`
+	AdmissionRejections           map[string]uint64                 `json:"admission_rejections,omitempty"`
+	MinimumAdaptiveAdmissionLimit int                               `json:"minimum_adaptive_admission_limit,omitempty"`
+	MinimumMemoryHeadroomBytes    int64                             `json:"minimum_memory_headroom_bytes,omitempty"`
+	ResourcePressureReasons       []string                          `json:"resource_pressure_reasons,omitempty"`
+	BarrierMaxHoldSeconds         float64                           `json:"barrier_max_hold_seconds,omitempty"`
+	ServerProcess                 *qualificationProcessResult       `json:"server_process,omitempty"`
+	AgentProcesses                []qualificationProcessResult      `json:"agent_processes,omitempty"`
+	AgentTunnelsInitial           []qualificationAgentTunnelRuntime `json:"agent_tunnels_initial,omitempty"`
+	AgentTunnelsHighWater         []qualificationAgentTunnelRuntime `json:"agent_tunnels_high_water,omitempty"`
+	AgentTunnelsFinal             []qualificationAgentTunnelRuntime `json:"agent_tunnels_final,omitempty"`
 }
 
 // TestProxyQualificationProcess is a bounded subprocess entry point. The
@@ -147,11 +251,20 @@ func TestProxyQualificationProcess(t *testing.T) {
 		runQualificationOrigin(t)
 	case "proxy":
 		runQualificationProxy(t)
+	case "proxy-external-agent":
+		runQualificationExternalAgentProxy(t)
 	case "stdlib":
 		runQualificationStdlibProxy(t)
 	default:
 		t.Fatalf("unknown qualification role %q", role)
 	}
+}
+
+func TestExternalProxyQualificationServerProcess(t *testing.T) {
+	if os.Getenv("P2PSTREAM_QUALIFICATION_ROLE") != "proxy-external-agent" {
+		t.Skip("external qualification server subprocess only")
+	}
+	runQualificationExternalAgentProxy(t)
 }
 
 func runQualificationStdlibProxy(t *testing.T) {
@@ -214,7 +327,7 @@ func runQualificationStdlibProxy(t *testing.T) {
 	_ = admin.Shutdown(ctx)
 }
 
-func qualificationRuntimeHandler(app *App) http.Handler {
+func qualificationRuntimeHandler(app *App, agentIDs ...int64) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var stats runtime.MemStats
 		runtime.ReadMemStats(&stats)
@@ -254,6 +367,30 @@ func qualificationRuntimeHandler(app *App) http.Handler {
 			result.AdaptiveAdmissionLimit = snapshot.AdaptiveAdmissionLimit
 			result.MemoryHeadroomBytes = snapshot.MemoryHeadroomToHardBytes
 			result.ResourcePressureReason = snapshot.ResourcePressureReason
+		}
+		if app != nil && len(agentIDs) > 0 {
+			result.AgentTunnels = make([]qualificationAgentTunnelRuntime, 0, len(agentIDs))
+			for _, agentID := range agentIDs {
+				row := qualificationAgentTunnelRuntime{ID: agentID}
+				if agent := app.AgentHub.connectedByID(agentID); agent != nil {
+					resource := agent.tunnelResourceSnapshot()
+					row.PublicID = agent.PublicID
+					row.Connected = true
+					if resource.AggregateFlowControl {
+						row.FlowControl = tunnel.TunnelFlowControlAggregateV1
+					} else {
+						row.FlowControl = "legacy"
+					}
+					row.ControlConnected = resource.ControlConnected
+					row.BulkSessions = resource.BulkSessions
+					row.AggregateInitialPoolBytes = resource.AggregateInitialPoolBytes
+					row.AggregateCurrentPoolBytes = resource.AggregateCurrentPoolBytes
+					row.SessionMetadataBytes = resource.SessionMetadataBytes
+					row.LegacyControlSupplementBytes = resource.LegacyControlSupplementBytes
+					row.SessionResourceBytes = resource.SessionResourceBytes
+				}
+				result.AgentTunnels = append(result.AgentTunnels, row)
+			}
 		}
 		_ = json.NewEncoder(w).Encode(result)
 	})
@@ -352,6 +489,122 @@ func runQualificationOrigin(t *testing.T) {
 	if err := srv.Shutdown(ctx); err != nil {
 		t.Error(err)
 	}
+}
+
+func runQualificationExternalAgentProxy(t *testing.T) {
+	originURL := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_ORIGIN_URL")
+	certPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_CERT")
+	keyPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_KEY")
+	managementCAFile := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_MANAGEMENT_CA_FILE")
+	agentCount := qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_EXTERNAL_AGENTS")
+	if agentCount == 0 {
+		agentCount = 1
+	}
+	if agentCount < 1 || agentCount > 4 {
+		t.Fatalf("invalid external agent count %d", agentCount)
+	}
+	ballastMiB := qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_BALLAST_MIB")
+	if ballastMiB < 0 || ballastMiB > 2048 {
+		t.Fatalf("invalid ballast MiB %d", ballastMiB)
+	}
+	ballast := make([]byte, ballastMiB<<20)
+	for offset := 0; offset < len(ballast); offset += os.Getpagesize() {
+		ballast[offset] = 1
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	database, err := db.Open(filepath.Join(t.TempDir(), "external-agent-qualification.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	app := NewApp(&config.Config{
+		ManagementUIDisabled: true, ConfigDir: t.TempDir(),
+		ServerTunnelMaxConcurrentStreams: tunnel.MaxServerConcurrentStreamsLimit,
+		ServerTunnelCapacityAuto:         true,
+	}, database)
+	app.StartAdaptiveTunnelCapacity(ctx)
+	defer app.CloseAgentTransports()
+
+	credentials := make([]qualificationAgentCredential, 0, agentCount)
+	agentIDs := make([]int64, 0, agentCount)
+	agents := make(map[int64]publicAgentConfig, agentCount)
+	for index := range agentCount {
+		publicID := fmt.Sprintf("qualification-external-agent-%d", index+1)
+		token := fmt.Sprintf("qualification-external-token-%d", index+1)
+		row, createErr := database.CreateAgent(ctx, db.CreateAgentParams{
+			PublicID: publicID, Name: fmt.Sprintf("Qualification external agent %d", index+1),
+			TokenHash: hashAgentToken(token), Enabled: 1,
+		})
+		if createErr != nil {
+			t.Fatal(createErr)
+		}
+		credentials = append(credentials, qualificationAgentCredential{ID: row.ID, PublicID: row.PublicID, Token: token})
+		agentIDs = append(agentIDs, row.ID)
+		agents[row.ID] = publicAgentConfig{ID: row.ID, PublicID: row.PublicID, Enabled: true, Labels: map[string]string{"qualification": "external"}}
+	}
+
+	managementMux := http.NewServeMux()
+	app.RegisterManagementRoutes(managementMux)
+	management := httptest.NewUnstartedServer(managementMux)
+	management.StartTLS()
+	defer management.Close()
+	managementCA := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: management.Certificate().Raw})
+	if err := os.WriteFile(managementCAFile, managementCA, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := url.Parse(originURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := publicRouteTargetConfig{
+		ID: 902, RouteID: 901, Name: "qualification-external-agent", Enabled: true, Position: 0, Weight: 100,
+		TargetType: publicRouteTargetTypeProxy, Transport: publicRouteTargetTransportAgent,
+		URL: originURL, ParsedURL: parsed, TLSSkipVerify: parsed.Scheme == "https",
+		AgentSelector:                 publicAgentSelectorConfig{MatchLabels: map[string]string{"qualification": "external"}},
+		UpstreamResponseHeaderTimeout: 10 * time.Second,
+	}
+	listener := publicListenerConfig{ID: 1, Name: "qualification-external", Protocol: publicListenerProtocolHTTPS, BindAddress: "127.0.0.1", Enabled: true}
+	snapshot := &publicProxySnapshot{
+		Listeners: map[int64]publicListenerConfig{1: listener},
+		RoutesByListener: map[int64][]publicRouteConfig{1: {{
+			ID: 901, ListenerID: 1, Enabled: true, HostPattern: "public.test", PathPrefix: "/agent",
+			PathSecurityMode: publicRoutePathSecurityModeStrict, Targets: []publicRouteTargetConfig{target},
+		}}},
+		RouteTargets: map[int64]publicRouteTargetConfig{902: target},
+		Agents:       agents,
+		CertsByListener: map[int64][]publicTLSCertificateConfig{1: {{
+			ID: 1, ListenerID: 1, HostnamePattern: "public.test", CertPath: certPath, KeyPath: keyPath,
+			Enabled: true, Source: publicTLSCertificateSourceManual, Status: publicTLSCertificateStatusReady,
+		}}},
+	}
+	setPublicSnapshotForTest(t, app, snapshot)
+	app.TargetHealth.reconcile(app, snapshot, false)
+	if _, err := app.startPublicListenerFromSnapshot(listener, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	app.proxyMu.Lock()
+	address := app.publicListenerState[1].BoundAddress
+	app.proxyMu.Unlock()
+
+	adminListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin := &http.Server{Handler: qualificationRuntimeHandler(app, agentIDs...)}
+	go func() { _ = admin.Serve(adminListener) }()
+	writeQualificationReady(t, qualificationReady{
+		URL: "https://" + address, AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid(),
+		ManagementURL: management.URL, ManagementCAFile: managementCAFile, Agents: credentials,
+	})
+	waitQualificationStop(t)
+	runtime.KeepAlive(ballast)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	_, _ = app.stopPublicListenerRuntime(shutdownCtx, 1)
+	_ = admin.Shutdown(shutdownCtx)
 }
 
 func runQualificationProxy(t *testing.T) {
@@ -584,14 +837,14 @@ func TestProxyQualificationLoad(t *testing.T) {
 				}
 				var n int64
 				validPayload := true
-				if scenario == "slow-reader" {
+				if scenario == "slow-reader" || scenario == "large-stream" {
 					buf := make([]byte, 8<<10)
 					hash := sha256.New()
 					for {
 						read, readErr := resp.Body.Read(buf)
 						n += int64(read)
 						_, _ = hash.Write(buf[:read])
-						if read > 0 {
+						if read > 0 && scenario == "slow-reader" {
 							time.Sleep(2 * time.Millisecond)
 						}
 						if readErr == io.EOF {
@@ -680,6 +933,13 @@ func TestProxyQualificationLoad(t *testing.T) {
 	}
 	sampler := newQualificationSampler(os.Getenv("P2PSTREAM_QUALIFICATION_PIDS"), os.Getenv("P2PSTREAM_QUALIFICATION_ADMIN_URL"), strings.HasPrefix(scenario, "capacity-"))
 	sampler.start()
+	agentSpecs := qualificationProcessSpecs(t, os.Getenv("P2PSTREAM_QUALIFICATION_AGENT_PROCESSES"))
+	agentSamplers := make([]*qualificationSampler, 0, len(agentSpecs))
+	for _, spec := range agentSpecs {
+		agentSampler := newQualificationSampler(strconv.Itoa(spec.PID), spec.AdminURL, false)
+		agentSampler.start()
+		agentSamplers = append(agentSamplers, agentSampler)
+	}
 	started := time.Now()
 	attempted := 0
 	if durationSeconds > 0 {
@@ -701,7 +961,19 @@ func TestProxyQualificationLoad(t *testing.T) {
 	close(jobs)
 	workers.Wait()
 	elapsed := time.Since(started)
-	sampler.stop()
+	// End every process measurement window before the server recorder drain.
+	// Otherwise the agent CPU samples include server-only persistence work while
+	// the server CPU sample does not, which makes the per-process results
+	// incomparable.
+	sampler.signalStop()
+	for _, agentSampler := range agentSamplers {
+		agentSampler.signalStop()
+	}
+	sampler.finishSampling()
+	for _, agentSampler := range agentSamplers {
+		agentSampler.finishSampling()
+	}
+	sampler.flushEventRecorder()
 	slices.Sort(latencies)
 	result := qualificationResult{
 		Label: os.Getenv("P2PSTREAM_QUALIFICATION_LABEL"), Path: os.Getenv("P2PSTREAM_QUALIFICATION_PATH"), Scenario: scenario,
@@ -722,6 +994,16 @@ func TestProxyQualificationLoad(t *testing.T) {
 		AdmissionRejections: sampler.admissionRejectionDelta(), MinimumAdaptiveAdmissionLimit: sampler.minimumAdaptiveAdmissionLimit,
 		MinimumMemoryHeadroomBytes: sampler.minimumMemoryHeadroomBytes, ResourcePressureReasons: sampler.resourcePressureReasons,
 	}
+	if serverSpecs := qualificationProcessSpecs(t, os.Getenv("P2PSTREAM_QUALIFICATION_SERVER_PROCESS")); len(serverSpecs) == 1 {
+		serverProcess := sampler.processResult(serverSpecs[0])
+		result.ServerProcess = &serverProcess
+	}
+	for index, agentSampler := range agentSamplers {
+		result.AgentProcesses = append(result.AgentProcesses, agentSampler.processResult(agentSpecs[index]))
+	}
+	result.AgentTunnelsInitial = sampler.agentTunnelsInitial
+	result.AgentTunnelsHighWater = sampler.agentTunnelHighWater()
+	result.AgentTunnelsFinal = sampler.agentTunnelsFinal
 	if strings.HasPrefix(scenario, "capacity-") {
 		result.BarrierMaxHoldSeconds = qualificationBarrierMaxHold.Seconds()
 	}
@@ -732,6 +1014,30 @@ func TestProxyQualificationLoad(t *testing.T) {
 	if err := writeQualificationJSON(requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_RESULT"), result); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func qualificationProcessSpecs(t *testing.T, raw string) []qualificationProcessSpec {
+	t.Helper()
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	var specs []qualificationProcessSpec
+	if strings.HasPrefix(raw, "{") {
+		var spec qualificationProcessSpec
+		if err := json.Unmarshal([]byte(raw), &spec); err != nil {
+			t.Fatalf("decode qualification process: %v", err)
+		}
+		specs = append(specs, spec)
+	} else if err := json.Unmarshal([]byte(raw), &specs); err != nil {
+		t.Fatalf("decode qualification processes: %v", err)
+	}
+	for _, spec := range specs {
+		if spec.PID < 1 || spec.Role == "" {
+			t.Fatalf("invalid qualification process specification: %#v", spec)
+		}
+	}
+	return specs
 }
 
 func runQualificationTLSIdle(t *testing.T, target string, concurrency, attempts int) {
@@ -848,6 +1154,9 @@ type qualificationSampler struct {
 	adminURL                      string
 	done                          chan struct{}
 	wg                            sync.WaitGroup
+	stopOnce                      sync.Once
+	samplingStarted               time.Time
+	samplingStopped               time.Time
 	initialRSS                    int64
 	peakRSS                       int64
 	finalRSS                      int64
@@ -882,6 +1191,15 @@ type qualificationSampler struct {
 	resourcePressureReasons       []string
 	resourcePressureSeen          map[string]struct{}
 	ownerStatsObserved            bool
+	initialMemoryEvents           map[string]uint64
+	finalMemoryEvents             map[string]uint64
+	agentCapacityInitial          *qualificationAgentCapacityRuntime
+	agentCapacityPeak             *qualificationAgentCapacityRuntime
+	agentCapacityFinal            *qualificationAgentCapacityRuntime
+	agentTunnelsInitial           []qualificationAgentTunnelRuntime
+	agentTunnelsFinal             []qualificationAgentTunnelRuntime
+	agentTunnelPeaks              map[int64]qualificationAgentTunnelRuntime
+	agentBallastBytes             int64
 }
 
 func newQualificationSampler(rawPIDs, adminURL string, ownerSamples bool) *qualificationSampler {
@@ -889,6 +1207,7 @@ func newQualificationSampler(rawPIDs, adminURL string, ownerSamples bool) *quali
 		adminURL: adminURL, done: make(chan struct{}), ownerSamples: ownerSamples,
 		ownerPeakBytes: make(map[string]int64), ownerPeakFDs: make(map[string]int64), ownerPeakReservations: make(map[string]int64),
 		resourcePressureSeen: make(map[string]struct{}),
+		agentTunnelPeaks:     make(map[int64]qualificationAgentTunnelRuntime),
 	}
 	for _, raw := range strings.Split(rawPIDs, ",") {
 		if pid, err := strconv.Atoi(strings.TrimSpace(raw)); err == nil && pid > 0 {
@@ -899,16 +1218,22 @@ func newQualificationSampler(rawPIDs, adminURL string, ownerSamples bool) *quali
 }
 
 func (s *qualificationSampler) start() {
+	s.samplingStarted = time.Now()
 	s.startCPU = s.readCPU()
 	s.cgroupMax = s.readCgroupValue("memory.max")
 	s.initialRSS = s.readRSS()
 	s.initialCgroup = s.readCgroupValue("memory.current")
+	s.initialMemoryEvents = s.readCgroupEvents()
 	if stats, ok := s.readRuntime(true); ok {
 		s.startGC, s.startPause = stats.NumGC, stats.PauseNS
 		s.initialHeap = stats.HeapAlloc
 		s.initialEvents = stats
 		s.initialOwnerStats = stats
 		s.observeOwnerStats(stats)
+		s.agentCapacityInitial = cloneQualificationAgentCapacity(stats.AgentCapacity)
+		s.agentBallastBytes = stats.AgentBallastBytes
+		s.agentTunnelsInitial = slices.Clone(stats.AgentTunnels)
+		s.observeAgentStats(stats)
 	}
 	s.wg.Add(1)
 	go func() {
@@ -927,21 +1252,38 @@ func (s *qualificationSampler) start() {
 }
 
 func (s *qualificationSampler) stop() {
-	close(s.done)
+	s.signalStop()
+	s.finishSampling()
+	s.flushEventRecorder()
+}
+
+func (s *qualificationSampler) signalStop() {
+	s.stopOnce.Do(func() {
+		// Capture the CPU boundary at the stop signal. finishSampling may run
+		// sequentially for several processes, but those final reads must not
+		// extend another process's measured CPU window.
+		s.samplingStopped = time.Now()
+		s.endCPU = s.readCPU()
+		close(s.done)
+	})
+}
+
+func (s *qualificationSampler) finishSampling() {
 	s.wg.Wait()
-	s.sample()
 	s.finalRSS = s.readRSS()
 	s.cgroupFinal = s.readCgroupValue("memory.current")
 	s.finalCgroupSock = s.readCgroupStat("sock")
+	s.finalMemoryEvents = s.readCgroupEvents()
 	_, s.finalSocketFDs = s.readFDs()
-	s.endCPU = s.readCPU()
 	if stats, ok := s.readRuntime(true); ok {
 		s.endGC, s.endPause = stats.NumGC, stats.PauseNS
 		s.afterLoadEvents = stats
 		s.finalOwnerStats = stats
 		s.observeOwnerStats(stats)
+		s.agentCapacityFinal = cloneQualificationAgentCapacity(stats.AgentCapacity)
+		s.agentTunnelsFinal = slices.Clone(stats.AgentTunnels)
+		s.observeAgentStats(stats)
 	}
-	s.flushEventRecorder()
 }
 
 func (s *qualificationSampler) sample() {
@@ -961,6 +1303,7 @@ func (s *qualificationSampler) sample() {
 			s.peakHeap = stats.HeapAlloc
 		}
 		s.observeOwnerStats(stats)
+		s.observeAgentStats(stats)
 	}
 	if current := s.readCgroupValue("memory.current"); current > s.cgroupPeak {
 		s.cgroupPeak = current
@@ -968,6 +1311,27 @@ func (s *qualificationSampler) sample() {
 	if sock := s.readCgroupStat("sock"); sock > s.peakCgroupSock {
 		s.peakCgroupSock = sock
 	}
+}
+
+func (s *qualificationSampler) readCgroupEvents() map[string]uint64 {
+	if len(s.pids) == 0 {
+		return nil
+	}
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/root/sys/fs/cgroup/memory.events", s.pids[0]))
+	if err != nil {
+		return nil
+	}
+	result := make(map[string]uint64)
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 {
+			value, parseErr := strconv.ParseUint(fields[1], 10, 64)
+			if parseErr == nil {
+				result[fields[0]] = value
+			}
+		}
+	}
+	return result
 }
 
 func (s *qualificationSampler) readFDs() (total, sockets int) {
@@ -1074,7 +1438,7 @@ func (s *qualificationSampler) readRuntime(eventStats bool) (qualificationRuntim
 	}
 	defer resp.Body.Close()
 	var stats qualificationRuntime
-	err = json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&stats)
+	err = json.NewDecoder(io.LimitReader(resp.Body, 32<<10)).Decode(&stats)
 	return stats, err == nil
 }
 
@@ -1113,6 +1477,116 @@ func (s *qualificationSampler) observeOwnerStats(stats qualificationRuntime) {
 	}
 }
 
+func cloneQualificationAgentCapacity(value *qualificationAgentCapacityRuntime) *qualificationAgentCapacityRuntime {
+	if value == nil {
+		return nil
+	}
+	clone := *value
+	return &clone
+}
+
+func (s *qualificationSampler) observeAgentStats(stats qualificationRuntime) {
+	if stats.AgentCapacity != nil {
+		if s.agentCapacityPeak == nil {
+			s.agentCapacityPeak = cloneQualificationAgentCapacity(stats.AgentCapacity)
+		} else {
+			peak, current := s.agentCapacityPeak, stats.AgentCapacity
+			peak.InUse = max(peak.InUse, current.InUse)
+			peak.MemoryUsedBytes = max(peak.MemoryUsedBytes, current.MemoryUsedBytes)
+			peak.FileDescriptorsUsed = max(peak.FileDescriptorsUsed, current.FileDescriptorsUsed)
+			peak.ReceiveWindowBytes = max(peak.ReceiveWindowBytes, current.ReceiveWindowBytes)
+			peak.SessionResourceBytes = max(peak.SessionResourceBytes, current.SessionResourceBytes)
+			peak.AggregateInitialPoolBytes = max(peak.AggregateInitialPoolBytes, current.AggregateInitialPoolBytes)
+			peak.AggregateGrowthPoolBytes = max(peak.AggregateGrowthPoolBytes, current.AggregateGrowthPoolBytes)
+			peak.AggregateCurrentPoolBytes = max(peak.AggregateCurrentPoolBytes, current.AggregateCurrentPoolBytes)
+			peak.AggregateSessionMetadataBytes = max(peak.AggregateSessionMetadataBytes, current.AggregateSessionMetadataBytes)
+			peak.LegacyControlSupplementBytes = max(peak.LegacyControlSupplementBytes, current.LegacyControlSupplementBytes)
+			peak.RejectedPressure = max(peak.RejectedPressure, current.RejectedPressure)
+			peak.RejectedFixedLimit = max(peak.RejectedFixedLimit, current.RejectedFixedLimit)
+			if current.ResourceLimited {
+				peak.ResourceLimited = true
+				peak.Pressure = current.Pressure
+				peak.PressureReason = current.PressureReason
+			}
+		}
+	}
+	for _, current := range stats.AgentTunnels {
+		peak, ok := s.agentTunnelPeaks[current.ID]
+		if !ok {
+			peak = current
+		}
+		peak.Connected = peak.Connected || current.Connected
+		if current.FlowControl != "" {
+			peak.FlowControl = current.FlowControl
+		}
+		peak.ControlConnected = peak.ControlConnected || current.ControlConnected
+		peak.BulkSessions = max(peak.BulkSessions, current.BulkSessions)
+		peak.AggregateInitialPoolBytes = max(peak.AggregateInitialPoolBytes, current.AggregateInitialPoolBytes)
+		peak.AggregateCurrentPoolBytes = max(peak.AggregateCurrentPoolBytes, current.AggregateCurrentPoolBytes)
+		peak.SessionMetadataBytes = max(peak.SessionMetadataBytes, current.SessionMetadataBytes)
+		peak.LegacyControlSupplementBytes = max(peak.LegacyControlSupplementBytes, current.LegacyControlSupplementBytes)
+		peak.SessionResourceBytes = max(peak.SessionResourceBytes, current.SessionResourceBytes)
+		s.agentTunnelPeaks[current.ID] = peak
+	}
+}
+
+func (s *qualificationSampler) processResult(spec qualificationProcessSpec) qualificationProcessResult {
+	result := qualificationProcessResult{
+		Role: spec.Role, PID: spec.PID, Container: spec.Container, CPUSet: spec.CPUSet,
+		CgroupPath: s.cgroupPath(), CgroupInode: s.cgroupInode(), InitialRSSBytes: s.initialRSS, PeakRSSBytes: s.peakRSS, FinalRSSBytes: s.finalRSS,
+		PeakFDs: s.peakFDs, PeakSocketFDs: s.peakSocketFDs, FinalSocketFDs: s.finalSocketFDs,
+		CPUSeconds: s.cpuSeconds(), SamplingSeconds: s.samplingStopped.Sub(s.samplingStarted).Seconds(),
+		InitialHeapBytes: s.initialHeap, PeakHeapBytes: s.peakHeap,
+		InitialCgroupBytes: s.initialCgroup, PeakCgroupBytes: s.cgroupPeak, FinalCgroupBytes: s.cgroupFinal,
+		CgroupMaxBytes: s.cgroupMax, PeakCgroupSockBytes: s.peakCgroupSock, FinalCgroupSockBytes: s.finalCgroupSock,
+		OOMDelta:             counterDelta(s.initialMemoryEvents["oom"], s.finalMemoryEvents["oom"]),
+		OOMKillDelta:         counterDelta(s.initialMemoryEvents["oom_kill"], s.finalMemoryEvents["oom_kill"]),
+		AgentCapacityInitial: s.agentCapacityInitial, AgentCapacityPeak: s.agentCapacityPeak, AgentCapacityFinal: s.agentCapacityFinal,
+		BallastBytes: s.agentBallastBytes,
+	}
+	return result
+}
+
+func (s *qualificationSampler) cgroupPath() string {
+	if len(s.pids) == 0 {
+		return ""
+	}
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/cgroup", s.pids[0]))
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		parts := strings.SplitN(line, ":", 3)
+		if len(parts) == 3 && parts[0] == "0" {
+			return parts[2]
+		}
+	}
+	return ""
+}
+
+func (s *qualificationSampler) cgroupInode() uint64 {
+	if len(s.pids) == 0 {
+		return 0
+	}
+	info, err := os.Stat(fmt.Sprintf("/proc/%d/root/sys/fs/cgroup", s.pids[0]))
+	if err != nil {
+		return 0
+	}
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		return stat.Ino
+	}
+	return 0
+}
+
+func (s *qualificationSampler) agentTunnelHighWater() []qualificationAgentTunnelRuntime {
+	result := make([]qualificationAgentTunnelRuntime, 0, len(s.agentTunnelPeaks))
+	for _, value := range s.agentTunnelPeaks {
+		result = append(result, value)
+	}
+	slices.SortFunc(result, func(a, b qualificationAgentTunnelRuntime) int { return int(a.ID - b.ID) })
+	return result
+}
+
 func (s *qualificationSampler) admissionRejectionDelta() map[string]uint64 {
 	if !s.ownerStatsObserved {
 		return nil
@@ -1149,7 +1623,7 @@ func (s *qualificationSampler) flushEventRecorder() {
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			s.eventDrainError = resp.Status
-		} else if err := json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&s.afterDrainEvents); err != nil {
+		} else if err := json.NewDecoder(io.LimitReader(resp.Body, 32<<10)).Decode(&s.afterDrainEvents); err != nil {
 			s.eventDrainError = err.Error()
 		}
 	}
