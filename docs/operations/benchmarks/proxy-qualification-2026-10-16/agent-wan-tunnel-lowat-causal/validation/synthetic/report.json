@@ -1,0 +1,44 @@
+[
+  {
+    "name": "valid",
+    "exit_code": 0,
+    "failure_count": 0,
+    "non_timing_count": 0
+  },
+  {
+    "name": "missing-before",
+    "exit_code": 1,
+    "failure_count": 7,
+    "non_timing_count": 7
+  },
+  {
+    "name": "missing-after",
+    "exit_code": 1,
+    "failure_count": 7,
+    "non_timing_count": 7
+  },
+  {
+    "name": "missing-namespace",
+    "exit_code": 1,
+    "failure_count": 6,
+    "non_timing_count": 6
+  },
+  {
+    "name": "missing-error-field",
+    "exit_code": 1,
+    "failure_count": 2,
+    "non_timing_count": 2
+  },
+  {
+    "name": "malformed-lowat-type",
+    "exit_code": 1,
+    "failure_count": 5,
+    "non_timing_count": 5
+  },
+  {
+    "name": "malformed-row-object",
+    "exit_code": 1,
+    "failure_count": 10,
+    "non_timing_count": 10
+  }
+]

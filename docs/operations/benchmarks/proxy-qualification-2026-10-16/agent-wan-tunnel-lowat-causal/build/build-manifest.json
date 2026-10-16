@@ -1,0 +1,260 @@
+{
+  "base_source": {
+    "archive_sha256": "9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76",
+    "ref": "5eeccaaa797254d7bde4db9854a337a02c3bc28e"
+  },
+  "build": {
+    "cgo_enabled": true,
+    "go_binary": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "go_version": "go1.26.6",
+    "goamd64": "v1",
+    "goarch": "amd64",
+    "goos": "linux",
+    "tags": []
+  },
+  "created_utc": "2026-10-16T10:08:27.570084+00:00",
+  "driver_origin": {
+    "build_id": "f2jkMDYLK7iBShfeOszJ/CZECMA-_TJypHrs3FlyP/Uo7o6e_HN40xd6MYBeo4/GvKTaJkV4lR0imUW2DKI",
+    "path": "driver-origin.test",
+    "sha256": "3f7c28fc43105efc69ffbbfea9b277c345e2fd7577653f5cb3be8e8708a7b388"
+  },
+  "driver_origin_identical_to": "tunnel-lowat-default-control.server",
+  "evidence": {
+    "binary_buildids": {
+      "path": "binary-buildids.txt",
+      "sha256": "5ce17cde13f810b8ec501ecc579e12702a34388100625c45481ebc7fcf6b0c30"
+    },
+    "binary_version_m": {
+      "path": "binary-version-m.txt",
+      "sha256": "22c69a10f81ad0a94197b2829e6294cb315cc8e9a0db962df98fc8e95878f006"
+    },
+    "build_provenance": {
+      "path": "build-provenance.txt",
+      "sha256": "1de229556fb15aa5accd165b8b153ab09df37a104223b8092633c79589c9a72f"
+    },
+    "readme": {
+      "path": "README.md",
+      "sha256": "f5cbb3db08768afa55f6e4108c8739bf2e6162d60b9529a0b6c8f712d8f34096"
+    },
+    "source_hashes": {
+      "path": "source-hashes.json",
+      "sha256": "e8775e1fccb30889697c000a48597e17acc14354e79138cc7ca5790a178659b9"
+    },
+    "toolchain": {
+      "path": "toolchain.txt",
+      "sha256": "f3e5963049c77e63b0905ce4f58a5d7fb753e82b18ab98ce60663bcd1adeabf2"
+    }
+  },
+  "kind": "p2pstream-tunnel-lowat-causal-bundle-v1",
+  "overlays": {
+    "common_scaffold": {
+      "path": "tunnel-lowat-common.patch",
+      "sha256": "1f5406709d4347975f6110830fbaf24ef06f96e6a22280071ac8ab76eaba24d8"
+    },
+    "lowat_32k_overlay": {
+      "path": "tunnel-lowat-candidate.patch",
+      "sha256": "076c8dfc22212296e30b9430c9654625dd312b03cfaa19a55b1faa4c1fb69379"
+    }
+  },
+  "validation": {
+    "endpoint_compile": {
+      "agent": true,
+      "ordinary_tag_off": true,
+      "server": true
+    },
+    "full_tunnel_agent_normal": {
+      "count": 1,
+      "variants": [
+        "tunnel-lowat-default-control",
+        "tunnel-lowat-32k"
+      ]
+    },
+    "logs": {
+      "candidate/build-agent.log": {
+        "path": "validation/candidate/build-agent.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "candidate/build-agent.time": {
+        "path": "validation/candidate/build-agent.time",
+        "sha256": "e1fcd55699b859bf62c29d6d9c11a53cc7bb4c8c71d46b81e766b65b7edcaed7"
+      },
+      "candidate/build-server.log": {
+        "path": "validation/candidate/build-server.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "candidate/build-server.time": {
+        "path": "validation/candidate/build-server.time",
+        "sha256": "6dbf9fa7b1839a27a1e76129ab186c7bd0064d9013f8f600df67d809de16e147"
+      },
+      "candidate/full-tunnel-agent-normal.log": {
+        "path": "validation/candidate/full-tunnel-agent-normal.log",
+        "sha256": "1b82dbbf659c8a556abe8f565dbab435b8d3fd5ca435131706587eb68df9f623"
+      },
+      "candidate/full-tunnel-agent-normal.time": {
+        "path": "validation/candidate/full-tunnel-agent-normal.time",
+        "sha256": "d6fa375804da43cab45ddddb7951885f609f67a6c42907ad4f5640390e2a4101"
+      },
+      "candidate/new-normal-x10.log": {
+        "path": "validation/candidate/new-normal-x10.log",
+        "sha256": "8b81d71fa91c19125277516e79588def663ce2a0600a2999999b37800e3df885"
+      },
+      "candidate/new-normal-x10.time": {
+        "path": "validation/candidate/new-normal-x10.time",
+        "sha256": "561845a6d30696974f58f304ca9a42f1add34ddabe0cb10ae9af97be54376fcf"
+      },
+      "candidate/new-race-x5.log": {
+        "path": "validation/candidate/new-race-x5.log",
+        "sha256": "e524ef419296ba92ddb1d2d80755c2ace7584cd4d060390e8a8210852845167a"
+      },
+      "candidate/new-race-x5.time": {
+        "path": "validation/candidate/new-race-x5.time",
+        "sha256": "29924a2df3036b721ac9f6c057f917683da9fc90f7cf0e4bc883281635d30baf"
+      },
+      "candidate/server-existing-normal.log": {
+        "path": "validation/candidate/server-existing-normal.log",
+        "sha256": "d7b30be37c2ee34b61b4f5d69d9990575424365b50a1d75ea82db1dbc5391ebc"
+      },
+      "candidate/server-existing-normal.time": {
+        "path": "validation/candidate/server-existing-normal.time",
+        "sha256": "72969220ed5e3c5dca10911d66d14cff9f67e3b7a21766776b49a81392f42099"
+      },
+      "candidate/server-existing-race.log": {
+        "path": "validation/candidate/server-existing-race.log",
+        "sha256": "54008f37bba354bd325aefe29cb27172c21c3f120dcb25c5290c62ea69122c9e"
+      },
+      "candidate/server-existing-race.time": {
+        "path": "validation/candidate/server-existing-race.time",
+        "sha256": "be4d718c443e74a2fc3bc5b33e8aeea0d933035b5d7267fe9fcc9ecfbb879250"
+      },
+      "control/build-agent.log": {
+        "path": "validation/control/build-agent.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "control/build-agent.time": {
+        "path": "validation/control/build-agent.time",
+        "sha256": "a2bb3a2913eaca8f66bb58d0d951b41c59fe50b6a47d1fe13294f8906af3a900"
+      },
+      "control/build-server.log": {
+        "path": "validation/control/build-server.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "control/build-server.time": {
+        "path": "validation/control/build-server.time",
+        "sha256": "95124b800ab0ec56b03a3f1bc8a5ae0d47495a5ef6e72ea9feeb7a5af77e1beb"
+      },
+      "control/full-tunnel-agent-normal.log": {
+        "path": "validation/control/full-tunnel-agent-normal.log",
+        "sha256": "fd32c20cb5c673871ec074b440e842a9f52c17257e18735c42accf485c34c6fb"
+      },
+      "control/full-tunnel-agent-normal.time": {
+        "path": "validation/control/full-tunnel-agent-normal.time",
+        "sha256": "9069f7f49df656b916a4c58eab62d1ec54f378032a8273a641f0c98ced4a693e"
+      },
+      "control/new-normal-x10.log": {
+        "path": "validation/control/new-normal-x10.log",
+        "sha256": "a5403d04b810ebcce0c882204e6d89af7ed5f0f20eaf5140e884cbdf57b0b784"
+      },
+      "control/new-normal-x10.time": {
+        "path": "validation/control/new-normal-x10.time",
+        "sha256": "0ecac08973ced69a19eb0b541efcdbbc1cd58455a0ccd2838e06265773471de4"
+      },
+      "control/new-race-x5.log": {
+        "path": "validation/control/new-race-x5.log",
+        "sha256": "a055ef450e530e35fb818279846305cef6316befff4c2f96663eef5953811d30"
+      },
+      "control/new-race-x5.time": {
+        "path": "validation/control/new-race-x5.time",
+        "sha256": "9ea336c44f1d45b58079958543d34585d6b2b686017cb406d765d66b4d3161b4"
+      },
+      "control/server-existing-normal.log": {
+        "path": "validation/control/server-existing-normal.log",
+        "sha256": "16ac681bdc184e857eaa59d2fa42b67d1afd48f8f6a757108a76a7dd5c386c4f"
+      },
+      "control/server-existing-normal.time": {
+        "path": "validation/control/server-existing-normal.time",
+        "sha256": "6309d1392f3dcb367cffa6f8457850c5854d4b813afe1d52f800fb5d080dce34"
+      },
+      "control/server-existing-race.log": {
+        "path": "validation/control/server-existing-race.log",
+        "sha256": "9efc9a91d453dbc820e9708b35863695b2705ae936314f7c840415cc9d9d8d9f"
+      },
+      "control/server-existing-race.time": {
+        "path": "validation/control/server-existing-race.time",
+        "sha256": "dfc2cc622116d9749c48b1dd6213e190bc185959132e1776aa76e2686a441a64"
+      },
+      "patch-replay.log": {
+        "path": "validation/patch-replay.log",
+        "sha256": "1914d12c220faaa082f476bd09a02db0cd3ca15fa0349ecd2afa6862808f22ac"
+      }
+    },
+    "new_focused_normal": {
+      "count": 10,
+      "variants": [
+        "tunnel-lowat-default-control",
+        "tunnel-lowat-32k"
+      ]
+    },
+    "new_focused_race": {
+      "count": 5,
+      "variants": [
+        "tunnel-lowat-default-control",
+        "tunnel-lowat-32k"
+      ]
+    },
+    "patch_replay": {
+      "forward_exact": true,
+      "log": "validation/patch-replay.log",
+      "reverse_exact": true
+    },
+    "server_existing_normal": {
+      "count": 1,
+      "variants": [
+        "tunnel-lowat-default-control",
+        "tunnel-lowat-32k"
+      ]
+    },
+    "server_existing_race": {
+      "count": 1,
+      "variants": [
+        "tunnel-lowat-default-control",
+        "tunnel-lowat-32k"
+      ]
+    }
+  },
+  "variants": {
+    "tunnel-lowat-32k": {
+      "apply_tunnel_notsent_lowat": true,
+      "binaries": {
+        "agent": {
+          "build_id": "oe8tOMUnFjV6gDVUkAmL/-VNmCYKRZAXpiSzNnKTS/frEe3Pb3lRnS01UrvF08/wW9z1yzEoWTKzrHPEBmD",
+          "path": "tunnel-lowat-32k.agent.test",
+          "sha256": "e18c465aaff113e642be4cf8e10eac13263a2b307dcee4f61573801f785862f8"
+        },
+        "server": {
+          "build_id": "rci6Em1-XN3eEwpbjcDR/KGxBt2bWNW2vfoFJV9Na/leBjvOWDJTMtz5fAeDpl/a7QizS6kFucue4StWjZT",
+          "path": "tunnel-lowat-32k.server.test",
+          "sha256": "7bb33c1ee36819be658976cd526051285d80e4f870457884e78216575580a10f"
+        }
+      },
+      "source_identity": "5eeccaaa797254d7bde4db9854a337a02c3bc28e+tunnel-lowat-32k@sha256:1f5406709d4347975f6110830fbaf24ef06f96e6a22280071ac8ab76eaba24d8+sha256:076c8dfc22212296e30b9430c9654625dd312b03cfaa19a55b1faa4c1fb69379",
+      "source_tree_sha256": "708c62aea24859992d709d8dfa10ed07d599efb24e1dd8dbbfa6fe94b8e9d19a"
+    },
+    "tunnel-lowat-default-control": {
+      "apply_tunnel_notsent_lowat": false,
+      "binaries": {
+        "agent": {
+          "build_id": "JmKJYw8KMvNj1CxakY_2/72HBPwL5aZjAl666VJJd/4mSrbmOolkrgCmqlC4c0/hal-FTrbQZyd-zItfr-p",
+          "path": "tunnel-lowat-default-control.agent.test",
+          "sha256": "e2129ca520e07f79186141d000ab2fd0e390574712868c05772fd7122a659c05"
+        },
+        "server": {
+          "build_id": "f2jkMDYLK7iBShfeOszJ/CZECMA-_TJypHrs3FlyP/Uo7o6e_HN40xd6MYBeo4/GvKTaJkV4lR0imUW2DKI",
+          "path": "tunnel-lowat-default-control.server.test",
+          "sha256": "3f7c28fc43105efc69ffbbfea9b277c345e2fd7577653f5cb3be8e8708a7b388"
+        }
+      },
+      "source_identity": "5eeccaaa797254d7bde4db9854a337a02c3bc28e+tunnel-lowat-default-control@sha256:1f5406709d4347975f6110830fbaf24ef06f96e6a22280071ac8ab76eaba24d8",
+      "source_tree_sha256": "bf529688c742710bb5cd37922aca5a829e1be745535b79f4204eafab4c2a656d"
+    }
+  }
+}

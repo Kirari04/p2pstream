@@ -1,0 +1,1390 @@
+diff --git a/internal/agent/agent.go b/internal/agent/agent.go
+index 5625ebd..a3ff8b8 100644
+--- a/internal/agent/agent.go
++++ b/internal/agent/agent.go
+@@ -90,6 +90,7 @@ type Options struct {
+ 	TunnelConnections               int
+ 	capacityObserver                func(*agentTunnelCapacityRuntime)
+ 	tunnelSessionObserver           func(tunnelSessionObservation)
++	tunnelSocketObserver            func(tunnel.PhysicalTunnelSocketObservation)
+ }
+ 
+ // tunnelSessionObservation is an internal, fixed-cardinality hook used by
+@@ -134,7 +135,7 @@ func RunContext(ctx context.Context, opts Options) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	tunnelClient, err := managementTunnelHTTPClient(managementClient)
++	tunnelClient, err := managementTunnelHTTPClientWithSocketDiagnostic(managementClient, opts.tunnelSocketObserver)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -868,6 +869,49 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
+ 	}, nil
+ }
+ 
++func managementTunnelHTTPClientWithSocketDiagnostic(
++	base *http.Client,
++	observer func(tunnel.PhysicalTunnelSocketObservation),
++) (*http.Client, error) {
++	client, err := managementTunnelHTTPClient(base)
++	if err != nil {
++		return nil, err
++	}
++	transport, ok := client.Transport.(*http.Transport)
++	if !ok {
++		return nil, fmt.Errorf("diagnostic management tunnel transport is %T, want *http.Transport", client.Transport)
++	}
++	// A custom TLS dial hook bypasses DialContext and could silently leave the
++	// candidate arm observing a socket other than the physical tunnel. Reject it
++	// in these temporary diagnostic builds rather than altering its semantics.
++	if transport.DialTLSContext != nil || transport.DialTLS != nil {
++		return nil, errors.New("diagnostic management tunnel transport does not support custom TLS dial hooks")
++	}
++	dialContext := transport.DialContext
++	if dialContext == nil {
++		dialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
++		dialContext = dialer.DialContext
++	}
++	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
++		conn, err := dialContext(ctx, network, address)
++		if err != nil {
++			return nil, err
++		}
++		observation, observationErr := tunnel.ObservePhysicalTunnelSocket(conn)
++		// The qualification observer is a bounded, store-only callback. Invoke it
++		// after socket inspection has released SyscallConn.Control and before TLS.
++		if observer != nil {
++			observer(observation)
++		}
++		if observationErr != nil {
++			_ = conn.Close()
++			return nil, fmt.Errorf("inspect diagnostic management tunnel socket: %w", observationErr)
++		}
++		return conn, nil
++	}
++	return client, nil
++}
++
+ type tunnelLaneRegistration struct {
+ 	group           string
+ 	lane            int
+diff --git a/internal/agent/proxy_qualification_external_test.go b/internal/agent/proxy_qualification_external_test.go
+index a82ec78..5cc6c00 100644
+--- a/internal/agent/proxy_qualification_external_test.go
++++ b/internal/agent/proxy_qualification_external_test.go
+@@ -267,6 +267,7 @@ func runExternalProxyQualificationAgent(t *testing.T) {
+ 	defer cancel()
+ 	var capacity atomic.Pointer[agentTunnelCapacityRuntime]
+ 	sessions := newExternalQualificationSessionRegistry(connections + 1)
++	tunnelSockets := newExternalQualificationTunnelSocketStore()
+ 	runDone := make(chan error, 1)
+ 	go func() {
+ 		runDone <- RunContext(ctx, Options{
+@@ -278,6 +279,7 @@ func runExternalProxyQualificationAgent(t *testing.T) {
+ 				capacity.Store(runtime)
+ 			},
+ 			tunnelSessionObserver: sessions.observe,
++			tunnelSocketObserver:  tunnelSockets.observe,
+ 		})
+ 	}()
+ 	deadline := time.Now().Add(5 * time.Second)
+@@ -305,6 +307,10 @@ func runExternalProxyQualificationAgent(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Query().Get("tunnel_socket_snapshot") == "1" {
++			writeExternalQualificationTunnelSocketSnapshot(w, tunnelSockets)
++			return
++		}
+ 		if r.URL.Query().Get("growth_snapshot") == "drain" {
+ 			writeExternalQualificationGrowthSnapshot(w, sessions)
+ 			return
+diff --git a/internal/agent/proxy_qualification_lowat_adapter_test.go b/internal/agent/proxy_qualification_lowat_adapter_test.go
+new file mode 100644
+index 0000000..5a39f89
+--- /dev/null
++++ b/internal/agent/proxy_qualification_lowat_adapter_test.go
+@@ -0,0 +1,158 @@
++//go:build linux
++
++package agent
++
++import (
++	"encoding/json"
++	"net/http"
++	"net/http/httptest"
++	"sync"
++	"testing"
++	"time"
++
++	"p2pstream/internal/tunnel"
++)
++
++const (
++	externalQualificationTunnelSocketSchemaVersion = 1
++	externalQualificationTunnelSocketCapacity      = 64
++)
++
++type externalQualificationTunnelSocketObservation struct {
++	LocalAddress  string `json:"local_address"`
++	RemoteAddress string `json:"remote_address"`
++
++	PlatformSupported     bool   `json:"platform_supported"`
++	ApplyRequested        bool   `json:"apply_requested"`
++	RequestedNotSentLowat uint32 `json:"requested_notsent_lowat"`
++
++	NamespaceNotSentLowat      uint32 `json:"namespace_notsent_lowat"`
++	NamespaceNotSentLowatError string `json:"namespace_notsent_lowat_error"`
++	NotSentLowatBefore         uint32 `json:"notsent_lowat_before"`
++	NotSentLowatBeforeError    string `json:"notsent_lowat_before_error"`
++	NotSentLowatAfter          uint32 `json:"notsent_lowat_after"`
++	NotSentLowatAfterError     string `json:"notsent_lowat_after_error"`
++
++	SendBufferBefore         int    `json:"send_buffer_before"`
++	SendBufferBeforeError    string `json:"send_buffer_before_error"`
++	SendBufferAfter          int    `json:"send_buffer_after"`
++	SendBufferAfterError     string `json:"send_buffer_after_error"`
++	ReceiveBufferBefore      int    `json:"receive_buffer_before"`
++	ReceiveBufferBeforeError string `json:"receive_buffer_before_error"`
++	ReceiveBufferAfter       int    `json:"receive_buffer_after"`
++	ReceiveBufferAfterError  string `json:"receive_buffer_after_error"`
++
++	SetterAttempted  bool   `json:"setter_attempted"`
++	SetterError      string `json:"setter_error"`
++	UnwrapError      string `json:"unwrap_error"`
++	SyscallConnError string `json:"syscall_conn_error"`
++	ControlError     string `json:"control_error"`
++
++	Conclusive         bool   `json:"conclusive"`
++	InconclusiveReason string `json:"inconclusive_reason"`
++}
++
++type externalQualificationTunnelSocketRow struct {
++	Index  int                                          `json:"index"`
++	Socket externalQualificationTunnelSocketObservation `json:"socket"`
++}
++
++type externalQualificationTunnelSocketResponse struct {
++	SchemaVersion       int                                    `json:"schema_version"`
++	ProcessRole         string                                 `json:"process_role"`
++	CapturedUnixNano    int64                                  `json:"captured_unix_nano"`
++	Capacity            int                                    `json:"capacity"`
++	DroppedObservations uint64                                 `json:"dropped_observations"`
++	Observations        []externalQualificationTunnelSocketRow `json:"observations"`
++}
++
++type externalQualificationTunnelSocketStore struct {
++	mu           sync.Mutex
++	observations []externalQualificationTunnelSocketObservation
++	dropped      uint64
++}
++
++func newExternalQualificationTunnelSocketStore() *externalQualificationTunnelSocketStore {
++	return &externalQualificationTunnelSocketStore{
++		observations: make([]externalQualificationTunnelSocketObservation, 0, externalQualificationTunnelSocketCapacity),
++	}
++}
++
++func (s *externalQualificationTunnelSocketStore) observe(observation tunnel.PhysicalTunnelSocketObservation) {
++	row := externalQualificationTunnelSocketObservationFromTunnel(observation)
++	s.mu.Lock()
++	if len(s.observations) < externalQualificationTunnelSocketCapacity {
++		s.observations = append(s.observations, row)
++	} else {
++		s.dropped++
++	}
++	s.mu.Unlock()
++}
++
++func (s *externalQualificationTunnelSocketStore) snapshot() externalQualificationTunnelSocketResponse {
++	s.mu.Lock()
++	rows := make([]externalQualificationTunnelSocketRow, len(s.observations))
++	for i, observation := range s.observations {
++		rows[i] = externalQualificationTunnelSocketRow{Index: i, Socket: observation}
++	}
++	dropped := s.dropped
++	s.mu.Unlock()
++	return externalQualificationTunnelSocketResponse{
++		SchemaVersion: externalQualificationTunnelSocketSchemaVersion,
++		ProcessRole:   "agent", CapturedUnixNano: time.Now().UnixNano(),
++		Capacity:            externalQualificationTunnelSocketCapacity,
++		DroppedObservations: dropped, Observations: rows,
++	}
++}
++
++func writeExternalQualificationTunnelSocketSnapshot(w http.ResponseWriter, store *externalQualificationTunnelSocketStore) {
++	w.Header().Set("Content-Type", "application/json")
++	_ = json.NewEncoder(w).Encode(store.snapshot())
++}
++
++func externalQualificationTunnelSocketObservationFromTunnel(value tunnel.PhysicalTunnelSocketObservation) externalQualificationTunnelSocketObservation {
++	return externalQualificationTunnelSocketObservation{
++		LocalAddress: value.LocalAddress, RemoteAddress: value.RemoteAddress,
++		PlatformSupported: value.PlatformSupported, ApplyRequested: value.ApplyRequested,
++		RequestedNotSentLowat:      value.RequestedNotSentLowat,
++		NamespaceNotSentLowat:      value.NamespaceNotSentLowat,
++		NamespaceNotSentLowatError: value.NamespaceNotSentLowatError,
++		NotSentLowatBefore:         value.NotSentLowatBefore, NotSentLowatBeforeError: value.NotSentLowatBeforeError,
++		NotSentLowatAfter: value.NotSentLowatAfter, NotSentLowatAfterError: value.NotSentLowatAfterError,
++		SendBufferBefore: value.SendBufferBefore, SendBufferBeforeError: value.SendBufferBeforeError,
++		SendBufferAfter: value.SendBufferAfter, SendBufferAfterError: value.SendBufferAfterError,
++		ReceiveBufferBefore: value.ReceiveBufferBefore, ReceiveBufferBeforeError: value.ReceiveBufferBeforeError,
++		ReceiveBufferAfter: value.ReceiveBufferAfter, ReceiveBufferAfterError: value.ReceiveBufferAfterError,
++		SetterAttempted: value.SetterAttempted, SetterError: value.SetterError,
++		UnwrapError: value.UnwrapError, SyscallConnError: value.SyscallConnError, ControlError: value.ControlError,
++		Conclusive: value.Conclusive, InconclusiveReason: value.InconclusiveReason,
++	}
++}
++
++func TestExternalQualificationTunnelSocketStoreHasBoundedVersionedSchema(t *testing.T) {
++	store := newExternalQualificationTunnelSocketStore()
++	for index := 0; index <= externalQualificationTunnelSocketCapacity; index++ {
++		store.observe(tunnel.PhysicalTunnelSocketObservation{
++			LocalAddress: "127.0.0.1:1", RemoteAddress: "127.0.0.1:2",
++			PlatformSupported: true, Conclusive: true,
++		})
++	}
++	recorder := httptest.NewRecorder()
++	writeExternalQualificationTunnelSocketSnapshot(recorder, store)
++	if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Type") != "application/json" {
++		t.Fatalf("response = status %d content-type %q", recorder.Code, recorder.Header().Get("Content-Type"))
++	}
++	var got externalQualificationTunnelSocketResponse
++	if err := json.NewDecoder(recorder.Body).Decode(&got); err != nil {
++		t.Fatal(err)
++	}
++	if got.SchemaVersion != 1 || got.ProcessRole != "agent" || got.Capacity != 64 ||
++		got.DroppedObservations != 1 || len(got.Observations) != 64 || got.CapturedUnixNano <= 0 {
++		t.Fatalf("socket snapshot = %+v", got)
++	}
++	for index, row := range got.Observations {
++		if row.Index != index || !row.Socket.Conclusive || !row.Socket.PlatformSupported {
++			t.Fatalf("socket row %d = %+v", index, row)
++		}
++	}
++}
+diff --git a/internal/agent/tunnel_socket_diagnostic_test.go b/internal/agent/tunnel_socket_diagnostic_test.go
+new file mode 100644
+index 0000000..a62efc4
+--- /dev/null
++++ b/internal/agent/tunnel_socket_diagnostic_test.go
+@@ -0,0 +1,159 @@
++//go:build linux
++
++package agent
++
++import (
++	"context"
++	"crypto/tls"
++	"errors"
++	"net"
++	"net/http"
++	"testing"
++	"time"
++
++	"p2pstream/internal/tunnel"
++)
++
++func TestManagementTunnelSocketDiagnosticWrapsDedicatedDialOnly(t *testing.T) {
++	listener, err := net.Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer listener.Close()
++	accepted := make(chan net.Conn, 1)
++	go func() {
++		conn, acceptErr := listener.Accept()
++		if acceptErr == nil {
++			accepted <- conn
++		}
++	}()
++
++	baseDialCalls := 0
++	baseTransport := &http.Transport{
++		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
++			baseDialCalls++
++			return (&net.Dialer{}).DialContext(ctx, network, address)
++		},
++	}
++	baseClient := &http.Client{Transport: baseTransport}
++	observations := make(chan tunnel.PhysicalTunnelSocketObservation, 1)
++	tunnelClient, err := managementTunnelHTTPClientWithSocketDiagnostic(baseClient, func(observation tunnel.PhysicalTunnelSocketObservation) {
++		observations <- observation
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if tunnelClient.Transport == baseTransport {
++		t.Fatal("dedicated tunnel client reused the general management transport")
++	}
++	transport := tunnelClient.Transport.(*http.Transport)
++	conn, err := transport.DialContext(t.Context(), "tcp", listener.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++	serverConn := <-accepted
++	defer serverConn.Close()
++	observation := <-observations
++	if !observation.Conclusive {
++		t.Fatalf("observation = %+v, want conclusive", observation)
++	}
++	if baseDialCalls != 1 {
++		t.Fatalf("base DialContext calls = %d, want 1", baseDialCalls)
++	}
++	if baseTransport.TLSNextProto != nil || baseTransport.Protocols != nil {
++		t.Fatalf("base transport was mutated: %+v", baseTransport)
++	}
++}
++
++func TestManagementTunnelSocketDiagnosticUsesDefaultCompatibleDialer(t *testing.T) {
++	listener, err := net.Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer listener.Close()
++	accepted := make(chan net.Conn, 1)
++	go func() {
++		conn, acceptErr := listener.Accept()
++		if acceptErr == nil {
++			accepted <- conn
++		}
++	}()
++
++	client, err := managementTunnelHTTPClientWithSocketDiagnostic(&http.Client{Transport: &http.Transport{}}, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	conn, err := client.Transport.(*http.Transport).DialContext(t.Context(), "tcp", listener.Addr().String())
++	if err != nil {
++		t.Fatalf("fallback DialContext() error = %v", err)
++	}
++	defer conn.Close()
++	serverConn := <-accepted
++	defer serverConn.Close()
++}
++
++func TestManagementTunnelSocketDiagnosticRejectsTLSDialHooks(t *testing.T) {
++	tests := []struct {
++		name      string
++		transport *http.Transport
++	}{
++		{name: "DialTLSContext", transport: &http.Transport{DialTLSContext: func(context.Context, string, string) (net.Conn, error) {
++			return nil, errors.New("unused")
++		}}},
++		{name: "DialTLS", transport: &http.Transport{DialTLS: func(string, string) (net.Conn, error) {
++			return nil, errors.New("unused")
++		}}},
++	}
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			if _, err := managementTunnelHTTPClientWithSocketDiagnostic(&http.Client{Transport: test.transport}, nil); err == nil {
++				t.Fatal("managementTunnelHTTPClientWithSocketDiagnostic() unexpectedly accepted a TLS dial hook")
++			}
++		})
++	}
++}
++
++func TestManagementTunnelSocketDiagnosticClosesInconclusiveConnection(t *testing.T) {
++	clientSide, serverSide := net.Pipe()
++	transport := &http.Transport{DialContext: func(context.Context, string, string) (net.Conn, error) {
++		return clientSide, nil
++	}}
++	observations := make(chan tunnel.PhysicalTunnelSocketObservation, 1)
++	client, err := managementTunnelHTTPClientWithSocketDiagnostic(&http.Client{Transport: transport}, func(observation tunnel.PhysicalTunnelSocketObservation) {
++		observations <- observation
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	conn, err := client.Transport.(*http.Transport).DialContext(t.Context(), "tcp", "diagnostic.invalid:443")
++	if err == nil || conn != nil {
++		t.Fatalf("DialContext() = %v, %v, want closed inconclusive error", conn, err)
++	}
++	observation := <-observations
++	if observation.Conclusive || observation.UnwrapError == "" {
++		t.Fatalf("observation = %+v, want unwrap failure", observation)
++	}
++	_ = serverSide.SetReadDeadline(time.Now().Add(time.Second))
++	buffer := make([]byte, 1)
++	if _, err := serverSide.Read(buffer); err == nil {
++		t.Fatal("peer remained open after inconclusive diagnostic")
++	}
++	serverSide.Close()
++}
++
++func TestManagementTunnelSocketDiagnosticLeavesTLSConfigOnClone(t *testing.T) {
++	baseTLS := &tls.Config{MinVersion: tls.VersionTLS13}
++	baseTransport := &http.Transport{TLSClientConfig: baseTLS}
++	client, err := managementTunnelHTTPClientWithSocketDiagnostic(&http.Client{Transport: baseTransport}, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	got := client.Transport.(*http.Transport).TLSClientConfig
++	if got == baseTLS || got.MinVersion != tls.VersionTLS13 {
++		t.Fatalf("diagnostic TLS config = %p/%d, base = %p/%d", got, got.MinVersion, baseTLS, baseTLS.MinVersion)
++	}
++	if baseTLS.NextProtos != nil {
++		t.Fatalf("base TLS config was mutated: %+v", baseTLS)
++	}
++}
+diff --git a/internal/server/agent_tunnel_socket_diagnostic_test.go b/internal/server/agent_tunnel_socket_diagnostic_test.go
+new file mode 100644
+index 0000000..c674c02
+--- /dev/null
++++ b/internal/server/agent_tunnel_socket_diagnostic_test.go
+@@ -0,0 +1,185 @@
++//go:build linux
++
++package server
++
++import (
++	"bufio"
++	"bytes"
++	"io"
++	"net"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++
++	"p2pstream/internal/config"
++	"p2pstream/internal/tunnel"
++)
++
++func TestAgentTunnelSocketDiagnosticObservesAuthenticatedPhysicalConnectionBeforeUpgrade(t *testing.T) {
++	database := newAgentRegistryTestDB(t)
++	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
++	agent := createAgentRegistryTestAgent(t, database, "agent-tunnel-socket-diagnostic", "Socket Diagnostic", "token")
++	observations := make(chan agentTunnelSocketObservation, 1)
++	app.agentTunnelSocketObserver = func(observation agentTunnelSocketObservation) {
++		observations <- observation
++	}
++	mux := http.NewServeMux()
++	app.RegisterManagementRoutes(mux)
++	server := httptest.NewServer(mux)
++	defer server.Close()
++
++	session, conn, err := dialAgentRegistryTestTunnel(server.URL, agent.PublicID, "token")
++	if err != nil {
++		t.Fatalf("dial tunnel: %v", err)
++	}
++	defer session.Close()
++	defer conn.Close()
++	var observation agentTunnelSocketObservation
++	select {
++	case observation = <-observations:
++	case <-time.After(time.Second):
++		t.Fatal("timed out waiting for physical socket observation")
++	}
++	if observation.Lane != 0 || observation.Aggregate || observation.LaneRole != "" {
++		t.Fatalf("lane observation = %+v, want legacy lane zero", observation)
++	}
++	if !observation.Socket.Conclusive {
++		t.Fatalf("socket observation = %+v, want conclusive", observation.Socket)
++	}
++	if observation.Socket.LocalAddress != conn.RemoteAddr().String() || observation.Socket.RemoteAddress != conn.LocalAddr().String() {
++		t.Fatalf("server tuple = %s -> %s, client tuple = %s -> %s", observation.Socket.LocalAddress, observation.Socket.RemoteAddress, conn.LocalAddr(), conn.RemoteAddr())
++	}
++}
++
++func TestAgentTunnelSocketDiagnosticRunsOnlyAfterAuthAndBufferedInputGate(t *testing.T) {
++	database := newAgentRegistryTestDB(t)
++	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
++	agent := createAgentRegistryTestAgent(t, database, "agent-tunnel-socket-boundary", "Socket Boundary", "token")
++	var mu sync.Mutex
++	var observations []agentTunnelSocketObservation
++	app.agentTunnelSocketObserver = func(observation agentTunnelSocketObservation) {
++		mu.Lock()
++		observations = append(observations, observation)
++		mu.Unlock()
++	}
++
++	badAuth := newAgentTunnelSocketRequest(agent.PublicID, "wrong-token")
++	badAuthRecorder := httptest.NewRecorder()
++	app.agentTunnelHandler(badAuthRecorder, badAuth)
++	if badAuthRecorder.Code != http.StatusUnauthorized {
++		t.Fatalf("bad auth status = %d, want 401", badAuthRecorder.Code)
++	}
++
++	client, server := newAgentRegistryLocalTCPPair(t)
++	defer client.Close()
++	response := &bytes.Buffer{}
++	buffered := &diagnosticHijackResponseWriter{
++		conn:   server,
++		reader: bufio.NewReader(strings.NewReader("attacker-controlled-extra-byte")),
++		writer: bufio.NewWriter(response),
++	}
++	if _, err := buffered.reader.Peek(1); err != nil {
++		t.Fatalf("prefill buffered tunnel input: %v", err)
++	}
++	app.agentTunnelHandler(buffered, newAgentTunnelSocketRequest(agent.PublicID, "token"))
++	if !strings.Contains(response.String(), "400 Bad Request") {
++		t.Fatalf("buffered response = %q, want 400", response.String())
++	}
++	mu.Lock()
++	defer mu.Unlock()
++	if len(observations) != 0 {
++		t.Fatalf("observations before auth/buffer gate = %+v, want none", observations)
++	}
++}
++
++func TestAgentTunnelSocketDiagnosticInconclusivePreventsSwitchingProtocols(t *testing.T) {
++	database := newAgentRegistryTestDB(t)
++	app := NewApp(&config.Config{ManagementUIDisabled: true}, database)
++	agent := createAgentRegistryTestAgent(t, database, "agent-tunnel-socket-inconclusive", "Socket Inconclusive", "token")
++	observations := make(chan agentTunnelSocketObservation, 1)
++	app.agentTunnelSocketObserver = func(observation agentTunnelSocketObservation) {
++		observations <- observation
++	}
++	conn := &diagnosticMemoryConn{}
++	response := &bytes.Buffer{}
++	writer := &diagnosticHijackResponseWriter{
++		conn:   conn,
++		reader: bufio.NewReader(strings.NewReader("")),
++		writer: bufio.NewWriter(response),
++	}
++	app.agentTunnelHandler(writer, newAgentTunnelSocketRequest(agent.PublicID, "token"))
++	if strings.Contains(response.String(), "101 Switching Protocols") || !strings.Contains(response.String(), "503 Service Unavailable") {
++		t.Fatalf("diagnostic response = %q, want only 503", response.String())
++	}
++	if !conn.closed {
++		t.Fatal("inconclusive physical connection remained open")
++	}
++	select {
++	case observation := <-observations:
++		if observation.Socket.Conclusive || observation.Socket.UnwrapError == "" {
++			t.Fatalf("observation = %+v, want unwrap failure", observation)
++		}
++	default:
++		t.Fatal("inconclusive observation was not published")
++	}
++}
++
++func newAgentTunnelSocketRequest(publicID, token string) *http.Request {
++	req := httptest.NewRequest(http.MethodGet, tunnel.BootstrapPath, nil)
++	req.Header.Set("X-P2PStream-Agent-ID", publicID)
++	req.Header.Set("Authorization", "Bearer "+token)
++	req.Header.Set("Connection", "Upgrade")
++	req.Header.Set("Upgrade", tunnel.UpgradeToken)
++	req.Header.Set(tunnel.TunnelVersionHeader, "1")
++	req.Header.Set(tunnel.TunnelMaxConcurrentStreamsHeader, "64")
++	req.Header.Set(tunnel.TunnelCapacityModeHeader, tunnel.TunnelCapacityModeFixed)
++	return req
++}
++
++type diagnosticHijackResponseWriter struct {
++	header http.Header
++	conn   net.Conn
++	reader *bufio.Reader
++	writer *bufio.Writer
++}
++
++func (writer *diagnosticHijackResponseWriter) Header() http.Header {
++	if writer.header == nil {
++		writer.header = make(http.Header)
++	}
++	return writer.header
++}
++
++func (*diagnosticHijackResponseWriter) WriteHeader(int) {}
++
++func (writer *diagnosticHijackResponseWriter) Write(value []byte) (int, error) {
++	return writer.writer.Write(value)
++}
++
++func (writer *diagnosticHijackResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
++	return writer.conn, bufio.NewReadWriter(writer.reader, writer.writer), nil
++}
++
++type diagnosticMemoryConn struct {
++	closed bool
++}
++
++func (*diagnosticMemoryConn) Read([]byte) (int, error)         { return 0, io.EOF }
++func (*diagnosticMemoryConn) Write(value []byte) (int, error)  { return len(value), nil }
++func (conn *diagnosticMemoryConn) Close() error                { conn.closed = true; return nil }
++func (*diagnosticMemoryConn) LocalAddr() net.Addr              { return diagnosticMemoryAddr("local") }
++func (*diagnosticMemoryConn) RemoteAddr() net.Addr             { return diagnosticMemoryAddr("remote") }
++func (*diagnosticMemoryConn) SetDeadline(time.Time) error      { return nil }
++func (*diagnosticMemoryConn) SetReadDeadline(time.Time) error  { return nil }
++func (*diagnosticMemoryConn) SetWriteDeadline(time.Time) error { return nil }
++
++type diagnosticMemoryAddr string
++
++func (diagnosticMemoryAddr) Network() string        { return "diagnostic" }
++func (address diagnosticMemoryAddr) String() string { return string(address) }
++
++var _ net.Conn = (*diagnosticMemoryConn)(nil)
++var _ http.Hijacker = (*diagnosticHijackResponseWriter)(nil)
+diff --git a/internal/server/proxy_qualification_lowat_adapter_test.go b/internal/server/proxy_qualification_lowat_adapter_test.go
+new file mode 100644
+index 0000000..e57d6fe
+--- /dev/null
++++ b/internal/server/proxy_qualification_lowat_adapter_test.go
+@@ -0,0 +1,165 @@
++//go:build linux
++
++package server
++
++import (
++	"encoding/json"
++	"net/http"
++	"net/http/httptest"
++	"sync"
++	"testing"
++	"time"
++
++	"p2pstream/internal/tunnel"
++)
++
++const (
++	qualificationTunnelSocketSchemaVersion = 1
++	qualificationTunnelSocketCapacity      = 64
++)
++
++type qualificationTunnelSocketObservation struct {
++	LocalAddress  string `json:"local_address"`
++	RemoteAddress string `json:"remote_address"`
++
++	PlatformSupported     bool   `json:"platform_supported"`
++	ApplyRequested        bool   `json:"apply_requested"`
++	RequestedNotSentLowat uint32 `json:"requested_notsent_lowat"`
++
++	NamespaceNotSentLowat      uint32 `json:"namespace_notsent_lowat"`
++	NamespaceNotSentLowatError string `json:"namespace_notsent_lowat_error"`
++	NotSentLowatBefore         uint32 `json:"notsent_lowat_before"`
++	NotSentLowatBeforeError    string `json:"notsent_lowat_before_error"`
++	NotSentLowatAfter          uint32 `json:"notsent_lowat_after"`
++	NotSentLowatAfterError     string `json:"notsent_lowat_after_error"`
++
++	SendBufferBefore         int    `json:"send_buffer_before"`
++	SendBufferBeforeError    string `json:"send_buffer_before_error"`
++	SendBufferAfter          int    `json:"send_buffer_after"`
++	SendBufferAfterError     string `json:"send_buffer_after_error"`
++	ReceiveBufferBefore      int    `json:"receive_buffer_before"`
++	ReceiveBufferBeforeError string `json:"receive_buffer_before_error"`
++	ReceiveBufferAfter       int    `json:"receive_buffer_after"`
++	ReceiveBufferAfterError  string `json:"receive_buffer_after_error"`
++
++	SetterAttempted  bool   `json:"setter_attempted"`
++	SetterError      string `json:"setter_error"`
++	UnwrapError      string `json:"unwrap_error"`
++	SyscallConnError string `json:"syscall_conn_error"`
++	ControlError     string `json:"control_error"`
++
++	Conclusive         bool   `json:"conclusive"`
++	InconclusiveReason string `json:"inconclusive_reason"`
++}
++
++type qualificationTunnelSocketRow struct {
++	Index     int                                  `json:"index"`
++	Lane      int                                  `json:"lane"`
++	LaneRole  string                               `json:"lane_role"`
++	Aggregate bool                                 `json:"aggregate"`
++	Socket    qualificationTunnelSocketObservation `json:"socket"`
++}
++
++type qualificationTunnelSocketResponse struct {
++	SchemaVersion       int                            `json:"schema_version"`
++	ProcessRole         string                         `json:"process_role"`
++	CapturedUnixNano    int64                          `json:"captured_unix_nano"`
++	Capacity            int                            `json:"capacity"`
++	DroppedObservations uint64                         `json:"dropped_observations"`
++	Observations        []qualificationTunnelSocketRow `json:"observations"`
++}
++
++type qualificationTunnelSocketStore struct {
++	mu           sync.Mutex
++	observations []qualificationTunnelSocketRow
++	dropped      uint64
++}
++
++func newQualificationTunnelSocketStore() *qualificationTunnelSocketStore {
++	return &qualificationTunnelSocketStore{
++		observations: make([]qualificationTunnelSocketRow, 0, qualificationTunnelSocketCapacity),
++	}
++}
++
++func (s *qualificationTunnelSocketStore) observe(observation agentTunnelSocketObservation) {
++	row := qualificationTunnelSocketRow{
++		Lane: observation.Lane, LaneRole: observation.LaneRole, Aggregate: observation.Aggregate,
++		Socket: qualificationTunnelSocketObservationFromTunnel(observation.Socket),
++	}
++	s.mu.Lock()
++	if len(s.observations) < qualificationTunnelSocketCapacity {
++		row.Index = len(s.observations)
++		s.observations = append(s.observations, row)
++	} else {
++		s.dropped++
++	}
++	s.mu.Unlock()
++}
++
++func (s *qualificationTunnelSocketStore) snapshot() qualificationTunnelSocketResponse {
++	s.mu.Lock()
++	rows := append([]qualificationTunnelSocketRow(nil), s.observations...)
++	dropped := s.dropped
++	s.mu.Unlock()
++	return qualificationTunnelSocketResponse{
++		SchemaVersion: qualificationTunnelSocketSchemaVersion,
++		ProcessRole:   "server", CapturedUnixNano: time.Now().UnixNano(),
++		Capacity:            qualificationTunnelSocketCapacity,
++		DroppedObservations: dropped, Observations: rows,
++	}
++}
++
++func writeQualificationTunnelSocketSnapshot(w http.ResponseWriter, store *qualificationTunnelSocketStore) {
++	w.Header().Set("Content-Type", "application/json")
++	_ = json.NewEncoder(w).Encode(store.snapshot())
++}
++
++func qualificationTunnelSocketObservationFromTunnel(value tunnel.PhysicalTunnelSocketObservation) qualificationTunnelSocketObservation {
++	return qualificationTunnelSocketObservation{
++		LocalAddress: value.LocalAddress, RemoteAddress: value.RemoteAddress,
++		PlatformSupported: value.PlatformSupported, ApplyRequested: value.ApplyRequested,
++		RequestedNotSentLowat:      value.RequestedNotSentLowat,
++		NamespaceNotSentLowat:      value.NamespaceNotSentLowat,
++		NamespaceNotSentLowatError: value.NamespaceNotSentLowatError,
++		NotSentLowatBefore:         value.NotSentLowatBefore, NotSentLowatBeforeError: value.NotSentLowatBeforeError,
++		NotSentLowatAfter: value.NotSentLowatAfter, NotSentLowatAfterError: value.NotSentLowatAfterError,
++		SendBufferBefore: value.SendBufferBefore, SendBufferBeforeError: value.SendBufferBeforeError,
++		SendBufferAfter: value.SendBufferAfter, SendBufferAfterError: value.SendBufferAfterError,
++		ReceiveBufferBefore: value.ReceiveBufferBefore, ReceiveBufferBeforeError: value.ReceiveBufferBeforeError,
++		ReceiveBufferAfter: value.ReceiveBufferAfter, ReceiveBufferAfterError: value.ReceiveBufferAfterError,
++		SetterAttempted: value.SetterAttempted, SetterError: value.SetterError,
++		UnwrapError: value.UnwrapError, SyscallConnError: value.SyscallConnError, ControlError: value.ControlError,
++		Conclusive: value.Conclusive, InconclusiveReason: value.InconclusiveReason,
++	}
++}
++
++func TestQualificationTunnelSocketStoreHasBoundedVersionedSchema(t *testing.T) {
++	store := newQualificationTunnelSocketStore()
++	for index := 0; index <= qualificationTunnelSocketCapacity; index++ {
++		store.observe(agentTunnelSocketObservation{
++			Lane: index, LaneRole: "bulk", Aggregate: true,
++			Socket: tunnel.PhysicalTunnelSocketObservation{
++				LocalAddress: "127.0.0.1:1", RemoteAddress: "127.0.0.1:2",
++				PlatformSupported: true, Conclusive: true,
++			},
++		})
++	}
++	recorder := httptest.NewRecorder()
++	writeQualificationTunnelSocketSnapshot(recorder, store)
++	if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Type") != "application/json" {
++		t.Fatalf("response = status %d content-type %q", recorder.Code, recorder.Header().Get("Content-Type"))
++	}
++	var got qualificationTunnelSocketResponse
++	if err := json.NewDecoder(recorder.Body).Decode(&got); err != nil {
++		t.Fatal(err)
++	}
++	if got.SchemaVersion != 1 || got.ProcessRole != "server" || got.Capacity != 64 ||
++		got.DroppedObservations != 1 || len(got.Observations) != 64 || got.CapturedUnixNano <= 0 {
++		t.Fatalf("socket snapshot = %+v", got)
++	}
++	for index, row := range got.Observations {
++		if row.Index != index || row.Lane != index || !row.Aggregate || !row.Socket.Conclusive {
++			t.Fatalf("socket row %d = %+v", index, row)
++		}
++	}
++}
+diff --git a/internal/server/proxy_qualification_test.go b/internal/server/proxy_qualification_test.go
+index 3976109..892bbcc 100644
+--- a/internal/server/proxy_qualification_test.go
++++ b/internal/server/proxy_qualification_test.go
+@@ -843,6 +843,8 @@ func runQualificationExternalAgentProxy(t *testing.T) {
+ 		ServerTunnelCapacityAuto:         true,
+ 	}
+ 	app := NewApp(appConfig, database)
++	tunnelSockets := newQualificationTunnelSocketStore()
++	app.agentTunnelSocketObserver = tunnelSockets.observe
+ 	app.StartAdaptiveTunnelCapacity(ctx)
+ 	defer app.CloseAgentTransports()
+ 
+@@ -930,6 +932,10 @@ func runQualificationExternalAgentProxy(t *testing.T) {
+ 		ExpectedStatusMax: defaultTargetHealthCheckExpectedStatusMax,
+ 	}
+ 	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Query().Get("tunnel_socket_snapshot") == "1" {
++			writeQualificationTunnelSocketSnapshot(w, tunnelSockets)
++			return
++		}
+ 		healthAgent := r.URL.Query().Get("agent_health")
+ 		if healthAgent == "" {
+ 			runtimeHandler.ServeHTTP(w, r)
+diff --git a/internal/server/server.go b/internal/server/server.go
+index 0607ee1..0a54759 100644
+--- a/internal/server/server.go
++++ b/internal/server/server.go
+@@ -272,10 +272,18 @@ type App struct {
+ 	observabilityLastCleanup time.Time
+ 
+ 	agentTunnelBeforeFinalAuth            func(db.Agent)
++	agentTunnelSocketObserver             func(agentTunnelSocketObservation)
+ 	agentDisconnectAfterHubRemoval        func(*AgentConn, bool)
+ 	publicTLSSelectorRefreshBeforePublish func(uint64)
+ }
+ 
++type agentTunnelSocketObservation struct {
++	Lane      int
++	LaneRole  string
++	Aggregate bool
++	Socket    tunnel.PhysicalTunnelSocketObservation
++}
++
+ const managementRPCMaxMessageBytes = 8 << 20
+ 
+ type agentAuthLockMap struct {
+@@ -963,6 +971,22 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
+ 		_ = rawConn.Close()
+ 		return
+ 	}
++	socketObservation, socketErr := tunnel.ObservePhysicalTunnelSocket(rawConn)
++	if a.agentTunnelSocketObserver != nil {
++		a.agentTunnelSocketObserver(agentTunnelSocketObservation{
++			Lane:      lane,
++			LaneRole:  laneRole,
++			Aggregate: aggregateNegotiated,
++			Socket:    socketObservation,
++		})
++	}
++	if socketErr != nil {
++		_, _ = rw.WriteString("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\ntunnel socket diagnostic unavailable\n")
++		_ = rw.Flush()
++		_ = rawConn.Close()
++		log.Warn().Err(socketErr).Int("lane", lane).Msg("Physical agent tunnel socket diagnostic was inconclusive")
++		return
++	}
+ 	_, _ = rw.WriteString("HTTP/1.1 101 Switching Protocols\r\n")
+ 	_, _ = rw.WriteString("Connection: Upgrade\r\n")
+ 	_, _ = rw.WriteString("Upgrade: " + tunnel.UpgradeToken + "\r\n")
+diff --git a/internal/tunnel/physical_socket_diagnostic.go b/internal/tunnel/physical_socket_diagnostic.go
+new file mode 100644
+index 0000000..42d17dc
+--- /dev/null
++++ b/internal/tunnel/physical_socket_diagnostic.go
+@@ -0,0 +1,148 @@
++package tunnel
++
++import (
++	"crypto/tls"
++	"errors"
++	"fmt"
++	"net"
++)
++
++const (
++	// diagnosticApplyTunnelNotSentLowat is the sole difference between the
++	// temporary control and candidate diagnostic builds. It is deliberately
++	// private and is not a production configuration surface.
++	diagnosticApplyTunnelNotSentLowat = false
++
++	diagnosticTunnelNotSentLowat = uint32(32 * 1024)
++)
++
++// ErrPhysicalTunnelSocketDiagnosticInconclusive reports that a temporary
++// tunnel-socket experiment cannot prove that it observed the intended socket
++// state. The diagnostic builds reject that connection instead of silently
++// mixing experimental arms. This strict policy is not a proposed production
++// fallback for unsupported kernels.
++var ErrPhysicalTunnelSocketDiagnosticInconclusive = errors.New("physical tunnel socket diagnostic is inconclusive")
++
++// PhysicalTunnelSocketObservation is fixed startup evidence for one physical
++// tunnel connection. Buffer values are observations only: the diagnostic never
++// sets SO_SNDBUF or SO_RCVBUF, and ordinary kernel autotuning may change them.
++type PhysicalTunnelSocketObservation struct {
++	LocalAddress  string
++	RemoteAddress string
++
++	PlatformSupported     bool
++	ApplyRequested        bool
++	RequestedNotSentLowat uint32
++
++	NamespaceNotSentLowat      uint32
++	NamespaceNotSentLowatError string
++
++	NotSentLowatBefore      uint32
++	NotSentLowatBeforeError string
++	NotSentLowatAfter       uint32
++	NotSentLowatAfterError  string
++
++	SendBufferBefore      int
++	SendBufferBeforeError string
++	SendBufferAfter       int
++	SendBufferAfterError  string
++
++	ReceiveBufferBefore      int
++	ReceiveBufferBeforeError string
++	ReceiveBufferAfter       int
++	ReceiveBufferAfterError  string
++
++	SetterAttempted  bool
++	SetterError      string
++	UnwrapError      string
++	SyscallConnError string
++	ControlError     string
++
++	Conclusive         bool
++	InconclusiveReason string
++}
++
++// ObservePhysicalTunnelSocket captures the physical socket's startup options
++// and, in the temporary candidate build only, sets TCP_NOTSENT_LOWAT to 32 KiB.
++// It accepts only the two connection shapes used by the tunnel endpoints: a
++// raw TCP connection or a TLS connection directly over raw TCP.
++func ObservePhysicalTunnelSocket(conn net.Conn) (PhysicalTunnelSocketObservation, error) {
++	observation := PhysicalTunnelSocketObservation{
++		ApplyRequested:        diagnosticApplyTunnelNotSentLowat,
++		RequestedNotSentLowat: diagnosticTunnelNotSentLowat,
++	}
++	if conn != nil {
++		if address := conn.LocalAddr(); address != nil {
++			observation.LocalAddress = address.String()
++		}
++		if address := conn.RemoteAddr(); address != nil {
++			observation.RemoteAddress = address.String()
++		}
++	}
++
++	tcp, err := physicalTunnelTCPConn(conn)
++	if err != nil {
++		observation.UnwrapError = err.Error()
++		return finishPhysicalTunnelSocketObservation(observation)
++	}
++	observePhysicalTunnelSocketPlatform(tcp, &observation)
++	return finishPhysicalTunnelSocketObservation(observation)
++}
++
++func physicalTunnelTCPConn(conn net.Conn) (*net.TCPConn, error) {
++	switch typed := conn.(type) {
++	case *net.TCPConn:
++		return typed, nil
++	case *tls.Conn:
++		tcp, ok := typed.NetConn().(*net.TCPConn)
++		if !ok {
++			return nil, fmt.Errorf("TLS network connection is %T, want *net.TCPConn", typed.NetConn())
++		}
++		return tcp, nil
++	default:
++		return nil, fmt.Errorf("network connection is %T, want *net.TCPConn or *tls.Conn", conn)
++	}
++}
++
++func finishPhysicalTunnelSocketObservation(observation PhysicalTunnelSocketObservation) (PhysicalTunnelSocketObservation, error) {
++	reason := physicalTunnelSocketInconclusiveReason(observation)
++	if reason == "" {
++		observation.Conclusive = true
++		return observation, nil
++	}
++	observation.InconclusiveReason = reason
++	return observation, fmt.Errorf("%w: %s", ErrPhysicalTunnelSocketDiagnosticInconclusive, reason)
++}
++
++func physicalTunnelSocketInconclusiveReason(observation PhysicalTunnelSocketObservation) string {
++	switch {
++	case observation.UnwrapError != "":
++		return "unsupported tunnel connection shape"
++	case !observation.PlatformSupported:
++		return "platform does not expose the required socket options"
++	case observation.NamespaceNotSentLowatError != "":
++		return "cannot read the namespace TCP_NOTSENT_LOWAT default"
++	case observation.SyscallConnError != "":
++		return "cannot access the TCP socket descriptor"
++	case observation.ControlError != "":
++		return "cannot inspect the TCP socket descriptor"
++	case observation.NotSentLowatBeforeError != "" || observation.NotSentLowatAfterError != "":
++		return "cannot read TCP_NOTSENT_LOWAT"
++	case observation.SendBufferBeforeError != "" || observation.SendBufferAfterError != "":
++		return "cannot read SO_SNDBUF"
++	case observation.ReceiveBufferBeforeError != "" || observation.ReceiveBufferAfterError != "":
++		return "cannot read SO_RCVBUF"
++	case observation.ApplyRequested && !observation.SetterAttempted:
++		return "TCP_NOTSENT_LOWAT was not attempted"
++	case observation.ApplyRequested && observation.SetterError != "":
++		return "cannot set TCP_NOTSENT_LOWAT"
++	case observation.ApplyRequested && observation.NotSentLowatAfter != observation.RequestedNotSentLowat:
++		return "TCP_NOTSENT_LOWAT does not match the candidate value"
++	case !observation.ApplyRequested && observation.SetterAttempted:
++		return "control arm attempted to set TCP_NOTSENT_LOWAT"
++	case !observation.ApplyRequested && observation.NotSentLowatAfter != observation.NotSentLowatBefore:
++		return "TCP_NOTSENT_LOWAT changed in the control arm"
++	default:
++		return ""
++	}
++}
+diff --git a/internal/tunnel/physical_socket_diagnostic_linux.go b/internal/tunnel/physical_socket_diagnostic_linux.go
+new file mode 100644
+index 0000000..6f6c6c0
+--- /dev/null
++++ b/internal/tunnel/physical_socket_diagnostic_linux.go
+@@ -0,0 +1,100 @@
++//go:build linux
++
++package tunnel
++
++import (
++	"net"
++	"os"
++	"strconv"
++	"strings"
++
++	"golang.org/x/sys/unix"
++)
++
++const tcpNotSentLowatNamespacePath = "/proc/sys/net/ipv4/tcp_notsent_lowat"
++
++type physicalTunnelSocketOptionAccess interface {
++	readNotSentLowat() (uint32, error)
++	readSendBuffer() (int, error)
++	readReceiveBuffer() (int, error)
++	setNotSentLowat(uint32) error
++}
++
++type physicalTunnelSocketFD int
++
++func (fd physicalTunnelSocketFD) readNotSentLowat() (uint32, error) {
++	value, err := unix.GetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_NOTSENT_LOWAT)
++	return uint32(value), err
++}
++
++func (fd physicalTunnelSocketFD) readSendBuffer() (int, error) {
++	return unix.GetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_SNDBUF)
++}
++
++func (fd physicalTunnelSocketFD) readReceiveBuffer() (int, error) {
++	return unix.GetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_RCVBUF)
++}
++
++func (fd physicalTunnelSocketFD) setNotSentLowat(value uint32) error {
++	return unix.SetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_NOTSENT_LOWAT, int(value))
++}
++
++func observePhysicalTunnelSocketPlatform(tcp *net.TCPConn, observation *PhysicalTunnelSocketObservation) {
++	observation.PlatformSupported = true
++	value, err := readPhysicalTunnelNotSentLowatNamespace(tcpNotSentLowatNamespacePath)
++	observation.NamespaceNotSentLowat = value
++	observation.NamespaceNotSentLowatError = diagnosticErrorString(err)
++
++	raw, err := tcp.SyscallConn()
++	if err != nil {
++		observation.SyscallConnError = err.Error()
++		return
++	}
++	if err := raw.Control(func(fd uintptr) {
++		observePhysicalTunnelSocketOptions(physicalTunnelSocketFD(fd), observation)
++	}); err != nil {
++		observation.ControlError = err.Error()
++	}
++}
++
++func observePhysicalTunnelSocketOptions(options physicalTunnelSocketOptionAccess, observation *PhysicalTunnelSocketObservation) {
++	observation.NotSentLowatBefore, observation.NotSentLowatBeforeError = readPhysicalTunnelUint32Option(options.readNotSentLowat)
++	observation.SendBufferBefore, observation.SendBufferBeforeError = readPhysicalTunnelIntOption(options.readSendBuffer)
++	observation.ReceiveBufferBefore, observation.ReceiveBufferBeforeError = readPhysicalTunnelIntOption(options.readReceiveBuffer)
++	if observation.ApplyRequested {
++		observation.SetterAttempted = true
++		observation.SetterError = diagnosticErrorString(options.setNotSentLowat(observation.RequestedNotSentLowat))
++	}
++	observation.NotSentLowatAfter, observation.NotSentLowatAfterError = readPhysicalTunnelUint32Option(options.readNotSentLowat)
++	observation.SendBufferAfter, observation.SendBufferAfterError = readPhysicalTunnelIntOption(options.readSendBuffer)
++	observation.ReceiveBufferAfter, observation.ReceiveBufferAfterError = readPhysicalTunnelIntOption(options.readReceiveBuffer)
++}
++
++func readPhysicalTunnelNotSentLowatNamespace(path string) (uint32, error) {
++	value, err := os.ReadFile(path)
++	if err != nil {
++		return 0, err
++	}
++	parsed, err := strconv.ParseUint(strings.TrimSpace(string(value)), 10, 32)
++	if err != nil {
++		return 0, err
++	}
++	return uint32(parsed), nil
++}
++
++func readPhysicalTunnelUint32Option(read func() (uint32, error)) (uint32, string) {
++	value, err := read()
++	return value, diagnosticErrorString(err)
++}
++
++func readPhysicalTunnelIntOption(read func() (int, error)) (int, string) {
++	value, err := read()
++	return value, diagnosticErrorString(err)
++}
++
++func diagnosticErrorString(err error) string {
++	if err == nil {
++		return ""
++	}
++	return err.Error()
++}
+diff --git a/internal/tunnel/physical_socket_diagnostic_linux_test.go b/internal/tunnel/physical_socket_diagnostic_linux_test.go
+new file mode 100644
+index 0000000..a5cdfb3
+--- /dev/null
++++ b/internal/tunnel/physical_socket_diagnostic_linux_test.go
+@@ -0,0 +1,246 @@
++//go:build linux
++
++package tunnel
++
++import (
++	"crypto/tls"
++	"errors"
++	"net"
++	"os"
++	"path/filepath"
++	"testing"
++	"time"
++)
++
++func TestObservePhysicalTunnelSocketRealTCP(t *testing.T) {
++	client, server := newPhysicalTunnelDiagnosticTCPPair(t)
++	defer client.Close()
++	defer server.Close()
++
++	observation, err := ObservePhysicalTunnelSocket(client)
++	if err != nil {
++		t.Fatalf("ObservePhysicalTunnelSocket() error = %v; observation = %+v", err, observation)
++	}
++	if !observation.Conclusive || !observation.PlatformSupported {
++		t.Fatalf("observation = %+v, want conclusive Linux evidence", observation)
++	}
++	if observation.LocalAddress == "" || observation.RemoteAddress == "" {
++		t.Fatalf("observation addresses = %q -> %q", observation.LocalAddress, observation.RemoteAddress)
++	}
++	if observation.ApplyRequested {
++		if !observation.SetterAttempted || observation.NotSentLowatAfter != diagnosticTunnelNotSentLowat {
++			t.Fatalf("candidate observation = %+v, want exact LOWAT %d", observation, diagnosticTunnelNotSentLowat)
++		}
++	} else if observation.SetterAttempted || observation.NotSentLowatAfter != observation.NotSentLowatBefore {
++		t.Fatalf("control observation = %+v, want unchanged LOWAT", observation)
++	}
++	if observation.SendBufferBefore <= 0 || observation.SendBufferAfter <= 0 || observation.ReceiveBufferBefore <= 0 || observation.ReceiveBufferAfter <= 0 {
++		t.Fatalf("buffer observations = %+v, want positive values", observation)
++	}
++}
++
++func TestObservePhysicalTunnelSocketAcceptsTLSDirectlyOverTCP(t *testing.T) {
++	client, server := newPhysicalTunnelDiagnosticTCPPair(t)
++	defer server.Close()
++	secured := tls.Client(client, &tls.Config{InsecureSkipVerify: true}) //nolint:gosec -- no handshake; tests exact unwrap shape
++	defer secured.Close()
++
++	observation, err := ObservePhysicalTunnelSocket(secured)
++	if err != nil {
++		t.Fatalf("ObservePhysicalTunnelSocket(*tls.Conn) error = %v; observation = %+v", err, observation)
++	}
++	if !observation.Conclusive {
++		t.Fatalf("observation = %+v, want conclusive", observation)
++	}
++}
++
++func TestObservePhysicalTunnelSocketRejectsUnknownWrapper(t *testing.T) {
++	client, server := net.Pipe()
++	defer client.Close()
++	defer server.Close()
++
++	observation, err := ObservePhysicalTunnelSocket(client)
++	if !errors.Is(err, ErrPhysicalTunnelSocketDiagnosticInconclusive) {
++		t.Fatalf("ObservePhysicalTunnelSocket() error = %v, want inconclusive", err)
++	}
++	if observation.UnwrapError == "" || observation.Conclusive {
++		t.Fatalf("observation = %+v, want unwrap failure", observation)
++	}
++}
++
++func TestPhysicalTunnelSocketOptionsOnlySetsNotSentLowat(t *testing.T) {
++	options := &fakePhysicalTunnelSocketOptions{
++		notSentLowat:  []uint32{0, diagnosticTunnelNotSentLowat},
++		sendBuffer:    []int{128 * 1024, 192 * 1024},
++		receiveBuffer: []int{256 * 1024, 320 * 1024},
++	}
++	observation := PhysicalTunnelSocketObservation{
++		PlatformSupported:     true,
++		ApplyRequested:        true,
++		RequestedNotSentLowat: diagnosticTunnelNotSentLowat,
++		NamespaceNotSentLowat: ^uint32(0),
++	}
++	observePhysicalTunnelSocketOptions(options, &observation)
++	observation, err := finishPhysicalTunnelSocketObservation(observation)
++	if err != nil {
++		t.Fatalf("finishPhysicalTunnelSocketObservation() error = %v; observation = %+v", err, observation)
++	}
++	if options.setCalls != 1 || options.setValue != diagnosticTunnelNotSentLowat {
++		t.Fatalf("set calls/value = %d/%d, want 1/%d", options.setCalls, options.setValue, diagnosticTunnelNotSentLowat)
++	}
++	if observation.SendBufferBefore == observation.SendBufferAfter || observation.ReceiveBufferBefore == observation.ReceiveBufferAfter {
++		t.Fatalf("observation = %+v, want buffer drift retained as evidence", observation)
++	}
++}
++
++func TestPhysicalTunnelSocketObservationFailsClosed(t *testing.T) {
++	tests := []struct {
++		name   string
++		mutate func(*PhysicalTunnelSocketObservation, *fakePhysicalTunnelSocketOptions)
++	}{
++		{name: "namespace read", mutate: func(observation *PhysicalTunnelSocketObservation, _ *fakePhysicalTunnelSocketOptions) {
++			observation.NamespaceNotSentLowatError = "denied"
++		}},
++		{name: "option read", mutate: func(_ *PhysicalTunnelSocketObservation, options *fakePhysicalTunnelSocketOptions) {
++			options.notSentLowatErrors = []error{errors.New("read failed"), nil}
++		}},
++		{name: "setter", mutate: func(_ *PhysicalTunnelSocketObservation, options *fakePhysicalTunnelSocketOptions) {
++			options.setError = errors.New("set failed")
++		}},
++		{name: "candidate mismatch", mutate: func(_ *PhysicalTunnelSocketObservation, options *fakePhysicalTunnelSocketOptions) {
++			options.notSentLowat = []uint32{0, 16 * 1024}
++		}},
++	}
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			options := &fakePhysicalTunnelSocketOptions{
++				notSentLowat:  []uint32{0, diagnosticTunnelNotSentLowat},
++				sendBuffer:    []int{128 * 1024, 128 * 1024},
++				receiveBuffer: []int{256 * 1024, 256 * 1024},
++			}
++			observation := PhysicalTunnelSocketObservation{
++				PlatformSupported: true, ApplyRequested: true, RequestedNotSentLowat: diagnosticTunnelNotSentLowat,
++			}
++			test.mutate(&observation, options)
++			observePhysicalTunnelSocketOptions(options, &observation)
++			observation, err := finishPhysicalTunnelSocketObservation(observation)
++			if !errors.Is(err, ErrPhysicalTunnelSocketDiagnosticInconclusive) || observation.Conclusive {
++				t.Fatalf("finish error/observation = %v/%+v, want inconclusive", err, observation)
++			}
++		})
++	}
++}
++
++func TestPhysicalTunnelSocketControlRejectsUnexpectedChange(t *testing.T) {
++	options := &fakePhysicalTunnelSocketOptions{
++		notSentLowat:  []uint32{0, diagnosticTunnelNotSentLowat},
++		sendBuffer:    []int{128 * 1024, 128 * 1024},
++		receiveBuffer: []int{256 * 1024, 256 * 1024},
++	}
++	observation := PhysicalTunnelSocketObservation{PlatformSupported: true, RequestedNotSentLowat: diagnosticTunnelNotSentLowat}
++	observePhysicalTunnelSocketOptions(options, &observation)
++	observation, err := finishPhysicalTunnelSocketObservation(observation)
++	if !errors.Is(err, ErrPhysicalTunnelSocketDiagnosticInconclusive) || observation.Conclusive {
++		t.Fatalf("finish error/observation = %v/%+v, want changed control rejected", err, observation)
++	}
++	if options.setCalls != 0 {
++		t.Fatalf("control set calls = %d, want 0", options.setCalls)
++	}
++}
++
++func TestReadPhysicalTunnelNotSentLowatNamespacePreservesUint32(t *testing.T) {
++	path := filepath.Join(t.TempDir(), "tcp_notsent_lowat")
++	if err := os.WriteFile(path, []byte("4294967295\n"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	value, err := readPhysicalTunnelNotSentLowatNamespace(path)
++	if err != nil || value != ^uint32(0) {
++		t.Fatalf("read namespace = %d, %v, want %d", value, err, ^uint32(0))
++	}
++	if err := os.WriteFile(path, []byte("not-a-number\n"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := readPhysicalTunnelNotSentLowatNamespace(path); err == nil {
++		t.Fatal("malformed namespace value unexpectedly succeeded")
++	}
++}
++
++type fakePhysicalTunnelSocketOptions struct {
++	notSentLowat        []uint32
++	notSentLowatErrors  []error
++	sendBuffer          []int
++	sendBufferErrors    []error
++	receiveBuffer       []int
++	receiveBufferErrors []error
++	setCalls            int
++	setValue            uint32
++	setError            error
++}
++
++func (options *fakePhysicalTunnelSocketOptions) readNotSentLowat() (uint32, error) {
++	index := 2 - len(options.notSentLowat)
++	value := options.notSentLowat[0]
++	options.notSentLowat = options.notSentLowat[1:]
++	return value, indexedPhysicalTunnelError(options.notSentLowatErrors, index)
++}
++
++func (options *fakePhysicalTunnelSocketOptions) readSendBuffer() (int, error) {
++	index := 2 - len(options.sendBuffer)
++	value := options.sendBuffer[0]
++	options.sendBuffer = options.sendBuffer[1:]
++	return value, indexedPhysicalTunnelError(options.sendBufferErrors, index)
++}
++
++func (options *fakePhysicalTunnelSocketOptions) readReceiveBuffer() (int, error) {
++	index := 2 - len(options.receiveBuffer)
++	value := options.receiveBuffer[0]
++	options.receiveBuffer = options.receiveBuffer[1:]
++	return value, indexedPhysicalTunnelError(options.receiveBufferErrors, index)
++}
++
++func (options *fakePhysicalTunnelSocketOptions) setNotSentLowat(value uint32) error {
++	options.setCalls++
++	options.setValue = value
++	return options.setError
++}
++
++func indexedPhysicalTunnelError(errors []error, index int) error {
++	if index < 0 || index >= len(errors) {
++		return nil
++	}
++	return errors[index]
++}
++
++func newPhysicalTunnelDiagnosticTCPPair(t *testing.T) (*net.TCPConn, *net.TCPConn) {
++	t.Helper()
++	listener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1")})
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer listener.Close()
++	accepted := make(chan *net.TCPConn, 1)
++	errors := make(chan error, 1)
++	go func() {
++		conn, acceptErr := listener.AcceptTCP()
++		if acceptErr != nil {
++			errors <- acceptErr
++			return
++		}
++		accepted <- conn
++	}()
++	client, err := net.DialTCP("tcp", nil, listener.Addr().(*net.TCPAddr))
++	if err != nil {
++		t.Fatal(err)
++	}
++	select {
++	case server := <-accepted:
++		return client, server
++	case err := <-errors:
++		client.Close()
++		t.Fatal(err)
++	case <-time.After(2 * time.Second):
++		client.Close()
++		t.Fatal("timed out accepting TCP pair")
++	}
++	return nil, nil
++}
+diff --git a/internal/tunnel/physical_socket_diagnostic_other.go b/internal/tunnel/physical_socket_diagnostic_other.go
+new file mode 100644
+index 0000000..ccb3b9f
+--- /dev/null
++++ b/internal/tunnel/physical_socket_diagnostic_other.go
+@@ -0,0 +1,9 @@
++//go:build !linux
++
++package tunnel
++
++import "net"
++
++func observePhysicalTunnelSocketPlatform(_ *net.TCPConn, observation *PhysicalTunnelSocketObservation) {
++	observation.PlatformSupported = false
++}

@@ -1,0 +1,70 @@
+===== driver-origin.test =====
+artifacts/binaries/driver-origin.test: go1.26.6
+	path	p2pstream/internal/server.test
+	mod	p2pstream	(devel)	
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1
+===== tunnel-lowat-32k.agent.test =====
+artifacts/binaries/tunnel-lowat-32k.agent.test: go1.26.6
+	path	p2pstream/internal/agent.test
+	mod	p2pstream	(devel)	
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1
+===== tunnel-lowat-32k.server.test =====
+artifacts/binaries/tunnel-lowat-32k.server.test: go1.26.6
+	path	p2pstream/internal/server.test
+	mod	p2pstream	(devel)	
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1
+===== tunnel-lowat-default-control.agent.test =====
+artifacts/binaries/tunnel-lowat-default-control.agent.test: go1.26.6
+	path	p2pstream/internal/agent.test
+	mod	p2pstream	(devel)	
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1
+===== tunnel-lowat-default-control.server.test =====
+artifacts/binaries/tunnel-lowat-default-control.server.test: go1.26.6
+	path	p2pstream/internal/server.test
+	mod	p2pstream	(devel)	
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1

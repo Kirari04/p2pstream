@@ -1,0 +1,30 @@
+[
+  {
+    "name": "valid-control",
+    "exit_code": 0
+  },
+  {
+    "name": "valid-candidate",
+    "exit_code": 0
+  },
+  {
+    "name": "missing-before",
+    "exit_code": 1
+  },
+  {
+    "name": "missing-after",
+    "exit_code": 1
+  },
+  {
+    "name": "missing-namespace",
+    "exit_code": 1
+  },
+  {
+    "name": "missing-error",
+    "exit_code": 1
+  },
+  {
+    "name": "malformed-type",
+    "exit_code": 1
+  }
+]

@@ -1,0 +1,2353 @@
+{
+  "acceptance": {
+    "all_pair_gates_passed": true,
+    "all_rows_exact": false,
+    "complete": true,
+    "no_non_timing_failures": false,
+    "overall": false
+  },
+  "all_phase_rows": [
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 1,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 1
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 2,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 2
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 3,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 3
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 4,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 4
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 5,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 5
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 6,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 6
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 7,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 7
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 8,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 8
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 9,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 9
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 10,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 10
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 11,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 11
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 12,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 12
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 13,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 13
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 14,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 14
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 15,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 15
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 16,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 16
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 17,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 17
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 18,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 18
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 19,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 19
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 20,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 20
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 21,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 21
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 22,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 22
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 23,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 23
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 24,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 24
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 25,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 25
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 26,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 26
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 27,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 27
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 28,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 28
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 29,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 29
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 30,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 30
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 31,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 31
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 32,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 32
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 33,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 1
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 34,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 2
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 35,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 3
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 36,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 4
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 37,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 5
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 38,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 6
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 39,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 7
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 40,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 8
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 41,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 9
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 42,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 10
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 43,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 11
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 44,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 12
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 45,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 13
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 46,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 14
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 47,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 15
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 48,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 16
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 49,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 17
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 50,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 18
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 51,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 19
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 52,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 20
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 53,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 21
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 54,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 22
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 55,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 23
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 56,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 24
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 57,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 25
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 58,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 26
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 59,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 27
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 60,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 28
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 61,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 29
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 62,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 30
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 63,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 31
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 64,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 32
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 65,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 1
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 66,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 2
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 67,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 3
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 68,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 4
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 69,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 5
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 70,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 6
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 71,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 7
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 72,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 8
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 73,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 9
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 74,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 10
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 75,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 11
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 76,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 12
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 77,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 13
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 78,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 14
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 79,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 15
+    },
+    {
+      "label": "tunnel-lowat-default-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 80,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 16
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 81,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 17
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 82,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 18
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 83,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 19
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 84,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 20
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 85,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 21
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 86,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 22
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 87,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 23
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 88,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 24
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 89,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 25
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 90,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 26
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 91,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 27
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 92,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 28
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 93,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 29
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 94,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 30
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 95,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 40000000,
+      "wall_seconds": 1.0,
+      "within_pair": 31
+    },
+    {
+      "label": "tunnel-lowat-32k",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 96,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000,
+      "wall_seconds": 1.0,
+      "within_pair": 32
+    }
+  ],
+  "failures": [
+    "pair 1 control reverse socket tuple matching failed",
+    "pair 1 control recorded reverse tuple mapping mismatch"
+  ],
+  "fixed_workload": {
+    "configured_rtt_ms": 80,
+    "mode_order": [
+      "control-then-lowat",
+      "lowat-then-control",
+      "control-then-lowat"
+    ],
+    "pairs": 3,
+    "required_pool_mib": 8,
+    "steady_mib": 256,
+    "total_transfers": 96,
+    "transfer_repetitions": 3,
+    "transfers_per_variant": 16,
+    "transport_mode_both_variants": "aggregate-v1",
+    "warmup_mib": 256
+  },
+  "non_timing_failures": [
+    "pair 1 control reverse socket tuple matching failed",
+    "pair 1 control recorded reverse tuple mapping mismatch"
+  ],
+  "pairs": {
+    "1": {
+      "gates": {
+        "download": {
+          "control_median_useful_bytes_per_second": 30000000,
+          "lowat_median_useful_bytes_per_second": 40000000,
+          "lowat_to_control_ratio": 1.3333333333333333,
+          "minimum": 1.1,
+          "passed": true
+        },
+        "upload": {
+          "control_median_useful_bytes_per_second": 30000000,
+          "lowat_median_useful_bytes_per_second": 30000000,
+          "lowat_to_control_ratio": 1.0,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "tunnel-lowat-default-control",
+        "tunnel-lowat-32k"
+      ],
+      "transition_screen": {
+        "control_download_minimum": 30000000,
+        "control_has_subthreshold_sample": false,
+        "lowat_all_eight_download_samples_pass": true,
+        "lowat_download_minimum": 40000000,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "control": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        },
+        "lowat": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 40000000,
+              "median": 40000000.0,
+              "minimum": 40000000,
+              "samples": [
+                40000000,
+                40000000,
+                40000000,
+                40000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 40000000,
+              "median": 40000000,
+              "minimum": 40000000,
+              "samples": [
+                40000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 40000000,
+              "median": 40000000,
+              "minimum": 40000000,
+              "samples": [
+                40000000,
+                40000000,
+                40000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 40000000,
+              "median": 40000000.0,
+              "minimum": 40000000,
+              "samples": [
+                40000000,
+                40000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 40000000,
+              "median": 40000000,
+              "minimum": 40000000,
+              "samples": [
+                40000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        }
+      }
+    },
+    "2": {
+      "gates": {
+        "download": {
+          "control_median_useful_bytes_per_second": 30000000,
+          "lowat_median_useful_bytes_per_second": 40000000,
+          "lowat_to_control_ratio": 1.3333333333333333,
+          "minimum": 1.1,
+          "passed": true
+        },
+        "upload": {
+          "control_median_useful_bytes_per_second": 30000000,
+          "lowat_median_useful_bytes_per_second": 30000000,
+          "lowat_to_control_ratio": 1.0,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "tunnel-lowat-32k",
+        "tunnel-lowat-default-control"
+      ],
+      "transition_screen": {
+        "control_download_minimum": 30000000,
+        "control_has_subthreshold_sample": false,
+        "lowat_all_eight_download_samples_pass": true,
+        "lowat_download_minimum": 40000000,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "control": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        },
+        "lowat": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 40000000,
+              "median": 40000000.0,
+              "minimum": 40000000,
+              "samples": [
+                40000000,
+                40000000,
+                40000000,
+                40000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 40000000,
+              "median": 40000000,
+              "minimum": 40000000,
+              "samples": [
+                40000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 40000000,
+              "median": 40000000,
+              "minimum": 40000000,
+              "samples": [
+                40000000,
+                40000000,
+                40000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 40000000,
+              "median": 40000000.0,
+              "minimum": 40000000,
+              "samples": [
+                40000000,
+                40000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 40000000,
+              "median": 40000000,
+              "minimum": 40000000,
+              "samples": [
+                40000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        }
+      }
+    },
+    "3": {
+      "gates": {
+        "download": {
+          "control_median_useful_bytes_per_second": 30000000,
+          "lowat_median_useful_bytes_per_second": 40000000,
+          "lowat_to_control_ratio": 1.3333333333333333,
+          "minimum": 1.1,
+          "passed": true
+        },
+        "upload": {
+          "control_median_useful_bytes_per_second": 30000000,
+          "lowat_median_useful_bytes_per_second": 30000000,
+          "lowat_to_control_ratio": 1.0,
+          "minimum": 0.9,
+          "passed": true
+        }
+      },
+      "label_order": [
+        "tunnel-lowat-default-control",
+        "tunnel-lowat-32k"
+      ],
+      "transition_screen": {
+        "control_download_minimum": 30000000,
+        "control_has_subthreshold_sample": false,
+        "lowat_all_eight_download_samples_pass": true,
+        "lowat_download_minimum": 40000000,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "control": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        },
+        "lowat": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 40000000,
+              "median": 40000000.0,
+              "minimum": 40000000,
+              "samples": [
+                40000000,
+                40000000,
+                40000000,
+                40000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 40000000,
+              "median": 40000000,
+              "minimum": 40000000,
+              "samples": [
+                40000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 40000000,
+              "median": 40000000,
+              "minimum": 40000000,
+              "samples": [
+                40000000,
+                40000000,
+                40000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 40000000,
+              "median": 40000000.0,
+              "minimum": 40000000,
+              "samples": [
+                40000000,
+                40000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 40000000,
+              "median": 40000000,
+              "minimum": 40000000,
+              "samples": [
+                40000000
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000,
+                30000000
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000,
+              "median": 30000000.0,
+              "minimum": 30000000,
+              "samples": [
+                30000000,
+                30000000
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000,
+              "median": 30000000,
+              "minimum": 30000000,
+              "samples": [
+                30000000
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "pooled_diagnostic": {
+    "download": {
+      "control": {
+        "count": 9,
+        "maximum": 30000000,
+        "median": 30000000,
+        "minimum": 30000000,
+        "samples": [
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000
+        ]
+      },
+      "lowat": {
+        "count": 9,
+        "maximum": 40000000,
+        "median": 40000000,
+        "minimum": 40000000,
+        "samples": [
+          40000000,
+          40000000,
+          40000000,
+          40000000,
+          40000000,
+          40000000,
+          40000000,
+          40000000,
+          40000000
+        ]
+      },
+      "lowat_to_control_ratio_of_medians": 1.3333333333333333
+    },
+    "upload": {
+      "control": {
+        "count": 9,
+        "maximum": 30000000,
+        "median": 30000000,
+        "minimum": 30000000,
+        "samples": [
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000
+        ]
+      },
+      "lowat": {
+        "count": 9,
+        "maximum": 30000000,
+        "median": 30000000,
+        "minimum": 30000000,
+        "samples": [
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000,
+          30000000
+        ]
+      },
+      "lowat_to_control_ratio_of_medians": 1.0
+    }
+  },
+  "predeclared_gates": {
+    "candidate_notsent_lowat_after": 32768,
+    "control_pairs_with_subthreshold_download_sample_minimum": 2,
+    "every_pair_download_lowat_to_control_ratio_minimum": 1.1,
+    "every_pair_upload_lowat_to_control_ratio_minimum": 0.9,
+    "live_socket_option_polling": false,
+    "lowat_all_24_download_samples_minimum_bytes_per_second": 29700000,
+    "lowat_effective_baseline": "role-matched across arms and greater than 32768",
+    "payload_and_event_conservation": "exact",
+    "physical_tunnel_socket_records": "exactly five per endpoint, reverse-correlated and unchanged after load",
+    "selective_retries": false
+  },
+  "row_count": 96,
+  "scope": "diagnostic_only",
+  "timing_gate_failures": [],
+  "transition_screen": {
+    "all_pair_upload_gates_passed": true,
+    "consistent_with_stall_elimination": false,
+    "control_pairs_with_subthreshold_download_sample": 0,
+    "control_pairs_with_subthreshold_download_sample_minimum": 2,
+    "diagnostic_only": true,
+    "does_not_override_main_pair_gates": true,
+    "exact_correctness_and_cleanup": false,
+    "lowat_all_24_download_samples_pass": true,
+    "lowat_download_minimum": 40000000,
+    "lowat_download_sample_count": 24,
+    "threshold_bytes_per_second": 29700000
+  },
+  "tunnel_socket_evidence": {
+    "1": {
+      "control": {
+        "agent_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observations_stable_during_load": true,
+        "reverse_tuple_matches": [],
+        "server_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "lowat": {
+        "agent_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observations_stable_during_load": true,
+        "reverse_tuple_matches": [
+          {
+            "agent_index": 0,
+            "lane": 0,
+            "server_index": 0
+          },
+          {
+            "agent_index": 1,
+            "lane": 1,
+            "server_index": 1
+          },
+          {
+            "agent_index": 2,
+            "lane": 2,
+            "server_index": 2
+          },
+          {
+            "agent_index": 3,
+            "lane": 3,
+            "server_index": 3
+          },
+          {
+            "agent_index": 4,
+            "lane": 4,
+            "server_index": 4
+          }
+        ],
+        "server_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "2": {
+      "control": {
+        "agent_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observations_stable_during_load": true,
+        "reverse_tuple_matches": [
+          {
+            "agent_index": 0,
+            "lane": 0,
+            "server_index": 0
+          },
+          {
+            "agent_index": 1,
+            "lane": 1,
+            "server_index": 1
+          },
+          {
+            "agent_index": 2,
+            "lane": 2,
+            "server_index": 2
+          },
+          {
+            "agent_index": 3,
+            "lane": 3,
+            "server_index": 3
+          },
+          {
+            "agent_index": 4,
+            "lane": 4,
+            "server_index": 4
+          }
+        ],
+        "server_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "lowat": {
+        "agent_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observations_stable_during_load": true,
+        "reverse_tuple_matches": [
+          {
+            "agent_index": 0,
+            "lane": 0,
+            "server_index": 0
+          },
+          {
+            "agent_index": 1,
+            "lane": 1,
+            "server_index": 1
+          },
+          {
+            "agent_index": 2,
+            "lane": 2,
+            "server_index": 2
+          },
+          {
+            "agent_index": 3,
+            "lane": 3,
+            "server_index": 3
+          },
+          {
+            "agent_index": 4,
+            "lane": 4,
+            "server_index": 4
+          }
+        ],
+        "server_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "3": {
+      "control": {
+        "agent_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observations_stable_during_load": true,
+        "reverse_tuple_matches": [
+          {
+            "agent_index": 0,
+            "lane": 0,
+            "server_index": 0
+          },
+          {
+            "agent_index": 1,
+            "lane": 1,
+            "server_index": 1
+          },
+          {
+            "agent_index": 2,
+            "lane": 2,
+            "server_index": 2
+          },
+          {
+            "agent_index": 3,
+            "lane": 3,
+            "server_index": 3
+          },
+          {
+            "agent_index": 4,
+            "lane": 4,
+            "server_index": 4
+          }
+        ],
+        "server_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "lowat": {
+        "agent_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "agent_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observations_stable_during_load": true,
+        "reverse_tuple_matches": [
+          {
+            "agent_index": 0,
+            "lane": 0,
+            "server_index": 0
+          },
+          {
+            "agent_index": 1,
+            "lane": 1,
+            "server_index": 1
+          },
+          {
+            "agent_index": 2,
+            "lane": 2,
+            "server_index": 2
+          },
+          {
+            "agent_index": 3,
+            "lane": 3,
+            "server_index": 3
+          },
+          {
+            "agent_index": 4,
+            "lane": 4,
+            "server_index": 4
+          }
+        ],
+        "server_effective_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_namespace_baselines": [
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295,
+          4294967295
+        ],
+        "server_raw_baselines": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  "tunnel_socket_snapshot_count": 12
+}

@@ -1,0 +1,32 @@
+{
+  "driver_and_origin": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/tunnel-lowat-source.u0JuCU/artifacts/bundle/driver-origin.test",
+    "sha256": "3f7c28fc43105efc69ffbbfea9b277c345e2fd7577653f5cb3be8e8708a7b388",
+    "build_id": "f2jkMDYLK7iBShfeOszJ/CZECMA-_TJypHrs3FlyP/Uo7o6e_HN40xd6MYBeo4/GvKTaJkV4lR0imUW2DKI",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/tunnel-lowat-source.u0JuCU/artifacts/bundle/driver-origin.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "control_server": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/tunnel-lowat-source.u0JuCU/artifacts/bundle/tunnel-lowat-default-control.server.test",
+    "sha256": "3f7c28fc43105efc69ffbbfea9b277c345e2fd7577653f5cb3be8e8708a7b388",
+    "build_id": "f2jkMDYLK7iBShfeOszJ/CZECMA-_TJypHrs3FlyP/Uo7o6e_HN40xd6MYBeo4/GvKTaJkV4lR0imUW2DKI",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/tunnel-lowat-source.u0JuCU/artifacts/bundle/tunnel-lowat-default-control.server.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "control_agent": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/tunnel-lowat-source.u0JuCU/artifacts/bundle/tunnel-lowat-default-control.agent.test",
+    "sha256": "e2129ca520e07f79186141d000ab2fd0e390574712868c05772fd7122a659c05",
+    "build_id": "JmKJYw8KMvNj1CxakY_2/72HBPwL5aZjAl666VJJd/4mSrbmOolkrgCmqlC4c0/hal-FTrbQZyd-zItfr-p",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/tunnel-lowat-source.u0JuCU/artifacts/bundle/tunnel-lowat-default-control.agent.test: go1.26.6\n\tpath\tp2pstream/internal/agent.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "lowat_server": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/tunnel-lowat-source.u0JuCU/artifacts/bundle/tunnel-lowat-32k.server.test",
+    "sha256": "7bb33c1ee36819be658976cd526051285d80e4f870457884e78216575580a10f",
+    "build_id": "rci6Em1-XN3eEwpbjcDR/KGxBt2bWNW2vfoFJV9Na/leBjvOWDJTMtz5fAeDpl/a7QizS6kFucue4StWjZT",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/tunnel-lowat-source.u0JuCU/artifacts/bundle/tunnel-lowat-32k.server.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "lowat_agent": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/tunnel-lowat-source.u0JuCU/artifacts/bundle/tunnel-lowat-32k.agent.test",
+    "sha256": "e18c465aaff113e642be4cf8e10eac13263a2b307dcee4f61573801f785862f8",
+    "build_id": "oe8tOMUnFjV6gDVUkAmL/-VNmCYKRZAXpiSzNnKTS/frEe3Pb3lRnS01UrvF08/wW9z1yzEoWTKzrHPEBmD",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/tunnel-lowat-source.u0JuCU/artifacts/bundle/tunnel-lowat-32k.agent.test: go1.26.6\n\tpath\tp2pstream/internal/agent.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  }
+}

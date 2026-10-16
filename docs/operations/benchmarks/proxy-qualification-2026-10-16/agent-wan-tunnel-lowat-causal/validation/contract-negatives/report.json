@@ -1,0 +1,62 @@
+[
+  {
+    "name": "drop-counter",
+    "exit_code": 1,
+    "non_timing_count": 2,
+    "transition_screen": false
+  },
+  {
+    "name": "extra-record",
+    "exit_code": 1,
+    "non_timing_count": 8,
+    "transition_screen": false
+  },
+  {
+    "name": "changed-final",
+    "exit_code": 1,
+    "non_timing_count": 1,
+    "transition_screen": false
+  },
+  {
+    "name": "duplicate-tuple",
+    "exit_code": 1,
+    "non_timing_count": 3,
+    "transition_screen": false
+  },
+  {
+    "name": "reverse-mismatch",
+    "exit_code": 1,
+    "non_timing_count": 2,
+    "transition_screen": false
+  },
+  {
+    "name": "candidate-after-wrong",
+    "exit_code": 1,
+    "non_timing_count": 2,
+    "transition_screen": false
+  },
+  {
+    "name": "control-setter",
+    "exit_code": 1,
+    "non_timing_count": 2,
+    "transition_screen": false
+  },
+  {
+    "name": "raw-baseline-mismatch",
+    "exit_code": 1,
+    "non_timing_count": 4,
+    "transition_screen": false
+  },
+  {
+    "name": "namespace-baseline-mismatch",
+    "exit_code": 1,
+    "non_timing_count": 4,
+    "transition_screen": false
+  },
+  {
+    "name": "effective-baseline-too-low",
+    "exit_code": 1,
+    "non_timing_count": 6,
+    "transition_screen": false
+  }
+]
