@@ -996,7 +996,8 @@ func (a *App) dialViaAgentWithCapacity(
 		if a.Config != nil && a.Config.TunnelMaxStreamWindowBytes > 0 {
 			maximumWindow = a.Config.TunnelMaxStreamWindowBytes
 		}
-		return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, releaseControl, maximumWindow), nil
+		aggregateGrowth := agent.tunnelAggregateGrowth(lane, session)
+		return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, releaseControl, aggregateGrowth, maximumWindow), nil
 	})
 
 	var conn net.Conn

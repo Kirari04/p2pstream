@@ -194,8 +194,24 @@ func TestNewAggregateYamuxConfigUsesVersionedWireContract(t *testing.T) {
 		cfg.MaxIncomingStreams != AggregateAcceptBacklogStreams {
 		t.Fatalf("aggregate config = %#v", cfg)
 	}
+	if cfg.MaxStreamWindowSize != uint32(DefaultAdaptiveReceiveWindowBytes) {
+		t.Fatalf("initial aggregate byte window = %d, want %d", cfg.MaxStreamWindowSize, DefaultAdaptiveReceiveWindowBytes)
+	}
 	if cfg.MaxDataFrameSize != yamux.AggregateMaxDataFrameSize {
 		t.Fatalf("DATA frame = %d, Yamux protocol = %d", cfg.MaxDataFrameSize, yamux.AggregateMaxDataFrameSize)
+	}
+}
+
+func TestNewAggregateYamuxConfigHonorsSmallerConfiguredByteCeiling(t *testing.T) {
+	cfg, err := NewAggregateYamuxConfig(nil, InitialStreamWindowSizeBytes, AggregateAcceptBacklogStreams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MaxStreamWindowSize != uint32(InitialStreamWindowSizeBytes) {
+		t.Fatalf("initial aggregate byte window = %d, want configured protocol floor %d", cfg.MaxStreamWindowSize, InitialStreamWindowSizeBytes)
+	}
+	if cfg.InitialStreamAllocationWindowSize != AggregateInitialStreamWindowBytes {
+		t.Fatalf("allocation window = %d, want wire contract %d", cfg.InitialStreamAllocationWindowSize, AggregateInitialStreamWindowBytes)
 	}
 }
 

@@ -1010,6 +1010,12 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to restrict agent tunnel stream direction")
 		return
 	}
+	if aggregateNegotiated && laneRole == tunnel.TunnelLaneRoleBulk {
+		sessionResource.AggregateGrowth = tunnel.NewAggregateReceiveWindowGrowth(session, func(bytes int64) (func(), bool) {
+			release, ok, _ := a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, bytes, 0)
+			return release, ok
+		})
+	}
 	sessionCapacityKey := agentStreamCapacitySessionKey(agent, session)
 	sessionRegistered := !joiningGroup
 	if sessionRegistered && a.agentStreamCapacity != nil {
@@ -1091,6 +1097,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		// CloseChan signals shutdown initiation. Complete all Yamux workers and
 		// clear the aggregate slabs before returning their lifetime reservation.
 		_ = session.Close()
+		sessionResource.AggregateGrowth.Release()
 		releaseSessionResource()
 		a.cleanupAgentTunnel(agent, lane, session)
 		log.Info().

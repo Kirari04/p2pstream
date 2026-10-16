@@ -216,11 +216,23 @@ func NewYamuxConfig(logger yamux.Logger, maxStreamWindowSizeBytes int64) (*yamux
 }
 
 // NewAggregateYamuxConfig enables the versioned bounded session payload pool.
-// maxStreamWindowSizeBytes remains the byte-window policy; allocation-unit
-// ceilings are a distinct wire contract. maxIncomingStreams is -1 to reject
-// all peer SYNs, or a positive hard bound enforced before stream allocation.
+// maxStreamWindowSizeBytes validates the caller's byte-window policy, while
+// the Yamux session starts at InitialReceiveWindow and the measured wrapper
+// publishes later byte growth. Allocation-unit ceilings are a distinct wire
+// contract. maxIncomingStreams is -1 to reject all peer SYNs, or a positive
+// hard bound enforced before stream allocation.
 func NewAggregateYamuxConfig(logger yamux.Logger, maxStreamWindowSizeBytes int64, maxIncomingStreams int) (*yamux.Config, error) {
-	cfg, err := NewYamuxConfig(logger, maxStreamWindowSizeBytes)
+	// Aggregate unit credit starts at the versioned stream allowance. Keep byte
+	// credit at the same bounded initial level and let the measured grower
+	// publish it toward the independently configured operator maximum.
+	if _, err := NormalizeMaxStreamWindowSizeBytes(maxStreamWindowSizeBytes); err != nil {
+		return nil, err
+	}
+	initialWindow, err := InitialReceiveWindow(maxStreamWindowSizeBytes)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := NewYamuxConfig(logger, initialWindow)
 	if err != nil {
 		return nil, err
 	}

@@ -16,6 +16,7 @@ type agentTunnelOwnedResource struct {
 	AggregateInitialPoolBytes    int64
 	SessionMetadataBytes         int64
 	LegacyControlSupplementBytes int64
+	AggregateGrowth              *tunnel.AggregateReceiveWindowGrowth
 }
 
 func (a *AgentConn) installTunnel(lane int, session *yamux.Session, resources ...agentTunnelOwnedResource) *yamux.Session {
@@ -93,7 +94,7 @@ func (a *AgentConn) transportLane() int {
 	a.tunnelMu.Lock()
 	defer a.tunnelMu.Unlock()
 	if !a.tunnelsInitialized {
-		if a.Session != nil && !a.Session.IsClosed() {
+		if !a.AggregateFlowControl && a.Session != nil && !a.Session.IsClosed() {
 			return 0
 		}
 		return -1
@@ -124,7 +125,7 @@ func (a *AgentConn) tunnelSession(lane int) *yamux.Session {
 	a.tunnelMu.RLock()
 	defer a.tunnelMu.RUnlock()
 	if !a.tunnelsInitialized {
-		if a.Session != nil && !a.Session.IsClosed() {
+		if !a.AggregateFlowControl && a.Session != nil && !a.Session.IsClosed() {
 			return a.Session
 		}
 		return nil
@@ -146,6 +147,18 @@ func (a *AgentConn) tunnelSession(lane int) *yamux.Session {
 		}
 	}
 	return nil
+}
+
+func (a *AgentConn) tunnelAggregateGrowth(lane int, session *yamux.Session) *tunnel.AggregateReceiveWindowGrowth {
+	if a == nil || lane < 0 || lane >= len(a.tunnels) {
+		return nil
+	}
+	a.tunnelMu.RLock()
+	defer a.tunnelMu.RUnlock()
+	if a.tunnels[lane] != session {
+		return nil
+	}
+	return a.tunnelResources[lane].AggregateGrowth
 }
 
 // acquireControlStream bounds negotiated control work independently from the

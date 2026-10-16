@@ -1009,7 +1009,16 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = rwc.Close()
 		return fmt.Errorf("failed to initialize tunnel session: %w", err)
 	}
-	defer session.Close()
+	var aggregateGrowth *tunnel.AggregateReceiveWindowGrowth
+	if aggregateNegotiated && aggregateRole == tunnel.TunnelLaneRoleBulk {
+		aggregateGrowth = tunnel.NewAggregateReceiveWindowGrowth(session, capacityRuntime.tryReserveAggregateSessionGrowth)
+	}
+	defer func() {
+		// Growth leases own attached session slabs and outlive every stream.
+		// Return them only after Close has joined Yamux cleanup.
+		_ = session.Close()
+		aggregateGrowth.Release()
+	}()
 	if registration.group != "" && responseGroup == registration.group && responseLane == registration.lane && registration.accepted != nil {
 		registration.accepted(aggregateNegotiated)
 	}
@@ -1026,7 +1035,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = session.Close()
 	}()
 
-	if err := serveTunnelSessionWithPolicyAndCapacity(serveCtx, session, destinationPolicy, capacityRuntime); err != nil {
+	if err := serveTunnelSessionWithPolicyAndCapacity(serveCtx, session, destinationPolicy, capacityRuntime, aggregateGrowth); err != nil {
 		log.Debug().Err(err).Msg("Tunnel session ended")
 		return err
 	}
@@ -1079,15 +1088,19 @@ func serveTunnelSessionWithPolicyAndLimit(ctx context.Context, session *yamux.Se
 	)
 }
 
-func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy, capacity *agentTunnelCapacityRuntime) error {
+func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux.Session, destinationPolicy *agentDestinationPolicy, capacity *agentTunnelCapacityRuntime, aggregateGrowth ...*tunnel.AggregateReceiveWindowGrowth) error {
 	if capacity == nil {
 		capacity = newAgentTunnelCapacityRuntime(tunnel.DefaultMaxConcurrentAgentRequests, false, nil)
 	}
 	ctx = context.WithValue(ctx, upstreamCapacityContextKey{}, capacity)
 	var handlers sync.WaitGroup
 	var aggregateRejected chan struct{}
+	var sessionGrowth *tunnel.AggregateReceiveWindowGrowth
 	if session.AggregateFlowControlEnabled() {
 		aggregateRejected = make(chan struct{}, tunnel.AggregateRejectedStreamLimit)
+		if len(aggregateGrowth) > 0 {
+			sessionGrowth = aggregateGrowth[0]
+		}
 	}
 	defer func() {
 		_ = session.Close()
@@ -1136,7 +1149,12 @@ func serveTunnelSessionWithPolicyAndCapacity(ctx context.Context, session *yamux
 		go func(stream net.Conn) {
 			defer handlers.Done()
 			maximum, _ := ctx.Value(receiveWindowContextKey{}).(int64)
-			growing := tunnel.NewGrowingConn(stream, maximum, capacity.tryReserveWindowGrowth)
+			var growing *tunnel.GrowingConn
+			if sessionGrowth != nil {
+				growing = tunnel.NewAggregateGrowingConn(stream, maximum, sessionGrowth)
+			} else {
+				growing = tunnel.NewGrowingConn(stream, maximum, capacity.tryReserveWindowGrowth)
+			}
 			stream = growing
 			handleTunnelStream(ctx, stream, destinationPolicy)
 			releaseAgentTunnelCapacityAfterPeerClose(stream, func() { growing.Release(); release() })

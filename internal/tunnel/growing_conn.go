@@ -1,6 +1,9 @@
 package tunnel
 
 import (
+	"errors"
+	"fmt"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -13,13 +16,14 @@ import (
 // stream usable at its existing window instead of failing the request.
 type GrowingConn struct {
 	net.Conn
-	stream   *yamux.Stream
-	maximum  uint32
-	reserve  func(int64) (func(), bool)
-	mu       sync.Mutex
-	growth   receiveWindowGrowth
-	closing  bool
-	releases []func()
+	stream          *yamux.Stream
+	maximum         uint32
+	reserve         func(int64) (func(), bool)
+	aggregateGrowth *AggregateReceiveWindowGrowth
+	mu              sync.Mutex
+	growth          receiveWindowGrowth
+	closing         bool
+	releases        []func()
 }
 
 func NewGrowingConn(conn net.Conn, maximum int64, reserve func(int64) (func(), bool)) *GrowingConn {
@@ -38,9 +42,33 @@ func NewGrowingConn(conn net.Conn, maximum int64, reserve func(int64) (func(), b
 	return c
 }
 
+// NewAggregateGrowingConn grows the session-owned payload pool and this
+// stream's unit allowance before publishing additional byte credit. The
+// shared growth owner retains every successful reservation until the entire
+// Yamux session has completed shutdown.
+func NewAggregateGrowingConn(conn net.Conn, maximum int64, growth *AggregateReceiveWindowGrowth) *GrowingConn {
+	window, err := NormalizeMaxStreamWindowSizeBytes(maximum)
+	stream, _ := conn.(*yamux.Stream)
+	if err != nil && stream != nil {
+		window = stream.MaxReceiveWindow()
+	}
+	c := &GrowingConn{Conn: conn, stream: stream, maximum: window, aggregateGrowth: growth}
+	c.growth.start = time.Now()
+	if stream != nil && growth != nil {
+		if allocationMaximum, enabled := stream.AggregateReceiveAllocationMaximum(); enabled {
+			c.maximum = min(c.maximum, allocationMaximum)
+		}
+		current, enabled := stream.AggregateReceiveAllocationWindow()
+		if enabled && current < c.maximum {
+			stream.Session().RequestRTT()
+		}
+	}
+	return c
+}
+
 func (c *GrowingConn) Read(p []byte) (int, error) {
 	n, err := c.Conn.Read(p)
-	if n > 0 && err == nil && c.stream != nil && c.reserve != nil {
+	if n > 0 && err == nil && c.stream != nil && (c.reserve != nil || c.aggregateGrowth != nil) {
 		if growErr := c.grow(uint64(n)); growErr != nil {
 			return n, growErr
 		}
@@ -56,6 +84,13 @@ func (c *GrowingConn) growMeasured(n uint64, now time.Time, rtt time.Duration) e
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	current := c.stream.MaxReceiveWindow()
+	if c.aggregateGrowth != nil {
+		allocation, enabled := c.stream.AggregateReceiveAllocationWindow()
+		if !enabled {
+			return fmt.Errorf("aggregate receive-window growth used on a legacy Yamux stream")
+		}
+		current = allocation
+	}
 	if c.closing || current >= c.maximum {
 		return nil
 	}
@@ -65,6 +100,13 @@ func (c *GrowingConn) growMeasured(n uint64, now time.Time, rtt time.Duration) e
 	}
 	if next <= current {
 		return nil
+	}
+	if c.aggregateGrowth != nil {
+		granted, err := c.aggregateGrowth.Grow(c.stream, next)
+		if !granted {
+			c.growth.deniedUntil = now.Add(time.Second)
+		}
+		return err
 	}
 	// The initial stream charge includes chunk slack. Charge every additional
 	// chunk and its bookkeeping before publishing the new receive credit.
@@ -78,6 +120,95 @@ func (c *GrowingConn) growMeasured(n uint64, now time.Time, rtt time.Duration) e
 	// Keep the reservation even if the write fails: credit might have reached
 	// the peer before the error became observable locally.
 	return c.stream.GrowReceiveWindow(next)
+}
+
+// AggregateReceiveWindowGrowth serializes irrevocable pool and window growth
+// for one Yamux session. Reserve callbacks run before allocation/publication;
+// once accepted, their leases remain owned until Release after Session.Close
+// has completed, including when a later publication returns an error.
+type AggregateReceiveWindowGrowth struct {
+	session  *yamux.Session
+	reserve  func(int64) (func(), bool)
+	mu       sync.Mutex
+	closing  bool
+	releases []func()
+}
+
+func NewAggregateReceiveWindowGrowth(session *yamux.Session, reserve func(int64) (func(), bool)) *AggregateReceiveWindowGrowth {
+	return &AggregateReceiveWindowGrowth{session: session, reserve: reserve}
+}
+
+// Grow publishes credit in dependency order: session allocation, stream
+// allocation, then byte window. A denied session reservation returns false
+// without changing existing credit, so the stream remains usable.
+func (g *AggregateReceiveWindowGrowth) Grow(stream *yamux.Stream, target uint32) (bool, error) {
+	if g == nil || g.session == nil || g.reserve == nil || stream == nil {
+		return false, nil
+	}
+	if stream.Session() != g.session {
+		return false, errors.New("aggregate growth stream belongs to another session")
+	}
+	unit := uint64(yamux.AggregateWindowUnitSize)
+	allocation64 := (uint64(target) + unit - 1) / unit * unit
+	if allocation64 > math.MaxUint32 {
+		return false, fmt.Errorf("aggregate stream allocation target %d exceeds protocol range", allocation64)
+	}
+	allocation := uint32(allocation64)
+	session64 := allocation64 * 4
+	if session64 > uint64(AggregateMaxSessionWindowBytes) {
+		return false, fmt.Errorf("aggregate session growth target %d exceeds negotiated maximum", session64)
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.closing {
+		return false, yamux.ErrSessionShutdown
+	}
+	stats := g.session.AggregateReceiveWindowStats()
+	if !stats.Enabled || stats.Closed {
+		return false, yamux.ErrSessionShutdown
+	}
+	if uint32(session64) > stats.ReceiveLimit {
+		extra := yamux.AggregateReceiveWindowMemory(uint32(session64)) - yamux.AggregateReceiveWindowMemory(stats.ReceiveLimit)
+		release, ok := g.reserve(int64(extra))
+		if !ok {
+			return false, nil
+		}
+		// Retain first: every following publication is irrevocable or ambiguous.
+		g.releases = append(g.releases, release)
+		if err := g.session.GrowReceiveWindow(uint32(session64)); err != nil {
+			return true, err
+		}
+	}
+	if err := stream.GrowReceiveAllocationWindow(allocation); err != nil {
+		return true, err
+	}
+	if err := stream.GrowReceiveWindow(target); err != nil {
+		return true, err
+	}
+	return true, nil
+}
+
+// Release returns session-owned growth reservations. The caller must invoke it
+// only after Session.Close has completed and all receive slabs are cleared.
+func (g *AggregateReceiveWindowGrowth) Release() {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	if g.closing {
+		g.mu.Unlock()
+		return
+	}
+	g.closing = true
+	releases := g.releases
+	g.releases = nil
+	g.mu.Unlock()
+	for _, release := range releases {
+		if release != nil {
+			release()
+		}
+	}
 }
 
 func (c *GrowingConn) Close() error {

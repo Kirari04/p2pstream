@@ -101,6 +101,17 @@ func TestLegacyTunnelSelectionStillFallsBackAcrossLegacyLanes(t *testing.T) {
 	}
 }
 
+func TestAggregateTunnelSelectionNeverUsesCompatibilitySessionBeforeLaneInstall(t *testing.T) {
+	legacySession, _ := newAgentTunnelTestSession(t)
+	agent := &AgentConn{AggregateFlowControl: true, Session: legacySession, Done: make(chan struct{})}
+	if got := agent.transportLane(); got != -1 {
+		t.Fatalf("uninitialized aggregate lane = %d, want no public lane", got)
+	}
+	if got := agent.tunnelSession(0); got != nil {
+		t.Fatal("uninitialized aggregate tunnel used compatibility session as control lane")
+	}
+}
+
 func TestAggregateControlGateBoundsLifetimePromises(t *testing.T) {
 	agent := &AgentConn{AggregateFlowControl: true, Done: make(chan struct{})}
 	releases := make([]func(), 0, tunnel.NegotiatedControlStreamLimit)

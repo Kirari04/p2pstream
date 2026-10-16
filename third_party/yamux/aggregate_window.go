@@ -120,6 +120,30 @@ func (s *Session) AggregateReceiveWindowStats() AggregateReceiveWindowStats {
 	return stats
 }
 
+// AggregateReceiveAllocationWindow reports this stream's receiver-owned unit
+// allowance. The byte receive window is deliberately separate: aggregate
+// callers must grow the session pool and this allocation allowance before
+// advertising additional byte credit.
+func (s *Stream) AggregateReceiveAllocationWindow() (uint32, bool) {
+	if s == nil || s.session == nil || s.session.aggregate == nil {
+		return 0, false
+	}
+	a := s.session.aggregate
+	a.mu.Lock()
+	window := s.allocationRecvLimit
+	a.mu.Unlock()
+	return window, true
+}
+
+// AggregateReceiveAllocationMaximum is the negotiated ceiling for this
+// stream's receiver-owned unit allowance.
+func (s *Stream) AggregateReceiveAllocationMaximum() (uint32, bool) {
+	if s == nil || s.session == nil || s.session.aggregate == nil {
+		return 0, false
+	}
+	return s.session.config.MaxStreamAllocationWindowSize, true
+}
+
 func newAggregateWindow(config *Config) *aggregateWindow {
 	a := &aggregateWindow{
 		protocolMax: config.MaxSessionWindowSize,

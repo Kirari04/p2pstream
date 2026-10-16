@@ -34,18 +34,23 @@ func newAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, release func()) n
 }
 
 func newCapacityManagedAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, lease *agentStreamCapacityLease, window ...int64) net.Conn {
-	return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, nil, window...)
+	return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, nil, nil, window...)
 }
 
-func newCapacityManagedAgentTunnelStreamConnWithRelease(conn net.Conn, agent *AgentConn, lease *agentStreamCapacityLease, releaseExtra func(), window ...int64) net.Conn {
+func newCapacityManagedAgentTunnelStreamConnWithRelease(conn net.Conn, agent *AgentConn, lease *agentStreamCapacityLease, releaseExtra func(), aggregateGrowth *tunnel.AggregateReceiveWindowGrowth, window ...int64) net.Conn {
 	maximum := tunnel.DefaultMaxStreamWindowSizeBytes
 	if len(window) > 0 {
 		maximum = window[0]
 	}
-	growing := tunnel.NewGrowingConn(conn, maximum, func(bytes int64) (func(), bool) {
-		release, ok, _ := lease.manager.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, bytes, 0)
-		return release, ok
-	})
+	var growing *tunnel.GrowingConn
+	if aggregateGrowth != nil {
+		growing = tunnel.NewAggregateGrowingConn(conn, maximum, aggregateGrowth)
+	} else {
+		growing = tunnel.NewGrowingConn(conn, maximum, func(bytes int64) (func(), bool) {
+			release, ok, _ := lease.manager.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, bytes, 0)
+			return release, ok
+		})
+	}
 	return &agentTunnelStreamConn{
 		Conn:        growing,
 		agent:       agent,
