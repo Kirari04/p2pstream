@@ -147,6 +147,7 @@ type qualificationAgentTunnelRuntime struct {
 type qualificationAgentLaneRuntime struct {
 	Lane             int    `json:"lane"`
 	Aggregate        bool   `json:"aggregate"`
+	Streams          int    `json:"streams"`
 	ReceiveLimit     uint32 `json:"receive_limit_bytes,omitempty"`
 	ReceiveAvailable uint32 `json:"receive_available_bytes,omitempty"`
 	TotalUnits       uint32 `json:"total_units,omitempty"`
@@ -390,6 +391,9 @@ func runQualificationStdlibProxy(t *testing.T) {
 
 func qualificationRuntimeHandler(app *App, agentIDs ...int64) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("close_idle_agent_transports") == "1" && app.AgentTransports != nil {
+			app.AgentTransports.closeAll()
+		}
 		var stats runtime.MemStats
 		runtime.ReadMemStats(&stats)
 		result := qualificationRuntime{HeapAlloc: stats.HeapAlloc, HeapSys: stats.HeapSys, NumGC: stats.NumGC, PauseNS: stats.PauseTotalNs}
@@ -471,7 +475,7 @@ func qualificationAgentLaneStats(agent *AgentConn) []qualificationAgentLaneRunti
 		}
 		stats := session.AggregateReceiveWindowStats()
 		result = append(result, qualificationAgentLaneRuntime{
-			Lane: lane, Aggregate: stats.Enabled, ReceiveLimit: stats.ReceiveLimit,
+			Lane: lane, Aggregate: stats.Enabled, Streams: session.NumStreams(), ReceiveLimit: stats.ReceiveLimit,
 			ReceiveAvailable: stats.ReceiveAvailable, TotalUnits: stats.TotalUnits,
 			FreeUnits: stats.FreeUnits, BufferedUnits: stats.BufferedUnits, PendingRefund: stats.PendingRefund,
 		})
@@ -1699,6 +1703,7 @@ func (s *qualificationSampler) observeAgentStats(stats qualificationRuntime) {
 			}
 			lanePeak := &peak.Lanes[index]
 			lanePeak.Aggregate = lanePeak.Aggregate || lane.Aggregate
+			lanePeak.Streams = max(lanePeak.Streams, lane.Streams)
 			lanePeak.ReceiveLimit = max(lanePeak.ReceiveLimit, lane.ReceiveLimit)
 			lanePeak.ReceiveAvailable = max(lanePeak.ReceiveAvailable, lane.ReceiveAvailable)
 			lanePeak.TotalUnits = max(lanePeak.TotalUnits, lane.TotalUnits)

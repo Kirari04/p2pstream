@@ -51,6 +51,7 @@ external_expected_mode=""
 external_expected_bulk=""
 candidate_external_mode=aggregate-v1
 baseline_external_mode=legacy
+external_lifecycle=0
 while (($#)); do
   case "$1" in
     --smoke) smoke=1; runs=1; shift ;;
@@ -87,6 +88,7 @@ while (($#)); do
     --external-agent-tunnels) external_agent_tunnels=$2; shift 2 ;;
     --candidate-external-mode) candidate_external_mode=$2; shift 2 ;;
     --baseline-external-mode) baseline_external_mode=$2; shift 2 ;;
+    --external-lifecycle) external_lifecycle=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -488,6 +490,132 @@ qualification_process_json() {
     '{role:$role,pid:$pid,admin_url:$admin_url,cpu_set:$cpu_set,container:$container}'
 }
 
+capture_external_lifecycle() {
+  local phase=$1 offsets=$2 label=$3 baseline_tunnels=$4 server_spec=$5 agent_specs=$6
+  python3 - "$phase" "$offsets" "$label" "$baseline_tunnels" "$server_spec" "$agent_specs" "$output" "$external_expected_mode" "$external_expected_bulk" <<'PY'
+import json
+import os
+import sys
+import time
+import urllib.request
+
+phase, raw_offsets, label, raw_baseline, raw_server_spec, raw_specs, destination, mode, raw_bulk = sys.argv[1:]
+offsets = [float(value) for value in raw_offsets.split(",")]
+baseline_runtime = json.loads(raw_baseline)
+baseline = baseline_runtime.get("agent_tunnels", [])
+server_spec = json.loads(raw_server_spec)
+specs = json.loads(raw_specs)
+bulk = int(raw_bulk)
+started = time.monotonic()
+
+def fetch(url):
+    with urllib.request.urlopen(url, timeout=2) as response:
+        return json.load(response)
+
+def read_int(path):
+    try:
+        return int(open(path, encoding="utf-8").read().strip())
+    except (OSError, ValueError):
+        return None
+
+def process_stats(spec):
+    pid = int(spec["pid"])
+    root = f"/proc/{pid}/root/sys/fs/cgroup"
+    memory_stat = {}
+    memory_events = {}
+    try:
+        for line in open(f"{root}/memory.stat", encoding="utf-8"):
+            key, value = line.split()
+            memory_stat[key] = int(value)
+        for line in open(f"{root}/memory.events", encoding="utf-8"):
+            key, value = line.split()
+            memory_events[key] = int(value)
+        statm = open(f"/proc/{pid}/statm", encoding="utf-8").read().split()
+        rss = int(statm[1]) * os.sysconf("SC_PAGE_SIZE")
+    except (OSError, ValueError, IndexError):
+        memory_stat, memory_events, rss = {}, {}, None
+    return {
+        "role": spec.get("role"),
+        "pid": pid,
+        "container": spec.get("container"),
+        "rss_bytes": rss,
+        "cgroup_memory_bytes": read_int(f"{root}/memory.current"),
+        "cgroup_sock_bytes": memory_stat.get("sock"),
+        "cgroup_memory_events": memory_events,
+        "runtime": fetch(spec["admin_url"]),
+    }
+
+rows = []
+for offset in offsets:
+    delay = started + offset - time.monotonic()
+    if delay > 0:
+        time.sleep(delay)
+    row = {
+        "label": label,
+        "scenario": "agent-idle-lifecycle",
+        "lifecycle_phase": phase,
+        "requested_offset_seconds": offset,
+        "observed_offset_seconds": time.monotonic() - started,
+        "transport_mode": mode,
+        "server_process": process_stats(server_spec),
+        "agent_processes": [process_stats(spec) for spec in specs],
+    }
+    rows.append(row)
+    with open(destination, "a", encoding="utf-8") as output:
+        output.write(json.dumps(row, separators=(",", ":"), sort_keys=True) + "\n")
+
+baseline_streams = {
+    (tunnel.get("id"), lane.get("lane")): lane.get("streams", 0)
+    for tunnel in baseline
+    for lane in tunnel.get("lanes", [])
+}
+final = rows[-1]
+final_tunnels = final["server_process"].get("runtime", {}).get("agent_tunnels", [])
+final_streams = {
+    (tunnel.get("id"), lane.get("lane")): lane.get("streams", 0)
+    for tunnel in final_tunnels
+    for lane in tunnel.get("lanes", [])
+}
+shape_ok = len(final_tunnels) == len(baseline) and all(
+    tunnel.get("connected") is True
+    and tunnel.get("control_connected") is True
+    and tunnel.get("flow_control") == mode
+    and tunnel.get("bulk_sessions", 0) == bulk
+    and (mode != "aggregate-v1" or len(tunnel.get("lanes", [])) == bulk + 1)
+    for tunnel in final_tunnels
+)
+agents_idle = all(
+    process.get("runtime", {}).get("agent_capacity", {}).get("in_use") == 0
+    and process.get("runtime", {}).get("agent_capacity", {}).get("legacy_stream_supplement_bytes", 0) == 0
+    for process in final["agent_processes"]
+)
+def events_unchanged(first, last):
+    before = first.get("cgroup_memory_events", {})
+    after = last.get("cgroup_memory_events", {})
+    return all(key in before and key in after and before[key] == after[key] for key in ("oom", "oom_kill"))
+
+processes_readable = all(
+    process.get("rss_bytes") is not None
+    and process.get("cgroup_memory_bytes") is not None
+    and process.get("cgroup_sock_bytes") is not None
+    for process in [final["server_process"], *final["agent_processes"]]
+)
+events_ok = events_unchanged(rows[0]["server_process"], final["server_process"]) and all(
+    events_unchanged(rows[0]["agent_processes"][index], process)
+    for index, process in enumerate(final["agent_processes"])
+)
+baseline_receive_owner = baseline_runtime.get("owner_reservations", {}).get("receive_window")
+final_receive_owner = final["server_process"].get("runtime", {}).get("owner_reservations", {}).get("receive_window")
+server_owner_idle = isinstance(baseline_receive_owner, int) and final_receive_owner == baseline_receive_owner
+if not shape_ok or final_streams != baseline_streams or not agents_idle or not events_ok or not processes_readable or not server_owner_idle:
+    raise SystemExit(
+        f"{phase} lifecycle did not return to the connected idle baseline: "
+        f"shape={shape_ok} streams={final_streams} baseline={baseline_streams} agents_idle={agents_idle} "
+        f"events={events_ok} readable={processes_readable} server_owner_idle={server_owner_idle}"
+    )
+PY
+}
+
 run_external_p2pstream() {
   local label=$1 binary=$2 agent_binary=$3 iteration=$4 expected_mode=$5
   local name="${label}-${iteration}-external"
@@ -528,6 +656,17 @@ run_external_p2pstream() {
   wait_external_agent_tunnels "$admin_url" "$expected_mode" "$external_agents" "$expected_bulk"
   external_expected_mode=$expected_mode
   external_expected_bulk=$expected_bulk
+  local lifecycle_baseline='[]'
+  if ((external_lifecycle)); then
+    [[ $expected_mode == aggregate-v1 ]] || { echo "--external-lifecycle currently requires aggregate-v1" >&2; return 1; }
+    lifecycle_baseline=$(python3 - "$admin_url" <<'PY'
+import json, sys, urllib.parse, urllib.request
+url = sys.argv[1] + ("&" if "?" in sys.argv[1] else "?") + urllib.parse.urlencode({"owners": "1"})
+with urllib.request.urlopen(url, timeout=2) as response:
+    json.dump(json.load(response), sys.stdout, separators=(",", ":"))
+PY
+)
+  fi
   for scenario_row in "${scenario_rows[@]}"; do
     [[ -n $scenario_filter && ${scenario_row%% *} != "$scenario_filter" ]] && continue
     [[ $scenario_row == tls-idle* ]] && continue
@@ -541,6 +680,21 @@ run_external_p2pstream() {
     run_load "$label" "agent-external" "$base_url/agent" "$admin_url" "$server_sample_pid" "$scenario_row" "$sequence"
     [[ $scenario_row == capacity-* ]] && sleep 0.5
   done
+  if ((external_lifecycle)); then
+    local lifecycle_server_process_json
+    lifecycle_server_process_json=$(jq -c '.admin_url += (if contains("?") then "&owners=1" else "?owners=1" end)' <<<"$server_process_json")
+    capture_external_lifecycle natural "1,5,30,35,65" "$label" "$lifecycle_baseline" "$lifecycle_server_process_json" "$agent_processes_json"
+    sequence=$((sequence + 1))
+    run_load "$label" "agent-external" "$base_url/agent" "$admin_url" "$server_sample_pid" \
+      "lifecycle-repopulate h1 small 128 128 0" "$sequence"
+    python3 - "$admin_url" <<'PY'
+import sys, urllib.parse, urllib.request
+url = sys.argv[1] + ("&" if "?" in sys.argv[1] else "?") + urllib.parse.urlencode({"close_idle_agent_transports": "1"})
+with urllib.request.urlopen(url, timeout=5) as response:
+    response.read()
+PY
+    capture_external_lifecycle forced-idle-close "0,1,5,35" "$label" "$lifecycle_baseline" "$lifecycle_server_process_json" "$agent_processes_json"
+  fi
   for ((agent_index=${#agent_pids[@]}-1; agent_index>=0; agent_index--)); do
     stop_process "${agent_pids[$agent_index]}" "${agent_stops[$agent_index]}"
   done
