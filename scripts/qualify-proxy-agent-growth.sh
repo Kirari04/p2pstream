@@ -36,10 +36,10 @@ if [[ ${1:-} != --inside ]]; then
       --smoke)
         smoke_mode=1
         runs=1
-        warmup_mib=1
+        warmup_mib=4
         steady_mib=4
         transfer_repetitions=1
-        required_pool_mib=0
+        required_pool_mib=2
         shift
         ;;
       *) echo "unknown argument: $1" >&2; exit 2 ;;
@@ -57,8 +57,8 @@ if [[ ${1:-} != --inside ]]; then
     echo "transfer sizes and repetitions must be positive" >&2
     exit 2
   }
-  ((required_pool_mib > 2 || (smoke_mode == 1 && required_pool_mib == 0))) || {
-    echo "--required-pool-mib must be greater than the 2 MiB initial pool (zero is allowed only with --smoke)" >&2
+  ((required_pool_mib > 2 || (smoke_mode == 1 && required_pool_mib == 2))) || {
+    echo "--required-pool-mib must be greater than the 2 MiB initial pool (exactly 2 is allowed only with --smoke)" >&2
     exit 2
   }
   [[ -n $server_source_ref && -n $aggregate_agent_source_ref && -n $legacy_agent_source_ref ]] || {
@@ -370,7 +370,7 @@ run_transfer() {
   if [[ $mode == aggregate-v1 && $stage == steady && $direction == download ]]; then
     if ((required_pool_mib > 0)); then
       jq -e --argjson required "$((required_pool_mib << 20))" \
-        '[.agent_tunnels_high_water[0].lanes[] | select(.aggregate == true and .lane > 0) | .receive_limit_bytes] | length == 4 and min > $required' "$raw" >/dev/null
+        '[.agent_tunnels_final[0].lanes[] | select(.aggregate == true and .lane > 0) | .receive_limit_bytes] | length == 4 and min > $required' "$raw" >/dev/null
     fi
   fi
   if [[ $mode == aggregate-v1 && $stage == steady && $direction == upload ]]; then
@@ -390,7 +390,8 @@ run_transfer() {
     --arg server_source_ref "$server_source_ref" \
     --arg aggregate_agent_source_ref "$aggregate_agent_source_ref" \
     --arg legacy_agent_source_ref "$legacy_agent_source_ref" '
-      ([.agent_tunnels_high_water[0].lanes[]? | select(.aggregate == true and .lane > 0) | .receive_limit_bytes]) as $server_pools |
+      ([.agent_tunnels_high_water[0].lanes[]? | select(.aggregate == true and .lane > 0) | .receive_limit_bytes]) as $server_growth_pools |
+      ([.agent_tunnels_final[0].lanes[]? | select(.aggregate == true and .lane > 0) | .receive_limit_bytes]) as $server_final_pools |
       ([$agent_runtime.tunnel_sessions[]? | select(.aggregate == true and .lane > 0) | .receive_limit_bytes]) as $agent_pools |
       . + {
         measurement_stage:$stage,
@@ -401,7 +402,7 @@ run_transfer() {
         measured_rtt_ms:$measured_rtt_ms,
         shaped_rate_bits_per_second:1000000000,
         useful_transfer_bytes_per_second:(.configured_payload_bytes / .wall_seconds),
-        receiving_pool_observed_bytes:(if $mode != "aggregate-v1" then null elif $stage == "steady" and $direction == "download" then ($server_pools | min) elif $stage == "steady" then ($agent_pools | min) elif $direction == "download" then ($server_pools | max // 0) else ($agent_pools | max // 0) end),
+        receiving_pool_observed_bytes:(if $mode != "aggregate-v1" then null elif $stage == "steady" and $direction == "download" then ($server_final_pools | min) elif $stage == "steady" then ($agent_pools | min) elif $direction == "download" then ($server_growth_pools | max // 0) else ($agent_pools | max // 0) end),
         receiving_pool_evidence:(if $mode != "aggregate-v1" then "legacy-per-stream-window" elif $stage != "steady" then "growth-high-water-max-unattributed" elif $direction == "download" then "all-server-receive-lanes-prewarmed-and-quiescent" else "all-agent-receive-lanes-prewarmed-and-quiescent" end),
         agent_aggregate_growth_reservation_bytes:($agent_runtime.agent_capacity.aggregate_growth_pool_bytes // 0),
         agent_runtime_after:$agent_runtime,
@@ -469,10 +470,11 @@ run_cohort() {
   [[ $mode == aggregate-v1 ]] && expected_bulk=4
   wait_mode "$server_admin" "$mode" "$expected_bulk"
 
-  for ((warmup_round=1; warmup_round<=warmup_lane_rounds; warmup_round++)); do
-    run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" warmup download "$((warmup_mib << 20))" "$warmup_round"
-    run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" warmup upload "$((warmup_mib << 20))" "$warmup_round"
-    close_idle_agent_transports "$server_admin"
+  for direction in download upload; do
+    for ((warmup_round=1; warmup_round<=warmup_lane_rounds; warmup_round++)); do
+      run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" warmup "$direction" "$((warmup_mib << 20))" "$warmup_round"
+      close_idle_agent_transports "$server_admin"
+    done
   done
   if [[ $mode == aggregate-v1 ]]; then
     wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
