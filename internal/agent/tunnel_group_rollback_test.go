@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/yamux"
 
+	"p2pstream/internal/sysmetrics"
 	"p2pstream/internal/tunnel"
 )
 
@@ -157,7 +158,9 @@ func TestRealYamuxTunnelGroupRollbackReleasesOldGeneration(t *testing.T) {
 	releaseDowngrade := func() { releaseDowngradeOnce.Do(func() { close(transport.downgradeRelease) }) }
 	defer releaseDowngrade()
 	client := &http.Client{Transport: transport}
-	capacity := newAgentTunnelCapacityRuntime(64, false, nil)
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 4 << 30, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.forceRefresh()
 	var mu sync.Mutex
 	seenGroups := make(map[string]struct{})
 	var boundaryErrors []string
@@ -167,6 +170,24 @@ func TestRealYamuxTunnelGroupRollbackReleasesOldGeneration(t *testing.T) {
 		defer mu.Unlock()
 		if observation.Connected {
 			observerConnected++
+			snapshot := capacity.snapshot()
+			if snapshot.SessionResourceBytes <= 0 {
+				boundaryErrors = append(boundaryErrors, fmt.Sprintf("lane %d connected without session ownership: %+v", observation.Lane, snapshot))
+			}
+			switch {
+			case observation.Aggregate && observation.Lane == 0:
+				if snapshot.LegacyControlSupplementBytes <= 0 {
+					boundaryErrors = append(boundaryErrors, fmt.Sprintf("aggregate control connected without legacy control ownership: %+v", snapshot))
+				}
+			case observation.Aggregate:
+				if snapshot.AggregateInitialPoolBytes <= 0 || snapshot.AggregateSessionMetadataBytes <= 0 {
+					boundaryErrors = append(boundaryErrors, fmt.Sprintf("aggregate bulk lane %d connected without pool and metadata ownership: %+v", observation.Lane, snapshot))
+				}
+			default:
+				if snapshot.LegacySessionEnvelopeBytes <= 0 {
+					boundaryErrors = append(boundaryErrors, fmt.Sprintf("legacy lane connected without receive-envelope ownership: %+v", snapshot))
+				}
+			}
 			return
 		}
 		observerDisconnected++
@@ -216,6 +237,21 @@ func TestRealYamuxTunnelGroupRollbackReleasesOldGeneration(t *testing.T) {
 			_ = session.Close()
 		}
 	}()
+	held, err := firstBulk[0].Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Close()
+	// The agent acquires the base lease before reading the Open request. Leave
+	// the request pending so generation replacement must join the handler and
+	// return a real stream lease, not only session reservations.
+	deadline := time.Now().Add(time.Second)
+	for capacity.snapshot().InUse != 1 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if snapshot := capacity.snapshot(); snapshot.InUse != 1 {
+		t.Fatalf("aggregate generation did not own held stream base lease: %+v", snapshot)
+	}
 	_ = firstControl.Close()
 	select {
 	case <-transport.downgradeSeen:
