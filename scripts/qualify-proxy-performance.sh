@@ -682,7 +682,7 @@ PY
   done
   if ((external_lifecycle)); then
     local lifecycle_server_process_json
-    lifecycle_server_process_json=$(jq -c '.admin_url += (if contains("?") then "&owners=1" else "?owners=1" end)' <<<"$server_process_json")
+    lifecycle_server_process_json=$(jq -c '.admin_url = (.admin_url + (if (.admin_url | contains("?")) then "&owners=1" else "?owners=1" end))' <<<"$server_process_json")
     capture_external_lifecycle natural "1,5,30,35,65" "$label" "$lifecycle_baseline" "$lifecycle_server_process_json" "$agent_processes_json"
     sequence=$((sequence + 1))
     run_load "$label" "agent-external" "$base_url/agent" "$admin_url" "$server_sample_pid" \
