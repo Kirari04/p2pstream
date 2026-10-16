@@ -52,8 +52,11 @@ func aggregateDataCharge(length uint32) uint32 {
 }
 
 type aggregateWindow struct {
-	protocolMax uint32
-	mu          sync.Mutex
+	// qualification is a zero-size type in ordinary builds. Tagged diagnostic
+	// builds use it for bounded per-session sender counters.
+	qualification qualificationAggregateSendCounters
+	protocolMax   uint32
+	mu            sync.Mutex
 
 	sendWindow uint32
 	sendLimit  uint32
@@ -229,8 +232,14 @@ func (s *Stream) reserveAggregateSend(max uint32) (uint32, <-chan struct{}) {
 	if max > 0 {
 		a.sendWindow -= charge
 		s.allocationSendWindow -= charge
+		if qualificationAggregateSendCountersEnabled {
+			a.qualification.recordReservedData(max, charge)
+		}
 		a.mu.Unlock()
 		return max, nil
+	}
+	if qualificationAggregateSendCountersEnabled {
+		a.qualification.recordAllocationZero(a.sendWindow == 0, s.allocationSendWindow == 0)
 	}
 	a.sendNotifyRegistered = true
 	wake := a.sendNotify

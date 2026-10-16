@@ -319,6 +319,9 @@ START:
 	// If there is no data available, block
 	window := atomic.LoadUint32(&s.sendWindow)
 	if window == 0 {
+		if qualificationAggregateSendCountersEnabled && s.session.aggregateEnabled() {
+			s.session.recordQualificationByteCreditZero()
+		}
 		goto WAIT
 	}
 
