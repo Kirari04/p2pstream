@@ -1,0 +1,43 @@
+{
+  "created_utc": "2026-10-16T07:50:01.638773+00:00",
+  "scope": "moderate-load latency; does not establish latency near saturation",
+  "calibration": "fresh fixed36 matched Caddy/HAProxy/p2pstream reference, same final immutable source/binary",
+  "selection_per_protocol_concurrency": {
+    "protocols": [
+      "h1",
+      "h2"
+    ],
+    "concurrency": [
+      16,
+      128
+    ],
+    "offered_rps": "floor(0.5 * min(stable candidate usefulRPS median, stable HAProxy usefulRPS median))",
+    "requests": "floor(20 * offered_rps)",
+    "rate_lowering_after_results": false
+  },
+  "pairs": 3,
+  "order": [
+    "candidate-then-haproxy",
+    "haproxy-then-candidate",
+    "candidate-then-haproxy"
+  ],
+  "delivery": {
+    "useful_rps_minimum_fraction_of_offered": 0.99,
+    "elapsed_maximum_fraction_of_requests_over_offered": 1.01,
+    "client_errors": 0,
+    "payload_and_request_event_conservation": "exact",
+    "latency_includes_queue_delay_from_scheduled_request_time": true,
+    "timestamps": "actual schedule/last dispatch/completion required; test-only metadata proposal pending"
+  },
+  "latency_gate": {
+    "candidate_to_haproxy_p95_ratio_maximum": 1.25,
+    "candidate_to_haproxy_p99_ratio_maximum": 1.25
+  },
+  "startup": {
+    "h1": "initial client/TLS establishment included",
+    "h2": "exactly one validated prewarm client connection reused; prewarm event accounted separately"
+  },
+  "workload_started": false,
+  "source_ref": null,
+  "calibration_definition": "complete warmed fixed three-repeat median with exact source/topology/payload/event checks; max/min spread reported without a new variance rejection threshold"
+}
