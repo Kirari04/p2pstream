@@ -579,6 +579,8 @@ run_pressure_rejection() {
 run_pressure_qualification() {
   local label=$1 server_pid=$2 public_url=$3 server_admin=$4 agent_pid=$5 agent_admin=$6
   local server_cgroup agent_cgroup baseline_oom baseline_oom_kill server_baseline_oom server_baseline_oom_kill baseline_health
+  close_idle_agent_transports "$server_admin"
+  wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
   server_cgroup=$(cgroup_snapshot "$server_pid")
   agent_cgroup=$(cgroup_snapshot "$agent_pid")
   jq -e '
@@ -599,6 +601,7 @@ run_pressure_qualification() {
   server_baseline_oom_kill=$(jq -r '.memory_events.oom_kill' <<<"$server_cgroup")
   baseline_health=$(agent_health_roundtrip "$server_admin")
   jq -e '.ok == true and .http_status == 200 and .status_code >= 200 and .status_code < 400' <<<"$baseline_health" >/dev/null
+  wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
   append_pressure_sample pressure-baseline 0 "$server_pid" "$server_admin" "$agent_pid" "$agent_admin"
 
   local ballast_mib=0 current maximum next_limit margin pressure_reached=0
@@ -642,22 +645,34 @@ run_pressure_qualification() {
   done
   jq -e '.agent_capacity.pressure == "critical" and .agent_capacity.pressure_reason == "memory" and (.agent_capacity.sample_error // "") == ""' <<<"$agent_runtime" >/dev/null
   append_pressure_sample pressure-critical "$ballast_mib" "$server_pid" "$server_admin" "$agent_pid" "$agent_admin"
-  local rejected_before health_at_pressure
+  local rejected_before health_at_pressure health_agent_before health_agent_after
   rejected_before=$(jq -r .agent_capacity.rejected_pressure <<<"$agent_runtime")
   run_pressure_rejection "$label" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" "$rejected_before"
+  health_agent_before=$(query_agent_json "$agent_pid" "$agent_admin")
   health_at_pressure=$(agent_health_roundtrip "$server_admin")
+  health_agent_after=$(query_agent_json "$agent_pid" "$agent_admin")
   jq -cn --argjson health "$health_at_pressure" --argjson ballast_mib "$ballast_mib" \
+    --argjson agent_before "$health_agent_before" --argjson agent_after "$health_agent_after" \
     '{measurement_stage:"pressure-control-roundtrip",transport_mode:"aggregate-v1",configured_agent_ballast_mib:$ballast_mib,
-      control_roundtrip:$health,control_progress_proven:($health.ok == true)}' >> "$output"
+      control_roundtrip:$health,control_progress_proven:($health.ok == true),
+      agent_rejected_pressure_before:$agent_before.agent_capacity.rejected_pressure,
+      agent_rejected_pressure_after:$agent_after.agent_capacity.rejected_pressure,
+      agent_runtime_before:$agent_before,agent_runtime_after:$agent_after}' >> "$output"
 
   local server_runtime
   server_runtime=$(query_server_json "$server_admin")
   agent_runtime=$(query_agent_json "$agent_pid" "$agent_admin")
   jq -e '
     .agent_tunnels | length == 1 and .[0].connected and .[0].control_connected and .[0].bulk_sessions == 4 and
-    ([.[0].lanes[] | select(.aggregate == true)] | length == 5)
+    (.[0].lanes | length == 5) and
+    (.[0].lanes[0].lane == 0 and (.[0].lanes[0].aggregate // false) == false) and
+    ([.[0].lanes[] | select(.lane > 0 and .aggregate == true)] | length == 4)
   ' <<<"$server_runtime" >/dev/null
-  jq -e '[.tunnel_sessions[] | select(.aggregate == true)] | length == 5' <<<"$agent_runtime" >/dev/null
+  jq -e '
+    (.tunnel_sessions | length == 5) and
+    ([.tunnel_sessions[] | select(.lane == 0 and .aggregate == true)] | length == 1) and
+    ([.tunnel_sessions[] | select(.lane > 0 and .aggregate == true)] | length == 4)
+  ' <<<"$agent_runtime" >/dev/null
 
   set_agent_ballast "$agent_pid" "$agent_admin" 0 >/dev/null
   local recovered=0

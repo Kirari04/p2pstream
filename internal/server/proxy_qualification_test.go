@@ -746,7 +746,9 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 			return
 		}
 		agent := app.AgentHub.connectedByID(agentIDs[0])
+		capacityBefore := app.agentStreamCapacity.snapshot()
 		attempt := app.runPublicRouteTargetHealthCheckViaAgent(r.Context(), healthTarget, agent)
+		capacityAfter := app.agentStreamCapacity.snapshot()
 		status := http.StatusOK
 		if attempt.Err != nil || attempt.Skipped {
 			status = http.StatusServiceUnavailable
@@ -760,7 +762,12 @@ func runQualificationExternalAgentProxy(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"ok": attempt.Err == nil && !attempt.Skipped, "skipped": attempt.Skipped,
 			"status_code": attempt.StatusCode, "error_kind": attempt.ErrorKind,
-			"error": errorText,
+			"error":                        errorText,
+			"server_control_in_use_before": capacityBefore.Control.InUse,
+			"server_control_in_use_after":  capacityAfter.Control.InUse,
+			"server_control_capacity":      capacityAfter.Control.Capacity,
+			"server_total_in_use_before":   capacityBefore.Total.InUse,
+			"server_total_in_use_after":    capacityAfter.Total.InUse,
 		})
 	})}
 	go func() { _ = admin.Serve(adminListener) }()
