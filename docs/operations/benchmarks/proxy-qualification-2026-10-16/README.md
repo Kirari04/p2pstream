@@ -40,6 +40,13 @@ comparison.
   records the greater-than-80-MiB-per-lane pressure, cold reserved-control,
   canceled-upload ownership and recovery qualification in separate 4 GiB
   server and agent cgroups.
+- [`agent-tiny-response/README.md`](agent-tiny-response/README.md) records the
+  failed 1 ms aggregate-versus-legacy tiny-response gate across H1/H2 at 16
+  and 128 concurrent requests, with exact payload and event conservation.
+- [`capacity-boundaries-cold/README.md`](capacity-boundaries-cold/README.md)
+  records cold-start direct and remote-agent H1/H2 constrained boundaries.
+- [`capacity-established-h2/README.md`](capacity-established-h2/README.md)
+  records the distinct pre-established remote-agent H2 3,072-request pass.
 - `capacity-and-profile.jsonl` is the initial candidate `095c923` correctness,
   fixed-rate, streaming, H1/H2 1,536-barrier and recovery pass.
 - `warmed-throughput.jsonl` is one alternating baseline/candidate pass with a

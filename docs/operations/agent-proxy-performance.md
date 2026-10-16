@@ -511,6 +511,18 @@ per-stream ceiling, line rate, HAProxy parity or pressure recovery. Source,
 CPU/cgroup topology and limits are in the
 [WAN growth evidence](benchmarks/proxy-qualification-2026-10-16/agent-wan-growth/README.md).
 
+The separate low-latency tiny-response gate fails. On the same current server
+over a configured 1 ms / measured 1.316 ms path, aggregate-v1 reaches 93.97%
+and 90.12% of legacy H1 throughput at 16 and 128 clients, and 94.80% and
+84.71% of legacy H2 throughput at 16 and 128 streams. The gate requires at
+least 90% median throughput and no more than 1.10 times legacy p95 and p99.
+Every workload exceeds at least one tail limit; H2 at 128 streams also misses
+throughput with p95/p99 ratios of 1.185/1.158. All 3,510,147 requests completed
+with verified payloads and exactly 3,510,147 persisted events, zero drops and
+no drain errors. This is a small-frame transport regression, while the bulk-WAN
+and constrained-capacity results above remain workload-specific passes. See the
+[tiny-response evidence](benchmarks/proxy-qualification-2026-10-16/agent-tiny-response/README.md).
+
 The first qualification pass is recorded under
 `docs/operations/benchmarks/proxy-qualification-2026-10-16/`. It is a profile
 and correctness pass plus one warmed saturation sample, not the prescribed
