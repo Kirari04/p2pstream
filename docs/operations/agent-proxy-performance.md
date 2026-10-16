@@ -747,6 +747,17 @@ does not replace current-head qualification or the earlier HAProxy comparison.
 The [native attribution evidence](benchmarks/proxy-qualification-2026-10-16/native-go-attribution/README.md)
 also retains the earlier interrupted cohort separately.
 
+The subsequent single matched HTTP/H1/c16 profile captures both proxy process
+lifetimes symmetrically. Per warmup-plus-timed completion, production samples
+109.93 µs CPU and 10,357 bytes allocated, versus native 76.72 µs and 7,109.59
+bytes. Common syscall/header costs are close; SQLite/cgo persistence is the
+clearest distinct stack. Cumulative/flat stack totals overlap and are not
+removable-speedup estimates. A separately hashed binding preserves a final
+provenance-overwrite discrepancy without rerunning traffic. The next bounded
+experiment retains the 16-row remainder path while measuring a 64-row primary
+insert; no candidate production change is qualified. See the
+[matched profile and limitations](benchmarks/proxy-qualification-2026-10-16/native-go-profile/README.md).
+
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
 RTT 96.547 ms). Four fresh 256 MiB downloads and uploads prewarm every receiving

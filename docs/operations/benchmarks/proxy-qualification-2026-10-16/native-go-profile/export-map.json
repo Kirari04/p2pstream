@@ -1,0 +1,322 @@
+{
+  "raw/003-smoke-native-http.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/003-smoke-native-http.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "raw/profile-native-http-h1-c16.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-native-http-h1-c16.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "raw/origin.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/origin.ready.json",
+    "sha256": "63cda6f5a4061df93e16a2d2f17ea0b63721eee79fa4f954d82d89464e6d3155"
+  },
+  "raw/profile-native-http-h1-c16.mem.top.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-native-http-h1-c16.mem.top.txt",
+    "sha256": "00fe89b3d59384fc974569b9250c9af63b9ed828ce97b57c1598eaa159a9d124"
+  },
+  "raw/005-profile-production-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/005-profile-production-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "raw/001-smoke-production-http.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/001-smoke-production-http.json",
+    "sha256": "06ad8ce01b64c11a84cca736997537cab6bf767b92b7916056f6c4facd8a282c"
+  },
+  "raw/smoke-native-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/smoke-native-http.ready.json",
+    "sha256": "55656bfbc2d797c9150ceeed42b8578bddb3b0a206cacff58c10fd1f4ba013ca"
+  },
+  "raw/profile-production-http-h1-c16.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-production-http-h1-c16.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "raw/smoke-production-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/smoke-production-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "raw/smoke-production-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/smoke-production-https.ready.json",
+    "sha256": "cb64ced5ff6a9401f310da3d45b94cfa6da6b471f7f762884436e00f4fd8e6d9"
+  },
+  "raw/profile-native-http-h1-c16.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-native-http-h1-c16.ready.json",
+    "sha256": "947ffc424affb04bd300203344db4022ef7107cce55ae0ee79b43a1619fa2223"
+  },
+  "raw/profile-production-http-h1-c16.cpu.top.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-production-http-h1-c16.cpu.top.txt",
+    "sha256": "bcdd70f9aec0429db6c5eb857af7afd32cdfbc3db2a634582266d95d93ae37b9"
+  },
+  "raw/summary.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/summary.json",
+    "sha256": "b81e2654ebec51c8fe3e0fbe2c30381de934be39fa00432cb0621b6b8a726ddf"
+  },
+  "raw/004-smoke-native-https.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/004-smoke-native-https.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "raw/smoke-native-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/smoke-native-https.ready.json",
+    "sha256": "6f6b69dad8fa836a2a631315df3f57cef05f3118ab8ec97a03b26954909d796d"
+  },
+  "raw/public.crt.pem": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/public.crt.pem",
+    "sha256": "f4d0d96266e0553416e9fdc89bb160ea34b1a0f195196c66bc65e9467365d2c7"
+  },
+  "raw/profile-production-http-h1-c16.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-production-http-h1-c16.ready.json",
+    "sha256": "6c9059eb57081682bed568bb38f11e3ef813234f336b1850103e2f0186f63dae"
+  },
+  "raw/005-profile-production-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/005-profile-production-http-h1-c16.json",
+    "sha256": "85c9ca6a740a1bd4e379f3e957b0a9069fcdfeacb6c4f944c2a8cf1c02063dbf"
+  },
+  "raw/003-smoke-native-http.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/003-smoke-native-http.json",
+    "sha256": "b4297695cde0d4daf0872d0b2a000c5af56a0e278d29faf190eb950095afaca8"
+  },
+  "raw/smoke.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/smoke.json",
+    "sha256": "f3deadc08cd4b42ed1dcf6f5a3ee39f3f17dca2d7e64c6ccc4bcef6331704159"
+  },
+  "raw/origin.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/origin.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "raw/outcome.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/outcome.json",
+    "sha256": "dd6abaa83031a0768ef2a16cebfb549f0f1a0344fe9c1f37c1d585fa473b1346"
+  },
+  "raw/006-profile-native-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/006-profile-native-http-h1-c16.json",
+    "sha256": "45e0f849a268441e7d15d6d807682aa3f869cca3f92c1d428db22e67b69d8c6a"
+  },
+  "raw/profile-native-http-h1-c16.cpu.top.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-native-http-h1-c16.cpu.top.txt",
+    "sha256": "6d3f9500a35f776fd2f62fdf574388fca28e6c7099ef094e9d56841f9c72f900"
+  },
+  "raw/smoke-native-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/smoke-native-https.proxy.log",
+    "sha256": "21286cf0bcdc41190ae7670244d92877abcaf71a06493a3bebd43556da49a8f1"
+  },
+  "raw/smoke-production-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/smoke-production-https.proxy.log",
+    "sha256": "beaa3fee0a8bedde83a710dbe09aba681fd7bf9456e1b41054b413cd5bb51b18"
+  },
+  "raw/001-smoke-production-http.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/001-smoke-production-http.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "raw/smoke-production-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/smoke-production-http.ready.json",
+    "sha256": "66dd43a2fde68813540e20c79ef37223610330961a22bbb5a2f2939781864b86"
+  },
+  "raw/profile-production-http-h1-c16.mem.top.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-production-http-h1-c16.mem.top.txt",
+    "sha256": "55f2e0092c9ae428c0aa0b8c17243b41cc6931146007b8a6b2e13329d311ae68"
+  },
+  "raw/provenance.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/provenance.json",
+    "sha256": "1da9664a1061e55211e46847f76b0fdd0a30d378073b9a9c41615d1ab94d07ed"
+  },
+  "raw/004-smoke-native-https.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/004-smoke-native-https.json",
+    "sha256": "d0a633c0abaf5131f85bde60dbf198c57f286a40a1fca4b90c231220d7a6b3a7"
+  },
+  "raw/attempted-results.jsonl": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/attempted-results.jsonl",
+    "sha256": "c26f0f95455bfd289e9e6e310499d6a3ab661b7225beb6aba56dc911442ecf58"
+  },
+  "raw/smoke-native-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/smoke-native-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "raw/results.jsonl": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/results.jsonl",
+    "sha256": "ac5a4ac8ce89f25b9608179c78e50ef868489dc09a329989156b5d48fc58b182"
+  },
+  "raw/006-profile-native-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/006-profile-native-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "raw/002-smoke-production-https.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/002-smoke-production-https.json",
+    "sha256": "c8ca15c37a630079792fe7d905f3e89533b94d69ab5ba8ccabc1267dde49ed4d"
+  },
+  "raw/002-smoke-production-https.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/002-smoke-production-https.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "source/baseline-to-profile-runner.patch": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-source/baseline-to-profile-runner.patch",
+    "sha256": "54d93c6a830b676435aedda08c2c3b7a4693d9069f40a711f049ddc8105273b5"
+  },
+  "source/profile-derivative-manifest.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-source/profile-derivative-manifest.json",
+    "sha256": "a0cd265fd7ff12422b489dea87b4b097117e2fe1795c64107b4f7039387838e3"
+  },
+  "source/native-profile-contracts.py.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-source/native-profile-contracts.py",
+    "sha256": "64854bf3a9bf37e7ea6914540f47c127e9731fb804c1c4a8f0b7f88a2deeac63"
+  },
+  "source/qualify-proxy-native-go-profile.py.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-source/qualify-proxy-native-go-profile.py",
+    "sha256": "fafc9acff710a6bbe7638579e71b8b13e03c6b4c1d66e2e85f1202b249b3849a"
+  },
+  "validation/native-profile-contracts.26wfdzh1/valid.pprof": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.26wfdzh1/valid.pprof",
+    "sha256": "548d7618239bf41ca5d4eb1392502bd09397ec886717ff648282c70ddd0444e6"
+  },
+  "validation/native-profile-contracts.26wfdzh1/empty.pprof": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.26wfdzh1/empty.pprof",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "validation/native-profile-contracts.26wfdzh1/results.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.26wfdzh1/results.json",
+    "sha256": "35306403fd28d3e055da46df6c1deed16629dac8f83f74732c4a168ca2ff67d3"
+  },
+  "validation/native-profile-contracts.26wfdzh1/inconsistent.pprof": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.26wfdzh1/inconsistent.pprof",
+    "sha256": "af9c924f13c5162363b25b4cea6a909cef286c9226bac7a69ec9ad47c25b759b"
+  },
+  "validation/native-profile-contracts.26wfdzh1/reconstructed-runner.py": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.26wfdzh1/reconstructed-runner.py",
+    "sha256": "fafc9acff710a6bbe7638579e71b8b13e03c6b4c1d66e2e85f1202b249b3849a"
+  },
+  "validation/native-profile-contracts.26wfdzh1/truncated.pprof": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.26wfdzh1/truncated.pprof",
+    "sha256": "38be8047e5c12a6bc749ed6887becc87eac66436811655566228a20e1453d5f8"
+  },
+  "validation/native-profile-contracts.safb3ela/valid.pprof": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.safb3ela/valid.pprof",
+    "sha256": "548d7618239bf41ca5d4eb1392502bd09397ec886717ff648282c70ddd0444e6"
+  },
+  "validation/native-profile-contracts.safb3ela/empty.pprof": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.safb3ela/empty.pprof",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "validation/native-profile-contracts.safb3ela/results.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.safb3ela/results.json",
+    "sha256": "35306403fd28d3e055da46df6c1deed16629dac8f83f74732c4a168ca2ff67d3"
+  },
+  "validation/native-profile-contracts.safb3ela/inconsistent.pprof": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.safb3ela/inconsistent.pprof",
+    "sha256": "af9c924f13c5162363b25b4cea6a909cef286c9226bac7a69ec9ad47c25b759b"
+  },
+  "validation/native-profile-contracts.safb3ela/reconstructed-runner.py": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.safb3ela/reconstructed-runner.py",
+    "sha256": "2f0ab903d7ba55ebc94aa26604adf15d6ca55012bed34ea95e41d10fd6563e1c"
+  },
+  "validation/native-profile-contracts.safb3ela/truncated.pprof": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-contract-results/native-profile-contracts.safb3ela/truncated.pprof",
+    "sha256": "38be8047e5c12a6bc749ed6887becc87eac66436811655566228a20e1453d5f8"
+  },
+  "analysis/native-cpu-cum.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/native-cpu-cum.txt",
+    "sha256": "ae688749dda03d097df19e40ffd6f39e2fdea87b08979560f8edd0b53dbcedc7"
+  },
+  "analysis/native-alloc-list-http-context.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/native-alloc-list-http-context.txt",
+    "sha256": "3f60dbf69c1ab3eb9ca2a94cd6c6be93e950a771209b1d02e0af7ea255b8a44a"
+  },
+  "analysis/production-cpu-list-sql-recorder.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-cpu-list-sql-recorder.txt",
+    "sha256": "5bbb6b3128a6af1eac4cfd783795ac131734a0bb14a9276a773a9f9625edcc98"
+  },
+  "analysis/production-cpu-list-gc-syscall.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-cpu-list-gc-syscall.txt",
+    "sha256": "5a8fe0eb9a4624041728977fdd4d25f136dea5ad8dc603740c9d4a40c9da53b5"
+  },
+  "analysis/native-alloc-top.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/native-alloc-top.txt",
+    "sha256": "e4f06e853c32ca0dedfc0c4c73ea2ec1e9fdc738b3e4a7750b23f6fcf7a0b829"
+  },
+  "analysis/SHA256SUMS": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/SHA256SUMS",
+    "sha256": "d188cac5544eaef873a38a367a950fdf920f9e12143439006dd7a8a4b92ffbe1"
+  },
+  "analysis/verification.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/verification.json",
+    "sha256": "9d2b1481888ca177fc70d38cf1e1a800e4d4121df219723815fb3ca67d2a50c7"
+  },
+  "analysis/native-cpu-list-http-context.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/native-cpu-list-http-context.txt",
+    "sha256": "727efcdf6635c1eabdfb97912dd9c1457e5401591507d3b340ef394fde5dc32d"
+  },
+  "analysis/REPORT.md": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/REPORT.md",
+    "sha256": "3abc4e76d8145808528f3113f7d78b7aa66b87cc1f6af6e7994ab2f37b4ad860"
+  },
+  "analysis/source-evidence.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/source-evidence.txt",
+    "sha256": "71582d07e6eccff5c6cf4978e4d0e001a35872b0888e743369183f09ff378c28"
+  },
+  "analysis/normalization.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/normalization.json",
+    "sha256": "e8137edd1e9e72e92d92cb86b691f672ee53f8443724e893093fb1c3a5be9ea9"
+  },
+  "analysis/production-alloc-list-routing-admission.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-alloc-list-routing-admission.txt",
+    "sha256": "2303a610c2594e67adfbe779f71bad78e61c82033fb26ccf13aa44a6f3993a84"
+  },
+  "analysis/production-alloc-list-http-context.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-alloc-list-http-context.txt",
+    "sha256": "541d16279a61a1008e27dd6f7c0198274ae657ebdb121321e424a1ae5009ad0d"
+  },
+  "analysis/production-cpu-list-http-context.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-cpu-list-http-context.txt",
+    "sha256": "fa332c258a944983bb386fcfe12b01fbf5f64482d288a44a6167bde6338ad59c"
+  },
+  "analysis/production-cpu-cum.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-cpu-cum.txt",
+    "sha256": "870509d1fffc2e14a45caa69df4e15e7a23bda0f633ab55b735b4262659b5b62"
+  },
+  "analysis/production-cpu-list-routing-admission.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-cpu-list-routing-admission.txt",
+    "sha256": "3cad3e5ae6c6cdd7e634313c155d87eed9a94ce2067214c077e01e4a5dc89fa1"
+  },
+  "analysis/COMMANDS.md": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/COMMANDS.md",
+    "sha256": "c7b97d7b72153a18b62aacaff7a8c66040e7b1b97ef56a0fa51659f58db8cda2"
+  },
+  "analysis/native-cpu-top.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/native-cpu-top.txt",
+    "sha256": "78bae33cc23b20e97be3eaa6c69f60844003e6396d70012f18bfc621ff81215c"
+  },
+  "analysis/native-alloc-cum.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/native-alloc-cum.txt",
+    "sha256": "433ced08539155c0ef21d679886110c5dc635759da0ed2afb4aa08d7e92079fc"
+  },
+  "analysis/production-alloc-list-sql-recorder.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-alloc-list-sql-recorder.txt",
+    "sha256": "621c163535d979f38bdf3190d592bcf415007dd688406f6d96c3484142390687"
+  },
+  "analysis/production-alloc-top.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-alloc-top.txt",
+    "sha256": "4f1339265bf8715c19240ec95042d1c8f2d1e0341627b184044ee1b5e96b5efc"
+  },
+  "analysis/production-cpu-top.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-cpu-top.txt",
+    "sha256": "6bfd59033abb020b1fb651f4f7b8695e39ae2e615e6be1a092e192024b80d610"
+  },
+  "analysis/native-cpu-list-gc-syscall.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/native-cpu-list-gc-syscall.txt",
+    "sha256": "90ce925b6b0b1839d857dab6c7a8aa7a8ca4ae7945c2560b59d432457996883e"
+  },
+  "analysis/production-alloc-cum.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-analysis/production-alloc-cum.txt",
+    "sha256": "5c49491940219623fc23df1ccb8c1b8f404499169442b7b483d377dec8ce5b4c"
+  },
+  "launch/native-profile.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "launch/native-profile.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile.stdout",
+    "sha256": "cde1fdedb13407428b1bc1f3870e59463e51b77f715c0a6f57da1c3d4c56d3a0"
+  },
+  "launch/native-profile.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

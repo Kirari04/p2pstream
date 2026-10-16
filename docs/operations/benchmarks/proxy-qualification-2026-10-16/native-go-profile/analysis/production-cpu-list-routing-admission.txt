@@ -1,0 +1,395 @@
+Total: 45.20s
+ROUTINE ======================== p2pstream/internal/server.(*App).resolvePublicRouteFromMatch in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/public_routing.go
+      60ms      460ms (flat, cum)  1.02% of Total
+      10ms       10ms   1905:func (a *App) resolvePublicRouteFromMatch(match publicRouteMatch) (publicRouteResolution, error) {
+         .          .   1906:	if match.Err != nil {
+         .          .   1907:		return publicRouteResolution{}, match.Err
+         .          .   1908:	}
+         .          .   1909:	if match.Snapshot == nil {
+         .          .   1910:		return publicRouteResolution{}, errors.New("public proxy config is not loaded")
+         .          .   1911:	}
+         .          .   1912:	matchedRoute := match.Route
+         .          .   1913:	listener := match.Listener
+         .          .   1914:	routeID := sql.NullInt64{Int64: matchedRoute.ID, Valid: true}
+         .       10ms   1915:	action := normalizePublicRouteAction(matchedRoute.Action)
+         .          .   1916:	if action == publicRouteActionRedirect {
+         .          .   1917:		return publicRouteResolution{
+         .          .   1918:			Snapshot:     match.Snapshot,
+         .          .   1919:			Listener:     listener,
+         .          .   1920:			Route:        matchedRoute,
+         .          .   1921:			Action:       publicRouteActionRedirect,
+         .          .   1922:			DefaultRoute: match.DefaultRoute,
+         .          .   1923:			ListenerID:   sql.NullInt64{Int64: listener.ID, Valid: true},
+         .          .   1924:			RouteID:      routeID,
+         .          .   1925:		}, nil
+         .          .   1926:	}
+      10ms      400ms   1927:	target, agent, ok := a.selectRouteTarget(match.Snapshot, matchedRoute)
+         .          .   1928:	if !ok {
+         .          .   1929:		return publicRouteResolution{}, errNoRouteTargetAvailable
+         .          .   1930:	}
+         .          .   1931:
+         .          .   1932:	resolution := publicRouteResolution{
+         .          .   1933:		Snapshot:           match.Snapshot,
+         .          .   1934:		Target:             target,
+         .          .   1935:		Agent:              agent,
+         .          .   1936:		Listener:           listener,
+         .          .   1937:		Route:              matchedRoute,
+         .          .   1938:		Action:             publicRouteActionForward,
+         .          .   1939:		DefaultRoute:       match.DefaultRoute,
+         .          .   1940:		ListenerID:         sql.NullInt64{Int64: listener.ID, Valid: true},
+         .          .   1941:		RouteID:            routeID,
+         .          .   1942:		RouteTargetID:      sql.NullInt64{Int64: target.ID, Valid: target.ID != 0},
+      30ms       30ms   1943:		RouteLoadBalancing: matchedRoute.TargetLoadBalancing,
+         .          .   1944:	}
+         .          .   1945:	if agent != nil {
+         .          .   1946:		resolution.AgentID = sql.NullInt64{Int64: agent.AgentID, Valid: true}
+         .          .   1947:	}
+      10ms       10ms   1948:	return resolution, nil
+         .          .   1949:}
+         .          .   1950:
+         .          .   1951:func normalizeRequestHost(host string) string {
+         .          .   1952:	host = strings.TrimSpace(strings.ToLower(host))
+         .          .   1953:	if strings.HasPrefix(host, "[") {
+ROUTINE ======================== p2pstream/internal/server.(*App).selectRouteTarget in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/public_routing.go
+     110ms      390ms (flat, cum)  0.86% of Total
+         .          .   1426:func (a *App) selectRouteTarget(snap *publicProxySnapshot, route publicRouteConfig) (publicRouteTargetConfig, *AgentConn, bool) {
+         .          .   1427:	if snap == nil {
+         .          .   1428:		return publicRouteTargetConfig{}, nil, false
+         .          .   1429:	}
+         .          .   1430:	var inlineCandidates [1]routeTargetCandidate
+         .          .   1431:	candidates := inlineCandidates[:0]
+         .          .   1432:	if len(route.Targets) > len(inlineCandidates) {
+         .          .   1433:		candidates = make([]routeTargetCandidate, 0, len(route.Targets))
+         .          .   1434:	}
+         .          .   1435:	lowestPriorityGroupSet := false
+         .          .   1436:	lowestPriorityGroup := int64(0)
+      20ms       20ms   1437:	for _, target := range route.Targets {
+         .       90ms   1438:		if !a.targetEligibleForRoute(snap, target) {
+         .          .   1439:			continue
+         .          .   1440:		}
+         .          .   1441:		if !lowestPriorityGroupSet || target.PriorityGroup < lowestPriorityGroup {
+         .          .   1442:			lowestPriorityGroup = target.PriorityGroup
+         .          .   1443:			lowestPriorityGroupSet = true
+         .          .   1444:		}
+         .          .   1445:	}
+         .          .   1446:	if !lowestPriorityGroupSet {
+         .          .   1447:		return publicRouteTargetConfig{}, nil, false
+         .          .   1448:	}
+         .          .   1449:	for _, target := range route.Targets {
+      10ms       70ms   1450:		if target.PriorityGroup != lowestPriorityGroup || !a.targetEligibleForRoute(snap, target) {
+         .          .   1451:			continue
+         .          .   1452:		}
+         .          .   1453:		// Active request counts are local to this proxy process; least-active balancing is per-process.
+      20ms       20ms   1454:		candidates = append(candidates, routeTargetCandidate{
+      10ms       10ms   1455:			Target:         target,
+         .          .   1456:			TargetID:       target.ID,
+         .          .   1457:			Position:       target.Position,
+         .          .   1458:			Weight:         target.Weight,
+      10ms       20ms   1459:			ActiveRequests: a.TargetHealth.activeRequests(target.ID),
+         .          .   1460:		})
+         .          .   1461:	}
+         .          .   1462:	if len(candidates) == 0 {
+         .          .   1463:		return publicRouteTargetConfig{}, nil, false
+         .          .   1464:	}
+      10ms       10ms   1465:	selected := candidates[0]
+         .          .   1466:	if a.LoadBalancers != nil {
+         .          .   1467:		var ok bool
+      30ms      150ms   1468:		selected, ok = a.LoadBalancers.selectRouteTarget(route, candidates)
+         .          .   1469:		if !ok {
+         .          .   1470:			return publicRouteTargetConfig{}, nil, false
+         .          .   1471:		}
+         .          .   1472:	}
+         .          .   1473:	if selected.Target.Transport != publicRouteTargetTransportAgent {
+ROUTINE ======================== p2pstream/internal/server.(*App).tryReservePublicOwnedResource in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/public_admission_resources.go
+      10ms      340ms (flat, cum)  0.75% of Total
+      10ms       10ms     16:func (a *App) tryReservePublicOwnedResource(owner adaptiveResourceOwner, memoryBytes, fileDescriptors int64) (release func(), ok, constrained bool) {
+         .          .     17:	if a == nil || a.agentStreamCapacity == nil {
+         .          .     18:		return func() {}, true, false
+         .          .     19:	}
+         .      330ms     20:	release, ok, constrained = a.agentStreamCapacity.tryReserveAdaptiveResource(owner, memoryBytes, fileDescriptors)
+         .          .     21:	if ok || !constrained {
+         .          .     22:		return release, ok, constrained
+         .          .     23:	}
+         .          .     24:
+         .          .     25:	a.schedulePublicAdmissionReclaim()
+ROUTINE ======================== p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/agent_stream_capacity.go
+      60ms      330ms (flat, cum)  0.73% of Total
+      10ms       10ms   1374:func (m *agentStreamCapacityManager) tryReserveAdaptiveResourceMode(owner adaptiveResourceOwner, memoryBytes, fileDescriptors int64, legacyStreamSupplement bool) (release func(), ok, constrained bool) {
+         .          .   1375:	if m == nil {
+         .          .   1376:		return func() {}, true, false
+         .          .   1377:	}
+         .      110ms   1378:	m.refreshAdaptiveCapacity(false)
+         .       20ms   1379:	_ = m.lockAdaptiveAdmission(context.Background())
+         .          .   1380:	if m.adaptiveMemory == nil {
+         .          .   1381:		m.mu.Unlock()
+         .          .   1382:		return func() {}, true, false
+         .          .   1383:	}
+         .          .   1384:	if owner >= adaptiveResourceOwnerCount || memoryBytes < 0 || fileDescriptors < 0 || m.resourceSnapshot.RejectNew || !m.resourceSnapshot.Usage.Valid() || m.resourceSnapshot.StreamChargeByte <= 0 {
+         .          .   1385:		m.mu.Unlock()
+         .          .   1386:		return nil, false, true
+         .          .   1387:	}
+         .          .   1388:	proposedBytes := saturatingAddInt64(m.adaptiveExternalBytes, memoryBytes)
+         .          .   1389:	proposedFDs := saturatingAddInt64(m.adaptiveExternalFDs, fileDescriptors)
+      30ms       40ms   1390:	limit := m.resourceSnapshot.AdmissionLimitWithExternal(proposedBytes, proposedFDs)
+         .       30ms   1391:	protectedControl := m.adaptiveProtectedControlLocked() - m.usedControl
+         .          .   1392:	if protectedControl < 0 {
+         .          .   1393:		protectedControl = 0
+         .          .   1394:	}
+         .          .   1395:	if limit < m.usedTotal+protectedControl {
+         .          .   1396:		m.mu.Unlock()
+         .          .   1397:		return nil, false, true
+         .          .   1398:	}
+         .          .   1399:	m.adaptiveExternalBytes = proposedBytes
+         .          .   1400:	m.adaptiveExternalFDs = proposedFDs
+         .          .   1401:	m.adaptiveExternalBytesByOwner[owner] = saturatingAddInt64(m.adaptiveExternalBytesByOwner[owner], memoryBytes)
+         .          .   1402:	m.adaptiveExternalFDsByOwner[owner] = saturatingAddInt64(m.adaptiveExternalFDsByOwner[owner], fileDescriptors)
+      10ms       10ms   1403:	m.adaptiveExternalReservationsByOwner[owner] = saturatingAddInt64(m.adaptiveExternalReservationsByOwner[owner], 1)
+         .          .   1404:	if legacyStreamSupplement {
+         .          .   1405:		m.legacyStreamSupplementBytes = saturatingAddInt64(m.legacyStreamSupplementBytes, memoryBytes)
+         .          .   1406:	}
+         .       10ms   1407:	m.mu.Unlock()
+         .          .   1408:
+         .       60ms   1409:	var once sync.Once
+         .       30ms   1410:	return func() {
+         .          .   1411:		once.Do(func() {
+         .          .   1412:			m.mu.Lock()
+         .          .   1413:			m.adaptiveExternalBytes -= memoryBytes
+         .          .   1414:			m.adaptiveExternalFDs -= fileDescriptors
+         .          .   1415:			m.adaptiveExternalBytesByOwner[owner] -= memoryBytes
+         .          .   1416:			m.adaptiveExternalFDsByOwner[owner] -= fileDescriptors
+         .          .   1417:			m.adaptiveExternalReservationsByOwner[owner]--
+         .          .   1418:			if legacyStreamSupplement {
+         .          .   1419:				m.legacyStreamSupplementBytes -= memoryBytes
+         .          .   1420:			}
+         .          .   1421:			if m.adaptiveExternalBytes < 0 {
+         .          .   1422:				m.adaptiveExternalBytes = 0
+         .          .   1423:			}
+         .          .   1424:			if m.adaptiveExternalFDs < 0 {
+         .          .   1425:				m.adaptiveExternalFDs = 0
+         .          .   1426:			}
+         .          .   1427:			if m.adaptiveExternalBytesByOwner[owner] < 0 {
+         .          .   1428:				m.adaptiveExternalBytesByOwner[owner] = 0
+         .          .   1429:			}
+         .          .   1430:			if m.adaptiveExternalFDsByOwner[owner] < 0 {
+         .          .   1431:				m.adaptiveExternalFDsByOwner[owner] = 0
+         .          .   1432:			}
+         .          .   1433:			if m.adaptiveExternalReservationsByOwner[owner] < 0 {
+         .          .   1434:				m.adaptiveExternalReservationsByOwner[owner] = 0
+         .          .   1435:			}
+         .          .   1436:			if m.legacyStreamSupplementBytes < 0 {
+         .          .   1437:				m.legacyStreamSupplementBytes = 0
+         .          .   1438:			}
+         .          .   1439:			m.dispatchLocked()
+         .          .   1440:			m.mu.Unlock()
+         .          .   1441:		})
+      10ms       10ms   1442:	}, true, true
+         .          .   1443:}
+         .          .   1444:
+         .          .   1445:func saturatingAddInt64(left, right int64) int64 {
+         .          .   1446:	if right <= 0 {
+         .          .   1447:		return left
+ROUTINE ======================== p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode.func3 in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/agent_stream_capacity.go
+         0       20ms (flat, cum) 0.044% of Total
+         .          .   1410:	return func() {
+         .       20ms   1411:		once.Do(func() {
+         .          .   1412:			m.mu.Lock()
+         .          .   1413:			m.adaptiveExternalBytes -= memoryBytes
+         .          .   1414:			m.adaptiveExternalFDs -= fileDescriptors
+         .          .   1415:			m.adaptiveExternalBytesByOwner[owner] -= memoryBytes
+         .          .   1416:			m.adaptiveExternalFDsByOwner[owner] -= fileDescriptors
+ROUTINE ======================== p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode.func3.1 in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/agent_stream_capacity.go
+      10ms       20ms (flat, cum) 0.044% of Total
+         .          .   1411:		once.Do(func() {
+         .       10ms   1412:			m.mu.Lock()
+         .          .   1413:			m.adaptiveExternalBytes -= memoryBytes
+         .          .   1414:			m.adaptiveExternalFDs -= fileDescriptors
+         .          .   1415:			m.adaptiveExternalBytesByOwner[owner] -= memoryBytes
+         .          .   1416:			m.adaptiveExternalFDsByOwner[owner] -= fileDescriptors
+         .          .   1417:			m.adaptiveExternalReservationsByOwner[owner]--
+         .          .   1418:			if legacyStreamSupplement {
+         .          .   1419:				m.legacyStreamSupplementBytes -= memoryBytes
+         .          .   1420:			}
+         .          .   1421:			if m.adaptiveExternalBytes < 0 {
+         .          .   1422:				m.adaptiveExternalBytes = 0
+         .          .   1423:			}
+         .          .   1424:			if m.adaptiveExternalFDs < 0 {
+         .          .   1425:				m.adaptiveExternalFDs = 0
+         .          .   1426:			}
+         .          .   1427:			if m.adaptiveExternalBytesByOwner[owner] < 0 {
+         .          .   1428:				m.adaptiveExternalBytesByOwner[owner] = 0
+         .          .   1429:			}
+         .          .   1430:			if m.adaptiveExternalFDsByOwner[owner] < 0 {
+         .          .   1431:				m.adaptiveExternalFDsByOwner[owner] = 0
+         .          .   1432:			}
+         .          .   1433:			if m.adaptiveExternalReservationsByOwner[owner] < 0 {
+         .          .   1434:				m.adaptiveExternalReservationsByOwner[owner] = 0
+         .          .   1435:			}
+         .          .   1436:			if m.legacyStreamSupplementBytes < 0 {
+         .          .   1437:				m.legacyStreamSupplementBytes = 0
+         .          .   1438:			}
+         .          .   1439:			m.dispatchLocked()
+         .          .   1440:			m.mu.Unlock()
+      10ms       10ms   1441:		})
+         .          .   1442:	}, true, true
+         .          .   1443:}
+         .          .   1444:
+         .          .   1445:func saturatingAddInt64(left, right int64) int64 {
+         .          .   1446:	if right <= 0 {
+ROUTINE ======================== p2pstream/internal/server.(*loadBalancerRegistry).selectRouteTarget in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/load_balancer.go
+      90ms      120ms (flat, cum)  0.27% of Total
+      50ms       50ms    160:func (r *loadBalancerRegistry) selectRouteTarget(route publicRouteConfig, candidates []routeTargetCandidate) (routeTargetCandidate, bool) {
+         .          .    161:	if len(candidates) == 0 {
+         .          .    162:		return routeTargetCandidate{}, false
+         .          .    163:	}
+         .       20ms    164:	slices.SortStableFunc(candidates, func(a, b routeTargetCandidate) int {
+         .          .    165:		if a.Position == b.Position {
+         .          .    166:			return cmp.Compare(a.TargetID, b.TargetID)
+         .          .    167:		}
+         .          .    168:		return cmp.Compare(a.Position, b.Position)
+         .          .    169:	})
+         .          .    170:
+         .          .    171:	r.mu.Lock()
+      10ms       10ms    172:	defer r.mu.Unlock()
+         .       10ms    173:	state := r.routeStates[route.ID]
+         .          .    174:	if state == nil {
+         .          .    175:		state = &backendSelectorState{smooth: make(map[int64]int64)}
+         .          .    176:		r.routeStates[route.ID] = state
+         .          .    177:	}
+         .          .    178:
+         .          .    179:	switch route.TargetLoadBalancing {
+         .          .    180:	case publicRouteTargetLoadBalancingRandom:
+         .          .    181:		return candidates[r.rng.Intn(len(candidates))], true
+      10ms       10ms    182:	case publicRouteTargetLoadBalancingWeightedRandom:
+         .          .    183:		return weightedRandomTarget(candidates, r.rng), true
+         .          .    184:	case publicRouteTargetLoadBalancingLeastActiveRequests:
+         .          .    185:		return state.leastActiveTarget(candidates, false), true
+         .          .    186:	case publicRouteTargetLoadBalancingWeightedLeastActiveRequests:
+         .          .    187:		return state.leastActiveTarget(candidates, true), true
+         .          .    188:	case publicRouteTargetLoadBalancingWeightedRoundRobin:
+         .          .    189:		return state.weightedTargetRoundRobin(candidates), true
+         .          .    190:	default:
+      20ms       20ms    191:		return state.roundRobinTargetPick(candidates), true
+         .          .    192:	}
+         .          .    193:}
+         .          .    194:
+         .          .    195:func (s *backendSelectorState) roundRobinPick(candidates []backendAgentCandidate) backendAgentCandidate {
+         .          .    196:	pick := candidates[int(s.roundRobin%uint64(len(candidates)))]
+ROUTINE ======================== p2pstream/internal/server.activeTargetAccountingAndForwardStage in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/public_proxy_pipeline.go
+      30ms      8.48s (flat, cum) 18.76% of Total
+         .          .    977:func activeTargetAccountingAndForwardStage(ctx *publicProxyContext) publicProxyStageResult {
+         .          .    978:	if ctx.Resolution.Target.TargetType == publicRouteTargetTypeProxy && ctx.Resolution.RouteTargetID.Valid && ctx.App.publicTargetRequests != nil {
+         .       40ms    979:		release, ok := ctx.App.publicTargetRequests.tryAcquire(ctx.Resolution.RouteTargetID.Int64)
+         .          .    980:		if !ok {
+         .          .    981:			return rejectPublicRequestCapacity(ctx, "route_target_capacity", "Route target capacity reached")
+         .          .    982:		}
+         .          .    983:		defer release()
+         .          .    984:	}
+         .          .    985:	if ctx.Resolution.RouteTargetID.Valid {
+         .       80ms    986:		done := ctx.App.beginPublicRouteTargetRequest(ctx.Resolution.RouteTargetID.Int64)
+         .          .    987:		defer done()
+         .          .    988:	}
+      20ms       90ms    989:	shaper := trafficShaperDecisionIfSelected(ctx.TrafficShaperDecision, ctx.TrafficShaperSelected)
+         .          .    990:	if ctx.Resolution.Target.TargetType == publicRouteTargetTypeStatic {
+         .          .    991:		ctx.App.staticTargetResponse(ctx.ResponseWriter, ctx.Request, ctx.Resolution, ctx.Trace, shaper, ctx.Observability)
+         .          .    992:		return publicProxyStageDone
+         .          .    993:	}
+         .          .    994:	if ctx.Resolution.Target.Transport == publicRouteTargetTransportAgent {
+         .          .    995:		ctx.App.proxyAgentTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
+         .          .    996:		return publicProxyStageDone
+         .          .    997:	}
+      10ms      8.23s    998:	ctx.App.proxyDirectTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
+         .       40ms    999:	return publicProxyStageDone
+         .          .   1000:}
+ROUTINE ======================== p2pstream/internal/server.initializePublicProxyContext in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/public_proxy_pipeline.go
+      90ms      810ms (flat, cum)  1.79% of Total
+         .          .    182:func initializePublicProxyContext(ctx *publicProxyContext, app *App, listenerID int64, w http.ResponseWriter, r *http.Request) {
+         .          .    183:	if ctx == nil {
+         .          .    184:		return
+         .          .    185:	}
+      30ms       40ms    186:	*ctx = publicProxyContext{}
+         .          .    187:	var snap *publicProxySnapshot
+         .          .    188:	if app != nil {
+         .          .    189:		snap = app.currentPublicSnapshot()
+         .          .    190:	}
+         .      280ms    191:	r = resolvePublicRequestIdentity(snap, r)
+         .          .    192:	if app != nil && app.Config != nil {
+         .       10ms    193:		r = applyPublicRequestBodyLimits(app.Config.PublicMaxRequestBodyBytes, app.Config.PublicRequestBodyIdleMillis, w, r)
+         .          .    194:	} else {
+         .          .    195:		r = applyPublicRequestBodyLimits(0, 0, w, r)
+         .          .    196:	}
+         .       30ms    197:	var requestBytes atomic.Uint64
+      10ms       10ms    198:	if r.Body != nil && r.Body != http.NoBody {
+         .          .    199:		r.Body = &countingReadCloser{ReadCloser: r.Body, bytes: &requestBytes}
+         .          .    200:	}
+         .       40ms    201:	bodyState, _ := r.Context().Value(publicRequestBodyStateContextKey{}).(*publicRequestBodyState)
+         .          .    202:	recorder := &proxyResponseRecorder{ResponseWriter: w, request: r, requestBodyState: bodyState}
+         .          .    203:	responseWriter := http.ResponseWriter(recorder)
+         .          .    204:	observability := proxyRequestObservability{requestBytes: &requestBytes, responseRecorder: recorder}
+         .          .    205:	trace := newPublicProxyTrafficTrace(app, r, recorder, func() string {
+         .          .    206:		return publicTracePathForRequest(app, snap, listenerID, r)
+         .          .    207:	})
+         .          .    208:	if trace != nil {
+         .          .    209:		trace.emitReceived(listenerID)
+         .          .    210:	}
+      30ms       40ms    211:	*ctx = publicProxyContext{
+         .          .    212:		App:            app,
+         .          .    213:		ListenerID:     listenerID,
+         .       40ms    214:		StartedAt:      time.Now(),
+         .          .    215:		Snapshot:       snap,
+         .          .    216:		Writer:         w,
+         .          .    217:		ResponseWriter: responseWriter,
+         .          .    218:		Recorder:       recorder,
+         .          .    219:		Request:        r,
+         .          .    220:		Observability:  observability,
+         .      300ms    221:		RequestContext: proxyRequestContextFromHTTP(r),
+      20ms       20ms    222:		Trace:          trace,
+         .          .    223:	}
+         .          .    224:}
+         .          .    225:
+         .          .    226:func newPublicProxyTrafficTrace(app *App, r *http.Request, recorder *proxyResponseRecorder, safePath func() string) *trafficRequestTrace {
+         .          .    227:	if app == nil || app.TrafficTracer == nil {
+ROUTINE ======================== p2pstream/internal/server.proxyRequestContextFromHTTP in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/dashboard.go
+      50ms      580ms (flat, cum)  1.28% of Total
+      10ms       10ms    414:func proxyRequestContextFromHTTP(r *http.Request) proxyRequestContext {
+         .          .    415:	if r == nil {
+         .          .    416:		return proxyRequestContext{}
+         .          .    417:	}
+         .          .    418:	path := "/"
+      10ms       10ms    419:	if r.URL != nil {
+         .       10ms    420:		path = r.URL.EscapedPath()
+         .          .    421:		if path == "" {
+         .          .    422:			path = r.URL.Path
+         .          .    423:		}
+         .          .    424:	}
+         .      350ms    425:	host := normalizeRequestHost(r.Host)
+         .          .    426:	if host == "" && r.URL != nil {
+         .          .    427:		host = normalizeRequestHost(r.URL.Host)
+         .          .    428:	}
+      10ms       10ms    429:	return proxyRequestContext{
+      10ms       70ms    430:		Method:     truncateProxyRequestContextValue(strings.ToUpper(strings.TrimSpace(r.Method)), 16),
+         .       10ms    431:		Host:       truncateProxyRequestContextValue(host, 255),
+      10ms      110ms    432:		PathPrefix: truncateProxyRequestContextValue(redactedProxyPathPrefix(path), 256),
+         .          .    433:	}
+         .          .    434:}
+         .          .    435:
+         .          .    436:func proxyRequestContextFromResolution(r *http.Request, resolution publicRouteResolution) proxyRequestContext {
+         .          .    437:	requestContext := proxyRequestContextFromHTTP(r)
+ROUTINE ======================== p2pstream/internal/server.proxyRequestContextFromResolution in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/dashboard.go
+      40ms      330ms (flat, cum)  0.73% of Total
+         .          .    436:func proxyRequestContextFromResolution(r *http.Request, resolution publicRouteResolution) proxyRequestContext {
+      10ms      290ms    437:	requestContext := proxyRequestContextFromHTTP(r)
+         .          .    438:	if resolution.DefaultRoute {
+         .          .    439:		return requestContext
+         .          .    440:	}
+         .       10ms    441:	prefix := strings.TrimSpace(resolution.Route.PathPrefix)
+      10ms       10ms    442:	if prefix == "" {
+         .          .    443:		prefix = "/"
+         .          .    444:	}
+         .          .    445:	requestContext.PathPrefix = truncateProxyRequestContextValue(prefix, 256)
+      20ms       20ms    446:	return requestContext
+         .          .    447:}
+         .          .    448:
+         .          .    449:func redactedProxyPathPrefix(path string) string {
+         .          .    450:	path = strings.ToValidUTF8(strings.TrimSpace(path), "")
+         .          .    451:	if idx := strings.IndexByte(path, '?'); idx >= 0 {
+

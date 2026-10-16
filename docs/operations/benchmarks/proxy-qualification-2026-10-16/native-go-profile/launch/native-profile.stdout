@@ -1,0 +1,3 @@
+1/2 production http h1 c16: exact=342085 errors=0 profiles=valid
+2/2 native http h1 c16: exact=475645 errors=0 profiles=valid
+/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke

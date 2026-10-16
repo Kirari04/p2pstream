@@ -1,0 +1,123 @@
+{
+  "kind": "p2pstream-native-profile-independent-binding-v1",
+  "scope": "independent offline artifact binding; original final provenance retained",
+  "traffic_rerun": false,
+  "missing_success_metadata_in_original_provenance": [
+    "rows",
+    "results_sha256",
+    "summary_sha256"
+  ],
+  "accepted_result_rows": 2,
+  "attempted_result_rows": 6,
+  "files": {
+    "001-smoke-production-http.json": {
+      "sha256": "06ad8ce01b64c11a84cca736997537cab6bf767b92b7916056f6c4facd8a282c",
+      "bytes": 1969
+    },
+    "002-smoke-production-https.json": {
+      "sha256": "c8ca15c37a630079792fe7d905f3e89533b94d69ab5ba8ccabc1267dde49ed4d",
+      "bytes": 2130
+    },
+    "003-smoke-native-http.json": {
+      "sha256": "b4297695cde0d4daf0872d0b2a000c5af56a0e278d29faf190eb950095afaca8",
+      "bytes": 1754
+    },
+    "004-smoke-native-https.json": {
+      "sha256": "d0a633c0abaf5131f85bde60dbf198c57f286a40a1fca4b90c231220d7a6b3a7",
+      "bytes": 1923
+    },
+    "005-profile-production-http-h1-c16.json": {
+      "sha256": "85c9ca6a740a1bd4e379f3e957b0a9069fcdfeacb6c4f944c2a8cf1c02063dbf",
+      "bytes": 2201
+    },
+    "006-profile-native-http-h1-c16.json": {
+      "sha256": "45e0f849a268441e7d15d6d807682aa3f869cca3f92c1d428db22e67b69d8c6a",
+      "bytes": 1948
+    },
+    "attempted-results.jsonl": {
+      "sha256": "c26f0f95455bfd289e9e6e310499d6a3ab661b7225beb6aba56dc911442ecf58",
+      "bytes": 13369
+    },
+    "origin.ready.json": {
+      "sha256": "63cda6f5a4061df93e16a2d2f17ea0b63721eee79fa4f954d82d89464e6d3155",
+      "bytes": 82
+    },
+    "outcome.json": {
+      "sha256": "dd6abaa83031a0768ef2a16cebfb549f0f1a0344fe9c1f37c1d585fa473b1346",
+      "bytes": 323
+    },
+    "profile-native-http-h1-c16.cpu.pprof": {
+      "sha256": "81cf76f2be95f6aaad01a78792a7b2443ef493aac25d38d36d2c8238629fa671",
+      "bytes": 73915
+    },
+    "profile-native-http-h1-c16.cpu.top.txt": {
+      "sha256": "6d3f9500a35f776fd2f62fdf574388fca28e6c7099ef094e9d56841f9c72f900",
+      "bytes": 6030
+    },
+    "profile-native-http-h1-c16.mem.pprof": {
+      "sha256": "73a9b522606ddec52af65d0087693a6bb4a53c1402d188bbb6d40dfac1e6b8e4",
+      "bytes": 9435
+    },
+    "profile-native-http-h1-c16.mem.top.txt": {
+      "sha256": "00fe89b3d59384fc974569b9250c9af63b9ed828ce97b57c1598eaa159a9d124",
+      "bytes": 4399
+    },
+    "profile-native-http-h1-c16.ready.json": {
+      "sha256": "947ffc424affb04bd300203344db4022ef7107cce55ae0ee79b43a1619fa2223",
+      "bytes": 78
+    },
+    "profile-production-http-h1-c16.cpu.pprof": {
+      "sha256": "228ccd7610064ebea5d760151c78555b116d4def27f2ec52de74c72b1ffab9f8",
+      "bytes": 96741
+    },
+    "profile-production-http-h1-c16.cpu.top.txt": {
+      "sha256": "bcdd70f9aec0429db6c5eb857af7afd32cdfbc3db2a634582266d95d93ae37b9",
+      "bytes": 6538
+    },
+    "profile-production-http-h1-c16.mem.pprof": {
+      "sha256": "c13fbc507254611f2639a53dbbb3eeb26985715cc0cce7f6b1b643d0f0c62613",
+      "bytes": 21317
+    },
+    "profile-production-http-h1-c16.mem.top.txt": {
+      "sha256": "55f2e0092c9ae428c0aa0b8c17243b41cc6931146007b8a6b2e13329d311ae68",
+      "bytes": 6964
+    },
+    "profile-production-http-h1-c16.ready.json": {
+      "sha256": "6c9059eb57081682bed568bb38f11e3ef813234f336b1850103e2f0186f63dae",
+      "bytes": 78
+    },
+    "provenance.json": {
+      "sha256": "1da9664a1061e55211e46847f76b0fdd0a30d378073b9a9c41615d1ab94d07ed",
+      "bytes": 64765
+    },
+    "results.jsonl": {
+      "sha256": "ac5a4ac8ce89f25b9608179c78e50ef868489dc09a329989156b5d48fc58b182",
+      "bytes": 7474
+    },
+    "smoke-native-http.ready.json": {
+      "sha256": "55656bfbc2d797c9150ceeed42b8578bddb3b0a206cacff58c10fd1f4ba013ca",
+      "bytes": 78
+    },
+    "smoke-native-https.ready.json": {
+      "sha256": "6f6b69dad8fa836a2a631315df3f57cef05f3118ab8ec97a03b26954909d796d",
+      "bytes": 79
+    },
+    "smoke-production-http.ready.json": {
+      "sha256": "66dd43a2fde68813540e20c79ef37223610330961a22bbb5a2f2939781864b86",
+      "bytes": 78
+    },
+    "smoke-production-https.ready.json": {
+      "sha256": "cb64ced5ff6a9401f310da3d45b94cfa6da6b471f7f762884436e00f4fd8e6d9",
+      "bytes": 79
+    },
+    "smoke.json": {
+      "sha256": "f3deadc08cd4b42ed1dcf6f5a3ee39f3f17dca2d7e64c6ccc4bcef6331704159",
+      "bytes": 12341
+    },
+    "summary.json": {
+      "sha256": "b81e2654ebec51c8fe3e0fbe2c30381de934be39fa00432cb0621b6b8a726ddf",
+      "bytes": 1127
+    }
+  },
+  "analysis_verification_sha256": "9d2b1481888ca177fc70d38cf1e1a800e4d4121df219723815fb3ca67d2a50c7"
+}

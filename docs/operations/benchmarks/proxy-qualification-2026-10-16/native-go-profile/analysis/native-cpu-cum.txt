@@ -1,0 +1,188 @@
+File: proxy-native-go-attribution.test
+Build ID: 056b4397a8375aeabba280b5e29f06d58ce864b0
+Type: cpu
+Time: 2026-10-16 17:25:32 CEST
+Duration: 12.12s, Total samples = 44000ms (362.90%)
+Showing nodes accounting for 32250ms, 73.30% of 44000ms total
+Dropped 622 nodes (cum <= 220ms)
+      flat  flat%   sum%        cum   cum%
+      50ms  0.11%  0.11%    23890ms 54.30%  net/http.(*conn).serve
+         0     0%  0.11%    18310ms 41.61%  internal/poll.ignoringEINTRIO (inline)
+     100ms  0.23%  0.34%    18200ms 41.36%  syscall.Syscall
+   18060ms 41.05% 41.39%    18060ms 41.05%  internal/runtime/syscall/linux.Syscall6
+     160ms  0.36% 41.75%    17720ms 40.27%  syscall.RawSyscall6
+      10ms 0.023% 41.77%    14800ms 33.64%  bufio.(*Writer).Flush
+      50ms  0.11% 41.89%    13360ms 30.36%  net.(*conn).Write
+      10ms 0.023% 41.91%    13310ms 30.25%  net.(*netFD).Write
+      50ms  0.11% 42.02%    13280ms 30.18%  internal/poll.(*FD).Write
+         0     0% 42.02%    13200ms 30.00%  syscall.Write (inline)
+      10ms 0.023% 42.05%    13200ms 30.00%  syscall.write
+      40ms 0.091% 42.14%     8720ms 19.82%  net/http.(*persistConn).writeLoop
+      50ms  0.11% 42.25%     8690ms 19.75%  net/http.(*response).finishRequest
+      20ms 0.045% 42.30%     8630ms 19.61%  net/http.serverHandler.ServeHTTP
+      20ms 0.045% 42.34%     8610ms 19.57%  net/http.HandlerFunc.ServeHTTP
+      10ms 0.023% 42.36%     8580ms 19.50%  p2pstream/internal/server.runQualificationStdlibProxy.func2
+     140ms  0.32% 42.68%     8570ms 19.48%  net/http/httputil.(*ReverseProxy).ServeHTTP
+      10ms 0.023% 42.70%     6730ms 15.30%  net/http.checkConnErrorWriter.Write
+      20ms 0.045% 42.75%     6690ms 15.20%  net/http.persistConnWriter.Write
+     120ms  0.27% 43.02%     6610ms 15.02%  net/http.(*persistConn).readLoop
+      60ms  0.14% 43.16%     5860ms 13.32%  net.(*conn).Read
+      10ms 0.023% 43.18%     5530ms 12.57%  net.(*netFD).Read
+      30ms 0.068% 43.25%     5510ms 12.52%  internal/poll.(*FD).Read
+      10ms 0.023% 43.27%     5050ms 11.48%  syscall.Read (inline)
+      20ms 0.045% 43.32%     5040ms 11.45%  syscall.read
+     160ms  0.36% 43.68%     4960ms 11.27%  bufio.(*Reader).Peek
+      10ms 0.023% 43.70%     4800ms 10.91%  bufio.(*Reader).fill
+         0     0% 43.70%     4210ms  9.57%  net/http.(*Transport).RoundTrip
+     130ms   0.3% 44.00%     4210ms  9.57%  net/http.(*Transport).roundTrip
+     280ms  0.64% 44.64%     4170ms  9.48%  runtime.mallocgc
+     140ms  0.32% 44.95%     3340ms  7.59%  runtime.systemstack
+      60ms  0.14% 45.09%     3100ms  7.05%  net/http.(*conn).readRequest
+     170ms  0.39% 45.48%     2550ms  5.80%  runtime.newobject
+         0     0% 45.48%     2540ms  5.77%  net/http.(*persistConn).Read
+         0     0% 45.48%     2380ms  5.41%  net/textproto.(*Reader).ReadMIMEHeader (inline)
+      80ms  0.18% 45.66%     2380ms  5.41%  net/textproto.readMIMEHeader
+     230ms  0.52% 46.18%     2320ms  5.27%  runtime.mallocgcSmallScanNoHeader
+      20ms 0.045% 46.23%     2250ms  5.11%  net/http.(*connReader).Read
+      50ms  0.11% 46.34%     2210ms  5.02%  net/http.(*persistConn).readResponse
+      40ms 0.091% 46.43%     2160ms  4.91%  net/http.ReadResponse
+      80ms  0.18% 46.61%     2110ms  4.80%  net/http.readRequest
+      70ms  0.16% 46.77%     1930ms  4.39%  runtime.mcall
+      90ms   0.2% 46.98%     1860ms  4.23%  net/http.(*persistConn).roundTrip
+      70ms  0.16% 47.14%     1680ms  3.82%  runtime.park_m
+     560ms  1.27% 48.41%     1590ms  3.61%  runtime.selectgo
+      80ms  0.18% 48.59%     1570ms  3.57%  net/http.(*Request).write
+     110ms  0.25% 48.84%     1540ms  3.50%  runtime.schedule
+      20ms 0.045% 48.89%     1370ms  3.11%  net/http.(*chunkWriter).Write
+      60ms  0.14% 49.02%     1350ms  3.07%  net/http.(*connReader).backgroundRead
+     100ms  0.23% 49.25%     1340ms  3.05%  net/http.(*chunkWriter).writeHeader
+     100ms  0.23% 49.48%     1230ms  2.80%  runtime.findRunnable
+         0     0% 49.48%     1160ms  2.64%  runtime.deductAssistCredit
+      10ms 0.023% 49.50%     1160ms  2.64%  runtime.gcAssistAlloc
+         0     0% 49.50%     1130ms  2.57%  runtime.gcAssistAlloc.func2
+         0     0% 49.50%     1130ms  2.57%  runtime.gcAssistAlloc1
+      10ms 0.023% 49.52%     1130ms  2.57%  runtime.gcDrainN
+     270ms  0.61% 50.14%     1120ms  2.55%  net/http.Header.writeSubset
+     100ms  0.23% 50.36%     1110ms  2.52%  net/http.(*Transport).getConn
+         0     0% 50.36%      940ms  2.14%  runtime.gcBgMarkWorker
+     450ms  1.02% 51.39%      920ms  2.09%  net/textproto.CanonicalMIMEHeaderKey
+     110ms  0.25% 51.64%      910ms  2.07%  runtime.mapassign_faststr
+         0     0% 51.64%      890ms  2.02%  runtime.gcBgMarkWorker.func2
+         0     0% 51.64%      890ms  2.02%  runtime.gcDrain
+         0     0% 51.64%      880ms  2.00%  runtime.gcDrainMarkWorkerDedicated (inline)
+      30ms 0.068% 51.70%      790ms  1.80%  internal/poll.setDeadlineImpl
+     180ms  0.41% 52.11%      790ms  1.80%  runtime.scanObject
+         0     0% 52.11%      780ms  1.77%  internal/poll.(*FD).SetReadDeadline (inline)
+         0     0% 52.11%      780ms  1.77%  net.(*conn).SetReadDeadline
+         0     0% 52.11%      780ms  1.77%  net.(*netFD).SetReadDeadline (inline)
+      30ms 0.068% 52.18%      780ms  1.77%  net/http/httputil.copyHeader
+      10ms 0.023% 52.20%      760ms  1.73%  context.withCancel (inline)
+      70ms  0.16% 52.36%      730ms  1.66%  net/http.Header.Clone (inline)
+     400ms  0.91% 53.27%      730ms  1.66%  runtime.tryDeferToSpanScan
+         0     0% 53.27%      720ms  1.64%  net/http.Header.Del (inline)
+         0     0% 53.27%      720ms  1.64%  net/textproto.MIMEHeader.Del (inline)
+      10ms 0.023% 53.30%      720ms  1.64%  runtime.chansend1
+     140ms  0.32% 53.61%      710ms  1.61%  runtime.chansend
+      20ms 0.045% 53.66%      710ms  1.61%  runtime.markroot
+      70ms  0.16% 53.82%      700ms  1.59%  net/http/httputil.removeHopByHopHeaders
+      60ms  0.14% 53.95%      690ms  1.57%  runtime.makechan
+         0     0% 53.95%      680ms  1.55%  net/http.Header.WriteSubset (inline)
+     290ms  0.66% 54.61%      680ms  1.55%  net/textproto.canonicalMIMEHeaderKey
+         0     0% 54.61%      670ms  1.52%  net/http.Header.Add (inline)
+      10ms 0.023% 54.64%      670ms  1.52%  net/textproto.MIMEHeader.Add (inline)
+      20ms 0.045% 54.68%      640ms  1.45%  internal/runtime/maps.(*Map).growToSmall
+     640ms  1.45% 56.14%      640ms  1.45%  net/textproto.validHeaderFieldByte (inline)
+     630ms  1.43% 57.57%      630ms  1.43%  runtime.nextFreeFast (inline)
+      10ms 0.023% 57.59%      620ms  1.41%  internal/runtime/maps.newGroups (inline)
+      10ms 0.023% 57.61%      610ms  1.39%  internal/runtime/maps.newarray
+      30ms 0.068% 57.68%      610ms  1.39%  net/http/httputil.(*ReverseProxy).copyResponse
+      40ms 0.091% 57.77%      600ms  1.36%  net/http.(*persistConn).readLoop.func2
+      30ms 0.068% 57.84%      600ms  1.36%  runtime.newarray
+     100ms  0.23% 58.07%      590ms  1.34%  internal/poll.runtime_pollSetDeadline
+      50ms  0.11% 58.18%      590ms  1.34%  runtime.netpoll
+     140ms  0.32% 58.50%      580ms  1.32%  context.(*cancelCtx).propagateCancel
+      30ms 0.068% 58.57%      560ms  1.27%  net/http.(*Transport).tryPutIdleConn
+     160ms  0.36% 58.93%      560ms  1.27%  runtime.mapaccess1_faststr
+      60ms  0.14% 59.07%      540ms  1.23%  net/http.(*Request).Clone
+      60ms  0.14% 59.20%      540ms  1.23%  net/http.(*Transport).queueForIdleConn
+      10ms 0.023% 59.23%      530ms  1.20%  runtime.send
+         0     0% 59.23%      520ms  1.18%  runtime.goready (inline)
+         0     0% 59.23%      500ms  1.14%  internal/runtime/syscall/linux.EpollWait
+      40ms 0.091% 59.32%      500ms  1.14%  net/http/httputil.(*ReverseProxy).copyBuffer
+     280ms  0.64% 59.95%      480ms  1.09%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+      30ms 0.068% 60.02%      480ms  1.09%  net/http.(*response).WriteHeader
+         0     0% 60.02%      470ms  1.07%  net/http.(*connReader).abortPendingRead
+      20ms 0.045% 60.07%      450ms  1.02%  runtime.scanSpan
+         0     0% 60.07%      430ms  0.98%  context.WithCancelCause
+      40ms 0.091% 60.16%      430ms  0.98%  runtime.mapIterStart
+      20ms 0.045% 60.20%      430ms  0.98%  runtime.ready
+     180ms  0.41% 60.61%      430ms  0.98%  runtime.scanblock
+     380ms  0.86% 61.48%      420ms  0.95%  internal/runtime/maps.(*Iter).Next
+      80ms  0.18% 61.66%      420ms  0.95%  net/http.readTransfer
+      10ms 0.023% 61.68%      410ms  0.93%  runtime.(*mcache).nextFree
+      10ms 0.023% 61.70%      410ms  0.93%  runtime.lockWithRank (inline)
+     270ms  0.61% 62.32%      400ms  0.91%  runtime.lock2
+      10ms 0.023% 62.34%      400ms  0.91%  runtime.unlock (inline)
+      10ms 0.023% 62.36%      390ms  0.89%  context.WithCancel
+      50ms  0.11% 62.48%      390ms  0.89%  internal/runtime/maps.(*Map).Delete
+     300ms  0.68% 63.16%      390ms  0.89%  runtime.unlock2
+         0     0% 63.16%      390ms  0.89%  runtime.unlockWithRank (inline)
+      50ms  0.11% 63.27%      380ms  0.86%  net/http.(*bodyEOFSignal).Read
+      50ms  0.11% 63.39%      380ms  0.86%  net/textproto.(*Reader).readContinuedLineSlice
+      80ms  0.18% 63.57%      380ms  0.86%  net/textproto.(*Reader).readLineSlice
+         0     0% 63.57%      380ms  0.86%  runtime.lock (inline)
+      60ms  0.14% 63.70%      370ms  0.84%  net/http.Header.sortedKeyValues
+      40ms 0.091% 63.80%      370ms  0.84%  runtime.heapSetTypeNoHeader (inline)
+         0     0% 63.80%      370ms  0.84%  runtime.markrootBlock
+     370ms  0.84% 64.64%      370ms  0.84%  runtime.memclrNoHeapPointers
+      20ms 0.045% 64.68%      360ms  0.82%  runtime.(*mcache).refill
+     250ms  0.57% 65.25%      360ms  0.82%  runtime.scanObjectsSmall
+      30ms 0.068% 65.32%      350ms   0.8%  internal/runtime/maps.rand
+      20ms 0.045% 65.36%      350ms   0.8%  net/url.ParseRequestURI
+      30ms 0.068% 65.43%      330ms  0.75%  net/url.parse
+     330ms  0.75% 66.18%      330ms  0.75%  runtime.(*mspan).writeHeapBitsSmall
+      20ms 0.045% 66.23%      330ms  0.75%  runtime.mapIterNext
+     330ms  0.75% 66.98%      330ms  0.75%  runtime.nanotime (inline)
+      30ms 0.068% 67.05%      330ms  0.75%  runtime.send.goready.func1
+     120ms  0.27% 67.32%      320ms  0.73%  runtime.rand
+     100ms  0.23% 67.55%      320ms  0.73%  runtime.wakep
+      50ms  0.11% 67.66%      320ms  0.73%  time.Now
+      40ms 0.091% 67.75%      310ms   0.7%  fmt.Fprintf
+      20ms 0.045% 67.80%      310ms   0.7%  net/http/httputil.(*ReverseProxy).flushInterval
+      80ms  0.18% 67.98%      310ms   0.7%  runtime.(*timer).modify
+      60ms  0.14% 68.11%      310ms   0.7%  runtime.mapassign
+         0     0% 68.11%      310ms   0.7%  runtime.markroot.func1
+         0     0% 68.11%      300ms  0.68%  runtime.convTstring
+      30ms 0.068% 68.18%      300ms  0.68%  runtime.scanstack
+      10ms 0.023% 68.20%      300ms  0.68%  runtime.slicebytetostring
+      80ms  0.18% 68.39%      280ms  0.64%  bytes.IndexByte (inline)
+      10ms 0.023% 68.41%      280ms  0.64%  context.(*cancelCtx).cancel
+      60ms  0.14% 68.55%      280ms  0.64%  internal/runtime/maps.(*Iter).Init
+         0     0% 68.55%      280ms  0.64%  time.NewTimer
+     270ms  0.61% 69.16%      270ms  0.61%  aeshashbody
+      60ms  0.14% 69.30%      270ms  0.61%  bufio.(*Reader).ReadLine
+      10ms 0.023% 69.32%      270ms  0.61%  net/http.Header.Get (inline)
+     270ms  0.61% 69.93%      270ms  0.61%  runtime.memmove
+     270ms  0.61% 70.55%      270ms  0.61%  time.runtimeNow
+     170ms  0.39% 70.93%      260ms  0.59%  bufio.(*Writer).WriteString
+     140ms  0.32% 71.25%      260ms  0.59%  context.(*cancelCtx).Done
+      50ms  0.11% 71.36%      260ms  0.59%  net/textproto.MIMEHeader.Get
+      20ms 0.045% 71.41%      250ms  0.57%  net/http.(*Transport).connectMethodForRequest
+      10ms 0.023% 71.43%      250ms  0.57%  runtime.bgsweep
+     230ms  0.52% 71.95%      250ms  0.57%  runtime.exitsyscall
+      70ms  0.16% 72.11%      250ms  0.57%  runtime.mallocgcSmallNoscan
+         0     0% 72.11%      240ms  0.55%  net/http.(*connReader).startBackgroundRead
+      10ms 0.023% 72.14%      240ms  0.55%  runtime.(*mcentral).cacheSpan
+         0     0% 72.14%      240ms  0.55%  runtime.(*timers).check
+      20ms 0.045% 72.18%      240ms  0.55%  runtime.makemap
+      10ms 0.023% 72.20%      240ms  0.55%  runtime.sweepone
+      10ms 0.023% 72.23%      240ms  0.55%  sync.(*Mutex).Lock (inline)
+         0     0% 72.23%      230ms  0.52%  internal/poll.(*pollDesc).wait
+         0     0% 72.23%      230ms  0.52%  internal/poll.(*pollDesc).waitRead (inline)
+     180ms  0.41% 72.64%      230ms  0.52%  internal/sync.(*Mutex).Lock (inline)
+      40ms 0.091% 72.73%      230ms  0.52%  mime.ParseMediaType
+      20ms 0.045% 72.77%      230ms  0.52%  runtime.(*timer).maybeAdd
+     170ms  0.39% 73.16%      230ms  0.52%  runtime.typePointers.next
+      30ms 0.068% 73.23%      220ms   0.5%  internal/poll.runtime_pollWait
+      30ms 0.068% 73.30%      220ms   0.5%  internal/runtime/maps.NewMap
+

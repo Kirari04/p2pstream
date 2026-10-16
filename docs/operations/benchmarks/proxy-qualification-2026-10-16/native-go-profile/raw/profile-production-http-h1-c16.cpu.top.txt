@@ -1,0 +1,89 @@
+File: proxy-native-go-attribution.test
+Build ID: 056b4397a8375aeabba280b5e29f06d58ce864b0
+Type: cpu
+Time: 2026-10-16 17:25:18 CEST
+Duration: 12.26s, Total samples = 45.20s (368.82%)
+Showing nodes accounting for 30.05s, 66.48% of 45.20s total
+Dropped 955 nodes (cum <= 0.23s)
+Showing top 80 nodes out of 223
+      flat  flat%   sum%        cum   cum%
+    13.30s 29.42% 29.42%     13.30s 29.42%  internal/runtime/syscall/linux.Syscall6
+     5.27s 11.66% 41.08%      5.54s 12.26%  runtime.cgocall
+     0.68s  1.50% 42.59%      0.68s  1.50%  runtime.nextFreeFast (inline)
+     0.59s  1.31% 43.89%      1.06s  2.35%  net/textproto.CanonicalMIMEHeaderKey
+     0.55s  1.22% 45.11%      1.44s  3.19%  runtime.selectgo
+     0.47s  1.04% 46.15%      0.47s  1.04%  net/textproto.validHeaderFieldByte (inline)
+     0.43s  0.95% 47.10%      0.43s  0.95%  aeshashbody
+     0.42s  0.93% 48.03%      0.42s  0.93%  time.runtimeNow
+     0.40s  0.88% 48.92%      0.40s  0.88%  runtime.memmove
+     0.38s  0.84% 49.76%      3.30s  7.30%  runtime.mallocgc
+     0.36s   0.8% 50.55%      0.36s   0.8%  runtime.memclrNoHeapPointers
+     0.34s  0.75% 51.31%      2.16s  4.78%  runtime.mallocgcSmallScanNoHeader
+     0.31s  0.69% 51.99%      0.31s  0.69%  runtime.nanotime (inline)
+     0.31s  0.69% 52.68%      2.02s  4.47%  runtime.newobject
+     0.30s  0.66% 53.34%      0.40s  0.88%  runtime.unlock2
+     0.24s  0.53% 53.87%      0.26s  0.58%  runtime.(*mspan).writeHeapBitsSmall
+     0.22s  0.49% 54.36%      0.27s   0.6%  internal/runtime/maps.(*Iter).Next
+     0.21s  0.46% 54.82%      0.24s  0.53%  internal/runtime/maps.(*Map).putSlotSmallFastStr
+     0.20s  0.44% 55.27%      1.16s  2.57%  net/http.Header.writeSubset
+     0.19s  0.42% 55.69%      0.53s  1.17%  net/textproto.canonicalMIMEHeaderKey
+     0.19s  0.42% 56.11%      0.29s  0.64%  slices.insertionSortCmpFunc[go.shape.struct { net/http.key string; net/http.values []string }] (inline)
+     0.18s   0.4% 56.50%      0.40s  0.88%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+     0.18s   0.4% 56.90%      0.65s  1.44%  runtime.mapaccess1_faststr
+     0.16s  0.35% 57.26%      0.35s  0.77%  runtime.chanrecv
+     0.15s  0.33% 57.59%      0.28s  0.62%  runtime.tryDeferToSpanScan
+     0.14s  0.31% 57.90%      1.28s  2.83%  runtime.schedule
+     0.12s  0.27% 58.16%      1.78s  3.94%  github.com/mattn/go-sqlite3.(*SQLiteStmt).bind
+     0.12s  0.27% 58.43%      2.07s  4.58%  net/http.(*conn).readRequest
+     0.12s  0.27% 58.69%      0.62s  1.37%  net/http.Header.Clone (inline)
+     0.11s  0.24% 58.94%      7.29s 16.13%  net/http/httputil.(*ReverseProxy).ServeHTTP
+     0.11s  0.24% 59.18%      0.39s  0.86%  p2pstream/internal/server.(*App).selectRouteTarget
+     0.11s  0.24% 59.42%      1.07s  2.37%  p2pstream/internal/server.applyTrustedForwardedHeaders
+     0.11s  0.24% 59.67%      0.42s  0.93%  runtime.mallocgcSmallNoscan
+     0.10s  0.22% 59.89%      0.24s  0.53%  bufio.(*Writer).WriteString
+     0.10s  0.22% 60.11%      0.95s  2.10%  net/http.(*chunkWriter).writeHeader
+     0.10s  0.22% 60.33%      8.22s 18.19%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+     0.10s  0.22% 60.55%      0.36s   0.8%  runtime.growslice
+     0.10s  0.22% 60.77%      0.74s  1.64%  runtime.mapassign_faststr
+     0.10s  0.22% 61.00%      0.28s  0.62%  time.Time.appendFormat
+     0.09s   0.2% 61.19%      0.27s   0.6%  database/sql.driverArgsConnLocked
+     0.09s   0.2% 61.39%      0.41s  0.91%  internal/runtime/maps.(*Map).Delete
+     0.09s   0.2% 61.59%     24.02s 53.14%  net/http.(*conn).serve
+     0.09s   0.2% 61.79%      1.91s  4.23%  net/textproto.readMIMEHeader
+     0.09s   0.2% 61.99%      0.81s  1.79%  p2pstream/internal/server.initializePublicProxyContext
+     0.08s  0.18% 62.17%      0.45s     1%  context.(*cancelCtx).propagateCancel
+     0.08s  0.18% 62.35%      0.48s  1.06%  internal/poll.runtime_pollSetDeadline
+     0.08s  0.18% 62.52%      4.62s 10.22%  net/http.(*persistConn).readLoop
+     0.08s  0.18% 62.70%      0.44s  0.97%  net/http/httputil.removeHopByHopHeaders
+     0.07s  0.15% 62.85%      3.55s  7.85%  bufio.(*Reader).Peek
+     0.07s  0.15% 63.01%      1.35s  2.99%  net/http.(*Request).write
+     0.07s  0.15% 63.16%      0.53s  1.17%  net/http.Header.sortedKeyValues
+     0.07s  0.15% 63.32%      1.40s  3.10%  net/http.readRequest
+     0.07s  0.15% 63.47%      0.34s  0.75%  runtime.chansend
+     0.07s  0.15% 63.63%      0.35s  0.77%  runtime.mapdelete_faststr
+     0.07s  0.15% 63.78%      0.26s  0.58%  runtime.scanObject
+     0.06s  0.13% 63.92%      1.41s  3.12%  net/http.(*persistConn).roundTrip
+     0.06s  0.13% 64.05%      0.36s   0.8%  net/http.readTransfer
+     0.06s  0.13% 64.18%      0.46s  1.02%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+     0.06s  0.13% 64.31%      0.33s  0.73%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+     0.06s  0.13% 64.45%     11.08s 24.51%  p2pstream/internal/server.(*publicProxyContext).run
+     0.06s  0.13% 64.58%      0.96s  2.12%  runtime.findRunnable
+     0.06s  0.13% 64.71%      1.60s  3.54%  runtime.mcall
+     0.05s  0.11% 64.82%      1.57s  3.47%  github.com/mattn/go-sqlite3.bindValue
+     0.05s  0.11% 64.93%      0.67s  1.48%  net/http.(*connReader).backgroundRead
+     0.05s  0.11% 65.04%      1.58s  3.50%  net/http.(*persistConn).readResponse
+     0.05s  0.11% 65.15%      5.08s 11.24%  net/http.checkConnErrorWriter.Write
+     0.05s  0.11% 65.27%      0.48s  1.06%  p2pstream/internal/server.(*App).proxyRouteTargetRequest.func1
+     0.05s  0.11% 65.38%      0.58s  1.28%  p2pstream/internal/server.proxyRequestContextFromHTTP
+     0.05s  0.11% 65.49%      0.24s  0.53%  runtime.(*timer).modify
+     0.05s  0.11% 65.60%      0.33s  0.73%  runtime.send
+     0.04s 0.088% 65.69%      0.26s  0.58%  fmt.Fprintf
+     0.04s 0.088% 65.77%      3.86s  8.54%  internal/poll.(*FD).Read
+     0.04s 0.088% 65.86%      0.31s  0.69%  net/http.(*Transport).tryPutIdleConn
+     0.04s 0.088% 65.95%      1.79s  3.96%  net/http.(*connReader).Read
+     0.04s 0.088% 66.04%      6.44s 14.25%  net/http.(*response).finishRequest
+     0.04s 0.088% 66.13%      0.33s  0.73%  p2pstream/internal/server.proxyRequestContextFromResolution
+     0.04s 0.088% 66.22%      0.23s  0.51%  p2pstream/internal/server.routePathSecurityStage
+     0.04s 0.088% 66.31%      0.49s  1.08%  runtime.(*mcentral).cacheSpan
+     0.04s 0.088% 66.39%      0.24s  0.53%  runtime.makeslice
+     0.04s 0.088% 66.48%      0.24s  0.53%  runtime.mapIterNext

@@ -1,0 +1,210 @@
+File: proxy-native-go-attribution.test
+Build ID: 056b4397a8375aeabba280b5e29f06d58ce864b0
+Type: cpu
+Time: 2026-10-16 17:25:18 CEST
+Duration: 12.26s, Total samples = 45200ms (368.82%)
+Showing nodes accounting for 31630ms, 69.98% of 45200ms total
+Dropped 955 nodes (cum <= 226ms)
+Showing top 200 nodes out of 223
+      flat  flat%   sum%        cum   cum%
+   13300ms 29.42% 29.42%    13300ms 29.42%  internal/runtime/syscall/linux.Syscall6
+    5270ms 11.66% 41.08%     5540ms 12.26%  runtime.cgocall
+     680ms  1.50% 42.59%      680ms  1.50%  runtime.nextFreeFast (inline)
+     590ms  1.31% 43.89%     1060ms  2.35%  net/textproto.CanonicalMIMEHeaderKey
+     550ms  1.22% 45.11%     1440ms  3.19%  runtime.selectgo
+     470ms  1.04% 46.15%      470ms  1.04%  net/textproto.validHeaderFieldByte (inline)
+     430ms  0.95% 47.10%      430ms  0.95%  aeshashbody
+     420ms  0.93% 48.03%      420ms  0.93%  time.runtimeNow
+     400ms  0.88% 48.92%      400ms  0.88%  runtime.memmove
+     380ms  0.84% 49.76%     3300ms  7.30%  runtime.mallocgc
+     360ms   0.8% 50.55%      360ms   0.8%  runtime.memclrNoHeapPointers
+     340ms  0.75% 51.31%     2160ms  4.78%  runtime.mallocgcSmallScanNoHeader
+     310ms  0.69% 51.99%      310ms  0.69%  runtime.nanotime (inline)
+     310ms  0.69% 52.68%     2020ms  4.47%  runtime.newobject
+     300ms  0.66% 53.34%      400ms  0.88%  runtime.unlock2
+     240ms  0.53% 53.87%      260ms  0.58%  runtime.(*mspan).writeHeapBitsSmall
+     220ms  0.49% 54.36%      270ms   0.6%  internal/runtime/maps.(*Iter).Next
+     210ms  0.46% 54.82%      240ms  0.53%  internal/runtime/maps.(*Map).putSlotSmallFastStr
+     200ms  0.44% 55.27%     1160ms  2.57%  net/http.Header.writeSubset
+     190ms  0.42% 55.69%      530ms  1.17%  net/textproto.canonicalMIMEHeaderKey
+     190ms  0.42% 56.11%      290ms  0.64%  slices.insertionSortCmpFunc[go.shape.struct { net/http.key string; net/http.values []string }] (inline)
+     180ms   0.4% 56.50%      400ms  0.88%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+     180ms   0.4% 56.90%      650ms  1.44%  runtime.mapaccess1_faststr
+     160ms  0.35% 57.26%      350ms  0.77%  runtime.chanrecv
+     150ms  0.33% 57.59%      280ms  0.62%  runtime.tryDeferToSpanScan
+     140ms  0.31% 57.90%     1280ms  2.83%  runtime.schedule
+     120ms  0.27% 58.16%     1780ms  3.94%  github.com/mattn/go-sqlite3.(*SQLiteStmt).bind
+     120ms  0.27% 58.43%     2070ms  4.58%  net/http.(*conn).readRequest
+     120ms  0.27% 58.69%      620ms  1.37%  net/http.Header.Clone (inline)
+     110ms  0.24% 58.94%     7290ms 16.13%  net/http/httputil.(*ReverseProxy).ServeHTTP
+     110ms  0.24% 59.18%      390ms  0.86%  p2pstream/internal/server.(*App).selectRouteTarget
+     110ms  0.24% 59.42%     1070ms  2.37%  p2pstream/internal/server.applyTrustedForwardedHeaders
+     110ms  0.24% 59.67%      420ms  0.93%  runtime.mallocgcSmallNoscan
+     100ms  0.22% 59.89%      240ms  0.53%  bufio.(*Writer).WriteString
+     100ms  0.22% 60.11%      950ms  2.10%  net/http.(*chunkWriter).writeHeader
+     100ms  0.22% 60.33%     8220ms 18.19%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+     100ms  0.22% 60.55%      360ms   0.8%  runtime.growslice
+     100ms  0.22% 60.77%      740ms  1.64%  runtime.mapassign_faststr
+     100ms  0.22% 61.00%      280ms  0.62%  time.Time.appendFormat
+      90ms   0.2% 61.19%      270ms   0.6%  database/sql.driverArgsConnLocked
+      90ms   0.2% 61.39%      410ms  0.91%  internal/runtime/maps.(*Map).Delete
+      90ms   0.2% 61.59%    24020ms 53.14%  net/http.(*conn).serve
+      90ms   0.2% 61.79%     1910ms  4.23%  net/textproto.readMIMEHeader
+      90ms   0.2% 61.99%      810ms  1.79%  p2pstream/internal/server.initializePublicProxyContext
+      80ms  0.18% 62.17%      450ms     1%  context.(*cancelCtx).propagateCancel
+      80ms  0.18% 62.35%      480ms  1.06%  internal/poll.runtime_pollSetDeadline
+      80ms  0.18% 62.52%     4620ms 10.22%  net/http.(*persistConn).readLoop
+      80ms  0.18% 62.70%      440ms  0.97%  net/http/httputil.removeHopByHopHeaders
+      70ms  0.15% 62.85%     3550ms  7.85%  bufio.(*Reader).Peek
+      70ms  0.15% 63.01%     1350ms  2.99%  net/http.(*Request).write
+      70ms  0.15% 63.16%      530ms  1.17%  net/http.Header.sortedKeyValues
+      70ms  0.15% 63.32%     1400ms  3.10%  net/http.readRequest
+      70ms  0.15% 63.47%      340ms  0.75%  runtime.chansend
+      70ms  0.15% 63.63%      350ms  0.77%  runtime.mapdelete_faststr
+      70ms  0.15% 63.78%      260ms  0.58%  runtime.scanObject
+      60ms  0.13% 63.92%     1410ms  3.12%  net/http.(*persistConn).roundTrip
+      60ms  0.13% 64.05%      360ms   0.8%  net/http.readTransfer
+      60ms  0.13% 64.18%      460ms  1.02%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+      60ms  0.13% 64.31%      330ms  0.73%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+      60ms  0.13% 64.45%    11080ms 24.51%  p2pstream/internal/server.(*publicProxyContext).run
+      60ms  0.13% 64.58%      960ms  2.12%  runtime.findRunnable
+      60ms  0.13% 64.71%     1600ms  3.54%  runtime.mcall
+      50ms  0.11% 64.82%     1570ms  3.47%  github.com/mattn/go-sqlite3.bindValue
+      50ms  0.11% 64.93%      670ms  1.48%  net/http.(*connReader).backgroundRead
+      50ms  0.11% 65.04%     1580ms  3.50%  net/http.(*persistConn).readResponse
+      50ms  0.11% 65.15%     5080ms 11.24%  net/http.checkConnErrorWriter.Write
+      50ms  0.11% 65.27%      480ms  1.06%  p2pstream/internal/server.(*App).proxyRouteTargetRequest.func1
+      50ms  0.11% 65.38%      580ms  1.28%  p2pstream/internal/server.proxyRequestContextFromHTTP
+      50ms  0.11% 65.49%      240ms  0.53%  runtime.(*timer).modify
+      50ms  0.11% 65.60%      330ms  0.73%  runtime.send
+      40ms 0.088% 65.69%      260ms  0.58%  fmt.Fprintf
+      40ms 0.088% 65.77%     3860ms  8.54%  internal/poll.(*FD).Read
+      40ms 0.088% 65.86%      310ms  0.69%  net/http.(*Transport).tryPutIdleConn
+      40ms 0.088% 65.95%     1790ms  3.96%  net/http.(*connReader).Read
+      40ms 0.088% 66.04%     6440ms 14.25%  net/http.(*response).finishRequest
+      40ms 0.088% 66.13%      330ms  0.73%  p2pstream/internal/server.proxyRequestContextFromResolution
+      40ms 0.088% 66.22%      230ms  0.51%  p2pstream/internal/server.routePathSecurityStage
+      40ms 0.088% 66.31%      490ms  1.08%  runtime.(*mcentral).cacheSpan
+      40ms 0.088% 66.39%      240ms  0.53%  runtime.makeslice
+      40ms 0.088% 66.48%      240ms  0.53%  runtime.mapIterNext
+      40ms 0.088% 66.57%      250ms  0.55%  runtime.mapIterStart
+      40ms 0.088% 66.66%     1400ms  3.10%  runtime.park_m
+      40ms 0.088% 66.75%      250ms  0.55%  runtime.ready
+      40ms 0.088% 66.84%      270ms   0.6%  runtime.sweepone
+      40ms 0.088% 66.92%     3600ms  7.96%  syscall.Read (inline)
+      40ms 0.088% 67.01%    13110ms 29.00%  syscall.Syscall
+      30ms 0.066% 67.08%    10810ms 23.92%  bufio.(*Writer).Flush
+      30ms 0.066% 67.15%      380ms  0.84%  github.com/mattn/go-sqlite3._Cfunc_sqlite3_bind_int64
+      30ms 0.066% 67.21%      650ms  1.44%  internal/poll.setDeadlineImpl
+      30ms 0.066% 67.28%      260ms  0.58%  internal/runtime/maps.NewMap
+      30ms 0.066% 67.35%     3920ms  8.67%  net.(*conn).Read
+      30ms 0.066% 67.41%      380ms  0.84%  net/http.(*ServeMux).findHandler
+      30ms 0.066% 67.48%     6370ms 14.09%  net/http.(*persistConn).writeLoop
+      30ms 0.066% 67.54%     1190ms  2.63%  p2pstream/internal/server.(*App).proxyRouteTargetRequest.func2
+      30ms 0.066% 67.61%    12040ms 26.64%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+      30ms 0.066% 67.68%     1640ms  3.63%  p2pstream/internal/server.(*observabilityRecorder).run
+      30ms 0.066% 67.74%     8480ms 18.76%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+      30ms 0.066% 67.81%      490ms  1.08%  p2pstream/internal/server.routeResolutionStage
+      30ms 0.066% 67.88%      290ms  0.64%  runtime.mapassign
+      30ms 0.066% 67.94%      430ms  0.95%  runtime.netpoll
+      30ms 0.066% 68.01%     1660ms  3.67%  runtime.systemstack
+      30ms 0.066% 68.08%    12930ms 28.61%  syscall.RawSyscall6
+      30ms 0.066% 68.14%      450ms     1%  time.Now
+      20ms 0.044% 68.19%      410ms  0.91%  github.com/mattn/go-sqlite3.bindValue.func2 (inline)
+      20ms 0.044% 68.23%     9680ms 21.42%  internal/poll.(*FD).Write
+      20ms 0.044% 68.27%      630ms  1.39%  net.(*conn).SetReadDeadline
+      20ms 0.044% 68.32%     3850ms  8.52%  net.(*netFD).Read
+      20ms 0.044% 68.36%     9710ms 21.48%  net.(*netFD).Write
+      20ms 0.044% 68.41%      340ms  0.75%  net/http.(*Request).Clone
+      20ms 0.044% 68.45%      290ms  0.64%  net/http.(*ServeMux).matchOrRedirect
+      20ms 0.044% 68.50%     2960ms  6.55%  net/http.(*Transport).roundTrip
+      20ms 0.044% 68.54%      310ms  0.69%  net/http.(*connReader).abortPendingRead
+      20ms 0.044% 68.58%     4750ms 10.51%  net/http.persistConnWriter.Write
+      20ms 0.044% 68.63%      420ms  0.93%  net/http/httputil.(*ReverseProxy).copyResponse
+      20ms 0.044% 68.67%      550ms  1.22%  net/http/httputil.copyHeader
+      20ms 0.044% 68.72%      460ms  1.02%  net/textproto.MIMEHeader.Add (inline)
+      20ms 0.044% 68.76%      640ms  1.42%  p2pstream/internal/db.(*ProxyRequestEventInserter).InsertBatch
+      20ms 0.044% 68.81%      530ms  1.17%  p2pstream/internal/server.normalizeRequestHost
+      20ms 0.044% 68.85%      550ms  1.22%  p2pstream/internal/server.publicRequestAdmissionStage
+      20ms 0.044% 68.89%    12010ms 26.57%  p2pstream/internal/server.servePublicProxyRequest
+      20ms 0.044% 68.94%      600ms  1.33%  runtime.(*mcache).refill
+      20ms 0.044% 68.98%      240ms  0.53%  runtime.(*timers).check
+      20ms 0.044% 69.03%      270ms   0.6%  runtime.entersyscall
+      20ms 0.044% 69.07%      280ms  0.62%  runtime.heapSetTypeNoHeader (inline)
+      20ms 0.044% 69.12%      420ms  0.93%  runtime.makechan
+      20ms 0.044% 69.16%      240ms  0.53%  runtime.newproc
+      20ms 0.044% 69.20%     9600ms 21.24%  syscall.Write (inline)
+      20ms 0.044% 69.25%     3560ms  7.88%  syscall.read
+      20ms 0.044% 69.29%     9580ms 21.19%  syscall.write
+      10ms 0.022% 69.31%     3480ms  7.70%  bufio.(*Reader).fill
+      10ms 0.022% 69.34%      540ms  1.19%  context.withCancel (inline)
+      10ms 0.022% 69.36%      230ms  0.51%  database/sql.(*DB).execDC.func2
+      10ms 0.022% 69.38%      340ms  0.75%  database/sql.resultFromStatement
+      10ms 0.022% 69.40%     3480ms  7.70%  github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync.func2 (inline)
+      10ms 0.022% 69.42%      630ms  1.39%  github.com/mattn/go-sqlite3.bindText
+      10ms 0.022% 69.45%      310ms  0.69%  github.com/mattn/go-sqlite3.bindText.func1 (inline)
+      10ms 0.022% 69.47%     9730ms 21.53%  net.(*conn).Write
+      10ms 0.022% 69.49%      310ms  0.69%  net/http.(*Transport).queueForIdleConn
+      10ms 0.022% 69.51%      260ms  0.58%  net/http.(*bodyEOFSignal).Read
+      10ms 0.022% 69.54%      280ms  0.62%  net/http.(*connReader).startBackgroundRead
+      10ms 0.022% 69.56%     1670ms  3.69%  net/http.(*persistConn).Read
+      10ms 0.022% 69.58%      320ms  0.71%  net/http.(*persistConn).readLoop.func2
+      10ms 0.022% 69.60%     1530ms  3.38%  net/http.ReadResponse
+      10ms 0.022% 69.62%    12560ms 27.79%  net/http.serverHandler.ServeHTTP
+      10ms 0.022% 69.65%      370ms  0.82%  net/http/httputil.(*ReverseProxy).copyBuffer
+      10ms 0.022% 69.67%      240ms  0.53%  net/textproto.(*Reader).readContinuedLineSlice
+      10ms 0.022% 69.69%     1030ms  2.28%  net/textproto.MIMEHeader.Del (inline)
+      10ms 0.022% 69.71%      300ms  0.66%  net/textproto.MIMEHeader.Set (inline)
+      10ms 0.022% 69.73%      340ms  0.75%  p2pstream/internal/server.(*App).tryReservePublicOwnedResource
+      10ms 0.022% 69.76%      240ms  0.53%  p2pstream/internal/server.classifyPublicRequestPath
+      10ms 0.022% 69.78%      240ms  0.53%  p2pstream/internal/server.normalizeBareRequestHost
+      10ms 0.022% 69.80%      280ms  0.62%  p2pstream/internal/server.resolvePublicRequestIdentity
+      10ms 0.022% 69.82%      630ms  1.39%  runtime.(*mcache).nextFree
+      10ms 0.022% 69.85%      310ms  0.69%  runtime.(*mcentral).grow
+      10ms 0.022% 69.87%      250ms  0.55%  runtime.(*mheap).allocSpan
+      10ms 0.022% 69.89%      420ms  0.93%  runtime.gcDrain
+      10ms 0.022% 69.91%      270ms   0.6%  runtime.makemap
+      10ms 0.022% 69.93%      300ms  0.66%  runtime.newarray
+      10ms 0.022% 69.96%      300ms  0.66%  slices.SortFunc[go.shape.[]net/http.keyValues,go.shape.struct { net/http.key string; net/http.values []string }] (inline)
+      10ms 0.022% 69.98%      230ms  0.51%  sync.(*Mutex).Lock
+         0     0% 69.98%      300ms  0.66%  context.WithCancel
+         0     0% 69.98%      300ms  0.66%  context.WithCancelCause
+         0     0% 69.98%      230ms  0.51%  database/sql.(*DB).execDC
+         0     0% 69.98%      400ms  0.88%  database/sql.(*DB).retry
+         0     0% 69.98%      350ms  0.77%  database/sql.(*Stmt).ExecContext
+         0     0% 69.98%      350ms  0.77%  database/sql.(*Stmt).ExecContext.func1
+         0     0% 69.98%      560ms  1.24%  database/sql.(*Tx).Commit
+         0     0% 69.98%      540ms  1.19%  database/sql.(*Tx).Commit.func1
+         0     0% 69.98%      870ms  1.92%  database/sql.withLock
+         0     0% 69.98%      780ms  1.73%  github.com/mattn/go-sqlite3.(*SQLiteConn).exec
+         0     0% 69.98%      570ms  1.26%  github.com/mattn/go-sqlite3.(*SQLiteConn).execNoArgs
+         0     0% 69.98%      570ms  1.26%  github.com/mattn/go-sqlite3.(*SQLiteConn).execNoArgs.func1 (inline)
+         0     0% 69.98%      280ms  0.62%  github.com/mattn/go-sqlite3.(*SQLiteConn).prepare
+         0     0% 69.98%      280ms  0.62%  github.com/mattn/go-sqlite3.(*SQLiteConn).prepare.func2 (inline)
+         0     0% 69.98%     5250ms 11.62%  github.com/mattn/go-sqlite3.(*SQLiteStmt).exec.func1
+         0     0% 69.98%     5260ms 11.64%  github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync
+         0     0% 69.98%      540ms  1.19%  github.com/mattn/go-sqlite3.(*SQLiteTx).Commit
+         0     0% 69.98%      680ms  1.50%  github.com/mattn/go-sqlite3._Cfunc__sqlite3_bind_text
+         0     0% 69.98%      570ms  1.26%  github.com/mattn/go-sqlite3._Cfunc__sqlite3_exec_no_args
+         0     0% 69.98%      280ms  0.62%  github.com/mattn/go-sqlite3._Cfunc__sqlite3_prepare_v2_internal
+         0     0% 69.98%     3470ms  7.68%  github.com/mattn/go-sqlite3._Cfunc__sqlite3_step_row_internal
+         0     0% 69.98%      310ms  0.69%  github.com/mattn/go-sqlite3.bindText.func2 (inline)
+         0     0% 69.98%      610ms  1.35%  internal/poll.(*FD).SetReadDeadline (inline)
+         0     0% 69.98%    13260ms 29.34%  internal/poll.ignoringEINTRIO (inline)
+         0     0% 69.98%      300ms  0.66%  internal/runtime/maps.(*Map).growToSmall
+         0     0% 69.98%      300ms  0.66%  internal/runtime/maps.newGroups (inline)
+         0     0% 69.98%      300ms  0.66%  internal/runtime/maps.newarray
+         0     0% 69.98%      400ms  0.88%  internal/runtime/syscall/linux.EpollWait
+         0     0% 69.98%      610ms  1.35%  net.(*netFD).SetReadDeadline (inline)
+         0     0% 69.98%    12430ms 27.50%  net/http.(*ServeMux).ServeHTTP
+         0     0% 69.98%     2960ms  6.55%  net/http.(*Transport).RoundTrip
+         0     0% 69.98%      700ms  1.55%  net/http.(*Transport).getConn
+         0     0% 69.98%      950ms  2.10%  net/http.(*chunkWriter).Write
+         0     0% 69.98%      480ms  1.06%  net/http.(*response).WriteHeader
+         0     0% 69.98%    12170ms 26.92%  net/http.HandlerFunc.ServeHTTP
+         0     0% 69.98%      460ms  1.02%  net/http.Header.Add (inline)
+         0     0% 69.98%     1030ms  2.28%  net/http.Header.Del (inline)
+         0     0% 69.98%      300ms  0.66%  net/http.Header.Set (inline)
+         0     0% 69.98%      540ms  1.19%  net/http.Header.WriteSubset (inline)
+         0     0% 69.98%     1910ms  4.23%  net/textproto.(*Reader).ReadMIMEHeader (inline)
+

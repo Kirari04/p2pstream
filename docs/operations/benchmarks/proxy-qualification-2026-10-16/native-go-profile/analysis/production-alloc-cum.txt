@@ -1,0 +1,104 @@
+File: proxy-native-go-attribution.test
+Build ID: 056b4397a8375aeabba280b5e29f06d58ce864b0
+Type: alloc_space
+Time: 2026-10-16 17:25:30 CEST
+Showing nodes accounting for 4059491481B, 95.33% of 4258533290B total
+Dropped 253 nodes (cum <= 21292666B)
+      flat  flat%   sum%        cum   cum%
+         0     0%     0% 3031560405B 71.19%  net/http.(*conn).serve
+         0     0%     0% 2464154215B 57.86%  net/http.serverHandler.ServeHTTP
+         0     0%     0% 2463629815B 57.85%  net/http.(*ServeMux).ServeHTTP
+         0     0%     0% 2443706671B 57.38%  net/http.HandlerFunc.ServeHTTP
+         0     0%     0% 2432253415B 57.11%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+         0     0%     0% 2432253415B 57.11%  p2pstream/internal/server.servePublicProxyRequest
+         0     0%     0% 2187363739B 51.36%  p2pstream/internal/server.(*publicProxyContext).run
+132164932B  3.10%  3.10% 2014342107B 47.30%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+         0     0%  3.10% 1858583775B 43.64%  p2pstream/internal/server.(*App).proxyDirectTargetRequestWithResolution (inline)
+ 98573360B  2.31%  5.42% 1858583775B 43.64%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+ 80747424B  1.90%  7.31% 1737465435B 40.80%  net/http/httputil.(*ReverseProxy).ServeHTTP
+         0     0%  7.31% 663820040B 15.59%  net/http.(*Transport).RoundTrip
+ 36702960B  0.86%  8.18% 663820040B 15.59%  net/http.(*Transport).roundTrip
+109597721B  2.57% 10.75% 560066046B 13.15%  net/http.(*conn).readRequest
+112731684B  2.65% 13.40% 518599973B 12.18%  net/http.(*persistConn).readLoop
+         0     0% 13.40% 495257240B 11.63%  p2pstream/internal/server.(*observabilityRecorder).run
+         0     0% 13.40% 495257240B 11.63%  p2pstream/internal/server.(*observabilityRecorder).runBackgroundFlush
+         0     0% 13.40% 494208552B 11.61%  p2pstream/internal/server.(*App).insertProxyRequestEventsWithRollupsAndCacheTouches
+         0     0% 13.40% 494208552B 11.61%  p2pstream/internal/server.(*observabilityRecorder).flushBatch
+         0     0% 13.40% 494208552B 11.61%  p2pstream/internal/server.(*observabilityRecorder).runFlushOperation
+         0     0% 13.40% 491586200B 11.54%  p2pstream/internal/db.(*ProxyRequestEventInserter).InsertBatch
+         0     0% 13.40% 486650234B 11.43%  net/textproto.(*Reader).ReadMIMEHeader (inline)
+453094266B 10.64% 24.04% 486650234B 11.43%  net/textproto.readMIMEHeader
+         0     0% 24.04% 486261530B 11.42%  p2pstream/internal/server.(*observabilityRecorder).run.func1
+137405380B  3.23% 27.26% 414289981B  9.73%  net/http.readRequest
+         0     0% 27.26% 410844636B  9.65%  database/sql.(*DB).retry
+         0     0% 27.26% 410320244B  9.64%  database/sql.(*Stmt).ExecContext
+         0     0% 27.26% 410320244B  9.64%  database/sql.(*Stmt).ExecContext.func1
+  2097216B 0.049% 27.31% 409795948B  9.62%  database/sql.resultFromStatement
+395640372B  9.29% 36.60% 405077700B  9.51%  database/sql.driverArgsConnLocked
+         0     0% 36.60% 380701313B  8.94%  net/http.(*persistConn).readResponse
+ 56106520B  1.32% 37.92% 380701313B  8.94%  net/http.ReadResponse
+370770138B  8.71% 46.63% 370770138B  8.71%  net/http.Header.Clone (inline)
+121671939B  2.86% 49.48% 358183224B  8.41%  net/http.(*Request).Clone
+155204672B  3.64% 53.13% 246964080B  5.80%  net/http.(*persistConn).roundTrip
+244917223B  5.75% 58.88% 244917223B  5.75%  net/http.(*Request).WithContext (inline)
+ 25166752B  0.59% 59.47% 244889676B  5.75%  p2pstream/internal/server.initializePublicProxyContext
+         0     0% 59.47% 210285452B  4.94%  p2pstream/internal/server.(*ClientIdentityResolver).ResolveRequest
+         0     0% 59.47% 210285452B  4.94%  p2pstream/internal/server.resolvePublicRequestIdentity
+105914256B  2.49% 61.96% 206069528B  4.84%  context.withCancel (inline)
+         0     0% 61.96% 204526854B  4.80%  net/http.Header.Add (inline)
+         0     0% 61.96% 204526854B  4.80%  net/http/httputil.copyHeader
+204526854B  4.80% 66.76% 204526854B  4.80%  net/textproto.MIMEHeader.Add (inline)
+137905256B  3.24% 70.00% 184045448B  4.32%  net/http.(*Transport).getConn
+         0     0% 70.00% 183024333B  4.30%  net/http.(*response).WriteHeader
+         0     0% 70.00% 183024333B  4.30%  p2pstream/internal/server.(*proxyResponseRecorder).WriteHeader
+  4718664B  0.11% 70.11% 143674144B  3.37%  context.WithCancelCause
+100155272B  2.35% 72.46% 100155272B  2.35%  context.(*cancelCtx).propagateCancel
+ 28311984B  0.66% 73.13%  96479932B  2.27%  net/http.(*Request).write
+         0     0% 73.13%  96479932B  2.27%  net/http.(*persistConn).writeLoop
+ 50336232B  1.18% 74.31%  91759408B  2.15%  time.NewTimer
+ 81265956B  1.91% 76.22%  81265956B  1.91%  p2pstream/internal/db.appendProxyRequestEventArgs (inline)
+  9961624B  0.23% 76.45%  77075672B  1.81%  context.WithCancel
+ 74981192B  1.76% 78.21%  74981192B  1.76%  context.(*cancelCtx).Done
+ 67119104B  1.58% 79.79%  67119104B  1.58%  net/http.newTransferWriter
+         0     0% 79.79%  66062652B  1.55%  p2pstream/internal/server.publicRequestAdmissionStage
+ 47190960B  1.11% 80.90%  60298760B  1.42%  p2pstream/internal/server.WithClientIdentity
+         0     0% 80.90%  58722888B  1.38%  p2pstream/internal/server.(*App).tryReservePublicOwnedResource
+         0     0% 80.90%  58722888B  1.38%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResource (inline)
+ 58198152B  1.37% 82.26%  58722888B  1.38%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+         0     0% 82.26%  55582160B  1.31%  net/url.ParseRequestURI
+ 55582160B  1.31% 83.57%  55582160B  1.31%  net/url.parse
+         0     0% 83.57%  55052832B  1.29%  p2pstream/internal/server.publicResponseAdmissionStage
+         0     0% 83.57%  52954080B  1.24%  p2pstream/internal/server.(*App).proxyRouteTargetRequest.func2
+         0     0% 83.57%  52954080B  1.24%  p2pstream/internal/server.applyTrustedForwardedHeaders
+ 48765480B  1.15% 84.71%  48765480B  1.15%  net/http.cloneURL (inline)
+ 48761016B  1.15% 85.86%  48761016B  1.15%  context.WithValue
+         0     0% 85.86%  46663056B  1.10%  net.SplitHostPort
+ 46663056B  1.10% 86.95%  46663056B  1.10%  net.SplitHostPort.func1 (inline)
+         0     0% 86.95%  46663056B  1.10%  p2pstream/internal/server.normalizeRequestHost
+ 41947520B  0.99% 87.94%  41947520B  0.99%  time.newTimer
+ 41944980B  0.98% 88.92%  41944980B  0.98%  p2pstream/internal/server.(*publicProxyContext).deferCleanup (inline)
+ 39847520B  0.94% 89.86%  39847520B  0.94%  net/textproto.canonicalMIMEHeaderKey
+ 27264640B  0.64% 90.50%  37750640B  0.89%  net/http.readTransfer
+ 34605648B  0.81% 91.31%  34605648B  0.81%  net.(*conn).Read
+         0     0% 91.31%  34605648B  0.81%  net/http.(*connReader).backgroundRead
+         0     0% 91.31%  32172381B  0.76%  sync.(*Pool).Get
+         0     0% 91.31%  31457760B  0.74%  net/http.Header.Set (inline)
+ 25166208B  0.59% 91.90%  31457760B  0.74%  net/textproto.MIMEHeader.Set (inline)
+ 28312136B  0.66% 92.57%  28312136B  0.66%  p2pstream/internal/server.(*requestCapacityLimiter).tryAcquire (inline)
+         0     0% 92.57%  25698564B   0.6%  github.com/pressly/goose/v3/internal/sqlparser.parse
+         0     0% 92.57%  25698564B   0.6%  golang.org/x/sync/errgroup.(*Group).Go.func1
+         0     0% 92.57%  25174268B  0.59%  github.com/pressly/goose/v3/internal/sqlparser.ParseSQLMigration
+ 25174268B  0.59% 93.16%  25174268B  0.59%  github.com/pressly/goose/v3/internal/sqlparser.init.func1
+         0     0% 93.16%  25166976B  0.59%  container/list.(*List).PushFront (inline)
+ 25166976B  0.59% 93.75%  25166976B  0.59%  container/list.(*List).insertValue (inline)
+         0     0% 93.75%  25166976B  0.59%  net/http.(*Transport).tryPutIdleConn
+         0     0% 93.75%  25166976B  0.59%  net/http.(*connLRU).add
+         0     0% 93.75%  25166976B  0.59%  net/http.(*persistConn).readLoop.func2
+         0     0% 93.75%  23070032B  0.54%  github.com/mattn/go-sqlite3.(*SQLiteStmt).exec.func1
+  1048592B 0.025% 93.77%  23070032B  0.54%  github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync
+ 22545416B  0.53% 94.30%  22545416B  0.53%  mime.ParseMediaType
+         0     0% 94.30%  22545416B  0.53%  net/http/httputil.(*ReverseProxy).flushInterval
+         0     0% 94.30%  22021440B  0.52%  github.com/mattn/go-sqlite3.(*SQLiteStmt).bind
+ 22021440B  0.52% 94.82%  22021440B  0.52%  github.com/mattn/go-sqlite3.bindValue
+ 21496360B   0.5% 95.33%  21496360B   0.5%  net/textproto.(*Reader).ReadLine (inline)
+

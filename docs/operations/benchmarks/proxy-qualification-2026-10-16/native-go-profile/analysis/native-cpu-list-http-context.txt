@@ -1,0 +1,102 @@
+Total: 44s
+ROUTINE ======================== context.WithValue in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/context/context.go
+         0       30ms (flat, cum) 0.068% of Total
+         .          .    727:func WithValue(parent Context, key, val any) Context {
+         .          .    728:	if parent == nil {
+         .          .    729:		panic("cannot create context from nil parent")
+         .          .    730:	}
+         .          .    731:	if key == nil {
+         .          .    732:		panic("nil key")
+         .          .    733:	}
+         .          .    734:	if !reflectlite.TypeOf(key).Comparable() {
+         .          .    735:		panic("key is not comparable")
+         .          .    736:	}
+         .       30ms    737:	return &valueCtx{parent, key, val}
+         .          .    738:}
+         .          .    739:
+         .          .    740:// A valueCtx carries a key-value pair. It implements Value for that key and
+         .          .    741:// delegates all other calls to the embedded Context.
+         .          .    742:type valueCtx struct {
+ROUTINE ======================== context.withCancel in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/context/context.go
+      10ms      760ms (flat, cum)  1.73% of Total
+         .          .    273:func withCancel(parent Context) *cancelCtx {
+         .          .    274:	if parent == nil {
+         .          .    275:		panic("cannot create context from nil parent")
+         .          .    276:	}
+         .      170ms    277:	c := &cancelCtx{}
+      10ms      590ms    278:	c.propagateCancel(parent, c)
+         .          .    279:	return c
+         .          .    280:}
+         .          .    281:
+         .          .    282:// Cause returns a non-nil error explaining why c was canceled.
+         .          .    283:// The first cancellation of c or one of its parents sets the cause.
+ROUTINE ======================== net/http.(*Request).Clone in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/request.go
+      60ms      540ms (flat, cum)  1.23% of Total
+      10ms       10ms    386:func (r *Request) Clone(ctx context.Context) *Request {
+         .          .    387:	if ctx == nil {
+         .          .    388:		panic("nil context")
+         .          .    389:	}
+         .       90ms    390:	r2 := new(Request)
+      20ms       30ms    391:	*r2 = *r
+         .          .    392:	r2.ctx = ctx
+         .       60ms    393:	r2.URL = cloneURL(r.URL)
+         .      320ms    394:	r2.Header = r.Header.Clone()
+      10ms       10ms    395:	r2.Trailer = r.Trailer.Clone()
+         .          .    396:	if s := r.TransferEncoding; s != nil {
+         .          .    397:		s2 := make([]string, len(s))
+         .          .    398:		copy(s2, s)
+         .          .    399:		r2.TransferEncoding = s2
+         .          .    400:	}
+         .          .    401:	r2.Form = cloneURLValues(r.Form)
+         .          .    402:	r2.PostForm = cloneURLValues(r.PostForm)
+      10ms       10ms    403:	r2.MultipartForm = cloneMultipartForm(r.MultipartForm)
+         .          .    404:
+         .          .    405:	// Copy matches and otherValues. See issue 61410.
+      10ms       10ms    406:	if s := r.matches; s != nil {
+         .          .    407:		s2 := make([]string, len(s))
+         .          .    408:		copy(s2, s)
+         .          .    409:		r2.matches = s2
+         .          .    410:	}
+         .          .    411:	r2.otherValues = maps.Clone(r.otherValues)
+ROUTINE ======================== net/http.(*Request).WithContext in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/request.go
+      20ms      100ms (flat, cum)  0.23% of Total
+         .          .    368:func (r *Request) WithContext(ctx context.Context) *Request {
+         .          .    369:	if ctx == nil {
+         .          .    370:		panic("nil context")
+         .          .    371:	}
+      10ms       80ms    372:	r2 := new(Request)
+      10ms       20ms    373:	*r2 = *r
+         .          .    374:	r2.ctx = ctx
+         .          .    375:	return r2
+         .          .    376:}
+         .          .    377:
+         .          .    378:// Clone returns a deep copy of r with its context changed to ctx.
+ROUTINE ======================== net/http.Header.Clone in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/header.go
+      70ms      730ms (flat, cum)  1.66% of Total
+         .          .     94:func (h Header) Clone() Header {
+         .          .     95:	if h == nil {
+         .          .     96:		return nil
+         .          .     97:	}
+         .          .     98:
+         .          .     99:	// Find total number of values.
+         .          .    100:	nv := 0
+      10ms      130ms    101:	for _, vv := range h {
+      10ms       10ms    102:		nv += len(vv)
+         .          .    103:	}
+         .       90ms    104:	sv := make([]string, nv) // shared backing array for headers' values
+      10ms      130ms    105:	h2 := make(Header, len(h))
+      40ms      150ms    106:	for k, vv := range h {
+         .          .    107:		if vv == nil {
+         .          .    108:			// Preserve nil values. ReverseProxy distinguishes
+         .          .    109:			// between nil and zero-length header values.
+         .          .    110:			h2[k] = nil
+         .          .    111:			continue
+         .          .    112:		}
+         .       10ms    113:		n := copy(sv, vv)
+         .      210ms    114:		h2[k] = sv[:n:n]
+         .          .    115:		sv = sv[n:]
+         .          .    116:	}
+         .          .    117:	return h2
+         .          .    118:}
+         .          .    119:
+

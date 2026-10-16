@@ -1,0 +1,1040 @@
+Total: 45.20s
+ROUTINE ======================== internal/poll.(*FD).Read in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/internal/poll/fd_unix.go
+      40ms      3.86s (flat, cum)  8.54% of Total
+         .          .    141:func (fd *FD) Read(p []byte) (int, error) {
+         .       20ms    142:	if err := fd.readLock(); err != nil {
+         .          .    143:		return 0, err
+         .          .    144:	}
+         .          .    145:	defer fd.readUnlock()
+         .          .    146:	if len(p) == 0 {
+         .          .    147:		// If the caller wanted a zero byte read, return immediately
+         .          .    148:		// without trying (but after acquiring the readLock).
+         .          .    149:		// Otherwise syscall.Read returns 0, nil which looks like
+         .          .    150:		// io.EOF.
+         .          .    151:		// TODO(bradfitz): make it wait for readability? (Issue 15735)
+         .          .    152:		return 0, nil
+         .          .    153:	}
+         .       30ms    154:	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+         .          .    155:		return 0, err
+         .          .    156:	}
+         .          .    157:	if fd.IsStream && len(p) > maxRW {
+         .          .    158:		p = p[:maxRW]
+         .          .    159:	}
+         .          .    160:	for {
+      20ms      3.68s    161:		n, err := ignoringEINTRIO(syscall.Read, fd.Sysfd, p)
+         .          .    162:		if err != nil {
+         .          .    163:			n = 0
+      10ms       20ms    164:			if err == syscall.EAGAIN && fd.pd.pollable() {
+      10ms      100ms    165:				if err = fd.pd.waitRead(fd.isFile); err == nil {
+         .          .    166:					continue
+         .          .    167:				}
+         .          .    168:			}
+         .          .    169:		}
+         .          .    170:		err = fd.eofError(n, err)
+         .       10ms    171:		return n, err
+         .          .    172:	}
+         .          .    173:}
+         .          .    174:
+         .          .    175:// Pread wraps the pread system call.
+         .          .    176:func (fd *FD) Pread(p []byte, off int64) (int, error) {
+ROUTINE ======================== internal/poll.(*FD).SetReadDeadline in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/internal/poll/fd_poll_runtime.go
+         0      610ms (flat, cum)  1.35% of Total
+         .          .    137:func (fd *FD) SetReadDeadline(t time.Time) error {
+         .      610ms    138:	return setDeadlineImpl(fd, t, 'r')
+         .          .    139:}
+         .          .    140:
+         .          .    141:// SetWriteDeadline sets the write deadline associated with fd.
+         .          .    142:func (fd *FD) SetWriteDeadline(t time.Time) error {
+         .          .    143:	return setDeadlineImpl(fd, t, 'w')
+ROUTINE ======================== internal/poll.(*FD).SetWriteDeadline in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/internal/poll/fd_poll_runtime.go
+         0       40ms (flat, cum) 0.088% of Total
+         .          .    142:func (fd *FD) SetWriteDeadline(t time.Time) error {
+         .       40ms    143:	return setDeadlineImpl(fd, t, 'w')
+         .          .    144:}
+         .          .    145:
+         .          .    146:func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
+         .          .    147:	var d int64
+         .          .    148:	if !t.IsZero() {
+ROUTINE ======================== internal/poll.(*FD).Write in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/internal/poll/fd_unix.go
+      20ms      9.68s (flat, cum) 21.42% of Total
+      10ms       10ms    360:func (fd *FD) Write(p []byte) (int, error) {
+      10ms       10ms    361:	if err := fd.writeLock(); err != nil {
+         .          .    362:		return 0, err
+         .          .    363:	}
+         .          .    364:	defer fd.writeUnlock()
+         .       20ms    365:	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+         .          .    366:		return 0, err
+         .          .    367:	}
+         .          .    368:	var nn int
+         .          .    369:	for {
+         .          .    370:		max := len(p)
+         .          .    371:		if fd.IsStream && max-nn > maxRW {
+         .          .    372:			max = nn + maxRW
+         .          .    373:		}
+         .      9.60s    374:		n, err := ignoringEINTRIO(syscall.Write, fd.Sysfd, p[nn:max])
+         .          .    375:		if n > 0 {
+         .          .    376:			if n > max-nn {
+         .          .    377:				// This can reportedly happen when using
+         .          .    378:				// some VPN software. Issue #61060.
+         .          .    379:				// If we don't check this we will panic
+         .          .    380:				// with slice bounds out of range.
+         .          .    381:				// Use a more informative panic.
+         .          .    382:				panic("invalid return from write: got " + strconv.Itoa(n) + " from a write of " + strconv.Itoa(max-nn))
+         .          .    383:			}
+         .          .    384:			nn += n
+         .          .    385:		}
+         .          .    386:		if nn == len(p) {
+         .       40ms    387:			return nn, err
+         .          .    388:		}
+         .          .    389:		if err == syscall.EAGAIN && fd.pd.pollable() {
+         .          .    390:			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+         .          .    391:				continue
+         .          .    392:			}
+ROUTINE ======================== internal/runtime/syscall/linux.Syscall6 in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/internal/runtime/syscall/linux/asm_linux_amd64.s
+    13.30s     13.30s (flat, cum) 29.42% of Total
+         .          .     27:TEXT ·Syscall6<ABIInternal>(SB),NOSPLIT,$0
+         .          .     28:	// a6 already in R9.
+         .          .     29:	// a5 already in R8.
+         .          .     30:	MOVQ	SI, R10 // a4
+      10ms       10ms     31:	MOVQ	DI, DX  // a3
+         .          .     32:	MOVQ	CX, SI  // a2
+         .          .     33:	MOVQ	BX, DI  // a1
+         .          .     34:	// num already in AX.
+         .          .     35:	SYSCALL
+    13.29s     13.29s     36:	CMPQ	AX, $0xfffffffffffff001
+         .          .     37:	JLS	ok
+         .          .     38:	NEGQ	AX
+         .          .     39:	MOVQ	AX, CX  // errno
+         .          .     40:	MOVQ	$-1, AX // r1
+         .          .     41:	MOVQ	$0, BX  // r2
+ROUTINE ======================== runtime.gcAssistAlloc in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/mgcmark.go
+         0       90ms (flat, cum)   0.2% of Total
+         .          .    499:func gcAssistAlloc(gp *g) {
+         .          .    500:	// Don't assist in non-preemptible contexts. These are
+         .          .    501:	// generally fragile and won't allow the assist to block.
+         .          .    502:	if getg() == gp.m.g0 {
+         .          .    503:		return
+         .          .    504:	}
+         .          .    505:	if mp := getg().m; mp.locks > 0 || mp.preemptoff != "" {
+         .          .    506:		return
+         .          .    507:	}
+         .          .    508:
+         .          .    509:	if gp := getg(); gp.bubble != nil {
+         .          .    510:		// Disassociate the G from its synctest bubble while allocating.
+         .          .    511:		// This is less elegant than incrementing the group's active count,
+         .          .    512:		// but avoids any contamination between GC assist and synctest.
+         .          .    513:		bubble := gp.bubble
+         .          .    514:		gp.bubble = nil
+         .          .    515:		defer func() {
+         .          .    516:			gp.bubble = bubble
+         .          .    517:		}()
+         .          .    518:	}
+         .          .    519:
+         .          .    520:	// This extremely verbose boolean indicates whether we've
+         .          .    521:	// entered mark assist from the perspective of the tracer.
+         .          .    522:	//
+         .          .    523:	// In the tracer, this is just before we call gcAssistAlloc1
+         .          .    524:	// *regardless* of whether tracing is enabled. This is because
+         .          .    525:	// the tracer allows for tracing to begin (and advance
+         .          .    526:	// generations) in the middle of a GC mark phase, so we need to
+         .          .    527:	// record some state so that the tracer can pick it up to ensure
+         .          .    528:	// a consistent trace result.
+         .          .    529:	//
+         .          .    530:	// TODO(mknyszek): Hide the details of inMarkAssist in tracer
+         .          .    531:	// functions and simplify all the state tracking. This is a lot.
+         .          .    532:	enteredMarkAssistForTracing := false
+         .          .    533:retry:
+         .          .    534:	if gcCPULimiter.limiting() {
+         .          .    535:		// If the CPU limiter is enabled, intentionally don't
+         .          .    536:		// assist to reduce the amount of CPU time spent in the GC.
+         .          .    537:		if enteredMarkAssistForTracing {
+         .          .    538:			trace := traceAcquire()
+         .          .    539:			if trace.ok() {
+         .          .    540:				trace.GCMarkAssistDone()
+         .          .    541:				// Set this *after* we trace the end to make sure
+         .          .    542:				// that we emit an in-progress event if this is
+         .          .    543:				// the first event for the goroutine in the trace
+         .          .    544:				// or trace generation. Also, do this between
+         .          .    545:				// acquire/release because this is part of the
+         .          .    546:				// goroutine's trace state, and it must be atomic
+         .          .    547:				// with respect to the tracer.
+         .          .    548:				gp.inMarkAssist = false
+         .          .    549:				traceRelease(trace)
+         .          .    550:			} else {
+         .          .    551:				// This state is tracked even if tracing isn't enabled.
+         .          .    552:				// It's only used by the new tracer.
+         .          .    553:				// See the comment on enteredMarkAssistForTracing.
+         .          .    554:				gp.inMarkAssist = false
+         .          .    555:			}
+         .          .    556:		}
+         .          .    557:		return
+         .          .    558:	}
+         .          .    559:	// Compute the amount of scan work we need to do to make the
+         .          .    560:	// balance positive. When the required amount of work is low,
+         .          .    561:	// we over-assist to build up credit for future allocations
+         .          .    562:	// and amortize the cost of assisting.
+         .          .    563:	assistWorkPerByte := gcController.assistWorkPerByte.Load()
+         .          .    564:	assistBytesPerWork := gcController.assistBytesPerWork.Load()
+         .          .    565:	debtBytes := -gp.gcAssistBytes
+         .          .    566:	scanWork := int64(assistWorkPerByte * float64(debtBytes))
+         .          .    567:	if scanWork < gcOverAssistWork {
+         .          .    568:		scanWork = gcOverAssistWork
+         .          .    569:		debtBytes = int64(assistBytesPerWork * float64(scanWork))
+         .          .    570:	}
+         .          .    571:
+         .          .    572:	// Steal as much credit as we can from the background GC's
+         .          .    573:	// scan credit. This is racy and may drop the background
+         .          .    574:	// credit below 0 if two mutators steal at the same time. This
+         .          .    575:	// will just cause steals to fail until credit is accumulated
+         .          .    576:	// again, so in the long run it doesn't really matter, but we
+         .          .    577:	// do have to handle the negative credit case.
+         .          .    578:	bgScanCredit := gcController.bgScanCredit.Load()
+         .          .    579:	stolen := int64(0)
+         .          .    580:	if bgScanCredit > 0 {
+         .          .    581:		if bgScanCredit < scanWork {
+         .          .    582:			stolen = bgScanCredit
+         .          .    583:			gp.gcAssistBytes += 1 + int64(assistBytesPerWork*float64(stolen))
+         .          .    584:		} else {
+         .          .    585:			stolen = scanWork
+         .          .    586:			gp.gcAssistBytes += debtBytes
+         .          .    587:		}
+         .          .    588:		gcController.bgScanCredit.Add(-stolen)
+         .          .    589:
+         .          .    590:		scanWork -= stolen
+         .          .    591:
+         .          .    592:		if scanWork == 0 {
+         .          .    593:			// We were able to steal all of the credit we
+         .          .    594:			// needed.
+         .          .    595:			if enteredMarkAssistForTracing {
+         .          .    596:				trace := traceAcquire()
+         .          .    597:				if trace.ok() {
+         .          .    598:					trace.GCMarkAssistDone()
+         .          .    599:					// Set this *after* we trace the end to make sure
+         .          .    600:					// that we emit an in-progress event if this is
+         .          .    601:					// the first event for the goroutine in the trace
+         .          .    602:					// or trace generation. Also, do this between
+         .          .    603:					// acquire/release because this is part of the
+         .          .    604:					// goroutine's trace state, and it must be atomic
+         .          .    605:					// with respect to the tracer.
+         .          .    606:					gp.inMarkAssist = false
+         .          .    607:					traceRelease(trace)
+         .          .    608:				} else {
+         .          .    609:					// This state is tracked even if tracing isn't enabled.
+         .          .    610:					// It's only used by the new tracer.
+         .          .    611:					// See the comment on enteredMarkAssistForTracing.
+         .          .    612:					gp.inMarkAssist = false
+         .          .    613:				}
+         .          .    614:			}
+         .          .    615:			return
+         .          .    616:		}
+         .          .    617:	}
+         .          .    618:	if !enteredMarkAssistForTracing {
+         .          .    619:		trace := traceAcquire()
+         .          .    620:		if trace.ok() {
+         .          .    621:			trace.GCMarkAssistStart()
+         .          .    622:			// Set this *after* we trace the start, otherwise we may
+         .          .    623:			// emit an in-progress event for an assist we're about to start.
+         .          .    624:			gp.inMarkAssist = true
+         .          .    625:			traceRelease(trace)
+         .          .    626:		} else {
+         .          .    627:			gp.inMarkAssist = true
+         .          .    628:		}
+         .          .    629:		// In the new tracer, set enter mark assist tracing if we
+         .          .    630:		// ever pass this point, because we must manage inMarkAssist
+         .          .    631:		// correctly.
+         .          .    632:		//
+         .          .    633:		// See the comment on enteredMarkAssistForTracing.
+         .          .    634:		enteredMarkAssistForTracing = true
+         .          .    635:	}
+         .          .    636:
+         .          .    637:	// Perform assist work
+         .       90ms    638:	systemstack(func() {
+         .          .    639:		gcAssistAlloc1(gp, scanWork)
+         .          .    640:		// The user stack may have moved, so this can't touch
+         .          .    641:		// anything on it until it returns from systemstack.
+         .          .    642:	})
+         .          .    643:
+ROUTINE ======================== runtime.gcAssistAlloc.func2 in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/mgcmark.go
+         0       90ms (flat, cum)   0.2% of Total
+         .          .    638:	systemstack(func() {
+         .       90ms    639:		gcAssistAlloc1(gp, scanWork)
+         .          .    640:		// The user stack may have moved, so this can't touch
+         .          .    641:		// anything on it until it returns from systemstack.
+         .          .    642:	})
+         .          .    643:
+         .          .    644:	completed := gp.param != nil
+ROUTINE ======================== runtime.gcAssistAlloc1 in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/mgcmark.go
+         0       90ms (flat, cum)   0.2% of Total
+         .          .    711:func gcAssistAlloc1(gp *g, scanWork int64) {
+         .          .    712:	// Clear the flag indicating that this assist completed the
+         .          .    713:	// mark phase.
+         .          .    714:	gp.param = nil
+         .          .    715:
+         .          .    716:	if atomic.Load(&gcBlackenEnabled) == 0 {
+         .          .    717:		// The gcBlackenEnabled check in malloc races with the
+         .          .    718:		// store that clears it but an atomic check in every malloc
+         .          .    719:		// would be a performance hit.
+         .          .    720:		// Instead we recheck it here on the non-preemptible system
+         .          .    721:		// stack to determine if we should perform an assist.
+         .          .    722:
+         .          .    723:		// GC is done, so ignore any remaining debt.
+         .          .    724:		gp.gcAssistBytes = 0
+         .          .    725:		return
+         .          .    726:	}
+         .          .    727:
+         .          .    728:	// Track time spent in this assist. Since we're on the
+         .          .    729:	// system stack, this is non-preemptible, so we can
+         .          .    730:	// just measure start and end time.
+         .          .    731:	//
+         .          .    732:	// Limiter event tracking might be disabled if we end up here
+         .          .    733:	// while on a mark worker.
+         .          .    734:	startTime := nanotime()
+         .          .    735:	trackLimiterEvent := gp.m.p.ptr().limiterEvent.start(limiterEventMarkAssist, startTime)
+         .          .    736:
+         .          .    737:	gcBeginWork()
+         .          .    738:
+         .          .    739:	// gcDrainN requires the caller to be preemptible.
+         .          .    740:	casGToWaitingForSuspendG(gp, _Grunning, waitReasonGCAssistMarking)
+         .          .    741:
+         .          .    742:	// drain own cached work first in the hopes that it
+         .          .    743:	// will be more cache friendly.
+         .          .    744:	gcw := &getg().m.p.ptr().gcw
+         .       90ms    745:	workDone := gcDrainN(gcw, scanWork)
+         .          .    746:
+         .          .    747:	casgstatus(gp, _Gwaiting, _Grunning)
+         .          .    748:
+         .          .    749:	// Record that we did this much scan work.
+         .          .    750:	//
+ROUTINE ======================== runtime.gcDrain in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/mgcmark.go
+      10ms      420ms (flat, cum)  0.93% of Total
+         .          .   1248:func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+         .          .   1249:	if !writeBarrier.enabled {
+         .          .   1250:		throw("gcDrain phase incorrect")
+         .          .   1251:	}
+         .          .   1252:
+         .          .   1253:	// N.B. We must be running in a non-preemptible context, so it's
+         .          .   1254:	// safe to hold a reference to our P here.
+         .          .   1255:	gp := getg().m.curg
+         .          .   1256:	pp := gp.m.p.ptr()
+         .          .   1257:	preemptible := flags&gcDrainUntilPreempt != 0
+         .          .   1258:	flushBgCredit := flags&gcDrainFlushBgCredit != 0
+         .          .   1259:	idle := flags&gcDrainIdle != 0
+         .          .   1260:
+         .          .   1261:	initScanWork := gcw.heapScanWork
+         .          .   1262:
+         .          .   1263:	// checkWork is the scan work before performing the next
+         .          .   1264:	// self-preempt check.
+         .          .   1265:	checkWork := int64(1<<63 - 1)
+         .          .   1266:	var check func() bool
+         .          .   1267:	if flags&(gcDrainIdle|gcDrainFractional) != 0 {
+         .          .   1268:		checkWork = initScanWork + drainCheckThreshold
+         .          .   1269:		if idle {
+         .          .   1270:			check = pollWork
+         .          .   1271:		} else if flags&gcDrainFractional != 0 {
+         .          .   1272:			check = pollFractionalWorkerExit
+         .          .   1273:		}
+         .          .   1274:	}
+         .          .   1275:
+         .          .   1276:	if work.markrootNext.Load() < work.markrootJobs.Load() {
+         .          .   1277:		// Stop if we're preemptible, if someone wants to STW, or if
+         .          .   1278:		// someone is calling forEachP.
+         .          .   1279:		for !(gp.preempt && (preemptible || sched.gcwaiting.Load() || pp.runSafePointFn != 0)) {
+         .          .   1280:			job, ok := gcNextMarkRoot()
+         .          .   1281:			if !ok {
+         .          .   1282:				break
+         .          .   1283:			}
+         .      100ms   1284:			markroot(gcw, job, flushBgCredit)
+         .          .   1285:			if check != nil && check() {
+         .          .   1286:				goto done
+         .          .   1287:			}
+         .          .   1288:
+         .          .   1289:			// Spin up a new worker if requested.
+         .          .   1290:			if goexperiment.GreenTeaGC && gcw.mayNeedWorker {
+         .          .   1291:				gcw.mayNeedWorker = false
+         .          .   1292:				if gcphase == _GCmark {
+         .          .   1293:					gcController.enlistWorker()
+         .          .   1294:				}
+         .          .   1295:			}
+         .          .   1296:		}
+         .          .   1297:	}
+         .          .   1298:
+         .          .   1299:	// Drain heap marking jobs.
+         .          .   1300:	//
+         .          .   1301:	// Stop if we're preemptible, if someone wants to STW, or if
+         .          .   1302:	// someone is calling forEachP.
+         .          .   1303:	//
+         .          .   1304:	// TODO(mknyszek): Consider always checking gp.preempt instead
+         .          .   1305:	// of having the preempt flag, and making an exception for certain
+         .          .   1306:	// mark workers in retake. That might be simpler than trying to
+         .          .   1307:	// enumerate all the reasons why we might want to preempt, even
+         .          .   1308:	// if we're supposed to be mostly non-preemptible.
+      10ms       10ms   1309:	for !(gp.preempt && (preemptible || sched.gcwaiting.Load() || pp.runSafePointFn != 0)) {
+         .          .   1310:		// Try to keep work available on the global queue. We used to
+         .          .   1311:		// check if there were waiting workers, but it's better to
+         .          .   1312:		// just keep work available than to make workers wait. In the
+         .          .   1313:		// worst case, we'll do O(log(_WorkbufSize)) unnecessary
+         .          .   1314:		// balances.
+         .          .   1315:		if work.full == 0 {
+         .          .   1316:			gcw.balance()
+         .          .   1317:		}
+         .          .   1318:
+         .          .   1319:		// See mgcwork.go for the rationale behind the order in which we check these queues.
+         .          .   1320:		var b uintptr
+         .          .   1321:		var s objptr
+         .          .   1322:		if b = gcw.tryGetObjFast(); b == 0 {
+         .          .   1323:			if s = gcw.tryGetSpanFast(); s == 0 {
+         .          .   1324:				if b = gcw.tryGetObj(); b == 0 {
+         .          .   1325:					if s = gcw.tryGetSpan(); s == 0 {
+         .          .   1326:						// Flush the write barrier
+         .          .   1327:						// buffer; this may create
+         .          .   1328:						// more work.
+         .          .   1329:						wbBufFlush()
+         .          .   1330:						if b = gcw.tryGetObj(); b == 0 {
+         .          .   1331:							if s = gcw.tryGetSpan(); s == 0 {
+         .          .   1332:								s = gcw.tryStealSpan()
+         .          .   1333:							}
+         .          .   1334:						}
+         .          .   1335:					}
+         .          .   1336:				}
+         .          .   1337:			}
+         .          .   1338:		}
+         .          .   1339:		if b != 0 {
+         .      200ms   1340:			scanObject(b, gcw)
+         .          .   1341:		} else if s != 0 {
+         .      110ms   1342:			scanSpan(s, gcw)
+         .          .   1343:		} else {
+         .          .   1344:			// Unable to get work.
+         .          .   1345:			break
+         .          .   1346:		}
+         .          .   1347:
+ROUTINE ======================== runtime.gcDrainMarkWorkerDedicated in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/mgcmark.go
+         0      420ms (flat, cum)  0.93% of Total
+         .          .   1182:func gcDrainMarkWorkerDedicated(gcw *gcWork, untilPreempt bool) {
+         .          .   1183:	flags := gcDrainFlushBgCredit
+         .          .   1184:	if untilPreempt {
+         .          .   1185:		flags |= gcDrainUntilPreempt
+         .          .   1186:	}
+         .      420ms   1187:	gcDrain(gcw, flags)
+         .          .   1188:}
+         .          .   1189:
+         .          .   1190:// gcDrainMarkWorkerFractional is a wrapper for gcDrain that exists to better account
+         .          .   1191:// mark time in profiles.
+         .          .   1192:func gcDrainMarkWorkerFractional(gcw *gcWork) {
+ROUTINE ======================== runtime.gcDrainN in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/mgcmark.go
+         0       90ms (flat, cum)   0.2% of Total
+         .          .   1401:func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+         .          .   1402:	if !writeBarrier.enabled {
+         .          .   1403:		throw("gcDrainN phase incorrect")
+         .          .   1404:	}
+         .          .   1405:
+         .          .   1406:	// There may already be scan work on the gcw, which we don't
+         .          .   1407:	// want to claim was done by this call.
+         .          .   1408:	workFlushed := -gcw.heapScanWork
+         .          .   1409:
+         .          .   1410:	// In addition to backing out because of a preemption, back out
+         .          .   1411:	// if the GC CPU limiter is enabled.
+         .          .   1412:	gp := getg().m.curg
+         .          .   1413:	for !gp.preempt && !gcCPULimiter.limiting() && workFlushed+gcw.heapScanWork < scanWork {
+         .          .   1414:		// See gcDrain comment.
+         .          .   1415:		if work.full == 0 {
+         .          .   1416:			gcw.balance()
+         .          .   1417:		}
+         .          .   1418:
+         .          .   1419:		// See mgcwork.go for the rationale behind the order in which we check these queues.
+         .          .   1420:		var b uintptr
+         .          .   1421:		var s objptr
+         .          .   1422:		if b = gcw.tryGetObjFast(); b == 0 {
+         .          .   1423:			if s = gcw.tryGetSpanFast(); s == 0 {
+         .          .   1424:				if b = gcw.tryGetObj(); b == 0 {
+         .          .   1425:					if s = gcw.tryGetSpan(); s == 0 {
+         .          .   1426:						// Flush the write barrier
+         .          .   1427:						// buffer; this may create
+         .          .   1428:						// more work.
+         .          .   1429:						wbBufFlush()
+         .          .   1430:						if b = gcw.tryGetObj(); b == 0 {
+         .          .   1431:							if s = gcw.tryGetSpan(); s == 0 {
+         .          .   1432:								// Try to do a root job.
+         .          .   1433:								if work.markrootNext.Load() < work.markrootJobs.Load() {
+         .          .   1434:									job, ok := gcNextMarkRoot()
+         .          .   1435:									if ok {
+         .       30ms   1436:										workFlushed += markroot(gcw, job, false)
+         .          .   1437:										continue
+         .          .   1438:									}
+         .          .   1439:								}
+         .          .   1440:								s = gcw.tryStealSpan()
+         .          .   1441:							}
+         .          .   1442:						}
+         .          .   1443:					}
+         .          .   1444:				}
+         .          .   1445:			}
+         .          .   1446:		}
+         .          .   1447:		if b != 0 {
+         .       60ms   1448:			scanObject(b, gcw)
+         .          .   1449:		} else if s != 0 {
+         .          .   1450:			scanSpan(s, gcw)
+         .          .   1451:		} else {
+         .          .   1452:			// Unable to get work.
+         .          .   1453:			break
+ROUTINE ======================== runtime.mallocgc in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/malloc.go
+     380ms      3.30s (flat, cum)  7.30% of Total
+     110ms      110ms   1067:func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+         .          .   1068:	if doubleCheckMalloc {
+         .          .   1069:		if gcphase == _GCmarktermination {
+         .          .   1070:			throw("mallocgc called with gcphase == _GCmarktermination")
+         .          .   1071:		}
+         .          .   1072:	}
+         .          .   1073:
+         .          .   1074:	// Short-circuit zero-sized allocation requests.
+      40ms       40ms   1075:	if size == 0 {
+         .          .   1076:		return unsafe.Pointer(&zerobase)
+         .          .   1077:	}
+         .          .   1078:
+         .          .   1079:	if sizeSpecializedMallocEnabled && heapBitsInSpan(size) {
+         .          .   1080:		if typ == nil || !typ.Pointers() {
+         .          .   1081:			return mallocNoScanTable[size](size, typ, needzero)
+         .          .   1082:		} else {
+         .          .   1083:			if !needzero {
+         .          .   1084:				throw("objects with pointers must be zeroed")
+         .          .   1085:			}
+         .          .   1086:			return mallocScanTable[size](size, typ, needzero)
+         .          .   1087:		}
+         .          .   1088:	}
+         .          .   1089:
+         .          .   1090:	// It's possible for any malloc to trigger sweeping, which may in
+         .          .   1091:	// turn queue finalizers. Record this dynamic lock edge.
+         .          .   1092:	// N.B. Compiled away if lockrank experiment is not enabled.
+         .          .   1093:	lockRankMayQueueFinalizer()
+         .          .   1094:
+         .          .   1095:	// Pre-malloc debug hooks.
+      20ms       20ms   1096:	if debug.malloc {
+         .          .   1097:		if x := preMallocgcDebug(size, typ); x != nil {
+         .          .   1098:			return x
+         .          .   1099:		}
+         .          .   1100:	}
+         .          .   1101:
+         .          .   1102:	// For ASAN, we allocate extra memory around each allocation called the "redzone."
+         .          .   1103:	// These "redzones" are marked as unaddressable.
+         .          .   1104:	var asanRZ uintptr
+         .          .   1105:	if asanenabled {
+         .          .   1106:		asanRZ = redZoneSize(size)
+         .          .   1107:		size += asanRZ
+         .          .   1108:	}
+         .          .   1109:
+         .          .   1110:	// Assist the GC if needed. (On the reuse path, we currently compensate for this;
+         .          .   1111:	// changes here might require changes there.)
+      20ms       20ms   1112:	if gcBlackenEnabled != 0 {
+         .       90ms   1113:		deductAssistCredit(size)
+         .          .   1114:	}
+         .          .   1115:
+         .          .   1116:	// Actually do the allocation.
+         .          .   1117:	var x unsafe.Pointer
+         .          .   1118:	var elemsize uintptr
+         .          .   1119:	if sizeSpecializedMallocEnabled {
+         .          .   1120:		// we know that heapBitsInSpan is false.
+         .          .   1121:		if size <= maxSmallSize-gc.MallocHeaderSize {
+         .          .   1122:			if typ == nil || !typ.Pointers() {
+         .          .   1123:				x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
+         .          .   1124:			} else {
+         .          .   1125:				if !needzero {
+         .          .   1126:					throw("objects with pointers must be zeroed")
+         .          .   1127:				}
+         .          .   1128:				x, elemsize = mallocgcSmallScanHeader(size, typ)
+         .          .   1129:			}
+         .          .   1130:		} else {
+         .          .   1131:			x, elemsize = mallocgcLarge(size, typ, needzero)
+         .          .   1132:		}
+         .          .   1133:	} else {
+      20ms       20ms   1134:		if size <= maxSmallSize-gc.MallocHeaderSize {
+      60ms       60ms   1135:			if typ == nil || !typ.Pointers() {
+         .          .   1136:				// tiny allocations might be kept alive by other co-located values.
+         .          .   1137:				// Make sure secret allocations get zeroed by avoiding the tiny allocator
+         .          .   1138:				// See go.dev/issue/76356
+         .          .   1139:				gp := getg()
+      10ms       10ms   1140:				if size < maxTinySize && gp.secret == 0 {
+         .      180ms   1141:					x, elemsize = mallocgcTiny(size, typ)
+         .          .   1142:				} else {
+         .      420ms   1143:					x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
+         .          .   1144:				}
+         .          .   1145:			} else {
+         .          .   1146:				if !needzero {
+         .          .   1147:					throw("objects with pointers must be zeroed")
+         .          .   1148:				}
+         .          .   1149:				if heapBitsInSpan(size) {
+      10ms      2.17s   1150:					x, elemsize = mallocgcSmallScanNoHeader(size, typ)
+         .          .   1151:				} else {
+         .       70ms   1152:					x, elemsize = mallocgcSmallScanHeader(size, typ)
+         .          .   1153:				}
+         .          .   1154:			}
+         .          .   1155:		} else {
+         .          .   1156:			x, elemsize = mallocgcLarge(size, typ, needzero)
+         .          .   1157:		}
+         .          .   1158:	}
+         .          .   1159:
+         .          .   1160:	gp := getg()
+         .          .   1161:	if goexperiment.RuntimeSecret && gp.secret > 0 {
+         .          .   1162:		// Mark any object allocated while in secret mode as secret.
+         .          .   1163:		// This ensures we zero it immediately when freeing it.
+         .          .   1164:		addSecret(x, size)
+         .          .   1165:	}
+         .          .   1166:
+         .          .   1167:	// Notify sanitizers, if enabled.
+         .          .   1168:	if raceenabled {
+         .          .   1169:		racemalloc(x, size-asanRZ)
+         .          .   1170:	}
+         .          .   1171:	if msanenabled {
+         .          .   1172:		msanmalloc(x, size-asanRZ)
+         .          .   1173:	}
+         .          .   1174:	if asanenabled {
+         .          .   1175:		// Poison the space between the end of the requested size of x
+         .          .   1176:		// and the end of the slot. Unpoison the requested allocation.
+         .          .   1177:		frag := elemsize - size
+         .          .   1178:		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-gc.MallocHeaderSize {
+         .          .   1179:			frag -= gc.MallocHeaderSize
+         .          .   1180:		}
+         .          .   1181:		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
+         .          .   1182:		asanunpoison(x, size-asanRZ)
+         .          .   1183:	}
+         .          .   1184:	if valgrindenabled {
+         .          .   1185:		valgrindMalloc(x, size-asanRZ)
+         .          .   1186:	}
+         .          .   1187:
+         .          .   1188:	// Adjust our GC assist debt to account for internal fragmentation.
+         .          .   1189:	if gcBlackenEnabled != 0 && elemsize != 0 {
+         .          .   1190:		if assistG := getg().m.curg; assistG != nil {
+         .          .   1191:			assistG.gcAssistBytes -= int64(elemsize - size)
+         .          .   1192:		}
+         .          .   1193:	}
+         .          .   1194:
+         .          .   1195:	// Post-malloc debug hooks.
+      20ms       20ms   1196:	if debug.malloc {
+         .          .   1197:		postMallocgcDebug(x, elemsize, typ)
+         .          .   1198:	}
+      70ms       70ms   1199:	return x
+         .          .   1200:}
+         .          .   1201:
+         .          .   1202:func mallocgcTiny(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
+         .          .   1203:	// Set mp.mallocing to keep from being preempted by GC.
+         .          .   1204:	mp := acquirem()
+ROUTINE ======================== runtime.mallocgcSmallNoscan in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/malloc.go
+     110ms      420ms (flat, cum)  0.93% of Total
+      20ms       20ms   1358:func mallocgcSmallNoscan(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
+         .          .   1359:	// Set mp.mallocing to keep from being preempted by GC.
+         .       10ms   1360:	mp := acquirem()
+         .          .   1361:	if doubleCheckMalloc {
+         .          .   1362:		if mp.mallocing != 0 {
+         .          .   1363:			throw("malloc deadlock")
+         .          .   1364:		}
+         .          .   1365:		if mp.gsignal == getg() {
+         .          .   1366:			throw("malloc during signal")
+         .          .   1367:		}
+         .          .   1368:		if typ != nil && typ.Pointers() {
+         .          .   1369:			throw("expected noscan type for noscan alloc")
+         .          .   1370:		}
+         .          .   1371:	}
+         .          .   1372:	mp.mallocing = 1
+         .          .   1373:
+         .          .   1374:	checkGCTrigger := false
+         .          .   1375:	c := getMCache(mp)
+         .          .   1376:	var sizeclass uint8
+         .          .   1377:	if size <= gc.SmallSizeMax-8 {
+      20ms       20ms   1378:		sizeclass = gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
+         .          .   1379:	} else {
+         .          .   1380:		sizeclass = gc.SizeToSizeClass128[divRoundUp(size-gc.SmallSizeMax, gc.LargeSizeDiv)]
+         .          .   1381:	}
+      10ms       10ms   1382:	size = uintptr(gc.SizeClassToSize[sizeclass])
+      10ms       10ms   1383:	spc := makeSpanClass(sizeclass, true)
+      10ms       10ms   1384:	span := c.alloc[spc]
+         .          .   1385:
+         .          .   1386:	// First, check for a reusable object.
+         .          .   1387:	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
+         .          .   1388:		// We have a reusable object, use it.
+         .          .   1389:		x := mallocgcSmallNoscanReuse(c, span, spc, size, needzero)
+         .          .   1390:		mp.mallocing = 0
+         .          .   1391:		releasem(mp)
+         .          .   1392:		return x, size
+         .          .   1393:	}
+         .          .   1394:
+      10ms      150ms   1395:	v := nextFreeFast(span)
+      10ms       10ms   1396:	if v == 0 {
+         .      100ms   1397:		v, span, checkGCTrigger = c.nextFree(spc)
+         .          .   1398:	}
+         .          .   1399:	x := unsafe.Pointer(v)
+         .          .   1400:	if needzero && span.needzero != 0 {
+         .       20ms   1401:		memclrNoHeapPointers(x, size)
+         .          .   1402:	}
+         .          .   1403:
+         .          .   1404:	// Ensure that the stores above that initialize x to
+         .          .   1405:	// type-safe memory and set the heap bits occur before
+         .          .   1406:	// the caller can make x observable to the garbage
+         .          .   1407:	// collector. Otherwise, on weakly ordered machines,
+         .          .   1408:	// the garbage collector could follow a pointer to x,
+         .          .   1409:	// but see uninitialized memory or stale heap bits.
+      10ms       20ms   1410:	publicationBarrier()
+         .          .   1411:
+         .          .   1412:	if writeBarrier.enabled {
+         .          .   1413:		// Allocate black during GC.
+         .          .   1414:		// All slots hold nil so no scanning is needed.
+         .          .   1415:		// This may be racing with GC so do it atomically if there can be
+         .          .   1416:		// a race marking the bit.
+         .          .   1417:		gcmarknewobject(span, uintptr(x))
+         .          .   1418:	} else {
+         .          .   1419:		// Track the last free index before the mark phase. This field
+         .          .   1420:		// is only used by the garbage collector. During the mark phase
+         .          .   1421:		// this is used by the conservative scanner to filter out objects
+         .          .   1422:		// that are both free and recently-allocated. It's safe to do that
+         .          .   1423:		// because we allocate-black if the GC is enabled. The conservative
+         .          .   1424:		// scanner produces pointers out of thin air, so without additional
+         .          .   1425:		// synchronization it might otherwise observe a partially-initialized
+         .          .   1426:		// object, which could crash the program.
+         .          .   1427:		span.freeIndexForScan = span.freeindex
+         .          .   1428:	}
+         .          .   1429:
+         .          .   1430:	// Note cache c only valid while m acquired; see #47302
+         .          .   1431:	//
+         .          .   1432:	// N.B. Use the full size because that matches how the GC
+         .          .   1433:	// will update the mem profile on the "free" side.
+         .          .   1434:	//
+         .          .   1435:	// TODO(mknyszek): We should really count the header as part
+         .          .   1436:	// of gc_sys or something. The code below just pretends it is
+         .          .   1437:	// internal fragmentation and matches the GC's accounting by
+         .          .   1438:	// using the whole allocation slot.
+         .          .   1439:	c.nextSample -= int64(size)
+         .          .   1440:	if c.nextSample < 0 || MemProfileRate != c.memProfRate {
+         .          .   1441:		profilealloc(mp, x, size)
+         .          .   1442:	}
+         .          .   1443:	mp.mallocing = 0
+         .       10ms   1444:	releasem(mp)
+         .          .   1445:
+         .          .   1446:	if checkGCTrigger {
+         .       20ms   1447:		if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
+         .          .   1448:			gcStart(t)
+         .          .   1449:		}
+         .          .   1450:	}
+      10ms       10ms   1451:	return x, size
+         .          .   1452:}
+         .          .   1453:
+         .          .   1454:// mallocgcSmallNoscanReuse returns a previously freed noscan object after preparing it for reuse.
+         .          .   1455:// It must only be called if hasReusableNoscan returned true.
+         .          .   1456:func mallocgcSmallNoscanReuse(c *mcache, span *mspan, spc spanClass, size uintptr, needzero bool) unsafe.Pointer {
+ROUTINE ======================== runtime.mallocgcSmallScanHeader in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/malloc.go
+      10ms       70ms (flat, cum)  0.15% of Total
+         .          .   1594:func mallocgcSmallScanHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
+         .          .   1595:	// Set mp.mallocing to keep from being preempted by GC.
+         .          .   1596:	mp := acquirem()
+         .          .   1597:	if doubleCheckMalloc {
+         .          .   1598:		if mp.mallocing != 0 {
+         .          .   1599:			throw("malloc deadlock")
+         .          .   1600:		}
+         .          .   1601:		if mp.gsignal == getg() {
+         .          .   1602:			throw("malloc during signal")
+         .          .   1603:		}
+         .          .   1604:		if typ == nil || !typ.Pointers() {
+         .          .   1605:			throw("noscan allocated in scan-only path")
+         .          .   1606:		}
+         .          .   1607:		if heapBitsInSpan(size) {
+         .          .   1608:			throw("heap bits in span for header-only path")
+         .          .   1609:		}
+         .          .   1610:	}
+         .          .   1611:	mp.mallocing = 1
+         .          .   1612:
+         .          .   1613:	checkGCTrigger := false
+         .          .   1614:	c := getMCache(mp)
+         .          .   1615:	size += gc.MallocHeaderSize
+         .          .   1616:	var sizeclass uint8
+         .          .   1617:	if size <= gc.SmallSizeMax-8 {
+         .          .   1618:		sizeclass = gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
+         .          .   1619:	} else {
+         .          .   1620:		sizeclass = gc.SizeToSizeClass128[divRoundUp(size-gc.SmallSizeMax, gc.LargeSizeDiv)]
+         .          .   1621:	}
+         .          .   1622:	size = uintptr(gc.SizeClassToSize[sizeclass])
+         .          .   1623:	spc := makeSpanClass(sizeclass, false)
+         .          .   1624:	span := c.alloc[spc]
+         .          .   1625:	v := nextFreeFast(span)
+         .          .   1626:	if v == 0 {
+         .       10ms   1627:		v, span, checkGCTrigger = c.nextFree(spc)
+         .          .   1628:	}
+      10ms       10ms   1629:	x := unsafe.Pointer(v)
+         .          .   1630:	if span.needzero != 0 {
+         .       30ms   1631:		memclrNoHeapPointers(x, size)
+         .          .   1632:	}
+         .          .   1633:	header := (**_type)(x)
+         .          .   1634:	x = add(x, gc.MallocHeaderSize)
+         .       10ms   1635:	c.scanAlloc += heapSetTypeSmallHeader(uintptr(x), size-gc.MallocHeaderSize, typ, header, span)
+         .          .   1636:
+         .          .   1637:	// Ensure that the stores above that initialize x to
+         .          .   1638:	// type-safe memory and set the heap bits occur before
+         .          .   1639:	// the caller can make x observable to the garbage
+         .          .   1640:	// collector. Otherwise, on weakly ordered machines,
+         .          .   1641:	// the garbage collector could follow a pointer to x,
+         .          .   1642:	// but see uninitialized memory or stale heap bits.
+         .          .   1643:	publicationBarrier()
+         .          .   1644:
+         .          .   1645:	if writeBarrier.enabled {
+         .          .   1646:		// Allocate black during GC.
+         .          .   1647:		// All slots hold nil so no scanning is needed.
+         .          .   1648:		// This may be racing with GC so do it atomically if there can be
+         .          .   1649:		// a race marking the bit.
+         .          .   1650:		gcmarknewobject(span, uintptr(x))
+         .          .   1651:	} else {
+         .          .   1652:		// Track the last free index before the mark phase. This field
+         .          .   1653:		// is only used by the garbage collector. During the mark phase
+         .          .   1654:		// this is used by the conservative scanner to filter out objects
+         .          .   1655:		// that are both free and recently-allocated. It's safe to do that
+         .          .   1656:		// because we allocate-black if the GC is enabled. The conservative
+         .          .   1657:		// scanner produces pointers out of thin air, so without additional
+         .          .   1658:		// synchronization it might otherwise observe a partially-initialized
+         .          .   1659:		// object, which could crash the program.
+         .          .   1660:		span.freeIndexForScan = span.freeindex
+         .          .   1661:	}
+         .          .   1662:
+         .          .   1663:	// Note cache c only valid while m acquired; see #47302
+         .          .   1664:	//
+         .          .   1665:	// N.B. Use the full size because that matches how the GC
+         .          .   1666:	// will update the mem profile on the "free" side.
+         .          .   1667:	//
+         .          .   1668:	// TODO(mknyszek): We should really count the header as part
+         .          .   1669:	// of gc_sys or something. The code below just pretends it is
+         .          .   1670:	// internal fragmentation and matches the GC's accounting by
+         .          .   1671:	// using the whole allocation slot.
+         .          .   1672:	c.nextSample -= int64(size)
+         .          .   1673:	if c.nextSample < 0 || MemProfileRate != c.memProfRate {
+         .          .   1674:		profilealloc(mp, x, size)
+         .          .   1675:	}
+         .          .   1676:	mp.mallocing = 0
+         .          .   1677:	releasem(mp)
+         .          .   1678:
+         .          .   1679:	if checkGCTrigger {
+         .          .   1680:		if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
+         .       10ms   1681:			gcStart(t)
+         .          .   1682:		}
+         .          .   1683:	}
+         .          .   1684:	return x, size
+         .          .   1685:}
+         .          .   1686:
+ROUTINE ======================== runtime.mallocgcSmallScanNoHeader in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/malloc.go
+     340ms      2.16s (flat, cum)  4.78% of Total
+      30ms       30ms   1503:func mallocgcSmallScanNoHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
+         .          .   1504:	// Set mp.mallocing to keep from being preempted by GC.
+         .       30ms   1505:	mp := acquirem()
+         .          .   1506:	if doubleCheckMalloc {
+         .          .   1507:		if mp.mallocing != 0 {
+         .          .   1508:			throw("malloc deadlock")
+         .          .   1509:		}
+         .          .   1510:		if mp.gsignal == getg() {
+         .          .   1511:			throw("malloc during signal")
+         .          .   1512:		}
+         .          .   1513:		if typ == nil || !typ.Pointers() {
+         .          .   1514:			throw("noscan allocated in scan-only path")
+         .          .   1515:		}
+         .          .   1516:		if !heapBitsInSpan(size) {
+         .          .   1517:			throw("heap bits in not in span for non-header-only path")
+         .          .   1518:		}
+         .          .   1519:	}
+         .          .   1520:	mp.mallocing = 1
+         .          .   1521:
+         .          .   1522:	checkGCTrigger := false
+         .       80ms   1523:	c := getMCache(mp)
+      10ms       10ms   1524:	sizeclass := gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
+         .       70ms   1525:	spc := makeSpanClass(sizeclass, false)
+      20ms       20ms   1526:	span := c.alloc[spc]
+      30ms      530ms   1527:	v := nextFreeFast(span)
+      10ms       10ms   1528:	if v == 0 {
+         .      510ms   1529:		v, span, checkGCTrigger = c.nextFree(spc)
+         .          .   1530:	}
+      30ms       30ms   1531:	x := unsafe.Pointer(v)
+         .          .   1532:	if span.needzero != 0 {
+      30ms      280ms   1533:		memclrNoHeapPointers(x, size)
+         .          .   1534:	}
+      10ms       10ms   1535:	if goarch.PtrSize == 8 && sizeclass == 1 {
+         .          .   1536:		// initHeapBits already set the pointer bits for the 8-byte sizeclass
+         .          .   1537:		// on 64-bit platforms.
+         .          .   1538:		c.scanAlloc += 8
+         .          .   1539:	} else {
+         .      280ms   1540:		c.scanAlloc += heapSetTypeNoHeader(uintptr(x), size, typ, span)
+         .          .   1541:	}
+      10ms       10ms   1542:	size = uintptr(gc.SizeClassToSize[sizeclass])
+         .          .   1543:
+         .          .   1544:	// Ensure that the stores above that initialize x to
+         .          .   1545:	// type-safe memory and set the heap bits occur before
+         .          .   1546:	// the caller can make x observable to the garbage
+         .          .   1547:	// collector. Otherwise, on weakly ordered machines,
+         .          .   1548:	// the garbage collector could follow a pointer to x,
+         .          .   1549:	// but see uninitialized memory or stale heap bits.
+         .          .   1550:	publicationBarrier()
+         .          .   1551:
+      20ms       20ms   1552:	if writeBarrier.enabled {
+         .          .   1553:		// Allocate black during GC.
+         .          .   1554:		// All slots hold nil so no scanning is needed.
+         .          .   1555:		// This may be racing with GC so do it atomically if there can be
+         .          .   1556:		// a race marking the bit.
+         .       10ms   1557:		gcmarknewobject(span, uintptr(x))
+         .          .   1558:	} else {
+         .          .   1559:		// Track the last free index before the mark phase. This field
+         .          .   1560:		// is only used by the garbage collector. During the mark phase
+         .          .   1561:		// this is used by the conservative scanner to filter out objects
+         .          .   1562:		// that are both free and recently-allocated. It's safe to do that
+         .          .   1563:		// because we allocate-black if the GC is enabled. The conservative
+         .          .   1564:		// scanner produces pointers out of thin air, so without additional
+         .          .   1565:		// synchronization it might otherwise observe a partially-initialized
+         .          .   1566:		// object, which could crash the program.
+      30ms       30ms   1567:		span.freeIndexForScan = span.freeindex
+         .          .   1568:	}
+         .          .   1569:
+         .          .   1570:	// Note cache c only valid while m acquired; see #47302
+         .          .   1571:	//
+         .          .   1572:	// N.B. Use the full size because that matches how the GC
+         .          .   1573:	// will update the mem profile on the "free" side.
+         .          .   1574:	//
+         .          .   1575:	// TODO(mknyszek): We should really count the header as part
+         .          .   1576:	// of gc_sys or something. The code below just pretends it is
+         .          .   1577:	// internal fragmentation and matches the GC's accounting by
+         .          .   1578:	// using the whole allocation slot.
+      40ms       40ms   1579:	c.nextSample -= int64(size)
+      20ms       20ms   1580:	if c.nextSample < 0 || MemProfileRate != c.memProfRate {
+      20ms       50ms   1581:		profilealloc(mp, x, size)
+         .          .   1582:	}
+      10ms       10ms   1583:	mp.mallocing = 0
+      10ms       30ms   1584:	releasem(mp)
+         .          .   1585:
+      10ms       10ms   1586:	if checkGCTrigger {
+         .       40ms   1587:		if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
+         .          .   1588:			gcStart(t)
+         .          .   1589:		}
+         .          .   1590:	}
+         .          .   1591:	return x, size
+         .          .   1592:}
+ROUTINE ======================== runtime.mallocgcTiny in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/malloc.go
+      90ms      180ms (flat, cum)   0.4% of Total
+         .          .   1202:func mallocgcTiny(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
+         .          .   1203:	// Set mp.mallocing to keep from being preempted by GC.
+      10ms       20ms   1204:	mp := acquirem()
+         .          .   1205:	if doubleCheckMalloc {
+         .          .   1206:		if mp.mallocing != 0 {
+         .          .   1207:			throw("malloc deadlock")
+         .          .   1208:		}
+         .          .   1209:		if mp.gsignal == getg() {
+         .          .   1210:			throw("malloc during signal")
+         .          .   1211:		}
+         .          .   1212:		if typ != nil && typ.Pointers() {
+         .          .   1213:			throw("expected noscan for tiny alloc")
+         .          .   1214:		}
+         .          .   1215:	}
+      10ms       10ms   1216:	mp.mallocing = 1
+         .          .   1217:
+         .          .   1218:	// Tiny allocator.
+         .          .   1219:	//
+         .          .   1220:	// Tiny allocator combines several tiny allocation requests
+         .          .   1221:	// into a single memory block. The resulting memory block
+         .          .   1222:	// is freed when all subobjects are unreachable. The subobjects
+         .          .   1223:	// must be noscan (don't have pointers), this ensures that
+         .          .   1224:	// the amount of potentially wasted memory is bounded.
+         .          .   1225:	//
+         .          .   1226:	// Size of the memory block used for combining (maxTinySize) is tunable.
+         .          .   1227:	// Current setting is 16 bytes, which relates to 2x worst case memory
+         .          .   1228:	// wastage (when all but one subobjects are unreachable).
+         .          .   1229:	// 8 bytes would result in no wastage at all, but provides less
+         .          .   1230:	// opportunities for combining.
+         .          .   1231:	// 32 bytes provides more opportunities for combining,
+         .          .   1232:	// but can lead to 4x worst case wastage.
+         .          .   1233:	// The best case winning is 8x regardless of block size.
+         .          .   1234:	//
+         .          .   1235:	// Objects obtained from tiny allocator must not be freed explicitly.
+         .          .   1236:	// So when an object will be freed explicitly, we ensure that
+         .          .   1237:	// its size >= maxTinySize.
+         .          .   1238:	//
+         .          .   1239:	// SetFinalizer has a special case for objects potentially coming
+         .          .   1240:	// from tiny allocator, it such case it allows to set finalizers
+         .          .   1241:	// for an inner byte of a memory block.
+         .          .   1242:	//
+         .          .   1243:	// The main targets of tiny allocator are small strings and
+         .          .   1244:	// standalone escaping variables. On a json benchmark
+         .          .   1245:	// the allocator reduces number of allocations by ~12% and
+         .          .   1246:	// reduces heap size by ~20%.
+         .       20ms   1247:	c := getMCache(mp)
+         .          .   1248:	off := c.tinyoffset
+         .          .   1249:	// Align tiny pointer for required (conservative) alignment.
+      30ms       30ms   1250:	if size&7 == 0 {
+         .       10ms   1251:		off = alignUp(off, 8)
+         .          .   1252:	} else if goarch.PtrSize == 4 && size == 12 {
+         .          .   1253:		// Conservatively align 12-byte objects to 8 bytes on 32-bit
+         .          .   1254:		// systems so that objects whose first field is a 64-bit
+         .          .   1255:		// value is aligned to 8 bytes and does not cause a fault on
+         .          .   1256:		// atomic access. See issue 37262.
+         .          .   1257:		// TODO(mknyszek): Remove this workaround if/when issue 36606
+         .          .   1258:		// is resolved.
+         .          .   1259:		off = alignUp(off, 8)
+         .          .   1260:	} else if size&3 == 0 {
+         .          .   1261:		off = alignUp(off, 4)
+         .          .   1262:	} else if size&1 == 0 {
+         .          .   1263:		off = alignUp(off, 2)
+         .          .   1264:	}
+         .          .   1265:	if off+size <= maxTinySize && c.tiny != 0 {
+         .          .   1266:		// The object fits into existing tiny block.
+         .          .   1267:		x := unsafe.Pointer(c.tiny + off)
+         .          .   1268:		c.tinyoffset = off + size
+         .          .   1269:		c.tinyAllocs++
+         .          .   1270:		mp.mallocing = 0
+         .          .   1271:		releasem(mp)
+         .          .   1272:		return x, 0
+         .          .   1273:	}
+         .          .   1274:	// Allocate a new maxTinySize block.
+         .          .   1275:	checkGCTrigger := false
+         .          .   1276:	span := c.alloc[tinySpanClass]
+         .       40ms   1277:	v := nextFreeFast(span)
+         .          .   1278:	if v == 0 {
+         .       10ms   1279:		v, span, checkGCTrigger = c.nextFree(tinySpanClass)
+         .          .   1280:	}
+         .          .   1281:	x := unsafe.Pointer(v)
+         .          .   1282:	(*[2]uint64)(x)[0] = 0 // Always zero
+         .          .   1283:	(*[2]uint64)(x)[1] = 0
+         .          .   1284:	// See if we need to replace the existing tiny block with the new one
+         .          .   1285:	// based on amount of remaining free space.
+      20ms       20ms   1286:	if !raceenabled && (size < c.tinyoffset || c.tiny == 0) {
+         .          .   1287:		// Note: disabled when race detector is on, see comment near end of this function.
+         .          .   1288:		c.tiny = uintptr(x)
+         .          .   1289:		c.tinyoffset = size
+         .          .   1290:	}
+         .          .   1291:
+         .          .   1292:	// Ensure that the stores above that initialize x to
+         .          .   1293:	// type-safe memory and set the heap bits occur before
+         .          .   1294:	// the caller can make x observable to the garbage
+         .          .   1295:	// collector. Otherwise, on weakly ordered machines,
+         .          .   1296:	// the garbage collector could follow a pointer to x,
+         .          .   1297:	// but see uninitialized memory or stale heap bits.
+         .          .   1298:	publicationBarrier()
+         .          .   1299:
+         .          .   1300:	if writeBarrier.enabled {
+         .          .   1301:		// Allocate black during GC.
+         .          .   1302:		// All slots hold nil so no scanning is needed.
+         .          .   1303:		// This may be racing with GC so do it atomically if there can be
+         .          .   1304:		// a race marking the bit.
+         .          .   1305:		gcmarknewobject(span, uintptr(x))
+         .          .   1306:	} else {
+         .          .   1307:		// Track the last free index before the mark phase. This field
+         .          .   1308:		// is only used by the garbage collector. During the mark phase
+         .          .   1309:		// this is used by the conservative scanner to filter out objects
+         .          .   1310:		// that are both free and recently-allocated. It's safe to do that
+         .          .   1311:		// because we allocate-black if the GC is enabled. The conservative
+         .          .   1312:		// scanner produces pointers out of thin air, so without additional
+         .          .   1313:		// synchronization it might otherwise observe a partially-initialized
+         .          .   1314:		// object, which could crash the program.
+         .          .   1315:		span.freeIndexForScan = span.freeindex
+         .          .   1316:	}
+         .          .   1317:
+         .          .   1318:	// Note cache c only valid while m acquired; see #47302
+         .          .   1319:	//
+         .          .   1320:	// N.B. Use the full size because that matches how the GC
+         .          .   1321:	// will update the mem profile on the "free" side.
+         .          .   1322:	//
+         .          .   1323:	// TODO(mknyszek): We should really count the header as part
+         .          .   1324:	// of gc_sys or something. The code below just pretends it is
+         .          .   1325:	// internal fragmentation and matches the GC's accounting by
+         .          .   1326:	// using the whole allocation slot.
+      10ms       10ms   1327:	c.nextSample -= int64(span.elemsize)
+      10ms       10ms   1328:	if c.nextSample < 0 || MemProfileRate != c.memProfRate {
+         .          .   1329:		profilealloc(mp, x, span.elemsize)
+         .          .   1330:	}
+         .          .   1331:	mp.mallocing = 0
+         .          .   1332:	releasem(mp)
+         .          .   1333:
+

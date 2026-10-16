@@ -1,0 +1,125 @@
+{
+  "comparisons": {
+    "alloc_bytes_per_completion": {
+      "native": 7109.593640044218,
+      "production": 10357.035335491388,
+      "production_minus_native": 3247.44169544717,
+      "production_over_native": 1.4567689603462306
+    },
+    "alloc_objects_per_completion": {
+      "native": 79.09950028420681,
+      "production": 139.42857142857142,
+      "production_minus_native": 60.329071144364605,
+      "production_over_native": 1.7626985117175265
+    },
+    "cpu_microseconds_per_completion": {
+      "native": 76.7184050941021,
+      "production": 109.92939711508295,
+      "production_minus_native": 33.210992020980854,
+      "production_over_native": 1.4328947138596606
+    },
+    "timed_rps": {
+      "native": 47556.5147095247,
+      "production": 34204.86177251368,
+      "production_minus_native": -13351.652937011022,
+      "production_over_native": 0.7192466054637741
+    }
+  },
+  "divisor": "warmup_requests + useful_completed",
+  "kind": "p2pstream-native-profile-normalization-v1",
+  "overlap_note": "Cumulative nodes overlap their descendants and must not be added; flat nodes are disjoint samples but are sampled estimates.",
+  "production_selected_nodes": {
+    "admission_reservation_cumulative_alloc_bytes": 142.8179574047907,
+    "admission_reservation_cumulative_cpu_us": 0.8025818815924197,
+    "database_sql_driver_args_flat_alloc_bytes": 962.2236187687421,
+    "event_arg_boxing_flat_alloc_bytes": 197.6441935632933,
+    "event_insert_subtree_cumulative_alloc_bytes": 1201.9479683734098,
+    "event_insert_subtree_cumulative_cpu_us": 3.6967407879408425,
+    "public_context_initialization_cumulative_alloc_bytes": 595.5879301413273,
+    "public_context_initialization_cumulative_cpu_us": 1.9699737093632121,
+    "route_resolution_cumulative_cpu_us": 1.118750501613676,
+    "route_target_selection_cumulative_cpu_us": 0.9485058600637688,
+    "runtime_cgocall_flat_cpu_us": 12.816989442400157,
+    "sqlite_bind_value_flat_alloc_bytes": 53.55760227446841,
+    "sqlite_execsync_cumulative_cpu_us": 12.7926687793216
+  },
+  "roles": {
+    "native": {
+      "alloc_bytes_per_completion": 7109.593640044218,
+      "alloc_objects": 45365620,
+      "alloc_objects_per_completion": 79.09950028420681,
+      "alloc_space_bytes": 4077536802,
+      "cpu_microseconds_per_completion": 76.7184050941021,
+      "cpu_sample_nanoseconds": 44000000000,
+      "normalization_completions": 573526,
+      "recorded_normalization_matches": true,
+      "timed_completions": 475645,
+      "timed_rps": 47556.5147095247,
+      "warmup_requests": 97881
+    },
+    "production": {
+      "alloc_bytes_per_completion": 10357.035335491388,
+      "alloc_objects": 57329264,
+      "alloc_objects_per_completion": 139.42857142857142,
+      "alloc_space_bytes": 4258533290,
+      "cpu_microseconds_per_completion": 109.92939711508295,
+      "cpu_sample_nanoseconds": 45200000000,
+      "normalization_completions": 411173,
+      "recorded_normalization_matches": true,
+      "timed_completions": 342085,
+      "timed_rps": 34204.86177251368,
+      "warmup_requests": 69088
+    }
+  },
+  "selected_profile_nodes": {
+    "fd_read_cumulative_cpu_us": {
+      "native": 9.607236637920513,
+      "production": 9.387775948323455,
+      "production_minus_native": -0.21946068959705833,
+      "production_over_native": 0.977156731132152
+    },
+    "fd_write_cumulative_cpu_us": {
+      "native": 23.155009537492635,
+      "production": 23.54240186004431,
+      "production_minus_native": 0.3873923225516762,
+      "production_over_native": 1.016730389245766
+    },
+    "gc_background_worker_cumulative_cpu_us": {
+      "native": 1.6389841088285448,
+      "production": 1.0457885123780015,
+      "production_minus_native": -0.5931955964505433,
+      "production_over_native": 0.6380711727128784
+    },
+    "header_clone_cumulative_cpu_us": {
+      "native": 1.2728280845157849,
+      "production": 1.5078811108706067,
+      "production_minus_native": 0.23505302635482184,
+      "production_over_native": 1.1846698931413364
+    },
+    "header_clone_flat_alloc_bytes": {
+      "native": 895.1968803506728,
+      "production": 901.7375605888519,
+      "production_minus_native": 6.540680238179107,
+      "production_over_native": 1.00730641536152
+    },
+    "mallocgc_cumulative_cpu_us": {
+      "native": 7.270812482781949,
+      "production": 8.025818815924197,
+      "production_minus_native": 0.7550063331422479,
+      "production_over_native": 1.103840710364926
+    },
+    "request_with_context_flat_alloc_bytes": {
+      "native": 359.37005471417166,
+      "production": 595.6549262719099,
+      "production_minus_native": 236.2848715577382,
+      "production_over_native": 1.6574973859345894
+    },
+    "syscall6_flat_cpu_us": {
+      "native": 31.48941809089736,
+      "production": 32.34648189448237,
+      "production_minus_native": 0.8570638035850138,
+      "production_over_native": 1.0272175179963954
+    }
+  }
+}
+

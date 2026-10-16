@@ -15,6 +15,10 @@ comparison.
 
 ## Files
 
+- [`native-go-profile/README.md`](native-go-profile/README.md)
+  records one matched production/native CPU/allocation pair, per-completion
+  costs, natural cleanup and an independent binding of preserved metadata.
+  SQL batching is an experiment target; no production change is retained.
 - [`native-go-attribution/README.md`](native-go-attribution/README.md)
   records 24 matched HTTP/HTTPS H1 rows and 8,920,049 exact responses.
   Production reaches 64.9–70.5% of the deliberately simpler native Go control;
