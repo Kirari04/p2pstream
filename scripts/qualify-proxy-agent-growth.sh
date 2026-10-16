@@ -117,7 +117,7 @@ smoke_mode=$P2PSTREAM_GROWTH_SMOKE_MODE
 largest_transfer_mib=$((warmup_mib > steady_mib ? warmup_mib : steady_mib))
 transfer_timeout_seconds=$((60 + (largest_transfer_mib + 1) / 2))
 warmup_lane_rounds=4
-transfer_mib_per_cohort=$((2 * warmup_lane_rounds * warmup_mib + 2 * transfer_repetitions * steady_mib))
+transfer_mib_per_cohort=$((2 * (warmup_lane_rounds + 1) * warmup_mib + 2 * transfer_repetitions * steady_mib))
 overall_timeout_seconds=$((300 + runs * 2 * (transfer_mib_per_cohort + 1) / 2))
 mkdir -p "$(dirname "$output")"
 run_dir=$(mktemp -d -p "$(dirname "$output")" proxy-agent-growth.XXXXXX)
@@ -403,7 +403,7 @@ run_transfer() {
         shaped_rate_bits_per_second:1000000000,
         useful_transfer_bytes_per_second:(.configured_payload_bytes / .wall_seconds),
         receiving_pool_observed_bytes:(if $mode != "aggregate-v1" then null elif $stage == "steady" and $direction == "download" then ($server_final_pools | min) elif $stage == "steady" then ($agent_pools | min) elif $direction == "download" then ($server_growth_pools | max // 0) else ($agent_pools | max // 0) end),
-        receiving_pool_evidence:(if $mode != "aggregate-v1" then "legacy-per-stream-window" elif $stage != "steady" then "growth-high-water-max-unattributed" elif $direction == "download" then "all-server-receive-lanes-prewarmed-and-quiescent" else "all-agent-receive-lanes-prewarmed-and-quiescent" end),
+        receiving_pool_evidence:(if $mode != "aggregate-v1" then "legacy-per-stream-window" elif $stage == "warmup" then "growth-high-water-max-unattributed" elif $stage == "retained-warmup" then "retained-stream-warmup-excluded-from-summary" elif $direction == "download" then "all-server-receive-lanes-prewarmed-and-quiescent" else "all-agent-receive-lanes-prewarmed-and-quiescent" end),
         agent_aggregate_growth_reservation_bytes:($agent_runtime.agent_capacity.aggregate_growth_pool_bytes // 0),
         agent_runtime_after:$agent_runtime,
         provenance:{
@@ -479,6 +479,8 @@ run_cohort() {
   if [[ $mode == aggregate-v1 ]]; then
     wait_aggregate_lanes_grown_and_quiescent "$server_admin" "$agent_admin" "$((required_pool_mib << 20))"
   fi
+  run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" retained-warmup download "$((warmup_mib << 20))" 1
+  run_transfer "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" retained-warmup upload "$((warmup_mib << 20))" 1
   for ((repetition=1; repetition<=transfer_repetitions; repetition++)); do
     if ((repetition % 2)); then directions=(download upload); else directions=(upload download); fi
     for direction in "${directions[@]}"; do
