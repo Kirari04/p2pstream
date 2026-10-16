@@ -36,6 +36,10 @@ comparison.
 - [`agent-wan-growth/README.md`](agent-wan-growth/README.md) records the
   80 ms / 1 Gbit/s aggregate-versus-legacy large-transfer comparison and exact
   server- and agent-side receiving-pool growth.
+- [`agent-grown-pool-pressure/README.md`](agent-grown-pool-pressure/README.md)
+  records the greater-than-80-MiB-per-lane pressure, cold reserved-control,
+  canceled-upload ownership and recovery qualification in separate 4 GiB
+  server and agent cgroups.
 - `capacity-and-profile.jsonl` is the initial candidate `095c923` correctness,
   fixed-rate, streaming, H1/H2 1,536-barrier and recovery pass.
 - `warmed-throughput.jsonl` is one alternating baseline/candidate pass with a

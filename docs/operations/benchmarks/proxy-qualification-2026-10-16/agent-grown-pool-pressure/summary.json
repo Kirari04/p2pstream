@@ -1,0 +1,110 @@
+{
+  "acceptance": {
+    "admission_rejected_under_pressure": true,
+    "all_receiving_pools_exceeded_required_size_before_pressure": true,
+    "all_receiving_pools_retained_after_recovery": true,
+    "canceled_upload_reached_origin": true,
+    "canceled_upload_refunds_quiescent": true,
+    "control_did_not_consume_ordinary_pressure_rejection": true,
+    "control_progress_during_pressure": true,
+    "control_reservation_owned": true,
+    "control_slot_returned_to_baseline": true,
+    "functional_recovery": true,
+    "no_oom": true,
+    "ordinary_admission_closed_during_pressure": true,
+    "pressure_reached": true
+  },
+  "baseline_control_roundtrip": {
+    "error": "",
+    "error_kind": "success",
+    "http_status": 200,
+    "ok": true,
+    "server_control_capacity": 64,
+    "server_control_in_use_after": 1,
+    "server_control_in_use_before": 0,
+    "server_total_in_use_after": 1,
+    "server_total_in_use_before": 0,
+    "skipped": false,
+    "status_code": 200
+  },
+  "control_reservation": {
+    "in_use_after": 0,
+    "in_use_before": 0,
+    "in_use_immediate": 0,
+    "ordinary_admission_limit_after": 0,
+    "ordinary_admission_limit_before": 0,
+    "reserved_base_bytes": 3145728,
+    "reserved_base_fds": 8,
+    "reserved_slots": 4
+  },
+  "pressure_ballast_mib": 3584,
+  "pressure_control_roundtrip": {
+    "error": "",
+    "error_kind": "success",
+    "http_status": 200,
+    "ok": true,
+    "server_control_capacity": 64,
+    "server_control_in_use_after": 1,
+    "server_control_in_use_before": 0,
+    "server_total_in_use_after": 1,
+    "server_total_in_use_before": 0,
+    "skipped": false,
+    "status_code": 200
+  },
+  "receiving_pools": {
+    "post_recovery": {
+      "agent_bytes": [
+        104333312,
+        106692608,
+        107479040,
+        107741184
+      ],
+      "agent_cgroup_memory_current_bytes": 124456960,
+      "agent_max_bytes": 107741184,
+      "agent_min_bytes": 104333312,
+      "server_bytes": [
+        87031808,
+        96993280,
+        101449728,
+        169082880
+      ],
+      "server_cgroup_memory_current_bytes": 353992704,
+      "server_max_bytes": 169082880,
+      "server_min_bytes": 87031808
+    },
+    "pre_pressure": {
+      "agent_bytes": [
+        104333312,
+        106692608,
+        107479040,
+        107741184
+      ],
+      "agent_cgroup_memory_current_bytes": 139059200,
+      "agent_max_bytes": 107741184,
+      "agent_min_bytes": 104333312,
+      "server_bytes": [
+        87031808,
+        96993280,
+        101449728,
+        169082880
+      ],
+      "server_cgroup_memory_current_bytes": 309211136,
+      "server_max_bytes": 169082880,
+      "server_min_bytes": 87031808
+    },
+    "required_strictly_greater_than_bytes": 83886080
+  },
+  "recovery_control_roundtrip": {
+    "error": "",
+    "error_kind": "success",
+    "http_status": 200,
+    "ok": true,
+    "server_control_capacity": 64,
+    "server_control_in_use_after": 1,
+    "server_control_in_use_before": 0,
+    "server_total_in_use_after": 1,
+    "server_total_in_use_before": 0,
+    "skipped": false,
+    "status_code": 200
+  }
+}

@@ -455,7 +455,19 @@ pools. RSS does not contract, so these are logical and socket lifecycle results,
 not resident-memory reclamation. See the
 [one-agent trace](benchmarks/proxy-qualification-2026-10-16/agent-idle-lifecycle/README.md)
 and [four-agent trace](benchmarks/proxy-qualification-2026-10-16/agent-idle-lifecycle-four/README.md).
-Grown-pool pressure and recovery remain separate qualification gates.
+The separate grown-pool pressure gate now passes. Four 256 MiB warmups in each
+direction grew every server receiving lane beyond 80 MiB (83.0–161.25 MiB)
+and every agent receiving lane beyond 80 MiB (99.5–102.75 MiB). At 3.91 GB of
+actual agent cgroup usage, ordinary admission closed and recorded a 503 while a
+genuinely cold reserved-control health request still completed with HTTP 200.
+Both cgroups recorded zero OOM and OOM-kill deltas. After ballast release the
+agent was healthy at 124,456,960 bytes, exact 16 MiB transfers passed in both
+directions, and all grown pools remained available. A canceled HTTP/2 upload
+also proved origin body receipt before cancellation, stable physical session
+identity and complete allocation-credit refunds. Retained pool promises remain
+separate from actual resident usage; this result does not justify pool
+reclamation. See the
+[grown-pool pressure evidence](benchmarks/proxy-qualification-2026-10-16/agent-grown-pool-pressure/README.md).
 The earlier external
 smoke established one legacy control plus three bulk lanes versus one
 negotiated control plus four bulk lanes, with 100/100 events on each side;
