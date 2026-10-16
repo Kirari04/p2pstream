@@ -39,6 +39,11 @@ comparison.
   captures the download failure with post-transfer DATA reservation counters.
   Roughly 32 KiB frames and a 1.00414 charge/payload ratio refute the proposed
   eightfold allocation-amplification mechanism without establishing a fix.
+- [`agent-wan-sparse-tcp/README.md`](agent-wan-sparse-tcp/README.md)
+  records an ordinary-binary diagnostic with one TCP capture per second at
+  each endpoint. Two mildly slower downloads have finite early slow-start
+  thresholds and no observed retransmission increase; the cohort median
+  passes and does not clear the repeated qualification failures.
 - [`caddy-reference/README.md`](caddy-reference/README.md) documents the clean
   36-row Caddy/HAProxy/p2pstream reference cohort. Its p2pstream binary is the
   frozen `3ec137c` candidate; later library and protocol foundations in `0d6a3a8`

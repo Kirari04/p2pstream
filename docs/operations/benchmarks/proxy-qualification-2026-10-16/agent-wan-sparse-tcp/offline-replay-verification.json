@@ -1,0 +1,17 @@
+{
+  "offline_only": true,
+  "scratch_directory": "/tmp/p2pstream-sparse-offline-replay.zwr33z3b",
+  "commands": [
+    "python3 analyze-telemetry.py.txt",
+    "python3 annotate-lanes.py.txt"
+  ],
+  "byte_identical_outputs_sha256": {
+    "tcp-phases-with-lanes.json": "b68154c20bf5541421c082175c3f15ac51a40e76edb30ad4be64e02c851ac23b",
+    "tcp-active-sender-with-lanes.csv": "eb9019ae5b848d1f748c70f5d34ef6a75e6bb06cf942a255def418a73c8232bf",
+    "physical-lanes.json": "002a24eda4365b5b6effbbe2b837898704e21d18cf20ab0722de41e89074f8b8",
+    "telemetry-summary.json": "5e84a39b96dc3e8c524242da16f41243226aa7f7e84ecc450778bc3433c636ee"
+  },
+  "exact_payload_and_persisted_events": 32,
+  "capture_errors": 0,
+  "qualified_performance": false
+}

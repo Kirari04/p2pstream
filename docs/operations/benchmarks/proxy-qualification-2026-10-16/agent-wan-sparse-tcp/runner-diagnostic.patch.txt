@@ -1,0 +1,43 @@
+--- original-runner.sh
++++ qualify-proxy-agent-growth-sparse-tcp.sh
+@@ -169,6 +169,15 @@
+ children=()
+ stops=()
+ cleanup() {
++  if [[ -n ${diag_collector_pid:-} ]]; then
++    touch /tmp/p2pstream-wan-sparse-tcp.i02706cg/telemetry/collector.stop
++    for ((diag_join=0; diag_join<50; diag_join++)); do
++      kill -0 "$diag_collector_pid" 2>/dev/null || break
++      sleep .1
++    done
++    kill "$diag_collector_pid" 2>/dev/null || true
++    wait "$diag_collector_pid" 2>/dev/null || true
++  fi
+   for stop in "${stops[@]:-}"; do [[ -n $stop ]] && touch "$stop"; done
+   for pid in "${children[@]:-}"; do [[ -n $pid ]] && kill "$pid" 2>/dev/null || true; done
+   wait || true
+@@ -226,6 +235,8 @@
+     raise SystemExit(f"measured RTT {measured}ms is outside the expected envelope for configured {configured}ms")
+ PY
+ 
++taskset -c 8-15 python3 /tmp/p2pstream-wan-sparse-tcp.i02706cg/collector.py /tmp/p2pstream-wan-sparse-tcp.i02706cg "$agent_namespace_pid" "$router_namespace_pid" >/tmp/p2pstream-wan-sparse-tcp.i02706cg/telemetry/collector.log 2>&1 &
++diag_collector_pid=$!
+ server_binary_sha256=$(sha256sum "$server_binary" | awk '{print $1}')
+ aggregate_agent_binary_sha256=$(sha256sum "$aggregate_agent_binary" | awk '{print $1}')
+ legacy_agent_binary_sha256=$(sha256sum "$legacy_agent_binary" | awk '{print $1}')
+@@ -476,6 +487,7 @@
+ run_transfer() {
+   local label=$1 mode=$2 server_pid=$3 public_url=$4 server_admin=$5 agent_pid=$6 agent_admin=$7
+   local stage=$8 direction=$9 payload_bytes=${10} repetition=${11}
++  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' begin "$label" "$mode" "$stage" "$direction" "$repetition" "$server_pid" "$agent_pid" "$EPOCHREALTIME" >>/tmp/p2pstream-wan-sparse-tcp.i02706cg/telemetry/phases.tsv
+   local scenario suffix
+   if [[ $direction == download ]]; then
+     scenario=growth-download
+@@ -510,6 +522,7 @@
+   P2PSTREAM_QUALIFICATION_RESULT="$raw" \
+     taskset -c "$load_cpu_set" "$server_binary" -test.run '^TestProxyQualificationLoad$' -test.timeout "${transfer_timeout_seconds}s" \
+     >"$raw.log" 2>&1
++  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' end "$label" "$mode" "$stage" "$direction" "$repetition" "$server_pid" "$agent_pid" "$EPOCHREALTIME" >>/tmp/p2pstream-wan-sparse-tcp.i02706cg/telemetry/phases.tsv
+   local agent_runtime
+   agent_runtime=$(query_agent_json "$agent_namespace_pid" "$agent_admin")
+   jq -e --arg mode "$mode" --arg direction "$direction" --argjson bytes "$payload_bytes" '

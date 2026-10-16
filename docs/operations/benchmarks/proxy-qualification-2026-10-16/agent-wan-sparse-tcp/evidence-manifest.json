@@ -1,0 +1,55 @@
+{
+  "diagnostic_only": true,
+  "original_raw_directory": "/tmp/p2pstream-wan-sparse-tcp.i02706cg",
+  "source_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "original_observer_note": "The unchanged original load fixture still samples standard runtime/resource HTTP. Only the added observer uses no endpoint HTTP.",
+  "raw_tcp_committed": true,
+  "analysis_input": "connection-inputs.json is an exact copy of the original physical-lanes.json whitelist, extracted after the run.",
+  "offline_replay_source_difference": "Only original raw ready/log metadata loading is replaced by the whitelisted connection-inputs.json; numeric parsing and phase reduction are unchanged. Original analyzer sources are preserved.",
+  "omitted_local_inputs": [
+    {
+      "path": "/tmp/p2pstream-wan-sparse-tcp.i02706cg/proxy-agent-growth.IcdzGb/current-server-aggregate-v1-1-agent.ready.json",
+      "bytes": 51,
+      "sha256": "0219b727412d7a26fefafd0bbd6e4b5f22808c90b1a467ce6d4c13b85e6cee88",
+      "omitted_reason": "Raw fixture ready files/logs may contain ephemeral credentials. Only pid, endpoint URLs, connection remote address, lane, time and log filename were retained."
+    },
+    {
+      "path": "/tmp/p2pstream-wan-sparse-tcp.i02706cg/proxy-agent-growth.IcdzGb/current-server-aggregate-v1-1-server.log",
+      "bytes": 12172,
+      "sha256": "049884546172c7196df88b0c47ded374aabeea4224116408353b27717f2bb154",
+      "omitted_reason": "Raw fixture ready files/logs may contain ephemeral credentials. Only pid, endpoint URLs, connection remote address, lane, time and log filename were retained."
+    },
+    {
+      "path": "/tmp/p2pstream-wan-sparse-tcp.i02706cg/proxy-agent-growth.IcdzGb/current-server-aggregate-v1-1-server.ready.json",
+      "bytes": 371,
+      "sha256": "865afefa6ab96c8d1ab721d090b3f922c624ce1ba5a849c26e33f1fe33e76cf4",
+      "omitted_reason": "Raw fixture ready files/logs may contain ephemeral credentials. Only pid, endpoint URLs, connection remote address, lane, time and log filename were retained."
+    },
+    {
+      "path": "/tmp/p2pstream-wan-sparse-tcp.i02706cg/proxy-agent-growth.IcdzGb/current-server-legacy-agent-compat-1-agent.ready.json",
+      "bytes": 51,
+      "sha256": "c03a38d8ed8720159380aafd9bb5dd17988415a14f67dc6371c80ed6606fa9ea",
+      "omitted_reason": "Raw fixture ready files/logs may contain ephemeral credentials. Only pid, endpoint URLs, connection remote address, lane, time and log filename were retained."
+    },
+    {
+      "path": "/tmp/p2pstream-wan-sparse-tcp.i02706cg/proxy-agent-growth.IcdzGb/current-server-legacy-agent-compat-1-server.log",
+      "bytes": 11468,
+      "sha256": "81787fc43859cea4191aec5f76b54ffd69f5eac416128a824fc7217cc799ac52",
+      "omitted_reason": "Raw fixture ready files/logs may contain ephemeral credentials. Only pid, endpoint URLs, connection remote address, lane, time and log filename were retained."
+    },
+    {
+      "path": "/tmp/p2pstream-wan-sparse-tcp.i02706cg/proxy-agent-growth.IcdzGb/current-server-legacy-agent-compat-1-server.ready.json",
+      "bytes": 378,
+      "sha256": "ce737856195ddc5db7fb520d0faca209f7e33c8d24a8f534bab3cbb4b3ddc51e",
+      "omitted_reason": "Raw fixture ready files/logs may contain ephemeral credentials. Only pid, endpoint URLs, connection remote address, lane, time and log filename were retained."
+    },
+    {
+      "path": "/tmp/p2pstream-wan-sparse-tcp.i02706cg/proxy-agent-growth.IcdzGb/origin.ready.json",
+      "bytes": 85,
+      "sha256": "42ff5669e1b61586bf951b5775345744db2f164049495d7231bd011f4d9e50c9",
+      "omitted_reason": "Raw fixture ready files/logs may contain ephemeral credentials. Only pid, endpoint URLs, connection remote address, lane, time and log filename were retained."
+    }
+  ],
+  "payload_transfer_count": 32,
+  "outcome": "Diagnostic median pass with two mildly slower individual download phases; does not clear the repeated ordinary WAN qualification failures."
+}

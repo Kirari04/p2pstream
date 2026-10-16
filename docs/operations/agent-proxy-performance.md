@@ -575,6 +575,16 @@ byte-credit-zero attempts, but those overlapping observations are not wait
 durations and do not establish the remaining cause. See the
 [allocation-counter evidence](benchmarks/proxy-qualification-2026-10-16/agent-wan-allocation-counters/README.md).
 
+A lighter diagnostic then reuses the ordinary frozen binaries and adds one TCP
+capture per second at each endpoint, without new endpoint HTTP polling or trace
+hooks. Its cohort medians pass, while retained and second timed downloads take
+about 9.8 seconds and reach congestion windows near 3,100 segments with finite
+early slow-start thresholds. Healthy timed downloads reach about 5,900 segments.
+No download's sampled retransmitted-byte counter increases. This supports a TCP
+startup hypothesis without proving its cause or clearing the repeated ordinary
+failure. Full raw TCP records and the sampling limitations are preserved in the
+[sparse TCP diagnostic](benchmarks/proxy-qualification-2026-10-16/agent-wan-sparse-tcp/README.md).
+
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
 RTT 96.547 ms). Four fresh 256 MiB downloads and uploads prewarm every receiving
