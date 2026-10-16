@@ -497,6 +497,36 @@ the touched bytes in its own process snapshot. The capacity and legacy smoke
 cohorts above used zero agent ballast; the pressure trace applies it explicitly
 inside the agent's own constrained cgroup.
 
+The latest measured runtime is
+`dc738e9000e60cd7ce3a0279127486f3bc05067a`. Its complete low-latency
+tiny-response matrix now passes the unchanged ratio-of-medians gates: aggregate
+throughput is 97.35%, 95.06%, 97.90% and 91.80% of legacy for H1/c16,
+H1/c128, H2/c16 and H2/c128, while every median p95 and p99 ratio remains below
+1.10. All 3,749,245 payload-verified requests have matching persisted events.
+See the
+[final tiny-response evidence](benchmarks/proxy-qualification-2026-10-16/final-runtime-tiny-response/README.md).
+
+The same runtime passes the idle standing-pool gate with 16 and 32 external
+agents, exact five-session identity per agent and real health roundtrips while
+all logical stream/control owners return to zero. The 32-agent sample records
+462,503,936 bytes of server session promises and 748,765,184 bytes of agent
+session promises. Its final simultaneous cgroup-current sum is 335,626,240
+bytes; server RSS is 78,802,944 bytes and median agent RSS is 21,387,264 bytes.
+Each process has its own 4 GiB cgroup, so this is not a combined-4-GiB result.
+The runtime's displayed `memory_source` is the highest percentage constraint;
+admission still applies the minimum absolute headroom and matches the 4 GiB
+leaf-cgroup arithmetic within sampler/rounding error. See the
+[final standing-pool evidence](benchmarks/proxy-qualification-2026-10-16/final-runtime-standing-pools/README.md).
+
+The final-runtime WAN replay does not retain the earlier pass. Upload reaches
+101.70% of the compatible legacy median, but download reaches only 80.53% and
+fails the predeclared 90% gate. Two timed aggregate downloads run near 27.4
+MB/s and the third at 34.6 MB/s; the retained warmup is slower still. The raw
+32-row result remains failed with exact payload/event conservation. No pressure
+or reference result should be inferred from it. A separate lane/TCP and
+in-flight credit diagnostic is required before another acceptance run. See the
+[final WAN failure evidence](benchmarks/proxy-qualification-2026-10-16/final-runtime-wan-failure/README.md).
+
 A bounded large-transfer comparison uses the same current server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured
 RTT 96.547 ms). Four fresh 256 MiB downloads and uploads prewarm every receiving
@@ -561,8 +591,9 @@ throughput is 97.45% and 96.87% of legacy for H1 at 16 and 128 clients, and
 at or below 1.067. All 3,717,428 requests and events are conserved with zero
 errors, drops, queue residue or drain errors. This qualifies the measured
 tiny-response workload at that checkpoint; final integrated runtime still
-requires revalidation after the later publisher cleanup and its separate
-standing, WAN, pressure and capacity repeats. See the
+requires revalidation after the later publisher cleanup. That revalidation is
+the final-runtime pass above; final-runtime WAN fails, and pressure and capacity
+repeats remain separate. See the
 [DATA-gather tiny-response evidence](benchmarks/proxy-qualification-2026-10-16/agent-tiny-response-data-gather/README.md)
 and its preceding
 [post-batch profiles](benchmarks/proxy-qualification-2026-10-16/agent-post-batch-profiles/README.md).

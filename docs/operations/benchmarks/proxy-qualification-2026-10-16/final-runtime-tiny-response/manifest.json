@@ -1,0 +1,29 @@
+{
+  "aggregate_agent_binary_sha256": "e99c619a4a1f07656b422f4c5965c874513d453afc7082939c2affbd59194793",
+  "artifacts": {
+    "README.md": "f0cb877771747c6fff74ca75312666762c685f51a66a6b31433d25dd29def32b",
+    "qualify-proxy-agent-growth.sh.txt": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+    "results.jsonl": "2238f9ac1cf37d192965acf300dc6cc481b2be1269f4efb990d48e02d5b546af",
+    "summary.json": "a8f6dc9703ba476489ddfa1e6da61a6547db497ba7430dfe8012bc1779ed771e"
+  },
+  "command_options": [
+    "--tiny-response",
+    "--configured-rtt-ms",
+    "1",
+    "--runs",
+    "3"
+  ],
+  "cpu_sets": {
+    "agent_and_origin": "4,5,6,7",
+    "load": "8,9,10,11,12,13,14,15",
+    "server": "0,1,2,3",
+    "topology": "Each adjacent pair is two SMT siblings on one physical core."
+  },
+  "go_version": "go version go1.26.6 linux/amd64",
+  "kernel": "Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "legacy_agent_binary_sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec",
+  "legacy_agent_source_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "runner_sha256": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+  "runtime_source_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "server_binary_sha256": "c7950a1bd250233b395eb8c19d913ffb48d511656d7c41a1ad446baefb6bbaf5"
+}

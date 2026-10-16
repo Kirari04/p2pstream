@@ -15,6 +15,13 @@ comparison.
 
 ## Files
 
+- [`final-runtime-tiny-response/README.md`](final-runtime-tiny-response/README.md)
+  records the final `dc738e9` low-latency 24-row tiny-response pass.
+- [`final-runtime-standing-pools/README.md`](final-runtime-standing-pools/README.md)
+  records the final-runtime 16- and 32-agent idle standing-pool passes.
+- [`final-runtime-wan-failure/README.md`](final-runtime-wan-failure/README.md)
+  preserves the final-runtime large-transfer download regression, its nonzero
+  outcome and a separate derived diagnostic summary.
 - [`caddy-reference/README.md`](caddy-reference/README.md) documents the clean
   36-row Caddy/HAProxy/p2pstream reference cohort. Its p2pstream binary is the
   frozen `3ec137c` candidate; later library and protocol foundations in `0d6a3a8`
@@ -116,6 +123,23 @@ comparison.
   The final pair also records matched per-process sampling intervals and passed
   the fail-closed mode, lane, payload and recorder-conservation checks. These
   rows are not timing or cgroup-capacity evidence.
+
+## Latest-runtime status
+
+The latest measured production runtime in this evidence set is
+`dc738e9000e60cd7ce3a0279127486f3bc05067a`. Its low-latency tiny-response
+matrix passes all 12 throughput and tail gates with exact conservation. Its
+16- and 32-agent idle standing-pool cohorts also pass exact topology, identity,
+promise, cgroup, health, cleanup and OOM gates. The final-runtime WAN cohort
+fails the download gate at 80.53% of the compatible legacy median while upload
+passes at 101.70%. The failed raw WAN result is retained and is not superseded
+by the earlier passing `e2df1b1` cohort. TCP/lane and in-flight credit
+diagnostics are required before another acceptance run or production change.
+
+Historical failure and optimization artifacts below remain useful for tracing
+the decisions that produced `dc738e9`; they are not the current qualification
+outcome. Final-runtime grown-pool pressure, combined 1,536-request recovery and
+the matched Caddy/HAProxy reference replay remain outstanding.
 
 The initial 1,400 and 1,536 failure rows used a 10-second barrier release equal
 to the upstream response-header timeout. Treat their origin high-water, owner

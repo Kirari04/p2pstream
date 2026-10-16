@@ -1,0 +1,274 @@
+{
+  "acceptance": {
+    "download": false,
+    "minimum_candidate_to_legacy_ratio": 0.9,
+    "overall": false,
+    "upload": true
+  },
+  "aggregate_retained_and_steady_observations": [
+    {
+      "agent_receive_lane_limits_bytes": [
+        101449728,
+        102760448,
+        103546880,
+        104595456
+      ],
+      "client_tcp_connections": 1,
+      "direction": "download",
+      "new_origin_tcp_connections": 1,
+      "peak_cgroup_sock_bytes": 9113600,
+      "peak_socket_fds": 11,
+      "proxy_cpu_seconds": 4.49,
+      "repetition": 1,
+      "server_receive_lane_limits_bytes": [
+        94109696,
+        94896128,
+        95420416,
+        96468992
+      ],
+      "stage": "retained-warmup",
+      "useful_transfer_bytes_per_second": 11867913.981695691,
+      "wall_seconds": 22.618587935
+    },
+    {
+      "agent_receive_lane_limits_bytes": [
+        101449728,
+        102760448,
+        103546880,
+        104595456
+      ],
+      "client_tcp_connections": 1,
+      "direction": "upload",
+      "new_origin_tcp_connections": 1,
+      "peak_cgroup_sock_bytes": 4464640,
+      "peak_socket_fds": 11,
+      "proxy_cpu_seconds": 2.03,
+      "repetition": 1,
+      "server_receive_lane_limits_bytes": [
+        94109696,
+        94896128,
+        95420416,
+        96468992
+      ],
+      "stage": "retained-warmup",
+      "useful_transfer_bytes_per_second": 35396774.38345105,
+      "wall_seconds": 7.583613498
+    },
+    {
+      "agent_receive_lane_limits_bytes": [
+        101449728,
+        102760448,
+        103546880,
+        104595456
+      ],
+      "client_tcp_connections": 1,
+      "direction": "download",
+      "new_origin_tcp_connections": 1,
+      "peak_cgroup_sock_bytes": 8937472,
+      "peak_socket_fds": 11,
+      "proxy_cpu_seconds": 2.87,
+      "repetition": 1,
+      "server_receive_lane_limits_bytes": [
+        94109696,
+        94896128,
+        95420416,
+        96468992
+      ],
+      "stage": "steady",
+      "useful_transfer_bytes_per_second": 27350766.44719295,
+      "wall_seconds": 9.814549677
+    },
+    {
+      "agent_receive_lane_limits_bytes": [
+        101449728,
+        102760448,
+        103546880,
+        104595456
+      ],
+      "client_tcp_connections": 1,
+      "direction": "upload",
+      "new_origin_tcp_connections": 1,
+      "peak_cgroup_sock_bytes": 4444160,
+      "peak_socket_fds": 11,
+      "proxy_cpu_seconds": 1.94,
+      "repetition": 1,
+      "server_receive_lane_limits_bytes": [
+        94109696,
+        94896128,
+        95420416,
+        96468992
+      ],
+      "stage": "steady",
+      "useful_transfer_bytes_per_second": 34806630.79864508,
+      "wall_seconds": 7.712193046
+    },
+    {
+      "agent_receive_lane_limits_bytes": [
+        101449728,
+        102760448,
+        103546880,
+        104595456
+      ],
+      "client_tcp_connections": 1,
+      "direction": "upload",
+      "new_origin_tcp_connections": 1,
+      "peak_cgroup_sock_bytes": 4501504,
+      "peak_socket_fds": 11,
+      "proxy_cpu_seconds": 2.09,
+      "repetition": 2,
+      "server_receive_lane_limits_bytes": [
+        94109696,
+        94896128,
+        95420416,
+        96468992
+      ],
+      "stage": "steady",
+      "useful_transfer_bytes_per_second": 36025802.69535275,
+      "wall_seconds": 7.45119986
+    },
+    {
+      "agent_receive_lane_limits_bytes": [
+        101449728,
+        102760448,
+        103546880,
+        104595456
+      ],
+      "client_tcp_connections": 1,
+      "direction": "download",
+      "new_origin_tcp_connections": 1,
+      "peak_cgroup_sock_bytes": 9117696,
+      "peak_socket_fds": 11,
+      "proxy_cpu_seconds": 2.8,
+      "repetition": 2,
+      "server_receive_lane_limits_bytes": [
+        94109696,
+        94896128,
+        95420416,
+        96468992
+      ],
+      "stage": "steady",
+      "useful_transfer_bytes_per_second": 27406061.04600573,
+      "wall_seconds": 9.794747795
+    },
+    {
+      "agent_receive_lane_limits_bytes": [
+        101449728,
+        102760448,
+        103546880,
+        104595456
+      ],
+      "client_tcp_connections": 1,
+      "direction": "download",
+      "new_origin_tcp_connections": 1,
+      "peak_cgroup_sock_bytes": 9269248,
+      "peak_socket_fds": 11,
+      "proxy_cpu_seconds": 2.68,
+      "repetition": 3,
+      "server_receive_lane_limits_bytes": [
+        94109696,
+        94896128,
+        95420416,
+        96468992
+      ],
+      "stage": "steady",
+      "useful_transfer_bytes_per_second": 34622120.63683672,
+      "wall_seconds": 7.753293301
+    },
+    {
+      "agent_receive_lane_limits_bytes": [
+        101449728,
+        102760448,
+        103546880,
+        104595456
+      ],
+      "client_tcp_connections": 1,
+      "direction": "upload",
+      "new_origin_tcp_connections": 1,
+      "peak_cgroup_sock_bytes": 4464640,
+      "peak_socket_fds": 11,
+      "proxy_cpu_seconds": 2.07,
+      "repetition": 3,
+      "server_receive_lane_limits_bytes": [
+        94109696,
+        94896128,
+        95420416,
+        96468992
+      ],
+      "stage": "steady",
+      "useful_transfer_bytes_per_second": 36530494.52912753,
+      "wall_seconds": 7.348256832
+    }
+  ],
+  "artifact_kind": "derived-summary",
+  "configured": {
+    "payload_bytes": 268435456,
+    "rate_bits_per_second": 1000000000,
+    "rtt_ms": 80,
+    "transfer_repetitions": 3
+  },
+  "conservation": {
+    "attempted": 32,
+    "errors": 0,
+    "event_drain_errors": [],
+    "event_queue_after_load_max": 1,
+    "persisted_event_delta": 32,
+    "useful_completed": 32
+  },
+  "interpretation": [
+    "This summary was derived after the runner exited on its fail-closed download-ratio gate; it does not replace or alter raw results or the nonzero outcome.",
+    "Aggregate upload passed. Aggregate download failed because two of three timed samples were about 27.4 MB/s; the third was 34.6 MB/s.",
+    "Post-row receive-pool availability does not establish that in-flight stream/session credit avoided stalls. Further diagnostics are required before attributing a production cause."
+  ],
+  "measured_rtt_ms": 96.335,
+  "provenance": {
+    "aggregate_agent_binary_sha256": "e99c619a4a1f07656b422f4c5965c874513d453afc7082939c2affbd59194793",
+    "aggregate_agent_source_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+    "harness_sha256": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+    "legacy_agent_binary_sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec",
+    "legacy_agent_source_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "server_binary_sha256": "c7950a1bd250233b395eb8c19d913ffb48d511656d7c41a1ad446baefb6bbaf5",
+    "server_source_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a"
+  },
+  "raw_results": {
+    "path": "results.jsonl",
+    "rows": 32,
+    "sha256": "8661030530d0a0ae079e9a206525b0d9b8127569cbbc4ae28e80b4e8826779c9"
+  },
+  "runner_exit_status": 1,
+  "runner_failure": "aggregate-v1 download median useful bytes/s was below the predeclared 0.90 compatibility threshold",
+  "runner_summary_written": false,
+  "steady_useful_transfer_bytes_per_second": {
+    "candidate_to_legacy_ratio": {
+      "download": 0.8053458275900407,
+      "upload": 1.0169770054993532
+    },
+    "medians": {
+      "aggregate-v1:download": 27406061.04600573,
+      "aggregate-v1:upload": 36025802.69535275,
+      "legacy:download": 34030176.983740106,
+      "legacy:upload": 35424402.42064614
+    },
+    "samples": {
+      "aggregate-v1:download": [
+        27350766.44719295,
+        27406061.04600573,
+        34622120.63683672
+      ],
+      "aggregate-v1:upload": [
+        34806630.79864508,
+        36025802.69535275,
+        36530494.52912753
+      ],
+      "legacy:download": [
+        32864035.024794493,
+        34030176.983740106,
+        34734717.95041443
+      ],
+      "legacy:upload": [
+        35103678.45089242,
+        35424402.42064614,
+        36843271.60075819
+      ]
+    }
+  }
+}
