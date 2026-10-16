@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -16,14 +17,15 @@ import (
 
 type gatedWriteFailureConn struct {
 	net.Conn
-	fail    atomic.Bool
-	once    sync.Once
-	entered chan struct{}
-	release chan struct{}
+	fail      atomic.Bool
+	failWrite func([]byte) bool
+	once      sync.Once
+	entered   chan struct{}
+	release   chan struct{}
 }
 
 func (c *gatedWriteFailureConn) Write(p []byte) (int, error) {
-	if !c.fail.Load() {
+	if !c.fail.Load() || (c.failWrite != nil && !c.failWrite(p)) {
 		return c.Conn.Write(p)
 	}
 	c.once.Do(func() { close(c.entered) })
@@ -496,6 +498,14 @@ func TestAggregateGrowingConnClampsMeasuredTargetToNegotiatedAllocationMaximum(t
 
 func TestGrowingConnRetainsReservationWhenWindowUpdateFails(t *testing.T) {
 	left, right := net.Pipe()
+	failing := &gatedWriteFailureConn{
+		Conn:    right,
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	var unblockOnce sync.Once
+	unblockWriter := func() { unblockOnce.Do(func() { close(failing.release) }) }
+	defer unblockWriter()
 	cfg, err := NewYamuxConfig(nil, DefaultAdaptiveReceiveWindowBytes)
 	if err != nil {
 		t.Fatal(err)
@@ -505,7 +515,7 @@ func TestGrowingConnRetainsReservationWhenWindowUpdateFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = client.Close() })
-	server, err := yamux.Server(right, cfg)
+	server, err := yamux.Server(failing, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -524,17 +534,52 @@ func TestGrowingConnRetainsReservationWhenWindowUpdateFails(t *testing.T) {
 		reserved.Add(n)
 		return func() { reserved.Add(-n) }, true
 	})
-	_ = server.Close()
+	deadline := time.Now().Add(time.Second)
+	for server.RTT() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if server.RTT() == 0 {
+		t.Fatal("initial RTT probe did not complete before failure injection")
+	}
+	failing.failWrite = func(p []byte) bool {
+		const windowUpdateType = byte(1)
+		return len(p) == 12 && p[1] == windowUpdateType &&
+			binary.BigEndian.Uint32(p[4:8]) == reader.StreamID() &&
+			binary.BigEndian.Uint32(p[8:12]) > 0
+	}
+	failing.fail.Store(true)
 	now := time.Now()
 	conn.growth.start = now
 	if err := conn.growMeasured(1<<20, now.Add(80*time.Millisecond), 80*time.Millisecond); err != nil {
 		t.Fatal(err)
 	}
-	if err := conn.growMeasured(1<<20, now.Add(160*time.Millisecond), 80*time.Millisecond); err == nil {
-		t.Fatal("expected window update failure on closed session")
+	growDone := make(chan error, 1)
+	go func() {
+		growDone <- conn.growMeasured(1<<20, now.Add(160*time.Millisecond), 80*time.Millisecond)
+	}()
+	select {
+	case <-failing.entered:
+	case <-time.After(time.Second):
+		t.Fatal("live window update did not reach the gated writer")
 	}
-	if reserved.Load() == 0 {
-		t.Fatal("uncertain window update released committed credit")
+	if server.IsClosed() {
+		t.Fatal("session closed before the injected window update failure")
+	}
+	wantReserved := int64(yamux.ReceiveWindowMemory(1<<20) - yamux.ReceiveWindowMemory(uint32(DefaultAdaptiveReceiveWindowBytes)))
+	if got := reserved.Load(); got != wantReserved {
+		t.Fatalf("blocked window update reservation = %d, want %d", got, wantReserved)
+	}
+	unblockWriter()
+	select {
+	case growErr := <-growDone:
+		if growErr == nil {
+			t.Fatal("expected window update failure on live session")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("window growth did not return after writer failure")
+	}
+	if got := reserved.Load(); got != wantReserved {
+		t.Fatalf("uncertain window update reservation = %d after failure, want %d", got, wantReserved)
 	}
 	conn.Release()
 	conn.Release()

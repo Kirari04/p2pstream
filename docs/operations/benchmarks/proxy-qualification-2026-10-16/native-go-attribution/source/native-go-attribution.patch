@@ -1,0 +1,313 @@
+--- a/internal/server/proxy_qualification_test.go
++++ b/internal/server/proxy_qualification_test.go
+@@ -419,6 +419,10 @@
+ 	GCPauseSeconds                float64                           `json:"gc_pause_seconds,omitempty"`
+ 	ObservedHTTPMajor             int                               `json:"observed_http_major,omitempty"`
+ 	ObservedOriginHTTPMajor       int                               `json:"observed_origin_http_major,omitempty"`
++	ObservedTLSVersion            uint16                            `json:"observed_tls_version,omitempty"`
++	ObservedTLSCipherSuite        uint16                            `json:"observed_tls_cipher_suite,omitempty"`
++	ObservedTLSNegotiatedProtocol string                            `json:"observed_tls_negotiated_protocol,omitempty"`
++	ObservedTLSPeerCertificateSHA string                            `json:"observed_tls_peer_certificate_sha256,omitempty"`
+ 	OriginPeakInflight            int64                             `json:"origin_peak_inflight,omitempty"`
+ 	InitialRSSBytes               int64                             `json:"initial_rss_bytes,omitempty"`
+ 	InitialHeapAlloc              uint64                            `json:"initial_heap_alloc_bytes,omitempty"`
+@@ -500,6 +504,7 @@
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	publicScheme := qualificationNativeAttributionScheme(t)
+ 	maxIdle := qualificationEnvInt(t, "P2PSTREAM_QUALIFICATION_STDLIB_MAX_IDLE")
+ 	shards := qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_STDLIB_SHARDS")
+ 	if shards == 0 {
+@@ -508,6 +513,9 @@
+ 	if shards < 1 || maxIdle < shards || maxIdle%shards != 0 {
+ 		t.Fatalf("invalid standard-library transport shards=%d total idle=%d", shards, maxIdle)
+ 	}
++	if qualificationNativeAttributionEnabled() && (shards != 1 || maxIdle != 128 || os.Getenv("P2PSTREAM_QUALIFICATION_STDLIB_POOL") != "1") {
++		t.Fatal("native attribution requires one shard, idle128 and the 32KiB pool")
++	}
+ 	certPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_CERT")
+ 	keyPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_KEY")
+ 	proxies := make([]*httputil.ReverseProxy, 0, shards)
+@@ -516,6 +524,9 @@
+ 	bufferPool := newReverseProxyBufferPool()
+ 	for range shards {
+ 		transport := &http.Transport{MaxIdleConns: perShardIdle, MaxIdleConnsPerHost: perShardIdle, MaxConnsPerHost: 0, ForceAttemptHTTP2: false}
++		if qualificationNativeAttributionEnabled() {
++			transport = qualificationNativeAttributionTransport()
++		}
+ 		transports = append(transports, transport)
+ 		proxy := httputil.NewSingleHostReverseProxy(origin)
+ 		proxy.Transport = transport
+@@ -538,7 +549,13 @@
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	if qualificationNativeAttributionEnabled() {
++		ln = qualificationNativeAttributionListener{Listener: ln}
++	}
+ 	srv := &http.Server{Handler: handler}
++	if qualificationNativeAttributionEnabled() {
++		srv.TLSConfig = qualificationNativeAttributionTLSConfig()
++	}
+ 	configurePublicHTTPServer(srv, 0)
+ 	adminListener, err := net.Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+@@ -546,8 +563,14 @@
+ 	}
+ 	admin := &http.Server{Handler: qualificationRuntimeHandler(nil)}
+ 	go func() { _ = admin.Serve(adminListener) }()
+-	writeQualificationReady(t, qualificationReady{URL: "https://" + ln.Addr().String(), AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid()})
+-	go func() { _ = srv.ServeTLS(ln, certPath, keyPath) }()
++	writeQualificationReady(t, qualificationReady{URL: publicScheme + "://" + ln.Addr().String(), AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid()})
++	go func() {
++		if publicScheme == "http" {
++			_ = srv.Serve(ln)
++		} else {
++			_ = srv.ServeTLS(ln, certPath, keyPath)
++		}
++	}()
+ 	waitQualificationStop(t)
+ 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+ 	defer cancel()
+@@ -994,6 +1017,7 @@
+ }
+ 
+ func runQualificationProxy(t *testing.T) {
++	publicScheme := qualificationNativeAttributionScheme(t)
+ 	originURL := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_ORIGIN_URL")
+ 	certPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_CERT")
+ 	keyPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_KEY")
+@@ -1019,6 +1043,9 @@
+ 	agent.ID, agent.RouteID, agent.Name, agent.Transport = 802, 702, "qualification-agent", publicRouteTargetTransportAgent
+ 	agent.AgentSelector = publicAgentSelectorConfig{MatchLabels: map[string]string{"qualification": "true"}}
+ 	listener := publicListenerConfig{ID: 1, Name: "qualification", Protocol: publicListenerProtocolHTTPS, BindAddress: "127.0.0.1", Enabled: true}
++	if publicScheme == "http" {
++		listener.Protocol = publicListenerProtocolHTTP
++	}
+ 	snap := &publicProxySnapshot{
+ 		Listeners: map[int64]publicListenerConfig{1: listener},
+ 		RoutesByListener: map[int64][]publicRouteConfig{1: {
+@@ -1043,7 +1070,7 @@
+ 	}
+ 	admin := &http.Server{Handler: qualificationRuntimeHandler(f.app)}
+ 	go func() { _ = admin.Serve(adminListener) }()
+-	writeQualificationReady(t, qualificationReady{URL: "https://" + address, AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid()})
++	writeQualificationReady(t, qualificationReady{URL: publicScheme + "://" + address, AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid()})
+ 	waitQualificationStop(t)
+ 	runtime.KeepAlive(ballast)
+ 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+@@ -1295,6 +1322,7 @@
+ 	durationSeconds, _ := strconv.ParseFloat(os.Getenv("P2PSTREAM_QUALIFICATION_DURATION_SECONDS"), 64)
+ 	warmupSeconds, _ := strconv.ParseFloat(os.Getenv("P2PSTREAM_QUALIFICATION_WARMUP_SECONDS"), 64)
+ 	protocol := os.Getenv("P2PSTREAM_QUALIFICATION_PROTOCOL")
++	nativeAttributionSmoke := os.Getenv("P2PSTREAM_QUALIFICATION_NATIVE_GO_SMOKE") == "1"
+ 	growthPayloadBytes := qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_GROWTH_PAYLOAD_BYTES")
+ 	if strings.HasPrefix(scenario, "growth-") && (growthPayloadBytes < 1 || growthPayloadBytes > qualificationGrowthPayloadMaximum) {
+ 		t.Fatalf("invalid growth payload bytes %d", growthPayloadBytes)
+@@ -1308,7 +1336,7 @@
+ 		t.Fatalf("invalid concurrency=%d requests=%d", concurrency, requests)
+ 	}
+ 	transport := &http.Transport{
+-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true}, // fixture certificate
++		TLSClientConfig:     qualificationNativeAttributionClientTLSConfig(protocol),
+ 		MaxIdleConns:        concurrency,
+ 		MaxIdleConnsPerHost: concurrency,
+ 		MaxConnsPerHost:     concurrency,
+@@ -1413,6 +1441,10 @@
+ 	var h2PrewarmAdditionalConnection atomic.Bool
+ 	var seenConnections sync.Map
+ 	var seenOriginConnections sync.Map
++	var observedTLSVersion uint16
++	var observedTLSCipherSuite uint16
++	var observedTLSNegotiatedProtocol string
++	var observedTLSPeerCertificateSHA string
+ 	classes := make(map[string]int)
+ 	statusCodes := make(map[string]int)
+ 	latencies := make([]time.Duration, 0, requests)
+@@ -1491,6 +1523,22 @@
+ 					if conn, ok := info.Conn.(*tls.Conn); ok && conn.ConnectionState().NegotiatedProtocol == "h2" {
+ 						observedMajor.CompareAndSwap(0, 2)
+ 					}
++					if nativeAttributionSmoke {
++						if conn, ok := info.Conn.(*tls.Conn); ok {
++							state := conn.ConnectionState()
++							resultMu.Lock()
++							if observedTLSVersion == 0 {
++								observedTLSVersion = state.Version
++								observedTLSCipherSuite = state.CipherSuite
++								observedTLSNegotiatedProtocol = state.NegotiatedProtocol
++								if len(state.PeerCertificates) > 0 {
++									fingerprint := sha256.Sum256(state.PeerCertificates[0].Raw)
++									observedTLSPeerCertificateSHA = fmt.Sprintf("%x", fingerprint[:])
++								}
++							}
++							resultMu.Unlock()
++						}
++					}
+ 					if strings.HasPrefix(scenario, "h1-churn") {
+ 						if !info.Reused {
+ 							clientConnections.Add(1)
+@@ -1706,6 +1754,7 @@
+ 		P50Milliseconds: durationQuantile(latencies, .50), P95Milliseconds: durationQuantile(latencies, .95), P99Milliseconds: durationQuantile(latencies, .99),
+ 		ResponseBytes: bytesSeen.Load(), RequestBodyBytes: requestBodyBytes.Load(), OriginRequestBodyBytes: originRequestBodyBytes.Load(), OriginBodyBarrierTimedOut: originBodyBarrierTimedOut.Load(), ConfiguredPayloadBytes: int64(growthPayloadBytes), PeakRSSBytes: sampler.peakRSS, FinalRSSBytes: sampler.finalRSS, PeakFDs: sampler.peakFDs, CPUSeconds: sampler.cpuSeconds(),
+ 		PeakHeapAlloc: sampler.peakHeap, GCCycles: sampler.gcCycles(), GCPauseSeconds: sampler.gcPauseSeconds(), ObservedHTTPMajor: int(observedMajor.Load()), ObservedOriginHTTPMajor: int(observedOriginMajor.Load()),
++		ObservedTLSVersion: observedTLSVersion, ObservedTLSCipherSuite: observedTLSCipherSuite, ObservedTLSNegotiatedProtocol: observedTLSNegotiatedProtocol, ObservedTLSPeerCertificateSHA: observedTLSPeerCertificateSHA,
+ 		CgroupMemoryPeak: sampler.cgroupPeak, CgroupMemoryFinal: sampler.cgroupFinal, CgroupMemoryMax: sampler.cgroupMax,
+ 		OriginPeakInflight: originPeak.Load(), InitialRSSBytes: sampler.initialRSS, InitialHeapAlloc: sampler.initialHeap,
+ 		InitialCgroupBytes: sampler.initialCgroup, PeakSocketFDs: sampler.peakSocketFDs, FinalSocketFDs: sampler.finalSocketFDs,
+--- /dev/null
++++ b/internal/server/native_go_attribution_qualification_linux_test.go
+@@ -0,0 +1,152 @@
++package server
++
++import (
++	"context"
++	"crypto/tls"
++	"fmt"
++	"net"
++	"net/http"
++	"os"
++	"reflect"
++	"testing"
++	"time"
++
++	"p2pstream/internal/tcpsocket"
++)
++
++// These controls are dormant in the ordinary subprocess roles. This file is
++// part of an isolated diagnostic overlay, not a production listener option.
++func qualificationNativeAttributionEnabled() bool {
++	return os.Getenv("P2PSTREAM_QUALIFICATION_NATIVE_GO_ATTRIBUTION") == "1"
++}
++
++func qualificationNativeAttributionScheme(t *testing.T) string {
++	t.Helper()
++	if !qualificationNativeAttributionEnabled() {
++		return "https"
++	}
++	mode := os.Getenv("P2PSTREAM_QUALIFICATION_NATIVE_GO_PUBLIC_MODE")
++	if mode != "http" && mode != "https" {
++		t.Fatalf("invalid native Go attribution public mode %q", mode)
++	}
++	return mode
++}
++
++func qualificationNativeAttributionTransport() *http.Transport {
++	transport := http.DefaultTransport.(*http.Transport).Clone()
++	transport.DisableKeepAlives = false
++	transport.MaxIdleConns = 1024
++	transport.MaxIdleConnsPerHost = 128
++	transport.MaxConnsPerHost = 0
++	transport.IdleConnTimeout = 90 * time.Second
++	transport.ResponseHeaderTimeout = 10 * time.Second
++	baseDial := transport.DialContext
++	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
++		conn, err := baseDial(ctx, network, address)
++		if err != nil {
++			return nil, err
++		}
++		if err := qualificationNativeAttributionConfigureTCP(conn); err != nil {
++			_ = conn.Close()
++			return nil, err
++		}
++		return conn, nil
++	}
++	return transport
++}
++
++func qualificationNativeAttributionConfigureTCP(conn net.Conn) error {
++	tcp, ok := conn.(*net.TCPConn)
++	if !ok {
++		return fmt.Errorf("native attribution requires TCP, got %T", conn)
++	}
++	_, err := tcpsocket.Configure(tcp, 0)
++	return err
++}
++
++type qualificationNativeAttributionListener struct {
++	net.Listener
++}
++
++func (l qualificationNativeAttributionListener) Accept() (net.Conn, error) {
++	conn, err := l.Listener.Accept()
++	if err != nil {
++		return nil, err
++	}
++	if err := qualificationNativeAttributionConfigureTCP(conn); err != nil {
++		_ = conn.Close()
++		return nil, err
++	}
++	return conn, nil
++}
++
++func qualificationNativeAttributionTLSConfig() *tls.Config {
++	return &tls.Config{
++		MinVersion: tls.VersionTLS12,
++		NextProtos: []string{"acme-tls/1", "h2", "http/1.1"},
++	}
++}
++
++func qualificationNativeAttributionClientTLSConfig(protocol string) *tls.Config {
++	config := &tls.Config{InsecureSkipVerify: true} // fixture certificate
++	if qualificationNativeAttributionEnabled() && protocol == "h1" {
++		config.ServerName = "public.test"
++	}
++	return config
++}
++
++func TestQualificationNativeAttributionDefaultRemainsHTTPS(t *testing.T) {
++	t.Setenv("P2PSTREAM_QUALIFICATION_NATIVE_GO_ATTRIBUTION", "")
++	t.Setenv("P2PSTREAM_QUALIFICATION_NATIVE_GO_PUBLIC_MODE", "http")
++	if got := qualificationNativeAttributionScheme(t); got != "https" {
++		t.Fatalf("default scheme = %q, want https", got)
++	}
++}
++
++func TestQualificationNativeAttributionSchemes(t *testing.T) {
++	t.Setenv("P2PSTREAM_QUALIFICATION_NATIVE_GO_ATTRIBUTION", "1")
++	for _, scheme := range []string{"http", "https"} {
++		t.Run(scheme, func(t *testing.T) {
++			t.Setenv("P2PSTREAM_QUALIFICATION_NATIVE_GO_PUBLIC_MODE", scheme)
++			if got := qualificationNativeAttributionScheme(t); got != scheme {
++				t.Fatalf("scheme = %q, want %q", got, scheme)
++			}
++		})
++	}
++}
++
++func TestQualificationNativeAttributionTransportMatchesProductionSettings(t *testing.T) {
++	transport := qualificationNativeAttributionTransport()
++	t.Cleanup(transport.CloseIdleConnections)
++	if transport.MaxIdleConns != 1024 || transport.MaxIdleConnsPerHost != 128 || transport.MaxConnsPerHost != 0 {
++		t.Fatalf("connection limits = %d/%d/%d", transport.MaxIdleConns, transport.MaxIdleConnsPerHost, transport.MaxConnsPerHost)
++	}
++	if transport.DisableKeepAlives || transport.IdleConnTimeout != 90*time.Second || transport.ResponseHeaderTimeout != 10*time.Second {
++		t.Fatalf("transport timeouts/keepalive = disable:%t idle:%s response:%s", transport.DisableKeepAlives, transport.IdleConnTimeout, transport.ResponseHeaderTimeout)
++	}
++	if !transport.ForceAttemptHTTP2 || transport.DialContext == nil {
++		t.Fatalf("transport HTTP/2/dial settings = force:%t dial_nil:%t", transport.ForceAttemptHTTP2, transport.DialContext == nil)
++	}
++}
++
++func TestQualificationNativeAttributionTLSConfigMatchesPublicDefaults(t *testing.T) {
++	config := qualificationNativeAttributionTLSConfig()
++	wantProtocols := []string{"acme-tls/1", "h2", "http/1.1"}
++	if config.MinVersion != tls.VersionTLS12 || !reflect.DeepEqual(config.NextProtos, wantProtocols) {
++		t.Fatalf("TLS config = min:%x protocols:%v", config.MinVersion, config.NextProtos)
++	}
++}
++
++func TestQualificationNativeAttributionClientServerNameIsOptInH1Only(t *testing.T) {
++	t.Setenv("P2PSTREAM_QUALIFICATION_NATIVE_GO_ATTRIBUTION", "")
++	if config := qualificationNativeAttributionClientTLSConfig("h1"); config.ServerName != "" || !config.InsecureSkipVerify {
++		t.Fatalf("default H1 client TLS config = server_name:%q insecure_skip_verify:%t", config.ServerName, config.InsecureSkipVerify)
++	}
++	t.Setenv("P2PSTREAM_QUALIFICATION_NATIVE_GO_ATTRIBUTION", "1")
++	if config := qualificationNativeAttributionClientTLSConfig("h1"); config.ServerName != "public.test" || !config.InsecureSkipVerify {
++		t.Fatalf("attribution H1 client TLS config = server_name:%q insecure_skip_verify:%t", config.ServerName, config.InsecureSkipVerify)
++	}
++	if config := qualificationNativeAttributionClientTLSConfig("h2"); config.ServerName != "" || !config.InsecureSkipVerify {
++		t.Fatalf("attribution H2 client TLS config = server_name:%q insecure_skip_verify:%t", config.ServerName, config.InsecureSkipVerify)
++	}
++}

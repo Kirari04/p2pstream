@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 146, in <module>
+    si_doc,ai_doc=load(si_path),load(ai_path); si,ai=initial(si_doc,"server"),initial(ai_doc,"agent"); reverse(si,ai)
+                                                     ~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 95, in initial
+    base(v,role,0)
+    ~~~~^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 91, in base
+    configuration(v.get("configuration"),role)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 54, in configuration
+    same_typed_shape(v,expected,f"{role}.configuration")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 45, in same_typed_shape
+    if not isinstance(value,dict) or set(value)!=set(expected): raise ValueError(f"{path} schema")
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: server.configuration schema

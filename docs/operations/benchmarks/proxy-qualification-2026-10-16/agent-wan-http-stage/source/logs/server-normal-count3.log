@@ -1,0 +1,46 @@
+go: downloading github.com/google/cel-go v0.31.0
+go: downloading golang.org/x/crypto v0.55.0
+go: downloading github.com/oschwald/maxminddb-golang/v2 v2.5.0
+go: downloading golang.org/x/net v0.57.0
+go: downloading golang.org/x/mod v0.38.0
+go: downloading github.com/mattn/go-sqlite3 v1.14.49
+go: downloading github.com/maxmind/mmdbwriter v1.2.0
+go: downloading github.com/caarlos0/env/v10 v10.0.0
+go: downloading github.com/joho/godotenv v1.5.1
+go: downloading github.com/pressly/goose/v3 v3.27.3
+go: downloading go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
+go: downloading github.com/sethvargo/go-retry v0.4.0
+go: downloading go.uber.org/multierr v1.11.0
+go: downloading github.com/mfridman/interpolate v0.0.2
+go: downloading golang.org/x/sync v0.22.0
+go: downloading golang.org/x/text v0.41.0
+go: downloading cel.dev/expr v0.25.1
+go: downloading google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478
+go: downloading go.yaml.in/yaml/v3 v3.0.4
+go: downloading github.com/antlr4-go/antlr/v4 v4.13.1
+go: downloading golang.org/x/exp v0.0.0-20260718201538-764159d718ef
+go: downloading google.golang.org/genproto/googleapis/rpc v0.0.0-20260720211330-0afa2a65878a
+ok  	p2pstream/internal/server	0.129s
+	Command being timed: "go test -tags=p2pstream_transport_ceiling,p2pstream_http_stage ./internal/server -run ^TestHTTPStage -count=3"
+	User time (seconds): 84.59
+	System time (seconds): 9.88
+	Percent of CPU this job got: 245%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:38.43
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 899172
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 914
+	Minor (reclaiming a frame) page faults: 2277448
+	Voluntary context switches: 96213
+	Involuntary context switches: 41015
+	Swaps: 0
+	File system inputs: 261160
+	File system outputs: 1165208
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

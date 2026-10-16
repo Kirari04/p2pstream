@@ -1,0 +1,190 @@
+{
+  "kind": "p2pstream-native-go-attribution-run-v1",
+  "source_ref": "248bad099682878fe398c0ebaad235787ef47858",
+  "source_identity": "248bad099682878fe398c0ebaad235787ef47858+sha256:f5debf1ab13534c852fc30b41ed642076abcc1a5e6df10983cb38bd1e7dcef2b",
+  "build_manifest_sha256": "bc915ed4822c9bfca83b78083b071aa01e3dd9db851d214cbcdf11e32271bfdf",
+  "binary_sha256": "12ffaadfdb8191b3cb6bd00026a2a6830981f168ea51cba74f2cd40628e720d7",
+  "runner_sha256": "ebda90041f65bcdd317b0cf9aae10c6b334190d35653ce64b2147697375f7a50",
+  "overlay_sha256": "f5debf1ab13534c852fc30b41ed642076abcc1a5e6df10983cb38bd1e7dcef2b",
+  "runner_exec_shim": {
+    "path": "runner-exec-shim.py",
+    "sha256": "4bd9012452d8e2310cf83e29f3741032fe957d56cc0c1ebf3eee188bf48beace",
+    "python": "/usr/bin/python3.14",
+    "python_sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+  },
+  "started_utc": "2026-10-16T14:43:53.034225+00:00",
+  "proxy_cpus": "0,1,2,3",
+  "load_cpus": "4,5,6,7,8,9,10,11,12,13,14,15",
+  "gomaxprocs": 4,
+  "cgroup_limit_bytes": 4294967296,
+  "cgroup_swap_disabled": true,
+  "temporary_environment": {
+    "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/tmp",
+    "TEMP": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/tmp",
+    "TMP": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/tmp",
+    "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/tmp",
+    "GOFLAGS": "",
+    "GOWORK": "off",
+    "GOTOOLCHAIN": "local"
+  },
+  "fixed_plan": {
+    "rows": 24,
+    "pairs": 3,
+    "roles": [
+      "production",
+      "native"
+    ],
+    "schemes": [
+      "http",
+      "https"
+    ],
+    "protocol": "h1",
+    "concurrency": [
+      16,
+      128
+    ],
+    "warmup_seconds": 2,
+    "duration_seconds": 10,
+    "idle_per_host": 128,
+    "response_buffer_bytes": 32768,
+    "h1_client_tls_server_name": "public.test",
+    "h1_client_tls_server_name_scope": "native-attribution opt-in only; both production and native arms",
+    "arm_order": [
+      [
+        "production",
+        "native"
+      ],
+      [
+        "native",
+        "production"
+      ],
+      [
+        "production",
+        "native"
+      ]
+    ],
+    "scheme_order": [
+      [
+        "http",
+        "https"
+      ],
+      [
+        "https",
+        "http"
+      ],
+      [
+        "http",
+        "https"
+      ]
+    ],
+    "profiling_trigger": "all three paired production/native RPS ratios below 0.85 in a cell",
+    "overall_timeout_seconds": 1200
+  },
+  "intentional_native_omissions": [
+    "admission and lease accounting",
+    "route and target selection",
+    "retry and cache middleware",
+    "WAF and access checks",
+    "request-event persistence"
+  ],
+  "cleanup": {
+    "forced": []
+  },
+  "commands": [
+    {
+      "label": "go-version",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version"
+      ],
+      "kind": "bounded",
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version"
+      ]
+    },
+    {
+      "label": "go-buildid",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "tool",
+        "buildid",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test"
+      ],
+      "kind": "bounded",
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "tool",
+        "buildid",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test"
+      ]
+    },
+    {
+      "label": "docker-info",
+      "requested_command": [
+        "docker",
+        "info"
+      ],
+      "kind": "bounded",
+      "command": [
+        "/usr/bin/docker",
+        "info"
+      ]
+    },
+    {
+      "label": "findmnt",
+      "requested_command": [
+        "findmnt",
+        "-no",
+        "FSTYPE",
+        "--target",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt"
+      ],
+      "kind": "bounded",
+      "command": [
+        "/usr/bin/findmnt",
+        "-no",
+        "FSTYPE",
+        "--target",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt"
+      ]
+    },
+    {
+      "label": "lscpu",
+      "requested_command": [
+        "lscpu",
+        "-e=CPU,CORE,SOCKET,NODE,ONLINE"
+      ],
+      "kind": "bounded",
+      "command": [
+        "/usr/bin/lscpu",
+        "-e=CPU,CORE,SOCKET,NODE,ONLINE"
+      ]
+    },
+    {
+      "label": "docker-image-id",
+      "requested_command": [
+        "docker",
+        "image",
+        "inspect",
+        "--format",
+        "{{.Id}}",
+        "debian:trixie-slim"
+      ],
+      "kind": "bounded",
+      "command": [
+        "/usr/bin/docker",
+        "image",
+        "inspect",
+        "--format",
+        "{{.Id}}",
+        "debian:trixie-slim"
+      ]
+    }
+  ],
+  "scratch_filesystem": "ext4",
+  "cpu_topology": "CPU CORE SOCKET NODE ONLINE\n  0    0      0    0    yes\n  1    0      0    0    yes\n  2    1      0    0    yes\n  3    1      0    0    yes\n  4    2      0    0    yes\n  5    2      0    0    yes\n  6    3      0    0    yes\n  7    3      0    0    yes\n  8    4      0    0    yes\n  9    4      0    0    yes\n 10    5      0    0    yes\n 11    5      0    0    yes\n 12    6      0    0    yes\n 13    6      0    0    yes\n 14    7      0    0    yes\n 15    7      0    0    yes\n",
+  "docker_image_id": "sha256:ec92d6b34c6a7e6372d87dc9ef2fd6e8ca8125353fe7d033c676f51cf923a13b",
+  "go_version": "go version go1.26.6 linux/amd64",
+  "binary_build_id": "D6j00smoWNvWJl0FWvD2/QCmAew-6DNXjkFF4xzeu/KJrHABHBxaAi09ieKgRo/aMMSGbRHZP9piCLVBmr9"
+}

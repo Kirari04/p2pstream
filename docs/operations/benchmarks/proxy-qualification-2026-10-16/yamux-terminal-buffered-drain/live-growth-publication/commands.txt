@@ -1,0 +1,7 @@
+GOTOOLCHAIN=local taskset -c 4-15 /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go version
+GOTOOLCHAIN=local taskset -c 4-15 /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test ./internal/tunnel -run '^TestGrowingConnRetainsReservationWhenWindowUpdateFails$' -count=100
+GOTOOLCHAIN=local taskset -c 4-15 /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test -race ./internal/tunnel -run '^TestGrowingConnRetainsReservationWhenWindowUpdateFails$' -count=50
+GOTOOLCHAIN=local taskset -c 4-15 /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test ./internal/tunnel -count=1
+(cd third_party/yamux && GOTOOLCHAIN=local taskset -c 4-15 /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test ./... -count=1)
+GOTOOLCHAIN=local taskset -c 4-15 /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test -race ./internal/tunnel -count=1
+(cd third_party/yamux && GOTOOLCHAIN=local taskset -c 4-15 /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test -race ./... -count=1)

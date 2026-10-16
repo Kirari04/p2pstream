@@ -1,0 +1,11 @@
+{
+  "classification": "incomplete_prior_attempt",
+  "accepted_rows": 14,
+  "attempted_rows": 18,
+  "summary_present": false,
+  "outcome_present": false,
+  "source_run": "tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt",
+  "current_boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+  "decision": "preserve separately; do not combine with a fresh fixed matrix",
+  "observed_recovery": "no saved terminal status; prior attempt processes absent after host restart"
+}

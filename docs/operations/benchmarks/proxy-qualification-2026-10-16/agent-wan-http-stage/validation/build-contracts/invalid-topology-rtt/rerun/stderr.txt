@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 182, in <module>
+    if number(topology["measured_rtt_ms"],"topology RTT",True)!=rtt: raise ValueError("topology/result RTT mismatch")
+                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: topology/result RTT mismatch

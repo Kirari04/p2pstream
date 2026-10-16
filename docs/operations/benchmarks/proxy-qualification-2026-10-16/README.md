@@ -15,6 +15,14 @@ comparison.
 
 ## Files
 
+- [`native-go-attribution/README.md`](native-go-attribution/README.md)
+  records 24 matched HTTP/HTTPS H1 rows and 8,920,049 exact responses.
+  Production reaches 64.9–70.5% of the deliberately simpler native Go control;
+  all four preregistered profiling triggers pass.
+- [`agent-wan-http-stage/README.md`](agent-wan-http-stage/README.md)
+  preserves sixteen healthy native HTTP/1 agent transfers, the original
+  pool-category validator failure and a strict, separately hashed offline replay.
+  Public HTTPS/H2 remains the next diagnostic boundary; the WAN gate is open.
 - [`yamux-terminal-buffered-drain/README.md`](yamux-terminal-buffered-drain/README.md)
   records the terminal credit-write fix, deterministic failing baseline and
   passing full normal/race-short suites. Its scope is buffered drain after

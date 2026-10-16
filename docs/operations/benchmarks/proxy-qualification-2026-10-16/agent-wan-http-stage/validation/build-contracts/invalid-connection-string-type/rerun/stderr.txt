@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 153, in <module>
+    response=phase(load(phases_dir/f"phase-{i:02d}.json"),i,"server"); server=phase(sr[i],i,"server"); agent=phase(ar[i],i,"agent")
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 130, in phase
+    if not isinstance(v["connection"][key],str): raise ValueError(f"{role} connection {key}")
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: server connection put_idle_error

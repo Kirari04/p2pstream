@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 145, in <module>
+    si_doc,ai_doc=load(si_path),load(ai_path); si,ai=initial(si_doc,"server"),initial(ai_doc,"agent"); reverse(si,ai)
+                                                     ~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 95, in initial
+    base(v,role,0)
+    ~~~~^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 91, in base
+    configuration(v.get("configuration"),role)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 55, in configuration
+    if v!=expected: raise ValueError(f"{role} configuration differs from manifest")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: server configuration differs from manifest

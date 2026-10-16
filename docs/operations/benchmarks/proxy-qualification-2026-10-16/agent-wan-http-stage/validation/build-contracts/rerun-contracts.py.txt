@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import hashlib,json,subprocess,sys
+root=Path(sys.argv[1]); validator=root/'validator-after.py'; runner=root/'runner-after.sh'
+source='364e7744603841f5d306f4c242f3acd2b04183bf'; sha='1'*64; rsha=hashlib.sha256(runner.read_bytes()).hexdigest()
+rows=[]
+for case in sorted(p for p in root.iterdir() if p.is_dir() and (p.name.startswith('valid-') or p.name.startswith('invalid-'))):
+ out=case/'rerun'; out.mkdir(exist_ok=True); manifest=case/'manifest.json'; msha=hashlib.sha256(manifest.read_bytes()).hexdigest()
+ args=['python3',str(validator),source,sha,sha,msha,str(manifest),rsha,'80',*[str(case/f'{x}.json') for x in ('si','ai','sl','al','st','at')],str(case/'phases'),str(out/'results.jsonl'),str(out/'snapshots.jsonl'),str(case/'boundaries.jsonl'),str(case/'topology.json')]
+ p=subprocess.run(args,text=True,capture_output=True); (out/'stdout.txt').write_text(p.stdout); (out/'stderr.txt').write_text(p.stderr)
+ expected=0 if case.name.startswith('valid-') else 1; classification=''
+ summary=out/'results.summary.json'
+ if p.returncode==0 and summary.exists(): classification=json.loads(summary.read_text())['classification']
+ expected_class=case.name.removeprefix('valid-') if expected==0 else ''
+ rows.append((case.name,p.returncode,expected,classification,expected_class))
+with (root/'rerun-results.tsv').open('w') as f:
+ f.write('case\tactual_exit\texpected_exit\tclassification\texpected_classification\n')
+ for r in rows:f.write('\t'.join(map(str,r))+'\n')
+failed=[r for r in rows if (r[1]==0)!=(r[2]==0) or r[2]==0 and r[3]!=r[4]]
+(root/'rerun-summary.json').write_text(json.dumps({'schema_version':1,'case_count':len(rows),'failed':failed,'validator_sha256':hashlib.sha256(validator.read_bytes()).hexdigest(),'runner_sha256':rsha},sort_keys=True,separators=(',',':'))+'\n')
+print(json.dumps({'case_count':len(rows),'failed':failed},separators=(',',':')))
+raise SystemExit(bool(failed))

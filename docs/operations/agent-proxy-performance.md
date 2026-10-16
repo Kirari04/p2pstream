@@ -677,6 +677,17 @@ HTTP transport; it does not clear the original proxy WAN regression. The
 [transport-ceiling evidence](benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/README.md)
 also preserves original fixture failures and the uncombined partial attempt.
 
+The native HTTP/1 integration screen also stays healthy. Sixteen exact 256 MiB
+phases at measured 96.979 ms RTT preserve native pooling, the original
+conditioning pool closures, the 30-second idle timeout and production relay
+ownership. Post-conditioning downloads sustain 34.349–35.390 MB/s. The original
+wrapper exits one on a pool-category schema error after natural endpoint
+shutdown; a separately hashed strict offline correction passes all remaining
+checks and 23 positive/negative contracts without changing raw observations.
+This healthy nonreproduction leaves public HTTPS/H2 and the omitted public
+pipeline as the next diagnostic boundary; it does not clear the WAN gate. See
+the [HTTP-stage evidence and retained failure](benchmarks/proxy-qualification-2026-10-16/agent-wan-http-stage/README.md).
+
 A subsequent CI shutdown failure exposed a synchronous per-stream credit write
 interrupting reads of accepted buffered data after FIN or terminal session state.
 The fix skips obsolete terminal credit and rechecks state when a credit write
@@ -722,6 +733,19 @@ schedule delivery makes its affected tail comparison capacity-confounded.
 The [Caddy extension plan and validation](benchmarks/proxy-qualification-2026-10-16/caddy-reference/moderate-caddy-extension/README.md)
 records the 28 passing synthetic contracts and bounded wrapper cleanup checks
 that preceded these complete calibration and moderate-load performance runs.
+
+The separate matched native Go attribution cohort completes 24 HTTP/HTTPS H1
+rows at 16/128 clients with 8,920,049 exact responses and zero errors. Production
+median throughput is 64.9–70.5% of the stripped-down native control; all three
+paired ratios in every cell fall below the preregistered 85% profiling trigger.
+The native arm shares socket, transport, origin, certificate and CPU/memory
+settings but omits admission, route/policy middleware and request-event
+persistence, so these results identify an application-cost gap without
+isolating one subsystem. All 3,599,859 production timed requests conserve
+persisted events exactly, and cleanup is natural. This pinned-source diagnostic
+does not replace current-head qualification or the earlier HAProxy comparison.
+The [native attribution evidence](benchmarks/proxy-qualification-2026-10-16/native-go-attribution/README.md)
+also retains the earlier interrupted cohort separately.
 
 An earlier bounded large-transfer comparison used its recorded server with either
 the legacy or aggregate agent, across a disposable 80 ms/1 Gbit/s WAN (measured

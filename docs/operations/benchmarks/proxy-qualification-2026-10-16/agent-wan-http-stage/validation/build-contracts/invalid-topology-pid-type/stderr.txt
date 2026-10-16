@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 173, in <module>
+    pid=integer(instance["helper_pid"],f"{role} helper pid",2); start=integer(instance["helper_start_ticks"],f"{role} helper start",1); inode=integer(instance["netns_inode"],f"{role} inode",1); generation=integer(instance["arm_generation"],f"{role} generation",1)
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 10, in integer
+    if isinstance(v,bool) or not isinstance(v,int) or v<m: raise ValueError(f"{n} integer")
+                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: agent helper pid integer

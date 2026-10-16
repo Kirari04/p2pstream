@@ -74,3 +74,7 @@ exported here. This new module check supersedes the old byte-identity carry for
 Yamux; final agent/tunnel/server integration races and current-head CI remain
 separate requirements. Frozen native-Go and HTTP-stage diagnostic binaries
 retain their earlier runtime provenance.
+
+## Live growth-publication contract after terminal-drain correction
+
+CI on `4477c0b` exposed a second stale fixture in `internal/tunnel`: it closed the session before expecting a window-update write error. Terminal sessions now intentionally skip obsolete per-stream credit. The corrected test gates only a positive WINDOW_UPDATE for the accepted live stream, passing unrelated RTT probes through. It verifies the exact receive-storage reservation while publication blocks and after the injected failure, then verifies idempotent release. No runtime behavior changes. Focused normal ×100/race ×50, complete tunnel normal/race and complete Yamux normal/race suites all pass on Go 1.26.6. `live-growth-publication/` preserves the original CI failure, test-only patch, exact commands, raw logs and source hashes. Full remote CI is still a separate check.

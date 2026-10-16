@@ -1,0 +1,44 @@
+Verify	Run Go tests	﻿2026-10-16T14:45:29.0936001Z ##[group]Run go test ./...
+Verify	Run Go tests	2026-10-16T14:45:29.0936275Z ^[[36;1mgo test ./...^[[0m
+Verify	Run Go tests	2026-10-16T14:45:29.0993004Z shell: /usr/bin/bash -e {0}
+Verify	Run Go tests	2026-10-16T14:45:29.0993235Z env:
+Verify	Run Go tests	2026-10-16T14:45:29.0993417Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+Verify	Run Go tests	2026-10-16T14:45:29.0993664Z   GOTOOLCHAIN: local
+Verify	Run Go tests	2026-10-16T14:45:29.0993850Z ##[endgroup]
+Verify	Run Go tests	2026-10-16T14:45:29.3572872Z go: downloading github.com/maxmind/mmdbwriter v1.2.0
+Verify	Run Go tests	2026-10-16T14:45:29.4320476Z go: downloading go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
+Verify	Run Go tests	2026-10-16T14:46:12.7526682Z ok  	p2pstream	0.070s
+Verify	Run Go tests	2026-10-16T14:46:17.5489543Z ok  	p2pstream/cmd	4.346s
+Verify	Run Go tests	2026-10-16T14:46:17.5532654Z ok  	p2pstream/cmd/agentupdate-manifest	0.020s
+Verify	Run Go tests	2026-10-16T14:46:17.5583972Z ?   	p2pstream/cmd/installation-manifest	[no test files]
+Verify	Run Go tests	2026-10-16T14:46:17.5605398Z ?   	p2pstream/cmd/serverupdate-manifest	[no test files]
+Verify	Run Go tests	2026-10-16T14:46:17.5658386Z ?   	p2pstream/gen/proto/p2pstream/v1	[no test files]
+Verify	Run Go tests	2026-10-16T14:46:17.5700259Z ?   	p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect	[no test files]
+Verify	Run Go tests	2026-10-16T14:46:23.2623297Z ok  	p2pstream/internal/agent	10.056s
+Verify	Run Go tests	2026-10-16T14:46:23.2623826Z ok  	p2pstream/internal/agentupdate	0.007s
+Verify	Run Go tests	2026-10-16T14:46:23.2624131Z ok  	p2pstream/internal/agentupdateauth	0.011s
+Verify	Run Go tests	2026-10-16T14:46:23.2624436Z ok  	p2pstream/internal/agentupdateauthority	0.010s
+Verify	Run Go tests	2026-10-16T14:46:23.2624728Z ok  	p2pstream/internal/agentupdatecatalog	0.114s
+Verify	Run Go tests	2026-10-16T14:46:23.2625005Z ?   	p2pstream/internal/authutil	[no test files]
+Verify	Run Go tests	2026-10-16T14:46:23.2625267Z ?   	p2pstream/internal/buildinfo	[no test files]
+Verify	Run Go tests	2026-10-16T14:46:23.2625549Z ok  	p2pstream/internal/config	0.029s
+Verify	Run Go tests	2026-10-16T14:46:23.2625784Z ok  	p2pstream/internal/db	6.110s
+Verify	Run Go tests	2026-10-16T14:46:23.2626034Z ?   	p2pstream/internal/db/migrations	[no test files]
+Verify	Run Go tests	2026-10-16T14:46:23.2626308Z ?   	p2pstream/internal/logger	[no test files]
+Verify	Run Go tests	2026-10-16T14:46:23.2626556Z ok  	p2pstream/internal/managementui	0.029s
+Verify	Run Go tests	2026-10-16T14:46:23.2626808Z ok  	p2pstream/internal/releaseversion	0.007s
+Verify	Run Go tests	2026-10-16T14:48:23.9204145Z ok  	p2pstream/internal/server	124.160s
+Verify	Run Go tests	2026-10-16T14:48:23.9205640Z ok  	p2pstream/internal/serverupdate	0.939s
+Verify	Run Go tests	2026-10-16T14:48:23.9206467Z ?   	p2pstream/internal/smoketest	[no test files]
+Verify	Run Go tests	2026-10-16T14:48:23.9206930Z ok  	p2pstream/internal/smoketest/upstream	0.004s
+Verify	Run Go tests	2026-10-16T14:48:23.9207336Z ok  	p2pstream/internal/sysmetrics	0.013s
+Verify	Run Go tests	2026-10-16T14:48:23.9207585Z ok  	p2pstream/internal/tcpsocket	0.004s
+Verify	Run Go tests	2026-10-16T14:48:23.9207954Z --- FAIL: TestGrowingConnRetainsReservationWhenWindowUpdateFails (0.00s)
+Verify	Run Go tests	2026-10-16T14:48:23.9208543Z     growing_conn_test.go:534: expected window update failure on closed session
+Verify	Run Go tests	2026-10-16T14:48:23.9210600Z FAIL
+Verify	Run Go tests	2026-10-16T14:48:23.9210844Z FAIL	p2pstream/internal/tunnel	0.049s
+Verify	Run Go tests	2026-10-16T14:48:23.9211178Z ok  	p2pstream/internal/updater	1.740s
+Verify	Run Go tests	2026-10-16T14:48:23.9211493Z ?   	p2pstream/stats	[no test files]
+Verify	Run Go tests	2026-10-16T14:48:23.9211815Z ok  	p2pstream/tests/integration	40.126s
+Verify	Run Go tests	2026-10-16T14:48:23.9212115Z FAIL
+Verify	Run Go tests	2026-10-16T14:48:24.0911315Z ##[error]Process completed with exit code 1.

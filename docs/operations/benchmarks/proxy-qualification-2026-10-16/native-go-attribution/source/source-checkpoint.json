@@ -1,0 +1,39 @@
+{
+  "kind": "p2pstream-native-go-attribution-source-checkpoint-v2",
+  "status": "source-only SNI/certificate correction prepared after preserved four-cell smoke mismatch; no formatting, build, tests, archive, or rerun executed",
+  "base_ref": "248bad099682878fe398c0ebaad235787ef47858",
+  "base_proxy_qualification_test_sha256": "48bb7f2d5b7efcecf29ca4d46b5358713d50c7686530417ce8f784deb653b0bd",
+  "initial_overlay_sha256": "01890e8cd391e830e0dd447fb7221c7949e8c6d13b3834e8adcc800041430a3c",
+  "files": {
+    "README.md": "87f7a188ad82dcbd3081a0fd5f1550bdb538cdbb603a93d088cec885f8ba07f0",
+    "build-native-go-attribution.py": "533ca913fbf660e2fb1e08b57e380331c45d5a24e373427be4a9191e3a90ced0",
+    "initial-test-overlay.patch": "01890e8cd391e830e0dd447fb7221c7949e8c6d13b3834e8adcc800041430a3c",
+    "internal/server/native_go_attribution_qualification_linux_test.go": "2693e413533aaeacdf196ffc25c957674be6f0b866991c66ba54600f000f9078",
+    "internal/server/proxy_qualification_test.go": "07bf76b0491d2e95c659ca329dce740c9fb53121aab20664e5dad7d35d4476d4",
+    "native-go-attribution.patch": "f5debf1ab13534c852fc30b41ed642076abcc1a5e6df10983cb38bd1e7dcef2b",
+    "native-go-attribution-contracts.py": "551b865d3f925cf776b0faf3176fd02ed2efa44cb38a6666f3a08ecbe52b1613",
+    "qualify-proxy-native-go-attribution.py": "ebda90041f65bcdd317b0cf9aae10c6b334190d35653ce64b2147697375f7a50"
+  },
+  "inputs": {
+    "plan": {
+      "path": "tmp/proxy-qualification/native-go-attribution-plan.md",
+      "sha256": "ed5aaf47ba950479b9d34a55920ba2b35526769d6df64ad36d05559d1a57de33"
+    },
+    "effective_settings": {
+      "path": "tmp/proxy-qualification/native-go-effective-settings.md",
+      "sha256": "2a99152f0666e67f6ec44b641f822ea5b77b96e23800857e08c3ea29c511df55"
+    }
+  },
+  "execution": {
+    "performed": false
+  },
+  "sni_correction": {
+    "scope": "native-attribution opt-in H1 load client only, both production and native HTTPS arms",
+    "server_name": "public.test",
+    "default_client_unchanged": true,
+    "plaintext_client_unchanged": true,
+    "alpn_unchanged": true,
+    "smoke_peer_certificate_bound_to_generated_fixture": true,
+    "prior_no_sni_reference_direct_comparison_prohibited": true
+  }
+}

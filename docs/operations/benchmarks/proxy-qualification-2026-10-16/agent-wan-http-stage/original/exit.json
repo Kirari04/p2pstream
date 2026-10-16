@@ -1,0 +1,9 @@
+{
+  "exit_code": 1,
+  "finished_unix_nano": 1792163919601786647,
+  "interrupted": false,
+  "preflight_only": false,
+  "schema_version": 1,
+  "timed_out": false,
+  "workload_started": true
+}

@@ -1,0 +1,195 @@
+import ipaddress,json,math,re,sys
+from pathlib import Path
+(source,server_sha,agent_sha,manifest_sha,manifest_path,runner_sha,rtt,si_path,ai_path,sl_path,al_path,st_path,at_path,phases_dir,results_path,snapshots_path,boundaries_path,topology_path)=sys.argv[1:]
+rtt=float(rtt); phases_dir=Path(phases_dir)
+if not re.fullmatch(r"[0-9a-f]{40}",source) or any(not re.fullmatch(r"[0-9a-f]{64}",x) for x in (server_sha,agent_sha,manifest_sha,runner_sha)): raise ValueError("provenance")
+if not 60<=rtt<=120: raise ValueError("RTT envelope")
+schedule=[("conditioning-download-lane-1",1,"download","conditioning","fresh-stream"),("conditioning-download-lane-2",2,"download","conditioning","fresh-stream"),("conditioning-download-lane-3",3,"download","conditioning","fresh-stream"),("conditioning-download-lane-4",4,"download","conditioning","fresh-stream"),("conditioning-upload-lane-1",1,"upload","conditioning","fresh-stream"),("conditioning-upload-lane-2",2,"upload","conditioning","fresh-stream"),("conditioning-upload-lane-3",3,"upload","conditioning","fresh-stream"),("conditioning-upload-lane-4",4,"upload","conditioning","fresh-stream"),("retained-download-lane-1",1,"download","retained","new-persistent"),("retained-upload-lane-2",2,"upload","retained","new-persistent"),("timed-1-download-lane-3",3,"download","timed","new-persistent"),("timed-1-upload-lane-4",4,"upload","timed","new-persistent"),("timed-2-upload-lane-1",1,"upload","timed","direction-transition"),("timed-2-download-lane-2",2,"download","timed","direction-transition"),("timed-3-download-lane-3",3,"download","timed","same-direction-reuse"),("timed-3-upload-lane-4",4,"upload","timed","same-direction-reuse")]
+def load(p): return json.loads(Path(p).read_text())
+def integer(v,n,m=0):
+ if isinstance(v,bool) or not isinstance(v,int) or v<m: raise ValueError(f"{n} integer")
+ return v
+def number(v,n,positive=False):
+ if isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or positive and v<=0: raise ValueError(f"{n} number")
+ return float(v)
+def addr(v,n):
+ if not isinstance(v,str) or not v: raise ValueError(n)
+ host,port=v.rsplit(":",1); ipaddress.ip_address(host.strip("[]")); integer(int(port),n,1)
+owner_keys={"capacity_total_in_use","capacity_pooled_in_use","capacity_opening","capacity_live","capacity_closing","capacity_registered_sessions","transport_entries","transport_draining","logical_opens","logical_closes","connection_reuses","origin_active_requests","lane_streams","lane_receive_limits"}
+def owner(v,n):
+ if not isinstance(v,dict) or set(v)!=owner_keys: raise ValueError(f"{n} owner schema")
+ for k in owner_keys-{"lane_streams","lane_receive_limits"}: integer(v[k],f"{n}.{k}")
+ for k in ("lane_streams","lane_receive_limits"):
+  if not isinstance(v[k],list) or len(v[k])!=4: raise ValueError(f"{n}.{k}")
+  for x in v[k]: integer(x,f"{n}.{k}")
+ return v
+manifest=load(manifest_path)
+manifest_configuration=manifest.get("configuration") if isinstance(manifest,dict) else None
+if not isinstance(manifest_configuration,dict) or set(manifest_configuration)!={"server","agent"}: raise ValueError("manifest configuration roles")
+configuration_keys=None
+def manifest_value(value,path):
+ if isinstance(value,dict):
+  if not value or any(not isinstance(key,str) or not key for key in value): raise ValueError(f"{path} object")
+  for key,item in value.items(): manifest_value(item,f"{path}.{key}")
+ elif isinstance(value,(str,int,bool)) and not isinstance(value,float):
+  return
+ else: raise ValueError(f"{path} type")
+for manifest_role in ("server","agent"):
+ expected=manifest_configuration[manifest_role]
+ if not isinstance(expected,dict) or not expected: raise ValueError(f"manifest {manifest_role} configuration")
+ if configuration_keys is None: configuration_keys=set(expected)
+ elif set(expected)!=configuration_keys: raise ValueError("manifest configuration key sets")
+ manifest_value(expected,f"manifest.{manifest_role}.configuration")
+def same_typed_shape(value,expected,path):
+ if isinstance(expected,dict):
+  if not isinstance(value,dict) or set(value)!=set(expected): raise ValueError(f"{path} schema")
+  for key,item in expected.items(): same_typed_shape(value[key],item,f"{path}.{key}")
+ elif isinstance(expected,bool):
+  if not isinstance(value,bool): raise ValueError(f"{path} boolean")
+ elif isinstance(expected,int):
+  if isinstance(value,bool) or not isinstance(value,int): raise ValueError(f"{path} integer")
+ elif not isinstance(value,str): raise ValueError(f"{path} string")
+def configuration(v,role):
+ expected=manifest_configuration[role]
+ same_typed_shape(v,expected,f"{role}.configuration")
+ if v!=expected: raise ValueError(f"{role} configuration differs from manifest")
+socket_keys={"lane","lane_role","local_address","remote_address","connection_identity","tls_version","tls_cipher_suite","tcp_info_captured","tcp_info_error","tcp_state","connected"}; id_keys=socket_keys-{"tcp_info_captured","tcp_info_error","tcp_state","connected"}
+def sockets(rows,n,connected,established=False):
+ if not isinstance(rows,list) or len(rows)!=5: raise ValueError(f"{n} sockets")
+ out={}
+ for row in rows:
+  if not isinstance(row,dict) or set(row)!=socket_keys: raise ValueError(f"{n} schema")
+  lane=integer(row["lane"],f"{n}.lane")
+  if lane>4 or lane in out or row["lane_role"]!=("control" if lane==0 else "data") or row["connected"] is not connected: raise ValueError(f"{n} lane")
+  addr(row["local_address"],n); addr(row["remote_address"],n); integer(row["tls_version"],n,1); integer(row["tls_cipher_suite"],n,1); integer(row["tcp_state"],n)
+  if not isinstance(row["connection_identity"],str) or not row["connection_identity"] or not isinstance(row["tcp_info_captured"],bool) or not isinstance(row["tcp_info_error"],str): raise ValueError(f"{n} fields")
+  if established and (row["tcp_info_captured"] is not True or row["tcp_info_error"]!="" or row["tcp_state"]!=1): raise ValueError(f"{n} established")
+  out[lane]=row
+ if set(out)!=set(range(5)): raise ValueError(f"{n} lane set")
+ return out
+def reverse(s,a):
+ for lane in range(5):
+  if (s[lane]["local_address"],s[lane]["remote_address"],s[lane]["tls_version"],s[lane]["tls_cipher_suite"])!=(a[lane]["remote_address"],a[lane]["local_address"],a[lane]["tls_version"],a[lane]["tls_cipher_suite"]): raise ValueError(f"reverse {lane}")
+ledger_base={"limit_bytes","initial_reserved_bytes","growth_reserved_bytes","current_bytes","high_water_bytes","denied_reservations","release_count","final_bytes","actual_heap_alloc_bytes","actual_open_fds","actual_socket_fds"}
+def ledger(v,n,limit,terminal=False,working=False):
+ required=ledger_base|({"categories"} if working else set())
+ if not isinstance(v,dict) or set(v)!=required: raise ValueError(f"{n} schema")
+ for k in ledger_base: integer(v[k],f"{n}.{k}")
+ if v["limit_bytes"]!=limit or v["denied_reservations"]!=0 or not 0<=v["current_bytes"]<=v["high_water_bytes"]<=limit: raise ValueError(f"{n} accounting")
+ if terminal and (v["current_bytes"] or v["final_bytes"]): raise ValueError(f"{n} terminal")
+ if working:
+  cats={"session_metadata","stream_metadata","relay_buffers","frame_buffers","tls_app_buffers"}
+  if not isinstance(v["categories"],dict) or set(v["categories"])!=cats: raise ValueError(f"{n} categories")
+  for x in v["categories"].values(): integer(x,n)
+  if sum(v["categories"].values())!=v["current_bytes"] or terminal and (any(v["categories"].values()) or v["release_count"]<=0): raise ValueError(f"{n} category accounting")
+ else:
+  reserved=v["initial_reserved_bytes"]+v["growth_reserved_bytes"]
+  if v["high_water_bytes"]!=reserved or v["initial_reserved_bytes"]<=0 or (terminal and v["release_count"]<4) or (not terminal and v["current_bytes"]!=reserved): raise ValueError(f"{n} pool")
+def base(v,role,completed,terminal=False):
+ if not isinstance(v,dict) or integer(v.get("schema_version"),role)!=1 or v.get("process_role")!=role or v.get("variant")!="aggregate-http1" or v.get("source_ref")!=source: raise ValueError(f"{role} identity")
+ if integer(v.get("expected_phases"),role)!=16 or integer(v.get("completed_phases"),role)!=completed or integer(v.get("reconnect_count"),role)!=0 or v.get("invalid_reason")!="" or v.get("errors")!=[]: raise ValueError(f"{role} state")
+ configuration(v.get("configuration"),role)
+ ledger(v.get("pool_ledger"),role+" pool",2147483648,terminal); ledger(v.get("working_ledger"),role+" working",67108864,terminal,True); owner(v.get("ownership"),role)
+ if completed==16 and v["pool_ledger"]["growth_reserved_bytes"]<=0: raise ValueError(f"{role} receive pool never grew")
+def initial(v,role):
+ base(v,role,0)
+ if v.get("ready") is not True or v.get("graceful_shutdown") is not False or v.get("same_socket_identities") is not True: raise ValueError(role+" readiness")
+ first=sockets(v.get("physical_sockets_initial"),role,True,True); current=sockets(v.get("physical_sockets_current"),role,True,True)
+ for lane in range(5):
+  if any(first[lane][k]!=current[lane][k] for k in id_keys): raise ValueError(role+" readiness identity")
+ return first
+def live(v,role,first):
+ base(v,role,16)
+ if v.get("ready") is not True or v.get("graceful_shutdown") is not False or v.get("same_socket_identities") is not True: raise ValueError(role+" live")
+ current=sockets(v.get("physical_sockets_current"),role,True,True)
+ for lane in range(5):
+  if any(first[lane][k]!=current[lane][k] for k in id_keys): raise ValueError(role+" live identity")
+ return current
+def terminal(v,role,first,results):
+ base(v,role,16,True)
+ if v.get("ready") is not False or v.get("graceful_shutdown") is not True or v.get("same_socket_identities") is not True or v.get("results")!=results: raise ValueError(role+" terminal")
+ for index,result in enumerate(v["results"]): phase(result,index,role)
+ terminal_owner=owner(v["ownership"],role+" terminal")
+ for key in ("capacity_total_in_use","capacity_pooled_in_use","capacity_opening","capacity_live","capacity_closing","capacity_registered_sessions","transport_entries","transport_draining","origin_active_requests"):
+  if terminal_owner[key]!=0: raise ValueError(f"{role} terminal ownership {key}")
+ if any(terminal_owner["lane_streams"]): raise ValueError(role+" terminal lane streams")
+ current=sockets(v.get("physical_sockets_current"),role,False)
+ for lane in range(5):
+  if any(first[lane][k]!=current[lane][k] for k in id_keys): raise ValueError(role+" terminal identity")
+conn_keys={"connection_identity","origin_connection_identity","reused","was_idle","idle_nanoseconds","put_idle","put_idle_error","dial_opened"}
+phase_keys={"schema_version","phase_index","phase_name","lane","direction","stage","planned_reuse_kind","configured_payload_bytes","received_payload_bytes","expected_sha256","received_sha256","http_status","origin_http_major","response_content_length","phase_wall_nanoseconds","useful_bytes_per_second","connection","ownership_before","ownership_after","conditioning_pool_closed","conditioning_quiescent","response_pump_buffer_bytes","final_consumer_read_bytes","error"}
+def phase(v,index,role):
+ if not isinstance(v,dict) or set(v)!=phase_keys: raise ValueError(f"{role} phase schema")
+ name,lane,direction,stage,reuse=schedule[index]
+ if integer(v["schema_version"],role)!=1 or integer(v["phase_index"],role)!=index or integer(v["lane"],role,1)!=lane or (v["phase_name"],v["direction"],v["stage"],v["planned_reuse_kind"])!=(name,direction,stage,reuse): raise ValueError(f"{role} phase identity")
+ digest="e1a511c229b7fdd398a94b74c98b7f16411fa0ec93302744f7e5d959275a907a" if direction=="download" else "a6d72ac7690f53be6ae46ba88506bd97302a093f7108472bd9efc3cefda06484"
+ if integer(v["configured_payload_bytes"],role)!=268435456 or integer(v["received_payload_bytes"],role)!=268435456 or v["expected_sha256"]!=digest or v["received_sha256"]!=digest or integer(v["http_status"],role)!=200 or integer(v["origin_http_major"],role)!=1 or v["error"]!="": raise ValueError(f"{role} phase correctness")
+ if integer(v["response_content_length"],role)!=(268435456 if direction=="download" else 32) or integer(v["response_pump_buffer_bytes"],role)!=32768 or integer(v["final_consumer_read_bytes"],role)!=8192: raise ValueError(f"{role} phase boundary")
+ if not isinstance(v["connection"],dict) or set(v["connection"])!=conn_keys: raise ValueError(f"{role} connection schema")
+ for key in ("connection_identity","origin_connection_identity","put_idle_error"):
+  if not isinstance(v["connection"][key],str): raise ValueError(f"{role} connection {key}")
+ for key in ("reused","was_idle","put_idle","dial_opened"):
+  if not isinstance(v["connection"][key],bool): raise ValueError(f"{role} connection {key}")
+ integer(v["connection"]["idle_nanoseconds"],f"{role} connection idle")
+ owner(v["ownership_before"],role+" before"); after=owner(v["ownership_after"],role+" after")
+ if role=="server":
+  wall=integer(v["phase_wall_nanoseconds"],role,1); rate=number(v["useful_bytes_per_second"],role,True)
+  if abs(rate-268435456e9/wall)>max(rate*1e-6,1): raise ValueError("rate")
+  if v["conditioning_pool_closed"] is not (stage=="conditioning") or v["conditioning_quiescent"] is not (stage=="conditioning"): raise ValueError("conditioning lifecycle")
+  if stage=="conditioning":
+   for key in ("capacity_total_in_use","capacity_pooled_in_use","capacity_opening","capacity_live","capacity_closing","transport_entries","transport_draining"):
+    if after[key]!=0: raise ValueError(f"server conditioning ownership {key}")
+   if any(after["lane_streams"]): raise ValueError("server conditioning lane streams")
+ else:
+  if integer(v["phase_wall_nanoseconds"],role)!=0 or number(v["useful_bytes_per_second"],role)!=0 or v["conditioning_pool_closed"] is not False or v["conditioning_quiescent"] is not False: raise ValueError("agent timing/lifecycle")
+ return v
+si_doc,ai_doc=load(si_path),load(ai_path); si,ai=initial(si_doc,"server"),initial(ai_doc,"agent"); reverse(si,ai)
+sl_doc,al_doc=load(sl_path),load(al_path); sl,al=live(sl_doc,"server",si),live(al_doc,"agent",ai); reverse(sl,al)
+sr,ar=sl_doc.get("results"),al_doc.get("results")
+if not isinstance(sr,list) or len(sr)!=16 or not isinstance(ar,list) or len(ar)!=16: raise ValueError("results count")
+st_doc,at_doc=load(st_path),load(at_path); terminal(st_doc,"server",si,sr); terminal(at_doc,"agent",ai,ar)
+rows=[]
+for i in range(16):
+ response=phase(load(phases_dir/f"phase-{i:02d}.json"),i,"server"); server=phase(sr[i],i,"server"); agent=phase(ar[i],i,"agent")
+ if response!=server: raise ValueError("response changed")
+ row=dict(server); row.update({"source_ref":source,"server_binary_sha256":server_sha,"agent_binary_sha256":agent_sha,"build_manifest_sha256":manifest_sha,"runner_sha256":runner_sha,"configured_rtt_ms":80,"measured_rtt_ms":rtt,"agent_result":agent}); rows.append(row)
+boundaries=[json.loads(x) for x in Path(boundaries_path).read_text().splitlines() if x]
+if len(boundaries)!=8: raise ValueError("boundary count")
+for i,v in enumerate(boundaries):
+ base(v,"agent",i+1); own=owner(v["ownership"],"boundary")
+ if own["capacity_total_in_use"] or own["origin_active_requests"] or any(own["lane_streams"]): raise ValueError("boundary not quiescent")
+topology=load(topology_path)
+topology_keys={"schema_version","pair","order_position","variant","namespace_identities","runner_namespace_identity","namespace_instances","prior_joined_generation","namespace_helpers_joined","joined_generation","configured","cpu_sets","measured_rtt_ms","network_state"}
+if not isinstance(topology,dict) or set(topology)!=topology_keys: raise ValueError("topology schema")
+if integer(topology["schema_version"],"topology schema")!=1 or integer(topology["pair"],"topology pair",1)!=1 or integer(topology["order_position"],"topology order",1)!=1 or topology["variant"]!="aggregate-http1": raise ValueError("topology identity")
+identities=topology["namespace_identities"]; instances=topology["namespace_instances"]; runner_identity=topology["runner_namespace_identity"]
+if not isinstance(identities,dict) or set(identities)!={"server","router","agent"} or not isinstance(instances,dict) or set(instances)!={"server","router","agent"}: raise ValueError("topology namespace roles")
+if not isinstance(runner_identity,str) or not re.fullmatch(r"net:\[[0-9]+\]",runner_identity): raise ValueError("runner namespace identity")
+instance_keys={"boot_id","helper_pid","helper_start_ticks","netns_inode","arm_generation"}; process_keys=[]; inodes=[]; boots=[]
+for role in ("server","router","agent"):
+ identity=identities[role]; instance=instances[role]
+ if not isinstance(identity,str) or not re.fullmatch(r"net:\[[0-9]+\]",identity) or identity==runner_identity or not isinstance(instance,dict) or set(instance)!=instance_keys: raise ValueError(f"{role} namespace schema")
+ boot=instance["boot_id"]
+ if not isinstance(boot,str) or not re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",boot): raise ValueError(f"{role} boot identity")
+ pid=integer(instance["helper_pid"],f"{role} helper pid",2); start=integer(instance["helper_start_ticks"],f"{role} helper start",1); inode=integer(instance["netns_inode"],f"{role} inode",1); generation=integer(instance["arm_generation"],f"{role} generation",1)
+ if generation!=1 or identity!=f"net:[{inode}]": raise ValueError(f"{role} namespace binding")
+ process_keys.append((boot,pid,start)); inodes.append(inode); boots.append(boot)
+if len(set(process_keys))!=3 or len(set(inodes))!=3 or len(set(boots))!=1: raise ValueError("topology helper uniqueness")
+if integer(topology["prior_joined_generation"],"prior generation")!=0 or topology["namespace_helpers_joined"] is not True or integer(topology["joined_generation"],"joined generation",1)!=1: raise ValueError("topology teardown chronology")
+expected_config={"rtt_ms":80,"one_way_netem_ms":40,"rate_bits_per_second":1000000000,"server_tunnel":"10.211.0.1:17443","server_admin":"127.0.0.1:18080","agent_admin":"127.0.0.1:18080"}
+if topology["configured"]!=expected_config or topology["cpu_sets"]!={"server":"0,1,2,3","agent":"4,5,6,7","load":"8,9,10,11,12,13,14,15"}: raise ValueError("topology configuration/CPU binding")
+if not isinstance(topology["network_state"],dict) or set(topology["network_state"])!={"server","router","agent"}: raise ValueError("topology network-state evidence")
+if number(topology["measured_rtt_ms"],"topology RTT",True)!=rtt: raise ValueError("topology/result RTT mismatch")
+with Path(results_path).open("w") as out:
+ for row in rows: out.write(json.dumps(row,sort_keys=True,separators=(",",":"))+"\n")
+with Path(snapshots_path).open("w") as out:
+ for stage,s,a in (("initial",si_doc,ai_doc),("live-post16",sl_doc,al_doc),("terminal",st_doc,at_doc)): out.write(json.dumps({"stage":stage,"server":s,"agent":a},sort_keys=True,separators=(",",":"))+"\n")
+condition=sorted(row["useful_bytes_per_second"] for row in rows[:4]); median=(condition[1]+condition[2])/2
+signature=median>=29_700_000 and any(rows[i]["useful_bytes_per_second"]<29_700_000 for i in (8,10,13)) and rows[14]["useful_bytes_per_second"]>=29_700_000
+all_post_conditioning_downloads_healthy=all(rows[i]["useful_bytes_per_second"]>=29_700_000 for i in (8,10,13,14))
+classification=("inconclusive_conditioning" if median<29_700_000 else
+                "reproduced_signature" if signature else
+                "healthy_nonreproduction" if all_post_conditioning_downloads_healthy else
+                "inconclusive_other_slowdown")
+summary={"schema_version":1,"kind":"p2pstream-agent-http-stage-screen-v1","complete":True,"correctness_pass":True,"classification":classification,"reproduction_signature":signature,"all_post_conditioning_downloads_healthy":all_post_conditioning_downloads_healthy,"conditioning_download_median_bytes_per_second":median,"threshold_bytes_per_second":29_700_000,"post_conditioning_downloads":{str(i):rows[i]["useful_bytes_per_second"] for i in (8,10,13,14)},"source_ref":source,"server_binary_sha256":server_sha,"agent_binary_sha256":agent_sha,"build_manifest_sha256":manifest_sha,"runner_sha256":runner_sha,"configured_rtt_ms":80,"measured_rtt_ms":rtt,"standing_working_ledger_scope":"fixture allowance/promise, not a hard TLS/heap/resident bound","omitted_pipeline_layers":["public TLS/H2","ReverseProxy and Director/ErrorHandler","public retries/cache/WAF/shaping"],"upload_origin_difference":"native io.Copy into SHA-256 with exact Content-Length differs from bare 8 KiB sink","existing_bare64_role":"context only, not a causal comparison","next_step":"fixed contemporaneous bare/HTTP order confirmation" if signature else ("separate public-H2 stage" if classification=="healthy_nonreproduction" else "diagnose invalid baseline or alternate slowdown before interpretation")}
+Path(str(results_path).replace(".jsonl",".summary.json")).write_text(json.dumps(summary,sort_keys=True,separators=(",",":"))+"\n")

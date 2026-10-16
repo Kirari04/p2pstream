@@ -1,0 +1,60 @@
+--- tmp/http-stage-source/checkpoints/http16-source-review-v5/internal/tunnel/http_stage_qualification_linux.go	2026-10-16 15:40:53.968883056 +0200
++++ tmp/http-stage-source/checkpoints/http16-source-review-v6/internal/tunnel/http_stage_qualification_linux.go	2026-10-16 15:41:51.106225453 +0200
+@@ -33,6 +33,9 @@
+ 	HTTPStageOriginWriteBytes  = TransportCeilingDownloadWriteBytes
+ 	HTTPStageUploadSourceBytes = TransportCeilingUploadBufferBytes
+ 	HTTPStageFixedCapacity     = 16
++	// defaultAgentStreamCapacityConfig(16) reserves one control slot and one
++	// quarter of the remaining public slots for one-shot work: 15 - 4 = 11.
++	HTTPStagePooledCapacity    = 11
+ 	HTTPStageIdleTimeout       = 30 * time.Second
+ 	HTTPStageResponseTimeout   = 90 * time.Second
+ 	HTTPStageVariant           = "aggregate-http1"
+@@ -63,8 +66,8 @@
+ 		FixedCapacityStreams: HTTPStageFixedCapacity,
+ 		HTTPIdleTimeoutNanoseconds: int64(HTTPStageIdleTimeout),
+ 		ResponseHeaderTimeoutNanoseconds: int64(HTTPStageResponseTimeout),
+-		MaxIdleConnections: HTTPStageFixedCapacity,
+-		MaxIdleConnectionsPerHost: HTTPStageFixedCapacity,
++		MaxIdleConnections: HTTPStagePooledCapacity,
++		MaxIdleConnectionsPerHost: HTTPStagePooledCapacity,
+ 		MaxConnectionsPerHost: 0,
+ 		DisableKeepAlives: false,
+ 		ResponsePumpBufferBytes: HTTPStageResponsePumpBytes,
+--- tmp/http-stage-source/checkpoints/http16-source-review-v5/internal/tunnel/http_stage_qualification_linux_test.go	2026-10-16 15:40:53.970467739 +0200
++++ tmp/http-stage-source/checkpoints/http16-source-review-v6/internal/tunnel/http_stage_qualification_linux_test.go	2026-10-16 15:41:51.108143662 +0200
+@@ -150,8 +150,8 @@
+ 		if configuration.FixedCapacityStreams != HTTPStageFixedCapacity ||
+ 			configuration.HTTPIdleTimeoutNanoseconds != int64(HTTPStageIdleTimeout) ||
+ 			configuration.ResponseHeaderTimeoutNanoseconds != int64(HTTPStageResponseTimeout) ||
+-			configuration.MaxIdleConnections != HTTPStageFixedCapacity ||
+-			configuration.MaxIdleConnectionsPerHost != HTTPStageFixedCapacity ||
++			configuration.MaxIdleConnections != HTTPStagePooledCapacity ||
++			configuration.MaxIdleConnectionsPerHost != HTTPStagePooledCapacity ||
+ 			configuration.MaxConnectionsPerHost != 0 || configuration.DisableKeepAlives ||
+ 			configuration.ResponsePumpBufferBytes != HTTPStageResponsePumpBytes ||
+ 			configuration.FinalConsumerReadBytes != HTTPStageConsumerReadBytes ||
+--- tmp/http-stage-source/checkpoints/http16-source-review-v5/internal/server/http_stage_qualification_linux_test.go	2026-10-16 15:40:53.974335972 +0200
++++ tmp/http-stage-source/checkpoints/http16-source-review-v6/internal/server/http_stage_qualification_linux_test.go	2026-10-16 15:41:51.111938189 +0200
+@@ -112,6 +112,10 @@
+ 	app := NewApp(cfg, nil)
+ 	app.AgentTransports = newAgentTransportPool()
+ 	app.agentStreamCapacity = mustNewDefaultAgentStreamCapacityManager(tunnel.HTTPStageFixedCapacity)
++	if pooled := app.agentStreamCapacity.snapshot().Pooled.Capacity; pooled != tunnel.HTTPStagePooledCapacity {
++		cancel()
++		return nil, fmt.Errorf("HTTP stage pooled capacity=%d, want %d", pooled, tunnel.HTTPStagePooledCapacity)
++	}
+ 	agent := &AgentConn{
+ 		AgentID: 1, PublicID: "http-stage-agent", Name: "http-stage-agent", Done: make(chan struct{}),
+ 		AggregateFlowControl: true, AdvertisedMaxConcurrentStreams: tunnel.HTTPStageFixedCapacity, NegotiatedMaxConcurrentStreams: tunnel.HTTPStageFixedCapacity,
+--- tmp/http-stage-source/checkpoints/http16-source-review-v5/README.md	2026-10-16 15:40:53.979540310 +0200
++++ tmp/http-stage-source/checkpoints/http16-source-review-v6/README.md	2026-10-16 15:41:51.116539257 +0200
+@@ -4,7 +4,7 @@
+ 
+ The endpoint uses the production server path `AgentTransports.getOrCreate` -> `newAgentPooledHTTPTransport` -> `dialViaAgentWithCapacity` and the production agent path `serveTunnelSessionWithPolicyCapacityAndResources` -> `handleTunnelStream` -> destination socket/relay. Physical setup, origin, ledgers, reporting, and admin endpoints are tagged fixture code.
+ 
+-Every report records a source-derived exact configuration with two sections: the accepted TLS/Yamux configuration and the HTTP-stage settings actually configured by this fixture. The latter pins fixed capacity 16, native 30-second idle timeout, 90-second response-header timeout, max idle/global-per-host 16, max-conns-per-host 0, enabled keep-alives, 32 KiB response pump, 8 KiB final consumer, 35,840-byte origin writes without Flush, native upload `io.Copy` into SHA-256, and conditioning close-all behavior. The future build manifest must contain exact server/agent objects; the runner recursively validates their types and exact equality to both role reports.
++Every report records a source-derived exact configuration with two sections: the accepted TLS/Yamux configuration and the HTTP-stage settings actually configured by this fixture. The latter pins fixed capacity 16, native 30-second idle timeout, 90-second response-header timeout, max idle/global-per-host 11 (the actual pooled partition of total fixed capacity 16), max-conns-per-host 0, enabled keep-alives, 32 KiB response pump, 8 KiB final consumer, 35,840-byte origin writes without Flush, native upload `io.Copy` into SHA-256, and conditioning close-all behavior. The future build manifest must contain exact server/agent objects; the runner recursively validates their types and exact equality to both role reports.
+ 
+ The runner executes one 16-phase cohort at configured 80 ms RTT/1 Gbit in fresh owned server/router/agent namespaces on fixed CPUs server0-3, agent4-7, load8-15. It uses the accepted helper-process lifetime/topology evidence and validates it offline. Admin snapshots use a one-second, one-MiB request bound inside an absolute 35-second wait; transfers retain a separate long request timeout. It queries endpoint state only at readiness, after each completed conditioning phase, at retained post16, and after natural terminal exit. It never polls during payload transfer.
+ 

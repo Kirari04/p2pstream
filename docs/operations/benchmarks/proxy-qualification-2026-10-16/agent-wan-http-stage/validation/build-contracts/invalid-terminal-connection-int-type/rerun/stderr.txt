@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 150, in <module>
+    st_doc,at_doc=load(st_path),load(at_path); terminal(st_doc,"server",si,sr); terminal(at_doc,"agent",ai,ar)
+                                               ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 111, in terminal
+    for index,result in enumerate(v["results"]): phase(result,index,role)
+                                                 ~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 133, in phase
+    integer(v["connection"]["idle_nanoseconds"],f"{role} connection idle")
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 10, in integer
+    if isinstance(v,bool) or not isinstance(v,int) or v<m: raise ValueError(f"{n} integer")
+                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: server connection idle integer

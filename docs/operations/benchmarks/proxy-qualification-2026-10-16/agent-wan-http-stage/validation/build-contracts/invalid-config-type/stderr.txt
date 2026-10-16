@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 145, in <module>
+    si_doc,ai_doc=load(si_path),load(ai_path); si,ai=initial(si_doc,"server"),initial(ai_doc,"agent"); reverse(si,ai)
+                                                     ~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 95, in initial
+    base(v,role,0)
+    ~~~~^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 91, in base
+    configuration(v.get("configuration"),role)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 54, in configuration
+    same_typed_shape(v,expected,f"{role}.configuration")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 46, in same_typed_shape
+    for key,item in expected.items(): same_typed_shape(value[key],item,f"{path}.{key}")
+                                      ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 50, in same_typed_shape
+    if isinstance(value,bool) or not isinstance(value,int): raise ValueError(f"{path} integer")
+                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: server.configuration.fixed_capacity_streams integer

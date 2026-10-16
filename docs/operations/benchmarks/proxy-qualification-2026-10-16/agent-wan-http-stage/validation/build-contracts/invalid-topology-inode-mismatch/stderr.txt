@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 174, in <module>
+    if generation!=1 or identity!=f"net:[{inode}]": raise ValueError(f"{role} namespace binding")
+                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: agent namespace binding

@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator.py", line 177, in <module>
+    if integer(topology["prior_joined_generation"],"prior generation")!=0 or topology["namespace_helpers_joined"] is not True or integer(topology["joined_generation"],"joined generation",1)!=1: raise ValueError("topology teardown chronology")
+                                                                                                                                                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: topology teardown chronology

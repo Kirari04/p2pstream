@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 150, in <module>
+    st_doc,at_doc=load(st_path),load(at_path); terminal(st_doc,"server",si,sr); terminal(at_doc,"agent",ai,ar)
+                                               ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 114, in terminal
+    if terminal_owner[key]!=0: raise ValueError(f"{role} terminal ownership {key}")
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: server terminal ownership origin_active_requests

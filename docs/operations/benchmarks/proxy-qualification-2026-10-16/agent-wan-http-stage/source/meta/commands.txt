@@ -1,0 +1,15 @@
+# All Go commands used pinned Go 1.26.6 with GOTOOLCHAIN=local, GOWORK=off, GOFLAGS empty,
+# and TMPDIR/GOTMPDIR/GOCACHE/GOMODCACHE/GOPATH rooted under the build directory on ext4.
+gofmt -d internal/tunnel/http_stage_qualification_linux.go internal/tunnel/http_stage_qualification_linux_test.go internal/agent/http_stage_qualification_linux_test.go internal/server/http_stage_qualification_linux_test.go
+gofmt -w internal/tunnel/http_stage_qualification_linux.go internal/tunnel/http_stage_qualification_linux_test.go internal/agent/http_stage_qualification_linux_test.go internal/server/http_stage_qualification_linux_test.go
+go test -tags=p2pstream_transport_ceiling,p2pstream_http_stage ./internal/tunnel -run '^TestHTTPStage' -count=3
+go test -race -tags=p2pstream_transport_ceiling,p2pstream_http_stage ./internal/tunnel -run '^TestHTTPStage' -count=3
+go test -tags=p2pstream_transport_ceiling,p2pstream_http_stage ./internal/agent -run '^TestHTTPStage' -count=3
+go test -race -tags=p2pstream_transport_ceiling,p2pstream_http_stage ./internal/agent -run '^TestHTTPStage' -count=3
+go test -tags=p2pstream_transport_ceiling,p2pstream_http_stage ./internal/server -run '^TestHTTPStage' -count=3
+go test -race -tags=p2pstream_transport_ceiling,p2pstream_http_stage ./internal/server -run '^TestHTTPStage' -count=3
+go test -c -o <build>/bin/agent-tagoff.test ./internal/agent
+go test -c -o <build>/bin/server-tagoff.test ./internal/server
+go test -c -tags=p2pstream_transport_ceiling,p2pstream_http_stage -o <bundle>/bin/http-stage-agent.test ./internal/agent
+go test -c -tags=p2pstream_transport_ceiling,p2pstream_http_stage -o <bundle>/bin/http-stage-server.test ./internal/server
+python3 <contracts>/rerun-contracts.py <contracts>
