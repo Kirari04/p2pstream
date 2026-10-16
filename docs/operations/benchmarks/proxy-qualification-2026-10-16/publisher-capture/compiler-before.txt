@@ -1,0 +1,10 @@
+./aggregate_window.go:657:42: work escapes to heap in (*Session).publishAggregateRefund:
+./aggregate_window.go:657:42:   flow: {storage for func literal} ← &work:
+./aggregate_window.go:657:42:     from work (captured by a closure) at ./aggregate_window.go:710:25
+./aggregate_window.go:657:42: parameter work leaks to {storage for func literal} for (*Session).publishAggregateRefund with derefs=0:
+./aggregate_window.go:669:6: activeParts escapes to heap in (*Session).publishAggregateRefund:
+./aggregate_window.go:669:6:   flow: parts ← &activeParts:
+./aggregate_window.go:669:6:     from parts (captured by a closure) at ./aggregate_window.go:704:24
+./aggregate_window.go:657:42: moved to heap: work
+./aggregate_window.go:669:6: moved to heap: activeParts
+./aggregate_window.go:702:63: func literal escapes to heap

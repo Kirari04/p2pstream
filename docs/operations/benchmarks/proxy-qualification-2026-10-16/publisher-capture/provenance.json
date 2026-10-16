@@ -1,0 +1,18 @@
+{
+  "captured_on": "2026-10-16",
+  "toolchain": "go version go1.26.6 linux/amd64",
+  "compiler_command": "go test -run '^$' -gcflags='-m=2' .",
+  "compiler_working_directory": "third_party/yamux",
+  "baseline_compile_ref": "6bc95a3ada7c3dfc2c341e31218c96dd11d8165a",
+  "baseline_runtime_ref": "f18c27bc010ce2f9f597866696b4f4c8a699e725",
+  "candidate_parent_ref": "3bd56a56f5b589b3dc7aea6d93c779b7fd335bb0",
+  "candidate_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "baseline_aggregate_window_sha256": "4a3788d7bdf9a68fdae24ddf41aad91d89d04684f702df88449bf855a13020c5",
+  "candidate_aggregate_window_sha256": "ae9cb69a64db0d6d23e6d60d5a7135749b0dbde0820031f0631842d6a4e236e6",
+  "claim_scope": "compiler-reported elimination of the work and activeParts heap allocation sites",
+  "excluded_claims": [
+    "quantified RSS reduction",
+    "sustained throughput gain",
+    "sustained latency gain"
+  ]
+}
