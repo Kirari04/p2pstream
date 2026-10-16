@@ -186,21 +186,59 @@ WAIT:
 	readDeadline := s.readDeadline.Load().(time.Time)
 	if !readDeadline.IsZero() {
 		delay := time.Until(readDeadline)
+		if delay <= 0 {
+			return 0, ErrTimeout
+		}
 		timer = time.NewTimer(delay)
 		timeout = timer.C
 	}
 	select {
 	case <-s.session.shutdownCh:
+		// Session.Close closes shutdownCh before joining the physical reader.
+		// Wait for that join so any final accepted payload is visible before
+		// deciding whether the stream is empty. This also prevents an empty,
+		// established stream from spinning on the permanently closed channel
+		// while the remaining session workers finish.
+		if s.session.recvDoneCh != nil {
+			select {
+			case <-s.session.recvDoneCh:
+			case <-s.recvNotifyCh:
+				// SetReadDeadline uses recvNotifyCh to interrupt an existing
+				// wait. Rebuild the timer from the newly stored deadline, but
+				// remain in WAIT: shutdownCh is already closed and START would
+				// merely rediscover an empty established stream.
+				stopDeadlineTimer(timer)
+				goto WAIT
+			case <-timeout:
+				return 0, ErrTimeout
+			}
+		}
+		stopDeadlineTimer(timer)
+		s.recvLock.Lock()
+		buffered := s.receiveBufferedLocked() != 0
+		s.recvLock.Unlock()
+		if buffered {
+			goto START
+		}
+		return 0, ErrSessionShutdown
 	case <-s.recvNotifyCh:
 	case <-timeout:
 		return 0, ErrTimeout
 	}
-	if timer != nil {
-		if !timer.Stop() {
-			<-timeout
+	stopDeadlineTimer(timer)
+	goto START
+}
+
+func stopDeadlineTimer(timer *time.Timer) {
+	if timer == nil {
+		return
+	}
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
 		}
 	}
-	goto START
 }
 
 func (s *Stream) receiveBufferedLocked() int {
@@ -324,21 +362,25 @@ WAIT:
 	writeDeadline := s.writeDeadline.Load().(time.Time)
 	if !writeDeadline.IsZero() {
 		delay := time.Until(writeDeadline)
+		if delay <= 0 {
+			return 0, ErrTimeout
+		}
 		timer = time.NewTimer(delay)
 		timeout = timer.C
 	}
 	select {
 	case <-s.session.shutdownCh:
+		stopDeadlineTimer(timer)
+		// No DATA credit has been reserved at WAIT. Once shutdown begins no
+		// future credit can make this write safe, so return instead of spinning
+		// until Session.Close eventually marks every stream terminal.
+		return 0, ErrSessionShutdown
 	case <-s.sendNotifyCh:
 	case <-aggregateNotify:
 	case <-timeout:
 		return 0, ErrTimeout
 	}
-	if timer != nil {
-		if !timer.Stop() {
-			<-timeout
-		}
-	}
+	stopDeadlineTimer(timer)
 	goto START
 }
 
