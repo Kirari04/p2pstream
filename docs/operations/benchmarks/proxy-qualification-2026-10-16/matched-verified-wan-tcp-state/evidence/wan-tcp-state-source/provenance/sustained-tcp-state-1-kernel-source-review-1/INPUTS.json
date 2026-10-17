@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "diagnostic": "wan-tcp-state-kernel-source-review",
+  "source_only": true,
+  "runtime_change": false,
+  "traffic_run": false,
+  "host_kernel_release": "7.0.0-38-generic",
+  "ubuntu_source_version": "7.0.0-38.38",
+  "ubuntu_git_tag_commit": "740b32353f43e9b00d0350d6fa7b29a6667deabd",
+  "ubuntu_dsc_url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/linux/7.0.0-38.38/linux_7.0.0-38.38.dsc",
+  "ubuntu_dsc_sha256": "016d43577bd8a61629a02e140e3b88072b5ccdd1c90cb1ce2f3c8e5c28756e7e",
+  "ubuntu_diff_url": "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/linux/7.0.0-38.38/linux_7.0.0-38.38.diff.gz",
+  "ubuntu_diff_sha256": "98e913d4a1c1f810e4dcfa573cbcf0f1a3a4427bdcd503722555298a794c52b2",
+  "upstream_tag": "v7.0",
+  "upstream_tcp_output_sha256": "912915a6689f325a2c4ba574bf665ecc8b13f18c7286a4c00443e1335472946c",
+  "upstream_tcp_cubic_sha256": "e4ad4de600b27350572e4efec428296b987e24eda787b86d65a6e046b7aecd5f",
+  "sustained_run_ledger_sha256": "2d17e16efca00ea772b5183c1a196450e38ebc019f7dd9995de1cca45f284cfd",
+  "sustained_review_sha256": "c5fb74aea607c9ae9647754f0ca4cadf2f31df9b4925db150ec68e2da5c2d0a3",
+  "sustained_review_ledger_sha256": "a39ed1f33447d026f031b1a494d6da1c687e9962d4836decdcf299b0c704dd89",
+  "launcher_records_ledger_sha256": "28eb260e9b0c088209b8985d4208393d66e247e11fb05e2095b979e703e68190",
+  "outer_envelope_ledger_sha256": "3bcdba2fcd00113130f726f7974b7b18fe033c26e1cc0f30e44f13db57af6bda",
+  "audited_source_inventory_sha256": "0595c8e5fa4b19bc6612b409cfe69b7ddd0d4f7fa190a6dc26e27fd610648cd4"
+}

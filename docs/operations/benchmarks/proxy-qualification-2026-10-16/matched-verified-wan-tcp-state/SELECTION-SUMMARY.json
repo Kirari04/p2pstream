@@ -1,0 +1,13 @@
+{
+  "archive_bytes": 47074155,
+  "archive_files": 1179,
+  "bytes": 55895783,
+  "excluded_run_artifacts": 272,
+  "files": 1372,
+  "hash_only_artifacts": 11,
+  "loose_bytes": 8821628,
+  "loose_files": 193,
+  "placement_only_rebind": false,
+  "schema_version": 1,
+  "secret_scan_accepted": true
+}

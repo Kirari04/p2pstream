@@ -1,0 +1,29 @@
+role	state	sha256	path
+current-head binding	accepted	47213e2f0ee0b9953d931bfb8d939a5cfb024707b93c67c806032fae47cea8a9	wan-tcp-state-source/runner-review/current-head-binding-9a1e413/SHA256SUMS.txt
+integration checkpoint 1	superseded	37f2bb5d02bc2aff5d535301bbdb08e4bd54894ba82e46ba24b6327fa9fae100	wan-tcp-state-source/implementation-source/integration/review/source-checkpoint-1/SHA256SUMS.txt
+integration checkpoint 2	superseded	61e333a6e8e62ee5ec7f715e613a812807b817e3dae31820e0ae435448bf9f0b	wan-tcp-state-source/implementation-source/integration/review/source-checkpoint-2/SHA256SUMS.txt
+integration checkpoint 3	superseded	0a05dad5a1156826ca574564e4fc9ce9a60d21ff56146343f552f5ca86a6e9e8	wan-tcp-state-source/implementation-source/integration/review/source-checkpoint-3/SHA256SUMS.txt
+integration checkpoint 4	rejected-mutated	4ad1687ed0714983758d8c3936a4d5b41e044895832c2b733d6c6f3f1389e4ae	wan-tcp-state-source/implementation-source/integration/review/source-checkpoint-4/SHA256SUMS.txt
+integration checkpoint 4 mutation incident	rejected-preserved	403ecbb8046acc3df3d37f33c1e6f4f04744ab0bb7ae68f8987e595583d06d5f	wan-tcp-state-source/implementation-source/integration/review/incidents/source-checkpoint-4-in-place-mutation-1-erratum-1/SHA256SUMS.txt
+integration checkpoint 5	superseded-clean	e0a00c614ceeb77e114e3eafa53d7b165f71e513485b646f24a55a303d310635	wan-tcp-state-source/implementation-source/integration/review/source-checkpoint-5/SHA256SUMS.txt
+integration checkpoint 6	accepted	809f30484ea276a20586fec84517fdec9ef84ff58b2c96c9da3ab65b5122a3a0	wan-tcp-state-source/implementation-source/integration/review/source-checkpoint-6/SHA256SUMS.txt
+validator checkpoint 1	superseded	91cc558bda2f078e17566c32377ac6d40e5e291944265614d55ac3caf9dceb83	wan-tcp-state-source/runner-source-1/review/tcp-validator-source-checkpoint-1/SHA256SUMS.txt
+validator checkpoint 2	superseded	57b81bdd5079e0d7985cd7e4cb08755903674f45a7f3df2114c95fb89f33aeb0	wan-tcp-state-source/runner-source-1/review/tcp-validator-source-checkpoint-2/SHA256SUMS.txt
+validator checkpoint 3	rejected-binding	42e2d4aa367b6900cca0c232394e7bb20467ac21860bbb1b47c3c3c399dbfdee	wan-tcp-state-source/runner-source-1/review/tcp-validator-source-checkpoint-3/SHA256SUMS.txt
+validator checkpoint 4	accepted	91d3cc3ae0ab28722f75885cb318358c080a3212e8de5cba0ea2a6d8c90d946c	wan-tcp-state-source/runner-source-1/review/tcp-validator-source-checkpoint-4/SHA256SUMS.txt
+build source checkpoint 2	superseded	d23ca99ba53733ac70851b5caf02c7947ebc5e73d76de664182dcab02f623712	wan-tcp-state-source/build-source-1/review/source-checkpoint-2/SHA256SUMS.txt
+build source checkpoint 3	accepted	0d47c28a57f280816dc87286083914fbccdf5d1296711072afec5be6d0ee1f8e	wan-tcp-state-source/build-source-1/review/source-checkpoint-3/SHA256SUMS.txt
+runner source 1	superseded	7aa3f746fad67b01e14f033da5e93415edc029a0d4d897d4db6d6d8d942d659a	wan-tcp-state-source/integration-runner-source-1/SHA256SUMS.txt
+runner source 2	superseded	7fb5a29c953ef632f25c086b8dd07b88797dc112fd0d60973a82d3b74178da54	wan-tcp-state-source/integration-runner-source-2/SHA256SUMS.txt
+runner source 3	accepted	15025bfc66dcc8dac6a3cde951a04ec5b8f55c534b27aa319826cc2281e7530f	wan-tcp-state-source/integration-runner-source-3/SHA256SUMS.txt
+tiny launcher source 1	accepted-run-input	82681c520840f67c35c2e0e85e89693ab2fb67cc11c7967b0b6067a7f564e720	wan-tcp-state-source/review/tiny-tcp-state-smoke-launch-source-1/SHA256SUMS.txt
+sustained launcher source 1	accepted-run-input	5d933f624cb721f1a13e6a2528f005ce265d9903bb41080e6184d93b51a574fd	wan-tcp-state-source/review/sustained-tcp-state-launch-source-1/SHA256SUMS.txt
+sustained launcher preflight	accepted	22563d39c9b0b0b1322651273efa4b5d29638540cc6f2fec998331a49ae6a1cf	wan-tcp-state-source/provenance/sustained-tcp-state-launch-source-1-preflight/SHA256SUMS.txt
+kernel/Yamux source review	reviewed	9186ebc1ead94467bef030cc87437e004d712a86771aa3f2b5cfecf366ef5db7	wan-tcp-state-source/provenance/sustained-tcp-state-1-kernel-source-review-1/SHA256SUMS.txt
+kernel/Yamux source review erratum	reviewed-authoritative-correction	f7251ecec1119c5c4f0ccd16864fec67f354440c4016f201ff3453e2f8a532f2	wan-tcp-state-source/provenance/sustained-tcp-state-1-kernel-source-review-1-erratum-1/SHA256SUMS.txt
+kernel/Yamux exact source evidence	reviewed	aaff31b4f56a00bd836b2c1b18607be747c9eb246c8556a31e9d3a8beeac5425	wan-tcp-state-source/provenance/sustained-tcp-state-1-kernel-source-evidence-1/SHA256SUMS.txt
+accepted validator result	accepted	7cfe27fc04b1f64facac7c323b611a4b04cf608b87b07c20c41e82ac9e8fba67	wan-tcp-state-source/runner-source-1/runs/tcp-validator-contract-attempt-1/records/SHA256SUMS.txt
+accepted build result	accepted	3419e3da3b395db795e544aea1c1c59262033ad1827674ecf0dbce1d7200bbd8	wan-tcp-state-source/build-source-1/runs/audited-build-attempt-2/records/SHA256SUMS.txt
+accepted build receipt	accepted	bcca6079b5de32635701b4a1d5195cd9b9f9e8976d76e48956cea7d396cb7b97	wan-tcp-state-source/build-source-1/runs/audited-build-attempt-2/audited-tcp-state-build-receipt.json
+tiny full run ledger	accepted-smoke	32d34a75779aa2c9d45a24b810004f7782aed5446072a23132c8d13bd47aa6b2	wan-tcp-state-source/provenance/tiny-tcp-state-smoke-1-result-review/RUN-SHA256SUMS.txt
+sustained full run ledger	observational-h1-pass-h2-inconclusive	2d17e16efca00ea772b5183c1a196450e38ebc019f7dd9995de1cca45f284cfd	wan-tcp-state-source/provenance/sustained-tcp-state-1-result-review/RUN-SHA256SUMS.txt

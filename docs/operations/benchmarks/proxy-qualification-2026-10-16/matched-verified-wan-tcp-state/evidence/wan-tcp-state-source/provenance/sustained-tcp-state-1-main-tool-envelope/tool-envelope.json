@@ -1,0 +1,46 @@
+{
+  "driver_sha256": "78c17b2cb1b577b19c6933ae93d9c94f5db557aac17cb1150a9d8919130e715d",
+  "endpoint_execution": true,
+  "evidence_root": "tmp/continuation-20261016/wan-tcp-state-source/provenance/sustained-tcp-state-1-launch",
+  "final_chunk_id": "365806",
+  "final_yield_wall_seconds": 3.070214461,
+  "initial_chunk_id": "502461",
+  "initial_yield_wall_seconds": 1.001731851,
+  "invocation_sha256": "97fd71b9c6fbf5420dcbf561e7a73e52f4e521d06cf765d33d4a7b5af0ee61d9",
+  "native_exit_status": 1,
+  "polls": [
+    {
+      "chunk_id": "378880",
+      "wall_seconds": 30.001179854
+    },
+    {
+      "chunk_id": "ac2f41",
+      "wall_seconds": 30.001596816
+    },
+    {
+      "chunk_id": "4b9340",
+      "wall_seconds": 30.001413923
+    },
+    {
+      "chunk_id": "61ccd2",
+      "wall_seconds": 30.000299155
+    },
+    {
+      "chunk_id": "b2fe89",
+      "wall_seconds": 30.000954369
+    },
+    {
+      "chunk_id": "53083b",
+      "wall_seconds": 30.000860357
+    }
+  ],
+  "retry": false,
+  "run_file_count": 271,
+  "run_total_bytes": 28213160,
+  "schema_version": 1,
+  "session_id": 46749,
+  "source_manifest_sha256": "5d933f624cb721f1a13e6a2528f005ce265d9903bb41080e6184d93b51a574fd",
+  "stderr_empty": true,
+  "stdout_empty": true,
+  "wan_traffic": true
+}

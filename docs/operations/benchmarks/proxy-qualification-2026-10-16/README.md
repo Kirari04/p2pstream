@@ -389,6 +389,27 @@ remains unmeasured. The result establishes no cause, runtime fix, timeout or
 window policy change, or WAN gate clearance. See the
 [byte-credit recycle evidence](matched-verified-wan-byte-credit-recycle/README.md).
 
+The qualification-only TCP-state follow-up retains the mature WAN workload and
+timed transfer bytes while sampling Linux TCP provider state at selected local
+byte-credit waits and below-TLS raw writes. Its bounded tiny smoke completes 16
+H1 and 16 H2 status-200 transfers, accepts exact source, stream, session and
+physical-tuple joins with five-owner natural closure, and stays below the
+unchanged 4 MiB authenticated response bound. This is schema and lifecycle
+evidence from 4 MiB transfers, not a throughput result or runtime fix.
+
+The sustained observation completes with integrity and natural closure. H1
+passes its fixed floor and reuse checks. H2 is `inconclusive-upstream-reuse`:
+retained-warmup and steady download floors fail, while sequences 15 and 16
+revisit with new origin connections after about 35 seconds. Conditioning-clean
+sequence 14 retains the same origin after 28.478 seconds and measures
+16.810103 MB/s. The pre-transfer slow-start thresholds already differ:
+466/462/460 for H1 sequences 9/11/14 and 240/246/246 for H2. H2 sequences 9
+and 11 fail with zero
+cumulative retransmission delta, while H1 sequence 9 passes despite its
+retransmission delta. These discrete owner-local samples establish no sole
+cause, production fix, parity, release readiness, or WAN gate clearance. See
+the [TCP-state evidence](matched-verified-wan-tcp-state/README.md).
+
 The earlier final-runtime checkpoint
 `dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response
 matrix that passes all 12 throughput and tail gates with exact conservation. Its
