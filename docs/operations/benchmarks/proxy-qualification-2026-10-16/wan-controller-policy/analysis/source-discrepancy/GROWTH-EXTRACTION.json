@@ -1,0 +1,350 @@
+{
+  "scope": "offline saved-data arithmetic; no validators or runtime",
+  "time_limit": "same-server sample-start offsets, not publication completion",
+  "rows": [
+    {
+      "protocol": "h1",
+      "sequence": 9,
+      "lane": 1,
+      "stream_id": 6,
+      "got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:33213",
+          "remote_address": "10.212.0.2:51488",
+          "observed_unix_ns": 1792235188570984729
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.644958188,
+          "proposed_bytes": 1048576
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 0.97066187,
+          "proposed_bytes": 5373952
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 1.139070963,
+          "proposed_bytes": 10289152
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 1.399112028,
+          "proposed_bytes": 18612224
+        }
+      },
+      "final_stream_credit_snapshot": [
+        {
+          "allocation_receive_limit": 23920640,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 23920640,
+          "byte_send_available": 523879,
+          "id": 6
+        }
+      ],
+      "growth_event_count": 90
+    },
+    {
+      "protocol": "h1",
+      "sequence": 11,
+      "lane": 3,
+      "stream_id": 6,
+      "got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:33213",
+          "remote_address": "10.212.0.2:51474",
+          "observed_unix_ns": 1792235205343233169
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.644818449,
+          "proposed_bytes": 1048576
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 0.968479992,
+          "proposed_bytes": 5242880
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 1.140237453,
+          "proposed_bytes": 10354688
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 1.40262515,
+          "proposed_bytes": 19202048
+        }
+      },
+      "final_stream_credit_snapshot": [
+        {
+          "allocation_receive_limit": 24182784,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 24182784,
+          "byte_send_available": 523878,
+          "id": 6
+        }
+      ],
+      "growth_event_count": 89
+    },
+    {
+      "protocol": "h1",
+      "sequence": 14,
+      "lane": 2,
+      "stream_id": 6,
+      "got_conn": [
+        {
+          "reused": true,
+          "was_idle": true,
+          "idle_time_ns": 25211344775,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:33213",
+          "remote_address": "10.212.0.2:51452",
+          "observed_unix_ns": 1792235229886958157
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.643233669,
+          "proposed_bytes": 1572864
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 1.04600099,
+          "proposed_bytes": 5242880
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 1.610428716,
+          "proposed_bytes": 8716288
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 2.820046624,
+          "proposed_bytes": 18415616
+        }
+      },
+      "final_stream_credit_snapshot": [
+        {
+          "allocation_receive_limit": 23461888,
+          "allocation_send_available": 24313856,
+          "allocation_send_limit": 24313856,
+          "byte_receive_limit": 23461888,
+          "byte_send_available": 20807384,
+          "id": 6
+        }
+      ],
+      "growth_event_count": 105
+    },
+    {
+      "protocol": "h1",
+      "sequence": 15,
+      "lane": 3,
+      "stream_id": 6,
+      "got_conn": [
+        {
+          "reused": true,
+          "was_idle": true,
+          "idle_time_ns": 26300609425,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:33213",
+          "remote_address": "10.212.0.2:51474",
+          "observed_unix_ns": 1792235239375497487
+        }
+      ],
+      "growth_crossings": {
+        "1048576": null,
+        "4194304": null,
+        "8388608": null,
+        "16777216": null
+      },
+      "final_stream_credit_snapshot": [
+        {
+          "allocation_receive_limit": 24182784,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 24182784,
+          "byte_send_available": 523582,
+          "id": 6
+        }
+      ],
+      "growth_event_count": 89
+    },
+    {
+      "protocol": "h2",
+      "sequence": 9,
+      "lane": 1,
+      "stream_id": 6,
+      "got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:44497",
+          "remote_address": "10.212.0.2:57180",
+          "observed_unix_ns": 1792235410974539643
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.728282567,
+          "proposed_bytes": 1507328
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 0.972104682,
+          "proposed_bytes": 4521984
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 1.142613769,
+          "proposed_bytes": 10485760
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 1.404698341,
+          "proposed_bytes": 19267584
+        }
+      },
+      "final_stream_credit_snapshot": [
+        {
+          "allocation_receive_limit": 24313856,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 24313856,
+          "byte_send_available": 523879,
+          "id": 6
+        }
+      ],
+      "growth_event_count": 89
+    },
+    {
+      "protocol": "h2",
+      "sequence": 11,
+      "lane": 3,
+      "stream_id": 6,
+      "got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:44497",
+          "remote_address": "10.212.0.2:57204",
+          "observed_unix_ns": 1792235427486949318
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.724940401,
+          "proposed_bytes": 1048576
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 1.769243054,
+          "proposed_bytes": 4718592
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 3.05536005,
+          "proposed_bytes": 10289152
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 4.266903768,
+          "proposed_bytes": 21364736
+        }
+      },
+      "final_stream_credit_snapshot": [
+        {
+          "allocation_receive_limit": 21364736,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 21364736,
+          "byte_send_available": 523878,
+          "id": 6
+        }
+      ],
+      "growth_event_count": 113
+    },
+    {
+      "protocol": "h2",
+      "sequence": 14,
+      "lane": 2,
+      "stream_id": 6,
+      "got_conn": [
+        {
+          "reused": true,
+          "was_idle": true,
+          "idle_time_ns": 26464093665,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:44497",
+          "remote_address": "10.212.0.2:57210",
+          "observed_unix_ns": 1792235453242933736
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.643903371,
+          "proposed_bytes": 1310720
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 1.693350855,
+          "proposed_bytes": 4653056
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 2.981216993,
+          "proposed_bytes": 10027008
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 4.188735149,
+          "proposed_bytes": 20447232
+        }
+      },
+      "final_stream_credit_snapshot": [
+        {
+          "allocation_receive_limit": 25886720,
+          "allocation_send_available": 23068672,
+          "allocation_send_limit": 23068672,
+          "byte_receive_limit": 25886720,
+          "byte_send_available": 20463320,
+          "id": 6
+        }
+      ],
+      "growth_event_count": 113
+    },
+    {
+      "protocol": "h2",
+      "sequence": 15,
+      "lane": 3,
+      "stream_id": 6,
+      "got_conn": [
+        {
+          "reused": true,
+          "was_idle": true,
+          "idle_time_ns": 26767955026,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:44497",
+          "remote_address": "10.212.0.2:57204",
+          "observed_unix_ns": 1792235463765250585
+        }
+      ],
+      "growth_crossings": {
+        "1048576": null,
+        "4194304": null,
+        "8388608": null,
+        "16777216": null
+      },
+      "final_stream_credit_snapshot": [
+        {
+          "allocation_receive_limit": 21364736,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 21364736,
+          "byte_send_available": 523582,
+          "id": 6
+        }
+      ],
+      "growth_event_count": 86
+    }
+  ]
+}

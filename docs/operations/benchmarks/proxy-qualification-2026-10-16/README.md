@@ -15,6 +15,12 @@ comparison.
 
 ## Files
 
+- [`wan-controller-policy/README.md`](wan-controller-policy/README.md)
+  preserves the fresh complete 48-transfer CUBIC/Reno/CUBIC diagnostic. Only the
+  108% pooled-rate criterion fails (105.9558% observed); Reno floors, all retained
+  per-row guards and Read concordance pass. All origins are retained on the twelve
+  postwarmup revisits; the controls differ by 36.284%. Exact proofs and independent
+  source/growth reviews remain a negative diagnostic with no WAN qualification clearance.
 - [`wan-controller-diagnostics/README.md`](wan-controller-diagnostics/README.md)
   preserves the controller hook's local proof and two separate 16-transfer
   CUBIC observations. The narrow screen rejects an extra retained-warmup

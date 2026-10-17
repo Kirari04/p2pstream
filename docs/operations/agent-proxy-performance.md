@@ -754,6 +754,27 @@ These observations establish no controller comparison, production controller
 recommendation or original WAN/HAProxy qualification clearance. Earlier idle
 expiration observations above remain historical context.
 
+A later, separately frozen whole-workload controller-policy diagnostic completes
+all three fresh CUBIC/Reno/CUBIC arms: 48 exact 256 MiB transfers, all 15 natural
+endpoint/helper exits and clean ownership/integrity audits. It retains fully
+evidenced postwarmup origin-reconnection outcomes and all performance failures
+as outcomes, while preserving initial conditioning and structural gates. All
+twelve revisits retain their origins in this run. The four-download pooled rates
+are 32.2832 / 34.2059 / 23.6881 MB/s; only the prospective 108% criterion fails,
+with Reno at 105.9558% of the faster whole CUBIC control. All original Reno
+floors, the retained per-row 95% guards and lower positive Read sum pass. The
+controls differ by 36.284%, limiting attribution from this fixed-order screen.
+Its result is complete and negative; the earlier stopped cohorts remain unchanged.
+
+The [whole-workload policy evidence](benchmarks/proxy-qualification-2026-10-16/wan-controller-policy/README.md)
+retains exact plans, thirteen passing offline contracts, raw rows/captures,
+independent attestations, final closure audit and source/growth assessments.
+The saved growth observations show physical progress, demand eligibility and
+logical credit warmth changing together; they establish no independent credit
+defect, threshold creator or production controller fix. Neither this cohort nor
+the bounded earlier-pool-share hypothesis clears the original 96-transfer WAN,
+HAProxy, parity or release requirements.
+
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while
 the selector still uses lanes 0–3. Aggregate-v1 uses lanes 1–4 and reserves

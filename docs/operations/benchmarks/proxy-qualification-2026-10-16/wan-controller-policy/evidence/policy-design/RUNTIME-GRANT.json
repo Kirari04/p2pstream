@@ -1,0 +1,16 @@
+{
+  "scope": "one fresh fixed256MiB whole-workload controller-policy C/R/C diagnostic; max48 transfers; no retries/tuning; all criteria preregistered",
+  "granted_unix": 1792243085.5014048,
+  "source_sha256": "888660fd56495016ee465ebe05dd30a104d9d75b85f15ec9e5550bbe27de392e",
+  "plan_sha256": "d1091ed94f0162b5f6ec7011d619a150a9eeaa7d04dadee499f4d13a5f9d25da",
+  "offline_proof_sha256": "0f79c69e3830c4a45a897929f0187b96ec2fc7ac0adffdd6542fe94f5b94918d",
+  "independent_source_review_sha256": "91fa3011af7f63e6f864dcfeb46337e4cbb1d3e7f96e1bbb6c5e689bcb9d0151",
+  "accepted_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "all_preexisting_and_new_inputs_match": true,
+  "build_verifier": {
+    "accepted": true,
+    "diagnostic": "controller-screen-build-tuple",
+    "reviewed_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+    "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622"
+  }
+}

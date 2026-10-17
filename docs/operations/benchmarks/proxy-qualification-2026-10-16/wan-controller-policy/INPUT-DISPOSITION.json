@@ -1,0 +1,804 @@
+{
+  "omitted_categories": [
+    "endpoint binaries (exact accepted hash/size in prior build receipt)",
+    "full compilation source tree and module/build caches (frozen SOURCE inventory retained)",
+    "credentials, private keys and certificate contents",
+    "duplicate historical packages and immutable prerequisite source/build evidence"
+  ],
+  "omitted_runtime_workdir_files": [
+    {
+      "bytes": 5011,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "ab31f356f64b28b8041b8e4c9b0fa4ac728e9741f71bd829214fdae4538efb47",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/1-current-server-aggregate-v1-h2-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/1-current-server-aggregate-v1-h2-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 4963,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "5678815729f0fa8be72c8aa62d029936231c101d979b7ade36e0955edf3ecbe4",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 5049,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c4eed2979fab0dee1abcfe532155f89ce5d875b9d654a6f1c49a3d67e16f823c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/11-current-server-aggregate-v1-h2-steady-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/11-current-server-aggregate-v1-h2-steady-download-1.json.log"
+    },
+    {
+      "bytes": 4935,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "fe88830a336b7b2f1823818c47eb22e6b36afebea530dc60f533ff5a2bae3870",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/12-current-server-aggregate-v1-h2-steady-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/12-current-server-aggregate-v1-h2-steady-upload-1.json.log"
+    },
+    {
+      "bytes": 4928,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "de8e0bc2b23ffa58d85d0246bd74697c39d44b6af208a53a777f008077078dca",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/13-current-server-aggregate-v1-h2-steady-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/13-current-server-aggregate-v1-h2-steady-upload-2.json.log"
+    },
+    {
+      "bytes": 5042,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "6439fa7e915f3b9629679ab2e98e0a47c39333010820d3981fea7b06de279a96",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/14-current-server-aggregate-v1-h2-steady-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/14-current-server-aggregate-v1-h2-steady-download-2.json.log"
+    },
+    {
+      "bytes": 5069,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "abafdd22176c25beea8d9fe8d260a2d38c1db49fbd3987b88fb3d4594286e8ae",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/15-current-server-aggregate-v1-h2-steady-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/15-current-server-aggregate-v1-h2-steady-download-3.json.log"
+    },
+    {
+      "bytes": 4962,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "064cd441b36a190e84171e3acb6090dee4b02fe4fed6959e7ffa883ae3f01835",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/16-current-server-aggregate-v1-h2-steady-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/16-current-server-aggregate-v1-h2-steady-upload-3.json.log"
+    },
+    {
+      "bytes": 5036,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "241e1942a6aded138e198284302f84199794b37fceeddcad0f41917ba4de602e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/2-current-server-aggregate-v1-h2-warmup-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/2-current-server-aggregate-v1-h2-warmup-download-2.json.log"
+    },
+    {
+      "bytes": 5088,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "ea8a5f4f947b908df46a5fbfdd56f67f19c3130eb5a9e5292acb5c42d85566d2",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/3-current-server-aggregate-v1-h2-warmup-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/3-current-server-aggregate-v1-h2-warmup-download-3.json.log"
+    },
+    {
+      "bytes": 5136,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "9b2cd13ec5a1bc0d4cba33dc4d1271a80ef4014b058b8fc866cb3d54129d06a4",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/4-current-server-aggregate-v1-h2-warmup-download-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/4-current-server-aggregate-v1-h2-warmup-download-4.json.log"
+    },
+    {
+      "bytes": 4926,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "5d39ab2e22ff8a40ff4a4d65c7bd3c0c9f12564737a37bddd65e1e3cbb1f29ac",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/5-current-server-aggregate-v1-h2-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/5-current-server-aggregate-v1-h2-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 4958,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "57164e90a55b0aa7d647bddee28beacc01ff38f13e9549866091a5d62ebed673",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/6-current-server-aggregate-v1-h2-warmup-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/6-current-server-aggregate-v1-h2-warmup-upload-2.json.log"
+    },
+    {
+      "bytes": 4935,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "3ffee6c2218ed30705049fc06438e92d4bb1c7345cdafc944542915fb4dbe621",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/7-current-server-aggregate-v1-h2-warmup-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/7-current-server-aggregate-v1-h2-warmup-upload-3.json.log"
+    },
+    {
+      "bytes": 4968,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e4a273b6a040edc90c7ad86c913de93979ac2aea7ff102ec2985471adc5c4254",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/8-current-server-aggregate-v1-h2-warmup-upload-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/8-current-server-aggregate-v1-h2-warmup-upload-4.json.log"
+    },
+    {
+      "bytes": 5064,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "4c98ad11d9713aa33016ce3c662076b63fee2c530500a7fe1d9f578f5c3e8c29",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/agent-namespace.stop"
+    },
+    {
+      "bytes": 7972,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "7ef704e1548bed2e8219c7e248304fb15a879efc3d09f0b571d61bb82a2c04c7",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/current-server-aggregate-v1-h2-1-agent.log"
+    },
+    {
+      "bytes": 48,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "bd167f7c5da3396e273eba5ecf0561966f3d83b646839ae2271bca358c184f3c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/current-server-aggregate-v1-h2-1-agent.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/current-server-aggregate-v1-h2-1-agent.stop"
+    },
+    {
+      "bytes": 583,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "ae3203583611a8713461c403d8ddbbca29c00539a145ef01adcd9e6491f8656b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/current-server-aggregate-v1-h2-1-management-ca.pem"
+    },
+    {
+      "bytes": 12865,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "d5d81de22dcf4825d1f5b6d32c78fd4751f6ab20aaa7f849deeabaad0e8167b1",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/current-server-aggregate-v1-h2-1-server.log"
+    },
+    {
+      "bytes": 499,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "414c4971d3cbffd9f88382d55cfde0c1689d733700c3d093d10da8223894c831",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/current-server-aggregate-v1-h2-1-server.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/current-server-aggregate-v1-h2-1-server.stop"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/origin.log"
+    },
+    {
+      "bytes": 82,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "365b51cf56bb544f6226974b423330548f409f5859eb5ab4e7bfd979b00d0c1f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/origin.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/origin.stop"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/proxy-agent-growth.50Gc38/router-namespace.stop"
+    },
+    {
+      "bytes": 5016,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "dfe5265641ef1f7bc4cc728bf7c37fb2bcb4818fb09d8a50ebebc77ad5370e54",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/1-current-server-aggregate-v1-h2-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/1-current-server-aggregate-v1-h2-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 4953,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "8d80d631efbca4045c31645f4df4bb669412a46ebb3974d4feaa1c17d396afbe",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 5056,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "2b8a61e2954fa18dcfa150058583e75bd95d90391efaa43f781d975289d31054",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/11-current-server-aggregate-v1-h2-steady-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/11-current-server-aggregate-v1-h2-steady-download-1.json.log"
+    },
+    {
+      "bytes": 4920,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "756c754f0036a85667f86e228fd5fda6c02fee35ac76245efb4894715b228481",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/12-current-server-aggregate-v1-h2-steady-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/12-current-server-aggregate-v1-h2-steady-upload-1.json.log"
+    },
+    {
+      "bytes": 4923,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "7547dcfe0b47662d9b478bd41c3aa26786cc96bde4aed50afb0913f7288420fe",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/13-current-server-aggregate-v1-h2-steady-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/13-current-server-aggregate-v1-h2-steady-upload-2.json.log"
+    },
+    {
+      "bytes": 5030,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "f696a3a6da446430fba7d850ef73c53ba6a77fef3f514b7568879e8b7bd24a90",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/14-current-server-aggregate-v1-h2-steady-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/14-current-server-aggregate-v1-h2-steady-download-2.json.log"
+    },
+    {
+      "bytes": 5028,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "dc7cefd463579225aae45881ebc1c13b08cc258b27a8eb6dbb0d7c7bc084b8d9",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/15-current-server-aggregate-v1-h2-steady-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/15-current-server-aggregate-v1-h2-steady-download-3.json.log"
+    },
+    {
+      "bytes": 4922,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "72d66c10bb1355fc403c8a2916ff29ef091999188fd74e313525f9bb73eb2359",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/16-current-server-aggregate-v1-h2-steady-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/16-current-server-aggregate-v1-h2-steady-upload-3.json.log"
+    },
+    {
+      "bytes": 5027,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "96a6aee9c7933a95c1d77cbfddc35ad8d96da7dc0ae5b311b0220a80d750f26a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/2-current-server-aggregate-v1-h2-warmup-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/2-current-server-aggregate-v1-h2-warmup-download-2.json.log"
+    },
+    {
+      "bytes": 4946,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "624bd7a73ba404236c421121c201c6c7f1a82b990a87854b7610b8d76ce29610",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/3-current-server-aggregate-v1-h2-warmup-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/3-current-server-aggregate-v1-h2-warmup-download-3.json.log"
+    },
+    {
+      "bytes": 5072,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "5f95767327a93775e49337053eddfe69ea2a137c67ee3b67fd742dd8df47cdf7",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/4-current-server-aggregate-v1-h2-warmup-download-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/4-current-server-aggregate-v1-h2-warmup-download-4.json.log"
+    },
+    {
+      "bytes": 4923,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "d9a25f5492a73092f2b02c7d1c58c59792a2bb4c7c46dc8007414769afb1eb58",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/5-current-server-aggregate-v1-h2-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/5-current-server-aggregate-v1-h2-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 4926,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "af2c91319bcade12334178e373aff0ed49e3d1b4ecd4efca3c8a61de6d5d0191",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/6-current-server-aggregate-v1-h2-warmup-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/6-current-server-aggregate-v1-h2-warmup-upload-2.json.log"
+    },
+    {
+      "bytes": 4924,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "afc95c73c2911532b7266544ad0a829a360dbb27aa0d30e3f9a9d21c8ebadecf",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/7-current-server-aggregate-v1-h2-warmup-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/7-current-server-aggregate-v1-h2-warmup-upload-3.json.log"
+    },
+    {
+      "bytes": 4945,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "6741a18d9bfc3767e1b8f0619a6b6cf1e5fefff3e133ed063cfc012f0bbd0d1c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/8-current-server-aggregate-v1-h2-warmup-upload-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/8-current-server-aggregate-v1-h2-warmup-upload-4.json.log"
+    },
+    {
+      "bytes": 5052,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "190a1ce579d48667c3eca02524be8c5171e630ace312cf3f420a72c66fa10847",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/agent-namespace.stop"
+    },
+    {
+      "bytes": 7971,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "9cd4c70f8db7ab82b34ba61fdf5fbfc3d2afe06d23e80d2c57d228c1c2709fb1",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/current-server-aggregate-v1-h2-1-agent.log"
+    },
+    {
+      "bytes": 48,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "1298aaa3352928f3fcb0f30924027a48d62b7e05f1d5fcc13e6bce1b13abdbbc",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/current-server-aggregate-v1-h2-1-agent.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/current-server-aggregate-v1-h2-1-agent.stop"
+    },
+    {
+      "bytes": 579,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "348ae4ea7e217a463686c6bcae128b87c9c5307b161f26c6205ac5b4f8a9bbf1",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/current-server-aggregate-v1-h2-1-management-ca.pem"
+    },
+    {
+      "bytes": 12688,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "65c671cbdaae3582dbfcd4576662f95b9773496cd72fa8b75495ef37fe0af9bc",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/current-server-aggregate-v1-h2-1-server.log"
+    },
+    {
+      "bytes": 498,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "030027a146f030ac1fc8328b8621b3a0942722fa42db254be216e96312adbf43",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/current-server-aggregate-v1-h2-1-server.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/current-server-aggregate-v1-h2-1-server.stop"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/origin.log"
+    },
+    {
+      "bytes": 82,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "9f900f4e51c24782b232e8e2f854bf0c9d041250c796bc51732674f4aabf2ddf",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/origin.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/origin.stop"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/proxy-agent-growth.nQpDMq/router-namespace.stop"
+    },
+    {
+      "bytes": 5001,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "df6b437fce067f7eae01dc9aec9acfd374d36deef12f7eaceac8c44a7cd61149",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/1-current-server-aggregate-v1-h2-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/1-current-server-aggregate-v1-h2-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 4974,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "584e4d5fa5cebf7f35487beedc2bf26d6c5bf2238fc37af7e46c4b6a792ff403",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 5057,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "03ab7f98e31ac4bdd6dd34f8d40575d2bf789246f08857553e79cbf7f121ed15",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/11-current-server-aggregate-v1-h2-steady-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/11-current-server-aggregate-v1-h2-steady-download-1.json.log"
+    },
+    {
+      "bytes": 4914,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "b3bc6824b47e9bbd9f3483ba6d44191682893aa21c3407f41da96d5050e58ee7",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/12-current-server-aggregate-v1-h2-steady-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/12-current-server-aggregate-v1-h2-steady-upload-1.json.log"
+    },
+    {
+      "bytes": 4923,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "698dbd3523f918c03d8140dd21fd2918a83e2fa54e289b19956c4477455bd10d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/13-current-server-aggregate-v1-h2-steady-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/13-current-server-aggregate-v1-h2-steady-upload-2.json.log"
+    },
+    {
+      "bytes": 5030,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "66514c0d900fae0cbfdfcc5b8bf7b8f2b45145df143bef89f27a72c8cadf9f14",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/14-current-server-aggregate-v1-h2-steady-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/14-current-server-aggregate-v1-h2-steady-download-2.json.log"
+    },
+    {
+      "bytes": 5029,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "0bc926fdb08f772fa378039410503b4767dd685907cca8c80b61c2a1ebac7316",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/15-current-server-aggregate-v1-h2-steady-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/15-current-server-aggregate-v1-h2-steady-download-3.json.log"
+    },
+    {
+      "bytes": 4967,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "a35269ad846b473d420429b505786dda11c92af96e8bb379933b22a5a65dfa90",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/16-current-server-aggregate-v1-h2-steady-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/16-current-server-aggregate-v1-h2-steady-upload-3.json.log"
+    },
+    {
+      "bytes": 5032,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "a985cb7c4a0ce8710a03d94b32ad7f4f9a0925fd517dd6518ba58fbbb08b7031",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/2-current-server-aggregate-v1-h2-warmup-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/2-current-server-aggregate-v1-h2-warmup-download-2.json.log"
+    },
+    {
+      "bytes": 5006,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e1d84d2dff37e78b0016706fb25ed4c96d053865958df760a186c8d07c874e90",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/3-current-server-aggregate-v1-h2-warmup-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/3-current-server-aggregate-v1-h2-warmup-download-3.json.log"
+    },
+    {
+      "bytes": 5102,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "7f741de987c29426f911fa99b548317eaa61fd4d18da96210c7ee879e546473e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/4-current-server-aggregate-v1-h2-warmup-download-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/4-current-server-aggregate-v1-h2-warmup-download-4.json.log"
+    },
+    {
+      "bytes": 4928,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "f1c89a8329888506324bdfc075370e62c9fd0c084b3ec10bbdea9a50ca87327f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/5-current-server-aggregate-v1-h2-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/5-current-server-aggregate-v1-h2-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 4920,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "2916c8535d720d46c8a2290424786d31d7e5e32396c914b2f11fb77c8cbd9c82",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/6-current-server-aggregate-v1-h2-warmup-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/6-current-server-aggregate-v1-h2-warmup-upload-2.json.log"
+    },
+    {
+      "bytes": 4921,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "a6a127e75987fd601333b428482d8e4b9ad5b19c4d9fc2c48bfe752b69324bdf",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/7-current-server-aggregate-v1-h2-warmup-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/7-current-server-aggregate-v1-h2-warmup-upload-3.json.log"
+    },
+    {
+      "bytes": 4978,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "8acf2bf108ffe23abc9dca4fe3f96f7666a2e53fb67bdd5f18dd614e8b8a1fa5",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/8-current-server-aggregate-v1-h2-warmup-upload-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/8-current-server-aggregate-v1-h2-warmup-upload-4.json.log"
+    },
+    {
+      "bytes": 5038,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "123dc199e2630425a4eda6976f4f9fb111406f01b63b421f9e17a3eca1596a8f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/agent-namespace.stop"
+    },
+    {
+      "bytes": 7971,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "7cbdd3b126047eb796f1d5c7d78bd2c1d3efd44a30952aaed28e1c1a4e3726e6",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/current-server-aggregate-v1-h2-1-agent.log"
+    },
+    {
+      "bytes": 48,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e33af7581f885b3ee4150a31c6a684d834faaad40d09f02fc02148dedf2cfa8c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/current-server-aggregate-v1-h2-1-agent.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/current-server-aggregate-v1-h2-1-agent.stop"
+    },
+    {
+      "bytes": 579,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "4ba8e4d12af72ce41e0427384419d1eae5838bd9dcf360116f02efb91c0e3273",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/current-server-aggregate-v1-h2-1-management-ca.pem"
+    },
+    {
+      "bytes": 12865,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "3e78c48f9baa8ebb0e0bb340a49d7d8a6e865a7bd89317a632cf0cb61d4c104e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/current-server-aggregate-v1-h2-1-server.log"
+    },
+    {
+      "bytes": 499,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "ef5b1aedfae9231e58046ea3399047d989d922c7acfc854bed8bd82a664cfb8e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/current-server-aggregate-v1-h2-1-server.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/current-server-aggregate-v1-h2-1-server.stop"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/origin.log"
+    },
+    {
+      "bytes": 82,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "41648c05d18ffc9f745baf26fdbc95686f4c6b318d559e507c81a24177b61209",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/origin.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/origin.stop"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable workdir: duplicate per-transfer output, application log/readiness or TLS credential/certificate material; canonical rows and ownership evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/router-namespace.stop"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "documentary evidence package, not a standalone executable replay tree; no historical arm reused as fresh control"
+}

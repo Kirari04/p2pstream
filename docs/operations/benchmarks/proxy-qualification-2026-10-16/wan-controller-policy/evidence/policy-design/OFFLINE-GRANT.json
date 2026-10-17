@@ -1,0 +1,24 @@
+{
+  "scope": "one focused offline policy contract command; no sockets, builds, traffic",
+  "source_sha256": "888660fd56495016ee465ebe05dd30a104d9d75b85f15ec9e5550bbe27de392e",
+  "plan_sha256": "d1091ed94f0162b5f6ec7011d619a150a9eeaa7d04dadee499f4d13a5f9d25da",
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-policy.py"
+  ],
+  "bounds": {
+    "attempts": 1,
+    "no_builds": true,
+    "no_sockets": true,
+    "no_traffic": true,
+    "outer_seconds": 25,
+    "stream_bytes_each": 1048576
+  },
+  "granted_unix": 1792243046.2545354
+}
