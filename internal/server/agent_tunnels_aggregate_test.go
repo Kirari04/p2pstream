@@ -138,6 +138,76 @@ func TestAggregateControlGateBoundsLifetimePromises(t *testing.T) {
 	}
 }
 
+func newSaturatedAggregateControlAgent(t *testing.T) *AgentConn {
+	t.Helper()
+	control, _ := newAgentTunnelTestSession(t)
+	agent := &AgentConn{
+		AgentID:              7,
+		PublicID:             "aggregate-health",
+		Name:                 "Aggregate Health",
+		AggregateFlowControl: true,
+		Done:                 make(chan struct{}),
+	}
+	agent.installTunnel(0, control)
+	releases := make([]func(), 0, tunnel.NegotiatedControlStreamLimit)
+	for range tunnel.NegotiatedControlStreamLimit {
+		release, ok := agent.acquireControlStream(t.Context())
+		if !ok {
+			t.Fatal("failed to saturate aggregate control gate")
+		}
+		releases = append(releases, release)
+	}
+	t.Cleanup(func() {
+		for _, release := range releases {
+			release()
+		}
+	})
+	return agent
+}
+
+func TestAggregateControlAdmissionPreservesCallerCancellation(t *testing.T) {
+	agent := newSaturatedAggregateControlAgent(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err := (&App{}).dialViaAgentWithCapacity(ctx, agent, "tcp", "example.test:443", "health-cancel", agentStreamCapacityTrustedHealth, "health")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled control admission error = %v, want context.Canceled", err)
+	}
+	var dialErr agentDialError
+	if errors.As(err, &dialErr) {
+		t.Fatalf("cancelled control admission was reclassified as %q", dialErr.Kind)
+	}
+}
+
+func TestAggregateControlAdmissionPreservesAgentDisconnect(t *testing.T) {
+	agent := newSaturatedAggregateControlAgent(t)
+	close(agent.Done)
+
+	_, err := (&App{}).dialViaAgentWithCapacity(t.Context(), agent, "tcp", "example.test:443", "health-disconnect", agentStreamCapacityTrustedHealth, "health")
+	if !errors.Is(err, errAgentDisconnected) {
+		t.Fatalf("disconnected control admission error = %v, want errAgentDisconnected", err)
+	}
+}
+
+func TestAggregateControlAdmissionCallerDeadlineRemainsHealthCapacity(t *testing.T) {
+	agent := newSaturatedAggregateControlAgent(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
+	defer cancel()
+
+	_, err := (&App{}).dialViaAgentWithCapacity(ctx, agent, "tcp", "example.test:443", "health-deadline", agentStreamCapacityTrustedHealth, "health")
+	var dialErr agentDialError
+	if !errors.As(err, &dialErr) || dialErr.Kind != "server_health_capacity" {
+		t.Fatalf("deadline control admission error = %v, want server_health_capacity", err)
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("deadline control admission lost context cause: %v", err)
+	}
+	if !agentDialErrorIsAdmissionPressure(dialErr) || shouldMarkAgentPassiveFailure(ctx, err) {
+		t.Fatalf("deadline control admission can poison health: %v", err)
+	}
+}
+
 func TestAggregateExplicitLaneCannotCrossTrafficClassBoundary(t *testing.T) {
 	control, _ := newAgentTunnelTestSession(t)
 	bulk, _ := newAgentTunnelTestSession(t)

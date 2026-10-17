@@ -365,8 +365,8 @@ type qualificationProcessResult struct {
 	PeakCgroupSockBytes  int64                              `json:"peak_cgroup_sock_bytes,omitempty"`
 	FinalCgroupSockBytes int64                              `json:"final_cgroup_sock_bytes,omitempty"`
 	CgroupEventsCaptured bool                               `json:"cgroup_memory_events_captured"`
-	OOMDelta             uint64                             `json:"oom_delta,omitempty"`
-	OOMKillDelta         uint64                             `json:"oom_kill_delta,omitempty"`
+	OOMDelta             uint64                             `json:"oom_delta"`
+	OOMKillDelta         uint64                             `json:"oom_kill_delta"`
 	AgentCapacityInitial *qualificationAgentCapacityRuntime `json:"agent_capacity_initial,omitempty"`
 	AgentCapacityPeak    *qualificationAgentCapacityRuntime `json:"agent_capacity_high_water,omitempty"`
 	AgentCapacityFinal   *qualificationAgentCapacityRuntime `json:"agent_capacity_final,omitempty"`
@@ -436,14 +436,14 @@ type qualificationResult struct {
 	EventStatsCaptured            bool                              `json:"event_stats_captured,omitempty"`
 	PersistedAfterLoad            int64                             `json:"persisted_events_after_load,omitempty"`
 	PersistedAfterDrain           int64                             `json:"persisted_events_after_drain,omitempty"`
-	PersistedEventDelta           int64                             `json:"persisted_event_delta,omitempty"`
+	PersistedEventDelta           int64                             `json:"persisted_event_delta"`
 	DroppedEvents                 int64                             `json:"dropped_events,omitempty"`
-	DroppedEventDelta             int64                             `json:"dropped_event_delta,omitempty"`
+	DroppedEventDelta             int64                             `json:"dropped_event_delta"`
 	EventQueueAfterLoad           int64                             `json:"event_queue_after_load,omitempty"`
-	EventQueueAfterDrain          int64                             `json:"event_queue_after_drain,omitempty"`
+	EventQueueAfterDrain          int64                             `json:"event_queue_after_drain"`
 	EventDrainSeconds             float64                           `json:"event_drain_seconds,omitempty"`
 	EventDrainCPUSeconds          float64                           `json:"event_drain_cpu_seconds,omitempty"`
-	EventDrainError               string                            `json:"event_drain_error,omitempty"`
+	EventDrainError               string                            `json:"event_drain_error"`
 	EventStatsError               string                            `json:"event_stats_error,omitempty"`
 	OwnerPeakBytes                map[string]int64                  `json:"owner_peak_bytes,omitempty"`
 	OwnerPeakFDs                  map[string]int64                  `json:"owner_peak_fds,omitempty"`

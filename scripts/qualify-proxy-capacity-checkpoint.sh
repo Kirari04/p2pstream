@@ -23,8 +23,23 @@ mkdir -p tmp/proxy-capacity-checkpoint
 if [[ -z $output_root ]]; then
   output_root=$(mktemp -d -p tmp/proxy-capacity-checkpoint "$candidate_short.XXXXXX")
 fi
+mkdir -p "$output_root"
+[[ -z $(find "$output_root" -mindepth 1 -maxdepth 1 -print -quit) ]] || {
+  echo "--output-root must be empty: $output_root" >&2
+  exit 2
+}
 mkdir -p "$output_root/builds" "$output_root/results" "$output_root/raw" "$output_root/provenance"
 output_root=$(realpath "$output_root")
+finish() {
+  local status=$?
+  trap - EXIT
+  printf '{"exit_status":%d}\n' "$status" >"$output_root/status.json.tmp"
+  mv "$output_root/status.json.tmp" "$output_root/status.json"
+  exit "$status"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 for tool in go git jq sha256sum docker haproxy openssl taskset python3 lscpu; do
   command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 1; }
@@ -93,6 +108,27 @@ jq -n \
     workload:{public_h1_connections:1536,barrier_seconds:3,server_memory_max_bytes:4294967296,
       server_ballast_bytes:1073741824,agent_memory_max_bytes:4294967296}}' > "$manifest"
 
+# Allocate and index raw evidence before launch; a failed driver may never
+# reach its final stdout summary and must not erase the attempt's identity.
+run_attempt() {
+  local name=$1; shift
+  local raw=$output_root/raw/$name stdout=$output_root/results/$name.stdout.log
+  local stderr=$output_root/results/$name.stderr.log status
+  mkdir -p "$raw"
+  jq -nc --arg name "$name" --arg raw "$raw" --arg stdout "$stdout" --arg stderr "$stderr" \
+    '{name:$name,state:"started",raw_directory:$raw,stdout:$stdout,stderr:$stderr}' >>"$output_root/attempts.jsonl"
+  if scripts/qualify-proxy-performance.sh "$@" --raw-dir "$raw" >"$stdout" 2>"$stderr"; then
+    status=0
+  else
+    status=$?
+  fi
+  jq -nc --arg name "$name" --arg raw "$raw" --argjson status "$status" \
+    '{name:$name,state:"finished",raw_directory:$raw,exit_status:$status}' >>"$output_root/attempts.jsonl"
+  cat "$stdout"
+  if ((status != 0)); then cat "$stderr" >&2; fi
+  return "$status"
+}
+
 run_capacity() {
   local topology=$1 external_agents=$2
   local output=$output_root/results/$topology.jsonl
@@ -106,8 +142,7 @@ run_capacity() {
   else
     external_args=(--path-filter agent)
   fi
-  local runner_log=$output_root/results/$topology.runner.log
-  scripts/qualify-proxy-performance.sh \
+  run_attempt "$topology" \
     --runs 1 \
     --capacity-only --capacity-concurrency 1536 --capacity-protocol h1 \
     --ballast-mib 1024 \
@@ -117,11 +152,7 @@ run_capacity() {
     --candidate-binary "$candidate_server" \
     --driver-binary "$candidate_server" \
     --output "$output" \
-    "${external_args[@]}" | tee "$runner_log"
-  local raw
-  raw=$(sed -n 's/^raw=//p' "$runner_log" | tail -1)
-  [[ -d $raw ]] || { echo "missing raw directory for $topology" >&2; return 1; }
-  mv "$raw" "$output_root/raw/$topology"
+    "${external_args[@]}"
 }
 
 run_capacity combined-4g-server-plus-colocated-agent 0
@@ -131,8 +162,7 @@ run_capacity external-four-agents-separate-4g-cgroups 4
 run_legacy_compatibility_burst() {
   local lanes=$1
   local output=$output_root/results/compat-current-agent-old-server-${lanes}-lane.jsonl
-  local runner_log=$output_root/results/compat-current-agent-old-server-${lanes}-lane.runner.log
-  scripts/qualify-proxy-performance.sh \
+  run_attempt "compat-current-agent-old-server-${lanes}-lane" \
     --runs 1 \
     --capacity-only --capacity-concurrency 128 --capacity-protocol h1 \
     --ballast-mib 1024 \
@@ -142,11 +172,7 @@ run_legacy_compatibility_burst() {
     --candidate-binary "$baseline_server" \
     --candidate-agent-binary "$candidate_agent" \
     --driver-binary "$candidate_server" \
-    --output "$output" | tee "$runner_log"
-  local raw
-  raw=$(sed -n 's/^raw=//p' "$runner_log" | tail -1)
-  [[ -d $raw ]] || { echo "missing raw directory for compatibility ${lanes}-lane" >&2; return 1; }
-  mv "$raw" "$output_root/raw/compat-current-agent-old-server-${lanes}-lane"
+    --output "$output"
 }
 
 # The current agent must tolerate a burst beyond the legacy 16-open backlog
@@ -164,24 +190,41 @@ import sys
 results_dir, destination, candidate_label = sys.argv[1:]
 summary = {"candidate_label": candidate_label, "topologies": {}, "accepted": True}
 failures = []
+def strict_zero(value):
+    return type(value) is int and value == 0
+
+def exact_success_responses(row):
+    classes = row.get("status_classes")
+    attempted = row.get("attempted")
+    return (
+        type(attempted) is int and attempted > 0
+        and isinstance(classes, dict) and "2xx" in classes
+        and all(key in {"1xx", "2xx", "3xx", "4xx", "5xx"}
+                and type(value) is int and value >= 0 for key, value in classes.items())
+        and classes["2xx"] == attempted and sum(classes.values()) == attempted
+    )
+
 def events_conserved(row):
     return (
         row.get("event_stats_captured") is True
-        and row.get("persisted_event_delta") == row.get("attempted")
-        and row.get("dropped_event_delta", 0) == 0
-        and row.get("event_queue_after_drain", 0) == 0
-        and not row.get("event_drain_error")
+        and type(row.get("persisted_event_delta")) is int
+        and row["persisted_event_delta"] == row.get("attempted")
+        and exact_success_responses(row)
+        and strict_zero(row.get("errors"))
+        and strict_zero(row.get("dropped_event_delta"))
+        and strict_zero(row.get("event_queue_after_drain"))
+        and row.get("event_drain_error") == ""
     )
 def process_cgroup_ok(process):
     return (
         isinstance(process, dict)
         and bool(process.get("container"))
-        and isinstance(process.get("cgroup_inode"), int)
+        and type(process.get("cgroup_inode")) is int
         and process.get("cgroup_inode") > 0
         and process.get("cgroup_memory_max_bytes") == 4294967296
         and process.get("cgroup_memory_events_captured") is True
-        and process.get("oom_delta", 0) == 0
-        and process.get("oom_kill_delta", 0) == 0
+        and strict_zero(process.get("oom_delta"))
+        and strict_zero(process.get("oom_kill_delta"))
     )
 for path in sorted(glob.glob(os.path.join(results_dir, "*.jsonl"))):
     topology = os.path.basename(path).removesuffix(".jsonl")
@@ -300,9 +343,10 @@ if not isinstance(one_envelope, int) or one_envelope <= 0 or four_envelope != 4 
         four["accepted"] = False
 summary["accepted"] = not failures and len(summary["topologies"]) == 3 and len(summary["compatibility_bursts"]) == 2
 summary["failures"] = failures
-with open(destination, "w", encoding="utf-8") as output:
+with open(destination + ".tmp", "w", encoding="utf-8") as output:
     json.dump(summary, output, indent=2, sort_keys=True)
     output.write("\n")
+os.replace(destination + ".tmp", destination)
 if not summary["accepted"]:
     raise SystemExit("; ".join(failures) or "missing topology results")
 PY

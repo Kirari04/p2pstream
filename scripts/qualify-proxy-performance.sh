@@ -16,6 +16,7 @@ candidate_agent_binary=""
 baseline_agent_binary=""
 candidate_label="candidate"
 output=""
+raw_dir=""
 use_cgroup=1
 origin_tls=0
 origin_http1=0
@@ -67,6 +68,7 @@ while (($#)); do
     --baseline-agent-binary) baseline_agent_binary=$2; shift 2 ;;
     --candidate-label) candidate_label=$2; shift 2 ;;
     --output) output=$2; shift 2 ;;
+    --raw-dir) raw_dir=$2; shift 2 ;;
     --host-processes) use_cgroup=0; shift ;;
     --origin-tls) origin_tls=1; shift ;;
     --origin-http1) origin_http1=1; shift ;;
@@ -112,7 +114,7 @@ if ((controls_only && !stdlib_controls && !stdlib_pooled_controls && !stdlib_sha
   exit 2
 fi
 
-for tool in go jq openssl haproxy python3 taskset; do
+for tool in go jq openssl haproxy python3 taskset timeout; do
   command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 1; }
 done
 if ((use_cgroup)); then
@@ -170,7 +172,68 @@ if [[ ! $agent_ballast_mib =~ ^[0-9]+$ || $agent_ballast_mib -gt 2048 ]]; then
   exit 2
 fi
 
-run_dir=$(mktemp -d -p tmp proxy-qualification.XXXXXX)
+if [[ -n $raw_dir ]]; then
+  mkdir -p "$raw_dir"
+  [[ -z $(find "$raw_dir" -mindepth 1 -maxdepth 1 -print -quit) ]] || {
+    echo "--raw-dir must be empty: $raw_dir" >&2
+    exit 2
+  }
+  run_dir=$(realpath "$raw_dir")
+else
+  run_dir=$(mktemp -d -p tmp proxy-qualification.XXXXXX)
+  run_dir=$(realpath "$run_dir")
+fi
+printf 'raw=%s\n' "$run_dir"
+# Install the status trap before builds and endpoint startup so failed attempts
+# retain their identity even when no accepted result row was produced.
+children=()
+stops=()
+containers=()
+declare -A process_containers=()
+cleanup() {
+  local status=$? pid deadline emergency=false
+  trap - EXIT
+  set +e
+  for stop in "${stops[@]}"; do touch "$stop"; done
+  # Reaching EXIT with any unvalidated process is not a successful join,
+  # even if an emergency TERM or container removal finishes promptly.
+  if ((${#children[@]} || ${#containers[@]})); then
+    emergency=true
+    ((status != 0)) || status=1
+  fi
+  for pid in "${children[@]}"; do kill "$pid" 2>/dev/null; done
+  if ((${#containers[@]})); then
+    # One bounded batch keeps even the 33-container standing cohort inside
+    # the outer wrapper's twenty-second emergency-cleanup grace period.
+    timeout -k 1 10 docker rm -f "${containers[@]}" >/dev/null 2>&1
+  fi
+  deadline=$((SECONDS + 2))
+  for pid in "${children[@]}"; do
+    while kill -0 "$pid" 2>/dev/null && ((SECONDS < deadline)); do sleep 0.05; done
+    if kill -0 "$pid" 2>/dev/null; then
+      kill -KILL "$pid" 2>/dev/null
+      ((status != 0)) || status=1
+    fi
+  done
+  deadline=$((SECONDS + 2))
+  for pid in "${children[@]}"; do
+    while kill -0 "$pid" 2>/dev/null && ((SECONDS < deadline)); do sleep 0.05; done
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "qualification process $pid did not join during emergency cleanup" >&2
+      ((status != 0)) || status=1
+    else
+      wait "$pid" 2>/dev/null
+    fi
+  done
+  if ! printf '{"exit_status":%d,"emergency_cleanup":%s}\n' "$status" "$emergency" >"$run_dir/status.json.tmp" ||
+      ! mv "$run_dir/status.json.tmp" "$run_dir/status.json"; then
+    ((status != 0)) || status=1
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 mkdir -p "$run_dir/results"
 if [[ -z $candidate_binary ]]; then
   candidate_binary="$run_dir/server-candidate.test"
@@ -205,25 +268,6 @@ openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
   -subj /CN=public.test -days 1 -keyout "$key" -out "$cert" >/dev/null 2>&1
 awk '1' "$key" "$cert" > "$bundle"
 
-children=()
-stops=()
-containers=()
-cleanup() {
-  for stop in "${stops[@]:-}"; do
-    [[ -n $stop ]] && touch "$stop"
-  done
-  for pid in "${children[@]:-}"; do
-    [[ -n $pid ]] && kill "$pid" 2>/dev/null || true
-  done
-  for container in "${containers[@]:-}"; do
-    [[ -n $container ]] && docker kill "$container" >/dev/null 2>&1 || true
-  done
-  wait || true
-}
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
-
 wait_ready() {
   local file=$1 pid=$2
   local deadline=$((SECONDS + 20))
@@ -254,7 +298,7 @@ start_test_process() {
   if [[ $role == proxy || $role == proxy-external-agent || $role == agent-external ]] && ((use_cgroup)); then
     process_container="p2pstream-qualification-${name//[^a-zA-Z0-9_.-]/-}-$$"
     containers+=("$process_container")
-    docker run --rm --name "$process_container" --network host \
+    docker run --name "$process_container" --network host \
       --user "$(id -u):$(id -g)" \
       --memory 4g --memory-swap 4g --cpuset-cpus "$role_cpu_set" --pids-limit 8192 \
       --mount "type=bind,source=$binary,target=/server.test,readonly" \
@@ -309,6 +353,7 @@ start_test_process() {
   fi
   process_pid=$!
   children+=("$process_pid")
+  process_containers[$process_pid]=$process_container
   stops+=("$stop")
   wait_ready "$ready" "$process_pid"
   process_sample_pid=$process_pid
@@ -319,18 +364,80 @@ start_test_process() {
   process_stop=$stop
 }
 
+record_process_exit() {
+  local pid=$1 stop=$2 forced=$3 status=$4 container=$5 state=$6 verified=$7
+  jq -nc --argjson pid "$pid" --argjson forced "$forced" --argjson status "$status" \
+    --arg container "$container" --argjson state "$state" --argjson verified "$verified" \
+    '{pid:$pid,container:$container,forced_cleanup:$forced,shell_exit_status:$status,
+      container_state:$state,natural_exit_verified:$verified}' >"$stop.exit.json.tmp" || return 1
+  mv "$stop.exit.json.tmp" "$stop.exit.json"
+}
+
 stop_process() {
-  local pid=$1 stop=$2
+  local pid=$1 stop=$2 forced=false status container state=null verified=false deadline
+  container=${process_containers[$pid]:-}
   touch "$stop"
-  local deadline=$((SECONDS + 10))
+  deadline=$((SECONDS + 10))
   while kill -0 "$pid" 2>/dev/null; do
     if ((SECONDS >= deadline)); then
+      forced=true
+      [[ -z $container ]] || timeout -k 1 5 docker kill "$container" >/dev/null 2>&1 || true
       kill "$pid" 2>/dev/null || true
       break
     fi
     sleep 0.05
   done
-  wait "$pid" 2>/dev/null || true
+  if [[ $forced == true ]]; then
+    deadline=$((SECONDS + 2))
+    while kill -0 "$pid" 2>/dev/null && ((SECONDS < deadline)); do sleep 0.05; done
+    kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null || true
+    deadline=$((SECONDS + 2))
+    while kill -0 "$pid" 2>/dev/null && ((SECONDS < deadline)); do sleep 0.05; done
+    if kill -0 "$pid" 2>/dev/null; then
+      record_process_exit "$pid" "$stop" true null "$container" null false || return 1
+      echo "qualification process $pid did not join after forced cleanup" >&2
+      return 1
+    fi
+  fi
+  if wait "$pid" 2>/dev/null; then status=0; else status=$?; fi
+  # Completed children must not be signaled again by EXIT cleanup (PID reuse).
+  local index
+  for index in "${!children[@]}"; do
+    [[ ${children[$index]} != "$pid" ]] || unset 'children[index]'
+  done
+  if [[ -n $container ]]; then
+    # docker run's client exit alone is not proof of the container's exit.
+    if state=$(timeout -k 1 5 docker inspect --format '{{json .State}}' "$container") &&
+        jq -e 'type == "object"' <<<"$state" >/dev/null; then
+      if jq -e '.Running == false and .ExitCode == 0 and .OOMKilled == false' <<<"$state" >/dev/null; then
+        verified=true
+      fi
+    else
+      state=null
+    fi
+  else
+    verified=true
+  fi
+  if [[ $forced == true ]] || ((status != 0)); then verified=false; fi
+  record_process_exit "$pid" "$stop" "$forced" "$status" "$container" "$state" "$verified" || return 1
+  if [[ $forced == true ]]; then
+    echo "qualification process $pid required forced cleanup (status $status)" >&2
+    return 1
+  fi
+  if ((status != 0)); then
+    echo "qualification process $pid exited with status $status during natural cleanup" >&2
+    return "$status"
+  fi
+  if [[ $verified != true ]]; then
+    echo "qualification container $container did not exit naturally with zero status: $state" >&2
+    return 1
+  fi
+  if [[ -n $container ]]; then
+    timeout -k 1 5 docker rm "$container" >/dev/null || return 1
+    for index in "${!containers[@]}"; do
+      [[ ${containers[$index]} != "$container" ]] || unset 'containers[index]'
+    done
+  fi
 }
 
 start_test_process "$driver_binary" origin origin
@@ -425,6 +532,34 @@ run_load() {
     taskset -c "$load_cpu_set" "$driver_binary" -test.run '^TestProxyQualificationLoad$' -test.timeout 10m \
     >"$result.log" 2>&1
   if [[ -n $external_expected_mode ]]; then
+    # Python preserves JSON integer types; jq's numeric comparisons alone
+    # would also accept floats such as 0.0 for integer telemetry counters.
+    python3 - "$result" "$use_cgroup" <<'PYCONTRACT'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    row = json.load(source)
+def count(value):
+    return type(value) is int and value >= 0
+for key in ("attempted", "useful_completed", "errors", "persisted_event_delta",
+            "dropped_event_delta", "event_queue_after_drain"):
+    if not count(row.get(key)):
+        raise SystemExit(f"missing or invalid integer telemetry: {key}")
+classes = row.get("status_classes")
+if not isinstance(classes, dict) or not all(
+        key in {"1xx", "2xx", "3xx", "4xx", "5xx"} and count(value)
+        for key, value in classes.items()):
+    raise SystemExit("missing or invalid response status classes")
+if row.get("event_drain_error") != "":
+    raise SystemExit("missing or nonempty event_drain_error")
+if sys.argv[2] == "1":
+    for process in [row.get("server_process"), *row.get("agent_processes", [])]:
+        if not isinstance(process, dict) or any(
+                type(process.get(key)) is not int or process[key] != 0
+                for key in ("oom_delta", "oom_kill_delta")):
+            raise SystemExit("missing or nonzero integer cgroup OOM deltas")
+PYCONTRACT
     if ! jq -e \
       --arg mode "$external_expected_mode" \
       --arg scenario "$scenario" \
@@ -436,9 +571,14 @@ run_load() {
         # A failed physical accept has no HTTP request event. Only this explicit
         # diagnostic may continue to same-process recovery after such a miss.
         # Recorder, memory, lane and recovery checks remain mandatory.
+        def count: type == "number" and . >= 0 and floor == .;
+        def zero: count and . == 0;
+        def response_classes:
+          type == "object" and
+          all(to_entries[]; (.key | test("^[1-5]xx$")) and (.value | count));
         def classified_pre_http_events:
-          (((.status_classes // {}) | [.[]] | add) // 0) as $responses |
-          (.persisted_event_delta // 0) as $persisted |
+          (([.status_classes[]] | add) // 0) as $responses |
+          (.persisted_event_delta) as $persisted |
           (((.admission_rejections.public_connection_resource // 0) +
             (.admission_rejections.public_connection_limit // 0))) as $early |
           $boundary_diagnostics == 1 and ($scenario | startswith("capacity-")) and
@@ -451,12 +591,16 @@ run_load() {
             .flow_control == $mode and
             .control_connected == true and
             (.bulk_sessions // 0) == $bulk);
-        (.attempted > 0) and
+        (.attempted | count) and (.attempted > 0) and
+        (.useful_completed | count) and (.errors | count) and
+        (.persisted_event_delta | count) and
+        (.status_classes | response_classes) and
+        ((([.status_classes[]] | add) // 0) == .attempted or classified_pre_http_events) and
         (.event_stats_captured == true) and
         ((.persisted_event_delta == .attempted) or classified_pre_http_events) and
-        ((.dropped_event_delta // 0) == 0) and
-        ((.event_queue_after_drain // 0) == 0) and
-        ((.event_drain_error // "") == "") and
+        (.dropped_event_delta | zero) and
+        (.event_queue_after_drain | zero) and
+        (.event_drain_error == "") and
         (.agent_tunnels_initial | tunnel_shape) and
         (.agent_tunnels_high_water | tunnel_shape) and
         (.agent_tunnels_final | tunnel_shape) and
@@ -466,21 +610,22 @@ run_load() {
         (if ($scenario | startswith("capacity-")) then true else
           (.useful_completed == .attempted) and
           (.errors == 0) and
+          (.status_classes["2xx"] == .attempted) and
           ([.status_classes | to_entries[] | select(.key != "2xx" and .value != 0)] | length == 0)
         end) and
         (if $constrained == 1 then
           (.server_process.container | length > 0) and
           (.server_process.cgroup_memory_max_bytes == 4294967296) and
           (.server_process.cgroup_memory_events_captured == true) and
-          ((.server_process.oom_delta // 0) == 0) and
-          ((.server_process.oom_kill_delta // 0) == 0) and
+          (.server_process.oom_delta | zero) and
+          (.server_process.oom_kill_delta | zero) and
           (.agent_processes | length == $agents) and
           (all(.agent_processes[];
             (.container | length > 0) and
             .cgroup_memory_max_bytes == 4294967296 and
             .cgroup_memory_events_captured == true and
-            ((.oom_delta // 0) == 0) and
-            ((.oom_kill_delta // 0) == 0))) and
+            (.oom_delta | zero) and
+            (.oom_kill_delta | zero))) and
           ([.server_process.cgroup_inode] + [.agent_processes[].cgroup_inode] |
             all(.[]; . > 0) and (unique | length == ($agents + 1)))
         else true end)
@@ -1097,8 +1242,10 @@ PY
     run_load "haproxy-3.2.9" "direct-control" "https://127.0.0.1:$port" "" "$pid" "$scenario_row" "$sequence"
     [[ $scenario_row == capacity-* ]] && sleep 0.5
   done
-  kill "$pid" 2>/dev/null || true
-  wait "$pid" 2>/dev/null || true
+  # HAProxy has no stop-file protocol. SIGUSR1 requests a graceful soft stop;
+  # its actual zero exit is still required by the same bounded join contract.
+  kill -USR1 "$pid" 2>/dev/null || true
+  stop_process "$pid" "$run_dir/haproxy-$iteration.stop"
 }
 
 run_stdlib_control() {

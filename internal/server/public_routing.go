@@ -906,9 +906,25 @@ func (a *App) dialViaAgentWithCapacity(
 		controlCtx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
 		var ok bool
 		releaseControl, ok = agent.acquireControlStream(controlCtx)
+		controlErr := controlCtx.Err()
 		cancel()
 		if !ok {
-			return nil, agentDialError{Kind: "server_capacity", Err: "agent control stream capacity reached"}
+			// Match trusted-health stream-capacity semantics: monitor cancellation
+			// remains cancellation, while deadline expiry remains health capacity.
+			if ctx != nil && errors.Is(ctx.Err(), context.Canceled) {
+				return nil, ctx.Err()
+			}
+			select {
+			case <-agent.Done:
+				return nil, errAgentDisconnected
+			default:
+			}
+			if controlErr == nil {
+				controlErr = errors.New("agent control stream capacity reached")
+			} else {
+				controlErr = fmt.Errorf("agent control stream capacity reached: %w", controlErr)
+			}
+			return nil, agentStreamCapacityDialError(ctx, class, controlErr)
 		}
 		controlOwned = true
 		defer func() {
