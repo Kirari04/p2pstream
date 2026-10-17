@@ -1,0 +1,180 @@
+{
+  "arm": "h1",
+  "fixed_outcome": {
+    "conditioning": true,
+    "correctness": true,
+    "download_floor_every_phase": false,
+    "failure": "retained sequence 9 is below the fixed floor",
+    "floor_bytes_per_second": 29700000,
+    "natural_closure": true,
+    "retained_minimum_bytes_per_second": 29673138.349552546,
+    "steady_minimum_bytes_per_second": 30266590.300495118
+  },
+  "input_sha256": {
+    "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h1/attestation.json": "75c14bc1425d44956d48a650d0f710d4d88b96d8727cf93ecbd218766e18b467",
+    "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h1/raw-post-join-supervisor-validation.json": "1e1e743d6ed0e4664849320b28a3ba6a3d72fb683994e70cdd72f5bbf9a6dfac",
+    "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h1/results.jsonl": "170f8ba9bbbbd6c84a40160ff4750260425cfa4bbaeceaf2340b56c7d2655c3c",
+    "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h1/results.lifecycle.jsonl": "c14b1d4babe467bb27c06591973709cd85cc6fd8010539d326fc57742a6de1b2",
+    "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h1/results.sender-wait-records.jsonl": "c68a76c67aa608be8d2ea00cf4fe6e5a3e35492125db2222b139e804d259ea98",
+    "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h1/results.summary.json": "530015f6b0ea868dd500554a472c0a92910ed68da8225d85a7fdaa5e3c2ff487"
+  },
+  "interpretation": [
+    "All four selected H1 intervals have exact sender/raw/server-growth ownership joins, conservation, zero growth drops, and natural final closure.",
+    "Contained temporal raw-write occupancy accounts for nearly all measured physical DATA Write duration; TLS residual is about 108-113 ms per selected transfer. This does not identify kernel TCP wait or delivery.",
+    "Sequences 9, 11, and 14 show byte/stream credit waits and receive-limit growth. Same-direction retained sequence 15 has zero credit wait and no growth publication, confirming a warm receive-credit history on that stream.",
+    "The floor-failing sequence 9 and lowest steady sequence 14 each combine about 1.1-1.18 s credit wait with about 7.23-7.25 s contained raw occupancy. Faster sequence 11 has less of both. This localizes two contributors but does not establish either as the causal protocol discrepancy.",
+    "Server upstream Read dominates downstream Write in each row. Server copy and agent sender clocks/boundaries differ, so their durations are descriptive and are not added or subtracted."
+  ],
+  "review_completed": true,
+  "run_accepted": false,
+  "schema_version": 1,
+  "selected_intervals": [
+    {
+      "bytes_per_second": 29673138.349552546,
+      "completion_select_ns": 7396874442,
+      "compound_tuple_join": true,
+      "contained_raw_calls": 23663,
+      "contained_raw_write_ns": 7231812272,
+      "copy_downstream_write_ns": 324996936,
+      "copy_upstream_read_ns": 8295062653,
+      "credit_wait_by_cause_ns": {
+        "byte_zero": 950137458,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 234070529,
+        "stream_and_session_allocation_zero": 0
+      },
+      "credit_wait_ns": 1184207987,
+      "frames": 8366,
+      "growth_dropped_events": 0,
+      "growth_event_count": 104,
+      "growth_outcomes": {
+        "grown": 12,
+        "no_proposal": 92
+      },
+      "idle_ns": null,
+      "lane": 1,
+      "outside_raw_calls": 15,
+      "physical_write_ns": 7344482357,
+      "post_receive_limit": 24641536,
+      "reuse_kind": "first-post-close-visit",
+      "reuse_satisfied": true,
+      "same_origin_connection": null,
+      "sequence": 9,
+      "stage": "retained-warmup",
+      "straddling_raw_calls": 0,
+      "stream_id": 6,
+      "tls_residual_ns": 112670085,
+      "wall_seconds": 9.046412713
+    },
+    {
+      "bytes_per_second": 34122144.07280422,
+      "completion_select_ns": 6527169306,
+      "compound_tuple_join": true,
+      "contained_raw_calls": 23507,
+      "contained_raw_write_ns": 6362647154,
+      "copy_downstream_write_ns": 314723112,
+      "copy_upstream_read_ns": 7207332707,
+      "credit_wait_by_cause_ns": {
+        "byte_zero": 710928447,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 159180462,
+        "stream_and_session_allocation_zero": 0
+      },
+      "credit_wait_ns": 870108909,
+      "frames": 8479,
+      "growth_dropped_events": 0,
+      "growth_event_count": 89,
+      "growth_outcomes": {
+        "grown": 10,
+        "no_proposal": 79
+      },
+      "idle_ns": null,
+      "lane": 3,
+      "outside_raw_calls": 14,
+      "physical_write_ns": 6474842846,
+      "post_receive_limit": 24051712,
+      "reuse_kind": "first-post-close-visit",
+      "reuse_satisfied": true,
+      "same_origin_connection": null,
+      "sequence": 11,
+      "stage": "steady",
+      "straddling_raw_calls": 0,
+      "stream_id": 6,
+      "tls_residual_ns": 112195692,
+      "wall_seconds": 7.866898851
+    },
+    {
+      "bytes_per_second": 30266590.300495118,
+      "completion_select_ns": 7408997391,
+      "compound_tuple_join": true,
+      "contained_raw_calls": 24578,
+      "contained_raw_write_ns": 7245085343,
+      "copy_downstream_write_ns": 324488915,
+      "copy_upstream_read_ns": 8308764742,
+      "credit_wait_by_cause_ns": {
+        "byte_zero": 1026625605,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 79461086,
+        "stream_and_session_allocation_zero": 0
+      },
+      "credit_wait_ns": 1106086691,
+      "frames": 8204,
+      "growth_dropped_events": 0,
+      "growth_event_count": 102,
+      "growth_outcomes": {
+        "grown": 12,
+        "no_proposal": 90
+      },
+      "idle_ns": 24750717005,
+      "lane": 2,
+      "outside_raw_calls": 12,
+      "physical_write_ns": 7357957367,
+      "post_receive_limit": 24772608,
+      "reuse_kind": "same-key-revisit",
+      "reuse_satisfied": true,
+      "same_origin_connection": true,
+      "sequence": 14,
+      "stage": "steady",
+      "straddling_raw_calls": 0,
+      "stream_id": 6,
+      "tls_residual_ns": 112872024,
+      "wall_seconds": 8.869035241
+    },
+    {
+      "bytes_per_second": 34876885.34631088,
+      "completion_select_ns": 7325195004,
+      "compound_tuple_join": true,
+      "contained_raw_calls": 24578,
+      "contained_raw_write_ns": 7167128940,
+      "copy_downstream_write_ns": 313932949,
+      "copy_upstream_read_ns": 7120169793,
+      "credit_wait_by_cause_ns": {
+        "byte_zero": 0,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 0,
+        "stream_and_session_allocation_zero": 0
+      },
+      "credit_wait_ns": 0,
+      "frames": 8229,
+      "growth_dropped_events": 0,
+      "growth_event_count": 86,
+      "growth_outcomes": {
+        "no_proposal": 86
+      },
+      "idle_ns": 25971743468,
+      "lane": 3,
+      "outside_raw_calls": 10,
+      "physical_write_ns": 7275583548,
+      "post_receive_limit": 24051712,
+      "reuse_kind": "same-key-revisit",
+      "reuse_satisfied": true,
+      "same_origin_connection": true,
+      "sequence": 15,
+      "stage": "steady",
+      "straddling_raw_calls": 0,
+      "stream_id": 6,
+      "tls_residual_ns": 108454608,
+      "wall_seconds": 7.696657925
+    }
+  ]
+}

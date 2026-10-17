@@ -1,0 +1,13 @@
+{
+  "classification": "complete-rejected-performance-cohort",
+  "file_count": 271,
+  "limitations": [
+    "This freeze binds the complete local run tree by path and SHA-256 but does not copy its bytes.",
+    "The run contains a generated private TLS key, readiness/state files, and raw endpoint logs; those remain local and are excluded from any later tracked export."
+  ],
+  "raw_bytes_copied": false,
+  "run_root": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2",
+  "schema_version": 1,
+  "sensitive_bytes_copied": false,
+  "total_bytes": 7841921
+}

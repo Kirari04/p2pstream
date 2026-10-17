@@ -641,7 +641,7 @@ resource groups clean up naturally. The observer separates DATA payload,
 Yamux-framed plaintext submitted to `conn.Write`, and the elapsed call into the
 TLS-wrapped transport; ciphertext bytes, delivery, TCP completion and NIC
 completion are unmeasured. A mapped read-only stream-lifetime analysis finds
-zero sender credit wait on the same-direction retained H2 stream at sequence
+zero sender credit wait on the same-direction reused steady H2 stream at sequence
 15 and positive waits on direction-cold sequences 9, 11 and 14. The available
 growth history covers the agent receive side in the opposite direction, while
 a time-aligned server receiver growth and credit record is absent. These
@@ -651,6 +651,20 @@ gates remain open. See the
 [sender observer evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-sender-wait-observer/README.md)
 and the
 [matched sender integration evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-sender-wait-integration/README.md).
+
+The follow-up below-TLS/server-growth cohort completes another 32 exact
+status-200 transfers with the requested H1/H2 protocol and natural cleanup.
+H1 still fails the fixed floor at 29.673138 MB/s retained, without rounding to
+a pass. H2 fails at 27.473338 MB/s retained and 27.517686 MB/s steady. All eight
+selected sender, below-TLS raw-write and server-growth intervals pass compound
+identity, containment, byte/count/duration conservation and drop checks. The
+direction-cold H2 rows associate lower throughput with a credit-window ramp and
+positive sender wait, while the same-direction reused steady sequence 15 has no
+selected wait and passes. This association does not establish whether credit
+state causes the delay or reflects progress during it; peer update and wake
+timing remain unmeasured. No production defect, runtime fix or policy change is
+established, and the original WAN and remaining qualification gates stay open.
+See the [below-TLS/server-growth evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-below-tls-server-growth/README.md).
 
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while

@@ -1,0 +1,808 @@
+{
+  "accepted": true,
+  "independent_validation": {
+    "accepted": true,
+    "issues": [],
+    "mode": "final-closure",
+    "schema_version": 1
+  },
+  "issues": [],
+  "record": {
+    "agent_natural_join_status": 0,
+    "diagnostic": "raw-write-final-closure",
+    "schema_version": 1,
+    "terminal_artifact": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h2/results.sender-wait-controls/final-raw-write-terminal.json",
+      "sha256": "d049f99e508e07b5c03436360bb63ec294f2fd260702a35af8798cd751837531",
+      "size": 12913
+    },
+    "terminal_file_status": 0,
+    "valid": true,
+    "validation_artifact": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h2/results.sender-wait-controls/final-raw-write-validation.json",
+      "sha256": "a04c0ef249f64a5cc75b3d9e041fe623533cd26e33c08051c0c90bd54d98a688",
+      "size": 89
+    },
+    "validation_status": 0
+  },
+  "saved_validation": {
+    "accepted": true,
+    "issues": [],
+    "mode": "final-closure",
+    "schema_version": 1
+  },
+  "schema_version": 1,
+  "terminal": {
+    "complete": true,
+    "expected_sessions": 5,
+    "invalid": false,
+    "records": [
+      {
+        "aggregate": true,
+        "lane": 0,
+        "raw_write_activity": {
+          "active_envelopes": 0,
+          "active_raw_writes": 0,
+          "ambiguous": false,
+          "bound": true,
+          "boundary_active_raw_writes": 0,
+          "boundary_outside_completions": 0,
+          "close_observed": true,
+          "complete": true,
+          "contained": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "contained_raw_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "enabled": true,
+          "envelope_count": 0,
+          "envelope_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "envelope_overlaps": 0,
+          "envelope_payload_bytes": 0,
+          "envelope_wire_bytes": 0,
+          "envelope_zero_raw_calls": 0,
+          "generation": 1,
+          "lane": 0,
+          "local_address": "10.212.0.2:43666",
+          "maximum_active_raw_writes": 1,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "outside": {
+            "attempt_bytes": 24,
+            "calls": 1,
+            "duration": {
+              "count": 1,
+              "max_nanoseconds": 31871,
+              "total_nanoseconds": 31871
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 24,
+            "success_calls": 1,
+            "success_duration": {
+              "count": 1,
+              "max_nanoseconds": 31871,
+              "total_nanoseconds": 31871
+            },
+            "success_written_bytes": 24,
+            "written_bytes": 24
+          },
+          "overflow": false,
+          "owner_generation_changes": 0,
+          "remote_address": "10.211.0.1:39691",
+          "reset_performed": true,
+          "residual_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "schema_version": 1,
+          "session_joined": true,
+          "straddling": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "stream_observed": false
+        },
+        "session_identity": "0x20ad0044eb08"
+      },
+      {
+        "aggregate": true,
+        "lane": 1,
+        "raw_write_activity": {
+          "active_envelopes": 0,
+          "active_raw_writes": 0,
+          "ambiguous": false,
+          "bound": true,
+          "boundary_active_raw_writes": 0,
+          "boundary_outside_completions": 0,
+          "close_observed": true,
+          "complete": true,
+          "contained": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "contained_raw_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "enabled": true,
+          "envelope_count": 0,
+          "envelope_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "envelope_overlaps": 0,
+          "envelope_payload_bytes": 0,
+          "envelope_wire_bytes": 0,
+          "envelope_zero_raw_calls": 0,
+          "generation": 5,
+          "lane": 1,
+          "local_address": "10.212.0.2:37134",
+          "maximum_active_raw_writes": 1,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "outside": {
+            "attempt_bytes": 24,
+            "calls": 1,
+            "duration": {
+              "count": 1,
+              "max_nanoseconds": 25670,
+              "total_nanoseconds": 25670
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 24,
+            "success_calls": 1,
+            "success_duration": {
+              "count": 1,
+              "max_nanoseconds": 25670,
+              "total_nanoseconds": 25670
+            },
+            "success_written_bytes": 24,
+            "written_bytes": 24
+          },
+          "overflow": false,
+          "owner_generation_changes": 0,
+          "remote_address": "10.211.0.1:39691",
+          "reset_performed": true,
+          "residual_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "schema_version": 1,
+          "session_joined": true,
+          "straddling": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "stream_observed": false
+        },
+        "session_identity": "0x20ad0044fb88"
+      },
+      {
+        "aggregate": true,
+        "lane": 2,
+        "raw_write_activity": {
+          "active_envelopes": 0,
+          "active_raw_writes": 0,
+          "ambiguous": false,
+          "bound": true,
+          "boundary_active_raw_writes": 0,
+          "boundary_outside_completions": 0,
+          "close_observed": true,
+          "complete": true,
+          "contained": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "contained_raw_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "enabled": true,
+          "envelope_count": 0,
+          "envelope_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "envelope_overlaps": 0,
+          "envelope_payload_bytes": 0,
+          "envelope_wire_bytes": 0,
+          "envelope_zero_raw_calls": 0,
+          "generation": 2,
+          "lane": 2,
+          "local_address": "10.212.0.2:37092",
+          "maximum_active_raw_writes": 1,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "outside": {
+            "attempt_bytes": 58,
+            "calls": 2,
+            "duration": {
+              "count": 2,
+              "max_nanoseconds": 29317,
+              "total_nanoseconds": 49316
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 58,
+            "success_calls": 2,
+            "success_duration": {
+              "count": 2,
+              "max_nanoseconds": 29317,
+              "total_nanoseconds": 49316
+            },
+            "success_written_bytes": 58,
+            "written_bytes": 58
+          },
+          "overflow": false,
+          "owner_generation_changes": 0,
+          "remote_address": "10.211.0.1:39691",
+          "reset_performed": true,
+          "residual_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "schema_version": 1,
+          "session_joined": true,
+          "straddling": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "stream_observed": false
+        },
+        "session_identity": "0x20ad0044f088"
+      },
+      {
+        "aggregate": true,
+        "lane": 3,
+        "raw_write_activity": {
+          "active_envelopes": 0,
+          "active_raw_writes": 0,
+          "ambiguous": false,
+          "bound": true,
+          "boundary_active_raw_writes": 0,
+          "boundary_outside_completions": 0,
+          "close_observed": true,
+          "complete": true,
+          "contained": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "contained_raw_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "enabled": true,
+          "envelope_count": 0,
+          "envelope_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "envelope_overlaps": 0,
+          "envelope_payload_bytes": 0,
+          "envelope_wire_bytes": 0,
+          "envelope_zero_raw_calls": 0,
+          "generation": 3,
+          "lane": 3,
+          "local_address": "10.212.0.2:37118",
+          "maximum_active_raw_writes": 1,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "outside": {
+            "attempt_bytes": 24,
+            "calls": 1,
+            "duration": {
+              "count": 1,
+              "max_nanoseconds": 78492,
+              "total_nanoseconds": 78492
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 24,
+            "success_calls": 1,
+            "success_duration": {
+              "count": 1,
+              "max_nanoseconds": 78492,
+              "total_nanoseconds": 78492
+            },
+            "success_written_bytes": 24,
+            "written_bytes": 24
+          },
+          "overflow": false,
+          "owner_generation_changes": 0,
+          "remote_address": "10.211.0.1:39691",
+          "reset_performed": true,
+          "residual_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "schema_version": 1,
+          "session_joined": true,
+          "straddling": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "stream_observed": false
+        },
+        "session_identity": "0x20ad00450c08"
+      },
+      {
+        "aggregate": true,
+        "lane": 4,
+        "raw_write_activity": {
+          "active_envelopes": 0,
+          "active_raw_writes": 0,
+          "ambiguous": false,
+          "bound": true,
+          "boundary_active_raw_writes": 0,
+          "boundary_outside_completions": 0,
+          "close_observed": true,
+          "complete": true,
+          "contained": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "contained_raw_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "enabled": true,
+          "envelope_count": 0,
+          "envelope_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "envelope_overlaps": 0,
+          "envelope_payload_bytes": 0,
+          "envelope_wire_bytes": 0,
+          "envelope_zero_raw_calls": 0,
+          "generation": 4,
+          "lane": 4,
+          "local_address": "10.212.0.2:37106",
+          "maximum_active_raw_writes": 1,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "outside": {
+            "attempt_bytes": 58,
+            "calls": 2,
+            "duration": {
+              "count": 2,
+              "max_nanoseconds": 80737,
+              "total_nanoseconds": 138329
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 58,
+            "success_calls": 2,
+            "success_duration": {
+              "count": 2,
+              "max_nanoseconds": 80737,
+              "total_nanoseconds": 138329
+            },
+            "success_written_bytes": 58,
+            "written_bytes": 58
+          },
+          "overflow": false,
+          "owner_generation_changes": 0,
+          "remote_address": "10.211.0.1:39691",
+          "reset_performed": true,
+          "residual_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "schema_version": 1,
+          "session_joined": true,
+          "straddling": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "stream_observed": false
+        },
+        "session_identity": "0x20ad0044f608"
+      }
+    ],
+    "schema_version": 1
+  },
+  "terminal_artifact": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h2/results.sender-wait-controls/final-raw-write-terminal.json",
+    "sha256": "d049f99e508e07b5c03436360bb63ec294f2fd260702a35af8798cd751837531",
+    "size": 12913
+  },
+  "validation_artifact": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h2/results.sender-wait-controls/final-raw-write-validation.json",
+    "sha256": "a04c0ef249f64a5cc75b3d9e041fe623533cd26e33c08051c0c90bd54d98a688",
+    "size": 89
+  }
+}

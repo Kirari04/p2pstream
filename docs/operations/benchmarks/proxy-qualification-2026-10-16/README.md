@@ -350,7 +350,7 @@ is natural and joined. The observer distinguishes DATA payload, Yamux-framed
 plaintext submitted to `conn.Write`, and elapsed time in the call into the
 TLS-wrapped transport; ciphertext bytes, delivery, TCP completion and NIC
 completion are unmeasured. A mapped read-only stream-lifetime analysis finds
-zero sender credit wait on the same-direction retained H2 stream at sequence
+zero sender credit wait on the same-direction reused steady H2 stream at sequence
 15 and positive waits on direction-cold sequences 9, 11 and 14. The available
 growth history is agent receive-side evidence in the opposite direction; no
 time-aligned server receiver growth or credit snapshot exists. These records
@@ -358,6 +358,19 @@ establish no cause, runtime fix or original WAN clearance. The HAProxy,
 pressure, capacity, integration, release and merge gates remain open. See the
 [sender observer source evidence](matched-verified-wan-sender-wait-observer/README.md)
 and [matched sender integration evidence](matched-verified-wan-sender-wait-integration/README.md).
+
+The follow-up below-TLS/server-growth diagnostic completes 32 exact status-200
+transfers with the requested H1/H2 protocol and natural cleanup. H1 remains a
+fixed-floor failure at 29.673138 MB/s retained; H2 fails at 27.473338 MB/s
+retained and 27.517686 MB/s steady. All eight selected sender, encrypted
+below-TLS write-buffer and server-growth intervals pass identity, containment,
+conservation and drop checks. Direction-cold H2 rows associate the slower
+transfers with credit-window growth and positive sender wait, while the
+same-direction reused steady sequence 15 records no selected wait and passes. The
+records do not distinguish cause from consequence because peer update and wake
+timing remain absent. They establish no production defect, runtime fix, policy
+change or WAN gate clearance. See the
+[below-TLS/server-growth evidence](matched-verified-wan-below-tls-server-growth/README.md).
 
 The earlier final-runtime checkpoint
 `dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response

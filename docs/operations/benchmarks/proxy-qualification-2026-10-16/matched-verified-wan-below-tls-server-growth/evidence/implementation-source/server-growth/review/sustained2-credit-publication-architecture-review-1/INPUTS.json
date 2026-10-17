@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "read_only": true,
+  "runtime_change": false,
+  "new_test_or_traffic": false,
+  "inputs": {
+    "sustained2_measurement_manifest_sha256": "41e2e449e73d8862e376afe9979f7c4619d8e771b38fbef7ccb80874d17ae93f",
+    "sustained2_measurement_review_sha256": "ef190586b6bf2db6659005578e0dc61caff7d7cca4f1b157842b31eb0dfaa119",
+    "prior_credit_lifecycle_review_sha256": "c2237c9d6a3045ddd120a3695e23806a2b8e3ff55962bb05fc84129b6ebb770d",
+    "prior_credit_lifecycle_supplement_sha256": "7abbb3c5cf94b5d0938703c38b8f4f0ee00035569d068ab1a3f1cc8f778dfc21",
+    "growing_conn_go_sha256": "c4db48b961c8a893acd5865dd0866dbd3b003966681363d84a732fa985fa0baf",
+    "receive_window_growth_go_sha256": "5954cf0472d92031945c2f8f1417488437ac640103dd927e9fcc390b5ef8f49d",
+    "yamux_aggregate_window_go_sha256": "799081a7c4ba7decc9f9e6996b0df487b9794166e02553a637550c89871fb04b",
+    "yamux_stream_go_sha256": "ca41e652f11bd545d533b8a857efea6929a5de3529ace0b2d7cecf8b964fd0db",
+    "yamux_rtt_go_sha256": "9c0959313b34e0fea3d65cba0185e49832ae018bb6fbbddea8e35e97246fd30e",
+    "prior_growth_trace_readme_sha256": "b6520d61102fa4f7cc8121b3cf0f54d8f2d2f0ee19abab7659f2a884f899c281"
+  }
+}

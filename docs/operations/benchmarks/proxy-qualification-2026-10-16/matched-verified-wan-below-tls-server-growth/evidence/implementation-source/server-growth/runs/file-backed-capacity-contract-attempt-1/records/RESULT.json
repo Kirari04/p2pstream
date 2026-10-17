@@ -1,0 +1,26 @@
+{
+  "accepted": true,
+  "direct_status": 0,
+  "endpoint_execution": false,
+  "natural_group_join": true,
+  "schema_version": 1,
+  "source_and_fixture_pre_post_equal": true,
+  "summary": {
+    "accepted": true,
+    "case_count": 5,
+    "cases": [
+      "small-old",
+      "small-new",
+      "large-new",
+      "malformed",
+      "missing"
+    ],
+    "large_pre_capacity_compact_response_bytes": 177178,
+    "large_pre_capacity_file_bytes": 262704,
+    "large_record_bytes": 778043,
+    "large_record_sha256": "d92a9d403a1444c3d0ed6db3866f768d6ae244ac612e8651a0cf4a0cf09b69fa",
+    "linux_max_arg_strlen_bytes": 131072,
+    "small_record_sha256": "f2c268e800163c155599d913cd63ea4a9049bce57cee42695b0805746e307b51"
+  },
+  "wan_traffic": false
+}

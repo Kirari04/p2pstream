@@ -1,0 +1,19 @@
+{
+  "accepted": false,
+  "artifact_kind": "immutable-failed-sustained-run-hash-inventory",
+  "classification": "invalid-partial-nine-row-run",
+  "failure": "jq argument list too long while serializing large sequence-9 capacity snapshots; original nonzero and forced-cleanup evidence remains authoritative.",
+  "file_count": 109,
+  "h1_persisted_rows": 9,
+  "h2_started": false,
+  "launcher_postflight_inputs_sha256": "aab434903f537d1f50e45eb9e728c7e3a0eb917b4d4ce6652f7cd49be0467354",
+  "launcher_preflight_inputs_sha256": "aab434903f537d1f50e45eb9e728c7e3a0eb917b4d4ce6652f7cd49be0467354",
+  "launcher_records_sha256": "6dc22c179548abde19d44d9b35966b4ee799c62d1507c446970e851ec17af730",
+  "run_ledger_sha256": "0d2b8fb2dd27f334f98fd37c98b1887385a6ea6b6ad3af5a2aff04f761e56181",
+  "run_relative_to_source_root": "final-integration-source/integration/runs/sustained-below-tls-1",
+  "schema_version": 1,
+  "secret_handling": "This inventory hashes every original file in place. It copies no run artifact bytes; private keys, databases, readiness files, endpoint logs, and transient state remain excluded from any planned tracked export.",
+  "source_checkpoint_manifest_sha256": "162ff6e8f6333560e8c89beb3eb2ff74452a55f30ab5593b3435e1e17f89c5aa",
+  "source_pre_post_equal": true,
+  "total_bytes": 3269589
+}

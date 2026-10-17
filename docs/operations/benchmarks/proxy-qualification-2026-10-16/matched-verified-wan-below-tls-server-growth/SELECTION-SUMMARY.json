@@ -1,0 +1,11 @@
+{
+  "archive_bytes": 192046363,
+  "archive_files": 2440,
+  "bytes": 193710890,
+  "files": 2482,
+  "loose_bytes": 1664527,
+  "loose_files": 42,
+  "schema_version": 1,
+  "secret_scan_accepted": true,
+  "secret_scan_hit_artifacts": 0
+}
