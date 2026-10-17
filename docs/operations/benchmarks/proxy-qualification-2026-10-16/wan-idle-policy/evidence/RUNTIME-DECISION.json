@@ -1,0 +1,13 @@
+{
+  "attempts": 1,
+  "frozen_five_effect_criteria_unchanged": true,
+  "grant_sha256": "f1b8c8553d576fe8314ca9135ba98446da9ad9a87f7e33a8ba18285ffa1eb8c3",
+  "granted_unix": 1792244910.10349,
+  "host_setting_changes_authorized": false,
+  "independent_saved_output_review": "Astra confirms no blocker after reviewing source40/original540, actual1/0/1 and protected1 readbacks, natural0 ownership and saved six-test proof. Kernel/build recheck accepted by root.",
+  "offline_proof_sha256": "5c7f892e6d3737688cccd56b1500ca842ae4c730124c43c9c1fa8c2a983502d0",
+  "preflight_sha256": "13bfaa00bbaee111d83371dae9b97053147a41f9ced469bc72d1976d17842730",
+  "probe_result_sha256": "f33ec030e558f93d1cd010f8416ee884f2ddf10603141817cc52795096a6c85a",
+  "production_changes": false,
+  "source_review_sha256": "45b592283024a1efda55472ea0a01a55189b265ea45f2edb57a38be7ca284ece"
+}

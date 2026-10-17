@@ -1,0 +1,41 @@
+{
+  "accepted": true,
+  "arm_states": [
+    {
+      "controller": "cubic",
+      "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0.decision.json",
+      "idle_policy": 1,
+      "index": 0,
+      "mature_outer_status": 1,
+      "state": "measurement-valid"
+    },
+    {
+      "controller": "cubic",
+      "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1.decision.json",
+      "idle_policy": 0,
+      "index": 1,
+      "mature_outer_status": 0,
+      "state": "measurement-valid"
+    },
+    {
+      "controller": "cubic",
+      "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2.decision.json",
+      "idle_policy": 1,
+      "index": 2,
+      "mature_outer_status": 1,
+      "state": "measurement-valid"
+    }
+  ],
+  "artifact_bytes": 76302095,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "comparison_incomplete": false,
+  "completed_arms": 3,
+  "diagnostic_positive": true,
+  "interpretation": "private namespace idle/application-limited cwnd-policy diagnostic only",
+  "original_qualification_cleared": false,
+  "schema_version": 1,
+  "stopped": false,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

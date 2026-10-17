@@ -1,0 +1,905 @@
+{
+  "arms": [
+    {
+      "arm_decision": {
+        "bytes": 2322333,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0.decision.json",
+        "sha256": "4de6817e27ff50f66130da531c6158b4cf1d6d4f85b4c046224c5a6455932bde"
+      },
+      "arm_statistics": {
+        "aggregate_active_transfer_rates": {
+          "all_postwarmup": 34295579.862038724,
+          "download": 32709486.22090443,
+          "upload": 36043332.81020383
+        },
+        "aggregate_upstream_read_ns": 29067345408,
+        "origin_outcome_counts": {
+          "fresh_replacement": 0,
+          "retained": 4
+        },
+        "original_download_floor_outcomes": {
+          "1": true,
+          "11": true,
+          "14": false,
+          "15": true,
+          "2": true,
+          "3": true,
+          "4": true,
+          "9": true
+        },
+        "pooled_bytes_per_second": 32709486.22090443,
+        "retained_downloads": [
+          {
+            "bytes_per_second": 33821444.47446148,
+            "downstream_write_ns": 587004383,
+            "handler_elapsed_ns": 7758073787,
+            "sequence": 9,
+            "stage": "retained-warmup",
+            "upstream_read_ns": 7002297145,
+            "wall_seconds": 7.936841852
+          },
+          {
+            "bytes_per_second": 34063875.07567942,
+            "downstream_write_ns": 607814301,
+            "handler_elapsed_ns": 7703170379,
+            "sequence": 11,
+            "stage": "steady",
+            "upstream_read_ns": 6845574509,
+            "wall_seconds": 7.880355814
+          },
+          {
+            "bytes_per_second": 28828442.063778426,
+            "downstream_write_ns": 678520614,
+            "handler_elapsed_ns": 9133815486,
+            "sequence": 14,
+            "stage": "steady",
+            "upstream_read_ns": 8367711193,
+            "wall_seconds": 9.311479802
+          },
+          {
+            "bytes_per_second": 34871072.211152956,
+            "downstream_write_ns": 582380108,
+            "handler_elapsed_ns": 7520846670,
+            "sequence": 15,
+            "stage": "steady",
+            "upstream_read_ns": 6851762561,
+            "wall_seconds": 7.697940986
+          }
+        ],
+        "revisit_outcome_counts": {
+          "satisfied": 4,
+          "total": 4,
+          "unsatisfied": 0
+        },
+        "total_measured_wall_seconds": {
+          "all_postwarmup": 62.616921966,
+          "download": 32.826618454,
+          "upload": 29.790303512
+        }
+      },
+      "attestation": {
+        "bytes": 2181316,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/attestation.json",
+        "sha256": "767cb9455a0404b2d615736e0bc0de89fc36325935be8c04f03b57fb0107ca60"
+      },
+      "canonical_idle_proofs": [
+        {
+          "bytes": 4937,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/idle-configured.json",
+          "sha256": "f620731730d67a67b27885727ceaf4a8ea6ab97ca74787ba056ff80b2cd9fd3c"
+        },
+        {
+          "bytes": 4404,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/idle-endpoints-endpoint-binding.json",
+          "sha256": "f4d994b72d9086b6b0425f3264e79f6574b8bee36fe04b7ff10a3a2bbf585b2f"
+        },
+        {
+          "bytes": 4401,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/idle-endpoints-post-workload.json",
+          "sha256": "11e5228fde79a9c021f72e4f5c9398e49fd131b14d8c1166c37d5fc2ec3c987e"
+        },
+        {
+          "bytes": 427,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/idle-host-pre.json",
+          "sha256": "ef8dc434e46a3aa2f8de804d794378457f522476e5c9abf50d74422e6f76c7e6"
+        },
+        {
+          "bytes": 428,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/idle-host-post.json",
+          "sha256": "f5db97a56e52b4d2165401cf5c98e0ed4d823ac2ae884c64caabf054d3afe444"
+        }
+      ],
+      "completed_transfer_rows": 16,
+      "controller": "cubic",
+      "host_pre_post_unchanged": true,
+      "host_value": 1,
+      "idle_policy": 1,
+      "independent_attestation": {
+        "bytes": 2181316,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/independent-controller-attestation.json",
+        "sha256": "767cb9455a0404b2d615736e0bc0de89fc36325935be8c04f03b57fb0107ca60"
+      },
+      "independent_attestation_exact_match": true,
+      "index": 0,
+      "mature_outcome": {
+        "accepted": false,
+        "conditioning_issues": [],
+        "integrity_issues": [],
+        "performance_issues": [
+          "steady download phase failed independent 29700000 B/s floor"
+        ]
+      },
+      "natural_endpoint_and_helper_exits": [
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-agent",
+          "pid": 224,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-server",
+          "pid": 190,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "origin",
+          "pid": 176,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "agent-namespace",
+          "pid": 51,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "router-namespace",
+          "pid": 56,
+          "status": 0
+        }
+      ],
+      "no_live_private_scope": true,
+      "output_present": true,
+      "pre_post_hashes_equal": true,
+      "private_namespace_ids": {
+        "mnt": [
+          "mnt:[4026533469]"
+        ],
+        "net": [
+          "net:[4026533472]",
+          "net:[4026533533]",
+          "net:[4026533919]",
+          "net:[4026534045]"
+        ],
+        "pid": [
+          "pid:[4026533470]"
+        ],
+        "user": [
+          "user:[4026533468]",
+          "user:[4026533918]"
+        ]
+      },
+      "remaining_private_namespace_processes": [],
+      "runner_value": 1,
+      "saved_state": {
+        "controller": "cubic",
+        "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0.decision.json",
+        "idle_policy": 1,
+        "index": 0,
+        "mature_outer_status": 1,
+        "state": "measurement-valid"
+      },
+      "scope_cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2629962-8b56926a.scope",
+      "scope_cgroup_exists": false,
+      "scope_limit": "point-in-time endpoint/helper observations; load scope source-derived, no observed load PID",
+      "scope_unit_closed": true,
+      "scope_unit_query": {
+        "status": 0,
+        "stderr": "",
+        "stdout": "LoadState=not-found\nActiveState=inactive\nSubState=dead\n"
+      },
+      "supervisor_lifecycle": {
+        "bytes": 510,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/supervisor-lifecycle.json",
+        "sha256": "bfbce83ec9dfbdd7a3fcecc6158c0d86dc843734e80c3b6547ec9de5b8bfbfae"
+      },
+      "target_value": 1
+    },
+    {
+      "arm_decision": {
+        "bytes": 1977148,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1.decision.json",
+        "sha256": "600f5ef7415d0c063e8cf4a79a55cd468d44579469584ad8527470008c41e394"
+      },
+      "arm_statistics": {
+        "aggregate_active_transfer_rates": {
+          "all_postwarmup": 35881925.068123154,
+          "download": 35913603.73340726,
+          "upload": 35850302.23980942
+        },
+        "aggregate_upstream_read_ns": 26356719696,
+        "origin_outcome_counts": {
+          "fresh_replacement": 0,
+          "retained": 4
+        },
+        "original_download_floor_outcomes": {
+          "1": true,
+          "11": true,
+          "14": true,
+          "15": true,
+          "2": true,
+          "3": true,
+          "4": true,
+          "9": true
+        },
+        "pooled_bytes_per_second": 35913603.73340726,
+        "retained_downloads": [
+          {
+            "bytes_per_second": 35233686.01320051,
+            "downstream_write_ns": 577451185,
+            "handler_elapsed_ns": 7441629262,
+            "sequence": 9,
+            "stage": "retained-warmup",
+            "upstream_read_ns": 6694398584,
+            "wall_seconds": 7.618716245
+          },
+          {
+            "bytes_per_second": 35334670.032672405,
+            "downstream_write_ns": 606529411,
+            "handler_elapsed_ns": 7431417435,
+            "sequence": 11,
+            "stage": "steady",
+            "upstream_read_ns": 6656297569,
+            "wall_seconds": 7.596942486
+          },
+          {
+            "bytes_per_second": 35632513.65796634,
+            "downstream_write_ns": 582977477,
+            "handler_elapsed_ns": 7355438905,
+            "sequence": 14,
+            "stage": "steady",
+            "upstream_read_ns": 6685543409,
+            "wall_seconds": 7.533441468
+          },
+          {
+            "bytes_per_second": 37549651.71338431,
+            "downstream_write_ns": 562345163,
+            "handler_elapsed_ns": 6969317782,
+            "sequence": 15,
+            "stage": "steady",
+            "upstream_read_ns": 6320480134,
+            "wall_seconds": 7.148813471
+          }
+        ],
+        "revisit_outcome_counts": {
+          "satisfied": 4,
+          "total": 4,
+          "unsatisfied": 0
+        },
+        "total_measured_wall_seconds": {
+          "all_postwarmup": 59.848618599,
+          "download": 29.89791367,
+          "upload": 29.950704929
+        }
+      },
+      "attestation": {
+        "bytes": 1853019,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/attestation.json",
+        "sha256": "01557f6d57ef6bac9ea3cf0d7f0e74a4ac331a9449180cb81424bb394ae8a86a"
+      },
+      "canonical_idle_proofs": [
+        {
+          "bytes": 4937,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/idle-configured.json",
+          "sha256": "2b55880fc11bbeff5328c16e02bf387f1ea753d8f3b01cb01cea9a8b0049167f"
+        },
+        {
+          "bytes": 4404,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/idle-endpoints-endpoint-binding.json",
+          "sha256": "3136f73f3876cfe8e7e43198be66444b26de25a92710906f3d65b778028bc036"
+        },
+        {
+          "bytes": 4401,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/idle-endpoints-post-workload.json",
+          "sha256": "d7b32b16d28531a493b00a0f7a07730f3864a802fef4b6f183a170d30d7e050f"
+        },
+        {
+          "bytes": 427,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/idle-host-pre.json",
+          "sha256": "b46081b24c2e85771f680f4eb4b38db6884fa989610762e667755c5270541f18"
+        },
+        {
+          "bytes": 428,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/idle-host-post.json",
+          "sha256": "ca289ced8be34be06945bb6cace93d655dba8cf6168ee6b4f272cd9fb17efd63"
+        }
+      ],
+      "completed_transfer_rows": 16,
+      "controller": "cubic",
+      "host_pre_post_unchanged": true,
+      "host_value": 1,
+      "idle_policy": 0,
+      "independent_attestation": {
+        "bytes": 1853019,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/independent-controller-attestation.json",
+        "sha256": "01557f6d57ef6bac9ea3cf0d7f0e74a4ac331a9449180cb81424bb394ae8a86a"
+      },
+      "independent_attestation_exact_match": true,
+      "index": 1,
+      "mature_outcome": {
+        "accepted": true,
+        "conditioning_issues": [],
+        "integrity_issues": [],
+        "performance_issues": []
+      },
+      "natural_endpoint_and_helper_exits": [
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-agent",
+          "pid": 225,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-server",
+          "pid": 190,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "origin",
+          "pid": 176,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "agent-namespace",
+          "pid": 51,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "router-namespace",
+          "pid": 56,
+          "status": 0
+        }
+      ],
+      "no_live_private_scope": true,
+      "output_present": true,
+      "pre_post_hashes_equal": true,
+      "private_namespace_ids": {
+        "mnt": [
+          "mnt:[4026533469]"
+        ],
+        "net": [
+          "net:[4026533472]",
+          "net:[4026533533]",
+          "net:[4026533919]",
+          "net:[4026534045]"
+        ],
+        "pid": [
+          "pid:[4026533470]"
+        ],
+        "user": [
+          "user:[4026533468]",
+          "user:[4026533918]"
+        ]
+      },
+      "remaining_private_namespace_processes": [],
+      "runner_value": 1,
+      "saved_state": {
+        "controller": "cubic",
+        "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1.decision.json",
+        "idle_policy": 0,
+        "index": 1,
+        "mature_outer_status": 0,
+        "state": "measurement-valid"
+      },
+      "scope_cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2633184-286d7cc1.scope",
+      "scope_cgroup_exists": false,
+      "scope_limit": "point-in-time endpoint/helper observations; load scope source-derived, no observed load PID",
+      "scope_unit_closed": true,
+      "scope_unit_query": {
+        "status": 0,
+        "stderr": "",
+        "stdout": "LoadState=not-found\nActiveState=inactive\nSubState=dead\n"
+      },
+      "supervisor_lifecycle": {
+        "bytes": 511,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/supervisor-lifecycle.json",
+        "sha256": "a83ea3f1e8fb2de37efa85f69ce4e295a0ad0ce18092fe6d21e79c7838390592"
+      },
+      "target_value": 0
+    },
+    {
+      "arm_decision": {
+        "bytes": 3835691,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2.decision.json",
+        "sha256": "1622b4b6be620a562597ce996536c813d99ec0a71a5e9fbce56d5b4d83a0c262"
+      },
+      "arm_statistics": {
+        "aggregate_active_transfer_rates": {
+          "all_postwarmup": 29004331.702182572,
+          "download": 24379630.2313184,
+          "upload": 35794352.41605286
+        },
+        "aggregate_upstream_read_ns": 39695710519,
+        "origin_outcome_counts": {
+          "fresh_replacement": 2,
+          "retained": 2
+        },
+        "original_download_floor_outcomes": {
+          "1": true,
+          "11": false,
+          "14": true,
+          "15": true,
+          "2": true,
+          "3": true,
+          "4": true,
+          "9": false
+        },
+        "pooled_bytes_per_second": 24379630.2313184,
+        "retained_downloads": [
+          {
+            "bytes_per_second": 27654869.541478366,
+            "downstream_write_ns": 736094603,
+            "handler_elapsed_ns": 9537630474,
+            "sequence": 9,
+            "stage": "retained-warmup",
+            "upstream_read_ns": 8632876424,
+            "wall_seconds": 9.706625287
+          },
+          {
+            "bytes_per_second": 14303924.908229139,
+            "downstream_write_ns": 934300207,
+            "handler_elapsed_ns": 18589663842,
+            "sequence": 11,
+            "stage": "steady",
+            "upstream_read_ns": 17483417518,
+            "wall_seconds": 18.766559369
+          },
+          {
+            "bytes_per_second": 34098699.89444565,
+            "downstream_write_ns": 650246429,
+            "handler_elapsed_ns": 7696629090,
+            "sequence": 14,
+            "stage": "steady",
+            "upstream_read_ns": 6796615067,
+            "wall_seconds": 7.872307649
+          },
+          {
+            "bytes_per_second": 34874936.277703926,
+            "downstream_write_ns": 653796555,
+            "handler_elapsed_ns": 7523425996,
+            "sequence": 15,
+            "stage": "steady",
+            "upstream_read_ns": 6782801510,
+            "wall_seconds": 7.697088071
+          }
+        ],
+        "revisit_outcome_counts": {
+          "satisfied": 2,
+          "total": 4,
+          "unsatisfied": 2
+        },
+        "total_measured_wall_seconds": {
+          "all_postwarmup": 74.040100977,
+          "download": 44.042580376,
+          "upload": 29.997520601
+        }
+      },
+      "attestation": {
+        "bytes": 3620727,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/attestation.json",
+        "sha256": "964df01759904056321018af429e368394319238b00c6b3887f76a605609cb8f"
+      },
+      "canonical_idle_proofs": [
+        {
+          "bytes": 4937,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/idle-configured.json",
+          "sha256": "dd870b7452516294cb0f6c31269102b153fc6cb1e46d5cbd567af0593303c9ef"
+        },
+        {
+          "bytes": 4404,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/idle-endpoints-endpoint-binding.json",
+          "sha256": "6e68d2f3995555c883c2e8313f9dc683297086a18a6557ddeb771c95501c896a"
+        },
+        {
+          "bytes": 4401,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/idle-endpoints-post-workload.json",
+          "sha256": "fe34bfc2218f8db8c03a9e1002da5cd5bf2d90c78823bcb530614950caa71947"
+        },
+        {
+          "bytes": 427,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/idle-host-pre.json",
+          "sha256": "50b78bcf9e02866187f1dd9379cb89022a10ae9a91b093b071e1f151bfdf033d"
+        },
+        {
+          "bytes": 428,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/idle-host-post.json",
+          "sha256": "9aeab65f30e47cc85618d4916c177f5687c8c5f0d8a359d63d9c54f99385580c"
+        }
+      ],
+      "completed_transfer_rows": 16,
+      "controller": "cubic",
+      "host_pre_post_unchanged": true,
+      "host_value": 1,
+      "idle_policy": 1,
+      "independent_attestation": {
+        "bytes": 3620727,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/independent-controller-attestation.json",
+        "sha256": "964df01759904056321018af429e368394319238b00c6b3887f76a605609cb8f"
+      },
+      "independent_attestation_exact_match": true,
+      "index": 2,
+      "mature_outcome": {
+        "accepted": false,
+        "conditioning_issues": [
+          "sequence 13 fully evidenced reuse/idle/origin conditioning was not retained",
+          "sequence 14 fully evidenced reuse/idle/origin conditioning was not retained"
+        ],
+        "integrity_issues": [],
+        "performance_issues": [
+          "retained-warmup download phase failed independent 29700000 B/s floor",
+          "steady download phase failed independent 29700000 B/s floor"
+        ]
+      },
+      "natural_endpoint_and_helper_exits": [
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-agent",
+          "pid": 226,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-server",
+          "pid": 190,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "origin",
+          "pid": 176,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "agent-namespace",
+          "pid": 51,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "router-namespace",
+          "pid": 56,
+          "status": 0
+        }
+      ],
+      "no_live_private_scope": true,
+      "output_present": true,
+      "pre_post_hashes_equal": true,
+      "private_namespace_ids": {
+        "mnt": [
+          "mnt:[4026533469]"
+        ],
+        "net": [
+          "net:[4026533472]",
+          "net:[4026533533]",
+          "net:[4026533919]",
+          "net:[4026534045]"
+        ],
+        "pid": [
+          "pid:[4026533470]"
+        ],
+        "user": [
+          "user:[4026533468]",
+          "user:[4026533918]"
+        ]
+      },
+      "remaining_private_namespace_processes": [],
+      "runner_value": 1,
+      "saved_state": {
+        "controller": "cubic",
+        "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2.decision.json",
+        "idle_policy": 1,
+        "index": 2,
+        "mature_outer_status": 1,
+        "state": "measurement-valid"
+      },
+      "scope_cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2636598-55076382.scope",
+      "scope_cgroup_exists": false,
+      "scope_limit": "point-in-time endpoint/helper observations; load scope source-derived, no observed load PID",
+      "scope_unit_closed": true,
+      "scope_unit_query": {
+        "status": 0,
+        "stderr": "",
+        "stdout": "LoadState=not-found\nActiveState=inactive\nSubState=dead\n"
+      },
+      "supervisor_lifecycle": {
+        "bytes": 510,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/supervisor-lifecycle.json",
+        "sha256": "bfbce83ec9dfbdd7a3fcecc6158c0d86dc843734e80c3b6547ec9de5b8bfbfae"
+      },
+      "target_value": 1
+    }
+  ],
+  "audit_accepted": true,
+  "audit_source": {
+    "bytes": 24438,
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-final-audit-20261017/final-audit.py",
+    "sha256": "3af0ae7df7cd82e3a3f615926e1f51a336cb0a75fd4175b29cc85e40881ae6cb"
+  },
+  "benchmark_reexecution": false,
+  "build_receipt": {
+    "bytes": 27809,
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/receipt.json",
+    "sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb"
+  },
+  "comparison_incomplete": false,
+  "completed_transfer_rows": 48,
+  "decision": {
+    "bytes": 8953241,
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/decision.json",
+    "sha256": "eadf5341a1ed7385800610460a037788328cbf5dd98605db95b5d4c9ccc5399d"
+  },
+  "decision_summary": {
+    "accepted": true,
+    "aggregate_upstream_read_ns": [
+      29067345408,
+      26356719696,
+      39695710519
+    ],
+    "candidate_pooled_ratio_to_faster_control": 1.097956827901965,
+    "candidate_pooled_ratios_to_each_control": [
+      1.097956827901965,
+      1.4730987874981043
+    ],
+    "candidate_rate_ratios_to_faster_corresponding_control": {
+      "11": 1.0373062358339933,
+      "14": 1.0449815907430104,
+      "15": 1.076694489543494,
+      "9": 1.0417558019973217
+    },
+    "control_pooled_ratio_0_to_2": 1.3416727780754192,
+    "controller_order": [
+      "cubic",
+      "cubic",
+      "cubic"
+    ],
+    "criteria": {
+      "aggregate_read_strictly_below_both_controls": true,
+      "candidate_all_original_download_floors": true,
+      "candidate_mature_performance_passed": true,
+      "each_retained_rate_at_least_95pct_faster_control": true,
+      "pooled_rate_at_least_108pct_faster_control": true
+    },
+    "diagnostic_positive": true,
+    "failed_criteria": [],
+    "interpretation": "fresh fixed-order1/0/1 private agent+origin namespace policy, affecting both idle restart and application-limited cwnd validation; unchanged classifier criteria; original mature outcomes preserved; no unique path/threshold creator, production tuning, originalWAN, HAProxy, parity, merge or release clearance",
+    "original_qualification_cleared": false,
+    "policy_order": [
+      1,
+      0,
+      1
+    ],
+    "pooled_bytes_per_second": [
+      32709486.22090443,
+      35913603.73340726,
+      24379630.2313184
+    ]
+  },
+  "diagnostic_positive": true,
+  "finished_unix": 1792245463.802342,
+  "input_changes": [],
+  "issues": [],
+  "named_netns_query": {
+    "status": 0,
+    "stderr": "",
+    "stdout": ""
+  },
+  "new_source_entries_checked": 40,
+  "no_additional_test_build_or_traffic": true,
+  "original_frozen_entries_checked": 540,
+  "original_qualification_cleared": false,
+  "outer_commands": [
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 0.7065169679990504,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-validation.outer.json",
+      "remaining_owned": [],
+      "status": 0
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 165.2769089360081,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0.outer.json",
+      "remaining_owned": [],
+      "status": 1
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 0.6610118729877286,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-validation.outer.json",
+      "remaining_owned": [],
+      "status": 0
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 154.15303045600012,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1.outer.json",
+      "remaining_owned": [],
+      "status": 0
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 0.8144025840010727,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-validation.outer.json",
+      "remaining_owned": [],
+      "status": 0
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 172.16689062699152,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2.outer.json",
+      "remaining_owned": [],
+      "status": 1
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 0.31882891499844845,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/screen-validation.outer.json",
+      "remaining_owned": [],
+      "status": 0
+    }
+  ],
+  "private_namespace_ids": {
+    "mnt": [
+      "mnt:[4026533469]"
+    ],
+    "net": [
+      "net:[4026533472]",
+      "net:[4026533533]",
+      "net:[4026533919]",
+      "net:[4026534045]"
+    ],
+    "pid": [
+      "pid:[4026533470]"
+    ],
+    "user": [
+      "user:[4026533468]",
+      "user:[4026533918]"
+    ]
+  },
+  "remaining_pid_start_identities": [],
+  "remaining_private_namespace_processes": [],
+  "runtime_grant": {
+    "bytes": 287,
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/RUNTIME-GRANT.json",
+    "sha256": "f1b8c8553d576fe8314ca9135ba98446da9ad9a87f7e33a8ba18285ffa1eb8c3"
+  },
+  "saved_screen_final": {
+    "accepted": true,
+    "arm_states": [
+      {
+        "controller": "cubic",
+        "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0.decision.json",
+        "idle_policy": 1,
+        "index": 0,
+        "mature_outer_status": 1,
+        "state": "measurement-valid"
+      },
+      {
+        "controller": "cubic",
+        "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1.decision.json",
+        "idle_policy": 0,
+        "index": 1,
+        "mature_outer_status": 0,
+        "state": "measurement-valid"
+      },
+      {
+        "controller": "cubic",
+        "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2.decision.json",
+        "idle_policy": 1,
+        "index": 2,
+        "mature_outer_status": 1,
+        "state": "measurement-valid"
+      }
+    ],
+    "artifact_bytes": 76302095,
+    "artifact_rejection_threshold_bytes": 268435456,
+    "artifact_tree_check_seconds": 1.0,
+    "comparison_incomplete": false,
+    "completed_arms": 3,
+    "diagnostic_positive": true,
+    "interpretation": "private namespace idle/application-limited cwnd-policy diagnostic only",
+    "original_qualification_cleared": false,
+    "schema_version": 1,
+    "stopped": false,
+    "stream_check_seconds": 0.05,
+    "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+  },
+  "schema_version": 1,
+  "source": {
+    "bytes": 11388,
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/SOURCE.json",
+    "sha256": "b4896cb6da990e5995bf5882883483a05b20dffaad1112badf155117c29cb33d"
+  },
+  "status": "complete positive idle-policy diagnostic",
+  "tracked_status_query": {
+    "status": 0,
+    "stderr": "",
+    "stdout": ""
+  },
+  "unavailable_proc_namespace_reads": 1276,
+  "unlaunched_arms": []
+}

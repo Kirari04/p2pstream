@@ -15,6 +15,12 @@ comparison.
 
 ## Files
 
+- [`wan-idle-policy/README.md`](wan-idle-policy/README.md)
+  preserves the fresh all-CUBIC private agent/origin namespace 1/0/1 screen:
+  all 48 transfers and five diagnostic criteria pass, with the middle pool
+  9.7957% above the faster control. The setting affects both idle restart and
+  application-limited cwnd validation, including origin/control sockets. Controls
+  differ by 34.17%; this positive diagnostic supplies no production fix or original WAN clearance.
 - [`wan-controller-policy/README.md`](wan-controller-policy/README.md)
   preserves the fresh complete 48-transfer CUBIC/Reno/CUBIC diagnostic. Only the
   108% pooled-rate criterion fails (105.9558% observed); Reno floors, all retained

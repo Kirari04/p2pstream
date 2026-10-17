@@ -775,6 +775,25 @@ defect, threshold creator or production controller fix. Neither this cohort nor
 the bounded earlier-pool-share hypothesis clears the original 96-transfer WAN,
 HAProxy, parity or release requirements.
 
+A subsequent fresh all-CUBIC 1/0/1 private-namespace idle-policy screen completes
+all 48 original transfers and passes all five unchanged diagnostic criteria.
+Pooled downloads are 32.7095 / 35.9136 / 24.3796 MB/s; the middle arm is 9.7957%
+above the faster whole control, with all original middle-arm floors, retained
+per-row guards and lower positive Read sum passing. The controls differ by
+34.17%; the final control's genuine origin replacements on revisits 13/14 remain
+included with its original mature conditioning/performance failures.
+
+The [private-namespace idle-policy evidence](benchmarks/proxy-qualification-2026-10-16/wan-idle-policy/README.md)
+preserves six passing offline tests, the successful namespace-only probe,
+independent scope/outcome review, exact raw captures and final natural-closure
+proof. The intervention changes both idle restart and application-limited cwnd
+validation throughout the agent/origin namespace, including origin and control
+sockets, before conditioning. Host/runner/router observations remain unchanged;
+load placement is source-derived and observations are point-in-time. This positive
+finite diagnostic does not isolate a single kernel path or threshold creator,
+recommend production tuning or clear the original 96-transfer WAN, HAProxy,
+parity or release requirements. Earlier negative/stopped diagnostics remain unchanged.
+
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while
 the selector still uses lanes 0–3. Aggregate-v1 uses lanes 1–4 and reserves

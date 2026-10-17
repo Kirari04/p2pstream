@@ -1,0 +1,146 @@
+{
+  "arm_index": 1,
+  "expected_value": 0,
+  "monotonic_ns": 82639419565826,
+  "phase": "endpoint-binding",
+  "ready_bindings": {
+    "agent": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/current-server-aggregate-v1-h2-1-agent.ready.json",
+      "pid": 225
+    },
+    "origin": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/origin.ready.json",
+      "pid": 176
+    },
+    "server": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/current-server-aggregate-v1-h2-1-server.ready.json",
+      "pid": 190
+    }
+  },
+  "roles": {
+    "agent": {
+      "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+      "kernel_release": "7.0.0-38-generic",
+      "monotonic_ns": 82639307865884,
+      "namespace": "net:[4026533533]",
+      "namespace_device": 5,
+      "namespace_inode": 4026533533,
+      "pid": 246,
+      "ppid": 245,
+      "resolution": "owned-pid",
+      "start_ticks": 8263928,
+      "subject": {
+        "namespace": "net:[4026533533]",
+        "namespace_device": 5,
+        "namespace_inode": 4026533533,
+        "pid": 225,
+        "ppid": 1,
+        "start_ticks": 8263876
+      },
+      "time_namespace": "time:[4026531834]",
+      "value": 0
+    },
+    "origin": {
+      "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+      "kernel_release": "7.0.0-38-generic",
+      "monotonic_ns": 82639335836599,
+      "namespace": "net:[4026533533]",
+      "namespace_device": 5,
+      "namespace_inode": 4026533533,
+      "pid": 247,
+      "ppid": 245,
+      "resolution": "owned-pid",
+      "start_ticks": 8263931,
+      "subject": {
+        "namespace": "net:[4026533533]",
+        "namespace_device": 5,
+        "namespace_inode": 4026533533,
+        "pid": 176,
+        "ppid": 1,
+        "start_ticks": 8263793
+      },
+      "time_namespace": "time:[4026531834]",
+      "value": 0
+    },
+    "server": {
+      "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+      "kernel_release": "7.0.0-38-generic",
+      "monotonic_ns": 82639361850144,
+      "namespace": "net:[4026533919]",
+      "namespace_device": 5,
+      "namespace_inode": 4026533919,
+      "pid": 248,
+      "ppid": 245,
+      "resolution": "owned-pid",
+      "start_ticks": 8263934,
+      "subject": {
+        "namespace": "net:[4026533919]",
+        "namespace_device": 5,
+        "namespace_inode": 4026533919,
+        "pid": 190,
+        "ppid": 1,
+        "start_ticks": 8263801
+      },
+      "time_namespace": "time:[4026531834]",
+      "value": 1
+    }
+  },
+  "router": {
+    "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+    "kernel_release": "7.0.0-38-generic",
+    "monotonic_ns": 82639387307357,
+    "namespace": "net:[4026534045]",
+    "namespace_device": 5,
+    "namespace_inode": 4026534045,
+    "pid": 249,
+    "ppid": 245,
+    "resolution": "owned-pid",
+    "start_ticks": 8263936,
+    "subject": {
+      "namespace": "net:[4026534045]",
+      "namespace_device": 5,
+      "namespace_inode": 4026534045,
+      "pid": 56,
+      "ppid": 1,
+      "start_ticks": 8263313
+    },
+    "time_namespace": "time:[4026531834]",
+    "value": 1
+  },
+  "runner": {
+    "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+    "kernel_release": "7.0.0-38-generic",
+    "monotonic_ns": 82639282909386,
+    "namespace": "net:[4026533919]",
+    "namespace_device": 5,
+    "namespace_inode": 4026533919,
+    "pid": 1,
+    "ppid": 0,
+    "start_ticks": 8263295,
+    "time_namespace": "time:[4026531834]",
+    "value": 1
+  },
+  "schema_version": 1,
+  "target_helper": {
+    "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+    "kernel_release": "7.0.0-38-generic",
+    "monotonic_ns": 82639415319292,
+    "namespace": "net:[4026533533]",
+    "namespace_device": 5,
+    "namespace_inode": 4026533533,
+    "pid": 250,
+    "ppid": 245,
+    "resolution": "owned-pid",
+    "start_ticks": 8263939,
+    "subject": {
+      "namespace": "net:[4026533533]",
+      "namespace_device": 5,
+      "namespace_inode": 4026533533,
+      "pid": 51,
+      "ppid": 1,
+      "start_ticks": 8263313
+    },
+    "time_namespace": "time:[4026531834]",
+    "value": 0
+  }
+}

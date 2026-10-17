@@ -1,0 +1,83 @@
+{
+  "inputs": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/SOURCE.json",
+      "sha256": "b4896cb6da990e5995bf5882883483a05b20dffaad1112badf155117c29cb33d"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/OFFLINE-PROOF.json",
+      "sha256": "5c7f892e6d3737688cccd56b1500ca842ae4c730124c43c9c1fa8c2a983502d0"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/offline-1.outer.json",
+      "sha256": "557fd407a29b239b6d4680d98ca5fc5771348a3d9817f763dc40474d4235f6d8"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/offline-1.started.json",
+      "sha256": "159e3b4c290739b873d5b26e5f8b1423e2ff33f89912be52187ebf635a6e38d9"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/offline-1.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/offline-1.stderr.log",
+      "sha256": "3b4125dbd5e7f4356789c8aaf8a361dce9b02e49454dbb719b1a5f10e6f016e4"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/PROBE-GRANT.json",
+      "sha256": "815d1d82e605b3dbc1789eb059b11c046b0f056402c4b344d0e5350737499dcf"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/PROBE-RESULT.json",
+      "sha256": "f33ec030e558f93d1cd010f8416ee884f2ddf10603141817cc52795096a6c85a"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/configured-0.json",
+      "sha256": "35a4a7a6f9ba48fdf10580b7d3d25c3445414e83c937b2cfe089c673a6d08909"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/configured-1.json",
+      "sha256": "fa40c1c0fee9574814e9139c2cc84f5e51d745d9530f98cad9916d8359f99f29"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/configured-2.json",
+      "sha256": "0986769b4bb7aa3724e0e13b78ca883ed4fe2b053379be436383c8b1cd689ce1"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/helper-closure.json",
+      "sha256": "4c9bacb15a32e8f72374c9895aeb1c5084411f1de09ef3dddedd1ad3c8dfa9d0"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/host-post.json",
+      "sha256": "4a6ada8e71ba74c32a0f9303d9c918486ed1c869d2113a4022477f647bbfa3df"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/host-pre.json",
+      "sha256": "ba02bbf8bfbb6caa760219499cdb945221ee63a3b3bbffa80c85a11c9d71281b"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/inner-result.json",
+      "sha256": "ba08ebedbe3bbe6a5e535d2f388a3b81d5457fcffcad917f2b951e756bdcad27"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/namespace-probe.outer.json",
+      "sha256": "d363e9388c9195f8e4c9e7537b289d57810e87661faa09c0ef6273248cc23cf9"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/namespace-probe.started.json",
+      "sha256": "a8b38f3b7ac2fc72c0f4b0856b1522894994d021c53dbccb9ef39a16c20b2877"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/namespace-probe.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once/namespace-probe.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "original_frozen_entries_matched": 540,
+  "review_execution": "saved evidence reading and hashes only",
+  "source_manifest_entries_matched": 40
+}

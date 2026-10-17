@@ -1,0 +1,40 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/validate-idle-policy.py",
+    "arm",
+    "2",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1",
+    "1",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2.decision.json"
+  ],
+  "artifact_bytes": 67344850,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 0.8144025840010727,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2640169,
+      "pid": 2640169,
+      "ppid": 2629960,
+      "sid": 2640169,
+      "start_ticks": 8295896,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 0,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

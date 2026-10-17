@@ -1,0 +1,16 @@
+{
+  "controller_order": [
+    "cubic",
+    "cubic",
+    "cubic"
+  ],
+  "maximum_arms": 3,
+  "maximum_transfers": 48,
+  "policy_order": [
+    1,
+    0,
+    1
+  ],
+  "runtime_approved": true,
+  "source_manifest_sha256": "b4896cb6da990e5995bf5882883483a05b20dffaad1112badf155117c29cb33d"
+}

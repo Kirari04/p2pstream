@@ -1,0 +1,2453 @@
+{
+  "scope": "read-only existing saved data; no tests/validators or runtime",
+  "root": "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once",
+  "growth_clock_boundary": "same-server successful proposal sample-start minus handler start; not publication completion; no cross-endpoint subtraction",
+  "cwnd_unit_boundary": "provider cwnd and ssthresh are segment counts; derived cwnd*current MSS is a capacity proxy, not observed bytes in flight",
+  "screen": {
+    "accepted": true,
+    "diagnostic_positive": true,
+    "criteria": {
+      "aggregate_read_strictly_below_both_controls": true,
+      "candidate_all_original_download_floors": true,
+      "candidate_mature_performance_passed": true,
+      "each_retained_rate_at_least_95pct_faster_control": true,
+      "pooled_rate_at_least_108pct_faster_control": true
+    },
+    "control_pooled_ratio_0_to_2": 1.3416727780754192,
+    "candidate_pooled_ratio_to_faster_control": 1.097956827901965,
+    "pooled_bytes_per_second": [
+      32709486.22090443,
+      35913603.73340726,
+      24379630.2313184
+    ],
+    "aggregate_upstream_read_ns": [
+      29067345408,
+      26356719696,
+      39695710519
+    ],
+    "candidate_rate_ratios_to_faster_corresponding_control": {
+      "11": 1.0373062358339933,
+      "14": 1.0449815907430104,
+      "15": 1.076694489543494,
+      "9": 1.0417558019973217
+    }
+  },
+  "arms": [
+    {
+      "arm_index": 0,
+      "policy": 1,
+      "controller": "cubic",
+      "mature_accepted": false,
+      "mature_conditioning_issues": [],
+      "mature_performance_issues": [
+        "steady download phase failed independent 29700000 B/s floor"
+      ],
+      "origin_outcome_counts": {
+        "fresh_replacement": 0,
+        "retained": 4
+      },
+      "revisit_outcomes": [
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38327|10.212.0.2:42650",
+          "elapsed_idle_ns": 24727281211,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38327|10.212.0.2:42650",
+          "got_conn_unix_ns": 1792245039990050228,
+          "httptrace_idle_time_ns": 24727281542,
+          "kind": "same-key-revisit",
+          "lane_position": 1,
+          "observed_origin_connection_id": "10.212.0.2:60812",
+          "outcome": "retained-origin",
+          "prior_origin_connection_id": "10.212.0.2:60812",
+          "prior_put_idle_unix_ns": 1792245015262769017,
+          "reused": true,
+          "satisfied": true,
+          "sequence": 13,
+          "was_idle": true
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38327|10.212.0.2:42646",
+          "elapsed_idle_ns": 24600928100,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38327|10.212.0.2:42646",
+          "got_conn_unix_ns": 1792245047935164062,
+          "httptrace_idle_time_ns": 24600928129,
+          "kind": "same-key-revisit",
+          "lane_position": 2,
+          "observed_origin_connection_id": "10.212.0.2:60818",
+          "outcome": "retained-origin",
+          "prior_origin_connection_id": "10.212.0.2:60818",
+          "prior_put_idle_unix_ns": 1792245023334235962,
+          "reused": true,
+          "satisfied": true,
+          "sequence": 14,
+          "was_idle": true
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38327|10.212.0.2:42626",
+          "elapsed_idle_ns": 26389563858,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38327|10.212.0.2:42626",
+          "got_conn_unix_ns": 1792245057986530634,
+          "httptrace_idle_time_ns": 26389564198,
+          "kind": "same-key-revisit",
+          "lane_position": 3,
+          "observed_origin_connection_id": "10.212.0.2:40910",
+          "outcome": "retained-origin",
+          "prior_origin_connection_id": "10.212.0.2:40910",
+          "prior_put_idle_unix_ns": 1792245031596966776,
+          "reused": true,
+          "satisfied": true,
+          "sequence": 15,
+          "was_idle": true
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38327|10.212.0.2:42642",
+          "elapsed_idle_ns": 26542854909,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:38327|10.212.0.2:42642",
+          "got_conn_unix_ns": 1792245066145634230,
+          "httptrace_idle_time_ns": 26542854918,
+          "kind": "same-key-revisit",
+          "lane_position": 4,
+          "observed_origin_connection_id": "10.212.0.2:50094",
+          "outcome": "retained-origin",
+          "prior_origin_connection_id": "10.212.0.2:50094",
+          "prior_put_idle_unix_ns": 1792245039602779321,
+          "reused": true,
+          "satisfied": true,
+          "sequence": 16,
+          "was_idle": true
+        }
+      ],
+      "speeds_MBps": {
+        "1": 34.3146206307327,
+        "10": 35.91785448644582,
+        "11": 34.06387507567942,
+        "12": 35.67547245550226,
+        "13": 36.06143656122104,
+        "14": 28.828442063778425,
+        "15": 34.871072211152956,
+        "16": 36.52927263584979,
+        "2": 34.605020480649465,
+        "3": 34.33247283863579,
+        "4": 34.0674296396187,
+        "5": 14.642525213097032,
+        "6": 28.482480904635985,
+        "7": 14.296391423594915,
+        "8": 29.323235249225572,
+        "9": 33.82144447446148
+      },
+      "active_transfer_rates": {
+        "all_postwarmup": 34295579.862038724,
+        "download": 32709486.22090443,
+        "upload": 36043332.81020383
+      },
+      "readbacks": {
+        "target_original": 1,
+        "target_after_set": 1,
+        "independent_readback": 1,
+        "agent_endpoint_pre_post": [
+          1,
+          1
+        ],
+        "origin_endpoint_pre_post": [
+          1,
+          1
+        ],
+        "server_endpoint_pre_post": [
+          1,
+          1
+        ],
+        "runner_pre_set_post": [
+          1,
+          1,
+          1
+        ],
+        "host_pre_post": [
+          1,
+          1
+        ],
+        "agent_setup_terminal": [
+          1,
+          1
+        ],
+        "cached_owner_values": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/idle-configured.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/idle-endpoints-endpoint-binding.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/idle-endpoints-post-workload.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/idle-host-pre.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/idle-host-post.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.sender-wait-controls/final-raw-write-terminal.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0.decision.json"
+      ]
+    },
+    {
+      "arm_index": 1,
+      "policy": 0,
+      "controller": "cubic",
+      "mature_accepted": true,
+      "mature_conditioning_issues": [],
+      "mature_performance_issues": [],
+      "origin_outcome_counts": {
+        "fresh_replacement": 0,
+        "retained": 4
+      },
+      "revisit_outcomes": [
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:35157|10.212.0.2:49860",
+          "elapsed_idle_ns": 24744023479,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:35157|10.212.0.2:49860",
+          "got_conn_unix_ns": 1792245197343184742,
+          "httptrace_idle_time_ns": 24744023640,
+          "kind": "same-key-revisit",
+          "lane_position": 1,
+          "observed_origin_connection_id": "10.212.0.2:60502",
+          "outcome": "retained-origin",
+          "prior_origin_connection_id": "10.212.0.2:60502",
+          "prior_put_idle_unix_ns": 1792245172599161263,
+          "reused": true,
+          "satisfied": true,
+          "sequence": 13,
+          "was_idle": true
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:35157|10.212.0.2:49858",
+          "elapsed_idle_ns": 24411190328,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:35157|10.212.0.2:49858",
+          "got_conn_unix_ns": 1792245205233268187,
+          "httptrace_idle_time_ns": 24411190287,
+          "kind": "same-key-revisit",
+          "lane_position": 2,
+          "observed_origin_connection_id": "10.212.0.2:33364",
+          "outcome": "retained-origin",
+          "prior_origin_connection_id": "10.212.0.2:33364",
+          "prior_put_idle_unix_ns": 1792245180822077859,
+          "reused": true,
+          "satisfied": true,
+          "sequence": 14,
+          "was_idle": true
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:35157|10.212.0.2:49872",
+          "elapsed_idle_ns": 24602187891,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:35157|10.212.0.2:49872",
+          "got_conn_unix_ns": 1792245213510281309,
+          "httptrace_idle_time_ns": 24602188102,
+          "kind": "same-key-revisit",
+          "lane_position": 3,
+          "observed_origin_connection_id": "10.212.0.2:54122",
+          "outcome": "retained-origin",
+          "prior_origin_connection_id": "10.212.0.2:54122",
+          "prior_put_idle_unix_ns": 1792245188908093418,
+          "reused": true,
+          "satisfied": true,
+          "sequence": 15,
+          "was_idle": true
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:35157|10.212.0.2:49856",
+          "elapsed_idle_ns": 24158725172,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:35157|10.212.0.2:49856",
+          "got_conn_unix_ns": 1792245221121901595,
+          "httptrace_idle_time_ns": 24158725312,
+          "kind": "same-key-revisit",
+          "lane_position": 4,
+          "observed_origin_connection_id": "10.212.0.2:38856",
+          "outcome": "retained-origin",
+          "prior_origin_connection_id": "10.212.0.2:38856",
+          "prior_put_idle_unix_ns": 1792245196963176423,
+          "reused": true,
+          "satisfied": true,
+          "sequence": 16,
+          "was_idle": true
+        }
+      ],
+      "speeds_MBps": {
+        "1": 34.503901551459194,
+        "10": 35.02239652522534,
+        "11": 35.334670032672406,
+        "12": 35.43351727657744,
+        "13": 36.07218759266591,
+        "14": 35.632513657966335,
+        "15": 37.54965171338431,
+        "16": 36.930543693149126,
+        "2": 33.730630801526154,
+        "3": 34.60934554425125,
+        "4": 34.5329342919106,
+        "5": 36.23825758689256,
+        "6": 17.11096949498008,
+        "7": 35.67427359524878,
+        "8": 15.98965176727753,
+        "9": 35.233686013200504
+      },
+      "active_transfer_rates": {
+        "all_postwarmup": 35881925.068123154,
+        "download": 35913603.73340726,
+        "upload": 35850302.23980942
+      },
+      "readbacks": {
+        "target_original": 1,
+        "target_after_set": 0,
+        "independent_readback": 0,
+        "agent_endpoint_pre_post": [
+          0,
+          0
+        ],
+        "origin_endpoint_pre_post": [
+          0,
+          0
+        ],
+        "server_endpoint_pre_post": [
+          1,
+          1
+        ],
+        "runner_pre_set_post": [
+          1,
+          1,
+          1
+        ],
+        "host_pre_post": [
+          1,
+          1
+        ],
+        "agent_setup_terminal": [
+          0,
+          0
+        ],
+        "cached_owner_values": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/idle-configured.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/idle-endpoints-endpoint-binding.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/idle-endpoints-post-workload.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/idle-host-pre.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/idle-host-post.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.sender-wait-controls/final-raw-write-terminal.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1.decision.json"
+      ]
+    },
+    {
+      "arm_index": 2,
+      "policy": 1,
+      "controller": "cubic",
+      "mature_accepted": false,
+      "mature_conditioning_issues": [
+        "sequence 13 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 14 fully evidenced reuse/idle/origin conditioning was not retained"
+      ],
+      "mature_performance_issues": [
+        "retained-warmup download phase failed independent 29700000 B/s floor",
+        "steady download phase failed independent 29700000 B/s floor"
+      ],
+      "origin_outcome_counts": {
+        "fresh_replacement": 2,
+        "retained": 2
+      },
+      "revisit_outcomes": [
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34547|10.212.0.2:60172",
+          "elapsed_idle_ns": 35997610029,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34547|10.212.0.2:60172",
+          "got_conn_unix_ns": 1792245369172874345,
+          "httptrace_idle_time_ns": 0,
+          "kind": "same-key-revisit",
+          "lane_position": 1,
+          "observed_origin_connection_id": "10.212.0.2:59028",
+          "outcome": "fresh-origin-replacement",
+          "prior_origin_connection_id": "10.212.0.2:49186",
+          "prior_put_idle_unix_ns": 1792245333175264316,
+          "reused": false,
+          "satisfied": false,
+          "sequence": 13,
+          "was_idle": false
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34547|10.212.0.2:60160",
+          "elapsed_idle_ns": 35816942651,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34547|10.212.0.2:60160",
+          "got_conn_unix_ns": 1792245377134346572,
+          "httptrace_idle_time_ns": 0,
+          "kind": "same-key-revisit",
+          "lane_position": 2,
+          "observed_origin_connection_id": "10.212.0.2:59042",
+          "outcome": "fresh-origin-replacement",
+          "prior_origin_connection_id": "10.212.0.2:45200",
+          "prior_put_idle_unix_ns": 1792245341317403921,
+          "reused": false,
+          "satisfied": false,
+          "sequence": 14,
+          "was_idle": false
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34547|10.212.0.2:60154",
+          "elapsed_idle_ns": 25130997317,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34547|10.212.0.2:60154",
+          "got_conn_unix_ns": 1792245385642781904,
+          "httptrace_idle_time_ns": 25130997689,
+          "kind": "same-key-revisit",
+          "lane_position": 3,
+          "observed_origin_connection_id": "10.212.0.2:40410",
+          "outcome": "retained-origin",
+          "prior_origin_connection_id": "10.212.0.2:40410",
+          "prior_put_idle_unix_ns": 1792245360511784587,
+          "reused": true,
+          "satisfied": true,
+          "sequence": 15,
+          "was_idle": true
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34547|10.212.0.2:60150",
+          "elapsed_idle_ns": 25070295318,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:34547|10.212.0.2:60150",
+          "got_conn_unix_ns": 1792245393789886686,
+          "httptrace_idle_time_ns": 25070295719,
+          "kind": "same-key-revisit",
+          "lane_position": 4,
+          "observed_origin_connection_id": "10.212.0.2:40056",
+          "outcome": "retained-origin",
+          "prior_origin_connection_id": "10.212.0.2:40056",
+          "prior_put_idle_unix_ns": 1792245368719591368,
+          "reused": true,
+          "satisfied": true,
+          "sequence": 16,
+          "was_idle": true
+        }
+      ],
+      "speeds_MBps": {
+        "1": 34.65506833246325,
+        "10": 35.28426899655669,
+        "11": 14.303924908229138,
+        "12": 35.4023121679977,
+        "13": 35.717980425045525,
+        "14": 34.09869989444565,
+        "15": 34.874936277703924,
+        "16": 36.81290861362602,
+        "2": 33.81494883717745,
+        "3": 34.3391438746849,
+        "4": 34.071362896744056,
+        "5": 28.363041502733353,
+        "6": 16.46363189747695,
+        "7": 35.94469749654325,
+        "8": 15.321212671908704,
+        "9": 27.654869541478366
+      },
+      "active_transfer_rates": {
+        "all_postwarmup": 29004331.702182572,
+        "download": 24379630.2313184,
+        "upload": 35794352.41605286
+      },
+      "readbacks": {
+        "target_original": 1,
+        "target_after_set": 1,
+        "independent_readback": 1,
+        "agent_endpoint_pre_post": [
+          1,
+          1
+        ],
+        "origin_endpoint_pre_post": [
+          1,
+          1
+        ],
+        "server_endpoint_pre_post": [
+          1,
+          1
+        ],
+        "runner_pre_set_post": [
+          1,
+          1,
+          1
+        ],
+        "host_pre_post": [
+          1,
+          1
+        ],
+        "agent_setup_terminal": [
+          1,
+          1
+        ],
+        "cached_owner_values": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/idle-configured.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/idle-endpoints-endpoint-binding.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/idle-endpoints-post-workload.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/idle-host-pre.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/idle-host-post.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.sender-wait-controls/final-raw-write-terminal.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2.decision.json"
+      ]
+    }
+  ],
+  "selected": [
+    {
+      "arm_index": 0,
+      "policy": 1,
+      "sequence": 9,
+      "lane": 1,
+      "stream_id": 6,
+      "MBps": 33.82144447446148,
+      "handler_seconds": 7.758073787,
+      "upstream_read_seconds": 7.002297145,
+      "downstream_write_seconds": 0.587004383,
+      "max_downstream_write_ms": 0.527136,
+      "origin_got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:38327",
+          "remote_address": "10.212.0.2:42650",
+          "observed_unix_ns": 1792245007586513329
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.6452306,
+          "current_bytes": 524288,
+          "proposed_bytes": 1048576,
+          "smoothed_rate_bytes_per_second": 2391491.068435803,
+          "rtt_nanoseconds": 80297710
+        },
+        "2097152": {
+          "sample_offset_from_server_handler_seconds": 0.889531941,
+          "current_bytes": 1572864,
+          "proposed_bytes": 3145728,
+          "smoothed_rate_bytes_per_second": 8374520.826918211,
+          "rtt_nanoseconds": 80297710
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 0.969950515,
+          "current_bytes": 3145728,
+          "proposed_bytes": 5439488,
+          "smoothed_rate_bytes_per_second": 10074778.734691586,
+          "rtt_nanoseconds": 80297710
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 1.134246206,
+          "current_bytes": 5439488,
+          "proposed_bytes": 10354688,
+          "smoothed_rate_bytes_per_second": 20979009.629698936,
+          "rtt_nanoseconds": 80297710
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 1.391154652,
+          "current_bytes": 13500416,
+          "proposed_bytes": 18087936,
+          "smoothed_rate_bytes_per_second": 30499228.85346468,
+          "rtt_nanoseconds": 80379128
+        }
+      },
+      "growth_event_count": 90,
+      "grown_event_count": 8,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 524288,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 1,
+        "local_address": "10.211.0.1:38327",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 31,
+        "proposed": 524288,
+        "rate_bytes_per_second": 49.19740582079107,
+        "remote_address": "10.212.0.2:42650",
+        "rtt_nanoseconds": 80297710,
+        "sample_unix_nano": 1792245007586463782,
+        "session_identity": "0xccd235c5088",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 22740992,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 22740992,
+          "byte_send_available": 523879,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 22,
+        "max_nanoseconds": 241005337,
+        "total_nanoseconds": 871090542
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 18,
+          "max_nanoseconds": 241005337,
+          "total_nanoseconds": 791716672
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 4,
+          "max_nanoseconds": 79197267,
+          "total_nanoseconds": 79373870
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8482,
+        "max_nanoseconds": 69601293,
+        "total_nanoseconds": 6549623256
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 10,
+          "send_slow_start_threshold": 2147483647,
+          "send_mss": 1448,
+          "rtt_us": 92208,
+          "last_data_sent_ms": 9096,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 269420241,
+          "bytes_acked": 269420242,
+          "capture_finished_monotonic_ns": 89797123534,
+          "derived_cwnd_times_current_send_mss_bytes": 14480
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5884,
+          "send_slow_start_threshold": 2147483647,
+          "send_mss": 1448,
+          "rtt_us": 85884,
+          "last_data_sent_ms": 471,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538502115,
+          "bytes_acked": 538502116,
+          "capture_finished_monotonic_ns": 98082469780,
+          "derived_cwnd_times_current_send_mss_bytes": 8520032
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 1,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.sender-wait-controls/sequence-9-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.sender-wait-controls/sequence-9-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 0,
+      "policy": 1,
+      "sequence": 11,
+      "lane": 3,
+      "stream_id": 6,
+      "MBps": 34.06387507567942,
+      "handler_seconds": 7.703170379,
+      "upstream_read_seconds": 6.845574509,
+      "downstream_write_seconds": 0.607814301,
+      "max_downstream_write_ms": 0.53457,
+      "origin_got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:38327",
+          "remote_address": "10.212.0.2:42626",
+          "observed_unix_ns": 1792245023975605528
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.730325305,
+          "current_bytes": 983040,
+          "proposed_bytes": 1507328,
+          "smoothed_rate_bytes_per_second": 3151717.2539505973,
+          "rtt_nanoseconds": 80245928
+        },
+        "2097152": {
+          "sample_offset_from_server_handler_seconds": 0.89241426,
+          "current_bytes": 2031616,
+          "proposed_bytes": 3145728,
+          "smoothed_rate_bytes_per_second": 8279484.209306208,
+          "rtt_nanoseconds": 80245928
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 0.97359608,
+          "current_bytes": 3145728,
+          "proposed_bytes": 5373952,
+          "smoothed_rate_bytes_per_second": 11043465.36598082,
+          "rtt_nanoseconds": 80245928
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 1.145326849,
+          "current_bytes": 7143424,
+          "proposed_bytes": 10092544,
+          "smoothed_rate_bytes_per_second": 22312181.614234656,
+          "rtt_nanoseconds": 80245928
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 1.407040928,
+          "current_bytes": 14352384,
+          "proposed_bytes": 19005440,
+          "smoothed_rate_bytes_per_second": 31915666.41201362,
+          "rtt_nanoseconds": 80245928
+        }
+      },
+      "growth_event_count": 88,
+      "grown_event_count": 10,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 524288,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 3,
+        "local_address": "10.211.0.1:38327",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 31,
+        "proposed": 524288,
+        "rate_bytes_per_second": 49.07693764522326,
+        "remote_address": "10.212.0.2:42626",
+        "rtt_nanoseconds": 80245928,
+        "sample_unix_nano": 1792245023975573475,
+        "session_identity": "0xccd235e4588",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 23986176,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 23986176,
+          "byte_send_available": 523878,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 23,
+        "max_nanoseconds": 160237662,
+        "total_nanoseconds": 870245847
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 17,
+          "max_nanoseconds": 80750150,
+          "total_nanoseconds": 553664981
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 6,
+          "max_nanoseconds": 160237662,
+          "total_nanoseconds": 316580866
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8216,
+        "max_nanoseconds": 71530969,
+        "total_nanoseconds": 6493657854
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 10,
+          "send_slow_start_threshold": 2147483647,
+          "send_mss": 1448,
+          "rtt_us": 83399,
+          "last_data_sent_ms": 5667,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 269412247,
+          "bytes_acked": 269412248,
+          "capture_finished_monotonic_ns": 106210033606,
+          "derived_cwnd_times_current_send_mss_bytes": 14480
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5902,
+          "send_slow_start_threshold": 2147483647,
+          "send_mss": 1448,
+          "rtt_us": 82863,
+          "last_data_sent_ms": 440,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538487739,
+          "bytes_acked": 538487740,
+          "capture_finished_monotonic_ns": 114388261386,
+          "derived_cwnd_times_current_send_mss_bytes": 8546096
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 1,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.sender-wait-controls/sequence-11-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.sender-wait-controls/sequence-11-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 0,
+      "policy": 1,
+      "sequence": 14,
+      "lane": 2,
+      "stream_id": 6,
+      "MBps": 28.828442063778425,
+      "handler_seconds": 9.133815486,
+      "upstream_read_seconds": 8.367711193,
+      "downstream_write_seconds": 0.678520614,
+      "max_downstream_write_ms": 0.480535,
+      "origin_got_conn": [
+        {
+          "reused": true,
+          "was_idle": true,
+          "idle_time_ns": 24600928129,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:38327",
+          "remote_address": "10.212.0.2:42646",
+          "observed_unix_ns": 1792245047935164062
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.642394609,
+          "current_bytes": 786432,
+          "proposed_bytes": 1441792,
+          "smoothed_rate_bytes_per_second": 2904050.0828883247,
+          "rtt_nanoseconds": 80130384
+        },
+        "2097152": {
+          "sample_offset_from_server_handler_seconds": 0.802956332,
+          "current_bytes": 1900544,
+          "proposed_bytes": 2424832,
+          "smoothed_rate_bytes_per_second": 4426992.92440897,
+          "rtt_nanoseconds": 80130384
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 1.205202083,
+          "current_bytes": 3276800,
+          "proposed_bytes": 4194304,
+          "smoothed_rate_bytes_per_second": 6939197.102166817,
+          "rtt_nanoseconds": 80130384
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 2.336526117,
+          "current_bytes": 6881280,
+          "proposed_bytes": 8781824,
+          "smoothed_rate_bytes_per_second": 14345877.16115823,
+          "rtt_nanoseconds": 80130384
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 3.544497878,
+          "current_bytes": 14417920,
+          "proposed_bytes": 18481152,
+          "smoothed_rate_bytes_per_second": 29888082.12890363,
+          "rtt_nanoseconds": 80130384
+        }
+      },
+      "growth_event_count": 107,
+      "grown_event_count": 13,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 524288,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 2,
+        "local_address": "10.211.0.1:38327",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 0,
+        "proposed": 524288,
+        "rate_bytes_per_second": 0,
+        "remote_address": "10.212.0.2:42646",
+        "rtt_nanoseconds": 80130384,
+        "sample_unix_nano": 1792245048015854626,
+        "session_identity": "0xccd2353a688",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 23396352,
+          "allocation_send_available": 24313856,
+          "allocation_send_limit": 24313856,
+          "byte_receive_limit": 23396352,
+          "byte_send_available": 23953112,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 26,
+        "max_nanoseconds": 240372975,
+        "total_nanoseconds": 1382243012
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 22,
+          "max_nanoseconds": 240372975,
+          "total_nanoseconds": 1223948162
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 4,
+          "max_nanoseconds": 79576525,
+          "total_nanoseconds": 158294850
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8243,
+        "max_nanoseconds": 159989609,
+        "total_nanoseconds": 7496075324
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 10,
+          "send_slow_start_threshold": 238,
+          "send_mss": 1448,
+          "rtt_us": 89270,
+          "last_data_sent_ms": 9581,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 269811003,
+          "bytes_acked": 269811004,
+          "capture_finished_monotonic_ns": 130216347583,
+          "derived_cwnd_times_current_send_mss_bytes": 14480
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 3100,
+          "send_slow_start_threshold": 238,
+          "send_mss": 1448,
+          "rtt_us": 88531,
+          "last_data_sent_ms": 456,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538886736,
+          "bytes_acked": 538886737,
+          "capture_finished_monotonic_ns": 139869718477,
+          "derived_cwnd_times_current_send_mss_bytes": 4488800
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 1,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.sender-wait-controls/sequence-14-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.sender-wait-controls/sequence-14-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 0,
+      "policy": 1,
+      "sequence": 15,
+      "lane": 3,
+      "stream_id": 6,
+      "MBps": 34.871072211152956,
+      "handler_seconds": 7.52084667,
+      "upstream_read_seconds": 6.851762561,
+      "downstream_write_seconds": 0.582380108,
+      "max_downstream_write_ms": 0.893609,
+      "origin_got_conn": [
+        {
+          "reused": true,
+          "was_idle": true,
+          "idle_time_ns": 26389564198,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:38327",
+          "remote_address": "10.212.0.2:42626",
+          "observed_unix_ns": 1792245057986530634
+        }
+      ],
+      "growth_crossings": {
+        "1048576": null,
+        "2097152": null,
+        "4194304": null,
+        "8388608": null,
+        "16777216": null
+      },
+      "growth_event_count": 86,
+      "grown_event_count": 0,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 23986176,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 3,
+        "local_address": "10.211.0.1:38327",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 0,
+        "proposed": 23986176,
+        "rate_bytes_per_second": 0,
+        "remote_address": "10.212.0.2:42626",
+        "rtt_nanoseconds": 80245928,
+        "sample_unix_nano": 1792245058067149989,
+        "session_identity": "0xccd235e4588",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 23986176,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 23986176,
+          "byte_send_available": 523582,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 0,
+        "max_nanoseconds": 0,
+        "total_nanoseconds": 0
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8193,
+        "max_nanoseconds": 562323882,
+        "total_nanoseconds": 7279181523
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 10,
+          "send_slow_start_threshold": 2147483647,
+          "send_mss": 1448,
+          "rtt_us": 87875,
+          "last_data_sent_ms": 19669,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538487807,
+          "bytes_acked": 538487808,
+          "capture_finished_monotonic_ns": 140302224005,
+          "derived_cwnd_times_current_send_mss_bytes": 14480
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5885,
+          "send_slow_start_threshold": 2147483647,
+          "send_mss": 1448,
+          "rtt_us": 86964,
+          "last_data_sent_ms": 447,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 807562852,
+          "bytes_acked": 807562853,
+          "capture_finished_monotonic_ns": 148309288324,
+          "derived_cwnd_times_current_send_mss_bytes": 8521480
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 1,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.sender-wait-controls/sequence-15-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/results.sender-wait-controls/sequence-15-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 1,
+      "policy": 0,
+      "sequence": 9,
+      "lane": 1,
+      "stream_id": 6,
+      "MBps": 35.233686013200504,
+      "handler_seconds": 7.441629262,
+      "upstream_read_seconds": 6.694398584,
+      "downstream_write_seconds": 0.577451185,
+      "max_downstream_write_ms": 0.415419,
+      "origin_got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:35157",
+          "remote_address": "10.212.0.2:49860",
+          "observed_unix_ns": 1792245165240302391
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.32479079,
+          "current_bytes": 524288,
+          "proposed_bytes": 1048576,
+          "smoothed_rate_bytes_per_second": 1651041.8395729372,
+          "rtt_nanoseconds": 80165982
+        },
+        "2097152": {
+          "sample_offset_from_server_handler_seconds": 0.567821937,
+          "current_bytes": 1703936,
+          "proposed_bytes": 3080192,
+          "smoothed_rate_bytes_per_second": 6048330.133260379,
+          "rtt_nanoseconds": 80165982
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 0.729397952,
+          "current_bytes": 3932160,
+          "proposed_bytes": 5570560,
+          "smoothed_rate_bytes_per_second": 14433336.123402093,
+          "rtt_nanoseconds": 80165982
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 0.810072965,
+          "current_bytes": 5570560,
+          "proposed_bytes": 9306112,
+          "smoothed_rate_bytes_per_second": 21478495.019726086,
+          "rtt_nanoseconds": 80165982
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 1.080225293,
+          "current_bytes": 13828096,
+          "proposed_bytes": 18743296,
+          "smoothed_rate_bytes_per_second": 31302425.1811839,
+          "rtt_nanoseconds": 80165982
+        }
+      },
+      "growth_event_count": 86,
+      "grown_event_count": 9,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 524288,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 1,
+        "local_address": "10.211.0.1:35157",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 31,
+        "proposed": 524288,
+        "rate_bytes_per_second": 48.570449044244064,
+        "remote_address": "10.212.0.2:49860",
+        "rtt_nanoseconds": 80165982,
+        "sample_unix_nano": 1792245165240240501,
+        "session_identity": "0x1052e2e1cb08",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 23592960,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 23592960,
+          "byte_send_available": 523879,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 19,
+        "max_nanoseconds": 79384351,
+        "total_nanoseconds": 623225477
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 16,
+          "max_nanoseconds": 79384351,
+          "total_nanoseconds": 543812981
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 3,
+          "max_nanoseconds": 79217116,
+          "total_nanoseconds": 79412496
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8220,
+        "max_nanoseconds": 69661139,
+        "total_nanoseconds": 6483633643
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5875,
+          "send_slow_start_threshold": 5875,
+          "send_mss": 1448,
+          "rtt_us": 87537,
+          "last_data_sent_ms": 1105,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 269432571,
+          "bytes_acked": 269432572,
+          "capture_finished_monotonic_ns": 81514662055,
+          "derived_cwnd_times_current_send_mss_bytes": 8507000
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5875,
+          "send_slow_start_threshold": 5875,
+          "send_mss": 1448,
+          "rtt_us": 81506,
+          "last_data_sent_ms": 466,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538494889,
+          "bytes_acked": 538494890,
+          "capture_finished_monotonic_ns": 89483670759,
+          "derived_cwnd_times_current_send_mss_bytes": 8507000
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 0,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.sender-wait-controls/sequence-9-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.sender-wait-controls/sequence-9-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 1,
+      "policy": 0,
+      "sequence": 11,
+      "lane": 3,
+      "stream_id": 6,
+      "MBps": 35.334670032672406,
+      "handler_seconds": 7.431417435,
+      "upstream_read_seconds": 6.656297569,
+      "downstream_write_seconds": 0.606529411,
+      "max_downstream_write_ms": 0.445928,
+      "origin_got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:35157",
+          "remote_address": "10.212.0.2:49872",
+          "observed_unix_ns": 1792245181557715696
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.323403811,
+          "current_bytes": 524288,
+          "proposed_bytes": 1048576,
+          "smoothed_rate_bytes_per_second": 1717670.2067934265,
+          "rtt_nanoseconds": 80162856
+        },
+        "2097152": {
+          "sample_offset_from_server_handler_seconds": 0.568313805,
+          "current_bytes": 1703936,
+          "proposed_bytes": 3080192,
+          "smoothed_rate_bytes_per_second": 6093734.601713378,
+          "rtt_nanoseconds": 80162856
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 0.730140157,
+          "current_bytes": 3932160,
+          "proposed_bytes": 5636096,
+          "smoothed_rate_bytes_per_second": 14373102.579519298,
+          "rtt_nanoseconds": 80162856
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 0.811393105,
+          "current_bytes": 5636096,
+          "proposed_bytes": 9240576,
+          "smoothed_rate_bytes_per_second": 21274659.87833971,
+          "rtt_nanoseconds": 80162856
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 1.068155825,
+          "current_bytes": 13697024,
+          "proposed_bytes": 18022400,
+          "smoothed_rate_bytes_per_second": 30940678.412827972,
+          "rtt_nanoseconds": 80162856
+        }
+      },
+      "growth_event_count": 86,
+      "grown_event_count": 9,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 524288,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 3,
+        "local_address": "10.211.0.1:35157",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 31,
+        "proposed": 524288,
+        "rate_bytes_per_second": 49.553681757410416,
+        "remote_address": "10.212.0.2:49872",
+        "rtt_nanoseconds": 80162856,
+        "sample_unix_nano": 1792245181557672892,
+        "session_identity": "0x1052e2ca7088",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 22872064,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 22872064,
+          "byte_send_available": 523878,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 18,
+        "max_nanoseconds": 79844678,
+        "total_nanoseconds": 623396685
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 16,
+          "max_nanoseconds": 79348632,
+          "total_nanoseconds": 543551065
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 2,
+          "max_nanoseconds": 79844678,
+          "total_nanoseconds": 79845620
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8369,
+        "max_nanoseconds": 63740045,
+        "total_nanoseconds": 6467276263
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5891,
+          "send_slow_start_threshold": 5891,
+          "send_mss": 1448,
+          "rtt_us": 83421,
+          "last_data_sent_ms": 17404,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 269462877,
+          "bytes_acked": 269462878,
+          "capture_finished_monotonic_ns": 97855226093,
+          "derived_cwnd_times_current_send_mss_bytes": 8530168
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5891,
+          "send_slow_start_threshold": 5891,
+          "send_mss": 1448,
+          "rtt_us": 84235,
+          "last_data_sent_ms": 435,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538513817,
+          "bytes_acked": 538513818,
+          "capture_finished_monotonic_ns": 105757193563,
+          "derived_cwnd_times_current_send_mss_bytes": 8530168
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 0,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.sender-wait-controls/sequence-11-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.sender-wait-controls/sequence-11-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 1,
+      "policy": 0,
+      "sequence": 14,
+      "lane": 2,
+      "stream_id": 6,
+      "MBps": 35.632513657966335,
+      "handler_seconds": 7.355438905,
+      "upstream_read_seconds": 6.685543409,
+      "downstream_write_seconds": 0.582977477,
+      "max_downstream_write_ms": 0.538027,
+      "origin_got_conn": [
+        {
+          "reused": true,
+          "was_idle": true,
+          "idle_time_ns": 24411190287,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:35157",
+          "remote_address": "10.212.0.2:49858",
+          "observed_unix_ns": 1792245205233268187
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.241453466,
+          "current_bytes": 524288,
+          "proposed_bytes": 1048576,
+          "smoothed_rate_bytes_per_second": 5313113.337882817,
+          "rtt_nanoseconds": 80275846
+        },
+        "2097152": {
+          "sample_offset_from_server_handler_seconds": 0.403379803,
+          "current_bytes": 1048576,
+          "proposed_bytes": 2097152,
+          "smoothed_rate_bytes_per_second": 6798641.309140017,
+          "rtt_nanoseconds": 80275846
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 0.483970723,
+          "current_bytes": 2097152,
+          "proposed_bytes": 4194304,
+          "smoothed_rate_bytes_per_second": 8351754.371214509,
+          "rtt_nanoseconds": 80275846
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 0.738554282,
+          "current_bytes": 7274496,
+          "proposed_bytes": 11862016,
+          "smoothed_rate_bytes_per_second": 23111017.992163777,
+          "rtt_nanoseconds": 80275846
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 0.995373532,
+          "current_bytes": 14876672,
+          "proposed_bytes": 18808832,
+          "smoothed_rate_bytes_per_second": 31612024.064830475,
+          "rtt_nanoseconds": 80275846
+        }
+      },
+      "growth_event_count": 85,
+      "grown_event_count": 9,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 524288,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 2,
+        "local_address": "10.211.0.1:35157",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 0,
+        "proposed": 524288,
+        "rate_bytes_per_second": 0,
+        "remote_address": "10.212.0.2:49858",
+        "rtt_nanoseconds": 80289353,
+        "sample_unix_nano": 1792245205313856661,
+        "session_identity": "0x1052e2e1c588",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 23724032,
+          "allocation_send_available": 27983872,
+          "allocation_send_limit": 27983872,
+          "byte_receive_limit": 23724032,
+          "byte_send_available": 25509592,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 18,
+        "max_nanoseconds": 79284567,
+        "total_nanoseconds": 477619747
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 15,
+          "max_nanoseconds": 78962099,
+          "total_nanoseconds": 398205738
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 3,
+          "max_nanoseconds": 79284567,
+          "total_nanoseconds": 79414009
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8202,
+        "max_nanoseconds": 77988274,
+        "total_nanoseconds": 6627953327
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5893,
+          "send_slow_start_threshold": 5893,
+          "send_mss": 1448,
+          "rtt_us": 88058,
+          "last_data_sent_ms": 1111,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 269779847,
+          "bytes_acked": 269779848,
+          "capture_finished_monotonic_ns": 121606671631,
+          "derived_cwnd_times_current_send_mss_bytes": 8533064
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5893,
+          "send_slow_start_threshold": 5893,
+          "send_mss": 1448,
+          "rtt_us": 87919,
+          "last_data_sent_ms": 466,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538854866,
+          "bytes_acked": 538854867,
+          "capture_finished_monotonic_ns": 129472388454,
+          "derived_cwnd_times_current_send_mss_bytes": 8533064
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 0,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.sender-wait-controls/sequence-14-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.sender-wait-controls/sequence-14-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 1,
+      "policy": 0,
+      "sequence": 15,
+      "lane": 3,
+      "stream_id": 6,
+      "MBps": 37.54965171338431,
+      "handler_seconds": 6.969317782,
+      "upstream_read_seconds": 6.320480134,
+      "downstream_write_seconds": 0.562345163,
+      "max_downstream_write_ms": 0.482028,
+      "origin_got_conn": [
+        {
+          "reused": true,
+          "was_idle": true,
+          "idle_time_ns": 24602188102,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:35157",
+          "remote_address": "10.212.0.2:49872",
+          "observed_unix_ns": 1792245213510281309
+        }
+      ],
+      "growth_crossings": {
+        "1048576": null,
+        "2097152": null,
+        "4194304": null,
+        "8388608": null,
+        "16777216": null
+      },
+      "growth_event_count": 80,
+      "grown_event_count": 0,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 22872064,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 3,
+        "local_address": "10.211.0.1:35157",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 0,
+        "proposed": 22872064,
+        "rate_bytes_per_second": 0,
+        "remote_address": "10.212.0.2:49872",
+        "rtt_nanoseconds": 80203635,
+        "sample_unix_nano": 1792245213590870795,
+        "session_identity": "0x1052e2ca7088",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 22872064,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 22872064,
+          "byte_send_available": 523582,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 0,
+        "max_nanoseconds": 0,
+        "total_nanoseconds": 0
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8200,
+        "max_nanoseconds": 85654944,
+        "total_nanoseconds": 6722562856
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5891,
+          "send_slow_start_threshold": 5891,
+          "send_mss": 1448,
+          "rtt_us": 88403,
+          "last_data_sent_ms": 9274,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538513885,
+          "bytes_acked": 538513886,
+          "capture_finished_monotonic_ns": 129888114354,
+          "derived_cwnd_times_current_send_mss_bytes": 8530168
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5891,
+          "send_slow_start_threshold": 5891,
+          "send_mss": 1448,
+          "rtt_us": 86383,
+          "last_data_sent_ms": 453,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 807587956,
+          "bytes_acked": 807587957,
+          "capture_finished_monotonic_ns": 137344792595,
+          "derived_cwnd_times_current_send_mss_bytes": 8530168
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 0,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.sender-wait-controls/sequence-15-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/results.sender-wait-controls/sequence-15-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 2,
+      "policy": 1,
+      "sequence": 9,
+      "lane": 1,
+      "stream_id": 6,
+      "MBps": 27.654869541478366,
+      "handler_seconds": 9.537630474,
+      "upstream_read_seconds": 8.632876424,
+      "downstream_write_seconds": 0.736094603,
+      "max_downstream_write_ms": 0.558106,
+      "origin_got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:34547",
+          "remote_address": "10.212.0.2:60172",
+          "observed_unix_ns": 1792245323718700406
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.645610759,
+          "current_bytes": 524288,
+          "proposed_bytes": 1048576,
+          "smoothed_rate_bytes_per_second": 2502995.6028816476,
+          "rtt_nanoseconds": 80243273
+        },
+        "2097152": {
+          "sample_offset_from_server_handler_seconds": 0.967656484,
+          "current_bytes": 1638400,
+          "proposed_bytes": 2424832,
+          "smoothed_rate_bytes_per_second": 4340975.60684071,
+          "rtt_nanoseconds": 80243273
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 1.934906178,
+          "current_bytes": 4063232,
+          "proposed_bytes": 5111808,
+          "smoothed_rate_bytes_per_second": 8391059.19352589,
+          "rtt_nanoseconds": 80243273
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 3.061980607,
+          "current_bytes": 8126464,
+          "proposed_bytes": 10354688,
+          "smoothed_rate_bytes_per_second": 16935026.500227176,
+          "rtt_nanoseconds": 80243273
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 3.94929142,
+          "current_bytes": 13631488,
+          "proposed_bytes": 17629184,
+          "smoothed_rate_bytes_per_second": 28852565.200913552,
+          "rtt_nanoseconds": 80243273
+        }
+      },
+      "growth_event_count": 113,
+      "grown_event_count": 12,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 524288,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 1,
+        "local_address": "10.211.0.1:34547",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 31,
+        "proposed": 524288,
+        "rate_bytes_per_second": 49.54913630528888,
+        "remote_address": "10.212.0.2:60172",
+        "rtt_nanoseconds": 80243273,
+        "sample_unix_nano": 1792245323718662312,
+        "session_identity": "0x6a903922588",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 22675456,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 22675456,
+          "byte_send_available": 523879,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 28,
+        "max_nanoseconds": 160532955,
+        "total_nanoseconds": 1825546242
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 23,
+          "max_nanoseconds": 160532955,
+          "total_nanoseconds": 1627163588
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 5,
+          "max_nanoseconds": 79948007,
+          "total_nanoseconds": 198382654
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8216,
+        "max_nanoseconds": 157014176,
+        "total_nanoseconds": 7368885704
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 10,
+          "send_slow_start_threshold": 241,
+          "send_mss": 1448,
+          "rtt_us": 85720,
+          "last_data_sent_ms": 4623,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 269446445,
+          "bytes_acked": 269446446,
+          "capture_finished_monotonic_ns": 85103855928,
+          "derived_cwnd_times_current_send_mss_bytes": 14480
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 3074,
+          "send_slow_start_threshold": 241,
+          "send_mss": 1448,
+          "rtt_us": 85697,
+          "last_data_sent_ms": 431,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538521763,
+          "bytes_acked": 538521764,
+          "capture_finished_monotonic_ns": 95127816334,
+          "derived_cwnd_times_current_send_mss_bytes": 4451152
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 1,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.sender-wait-controls/sequence-9-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.sender-wait-controls/sequence-9-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 2,
+      "policy": 1,
+      "sequence": 11,
+      "lane": 3,
+      "stream_id": 6,
+      "MBps": 14.303924908229138,
+      "handler_seconds": 18.589663842,
+      "upstream_read_seconds": 17.483417518,
+      "downstream_write_seconds": 0.934300207,
+      "max_downstream_write_ms": 1.397429,
+      "origin_got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:34547",
+          "remote_address": "10.212.0.2:60154",
+          "observed_unix_ns": 1792245342004442662
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.726853014,
+          "current_bytes": 917504,
+          "proposed_bytes": 1441792,
+          "smoothed_rate_bytes_per_second": 2931116.3209903776,
+          "rtt_nanoseconds": 80283461
+        },
+        "2097152": {
+          "sample_offset_from_server_handler_seconds": 0.968884133,
+          "current_bytes": 1900544,
+          "proposed_bytes": 2621440,
+          "smoothed_rate_bytes_per_second": 4575193.020288945,
+          "rtt_nanoseconds": 80283461
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 6.683121158,
+          "current_bytes": 3342336,
+          "proposed_bytes": 4259840,
+          "smoothed_rate_bytes_per_second": 6672939.971951388,
+          "rtt_nanoseconds": 80283461
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 11.990514859,
+          "current_bytes": 6946816,
+          "proposed_bytes": 9175040,
+          "smoothed_rate_bytes_per_second": 14530530.200780146,
+          "rtt_nanoseconds": 80287618
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 16.023546832,
+          "current_bytes": 14745600,
+          "proposed_bytes": 18612224,
+          "smoothed_rate_bytes_per_second": 29422182.684000045,
+          "rtt_nanoseconds": 80287618
+        }
+      },
+      "growth_event_count": 229,
+      "grown_event_count": 13,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 524288,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 3,
+        "local_address": "10.211.0.1:34547",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 31,
+        "proposed": 524288,
+        "rate_bytes_per_second": 48.853288737445865,
+        "remote_address": "10.212.0.2:60154",
+        "rtt_nanoseconds": 80283461,
+        "sample_unix_nano": 1792245342004400620,
+        "session_identity": "0x6a903922b08",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 23658496,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 23658496,
+          "byte_send_available": 523878,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 75,
+        "max_nanoseconds": 241796131,
+        "total_nanoseconds": 7950224621
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 68,
+          "max_nanoseconds": 241796131,
+          "total_nanoseconds": 7603332379
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 7,
+          "max_nanoseconds": 78732071,
+          "total_nanoseconds": 346892242
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8281,
+        "max_nanoseconds": 235887151,
+        "total_nanoseconds": 10286833821
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 10,
+          "send_slow_start_threshold": 248,
+          "send_mss": 1448,
+          "rtt_us": 84309,
+          "last_data_sent_ms": 2862,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 269457675,
+          "bytes_acked": 269457676,
+          "capture_finished_monotonic_ns": 103408327114,
+          "derived_cwnd_times_current_send_mss_bytes": 14480
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 2561,
+          "send_slow_start_threshold": 248,
+          "send_mss": 1448,
+          "rtt_us": 85984,
+          "last_data_sent_ms": 498,
+          "total_retrans": 3,
+          "bytes_retransmitted": 4344,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538539601,
+          "bytes_acked": 538535258,
+          "capture_finished_monotonic_ns": 122531766841,
+          "derived_cwnd_times_current_send_mss_bytes": 3708328
+        }
+      },
+      "tcp_retrans_delta": 3,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 1,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.sender-wait-controls/sequence-11-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.sender-wait-controls/sequence-11-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 2,
+      "policy": 1,
+      "sequence": 14,
+      "lane": 2,
+      "stream_id": 8,
+      "MBps": 34.09869989444565,
+      "handler_seconds": 7.69662909,
+      "upstream_read_seconds": 6.796615067,
+      "downstream_write_seconds": 0.650246429,
+      "max_downstream_write_ms": 0.56001,
+      "origin_got_conn": [
+        {
+          "reused": false,
+          "was_idle": false,
+          "idle_time_ns": 0,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:34547",
+          "remote_address": "10.212.0.2:60160",
+          "observed_unix_ns": 1792245377134346572
+        }
+      ],
+      "growth_crossings": {
+        "1048576": {
+          "sample_offset_from_server_handler_seconds": 0.727734308,
+          "current_bytes": 983040,
+          "proposed_bytes": 1507328,
+          "smoothed_rate_bytes_per_second": 3002980.245142515,
+          "rtt_nanoseconds": 80364107
+        },
+        "2097152": {
+          "sample_offset_from_server_handler_seconds": 0.890297804,
+          "current_bytes": 1966080,
+          "proposed_bytes": 3145728,
+          "smoothed_rate_bytes_per_second": 8153093.342881357,
+          "rtt_nanoseconds": 80364107
+        },
+        "4194304": {
+          "sample_offset_from_server_handler_seconds": 0.971357956,
+          "current_bytes": 3145728,
+          "proposed_bytes": 5242880,
+          "smoothed_rate_bytes_per_second": 10889940.586752333,
+          "rtt_nanoseconds": 80364107
+        },
+        "8388608": {
+          "sample_offset_from_server_handler_seconds": 1.143531614,
+          "current_bytes": 7012352,
+          "proposed_bytes": 10092544,
+          "smoothed_rate_bytes_per_second": 22266556.11197226,
+          "rtt_nanoseconds": 80364107
+        },
+        "16777216": {
+          "sample_offset_from_server_handler_seconds": 1.403513847,
+          "current_bytes": 14352384,
+          "proposed_bytes": 19136512,
+          "smoothed_rate_bytes_per_second": 31636956.83414885,
+          "rtt_nanoseconds": 80364107
+        }
+      },
+      "growth_event_count": 88,
+      "grown_event_count": 10,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 524288,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 2,
+        "local_address": "10.211.0.1:34547",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 31,
+        "proposed": 524288,
+        "rate_bytes_per_second": 48.81732106895776,
+        "remote_address": "10.212.0.2:60160",
+        "rtt_nanoseconds": 80364107,
+        "sample_unix_nano": 1792245377134321995,
+        "session_identity": "0x6a9037b1188",
+        "stream_id": 8
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 24182784,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 24182784,
+          "byte_send_available": 523878,
+          "id": 8
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 19,
+        "max_nanoseconds": 161278766,
+        "total_nanoseconds": 865783197
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 17,
+          "max_nanoseconds": 161278766,
+          "total_nanoseconds": 706325957
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 2,
+          "max_nanoseconds": 159456248,
+          "total_nanoseconds": 159457240
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8323,
+        "max_nanoseconds": 70923324,
+        "total_nanoseconds": 6488756242
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 10,
+          "send_slow_start_threshold": 2147483647,
+          "send_mss": 1448,
+          "rtt_us": 88153,
+          "last_data_sent_ms": 5607,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 269777947,
+          "bytes_acked": 269777948,
+          "capture_finished_monotonic_ns": 138534882427,
+          "derived_cwnd_times_current_send_mss_bytes": 14480
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 5895,
+          "send_slow_start_threshold": 2147483647,
+          "send_mss": 1448,
+          "rtt_us": 82714,
+          "last_data_sent_ms": 437,
+          "total_retrans": 0,
+          "bytes_retransmitted": 0,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538836629,
+          "bytes_acked": 538836630,
+          "capture_finished_monotonic_ns": 146710849299,
+          "derived_cwnd_times_current_send_mss_bytes": 8535960
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 1,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.sender-wait-controls/sequence-14-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.sender-wait-controls/sequence-14-post-capacity.json"
+      ]
+    },
+    {
+      "arm_index": 2,
+      "policy": 1,
+      "sequence": 15,
+      "lane": 3,
+      "stream_id": 6,
+      "MBps": 34.874936277703924,
+      "handler_seconds": 7.523425996,
+      "upstream_read_seconds": 6.78280151,
+      "downstream_write_seconds": 0.653796555,
+      "max_downstream_write_ms": 0.454495,
+      "origin_got_conn": [
+        {
+          "reused": true,
+          "was_idle": true,
+          "idle_time_ns": 25130997689,
+          "connection_type": "*server.agentTunnelStreamConn",
+          "local_address": "10.211.0.1:34547",
+          "remote_address": "10.212.0.2:60154",
+          "observed_unix_ns": 1792245385642781904
+        }
+      ],
+      "growth_crossings": {
+        "1048576": null,
+        "2097152": null,
+        "4194304": null,
+        "8388608": null,
+        "16777216": null
+      },
+      "growth_event_count": 84,
+      "grown_event_count": 0,
+      "first_growth_event": {
+        "agent_id": 1,
+        "agent_public_id": "qualification-external-agent-1",
+        "aggregate": true,
+        "current": 23658496,
+        "denial_active_after_outcome": false,
+        "denied_until_unix_nano": 0,
+        "lane": 3,
+        "local_address": "10.211.0.1:34547",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 0,
+        "proposed": 23658496,
+        "rate_bytes_per_second": 0,
+        "remote_address": "10.212.0.2:60154",
+        "rtt_nanoseconds": 84197077,
+        "sample_unix_nano": 1792245385723351371,
+        "session_identity": "0x6a903922b08",
+        "stream_id": 6
+      },
+      "final_server_credit": [
+        {
+          "allocation_receive_limit": 23658496,
+          "allocation_send_available": 524288,
+          "allocation_send_limit": 524288,
+          "byte_receive_limit": 23658496,
+          "byte_send_available": 523582,
+          "id": 6
+        }
+      ],
+      "sender_credit_wait_total": {
+        "count": 0,
+        "max_nanoseconds": 0,
+        "total_nanoseconds": 0
+      },
+      "sender_credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "physical_write_total": {
+        "count": 8194,
+        "max_nanoseconds": 564333072,
+        "total_nanoseconds": 7279548180
+      },
+      "tcp": {
+        "pre_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 10,
+          "send_slow_start_threshold": 1920,
+          "send_mss": 1448,
+          "rtt_us": 90890,
+          "last_data_sent_ms": 6367,
+          "total_retrans": 3,
+          "bytes_retransmitted": 4344,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 538539669,
+          "bytes_acked": 538535326,
+          "capture_finished_monotonic_ns": 147130332038,
+          "derived_cwnd_times_current_send_mss_bytes": 14480
+        },
+        "post_tcp_info": {
+          "captured": true,
+          "congestion_control": "cubic",
+          "send_congestion_window": 3003,
+          "send_slow_start_threshold": 1920,
+          "send_mss": 1448,
+          "rtt_us": 81633,
+          "last_data_sent_ms": 435,
+          "total_retrans": 3,
+          "bytes_retransmitted": 4344,
+          "total_rto": 0,
+          "not_sent_bytes": 0,
+          "unacked": 0,
+          "bytes_sent": 807614692,
+          "bytes_acked": 807610349,
+          "capture_finished_monotonic_ns": 155127339765,
+          "derived_cwnd_times_current_send_mss_bytes": 4348344
+        }
+      },
+      "tcp_retrans_delta": 0,
+      "tcp_rto_delta": 0,
+      "cached_tcp_idle_policy": 1,
+      "inputs": [
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.jsonl",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.sender-wait-controls/sequence-15-post-sender.json",
+        "tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/results.sender-wait-controls/sequence-15-post-capacity.json"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "runner_namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026533469]",
+    "net": "net:[4026533919]",
+    "pid": "pid:[4026533470]",
+    "user": "user:[4026533918]"
+  },
+  "runner_sha256": "5427df1219144226f7c0acace1674731af1afd96f5ce462dd96b1871e33c94aa",
+  "schema_version": 1,
+  "server_binary_sha256": "7bdac220c824f6d135696377bfc4203ee828c2cd2423e529523586571130b23d",
+  "server_local_pid": 190,
+  "server_ready_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/current-server-aggregate-v1-h2-1-server.ready.json",
+  "server_ready_sha256": "595cbcb821162bdcc6ff7604a1878acc5a11cdb7a3c0fddc2c3f86aebdcb9a17"
+}

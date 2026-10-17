@@ -1,0 +1,11 @@
+{
+  "accepted": true,
+  "elapsed_seconds": 0.7713570909982082,
+  "policy_readbacks": [
+    1,
+    0,
+    1
+  ],
+  "protected_alias_rejected_before_write": true,
+  "purpose": "namespace-only manipulation; no TCP endpoints"
+}

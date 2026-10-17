@@ -1,0 +1,12 @@
+{
+  "accepted": true,
+  "endpoint_execution": false,
+  "host_unchanged": true,
+  "outer_status": 0,
+  "policy_order": [
+    1,
+    0,
+    1
+  ],
+  "traffic": false
+}

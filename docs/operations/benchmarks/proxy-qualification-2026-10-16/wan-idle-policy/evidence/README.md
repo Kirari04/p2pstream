@@ -1,0 +1,25 @@
+# Private-namespace idle-policy diagnostic — source only
+
+Prepared under root's source-only authorization. No new contract, namespace probe, build, endpoint or traffic has run. Only Python AST parsing and `bash -n` are permitted/completed at this stage. Root must separately grant each later action.
+
+The exact prospective plan is `../wan-regression-causal-reset-20261017/IDLE-POLICY-PLAN.md`. Two root/Astra refinements apply: transient load scope is derived from the hash-bound unchanged direct `taskset` invocation, with no fabricated observed load PID; actual outer-parent host pre/post observations plus the guarded private target suffice, with no mid-arm host-entry/barrier. Actual agent/origin/server ready-file PIDs, process start ticks, namespaces and natural lifecycle exits are joined. Source preparation initially stopped at an ambiguous insertion anchor without producing a derivative; the anchored source insertion then succeeded. This is not a failed test or runtime attempt.
+
+`runner.sh` and `arm-wrapper.sh` are explicit derivatives of the accepted generated runner and joined-ps wrapper. Their `.diff` files preserve every change. The timed `run_transfer` function is byte-identical. The wrapper keeps `integration_dir` at the original immutable integration path, so all historical verifiers, build receipts, binaries and schemas remain referenced directly. Only runner selection/hash, fresh-output-root restriction and parent host observations change in that wrapper. The relocated generated runner starts in its own new source directory, keeping its existing relative temporary-directory creation within the new artifact budget. Namespace configuration occurs after guarded helper creation and before origin or agent TCP creation; actual endpoint proof occurs after readiness and immediately before terminal handling.
+
+`idle-policy-proof.py` has one fixed-path, exact0/1 write, executed only after validating the target differs from host, runner and router. It captures original, setter and independent namespace-file readbacks, protects runner/router values, and binds pre/post endpoint/host proofs. It explicitly distinguishes fresh sysctl reads from existing cached owner values. No public input selects the arm or policy. `validate-idle-policy.py` imports the original mature/whole-workload classifier, overrides its in-memory expected controller tuple to all CUBIC, and adds independently indexed `(1,0,1)` proof checks. Its five final effect criteria and all-three continuation remain unchanged. Large old evidence uses original `BASE.load` (16 MiB); the 1 MiB reader applies only to small new namespace/ready records.
+
+`run-idle-policy.py` imports the accepted ownership supervisor with only its artifact root redirected here. It retains 930s arm, 60s validation, 20s comparison, 16 MiB arm logs, 1 MiB validator logs, 256 MiB artifacts and 1 MiB audit reserve. Fresh outcomes live under `runs/idle-101-once`; old C/R/C files are never relabeled. It verifies new `SOURCE.json` and every entry of the original `FROZEN-INPUTS.json`, and requires a separately supplied exact manifest-bound `RUNTIME-GRANT.json` before launch. Binaries retain production `27c8e31` plus the accepted observers/controller source receipt; current repository HEAD is documentary context only.
+
+`contracts/test-idle-policy.py` is a new bounded offline suite for only this boundary: 0/1 controls, alias/type/domain/missing/scope/clock/ready/lifecycle/cached-policy failures, all-CUBIC/owner identity, actual old evidence file size/reader checks, unchanged copy function, exact108% boundary, slow middle arm and complete-three requirement. Existing heavyweight contracts are not repeated.
+
+`probe-idle-namespace.py` is a separate finite namespace-only probe source, requiring `PROBE-GRANT.json`. It creates a fresh owned disposable runner plus agent/router namespaces, rejects a protected alias before writing, calls the actual reviewed configure helper for1/0/1 including independent readbacks, joins helpers naturally, and compares actual parent host identity/value before/after. It creates no TCP socket/endpoints. The accepted ownership supervisor bounds it to30s; inner timeout is20s, holders18s, each namespace command5s. It uses fresh `probe-once` output and has no retry/fallback.
+
+Suggested later exact commands, each requiring root's separate grant and source review first:
+
+```
+python3 -I -B tmp/wan-idle-policy-screen-20261017/contracts/test-idle-policy.py
+python3 -I -B tmp/wan-idle-policy-screen-20261017/probe-idle-namespace.py --execute-approved-once
+python3 -I -B tmp/wan-idle-policy-screen-20261017/run-idle-policy.py --execute-approved-once
+```
+
+The offline suite should have a30s outer command bound. The probe and workload supervise their own stated bounds. Grants bind the SHA256 of `SOURCE.json`; no grant file is created by source preparation. A passing probe establishes the namespace setter/readback/ownership boundary only. It does not qualify WAN throughput or turn a failed three-arm comparison into success.
