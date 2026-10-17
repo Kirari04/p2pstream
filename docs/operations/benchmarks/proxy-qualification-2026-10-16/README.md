@@ -15,13 +15,26 @@ comparison.
 
 ## Files
 
+- [`current-grown-pool-pressure/README.md`](current-grown-pool-pressure/README.md)
+  records the clean-build `27c8e31` pressure pass: all thirteen gates, retained
+  pools above 80 MiB on all eight receiving lanes, ordinary 503 and reserved
+  health-control progress at 90.51% of the 4 GiB agent limit, cancellation
+  refunds, recovery, and six natural owner exits. This remains separate from
+  WAN throughput and reference-proxy performance qualification.
+- [`current-candidate-capacity/README.md`](current-candidate-capacity/README.md)
+  records the independent `27c8e31` absolute-capacity pass: all three topologies
+  complete 1,536 held requests and 512 recovery requests, both mixed-version
+  bursts pass, and all 22 process exits are natural. Original assertions and
+  resource limits remain unchanged. This does not repair the failed legacy
+  comparison or clear WAN or performance-parity gates. Pressure is recorded
+  separately above.
 - [`health-and-harness-followup/README.md`](health-and-harness-followup/README.md)
   records the health-admission correction and stricter qualification lifecycle
   checks at `27c8e31`. The complete integration race run passes, as do the
   independent 16/32-agent standing cohorts with 54 natural exit receipts.
   The capacity comparison stops at a forced legacy shutdown; one bounded
-  diagnostic does not reproduce it. Candidate capacity and final pressure
-  remain pending, and neither WAN nor HAProxy performance gates are cleared.
+  diagnostic does not reproduce it. The subsequent independent candidate
+  capacity and pressure results are above; WAN and HAProxy gates remain open.
 - [`current-production-wan/README.md`](current-production-wan/README.md)
   records the original H2 WAN workload against current source `8ac4c8d` and a
   rebuilt compatible legacy agent. The required fresh three-pair cohort fails

@@ -1,0 +1,206 @@
+{
+  "README.md": {
+    "sha256": "d2293080ffc778207255d1deb14b71728a5fec9fdf80164a3eb54298ad4ef08d",
+    "source": "tmp/pressure-final-readiness-20261017/REPORT.md"
+  },
+  "preparation/LAUNCH-27c8e31.sh": {
+    "sha256": "b16d3942b37d52de15d57b798ddba2391dcc6b5ae1667fbb44360cfd3868f9f5",
+    "source": "tmp/pressure-final-readiness-20261017/LAUNCH-27c8e31.sh"
+  },
+  "preparation/LAUNCH-PLAN.md": {
+    "sha256": "baa671b6f6b5a86645730c5fd73698784d20460d8da80ef5324365dbfdcff211",
+    "source": "tmp/pressure-final-readiness-20261017/LAUNCH-PLAN.md"
+  },
+  "preparation/OFFLINE-FROZEN-SOURCE-v3.sha256": {
+    "sha256": "2761e58c3fad804ea261210add5dee352d55997622c59fffe218b310aa4e646a",
+    "source": "tmp/pressure-final-readiness-20261017/OFFLINE-FROZEN-SOURCE-v3.sha256"
+  },
+  "preparation/READINESS.md": {
+    "sha256": "b1da996e4a465d5f386a508e548bc1933a657e7645831dd449583b3f6b5970df",
+    "source": "tmp/pressure-final-readiness-20261017/READINESS.md"
+  },
+  "preparation/contracts/scope-extracted-syntax.json": {
+    "sha256": "c30f52726145f180fe73237b7fef7ac19cb8758ce419ada8f47d708508fc6701",
+    "source": "tmp/pressure-final-readiness-20261017/contracts/scope-extracted-syntax.json"
+  },
+  "preparation/independent-result.json": {
+    "sha256": "92a9986302724c2089e970ac91db12c5c3b34771d79250aaf61511559ca05e5a",
+    "source": "tmp/pressure-final-readiness-20261017/independent-result.json"
+  },
+  "preparation/offline-contracts.log": {
+    "sha256": "ba6d9c85fbfd12606f9604bc37f37723b205bd04cc1f90af2c47530d0f1227e9",
+    "source": "tmp/pressure-final-readiness-20261017/offline-contracts.log"
+  },
+  "preparation/offline-contracts.py": {
+    "sha256": "39fac414ae60858503f20555cf9daa05dc5ec1b320ced2a5903cd280c3accc9e",
+    "source": "tmp/pressure-final-readiness-20261017/offline-contracts.py"
+  },
+  "preparation/offline-lifecycle-contracts.log": {
+    "sha256": "6f6b1ed6584f903ff16b1a614c5a82646dcc4c6b61cc1ca66e6605d8ba0a337c",
+    "source": "tmp/pressure-final-readiness-20261017/offline-lifecycle-contracts.log"
+  },
+  "preparation/offline-lifecycle-contracts.sh": {
+    "sha256": "945ea334d4e2a35dd55cf916978df048e29f78f95eae9dde96a9900c409a04ba",
+    "source": "tmp/pressure-final-readiness-20261017/offline-lifecycle-contracts.sh"
+  },
+  "preparation/preserved-workload-source.json": {
+    "sha256": "3eba6535610620afccea540dafe6f20c73713e370b85e7352f8300844cd9dec7",
+    "source": "tmp/pressure-final-readiness-20261017/preserved-workload-source.json"
+  },
+  "preparation/proposal/scripts/contract-pressure-scopes.sh": {
+    "sha256": "b0c0429056a3c87b49688dace1d22f9701c00fd773492766ae331898e4379d18",
+    "source": "tmp/pressure-final-readiness-20261017/proposal/scripts/contract-pressure-scopes.sh"
+  },
+  "preparation/runtime-scope-attempt-1.contract-source.sh": {
+    "sha256": "368eca267ab142b6031660d9d98c6f212f1db534e586769e7836e01d7af35bae",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-1.contract-source.sh"
+  },
+  "preparation/runtime-scope-attempt-1.exit-status": {
+    "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-1.exit-status"
+  },
+  "preparation/runtime-scope-attempt-1.stderr.log": {
+    "sha256": "4111e618ef3140833bbce0ee46b87babd95d8330efa83221bb48079ae14fc92e",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-1.stderr.log"
+  },
+  "preparation/runtime-scope-attempt-1/source.sha256": {
+    "sha256": "bc4d40812216b897a255b23508ab56bb195017d6c71b50687b8346def36f0204",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-1/source.sha256"
+  },
+  "preparation/runtime-scope-attempt-2.exit-status": {
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2.exit-status"
+  },
+  "preparation/runtime-scope-attempt-2/exit-0/agent-cgroup.json": {
+    "sha256": "decf1bd7413411599a067fdb920a81fdf2212b99a4b4752a1b9d037512987450",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-0/agent-cgroup.json"
+  },
+  "preparation/runtime-scope-attempt-2/exit-0/contract-result.json": {
+    "sha256": "e0d15be8c0faeb4ffea7e37b7d509b57485e41873547724fc5a0fbebff38f6a0",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-0/contract-result.json"
+  },
+  "preparation/runtime-scope-attempt-2/exit-0/server-cgroup.json": {
+    "sha256": "52130fe10e7e402d0fde6fea4a1f9db9be9aff54da5e5b76661f081cf467d258",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-0/server-cgroup.json"
+  },
+  "preparation/runtime-scope-attempt-2/exit-7/agent-cgroup.json": {
+    "sha256": "24bb4f36035bf0a1d22cbff9c2983ee2a92e65abdfb39b873c67477b0653524e",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-7/agent-cgroup.json"
+  },
+  "preparation/runtime-scope-attempt-2/exit-7/contract-result.json": {
+    "sha256": "36a5a93124deee0cdc230d4b4ce5def380b5c22b39503420f11990924e44cb8c",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-7/contract-result.json"
+  },
+  "preparation/runtime-scope-attempt-2/exit-7/server-cgroup.json": {
+    "sha256": "6b11bfbf37d8594f40ee21a777eef24533493c140cad91b88600aa85608b4cf6",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-7/server-cgroup.json"
+  },
+  "preparation/runtime-scope-attempt-2/lifecycle.jsonl": {
+    "sha256": "60176dba38af2aaa13b23e3823d1784b71f824ed21f1c02fe9cf5be871a2b41b",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/lifecycle.jsonl"
+  },
+  "preparation/runtime-scope-attempt-2/post-run-owned-resource-audit.json": {
+    "sha256": "806943ba7d829d933ba6372c12fbddb5531a5acac4b266a73043249f696c908c",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/post-run-owned-resource-audit.json"
+  },
+  "preparation/runtime-scope-attempt-2/results.status.json": {
+    "sha256": "eba696ce4363cc4f7dfb894bcba245e087c8208c08a5650e938e6e7ecd3d6d8c",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/results.status.json"
+  },
+  "preparation/runtime-scope-attempt-2/source.sha256": {
+    "sha256": "0b44bfebc263e419978e069a18d541c1323e081e46e64d2a70d734e1fbd643da",
+    "source": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/source.sha256"
+  },
+  "preparation/scope-extractor-fix.patch": {
+    "sha256": "a9150e13262b1aa1ba8d6418f11968a051698be04426e0eb15b665f478d420d8",
+    "source": "tmp/pressure-final-readiness-20261017/scope-extractor-fix.patch"
+  },
+  "preparation/v3-per-build-timeouts.patch": {
+    "sha256": "f2a4dac2168b9a59f9ffde5bbdd4f8486a3fc1c343236703632328abd72d89aa",
+    "source": "tmp/pressure-final-readiness-20261017/v3-per-build-timeouts.patch"
+  },
+  "runtime/attempt-1/attestation.json": {
+    "sha256": "e5a6288259b0f94e04927c676d7bf83835d3068a2ace1240c3f25f6132b13a0f",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/attestation.json"
+  },
+  "runtime/attempt-1/input-check-after.log": {
+    "sha256": "976c7a3f0bc80fe7652a25bc52400801d34cdf9ec12f0b0ca4fef60a72b95eba",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/input-check-after.log"
+  },
+  "runtime/attempt-1/input-check-before.log": {
+    "sha256": "976c7a3f0bc80fe7652a25bc52400801d34cdf9ec12f0b0ca4fef60a72b95eba",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/input-check-before.log"
+  },
+  "runtime/attempt-1/invocation.txt": {
+    "sha256": "26dbf2817c92ac9c0a7566d9885c27eca08bb17ebc7689e8533d1258840b2761",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/invocation.txt"
+  },
+  "runtime/attempt-1/post-run-owned-resource-audit.json": {
+    "sha256": "f8cb2961d84dfdaf243dcc45166b057b43ae3905a932fbc41792e8a1231a43fb",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/post-run-owned-resource-audit.json"
+  },
+  "runtime/attempt-1/results.jsonl": {
+    "sha256": "e7560c24cf8784c2c3b15f93e388675f6028b8cfcde1c82c8350f276189f2ad3",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/results.jsonl"
+  },
+  "runtime/attempt-1/results.lifecycle.jsonl": {
+    "sha256": "869cb620063cf7b841259d6814621a654f387c7ead9a4afb014d4f6b7cec4f81",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/results.lifecycle.jsonl"
+  },
+  "runtime/attempt-1/results.status.json": {
+    "sha256": "d05f8f1f5760daa2a818e2c591f089cf1c8cec03a8b510ebdfdd08c77a7af83f",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/results.status.json"
+  },
+  "runtime/attempt-1/results.summary.json": {
+    "sha256": "8e45e9320529a077cf1f13316c21500d5e0c883e4fac2149eb4f848b9624df2a",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/results.summary.json"
+  },
+  "runtime/attempt-1/supervisor-lifecycle.json": {
+    "sha256": "cbae2d861ad06240a78965787044efbcf8e92eff6848bfa2354902ce7c539c4a",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/supervisor-lifecycle.json"
+  },
+  "runtime/attempts.jsonl": {
+    "sha256": "2238d95ea7af351f5cd6836b42d54a89e60c84457493ca6ae5971182ca120bab",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempts.jsonl"
+  },
+  "runtime/pressure-attempt-1.outer.exit-status": {
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1.outer.exit-status"
+  },
+  "runtime/provenance/build-manifest.json": {
+    "sha256": "e74aff713be8052a83dcfb2a6da4e39cdaf8990b53b464ed34f97b8e542dd64a",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/provenance/build-manifest.json"
+  },
+  "runtime/provenance/go-binary-after-build-check.log": {
+    "sha256": "95a903d38ceb0f14787c4f3b33d93166f6c4c7aba3e4f1f7923f1d385cf6f7ed",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/provenance/go-binary-after-build-check.log"
+  },
+  "runtime/provenance/go-binary-before-build.sha256": {
+    "sha256": "5281ad948e57317fd29886c30b3a4531727eb54b8f8a2505680fd7c1d5a8f74c",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/provenance/go-binary-before-build.sha256"
+  },
+  "runtime/provenance/go-build-settings.json": {
+    "sha256": "ad87f7fb64e023b6664048b530dff183527e9b3ed723831b52394dd747da4377",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/provenance/go-build-settings.json"
+  },
+  "runtime/provenance/go-version.txt": {
+    "sha256": "058fc41f36af1ff69115b2bd237ebf769e90628e64a58c9dc171751384ffef72",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/provenance/go-version.txt"
+  },
+  "runtime/provenance/qualify-proxy-agent-growth-pressure-owned.sh": {
+    "sha256": "43315047b3b545d8f45a1186e48792c740f587226180c8d8dc418731466938f3",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/provenance/qualify-proxy-agent-growth-pressure-owned.sh"
+  },
+  "runtime/provenance/qualify-proxy-pressure-checkpoint.sh": {
+    "sha256": "c2ea1f5ba01ad7bdabb2641b65fa970a0efa081123d07954bcf50b91b1a79230",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/provenance/qualify-proxy-pressure-checkpoint.sh"
+  },
+  "runtime/provenance/validate-owned-pressure.py": {
+    "sha256": "3ae4060839ea4ae01b93314710fd93bad95c2de768f5676e722785450158419e",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/provenance/validate-owned-pressure.py"
+  },
+  "runtime/status.json": {
+    "sha256": "3afbeb2726ff1d33303959822046fb614c9e1b678439c003584b3d1ddf85ac80",
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/status.json"
+  }
+}

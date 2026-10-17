@@ -1,0 +1,6 @@
+{"event":"process-exit","label":"fixture-0-agent","pid":2372600,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"fixture-0-server","pid":2372552,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"fixture-0-namespace","pid":2372499,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"fixture-7-agent","pid":2372653,"status":7,"forced":false,"group_joined":true,"invalidates_success":true}
+{"event":"process-exit","label":"fixture-7-server","pid":2372643,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"fixture-7-namespace","pid":2372630,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}

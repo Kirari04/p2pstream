@@ -1,0 +1,654 @@
+{
+  "accepted": true,
+  "failures": [],
+  "recorded_at": "2026-10-17T10:19:51.613855+00:00",
+  "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "scope": "independent absolute candidate capacity and original mixed-version compatibility only",
+  "clears_legacy_performance_comparison": false,
+  "clears_wan": false,
+  "stock_summary_sha256": "995eb4cb5dea1bd388952a13626feaa478b49ca144a17d8ddc2c1ceacb88d695",
+  "input_rehash_manifest_sha256": "40a82547b1a2e63249be9f7246348ba4f10a935eae11735446a937d4d7d071ca",
+  "postrun_input_rehash_manifest_sha256": "0f05e14b756cbab37aa01cdfaad8aa24a5a4a470ee01f55620a1b42353f40103",
+  "stock_validator_sha256": "6af38516806dccc0ce0c5661d6accb0a91bbd1a6e69b0ab40f5de401ea99a26b",
+  "natural_receipt_count": 22,
+  "receipt_counts": {
+    "combined-4g-server-plus-colocated-agent": 3,
+    "external-one-agent-separate-4g-cgroups": 4,
+    "external-four-agents-separate-4g-cgroups": 7,
+    "compat-current-agent-old-server-1-lane": 4,
+    "compat-current-agent-old-server-4-lane": 4
+  },
+  "receipts": {
+    "combined-4g-server-plus-colocated-agent": [
+      {
+        "path": "raw/combined-4g-server-plus-colocated-agent/candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1.stop.exit.json",
+        "sha256": "33a36c112ecb62225aab480ff2634f3b39de649eb80fe266566ca9fbbb297129",
+        "receipt": {
+          "pid": 2374726,
+          "container": "p2pstream-qualification-candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-2374671",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:16.157303995Z",
+            "FinishedAt": "2026-10-17T10:18:18.24751155Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/combined-4g-server-plus-colocated-agent/haproxy-1.stop.exit.json",
+        "sha256": "0693f5998b168bfd2d1643ac105b71df33b5b930d3705f6a31cd16a30e336c26",
+        "receipt": {
+          "pid": 2374905,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/combined-4g-server-plus-colocated-agent/origin.stop.exit.json",
+        "sha256": "5316dbbf1762fe453e6ce4efc6a6d9074f8c271c0e98732d605dfe9ffa95d734",
+        "receipt": {
+          "pid": 2374716,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      }
+    ],
+    "external-one-agent-separate-4g-cgroups": [
+      {
+        "path": "raw/external-one-agent-separate-4g-cgroups/candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-agent-1.stop.exit.json",
+        "sha256": "3b96e6eedca542530a486a45b01c13bbb579fe2166148d974ed0e14e2831132a",
+        "receipt": {
+          "pid": 2375118,
+          "container": "p2pstream-qualification-candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-agent-1-2374968",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:20.866940959Z",
+            "FinishedAt": "2026-10-17T10:18:22.367474119Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/external-one-agent-separate-4g-cgroups/candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-server.stop.exit.json",
+        "sha256": "d0bff98477b2e150f18eb2fb67eb09e091e8822a0389138f524ea4cb68f00dc0",
+        "receipt": {
+          "pid": 2375024,
+          "container": "p2pstream-qualification-candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-server-2374968",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:20.070223552Z",
+            "FinishedAt": "2026-10-17T10:18:22.64116869Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/external-one-agent-separate-4g-cgroups/haproxy-1.stop.exit.json",
+        "sha256": "a9a9777e87ea0965fcbeff5522d7f070d8fe0664b4ada6f808fb1f5094f54a86",
+        "receipt": {
+          "pid": 2375346,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/external-one-agent-separate-4g-cgroups/origin.stop.exit.json",
+        "sha256": "e32beb2221fd3807c2f6013cf1763fb84cdd0bdf1ee8d03772d7a5a3ac8f5c21",
+        "receipt": {
+          "pid": 2375014,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      }
+    ],
+    "external-four-agents-separate-4g-cgroups": [
+      {
+        "path": "raw/external-four-agents-separate-4g-cgroups/candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-agent-1.stop.exit.json",
+        "sha256": "612a1571ae458746ab9ba4037844b33dca9bc744eea88f1de3e3fff7881aeaf6",
+        "receipt": {
+          "pid": 2375627,
+          "container": "p2pstream-qualification-candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-agent-1-2375410",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:25.244983606Z",
+            "FinishedAt": "2026-10-17T10:18:27.971607109Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/external-four-agents-separate-4g-cgroups/candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-agent-2.stop.exit.json",
+        "sha256": "df3779caef702949a00d036b14a218cf189598d3199809017a347d657009e2ab",
+        "receipt": {
+          "pid": 2375706,
+          "container": "p2pstream-qualification-candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-agent-2-2375410",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:25.474614993Z",
+            "FinishedAt": "2026-10-17T10:18:27.843449427Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/external-four-agents-separate-4g-cgroups/candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-agent-3.stop.exit.json",
+        "sha256": "789bdea74d2351d9feea0edad6578dfd9398830f988d6cb5b7e479f5b6ab91f7",
+        "receipt": {
+          "pid": 2375803,
+          "container": "p2pstream-qualification-candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-agent-3-2375410",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:25.731172425Z",
+            "FinishedAt": "2026-10-17T10:18:27.650156319Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/external-four-agents-separate-4g-cgroups/candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-agent-4.stop.exit.json",
+        "sha256": "066398b15a2fdaefca73b1f546e826f5634c4fa33b1785bab94f2d258378f253",
+        "receipt": {
+          "pid": 2375882,
+          "container": "p2pstream-qualification-candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-agent-4-2375410",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:25.979289321Z",
+            "FinishedAt": "2026-10-17T10:18:27.484486194Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/external-four-agents-separate-4g-cgroups/candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-server.stop.exit.json",
+        "sha256": "84d472f06530d44121261a05145ca83ec0a733b8ebeeb36fb4e4e27e212060f6",
+        "receipt": {
+          "pid": 2375467,
+          "container": "p2pstream-qualification-candidate-27c8e31f3826ab5326d941b20644c1f56159d99d-1-external-server-2375410",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:24.441169783Z",
+            "FinishedAt": "2026-10-17T10:18:28.225164493Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/external-four-agents-separate-4g-cgroups/haproxy-1.stop.exit.json",
+        "sha256": "09a97e7c8d04d7b59043c9985b0649ff6c5f2438b664cb798c9a08fe2c65ec85",
+        "receipt": {
+          "pid": 2376249,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/external-four-agents-separate-4g-cgroups/origin.stop.exit.json",
+        "sha256": "6b283c68c70af5cdd4057a0b3e3d5518be2e3be7b33b43a11ca6adb6239a2240",
+        "receipt": {
+          "pid": 2375457,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      }
+    ],
+    "compat-current-agent-old-server-1-lane": [
+      {
+        "path": "raw/compat-current-agent-old-server-1-lane/current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-1-lane-1-external-agent-1.stop.exit.json",
+        "sha256": "642f5754ec14bb1892a8c698073f462fa3fd6a7c3ac4d401c9c8b5233a08391b",
+        "receipt": {
+          "pid": 2376463,
+          "container": "p2pstream-qualification-current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-1-lane-1-external-agent-1-2376315",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:30.844473732Z",
+            "FinishedAt": "2026-10-17T10:18:31.956645828Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/compat-current-agent-old-server-1-lane/current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-1-lane-1-external-server.stop.exit.json",
+        "sha256": "3fc63e12b29476168d6964fb227dfed2ea9c8a3f869422f84affc7d19e31906a",
+        "receipt": {
+          "pid": 2376372,
+          "container": "p2pstream-qualification-current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-1-lane-1-external-server-2376315",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:30.087165805Z",
+            "FinishedAt": "2026-10-17T10:18:32.212871684Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/compat-current-agent-old-server-1-lane/haproxy-1.stop.exit.json",
+        "sha256": "275db15e8ebe0e60f34ccd7b39eade5a9cfe062c5c9cccdf30ff34237b937f42",
+        "receipt": {
+          "pid": 2376744,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/compat-current-agent-old-server-1-lane/origin.stop.exit.json",
+        "sha256": "c7a94fab297cf4dd9171a04c854adb2df87a8550eb0282e509f9829f02f635bc",
+        "receipt": {
+          "pid": 2376362,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      }
+    ],
+    "compat-current-agent-old-server-4-lane": [
+      {
+        "path": "raw/compat-current-agent-old-server-4-lane/current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-4-lane-1-external-agent-1.stop.exit.json",
+        "sha256": "2a82371beb5d0a8c150dbb53268797af41d48cb8a12bcd28d173646a43a2143a",
+        "receipt": {
+          "pid": 2377022,
+          "container": "p2pstream-qualification-current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-4-lane-1-external-agent-1-2376853",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:34.404842896Z",
+            "FinishedAt": "2026-10-17T10:18:35.46904488Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/compat-current-agent-old-server-4-lane/current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-4-lane-1-external-server.stop.exit.json",
+        "sha256": "82113946de251ba552db8c234a37973f9911c576795ff8bca7aef05c9be738d9",
+        "receipt": {
+          "pid": 2376911,
+          "container": "p2pstream-qualification-current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-4-lane-1-external-server-2376853",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:18:33.660381423Z",
+            "FinishedAt": "2026-10-17T10:18:35.749358204Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/compat-current-agent-old-server-4-lane/haproxy-1.stop.exit.json",
+        "sha256": "2fc9ead552a4bb4402ffa31761936c627206ba7ef7911d0b8a9ae212c5f2b1a8",
+        "receipt": {
+          "pid": 2377239,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "raw/compat-current-agent-old-server-4-lane/origin.stop.exit.json",
+        "sha256": "a4be8086c7cee951dcf0ef06b6078e3139dc5eb6964884f7337338bb676b58a0",
+        "receipt": {
+          "pid": 2376901,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      }
+    ]
+  },
+  "candidate_and_compatibility_rows": {
+    "combined-4g-server-plus-colocated-agent": [
+      {
+        "label": "candidate-27c8e31f3826ab5326d941b20644c1f56159d99d",
+        "scenario": "capacity-1536-h1",
+        "attempted": 1536,
+        "useful_completed": 1536,
+        "errors": 0,
+        "status_classes": {
+          "2xx": 1536
+        },
+        "origin_peak_inflight": 1536,
+        "owner_peak_reservations": {
+          "public_connection": 1536,
+          "public_handshake": 301,
+          "public_request": 1536,
+          "public_response": 1536,
+          "receive_window": 5
+        },
+        "persisted_event_delta": 1536,
+        "dropped_event_delta": 0,
+        "event_queue_after_drain": 0,
+        "event_drain_error": ""
+      },
+      {
+        "label": "candidate-27c8e31f3826ab5326d941b20644c1f56159d99d",
+        "scenario": "recovery",
+        "attempted": 512,
+        "useful_completed": 512,
+        "errors": 0,
+        "status_classes": {
+          "2xx": 512
+        },
+        "origin_peak_inflight": null,
+        "owner_peak_reservations": null,
+        "persisted_event_delta": 512,
+        "dropped_event_delta": 0,
+        "event_queue_after_drain": 0,
+        "event_drain_error": ""
+      }
+    ],
+    "external-one-agent-separate-4g-cgroups": [
+      {
+        "label": "candidate-27c8e31f3826ab5326d941b20644c1f56159d99d",
+        "scenario": "capacity-1536-h1",
+        "attempted": 1536,
+        "useful_completed": 1536,
+        "errors": 0,
+        "status_classes": {
+          "2xx": 1536
+        },
+        "origin_peak_inflight": 1536,
+        "owner_peak_reservations": {
+          "public_connection": 1536,
+          "public_handshake": 755,
+          "public_request": 1536,
+          "public_response": 1536,
+          "receive_window": 5
+        },
+        "persisted_event_delta": 1536,
+        "dropped_event_delta": 0,
+        "event_queue_after_drain": 0,
+        "event_drain_error": ""
+      },
+      {
+        "label": "candidate-27c8e31f3826ab5326d941b20644c1f56159d99d",
+        "scenario": "recovery",
+        "attempted": 512,
+        "useful_completed": 512,
+        "errors": 0,
+        "status_classes": {
+          "2xx": 512
+        },
+        "origin_peak_inflight": null,
+        "owner_peak_reservations": null,
+        "persisted_event_delta": 512,
+        "dropped_event_delta": 0,
+        "event_queue_after_drain": 0,
+        "event_drain_error": ""
+      }
+    ],
+    "external-four-agents-separate-4g-cgroups": [
+      {
+        "label": "candidate-27c8e31f3826ab5326d941b20644c1f56159d99d",
+        "scenario": "capacity-1536-h1",
+        "attempted": 1536,
+        "useful_completed": 1536,
+        "errors": 0,
+        "status_classes": {
+          "2xx": 1536
+        },
+        "origin_peak_inflight": 1536,
+        "owner_peak_reservations": {
+          "public_connection": 1536,
+          "public_handshake": 199,
+          "public_request": 1536,
+          "public_response": 1536,
+          "receive_window": 20
+        },
+        "persisted_event_delta": 1536,
+        "dropped_event_delta": 0,
+        "event_queue_after_drain": 0,
+        "event_drain_error": ""
+      },
+      {
+        "label": "candidate-27c8e31f3826ab5326d941b20644c1f56159d99d",
+        "scenario": "recovery",
+        "attempted": 512,
+        "useful_completed": 512,
+        "errors": 0,
+        "status_classes": {
+          "2xx": 512
+        },
+        "origin_peak_inflight": null,
+        "owner_peak_reservations": null,
+        "persisted_event_delta": 512,
+        "dropped_event_delta": 0,
+        "event_queue_after_drain": 0,
+        "event_drain_error": ""
+      }
+    ],
+    "compat-current-agent-old-server-1-lane": [
+      {
+        "label": "current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-1-lane",
+        "scenario": "capacity-128-h1",
+        "attempted": 128,
+        "useful_completed": 128,
+        "errors": 0,
+        "status_classes": {
+          "2xx": 128
+        },
+        "origin_peak_inflight": 128,
+        "owner_peak_reservations": {
+          "public_connection": 128,
+          "public_handshake": 38,
+          "public_request": 128,
+          "public_response": 128
+        },
+        "persisted_event_delta": 128,
+        "dropped_event_delta": 0,
+        "event_queue_after_drain": 0,
+        "event_drain_error": ""
+      },
+      {
+        "label": "current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-1-lane",
+        "scenario": "recovery",
+        "attempted": 512,
+        "useful_completed": 512,
+        "errors": 0,
+        "status_classes": {
+          "2xx": 512
+        },
+        "origin_peak_inflight": null,
+        "owner_peak_reservations": null,
+        "persisted_event_delta": 512,
+        "dropped_event_delta": 0,
+        "event_queue_after_drain": 0,
+        "event_drain_error": ""
+      }
+    ],
+    "compat-current-agent-old-server-4-lane": [
+      {
+        "label": "current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-4-lane",
+        "scenario": "capacity-128-h1",
+        "attempted": 128,
+        "useful_completed": 128,
+        "errors": 0,
+        "status_classes": {
+          "2xx": 128
+        },
+        "origin_peak_inflight": 128,
+        "owner_peak_reservations": {
+          "public_connection": 128,
+          "public_handshake": 29,
+          "public_request": 128,
+          "public_response": 128
+        },
+        "persisted_event_delta": 128,
+        "dropped_event_delta": 0,
+        "event_queue_after_drain": 0,
+        "event_drain_error": ""
+      },
+      {
+        "label": "current-agent-27c8e31f3826ab5326d941b20644c1f56159d99d-old-server-4-lane",
+        "scenario": "recovery",
+        "attempted": 512,
+        "useful_completed": 512,
+        "errors": 0,
+        "status_classes": {
+          "2xx": 512
+        },
+        "origin_peak_inflight": null,
+        "owner_peak_reservations": null,
+        "persisted_event_delta": 512,
+        "dropped_event_delta": 0,
+        "event_queue_after_drain": 0,
+        "event_drain_error": ""
+      }
+    ]
+  },
+  "original_evidence_preserved": {
+    "failed_capacity": {
+      "files_verified": 49,
+      "changed_files": []
+    },
+    "legacy_stack_diagnostic": {
+      "files_verified": 29,
+      "changed_files": []
+    }
+  },
+  "remaining_recorded_processes": [],
+  "remaining_archive_binary_processes": [],
+  "remaining_containers": []
+}

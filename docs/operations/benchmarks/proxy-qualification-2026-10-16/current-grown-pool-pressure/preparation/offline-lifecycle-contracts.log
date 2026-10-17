@@ -1,0 +1,7 @@
+natural_expected=0 observed=0
+natural-7 exited with status 7
+natural_expected=7 observed=7
+Terminated                 sleep .02
+forced-zero required forced process-group cleanup or did not join
+forced_zero=rejected
+case_root=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/pressure-final-readiness-20261017/contracts/lifecycle.V3mJcl

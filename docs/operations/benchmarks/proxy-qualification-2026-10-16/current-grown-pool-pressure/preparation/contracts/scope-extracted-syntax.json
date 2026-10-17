@@ -1,0 +1,5 @@
+{
+  "corrected_exit_status": 0,
+  "previous_extractor_exit_status": 2,
+  "previous_extractor_stderr": "bash: line 164: warning: here-document at line 127 delimited by end-of-file (wanted `PY')\nbash: line 165: syntax error: unexpected end of file from `{' command on line 125\n"
+}

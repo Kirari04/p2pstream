@@ -1,0 +1,2 @@
+tmp/pressure-final-readiness-20261017/proposal/scripts/contract-pressure-scopes.sh: line 75: warning: here-document at line 38 delimited by end-of-file (wanted `PY')
+tmp/pressure-final-readiness-20261017/proposal/scripts/contract-pressure-scopes.sh: eval: line 76: syntax error: unexpected end of file from `{' command on line 36

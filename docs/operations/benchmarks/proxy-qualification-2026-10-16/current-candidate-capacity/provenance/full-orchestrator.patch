@@ -1,0 +1,95 @@
+--- a/scripts/qualify-proxy-capacity-checkpoint.sh
++++ b/tmp/independent-candidate-capacity-20261017/independent-capacity.sh
+@@ -1,9 +1,9 @@
+ #!/usr/bin/env bash
+-# Build immutable candidate and 3ec137 compatibility binaries, then run the
+-# original combined-cgroup and separate one/four-agent 1,536-H1 capacity rows.
++# Independent absolute candidate capacity; reuse verified immutable binaries.
++# This does not retry/repair the rejected legacy baseline comparison.
+ set -Eeuo pipefail
+ 
+-cd "$(dirname "$0")/.."
++cd /home/user/.codex/worktrees/astra-proxy-performance/p2pstream
+ 
+ candidate_ref=""
+ output_root=""
+@@ -17,6 +17,7 @@
+ done
+ [[ -n $candidate_ref ]] || { echo "--candidate-ref is required" >&2; exit 2; }
+ candidate_ref=$(git rev-parse --verify "$candidate_ref^{commit}")
++[[ $candidate_ref == 27c8e31f3826ab5326d941b20644c1f56159d99d ]] || { echo "unexpected immutable source" >&2; exit 2; }
+ baseline_ref=$(git rev-parse --verify "$baseline_ref^{commit}")
+ candidate_short=${candidate_ref:0:12}
+ mkdir -p tmp/proxy-capacity-checkpoint
+@@ -46,37 +47,24 @@
+ done
+ docker info >/dev/null
+ 
+-candidate_dir=$(mktemp -d -p "$output_root/builds" candidate.XXXXXX)
+-baseline_dir=$(mktemp -d -p "$output_root/builds" baseline.XXXXXX)
+-git archive "$candidate_ref" | tar -x -C "$candidate_dir"
+-git archive "$baseline_ref" | tar -x -C "$baseline_dir"
+-cmp -s "$candidate_dir/scripts/qualify-proxy-capacity-checkpoint.sh" "$0" || {
+-  echo "running capacity orchestrator differs from candidate $candidate_ref" >&2
+-  exit 1
+-}
+-cmp -s "$candidate_dir/scripts/qualify-proxy-performance.sh" scripts/qualify-proxy-performance.sh || {
+-  echo "running qualification driver differs from candidate $candidate_ref" >&2
+-  exit 1
+-}
+-install -m 0644 "$candidate_dir/internal/server/testdata/proxy_qualification_external_legacy_test.go" \
+-  "$baseline_dir/internal/server/proxy_qualification_external_legacy_test.go"
+-install -m 0644 "$candidate_dir/internal/agent/testdata/proxy_qualification_external_legacy_test.go" \
+-  "$baseline_dir/internal/agent/proxy_qualification_external_legacy_test.go"
++# Reuse the original clean archives and binaries; do not extract, overlay or build.
++prep_root=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/independent-candidate-capacity-20261017
++source_root=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d
++candidate_dir=$source_root/capacity-attempt-1/builds/candidate.TJJjK2
++baseline_dir=$source_root/capacity-attempt-1/builds/baseline.NLIFoh
++candidate_server=$source_root/capacity-attempt-1/builds/candidate-server.test
++candidate_agent=$source_root/capacity-attempt-1/builds/candidate-agent.test
++baseline_server=$source_root/capacity-attempt-1/builds/baseline-server.test
++baseline_agent=$source_root/capacity-attempt-1/builds/baseline-agent.test
++python3 "$prep_root/rehash-inputs.py" "$prep_root/prepared-manifest.json" "$output_root/provenance/input-rehash-manifest.json"
++[[ -z $(docker ps --filter name=p2pstream-qualification --format '{{.ID}}') ]] || { echo "qualification containers already running" >&2; exit 1; }
+ install -m 0755 "$0" "$output_root/provenance/qualify-proxy-capacity-checkpoint.sh"
+-install -m 0755 "$candidate_dir/scripts/qualify-proxy-performance.sh" "$output_root/provenance/qualify-proxy-performance.sh"
+-install -m 0644 "$candidate_dir/internal/server/testdata/proxy_qualification_external_legacy_test.go" \
+-  "$output_root/provenance/proxy_qualification_external_legacy_server_test.go"
+-install -m 0644 "$candidate_dir/internal/agent/testdata/proxy_qualification_external_legacy_test.go" \
+-  "$output_root/provenance/proxy_qualification_external_legacy_agent_test.go"
+-
+-candidate_server=$output_root/builds/candidate-server.test
+-candidate_agent=$output_root/builds/candidate-agent.test
+-baseline_server=$output_root/builds/baseline-server.test
+-baseline_agent=$output_root/builds/baseline-agent.test
+-(cd "$candidate_dir" && go test -c -o "$candidate_server" ./internal/server)
+-(cd "$candidate_dir" && go test -c -o "$candidate_agent" ./internal/agent)
+-(cd "$baseline_dir" && go test -c -o "$baseline_server" ./internal/server)
+-(cd "$baseline_dir" && go test -c -o "$baseline_agent" ./internal/agent)
++install -m 0755 scripts/qualify-proxy-capacity-checkpoint.sh "$output_root/provenance/stock-qualify-proxy-capacity-checkpoint.sh"
++install -m 0755 scripts/qualify-proxy-performance.sh "$output_root/provenance/qualify-proxy-performance.sh"
++install -m 0644 "$candidate_dir/internal/server/testdata/proxy_qualification_external_legacy_test.go" "$output_root/provenance/proxy_qualification_external_legacy_server_test.go"
++install -m 0644 "$candidate_dir/internal/agent/testdata/proxy_qualification_external_legacy_test.go" "$output_root/provenance/proxy_qualification_external_legacy_agent_test.go"
++install -m 0644 "$prep_root/prepared-manifest.json" "$output_root/provenance/prepared-manifest.json"
++install -m 0644 "$prep_root/stock-validator.py" "$output_root/provenance/stock-validator.py"
+ 
+ manifest=$output_root/manifest.json
+ jq -n \
+@@ -136,7 +124,6 @@
+   if ((external_agents > 0)); then
+     external_args=(
+       --external-agents "$external_agents"
+-      --baseline-agent-binary "$baseline_agent"
+       --candidate-agent-binary "$candidate_agent"
+     )
+   else
+@@ -146,8 +133,6 @@
+     --runs 1 \
+     --capacity-only --capacity-concurrency 1536 --capacity-protocol h1 \
+     --ballast-mib 1024 \
+-    --baseline-label "baseline-$baseline_ref" \
+-    --baseline-binary "$baseline_server" \
+     --candidate-label "candidate-$candidate_ref" \
+     --candidate-binary "$candidate_server" \
+     --driver-binary "$candidate_server" \

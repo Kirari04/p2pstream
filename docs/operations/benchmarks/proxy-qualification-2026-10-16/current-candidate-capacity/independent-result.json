@@ -1,0 +1,15 @@
+{
+  "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "independent_absolute_candidate_capacity_accepted": true,
+  "mixed_version_compatibility_accepted": true,
+  "legacy_performance_comparison_cleared": false,
+  "wan_cleared": false,
+  "original_failed_comparison_preserved": true,
+  "original_diagnostic_preserved": true,
+  "natural_exit_receipts": 22,
+  "forced_cleanup": false,
+  "owned_runtime_remaining": false,
+  "cpu_ownership_released": true,
+  "stock_summary_sha256": "995eb4cb5dea1bd388952a13626feaa478b49ca144a17d8ddc2c1ceacb88d695",
+  "completion_audit_sha256": "3de6c25cdb4e8518fb52a4859f155d6b3d84a209ab64edfc0736b2c91c0ad914"
+}

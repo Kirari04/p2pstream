@@ -1,0 +1,104 @@
+{
+  "payload_pids": [
+    {
+      "file": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-0/agent.ready",
+      "pid": 2372600,
+      "exists_after_join": false
+    },
+    {
+      "file": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-0/namespace.ready",
+      "pid": 2372499,
+      "exists_after_join": false
+    },
+    {
+      "file": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-0/server.ready",
+      "pid": 2372552,
+      "exists_after_join": false
+    },
+    {
+      "file": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-7/agent.ready",
+      "pid": 2372653,
+      "exists_after_join": false
+    },
+    {
+      "file": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-7/namespace.ready",
+      "pid": 2372630,
+      "exists_after_join": false
+    },
+    {
+      "file": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/exit-7/server.ready",
+      "pid": 2372643,
+      "exists_after_join": false
+    }
+  ],
+  "process_groups": [
+    {
+      "label": "fixture-0-agent",
+      "pgid": 2372600,
+      "exists_after_join": false,
+      "recorded_status": 0,
+      "recorded_forced": false
+    },
+    {
+      "label": "fixture-0-server",
+      "pgid": 2372552,
+      "exists_after_join": false,
+      "recorded_status": 0,
+      "recorded_forced": false
+    },
+    {
+      "label": "fixture-0-namespace",
+      "pgid": 2372499,
+      "exists_after_join": false,
+      "recorded_status": 0,
+      "recorded_forced": false
+    },
+    {
+      "label": "fixture-7-agent",
+      "pgid": 2372653,
+      "exists_after_join": false,
+      "recorded_status": 7,
+      "recorded_forced": false
+    },
+    {
+      "label": "fixture-7-server",
+      "pgid": 2372643,
+      "exists_after_join": false,
+      "recorded_status": 0,
+      "recorded_forced": false
+    },
+    {
+      "label": "fixture-7-namespace",
+      "pgid": 2372630,
+      "exists_after_join": false,
+      "recorded_status": 0,
+      "recorded_forced": false
+    }
+  ],
+  "scopes": [
+    {
+      "unit": "p2p-pressure-scope-contract-agent-2372457-0.scope",
+      "show_exit_status": 0,
+      "state": "LoadState=not-found\nActiveState=inactive\nControlGroup=",
+      "stderr": ""
+    },
+    {
+      "unit": "p2p-pressure-scope-contract-agent-2372457-7.scope",
+      "show_exit_status": 0,
+      "state": "LoadState=not-found\nActiveState=inactive\nControlGroup=",
+      "stderr": ""
+    },
+    {
+      "unit": "p2p-pressure-scope-contract-server-2372457-0.scope",
+      "show_exit_status": 0,
+      "state": "LoadState=not-found\nActiveState=inactive\nControlGroup=",
+      "stderr": ""
+    },
+    {
+      "unit": "p2p-pressure-scope-contract-server-2372457-7.scope",
+      "show_exit_status": 0,
+      "state": "LoadState=not-found\nActiveState=inactive\nControlGroup=",
+      "stderr": ""
+    }
+  ]
+}
