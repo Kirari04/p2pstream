@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "status": "root runtime grant required; one fresh original96 cohort only",
+  "argv": [
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/run-qualification.py",
+    "--execute-approved-once"
+  ],
+  "owned_command": [
+    "bash",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/run-owned-wan-stability.sh",
+    "--output-dir",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once"
+  ],
+  "outer_deadline_seconds": 13320,
+  "original_wrapper_deadline_seconds": 13200,
+  "original_fixture_timeout_seconds": 12591,
+  "per_transfer_timeout_seconds": 188,
+  "outer_log_stream_rejection_threshold_bytes": 4194304,
+  "qualification_artifact_rejection_threshold_bytes": 268435456,
+  "shared_build_checks_cache_tmp_binary_rejection_threshold_bytes": 4294967296,
+  "shared_build_accounting_roots": [
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017"
+  ],
+  "attempts": 1,
+  "maximum_pairs": 3,
+  "maximum_transfers": 96,
+  "pair_order": [
+    [
+      "legacy",
+      "aggregate-v1"
+    ],
+    [
+      "aggregate-v1",
+      "legacy"
+    ],
+    [
+      "legacy",
+      "aggregate-v1"
+    ]
+  ],
+  "no_retry": true,
+  "no_early_share_or_diagnostic_overlay": true,
+  "same_new_server_policy_both_modes": true,
+  "canonical_workload_flags": [
+    "--runs",
+    "3",
+    "--warmup-mib",
+    "256",
+    "--steady-mib",
+    "256",
+    "--transfer-repetitions",
+    "3",
+    "--required-pool-mib",
+    "8",
+    "--rtt-ms",
+    "80"
+  ],
+  "runtime_source_ref": "bd593420a6905f8922bb96d07ec351483c0df2c3+public-route-idle-reuse-source-b359dc67c290193f68bf33519853df3473e31f9a4d8e718c0bd1ccc282d14947",
+  "current_build_receipt_sha256": "d428e45fd861c8ed7a4346920e53c2a56d1fe678660fd343707f9841f53af624",
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; observed overflow rejects"
+}

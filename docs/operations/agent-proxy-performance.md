@@ -10,8 +10,11 @@ still apply.
 
 - New peers negotiate aggregate-v1 with one authenticated TLS/TCP control
   tunnel and four bulk tunnels per agent by default. Legacy peers retain four
-  physical tunnels. Each origin has a reusable transport per bulk lane, so one
-  HTTP/2 connection cannot pin all work to a single TCP tunnel. All lanes share
+  physical tunnels. Per-lane origin pools allow parallel use. Serial public
+  requests prefer an idle entry for the same complete route key, with at most
+  four lookups and an atomic request claim; busy or cold routes use ordinary
+  round-robin selection. Idle preference does not guarantee lane-wide exclusivity
+  or fairness. All lanes share
   stream admission, update drain, health identity and revocation. A dropped
   aggregate lane reconnects independently. A legacy primary disconnect or a
   complete legacy acknowledgment after an aggregate server rollback replaces
@@ -808,6 +811,29 @@ original 29.7 MB/s floor. The exact candidate is closed as unpromising. All fail
 and successful proof continuations, exact raw rejection and passing incomplete
 resource/input closure audit remain preserved. This changes no production code
 and clears no original WAN, HAProxy, parity or release gate.
+
+The subsequent retained production route-reuse change passes the
+[original 96-transfer steady-state WAN qualification](benchmarks/proxy-qualification-2026-10-16/wan-route-reuse/README.md).
+All 96 exact 256 MiB transfers and fifteen natural endpoint/helper joins pass,
+with all paired and pooled aggregate/legacy ratios above 0.90 in both directions.
+The three download ratios are 0.984944 / 0.971189 / 0.988910 and upload ratios
+1.006544 / 1.029307 / 1.037843; pooled ratios are 0.986485 and 1.029365.
+CUBIC and default idle 1 are observed before and after, without per-socket
+controller attribution. Normal and race checks each pass 69 top-level tests
+(96 including subtests); exact ordinary builds, the 430-file compilation inventory,
+530 runtime input bindings and original/corrected offline fixture history remain
+preserved. The tested source is base `bd593420` plus the reviewed six-file patch,
+identified by the full compilation digest, rather than that commit alone.
+
+Aggregate retained-download rows 25/41 still run at 14.3414/14.6476 MB/s
+(14,341,440.431861518 / 14,647,608.967473641 bytes/s); the unchanged original
+steady-state gate excludes those retained-warmup rows. This does not establish
+throughput parity for all cold or retained transfers.
+
+The same new server reuse policy serves both modes. This result clears the scoped
+original steady-state WAN gate and supports retaining the implementation; it provides no
+isolated old-versus-new causal percentage, HAProxy/tail-latency/broad parity or
+release clearance. Earlier failed and incomplete diagnostics remain unchanged.
 
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while

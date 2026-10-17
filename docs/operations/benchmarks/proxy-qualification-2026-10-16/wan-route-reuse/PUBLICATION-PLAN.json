@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "status": "runtime complete; final result prose and additive documentation prepared; export awaits explicit root authorization and frozen final independent review",
+  "destination": "docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-route-reuse",
+  "source_base_commit": "bd593420a6905f8922bb96d07ec351483c0df2c3",
+  "compile_identity": "b359dc67c290193f68bf33519853df3473e31f9a4d8e718c0bd1ccc282d14947",
+  "required_contents": [
+    "six reviewed changed Go sources, exact generated base patch and full source inventories",
+    "ordinary focused normal/race plans and complete natural proofs",
+    "ordinary fresh endpoint build receipt/settings/metadata and command proofs, excluding binaries/cache",
+    "original failed five-case offline boundary proof and separate corrected single-case continuation with four reused passes",
+    "exact reviewed runner/guard/default sources and diffs, complete530-input freeze and root runtime grant",
+    "canonical original96 rows/summary-if-written/attestation/lifecycle/default proofs and owned outer audits",
+    "explicitly frozen final outcome, closure observation/audit and independent review files supplied by root after completion"
+  ],
+  "exclusions": [
+    "all binaries, module/build/temp caches and full compile source copies",
+    "TLS certificates/keys, runtime credentials and endpoint readiness/application logs",
+    "disposable nested workdirs, duplicate transfer artifacts and request payloads",
+    "unrelated later feasibility plans or candidates"
+  ],
+  "review_collection": "explicit source/build/qualification allowlist; final outcome inputs require exact path/destination/hash in root grant; no worker-directory wildcard for future prose",
+  "deduplication": "exact source-to-destination SHA256/size mapping; identical selected bytes share a canonical copy",
+  "publication_controls": "requires root post-completion EXPORT-GRANT with runtime_stopped=true, exporter hash, classification and frozen outcome input list; README must be authored/reviewed only after root decision",
+  "current_exports": 0,
+  "tests_builds_validators_benchmarks_executed": false,
+  "docs_index_history_or_outcome_prose_written": true
+}

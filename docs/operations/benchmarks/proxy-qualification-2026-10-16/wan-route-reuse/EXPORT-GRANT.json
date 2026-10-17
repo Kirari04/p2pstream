@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "root_approved": true,
+  "runtime_stopped": true,
+  "exporter_sha256": "02b18935864140968885af3e3ec8e8c1efbcb154056c15d39df2e7f0215fb0c3",
+  "classification": "complete qualification pass",
+  "outcome_files": [
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/OUTCOME.json",
+      "destination": "analysis/OUTCOME.json",
+      "sha256": "15cbf3c6164f962af1114df75c39d5b4d3a97310011a3a9f88b66c381a25442d"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/extract-saved.py",
+      "destination": "analysis/extract-saved.py",
+      "sha256": "0925446995624d4379af7aae91c36c86d10f91365be3283fa6113f21880391d4"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/PLAN.md",
+      "destination": "analysis/PLAN.md",
+      "sha256": "5b737fe2847c3437e1c17760c4c12144068b2b2873b89e579ccc4a0ec716b643"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/extraction.stdout",
+      "destination": "analysis/extraction.stdout",
+      "sha256": "f90134142597003f40ca4a4e7870a442238674b701e379575a15a9b3b296c903"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/extraction.stderr",
+      "destination": "analysis/extraction.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/extraction.status",
+      "destination": "analysis/extraction.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/FINAL-OUTCOME-REVIEW.md",
+      "destination": "analysis/independent-review/FINAL-OUTCOME-REVIEW.md",
+      "sha256": "6a5d5b3abe89a94a92f0c3e8c55d41ac8f889de841312a005fcc502a5c1fad30"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/FINAL-OUTCOME-INPUTS.json",
+      "destination": "analysis/independent-review/FINAL-OUTCOME-INPUTS.json",
+      "sha256": "2d6793f4972a053a4f82b1e327dca926700811db5f628450fb2c1e7adf7e4539"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/FINAL-OUTCOME-ARITHMETIC.json",
+      "destination": "analysis/independent-review/FINAL-OUTCOME-ARITHMETIC.json",
+      "sha256": "839df1fd5511998b7417af2220fbfc3b378e78fff6a943b334e637f981335867"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/FINAL-OUTCOME-HASHES.json",
+      "destination": "analysis/independent-review/FINAL-OUTCOME-HASHES.json",
+      "sha256": "f3a62e3f20ad977abf040d44a7b7287f4a9064c624c6642248c044c522d444fa"
+    }
+  ],
+  "additional_frozen_files": [
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-publication-20261017/DEPENDENCY-REFERENCES.json",
+      "destination": "DEPENDENCY-REFERENCES.json",
+      "sha256": "a32c68e8fd8d779abf12c228f4228654cd1e5e8beb897b4bac6d37e28bda6061"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-review-20261017/WARM-LANE-FEASIBILITY.md",
+      "destination": "analysis/design-basis/WARM-LANE-FEASIBILITY.md",
+      "sha256": "6b1c95b7759a7b2170e5bbdda698aa933f0cd99ccb35a1a93eb210a90105693a"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-review-20261017/WARM-LANE-INPUTS.json",
+      "destination": "analysis/design-basis/WARM-LANE-INPUTS.json",
+      "sha256": "6c18f7ef11e180a7ede75bc54505baff893bb981dbde533a3a627131cbd6208a"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/ASSESSMENT.md",
+      "destination": "analysis/ci-correction/ASSESSMENT.md",
+      "sha256": "c88a3f865dc2ccbcee973e3d566e95ff3838620cf5ce02375d3e92d6e7255e7e"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/INPUTS.json",
+      "destination": "analysis/ci-correction/INPUTS.json",
+      "sha256": "7a5377dcacbf5cc2d8a3c742139f46bad1a92f981353b4afec292b55ccffe397"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/CORRECTION.md",
+      "destination": "analysis/ci-correction/CORRECTION.md",
+      "sha256": "b17aa2b9a242b2e48b641a7fa259b57b94a5a5978a8c65dc85175181cb173a64"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/package-discovery-once/COMMAND.json",
+      "destination": "analysis/ci-correction/package-discovery-once/COMMAND.json",
+      "sha256": "2af0edd4e3546f792322af9a3b8eabbc37a5f9c7c2c0b570dbbf3e9d5061f8ab"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/package-discovery-once/stdout.log",
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/package-discovery-once/stderr.log",
+      "destination": "analysis/ci-correction/package-discovery-once/stderr.log",
+      "sha256": "7d9f9fe35ea6fe0f9d08bae582dfd2de06c1462d5acdfea83a02cb2ea41975b9"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/package-discovery-once/RESULT.json",
+      "destination": "analysis/ci-correction/package-discovery-once/RESULT.json",
+      "sha256": "a5e17356e3baab456355806eeef93b6aa79ddd049d84b24a62d8fce16985d8a8"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/ci-verify-failed.log",
+      "destination": "analysis/ci-correction/ci-verify-failed.log",
+      "sha256": "1ade890a40b17aed7086526fcc5071d510d216a01912d7d2c39dc1770bebbd76"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/codeql-go-failed.log",
+      "destination": "analysis/ci-correction/codeql-go-failed.log",
+      "sha256": "617189a4620cb2101b12e1dbc428bdd61c6123c35714291fa12ec866a99fb497"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/go.mod",
+      "destination": "analysis/ci-correction/benchmarks-module/go.mod",
+      "sha256": "0ac6f3f6fd964cba0da71f4ff301cf10f7860df58c47ee211ef1e197e2fa2e63"
+    },
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/README.md",
+      "destination": "analysis/ci-correction/benchmarks-module/README.md",
+      "sha256": "69ce0c826b6048736f504f3e6147c944c5d601744c0bfcb9ca6ee201f9ce7c0a"
+    }
+  ],
+  "reviewed_README_sha256": "5d0f6b3e155c531a236efd482673ad2de513fdc6bd2073cbd5a9ef1c63d35ae8",
+  "root_decision": "Retain the reviewed fix: unchanged original96 steady-state gate passes; slow retained warmups remain explicitly documented. No broader parity or release clearance.",
+  "documentary_link_correction": "VitePress rejects .go relative links and a directory without index; source links now pin the exact implementation commit, and evidence links to the export map. No source or measurement bytes change."
+}

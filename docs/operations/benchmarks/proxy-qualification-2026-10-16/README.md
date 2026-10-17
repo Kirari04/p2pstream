@@ -15,6 +15,14 @@ comparison.
 
 ## Files
 
+- [`wan-route-reuse/README.md`](wan-route-reuse/README.md)
+  records the retained production public-route reuse change and a complete pass
+  of the original 96-transfer steady-state WAN gate: all exact transfers, fifteen natural
+  joins and every paired/pooled 0.90 ratio pass. Pooled aggregate/legacy ratios
+  are 0.986485 download and 1.029365 upload under the same new server policy;
+  retained downloads at 14.34/14.65 MB/s remain outside that unchanged steady-state
+  summary. This supplies no all-transfer parity, isolated old/new causal estimate
+  or broader release clearance.
 - [`wan-early-backed-share/README.md`](wan-early-backed-share/README.md)
   preserves the incomplete application-only off/on/off screen: 32 transfers finish
   before the candidate's strict shutdown FIN proof rejects and the last control

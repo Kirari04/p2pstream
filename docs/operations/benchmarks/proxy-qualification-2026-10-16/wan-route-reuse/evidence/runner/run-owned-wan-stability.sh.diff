@@ -1,0 +1,79 @@
+--- /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runner/run-owned-wan-stability.sh
++++ /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/run-owned-wan-stability.sh
+@@ -7,8 +7,8 @@
+ }
+ preflight_only=0
+ [[ ${3:-} != --preflight-only ]] || preflight_only=1
+-root=$(realpath "$(dirname "$0")/../../../..")
+-prep=$root/tmp/continuation-20261016/current-wan-prep
++root=$(realpath "$(dirname "$0")/../../..")
++prep=$root/tmp/wan-route-reuse-qualification-20261017
+ output_dir=$(realpath -m "$2")
+ [[ $output_dir == "$prep"/* ]] || { echo "output must remain under $prep" >&2; exit 2; }
+ [[ ! -e $output_dir ]] || { echo "output directory already exists: $output_dir" >&2; exit 2; }
+@@ -23,8 +23,15 @@
+ for tool in awk lscpu python3 readlink setsid sha256sum taskset timeout unshare; do
+   command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 2; }
+ done
+-(cd "$prep" && sha256sum -c provenance/expected-stability-artifacts.sha256) > "$output_dir/preflight-sha256.log"
+-for name in P2PSTREAM_QUALIFICATION_PROFILE_DIR P2PSTREAM_QUALIFICATION_PROFILE_MODE; do
++# Both files remain absent until exact production source/build review.
++[[ -f $prep/provenance/stability-manifest.json && -f $prep/REVIEWED-BUILD-RECEIPT-SHA256 && -f $prep/verify-runtime-inputs.py ]] || { echo "new production build/source receipt is pending review" >&2; exit 125; }
++python3 -I -B "$prep/verify-runtime-inputs.py" "$prep/provenance/stability-manifest.json" > "$output_dir/verified-binding.txt" || { echo "new production tuple verification rejected" >&2; exit 125; }
++mapfile -t binding < "$output_dir/verified-binding.txt"
++[[ ${#binding[@]} == 5 ]] || { echo "exact reviewed binary/source tuple missing" >&2; exit 125; }
++server_binary=${binding[0]}; aggregate_agent_binary=${binding[1]}; legacy_agent_binary=${binding[2]}
++current_source_ref=${binding[3]}; legacy_source_ref=${binding[4]}
++python3 -I -B "$prep/prove-default-transport.py" self "$output_dir/transport-defaults-host-pre.json"
++for name in P2PSTREAM_QUALIFICATION_PROFILE_DIR P2PSTREAM_QUALIFICATION_PROFILE_MODE P2PSTREAM_QUALIFICATION_EARLY_SHARE P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR P2PSTREAM_QUALIFICATION_DATA_CONTROLLER P2PSTREAM_IDLE_ARM_INDEX; do
+   [[ -z ${!name+x} ]] || { echo "$name must be unset" >&2; exit 2; }
+ done
+ 
+@@ -47,9 +54,9 @@
+ 
+ command=(
+   "$runner"
+-  --server-binary "$prep/bin/current-server.test"
+-  --aggregate-agent-binary "$prep/bin/current-agent.test"
+-  --legacy-agent-binary "$prep/bin/legacy-agent.test"
++  --server-binary "$server_binary"
++  --aggregate-agent-binary "$aggregate_agent_binary"
++  --legacy-agent-binary "$legacy_agent_binary"
+   --output "$results"
+   --runs 3
+   --warmup-mib 256
+@@ -57,9 +64,9 @@
+   --transfer-repetitions 3
+   --required-pool-mib 8
+   --rtt-ms 80
+-  --server-source-ref 8ac4c8df8237e37777ba2fac0da6f949da17bdea
+-  --aggregate-agent-source-ref 8ac4c8df8237e37777ba2fac0da6f949da17bdea
+-  --legacy-agent-source-ref 3ec137c3ad3d07028e867042fb00d3933912d7ab
++  --server-source-ref "$current_source_ref"
++  --aggregate-agent-source-ref "$current_source_ref"
++  --legacy-agent-source-ref "$legacy_source_ref"
+ )
+ printf '%q ' "${command[@]}" > "$output_dir/invocation.txt"
+ printf '\n' >> "$output_dir/invocation.txt"
+@@ -152,14 +159,21 @@
+   exit "$runner_status"
+ fi
+ 
++python3 -I -B "$prep/prove-default-transport.py" self "$output_dir/transport-defaults-host-post.json"
++python3 -I -B "$prep/verify-runtime-inputs.py" "$prep/provenance/stability-manifest.json" > "$output_dir/verified-binding-post.txt"
++cmp "$output_dir/verified-binding.txt" "$output_dir/verified-binding-post.txt"
+ set +e
+ "$validator" "$results" "${results%.jsonl}.lifecycle.jsonl" "$output_dir/h2-stability-attestation.json" "$outer_namespaces" "$output_dir/supervisor-lifecycle.json" "$prep/provenance/stability-manifest.json" \
+   > "$output_dir/validation.stdout.log" 2> "$output_dir/validation.stderr.log"
+ validation_status=$?
++python3 -I -B "$prep/prove-default-transport.py" validate "$output_dir" "$output_dir/transport-defaults-validation.json" > "$output_dir/transport-defaults-validation.stdout.log" 2> "$output_dir/transport-defaults-validation.stderr.log"
++transport_defaults_status=$?
+ set -e
++printf '%s\n' "$transport_defaults_status" > "$output_dir/transport-defaults-validation.status"
+ printf '%s\n' "$validation_status" > "$output_dir/validation.status"
+ final_status=$runner_status
+ ((validation_status == 0)) || final_status=$validation_status
++((transport_defaults_status == 0)) || final_status=$transport_defaults_status
+ printf '%s\n' "$final_status" > "$output_dir/wrapper.status"
+ results_hash=$(sha256sum "$results" | awk '{print $1}')
+ printf 'OWNED_WAN_STABILITY_FINAL runner_status=%s validation_status=%s wrapper_status=%s results=%q results_sha256=%s\n' \

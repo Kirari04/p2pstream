@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "runtime_source_manifest_sha256": "0d938ddd6834144b62b5fc8913b767be1671c9594c246cc9cd3252d6956deb92",
+  "entries": [
+    {
+      "bytes": 4097,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-growth/proxy_qualification_external_legacy_agent_test.go.txt",
+      "sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+      "published_exact_reference": {
+        "path": "../agent-wan-growth/proxy_qualification_external_legacy_agent_test.go.txt",
+        "sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb"
+      }
+    },
+    {
+      "bytes": 517,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/current-production-wan/contracts/stability-validator/final-cases/pass/outer.json",
+      "sha256": "11698150017bcb7b2d0f3352e2bbd7d9e5be5a471eadd1d5e0cf164866d81c9e",
+      "published_exact_reference": {
+        "path": "../current-production-wan/contracts/stability-validator/final-cases/pass/outer.json",
+        "sha256": "11698150017bcb7b2d0f3352e2bbd7d9e5be5a471eadd1d5e0cf164866d81c9e"
+      }
+    },
+    {
+      "bytes": 552039,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/current-production-wan/contracts/stability-validator/final-cases/pass/results.jsonl",
+      "sha256": "c304f52233da5df030e2458eea5eb25fbd74bfabedcd3277b8fd5b44c1dc4365",
+      "published_exact_reference": {
+        "path": "../current-production-wan/contracts/stability-validator/final-cases/pass/results.jsonl",
+        "sha256": "c304f52233da5df030e2458eea5eb25fbd74bfabedcd3277b8fd5b44c1dc4365"
+      }
+    },
+    {
+      "bytes": 2571,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/current-production-wan/contracts/stability-validator/final-cases/pass/results.lifecycle.jsonl",
+      "sha256": "9cd4e3b1a15505d9762c6778a51533ff1a9aaf88c4a7baf604b19b84d9cea723",
+      "published_exact_reference": {
+        "path": "../current-production-wan/contracts/stability-validator/final-cases/pass/results.lifecycle.jsonl",
+        "sha256": "9cd4e3b1a15505d9762c6778a51533ff1a9aaf88c4a7baf604b19b84d9cea723"
+      }
+    },
+    {
+      "bytes": 90,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/current-production-wan/contracts/stability-validator/final-cases/pass/supervisor.json",
+      "sha256": "fb5a5d4551c280e43457cca175add2f03e6adfd6f07f925359c85037b9bd44e7",
+      "published_exact_reference": {
+        "path": "../current-production-wan/contracts/stability-validator/final-cases/pass/supervisor.json",
+        "sha256": "fb5a5d4551c280e43457cca175add2f03e6adfd6f07f925359c85037b9bd44e7"
+      }
+    },
+    {
+      "bytes": 19594046,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/bin/legacy-agent.test",
+      "sha256": "162f8f19361bb13cf2cbb998ed2886a57a63eb36dc6ef21a4cdae4c2865b3f45",
+      "disposition": "executable/toolchain/archive bytes omitted; exact identity retained in runtime SOURCE and ordinary build/legacy reuse proofs"
+    },
+    {
+      "bytes": 0,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/build/legacy-agent.build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_exact_reference": {
+        "path": "../current-production-wan/build/legacy-agent.build.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "bytes": 15953920,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/build/legacy-source-3ec137c.tar",
+      "sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+      "disposition": "executable/toolchain/archive bytes omitted; exact identity retained in runtime SOURCE and ordinary build/legacy reuse proofs"
+    },
+    {
+      "bytes": 4097,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/legacy-source/internal/agent/proxy_qualification_external_legacy_test.go",
+      "sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+      "disposition": "exact immutable prerequisite retained by runtime SOURCE; selected source basis or dependency source is copied separately when required"
+    },
+    {
+      "bytes": 3335,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/build-manifest.json",
+      "sha256": "cf38838c0c6ac349ddaa292cde149aae93e82fd95713787e0f3221cfbaef587c",
+      "published_exact_reference": {
+        "path": "../current-production-wan/provenance/build-manifest.json",
+        "sha256": "cf38838c0c6ac349ddaa292cde149aae93e82fd95713787e0f3221cfbaef587c"
+      }
+    },
+    {
+      "bytes": 1179,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/expected-stability-artifacts.sha256",
+      "sha256": "3f87b64f83d26bf20ee512cb99425fb8d2616f9b0a0ba779e9a057c5774e7818",
+      "published_exact_reference": {
+        "path": "../current-production-wan/provenance/expected-stability-artifacts.sha256",
+        "sha256": "3f87b64f83d26bf20ee512cb99425fb8d2616f9b0a0ba779e9a057c5774e7818"
+      }
+    },
+    {
+      "bytes": 397,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/legacy-agent.build-info.txt",
+      "sha256": "a453a0e0081139c47e0e4c7ffb8ca9570b942094cd542f4dfefda41cd230b5cf",
+      "published_exact_reference": {
+        "path": "../current-production-wan/provenance/legacy-agent.build-info.txt",
+        "sha256": "a453a0e0081139c47e0e4c7ffb8ca9570b942094cd542f4dfefda41cd230b5cf"
+      }
+    },
+    {
+      "bytes": 478,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/source-archive-overlay.sha256",
+      "sha256": "07f411e7a3d1aa67e200ceee403c38e691dcc45ec2dd63a77d1ca7574f0b38c5",
+      "published_exact_reference": {
+        "path": "../current-production-wan/provenance/source-archive-overlay.sha256",
+        "sha256": "07f411e7a3d1aa67e200ceee403c38e691dcc45ec2dd63a77d1ca7574f0b38c5"
+      }
+    },
+    {
+      "bytes": 604,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/source-verification.json",
+      "sha256": "10a0bad55567179431c41f663ceb3ee012b1cd9de622545680c7cb6403c9b552",
+      "published_exact_reference": {
+        "path": "../current-production-wan/provenance/source-verification.json",
+        "sha256": "10a0bad55567179431c41f663ceb3ee012b1cd9de622545680c7cb6403c9b552"
+      }
+    },
+    {
+      "bytes": 2813,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/stability-manifest.json",
+      "sha256": "fc1469b05b412c9bb76279863e878d22e48ea55ae674b0d2bc1cf5882d561bfc",
+      "published_exact_reference": {
+        "path": "../current-production-wan/provenance/stability-manifest.json",
+        "sha256": "fc1469b05b412c9bb76279863e878d22e48ea55ae674b0d2bc1cf5882d561bfc"
+      }
+    },
+    {
+      "bytes": 77412,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runner/qualify-proxy-agent-growth-owned.sh",
+      "sha256": "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f",
+      "published_exact_reference": {
+        "path": "../current-production-wan/runner/qualify-proxy-agent-growth-owned.sh.txt",
+        "sha256": "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f"
+      }
+    },
+    {
+      "bytes": 6982,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runner/run-owned-wan-stability.sh",
+      "sha256": "39f0d40afc38e7f97d73d51f80a8f5a6818f3399fc15365cf6cd55ffcceee699",
+      "published_exact_reference": {
+        "path": "../current-production-wan/runner/run-owned-wan-stability.sh.txt",
+        "sha256": "39f0d40afc38e7f97d73d51f80a8f5a6818f3399fc15365cf6cd55ffcceee699"
+      }
+    },
+    {
+      "bytes": 8241,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runner/validate-owned-h2-stability.py",
+      "sha256": "47b4c1b938d57aba0585689a182b1a7c302e6f3dd4274388c9574f4a7033095c",
+      "published_exact_reference": {
+        "path": "../current-production-wan/runner/validate-owned-h2-stability.py.txt",
+        "sha256": "47b4c1b938d57aba0585689a182b1a7c302e6f3dd4274388c9574f4a7033095c"
+      }
+    },
+    {
+      "bytes": 13405,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-policy.py",
+      "sha256": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767",
+      "published_exact_reference": {
+        "path": "../wan-controller-policy/evidence/run-controller-policy.py",
+        "sha256": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767"
+      }
+    },
+    {
+      "bytes": 19994870,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-agent-route-reuse.test",
+      "sha256": "c8f541da6c4be5ea3ed4ae3cc1df9bfb188da210d78ffc00962602354ff41537",
+      "disposition": "executable/toolchain/archive bytes omitted; exact identity retained in runtime SOURCE and ordinary build/legacy reuse proofs"
+    },
+    {
+      "bytes": 58637352,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-server-route-reuse.test",
+      "sha256": "5d7552f7a51f907dcbbd4c7b3e73590a3a887cbf1333cc7da058a8e23ee27577",
+      "disposition": "executable/toolchain/archive bytes omitted; exact identity retained in runtime SOURCE and ordinary build/legacy reuse proofs"
+    },
+    {
+      "bytes": 10570,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-review-20261017/WARM-LANE-FEASIBILITY.md",
+      "sha256": "6b1c95b7759a7b2170e5bbdda698aa933f0cd99ccb35a1a93eb210a90105693a",
+      "disposition": "exact immutable prerequisite retained by runtime SOURCE; selected source basis or dependency source is copied separately when required"
+    },
+    {
+      "bytes": 1831,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-review-20261017/WARM-LANE-INPUTS.json",
+      "sha256": "6c18f7ef11e180a7ede75bc54505baff893bb981dbde533a3a627131cbd6208a",
+      "disposition": "exact immutable prerequisite retained by runtime SOURCE; selected source basis or dependency source is copied separately when required"
+    },
+    {
+      "bytes": 10615,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-proof-continuation-1.py",
+      "sha256": "9e2cf94e4929219fb766ec8a83411ebca902b6f2d61ecd71e07e87c4a07f5f30",
+      "published_exact_reference": {
+        "path": "../wan-early-backed-share/evidence/build-proof-continuation-1.py",
+        "sha256": "9e2cf94e4929219fb766ec8a83411ebca902b6f2d61ecd71e07e87c4a07f5f30"
+      }
+    },
+    {
+      "bytes": 6316,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-source-20261017/SOURCE.json",
+      "sha256": "53fed87c89722c3f21833da854b3de922e931115c41f2d03887d4437812b18c4",
+      "disposition": "exact immutable prerequisite retained by runtime SOURCE; selected source basis or dependency source is copied separately when required"
+    },
+    {
+      "bytes": 15434687,
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+      "disposition": "executable/toolchain/archive bytes omitted; exact identity retained in runtime SOURCE and ordinary build/legacy reuse proofs"
+    }
+  ],
+  "compiled_source_disposition": "full430 source inventory in focused PLAN; base commit plus six exact changed source files and patch, no full tree copy",
+  "no_historical_measurements_reused_as_controls": true
+}

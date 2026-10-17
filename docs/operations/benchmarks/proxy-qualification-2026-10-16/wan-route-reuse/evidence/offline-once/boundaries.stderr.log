@@ -1,0 +1,20 @@
+test_complete_original96_pair_gates_and_original_pooled_status_required (__main__.Boundaries.test_complete_original96_pair_gates_and_original_pooled_status_required) ... ok
+test_nested_default_scope_and_typed_identity_failures (__main__.Boundaries.test_nested_default_scope_and_typed_identity_failures) ... 
+  test_nested_default_scope_and_typed_identity_failures (__main__.Boundaries.test_nested_default_scope_and_typed_identity_failures) (kind='host-parent-change') ... FAIL
+test_original_timed_workload_and_pair_order_are_preserved (__main__.Boundaries.test_original_timed_workload_and_pair_order_are_preserved) ... ok
+test_reviewed_current_and_legacy_tuple_and_wrong_identities (__main__.Boundaries.test_reviewed_current_and_legacy_tuple_and_wrong_identities) ... ok
+test_tuple_failure_cannot_be_hidden_by_five_partial_lines (__main__.Boundaries.test_tuple_failure_cannot_be_hidden_by_five_partial_lines) ... ok
+
+======================================================================
+FAIL: test_nested_default_scope_and_typed_identity_failures (__main__.Boundaries.test_nested_default_scope_and_typed_identity_failures) (kind='host-parent-change')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/contracts/test-qualification-boundaries.py", line 49, in test_nested_default_scope_and_typed_identity_failures
+    with self.subTest(kind=kind):self.assertRaises(ValueError,D.validate,*v)
+                                 ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised by validate
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.670s
+
+FAILED (failures=1)

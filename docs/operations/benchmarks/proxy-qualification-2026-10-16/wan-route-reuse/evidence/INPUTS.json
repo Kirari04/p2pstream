@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "status": "read-only source feasibility/provenance inputs; no execution",
+  "files": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runner/qualify-proxy-agent-growth-owned.sh",
+      "sha256": "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f",
+      "bytes": 77412
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runner/run-owned-wan-stability.sh",
+      "sha256": "39f0d40afc38e7f97d73d51f80a8f5a6818f3399fc15365cf6cd55ffcceee699",
+      "bytes": 6982
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runner/validate-owned-h2-stability.py",
+      "sha256": "47b4c1b938d57aba0585689a182b1a7c302e6f3dd4274388c9574f4a7033095c",
+      "bytes": 8241
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/stability-manifest.json",
+      "sha256": "fc1469b05b412c9bb76279863e878d22e48ea55ae674b0d2bc1cf5882d561bfc",
+      "bytes": 2813
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/build-manifest.json",
+      "sha256": "cf38838c0c6ac349ddaa292cde149aae93e82fd95713787e0f3221cfbaef587c",
+      "bytes": 3335
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/source-verification.json",
+      "sha256": "10a0bad55567179431c41f663ceb3ee012b1cd9de622545680c7cb6403c9b552",
+      "bytes": 604
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/source-archive-overlay.sha256",
+      "sha256": "07f411e7a3d1aa67e200ceee403c38e691dcc45ec2dd63a77d1ca7574f0b38c5",
+      "bytes": 478
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/legacy-agent.build-info.txt",
+      "sha256": "a453a0e0081139c47e0e4c7ffb8ca9570b942094cd542f4dfefda41cd230b5cf",
+      "bytes": 397
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/expected-stability-artifacts.sha256",
+      "sha256": "3f87b64f83d26bf20ee512cb99425fb8d2616f9b0a0ba779e9a057c5774e7818",
+      "bytes": 1179
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/build/legacy-source-3ec137c.tar",
+      "sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+      "bytes": 15953920
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-growth/proxy_qualification_external_legacy_agent_test.go.txt",
+      "sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+      "bytes": 4097
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/bin/legacy-agent.test",
+      "sha256": "162f8f19361bb13cf2cbb998ed2886a57a63eb36dc6ef21a4cdae4c2865b3f45",
+      "bytes": 19594046
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/legacy-source/internal/agent/proxy_qualification_external_legacy_test.go",
+      "sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+      "bytes": 4097
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/build/legacy-agent.build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-review-20261017/WARM-LANE-FEASIBILITY.md",
+      "sha256": "6b1c95b7759a7b2170e5bbdda698aa933f0cd99ccb35a1a93eb210a90105693a",
+      "bytes": 10570
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-review-20261017/WARM-LANE-INPUTS.json",
+      "sha256": "6c18f7ef11e180a7ede75bc54505baff893bb981dbde533a3a627131cbd6208a",
+      "bytes": 1831
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{"event":"namespace-helpers-start","boot_id":"1811fe8e-5c3c-4428-ab82-9b38d6519500","runner_namespace":"net:[4026533919]","agent":{"pid":19,"start_ticks":8877506,"namespace":"net:[4026533858]"},"router":{"pid":24,"start_ticks":8877507,"namespace":"net:[4026534047]"}}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-1-agent","pid":182,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-1-server","pid":158,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-1-agent","pid":561,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-1-server","pid":537,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-2-agent","pid":968,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-2-server","pid":943,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-2-agent","pid":1378,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-2-server","pid":1354,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-3-agent","pid":1754,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-3-server","pid":1730,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-3-agent","pid":2136,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-3-server","pid":2112,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"origin","pid":144,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"agent-namespace","pid":19,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"router-namespace","pid":24,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}

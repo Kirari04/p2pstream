@@ -1,0 +1,12 @@
+{
+	"CGO_ENABLED": "1",
+	"GOAMD64": "v1",
+	"GOARCH": "amd64",
+	"GOENV": "",
+	"GOFLAGS": "",
+	"GOOS": "linux",
+	"GOROOT": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64",
+	"GOTOOLCHAIN": "local",
+	"GOVERSION": "go1.26.6",
+	"GOWORK": "off"
+}

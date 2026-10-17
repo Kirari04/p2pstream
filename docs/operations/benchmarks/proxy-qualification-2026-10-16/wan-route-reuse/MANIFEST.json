@@ -1,0 +1,12 @@
+{
+  "bytes_before_manifest_and_ledger": 2417287,
+  "canonical_copied_files": 125,
+  "classification": "complete qualification pass",
+  "exact_source_mappings": 149,
+  "exporter_reexecuted_tests_builds_validators_or_traffic": false,
+  "files_before_manifest_and_ledger": 131,
+  "release_or_parity_clearance": false,
+  "root_outcome_binding": "3eb71eb8800704c01e1d04a759a99b4bfa29ba546e16021641b2a0cbaeb1efb1",
+  "root_reviewed_README_sha256": "5d0f6b3e155c531a236efd482673ad2de513fdc6bd2073cbd5a9ef1c63d35ae8",
+  "schema_version": 1
+}

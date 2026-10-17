@@ -1,0 +1,90 @@
+{
+  "source_only": true,
+  "tests_builds_validators_traffic_executed_by_source_worker": false,
+  "timed_run_transfer_unchanged": true,
+  "current_build_receipt_sha256": "d428e45fd861c8ed7a4346920e53c2a56d1fe678660fd343707f9841f53af624",
+  "runtime_grant_exists": false,
+  "runtime_output_root_exists": false,
+  "files": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/INPUTS.json",
+      "sha256": "d046a98cb042284cb12723f881ea0cd571e57ad38bf341dbee4a3f0953ca6595",
+      "bytes": 4566
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/PLAN.md",
+      "sha256": "de5c040cb801c8ac1c782fff4629113be86a9b91ad8ed0f7de8a6a76d775e039",
+      "bytes": 9527
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/REVIEWED-BUILD-RECEIPT-SHA256",
+      "sha256": "ffc89e5a76c8dff1471a6afa9d581cf32e17d7190e986ab2981e4343aff1148e",
+      "bytes": 65
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/contracts/test-qualification-boundaries.py",
+      "sha256": "ab461e36089c65299d74c216499152e7eeebb743071170061eac03dcc0eb55bf",
+      "bytes": 10830
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/prove-default-transport.py",
+      "sha256": "69b0735ad234c51c5362b7f3043427b26fa43c4e2bbe9d7e52cdd0df6067652d",
+      "bytes": 8356
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/provenance/LEGACY-REUSE.json",
+      "sha256": "0d201138b58d52ef25ac8aac9cf5fb66e6e08531357b1242e54169baa57c3a58",
+      "bytes": 1459
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/provenance/stability-manifest.json",
+      "sha256": "624b8979038417e25fd64bbdc3ea8d8d7db8c0de5f28ce349b28d5192d7b72b2",
+      "bytes": 4016
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/provenance/stability-manifest.template.json",
+      "sha256": "4c19d0649757a1053f9eacfa3138a1ad3985d71d84d7c8d6ceb752b99bcd749a",
+      "bytes": 2643
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/run-qualification.py",
+      "sha256": "580019e1b6199afec68e1532140615dce5d3813ac7b831dedf7e8dc3f8237dca",
+      "bytes": 3358
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/qualify-proxy-agent-growth-owned.sh",
+      "sha256": "eac4b98a50df86cc71c026da8f0a7ab27a60543bf5eac9054ce6be410a913d8e",
+      "bytes": 77928
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/qualify-proxy-agent-growth-owned.sh.diff",
+      "sha256": "109dbef04d6954a77941dcce2f8838dcdd414c6c1b58a525522b8c90521d3ddd",
+      "bytes": 1508
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/run-owned-wan-stability.sh",
+      "sha256": "48043824b36dc6b64b18a4406d6be62da9753fdfed414feb62b9adb7d017c023",
+      "bytes": 8584
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/run-owned-wan-stability.sh.diff",
+      "sha256": "8f1b57cf699a0ac0a4c99cb49ab328eb829c906078ab1fb845e9b84016de8348",
+      "bytes": 4916
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/validate-owned-h2-stability.py",
+      "sha256": "2384b55b34789d1956e2ccb227dd31af98f10919ce79ee73e6b908580bce937c",
+      "bytes": 8213
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/validate-owned-h2-stability.py.diff",
+      "sha256": "3babf07a79e8efc52cf8608c6d48cf5dd341a259d8d02422a28b11ccca54cf5b",
+      "bytes": 1668
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/verify-runtime-inputs.py",
+      "sha256": "48be97fc46c90d5f87d6de19df1b39e72ae3750be77d8299d7890eeb6b6fc070",
+      "bytes": 4909
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "phase": "host-point-in-time",
+  "point_in_time_only": true,
+  "read_only": true,
+  "sample": {
+    "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+    "controller_default": "cubic",
+    "monotonic_ns": 88774926365012,
+    "namespace": "net:[4026531833]",
+    "namespace_device": 5,
+    "namespace_inode": 4026531833,
+    "parent": {
+      "namespace": "net:[4026531833]",
+      "namespace_device": 5,
+      "namespace_inode": 4026531833,
+      "pid": 2761680,
+      "pid_namespace": "pid:[4026531836]",
+      "start_ticks": 8877443
+    },
+    "pid": 2761708,
+    "pid_namespace": "pid:[4026531836]",
+    "start_ticks": 8877490,
+    "tcp_slow_start_after_idle": 1
+  },
+  "schema_version": 1,
+  "scope": "network-namespace defaults before first endpoint/after final workload; no per-socket TCP state claim",
+  "socket_controller_observed": false
+}

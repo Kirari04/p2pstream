@@ -1,0 +1,58 @@
+Analyze (go)	Build Go packages	﻿2026-10-17T15:15:13.7418480Z ##[group]Run go build ./...
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7418820Z ^[[36;1mgo build ./...^[[0m
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7741841Z shell: /usr/bin/bash -e {0}
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7742258Z env:
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7742613Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7743350Z   GOTOOLCHAIN: local
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7744121Z   CODEQL_ACTION_JOB_RUN_UUID: 062f34cd-0e1a-4979-97d6-74b8ad4e87b4
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7745218Z   CODEQL_ACTION_FEATURE_MULTI_LANGUAGE: false
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7745685Z   CODEQL_ACTION_FEATURE_SANDWICH: false
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7746153Z   CODEQL_ACTION_FEATURE_SARIF_COMBINE: true
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7746741Z   CODEQL_ACTION_FEATURE_WILL_UPLOAD: true
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7747317Z   CODEQL_ACTION_VERSION: 4.39.0
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7747678Z   CODEQL_ACTION_INIT_HAS_RUN: true
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7748125Z   CODEQL_ACTION_ANALYSIS_KEY: .github/workflows/codeql.yml:analyze
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7748646Z   CODEQL_WORKFLOW_STARTED_AT: 2026-10-17T15:15:01.334Z
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7749088Z   CODEQL_ACTION_HAS_SET_UP_CODEQL: true
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7749664Z   CODEQL_ACTION_GO_BINARY: /home/runner/work/_temp/codeql-action-go-tracing/bin/go
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7750191Z   CODEQL_RAM: 14579
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7750463Z   CODEQL_THREADS: 4
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7750855Z   CODEQL_SCRATCH_DIR: /home/runner/work/_temp/codeql_databases/working
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7751335Z   CODEQL_VERBOSITY: warnings
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7751728Z   CODEQL_DIST: /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7752164Z   CODEQL_PLATFORM: linux64
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7752480Z   CODEQL_PLATFORM_DLL_EXTENSION: .so
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7752994Z   CODEQL_JAVA_HOME: /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/tools/linux64/java
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7753525Z   CODEQL_EXTRACTOR_GO_ROOT: /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/go
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7754032Z   CODEQL_EXTRACTOR_GO_WIP_DATABASE: /home/runner/work/_temp/codeql_databases/go
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7755110Z   CODEQL_EXTRACTOR_GO_DIAGNOSTIC_DIR: /home/runner/work/_temp/codeql_databases/go/diagnostic/extractors/go
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7755719Z   CODEQL_EXTRACTOR_GO_LOG_DIR: /home/runner/work/_temp/codeql_databases/go/log
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7756235Z   CODEQL_EXTRACTOR_GO_SCRATCH_DIR: /home/runner/work/_temp/codeql_databases/go/working
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7756783Z   CODEQL_EXTRACTOR_GO_TRAP_DIR: /home/runner/work/_temp/codeql_databases/go/trap/go
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7757346Z   CODEQL_EXTRACTOR_GO_SOURCE_ARCHIVE_DIR: /home/runner/work/_temp/codeql_databases/go/src
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7757784Z   CODEQL_EXTRACTOR_GO_BUILD_MODE: manual
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7758077Z   SEMMLE_HANDLE_STATIC_BINARIES: true
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7758347Z   CODEQL_EXTRACTOR_GO_THREADS: 4
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7758598Z   CODEQL_EXTRACTOR_GO_RAM: 14579
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7758969Z   CODEQL_TRACER_LOG: /home/runner/work/_temp/codeql_databases/log/build-tracer.log
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7759535Z   CODEQL_TRACER_DIAGNOSTICS_DIR: /home/runner/work/_temp/codeql_databases/diagnostic/tracer
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7759984Z   CODEQL_TRACER_LANGUAGES: go
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7760478Z   SEMMLE_PRELOAD_libtrace: /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/tools/linux64/${LIB}_${PLATFORM}_trace.so
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7761225Z   SEMMLE_PRELOAD_libtrace32: /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/tools/linux64/lib32trace.so
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7761897Z   SEMMLE_PRELOAD_libtrace64: /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/tools/linux64/lib64trace.so
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7762489Z   CODEQL_RUNNER: /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/tools/linux64/runner
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7763078Z   LD_PRELOAD: /opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/tools/linux64/${LIB}_${PLATFORM}_trace.so
+Analyze (go)	Build Go packages	2026-10-17T15:15:13.7763531Z ##[endgroup]
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.6978489Z # p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7084083Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:24:22: undefined: receiveWindowGrowth
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7089949Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:32:17: undefined: NormalizeMaxStreamWindowSizeBytes
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7116843Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:52:17: undefined: NormalizeMaxStreamWindowSizeBytes
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7126963Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:127:6: undefined: qualificationGrowthTraceEnabled
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7187764Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:128:6: c.recordQualificationGrowthSample undefined (type *GrowingConn has no field or method recordQualificationGrowthSample)
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7216345Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:128:63: undefined: qualificationGrowthOutcomeNoProposal
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7219555Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:137:6: undefined: qualificationGrowthTraceEnabled
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7229561Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:138:15: undefined: qualificationGrowthOutcomeGrown
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7232848Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:140:15: undefined: qualificationGrowthOutcomePublicationError
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7236492Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:142:15: undefined: qualificationGrowthOutcomeReservationDenied
+Analyze (go)	Build Go packages	2026-10-17T15:15:34.7239797Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:142:15: too many errors
+Analyze (go)	Build Go packages	2026-10-17T15:15:48.0546640Z ##[error]Process completed with exit code 1.

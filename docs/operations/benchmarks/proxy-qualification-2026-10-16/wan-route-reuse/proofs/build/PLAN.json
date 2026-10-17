@@ -1,0 +1,205 @@
+{
+  "artifact_roots": [
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017"
+  ],
+  "binaries": {
+    "agent": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-agent-route-reuse.test",
+    "server": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-server-route-reuse.test"
+  },
+  "binary_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output",
+  "byte_threshold_semantics": "polled rejection; overshoot possible; any observed overflow rejects; combined dependency/cache/tmp/binaries/checks/build proof4GiB; new build proof256MiB",
+  "combined_artifact_limit_bytes": 4294967296,
+  "commands": [
+    {
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "20s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "-json",
+        "CGO_ENABLED",
+        "GOAMD64",
+        "GOARCH",
+        "GOENV",
+        "GOFLAGS",
+        "GOOS",
+        "GOROOT",
+        "GOTOOLCHAIN",
+        "GOVERSION",
+        "GOWORK"
+      ],
+      "log_prefix": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/settings",
+      "name": "settings",
+      "outer_deadline_seconds": 50
+    },
+    {
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "90s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "mod",
+        "verify"
+      ],
+      "log_prefix": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/modules",
+      "name": "modules",
+      "outer_deadline_seconds": 120
+    },
+    {
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "240s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-c",
+        "-mod=readonly",
+        "-p=2",
+        "-o",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-server-route-reuse.test",
+        "./internal/server"
+      ],
+      "log_prefix": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-build",
+      "name": "server-build",
+      "outer_deadline_seconds": 270
+    },
+    {
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "240s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-c",
+        "-mod=readonly",
+        "-p=2",
+        "-o",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-agent-route-reuse.test",
+        "./internal/agent"
+      ],
+      "log_prefix": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-build",
+      "name": "agent-build",
+      "outer_deadline_seconds": 270
+    },
+    {
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "20s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version",
+        "-m",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-server-route-reuse.test"
+      ],
+      "log_prefix": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-metadata",
+      "name": "server-metadata",
+      "outer_deadline_seconds": 50
+    },
+    {
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "20s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version",
+        "-m",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-agent-route-reuse.test"
+      ],
+      "log_prefix": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-metadata",
+      "name": "agent-metadata",
+      "outer_deadline_seconds": 50
+    }
+  ],
+  "complete_logs_retained": true,
+  "endpoint_execution": false,
+  "environment": {
+    "CGO_ENABLED": "1",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+    "GOENV": "off",
+    "GOFLAGS": "",
+    "GOMAXPROCS": "4",
+    "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+    "GONOPROXY": "",
+    "GONOSUMDB": "",
+    "GOOS": "linux",
+    "GOPRIVATE": "",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off"
+  },
+  "execution_order": "six fresh sequential settings/modules/server-build/agent-build/server-metadata/agent-metadata; stop first failure; no retry; no test or benchmark execution",
+  "executor_sha256": "1f8671ac2758e3700cf2f83e5f1d08002debe8676310d8fafc26b5290b10bb96",
+  "expected_settings": {
+    "CGO_ENABLED": "1",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOENV": "",
+    "GOFLAGS": "",
+    "GOOS": "linux",
+    "GOROOT": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64",
+    "GOTOOLCHAIN": "local",
+    "GOVERSION": "go1.26.6",
+    "GOWORK": "off"
+  },
+  "focused_plan": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/PLAN.json",
+  "focused_plan_sha256": "3e17f1137dad2c87e2c63c3e91cfc5ebd152a3dc3f2cd81d0f1cf1746af2fbe5",
+  "focused_result": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/RESULT.json",
+  "focused_result_sha256": "aa21fb8cff45b18d041f62282c29bb7815c30c1f9f76000dbb81bdfdccece251",
+  "fresh_ordinary_untagged_pair": true,
+  "natural_proof_helper": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-proof-continuation-1.py",
+  "network_dependency_lookup": false,
+  "no_source_copy_or_overlay": true,
+  "per_binary_limit_bytes": 268435456,
+  "per_stream_limit_bytes": 1048576,
+  "pinned_inputs": {
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-policy.py": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-proof-continuation-1.py": "9e2cf94e4929219fb766ec8a83411ebca902b6f2d61ecd71e07e87c4a07f5f30",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-proof.py": "6c784f971cddd7a499ebf88165f28aec07f5ca69265fdba9c3314268f4c3a340",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/verify-build.py": "46dfdbc58e9adaeec86c26209f3727dc5bbce37210e31714cebc580ebb5e7260",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/PLAN.json": "3e17f1137dad2c87e2c63c3e91cfc5ebd152a3dc3f2cd81d0f1cf1746af2fbe5",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-checks.py": "dc421e59b6624e41fb10c596b13527d3612c8a43c58c2abd6ca9776cef2df59c",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-source-20261017/SOURCE.json": "53fed87c89722c3f21833da854b3de922e931115c41f2d03887d4437812b18c4",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+  },
+  "proof_artifact_limit_bytes": 268435456,
+  "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+  "source_identity": {
+    "source_file_count": 430,
+    "source_files_sha256": "b359dc67c290193f68bf33519853df3473e31f9a4d8e718c0bd1ccc282d14947"
+  },
+  "source_ref": "bd593420a6905f8922bb96d07ec351483c0df2c3+public-route-idle-reuse-source-b359dc67c290193f68bf33519853df3473e31f9a4d8e718c0bd1ccc282d14947",
+  "status": "source-only frozen build plan; exact root grant required; no prior settings or compilation reused",
+  "supervisor": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-policy.py",
+  "wan_traffic": false
+}

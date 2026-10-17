@@ -1,0 +1,8 @@
+{
+  "accepted": true,
+  "point_in_time_only": true,
+  "read_only": true,
+  "schema_version": 1,
+  "scope": "same original nested runner and agent-origin/router helper namespaces; host wrapper parent stable; default CUBIC/idle1",
+  "socket_controller_observed": false
+}

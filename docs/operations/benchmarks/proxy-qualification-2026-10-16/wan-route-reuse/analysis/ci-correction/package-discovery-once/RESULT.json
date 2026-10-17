@@ -1,0 +1,29 @@
+{
+  "accepted": true,
+  "status": 0,
+  "elapsed_seconds": 0.1289753040036885,
+  "production430_before_after_unchanged": true,
+  "root_go_mod_sha256": "165d373cd30192573bfd30e0f0997b393c433368d3ac01df8b178aaf4bdb5d65",
+  "archived_packages_after": [],
+  "expected_warning": "go: warning: \"./docs/...\" matched no packages",
+  "go_package_compilation": false,
+  "source_plan_sha256": "3e17f1137dad2c87e2c63c3e91cfc5ebd152a3dc3f2cd81d0f1cf1746af2fbe5",
+  "files": {
+    "COMMAND.json": {
+      "sha256": "2af0edd4e3546f792322af9a3b8eabbc37a5f9c7c2c0b570dbbf3e9d5061f8ab",
+      "bytes": 1568
+    },
+    "stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "stderr.log": {
+      "sha256": "7d9f9fe35ea6fe0f9d08bae582dfd2de06c1462d5acdfea83a02cb2ea41975b9",
+      "bytes": 46
+    }
+  },
+  "new_files": {
+    "docs/operations/benchmarks/go.mod": "0ac6f3f6fd964cba0da71f4ff301cf10f7860df58c47ee211ef1e197e2fa2e63",
+    "docs/operations/benchmarks/README.md": "69ce0c826b6048736f504f3e6147c944c5d601744c0bfcb9ca6ee201f9ce7c0a"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "review_outputs": {
+    "FINAL-OUTCOME-REVIEW.md": {
+      "sha256": "6a5d5b3abe89a94a92f0c3e8c55d41ac8f889de841312a005fcc502a5c1fad30",
+      "bytes": 5809
+    },
+    "FINAL-OUTCOME-INPUTS.json": {
+      "sha256": "2d6793f4972a053a4f82b1e327dca926700811db5f628450fb2c1e7adf7e4539",
+      "bytes": 5742
+    },
+    "FINAL-OUTCOME-ARITHMETIC.json": {
+      "sha256": "839df1fd5511998b7417af2220fbfc3b378e78fff6a943b334e637f981335867",
+      "bytes": 7918
+    }
+  },
+  "runtime_source_manifest_sha256": "0d938ddd6834144b62b5fc8913b767be1671c9594c246cc9cd3252d6956deb92",
+  "saved_outcome_sha256": "15cbf3c6164f962af1114df75c39d5b4d3a97310011a3a9f88b66c381a25442d",
+  "scope": "Independent saved-data review only; no runtime, validator or namespace scan execution by reviewer."
+}

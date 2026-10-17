@@ -1,0 +1,368 @@
+{
+  "review_kind": "independent saved-data arithmetic and identity inspection; no canonical validators or runtime executed",
+  "issues": [],
+  "row_count": 96,
+  "attempts": 96,
+  "completed": 96,
+  "errors": 0,
+  "events": 96,
+  "stage_counts": {
+    "warmup": 48,
+    "retained-warmup": 12,
+    "steady": 36
+  },
+  "pairs": [
+    {
+      "pair": 1,
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "download": {
+        "median_bytes_per_second": {
+          "legacy": 37130231.356997594,
+          "aggregate-v1": 36571195.941769935
+        },
+        "ratio": 0.9849439285779644,
+        "pass": true
+      },
+      "upload": {
+        "median_bytes_per_second": {
+          "legacy": 39233037.87474048,
+          "aggregate-v1": 39489776.04829599
+        },
+        "ratio": 1.0065439279613064,
+        "pass": true
+      }
+    },
+    {
+      "pair": 2,
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "download": {
+        "median_bytes_per_second": {
+          "legacy": 37738962.75968361,
+          "aggregate-v1": 36651663.721911736
+        },
+        "ratio": 0.9711889527887759,
+        "pass": true
+      },
+      "upload": {
+        "median_bytes_per_second": {
+          "legacy": 38363248.414416775,
+          "aggregate-v1": 39487563.47982987
+        },
+        "ratio": 1.0293070871701935,
+        "pass": true
+      }
+    },
+    {
+      "pair": 3,
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "download": {
+        "median_bytes_per_second": {
+          "legacy": 37438238.06151093,
+          "aggregate-v1": 37023030.95671085
+        },
+        "ratio": 0.9889095447248909,
+        "pass": true
+      },
+      "upload": {
+        "median_bytes_per_second": {
+          "legacy": 38362019.895082936,
+          "aggregate-v1": 39813748.38147936
+        },
+        "ratio": 1.0378428583887602,
+        "pass": true
+      }
+    }
+  ],
+  "pooled": {
+    "download": {
+      "median_bytes_per_second": {
+        "legacy": 37438238.06151093,
+        "aggregate-v1": 36932269.698962525
+      },
+      "ratio": 0.9864852517440298,
+      "pass": true
+    },
+    "upload": {
+      "median_bytes_per_second": {
+        "legacy": 38363248.414416775,
+        "aggregate-v1": 39489776.04829599
+      },
+      "ratio": 1.0293647613390287,
+      "pass": true
+    }
+  },
+  "aggregate_postwarmup_pool_checks": [
+    {
+      "row": 25,
+      "server_pool_min": 93061120,
+      "agent_pool_min": 93061120
+    },
+    {
+      "row": 26,
+      "server_pool_min": 93061120,
+      "agent_pool_min": 93061120
+    },
+    {
+      "row": 27,
+      "server_pool_min": 93061120,
+      "agent_pool_min": 93061120
+    },
+    {
+      "row": 28,
+      "server_pool_min": 93061120,
+      "agent_pool_min": 93061120
+    },
+    {
+      "row": 29,
+      "server_pool_min": 93061120,
+      "agent_pool_min": 93061120
+    },
+    {
+      "row": 30,
+      "server_pool_min": 93061120,
+      "agent_pool_min": 93061120
+    },
+    {
+      "row": 31,
+      "server_pool_min": 93061120,
+      "agent_pool_min": 93061120
+    },
+    {
+      "row": 32,
+      "server_pool_min": 93061120,
+      "agent_pool_min": 93061120
+    },
+    {
+      "row": 41,
+      "server_pool_min": 92012544,
+      "agent_pool_min": 87031808
+    },
+    {
+      "row": 42,
+      "server_pool_min": 92012544,
+      "agent_pool_min": 87031808
+    },
+    {
+      "row": 43,
+      "server_pool_min": 92012544,
+      "agent_pool_min": 87031808
+    },
+    {
+      "row": 44,
+      "server_pool_min": 92012544,
+      "agent_pool_min": 87031808
+    },
+    {
+      "row": 45,
+      "server_pool_min": 92012544,
+      "agent_pool_min": 87031808
+    },
+    {
+      "row": 46,
+      "server_pool_min": 92012544,
+      "agent_pool_min": 87031808
+    },
+    {
+      "row": 47,
+      "server_pool_min": 92012544,
+      "agent_pool_min": 87031808
+    },
+    {
+      "row": 48,
+      "server_pool_min": 92012544,
+      "agent_pool_min": 87031808
+    },
+    {
+      "row": 89,
+      "server_pool_min": 86769664,
+      "agent_pool_min": 78643200
+    },
+    {
+      "row": 90,
+      "server_pool_min": 86769664,
+      "agent_pool_min": 78643200
+    },
+    {
+      "row": 91,
+      "server_pool_min": 86769664,
+      "agent_pool_min": 78643200
+    },
+    {
+      "row": 92,
+      "server_pool_min": 86769664,
+      "agent_pool_min": 78643200
+    },
+    {
+      "row": 93,
+      "server_pool_min": 86769664,
+      "agent_pool_min": 78643200
+    },
+    {
+      "row": 94,
+      "server_pool_min": 86769664,
+      "agent_pool_min": 78643200
+    },
+    {
+      "row": 95,
+      "server_pool_min": 86769664,
+      "agent_pool_min": 78643200
+    },
+    {
+      "row": 96,
+      "server_pool_min": 86769664,
+      "agent_pool_min": 78643200
+    }
+  ],
+  "retained_warmup_rates": [
+    {
+      "row": 9,
+      "mode": "legacy",
+      "direction": "download",
+      "rate_bytes_per_second": 34443112.30691148
+    },
+    {
+      "row": 10,
+      "mode": "legacy",
+      "direction": "upload",
+      "rate_bytes_per_second": 36360933.04571242
+    },
+    {
+      "row": 25,
+      "mode": "aggregate-v1",
+      "direction": "download",
+      "rate_bytes_per_second": 14341440.431861518
+    },
+    {
+      "row": 26,
+      "mode": "aggregate-v1",
+      "direction": "upload",
+      "rate_bytes_per_second": 37392094.268916324
+    },
+    {
+      "row": 41,
+      "mode": "aggregate-v1",
+      "direction": "download",
+      "rate_bytes_per_second": 14647608.967473641
+    },
+    {
+      "row": 42,
+      "mode": "aggregate-v1",
+      "direction": "upload",
+      "rate_bytes_per_second": 37686554.77158415
+    },
+    {
+      "row": 57,
+      "mode": "legacy",
+      "direction": "download",
+      "rate_bytes_per_second": 33960595.273035035
+    },
+    {
+      "row": 58,
+      "mode": "legacy",
+      "direction": "upload",
+      "rate_bytes_per_second": 36300500.93909764
+    },
+    {
+      "row": 73,
+      "mode": "legacy",
+      "direction": "download",
+      "rate_bytes_per_second": 34536334.79353758
+    },
+    {
+      "row": 74,
+      "mode": "legacy",
+      "direction": "upload",
+      "rate_bytes_per_second": 36676939.23090726
+    },
+    {
+      "row": 89,
+      "mode": "aggregate-v1",
+      "direction": "download",
+      "rate_bytes_per_second": 33780011.56031111
+    },
+    {
+      "row": 90,
+      "mode": "aggregate-v1",
+      "direction": "upload",
+      "rate_bytes_per_second": 37745202.163244806
+    }
+  ],
+  "natural_exits": 15,
+  "source_file_checks": 530,
+  "source_mismatches": [],
+  "default_observations": [
+    {
+      "phase": "pre",
+      "role": "runner",
+      "controller": "cubic",
+      "idle": 1,
+      "netns": "net:[4026533919]"
+    },
+    {
+      "phase": "pre",
+      "role": "agent_origin",
+      "controller": "cubic",
+      "idle": 1,
+      "netns": "net:[4026533858]"
+    },
+    {
+      "phase": "pre",
+      "role": "router",
+      "controller": "cubic",
+      "idle": 1,
+      "netns": "net:[4026534047]"
+    },
+    {
+      "phase": "post",
+      "role": "runner",
+      "controller": "cubic",
+      "idle": 1,
+      "netns": "net:[4026533919]"
+    },
+    {
+      "phase": "post",
+      "role": "agent_origin",
+      "controller": "cubic",
+      "idle": 1,
+      "netns": "net:[4026533858]"
+    },
+    {
+      "phase": "post",
+      "role": "router",
+      "controller": "cubic",
+      "idle": 1,
+      "netns": "net:[4026534047]"
+    },
+    {
+      "phase": "pre",
+      "role": "host",
+      "controller": "cubic",
+      "idle": 1,
+      "netns": "net:[4026531833]"
+    },
+    {
+      "phase": "post",
+      "role": "host",
+      "controller": "cubic",
+      "idle": 1,
+      "netns": "net:[4026531833]"
+    }
+  ],
+  "namespace_scan": {
+    "finding": "not_observed_among_readable_entries_with_permission_gaps",
+    "host_processes_seen": 464,
+    "readable_namespace_links_checked": 588,
+    "permission_denied_links": 1268,
+    "vanished_or_raced_links": 0,
+    "matches": []
+  }
+}
