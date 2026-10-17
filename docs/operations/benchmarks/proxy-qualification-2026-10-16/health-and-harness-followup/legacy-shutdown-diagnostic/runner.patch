@@ -1,0 +1,24 @@
+--- a/scripts/qualify-proxy-performance.sh
++++ b/scripts/qualify-proxy-performance.sh
+@@ -381,6 +381,11 @@
+   while kill -0 "$pid" 2>/dev/null; do
+     if ((SECONDS >= deadline)); then
+       forced=true
++      # Diagnostic only: dump the owned baseline Go process before forced stop.
++      if [[ -n $container ]]; then
++        timeout -k 1 5 docker kill --signal QUIT "$container" >/dev/null 2>&1 || true
++        sleep 2
++      fi
+       [[ -z $container ]] || timeout -k 1 5 docker kill "$container" >/dev/null 2>&1 || true
+       kill "$pid" 2>/dev/null || true
+       break
+@@ -1274,6 +1279,9 @@
+ }
+ 
+ for ((iteration=1; iteration<=runs; iteration++)); do
++  # Diagnostic only: omit candidate, HAProxy, and all later comparison stages.
++  run_p2pstream "$baseline_label" "$baseline_binary" "$iteration"
++  continue
+   if ((controls_only)); then
+     :
+   elif ((external_agents > 0)) && [[ -n $baseline_binary ]]; then

@@ -15,6 +15,13 @@ comparison.
 
 ## Files
 
+- [`health-and-harness-followup/README.md`](health-and-harness-followup/README.md)
+  records the health-admission correction and stricter qualification lifecycle
+  checks at `27c8e31`. The complete integration race run passes, as do the
+  independent 16/32-agent standing cohorts with 54 natural exit receipts.
+  The capacity comparison stops at a forced legacy shutdown; one bounded
+  diagnostic does not reproduce it. Candidate capacity and final pressure
+  remain pending, and neither WAN nor HAProxy performance gates are cleared.
 - [`current-production-wan/README.md`](current-production-wan/README.md)
   records the original H2 WAN workload against current source `8ac4c8d` and a
   rebuilt compatible legacy agent. The required fresh three-pair cohort fails
@@ -87,7 +94,8 @@ comparison.
 - [`final-unchanged-module-races/README.md`](final-unchanged-module-races/README.md)
   preserves passing frozen-source Yamux and system-metrics race checks. Their
   reuse requires byte-identical inputs. The terminal-drain fix changes Yamux,
-  which now has its own new module checks; final integration races remain pending.
+  which now has its own new module checks. The later `27c8e31` integration race
+  pass is recorded in `health-and-harness-followup/`.
 - [`final-runtime-tiny-response/README.md`](final-runtime-tiny-response/README.md)
   records the final `dc738e9` low-latency 24-row tiny-response pass.
 - [`final-runtime-standing-pools/README.md`](final-runtime-standing-pools/README.md)

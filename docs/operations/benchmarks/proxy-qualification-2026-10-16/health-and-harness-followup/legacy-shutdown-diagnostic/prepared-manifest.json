@@ -1,0 +1,55 @@
+{
+  "executed": false,
+  "qualification_eligible": false,
+  "current_source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "legacy_source_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "changes": [
+    "send QUIT only after original deadline sets forced=true, then bounded2s dump interval before existing forced cleanup",
+    "baseline-only dispatch, explicit candidate/HAProxy omission"
+  ],
+  "natural_stop_deadline_seconds": 10,
+  "forced_dump_interval_seconds": 2,
+  "runs": 1,
+  "held_h1_requests": 1536,
+  "h2_recovery_requests": 512,
+  "ballast_mib": 1024,
+  "cgroup_bytes": 4294967296,
+  "source_binary_inputs": {
+    "committed_runner": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/scripts/qualify-proxy-performance.sh",
+      "sha256": "81ae49bc6c81e239a8617188567919c0113e541115881d5c201ec0d02cbc7149",
+      "bytes": 58849
+    },
+    "derivative_runner": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/legacy-shutdown-diagnostic-20261017/frozen-root/scripts/qualify-proxy-performance.sh",
+      "sha256": "bf6a4754354938255da7a94c45fe3ba2f070918645d40a7afa80e01352a51e0f",
+      "bytes": 59231
+    },
+    "minimal_patch": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/legacy-shutdown-diagnostic-20261017/runner.patch",
+      "sha256": "f9ff04d7ff9551f4de499d8486fefb1d22cb69cfac9e3555e9322e7a26055027",
+      "bytes": 926
+    },
+    "legacy_baseline_binary": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/builds/baseline-server.test",
+      "sha256": "5214f3b1926bd7829a10248ba249d87749d211890e1b0493de22be89fbd29553",
+      "bytes": 58108728
+    },
+    "current_driver_binary": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/builds/candidate-server.test",
+      "sha256": "aa5633baa3976e8aa8df74b9baf315cea03b2552fa9a8a038ee9db11edc0bc2b",
+      "bytes": 58515704
+    },
+    "clean_archive_manifest": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/provenance/clean-archive-manifest.json",
+      "sha256": "11ef7180d713e80ea4aa1a6df51748cd6e84c9d544c428457944eff3db1427cc",
+      "bytes": 4364147
+    },
+    "original_build_manifest": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/manifest.json",
+      "sha256": "7214f6320da708b2d0c7377baa9460f5f71434ba8b17206302b2e1ca37374bbe",
+      "bytes": 1822
+    }
+  },
+  "bash_syntax_check": "passed"
+}

@@ -1,0 +1,5 @@
+probe_root=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/qualification-harness-fix-20261017/actual-batch-cleanup.eV6oFe
+started_owned_containers=2
+observed_exit=7
+removed=p2pstream-batch-cleanup-contract-2339352-1
+removed=p2pstream-batch-cleanup-contract-2339352-2

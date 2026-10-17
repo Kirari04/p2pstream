@@ -1,0 +1,24 @@
+{
+  "accepted": true,
+  "failures": [],
+  "cohorts": {
+    "16": {
+      "row_sha256": "91c8497b99f7a3f8ef654d9a1a181c51455c265d19021a1044f970f3bc00dbff",
+      "health_roundtrips": 16,
+      "acceptance_key_count": 19,
+      "natural_receipt_count": 19,
+      "server_session_resource_bytes": 231251968,
+      "agent_session_resource_bytes": 374382592
+    },
+    "32": {
+      "row_sha256": "d6f39b139f5b69a77fb1fcbd9529ece474291e8f2f5232e90a337147a560da80",
+      "health_roundtrips": 32,
+      "acceptance_key_count": 19,
+      "natural_receipt_count": 35,
+      "server_session_resource_bytes": 462503936,
+      "agent_session_resource_bytes": 748765184
+    }
+  },
+  "remaining_processes": [],
+  "remaining_containers": []
+}

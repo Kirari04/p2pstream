@@ -1,0 +1,9 @@
+=== RUN   TestAggregateControlAdmissionPreservesCallerCancellation
+--- PASS: TestAggregateControlAdmissionPreservesCallerCancellation (0.00s)
+=== RUN   TestAggregateControlAdmissionPreservesAgentDisconnect
+--- PASS: TestAggregateControlAdmissionPreservesAgentDisconnect (0.00s)
+=== RUN   TestAggregateControlAdmissionCallerDeadlineRemainsHealthCapacity
+--- PASS: TestAggregateControlAdmissionCallerDeadlineRemainsHealthCapacity (0.01s)
+=== RUN   TestAggregateHealthControlGateTimeoutIsSkippedAtHTTPClient
+--- PASS: TestAggregateHealthControlGateTimeoutIsSkippedAtHTTPClient (0.25s)
+PASS

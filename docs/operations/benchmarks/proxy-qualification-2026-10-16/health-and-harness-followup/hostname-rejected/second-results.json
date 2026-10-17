@@ -1,0 +1,595 @@
+{
+  "samples": {
+    "baseline": {
+      "DNS": [
+        {
+          "ns_op": 106.5,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 71.33,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 71.22,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 72.57,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 71.7,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 71.69,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 71.06,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 73.05,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 72.09,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 72.36,
+          "bytes_op": 32,
+          "allocs_op": 1
+        }
+      ],
+      "DNSTrailingDot": [
+        {
+          "ns_op": 93.93,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 73.17,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 74.72,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 75.17,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 75.23,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 74.37,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 73.49,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 74.96,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 74.71,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 76.12,
+          "bytes_op": 32,
+          "allocs_op": 1
+        }
+      ],
+      "DNSPort": [
+        {
+          "ns_op": 42.38,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 42.99,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.04,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.55,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 42.5,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 42.61,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.02,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.8,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.55,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 42.98,
+          "bytes_op": 0,
+          "allocs_op": 0
+        }
+      ],
+      "IPv6Port": [
+        {
+          "ns_op": 46.95,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 47.22,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 47.37,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 47.47,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 47.54,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 47.52,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 48.34,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 47.58,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 47.69,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 47.93,
+          "bytes_op": 0,
+          "allocs_op": 0
+        }
+      ],
+      "MalformedColons": [
+        {
+          "ns_op": 81.04,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 81.01,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 81.34,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 82.12,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 81.39,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 84.23,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 85.86,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 83.75,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 83.57,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 83.44,
+          "bytes_op": 32,
+          "allocs_op": 1
+        }
+      ]
+    },
+    "candidate": {
+      "DNS": [
+        {
+          "ns_op": 30.13,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 30.06,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 30.34,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 30.25,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 30.46,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 30.53,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 30.91,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 31.17,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 31.14,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 30.83,
+          "bytes_op": 0,
+          "allocs_op": 0
+        }
+      ],
+      "DNSTrailingDot": [
+        {
+          "ns_op": 31.85,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 31.48,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 32.03,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 31.66,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 32.18,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 31.98,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 32.75,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 32.37,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 32.16,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 32.34,
+          "bytes_op": 0,
+          "allocs_op": 0
+        }
+      ],
+      "DNSPort": [
+        {
+          "ns_op": 42.7,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.22,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.37,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.27,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.97,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.43,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.69,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.98,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.88,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 43.53,
+          "bytes_op": 0,
+          "allocs_op": 0
+        }
+      ],
+      "IPv6Port": [
+        {
+          "ns_op": 48.49,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 48.25,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 48.98,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 48.71,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 49.81,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 48.73,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 49.27,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 49.43,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 49.42,
+          "bytes_op": 0,
+          "allocs_op": 0
+        },
+        {
+          "ns_op": 48.79,
+          "bytes_op": 0,
+          "allocs_op": 0
+        }
+      ],
+      "MalformedColons": [
+        {
+          "ns_op": 84.23,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 84.43,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 86.98,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 85.44,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 85.19,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 85.06,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 88.76,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 89.83,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 86.06,
+          "bytes_op": 32,
+          "allocs_op": 1
+        },
+        {
+          "ns_op": 86.48,
+          "bytes_op": 32,
+          "allocs_op": 1
+        }
+      ]
+    }
+  },
+  "summary": {
+    "DNS": {
+      "baseline": {
+        "ns_op": 71.89500000000001,
+        "bytes_op": 32.0,
+        "allocs_op": 1.0
+      },
+      "candidate": {
+        "ns_op": 30.495,
+        "bytes_op": 0.0,
+        "allocs_op": 0.0
+      },
+      "candidate_baseline_ns_ratio": 0.42416023367410804
+    },
+    "DNSTrailingDot": {
+      "baseline": {
+        "ns_op": 74.84,
+        "bytes_op": 32.0,
+        "allocs_op": 1.0
+      },
+      "candidate": {
+        "ns_op": 32.095,
+        "bytes_op": 0.0,
+        "allocs_op": 0.0
+      },
+      "candidate_baseline_ns_ratio": 0.42884820951362906
+    },
+    "DNSPort": {
+      "baseline": {
+        "ns_op": 43.005,
+        "bytes_op": 0.0,
+        "allocs_op": 0.0
+      },
+      "candidate": {
+        "ns_op": 43.480000000000004,
+        "bytes_op": 0.0,
+        "allocs_op": 0.0
+      },
+      "candidate_baseline_ns_ratio": 1.0110452272991513
+    },
+    "IPv6Port": {
+      "baseline": {
+        "ns_op": 47.53,
+        "bytes_op": 0.0,
+        "allocs_op": 0.0
+      },
+      "candidate": {
+        "ns_op": 48.885,
+        "bytes_op": 0.0,
+        "allocs_op": 0.0
+      },
+      "candidate_baseline_ns_ratio": 1.0285083105407111
+    },
+    "MalformedColons": {
+      "baseline": {
+        "ns_op": 82.78,
+        "bytes_op": 32.0,
+        "allocs_op": 1.0
+      },
+      "candidate": {
+        "ns_op": 85.75,
+        "bytes_op": 32.0,
+        "allocs_op": 1.0
+      },
+      "candidate_baseline_ns_ratio": 1.0358782314568735
+    }
+  }
+}

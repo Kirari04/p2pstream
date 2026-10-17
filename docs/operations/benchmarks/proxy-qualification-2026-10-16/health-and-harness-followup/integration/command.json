@@ -1,0 +1,23 @@
+{
+  "command": [
+    "taskset",
+    "-c",
+    "0-7",
+    "/usr/local/go/bin/go",
+    "test",
+    "-race",
+    "-json",
+    "-count=1",
+    "-p",
+    "2",
+    "-timeout",
+    "15m",
+    "./internal/tunnel",
+    "./internal/sysmetrics",
+    "./internal/agent",
+    "./internal/server"
+  ],
+  "GOMAXPROCS": "4",
+  "head": "c09c1d5bbe8ad4406f7205755a59d8eb6a3fedee",
+  "started_unix": 1792230730.1088142
+}

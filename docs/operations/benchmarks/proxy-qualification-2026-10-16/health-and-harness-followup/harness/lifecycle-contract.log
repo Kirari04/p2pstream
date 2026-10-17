@@ -1,0 +1,11 @@
+host_expected=0 observed=0
+qualification process 2335447 exited with status 7 during natural cleanup
+host_expected=7 observed=7
+qualification process 2335451 required forced cleanup (status 0)
+forced_host_zero_exit_rejected=1
+docker_expected=0 observed=0 removed=true
+qualification process 2336053 exited with status 7 during natural cleanup
+docker_expected=7 observed=7 removed=true
+haproxy_soft_stop=0
+tracked_children=0 tracked_containers=0
+probe_root=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/qualification-harness-fix-20261017/actual-lifecycle.FLmchL

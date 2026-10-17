@@ -1,0 +1,1309 @@
+{
+  "recorded_at": "2026-10-17T10:06:26.351782+00:00",
+  "accepted": true,
+  "failures": [],
+  "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "authorization": "Independent standing cohort explicitly approved by coordinator after capacity comparison rejection; no capacity retry or acceptance is implied.",
+  "capacity_remains_rejected": true,
+  "capacity_manifest_sha256": "7214f6320da708b2d0c7377baa9460f5f71434ba8b17206302b2e1ca37374bbe",
+  "clean_archive_manifest_sha256": "11ef7180d713e80ea4aa1a6df51748cd6e84c9d544c428457944eff3db1427cc",
+  "binary_buildinfo": {
+    "candidate-server-buildinfo.txt": "5ba9cd8aa39da7f4bce083ab8d501b088648c785d8f89d0bab6225b970229a4c",
+    "candidate-agent-buildinfo.txt": "8070e7936d2a9aa18db881609ea301a920713805f64eae3c858504e85e4d6300"
+  },
+  "binaries": {
+    "candidate-server.test": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/builds/candidate-server.test",
+      "sha256": "aa5633baa3976e8aa8df74b9baf315cea03b2552fa9a8a038ee9db11edc0bc2b",
+      "bytes": 58515704
+    },
+    "candidate-agent.test": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/builds/candidate-agent.test",
+      "sha256": "c77d87930c620ebb27dbd2300150e6db54c3cd663eb51ac2c439731e771638a3",
+      "bytes": 19985478
+    }
+  },
+  "source_files": {
+    "scripts/qualify-proxy-performance.sh": "81ae49bc6c81e239a8617188567919c0113e541115881d5c201ec0d02cbc7149",
+    "scripts/qualify-proxy-agent-standing.sh": "74e0b2033272af36fbf649f478bbe60f5e5ced8b6ff5dbe34bebfbf50f1dd877",
+    "internal/server/proxy_qualification_test.go": "5c6654f4c355c160dde1a5d07a8deb9b0a645555bd779eeea23803542f746984"
+  },
+  "frozen_sources": {
+    "qualify-proxy-agent-standing.sh.txt": "74e0b2033272af36fbf649f478bbe60f5e5ced8b6ff5dbe34bebfbf50f1dd877",
+    "qualify-proxy-performance.sh.txt": "81ae49bc6c81e239a8617188567919c0113e541115881d5c201ec0d02cbc7149"
+  },
+  "cohorts": {
+    "16": {
+      "row_sha256": "91c8497b99f7a3f8ef654d9a1a181c51455c265d19021a1044f970f3bc00dbff",
+      "health_roundtrips": 16,
+      "acceptance_key_count": 19,
+      "natural_receipt_count": 19,
+      "server_session_resource_bytes": 231251968,
+      "agent_session_resource_bytes": 374382592
+    },
+    "32": {
+      "row_sha256": "d6f39b139f5b69a77fb1fcbd9529ece474291e8f2f5232e90a337147a560da80",
+      "health_roundtrips": 32,
+      "acceptance_key_count": 19,
+      "natural_receipt_count": 35,
+      "server_session_resource_bytes": 462503936,
+      "agent_session_resource_bytes": 748765184
+    }
+  },
+  "receipts": {
+    "16": [
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-1.stop.exit.json",
+        "sha256": "340d3da85740a8778609f8d26ad57e93bfa714c58d13156621e086e5c127b6a1",
+        "receipt": {
+          "pid": 2351827,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-1-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:23.417333075Z",
+            "FinishedAt": "2026-10-17T10:05:31.157459556Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-10.stop.exit.json",
+        "sha256": "d9270fdb0bd17aff4e6b6dee05649b6b415ef14987688d7b1cac0daf2f505342",
+        "receipt": {
+          "pid": 2352578,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-10-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:25.699110578Z",
+            "FinishedAt": "2026-10-17T10:05:29.623336743Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-11.stop.exit.json",
+        "sha256": "db270a9e80bf4df3d208218916750b79fdff1ec477152869dfd6aa44aee40381",
+        "receipt": {
+          "pid": 2352735,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-11-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:25.953340692Z",
+            "FinishedAt": "2026-10-17T10:05:29.469036618Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-12.stop.exit.json",
+        "sha256": "5236245abe4ffbb217139838d8b079c0b97fd6f20972d47c2976896075678d8b",
+        "receipt": {
+          "pid": 2352817,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-12-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:26.205920379Z",
+            "FinishedAt": "2026-10-17T10:05:29.274363288Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-13.stop.exit.json",
+        "sha256": "3288d57be6cd6badf7620d0ad1a8d56fd846a924dc25fb968e6e84e2aae35077",
+        "receipt": {
+          "pid": 2352898,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-13-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:26.452663597Z",
+            "FinishedAt": "2026-10-17T10:05:29.118126741Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-14.stop.exit.json",
+        "sha256": "050d510589c500b02e7bb6c2ea15d930b1ff8e43ed4f4ea2a9181952aab1b56a",
+        "receipt": {
+          "pid": 2352996,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-14-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:26.700956636Z",
+            "FinishedAt": "2026-10-17T10:05:28.916896453Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-15.stop.exit.json",
+        "sha256": "aad41d950be9717c3f4ae09a1e28ffbb32c85631990a64c535494667d674d2fe",
+        "receipt": {
+          "pid": 2353075,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-15-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:26.94073336Z",
+            "FinishedAt": "2026-10-17T10:05:28.705543228Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-16.stop.exit.json",
+        "sha256": "2fc7157a5d899f9f7858de18622b899ccf2cc47fe48c4d4ae8838c4c4bae0310",
+        "receipt": {
+          "pid": 2353155,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-16-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:27.186888756Z",
+            "FinishedAt": "2026-10-17T10:05:28.555942052Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-2.stop.exit.json",
+        "sha256": "c380ce5c6b79852f66e0e47e7be2ad94953fc605462868819ebf9c9b4d550f0e",
+        "receipt": {
+          "pid": 2351908,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-2-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:23.663473683Z",
+            "FinishedAt": "2026-10-17T10:05:31.006577492Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-3.stop.exit.json",
+        "sha256": "715efb75a0fcdca98de7dd2a6e3e90c2c4181eba4438004e44f3208c0f02bf5d",
+        "receipt": {
+          "pid": 2351988,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-3-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:23.908499815Z",
+            "FinishedAt": "2026-10-17T10:05:30.80525289Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-4.stop.exit.json",
+        "sha256": "32d900eae39713a56728cebb0556db4d37d67670b187b72abd387af5d5f3e4ce",
+        "receipt": {
+          "pid": 2352071,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-4-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:24.215780963Z",
+            "FinishedAt": "2026-10-17T10:05:30.655610163Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-5.stop.exit.json",
+        "sha256": "296d9346230693f495cf557ac6cc3b3b7f0a2bb4be747a02fef0ffa386eba303",
+        "receipt": {
+          "pid": 2352169,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-5-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:24.464779242Z",
+            "FinishedAt": "2026-10-17T10:05:30.502019256Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-6.stop.exit.json",
+        "sha256": "34405220449ca45a01443cc2bcaf0cd8dda59472233a5250e67e1aba67f59da9",
+        "receipt": {
+          "pid": 2352250,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-6-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:24.710617312Z",
+            "FinishedAt": "2026-10-17T10:05:30.294875629Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-7.stop.exit.json",
+        "sha256": "678a88209a46970af16dc25b8a9c3ed33471014c35b06a016677c5d214e63977",
+        "receipt": {
+          "pid": 2352329,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-7-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:24.960489569Z",
+            "FinishedAt": "2026-10-17T10:05:30.141325952Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-8.stop.exit.json",
+        "sha256": "97c17468fcfc9d44f55fc96fc1a13106df3c088af224764070b83a125ec305fe",
+        "receipt": {
+          "pid": 2352409,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-8-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:25.201712523Z",
+            "FinishedAt": "2026-10-17T10:05:29.977694879Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-agent-9.stop.exit.json",
+        "sha256": "948b5f0a6b6ca5cb5b081e87d1cb1f8c9b868fc0425c1195211226e059d70778",
+        "receipt": {
+          "pid": 2352496,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-agent-9-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:25.449420094Z",
+            "FinishedAt": "2026-10-17T10:05:29.788579227Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/aggregate-standing-16-1-external-server.stop.exit.json",
+        "sha256": "f2d38da5da666f69adfc05eedc7cd4fe7d44912f8c5d4bae0a471b3e53b4b0e3",
+        "receipt": {
+          "pid": 2351737,
+          "container": "p2pstream-qualification-aggregate-standing-16-1-external-server-2351680",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:23.016509538Z",
+            "FinishedAt": "2026-10-17T10:05:31.367445965Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/haproxy-1.stop.exit.json",
+        "sha256": "3633411985836e073bb4749d62e35f4ec6bf4cdefcf48a580606bfe8545b8291",
+        "receipt": {
+          "pid": 2354095,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-16/origin.stop.exit.json",
+        "sha256": "9edd33d388ebbd9018be329eb3db381cc13cee462196dac2ffb32728c7e1ae13",
+        "receipt": {
+          "pid": 2351727,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      }
+    ],
+    "32": [
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-1.stop.exit.json",
+        "sha256": "722778907d99a3f90f442af8e97996d1beb08d4b0eff6c6bbec2f2584917b2a8",
+        "receipt": {
+          "pid": 2354281,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-1-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:32.545843897Z",
+            "FinishedAt": "2026-10-17T10:05:47.124453366Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-10.stop.exit.json",
+        "sha256": "d66efaae6bfa8e4090df60a65a780c43ab9836d7f0974933f00c1fa787fe799e",
+        "receipt": {
+          "pid": 2355189,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-10-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:34.799544793Z",
+            "FinishedAt": "2026-10-17T10:05:45.608010693Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-11.stop.exit.json",
+        "sha256": "1dda2edda1689d4ba98e16cd2e6e8961850080f9fd58f38f720aa42758fa4485",
+        "receipt": {
+          "pid": 2355269,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-11-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:35.048515338Z",
+            "FinishedAt": "2026-10-17T10:05:45.455737024Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-12.stop.exit.json",
+        "sha256": "fe747008128731e415b56b125cb58bd5f6d7d7aab12f1bf493df216ae3b246c0",
+        "receipt": {
+          "pid": 2355348,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-12-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:35.296738091Z",
+            "FinishedAt": "2026-10-17T10:05:45.245865649Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-13.stop.exit.json",
+        "sha256": "35a5510dbcf6be81b4e51cc551d9bd12b01880b62c3e0e314812f389899ee94e",
+        "receipt": {
+          "pid": 2355427,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-13-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:35.541476825Z",
+            "FinishedAt": "2026-10-17T10:05:45.093131356Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-14.stop.exit.json",
+        "sha256": "4a534534656530fa8173497c633dfc45b14e6643adcf3c190e68176f197044be",
+        "receipt": {
+          "pid": 2355508,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-14-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:35.797306245Z",
+            "FinishedAt": "2026-10-17T10:05:44.938175517Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-15.stop.exit.json",
+        "sha256": "26195bf03fe76051c7954fe5a06ae807b4046e03c906b1d7283b45b10ede06c2",
+        "receipt": {
+          "pid": 2355589,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-15-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:36.036227958Z",
+            "FinishedAt": "2026-10-17T10:05:44.77663689Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-16.stop.exit.json",
+        "sha256": "b7f762abecd07947888505913e2b0ef1f259a9b9b22027419d75c696e7508a0d",
+        "receipt": {
+          "pid": 2355671,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-16-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:36.292582147Z",
+            "FinishedAt": "2026-10-17T10:05:44.586395109Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-17.stop.exit.json",
+        "sha256": "a9c04724ab6c9499aca89b075605d3e7196e54a7b6cc38f7f319cde4a26149d0",
+        "receipt": {
+          "pid": 2355749,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-17-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:36.538744947Z",
+            "FinishedAt": "2026-10-17T10:05:44.426155816Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-18.stop.exit.json",
+        "sha256": "76f717cd7c2b3f58e9871cf5886f8bfb16dd125b7402976cbaa2e7d3aaae1085",
+        "receipt": {
+          "pid": 2355846,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-18-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:36.787222174Z",
+            "FinishedAt": "2026-10-17T10:05:44.273721005Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-19.stop.exit.json",
+        "sha256": "b45057ce642e4312fc029bc707c05a4cc29333e8b003a835abf0bcef1fe0cf4e",
+        "receipt": {
+          "pid": 2355925,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-19-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:37.033116002Z",
+            "FinishedAt": "2026-10-17T10:05:44.069814598Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-2.stop.exit.json",
+        "sha256": "fe104e0dbc5903433b2be8c1ac589c9f153b583915697412f9368c3769818349",
+        "receipt": {
+          "pid": 2354379,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-2-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:32.831137398Z",
+            "FinishedAt": "2026-10-17T10:05:46.953581687Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-20.stop.exit.json",
+        "sha256": "30695107cfedc21dacbba47278a57b0c91ee84f7f046810e6a86546578c0fc97",
+        "receipt": {
+          "pid": 2356004,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-20-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:37.275616247Z",
+            "FinishedAt": "2026-10-17T10:05:43.904939769Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-21.stop.exit.json",
+        "sha256": "4ce6494b57ccdebb3272bfb7507dac96307af311880bdaaffb6584ecb7638833",
+        "receipt": {
+          "pid": 2356085,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-21-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:37.532756875Z",
+            "FinishedAt": "2026-10-17T10:05:43.759277175Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-22.stop.exit.json",
+        "sha256": "a359a2760eed51f1fb9bc0ea5d5dc06a75f884c0663b3982678c3d2154b95bd5",
+        "receipt": {
+          "pid": 2356163,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-22-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:37.784508993Z",
+            "FinishedAt": "2026-10-17T10:05:43.562682222Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-23.stop.exit.json",
+        "sha256": "86689a8ce8ced512975e05bd3028ecf0177e270cd9292c0c13b27be92b73c43c",
+        "receipt": {
+          "pid": 2356244,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-23-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:38.028480306Z",
+            "FinishedAt": "2026-10-17T10:05:43.408847461Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-24.stop.exit.json",
+        "sha256": "d1896f9e16d187fbc96d9c76f96bcc491ce10c6d814c13578235eea03734c9fb",
+        "receipt": {
+          "pid": 2356327,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-24-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:38.270874816Z",
+            "FinishedAt": "2026-10-17T10:05:43.245337684Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-25.stop.exit.json",
+        "sha256": "fe22368805e4d67c5802ee610d1e46471a6cf2de1de35a54069989f48659f24a",
+        "receipt": {
+          "pid": 2356406,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-25-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:38.524515895Z",
+            "FinishedAt": "2026-10-17T10:05:43.051203271Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-26.stop.exit.json",
+        "sha256": "3fab85ccf614f6c826cb0920a454f56ea1d79561fc774fdc64cab3c48d30c7c2",
+        "receipt": {
+          "pid": 2356505,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-26-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:38.769898028Z",
+            "FinishedAt": "2026-10-17T10:05:42.88603887Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-27.stop.exit.json",
+        "sha256": "8b898ac24ba31e52ccbe56dcf8144e964749eeb4c16a3a09aff6b17264d6eeee",
+        "receipt": {
+          "pid": 2356588,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-27-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:39.021521958Z",
+            "FinishedAt": "2026-10-17T10:05:42.743557395Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-28.stop.exit.json",
+        "sha256": "69593454330cc04d0e6615a783e516d2e3b02aa0640e1a2a589914a10c464fa1",
+        "receipt": {
+          "pid": 2356673,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-28-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:39.270236887Z",
+            "FinishedAt": "2026-10-17T10:05:42.538137578Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-29.stop.exit.json",
+        "sha256": "3668bcb70cef15af4eaa83ba9e034508b717ab06fb682e5c6c3b40ebd9e7916c",
+        "receipt": {
+          "pid": 2356758,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-29-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:39.517906895Z",
+            "FinishedAt": "2026-10-17T10:05:42.391007983Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-3.stop.exit.json",
+        "sha256": "5cefb3d82ee5e74eae389bf95f10e346efc43b86a69c58f7f603ee9fe12a5722",
+        "receipt": {
+          "pid": 2354458,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-3-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:33.064970004Z",
+            "FinishedAt": "2026-10-17T10:05:46.781273346Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-30.stop.exit.json",
+        "sha256": "20c9f886471c3591117fe49f774c5cae40674a85c011b704b383a81092f09a17",
+        "receipt": {
+          "pid": 2356904,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-30-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:39.775351894Z",
+            "FinishedAt": "2026-10-17T10:05:42.195396491Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-31.stop.exit.json",
+        "sha256": "e8a156ca899a8eec3e11381babcfd437621f8885eacfaf80752a51074ce99c7f",
+        "receipt": {
+          "pid": 2356987,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-31-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:40.079965699Z",
+            "FinishedAt": "2026-10-17T10:05:42.043581635Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-32.stop.exit.json",
+        "sha256": "0c3421e7692c259b2781ed359e62cfffb5720d231dcb27e4f358863a4bde7fd7",
+        "receipt": {
+          "pid": 2357070,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-32-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:40.385764697Z",
+            "FinishedAt": "2026-10-17T10:05:41.848866664Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-4.stop.exit.json",
+        "sha256": "64703d615b02557efa3915899c0220c7b745f1d84dcb192e58c9e13ad57051c4",
+        "receipt": {
+          "pid": 2354537,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-4-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:33.324197656Z",
+            "FinishedAt": "2026-10-17T10:05:46.64749488Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-5.stop.exit.json",
+        "sha256": "f1c428c88a9c402c81e972ffbbb67d657dd7ee15942a523f3185d3a412955fa6",
+        "receipt": {
+          "pid": 2354616,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-5-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:33.574418581Z",
+            "FinishedAt": "2026-10-17T10:05:46.437867719Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-6.stop.exit.json",
+        "sha256": "b787a411b5c663deb3a088d40170677b6bbe4af42df9032121e29e60a88c63a1",
+        "receipt": {
+          "pid": 2354777,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-6-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:33.818223701Z",
+            "FinishedAt": "2026-10-17T10:05:46.279382964Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-7.stop.exit.json",
+        "sha256": "e0e04c7245c96938fe6cdb71b234c1325964bf447bcf0bc9e6743bd2ef37df91",
+        "receipt": {
+          "pid": 2354934,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-7-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:34.056119841Z",
+            "FinishedAt": "2026-10-17T10:05:46.115073524Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-8.stop.exit.json",
+        "sha256": "ea7dc24ccbdd6aae4cb9de779caf444b0f5fcd9c5739dcca3eaddd0f895ba85b",
+        "receipt": {
+          "pid": 2355013,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-8-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:34.307051456Z",
+            "FinishedAt": "2026-10-17T10:05:45.956047287Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-agent-9.stop.exit.json",
+        "sha256": "ab5f35b3bbff0faba19a53bbc7e73dc983c4eaad198d3d5417b19462e9a8cc7f",
+        "receipt": {
+          "pid": 2355092,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-agent-9-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:34.559709776Z",
+            "FinishedAt": "2026-10-17T10:05:45.800071386Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/aggregate-standing-32-1-external-server.stop.exit.json",
+        "sha256": "8bbcff07e3177c9fd1b8468f4dd0dbe62ef562a3a33445c1aea75df61367c093",
+        "receipt": {
+          "pid": 2354194,
+          "container": "p2pstream-qualification-aggregate-standing-32-1-external-server-2354137",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-17T10:05:32.119815384Z",
+            "FinishedAt": "2026-10-17T10:05:47.35244797Z"
+          },
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/haproxy-1.stop.exit.json",
+        "sha256": "f3524549e686c606c96d5e0efa55715a4d509542f3ff465c6c37bffcf447dbe1",
+        "receipt": {
+          "pid": 2358808,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      },
+      {
+        "path": "standing-independent-attempt-1/raw/standing-32/origin.stop.exit.json",
+        "sha256": "5aaa1b68524a3e0cc960fa8543400f26b293715067c5ed98698bb6df2d125dc9",
+        "receipt": {
+          "pid": 2354184,
+          "container": "",
+          "forced_cleanup": false,
+          "shell_exit_status": 0,
+          "container_state": null,
+          "natural_exit_verified": true
+        }
+      }
+    ]
+  },
+  "remaining_processes": [],
+  "remaining_containers": []
+}
