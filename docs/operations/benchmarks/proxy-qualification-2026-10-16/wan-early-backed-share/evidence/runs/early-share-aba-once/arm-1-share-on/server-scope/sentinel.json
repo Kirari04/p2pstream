@@ -1,0 +1,15 @@
+{
+  "cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2709901-6d460e48.scope",
+  "namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026531832]",
+    "net": "net:[4026531833]",
+    "pid": "pid:[4026531836]",
+    "user": "user:[4026531837]"
+  },
+  "pgid": 2710217,
+  "pid": 2710217,
+  "schema_version": 1,
+  "sid": 2710217,
+  "start_ticks": 8632439
+}

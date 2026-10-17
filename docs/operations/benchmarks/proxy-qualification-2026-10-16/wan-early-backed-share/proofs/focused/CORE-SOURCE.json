@@ -1,0 +1,9 @@
+{
+  "tmp/wan-early-share-source-20261017/candidate/internal/tunnel/growing_conn.go": "cdfb4483274bb1361eb58e2bcc1a9c6253d34876bf34dc602ab851b872cf006b",
+  "tmp/wan-early-share-source-20261017/candidate/internal/tunnel/early_share.go": "1166aa5745c85dcd8462af86a58c9a1a74f0d530b7a4ff7c11d89009a335d96c",
+  "tmp/wan-early-share-source-20261017/candidate/internal/tunnel/early_share_test.go": "a4cad75f74406ae0c66521198360dec0b9f1599536a19f1aa069c381f5b908cf",
+  "tmp/wan-early-share-source-20261017/candidate/internal/tunnel/qualification_early_share_disabled.go": "455c54fea410542e07033ee73c79ca288b3a576b01bbe004b71152d27f07c70d",
+  "tmp/wan-early-share-source-20261017/candidate/internal/tunnel/qualification_early_share_read_test.go": "9cbf70fc60048fcf8ad9a64c65332dacac671ed8ce4abd5529ce2a78c1528427",
+  "tmp/wan-early-share-source-20261017/CORE.patch": "eab57525004e774a2bb9998ff94b1d7d70755a471551ae359befa52815778b89",
+  "tmp/wan-early-share-source-20261017/DESIGN.md": "6d7452ef9cbe31f4ea0787fdcda32a705b010bd9e6767c929ceaa2daab8ed252"
+}

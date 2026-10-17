@@ -1,0 +1,35 @@
+{
+  "accepted": false,
+  "artifact_bytes": 221038629,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "commands": [
+    {
+      "name": "normal",
+      "outer_sha256": "ea0a7bdb547841af46b513859f6e23a1ad0c9fdeac71b1771a370044f7170b3c",
+      "source_unchanged": true,
+      "status": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "0fd0850ed2a35e85255c8021a67987953c05a48f69365d8fb606a8fb5079eb3b"
+    },
+    {
+      "name": "tagged",
+      "outer_sha256": "8a6330c2471ed3e4f9ad96d5b2a8ed65c09b6b2591fa7f5e9d873f7298824130",
+      "source_unchanged": true,
+      "status": 1,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "ac9225061670853feb2fc3338f30c5f5a867d476691bedf61800ed0efdbbc83b"
+    }
+  ],
+  "complete_logs_retained": true,
+  "endpoint_builds": false,
+  "endpoint_tests": false,
+  "failure": "RuntimeError: command failed or did not exit/join naturally: tagged",
+  "inputs_unchanged": true,
+  "network_dependency_lookup": false,
+  "plan_sha256": "790a3677b2bd0cdedd78a928ba7baf7fcebb60e0ff05aea63287a73332dd4e01",
+  "source_identity": {
+    "inventory_sha256": "b6c59c6631afe0e911f565ebb0d51ba9edc3183d4389b0be87f7b5656899a57d",
+    "source_file_count": 468
+  },
+  "threshold_semantics": "polled rejection; overshoot possible; any observed overflow rejects"
+}

@@ -1,0 +1,152 @@
+{
+  "external_roots": [
+    {
+      "cached_zip_present": false,
+      "module": "connectrpc.com/connect",
+      "source_path": "/home/user/go/pkg/mod/connectrpc.com/connect@v1.20.0",
+      "unpacked_source_present": false,
+      "version": "v1.20.0"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "github.com/caarlos0/env/v10",
+      "source_path": "/home/user/go/pkg/mod/github.com/caarlos0/env/v10@v10.0.0",
+      "unpacked_source_present": false,
+      "version": "v10.0.0"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "github.com/google/cel-go",
+      "source_path": "/home/user/go/pkg/mod/github.com/google/cel-go@v0.31.0",
+      "unpacked_source_present": false,
+      "version": "v0.31.0"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "github.com/google/uuid",
+      "source_path": "/home/user/go/pkg/mod/github.com/google/uuid@v1.6.0",
+      "unpacked_source_present": false,
+      "version": "v1.6.0"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "github.com/joho/godotenv",
+      "source_path": "/home/user/go/pkg/mod/github.com/joho/godotenv@v1.5.1",
+      "unpacked_source_present": false,
+      "version": "v1.5.1"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "github.com/mattn/go-sqlite3",
+      "source_path": "/home/user/go/pkg/mod/github.com/mattn/go-sqlite3@v1.14.49",
+      "unpacked_source_present": false,
+      "version": "v1.14.49"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "github.com/maxmind/mmdbwriter",
+      "source_path": "/home/user/go/pkg/mod/github.com/maxmind/mmdbwriter@v1.2.0",
+      "unpacked_source_present": false,
+      "version": "v1.2.0"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "github.com/oschwald/maxminddb-golang/v2",
+      "source_path": "/home/user/go/pkg/mod/github.com/oschwald/maxminddb-golang/v2@v2.5.0",
+      "unpacked_source_present": false,
+      "version": "v2.5.0"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "github.com/pressly/goose/v3",
+      "source_path": "/home/user/go/pkg/mod/github.com/pressly/goose/v3@v3.27.3",
+      "unpacked_source_present": false,
+      "version": "v3.27.3"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "github.com/rs/zerolog",
+      "source_path": "/home/user/go/pkg/mod/github.com/rs/zerolog@v1.35.1",
+      "unpacked_source_present": false,
+      "version": "v1.35.1"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "golang.org/x/crypto",
+      "source_path": "/home/user/go/pkg/mod/golang.org/x/crypto@v0.55.0",
+      "unpacked_source_present": false,
+      "version": "v0.55.0"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "golang.org/x/mod",
+      "source_path": "/home/user/go/pkg/mod/golang.org/x/mod@v0.38.0",
+      "unpacked_source_present": false,
+      "version": "v0.38.0"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "golang.org/x/net",
+      "source_path": "/home/user/go/pkg/mod/golang.org/x/net@v0.57.0",
+      "unpacked_source_present": false,
+      "version": "v0.57.0"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "golang.org/x/sys",
+      "source_path": "/home/user/go/pkg/mod/golang.org/x/sys@v0.47.0",
+      "unpacked_source_present": false,
+      "version": "v0.47.0"
+    },
+    {
+      "cached_zip_present": false,
+      "module": "google.golang.org/protobuf",
+      "source_path": "/home/user/go/pkg/mod/google.golang.org/protobuf@v1.36.12",
+      "unpacked_source_present": false,
+      "version": "v1.36.12"
+    }
+  ],
+  "go_executable_present": true,
+  "local_packages_scanned": [
+    "gen/proto/p2pstream/v1",
+    "gen/proto/p2pstream/v1/p2pstreamv1connect",
+    "internal/agent",
+    "internal/agentupdate",
+    "internal/agentupdateauth",
+    "internal/agentupdateauthority",
+    "internal/authutil",
+    "internal/buildinfo",
+    "internal/config",
+    "internal/db",
+    "internal/db/migrations",
+    "internal/managementui",
+    "internal/releaseversion",
+    "internal/server",
+    "internal/serverupdate",
+    "internal/sysmetrics",
+    "internal/tcpsocket",
+    "internal/tunnel",
+    "stats",
+    "third_party/yamux"
+  ],
+  "missing_roots": [
+    "connectrpc.com/connect",
+    "github.com/caarlos0/env/v10",
+    "github.com/google/cel-go",
+    "github.com/google/uuid",
+    "github.com/joho/godotenv",
+    "github.com/mattn/go-sqlite3",
+    "github.com/maxmind/mmdbwriter",
+    "github.com/oschwald/maxminddb-golang/v2",
+    "github.com/pressly/goose/v3",
+    "github.com/rs/zerolog",
+    "golang.org/x/crypto",
+    "golang.org/x/mod",
+    "golang.org/x/net",
+    "golang.org/x/sys",
+    "google.golang.org/protobuf"
+  ],
+  "next_step": "separately granted bounded pinned go.sum-verified download of actual endpoint/test closure, not full development-tools module graph",
+  "offline_build_available": false,
+  "scope": "read-only static import reachability/cache availability; no Go execution or downloads; transitive external closure still needs pinned resolution"
+}

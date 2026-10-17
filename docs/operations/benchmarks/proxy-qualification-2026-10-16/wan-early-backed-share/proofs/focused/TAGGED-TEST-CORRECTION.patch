@@ -1,0 +1,119 @@
+--- a/internal/tunnel/qualification_growth_trace_test.go
++++ b/internal/tunnel/qualification_growth_trace_test.go
+@@ -3,9 +3,12 @@
+ package tunnel
+ 
+ import (
++	"encoding/binary"
+ 	"encoding/json"
+ 	"net"
+ 	"strings"
++	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ 
+@@ -17,7 +20,19 @@
+ 	reserve func(int64) (func(), bool),
+ ) (*GrowingConn, *yamux.Stream, *yamux.Session) {
+ 	t.Helper()
++	return newQualificationGrowthTestConnWithTransport(t, reserve, nil)
++}
++
++func newQualificationGrowthTestConnWithTransport(
++	t *testing.T,
++	reserve func(int64) (func(), bool),
++	wrapServer func(net.Conn) net.Conn,
++) (*GrowingConn, *yamux.Stream, *yamux.Session) {
++	t.Helper()
+ 	left, right := net.Pipe()
++	if wrapServer != nil {
++		right = wrapServer(right)
++	}
+ 	cfg, err := NewYamuxConfig(nil, DefaultAdaptiveReceiveWindowBytes)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -108,23 +123,75 @@
+ 
+ 	t.Run("publication_error", func(t *testing.T) {
+ 		DrainQualificationReceiveWindowGrowthEvents()
+-		conn, _, server := newQualificationGrowthTestConn(t, func(int64) (func(), bool) {
+-			return func() {}, true
++		var failing *gatedWriteFailureConn
++		var reserved atomic.Int64
++		conn, _, server := newQualificationGrowthTestConnWithTransport(t, func(bytes int64) (func(), bool) {
++			reserved.Add(bytes)
++			return func() { reserved.Add(-bytes) }, true
++		}, func(raw net.Conn) net.Conn {
++			failing = &gatedWriteFailureConn{Conn: raw, entered: make(chan struct{}), release: make(chan struct{})}
++			return failing
+ 		})
++		var unblockOnce sync.Once
++		unblockWriter := func() { unblockOnce.Do(func() { close(failing.release) }) }
++		defer unblockWriter()
++		t.Cleanup(func() { _ = server.Close(); conn.Release() })
++		failing.failWrite = func(header []byte) bool {
++			return len(header) == 12 && header[1] == 1 && // positive WINDOW_UPDATE on this live stream
++				binary.BigEndian.Uint32(header[4:8]) == conn.stream.StreamID() &&
++				binary.BigEndian.Uint32(header[8:12]) > 0
++		}
++		failing.fail.Store(true)
+ 		now := time.Unix(1_800_000_200, 0)
+ 		conn.growth.start = now
+ 		if err := conn.growMeasured(1<<20, now.Add(80*time.Millisecond), 80*time.Millisecond); err != nil {
+ 			t.Fatal(err)
+ 		}
++		growDone := make(chan error, 1)
++		go func() { growDone <- conn.growMeasured(1<<20, now.Add(160*time.Millisecond), 80*time.Millisecond) }()
++		joined := false
++		defer func() {
++			unblockWriter()
++			if !joined {
++				_ = server.Close()
++				select {
++				case <-growDone:
++				case <-time.After(time.Second):
++					t.Error("growth producer did not join after failure cleanup")
++				}
++			}
++		}()
++		select {
++		case <-failing.entered:
++		case <-time.After(time.Second):
++			t.Fatal("live window publication did not reach transport failure gate")
++		}
++		if server.IsClosed() || reserved.Load() == 0 {
++			t.Fatal("fixture did not reach live, already-reserved publication")
++		}
++		unblockWriter()
++		select {
++		case err := <-growDone:
++			joined = true
++			if err == nil {
++				t.Fatal("live transport publication unexpectedly succeeded")
++			}
++		case <-time.After(time.Second):
++			t.Fatal("growth producer did not join after transport failure")
++		}
++		if reserved.Load() == 0 {
++			t.Fatal("ambiguous publication released its reservation before cleanup")
++		}
++		events := DrainQualificationReceiveWindowGrowthEvents().Events
++		if len(events) != 2 || events[0].Outcome != "no_proposal" || events[1].Outcome != "publication_error" {
++			t.Fatalf("live failure events=%+v, want no_proposal then publication_error", events)
++		}
+ 		if err := server.Close(); err != nil {
+ 			t.Fatal(err)
+ 		}
+-		if err := conn.growMeasured(1<<20, now.Add(160*time.Millisecond), 80*time.Millisecond); err == nil {
+-			t.Fatal("window publication unexpectedly succeeded after session close")
+-		}
+-		events := DrainQualificationReceiveWindowGrowthEvents().Events
+-		if got := events[len(events)-1].Outcome; got != "publication_error" {
+-			t.Fatalf("outcome=%q, want publication_error", got)
++		conn.Release()
++		if reserved.Load() != 0 {
++			t.Fatal("publication reservation retained after session close and Release")
+ 		}
+ 	})
+ }

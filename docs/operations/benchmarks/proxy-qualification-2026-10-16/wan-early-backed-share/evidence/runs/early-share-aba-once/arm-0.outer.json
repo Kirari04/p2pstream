@@ -1,0 +1,446 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "900s",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/arm-wrapper.sh",
+    "--server-binary",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-server-early-share.test",
+    "--aggregate-agent-binary",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-agent-early-share.test",
+    "--server-source-ref",
+    "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+    "--aggregate-agent-source-ref",
+    "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+    "--cert",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+    "--key",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.key.pem",
+    "--expected-leaf-sha256",
+    "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+    "--protocol",
+    "h2",
+    "--output-dir",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-0-share-off"
+  ],
+  "artifact_bytes": 40534621,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 176.3920414739987,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2706317,
+      "pid": 2706317,
+      "ppid": 2706254,
+      "sid": 2706317,
+      "start_ticks": 8614577,
+      "state": "S"
+    },
+    {
+      "pgid": 2706317,
+      "pid": 2706318,
+      "ppid": 2706317,
+      "sid": 2706317,
+      "start_ticks": 8614578,
+      "state": "S"
+    },
+    {
+      "pgid": 2706615,
+      "pid": 2706615,
+      "ppid": 2706318,
+      "sid": 2706615,
+      "start_ticks": 8614709,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2706650,
+      "ppid": 2706318,
+      "sid": 2706650,
+      "start_ticks": 8614730,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2706653,
+      "ppid": 2706650,
+      "sid": 2706650,
+      "start_ticks": 8614731,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2706654,
+      "ppid": 2706653,
+      "sid": 2706650,
+      "start_ticks": 8614731,
+      "state": "S"
+    },
+    {
+      "pgid": 2706707,
+      "pid": 2706707,
+      "ppid": 2706654,
+      "sid": 2706707,
+      "start_ticks": 8614748,
+      "state": "S"
+    },
+    {
+      "pgid": 2706707,
+      "pid": 2706711,
+      "ppid": 2706707,
+      "sid": 2706707,
+      "start_ticks": 8614748,
+      "state": "S"
+    },
+    {
+      "pgid": 2706712,
+      "pid": 2706712,
+      "ppid": 2706654,
+      "sid": 2706712,
+      "start_ticks": 8614748,
+      "state": "S"
+    },
+    {
+      "pgid": 2706712,
+      "pid": 2706716,
+      "ppid": 2706712,
+      "sid": 2706712,
+      "start_ticks": 8614748,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2706816,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8614801,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2706817,
+      "ppid": 2706816,
+      "sid": 2706650,
+      "start_ticks": 8614801,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2706818,
+      "ppid": 2706816,
+      "sid": 2706650,
+      "start_ticks": 8614801,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2706823,
+      "ppid": 2706817,
+      "sid": 2706650,
+      "start_ticks": 8614803,
+      "state": "S"
+    },
+    {
+      "pgid": 2706317,
+      "pid": 2706838,
+      "ppid": 2706318,
+      "sid": 2706317,
+      "start_ticks": 8614883,
+      "state": "S"
+    },
+    {
+      "pgid": 2706317,
+      "pid": 2706878,
+      "ppid": 2706318,
+      "sid": 2706317,
+      "start_ticks": 8614988,
+      "state": "S"
+    },
+    {
+      "pgid": 2706317,
+      "pid": 2707017,
+      "ppid": 2706318,
+      "sid": 2706317,
+      "start_ticks": 8615194,
+      "state": "S"
+    },
+    {
+      "pgid": 2707041,
+      "pid": 2707041,
+      "ppid": 2706654,
+      "sid": 2707041,
+      "start_ticks": 8615225,
+      "state": "S"
+    },
+    {
+      "pgid": 2707056,
+      "pid": 2707056,
+      "ppid": 2706654,
+      "sid": 2707056,
+      "start_ticks": 8615232,
+      "state": "S"
+    },
+    {
+      "pgid": 2707106,
+      "pid": 2707106,
+      "ppid": 2706654,
+      "sid": 2707106,
+      "start_ticks": 8615299,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2707152,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8615366,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2707254,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8616173,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2707431,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8616988,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2707512,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8617785,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2707513,
+      "ppid": 2707512,
+      "sid": 2706650,
+      "start_ticks": 8617785,
+      "state": "R"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2707538,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8617796,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2707626,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8618607,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2707751,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8619544,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708087,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8621365,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708210,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8622305,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708392,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8624117,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708397,
+      "ppid": 2708392,
+      "sid": 2706650,
+      "start_ticks": 8624119,
+      "state": "R"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708447,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8624176,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708449,
+      "ppid": 2708447,
+      "sid": 2706650,
+      "start_ticks": 8624177,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708659,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8625211,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708741,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8625986,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708742,
+      "ppid": 2708741,
+      "sid": 2706650,
+      "start_ticks": 8625986,
+      "state": "R"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708774,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8626010,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708776,
+      "ppid": 2708774,
+      "sid": 2706650,
+      "start_ticks": 8626010,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708882,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8626819,
+      "state": "R"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708895,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8626847,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2708978,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8627625,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2709161,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8628415,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2709163,
+      "ppid": 2709161,
+      "sid": 2706650,
+      "start_ticks": 8628415,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2709424,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8630384,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2709426,
+      "ppid": 2709424,
+      "sid": 2706650,
+      "start_ticks": 8630385,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2709690,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8631219,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2709793,
+      "ppid": 2706654,
+      "sid": 2706650,
+      "start_ticks": 8631994,
+      "state": "S"
+    },
+    {
+      "pgid": 2706650,
+      "pid": 2709798,
+      "ppid": 2709793,
+      "sid": 2706650,
+      "start_ticks": 8632007,
+      "state": "R"
+    },
+    {
+      "pgid": 2706317,
+      "pid": 2709835,
+      "ppid": 2706318,
+      "sid": 2706317,
+      "start_ticks": 8632101,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 16777216,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 1,
+  "stderr_bytes": 0,
+  "stdout_bytes": 401,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

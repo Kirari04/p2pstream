@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "study": "application-only already-backed aggregate receive share",
+  "status": "prospective frozen before any arm traffic; root runtime grant required",
+  "source_inventory": "SOURCE-CONTINUATION-1-SHA256SUMS",
+  "source_inventory_sha256": "3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+  "fresh_build_receipt_sha256": "0a13d33c752be01d2cabfc19db83354b8fdcafc0c9a8fa37af9347de6f989148",
+  "early_share_order": [
+    false,
+    true,
+    false
+  ],
+  "idle_policy_order": [
+    1,
+    1,
+    1
+  ],
+  "controller_order": [
+    "cubic",
+    "cubic",
+    "cubic"
+  ],
+  "same_server_agent_pair_all_arms": true,
+  "workload": {
+    "arms": 3,
+    "rows_per_arm": 16,
+    "total_rows": 48,
+    "payload_bytes_each": 268435456,
+    "protocol": "h2",
+    "rtt_ms": 80,
+    "pool_bytes": 8388608,
+    "owned_sessions": 5,
+    "data_lanes": 4,
+    "timed_function": "exact accepted run_transfer source, unchanged"
+  },
+  "treatment": {
+    "eligible_path": "aggregate receive wrapper below existing operator maximum, with configured qualification mode",
+    "trigger": "first512KiB cumulative successful n>0&&errnil reads, counter saturated at512KiB, once per receive-wrapper lifetime",
+    "target": "4096byte unit floor of min(4MiB,current already-backed session pool/4,operator maximum,negotiated allocation maximum)",
+    "publication": "existing allocation API before byte API; increase-only",
+    "new_reservations": false,
+    "session_pool_growth": false,
+    "idle_or_request_reset": false,
+    "ordinary_estimator": "real history/samples and source flow retained, refresh current after grant"
+  },
+  "proof": {
+    "startup": "tagged fixture selected policy/process/start/namespace before sockets in both endpoint processes",
+    "terminal": "bounded once-attempt sidecars after existing joins,64records,256KiB perfile, noHTTPpoll/schema change",
+    "identity": "samephysicalsession+tuple+stream joined against mature live credit/growth traces",
+    "backing": "exact positive unit/cap windows, unchanged receive-limit/units/leasecount under owner mutex",
+    "lifecycle": "sealed at zeroactive, exactstart/completed/recordcounts, zerodrop/liveeventsession, naturalendpoints; latebegin/impossiblecompletion fatal87",
+    "common_validation": "unchanged mature attestation regenerated exactly first, then existing namespaceproof, then separate earlysidecar proof"
+  },
+  "eligibility": "strict integrity/initialconditioning/owner/pool/resource/controller/namespace/capture/proof closure; precise fullyevidenced postwarmup13..16 originreuse failures are reported outcomes within samefiveownedTCPsessions; physicalsessionreplacement invalid",
+  "effect": {
+    "retained_download_vector": [
+      9,
+      11,
+      14,
+      15
+    ],
+    "primary": "exact Fraction harmonic of allfour recorded validated active-transfer rates, excluding between-request gaps",
+    "criteria": [
+      "candidate all original download floors29.7MB/s",
+      "candidate original mature performance issue partition empty",
+      "candidate exact pooled rate >=108/100 times faster complete control",
+      "candidate retained upstream Readsum positive and strictly lower than both controls",
+      "eachcandidate retained rate >=95/100 times faster corresponding control"
+    ],
+    "evaluation": "allfive criteria separately reported only after allthree valid arms; no performance earlystop; completepositive/completenegative/incomplete distinct",
+    "secondary_reports": "all16rates/directions/wall/handler/Read/Write; upload10,12,13,16 andallpostwarmup9..16 aggregates; originreuse traces/counts, allmatureissues and controlvariability"
+  },
+  "limits": {
+    "source_runtime_artifacts_bytes": 268435456,
+    "dependency_cache_temp_binary_root_bytes": 4294967296,
+    "semantics": "polled rejection; overshoot possible; complete logs retained; observed overflow rejects"
+  },
+  "history": "original failed tagged fixture attempt and original failed metadata build remain preserved; corrected tagged fixture continuation and graphmetadata restoration are separate proofs; no benchmark retry/oldcontrolreuse",
+  "interpretation": "application-only diagnostic on this accepted qualification baseline; fixedorder controls can drift; no randomized causal identification, originalWAN/HAProxy/parity/productionfix/merge/release clearance"
+}

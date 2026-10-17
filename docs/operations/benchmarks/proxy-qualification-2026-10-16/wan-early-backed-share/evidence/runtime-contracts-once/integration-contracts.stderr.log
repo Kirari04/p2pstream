@@ -1,0 +1,22 @@
+test_exact_command_pair_policy_and_timed_function_bindings (__main__.RuntimeBoundary.test_exact_command_pair_policy_and_timed_function_bindings) ... FAIL
+test_launcher_continues_slow_middle_but_stops_structural_invalidity (__main__.RuntimeBoundary.test_launcher_continues_slow_middle_but_stops_structural_invalidity) ... ok
+test_mature_then_namespace_then_sidecar_and_failure_stops_later_checks (__main__.RuntimeBoundary.test_mature_then_namespace_then_sidecar_and_failure_stops_later_checks) ... ok
+test_original_five_criteria_boundary_and_complete_negative (__main__.RuntimeBoundary.test_original_five_criteria_boundary_and_complete_negative) ... ok
+test_selector_and_default_idle_intent_are_independent (__main__.RuntimeBoundary.test_selector_and_default_idle_intent_are_independent) ... ok
+
+======================================================================
+FAIL: test_exact_command_pair_policy_and_timed_function_bindings (__main__.RuntimeBoundary.test_exact_command_pair_policy_and_timed_function_bindings)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/contracts/test-early-share-runtime.py", line 156, in test_exact_command_pair_policy_and_timed_function_bindings
+    self.assertEqual(hashlib.sha256(body.encode()).hexdigest(), 'b86593361c76c3d2903d722b1b0292fa1bc833210d5efb2438dea1aac08ad798')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '894d1e0a18e4c534458f7d1f4cba552655e0442300dbe625bbbf89c839eca15d' != 'b86593361c76c3d2903d722b1b0292fa1bc833210d5efb2438dea1aac08ad798'
+- 894d1e0a18e4c534458f7d1f4cba552655e0442300dbe625bbbf89c839eca15d
++ b86593361c76c3d2903d722b1b0292fa1bc833210d5efb2438dea1aac08ad798
+
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.570s
+
+FAILED (failures=1)

@@ -1,0 +1,78 @@
+--- tmp/wan-idle-policy-screen-20261017/runner.sh
++++ tmp/wan-early-share-screen-20261017/runner.sh
+@@ -3,7 +3,10 @@
+ # share one disposable namespace; the real agent and its origin use a second,
+ # with all tunnel traffic crossing an 80 ms / 1 Gbit/s routed path.
+ set -Eeuo pipefail
+-[[ ${P2PSTREAM_QUALIFICATION_DATA_CONTROLLER-} == cubic && ${P2PSTREAM_IDLE_ARM_INDEX-} =~ ^[012]$ ]] || { echo "exact all-CUBIC idle-policy arm required" >&2; exit 125; }
++[[ ${P2PSTREAM_QUALIFICATION_DATA_CONTROLLER-} == cubic && ${P2PSTREAM_IDLE_ARM_INDEX-} =~ ^[012]$ ]] || { echo "exact all-CUBIC early-share arm required" >&2; exit 125; }
++expected_early_share=0
++[[ $P2PSTREAM_IDLE_ARM_INDEX != 1 ]] || expected_early_share=1
++[[ ${P2PSTREAM_QUALIFICATION_EARLY_SHARE-} == "$expected_early_share" ]] || { echo "exact off/on/off early-share binding required" >&2; exit 125; }
+ [[ ${P2PSTREAM_QUALIFICATION_DATA_CONTROLLER-} == cubic || ${P2PSTREAM_QUALIFICATION_DATA_CONTROLLER-} == reno ]] || { echo "exact diagnostic controller required" >&2; exit 125; }
+ 
+ if [[ ${1:-} != --inside ]]; then
+@@ -194,7 +197,7 @@
+   if unshare --user --map-root-user --net true 2>/dev/null; then
+     exec unshare --user --map-root-user --net "$0" --inside
+   fi
+-  exec sudo -n --preserve-env=P2PSTREAM_GROWTH_SERVER_BINARY,P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY,P2PSTREAM_GROWTH_OUTPUT,P2PSTREAM_GROWTH_RUNS,P2PSTREAM_GROWTH_PARENT_NETNS,P2PSTREAM_GROWTH_WARMUP_MIB,P2PSTREAM_GROWTH_STEADY_MIB,P2PSTREAM_GROWTH_TRANSFER_REPETITIONS,P2PSTREAM_GROWTH_REQUIRED_MIB,P2PSTREAM_GROWTH_SERVER_SOURCE_REF,P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_PROTOCOL,P2PSTREAM_GROWTH_CERT,P2PSTREAM_GROWTH_KEY,P2PSTREAM_GROWTH_EXPECTED_LEAF_SHA256,P2PSTREAM_GROWTH_COPY_RECORD_VALIDATOR,P2PSTREAM_GROWTH_COPY_RECORD_VALIDATOR_SHA256,P2PSTREAM_GROWTH_SENDER_WAIT_VALIDATOR,P2PSTREAM_GROWTH_SENDER_WAIT_VALIDATOR_SHA256,P2PSTREAM_GROWTH_RAW_WRITE_VALIDATOR,P2PSTREAM_GROWTH_RAW_WRITE_VALIDATOR_SHA256,P2PSTREAM_GROWTH_SENDER_WAIT_SMALL,P2PSTREAM_GROWTH_SMOKE_MODE,P2PSTREAM_GROWTH_PRESSURE_MODE,P2PSTREAM_GROWTH_TINY_RESPONSE_MODE,P2PSTREAM_GROWTH_CONFIGURED_RTT_MS,P2PSTREAM_GROWTH_SERVER_SCOPE_PROCS,P2PSTREAM_GROWTH_SERVER_SCOPE_CGROUP,P2PSTREAM_GROWTH_SERVER_SCOPE_CONTROL_DIR,P2PSTREAM_GROWTH_SERVER_SCOPE_NONCE,P2PSTREAM_GROWTH_SERVER_SCOPE_ENTRYPOINT \
++  exec sudo -n --preserve-env=P2PSTREAM_GROWTH_SERVER_BINARY,P2PSTREAM_GROWTH_AGGREGATE_AGENT_BINARY,P2PSTREAM_GROWTH_OUTPUT,P2PSTREAM_GROWTH_RUNS,P2PSTREAM_GROWTH_PARENT_NETNS,P2PSTREAM_GROWTH_WARMUP_MIB,P2PSTREAM_GROWTH_STEADY_MIB,P2PSTREAM_GROWTH_TRANSFER_REPETITIONS,P2PSTREAM_GROWTH_REQUIRED_MIB,P2PSTREAM_GROWTH_SERVER_SOURCE_REF,P2PSTREAM_GROWTH_AGGREGATE_AGENT_SOURCE_REF,P2PSTREAM_GROWTH_PROTOCOL,P2PSTREAM_GROWTH_CERT,P2PSTREAM_GROWTH_KEY,P2PSTREAM_GROWTH_EXPECTED_LEAF_SHA256,P2PSTREAM_GROWTH_COPY_RECORD_VALIDATOR,P2PSTREAM_GROWTH_COPY_RECORD_VALIDATOR_SHA256,P2PSTREAM_GROWTH_SENDER_WAIT_VALIDATOR,P2PSTREAM_GROWTH_SENDER_WAIT_VALIDATOR_SHA256,P2PSTREAM_GROWTH_RAW_WRITE_VALIDATOR,P2PSTREAM_GROWTH_RAW_WRITE_VALIDATOR_SHA256,P2PSTREAM_GROWTH_SENDER_WAIT_SMALL,P2PSTREAM_GROWTH_SMOKE_MODE,P2PSTREAM_GROWTH_PRESSURE_MODE,P2PSTREAM_GROWTH_TINY_RESPONSE_MODE,P2PSTREAM_GROWTH_CONFIGURED_RTT_MS,P2PSTREAM_GROWTH_SERVER_SCOPE_PROCS,P2PSTREAM_GROWTH_SERVER_SCOPE_CGROUP,P2PSTREAM_GROWTH_SERVER_SCOPE_CONTROL_DIR,P2PSTREAM_GROWTH_SERVER_SCOPE_NONCE,P2PSTREAM_GROWTH_SERVER_SCOPE_ENTRYPOINT,P2PSTREAM_QUALIFICATION_DATA_CONTROLLER,P2PSTREAM_IDLE_ARM_INDEX,P2PSTREAM_QUALIFICATION_EARLY_SHARE,P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR \
+     unshare --net "$0" --inside
+ fi
+ 
+@@ -481,7 +484,8 @@
+ router_ns() { assert_namespace_helper "$router_namespace_pid" "$router_namespace_instance" && nsenter -t "$router_namespace_pid" -n "$@"; }
+ # Private idle policy is configured before origin/agent TCP creation.
+ idle_proof_dir=$(dirname "$output")
+-python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/idle-policy-proof.py" configure \
++[[ ${P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR-} == "$idle_proof_dir" ]] || { echo "early-share proof directory differs from owned arm output" >&2; exit 125; }
++python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/idle-policy-proof.py" configure \
+   "$idle_proof_dir/idle-configured.json" "$P2PSTREAM_IDLE_ARM_INDEX" "$idle_proof_dir/idle-host-pre.json" \
+   "$agent_namespace_pid" "$agent_namespace_start_ticks" "$agent_namespace_identity" \
+   "$router_namespace_pid" "$router_namespace_start_ticks" "$router_namespace_identity"
+@@ -1686,6 +1690,8 @@
+ 	setsid env \
+ 		P2PSTREAM_WAN_READ_WAIT_SCOPE_ROLE=server \
+ 		P2PSTREAM_WAN_READ_WAIT_SCOPE_NONCE="$server_scope_nonce" \
++		P2PSTREAM_QUALIFICATION_EARLY_SHARE="$P2PSTREAM_QUALIFICATION_EARLY_SHARE" \
++		P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR="$P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR" \
+ 		P2PSTREAM_QUALIFICATION_ROLE=proxy-external-agent \
+ 		P2PSTREAM_QUALIFICATION_READY="$server_ready" \
+ 		P2PSTREAM_QUALIFICATION_STOP="$server_stop" \
+@@ -1751,6 +1757,8 @@
+     setsid systemd-run --user --scope --quiet --unit="$agent_unit" \
+       -p MemoryMax=4294967296 -p MemorySwapMax=0 -- \
+       nsenter -t "$agent_namespace_pid" -n env \
++      P2PSTREAM_QUALIFICATION_EARLY_SHARE="$P2PSTREAM_QUALIFICATION_EARLY_SHARE" \
++      P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR="$P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR" \
+       P2PSTREAM_QUALIFICATION_DATA_CONTROLLER="$P2PSTREAM_QUALIFICATION_DATA_CONTROLLER" \
+       P2PSTREAM_QUALIFICATION_CONTROLLER_NETNS="$agent_namespace_identity" \
+       P2PSTREAM_QUALIFICATION_CONTROLLER_PARENT_NETNS="$(readlink /proc/self/ns/net)" \
+@@ -1772,6 +1780,8 @@
+   else
+     assert_namespace_helper "$agent_namespace_pid" "$agent_namespace_instance"
+     setsid nsenter -t "$agent_namespace_pid" -n env \
++      P2PSTREAM_QUALIFICATION_EARLY_SHARE="$P2PSTREAM_QUALIFICATION_EARLY_SHARE" \
++      P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR="$P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR" \
+       P2PSTREAM_QUALIFICATION_DATA_CONTROLLER="$P2PSTREAM_QUALIFICATION_DATA_CONTROLLER" \
+       P2PSTREAM_QUALIFICATION_CONTROLLER_NETNS="$agent_namespace_identity" \
+       P2PSTREAM_QUALIFICATION_CONTROLLER_PARENT_NETNS="$(readlink /proc/self/ns/net)" \
+@@ -1801,7 +1811,7 @@
+   expected_bulk=3
+   [[ $mode == aggregate-v1 ]] && expected_bulk=4
+   wait_mode "$server_admin" "$mode" "$expected_bulk"
+-  python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/idle-policy-proof.py" endpoints \
++  python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/idle-policy-proof.py" endpoints \
+     "$idle_proof_dir/idle-endpoints-endpoint-binding.json" endpoint-binding "$P2PSTREAM_IDLE_ARM_INDEX" "$idle_proof_dir/idle-configured.json" \
+     "$agent_pid" "$(jq -r .pid "$origin_ready")" "$server_pid" \
+     "$agent_ready" "$origin_ready" "$server_ready"
+@@ -1850,7 +1860,7 @@
+     fi
+   fi
+ 
+-  python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/idle-policy-proof.py" endpoints \
++  python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/idle-policy-proof.py" endpoints \
+     "$idle_proof_dir/idle-endpoints-post-workload.json" post-workload "$P2PSTREAM_IDLE_ARM_INDEX" "$idle_proof_dir/idle-configured.json" \
+     "$agent_pid" "$(jq -r .pid "$origin_ready")" "$server_pid" \
+     "$agent_ready" "$origin_ready" "$server_ready"

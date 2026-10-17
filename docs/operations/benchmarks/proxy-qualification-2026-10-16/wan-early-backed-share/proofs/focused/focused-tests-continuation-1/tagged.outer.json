@@ -1,0 +1,50 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-mod=readonly",
+    "-p=2",
+    "-parallel=1",
+    "-count=1",
+    "-timeout=60s",
+    "-tags=p2pstream_qualification",
+    "-run",
+    "^Test(EarlyShare|QualificationEarlyShare|GrowingConn|AggregateReceiveWindowGrowth|AggregateGrowthPublicationFailure|AggregateGrowingConn|ReceiveWindowGrowth|QualificationGrowthTrace)",
+    "-v",
+    "./internal/tunnel"
+  ],
+  "artifact_bytes": 225072779,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 1.4211390800046502,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2684457,
+      "pid": 2684457,
+      "ppid": 2684394,
+      "sid": 2684457,
+      "start_ticks": 8527663,
+      "state": "S"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 4194304,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 9713,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

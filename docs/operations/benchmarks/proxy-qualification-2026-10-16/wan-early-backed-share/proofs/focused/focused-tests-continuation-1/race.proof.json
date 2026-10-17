@@ -1,0 +1,9 @@
+{
+  "name": "race",
+  "outer_sha256": "0828a2ac85a5abbf4e3ed5f0572593a55230df3512c0ede13c85f5ce113cd243",
+  "proof_origin": "fresh-continuation-1",
+  "source_unchanged": true,
+  "status": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "86d71f27f93af9a036a9f648cbd4b61a2c23b9c15e24f409fde98ea9266ba0f6"
+}

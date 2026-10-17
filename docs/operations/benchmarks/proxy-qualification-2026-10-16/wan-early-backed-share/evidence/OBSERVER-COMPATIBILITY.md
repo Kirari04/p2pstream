@@ -1,0 +1,13 @@
+# Existing observer compatibility
+
+The selected transport is a dedicated bounded startup/terminal sidecar per endpoint. It adds no HTTP field, changes no old snapshot envelope, performs no projection, and leaves every mature helper/schema and canonical raw file unchanged.
+
+Ordinary server/agent growth events retain their real estimator samples, fields and outcomes. Early backed-share publication has its own versioned proof and is never labeled an estimator-approved epoch. Existing byte-credit traces continue to describe actual publication/conservation; their permissive recognition of window updates does not itself establish the new trigger's validity.
+
+`validate-early-share-proof.py` separately checks both-role startup policy and process/start/namespace identity, natural endpoint exits, captured session/tuple/stream identity joined to original credit/growth evidence, exact512KiB threshold progress,4MiB/backed-quarter/operator/negotiated unit target, before/after backing and lease equality, explicit publication stage/outcome, once-per-wrapper records, sealed completeness and zero dropped/active/live sessions. Candidate integration requires a real grant in both receiver roles. Original mature and namespace checks run first, making their retained owner context authoritative.
+
+Server PRE credit snapshots are intentionally null under the old contract. Stream joins therefore use the union of original byte-credit receiver/peer/wait records, ordinary growth events, and available server POST snapshots. The separate agent sender shape is covered explicitly. A proof's ordinary maximum must match common events for that stream or its same physical owner; early backing need not equal a later pool that legitimately grew through the original estimator.
+
+Growth-call timestamps are sample/attempt-start observations, not publication completion times. Record ordinals serialize completed records. Startup's before-socket guarantee comes from the exact fixture entrypoints and later readiness/process binding. First configuration after arbitrary unconfigured traffic is not universally detected by the selector API.
+
+The common original build verifier remains unchanged and applies only to its historical source/binary tuple. The separate derivative verifier validates that old proof plus the new focused history, exact continuation source, fresh common binary pair and build proofs. It does not call new binary acceptance original receipt acceptance. Missing/invalid receipts, sidecars, bindings or unknown outcomes reject eligibility; performance outcomes are evaluated only after all three valid arms.

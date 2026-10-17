@@ -15,6 +15,12 @@ comparison.
 
 ## Files
 
+- [`wan-early-backed-share/README.md`](wan-early-backed-share/README.md)
+  preserves the incomplete application-only off/on/off screen: 32 transfers finish
+  before the candidate's strict shutdown FIN proof rejects and the last control
+  remains unstarted. Both receiver roles make four actual 512KiB-to-4MiB grants;
+  candidate downloads 9/11/14 still fail 29.7 MB/s floors. The exact candidate is
+  closed as unpromising, without a completed comparative effect or WAN clearance.
 - [`wan-idle-policy/README.md`](wan-idle-policy/README.md)
   preserves the fresh all-CUBIC private agent/origin namespace 1/0/1 screen:
   all 48 transfers and five diagnostic criteria pass, with the middle pool

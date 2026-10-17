@@ -1,0 +1,14 @@
+/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-agent-early-share.test: go1.26.6
+	path	p2pstream/internal/agent.test
+	mod	p2pstream	(devel)	
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	-tags=p2pstream_qualification
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1

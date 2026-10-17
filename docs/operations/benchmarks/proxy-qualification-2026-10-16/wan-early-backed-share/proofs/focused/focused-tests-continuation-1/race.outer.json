@@ -1,0 +1,227 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "300s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-mod=readonly",
+    "-p=2",
+    "-parallel=1",
+    "-count=1",
+    "-timeout=90s",
+    "-tags=p2pstream_qualification",
+    "-race",
+    "-run",
+    "^Test(EarlyShare|QualificationEarlyShare|GrowingConn|AggregateReceiveWindowGrowth|AggregateGrowthPublicationFailure|AggregateGrowingConn|ReceiveWindowGrowth|QualificationGrowthTrace)",
+    "-v",
+    "./internal/tunnel"
+  ],
+  "artifact_bytes": 339392486,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 18.274052060995018,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2684542,
+      "pid": 2684542,
+      "ppid": 2684394,
+      "sid": 2684542,
+      "start_ticks": 8527816,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2684543,
+      "ppid": 2684542,
+      "sid": 2684542,
+      "start_ticks": 8527816,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2684799,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8527868,
+      "state": "R"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685274,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528209,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685283,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528226,
+      "state": "R"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685315,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528291,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685523,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528419,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685582,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528510,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685586,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528532,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685728,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528626,
+      "state": "R"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685771,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528641,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685894,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528724,
+      "state": "R"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685902,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528725,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2685981,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528827,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2686008,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528839,
+      "state": "R"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2686132,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528936,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2686148,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8528941,
+      "state": "R"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2686222,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8529023,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2686230,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8529034,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2686382,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8529165,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2686577,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8529230,
+      "state": "Z"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2686957,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8529437,
+      "state": "S"
+    },
+    {
+      "pgid": 2684542,
+      "pid": 2686964,
+      "ppid": 2684543,
+      "sid": 2684542,
+      "start_ticks": 8529463,
+      "state": "S"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 4194304,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 9713,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

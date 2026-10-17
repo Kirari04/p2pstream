@@ -1,0 +1,18 @@
+{
+  "accepted": true,
+  "inputs_unchanged": true,
+  "plan_sha256": "473ad85d5f16cbd291f78fcc5d3215057e2187d19e49c0e5227da73215a17875",
+  "root_grant_sha256": "1c7735aca10746202068086f8c2cc33411b7417693cac77a07e2f66c7e505f76",
+  "reused_case_count": 4,
+  "fresh_case_count": 1,
+  "proofs": {
+    "started.json": "b84ad2150972a64e9b7b091817c9672322d2994279d3357d219d5468d4d09d48",
+    "outer.json": "1ba971b721fb050443120df6bcbcbaec4e0cd23813543085497ce67dafc8abfd",
+    "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr.log": "ee8e73a4422845a458ea87a51ea53ed38d7ae5f7fcbc5b8ceb35be173f4e6298"
+  },
+  "artifact_bytes": 17178838,
+  "endpoints": false,
+  "network": false,
+  "builds": false
+}

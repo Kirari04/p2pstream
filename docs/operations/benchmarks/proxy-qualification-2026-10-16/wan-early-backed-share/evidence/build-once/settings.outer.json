@@ -1,0 +1,51 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "env",
+    "-json",
+    "CGO_ENABLED",
+    "GOAMD64",
+    "GOARCH",
+    "GOENV",
+    "GOFLAGS",
+    "GOOS",
+    "GOROOT",
+    "GOTOOLCHAIN",
+    "GOVERSION",
+    "GOWORK"
+  ],
+  "artifact_bytes": 339392486,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 0.3443031759961741,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2691794,
+      "pid": 2691794,
+      "ppid": 2691713,
+      "sid": 2691794,
+      "start_ticks": 8547772,
+      "state": "Z"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 264,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

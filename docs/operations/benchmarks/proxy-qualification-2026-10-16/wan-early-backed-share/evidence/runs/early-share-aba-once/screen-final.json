@@ -1,0 +1,41 @@
+{
+  "accepted": false,
+  "arm_states": [
+    {
+      "controller": "cubic",
+      "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-0.decision.json",
+      "early_share_policy": 0,
+      "idle_policy": 1,
+      "index": 0,
+      "mature_outer_status": 1,
+      "state": "measurement-valid"
+    },
+    {
+      "controller": "cubic",
+      "early_share_policy": 1,
+      "idle_policy": 1,
+      "index": 1,
+      "mature_outer_status": 1,
+      "state": "invalid"
+    },
+    {
+      "controller": "cubic",
+      "early_share_policy": 0,
+      "idle_policy": 1,
+      "index": 2,
+      "state": "unstarted"
+    }
+  ],
+  "artifact_bytes": 68948232,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "comparison_incomplete": true,
+  "completed_arms": 1,
+  "diagnostic_positive": false,
+  "failure": "RuntimeError: independent arm validation failed",
+  "original_qualification_cleared": false,
+  "schema_version": 1,
+  "stopped": true,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

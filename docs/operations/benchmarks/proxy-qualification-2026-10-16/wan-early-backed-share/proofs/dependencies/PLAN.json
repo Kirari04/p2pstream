@@ -1,0 +1,39 @@
+{
+  "action": "pinned package/test dependency resolution only",
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "list",
+    "-deps",
+    "-test",
+    "-mod=readonly",
+    "-tags=p2pstream_qualification",
+    "-f",
+    "{{if not .Standard}}{{.ImportPath}} {{if .Module}}{{.Module.Path}}@{{.Module.Version}}{{end}}{{end}}",
+    "./internal/agent",
+    "./internal/server",
+    "./internal/tunnel"
+  ],
+  "cache": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+  "cache_and_output_rejection_bytes": 805306368,
+  "checksum_policy": "readonly pinned go.mod/go.sum plus official module proxy/checksum database",
+  "compilation": false,
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+  "endpoint_execution": false,
+  "input_hashes": {
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source/go.mod": "165d373cd30192573bfd30e0f0997b393c433368d3ac01df8b178aaf4bdb5d65",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source/go.sum": "7e451e21339534258c770d5d4669cffd5c126d38e91026e09f35fa93c89173f2",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+  },
+  "outer_deadline_seconds": 270,
+  "per_stream_rejection_bytes": 1048576,
+  "source_sha256": "53531fa0ca2216da4cf184a2a84438f28117226e0cdc7d85a58e569b29d11518",
+  "supervisor_sha256": "621cffe67aacba1dc5ead223c5034c97cfcda402f104e92c07fbbd576beeaac8",
+  "test_execution": false
+}

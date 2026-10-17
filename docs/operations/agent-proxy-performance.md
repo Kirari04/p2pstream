@@ -794,6 +794,21 @@ finite diagnostic does not isolate a single kernel path or threshold creator,
 recommend production tuning or clear the original 96-transfer WAN, HAProxy,
 parity or release requirements. Earlier negative/stopped diagnostics remain unchanged.
 
+The subsequent [early backed-share evidence](benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/README.md)
+records an incomplete application-only off/on/off screen on CUBIC/default idle 1.
+The first control and candidate complete 32 original transfers with ten natural,
+joined endpoint/helper exits. The candidate then fails the unchanged strict
+raw closure and terminal-attribution checks: a plaintext Yamux FIN begins before
+physical close, while its 0-of-34-byte closed-network write begins afterward.
+The final control never starts; no completed comparative effect is established.
+
+Each candidate receiver role makes four actual 512 KiB-to-4 MiB grants without new
+pool backing or reservations, yet candidate downloads 9/11/14 remain below the
+original 29.7 MB/s floor. The exact candidate is closed as unpromising. All failed
+and successful proof continuations, exact raw rejection and passing incomplete
+resource/input closure audit remain preserved. This changes no production code
+and clears no original WAN, HAProxy, parity or release gate.
+
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while
 the selector still uses lanes 0–3. Aggregate-v1 uses lanes 1–4 and reserves

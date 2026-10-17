@@ -1,0 +1,28 @@
+{
+  "approved": true,
+  "plan_sha256": "473ad85d5f16cbd291f78fcc5d3215057e2187d19e49c0e5227da73215a17875",
+  "reused_cases": [
+    "test_original_five_criteria_boundary_and_complete_negative",
+    "test_selector_and_default_idle_intent_are_independent",
+    "test_mature_then_namespace_then_sidecar_and_failure_stops_later_checks",
+    "test_launcher_continues_slow_middle_but_stops_structural_invalidity"
+  ],
+  "complete_read_inputs": {
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/contracts/test-early-share-runtime.py": "f0c8b913e7dadcccfec4ce358230aa98014dc9074e55f7d85a6e6e7b0cc3d49a",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/validate-early-share.py": "845bbab6fc6365bed62034fe85ed3f753de16fb80dcf917eb44527fd6bda11e1",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/idle-policy-proof.py": "5d805a226121dc4d745b5059c004064964d84da61822fb5c74eb6924726e248f",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/COMMANDS.json": "f7c87978420cb526607804abb44f1582036b358899fb62c73dacdaa1878cbb35",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/run-early-share.py": "ba74373c7dfdad5010443d74c241ab7b57fd701b7df1805a3d5f9282487b2a47",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runner.sh": "58cd84b4566129d966d97a60792d7941cb0bd95aea3776bf0ac959a8742149ce",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-policy.py": "436a2a1ad3f115e0233b2c9b263784a8577f7b7b7c8d173e384207d750e17c47",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-policy.py": "0076fb7d64f63af7517a4feed07e06f9ce2421649589f73e47371d3bed409206",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/contracts/test-early-share-runtime-continuation-1.py": "e1652d747e24cb92b19021d6974a2a18622b8bc927e4345b3fb641ea0fd21e4e",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/RUNTIME-OFFLINE-PLAN.json": "6c0a1591c821f29c63b4f7264baa8c468a061671db7687b87e881aa22769c7d9",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runtime-contracts-once/RESULT.json": "04dca09aba6d8a52fddca86bec1dd642a7b6fd54ac55277596b1a437f9045f1b",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-policy.py": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/validate-early-share-proof.py": "17d06ddecf43a5f0cef072a8311115aeb525ee16d018f05430607e544bea4ffb",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0.decision.json": "882c3aa4284be780fe671ec6b1d159b06b06d749953fb3b2578ca38e7effd25a",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1.decision.json": "f50a8623cdce9c023491e3d6fc6b02ca3b4db483a19ad37b492209a745aa7ee0",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2.decision.json": "9882ab54006fc8d8f2aeeeff88c781acf8e1f16381d93a25868693d782fc07dc"
+  }
+}

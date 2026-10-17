@@ -1,0 +1,41 @@
+{
+  "status": "source-only correction of sole slice-boundary testcase; separate root execution grant required",
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "20s",
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/contracts/test-early-share-runtime-continuation-1.py",
+    "RuntimeBoundary.test_exact_command_pair_policy_and_timed_function_bindings",
+    "-v"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017",
+  "outer_deadline_seconds": 30,
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "task_artifact_rejection_threshold_bytes": 268435456,
+  "source_hashes": {
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/contracts/test-early-share-runtime.py": "f0c8b913e7dadcccfec4ce358230aa98014dc9074e55f7d85a6e6e7b0cc3d49a",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/validate-early-share.py": "845bbab6fc6365bed62034fe85ed3f753de16fb80dcf917eb44527fd6bda11e1",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/idle-policy-proof.py": "5d805a226121dc4d745b5059c004064964d84da61822fb5c74eb6924726e248f",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/COMMANDS.json": "f7c87978420cb526607804abb44f1582036b358899fb62c73dacdaa1878cbb35",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/run-early-share.py": "ba74373c7dfdad5010443d74c241ab7b57fd701b7df1805a3d5f9282487b2a47",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runner.sh": "58cd84b4566129d966d97a60792d7941cb0bd95aea3776bf0ac959a8742149ce",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-policy.py": "436a2a1ad3f115e0233b2c9b263784a8577f7b7b7c8d173e384207d750e17c47",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-policy.py": "0076fb7d64f63af7517a4feed07e06f9ce2421649589f73e47371d3bed409206",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/contracts/test-early-share-runtime-continuation-1.py": "e1652d747e24cb92b19021d6974a2a18622b8bc927e4345b3fb641ea0fd21e4e",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/RUNTIME-OFFLINE-PLAN.json": "6c0a1591c821f29c63b4f7264baa8c468a061671db7687b87e881aa22769c7d9",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runtime-contracts-once/RESULT.json": "04dca09aba6d8a52fddca86bec1dd642a7b6fd54ac55277596b1a437f9045f1b"
+  },
+  "scope": "one corrected source-slice testcase; retain four passing original cases and originalfailedcommand, no runtime/classifier changes",
+  "original_failed_result": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runtime-contracts-once/RESULT.json",
+  "reused_original_cases": [
+    "test_original_five_criteria_boundary_and_complete_negative",
+    "test_selector_and_default_idle_intent_are_independent",
+    "test_mature_then_namespace_then_sidecar_and_failure_stops_later_checks",
+    "test_launcher_continues_slow_middle_but_stops_structural_invalidity"
+  ],
+  "reuse_equivalence": "original and corrected test source differ only end index expression inside the sole failed test; other four test methods unchanged; select only corrected failed test in fresh command"
+}

@@ -1,0 +1,16 @@
+{
+  "accepted": true,
+  "failure": null,
+  "inputs_unchanged": true,
+  "plan_sha256": "4768f5414505eb4253157cad0b335047c96a24fa929ebf840ff40e1dd431c33e",
+  "files": {
+    "started.json": "9d9272f3eb8c473ab73c2cd5c9560a39175fe59b6daf01e1c736ba58aa0856bc",
+    "outer.json": "7e5e0b2a9fe53baac17f614d2436c369b356aedf6836f4ad8f067d3a01ffc25f",
+    "stdout.log": "45169d334f869dcbd345022dfb71b61aa864840c7c8f71898902fd4c1473108c",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "artifact_bytes": 339570452,
+  "compilation": false,
+  "test_execution": false,
+  "endpoint_execution": false
+}

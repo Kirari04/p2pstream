@@ -1,0 +1,57 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "list",
+    "-deps",
+    "-test",
+    "-mod=readonly",
+    "-tags=p2pstream_qualification",
+    "-f",
+    "{{if not .Standard}}{{.ImportPath}} {{if .Module}}{{.Module.Path}}@{{.Module.Version}}{{end}}{{end}}",
+    "./internal/agent",
+    "./internal/server",
+    "./internal/tunnel"
+  ],
+  "artifact_bytes": 112764737,
+  "artifact_rejection_threshold_bytes": 805306368,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 4.163674095005263,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2662495,
+      "pid": 2662495,
+      "ppid": 2662412,
+      "sid": 2662495,
+      "start_ticks": 8413888,
+      "state": "S"
+    },
+    {
+      "pgid": 2662495,
+      "pid": 2662496,
+      "ppid": 2662495,
+      "sid": 2662495,
+      "start_ticks": 8413889,
+      "state": "S"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 1523,
+  "stdout_bytes": 9909,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

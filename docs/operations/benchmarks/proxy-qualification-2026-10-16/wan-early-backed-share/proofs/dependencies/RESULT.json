@@ -1,0 +1,11 @@
+{
+  "accepted": true,
+  "artifact_bytes": 112766188,
+  "endpoint_execution": false,
+  "failure": null,
+  "inputs_unchanged": true,
+  "outer_sha256": "d2a57326872b4e5ac6ae5516e4fdc37d72402fdbb4f8257f1c4f4caac1f0b9c5",
+  "stderr_sha256": "2cd16e8e9b409beba8db1e946403959da5db31488be17df03ba8d6f0b8df875d",
+  "stdout_sha256": "67bed3e4fd03d360b3366f0b09a0c3e9119615f25c5b072d912bc44f234e3179",
+  "test_execution": false
+}

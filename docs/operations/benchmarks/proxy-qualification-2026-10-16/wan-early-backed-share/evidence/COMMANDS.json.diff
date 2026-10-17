@@ -1,0 +1,163 @@
+--- tmp/wan-idle-policy-screen-20261017/COMMANDS.json
++++ tmp/wan-early-share-screen-20261017/COMMANDS.json
+@@ -6,15 +6,15 @@
+         "--signal=TERM",
+         "--kill-after=10s",
+         "900s",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/arm-wrapper.sh",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/arm-wrapper.sh",
+         "--server-binary",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-server-early-share.test",
+         "--aggregate-agent-binary",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-agent-early-share.test",
+         "--server-source-ref",
+-        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
++        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+         "--aggregate-agent-source-ref",
+-        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
++        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+         "--cert",
+         "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+         "--key",
+@@ -24,17 +24,20 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-0-share-off"
+       ],
+       "attempts": 1,
+       "controller": "cubic",
++      "early_share_policy": 0,
+       "env": {
+         "P2PSTREAM_IDLE_ARM_INDEX": "0",
+-        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
++        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic",
++        "P2PSTREAM_QUALIFICATION_EARLY_SHARE": "0",
++        "P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-0-share-off"
+       },
+       "idle_policy": 1,
+       "index": 0,
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1"
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-0-share-off"
+     },
+     {
+       "argv": [
+@@ -42,15 +45,15 @@
+         "--signal=TERM",
+         "--kill-after=10s",
+         "900s",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/arm-wrapper.sh",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/arm-wrapper.sh",
+         "--server-binary",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-server-early-share.test",
+         "--aggregate-agent-binary",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-agent-early-share.test",
+         "--server-source-ref",
+-        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
++        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+         "--aggregate-agent-source-ref",
+-        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
++        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+         "--cert",
+         "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+         "--key",
+@@ -60,17 +63,20 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on"
+       ],
+       "attempts": 1,
+       "controller": "cubic",
++      "early_share_policy": 1,
+       "env": {
+         "P2PSTREAM_IDLE_ARM_INDEX": "1",
+-        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
++        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic",
++        "P2PSTREAM_QUALIFICATION_EARLY_SHARE": "1",
++        "P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on"
+       },
+-      "idle_policy": 0,
++      "idle_policy": 1,
+       "index": 1,
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0"
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on"
+     },
+     {
+       "argv": [
+@@ -78,15 +84,15 @@
+         "--signal=TERM",
+         "--kill-after=10s",
+         "900s",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/arm-wrapper.sh",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/arm-wrapper.sh",
+         "--server-binary",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-server-early-share.test",
+         "--aggregate-agent-binary",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-agent-early-share.test",
+         "--server-source-ref",
+-        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
++        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+         "--aggregate-agent-source-ref",
+-        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
++        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+         "--cert",
+         "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+         "--key",
+@@ -96,18 +102,36 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-2-share-off"
+       ],
+       "attempts": 1,
+       "controller": "cubic",
++      "early_share_policy": 0,
+       "env": {
+         "P2PSTREAM_IDLE_ARM_INDEX": "2",
+-        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
++        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic",
++        "P2PSTREAM_QUALIFICATION_EARLY_SHARE": "0",
++        "P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-2-share-off"
+       },
+       "idle_policy": 1,
+       "index": 2,
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1"
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-2-share-off"
+     }
++  ],
++  "controller_order": [
++    "cubic",
++    "cubic",
++    "cubic"
++  ],
++  "early_share_order": [
++    0,
++    1,
++    0
++  ],
++  "idle_policy_order": [
++    1,
++    1,
++    1
+   ],
+   "max_transfers": 48,
+   "original_96_transfer_and_HAProxy_gates": "failed; unchanged",
+@@ -129,7 +153,7 @@
+   },
+   "performance_evaluation": "after all three fresh structurally eligible arms",
+   "retry": false,
+-  "status": "NEW source-only whole-workload controller-policy diagnostic; separate root runtime grant required; no historical arm reuse",
++  "status": "source-only early backed share off/on/off; separate exact root runtime grant required",
+   "stop_on_first_invalid_arm": "strict structural or initial-conditioning invalidity only; reported postwarmup reuse/performance outcomes never stop remaining arms",
+   "transfers_per_arm": 16,
+   "workload": {

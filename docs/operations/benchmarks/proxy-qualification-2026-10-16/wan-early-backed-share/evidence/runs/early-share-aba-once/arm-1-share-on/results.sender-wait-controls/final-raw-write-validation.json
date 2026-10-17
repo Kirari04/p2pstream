@@ -1,0 +1,20 @@
+{
+  "accepted": false,
+  "issues": [
+    "raw-write final closure is incomplete or invalid",
+    "raw-write final record 3.raw_write_activity.tcp_state is invalid, ambiguous, or overflowed",
+    "raw-write final record 3.raw_write_activity.tcp_state is invalid, ambiguous, or overflowed",
+    "raw-write final record 3.raw_write_activity.tcp_state.complete is not true at final closure",
+    "raw-write final record 3.raw_write_activity.tcp_state.reset_performed is not true at final closure",
+    "raw-write final record 3.raw_write_activity.tcp_state.invalid is not false at final closure",
+    "raw-write final record 3 complete is not true",
+    "raw-write final record 3 reset_performed is not true",
+    "raw-write final record 3 ambiguous is not false",
+    "raw-write final record 3.raw_write_activity.tcp_state is invalid, ambiguous, or overflowed",
+    "raw-write final record 3.raw_write_activity.outside contains error or short raw writes",
+    "raw-write final record 3.raw_write_activity.tcp_state is invalid, ambiguous, or overflowed",
+    "raw-write final record 3.raw_write_activity.tcp_state is invalid, ambiguous, or overflowed"
+  ],
+  "mode": "final-closure",
+  "schema_version": 1
+}

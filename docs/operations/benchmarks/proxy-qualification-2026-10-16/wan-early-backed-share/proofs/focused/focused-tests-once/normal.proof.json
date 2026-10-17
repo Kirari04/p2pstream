@@ -1,0 +1,8 @@
+{
+  "name": "normal",
+  "outer_sha256": "ea0a7bdb547841af46b513859f6e23a1ad0c9fdeac71b1771a370044f7170b3c",
+  "source_unchanged": true,
+  "status": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "0fd0850ed2a35e85255c8021a67987953c05a48f69365d8fb606a8fb5079eb3b"
+}
