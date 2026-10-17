@@ -21,6 +21,17 @@ comparison.
   Clean repository tests, focused race checks and vet pass; parser and setup
   failures remain preserved. This is a recorder result, without an end-to-end
   throughput or parity claim.
+- [`wan-terminal-attribution-sustained/README.md`](wan-terminal-attribution-sustained/README.md)
+  preserves one sustained H1/H2 pair with 32 correct transfers and natural
+  endpoint shutdown. H1 passes all floors; H2 fails two steady downloads at
+  27.48–27.50 MB/s against 29.7 MB/s. Every data-lane history exhausts its bound
+  before a threshold transition, so the timing remains inconclusive. No original
+  WAN or reference-proxy performance gate is cleared.
+- [`wan-terminal-attribution-smoke/README.md`](wan-terminal-attribution-smoke/README.md)
+  records the pinned diagnostic build and one small verified H1/H2 pair:
+  all 32 transfers, both independent verdicts and all ten natural process exits
+  pass. No terminal exception was exercised. This validates the observer wiring;
+  it does not clear sustained WAN or reference-proxy performance gates.
 - [`wan-terminal-attribution-local/README.md`](wan-terminal-attribution-local/README.md)
   records local verified-TLS terminal attribution controls: seven Python tests
   and 170 named Go checks in each normal/race mode pass, with natural exits

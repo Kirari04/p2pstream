@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/supervisor-lifecycle.json",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/outer-namespaces.json",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/attestation.json",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1-continuation.json"
+  ],
+  "started_unix": 1792235285.05064,
+  "forced": false,
+  "pid": 2448634,
+  "exit_status": 0,
+  "finished_unix": 1792235285.1150494,
+  "output_bytes": 0,
+  "remaining_group_members": [],
+  "accepted": true
+}

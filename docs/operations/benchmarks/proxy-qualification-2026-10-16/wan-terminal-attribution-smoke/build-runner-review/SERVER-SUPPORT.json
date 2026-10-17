@@ -1,0 +1,12 @@
+{
+  "tested_inventory_preserved": true,
+  "added_compile_only_files": [
+    {
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source/stats/stats.go",
+      "target": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/test-source/stats/stats.go",
+      "sha256": "110527ff6a8bfa2a69985f4963c2584a6a7cd52fd665b24de7dfea8ff9f67018"
+    }
+  ],
+  "embeds": "all source go:embed directives resolve inside copied internal/agent, internal/server templates, internal/db/migrations or third_party; stats adds no embeds",
+  "production_reference": "27c8e31f3826ab5326d941b20644c1f56159d99d"
+}

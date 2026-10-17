@@ -1,0 +1,244 @@
+{
+  "status": "source proposal; execution not authorized",
+  "production_reference": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+terminal-build-source-f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+  "build_inventory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build-runner-review/BUILD-SOURCE-SHA256SUMS",
+  "inputs": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build-runner-review/BUILD-SOURCE-SHA256SUMS",
+      "sha256": "f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build-runner-review/SERVER-SUPPORT.json",
+      "sha256": "3b741c1525f8c8698c062b6f37d75863e061f1aa36f8c70fa340605a7edc75b0"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/successor/TEST-SOURCE-SHA256SUMS",
+      "sha256": "fa9a76a9640ad5084daec1722da509f98dc9eca0c6541536b55d129e3e80fb8b"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/successor/MATERIALIZATION.json",
+      "sha256": "9426ca87b9d50dd536168db0a080437841c701b4e3ab9b2e555ba8daed1946c5"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/successor/ordinary-health-mapping.diff",
+      "sha256": "4afae3b30bcfe061ee9224e7bca8d17def644808b35b2c180ccab9cdcd80cf37"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/local-window-2/RESULT.json",
+      "sha256": "43b22269b292eb568218c0bb18dfa09608fb48c9b35ddaeb86b55be246ba5204"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/local-window-2/POST-AUDIT.json",
+      "sha256": "527a54d84e10ef60e0acaa96c53cddaf07dee8364dfbfaeda02011a347263d2d"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/local-window-2/SHA256SUMS",
+      "sha256": "9316f8b45257f7e91c3ed7607523a3e1c541f677c532278c81664fe14ca73040"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/successor/TOOLCHAIN.json",
+      "sha256": "8a07d445d806bd86323326d901f864281bc07095b6b9c934d98a6b5efe8b27ba"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build-runner-review/build-endpoints.py",
+      "sha256": "e97be25b2d9ce0d8d79542e786d779859964fba20bf1a47e46050d4de88af1ab"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/VERSION",
+      "sha256": "19a1647c6e8fcfdd9b4ecc10d4c83303d4211738d01daed0a822558d96896c54"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/crypto/tls/conn.go",
+      "sha256": "c5267d4cc54fef91f4346e82865bee81224599c080dd2c559b21e09dd1d7e7d6"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+      "sha256": "1c170ec3581321bd19ccd1b15863f46b16dc749ac6d54d00f5e97f7ffa2ccb5f"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/internal/poll/fd_unix.go",
+      "sha256": "689fb78bb32b8e810fa1dd2ded475a79574f24a8f40260af2d4a3273392bc2cc"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/internal/poll/fd_mutex.go",
+      "sha256": "ad10a59470d3848a745f9549afcee67aae9553e385ec41988d7e5266c2bc3902"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/internal/poll/fd_poll_runtime.go",
+      "sha256": "88fda43019c5dcf42545effdebd1747aaea377560dd041a35df8499538ee07c5"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/fd_posix.go",
+      "sha256": "31e1ad8e0ed8b6a86d9f547c9695a1d67b35a553e0e251ea66362fb22c5354f2"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/symtab.go",
+      "sha256": "556bdcf7743dc7be1c7c6bef9f95b968879c152696a4fa96afb6b6c48e2f45e9"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build-runner-review/SOURCE-AUDIT.json",
+      "sha256": "550158fd03b0493840c42ee44d84484a570d821fe8dc731d2be03422da161721"
+    }
+  ],
+  "expected_settings": {
+    "CGO_ENABLED": "1",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOENV": "",
+    "GOFLAGS": "",
+    "GOOS": "linux",
+    "GOROOT": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64",
+    "GOTOOLCHAIN": "local",
+    "GOVERSION": "go1.26.6",
+    "GOWORK": "off"
+  },
+  "artifact_budget_bytes": 104857600,
+  "commands": [
+    {
+      "name": "go-env",
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "-json",
+        "GOENV",
+        "GOWORK",
+        "GOFLAGS",
+        "GOROOT",
+        "GOVERSION",
+        "GOAMD64",
+        "GOARCH",
+        "GOOS",
+        "CGO_ENABLED",
+        "GOTOOLCHAIN"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/test-source",
+      "outer_seconds": 15,
+      "max_output_bytes": 8192
+    },
+    {
+      "name": "agent-build",
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-c",
+        "-p=2",
+        "-tags=p2pstream_qualification",
+        "-o",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/current-agent-terminal.test",
+        "./internal/agent"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/test-source",
+      "outer_seconds": 240,
+      "max_output_bytes": 524288
+    },
+    {
+      "name": "server-build",
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-c",
+        "-p=2",
+        "-tags=p2pstream_qualification",
+        "-o",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/current-server-terminal.test",
+        "./internal/server"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/test-source",
+      "outer_seconds": 240,
+      "max_output_bytes": 524288
+    },
+    {
+      "name": "agent-metadata",
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version",
+        "-m",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/current-agent-terminal.test"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/test-source",
+      "outer_seconds": 15,
+      "max_output_bytes": 65536
+    },
+    {
+      "name": "server-metadata",
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version",
+        "-m",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/current-server-terminal.test"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/test-source",
+      "outer_seconds": 15,
+      "max_output_bytes": 65536
+    }
+  ],
+  "invoke": [
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build-runner-review/build-endpoints.py"
+  ],
+  "stop_on_first_failure": true,
+  "endpoint_execution": false,
+  "wan_traffic": false
+}

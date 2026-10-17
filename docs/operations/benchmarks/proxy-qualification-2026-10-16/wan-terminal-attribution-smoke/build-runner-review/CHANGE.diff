@@ -1,0 +1,501 @@
+--- historical/integration/contracts/test-arm-outcome.py
++++ runner-source/integration/contracts/test-arm-outcome.py
+@@ -70,7 +70,7 @@
+ manifest_result = module.validate_hash_manifests(pre, post, "small", required)
+ if manifest_result["issues"] or set(pre.get("sha256", {})) != required:
+     raise SystemExit(f"actual write_hashes manifest rejected: {manifest_result!r}")
+-if len(required) != 100:
++if len(required) != 106:
+     raise SystemExit(f"actual producer key cardinality changed: {len(required)}")
+ if (pre.get("server_source_ref") != "fixture-server-source"
+         or pre.get("aggregate_agent_source_ref") != "fixture-agent-source"
+--- historical/integration/contracts/test-h1-continuation.py
++++ runner-source/integration/contracts/test-h1-continuation.py
+@@ -1,6 +1,7 @@
+ #!/usr/bin/env python3
+ from __future__ import annotations
+ 
++import copy
+ import importlib.util
+ import json
+ import pathlib
+@@ -26,6 +27,7 @@
+                      "unit_query_status": 0, "unit_active_state": "inactive"},
+     "sender_evidence": {"terminal_status": 0, "terminal_validation_status": 0, "terminal_valid": True},
+     "raw_write_evidence": {"finalization_status": 0, "final_closure_valid": True},
++    "prospective_terminal_attribution": {"validation_status": 0, "accepted": True},
+ }
+ outer = {"all_private": True, "shell_pid_is_one": True, "python_parent_is_one": True,
+          "cgroup_namespace_unchanged": True, "owned": {"cgroup": "x"}, "parent": {"cgroup": "x"}}
+@@ -40,6 +42,15 @@
+     "sender_duration_intervals": [{"sequence": sequence, "valid": True, "compound_tuple_join": True}
+                                   for sequence in (9, 11, 14, 15)],
+ }
++
++# The exact reviewed-106 verdict/record are retained, including a rejecting
++# old verdict when the narrow new diagnostic classification accepts.
++old = {"accepted": True, "issues": []}
++old_record = {"agent_natural_join_status": 0, "terminal_file_status": 0}
++attestation.update({"prospective_terminal_attribution_valid": True,
++    "raw_write_final_closure": old, "raw_write_final_record": old_record,
++    "prospective_terminal_attribution": {"attribution_accepted": True, "issues": [],
++        "legacy_final_verdict": copy.deepcopy(old), "legacy_final_record": copy.deepcopy(old_record)}})
+ 
+ cases = []
+ def check(name, expected, observed):
+@@ -73,6 +84,35 @@
+ successful.update({"accepted": True, "conditioning_issues": [], "performance_issues": [], "validation_issues": []})
+ check("successful-h1", True, module.evaluate({**supervisor, "runner_status": 0, "invalidates_success": False}, outer, successful))
+ 
++rejected_supervisor = copy.deepcopy(supervisor)
++rejected_supervisor["raw_write_evidence"].update(finalization_status=1, final_closure_valid=False)
++rejected_attestation = copy.deepcopy(attestation)
++rejected_attestation["raw_write_final_closure"] = {"accepted": False, "issues": ["raw error"]}
++rejected_attestation["raw_write_final_closure_valid"] = False
++rejected_attestation["prospective_terminal_attribution"]["legacy_final_verdict"] = copy.deepcopy(rejected_attestation["raw_write_final_closure"])
++check("preserved-rejecting-reviewed106-verdict", True, module.evaluate(rejected_supervisor, outer, rejected_attestation))
++for name, target, key, value in [
++    ("old-verdict-mismatch", "proof", "legacy_final_verdict", {"accepted": True, "issues": []}),
++    ("old-record-mismatch", "proof", "legacy_final_record", {"agent_natural_join_status": 7, "terminal_file_status": 0}),
++    ("attribution-rejection", "proof", "attribution_accepted", False),
++    ("attribution-issues", "proof", "issues", ["unknown frame"]),
++    ("arbitrary-finalization-status", "raw", "finalization_status", 37),
++    ("boolean-finalization-status", "raw", "finalization_status", False),
++    ("false-old-closure-label", "raw", "final_closure_valid", True),
++    ("prospective-sidecar-error", "prospective", "validation_status", 1),
++    ("boolean-prospective-status", "prospective", "validation_status", False),
++]:
++    sup, att = copy.deepcopy(rejected_supervisor), copy.deepcopy(rejected_attestation)
++    destination = {"proof": att["prospective_terminal_attribution"], "raw": sup["raw_write_evidence"],
++                   "prospective": sup["prospective_terminal_attribution"]}[target]
++    destination[key] = value
++    check(name, False, module.evaluate(sup, outer, att))
++for field in ("agent_natural_join_status", "terminal_file_status"):
++    att = copy.deepcopy(rejected_attestation)
++    att["raw_write_final_record"][field] = 1
++    att["prospective_terminal_attribution"]["legacy_final_record"][field] = 1
++    check(field + "-failure", False, module.evaluate(rejected_supervisor, outer, att))
++
+ output.write_text(json.dumps({"schema_version": 1, "accepted": True,
+                               "case_count": len(cases), "cases": cases},
+                              indent=2, sort_keys=True) + "\n")
+--- historical/integration/run-wan-below-tls-arm.sh
++++ runner-source/integration/run-wan-below-tls-arm.sh
+@@ -1,9 +1,15 @@
+ #!/usr/bin/env bash
+ set -Eeuo pipefail
++# SOURCE-ONLY: reviewed derivative binary/build tuple does not exist yet.
++expected_terminal_build_receipt_sha256=UNBUILT
++[[ $expected_terminal_build_receipt_sha256 =~ ^[0-9a-f]{64}$ ]] || {
++  echo "prospective terminal build/source receipt is not reviewed; endpoint execution blocked" >&2
++  exit 125
++}
+ 
+ integration_dir=$(cd "$(dirname "$0")" && pwd)
+-combined_root=$(realpath "$integration_dir/..")
+-continuation_root=$(realpath "$integration_dir/../../..")
++combined_root=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2
++continuation_root=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016
+ byte_credit_root=$(realpath "$continuation_root/wan-byte-credit-integration-source")
+ tcp_state_root=$(realpath "$continuation_root/wan-tcp-state-source")
+ history_root=$(realpath "$continuation_root/wan-tcp-threshold-history-source")
+@@ -248,8 +254,10 @@
+        "$byte_credit_ordinary_proof_receipt" >/dev/null || {
+   echo "byte-credit ordinary proof receipt was not accepted" >&2; exit 2;
+ }
+-jq -e --arg server "$server_binary_sha256" --arg agent "$agent_binary_sha256" \
+-  --arg server_ref "$server_source_ref" --arg agent_ref "$aggregate_agent_source_ref" \
++# Keep the pinned historical receipt bound to its own historical tuple.
++# The prospective requested tuple is checked independently below.
++jq -e --arg server "67e7eed1317e944be1a54609ed3bcc911f855f7a39e21402695b6d7b6e5a55bb" --arg agent "3d6ee99bb47091f8a5986dd0d99d90a27e84c2e78fbd34eac536794e8fa5cd54" \
++  --arg server_ref "8ac4c8df8237e37777ba2fac0da6f949da17bdea+tcp-threshold-history-corpus-970b41a3d3bb4ec7f3142e27875b9ba6d951e251b6c0bf6771059fb5ea801dbb" --arg agent_ref "8ac4c8df8237e37777ba2fac0da6f949da17bdea+tcp-threshold-history-corpus-970b41a3d3bb4ec7f3142e27875b9ba6d951e251b6c0bf6771059fb5ea801dbb" \
+   --arg proof "$expected_raw_ordinary_proof_receipt_sha256" \
+   --arg byte_proof "$expected_byte_credit_ordinary_proof_receipt_sha256" '
+   .schema_version == 1 and .diagnostic == "wan-tcp-threshold-history-qualification" and
+@@ -275,8 +283,16 @@
+   .records_ledger_sha256 == "229a585ca3365ff06223043afcad608fc831fd9958f5f721386285a6c9ee7b1d" and
+   .final_source_inventory_sha256 == "970b41a3d3bb4ec7f3142e27875b9ba6d951e251b6c0bf6771059fb5ea801dbb"
+ ' "$combined_build_receipt" >/dev/null || {
+-  echo "combined threshold-history build receipt did not bind the requested source and binary tuple" >&2; exit 2;
+-}
++  echo "historical threshold-history build receipt no longer binds its historical tuple" >&2; exit 2;
++}
++[[ $(sha256sum "$integration_dir/verify-terminal-build.py" | awk '{print $1}') == 20252be46c66bc9577b56c8632001059db8bb04de20d9b578e7f9e1fa87f7cdb ]] || { echo "prospective validator/verifier source changed" >&2; exit 2; }
++[[ $(sha256sum "$integration_dir/validate-terminal-attribution.py" | awk '{print $1}') == 1be48e2f76dd566630c6427d9cf0a19dc6100fdf71532fb21616da209691d510 ]] || { echo "prospective validator/verifier source changed" >&2; exit 2; }
++[[ $(sha256sum "$integration_dir/LEGACY-VALIDATOR.json" | awk '{print $1}') == b77ed3613b5d088efeacb1d6d4d763b3b255aa2fc35b5dc674771a39cdc73c38 ]] || { echo "prospective validator/verifier source changed" >&2; exit 2; }
++PYTHONDONTWRITEBYTECODE=1 python3 -I -B "$integration_dir/verify-terminal-build.py" \
++  --receipt "$integration_dir/../../build/receipt.json" \
++  --expected-receipt-sha256 "$expected_terminal_build_receipt_sha256" \
++  --server "$server_binary" --agent "$aggregate_agent_binary" \
++  --server-ref "$server_source_ref" --agent-ref "$aggregate_agent_source_ref"
+ [[ $(sha256sum "$monotonic_build_manifest" | awk '{print $1}') == f505bcd62f1bd050f21f4ddc6d407b377ebb5039029ec66980439f050023ada3 ]] || {
+   echo "monotonic build manifest hash changed" >&2
+   exit 2
+@@ -382,14 +398,14 @@
+ [[ $(sha256sum "$sender_observer_checkpoint" | awk '{print $1}') == 9f96e06bfd571fdf3550d095e6818b949bff0e3cdd733394e7ce93299e965e30 &&
+    $(sha256sum "$sender_observer_patch" | awk '{print $1}') == 02f5ab266a7c6225dcf242dacb70edcf322cc790420f62e0d9ec8ae1ec11d130 &&
+    $(sha256sum "$runner" | awk '{print $1}') == a672ab078d424a59d795c522a40f96da815b8aaa55af6f21fce4eed07a63b1ad &&
+-   $(sha256sum "$validator" | awk '{print $1}') == 0a03f2cdcdabbe0522e9566c247777b6678d9def960e74f983e176d928733840 &&
++   $(sha256sum "$validator" | awk '{print $1}') == dd526df214e7adcbcfd4c790d2581348f8b1048d13fd5ca0d832306f57860235 &&
+    $(sha256sum "$arm_outcome_validator" | awk '{print $1}') == 4c4f1c8119aac278b732fadabb72fa08f9249ee9ed003d0b881c5220b74f1eb1 &&
+    $(sha256sum "$copy_record_validator" | awk '{print $1}') == f1c70a2f347a77975a00330d4d37929700b1a38bac5fa195c3dff02b3f773c26 &&
+    $(sha256sum "$sender_snapshot_validator" | awk '{print $1}') == 25a934047a84c82d41852871047486138fa10fa4e8a1d3db3e867f38ad50e260 &&
+    $(sha256sum "$raw_write_validator" | awk '{print $1}') == 66ff26fcdbfe71143d49b816e448f28ff7de789daba11e02c8d618d11c361bff &&
+    $(sha256sum "$server_growth_validator" | awk '{print $1}') == bab8a8def06fc4347b5cfd8e7547c40ca85013fe28892da43c0e365c32dd7477 &&
+    $(sha256sum "$byte_credit_validator" | awk '{print $1}') == e53f911e0362eeae728a55386cce5ebb0eb60a52163df14f8a95d0135aa0c3eb &&
+-   $(sha256sum "$tcp_state_validator" | awk '{print $1}') == b76c169749db53a38b3275fd0d85670b2b07ee35e786cc9669f2f88c603b1056 &&
++   $(sha256sum "$tcp_state_validator" | awk '{print $1}') == 4a7addc3981eb892f364e85932b82856afcc1283139105b6d4d228ead2c4fa2c &&
+    $(sha256sum "$raw_closure_validator" | awk '{print $1}') == 7b5b7962f603ebd7c160fabcdb9d4a78b7699e9866b4ed4172480be25b847eae ]] || {
+   echo "sender observer or integration source checkpoint changed" >&2
+   exit 2
+@@ -504,6 +520,13 @@
+ scope_app_ready="$scope_dir/server-app-ready.json"
+ scope_app_release="$scope_dir/server-app.release"
+ 
++terminal_attribution_validator="$integration_dir/validate-terminal-attribution.py"
++terminal_legacy_references="$integration_dir/LEGACY-VALIDATOR.json"
++terminal_build_receipt="$integration_dir/../../build/receipt.json"
++terminal_build_plan="$integration_dir/../../build-runner-review/COMMANDS.json"
++terminal_build_verifier="$integration_dir/verify-terminal-build.py"
++terminal_build_source_inventory="$integration_dir/../../build-runner-review/BUILD-SOURCE-SHA256SUMS"
++
+ write_hashes() {
+   local destination=$1
+   python3 - "$destination" "$0" "$runner" "$validator" "$arm_outcome_validator" "$copy_record_validator" "$sender_snapshot_validator" "$raw_write_validator" "$server_growth_validator" "$raw_closure_validator" "$byte_credit_validator" "$approved_runner" "$frozen_protocol_runner" "$frozen_copy_runner" \
+@@ -522,6 +545,7 @@
+     "$byte_credit_adapter_checkpoint" "$byte_credit_adapter_contract_ledger" "$byte_credit_protocol_checkpoint" "$byte_credit_protocol_focused_ledger" "$byte_credit_protocol_focused_outer" "$byte_credit_runner_contract" \
+     "$tcp_state_validator" "$tcp_producer_checkpoint" "$tcp_source_map" "$tcp_build_records_ledger" "$tcp_build_outer_ledger" "$tcp_validator_contract_ledger" "$tcp_validator_contract_outer" \
+     "$history_producer_checkpoint" "$history_source_map" "$history_build_records_ledger" "$history_build_outer_ledger" "$history_validator_checkpoint" "$history_validator_contract_ledger" "$history_validator_contract_outer" \
++    "$terminal_attribution_validator" "$terminal_legacy_references" "$terminal_build_receipt" "$terminal_build_plan" "$terminal_build_verifier" "$terminal_build_source_inventory" \
+     "$server_binary" "$aggregate_agent_binary" "$cert" "$key" "$server_source_ref" \
+     "$aggregate_agent_source_ref" "$expected_leaf_sha256" "$size_mode" <<'PY'
+ import hashlib, json, pathlib, sys
+@@ -541,6 +565,7 @@
+  byte_credit_adapter_checkpoint, byte_credit_adapter_contract_ledger, byte_credit_protocol_checkpoint, byte_credit_protocol_focused_ledger, byte_credit_protocol_focused_outer, byte_credit_runner_contract,
+  tcp_state_validator, tcp_producer_checkpoint, tcp_source_map, tcp_build_records_ledger, tcp_build_outer_ledger, tcp_validator_contract_ledger, tcp_validator_contract_outer,
+  history_producer_checkpoint, history_source_map, history_build_records_ledger, history_build_outer_ledger, history_validator_checkpoint, history_validator_contract_ledger, history_validator_contract_outer,
++ terminal_attribution_validator, terminal_legacy_references, terminal_build_receipt, terminal_build_plan, terminal_build_verifier, terminal_build_source_inventory,
+  server, agent, cert, key, server_ref, agent_ref, fingerprint, size_mode) = sys.argv[1:]
+ def sha(path):
+     digest = hashlib.sha256()
+@@ -557,6 +582,12 @@
+     "sha256": {
+         "supervisor": sha(supervisor), "runner": sha(runner), "validator": sha(validator),
+         "arm_outcome_validator": sha(arm_outcome_validator),
++        "terminal_attribution_validator": sha(terminal_attribution_validator),
++        "terminal_legacy_references": sha(terminal_legacy_references),
++        "terminal_build_receipt": sha(terminal_build_receipt),
++        "terminal_build_plan": sha(terminal_build_plan),
++        "terminal_build_verifier": sha(terminal_build_verifier),
++        "terminal_build_source_inventory": sha(terminal_build_source_inventory),
+         "copy_record_validator": sha(copy_record_validator), "approved_lifecycle_runner": sha(approved),
+         "sender_snapshot_validator_current": sha(sender_snapshot_validator_current),
+         "raw_write_validator": sha(raw_write_validator), "server_growth_validator": sha(server_growth_validator),
+@@ -1049,6 +1080,23 @@
+   raw_final_closure_valid=true
+ fi
+ 
++# Prospective terminal contract: preserve old raw verdict, require a new
++# independently checked attribution result and actual natural endpoint exits.
++raw_attribution_status=1
++raw_attribution_valid=false
++raw_attribution_validation="$output_dir/prospective-terminal-attribution.json"
++set +e
++PYTHONDONTWRITEBYTECODE=1 PYTHONOPTIMIZE= PYTHONPATH= python3 -I -B \
++  "$integration_dir/validate-terminal-attribution.py" \
++  --raw "${results%.jsonl}.sender-wait-controls/final-raw-write-terminal.json" \
++  --attribution "${results%.jsonl}.sender-wait-controls/final-raw-write-terminal.json.attribution.json" \
++  --control-directory "${results%.jsonl}.sender-wait-controls" --output "$raw_attribution_validation"
++raw_attribution_status=$?
++set -e
++if ((raw_attribution_status == 0)) && jq -e '.attribution_accepted == true' "$raw_attribution_validation" >/dev/null; then
++  raw_attribution_valid=true
++fi
++
+ scope_resource_status=0
+ if [[ -s $scope_dir/server-cgroup-pre-traffic.json && -s $scope_dir/server-cgroup-post-workload.json ]]; then
+   set +e
+@@ -1123,17 +1171,17 @@
+ invalidates_success=false
+ if ((runner_status != 0 || forced != 0 || scope_launcher_status != 0 || scope_resource_status != 0 || \
+      scope_unit_joined != 1 || scope_unit_final_query_status != 0 || sender_terminal_status != 0 || \
+-     sender_terminal_validation_status != 0 || raw_finalization_status != 0)) || \
+-     [[ $sender_terminal_valid != true || $raw_final_closure_valid != true ]]; then
++     sender_terminal_validation_status != 0 || raw_attribution_status != 0)) || \
++     [[ $sender_terminal_valid != true || $raw_attribution_valid != true ]]; then
+   invalidates_success=true
+ fi
+-printf '{"runner_status":%s,"group_joined":%s,"forced":%s,"invalidates_success":%s,"server_scope":{"systemd_run_status":%s,"resource_status":%s,"unit_joined":%s,"unit_query_status":%s,"unit_load_state":"%s","unit_active_state":"%s","unit_sub_state":"%s"},"sender_evidence":{"terminal_status":%s,"terminal_validation_status":%s,"terminal_valid":%s},"raw_write_evidence":{"finalization_status":%s,"final_closure_valid":%s}}\n' \
++printf '{"runner_status":%s,"group_joined":%s,"forced":%s,"invalidates_success":%s,"server_scope":{"systemd_run_status":%s,"resource_status":%s,"unit_joined":%s,"unit_query_status":%s,"unit_load_state":"%s","unit_active_state":"%s","unit_sub_state":"%s"},"sender_evidence":{"terminal_status":%s,"terminal_validation_status":%s,"terminal_valid":%s},"raw_write_evidence":{"finalization_status":%s,"final_closure_valid":%s},"prospective_terminal_attribution":{"validation_status":%s,"accepted":%s}}\n' \
+   "$runner_status" "$group_joined" "$([[ $forced == 0 ]] && printf false || printf true)" \
+   "$invalidates_success" "$scope_launcher_status" "$scope_resource_status" \
+   "$([[ $scope_unit_joined == 1 ]] && printf true || printf false)" "$scope_unit_final_query_status" \
+   "$scope_unit_final_load_state" "$scope_unit_final_active_state" "$scope_unit_final_sub_state" \
+   "$sender_terminal_status" "$sender_terminal_validation_status" "$sender_terminal_valid" \
+-  "$raw_finalization_status" "$raw_final_closure_valid" > "$supervisor"
++  "$raw_finalization_status" "$raw_final_closure_valid" "$raw_attribution_status" "$raw_attribution_valid" > "$supervisor"
+ runner_pid=""
+ write_hashes "$post_hashes"
+ 
+@@ -1143,4 +1191,4 @@
+ validation_status=$?
+ set -e
+ printf '%s\n' "$validation_status" > "$output_dir/validation.status"
+-((runner_status == 0 && forced == 0 && scope_launcher_status == 0 && scope_resource_status == 0 && scope_unit_joined == 1 && scope_unit_final_query_status == 0 && sender_terminal_status == 0 && sender_terminal_validation_status == 0 && raw_finalization_status == 0 && validation_status == 0)) && [[ $sender_terminal_valid == true && $raw_final_closure_valid == true ]]
++((runner_status == 0 && forced == 0 && scope_launcher_status == 0 && scope_resource_status == 0 && scope_unit_joined == 1 && scope_unit_final_query_status == 0 && sender_terminal_status == 0 && sender_terminal_validation_status == 0 && raw_attribution_status == 0 && validation_status == 0)) && [[ $sender_terminal_valid == true && $raw_attribution_valid == true ]]
+--- historical/integration/validate-h1-continuation.py
++++ runner-source/integration/validate-h1-continuation.py
+@@ -14,10 +14,11 @@
+     server_scope = supervisor.get("server_scope")
+     sender = supervisor.get("sender_evidence")
+     raw = supervisor.get("raw_write_evidence")
++    prospective = supervisor.get("prospective_terminal_attribution")
+     def status_zero(value: object) -> bool:
+         return type(value) is int and value == 0
+ 
+-    if not isinstance(server_scope, dict) or not isinstance(sender, dict) or not isinstance(raw, dict):
++    if not isinstance(server_scope, dict) or not isinstance(sender, dict) or not isinstance(raw, dict) or not isinstance(prospective, dict):
+         issues.append("supervisor evidence objects are missing")
+     elif not (
+         supervisor.get("group_joined") is True
+@@ -30,8 +31,8 @@
+         and status_zero(sender.get("terminal_status"))
+         and status_zero(sender.get("terminal_validation_status"))
+         and sender.get("terminal_valid") is True
+-        and status_zero(raw.get("finalization_status"))
+-        and raw.get("final_closure_valid") is True
++        and status_zero(prospective.get("validation_status"))
++        and prospective.get("accepted") is True
+     ):
+         issues.append("supervisor topology, resource, sender, raw, or natural-join closure failed")
+ 
+@@ -77,9 +78,28 @@
+         and attestation.get("server_only_delegated_cgroup") is True
+         and attestation.get("outer_runner_group_joined") is True
+         and attestation.get("sender_terminal_closure_valid") is True
+-        and attestation.get("raw_write_final_closure_valid") is True
++        and attestation.get("prospective_terminal_attribution_valid") is True
+     ):
+         issues.append("attested H1 data ownership, resource, or closure integrity failed")
++
++    # Preserve the reviewed 106-case verdict and original final record exactly.
++    # They are data; only the independently attested prospective predicate may
++    # explain its narrow raw closure rejection. Arbitrary endpoint errors fail.
++    proof = attestation.get("prospective_terminal_attribution")
++    old = attestation.get("raw_write_final_closure")
++    old_record = attestation.get("raw_write_final_record")
++    if not (isinstance(proof, dict) and isinstance(old, dict) and isinstance(old_record, dict)
++            and type(old.get("accepted")) is bool and isinstance(raw, dict)
++            and proof.get("attribution_accepted") is True and proof.get("issues") == []
++            and proof.get("legacy_final_verdict") == old
++            and proof.get("legacy_final_record") == old_record
++            and status_zero(old_record.get("agent_natural_join_status"))
++            and status_zero(old_record.get("terminal_file_status"))
++            and raw.get("final_closure_valid") is old["accepted"]
++            and attestation.get("raw_write_final_closure_valid") is old["accepted"]
++            and type(raw.get("finalization_status")) is int
++            and raw["finalization_status"] == (0 if old["accepted"] else 1)):
++        issues.append("prospective H1 attribution and preserved reviewed-106 verdict/record disagree")
+ 
+     intervals = attestation.get("sender_duration_intervals")
+     if not (isinstance(intervals, list) and len(intervals) == 4
+--- historical/integration/validate-wan-below-tls-arm.py
++++ runner-source/integration/validate-wan-below-tls-arm.py
+@@ -34,6 +34,10 @@
+ raw_closure_spec = importlib.util.spec_from_file_location("post_join_raw_closure_validator", raw_closure_validator_path)
+ post_join_raw_closure_validator = importlib.util.module_from_spec(raw_closure_spec)
+ raw_closure_spec.loader.exec_module(post_join_raw_closure_validator)
++terminal_validator_path = integration_directory / "validate-terminal-attribution.py"
++terminal_spec = importlib.util.spec_from_file_location("terminal_attribution_validator", terminal_validator_path)
++terminal_attribution_validator = importlib.util.module_from_spec(terminal_spec)
++terminal_spec.loader.exec_module(terminal_attribution_validator)
+ outcome_validator_path = integration_directory / "validate-arm-outcome.py"
+ outcome_spec = importlib.util.spec_from_file_location("wan_below_tls_arm_outcome", outcome_validator_path)
+ wan_below_tls_arm_outcome = importlib.util.module_from_spec(outcome_spec)
+@@ -116,6 +120,8 @@
+ if actual != expected:
+     issues.append(f"result order/shape changed: {actual!r}")
+ required_hashes = {
++    "terminal_attribution_validator", "terminal_legacy_references",
++    "terminal_build_receipt", "terminal_build_plan", "terminal_build_verifier", "terminal_build_source_inventory",
+     "supervisor", "runner", "validator", "arm_outcome_validator", "approved_lifecycle_runner", "frozen_protocol_runner", "frozen_copy_runner",
+     "wan_protocol_runner_patch", "copy_runner_patch", "monotonic_runner_patch", "read_wait_runner_patch", "server_capacity_snapshot_patch", "cleanup_status_patch", "go_base_patch", "go_helper",
+     "copy_record_validator", "copy_attribution_overlay_patch", "copy_attribution_design",
+@@ -600,12 +606,38 @@
+ raw_final_terminal = raw_final_result.get("terminal", {})
+ raw_final_saved_validation = raw_final_result.get("saved_validation", {})
+ raw_final_independent_validation = raw_final_result.get("independent_validation", {})
+-if not raw_final_closure_valid:
+-    issues.extend(raw_final_result.get("issues", ["raw-write final closure validation failed"]))
++# The old verdict and record remain exported unchanged. Only this prospective
++# adapter gates on the independently proven terminal attribution contract.
++prospective_terminal_result = {}
++prospective_terminal_valid = False
++try:
++    prospective_terminal_result = terminal_attribution_validator.evaluate_files(
++        sender_control_directory / "final-raw-write-terminal.json",
++        sender_control_directory / "final-raw-write-terminal.json.attribution.json",
++        sender_control_directory)
++    saved_prospective = json.loads((supervisor_path.parent / "prospective-terminal-attribution.json").read_text())
++    saved_raw_supervisor = json.loads((supervisor_path.parent / "raw-post-join-supervisor-validation.json").read_text())
++    raw_supervisor = supervisor.get("raw_write_evidence", {})
++    expected_raw_status = 0 if raw_final_result.get("accepted") is True else 1
++    prospective_terminal_valid = (prospective_terminal_result == saved_prospective
++        and saved_raw_supervisor == raw_final_result
++        and isinstance(raw_supervisor, dict)
++        and type(raw_supervisor.get("finalization_status")) is int
++        and raw_supervisor["finalization_status"] == expected_raw_status
++        and raw_supervisor.get("final_closure_valid") is raw_final_result.get("accepted")
++        and prospective_terminal_result.get("attribution_accepted") is True
++        and prospective_terminal_result.get("legacy_final_verdict") == raw_final_independent_validation
++        and prospective_terminal_result.get("legacy_final_record") == raw_final_record)
++except (OSError, ValueError, TypeError, KeyError) as error:
++    issues.append(f"prospective terminal attribution unreadable or invalid: {error}")
++if not prospective_terminal_valid:
++    issues.extend(raw_final_result.get("issues", []))
++    issues.append("prospective terminal attribution did not independently validate")
+ 
+ expected_control_names = {
+     "terminal-sender.json", "terminal-validation.json", "final-raw-write-terminal.json",
+     "final-raw-write-validation.json", "final-raw-write-record.json",
++    "final-raw-write-terminal.json.attribution.json",
+ }
+ for sequence in expected_sender_specs:
+     expected_control_names.update({
+@@ -753,8 +785,9 @@
+                         and status_zero(supervisor.get("sender_evidence", {}).get("terminal_status"))
+                         and status_zero(supervisor.get("sender_evidence", {}).get("terminal_validation_status"))
+                         and supervisor.get("sender_evidence", {}).get("terminal_valid") is True
+-                        and status_zero(supervisor.get("raw_write_evidence", {}).get("finalization_status"))
+-                        and supervisor.get("raw_write_evidence", {}).get("final_closure_valid") is True)
++                        and prospective_terminal_valid
++                        and status_zero(supervisor.get("prospective_terminal_attribution", {}).get("validation_status"))
++                        and supervisor.get("prospective_terminal_attribution", {}).get("accepted") is True)
+ if not supervisor_joined_ok:
+     issues.append(f"outer runner process group did not join naturally: {supervisor!r}")
+ runner_outcome = wan_below_tls_arm_outcome.classify_runner(
+@@ -791,6 +824,8 @@
+     "tcp_threshold_history_interpretation": "The retained history brackets only the first sampled snd_ssthresh difference around raw writes on the exact owned socket. The current interval comparison is joined to that interval's pre TCP_INFO and remains distinct from the persistent first-transition record. A declared missing, later, or overlapping transition makes the explanation unavailable without rewriting mature raw-write, byte-credit, or TCP-state integrity. Provider durations cover only provider capture calls and are not total instrumentation overhead, an atomic kernel trace, or causal evidence.",
+     "sender_terminal_closure_valid": terminal_valid,
+     "raw_write_final_closure_valid": raw_final_closure_valid,
++    "prospective_terminal_attribution_valid": prospective_terminal_valid,
++    "prospective_terminal_attribution": prospective_terminal_result,
+     "raw_write_final_closure": raw_final_independent_validation,
+     "raw_write_final_record": raw_final_record,
+     "raw_write_interpretation": "Raw occupancy measures time inside the bound raw socket Write wrapper, including Go TCP and poller work, and counts encrypted buffers passed below tls.Conn. It does not decode TLS records or attribute ciphertext bytes to DATA. Residual DATA-envelope time is outside that wrapper but is not uniquely attributable to the TLS output lock; concurrent TLS protocol writes are classified only by temporal occupancy.",
+--- /dev/null
++++ runner-source/integration/verify-terminal-build.py
+@@ -0,0 +1,41 @@
++#!/usr/bin/env python3
++"""Verify the prospective compiled tuple; never execute endpoint binaries."""
++from pathlib import Path
++import argparse,hashlib,json,os,re,stat
++ROOT=Path(__file__).resolve().parents[2]
++def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
++def require(ok,message):
++    if not ok:raise ValueError(message)
++def read(path,limit=1<<20):
++    p=Path(path);m=p.lstat();require(stat.S_ISREG(m.st_mode) and not p.is_symlink() and 0<m.st_size<=limit,'receipt input not bounded regular file')
++    return json.loads(p.read_text())
++def main():
++    parser=argparse.ArgumentParser();parser.add_argument('--receipt',required=True);parser.add_argument('--expected-receipt-sha256',required=True)
++    for name in ['server','agent','server-ref','agent-ref']:parser.add_argument('--'+name,required=True)
++    args=parser.parse_args();require(re.fullmatch('[0-9a-f]{64}',args.expected_receipt_sha256) is not None,'reviewed receipt hash absent')
++    require(sha(args.receipt)==args.expected_receipt_sha256,'reviewed receipt hash changed')
++    value=read(args.receipt);plan_path=ROOT/'build-runner-review/COMMANDS.json';plan=read(plan_path)
++    require(value.get('schema_version')==1 and value.get('diagnostic')=='prospective-terminal-attribution-build' and value.get('accepted') is True,'build not accepted')
++    require(value.get('endpoint_execution') is False and value.get('wan_traffic') is False,'receipt scope changed')
++    require(value.get('plan_sha256')==sha(plan_path) and value.get('source_before_after_unchanged') is True,'build plan/source binding changed')
++    for row in plan['inputs']:require(sha(row['path'])==row['sha256'],'pinned build/test/tool input changed')
++    require(value.get('build_inventory_sha256')==sha(plan['build_inventory']) and value.get('tested_inventory_sha256')==sha(ROOT/'successor/TEST-SOURCE-SHA256SUMS'),'source inventory differs')
++    expected=set()
++    for line in Path(plan['build_inventory']).read_text().splitlines():
++        digest,name=line.split('  ',1);expected.add(name);require(sha(ROOT/name)==digest,'compiled source changed')
++    require(expected=={str(p.relative_to(ROOT)) for p in (ROOT/'test-source').rglob('*') if p.is_file()},'compiled source set changed')
++    local=read(ROOT/'local-window-2/RESULT.json');require(value.get('local_result_sha256')==sha(ROOT/'local-window-2/RESULT.json') and local.get('complete') is True,'local proof absent')
++    require([x.get('name') for x in local['executions']]==['preflight','python-contracts','normal','race'],'local proof cardinality differs')
++    require(all(x.get('accepted') is True and type(x.get('exit_status')) is int and x['exit_status']==0 and x.get('forced') is False and x.get('remaining_group_members')==[] for x in local['executions']),'local proof lacks natural success')
++    require(value.get('production_reference')==plan['production_reference'] and value.get('source_ref')==plan['source_ref']==args.server_ref==args.agent_ref,'source tuple differs')
++    require(value.get('resolved_settings')==plan['expected_settings'],'resolved build settings differ')
++    executions=value.get('executions');require(type(executions) is list and len(executions)==len(plan['commands']),'build execution cardinality differs')
++    for row,command in zip(executions,plan['commands']):
++        require(row.get('name')==command['name'] and row.get('argv')==command['argv'] and row.get('cwd')==command['cwd'],'build argv/cwd changed')
++        require(type(row.get('exit_status')) is int and row['exit_status']==0 and row.get('forced') is False and row.get('remaining_group_members')==[],'build did not join naturally')
++        for stream in ['stdout','stderr']:require(row.get(stream+'_sha256')==sha(ROOT/'build'/(row['name']+'.'+stream+'.log')),'build log changed')
++    for role,path in [('server',args.server),('agent',args.agent)]:
++        entry=value['binaries'][role];p=Path(path);require(str(p.resolve())==entry['path'] and p.is_file() and not p.is_symlink() and os.access(p,os.X_OK),'requested endpoint path differs')
++        require(entry['sha256']==sha(p) and entry['size']==p.stat().st_size and entry['go_version_m_sha256']==sha(ROOT/'build'/(role+'-metadata.stdout.log')),'requested endpoint binary/metadata differs')
++    print(json.dumps({'accepted':True,'diagnostic':'prospective-terminal-build-tuple','reviewed_receipt_sha256':args.expected_receipt_sha256,'source_ref':plan['source_ref']}))
++if __name__=='__main__':main()
+--- /dev/null
++++ build-runner-review/build-endpoints.py
+@@ -0,0 +1,69 @@
++#!/usr/bin/env python3
++"""Approved-command driver: compile two endpoints once; never execute either."""
++from pathlib import Path
++import hashlib,json,os,signal,subprocess,sys,time
++ROOT=Path(__file__).resolve().parents[1]
++def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
++def groups(pgid):
++    result=[]
++    for p in Path('/proc').iterdir():
++        if p.name.isdigit():
++            try:
++                if int((p/'stat').read_text().rsplit(')',1)[1].split()[2])==pgid:result.append(int(p.name))
++            except (FileNotFoundError,ProcessLookupError,PermissionError):pass
++    return result
++def audit(plan):
++    for row in plan['inputs']:
++        if sha(row['path'])!=row['sha256']:raise ValueError('changed pinned input: '+row['path'])
++    expected=set()
++    for line in Path(plan['build_inventory']).read_text().splitlines():
++        digest,name=line.split('  ',1);expected.add(name)
++        if sha(ROOT/name)!=digest:raise ValueError('changed build source: '+name)
++    actual={str(p.relative_to(ROOT)) for p in (ROOT/'test-source').rglob('*') if p.is_file()}
++    if actual!=expected:raise ValueError('build source inventory cardinality changed')
++    if sum(p.stat().st_size for p in ROOT.rglob('*') if p.is_file())>plan['artifact_budget_bytes']:raise ValueError('task artifact budget exceeded')
++def main():
++    plan_path=ROOT/'build-runner-review/COMMANDS.json';plan=json.loads(plan_path.read_text())
++    audit(plan)
++    output=ROOT/'build';output.mkdir(exist_ok=False)
++    receipt={'schema_version':1,'diagnostic':'prospective-terminal-attribution-build','accepted':False,'endpoint_execution':False,'wan_traffic':False,
++             'production_reference':plan['production_reference'],'source_ref':plan['source_ref'],'plan_sha256':sha(plan_path),'build_inventory_sha256':sha(plan['build_inventory']),
++             'tested_inventory_sha256':sha(ROOT/'successor/TEST-SOURCE-SHA256SUMS'),'local_result_sha256':sha(ROOT/'local-window-2/RESULT.json'),'executions':[],'binaries':{}}
++    failed=False
++    try:
++        for command in plan['commands']:
++            audit(plan);name=command['name'];row={'name':name,'argv':command['argv'],'cwd':command['cwd'],'started_unix':time.time(),'forced':False}
++            stdout=output/(name+'.stdout.log');stderr=output/(name+'.stderr.log')
++            with stdout.open('xb') as so,stderr.open('xb') as se:
++                proc=subprocess.Popen(command['argv'],cwd=command['cwd'],stdout=so,stderr=se,start_new_session=True);row['pid']=proc.pid;deadline=time.monotonic()+command['outer_seconds']
++                while proc.poll() is None:
++                    if time.monotonic()>deadline or stdout.stat().st_size+stderr.stat().st_size>command['max_output_bytes']:
++                        row['forced']=True;os.killpg(proc.pid,signal.SIGTERM)
++                        try:proc.wait(timeout=5)
++                        except subprocess.TimeoutExpired:os.killpg(proc.pid,signal.SIGKILL);proc.wait()
++                        break
++                    time.sleep(.1)
++                row['exit_status']=proc.wait()
++            row.update(finished_unix=time.time(),remaining_group_members=groups(proc.pid),stdout_sha256=sha(stdout),stderr_sha256=sha(stderr),output_bytes=stdout.stat().st_size+stderr.stat().st_size)
++            if row['remaining_group_members']:
++                row['forced']=True;os.killpg(proc.pid,signal.SIGKILL)
++                cleanup_deadline=time.monotonic()+5
++                while groups(proc.pid) and time.monotonic()<cleanup_deadline:time.sleep(.1)
++                row['remaining_after_cleanup']=groups(proc.pid)
++            receipt['executions'].append(row)
++            if row['exit_status']!=0 or row['forced'] or row['remaining_group_members'] or row['output_bytes']>command['max_output_bytes']:raise ValueError(name+' failed its bounded natural-exit contract')
++            if name=='go-env':
++                settings=json.loads(stdout.read_text());receipt['resolved_settings']=settings
++                if any(settings.get(k)!=v for k,v in plan['expected_settings'].items()):raise ValueError('resolved build settings differ')
++            audit(plan)
++        for role in ['agent','server']:
++            p=ROOT/'build'/('current-'+role+'-terminal.test')
++            if not p.is_file() or p.is_symlink() or not os.access(p,os.X_OK):raise ValueError('built endpoint missing or not executable')
++            receipt['binaries'][role]={'path':str(p),'sha256':sha(p),'size':p.stat().st_size,'go_version_m_sha256':sha(output/(role+'-metadata.stdout.log'))}
++        receipt['source_before_after_unchanged']=True;receipt['accepted']=True
++    except Exception as error:
++        receipt['failure']=str(error);failed=True
++    finally:
++        (output/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
++    raise SystemExit(1 if failed else 0)
++if __name__=='__main__':main()

@@ -1,0 +1,99 @@
+{
+  "accepted": true,
+  "plan_sha256": "bd1aed620dfbf24eca3028319d175495a5255098e5711b5d9ab561986eabe4c0",
+  "executions": [
+    {
+      "name": "h1-continuation",
+      "argv": [
+        "python3",
+        "-I",
+        "-B",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-h1-continuation.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.json"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+      "forced": false,
+      "started_unix": 1792234426.9499624,
+      "pid": 2428514,
+      "exit_status": 0,
+      "finished_unix": 1792234427.051663,
+      "remaining_group_members": [],
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output_bytes": 0,
+      "accepted": true
+    },
+    {
+      "name": "arm-outcome",
+      "argv": [
+        "python3",
+        "-I",
+        "-B",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-arm-outcome.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-arm-outcome.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.json"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+      "forced": false,
+      "started_unix": 1792234427.0716558,
+      "pid": 2428515,
+      "exit_status": 0,
+      "finished_unix": 1792234427.273567,
+      "remaining_group_members": [],
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output_bytes": 0,
+      "accepted": true
+    },
+    {
+      "name": "shell-syntax",
+      "argv": [
+        "bash",
+        "-n",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+      "forced": false,
+      "started_unix": 1792234427.29398,
+      "pid": 2428518,
+      "exit_status": 0,
+      "finished_unix": 1792234427.3957038,
+      "remaining_group_members": [],
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output_bytes": 0,
+      "accepted": true
+    },
+    {
+      "name": "python-syntax",
+      "argv": [
+        "python3",
+        "-I",
+        "-B",
+        "-c",
+        "import ast,pathlib,sys; [ast.parse(pathlib.Path(p).read_text(),filename=p) for p in sys.argv[1:]]",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/verify-terminal-build.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-arm-outcome.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-h1-continuation.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build-runner-review/build-endpoints.py"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+      "forced": false,
+      "started_unix": 1792234427.4149818,
+      "pid": 2428519,
+      "exit_status": 0,
+      "finished_unix": 1792234427.5160797,
+      "remaining_group_members": [],
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output_bytes": 0,
+      "accepted": true
+    }
+  ],
+  "source_before_after_unchanged": true
+}

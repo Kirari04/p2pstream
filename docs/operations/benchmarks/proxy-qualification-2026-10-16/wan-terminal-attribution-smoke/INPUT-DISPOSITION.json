@@ -1,0 +1,3012 @@
+{
+  "input_ranges": [
+    "build-runner-review",
+    "wiring-window",
+    "build",
+    "smoke-freeze",
+    "smoke-execution",
+    "runner-source/integration/runs/terminal-smoke-once/h1",
+    "runner-source/integration/runs/terminal-smoke-once/h2"
+  ],
+  "records": [
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/BUILD-SOURCE-SHA256SUMS",
+      "sha256": "f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+      "bytes": 55235,
+      "destination": "build-runner-review/BUILD-SOURCE-SHA256SUMS",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/CHANGE.diff",
+      "sha256": "aa59945949f29b2fee2dc39a73785e0f4a858f416ef5ba80e28bd83ba0644cd1",
+      "bytes": 38622,
+      "destination": "build-runner-review/CHANGE.diff",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/COMMANDS.json",
+      "sha256": "bb13a1ca8f88a216c24e21c1ef9eb76f371b8a50a0cc9e4ab49de168f73fa5a9",
+      "bytes": 9679,
+      "destination": "build-runner-review/COMMANDS.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/FUTURE-SMOKE-COMMANDS.json",
+      "sha256": "98ceef0bb7b49594dde7af8414c39e8b33e3cb3c760d4aa1de106b0755c10e39",
+      "bytes": 5800,
+      "destination": "build-runner-review/FUTURE-SMOKE-COMMANDS.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/REVIEW.md",
+      "sha256": "094bf55ef8dcc8e47c111ddd1597daf63504a009ab4a94f24573fa02aa528e5e",
+      "bytes": 5414,
+      "destination": "build-runner-review/REVIEW.md",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/RUNNER-SOURCE-MAP.json",
+      "sha256": "67f75bb8870195394a41924f35775c3d6e03ae1cfe0942df672f48b097b5d92b",
+      "bytes": 17522,
+      "destination": "build-runner-review/RUNNER-SOURCE-MAP.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/SERVER-SUPPORT.json",
+      "sha256": "3b741c1525f8c8698c062b6f37d75863e061f1aa36f8c70fa340605a7edc75b0",
+      "bytes": 766,
+      "destination": "build-runner-review/SERVER-SUPPORT.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/SHA256SUMS",
+      "sha256": "40a9d620cd0f3fcae264ee739e7dee9d2f0881ef7e78b774ab7326736cbe97e7",
+      "bytes": 1772,
+      "destination": "build-runner-review/SHA256SUMS",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/SOURCE-AUDIT.json",
+      "sha256": "550158fd03b0493840c42ee44d84484a570d821fe8dc731d2be03422da161721",
+      "bytes": 3112,
+      "destination": "build-runner-review/SOURCE-AUDIT.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/WIRING-COMMANDS.json",
+      "sha256": "bd1aed620dfbf24eca3028319d175495a5255098e5711b5d9ab561986eabe4c0",
+      "bytes": 4283,
+      "destination": "build-runner-review/WIRING-COMMANDS.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/build-endpoints.py",
+      "sha256": "e97be25b2d9ce0d8d79542e786d779859964fba20bf1a47e46050d4de88af1ab",
+      "bytes": 4853,
+      "destination": "build-runner-review/build-endpoints.py",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/RESULT.json",
+      "sha256": "5428155be544c96a2c231a0dd3a9db14c3bd47e18441c9ee95dd1a11f40ffcf7",
+      "bytes": 5305,
+      "destination": "wiring-window/RESULT.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/SHA256SUMS",
+      "sha256": "7d976ca7ce63e8d850dec978c26654bafd44c73d118de056e7b768539bcc3fc0",
+      "bytes": 13931,
+      "destination": "wiring-window/SHA256SUMS",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-aggregate_agent_binary",
+      "sha256": "73389a90f4dbaa06afa0fb2a8d7b64864dc4b32349e8aafe595459b4f29a526d",
+      "bytes": 49,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-all_contracts",
+      "sha256": "a96926a3ac2cbe59a92fe6e06621c6ed7091a43b6cde4ced8b613ceb64fabbdc",
+      "bytes": 40,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-approved_runner",
+      "sha256": "684a72bc97f4ad712ce8d06c94abf56a576042d702243ac294970723d2b4ed41",
+      "bytes": 42,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-arm_outcome_validator",
+      "sha256": "362a8e017b9fb106bff646526bc2f3649a7b10d0d9b737473eb4f4658f72cd43",
+      "bytes": 48,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-arm_validator_contract",
+      "sha256": "e19cbe1e5e480b3c73afb253f23d56ce60c37e384d8ea74a506bb2663f20d8dc",
+      "bytes": 49,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-audited_build_manifest",
+      "sha256": "918d112629f39c2e8e7bc127084b54fad5b976573d7d6865705aeb64183c930f",
+      "bytes": 49,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-base_cp7_checkpoint",
+      "sha256": "94dd49da9b44e657a61d4bb90f03fd1bd80dc01b50b43b30ca004495db4de596",
+      "bytes": 46,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-base_cp7_reviewed_manifest",
+      "sha256": "227da5670ed5cae8a8174c91e8d813fc04a06e003925da77838148b73e017d65",
+      "bytes": 53,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-base_cp7_runner",
+      "sha256": "323ee083fae9d82daa1722e4fd49bc6d1b5645f5947d31993432496cecc36ad4",
+      "bytes": 42,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-byte_credit_adapter_checkpoint",
+      "sha256": "81f8567d51fb3c15800ec855e93fa1c77956989288c79a6793d1a93d29444b66",
+      "bytes": 57,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-byte_credit_adapter_contract_ledger",
+      "sha256": "b982939e4ee5a49e80c0b682458246a0890bdb6216193ee1432cee33051d450e",
+      "bytes": 62,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-byte_credit_ordinary_proof_receipt",
+      "sha256": "cfbf5b796f081b9d43dad00019ce0d719a697439a2919830c42e42d5a2d7e487",
+      "bytes": 61,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-byte_credit_protocol_checkpoint",
+      "sha256": "f43d56d7399d32e4530a1656a655968a5ea2b4330008a75a4f54cdc9d4ac6e0a",
+      "bytes": 58,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-byte_credit_protocol_focused_ledger",
+      "sha256": "0b1d0538041e864c51701c33a52e522d8471d40636a9c6c416a0ceaf36be5ce4",
+      "bytes": 62,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-byte_credit_protocol_focused_outer",
+      "sha256": "18b245d3267e816b07af3f58236eb26d8e893f3a53bda02abf55567f6d4eb7fd",
+      "bytes": 61,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-byte_credit_runner_contract",
+      "sha256": "7f90dd91605794f4829b1359ee382fc4a8cb686f187238b16c32572794bca105",
+      "bytes": 54,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-byte_credit_validator",
+      "sha256": "6b40cebb1141a4922be6f1149f52a608a647665ab3f253400559b3caa8c593eb",
+      "bytes": 48,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-capacity_audited_build_manifest",
+      "sha256": "c475d61683d3381377f3d63857bce3c9b9c6c471cadb16e2833899c0ae322b73",
+      "bytes": 58,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-capacity_focused_checkpoint",
+      "sha256": "f7338d4b7b5c25cc740b5c125da3c774dd08f7ddc6a53ead8d50ce4669be7b58",
+      "bytes": 54,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-capacity_source_checkpoint",
+      "sha256": "e61ea01ebf1680db9c29515c64c52271bb31461590ca1ced3b1a369337f89a38",
+      "bytes": 53,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-capacity_source_checkpoint_manifest",
+      "sha256": "0f8d46e3a9cc132e8dace09a6473943b5cb8ac74017804250b78e91539b47d1d",
+      "bytes": 62,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-cert",
+      "sha256": "4be9bf726d54d886b5636da85449f4b32c3376313cfd3a2fcd49f7cf05e876ea",
+      "bytes": 31,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-cleanup_status_body",
+      "sha256": "bda42312a4bf016e9b7263fde9945720fdbc767b59af0dabb761c8bf5ec5fb34",
+      "bytes": 46,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-cleanup_status_contract",
+      "sha256": "5fb4a6e605964a5846b4ea16ce6bd67c44d2172b93431fb725c1154070e32406",
+      "bytes": 50,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-cleanup_status_holder",
+      "sha256": "690ecdfb9ee430a706b6baaeeaf19de7c72061e25802c38e6d398616edb5c685",
+      "bytes": 48,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-cleanup_status_patch",
+      "sha256": "a31467b57c6c8c076a867a45d9bb00d7db4b3fe613d68eb2d579280084899b18",
+      "bytes": 47,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-combined_build_receipt",
+      "sha256": "dac07cceba38d7d31d9b00bec5352d87e2ef2d249df44bbca45e6245ed826bf5",
+      "bytes": 49,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-combined_checkpoint_manifest",
+      "sha256": "87de5d55b58e438a553a4bc1be31f5a02a24abbe5f28f9957932e0af5cdfb7af",
+      "bytes": 55,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-combined_contract_ledger",
+      "sha256": "7e60004d7047e72a3e17ec1cf8b58e8802417425e3d59370fdf509d0e10c2f3e",
+      "bytes": 51,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-copy_design",
+      "sha256": "814574ba1d298d0acbdf8cf7ba84a6b764f522b29787ac56420260fdf8b941e0",
+      "bytes": 38,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-copy_overlay",
+      "sha256": "b39ae2462ce7233da388c415fd4719260d5b17d115fe7d41d3a887eb8bbcd67e",
+      "bytes": 39,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-copy_record_validator",
+      "sha256": "e22b9b43094b308014160a3dfde893c5c914df179eae463005c7c49083e5d070",
+      "bytes": 48,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-copy_runner_patch",
+      "sha256": "a1310b0118a87edf27d90c1a3e1ca9ead33370621b2b8c06d950194ccdaafc1f",
+      "bytes": 44,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-decision_map",
+      "sha256": "c8e9240ea58fa4723167198e7df7672c8d110d682b23e3957da10a304eff734d",
+      "bytes": 39,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-final_source_attestation",
+      "sha256": "2be581d867982b0dcaf94bce4b005905839c80d919f476a6f145721c955c716c",
+      "bytes": 51,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-focused_checkpoint",
+      "sha256": "bb2b45a5e772c84e7e374f8edcfeea1425f2ebdc78aff9342f74e0f8c4f1b984",
+      "bytes": 45,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-frozen_copy_runner",
+      "sha256": "c0eb9ee212465a751732498cbc3447e9ab68619e2d6a3820e8f01be379d84b7a",
+      "bytes": 45,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-frozen_protocol_runner",
+      "sha256": "63cefaad80111280afd816dd54240d3e7c4bbbdecf5004399e35476f431defa4",
+      "bytes": 49,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-go_helper",
+      "sha256": "66bec5d495fd38048281e220d7c33954c6e4f70413df642b2c49d57d27a18bb0",
+      "bytes": 36,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-go_patch",
+      "sha256": "4a741b54cacca4405fd372b7ed0157b7e422559aa3378d2db972fa010dfba51c",
+      "bytes": 35,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-history_build_outer_ledger",
+      "sha256": "b8487adb982cd345fa5d310309cd1d56cfcc5d2c8ec7ffce6d4d1c21c2fe4a20",
+      "bytes": 53,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-history_build_records_ledger",
+      "sha256": "8f12f8195e639f388ae2bea3f76dee90e47e8d272f18991fc3cc431fc8de6a43",
+      "bytes": 55,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-history_producer_checkpoint",
+      "sha256": "b986b59a53d2a1c00a48f2eb1f1fda766f72a722cd460286c5f0d4434884273b",
+      "bytes": 54,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-history_source_map",
+      "sha256": "3f5c6d1c0381f2d35e9b9ddbf655dd49490d2db3cc8a17855f5aeeb1fc7685a9",
+      "bytes": 45,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-history_validator_checkpoint",
+      "sha256": "15f76e9af1ecf6bd7f2d79e4f104bac592e0a6e89f7bf0942be88b017cfbfcc1",
+      "bytes": 55,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-history_validator_contract_ledger",
+      "sha256": "8a82c053fe02b4ae53d169fab5c97eaeab980a3b41aade45c5bd17c0bdbd57ee",
+      "bytes": 60,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-history_validator_contract_outer",
+      "sha256": "dff87bea29dc72c721b9d99c127710229075726d5cd918faef5ccbf70644f080",
+      "bytes": 59,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-integration_notes",
+      "sha256": "53fbe17b00cfea9ca839f8c9fbe5f66c605656b4d84ad6c1dbbf4f3acba3f1b0",
+      "bytes": 44,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-key",
+      "sha256": "7e6ed05844fccc62485581434a35d5ba5695169a9082e0e92ca0d2663eda4a3a",
+      "bytes": 30,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-monotonic_arm_validator_patch",
+      "sha256": "c08729223e1d4772691ca216eb59c2ea70cf1f846d94d13e0850b9cde16eaa7b",
+      "bytes": 56,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-monotonic_audited_build_manifest",
+      "sha256": "4e66d4aae8a1dddaba7b60c90a993f854d92188e806c213dee04312f416bda2f",
+      "bytes": 59,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-monotonic_build_manifest",
+      "sha256": "214820972ab5347e81ad6fb44b81ad847925fae4c545fbc1fcea197f6cba2a50",
+      "bytes": 51,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-monotonic_observer_patch",
+      "sha256": "ed7a5f241716f93383267f16e13f5f7e0f4a693bc292e135f4174039d6a24ba6",
+      "bytes": 51,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-monotonic_runner_patch",
+      "sha256": "e6dd1eec3940635b7d19f48432aed266d5f905eecd015c9f05118a5e7fed20c2",
+      "bytes": 49,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-monotonic_validator_patch",
+      "sha256": "f94bd7a7952be7c50565761dd7132ad665998249d3a9add94b8cb9568f0a473c",
+      "bytes": 52,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-observer_checkpoint",
+      "sha256": "4129a32535f2ae57ca350ee40c9dfd41539e65b384f860691a1799d99b320f9d",
+      "bytes": 46,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-observer_patch",
+      "sha256": "542cfae2474c2238926c40c32a6e7bb3086bed36a07de9a63cc26ed722b1adb0",
+      "bytes": 41,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-raw_closure_validator",
+      "sha256": "292cf77fb0c608a6ff4e31c6b0f3f09e967c168fefeb93dced49217a2b896dd2",
+      "bytes": 48,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-raw_ordinary_proof_receipt",
+      "sha256": "6f05a2bad1b927dd792b4e93e98b07589531fae2af39ddbad471b320d0213b12",
+      "bytes": 53,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-raw_write_validator",
+      "sha256": "7a6ba731be2db203fc5b131125196b3de021c8047b5f05bd62855ea9a45a5e64",
+      "bytes": 46,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-read_wait_runner_patch",
+      "sha256": "554e4de51a742cb0954e76649f50ead20752c9e6d24a0b71782cc51a572b9414",
+      "bytes": 49,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-resource_contract",
+      "sha256": "a35cb45b6da3d885535cfe58b0f37b32157ce6444e511c07f73a78c2b3065886",
+      "bytes": 44,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-reviewed_integration_manifest",
+      "sha256": "4a2674ed60402b7495e18461e80ca469cbd1a7ecdaa46bf2ec3be80e350b31f7",
+      "bytes": 56,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-reviewed_integration_verifier",
+      "sha256": "de2d93c92c4b030d9d6aad4774543ff409d7cbbc09841bf810a6b233292fc6b7",
+      "bytes": 56,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-runner",
+      "sha256": "b6541c83959b917907a0d30211038b15122fc14af57cdb340d89c638a39d1b0d",
+      "bytes": 33,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-runner_integration_design",
+      "sha256": "76aa58011686b78df2a166b605ea49198d4bf25d2178c25ffd6b9e3837caf450",
+      "bytes": 52,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-runner_reconstruction_attestation",
+      "sha256": "adbf4f4d775674b2fbb8b1fec66c5231f1b4fb6adf0cd149a00343d00a9409f3",
+      "bytes": 60,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-scope_entrypoint",
+      "sha256": "e7c01ec107211881cc30cc067da2ae3d7acbccccea77e13e7ec1613b88548f85",
+      "bytes": 43,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-scope_probe_attestation",
+      "sha256": "06cc51941f00796c43f2a613f7219754e80ded24af407ed76bf89b7975f26fbb",
+      "bytes": 50,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-scope_resource_validator",
+      "sha256": "ef902ca6e90ffdead23f5e1da87b772aa970047768ae48c1b6e1402acaaae492",
+      "bytes": 51,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-scope_sentinel",
+      "sha256": "9a47d389be337f2ecc451e3c7bb74799a74a8125d1e4c5be15ab4f244fe663f8",
+      "bytes": 41,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-scope_validator",
+      "sha256": "86ae6005f5274685c2e7aea5835934327c9617457794c5f4d84cb5994c3d6900",
+      "bytes": 42,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-sender_build_manifest",
+      "sha256": "359c1aa2eb4457f342bc2ef860b566367e9c0c705a2ab933fd9d53996ac5bb0f",
+      "bytes": 48,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-sender_control_patch",
+      "sha256": "35ecd212aa1f4d53df8f60646f13cf2c2e414537706b2ff7b75575ec593b723c",
+      "bytes": 47,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-sender_harness_receipt",
+      "sha256": "3df1a01fafdf28807efb340b26129b8d4cd2b2963c200bb325f7285821840457",
+      "bytes": 49,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-sender_integration_checkpoint",
+      "sha256": "350b72f330473b5481552929293f814005b10fccb128c0ebf5d3acf99567e3f7",
+      "bytes": 56,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-sender_observer_checkpoint",
+      "sha256": "372b877cd620d8e52cb4cab686b4ac66d116198d0882bdafe4925a16419bbcbe",
+      "bytes": 53,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-sender_observer_patch",
+      "sha256": "06dcad3831f805f11d5791de53bd0afce20059e4dd33c246b42c6c602b989f89",
+      "bytes": 48,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-sender_runner_patch",
+      "sha256": "77213142558709790016dc53edc5f2a64d821489f10863f87a5e5989da0b45b1",
+      "bytes": 46,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-sender_snapshot_validator",
+      "sha256": "9339e7109416b7ca9f2e2f5d7b1184c01f2308ba768cfdc26e91af5893ab8a75",
+      "bytes": 52,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-sender_wrapper_contract",
+      "sha256": "14df79984b371cbb3ef5e2c766eff3609703ddf9ba994040ca4588d6ba40f0c6",
+      "bytes": 50,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-server_binary",
+      "sha256": "e0f08b82b925cecfee95c8982caa26019e19ada8f8c1b614cde174f5f8577c22",
+      "bytes": 40,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-server_capacity_patch",
+      "sha256": "72dedcee35bcbcba26d60764cb7f0372435b8729d57c24876ee20c83607c9b9a",
+      "bytes": 48,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-server_growth_checkpoint",
+      "sha256": "a41bc7adcbcf734f0b4ce60c9d96598d42d10dc5691d769b742a3bcc49d040f3",
+      "bytes": 51,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-server_growth_focused_receipt",
+      "sha256": "b4baadef9a0f6d4d26cc9d43b76d7bd427a5cdae7f31a9ed30d60869730681ef",
+      "bytes": 56,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-server_growth_overlay_patch",
+      "sha256": "9b0468b4d88afaf243ac065166896c2938f19314b6e881b6c2a10b1e695d5d43",
+      "bytes": 54,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-server_growth_runner_patch",
+      "sha256": "6beb721d4db0a48fd445a36e626424235f8efbf65fc2004c93ac8cef8d6bf1a8",
+      "bytes": 53,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-server_growth_validator",
+      "sha256": "ba276d3fd4c0d229142624ba873a7a8ef8fad212b4352d5d823c37523377feec",
+      "bytes": 50,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-static_contract",
+      "sha256": "07fb44d3623e96af7729108a189d3f93d995c70fd4c9ab588a2ca404bfc55ace",
+      "bytes": 42,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-tcp_build_outer_ledger",
+      "sha256": "56b153fc9ff17f2904f701eadf655c549eb186de4dbed6bbd39a86ffe399d6ac",
+      "bytes": 49,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-tcp_build_records_ledger",
+      "sha256": "7d9640c07c9a20e95c759b4b634417343bdc848f09e4ea6ca2fdcf06a78ba383",
+      "bytes": 51,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-tcp_producer_checkpoint",
+      "sha256": "e06740ef047c181a841e02f80e0f9a6d734f64a3c4c3e046fea20841b5476ccf",
+      "bytes": 50,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-tcp_source_map",
+      "sha256": "2b156d96682dcd3a0e4e069d5ac1fe314ac8cc45b18059d20db68820074a96ff",
+      "bytes": 41,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-tcp_state_validator",
+      "sha256": "320fcc1c39283cc7c3310ed9f85c1fc5a991fa03e1078fe090fe9eb9644d171c",
+      "bytes": 46,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-tcp_validator_contract_ledger",
+      "sha256": "9f2bc05424f7985b0171839b4bca64e1e7db4589ce45d3be141969b7d19786f8",
+      "bytes": 56,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-tcp_validator_contract_outer",
+      "sha256": "866e360af1f229108fc0f5483017e672c6ddc9f4a3669ccaf35d231515b19f0c",
+      "bytes": 55,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-terminal_attribution_validator",
+      "sha256": "db8284943c22ae4a0fbf3afc77cca1b5f723e7d725d06f6a24dc8b461c48f988",
+      "bytes": 57,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-terminal_build_plan",
+      "sha256": "69d56d024a4002d8e86ab13477330c3030f0d772ce9acdc914ebcc7051edad7d",
+      "bytes": 46,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-terminal_build_receipt",
+      "sha256": "fd3790a3e7d590be71c67113b1b552bf4fe96915099ef5bc5e71321a11cbb657",
+      "bytes": 49,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-terminal_build_source_inventory",
+      "sha256": "3f0b425fba724d0704cde6dfc4f2bbf048972246d6ca653e24503c2e59cf5164",
+      "bytes": 58,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-terminal_build_verifier",
+      "sha256": "604cfe90a5837f1235a258a00a5bf5f1c04b43e70ea1dd57ed703fbb13aa01c9",
+      "bytes": 50,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-terminal_legacy_references",
+      "sha256": "a0ac1e64452206176eb70cdf8554dd38572f0d3c6ba7afabe7e2188f97310f46",
+      "bytes": 53,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-validator",
+      "sha256": "afb0d28eebf586c515664ddbd05cc266d2b7f84f8c30e8ac9dba30f761a09a72",
+      "bytes": 36,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/bound-wan_protocol_runner_patch",
+      "sha256": "2b70b9ce0479fafce64b44f30cd81ccd61d7679f67cdbe7d5cfa1b4cfd11b881",
+      "bytes": 52,
+      "destination": null,
+      "disposition": "repetitive synthetic bound stub; producer and mapping retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/pre-hashes.json",
+      "sha256": "b21408a32a58828231207e9974bdfd91e713a256e464fd246dab1cb195ed7b6a",
+      "bytes": 10858,
+      "destination": "wiring-window/arm-outcome-fixture/pre-hashes.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/write-hashes-producer.sh",
+      "sha256": "badaf0039365933d60a2c25bc9d9c54331355905d6b44c8323a2172537b539f9",
+      "bytes": 32704,
+      "destination": "wiring-window/arm-outcome-fixture/write-hashes-producer.sh",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.invocation.json",
+      "sha256": "54e74ce4471f7c439b7c0cce0d8cbaff0df71455fadb9b493128a185b53976bf",
+      "bytes": 1052,
+      "destination": "wiring-window/arm-outcome.invocation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.json",
+      "sha256": "30a61b84f28fa12e61daf5a1d19617c98c08f7cb6b442d442737f574a063302d",
+      "bytes": 9347,
+      "destination": "wiring-window/arm-outcome.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.result.json",
+      "sha256": "fb54f6ae34249dfd8680e78713ea77eb0c447f72b08f2c0e991cc9a0428c22c4",
+      "bytes": 1351,
+      "destination": "wiring-window/arm-outcome.result.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "wiring-window/arm-outcome.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "wiring-window/arm-outcome.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.invocation.json",
+      "sha256": "5de36478eddee9ab65c145c91725752f81a897d1300989447dd5a9f0db484d82",
+      "bytes": 747,
+      "destination": "wiring-window/h1-continuation.invocation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.json",
+      "sha256": "1a42d6f76f3d54a44307728e1c7fd8e3c17c863f7d3a27959abb822792e62ad9",
+      "bytes": 3936,
+      "destination": "wiring-window/h1-continuation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.result.json",
+      "sha256": "f3e187bb2335aec469bd9e0f4e3edeaa0964f1a681c57c82dbfc4f025519241e",
+      "bytes": 1046,
+      "destination": "wiring-window/h1-continuation.result.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "wiring-window/h1-continuation.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "wiring-window/h1-continuation.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/python-syntax.invocation.json",
+      "sha256": "be40b4fcfffc08f246ab1be705ee28bb42c0f185e819bfe05ae58f592b11a9b6",
+      "bytes": 1348,
+      "destination": "wiring-window/python-syntax.invocation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/python-syntax.result.json",
+      "sha256": "99385015905a0714f4800e70b114195219145abbdbdefbf89b8104d7eee259eb",
+      "bytes": 1648,
+      "destination": "wiring-window/python-syntax.result.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/python-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "wiring-window/python-syntax.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/python-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "wiring-window/python-syntax.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/shell-syntax.invocation.json",
+      "sha256": "41babaa399f05e16009024b0235e2f42c927aef318a4ab58b88f33dc542eec8c",
+      "bytes": 419,
+      "destination": "wiring-window/shell-syntax.invocation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/shell-syntax.result.json",
+      "sha256": "c7c16ac751e4de3d5cd3aeb98f4789f252eb8bb8a6cf43877f23d3ef05ff7322",
+      "bytes": 717,
+      "destination": "wiring-window/shell-syntax.result.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/shell-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "wiring-window/shell-syntax.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/shell-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "wiring-window/shell-syntax.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/POST-AUDIT.json",
+      "sha256": "86ea380d678d3207d61ab9827cba54fddca23e69538e81162d16ac5e8e3b2a2b",
+      "bytes": 601,
+      "destination": "build/POST-AUDIT.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/RESULT.md",
+      "sha256": "1dd18b149288dc20be9c068d63b725eb1405f25c206efdbb9867a3ba3ea9ca21",
+      "bytes": 1890,
+      "destination": "build/RESULT.md",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/SHA256SUMS",
+      "sha256": "6b9b432066ce20d09154c7fd8f1ba4316a78396d0219190a951029db8f65ca25",
+      "bytes": 1322,
+      "destination": "build/SHA256SUMS",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/agent-build.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "build/agent-build.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/agent-build.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "build/agent-build.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/agent-metadata.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "build/agent-metadata.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/agent-metadata.stdout.log",
+      "sha256": "a9a62261ef7bd5ea5ce9000f86f8485904c4e2bc075f5633f1c3593e617ea439",
+      "bytes": 441,
+      "destination": "build/agent-metadata.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/current-agent-terminal.test",
+      "sha256": "8d38b8c8e6f18250d96ad07fa8db4ce11ce65f1a8734c04cf447b9909131f1d7",
+      "bytes": 21978002,
+      "destination": null,
+      "disposition": "binary omitted; actual hash/size retained in build receipt"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/current-server-terminal.test",
+      "sha256": "f74384c319674212123832401069417a3cae31c35997545a061788e576b47c6e",
+      "bytes": 60251872,
+      "destination": null,
+      "disposition": "binary omitted; actual hash/size retained in build receipt"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/go-env.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "build/go-env.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/go-env.stdout.log",
+      "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147",
+      "bytes": 264,
+      "destination": "build/go-env.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/receipt.json",
+      "sha256": "ad0dbfb3adafab686a4fc84f75effaee57819f2694ae644ada901a192604ad62",
+      "bytes": 7569,
+      "destination": "build/receipt.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/server-build.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "build/server-build.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/server-build.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "build/server-build.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/server-metadata.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "build/server-metadata.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/server-metadata.stdout.log",
+      "sha256": "7075a93439987066fe44b84b3476a1e6e6a78ca5408c8323e4e932f8e79e4aa7",
+      "bytes": 443,
+      "destination": "build/server-metadata.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/COMMANDS.json",
+      "sha256": "6d898da8254c2a7c2c38fc81fb152235294de7825725dd4322fa4a601fba1f8c",
+      "bytes": 7044,
+      "destination": "smoke-freeze/COMMANDS.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/REVIEW.md",
+      "sha256": "0f1a6b3f63686ef98396f26b9a0eed1a9318df62c7dadd838f8f0d4fddb1f24a",
+      "bytes": 1601,
+      "destination": "smoke-freeze/REVIEW.md",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/SHA256SUMS",
+      "sha256": "1dca099b51530c8d4a6bb0a0459f99760b8e7ad5c4f94a12358a900361b65d81",
+      "bytes": 488,
+      "destination": "smoke-freeze/SHA256SUMS",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/UNBLOCK.diff",
+      "sha256": "01e8011cd35f71cc7d3783af3a98f2f2a48d846a786d4e2c71aa36b78a0e0f3b",
+      "bytes": 557,
+      "destination": "smoke-freeze/UNBLOCK.diff",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/blocked-runner.sh",
+      "sha256": "6597c4b73e715ab89d4a08ebdc90eae44af21a119dc9d8f2113543183080a353",
+      "bytes": 82033,
+      "destination": "smoke-freeze/blocked-runner.sh",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/BUDGET-AMENDMENT.json",
+      "sha256": "51bac01e8846524e89b29dea5a7759ac384a53795a009936741285ca377ea9de",
+      "bytes": 727,
+      "destination": "smoke-execution/BUDGET-AMENDMENT.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/BUDGET-AMENDMENT.sha256",
+      "sha256": "232c1fe17f1f52682b789bdceab054d77be24000db7434d0639fe93e1b36faba",
+      "bytes": 88,
+      "destination": "smoke-execution/BUDGET-AMENDMENT.sha256",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/FINAL-AUDIT.json",
+      "sha256": "603d657ce35e81ad934ca86715127feb49cae645c460082be174e9730d8e423f",
+      "bytes": 1883,
+      "destination": "smoke-execution/FINAL-AUDIT.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/SHA256SUMS",
+      "sha256": "094afff9e304a5866538f33858795b356efc306d9698c6f5e9d051d815df8c03",
+      "bytes": 45796,
+      "destination": "smoke-execution/SHA256SUMS",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1-continuation.result.json",
+      "sha256": "5e98b8111382b617587e5c126e4647002fa7293c7ddd02ccdbde7a16daaa8334",
+      "bytes": 1150,
+      "destination": "smoke-execution/h1-continuation.result.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1-continuation.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "smoke-execution/h1-continuation.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1-continuation.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "smoke-execution/h1-continuation.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1.invocation.json",
+      "sha256": "99628e8249a5fce5bd479fa120a7db31899fee0a132c9c3732a7fade1d6c4e59",
+      "bytes": 1943,
+      "destination": "smoke-execution/h1.invocation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1.result.json",
+      "sha256": "c31e821735987e5c9c7560b15e2657ef1a82eb99512dbb672277fd1877eed926",
+      "bytes": 2286,
+      "destination": "smoke-execution/h1.result.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "smoke-execution/h1.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1.stdout.log",
+      "sha256": "d64f829a1a23a1b76c05e40ea807336008f65995451716cffebc6b5cfef7a320",
+      "bytes": 309,
+      "destination": "smoke-execution/h1.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h2.invocation.json",
+      "sha256": "c199f28965634c20b4919f7b07e86a7f1d972d8e5fcedc3259b9f3c4cc48f971",
+      "bytes": 2024,
+      "destination": "smoke-execution/h2.invocation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h2.result.json",
+      "sha256": "64c02c18ee9b4946af9e09148f7aceb50cc77fe65af74584849760b6b0566f03",
+      "bytes": 2368,
+      "destination": "smoke-execution/h2.result.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h2.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "smoke-execution/h2.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h2.stdout.log",
+      "sha256": "d64f829a1a23a1b76c05e40ea807336008f65995451716cffebc6b5cfef7a320",
+      "bytes": 309,
+      "destination": "smoke-execution/h2.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/preflight.json",
+      "sha256": "926e57b8492010976ce74f6edc1c156946d71245e7c3d83d32c17151f98c231a",
+      "bytes": 1004,
+      "destination": "smoke-execution/preflight.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/attestation.json",
+      "sha256": "4828baf88bff0012a8841eb9de0726bbf70c7ac99cf41ba16f52f20c634df7e0",
+      "bytes": 1529374,
+      "destination": "arms/h1/attestation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/historical-cp10-source-verification.json",
+      "sha256": "f5e3f2a0fe8bb30975f4554abc3d5c8b73f00b9957cf1d756b42df2d5d66c85a",
+      "bytes": 4153,
+      "destination": "arms/h1/historical-cp10-source-verification.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/host-settings.txt",
+      "sha256": "10a0c852dcc31b1391aa9eeb6275d7c5a0920e01f83925eebada1aa322f02400",
+      "bytes": 4780,
+      "destination": "arms/h1/host-settings.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/invocation.txt",
+      "sha256": "d4f8aecaaf4b962e7917c05ca05fc87821d78bbbacccbce0a30bae517d511a38",
+      "bytes": 2456,
+      "destination": "arms/h1/invocation.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/outer-namespaces.json",
+      "sha256": "0630971e427639e4131eba2c997734aba1b77a8516aa3aa43e3df323d539f396",
+      "bytes": 629,
+      "destination": "arms/h1/outer-namespaces.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/post-hashes.json",
+      "sha256": "4f3c0b05ddf56d24e46e3d2ea0f4ecec27dea60a7ca9e424ceceeb0ea861101d",
+      "bytes": 11071,
+      "destination": "arms/h1/post-hashes.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/pre-hashes.json",
+      "sha256": "4f3c0b05ddf56d24e46e3d2ea0f4ecec27dea60a7ca9e424ceceeb0ea861101d",
+      "bytes": 11071,
+      "destination": "arms/h1/pre-hashes.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/prospective-terminal-attribution.json",
+      "sha256": "16f5acbcf3522f5b4ed021b18b978282856dc30f8130d691267e27bc296cfc13",
+      "bytes": 1357,
+      "destination": "arms/h1/prospective-terminal-attribution.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/1-current-server-aggregate-v1-h1-warmup-download-1.json",
+      "sha256": "2c84c3a513f15e912213859de2958637dba6d1d41281bab57d2a89715292bff2",
+      "bytes": 4875,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/1-current-server-aggregate-v1-h1-warmup-download-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/10-current-server-aggregate-v1-h1-retained-warmup-upload-1.json",
+      "sha256": "7641eacfa9a3a8b598d8ad173762beec9281dca8ce9c163e1a5a25c1505ab83b",
+      "bytes": 4903,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/10-current-server-aggregate-v1-h1-retained-warmup-upload-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/11-current-server-aggregate-v1-h1-steady-download-1.json",
+      "sha256": "71993ff812d89c9e4fbdade6190498aadd6d5e067fa5697b407f865f2e795a5c",
+      "bytes": 4911,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/11-current-server-aggregate-v1-h1-steady-download-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/12-current-server-aggregate-v1-h1-steady-upload-1.json",
+      "sha256": "527fd5bc19a6043854142f9afe992698232e8060026be3c2eda9d817941ff5a5",
+      "bytes": 4906,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/12-current-server-aggregate-v1-h1-steady-upload-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/13-current-server-aggregate-v1-h1-steady-upload-2.json",
+      "sha256": "6fb03b30e272bfdc685d914bf63df6b09c7d7074262d82841d6df0b5717917d6",
+      "bytes": 4906,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/13-current-server-aggregate-v1-h1-steady-upload-2.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/14-current-server-aggregate-v1-h1-steady-download-2.json",
+      "sha256": "3c27c5d73faa013a2283e94a500407500cc10e00680f190c261617596705bf46",
+      "bytes": 4951,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/14-current-server-aggregate-v1-h1-steady-download-2.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/15-current-server-aggregate-v1-h1-steady-download-3.json",
+      "sha256": "fbf6ae1f7781bc7ee7f94e9c7e5f6d40d4f8f3318fc7b63dad6e9835672c21d3",
+      "bytes": 4950,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/15-current-server-aggregate-v1-h1-steady-download-3.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/16-current-server-aggregate-v1-h1-steady-upload-3.json",
+      "sha256": "bb7663447c80eacd7a1a55d6d8ab14f87d9b8abdedca5ecad0a7bbc0045cea2c",
+      "bytes": 4904,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/16-current-server-aggregate-v1-h1-steady-upload-3.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/2-current-server-aggregate-v1-h1-warmup-download-2.json",
+      "sha256": "042eecf1af4c3ff8363695c820cfc7a3b0e05f8b63112193074bfc54c6dacfd1",
+      "bytes": 4918,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/2-current-server-aggregate-v1-h1-warmup-download-2.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/3-current-server-aggregate-v1-h1-warmup-download-3.json",
+      "sha256": "f9bc119bb85ea7b371975d9eec55dc05d10f8a0d9a14de1bf3307483a4584112",
+      "bytes": 4929,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/3-current-server-aggregate-v1-h1-warmup-download-3.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/4-current-server-aggregate-v1-h1-warmup-download-4.json",
+      "sha256": "74edf2b07661647e027f45d003007b707ed54efc6344fcd7e93eb9ed068c736f",
+      "bytes": 4986,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/4-current-server-aggregate-v1-h1-warmup-download-4.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/5-current-server-aggregate-v1-h1-warmup-upload-1.json",
+      "sha256": "e10526e73e4b604482e20af236df49e4e1d9f32d6a0ae0bd5f28a2dd79d04fe6",
+      "bytes": 4898,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/5-current-server-aggregate-v1-h1-warmup-upload-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/6-current-server-aggregate-v1-h1-warmup-upload-2.json",
+      "sha256": "ce95994413d9d9c890b0762cc9df3780aa591b2eece943ff71ccc433aac06287",
+      "bytes": 4893,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/6-current-server-aggregate-v1-h1-warmup-upload-2.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/7-current-server-aggregate-v1-h1-warmup-upload-3.json",
+      "sha256": "bcbf399d916e5afe3ebfcb218a605068698bf7fb00a5553dbcdfa2dfea499e31",
+      "bytes": 4896,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/7-current-server-aggregate-v1-h1-warmup-upload-3.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/8-current-server-aggregate-v1-h1-warmup-upload-4.json",
+      "sha256": "1068f842ec750d6a19d16bb50c74e644d627e20ca93e8ed701613491b55db485",
+      "bytes": 4895,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/8-current-server-aggregate-v1-h1-warmup-upload-4.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/9-current-server-aggregate-v1-h1-retained-warmup-download-1.json",
+      "sha256": "6166a3368ba79c86aa7ed7d7a7ffbe1a059dfb5c19735857736e86e3d2dd666a",
+      "bytes": 4977,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/9-current-server-aggregate-v1-h1-retained-warmup-download-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/agent-namespace.stop",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/current-server-aggregate-v1-h1-1-agent.log",
+      "sha256": "34cef973995ee04b13bece2a26e72161974f513a73d9e38b557ad32e00682537",
+      "bytes": 7939,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/current-server-aggregate-v1-h1-1-agent.ready.json",
+      "sha256": "c5f78043c4a5ad7aeb590ce441a2a64a0cfa0434fd8324c14a3b0c251bdd4069",
+      "bytes": 48,
+      "destination": null,
+      "disposition": "certificate/key/readiness material excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/current-server-aggregate-v1-h1-1-agent.stop",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/current-server-aggregate-v1-h1-1-management-ca.pem",
+      "sha256": "b350bc430736b7eccd3e8c598d9f33fbac222f37441e965bc5e6616d9657ecff",
+      "bytes": 579,
+      "destination": null,
+      "disposition": "certificate/key/readiness material excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/current-server-aggregate-v1-h1-1-server.log",
+      "sha256": "062400937cef41393fa65524e80c906b5a430aa4ad1781daefe7733ba18ca0d2",
+      "bytes": 8451,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/current-server-aggregate-v1-h1-1-server.ready.json",
+      "sha256": "eb58ec6d41e150fa4b00618b93ddeb02c85deeea911f7c49c76042d06b388e28",
+      "bytes": 486,
+      "destination": null,
+      "disposition": "certificate/key/readiness material excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/current-server-aggregate-v1-h1-1-server.stop",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/origin.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/origin.ready.json",
+      "sha256": "9567f1dc4d332c3fa5d7e82e19b44b50d8ae7843b767042eab2794db30a7967a",
+      "bytes": 82,
+      "destination": null,
+      "disposition": "certificate/key/readiness material excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/origin.stop",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/proxy-agent-growth.I3ED6x/router-namespace.stop",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/raw-post-join-supervisor-validation.json",
+      "sha256": "e5e586d828210f254ba075caa6ae2552688caf9e1d188cb3d418429d44a6cdcf",
+      "bytes": 225587,
+      "destination": "arms/h1/raw-post-join-supervisor-validation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.jsonl",
+      "sha256": "65b28859b89dcb8a0177d3209a528a7729262ab7d04e0d1906c6e2d8751096c3",
+      "bytes": 178169,
+      "destination": "arms/h1/results.jsonl",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.lifecycle.jsonl",
+      "sha256": "0586baa5c43e265552e396f36ed8002d97090e6cbad117380c775a9e8ff52624",
+      "bytes": 980,
+      "destination": "arms/h1/results.lifecycle.jsonl",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/final-raw-write-record.json",
+      "sha256": "00a69e953e3b0b0ec474ad9de9767a1416b602833292742d5da3a05ec4a8afb8",
+      "bytes": 893,
+      "destination": "arms/h1/results.sender-wait-controls/final-raw-write-record.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/final-raw-write-terminal.json",
+      "sha256": "209931c5e8d45271cce87af2fe60a9eb848f88068421fa2278209125355ad22c",
+      "bytes": 120780,
+      "destination": "arms/h1/results.sender-wait-controls/final-raw-write-terminal.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/final-raw-write-terminal.json.attribution.json",
+      "sha256": "5a2d51c39c767dd3130d1c34f226febbf84568808d981e62516894bced9216c2",
+      "bytes": 8930,
+      "destination": "arms/h1/results.sender-wait-controls/final-raw-write-terminal.json.attribution.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/final-raw-write-validation.json",
+      "sha256": "a04c0ef249f64a5cc75b3d9e041fe623533cd26e33c08051c0c90bd54d98a688",
+      "bytes": 89,
+      "destination": "arms/h1/results.sender-wait-controls/final-raw-write-validation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-11-post-capacity.json",
+      "sha256": "62402991aa42bb364cf46e96dd0b08118cacb80f876e35a8178589a47183d8c8",
+      "bytes": 34751,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-11-post-sender.json",
+      "sha256": "7e09406e19354a67959d8c8b0813cfb9d3e470af7455307017ef8eb9adc6a6e5",
+      "bytes": 490298,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-11-pre-capacity.json",
+      "sha256": "e86ffcd951c3ef9c694fce1593bccd9dfe7df4e24687f1872c40631df234fc49",
+      "bytes": 38285,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-11-pre-sender.json",
+      "sha256": "3624687e49faf34d7d16cd2705a78c3111a53f07ae29fa5c52932f17dedf7330",
+      "bytes": 282651,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-11-pre-validation.json",
+      "sha256": "488190a2ec0c503f11aa7c1d3a58e3d1aef2b4f47b3922b07a34c37f0d19c2ac",
+      "bytes": 132,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-11-validation.json",
+      "sha256": "423fb0c3f581ce18fa867f16b5daad8fe35ba204a1c3f5ad17dd2fbc519cd297",
+      "bytes": 213917,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-14-post-capacity.json",
+      "sha256": "ed33e009fe5d1aa374cf5f711f5359def261800298379ee4fc8873ed679fb887",
+      "bytes": 31805,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-14-post-sender.json",
+      "sha256": "2c361c25cfe4ac2e514d9f022a12ef7e333125bfd9f15cdf46027bf9e77b98ab",
+      "bytes": 478615,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-14-pre-capacity.json",
+      "sha256": "6c8a3aaa67d5062f60dd3587dba361df5000fd5f6a44b7a04ea330315f007dd7",
+      "bytes": 65904,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-14-pre-sender.json",
+      "sha256": "ffb544370074eb1137ec8151b4568968e2c806d29b9c833184a9bf30cffe7240",
+      "bytes": 303378,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-14-pre-validation.json",
+      "sha256": "1623cf47f842ce4aa8fa0b540939dfd7a8a4d81926f93f0b69aa1e6333235572",
+      "bytes": 132,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-14-validation.json",
+      "sha256": "3ce06fe12d71b1443e425dfb478768e710d1b0c55bf562c2dcb99a9b9dafc857",
+      "bytes": 206399,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-15-post-capacity.json",
+      "sha256": "298d35d016cd0d11ec6d14d8499fe5a7681f163052c4b9d88adabc7815844c1b",
+      "bytes": 22125,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-15-post-sender.json",
+      "sha256": "6ff1da8a7c5d59cd7f6e4ddce2033285a4ad4f0296eb46dd21959e633874f634",
+      "bytes": 324961,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-15-pre-capacity.json",
+      "sha256": "2f8a4ae4022ed32134a24a8335c72b606c53b074efef9d6f5aeb843d720ccc7b",
+      "bytes": 5771,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-15-pre-sender.json",
+      "sha256": "2c9b87dd794f549362ad999a8fc828235cb9205ff727cfa60d31ae3a5f37a420",
+      "bytes": 260434,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-15-pre-validation.json",
+      "sha256": "7ac08c30a9d737df67a713e6e12aa4bd68d3a1c1a9de2fe4eda05334501d2c06",
+      "bytes": 132,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-15-validation.json",
+      "sha256": "5585631960874d7d8882fbe15cf4db8d411c3622c2b248f571b300821bdca35c",
+      "bytes": 82724,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-9-post-capacity.json",
+      "sha256": "3dbbda77a48493c459822315ec0f4442fa435558120df41adb202a7c229a215d",
+      "bytes": 33178,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-9-post-sender.json",
+      "sha256": "1667b043774ccb3282aafa536286051eb541caa928b721222140a68ecc0235ef",
+      "bytes": 473277,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-9-pre-capacity.json",
+      "sha256": "b6c96a6b6f622f4ff49e5a564d40b2810c4585b75eb0bf7e98b1d94db56d622a",
+      "bytes": 226493,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-9-pre-sender.json",
+      "sha256": "75e7794db9287ce3b10c030228f37b5611b6e17d827b6940165c867fabeb2dde",
+      "bytes": 455439,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-9-pre-validation.json",
+      "sha256": "be165a285bc898247abccad444dbb9832a51e291319747a15b4c3edadc05ae12",
+      "bytes": 131,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/sequence-9-validation.json",
+      "sha256": "7e2117506ffbfe05dee2e37775a5e17b93b7af1dfd049687642931795b79ed08",
+      "bytes": 200193,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/terminal-sender.json",
+      "sha256": "ff51e1edf285a635e50617299623ca29ebd6c05baa78119c74f99da9c53de148",
+      "bytes": 271161,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/terminal-validation.json",
+      "sha256": "5de5117c2fa0d3df21a12ff1477c5da91ec8547d3a54e1b77551471feb8fdd50",
+      "bytes": 127,
+      "destination": "arms/h1/results.sender-wait-controls/terminal-validation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-records.jsonl",
+      "sha256": "f0ad5936fd2dda667feb6cdecaf177c32cdd69a2e7dae1bd015a98a8f7ea1459",
+      "bytes": 2805384,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.summary.json",
+      "sha256": "cb759e0fc7abc789ab7d08194966bf37e37cb26763aa50af67846da956f294b4",
+      "bytes": 15344,
+      "destination": "arms/h1/results.summary.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/runner.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h1/runner.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/runner.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "arms/h1/runner.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/runner.stdout.log",
+      "sha256": "140ff1a91ab4a2a129a878872153745b320e5259080cfdd6b0194e5f6596d612",
+      "bytes": 543,
+      "destination": "arms/h1/runner.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/cgroup-delegation-paths.json",
+      "sha256": "9de3f8ebc5f078ac2537f872dd85ed6e8e30abf2791ea4b006cda2a9313547d5",
+      "bytes": 1612,
+      "destination": "arms/h1/server-scope/cgroup-delegation-paths.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/cgroup-with-sentinel.json",
+      "sha256": "40b2dab51a954928d85b528262d45deff61c4da966db9a5add960efcc188a8d7",
+      "bytes": 471,
+      "destination": "arms/h1/server-scope/cgroup-with-sentinel.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/runner-owned-namespaces.json",
+      "sha256": "e29813bd0afd7ce6ca29ccb087c619a958eb023d9863c4c71b9c6e26f3053141",
+      "bytes": 248,
+      "destination": "arms/h1/server-scope/runner-owned-namespaces.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/scope-launcher.json",
+      "sha256": "b3dc783e7d904fce54276dc0030c0fba03ea5591e44a233c9556a2599fd584c1",
+      "bytes": 171,
+      "destination": "arms/h1/server-scope/scope-launcher.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/scope-process-join.json",
+      "sha256": "753f4659492ef972745df7438aff4fadd1f505d340021d42c112d9db3ea83924",
+      "bytes": 151,
+      "destination": "arms/h1/server-scope/scope-process-join.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/sentinel.json",
+      "sha256": "1c0d5becea3f20ab4d0685a1966350b39e8cc4bd37a61a844f04c67b7bad6ff7",
+      "bytes": 404,
+      "destination": "arms/h1/server-scope/sentinel.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/sentinel.json.natural-exit",
+      "sha256": "61fb22e66cdb32d8bc9cdf8246d8d58544f3f06f794cdde3937595c4860d0900",
+      "bytes": 13,
+      "destination": "arms/h1/server-scope/sentinel.json.natural-exit",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/sentinel.release",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-app-ready.json",
+      "sha256": "84c86aeb4e2ba4e915f831cd61385971a7c4a9844fe70c858dfc33370f19ef65",
+      "bytes": 776,
+      "destination": null,
+      "disposition": "certificate/key/readiness material excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-app.release",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-application-binding.json",
+      "sha256": "55d3ae346a9addeef2dda1629a892a8b782849466a6b6bfa072913506f6f667d",
+      "bytes": 3403,
+      "destination": "arms/h1/server-scope/server-application-binding.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-cgroup-post-workload.json",
+      "sha256": "e3da17607db3939aad5b58a0422ec57451538b0281e129b7a33592780a7d3ded",
+      "bytes": 452,
+      "destination": "arms/h1/server-scope/server-cgroup-post-workload.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-cgroup-pre-traffic.json",
+      "sha256": "3ab1d20ada93f84b4121129be943f46fd9ff9b851a983d1adcb867095773f531",
+      "bytes": 473,
+      "destination": "arms/h1/server-scope/server-cgroup-pre-traffic.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-preexec-binding.json",
+      "sha256": "bf1e1d966d03ceadee2eec89384ed95e8e55c17edb3e5248273bdc49eebf602b",
+      "bytes": 4621,
+      "destination": "arms/h1/server-scope/server-preexec-binding.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-preexec.json",
+      "sha256": "0cd14c74f450954826325957591b3015defb7be17ffd365819d56bc533d898f2",
+      "bytes": 1269,
+      "destination": "arms/h1/server-scope/server-preexec.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-preexec.json.released",
+      "sha256": "fdc935e6a3f33abdcfb4f5d7a335d408b2b988e7a5f8411d9f73349d1fab39be",
+      "bytes": 9,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-preexec.release",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-resource-attestation.json",
+      "sha256": "9e42567b80731665350a612b9c3957db17e51217e95b0e6456955549b8c86409",
+      "bytes": 1416,
+      "destination": "arms/h1/server-scope/server-resource-attestation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-resource.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h1/server-scope/server-resource.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/systemd-run.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h1/server-scope/systemd-run.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/systemd-run.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "arms/h1/server-scope/systemd-run.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/systemd-run.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "arms/h1/server-scope/systemd-run.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-cleanup-query.txt",
+      "sha256": "a0c2edd4128d9aa1601ae769a535c71c9f7f041601581064c5075b6511a2d00a",
+      "bytes": 64,
+      "destination": "arms/h1/server-scope/unit-cleanup-query.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-control-group.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h1/server-scope/unit-control-group.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-final-polls.txt",
+      "sha256": "1b1077a93fc73e23fb2fcc94c9f6da073a42ca8ebb68a1031a2a9f66c64d022f",
+      "bytes": 64,
+      "destination": "arms/h1/server-scope/unit-final-polls.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-final.json",
+      "sha256": "6a4488011f89a66601f3f4b4161e2949ccca33ae8e310a8db8828f31ab02b42b",
+      "bytes": 226,
+      "destination": "arms/h1/server-scope/unit-final.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-policy.json",
+      "sha256": "4acf135b70e979b8d58728e342615f7edcb310b786389d9b32b71d096177c340",
+      "bytes": 750,
+      "destination": "arms/h1/server-scope/unit-policy.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-server-preexec.txt",
+      "sha256": "3f02cb90ce5fa622f7f16026cc72f1aa4289d7d51301e32c876999f9bb7d06d1",
+      "bytes": 176,
+      "destination": "arms/h1/server-scope/unit-server-preexec.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-with-sentinel.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h1/server-scope/unit-with-sentinel.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-with-sentinel.txt",
+      "sha256": "61f7dee812c0ae731e3f9ac469dd3912432b74dc505f732c488d0be36d562d40",
+      "bytes": 348,
+      "destination": "arms/h1/server-scope/unit-with-sentinel.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit.joined",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "destination": "arms/h1/server-scope/unit.joined",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope-invocation.txt",
+      "sha256": "7577938f6f6a3fd6f1028b3b1704dcd0cb6878a150d258ef19273e751d63ce10",
+      "bytes": 299,
+      "destination": "arms/h1/server-scope-invocation.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/supervisor-cleanup.json",
+      "sha256": "ed21eb54c20162ffe13eabed1790f826e0ca6eec860f96b399fb029e12e17662",
+      "bytes": 489,
+      "destination": "arms/h1/supervisor-cleanup.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/supervisor-lifecycle.json",
+      "sha256": "a83ea3f1e8fb2de37efa85f69ce4e295a0ad0ce18092fe6d21e79c7838390592",
+      "bytes": 511,
+      "destination": "arms/h1/supervisor-lifecycle.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/validation.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h1/validation.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/validation.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "arms/h1/validation.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/validation.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "arms/h1/validation.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/attestation.json",
+      "sha256": "64de516c6a4672e68f7fc6297913613dead1d6a7a775d203940abba4064510d0",
+      "bytes": 1406914,
+      "destination": "arms/h2/attestation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/historical-cp10-source-verification.json",
+      "sha256": "f5e3f2a0fe8bb30975f4554abc3d5c8b73f00b9957cf1d756b42df2d5d66c85a",
+      "bytes": 4153,
+      "destination": "arms/h2/historical-cp10-source-verification.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/host-settings.txt",
+      "sha256": "0c298b8abebc96f21c543da9d2800abad31e23108902765c67112bb5bcfd39a1",
+      "bytes": 4780,
+      "destination": "arms/h2/host-settings.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/invocation.txt",
+      "sha256": "25c245dd98b01b885c2546d0832d830cf5f809bb2c487627b4b58d81dc320a2e",
+      "bytes": 2456,
+      "destination": "arms/h2/invocation.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/outer-namespaces.json",
+      "sha256": "0630971e427639e4131eba2c997734aba1b77a8516aa3aa43e3df323d539f396",
+      "bytes": 629,
+      "destination": "arms/h2/outer-namespaces.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/post-hashes.json",
+      "sha256": "4f3c0b05ddf56d24e46e3d2ea0f4ecec27dea60a7ca9e424ceceeb0ea861101d",
+      "bytes": 11071,
+      "destination": "arms/h2/post-hashes.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/pre-hashes.json",
+      "sha256": "4f3c0b05ddf56d24e46e3d2ea0f4ecec27dea60a7ca9e424ceceeb0ea861101d",
+      "bytes": 11071,
+      "destination": "arms/h2/pre-hashes.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/prospective-terminal-attribution.json",
+      "sha256": "9875a893f5dd479dd7954d90147751a0a7a859ea61d04c4ba0ef4ff86748cb68",
+      "bytes": 1357,
+      "destination": "arms/h2/prospective-terminal-attribution.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/1-current-server-aggregate-v1-h2-warmup-download-1.json",
+      "sha256": "d8cfa341cf57ed3ebf8c814bf098c628037a44339eabb08dd54623addb286e98",
+      "bytes": 4951,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/1-current-server-aggregate-v1-h2-warmup-download-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json",
+      "sha256": "0f0245a4365fa531359d5a9a348170318ab15140a93788bcada401dffb825962",
+      "bytes": 4926,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/11-current-server-aggregate-v1-h2-steady-download-1.json",
+      "sha256": "0bb78d0e1d34044eeaf68f6aea6daacfbd71e928a3f6681e5c36af4eaef1a196",
+      "bytes": 4945,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/11-current-server-aggregate-v1-h2-steady-download-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/12-current-server-aggregate-v1-h2-steady-upload-1.json",
+      "sha256": "b6a2f8e6cd4bab976d818d67e80e15d46f3de5724a4179682663c264343cbf1a",
+      "bytes": 4899,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/12-current-server-aggregate-v1-h2-steady-upload-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/13-current-server-aggregate-v1-h2-steady-upload-2.json",
+      "sha256": "f3a84a3c7c0017ddc29fcd9da34b46fc6919eab2c6bfe34fd41a5d467be2c0ad",
+      "bytes": 4897,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/13-current-server-aggregate-v1-h2-steady-upload-2.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/14-current-server-aggregate-v1-h2-steady-download-2.json",
+      "sha256": "d865cb3c4ee1d586320953205689b86ceb32a4ad4ce3d8ddca7e254a0036223d",
+      "bytes": 4944,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/14-current-server-aggregate-v1-h2-steady-download-2.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/15-current-server-aggregate-v1-h2-steady-download-3.json",
+      "sha256": "751681aff918d6417b2912a72df6ca66ade1156549e04b5e4fe32634551328dc",
+      "bytes": 4942,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/15-current-server-aggregate-v1-h2-steady-download-3.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/16-current-server-aggregate-v1-h2-steady-upload-3.json",
+      "sha256": "783dde1171ce0b6127084cdd5576c925e65366076efb62b07db0ba5e9942e40f",
+      "bytes": 4929,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/16-current-server-aggregate-v1-h2-steady-upload-3.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/2-current-server-aggregate-v1-h2-warmup-download-2.json",
+      "sha256": "2655f4a72e0e587fd21d626af92549964ddad7ed6d7ec7c0d43b8bff30dd8cbc",
+      "bytes": 4946,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/2-current-server-aggregate-v1-h2-warmup-download-2.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/3-current-server-aggregate-v1-h2-warmup-download-3.json",
+      "sha256": "3942d520bab30307c371393b927ed78bc1b0e8efcf6c673a38d3a1b226c8dfa3",
+      "bytes": 4929,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/3-current-server-aggregate-v1-h2-warmup-download-3.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/4-current-server-aggregate-v1-h2-warmup-download-4.json",
+      "sha256": "afb669109e87a4dd2b66cba0e864847484cc90326df361eeeb0ec81e6a89b9e4",
+      "bytes": 4939,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/4-current-server-aggregate-v1-h2-warmup-download-4.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/5-current-server-aggregate-v1-h2-warmup-upload-1.json",
+      "sha256": "eaf129981204b92238285a17fc6baef1ab1d9010fa420e2d44b4e3ef8ea31596",
+      "bytes": 4896,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/5-current-server-aggregate-v1-h2-warmup-upload-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/6-current-server-aggregate-v1-h2-warmup-upload-2.json",
+      "sha256": "d24bdbc36eead755ef8c0e3f25faba2ad1134e7b2c872e3936962249362555bc",
+      "bytes": 4941,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/6-current-server-aggregate-v1-h2-warmup-upload-2.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/7-current-server-aggregate-v1-h2-warmup-upload-3.json",
+      "sha256": "cd31fd7a05db229ada9838770e9dce8ae6c288d461821044709c3410a39a4698",
+      "bytes": 4892,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/7-current-server-aggregate-v1-h2-warmup-upload-3.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/8-current-server-aggregate-v1-h2-warmup-upload-4.json",
+      "sha256": "7da7997fde7b22bef622c2d4bef406548c36276da2d8ee344c1672a5bf2e6317",
+      "bytes": 4895,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/8-current-server-aggregate-v1-h2-warmup-upload-4.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json",
+      "sha256": "4e8fdff78f9e1a40d82086867d6c86729e922d94c6a1cd948c027a648c717831",
+      "bytes": 4942,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/agent-namespace.stop",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/current-server-aggregate-v1-h2-1-agent.log",
+      "sha256": "6c5893c052090b5f055ee1bdb7f8f5e2e5c88e211ce9b4402ea756ac01e980a5",
+      "bytes": 7939,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/current-server-aggregate-v1-h2-1-agent.ready.json",
+      "sha256": "4d33984c7a24d631dd10dbd055c8b3bb14325084487df8cd4b88536131f8e0f9",
+      "bytes": 48,
+      "destination": null,
+      "disposition": "certificate/key/readiness material excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/current-server-aggregate-v1-h2-1-agent.stop",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/current-server-aggregate-v1-h2-1-management-ca.pem",
+      "sha256": "43fc3472a0b1a1826e01f27557c48b8a0fea68ea6159837c1cd4f7492fd8dcc5",
+      "bytes": 583,
+      "destination": null,
+      "disposition": "certificate/key/readiness material excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/current-server-aggregate-v1-h2-1-server.log",
+      "sha256": "c7807821d4ffa8a2f89bd80a4d47aa33051befb75ae43cb80bda8da21a1ae9c4",
+      "bytes": 8451,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/current-server-aggregate-v1-h2-1-server.ready.json",
+      "sha256": "3b2b5f2db94f7e2e17b38e83745d7da0ee6ba82d338b0c97ce722abf3a3267d4",
+      "bytes": 486,
+      "destination": null,
+      "disposition": "certificate/key/readiness material excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/current-server-aggregate-v1-h2-1-server.stop",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/origin.log",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "bytes": 5,
+      "destination": null,
+      "disposition": "application log excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/origin.ready.json",
+      "sha256": "8275c8dcd62fd89f9d1f89850f0881c330a8bd60ce18e14067d0e4bfecc82f60",
+      "bytes": 82,
+      "destination": null,
+      "disposition": "certificate/key/readiness material excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/origin.stop",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/proxy-agent-growth.UtddhX/router-namespace.stop",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/raw-post-join-supervisor-validation.json",
+      "sha256": "b767d8b3be1e3e9c64962f3080c3141799c73875529dede73cae5ad93debb2c1",
+      "bytes": 225894,
+      "destination": "arms/h2/raw-post-join-supervisor-validation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.jsonl",
+      "sha256": "2eaabb6cf31f4b75dec6e7c80efa877d2038c0464e601ec66b4f88f68f814abf",
+      "bytes": 178320,
+      "destination": "arms/h2/results.jsonl",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.lifecycle.jsonl",
+      "sha256": "d92a95c2fb034d110f557905f00f62d280bd8ee95f2ee32d5c19b9a2072b9f42",
+      "bytes": 980,
+      "destination": "arms/h2/results.lifecycle.jsonl",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/final-raw-write-record.json",
+      "sha256": "91dab3adfdfe1f7d1d8a7a86b5f1b9a00fea868549d1aadc0a16182d4d936af8",
+      "bytes": 893,
+      "destination": "arms/h2/results.sender-wait-controls/final-raw-write-record.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/final-raw-write-terminal.json",
+      "sha256": "d343a5de9db227a094ff50d48f2fc7d4e1c5ff6d65111c1799899528bec0fc1c",
+      "bytes": 121087,
+      "destination": "arms/h2/results.sender-wait-controls/final-raw-write-terminal.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/final-raw-write-terminal.json.attribution.json",
+      "sha256": "383a974a6416e913ed2df003ff6d29795d7bc30b434e5da4bcd8d58e241faff6",
+      "bytes": 8097,
+      "destination": "arms/h2/results.sender-wait-controls/final-raw-write-terminal.json.attribution.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/final-raw-write-validation.json",
+      "sha256": "a04c0ef249f64a5cc75b3d9e041fe623533cd26e33c08051c0c90bd54d98a688",
+      "bytes": 89,
+      "destination": "arms/h2/results.sender-wait-controls/final-raw-write-validation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-11-post-capacity.json",
+      "sha256": "6320cf43b27a4ea8e805aacea61db56fe5443ecebe19411fb4e739c82d2b8643",
+      "bytes": 33643,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-11-post-sender.json",
+      "sha256": "d74734bb2e277244b2e6b40654bd08782e2411b1691a3fed15a0c3125f4b7470",
+      "bytes": 456319,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-11-pre-capacity.json",
+      "sha256": "ddd0e1456d698d1d5a943066266234f9d0af2ee927fecd3ceafe4baf65cab7fd",
+      "bytes": 36331,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-11-pre-sender.json",
+      "sha256": "98a5c0d79b201fee6704f417f31ad44f433cba636f732115e66bb6b82d3ed65b",
+      "bytes": 281190,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-11-pre-validation.json",
+      "sha256": "488190a2ec0c503f11aa7c1d3a58e3d1aef2b4f47b3922b07a34c37f0d19c2ac",
+      "bytes": 132,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-11-validation.json",
+      "sha256": "020698f6a588112baf192a2432dc07078a8665aec5124a3d7bb6dcf990cab2be",
+      "bytes": 186407,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-14-post-capacity.json",
+      "sha256": "2657abeb9beb10c793eccdc9b0a4a5bc13193f17a3713dcd593bec55937bc43b",
+      "bytes": 31781,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-14-post-sender.json",
+      "sha256": "f5fb9b02d7bd59fad08ad50f93abc9ff59817c9e0b4dfa99f9a8b0435788d54c",
+      "bytes": 478597,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-14-pre-capacity.json",
+      "sha256": "af55e89944b556e2c64861f5b620aee7c1f8e2888b156002d7abc7a81b9e2bba",
+      "bytes": 64511,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-14-pre-sender.json",
+      "sha256": "8ae7bffac032f525f6117ce64048e6dac0814aaa4f8b038d048f9dca65674a1b",
+      "bytes": 301038,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-14-pre-validation.json",
+      "sha256": "1623cf47f842ce4aa8fa0b540939dfd7a8a4d81926f93f0b69aa1e6333235572",
+      "bytes": 132,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-14-validation.json",
+      "sha256": "1079966d62174c6f4e4d4a8ec46f0676bf88f2f356985bbc748d698daa82e72e",
+      "bytes": 206392,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-15-post-capacity.json",
+      "sha256": "f65fda7fcccb7de2552bc687cedb12cc7fb9d2f88413d7e749e312a48ed25930",
+      "bytes": 21205,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-15-post-sender.json",
+      "sha256": "76a8a61113c0cb1bbb3957981724a75c9df592a36154e6a77c3024bde1659ba6",
+      "bytes": 307917,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-15-pre-capacity.json",
+      "sha256": "7050206dfc640be1765ae4c6b8c86e2acb250b2cb8be50ebd52f478f49ac3f31",
+      "bytes": 5766,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-15-pre-sender.json",
+      "sha256": "1044730f912881be8d08d7b316b830a7a1b0c46ed7c8f00b47b76f6fa59dc518",
+      "bytes": 260429,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-15-pre-validation.json",
+      "sha256": "7ac08c30a9d737df67a713e6e12aa4bd68d3a1c1a9de2fe4eda05334501d2c06",
+      "bytes": 132,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-15-validation.json",
+      "sha256": "04792a60e502876325cee8b119faa1ae9b6b806bd95e08934514d92a821a3b19",
+      "bytes": 68949,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-9-post-capacity.json",
+      "sha256": "66ec5248aef71a401a1a936aa31d047f6709cc108b70b93104e7af6bdd51c7d7",
+      "bytes": 33148,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-9-post-sender.json",
+      "sha256": "3b0fc076b1d41ef554953a07f282f4e135b342689e72c2fb7e38d8f584fadc19",
+      "bytes": 450137,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-9-pre-capacity.json",
+      "sha256": "9b0979d7aa162d3c5673b85240814dd0eb77cb094c3bf9c166c9950c5e2a3ff2",
+      "bytes": 220761,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-9-pre-sender.json",
+      "sha256": "7f867a6ea8df916ec3489a00d2dbbfdf42fdbaecc30c60735e80d8f1c844fd50",
+      "bytes": 456123,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-9-pre-validation.json",
+      "sha256": "be165a285bc898247abccad444dbb9832a51e291319747a15b4c3edadc05ae12",
+      "bytes": 131,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/sequence-9-validation.json",
+      "sha256": "f6e4d0288f0addb5c513bce77c8577d049cd89da31c4d515c4d6c32cf0b1619f",
+      "bytes": 180258,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/terminal-sender.json",
+      "sha256": "81bbc89c83f6de0ee80e6523297abaa63bc71d026d90270f6d99b4c239b89831",
+      "bytes": 270302,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/terminal-validation.json",
+      "sha256": "5de5117c2fa0d3df21a12ff1477c5da91ec8547d3a54e1b77551471feb8fdd50",
+      "bytes": 127,
+      "destination": "arms/h2/results.sender-wait-controls/terminal-validation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-records.jsonl",
+      "sha256": "485dfa8e0f98ee9b52efeb55d5a6c42641d47391c539a0e2ef6ee5a88578319e",
+      "bytes": 2715775,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.summary.json",
+      "sha256": "2405aeaa87e5d1b48689d434f172f38e88880fce86aa80b1293db7da8e69d8b6",
+      "bytes": 15344,
+      "destination": "arms/h2/results.summary.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/runner.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h2/runner.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/runner.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "arms/h2/runner.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/runner.stdout.log",
+      "sha256": "cffc0b03c17c3c6b080c826a6ba07bd173eb32d148b16ebbd7c7b6fed77d832c",
+      "bytes": 543,
+      "destination": "arms/h2/runner.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/cgroup-delegation-paths.json",
+      "sha256": "2f68b31b428800a9b86e3046654eed643e811ae1f0f02fb2dfac986762ac39ac",
+      "bytes": 1612,
+      "destination": "arms/h2/server-scope/cgroup-delegation-paths.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/cgroup-with-sentinel.json",
+      "sha256": "c2ced622d8c8f985d6ce48eebc4448a84cae299c3e339d507c29791b51844a0b",
+      "bytes": 471,
+      "destination": "arms/h2/server-scope/cgroup-with-sentinel.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/runner-owned-namespaces.json",
+      "sha256": "e29813bd0afd7ce6ca29ccb087c619a958eb023d9863c4c71b9c6e26f3053141",
+      "bytes": 248,
+      "destination": "arms/h2/server-scope/runner-owned-namespaces.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/scope-launcher.json",
+      "sha256": "f710a0c7aed89f6c88e68f897350c2ed7ee5df542ff87a7a4e0c67eb8c232e35",
+      "bytes": 171,
+      "destination": "arms/h2/server-scope/scope-launcher.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/scope-process-join.json",
+      "sha256": "753f4659492ef972745df7438aff4fadd1f505d340021d42c112d9db3ea83924",
+      "bytes": 151,
+      "destination": "arms/h2/server-scope/scope-process-join.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/sentinel.json",
+      "sha256": "cc377026bc3778404c2c82fb7da44903a21d26e7608374f45c7f8b228d6fe942",
+      "bytes": 404,
+      "destination": "arms/h2/server-scope/sentinel.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/sentinel.json.natural-exit",
+      "sha256": "61fb22e66cdb32d8bc9cdf8246d8d58544f3f06f794cdde3937595c4860d0900",
+      "bytes": 13,
+      "destination": "arms/h2/server-scope/sentinel.json.natural-exit",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/sentinel.release",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-app-ready.json",
+      "sha256": "47b096bd47958340adab3cba1c74786f1bacc7a45b8e4a49a56aa08ca637370e",
+      "bytes": 776,
+      "destination": null,
+      "disposition": "certificate/key/readiness material excluded"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-app.release",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-application-binding.json",
+      "sha256": "6e748492890834905352b5f0cf7f9d133ab2b13b03b5fbc9506cdad6bd62f468",
+      "bytes": 3403,
+      "destination": "arms/h2/server-scope/server-application-binding.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-cgroup-post-workload.json",
+      "sha256": "e28481716bad5d343340fbc63203342ba0cef89f70c19b4086c86de8e47395ef",
+      "bytes": 453,
+      "destination": "arms/h2/server-scope/server-cgroup-post-workload.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-cgroup-pre-traffic.json",
+      "sha256": "be3381621f0020dc8586eb20683638e23d7ce6d4376072d85946d7799155a457",
+      "bytes": 473,
+      "destination": "arms/h2/server-scope/server-cgroup-pre-traffic.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-preexec-binding.json",
+      "sha256": "b7d081d13cfa905655c4f38833ac9071ce340c2865ae8ab016529e522f9ee42d",
+      "bytes": 4621,
+      "destination": "arms/h2/server-scope/server-preexec-binding.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-preexec.json",
+      "sha256": "3f70bc55c4814cd0d6f9c40e39928d0a280fa6541f027d110f34079941f9bfed",
+      "bytes": 1269,
+      "destination": "arms/h2/server-scope/server-preexec.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-preexec.json.released",
+      "sha256": "fdc935e6a3f33abdcfb4f5d7a335d408b2b988e7a5f8411d9f73349d1fab39be",
+      "bytes": 9,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-preexec.release",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": null,
+      "disposition": "repetitive phase/sender/validation/release data; canonical results, complete attestation and final sidecars retained"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-resource-attestation.json",
+      "sha256": "2773a29703edc9f8a1f1f6f2ecfffa1bbd9e85f9c7f22348b797bfed5b9ec670",
+      "bytes": 1417,
+      "destination": "arms/h2/server-scope/server-resource-attestation.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-resource.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h2/server-scope/server-resource.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/systemd-run.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h2/server-scope/systemd-run.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/systemd-run.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "arms/h2/server-scope/systemd-run.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/systemd-run.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "arms/h2/server-scope/systemd-run.stdout.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-cleanup-query.txt",
+      "sha256": "a0c2edd4128d9aa1601ae769a535c71c9f7f041601581064c5075b6511a2d00a",
+      "bytes": 64,
+      "destination": "arms/h2/server-scope/unit-cleanup-query.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-control-group.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h2/server-scope/unit-control-group.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-final-polls.txt",
+      "sha256": "1b1077a93fc73e23fb2fcc94c9f6da073a42ca8ebb68a1031a2a9f66c64d022f",
+      "bytes": 64,
+      "destination": "arms/h2/server-scope/unit-final-polls.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-final.json",
+      "sha256": "6a4488011f89a66601f3f4b4161e2949ccca33ae8e310a8db8828f31ab02b42b",
+      "bytes": 226,
+      "destination": "arms/h2/server-scope/unit-final.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-policy.json",
+      "sha256": "3fbee2a775cd83c94b4e02a00ff078eb85078540323184aa64f1c3c52df12760",
+      "bytes": 750,
+      "destination": "arms/h2/server-scope/unit-policy.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-server-preexec.txt",
+      "sha256": "731a746eff71fbbf8eb92e7d84b5fc18b7db59fc78c43380c2c2b68099a35513",
+      "bytes": 176,
+      "destination": "arms/h2/server-scope/unit-server-preexec.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-with-sentinel.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h2/server-scope/unit-with-sentinel.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-with-sentinel.txt",
+      "sha256": "e619397549ebe7ef8b5f9ccadc68a843a91d18ab8bab9a9cf8ea400d69f75526",
+      "bytes": 348,
+      "destination": "arms/h2/server-scope/unit-with-sentinel.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit.joined",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "destination": "arms/h2/server-scope/unit.joined",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope-invocation.txt",
+      "sha256": "c5cd8772a680ea67f64fbf18b99afcc15bb98d7e1055342f54d455ea31a32fa5",
+      "bytes": 299,
+      "destination": "arms/h2/server-scope-invocation.txt",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/supervisor-cleanup.json",
+      "sha256": "ed21eb54c20162ffe13eabed1790f826e0ca6eec860f96b399fb029e12e17662",
+      "bytes": 489,
+      "destination": "arms/h2/supervisor-cleanup.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/supervisor-lifecycle.json",
+      "sha256": "a83ea3f1e8fb2de37efa85f69ce4e295a0ad0ce18092fe6d21e79c7838390592",
+      "bytes": 511,
+      "destination": "arms/h2/supervisor-lifecycle.json",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/validation.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "destination": "arms/h2/validation.status",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/validation.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "arms/h2/validation.stderr.log",
+      "disposition": "selected exact copy"
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/validation.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "destination": "arms/h2/validation.stdout.log",
+      "disposition": "selected exact copy"
+    }
+  ],
+  "omitted_contents_exported": false,
+  "all_original_metadata_hashes_verified_at_packaging": true,
+  "not_a_standalone_replay_tree": true
+}

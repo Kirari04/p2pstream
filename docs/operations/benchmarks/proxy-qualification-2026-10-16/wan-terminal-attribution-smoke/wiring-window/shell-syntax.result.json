@@ -1,0 +1,19 @@
+{
+  "name": "shell-syntax",
+  "argv": [
+    "bash",
+    "-n",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+  "forced": false,
+  "started_unix": 1792234427.29398,
+  "pid": 2428518,
+  "exit_status": 0,
+  "finished_unix": 1792234427.3957038,
+  "remaining_group_members": [],
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "output_bytes": 0,
+  "accepted": true
+}

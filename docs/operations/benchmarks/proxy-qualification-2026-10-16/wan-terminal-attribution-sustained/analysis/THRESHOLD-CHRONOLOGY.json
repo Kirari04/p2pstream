@@ -1,0 +1,1442 @@
+{
+  "scope": "offline existing-source/evidence only; first transition timing remains inconclusive",
+  "arms": [
+    {
+      "protocol": "h1",
+      "absolute_floor_accepted": true,
+      "integrity_issues": [],
+      "conditioning_issues": [],
+      "performance_issues": [],
+      "selected": [
+        {
+          "sequence": 9,
+          "lane": 1,
+          "stream_id": 6,
+          "MBps": 33.89713529620678,
+          "pre_ssthresh": 2147483647,
+          "post_ssthresh": 2147483647,
+          "pre_total_retrans": 0,
+          "post_total_retrans": 0,
+          "pre_cwnd": 10,
+          "post_cwnd": 5899,
+          "pre_last_data_sent_ms": 9864
+        },
+        {
+          "sequence": 11,
+          "lane": 3,
+          "stream_id": 6,
+          "MBps": 33.83760802470043,
+          "pre_ssthresh": 2147483647,
+          "post_ssthresh": 2147483647,
+          "pre_total_retrans": 0,
+          "post_total_retrans": 0,
+          "pre_cwnd": 10,
+          "post_cwnd": 5893,
+          "pre_last_data_sent_ms": 6517
+        },
+        {
+          "sequence": 14,
+          "lane": 2,
+          "stream_id": 6,
+          "MBps": 30.70786369219332,
+          "pre_ssthresh": 456,
+          "post_ssthresh": 1810,
+          "pre_total_retrans": 0,
+          "post_total_retrans": 9,
+          "pre_cwnd": 10,
+          "post_cwnd": 1207,
+          "pre_last_data_sent_ms": 11070
+        },
+        {
+          "sequence": 15,
+          "lane": 3,
+          "stream_id": 6,
+          "MBps": 34.20160925344641,
+          "pre_ssthresh": 2147483647,
+          "post_ssthresh": 2147483647,
+          "pre_total_retrans": 0,
+          "post_total_retrans": 0,
+          "pre_cwnd": 10,
+          "post_cwnd": 5889,
+          "pre_last_data_sent_ms": 473
+        }
+      ],
+      "lanes": [
+        {
+          "lane": 0,
+          "generation": 1,
+          "session": "0x3862ec586008",
+          "local": "10.212.0.2:51436",
+          "remote": "10.211.0.1:33213",
+          "baseline_ssthresh": 2147483647,
+          "transition_observed": false,
+          "first_changed_threshold": 0,
+          "failure_reason": "",
+          "explanation_status": "not_reproduced",
+          "monitored_attempts": 16,
+          "provider_errors": 0,
+          "last_equal_raw_ordinal": 16,
+          "last_equal_capture_after_binding_seconds": 137.632132411,
+          "last_equal_ssthresh": 2147483647,
+          "last_equal_bytes_sent": 2904,
+          "last_equal_copy_span_matches": [],
+          "boundaries": [
+            {
+              "sequence": 9,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 70441726148,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 9,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 78682683667,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 87234593533,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 95473871271,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 111859762032,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 120914832487,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 121351654318,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 129502993297,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.post_tcp_info"
+            }
+          ],
+          "first_available_finite_boundary": null
+        },
+        {
+          "lane": 1,
+          "generation": 3,
+          "session": "0x3862ee4b8008",
+          "local": "10.212.0.2:51488",
+          "remote": "10.211.0.1:33213",
+          "baseline_ssthresh": 2147483647,
+          "transition_observed": false,
+          "first_changed_threshold": 0,
+          "failure_reason": "attempt_limit",
+          "explanation_status": "inconclusive",
+          "monitored_attempts": 4096,
+          "provider_errors": 0,
+          "last_equal_raw_ordinal": 4096,
+          "last_equal_capture_after_binding_seconds": 2.038974537,
+          "last_equal_ssthresh": 2147483647,
+          "last_equal_bytes_sent": 45058817,
+          "last_equal_copy_span_matches": [
+            {
+              "sequence": 1,
+              "stage": "warmup",
+              "direction": "download"
+            }
+          ],
+          "boundaries": [
+            {
+              "sequence": 9,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 70194344961,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 9,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 78435304765,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 5899,
+              "source": "sequence-9-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 86987213810,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 23,
+              "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 95226489623,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 23,
+              "source": "sequence-11-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 111612381988,
+              "snd_ssthresh": 461,
+              "total_retrans": 0,
+              "cwnd": 461,
+              "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 120667453344,
+              "snd_ssthresh": 461,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 121104272260,
+              "snd_ssthresh": 461,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 129255611539,
+              "snd_ssthresh": 461,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.post_tcp_info"
+            }
+          ],
+          "first_available_finite_boundary": {
+            "sequence": 14,
+            "phase": "pre",
+            "same_owner_tuple": true,
+            "captured": true,
+            "capture_finished_monotonic_ns": 111612381988,
+            "snd_ssthresh": 461,
+            "total_retrans": 0,
+            "cwnd": 461,
+            "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+          }
+        },
+        {
+          "lane": 2,
+          "generation": 2,
+          "session": "0x3862ee91c008",
+          "local": "10.212.0.2:51452",
+          "remote": "10.211.0.1:33213",
+          "baseline_ssthresh": 2147483647,
+          "transition_observed": false,
+          "first_changed_threshold": 0,
+          "failure_reason": "attempt_limit",
+          "explanation_status": "inconclusive",
+          "monitored_attempts": 4096,
+          "provider_errors": 0,
+          "last_equal_raw_ordinal": 4096,
+          "last_equal_capture_after_binding_seconds": 10.058967905,
+          "last_equal_ssthresh": 2147483647,
+          "last_equal_bytes_sent": 41916393,
+          "last_equal_copy_span_matches": [
+            {
+              "sequence": 2,
+              "stage": "warmup",
+              "direction": "download"
+            }
+          ],
+          "boundaries": [
+            {
+              "sequence": 9,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 70194343859,
+              "snd_ssthresh": 456,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 9,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 78435308943,
+              "snd_ssthresh": 456,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 86987212987,
+              "snd_ssthresh": 456,
+              "total_retrans": 0,
+              "cwnd": 456,
+              "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 95226488390,
+              "snd_ssthresh": 456,
+              "total_retrans": 0,
+              "cwnd": 456,
+              "source": "sequence-11-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 111612380684,
+              "snd_ssthresh": 456,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 120667453594,
+              "snd_ssthresh": 1810,
+              "total_retrans": 9,
+              "cwnd": 1207,
+              "source": "sequence-14-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 121104323729,
+              "snd_ssthresh": 1810,
+              "total_retrans": 9,
+              "cwnd": 1207,
+              "source": "sequence-15-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 129255609765,
+              "snd_ssthresh": 1810,
+              "total_retrans": 9,
+              "cwnd": 1207,
+              "source": "sequence-15-post-sender.json: tcp_state.post_tcp_info"
+            }
+          ],
+          "first_available_finite_boundary": {
+            "sequence": 9,
+            "phase": "pre",
+            "same_owner_tuple": true,
+            "captured": true,
+            "capture_finished_monotonic_ns": 70194343859,
+            "snd_ssthresh": 456,
+            "total_retrans": 0,
+            "cwnd": 10,
+            "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+          }
+        },
+        {
+          "lane": 3,
+          "generation": 4,
+          "session": "0x3862ec586588",
+          "local": "10.212.0.2:51474",
+          "remote": "10.211.0.1:33213",
+          "baseline_ssthresh": 2147483647,
+          "transition_observed": false,
+          "first_changed_threshold": 0,
+          "failure_reason": "attempt_limit",
+          "explanation_status": "inconclusive",
+          "monitored_attempts": 4096,
+          "provider_errors": 0,
+          "last_equal_raw_ordinal": 4096,
+          "last_equal_capture_after_binding_seconds": 17.966730462,
+          "last_equal_ssthresh": 2147483647,
+          "last_equal_bytes_sent": 41962485,
+          "last_equal_copy_span_matches": [
+            {
+              "sequence": 3,
+              "stage": "warmup",
+              "direction": "download"
+            }
+          ],
+          "boundaries": [
+            {
+              "sequence": 9,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 70194353378,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 231,
+              "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 9,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 78435320285,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 231,
+              "source": "sequence-9-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 86987222186,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 95226499282,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 5893,
+              "source": "sequence-11-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 111612389732,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 120667467622,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 121104332657,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 129255618753,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 5889,
+              "source": "sequence-15-post-sender.json: tcp_state.post_tcp_info"
+            }
+          ],
+          "first_available_finite_boundary": null
+        },
+        {
+          "lane": 4,
+          "generation": 5,
+          "session": "0x3862ec72d608",
+          "local": "10.212.0.2:51458",
+          "remote": "10.211.0.1:33213",
+          "baseline_ssthresh": 2147483647,
+          "transition_observed": false,
+          "first_changed_threshold": 0,
+          "failure_reason": "attempt_limit",
+          "explanation_status": "inconclusive",
+          "monitored_attempts": 4096,
+          "provider_errors": 0,
+          "last_equal_raw_ordinal": 4096,
+          "last_equal_capture_after_binding_seconds": 26.151344985,
+          "last_equal_ssthresh": 2147483647,
+          "last_equal_bytes_sent": 44715697,
+          "last_equal_copy_span_matches": [
+            {
+              "sequence": 4,
+              "stage": "warmup",
+              "direction": "download"
+            }
+          ],
+          "boundaries": [
+            {
+              "sequence": 9,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 70194356835,
+              "snd_ssthresh": 474,
+              "total_retrans": 0,
+              "cwnd": 237,
+              "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 9,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 78435325786,
+              "snd_ssthresh": 474,
+              "total_retrans": 0,
+              "cwnd": 237,
+              "source": "sequence-9-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 86987231013,
+              "snd_ssthresh": 474,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 95226507709,
+              "snd_ssthresh": 474,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 111612393270,
+              "snd_ssthresh": 474,
+              "total_retrans": 0,
+              "cwnd": 466,
+              "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 120667472241,
+              "snd_ssthresh": 474,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 121104336024,
+              "snd_ssthresh": 474,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 129255622220,
+              "snd_ssthresh": 474,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.post_tcp_info"
+            }
+          ],
+          "first_available_finite_boundary": {
+            "sequence": 9,
+            "phase": "pre",
+            "same_owner_tuple": true,
+            "captured": true,
+            "capture_finished_monotonic_ns": 70194356835,
+            "snd_ssthresh": 474,
+            "total_retrans": 0,
+            "cwnd": 237,
+            "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+          }
+        }
+      ]
+    },
+    {
+      "protocol": "h2",
+      "absolute_floor_accepted": false,
+      "integrity_issues": [],
+      "conditioning_issues": [],
+      "performance_issues": [
+        "steady download phase failed independent 29700000 B/s floor"
+      ],
+      "selected": [
+        {
+          "sequence": 9,
+          "lane": 1,
+          "stream_id": 6,
+          "MBps": 33.88349681003548,
+          "pre_ssthresh": 2147483647,
+          "post_ssthresh": 2147483647,
+          "pre_total_retrans": 0,
+          "post_total_retrans": 0,
+          "pre_cwnd": 10,
+          "post_cwnd": 5882,
+          "pre_last_data_sent_ms": 3633
+        },
+        {
+          "sequence": 11,
+          "lane": 3,
+          "stream_id": 6,
+          "MBps": 27.480695314998037,
+          "pre_ssthresh": 243,
+          "post_ssthresh": 243,
+          "pre_total_retrans": 0,
+          "post_total_retrans": 0,
+          "pre_cwnd": 10,
+          "post_cwnd": 3101,
+          "pre_last_data_sent_ms": 349
+        },
+        {
+          "sequence": 14,
+          "lane": 2,
+          "stream_id": 6,
+          "MBps": 27.4959057358898,
+          "pre_ssthresh": 235,
+          "post_ssthresh": 235,
+          "pre_total_retrans": 0,
+          "post_total_retrans": 0,
+          "pre_cwnd": 10,
+          "post_cwnd": 3076,
+          "pre_last_data_sent_ms": 5984
+        },
+        {
+          "sequence": 15,
+          "lane": 3,
+          "stream_id": 6,
+          "MBps": 34.927637845390386,
+          "pre_ssthresh": 2325,
+          "post_ssthresh": 2325,
+          "pre_total_retrans": 0,
+          "post_total_retrans": 0,
+          "pre_cwnd": 10,
+          "post_cwnd": 3131,
+          "pre_last_data_sent_ms": 16635
+        }
+      ],
+      "lanes": [
+        {
+          "lane": 0,
+          "generation": 1,
+          "session": "0x204fe0aa0108",
+          "local": "10.212.0.2:57168",
+          "remote": "10.211.0.1:44497",
+          "baseline_ssthresh": 2147483647,
+          "transition_observed": false,
+          "first_changed_threshold": 0,
+          "failure_reason": "",
+          "explanation_status": "not_reproduced",
+          "monitored_attempts": 18,
+          "provider_errors": 0,
+          "last_equal_raw_ordinal": 18,
+          "last_equal_capture_after_binding_seconds": 153.585165048,
+          "last_equal_ssthresh": 2147483647,
+          "last_equal_bytes_sent": 2972,
+          "last_equal_copy_span_matches": [],
+          "boundaries": [
+            {
+              "sequence": 9,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 84618962548,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 9,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 92864384661,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 101155880969,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 111229748704,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 126995275250,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 137090688970,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 137522308376,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 145506728666,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.post_tcp_info"
+            }
+          ],
+          "first_available_finite_boundary": null
+        },
+        {
+          "lane": 1,
+          "generation": 3,
+          "session": "0x204fe0dd0008",
+          "local": "10.212.0.2:57180",
+          "remote": "10.211.0.1:44497",
+          "baseline_ssthresh": 2147483647,
+          "transition_observed": false,
+          "first_changed_threshold": 0,
+          "failure_reason": "attempt_limit",
+          "explanation_status": "inconclusive",
+          "monitored_attempts": 4096,
+          "provider_errors": 0,
+          "last_equal_raw_ordinal": 4096,
+          "last_equal_capture_after_binding_seconds": 2.135471806,
+          "last_equal_ssthresh": 2147483647,
+          "last_equal_bytes_sent": 47236057,
+          "last_equal_copy_span_matches": [
+            {
+              "sequence": 1,
+              "stage": "warmup",
+              "direction": "download"
+            }
+          ],
+          "boundaries": [
+            {
+              "sequence": 9,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 84370835327,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 9,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 92616263481,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 5882,
+              "source": "sequence-9-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 100907792693,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 110981629348,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 126747147608,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 244,
+              "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 136842566197,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 244,
+              "source": "sequence-14-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 137274180824,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 244,
+              "source": "sequence-15-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 145258601905,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.post_tcp_info"
+            }
+          ],
+          "first_available_finite_boundary": {
+            "sequence": 14,
+            "phase": "pre",
+            "same_owner_tuple": true,
+            "captured": true,
+            "capture_finished_monotonic_ns": 126747147608,
+            "snd_ssthresh": 244,
+            "total_retrans": 0,
+            "cwnd": 244,
+            "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+          }
+        },
+        {
+          "lane": 2,
+          "generation": 4,
+          "session": "0x204fe0aa1708",
+          "local": "10.212.0.2:57210",
+          "remote": "10.211.0.1:44497",
+          "baseline_ssthresh": 2147483647,
+          "transition_observed": false,
+          "first_changed_threshold": 0,
+          "failure_reason": "attempt_limit",
+          "explanation_status": "inconclusive",
+          "monitored_attempts": 4096,
+          "provider_errors": 0,
+          "last_equal_raw_ordinal": 4096,
+          "last_equal_capture_after_binding_seconds": 10.092558187,
+          "last_equal_ssthresh": 2147483647,
+          "last_equal_bytes_sent": 44195364,
+          "last_equal_copy_span_matches": [
+            {
+              "sequence": 2,
+              "stage": "warmup",
+              "direction": "download"
+            }
+          ],
+          "boundaries": [
+            {
+              "sequence": 9,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 84370955270,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 9,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 92616390769,
+              "snd_ssthresh": 2147483647,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 100907913168,
+              "snd_ssthresh": 235,
+              "total_retrans": 0,
+              "cwnd": 235,
+              "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 110981750173,
+              "snd_ssthresh": 235,
+              "total_retrans": 0,
+              "cwnd": 235,
+              "source": "sequence-11-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 126747267281,
+              "snd_ssthresh": 235,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 136842689387,
+              "snd_ssthresh": 235,
+              "total_retrans": 0,
+              "cwnd": 3076,
+              "source": "sequence-14-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 137274300137,
+              "snd_ssthresh": 235,
+              "total_retrans": 0,
+              "cwnd": 3076,
+              "source": "sequence-15-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 145258721718,
+              "snd_ssthresh": 2307,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.post_tcp_info"
+            }
+          ],
+          "first_available_finite_boundary": {
+            "sequence": 11,
+            "phase": "pre",
+            "same_owner_tuple": true,
+            "captured": true,
+            "capture_finished_monotonic_ns": 100907913168,
+            "snd_ssthresh": 235,
+            "total_retrans": 0,
+            "cwnd": 235,
+            "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+          }
+        },
+        {
+          "lane": 3,
+          "generation": 5,
+          "session": "0x204fe0d52008",
+          "local": "10.212.0.2:57204",
+          "remote": "10.211.0.1:44497",
+          "baseline_ssthresh": 2147483647,
+          "transition_observed": false,
+          "first_changed_threshold": 0,
+          "failure_reason": "attempt_limit",
+          "explanation_status": "inconclusive",
+          "monitored_attempts": 4096,
+          "provider_errors": 0,
+          "last_equal_raw_ordinal": 4096,
+          "last_equal_capture_after_binding_seconds": 18.074142929,
+          "last_equal_ssthresh": 2147483647,
+          "last_equal_bytes_sent": 41949137,
+          "last_equal_copy_span_matches": [
+            {
+              "sequence": 3,
+              "stage": "warmup",
+              "direction": "download"
+            }
+          ],
+          "boundaries": [
+            {
+              "sequence": 9,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 84370959609,
+              "snd_ssthresh": 243,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 9,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 92616399155,
+              "snd_ssthresh": 243,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-9-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 100907917296,
+              "snd_ssthresh": 243,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 110981753960,
+              "snd_ssthresh": 243,
+              "total_retrans": 0,
+              "cwnd": 3101,
+              "source": "sequence-11-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 126747271108,
+              "snd_ssthresh": 2325,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 136842700468,
+              "snd_ssthresh": 2325,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 137274305597,
+              "snd_ssthresh": 2325,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 145258727540,
+              "snd_ssthresh": 2325,
+              "total_retrans": 0,
+              "cwnd": 3131,
+              "source": "sequence-15-post-sender.json: tcp_state.post_tcp_info"
+            }
+          ],
+          "first_available_finite_boundary": {
+            "sequence": 9,
+            "phase": "pre",
+            "same_owner_tuple": true,
+            "captured": true,
+            "capture_finished_monotonic_ns": 84370959609,
+            "snd_ssthresh": 243,
+            "total_retrans": 0,
+            "cwnd": 10,
+            "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+          }
+        },
+        {
+          "lane": 4,
+          "generation": 2,
+          "session": "0x204fe0d52588",
+          "local": "10.212.0.2:57188",
+          "remote": "10.211.0.1:44497",
+          "baseline_ssthresh": 2147483647,
+          "transition_observed": false,
+          "first_changed_threshold": 0,
+          "failure_reason": "attempt_limit",
+          "explanation_status": "inconclusive",
+          "monitored_attempts": 4096,
+          "provider_errors": 0,
+          "last_equal_raw_ordinal": 4096,
+          "last_equal_capture_after_binding_seconds": 26.219285643,
+          "last_equal_ssthresh": 2147483647,
+          "last_equal_bytes_sent": 44709175,
+          "last_equal_copy_span_matches": [
+            {
+              "sequence": 4,
+              "stage": "warmup",
+              "direction": "download"
+            }
+          ],
+          "boundaries": [
+            {
+              "sequence": 9,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 84370965049,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 122,
+              "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 9,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 92616404966,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 122,
+              "source": "sequence-9-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 100907920682,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 11,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 110981760373,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-11-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 126747275707,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 14,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 136842707472,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-14-post-sender.json: tcp_state.post_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "pre",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 137274308913,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.pre_tcp_info"
+            },
+            {
+              "sequence": 15,
+              "phase": "post",
+              "same_owner_tuple": true,
+              "captured": true,
+              "capture_finished_monotonic_ns": 145258753169,
+              "snd_ssthresh": 244,
+              "total_retrans": 0,
+              "cwnd": 10,
+              "source": "sequence-15-post-sender.json: tcp_state.post_tcp_info"
+            }
+          ],
+          "first_available_finite_boundary": {
+            "sequence": 9,
+            "phase": "pre",
+            "same_owner_tuple": true,
+            "captured": true,
+            "capture_finished_monotonic_ns": 84370965049,
+            "snd_ssthresh": 244,
+            "total_retrans": 0,
+            "cwnd": 122,
+            "source": "sequence-9-post-sender.json: tcp_state.pre_tcp_info"
+          }
+        }
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/final-raw-write-terminal.json",
+      "sha256": "c3cb89e3026a5a7c073fe59b36cc98c507caab5784d6e9b4639744154eb02927"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/attestation.json",
+      "sha256": "fdea8ff6f12efe387b15bd9c4dd4ce0a8fd7b668c56da7d3db94e3b256aab720"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/results.jsonl",
+      "sha256": "ec5486d8f07ecc862fe5d565e1efd70326d1948e61465d8d1dd2e6279070692a"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-9-pre-sender.json",
+      "sha256": "1258ef2789ac5ba5b3b46e8173d041ba9a20c65f1430039d0aa2f64062bb515b"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-9-post-sender.json",
+      "sha256": "6a17d78f7c77c2aa73d6c76b977ace3210fced33cb644071b1e03b3770030cf5"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-11-pre-sender.json",
+      "sha256": "f288ef59c048f8ba54f10d9b9fb7b4d1d71a1b54c3deb9247d971b1e5e1fb99d"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-11-post-sender.json",
+      "sha256": "8d226b3a80cdc834fc336efcaaa89f5cbfe8d9f3b29cc288becc5c9333829a4c"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-14-pre-sender.json",
+      "sha256": "61088849dc2e4b441be631ddc8676054bb88d94ab326f1a515298a72e4e1bf6d"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-14-post-sender.json",
+      "sha256": "1d8960ae1a6f929ab565ac8f53b1b7ee7afccfb2819a07a7d9d2e72206d72c5f"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-15-pre-sender.json",
+      "sha256": "38a35cb54f4ad97f2cb272779ae79b5e3422cd6745ced99ff190dd390c44ab49"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-15-post-sender.json",
+      "sha256": "500f4d04a8915df2a8b7ca19a098670bfc32271d8855577a4eca5aeef1d519b9"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/final-raw-write-terminal.json",
+      "sha256": "41183eb79ed489f4ad1ce188512b84607dd402bd1af2d6364be9333642f37a98"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/attestation.json",
+      "sha256": "583e1ec1b67bf6982fae972ea098a08d4ea9d0bde4c347918298ccd7e6bf0dfa"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/results.jsonl",
+      "sha256": "62a2e476593d698f4c765c5cf9205c1e6e83af90f11f03e948cf10946a268712"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-9-pre-sender.json",
+      "sha256": "6f46130042a0efe4e992f7ebb7762864cae8e0c2b56b4f6bb9230531842e90fc"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-9-post-sender.json",
+      "sha256": "9b32605dcb13bcf4a4c3b4c6ee6d08d350a2a338f6d6e4bdc4ff15ec6e279db2"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-11-pre-sender.json",
+      "sha256": "3131ce8cbfb0d99f5f474e2127a1ddb6c4fe80f94063e4ed5b26a7b365292eca"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-11-post-sender.json",
+      "sha256": "b33461c43c3a8a5f349fa69913116051b0f39c2f3fe760c90345173cf6c8c133"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-14-pre-sender.json",
+      "sha256": "6a47b1d9d5a9cbf52ff56cff48db8a3830f41800a69f579e210d1e497eee75e0"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-14-post-sender.json",
+      "sha256": "d143c25c1465c2d9ba6e56f60a2fc21843f7fe50c34c45f9460e8d009a714211"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-15-pre-sender.json",
+      "sha256": "7173b1388dddfb2f08546eae67b21e2991d1c6d8e60da8eb86ed01adb13619f5"
+    },
+    {
+      "path": "runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-15-post-sender.json",
+      "sha256": "c80acb3e57a104aa7fa7e30df354393a4036a4faabf317f381d84e155f236999"
+    }
+  ],
+  "pre_capture_source_note": "Both exact interval pre/post TCP captures are retained in the sequence-N-post-sender.json response, whose TCP sequence is N. The earlier pre response is produced before interval arming and its zero/uncaptured fields are not observations. Every used pre capture equals the same-sequence persistent history.selected_pre_tcp_info; every used capture explicitly succeeded and exposes snd_ssthresh."
+}

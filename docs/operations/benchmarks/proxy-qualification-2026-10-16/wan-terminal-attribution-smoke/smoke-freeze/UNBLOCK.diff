@@ -1,0 +1,11 @@
+--- smoke-freeze/blocked-runner.sh
++++ runner-source/integration/run-wan-below-tls-arm.sh
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env bash
+ set -Eeuo pipefail
+ # SOURCE-ONLY: reviewed derivative binary/build tuple does not exist yet.
+-expected_terminal_build_receipt_sha256=UNBUILT
++expected_terminal_build_receipt_sha256=ad0dbfb3adafab686a4fc84f75effaee57819f2694ae644ada901a192604ad62
+ [[ $expected_terminal_build_receipt_sha256 =~ ^[0-9a-f]{64}$ ]] || {
+   echo "prospective terminal build/source receipt is not reviewed; endpoint execution blocked" >&2
+   exit 125

@@ -1,0 +1,23 @@
+{
+  "checks": {
+    "natural": true,
+    "healthy_integrity_conditioning": true,
+    "prospective_and_preserved_equality": true,
+    "raw_finalizer_status_exact": true,
+    "recognized_result_partition": true,
+    "natural_endpoint_and_resource": true,
+    "hashes_unchanged": true
+  },
+  "accepted": true,
+  "wrapper_status": 0,
+  "old_verdict": {
+    "schema_version": 1,
+    "mode": "final-closure",
+    "issues": [],
+    "accepted": true
+  },
+  "classifications": [],
+  "performance_issues": [],
+  "conditioning_issues": [],
+  "integrity_issues": []
+}

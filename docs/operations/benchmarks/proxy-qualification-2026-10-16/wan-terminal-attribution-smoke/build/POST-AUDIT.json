@@ -1,0 +1,19 @@
+{
+  "source_and_checkpoint_unchanged": true,
+  "checked_hashes": 513,
+  "remaining_owned_group_members": [],
+  "task_artifact_bytes": 92108071,
+  "artifact_budget_bytes": 104857600,
+  "build_receipt_sha256": "ad0dbfb3adafab686a4fc84f75effaee57819f2694ae644ada901a192604ad62",
+  "wiring_result_sha256": "5428155be544c96a2c231a0dd3a9db14c3bd47e18441c9ee95dd1a11f40ffcf7",
+  "wiring_case_counts": {
+    "h1": 20,
+    "arm_outcome": 7,
+    "arm_revisit": 4
+  },
+  "build_accepted": true,
+  "wiring_accepted": true,
+  "unbuilt_guard_preserved": true,
+  "endpoint_executed": false,
+  "wan_traffic": false
+}

@@ -1,0 +1,76 @@
+{
+  "audit_accepted": true,
+  "diagnostic_performance_accepted": false,
+  "arms": [
+    {
+      "protocol": "h1",
+      "wrapper_status": 0,
+      "natural_exit": true,
+      "seconds": 146.0787525177002,
+      "attestation_accepted": true,
+      "integrity_issues": [],
+      "conditioning_issues": [],
+      "performance_issues": [],
+      "old_verdict": {
+        "schema_version": 1,
+        "mode": "final-closure",
+        "issues": [],
+        "accepted": true
+      },
+      "prospective_accepted": true,
+      "classifications": [],
+      "saved_independent_equality": true,
+      "transfers": 16,
+      "attempted": 16,
+      "completed": 16,
+      "payload_bytes": [
+        268435456
+      ],
+      "all_endpoint_helper_natural_zero": true,
+      "owner_count": 5,
+      "intent_complete": true,
+      "raw_errors": 0,
+      "raw_shorts": 0
+    },
+    {
+      "protocol": "h2",
+      "wrapper_status": 1,
+      "natural_exit": true,
+      "seconds": 162.25919318199158,
+      "attestation_accepted": false,
+      "integrity_issues": [],
+      "conditioning_issues": [],
+      "performance_issues": [
+        "steady download phase failed independent 29700000 B/s floor"
+      ],
+      "old_verdict": {
+        "schema_version": 1,
+        "mode": "final-closure",
+        "issues": [],
+        "accepted": true
+      },
+      "prospective_accepted": true,
+      "classifications": [],
+      "saved_independent_equality": true,
+      "transfers": 16,
+      "attempted": 16,
+      "completed": 16,
+      "payload_bytes": [
+        268435456
+      ],
+      "all_endpoint_helper_natural_zero": true,
+      "owner_count": 5,
+      "intent_complete": true,
+      "raw_errors": 0,
+      "raw_shorts": 0
+    }
+  ],
+  "source_hash_checks": 933,
+  "source_unchanged": true,
+  "remaining_owned_processes_or_namespaces": [],
+  "h1_continuation": true,
+  "task_artifact_bytes": 143281052,
+  "artifact_cap_bytes": 268435456,
+  "qualification_cleared": false,
+  "qualification_gate": "three alternating pairs of32 transfers,96 total, >=90% each direction per pair on final production source"
+}

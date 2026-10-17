@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "audit_scope": "File/hash/content and saved evidence consistency only; no build/test/validator under review/runtime invocation.",
+  "copies_verified_against_actual_sources": 145,
+  "actual_full_source_inventory_counts": [
+    459,
+    460
+  ],
+  "actual_frozen_runner_inputs_rehashed": 38,
+  "actual_reused_binary_hashes_verified": 2,
+  "actual_toolchain_source_hashes_verified": 9,
+  "completed_input_disposition_hashes_verified": 278,
+  "correct_payload_transfers": 32,
+  "natural_endpoint_helper_exits": 10,
+  "arm_natural_exit_statuses": {
+    "h1": 0,
+    "h2": 1
+  },
+  "floor_failures_preserved": {
+    "h1": [],
+    "h2": [
+      11,
+      14
+    ]
+  },
+  "capped_inconclusive_data_lane_histories": 8,
+  "prospective_classifications": [],
+  "exception_exercised": false,
+  "diagnostic_performance_accepted": false,
+  "qualification_cleared": false,
+  "original_audit933_count_preserved": true,
+  "owner_frozen_runtime_analysis_checkpoint_entries_verified": 271,
+  "actual_chronology_evidence_inputs_rehashed": 22,
+  "nonprinting_known_fixture_secret_scan_passed": true,
+  "go_files_remaining": 0,
+  "exact_package_membership": true
+}

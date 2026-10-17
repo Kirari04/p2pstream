@@ -1,0 +1,269 @@
+{
+  "source_inventories": [
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/TEST-SOURCE-SHA256SUMS",
+      "sha256": "fa9a76a9640ad5084daec1722da509f98dc9eca0c6541536b55d129e3e80fb8b",
+      "entries_rehashed": 459,
+      "actual_input_bytes": 8164026
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/BUILD-SOURCE-SHA256SUMS",
+      "sha256": "f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+      "entries_rehashed": 460,
+      "actual_input_bytes": 8165675
+    }
+  ],
+  "frozen_runner_inputs": [
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/LEGACY-VALIDATOR.json",
+      "sha256": "b77ed3613b5d088efeacb1d6d4d763b3b255aa2fc35b5dc674771a39cdc73c38",
+      "bytes": 1137
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/build-runner-source.py",
+      "sha256": "3a85eb379a22c5d37115154e0b68f6976ec3f972153ad6827bc107038364c865",
+      "bytes": 13854
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/run-final-source-contracts.sh",
+      "sha256": "be11d5feb0b43c2de235216db9b47688996ddfab77b17480ad989162bfe685d9",
+      "bytes": 1873
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/run-sender-integration-contracts.sh",
+      "sha256": "94a77cf12077ccaec54f25d2c0176c551d75944f6fd6bf92fd3c96f636a8608c",
+      "bytes": 3875
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/run-tcp-state-contracts.sh",
+      "sha256": "b9000e3879ec3a847fff1041b33de233eaa0aa5d959fcda175c70f9907b0598b",
+      "bytes": 4161
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-arm-outcome.py",
+      "sha256": "652f64b00a5b05257c8613be823fea8de7558f7c4fdb4f3637f51f47d28b4ee4",
+      "bytes": 15744
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-copy-validator-binding.py",
+      "sha256": "de1ef2f35af74c0f0cda5ca8dccb48b59a18f9795869926af8a598d1ee553a0e",
+      "bytes": 8646
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-file-backed-capacity-record.py",
+      "sha256": "e5dbb2b0295d8e9e71d85ef2731ba111709c84df7af4433085ef3c0979631c39",
+      "bytes": 7135
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-final-source-bindings.py",
+      "sha256": "f7bfbe07463280b76fb19cc874d4598b339a7a8936c57fbad5f57126ca2a5a57",
+      "bytes": 9626
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-h1-continuation.py",
+      "sha256": "45d7d486dd8ee4489fe42b17dd38df86fd99456b998ef0108206a2d4109cd43f",
+      "bytes": 6881
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-query-dispatch.sh",
+      "sha256": "43b0e489fc2eb72a88dcce30420c82e8357af6e4713ceea9c4f39a5545bda979",
+      "bytes": 2718
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-reviewed-integration-bindings.py",
+      "sha256": "54e424ce1665e7941762b30a8eff7fd56624cecb7af2fd181dc1ad70a4d75a6f",
+      "bytes": 1847
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-runner-sender-bindings.py",
+      "sha256": "208351d5291332dc52d5e3932bc6916bfbd6c4536aeb2081754a2e62f9206fb7",
+      "bytes": 2445
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-sender-arm-bindings.py",
+      "sha256": "dbef5afe3504e2fea327769c7f563467f6149c80c89de0e4e092ece74c171da0",
+      "bytes": 5011
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-sender-wait-validator.py",
+      "sha256": "3cd2668e6e27ce2b730ee31e49facb8b83b0d011c761e795532e10a7f2414027",
+      "bytes": 6116
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-tcp-state-validator.py",
+      "sha256": "ef63d7db6c3078a4484571a721b4f565113a898d9d1d4a971fd9f80fee504c9b",
+      "bytes": 37543
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/generated/qualify-proxy-agent-growth-wan-below-tls.sh",
+      "sha256": "a672ab078d424a59d795c522a40f96da815b8aaa55af6f21fce4eed07a63b1ad",
+      "bytes": 125964
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/generated/qualify-proxy-agent-growth-wan-sender-wait.sh",
+      "sha256": "02c1e76bee7fa6bf81f1242761ac7ae533f47b006cac86cda35523344cb05da4",
+      "bytes": 118789
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+      "sha256": "7769587f80f70c441a4c25554b1647b78d41aea76eb6f2f6099104aa93443e9a",
+      "bytes": 82090
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-diagnostic.sh",
+      "sha256": "8626ad1da0b2396447e22cb936a2200af0d3cbd5f697819d7600140842a3ee76",
+      "bytes": 34995
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-sender-wait-arm.sh",
+      "sha256": "cbd17e7fc173e59ebc0b3da29a12a13f87933ff373f80ba199ce8e1c7150a503",
+      "bytes": 56300
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-sender-wait-diagnostic.sh",
+      "sha256": "a15caea9cc1fbbdc7b903ff862e2b38133fbe89cb66826a753d2b89e92e78165",
+      "bytes": 16875
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runner-query-block.sh.txt",
+      "sha256": "ea02c31104f7cdcb9fdf9fb8886a479fc53036f69f83cecb7615f78475a60790",
+      "bytes": 3578
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runner-wrapper-block.sh.txt",
+      "sha256": "569e9426a0bad46a2e399a23d9693b724b552716f88c3265f06c894014111fa0",
+      "bytes": 11265
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-arm-outcome.py",
+      "sha256": "4c4f1c8119aac278b732fadabb72fa08f9249ee9ed003d0b881c5220b74f1eb1",
+      "bytes": 6486
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-byte-credit-recycle.py",
+      "sha256": "e53f911e0362eeae728a55386cce5ebb0eb60a52163df14f8a95d0135aa0c3eb",
+      "bytes": 20849
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-copy-record.py",
+      "sha256": "f1c70a2f347a77975a00330d4d37929700b1a38bac5fa195c3dff02b3f773c26",
+      "bytes": 10183
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+      "sha256": "f2ec2b1507291fe648d2293e9f345e664266d34a66abee3df5e85222c54fd913",
+      "bytes": 7356
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-post-join-raw-closure.py",
+      "sha256": "7b5b7962f603ebd7c160fabcdb9d4a78b7699e9866b4ed4172480be25b847eae",
+      "bytes": 4256
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-raw-write-activity.py",
+      "sha256": "66ff26fcdbfe71143d49b816e448f28ff7de789daba11e02c8d618d11c361bff",
+      "bytes": 26572
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-sender-wait-snapshot.py",
+      "sha256": "25a934047a84c82d41852871047486138fa10fa4e8a1d3db3e867f38ad50e260",
+      "bytes": 30662
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-server-receive-growth.py",
+      "sha256": "bab8a8def06fc4347b5cfd8e7547c40ca85013fe28892da43c0e365c32dd7477",
+      "bytes": 26831
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-tcp-state.py",
+      "sha256": "4a7addc3981eb892f364e85932b82856afcc1283139105b6d4d228ead2c4fa2c",
+      "bytes": 77529
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-terminal-attribution.py",
+      "sha256": "1be48e2f76dd566630c6427d9cf0a19dc6100fdf71532fb21616da209691d510",
+      "bytes": 17684
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+      "sha256": "dd526df214e7adcbcfd4c790d2581348f8b1048d13fd5ca0d832306f57860235",
+      "bytes": 57892
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-sender-wait-arm.py",
+      "sha256": "9ae7fa74c6be09706d0b77759b52b696dbc302ffd14b3ba8c6a44b23547a2860",
+      "bytes": 37380
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/verify-reviewed-integration-manifest.py",
+      "sha256": "38756d8dfc2e85cfe91a587533f7fbfca43b1951953195b435dd7b49efe83d88",
+      "bytes": 4003
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/verify-terminal-build.py",
+      "sha256": "20252be46c66bc9577b56c8632001059db8bb04de20d9b578e7f9e1fa87f7cdb",
+      "bytes": 4446
+    }
+  ],
+  "corrected_plan_input_hashes": [
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/COMMANDS.json",
+      "sha256": "6d898da8254c2a7c2c38fc81fb152235294de7825725dd4322fa4a601fba1f8c",
+      "bytes": 7044
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/FINAL-AUDIT.json",
+      "sha256": "603d657ce35e81ad934ca86715127feb49cae645c460082be174e9730d8e423f",
+      "bytes": 1883
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/SHA256SUMS",
+      "sha256": "094afff9e304a5866538f33858795b356efc306d9698c6f5e9d051d815df8c03",
+      "bytes": 45796
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/receipt.json",
+      "sha256": "ad0dbfb3adafab686a4fc84f75effaee57819f2694ae644ada901a192604ad62",
+      "bytes": 7569
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+      "sha256": "7769587f80f70c441a4c25554b1647b78d41aea76eb6f2f6099104aa93443e9a",
+      "bytes": 82090
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+      "sha256": "f2ec2b1507291fe648d2293e9f345e664266d34a66abee3df5e85222c54fd913",
+      "bytes": 7356
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+      "sha256": "dd526df214e7adcbcfd4c790d2581348f8b1048d13fd5ca0d832306f57860235",
+      "bytes": 57892
+    }
+  ],
+  "original_final_audit_hash_check_count": 933,
+  "independent_package_audit_note": "All actual members of both full source inventories, all38 frozen runner inputs, all corrected-plan input hashes and each copied/omitted input are rehashed. These overlapping checks preserve, rather than redefine, original audit933.",
+  "source_reference": "27c8e31f3826ab5326d941b20644c1f56159d99d+terminal-build-source-f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+  "build_receipt_sha256": "ad0dbfb3adafab686a4fc84f75effaee57819f2694ae644ada901a192604ad62",
+  "ordinary_recorder_change_included": false,
+  "full_source_tree_exported": false,
+  "frozen_chronology_inputs": [
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/sustained-execution/THRESHOLD-CHRONOLOGY.json",
+      "sha256": "10f3597ef549abd14194df2fb051f318894160f8d58ef26e6a3fe0d68291f090",
+      "bytes": 52481
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/sustained-execution/THRESHOLD-REVIEW.md",
+      "sha256": "d9f3c3e16af53ebfd733bd0b82508c8e19c9ac3aed8ffb9713d1686d5aae7fa9",
+      "bytes": 5143
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/sustained-execution/SHA256SUMS",
+      "sha256": "1bac763f242a6ab88f67d7c0ad2cd743af005a5e6f4eb7c6ca45d66272e946ad",
+      "bytes": 46984
+    }
+  ],
+  "owner_frozen_final_audit_sha256": "0963bb4bb8b5d4a0e5c26a80dc86894289376684c1bb8b6ea2158253736a7ac3"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "shell-syntax",
+  "argv": [
+    "bash",
+    "-n",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+  "outer_seconds": 20,
+  "max_output_bytes": 65536,
+  "expected_natural_exit": 0
+}

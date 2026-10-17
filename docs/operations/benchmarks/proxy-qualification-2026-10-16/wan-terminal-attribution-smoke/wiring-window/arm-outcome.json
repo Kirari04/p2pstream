@@ -1,0 +1,264 @@
+{
+  "accepted": true,
+  "case_count": 7,
+  "cases": [
+    {
+      "accepted": true,
+      "conditioning_issues": [],
+      "continuation_safe": true,
+      "expected_accepted": true,
+      "expected_continuation_safe": true,
+      "integrity_issues": [],
+      "name": "valid-small-below-floor",
+      "performance_issues": [],
+      "runner": {
+        "diagnostic_outcome_only_status": false,
+        "integrity_issues": [],
+        "runner_status_ok": true
+      },
+      "validation_issues": []
+    },
+    {
+      "accepted": false,
+      "conditioning_issues": [],
+      "continuation_safe": true,
+      "expected_accepted": false,
+      "expected_continuation_safe": true,
+      "integrity_issues": [],
+      "name": "valid-slow-sustained",
+      "performance_issues": [
+        "warmup download phase failed independent 29700000 B/s floor",
+        "retained-warmup download phase failed independent 29700000 B/s floor",
+        "steady download phase failed independent 29700000 B/s floor"
+      ],
+      "runner": {
+        "diagnostic_outcome_only_status": true,
+        "integrity_issues": [],
+        "runner_status_ok": false
+      },
+      "validation_issues": [
+        "warmup download phase failed independent 29700000 B/s floor",
+        "retained-warmup download phase failed independent 29700000 B/s floor",
+        "steady download phase failed independent 29700000 B/s floor"
+      ]
+    },
+    {
+      "accepted": false,
+      "conditioning_issues": [
+        "fully evidenced idle expiry"
+      ],
+      "continuation_safe": true,
+      "expected_accepted": false,
+      "expected_continuation_safe": true,
+      "integrity_issues": [],
+      "name": "conditioning-idle-expiry",
+      "performance_issues": [],
+      "runner": {
+        "diagnostic_outcome_only_status": true,
+        "integrity_issues": [],
+        "runner_status_ok": false
+      },
+      "validation_issues": [
+        "fully evidenced idle expiry"
+      ]
+    },
+    {
+      "accepted": false,
+      "conditioning_issues": [],
+      "continuation_safe": false,
+      "expected_accepted": false,
+      "expected_continuation_safe": false,
+      "integrity_issues": [
+        "preflight hash manifest is incomplete"
+      ],
+      "name": "malformed-missing-hash",
+      "performance_issues": [],
+      "runner": {
+        "diagnostic_outcome_only_status": false,
+        "integrity_issues": [],
+        "runner_status_ok": true
+      },
+      "validation_issues": [
+        "preflight hash manifest is incomplete"
+      ]
+    },
+    {
+      "accepted": false,
+      "conditioning_issues": [],
+      "continuation_safe": false,
+      "expected_accepted": false,
+      "expected_continuation_safe": false,
+      "integrity_issues": [
+        "binary, source overlay, certificate, or harness hashes changed during the arm"
+      ],
+      "name": "changed-hash-manifest",
+      "performance_issues": [],
+      "runner": {
+        "diagnostic_outcome_only_status": false,
+        "integrity_issues": [],
+        "runner_status_ok": true
+      },
+      "validation_issues": [
+        "binary, source overlay, certificate, or harness hashes changed during the arm"
+      ]
+    },
+    {
+      "accepted": false,
+      "conditioning_issues": [],
+      "continuation_safe": false,
+      "expected_accepted": false,
+      "expected_continuation_safe": false,
+      "integrity_issues": [
+        "supervisor invalidates_success does not match recorded runner/resource/sender statuses",
+        "runner exited nonzero after preserving evidence: False"
+      ],
+      "name": "boolean-runner-status",
+      "performance_issues": [],
+      "runner": {
+        "diagnostic_outcome_only_status": false,
+        "integrity_issues": [
+          "supervisor invalidates_success does not match recorded runner/resource/sender statuses",
+          "runner exited nonzero after preserving evidence: False"
+        ],
+        "runner_status_ok": false
+      },
+      "validation_issues": [
+        "supervisor invalidates_success does not match recorded runner/resource/sender statuses",
+        "runner exited nonzero after preserving evidence: False"
+      ]
+    },
+    {
+      "accepted": false,
+      "conditioning_issues": [],
+      "continuation_safe": false,
+      "expected_accepted": false,
+      "expected_continuation_safe": false,
+      "integrity_issues": [
+        "forced cleanup"
+      ],
+      "name": "forced-cleanup",
+      "performance_issues": [],
+      "runner": {
+        "diagnostic_outcome_only_status": false,
+        "integrity_issues": [],
+        "runner_status_ok": true
+      },
+      "validation_issues": [
+        "forced cleanup"
+      ]
+    }
+  ],
+  "coverage": "actual-write-hashes-plus-extracted-revisit-and-outcome-wiring",
+  "producer_hash_key_count": 106,
+  "producer_manifest_sha256": "b21408a32a58828231207e9974bdfd91e713a256e464fd246dab1cb195ed7b6a",
+  "producer_status": 0,
+  "revisit_case_count": 4,
+  "revisit_cases": [
+    {
+      "attestation_outcome": {
+        "accepted": true,
+        "conditioning_issues": [],
+        "continuation_safe": true,
+        "integrity_issues": [],
+        "performance_issues": [],
+        "validation_issues": []
+      },
+      "conditioning_issues": [],
+      "expected_conditioning_count": 0,
+      "expected_integrity_count": 0,
+      "integrity_issues": [],
+      "name": "retained"
+    },
+    {
+      "attestation_outcome": {
+        "accepted": false,
+        "conditioning_issues": [
+          "sequence 13 fully evidenced reuse/idle/origin conditioning was not retained",
+          "sequence 14 fully evidenced reuse/idle/origin conditioning was not retained",
+          "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+          "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained"
+        ],
+        "continuation_safe": true,
+        "integrity_issues": [],
+        "performance_issues": [],
+        "validation_issues": [
+          "sequence 13 fully evidenced reuse/idle/origin conditioning was not retained",
+          "sequence 14 fully evidenced reuse/idle/origin conditioning was not retained",
+          "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+          "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained"
+        ]
+      },
+      "conditioning_issues": [
+        "sequence 13 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 14 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained"
+      ],
+      "expected_conditioning_count": 4,
+      "expected_integrity_count": 0,
+      "integrity_issues": [],
+      "name": "expired"
+    },
+    {
+      "attestation_outcome": {
+        "accepted": false,
+        "conditioning_issues": [],
+        "continuation_safe": false,
+        "integrity_issues": [
+          "sequence 13 revisit evidence is missing or malformed",
+          "sequence 14 revisit evidence is missing or malformed",
+          "sequence 15 revisit evidence is missing or malformed",
+          "sequence 16 revisit evidence is missing or malformed"
+        ],
+        "performance_issues": [],
+        "validation_issues": [
+          "sequence 13 revisit evidence is missing or malformed",
+          "sequence 14 revisit evidence is missing or malformed",
+          "sequence 15 revisit evidence is missing or malformed",
+          "sequence 16 revisit evidence is missing or malformed"
+        ]
+      },
+      "conditioning_issues": [],
+      "expected_conditioning_count": 0,
+      "expected_integrity_count": 4,
+      "integrity_issues": [
+        "sequence 13 revisit evidence is missing or malformed",
+        "sequence 14 revisit evidence is missing or malformed",
+        "sequence 15 revisit evidence is missing or malformed",
+        "sequence 16 revisit evidence is missing or malformed"
+      ],
+      "name": "malformed"
+    },
+    {
+      "attestation_outcome": {
+        "accepted": false,
+        "conditioning_issues": [],
+        "continuation_safe": false,
+        "integrity_issues": [
+          "sequence 13 revisit time precedes its prior PutIdleConn",
+          "sequence 14 revisit time precedes its prior PutIdleConn",
+          "sequence 15 revisit time precedes its prior PutIdleConn",
+          "sequence 16 revisit time precedes its prior PutIdleConn"
+        ],
+        "performance_issues": [],
+        "validation_issues": [
+          "sequence 13 revisit time precedes its prior PutIdleConn",
+          "sequence 14 revisit time precedes its prior PutIdleConn",
+          "sequence 15 revisit time precedes its prior PutIdleConn",
+          "sequence 16 revisit time precedes its prior PutIdleConn"
+        ]
+      },
+      "conditioning_issues": [],
+      "expected_conditioning_count": 0,
+      "expected_integrity_count": 4,
+      "integrity_issues": [
+        "sequence 13 revisit time precedes its prior PutIdleConn",
+        "sequence 14 revisit time precedes its prior PutIdleConn",
+        "sequence 15 revisit time precedes its prior PutIdleConn",
+        "sequence 16 revisit time precedes its prior PutIdleConn"
+      ],
+      "name": "negative"
+    }
+  ],
+  "schema_version": 1
+}
