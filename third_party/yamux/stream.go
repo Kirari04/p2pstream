@@ -52,6 +52,7 @@ type Stream struct {
 	allocationRefundPending    uint64
 	allocationRefundPublishing uint64
 	allocationRefundQueued     bool
+	allocationRefundTerminal   bool // guarded by session.aggregate.mu
 	allocationRefundNext       *Stream
 
 	aggregateBufferTracked bool
@@ -760,6 +761,9 @@ func (s *Stream) processFlagsMode(flags uint16, allowCrossedTerminalFIN bool) er
 			s.session.logger.Printf("[ERR] yamux: unexpected FIN flag in state %d", s.state)
 			return ErrUnexpectedFlag
 		}
+		// Peer FIN makes further per-stream receive credit obsolete. Flush
+		// any short tail through the existing session refund publisher.
+		s.flushTerminalAggregateRefunds()
 	}
 	if flags&flagRST == flagRST {
 		s.state = streamReset
@@ -788,6 +792,11 @@ func (s *Stream) discardReceiveBuffer(refund bool) uint32 {
 			aggregateHead, aggregateTail, aggregateUnits = nil, nil, 0
 		}
 		s.session.untrackAggregateBuffer(s)
+		if refund {
+			// Even an empty reset/discard can own deferred refunds from a
+			// preceding Read. Stop coalescing those terminal stream tails.
+			s.flushTerminalAggregateRefunds()
+		}
 	} else if s.recvBuf != nil {
 		discarded = uint32(s.recvBuf.Len())
 		s.recvBuf = nil

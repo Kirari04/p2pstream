@@ -352,6 +352,12 @@ func (s *Session) reserveAggregateReceive(stream *Stream, length uint32) (uint32
 	if stream != nil {
 		stream.allocationRecvWindow -= charge
 	}
+	// A final arriving frame can exhaust credit after the application's last
+	// Read deferred a small refund. Recheck on receipt as well as on return so
+	// no future Read or timer is required to wake that sender.
+	if a.refundReadyLocked(stream) {
+		asyncNotify(a.publishWake)
+	}
 	return charge, nil
 }
 
@@ -421,8 +427,63 @@ func (s *Session) returnAggregateChunks(stream *Stream, head, tail *aggregateChu
 			}
 		}
 	}
+	// Discarded/terminal bytes return session credit immediately. Live reads
+	// can coalesce backed refunds while both allocation allowances have room.
+	wake := refund && (!refundStream || a.refundReadyLocked(stream))
 	a.mu.Unlock()
-	if refund {
+	if wake {
+		asyncNotify(a.publishWake)
+	}
+}
+
+// aggregateRefundThreshold rounds a quarter-window down to allocation units.
+// One-unit allowances always return their next free unit immediately.
+func aggregateRefundThreshold(limit uint32) uint64 {
+	threshold := limit / 4
+	threshold -= threshold % AggregateWindowUnitSize
+	if threshold < AggregateWindowUnitSize {
+		threshold = AggregateWindowUnitSize
+	}
+	return uint64(threshold)
+}
+
+// refundReadyLocked considers only credit already backed by returned chunks.
+// recvWindow is the locally advertised allowance not yet consumed by received
+// DATA, including credit still in flight to/from the peer. Crossing the low
+// watermark on receipt rechecks pending work before the peer can stay blocked.
+// The caller holds mu. A wake drains the existing bounded FIFO; it does not
+// select by stream identity or scan deferred streams.
+func (a *aggregateWindow) refundReadyLocked(stream *Stream) bool {
+	if a.pendingGlobal == 0 {
+		return false
+	}
+	threshold := aggregateRefundThreshold(a.recvLimit)
+	if a.pendingGlobal >= threshold || uint64(a.recvWindow) <= threshold {
+		return true
+	}
+	if stream == nil || stream.allocationRefundPending == 0 {
+		return false
+	}
+	threshold = aggregateRefundThreshold(stream.allocationRecvLimit)
+	return stream.allocationRefundTerminal ||
+		stream.allocationRefundPending >= threshold ||
+		uint64(stream.allocationRecvWindow) <= threshold
+}
+
+// flushTerminalAggregateRefunds also covers an application Read that captured
+// the live state before peer FIN, but returns its chunks after the FIN wake was
+// consumed. The terminal bit shares the allocation ledger lock with that Read.
+// No locks are held across I/O and no new credit is created here.
+func (s *Stream) flushTerminalAggregateRefunds() {
+	if !s.session.aggregateEnabled() {
+		return
+	}
+	a := s.session.aggregate
+	a.mu.Lock()
+	s.allocationRefundTerminal = true
+	pending := a.pendingGlobal != 0
+	a.mu.Unlock()
+	if pending {
 		asyncNotify(a.publishWake)
 	}
 }
