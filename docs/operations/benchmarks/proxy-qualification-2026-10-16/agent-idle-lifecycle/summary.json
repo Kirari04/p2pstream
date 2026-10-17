@@ -1,0 +1,2311 @@
+{
+  "capacity": {
+    "admission_rejections": {
+      "public_client_request": 0,
+      "public_connection_limit": 0,
+      "public_connection_resource": 0
+    },
+    "agent_processes": [
+      {
+        "agent_capacity_final": {
+          "adaptive": true,
+          "admission_limit": 4808,
+          "aggregate_current_pool_bytes": 10485760,
+          "aggregate_growth_pool_bytes": 0,
+          "aggregate_initial_pool_bytes": 10485760,
+          "aggregate_session_metadata_bytes": 9994240,
+          "file_descriptors_limit": 2147483584,
+          "file_descriptors_used": 1550,
+          "in_use": 1536,
+          "legacy_control_supplement_bytes": 2918912,
+          "legacy_session_envelope_bytes": 0,
+          "legacy_stream_supplement_bytes": 0,
+          "maximum": 65536,
+          "memory_limit_bytes": 32309116928,
+          "memory_source": "host",
+          "memory_used_bytes": 14869954560,
+          "pressure": "healthy",
+          "pressure_reason": "memory",
+          "receive_window_bytes": 0,
+          "rejected_fixed_limit": 0,
+          "rejected_pressure": 0,
+          "resource_limited": true,
+          "session_resource_bytes": 23398912,
+          "stream_charge_bytes": 786432,
+          "stream_charge_fds": 2
+        },
+        "agent_capacity_high_water": {
+          "adaptive": true,
+          "admission_limit": 4873,
+          "aggregate_current_pool_bytes": 10485760,
+          "aggregate_growth_pool_bytes": 0,
+          "aggregate_initial_pool_bytes": 10485760,
+          "aggregate_session_metadata_bytes": 9994240,
+          "file_descriptors_limit": 2147483584,
+          "file_descriptors_used": 1550,
+          "in_use": 1536,
+          "legacy_control_supplement_bytes": 2918912,
+          "legacy_session_envelope_bytes": 0,
+          "legacy_stream_supplement_bytes": 0,
+          "maximum": 65536,
+          "memory_limit_bytes": 32309116928,
+          "memory_source": "host",
+          "memory_used_bytes": 14869954560,
+          "pressure": "healthy",
+          "pressure_reason": "memory",
+          "receive_window_bytes": 0,
+          "rejected_fixed_limit": 0,
+          "rejected_pressure": 0,
+          "resource_limited": true,
+          "session_resource_bytes": 23398912,
+          "stream_charge_bytes": 786432,
+          "stream_charge_fds": 2
+        },
+        "agent_capacity_initial": {
+          "adaptive": true,
+          "admission_limit": 4873,
+          "aggregate_current_pool_bytes": 10485760,
+          "aggregate_growth_pool_bytes": 0,
+          "aggregate_initial_pool_bytes": 10485760,
+          "aggregate_session_metadata_bytes": 9994240,
+          "file_descriptors_limit": 2147483584,
+          "file_descriptors_used": 14,
+          "in_use": 0,
+          "legacy_control_supplement_bytes": 2918912,
+          "legacy_session_envelope_bytes": 0,
+          "legacy_stream_supplement_bytes": 0,
+          "maximum": 65536,
+          "memory_limit_bytes": 32309116928,
+          "memory_source": "host",
+          "memory_used_bytes": 14633615360,
+          "pressure": "healthy",
+          "pressure_reason": "memory",
+          "receive_window_bytes": 0,
+          "rejected_fixed_limit": 0,
+          "rejected_pressure": 0,
+          "resource_limited": true,
+          "session_resource_bytes": 23398912,
+          "stream_charge_bytes": 786432,
+          "stream_charge_fds": 2
+        },
+        "cgroup_inode": 119057,
+        "cgroup_memory_events_captured": true,
+        "cgroup_memory_max_bytes": 4294967296,
+        "cgroup_path": "/system.slice/docker-96f2929274c5444cd97ca56c3a31282427fe06a12b44700af92e21b28ba1af43.scope",
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+        "cpu_seconds": 0.61,
+        "cpu_set": "4,5,6,7",
+        "final_cgroup_memory_bytes": 72163328,
+        "final_cgroup_sock_bytes": 4096,
+        "final_rss_bytes": 75038720,
+        "final_socket_fds": 1543,
+        "initial_cgroup_memory_bytes": 8699904,
+        "initial_heap_alloc_bytes": 10352368,
+        "initial_rss_bytes": 20049920,
+        "peak_cgroup_memory_bytes": 72720384,
+        "peak_cgroup_sock_bytes": 155648,
+        "peak_fds": 1549,
+        "peak_heap_alloc_bytes": 119562328,
+        "peak_rss_bytes": 75038720,
+        "peak_socket_fds": 1543,
+        "pid": 187802,
+        "role": "agent-1",
+        "sampling_seconds": 0.586323803
+      }
+    ],
+    "agent_tunnels_final": [
+      {
+        "aggregate_current_pool_bytes": 10485760,
+        "aggregate_initial_pool_bytes": 10485760,
+        "bulk_sessions": 4,
+        "connected": true,
+        "control_connected": true,
+        "flow_control": "aggregate-v1",
+        "id": 1,
+        "lanes": [
+          {
+            "aggregate": false,
+            "lane": 0,
+            "streams": 0
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 1,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 2,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 3,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 4,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          }
+        ],
+        "legacy_control_supplement_bytes": 2918912,
+        "public_id": "qualification-external-agent-1",
+        "session_metadata_bytes": 1048576,
+        "session_resource_bytes": 14453248
+      }
+    ],
+    "agent_tunnels_high_water": [
+      {
+        "aggregate_current_pool_bytes": 10485760,
+        "aggregate_initial_pool_bytes": 10485760,
+        "bulk_sessions": 4,
+        "connected": true,
+        "control_connected": true,
+        "flow_control": "aggregate-v1",
+        "id": 1,
+        "lanes": [
+          {
+            "aggregate": false,
+            "lane": 0,
+            "streams": 0
+          },
+          {
+            "aggregate": true,
+            "buffered_units": 145,
+            "free_units": 512,
+            "lane": 1,
+            "pending_refund_bytes": 86016,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "buffered_units": 120,
+            "free_units": 512,
+            "lane": 2,
+            "pending_refund_bytes": 786432,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "buffered_units": 178,
+            "free_units": 512,
+            "lane": 3,
+            "pending_refund_bytes": 983040,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "buffered_units": 145,
+            "free_units": 512,
+            "lane": 4,
+            "pending_refund_bytes": 507904,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          }
+        ],
+        "legacy_control_supplement_bytes": 2918912,
+        "public_id": "qualification-external-agent-1",
+        "session_metadata_bytes": 1048576,
+        "session_resource_bytes": 14453248
+      }
+    ],
+    "agent_tunnels_initial": [
+      {
+        "aggregate_current_pool_bytes": 10485760,
+        "aggregate_initial_pool_bytes": 10485760,
+        "bulk_sessions": 4,
+        "connected": true,
+        "control_connected": true,
+        "flow_control": "aggregate-v1",
+        "id": 1,
+        "lanes": [
+          {
+            "aggregate": false,
+            "lane": 0,
+            "streams": 0
+          },
+          {
+            "aggregate": true,
+            "buffered_units": 145,
+            "free_units": 512,
+            "lane": 1,
+            "pending_refund_bytes": 86016,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "buffered_units": 120,
+            "free_units": 512,
+            "lane": 2,
+            "pending_refund_bytes": 786432,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "buffered_units": 178,
+            "free_units": 512,
+            "lane": 3,
+            "pending_refund_bytes": 983040,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "buffered_units": 145,
+            "free_units": 512,
+            "lane": 4,
+            "pending_refund_bytes": 507904,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          }
+        ],
+        "legacy_control_supplement_bytes": 2918912,
+        "public_id": "qualification-external-agent-1",
+        "session_metadata_bytes": 1048576,
+        "session_resource_bytes": 14453248
+      }
+    ],
+    "attempted": 1536,
+    "barrier_max_hold_seconds": 3,
+    "barrier_post_release_hold_ms": 200,
+    "cgroup_memory_final_bytes": 1321652224,
+    "cgroup_memory_max_bytes": 4294967296,
+    "cgroup_memory_peak_bytes": 1321652224,
+    "client_tcp_connections": 1536,
+    "concurrency": 1536,
+    "cpu_seconds": 1.33,
+    "errors": 0,
+    "event_drain_seconds": 0.000732634,
+    "event_queue_after_load": 512,
+    "event_stats_captured": true,
+    "final_cgroup_sock_bytes": 5369856,
+    "final_rss_bytes": 1330900992,
+    "final_socket_fds": 1545,
+    "initial_cgroup_memory_bytes": 1094033408,
+    "initial_heap_alloc_bytes": 1111946648,
+    "initial_rss_bytes": 1115152384,
+    "label": "lifecycle-cad0850",
+    "load_cpu_set": "8,9,10,11,12,13,14,15",
+    "minimum_adaptive_admission_limit": 3666,
+    "minimum_memory_headroom_bytes": 2565551718,
+    "new_origin_tcp_connections": 1536,
+    "observed_http_major": 1,
+    "observed_origin_http_major": 1,
+    "origin_peak_inflight": 1536,
+    "owner_peak_bytes": {
+      "public_connection": 1409286144,
+      "public_handshake": 174850048,
+      "public_request": 51744768,
+      "public_response": 50331648,
+      "receive_window": 14453248
+    },
+    "owner_peak_fds": {
+      "public_connection": 1536
+    },
+    "owner_peak_reservations": {
+      "public_connection": 1536,
+      "public_handshake": 667,
+      "public_request": 1536,
+      "public_response": 1536,
+      "receive_window": 5
+    },
+    "p50_ms": 563.439174,
+    "p95_ms": 578.655699,
+    "p99_ms": 581.588439,
+    "path": "agent-external",
+    "peak_cgroup_sock_bytes": 5369856,
+    "peak_fds": 1558,
+    "peak_heap_alloc_bytes": 1271075352,
+    "peak_rss_bytes": 1328381952,
+    "peak_socket_fds": 1545,
+    "persisted_event_delta": 1536,
+    "persisted_events_after_drain": 1536,
+    "persisted_events_after_load": 1024,
+    "protocol": "h1",
+    "proxy_cpu_set": "0,1,2,3",
+    "resource_envelope": "p2pstream-server-4g+1x-agent-4g:flow_control=aggregate-v1,separate-cgroups,server_ballast_mib=1024,agent_ballast_mib_each=0",
+    "resource_pressure_reasons": [
+      "memory"
+    ],
+    "response_bytes": 0,
+    "scenario": "capacity-1536-h1",
+    "sequence": 1,
+    "server_ballast_bytes": 1073741824,
+    "server_process": {
+      "cgroup_inode": 118970,
+      "cgroup_memory_events_captured": true,
+      "cgroup_memory_max_bytes": 4294967296,
+      "cgroup_path": "/system.slice/docker-aea81e12c1b7a792f62b044a0f81c5dab30043238a057c910ea2e98cfd6b6125.scope",
+      "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+      "cpu_seconds": 1.33,
+      "cpu_set": "0,1,2,3",
+      "final_cgroup_memory_bytes": 1321652224,
+      "final_cgroup_sock_bytes": 5369856,
+      "final_rss_bytes": 1330900992,
+      "final_socket_fds": 1545,
+      "initial_cgroup_memory_bytes": 1094033408,
+      "initial_heap_alloc_bytes": 1111946648,
+      "initial_rss_bytes": 1115152384,
+      "peak_cgroup_memory_bytes": 1321652224,
+      "peak_cgroup_sock_bytes": 5369856,
+      "peak_fds": 1558,
+      "peak_heap_alloc_bytes": 1271075352,
+      "peak_rss_bytes": 1328381952,
+      "peak_socket_fds": 1545,
+      "pid": 187684,
+      "role": "server",
+      "sampling_seconds": 0.587094331
+    },
+    "status_classes": {
+      "2xx": 1536
+    },
+    "status_codes": {
+      "204": 1536
+    },
+    "useful_completed": 1536,
+    "useful_requests_per_second": 2625.3808077685867,
+    "wall_seconds": 0.585057983
+  },
+  "forced_idle_close": [
+    {
+      "agent_processes": [
+        {
+          "cgroup_memory_bytes": 70586368,
+          "cgroup_memory_events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0,
+            "sock_throttled": 0
+          },
+          "cgroup_sock_bytes": 20480,
+          "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+          "pid": 187802,
+          "role": "agent-1",
+          "rss_bytes": 79351808,
+          "runtime": {
+            "agent_capacity": {
+              "adaptive": true,
+              "admission_limit": 4795,
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_growth_pool_bytes": 0,
+              "aggregate_initial_pool_bytes": 10485760,
+              "aggregate_session_metadata_bytes": 9994240,
+              "file_descriptors_limit": 2147483584,
+              "file_descriptors_used": 14,
+              "in_use": 0,
+              "legacy_control_supplement_bytes": 2918912,
+              "legacy_session_envelope_bytes": 0,
+              "legacy_stream_supplement_bytes": 0,
+              "maximum": 65536,
+              "memory_limit_bytes": 32309116928,
+              "memory_source": "host",
+              "memory_used_bytes": 14790856704,
+              "pressure": "healthy",
+              "pressure_reason": "memory",
+              "receive_window_bytes": 0,
+              "rejected_fixed_limit": 0,
+              "rejected_pressure": 0,
+              "resource_limited": true,
+              "session_resource_bytes": 23398912,
+              "stream_charge_bytes": 786432,
+              "stream_charge_fds": 2
+            },
+            "heap_alloc_bytes": 144635112,
+            "heap_sys_bytes": 150110208,
+            "num_gc": 8,
+            "pause_total_ns": 433232
+          }
+        }
+      ],
+      "observed_offset_seconds": 2.945947926491499e-06,
+      "requested_offset_seconds": 0.0,
+      "server_process": {
+        "cgroup_memory_bytes": 1334267904,
+        "cgroup_memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "cgroup_sock_bytes": 0,
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+        "pid": 187684,
+        "role": "server",
+        "rss_bytes": 1354350592,
+        "runtime": {
+          "adaptive_admission_limit": 9599,
+          "agent_tunnels": [
+            {
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_initial_pool_bytes": 10485760,
+              "bulk_sessions": 4,
+              "connected": true,
+              "control_connected": true,
+              "flow_control": "aggregate-v1",
+              "id": 1,
+              "lanes": [
+                {
+                  "aggregate": false,
+                  "lane": 0,
+                  "streams": 0
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 1,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 2,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 3,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 4,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                }
+              ],
+              "legacy_control_supplement_bytes": 2918912,
+              "public_id": "qualification-external-agent-1",
+              "session_metadata_bytes": 1048576,
+              "session_resource_bytes": 14453248
+            }
+          ],
+          "heap_alloc_bytes": 1331603040,
+          "heap_sys_bytes": 1343225856,
+          "memory_headroom_bytes": 2531202662,
+          "num_gc": 1,
+          "owner_bytes": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 14453248,
+            "replay_buffer": 0
+          },
+          "owner_fds": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 0,
+            "replay_buffer": 0
+          },
+          "owner_reservations": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 5,
+            "replay_buffer": 0
+          },
+          "owner_stats": true,
+          "pause_total_ns": 36641,
+          "resource_pressure_reason": "memory"
+        }
+      }
+    },
+    {
+      "agent_processes": [
+        {
+          "cgroup_memory_bytes": 70066176,
+          "cgroup_memory_events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0,
+            "sock_throttled": 0
+          },
+          "cgroup_sock_bytes": 0,
+          "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+          "pid": 187802,
+          "role": "agent-1",
+          "rss_bytes": 79441920,
+          "runtime": {
+            "agent_capacity": {
+              "adaptive": true,
+              "admission_limit": 4796,
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_growth_pool_bytes": 0,
+              "aggregate_initial_pool_bytes": 10485760,
+              "aggregate_session_metadata_bytes": 9994240,
+              "file_descriptors_limit": 2147483584,
+              "file_descriptors_used": 15,
+              "in_use": 0,
+              "legacy_control_supplement_bytes": 2918912,
+              "legacy_session_envelope_bytes": 0,
+              "legacy_stream_supplement_bytes": 0,
+              "maximum": 65536,
+              "memory_limit_bytes": 32309116928,
+              "memory_source": "host",
+              "memory_used_bytes": 14804000768,
+              "pressure": "healthy",
+              "pressure_reason": "memory",
+              "receive_window_bytes": 0,
+              "rejected_fixed_limit": 0,
+              "rejected_pressure": 0,
+              "resource_limited": true,
+              "session_resource_bytes": 23398912,
+              "stream_charge_bytes": 786432,
+              "stream_charge_fds": 2
+            },
+            "heap_alloc_bytes": 144796312,
+            "heap_sys_bytes": 150110208,
+            "num_gc": 8,
+            "pause_total_ns": 433232
+          }
+        }
+      ],
+      "observed_offset_seconds": 1.0005573529633693,
+      "requested_offset_seconds": 1.0,
+      "server_process": {
+        "cgroup_memory_bytes": 1334452224,
+        "cgroup_memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "cgroup_sock_bytes": 0,
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+        "pid": 187684,
+        "role": "server",
+        "rss_bytes": 1354694656,
+        "runtime": {
+          "adaptive_admission_limit": 9599,
+          "agent_tunnels": [
+            {
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_initial_pool_bytes": 10485760,
+              "bulk_sessions": 4,
+              "connected": true,
+              "control_connected": true,
+              "flow_control": "aggregate-v1",
+              "id": 1,
+              "lanes": [
+                {
+                  "aggregate": false,
+                  "lane": 0,
+                  "streams": 0
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 1,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 2,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 3,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 4,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                }
+              ],
+              "legacy_control_supplement_bytes": 2918912,
+              "public_id": "qualification-external-agent-1",
+              "session_metadata_bytes": 1048576,
+              "session_resource_bytes": 14453248
+            }
+          ],
+          "heap_alloc_bytes": 1331991128,
+          "heap_sys_bytes": 1343225856,
+          "memory_headroom_bytes": 2531010150,
+          "num_gc": 1,
+          "owner_bytes": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 14453248,
+            "replay_buffer": 0
+          },
+          "owner_fds": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 0,
+            "replay_buffer": 0
+          },
+          "owner_reservations": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 5,
+            "replay_buffer": 0
+          },
+          "owner_stats": true,
+          "pause_total_ns": 36641,
+          "resource_pressure_reason": "memory"
+        }
+      }
+    },
+    {
+      "agent_processes": [
+        {
+          "cgroup_memory_bytes": 69586944,
+          "cgroup_memory_events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0,
+            "sock_throttled": 0
+          },
+          "cgroup_sock_bytes": 0,
+          "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+          "pid": 187802,
+          "role": "agent-1",
+          "rss_bytes": 79822848,
+          "runtime": {
+            "agent_capacity": {
+              "adaptive": true,
+              "admission_limit": 4796,
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_growth_pool_bytes": 0,
+              "aggregate_initial_pool_bytes": 10485760,
+              "aggregate_session_metadata_bytes": 9994240,
+              "file_descriptors_limit": 2147483584,
+              "file_descriptors_used": 15,
+              "in_use": 0,
+              "legacy_control_supplement_bytes": 2918912,
+              "legacy_session_envelope_bytes": 0,
+              "legacy_stream_supplement_bytes": 0,
+              "maximum": 65536,
+              "memory_limit_bytes": 32309116928,
+              "memory_source": "host",
+              "memory_used_bytes": 14800601088,
+              "pressure": "healthy",
+              "pressure_reason": "memory",
+              "receive_window_bytes": 0,
+              "rejected_fixed_limit": 0,
+              "rejected_pressure": 0,
+              "resource_limited": true,
+              "session_resource_bytes": 23398912,
+              "stream_charge_bytes": 786432,
+              "stream_charge_fds": 2
+            },
+            "heap_alloc_bytes": 145461648,
+            "heap_sys_bytes": 150110208,
+            "num_gc": 8,
+            "pause_total_ns": 433232
+          }
+        }
+      ],
+      "observed_offset_seconds": 5.000089119945187,
+      "requested_offset_seconds": 5.0,
+      "server_process": {
+        "cgroup_memory_bytes": 1334251520,
+        "cgroup_memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "cgroup_sock_bytes": 0,
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+        "pid": 187684,
+        "role": "server",
+        "rss_bytes": 1354752000,
+        "runtime": {
+          "adaptive_admission_limit": 9599,
+          "agent_tunnels": [
+            {
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_initial_pool_bytes": 10485760,
+              "bulk_sessions": 4,
+              "connected": true,
+              "control_connected": true,
+              "flow_control": "aggregate-v1",
+              "id": 1,
+              "lanes": [
+                {
+                  "aggregate": false,
+                  "lane": 0,
+                  "streams": 0
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 1,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 2,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 3,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 4,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                }
+              ],
+              "legacy_control_supplement_bytes": 2918912,
+              "public_id": "qualification-external-agent-1",
+              "session_metadata_bytes": 1048576,
+              "session_resource_bytes": 14453248
+            }
+          ],
+          "heap_alloc_bytes": 1333527624,
+          "heap_sys_bytes": 1343225856,
+          "memory_headroom_bytes": 2531219046,
+          "num_gc": 1,
+          "owner_bytes": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 14453248,
+            "replay_buffer": 0
+          },
+          "owner_fds": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 0,
+            "replay_buffer": 0
+          },
+          "owner_reservations": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 5,
+            "replay_buffer": 0
+          },
+          "owner_stats": true,
+          "pause_total_ns": 36641,
+          "resource_pressure_reason": "memory"
+        }
+      }
+    },
+    {
+      "agent_processes": [
+        {
+          "cgroup_memory_bytes": 73682944,
+          "cgroup_memory_events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0,
+            "sock_throttled": 0
+          },
+          "cgroup_sock_bytes": 0,
+          "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+          "pid": 187802,
+          "role": "agent-1",
+          "rss_bytes": 84402176,
+          "runtime": {
+            "agent_capacity": {
+              "adaptive": true,
+              "admission_limit": 4791,
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_growth_pool_bytes": 0,
+              "aggregate_initial_pool_bytes": 10485760,
+              "aggregate_session_metadata_bytes": 9994240,
+              "file_descriptors_limit": 2147483584,
+              "file_descriptors_used": 15,
+              "in_use": 0,
+              "legacy_control_supplement_bytes": 2918912,
+              "legacy_session_envelope_bytes": 0,
+              "legacy_stream_supplement_bytes": 0,
+              "maximum": 65536,
+              "memory_limit_bytes": 32309116928,
+              "memory_source": "host",
+              "memory_used_bytes": 14833950720,
+              "pressure": "healthy",
+              "pressure_reason": "memory",
+              "receive_window_bytes": 0,
+              "rejected_fixed_limit": 0,
+              "rejected_pressure": 0,
+              "resource_limited": true,
+              "session_resource_bytes": 23398912,
+              "stream_charge_bytes": 786432,
+              "stream_charge_fds": 2
+            },
+            "heap_alloc_bytes": 150398768,
+            "heap_sys_bytes": 154304512,
+            "num_gc": 8,
+            "pause_total_ns": 433232
+          }
+        }
+      ],
+      "observed_offset_seconds": 35.0000886709895,
+      "requested_offset_seconds": 35.0,
+      "server_process": {
+        "cgroup_memory_bytes": 1344581632,
+        "cgroup_memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "cgroup_sock_bytes": 0,
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+        "pid": 187684,
+        "role": "server",
+        "rss_bytes": 1365180416,
+        "runtime": {
+          "adaptive_admission_limit": 9560,
+          "agent_tunnels": [
+            {
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_initial_pool_bytes": 10485760,
+              "bulk_sessions": 4,
+              "connected": true,
+              "control_connected": true,
+              "flow_control": "aggregate-v1",
+              "id": 1,
+              "lanes": [
+                {
+                  "aggregate": false,
+                  "lane": 0,
+                  "streams": 0
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 1,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 2,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 3,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 4,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                }
+              ],
+              "legacy_control_supplement_bytes": 2918912,
+              "public_id": "qualification-external-agent-1",
+              "session_metadata_bytes": 1048576,
+              "session_resource_bytes": 14453248
+            }
+          ],
+          "heap_alloc_bytes": 1344966472,
+          "heap_sys_bytes": 1355808768,
+          "memory_headroom_bytes": 2520888934,
+          "num_gc": 1,
+          "owner_bytes": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 14453248,
+            "replay_buffer": 0
+          },
+          "owner_fds": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 0,
+            "replay_buffer": 0
+          },
+          "owner_reservations": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 5,
+            "replay_buffer": 0
+          },
+          "owner_stats": true,
+          "pause_total_ns": 36641,
+          "resource_pressure_reason": "memory"
+        }
+      }
+    }
+  ],
+  "natural": [
+    {
+      "agent_processes": [
+        {
+          "cgroup_memory_bytes": 71733248,
+          "cgroup_memory_events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0,
+            "sock_throttled": 0
+          },
+          "cgroup_sock_bytes": 0,
+          "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+          "pid": 187802,
+          "role": "agent-1",
+          "rss_bytes": 75137024,
+          "runtime": {
+            "agent_capacity": {
+              "adaptive": true,
+              "admission_limit": 4793,
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_growth_pool_bytes": 0,
+              "aggregate_initial_pool_bytes": 10485760,
+              "aggregate_session_metadata_bytes": 9994240,
+              "file_descriptors_limit": 2147483584,
+              "file_descriptors_used": 1550,
+              "in_use": 1536,
+              "legacy_control_supplement_bytes": 2918912,
+              "legacy_session_envelope_bytes": 0,
+              "legacy_stream_supplement_bytes": 0,
+              "maximum": 65536,
+              "memory_limit_bytes": 32309116928,
+              "memory_source": "host",
+              "memory_used_bytes": 14838140928,
+              "pressure": "healthy",
+              "pressure_reason": "memory",
+              "receive_window_bytes": 0,
+              "rejected_fixed_limit": 0,
+              "rejected_pressure": 0,
+              "resource_limited": true,
+              "session_resource_bytes": 23398912,
+              "stream_charge_bytes": 786432,
+              "stream_charge_fds": 2
+            },
+            "heap_alloc_bytes": 118082536,
+            "heap_sys_bytes": 125042688,
+            "num_gc": 8,
+            "pause_total_ns": 433232
+          }
+        }
+      ],
+      "observed_offset_seconds": 1.000157073023729,
+      "requested_offset_seconds": 1.0,
+      "server_process": {
+        "cgroup_memory_bytes": 1311453184,
+        "cgroup_memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "cgroup_sock_bytes": 0,
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+        "pid": 187684,
+        "role": "server",
+        "rss_bytes": 1331814400,
+        "runtime": {
+          "adaptive_admission_limit": 9686,
+          "agent_tunnels": [
+            {
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_initial_pool_bytes": 10485760,
+              "bulk_sessions": 4,
+              "connected": true,
+              "control_connected": true,
+              "flow_control": "aggregate-v1",
+              "id": 1,
+              "lanes": [
+                {
+                  "aggregate": false,
+                  "lane": 0,
+                  "streams": 0
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 1,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 384,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 2,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 384,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 3,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 384,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 4,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 384,
+                  "total_units": 512
+                }
+              ],
+              "legacy_control_supplement_bytes": 2918912,
+              "public_id": "qualification-external-agent-1",
+              "session_metadata_bytes": 1048576,
+              "session_resource_bytes": 14453248
+            }
+          ],
+          "heap_alloc_bytes": 1285349952,
+          "heap_sys_bytes": 1307574272,
+          "memory_headroom_bytes": 2554017382,
+          "num_gc": 1,
+          "owner_bytes": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 14453248,
+            "replay_buffer": 0
+          },
+          "owner_fds": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 0,
+            "replay_buffer": 0
+          },
+          "owner_reservations": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 5,
+            "replay_buffer": 0
+          },
+          "owner_stats": true,
+          "pause_total_ns": 36641,
+          "resource_pressure_reason": "memory"
+        }
+      }
+    },
+    {
+      "agent_processes": [
+        {
+          "cgroup_memory_bytes": 71028736,
+          "cgroup_memory_events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0,
+            "sock_throttled": 0
+          },
+          "cgroup_sock_bytes": 0,
+          "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+          "pid": 187802,
+          "role": "agent-1",
+          "rss_bytes": 75550720,
+          "runtime": {
+            "agent_capacity": {
+              "adaptive": true,
+              "admission_limit": 4794,
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_growth_pool_bytes": 0,
+              "aggregate_initial_pool_bytes": 10485760,
+              "aggregate_session_metadata_bytes": 9994240,
+              "file_descriptors_limit": 2147483584,
+              "file_descriptors_used": 1551,
+              "in_use": 1536,
+              "legacy_control_supplement_bytes": 2918912,
+              "legacy_session_envelope_bytes": 0,
+              "legacy_stream_supplement_bytes": 0,
+              "maximum": 65536,
+              "memory_limit_bytes": 32309116928,
+              "memory_source": "host",
+              "memory_used_bytes": 14823452672,
+              "pressure": "healthy",
+              "pressure_reason": "memory",
+              "receive_window_bytes": 0,
+              "rejected_fixed_limit": 0,
+              "rejected_pressure": 0,
+              "resource_limited": true,
+              "session_resource_bytes": 23398912,
+              "stream_charge_bytes": 786432,
+              "stream_charge_fds": 2
+            },
+            "heap_alloc_bytes": 118987896,
+            "heap_sys_bytes": 125042688,
+            "num_gc": 8,
+            "pause_total_ns": 433232
+          }
+        }
+      ],
+      "observed_offset_seconds": 5.000077330041677,
+      "requested_offset_seconds": 5.0,
+      "server_process": {
+        "cgroup_memory_bytes": 1312440320,
+        "cgroup_memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "cgroup_sock_bytes": 0,
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+        "pid": 187684,
+        "role": "server",
+        "rss_bytes": 1333149696,
+        "runtime": {
+          "adaptive_admission_limit": 9683,
+          "agent_tunnels": [
+            {
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_initial_pool_bytes": 10485760,
+              "bulk_sessions": 4,
+              "connected": true,
+              "control_connected": true,
+              "flow_control": "aggregate-v1",
+              "id": 1,
+              "lanes": [
+                {
+                  "aggregate": false,
+                  "lane": 0,
+                  "streams": 0
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 1,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 384,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 2,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 384,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 3,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 384,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 4,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 384,
+                  "total_units": 512
+                }
+              ],
+              "legacy_control_supplement_bytes": 2918912,
+              "public_id": "qualification-external-agent-1",
+              "session_metadata_bytes": 1048576,
+              "session_resource_bytes": 14453248
+            }
+          ],
+          "heap_alloc_bytes": 1287835728,
+          "heap_sys_bytes": 1307574272,
+          "memory_headroom_bytes": 2553030246,
+          "num_gc": 1,
+          "owner_bytes": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 14453248,
+            "replay_buffer": 0
+          },
+          "owner_fds": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 0,
+            "replay_buffer": 0
+          },
+          "owner_reservations": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 5,
+            "replay_buffer": 0
+          },
+          "owner_stats": true,
+          "pause_total_ns": 36641,
+          "resource_pressure_reason": "memory"
+        }
+      }
+    },
+    {
+      "agent_processes": [
+        {
+          "cgroup_memory_bytes": 68403200,
+          "cgroup_memory_events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0,
+            "sock_throttled": 0
+          },
+          "cgroup_sock_bytes": 0,
+          "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+          "pid": 187802,
+          "role": "agent-1",
+          "rss_bytes": 77758464,
+          "runtime": {
+            "agent_capacity": {
+              "adaptive": true,
+              "admission_limit": 4798,
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_growth_pool_bytes": 0,
+              "aggregate_initial_pool_bytes": 10485760,
+              "aggregate_session_metadata_bytes": 9994240,
+              "file_descriptors_limit": 2147483584,
+              "file_descriptors_used": 14,
+              "in_use": 0,
+              "legacy_control_supplement_bytes": 2918912,
+              "legacy_session_envelope_bytes": 0,
+              "legacy_stream_supplement_bytes": 0,
+              "maximum": 65536,
+              "memory_limit_bytes": 32309116928,
+              "memory_source": "host",
+              "memory_used_bytes": 14765281280,
+              "pressure": "healthy",
+              "pressure_reason": "memory",
+              "receive_window_bytes": 0,
+              "rejected_fixed_limit": 0,
+              "rejected_pressure": 0,
+              "resource_limited": true,
+              "session_resource_bytes": 23398912,
+              "stream_charge_bytes": 786432,
+              "stream_charge_fds": 2
+            },
+            "heap_alloc_bytes": 130119088,
+            "heap_sys_bytes": 145981440,
+            "num_gc": 8,
+            "pause_total_ns": 433232
+          }
+        }
+      ],
+      "observed_offset_seconds": 30.000099866010714,
+      "requested_offset_seconds": 30.0,
+      "server_process": {
+        "cgroup_memory_bytes": 1314820096,
+        "cgroup_memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "cgroup_sock_bytes": 0,
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+        "pid": 187684,
+        "role": "server",
+        "rss_bytes": 1335320576,
+        "runtime": {
+          "adaptive_admission_limit": 9673,
+          "agent_tunnels": [
+            {
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_initial_pool_bytes": 10485760,
+              "bulk_sessions": 4,
+              "connected": true,
+              "control_connected": true,
+              "flow_control": "aggregate-v1",
+              "id": 1,
+              "lanes": [
+                {
+                  "aggregate": false,
+                  "lane": 0,
+                  "streams": 0
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 1,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 2,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 3,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 4,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                }
+              ],
+              "legacy_control_supplement_bytes": 2918912,
+              "public_id": "qualification-external-agent-1",
+              "session_metadata_bytes": 1048576,
+              "session_resource_bytes": 14453248
+            }
+          ],
+          "heap_alloc_bytes": 1305700256,
+          "heap_sys_bytes": 1326350336,
+          "memory_headroom_bytes": 2550650470,
+          "num_gc": 1,
+          "owner_bytes": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 14453248,
+            "replay_buffer": 0
+          },
+          "owner_fds": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 0,
+            "replay_buffer": 0
+          },
+          "owner_reservations": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 5,
+            "replay_buffer": 0
+          },
+          "owner_stats": true,
+          "pause_total_ns": 36641,
+          "resource_pressure_reason": "memory"
+        }
+      }
+    },
+    {
+      "agent_processes": [
+        {
+          "cgroup_memory_bytes": 67559424,
+          "cgroup_memory_events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0,
+            "sock_throttled": 0
+          },
+          "cgroup_sock_bytes": 0,
+          "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+          "pid": 187802,
+          "role": "agent-1",
+          "rss_bytes": 77824000,
+          "runtime": {
+            "agent_capacity": {
+              "adaptive": true,
+              "admission_limit": 4799,
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_growth_pool_bytes": 0,
+              "aggregate_initial_pool_bytes": 10485760,
+              "aggregate_session_metadata_bytes": 9994240,
+              "file_descriptors_limit": 2147483584,
+              "file_descriptors_used": 15,
+              "in_use": 0,
+              "legacy_control_supplement_bytes": 2918912,
+              "legacy_session_envelope_bytes": 0,
+              "legacy_stream_supplement_bytes": 0,
+              "maximum": 65536,
+              "memory_limit_bytes": 32309116928,
+              "memory_source": "host",
+              "memory_used_bytes": 14788132864,
+              "pressure": "healthy",
+              "pressure_reason": "memory",
+              "receive_window_bytes": 0,
+              "rejected_fixed_limit": 0,
+              "rejected_pressure": 0,
+              "resource_limited": true,
+              "session_resource_bytes": 23398912,
+              "stream_charge_bytes": 786432,
+              "stream_charge_fds": 2
+            },
+            "heap_alloc_bytes": 130976056,
+            "heap_sys_bytes": 145981440,
+            "num_gc": 8,
+            "pause_total_ns": 433232
+          }
+        }
+      ],
+      "observed_offset_seconds": 35.000076488009654,
+      "requested_offset_seconds": 35.0,
+      "server_process": {
+        "cgroup_memory_bytes": 1314852864,
+        "cgroup_memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "cgroup_sock_bytes": 0,
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+        "pid": 187684,
+        "role": "server",
+        "rss_bytes": 1335361536,
+        "runtime": {
+          "adaptive_admission_limit": 9673,
+          "agent_tunnels": [
+            {
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_initial_pool_bytes": 10485760,
+              "bulk_sessions": 4,
+              "connected": true,
+              "control_connected": true,
+              "flow_control": "aggregate-v1",
+              "id": 1,
+              "lanes": [
+                {
+                  "aggregate": false,
+                  "lane": 0,
+                  "streams": 0
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 1,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 2,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 3,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 4,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                }
+              ],
+              "legacy_control_supplement_bytes": 2918912,
+              "public_id": "qualification-external-agent-1",
+              "session_metadata_bytes": 1048576,
+              "session_resource_bytes": 14453248
+            }
+          ],
+          "heap_alloc_bytes": 1307614120,
+          "heap_sys_bytes": 1326383104,
+          "memory_headroom_bytes": 2550617702,
+          "num_gc": 1,
+          "owner_bytes": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 14453248,
+            "replay_buffer": 0
+          },
+          "owner_fds": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 0,
+            "replay_buffer": 0
+          },
+          "owner_reservations": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 5,
+            "replay_buffer": 0
+          },
+          "owner_stats": true,
+          "pause_total_ns": 36641,
+          "resource_pressure_reason": "memory"
+        }
+      }
+    },
+    {
+      "agent_processes": [
+        {
+          "cgroup_memory_bytes": 67264512,
+          "cgroup_memory_events": {
+            "high": 0,
+            "low": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_group_kill": 0,
+            "oom_kill": 0,
+            "sock_throttled": 0
+          },
+          "cgroup_sock_bytes": 0,
+          "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+          "pid": 187802,
+          "role": "agent-1",
+          "rss_bytes": 77946880,
+          "runtime": {
+            "agent_capacity": {
+              "adaptive": true,
+              "admission_limit": 4799,
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_growth_pool_bytes": 0,
+              "aggregate_initial_pool_bytes": 10485760,
+              "aggregate_session_metadata_bytes": 9994240,
+              "file_descriptors_limit": 2147483584,
+              "file_descriptors_used": 15,
+              "in_use": 0,
+              "legacy_control_supplement_bytes": 2918912,
+              "legacy_session_envelope_bytes": 0,
+              "legacy_stream_supplement_bytes": 0,
+              "maximum": 65536,
+              "memory_limit_bytes": 32309116928,
+              "memory_source": "host",
+              "memory_used_bytes": 14797545472,
+              "pressure": "healthy",
+              "pressure_reason": "memory",
+              "receive_window_bytes": 0,
+              "rejected_fixed_limit": 0,
+              "rejected_pressure": 0,
+              "resource_limited": true,
+              "session_resource_bytes": 23398912,
+              "stream_charge_bytes": 786432,
+              "stream_charge_fds": 2
+            },
+            "heap_alloc_bytes": 136004896,
+            "heap_sys_bytes": 145981440,
+            "num_gc": 8,
+            "pause_total_ns": 433232
+          }
+        }
+      ],
+      "observed_offset_seconds": 65.00008619902655,
+      "requested_offset_seconds": 65.0,
+      "server_process": {
+        "cgroup_memory_bytes": 1317969920,
+        "cgroup_memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "cgroup_sock_bytes": 0,
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+        "pid": 187684,
+        "role": "server",
+        "rss_bytes": 1338933248,
+        "runtime": {
+          "adaptive_admission_limit": 9661,
+          "agent_tunnels": [
+            {
+              "aggregate_current_pool_bytes": 10485760,
+              "aggregate_initial_pool_bytes": 10485760,
+              "bulk_sessions": 4,
+              "connected": true,
+              "control_connected": true,
+              "flow_control": "aggregate-v1",
+              "id": 1,
+              "lanes": [
+                {
+                  "aggregate": false,
+                  "lane": 0,
+                  "streams": 0
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 1,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 2,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 3,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                },
+                {
+                  "aggregate": true,
+                  "free_units": 512,
+                  "lane": 4,
+                  "receive_available_bytes": 2097152,
+                  "receive_limit_bytes": 2097152,
+                  "streams": 0,
+                  "total_units": 512
+                }
+              ],
+              "legacy_control_supplement_bytes": 2918912,
+              "public_id": "qualification-external-agent-1",
+              "session_metadata_bytes": 1048576,
+              "session_resource_bytes": 14453248
+            }
+          ],
+          "heap_alloc_bytes": 1319868824,
+          "heap_sys_bytes": 1330544640,
+          "memory_headroom_bytes": 2547500646,
+          "num_gc": 1,
+          "owner_bytes": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 14453248,
+            "replay_buffer": 0
+          },
+          "owner_fds": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 0,
+            "replay_buffer": 0
+          },
+          "owner_reservations": {
+            "direct_connection": 0,
+            "other": 0,
+            "public_connection": 0,
+            "public_handshake": 0,
+            "public_request": 0,
+            "public_response": 0,
+            "receive_window": 5,
+            "replay_buffer": 0
+          },
+          "owner_stats": true,
+          "pause_total_ns": 36641,
+          "resource_pressure_reason": "memory"
+        }
+      }
+    }
+  ],
+  "recovery": {
+    "agent_processes": [
+      {
+        "agent_capacity_final": {
+          "adaptive": true,
+          "admission_limit": 4792,
+          "aggregate_current_pool_bytes": 10485760,
+          "aggregate_growth_pool_bytes": 0,
+          "aggregate_initial_pool_bytes": 10485760,
+          "aggregate_session_metadata_bytes": 9994240,
+          "file_descriptors_limit": 2147483584,
+          "file_descriptors_used": 1550,
+          "in_use": 1536,
+          "legacy_control_supplement_bytes": 2918912,
+          "legacy_session_envelope_bytes": 0,
+          "legacy_stream_supplement_bytes": 0,
+          "maximum": 65536,
+          "memory_limit_bytes": 32309116928,
+          "memory_source": "host",
+          "memory_used_bytes": 14821187584,
+          "pressure": "healthy",
+          "pressure_reason": "memory",
+          "receive_window_bytes": 0,
+          "rejected_fixed_limit": 0,
+          "rejected_pressure": 0,
+          "resource_limited": true,
+          "session_resource_bytes": 23398912,
+          "stream_charge_bytes": 786432,
+          "stream_charge_fds": 2
+        },
+        "agent_capacity_high_water": {
+          "adaptive": true,
+          "admission_limit": 4793,
+          "aggregate_current_pool_bytes": 10485760,
+          "aggregate_growth_pool_bytes": 0,
+          "aggregate_initial_pool_bytes": 10485760,
+          "aggregate_session_metadata_bytes": 9994240,
+          "file_descriptors_limit": 2147483584,
+          "file_descriptors_used": 1550,
+          "in_use": 1536,
+          "legacy_control_supplement_bytes": 2918912,
+          "legacy_session_envelope_bytes": 0,
+          "legacy_stream_supplement_bytes": 0,
+          "maximum": 65536,
+          "memory_limit_bytes": 32309116928,
+          "memory_source": "host",
+          "memory_used_bytes": 14821187584,
+          "pressure": "healthy",
+          "pressure_reason": "memory",
+          "receive_window_bytes": 0,
+          "rejected_fixed_limit": 0,
+          "rejected_pressure": 0,
+          "resource_limited": true,
+          "session_resource_bytes": 23398912,
+          "stream_charge_bytes": 786432,
+          "stream_charge_fds": 2
+        },
+        "agent_capacity_initial": {
+          "adaptive": true,
+          "admission_limit": 4793,
+          "aggregate_current_pool_bytes": 10485760,
+          "aggregate_growth_pool_bytes": 0,
+          "aggregate_initial_pool_bytes": 10485760,
+          "aggregate_session_metadata_bytes": 9994240,
+          "file_descriptors_limit": 2147483584,
+          "file_descriptors_used": 1549,
+          "in_use": 1536,
+          "legacy_control_supplement_bytes": 2918912,
+          "legacy_session_envelope_bytes": 0,
+          "legacy_stream_supplement_bytes": 0,
+          "maximum": 65536,
+          "memory_limit_bytes": 32309116928,
+          "memory_source": "host",
+          "memory_used_bytes": 14802268160,
+          "pressure": "healthy",
+          "pressure_reason": "memory",
+          "receive_window_bytes": 0,
+          "rejected_fixed_limit": 0,
+          "rejected_pressure": 0,
+          "resource_limited": true,
+          "session_resource_bytes": 23398912,
+          "stream_charge_bytes": 786432,
+          "stream_charge_fds": 2
+        },
+        "cgroup_inode": 119057,
+        "cgroup_memory_events_captured": true,
+        "cgroup_memory_max_bytes": 4294967296,
+        "cgroup_path": "/system.slice/docker-96f2929274c5444cd97ca56c3a31282427fe06a12b44700af92e21b28ba1af43.scope",
+        "container": "p2pstream-qualification-lifecycle-cad0850-1-external-agent-1-187503",
+        "cpu_seconds": 0.08,
+        "cpu_set": "4,5,6,7",
+        "final_cgroup_memory_bytes": 72228864,
+        "final_cgroup_sock_bytes": 4096,
+        "final_rss_bytes": 75132928,
+        "final_socket_fds": 1543,
+        "initial_cgroup_memory_bytes": 72073216,
+        "initial_heap_alloc_bytes": 117437440,
+        "initial_rss_bytes": 75079680,
+        "peak_cgroup_memory_bytes": 73105408,
+        "peak_cgroup_sock_bytes": 36864,
+        "peak_fds": 1549,
+        "peak_heap_alloc_bytes": 117730600,
+        "peak_rss_bytes": 75091968,
+        "peak_socket_fds": 1543,
+        "pid": 187802,
+        "role": "agent-1",
+        "sampling_seconds": 0.04003325
+      }
+    ],
+    "agent_tunnels_final": [
+      {
+        "aggregate_current_pool_bytes": 10485760,
+        "aggregate_initial_pool_bytes": 10485760,
+        "bulk_sessions": 4,
+        "connected": true,
+        "control_connected": true,
+        "flow_control": "aggregate-v1",
+        "id": 1,
+        "lanes": [
+          {
+            "aggregate": false,
+            "lane": 0,
+            "streams": 0
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 1,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 2,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 3,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 4,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          }
+        ],
+        "legacy_control_supplement_bytes": 2918912,
+        "public_id": "qualification-external-agent-1",
+        "session_metadata_bytes": 1048576,
+        "session_resource_bytes": 14453248
+      }
+    ],
+    "agent_tunnels_high_water": [
+      {
+        "aggregate_current_pool_bytes": 10485760,
+        "aggregate_initial_pool_bytes": 10485760,
+        "bulk_sessions": 4,
+        "connected": true,
+        "control_connected": true,
+        "flow_control": "aggregate-v1",
+        "id": 1,
+        "lanes": [
+          {
+            "aggregate": false,
+            "lane": 0,
+            "streams": 0
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 1,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 2,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 3,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 4,
+            "pending_refund_bytes": 4096,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          }
+        ],
+        "legacy_control_supplement_bytes": 2918912,
+        "public_id": "qualification-external-agent-1",
+        "session_metadata_bytes": 1048576,
+        "session_resource_bytes": 14453248
+      }
+    ],
+    "agent_tunnels_initial": [
+      {
+        "aggregate_current_pool_bytes": 10485760,
+        "aggregate_initial_pool_bytes": 10485760,
+        "bulk_sessions": 4,
+        "connected": true,
+        "control_connected": true,
+        "flow_control": "aggregate-v1",
+        "id": 1,
+        "lanes": [
+          {
+            "aggregate": false,
+            "lane": 0,
+            "streams": 0
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 1,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 2,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 3,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          },
+          {
+            "aggregate": true,
+            "free_units": 512,
+            "lane": 4,
+            "pending_refund_bytes": 4096,
+            "receive_available_bytes": 2097152,
+            "receive_limit_bytes": 2097152,
+            "streams": 384,
+            "total_units": 512
+          }
+        ],
+        "legacy_control_supplement_bytes": 2918912,
+        "public_id": "qualification-external-agent-1",
+        "session_metadata_bytes": 1048576,
+        "session_resource_bytes": 14453248
+      }
+    ],
+    "attempted": 512,
+    "cgroup_memory_final_bytes": 1312030720,
+    "cgroup_memory_max_bytes": 4294967296,
+    "cgroup_memory_peak_bytes": 1311858688,
+    "client_tcp_connections": 1,
+    "concurrency": 64,
+    "cpu_seconds": 0.13,
+    "errors": 0,
+    "event_drain_seconds": 0.00051935,
+    "event_queue_after_load": 512,
+    "event_stats_captured": true,
+    "final_cgroup_sock_bytes": 4096,
+    "final_rss_bytes": 1331642368,
+    "final_socket_fds": 10,
+    "initial_cgroup_memory_bytes": 1309966336,
+    "initial_heap_alloc_bytes": 1272437032,
+    "initial_rss_bytes": 1331142656,
+    "label": "lifecycle-cad0850",
+    "load_cpu_set": "8,9,10,11,12,13,14,15",
+    "new_origin_tcp_connections": 38,
+    "observed_http_major": 2,
+    "observed_origin_http_major": 1,
+    "p50_ms": 3.775347,
+    "p95_ms": 12.240972,
+    "p99_ms": 13.882102,
+    "path": "agent-external",
+    "peak_cgroup_sock_bytes": 4096,
+    "peak_fds": 23,
+    "peak_heap_alloc_bytes": 1279385920,
+    "peak_rss_bytes": 1331478528,
+    "peak_socket_fds": 10,
+    "persisted_event_delta": 512,
+    "persisted_events_after_drain": 2048,
+    "persisted_events_after_load": 1536,
+    "protocol": "h2",
+    "proxy_cpu_set": "0,1,2,3",
+    "resource_envelope": "p2pstream-server-4g+1x-agent-4g:flow_control=aggregate-v1,separate-cgroups,server_ballast_mib=1024,agent_ballast_mib_each=0",
+    "response_bytes": 131072,
+    "scenario": "recovery",
+    "sequence": 2,
+    "server_ballast_bytes": 1073741824,
+    "server_process": {
+      "cgroup_inode": 118970,
+      "cgroup_memory_events_captured": true,
+      "cgroup_memory_max_bytes": 4294967296,
+      "cgroup_path": "/system.slice/docker-aea81e12c1b7a792f62b044a0f81c5dab30043238a057c910ea2e98cfd6b6125.scope",
+      "container": "p2pstream-qualification-lifecycle-cad0850-1-external-server-187503",
+      "cpu_seconds": 0.13,
+      "cpu_set": "0,1,2,3",
+      "final_cgroup_memory_bytes": 1312030720,
+      "final_cgroup_sock_bytes": 4096,
+      "final_rss_bytes": 1331642368,
+      "final_socket_fds": 10,
+      "initial_cgroup_memory_bytes": 1309966336,
+      "initial_heap_alloc_bytes": 1272437032,
+      "initial_rss_bytes": 1331142656,
+      "peak_cgroup_memory_bytes": 1311858688,
+      "peak_cgroup_sock_bytes": 4096,
+      "peak_fds": 23,
+      "peak_heap_alloc_bytes": 1279385920,
+      "peak_rss_bytes": 1331478528,
+      "peak_socket_fds": 10,
+      "pid": 187684,
+      "role": "server",
+      "sampling_seconds": 0.041668107
+    },
+    "status_classes": {
+      "2xx": 512
+    },
+    "status_codes": {
+      "200": 512
+    },
+    "useful_completed": 512,
+    "useful_requests_per_second": 12971.355497529006,
+    "wall_seconds": 0.039471588
+  }
+}

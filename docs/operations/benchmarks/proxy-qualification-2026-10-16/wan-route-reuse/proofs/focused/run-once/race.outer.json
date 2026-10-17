@@ -1,0 +1,318 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-mod=readonly",
+    "-p=2",
+    "-parallel=1",
+    "-count=1",
+    "-timeout=240s",
+    "-json",
+    "-run",
+    "^(TestAgentConnSignalDoneIsConcurrentAndIdempotent|TestAgentDialRequestIDContextFallback|TestAgentProtoDoesNotReusePreConnectionCapacityHeartbeat|TestAgentProtoReportsLiveNegotiatedTunnelCapacity|TestAgentReplacementSerializesPriorDisconnectSideEffects|TestAgentRouteLocalityAllBusyUsesRoundRobinWithoutWaiting|TestAgentRouteLocalityBodyOwnership|TestAgentRouteLocalityBoundedWindowAndMaximumLane|TestAgentRouteLocalityConcurrentClaims|TestAgentRouteLocalityConcurrentColdLiveLanes|TestAgentRouteLocalityFactoryDoesNotClaimOrAllocatePoolEntry|TestAgentRouteLocalityRejectsIneligibleEntry|TestAgentRouteLocalityStaleIdleHintAndCancellation|TestAgentRouteLocalityWarmupCloseAllPreservesRoundRobin|TestAgentTransportPoolAgentDisconnectInvalidatesPool|TestAgentTransportPoolCloseRouteTargetForcesNewPublicStream|TestAgentTransportPoolConcurrentPublicRouteTargetRequestsOpenParallelStreams|TestAgentTransportPoolIdleStreamUsesPooledBudgetAndOneShotHeadroom|TestAgentTransportPoolPressureReclaimPrefersSessionAndScalesWithDemand|TestAgentTransportPoolPressureReclaimsIdleShardAndSafelyHandsOffBody|TestAgentTransportPoolReclaimsIdleSocketBesideActiveResponse|TestAgentTransportPoolReservedHeadroomKeepsColdTargetAvailableAcrossFourAgents|TestAgentTransportPoolRetainsMoreThan256WarmTargets|TestAgentTransportPoolReusesPublicRouteTargetConnection|TestAgentTransportPoolReusesWarmConnectionForBodyRequest|TestAgentTransportPoolSeparatesAgentsAndRouteTargets|TestAgentTunnelFinalAuthLockReleasedAfterHijackFailure|TestAgentTunnelNegotiatesAdaptiveCapacityAtProtocolGuard|TestAgentTunnelNegotiatesAdvertisedCapacity|TestAgentTunnelReadGateRejectsSYNQueuedBeforeGoAway|TestAgentTunnelRechecksTokenBeforeRegisteringAfterRotation|TestAgentTunnelRejectsAgentInitiatedStreams|TestAgentTunnelRejectsInvalidAdvertisedCapacity|TestAgentTunnelRejectsMissingCapacityHeaders|TestAgentTunnelRejectsMissingUpgrade|TestAgentTunnelRejectsWrongVersion|TestAgentTunnelReplacesDuplicateConnection|TestAggregateControlAdmissionCallerDeadlineRemainsHealthCapacity|TestAggregateControlAdmissionPreservesAgentDisconnect|TestAggregateControlAdmissionPreservesCallerCancellation|TestAggregateControlGateBoundsLifetimePromises|TestAggregateExplicitLaneCannotCrossTrafficClassBoundary|TestAggregatePrimaryReplacementKeepsGenerationRegistrationUntilLastBulkLane|TestAggregateTunnelSelectionExcludesControlAndSupportsMaximumBulkLane|TestAggregateTunnelSelectionNeverUsesCompatibilitySessionBeforeLaneInstall|TestCreateAgentRejectsDuplicateNormalizedLabelKeys|TestCreateAgentStoresSystemAndUserLabels|TestCreateAgentWithGeneratedPublicIDCollisionFailure|TestCreateAgentWithGeneratedPublicIDCollisionRetry|TestDirectResourcePressurePreservesOriginHealthAndRecovers|TestDirectTransportPoolAppliesConnectionBudget|TestDirectTransportPoolCloseRouteTargetForcesNewConnection|TestDirectTransportPoolNormalizesDefaultTimeout|TestDirectTransportPoolReusesPublicRouteTargetConnection|TestDirectTransportPoolSeparatesRouteTargetsTLSAndTimeouts|TestExplicitFixedServerCapacityUsesResourceCoveredYamuxWindow|TestLegacyTunnelSelectionStillFallsBackAcrossLegacyLanes|TestRandomAgentPublicIDFormatAndUniqueness|TestRealAgentParallelTunnelsSurvivePrimaryLoss|TestRealAgentProxyPhaseTimingAndReuse|TestReportStatsPublishesAdaptivePressureWithoutChangingNegotiatedGuard|TestReportStatsRecordsAgentBuildIdentity|TestRotateAgentTokenClosesTunnelConnection|TestRotateAgentTokenDisconnectsActiveAgent|TestRotateAgentTokenOnlyDisconnectsTargetAgent|TestRouteTargetTransportReconcileEvictsChangedAndRemovedTargets|TestStaleAgentCleanupCannotAffectReplacementSideEffects|TestUpdateAgentLifecycleChangePreservesLabelsUntilReplacementIsExplicit|TestUpdateAgentReplacesUserLabelsAndPreservesSystemLabel)$",
+    "-race",
+    "./internal/server"
+  ],
+  "artifact_bytes": 1137537744,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 77.57614074800222,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2741600,
+      "pid": 2741600,
+      "ppid": 2740964,
+      "sid": 2741600,
+      "start_ticks": 8783662,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2741813,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8783752,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2741833,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8783760,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2741872,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8783822,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2741884,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8783854,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742053,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8783981,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742054,
+      "ppid": 2742053,
+      "sid": 2741600,
+      "start_ticks": 8783981,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742140,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8784070,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742263,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8784137,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742335,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8784267,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742434,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8784462,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742471,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8784580,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742511,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8784666,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742665,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8784839,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742905,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8785711,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2742964,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8785841,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743063,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8785928,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743289,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8786050,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743331,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8786099,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743373,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8786238,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743394,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8786311,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743420,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8786439,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743521,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8786670,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743598,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8786746,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743603,
+      "ppid": 2742053,
+      "sid": 2741600,
+      "start_ticks": 8786764,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743646,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8786866,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743663,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8786970,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743891,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8787039,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2743897,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8787039,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2744033,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8787141,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2744074,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8787170,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2744508,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8787366,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2744744,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8788235,
+      "state": "S"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2744758,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8788241,
+      "state": "R"
+    },
+    {
+      "pgid": 2741600,
+      "pid": 2744813,
+      "ppid": 2741600,
+      "sid": 2741600,
+      "start_ticks": 8788369,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 8388608,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 120281,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

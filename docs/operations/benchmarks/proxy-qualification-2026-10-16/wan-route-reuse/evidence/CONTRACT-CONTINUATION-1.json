@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "reason": "original fixture aliased the same host parent dictionary; post mutation also changed pre; actual validator correctly compared equality",
+  "original_test": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/contracts/test-qualification-boundaries.py",
+    "sha256": "ab461e36089c65299d74c216499152e7eeebb743071170061eac03dcc0eb55bf"
+  },
+  "corrected_test": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/contracts/test-qualification-boundaries-continuation-1.py",
+    "sha256": "0661b7640cc95d3e500ed73731fb6a3ee23218abbcc922f0ae1def46ec35ab1f"
+  },
+  "only_change": "fixture sample parent stores copy.deepcopy(parent), preserving independent captured snapshots",
+  "all_five_test_method_AST_identical": true,
+  "reused_passing_methods": {
+    "test_reviewed_current_and_legacy_tuple_and_wrong_identities": "5ab44304f5df07d035ebfa1a1334580408231d2ed763d2a50850ae21fa829055",
+    "test_tuple_failure_cannot_be_hidden_by_five_partial_lines": "ca9a1ff6b77608632823e191c669bc92c0c52ab4f0d1d2aa86ca2f65363e17a9",
+    "test_complete_original96_pair_gates_and_original_pooled_status_required": "bc23bd82bd2d4ca8745bbf7dfd66e9ff037a951b2d1a324a9171883bdc8596e7",
+    "test_original_timed_workload_and_pair_order_are_preserved": "7b13198e5b8accf4f8c69bf4ad5f3d3d06f24cd5b95af2d0854dd2949b65078b"
+  },
+  "fresh_method": "test_nested_default_scope_and_typed_identity_failures",
+  "runtime_helper_guard_driver_and_production_changes": false
+}

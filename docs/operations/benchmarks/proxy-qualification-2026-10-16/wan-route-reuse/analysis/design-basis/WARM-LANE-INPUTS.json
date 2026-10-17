@@ -1,0 +1,45 @@
+{
+  "scope": "Read-only warm-route feasibility source bindings; no implementation or execution approval",
+  "inputs": [
+    {
+      "path": "tmp/wan-controller-screen-20261017/test-source/internal/server/agent_transport_pool.go",
+      "bytes": 17909,
+      "sha256": "a92fd4c6a126a313b0df353553a16b4b7ea54729f4f97d3dc9d5446a5d5d0512"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/test-source/internal/server/agent_tunnels.go",
+      "bytes": 5979,
+      "sha256": "e5242e83869b683f106dcdc6f38e4ab190c10530c3eb9e83263b61e85085bf56"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/test-source/internal/server/public_routing.go",
+      "bytes": 72391,
+      "sha256": "0d20373ff4340186092f57dbf955f3a5fd0a265bc6787fe7f0a03fcad9ac49dd"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/test-source/internal/server/proxy_qualification_test.go",
+      "bytes": 108122,
+      "sha256": "bae2e41e0c43fc4328fd6ab786440b574b352a1c6c41037e43758367cb0d19f8"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/test-source/internal/tunnel/growing_conn.go",
+      "bytes": 8232,
+      "sha256": "c4db48b961c8a893acd5865dd0866dbd3b003966681363d84a732fa985fa0baf"
+    },
+    {
+      "path": "scripts/qualify-proxy-agent-growth.sh",
+      "bytes": 71091,
+      "sha256": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a"
+    },
+    {
+      "path": "tmp/continuation-20261016/current-wan-prep/runner/validate-owned-h2-stability.py",
+      "bytes": 8241,
+      "sha256": "47b4c1b938d57aba0585689a182b1a7c302e6f3dd4274388c9574f4a7033095c"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-policy.py",
+      "bytes": 19230,
+      "sha256": "436a2a1ad3f115e0233b2c9b263784a8577f7b7b7c8d173e384207d750e17c47"
+    }
+  ]
+}

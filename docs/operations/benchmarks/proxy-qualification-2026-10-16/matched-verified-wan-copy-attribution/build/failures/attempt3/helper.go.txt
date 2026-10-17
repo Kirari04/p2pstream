@@ -1,0 +1,352 @@
+package server
+
+import (
+	"crypto/tls"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+)
+
+type proxyCopyScriptedReadCloser struct {
+	read       func([]byte) (int, error)
+	closeError error
+	closed     int
+}
+
+func (reader *proxyCopyScriptedReadCloser) Read(buffer []byte) (int, error) {
+	return reader.read(buffer)
+}
+
+func (reader *proxyCopyScriptedReadCloser) Close() error {
+	reader.closed++
+	return reader.closeError
+}
+
+type proxyCopyScriptedResponseWriter struct {
+	header       http.Header
+	write        func([]byte) (int, error)
+	writeHeaders []int
+	flushed      int
+}
+
+func (writer *proxyCopyScriptedResponseWriter) Header() http.Header {
+	if writer.header == nil {
+		writer.header = make(http.Header)
+	}
+	return writer.header
+}
+
+func (writer *proxyCopyScriptedResponseWriter) WriteHeader(status int) {
+	writer.writeHeaders = append(writer.writeHeaders, status)
+}
+
+func (writer *proxyCopyScriptedResponseWriter) Write(buffer []byte) (int, error) {
+	return writer.write(buffer)
+}
+
+func (writer *proxyCopyScriptedResponseWriter) Flush() { writer.flushed++ }
+
+type proxyCopyReaderFromResponseWriter struct {
+	*proxyCopyScriptedResponseWriter
+	readFromCalls int
+	readFromError error
+}
+
+func (writer *proxyCopyReaderFromResponseWriter) ReadFrom(source io.Reader) (int64, error) {
+	writer.readFromCalls++
+	data, err := io.ReadAll(source)
+	if err != nil {
+		return int64(len(data)), err
+	}
+	return int64(len(data)), writer.readFromError
+}
+
+func sumProxyCopyBuckets(values [8]uint64) uint64 {
+	var total uint64
+	for _, value := range values {
+		total += value
+	}
+	return total
+}
+
+func TestProxyCopyAttributionForwardsReadSliceReturnAndClose(t *testing.T) {
+	closeError := errors.New("close sentinel")
+	var observed []byte
+	underlying := &proxyCopyScriptedReadCloser{
+		closeError: closeError,
+		read: func(buffer []byte) (int, error) {
+			observed = buffer
+			copy(buffer, "abc")
+			return 3, io.EOF
+		},
+	}
+	attribution := &proxyCopyAttribution{}
+	wrapped := attribution.wrapResponseBody(underlying)
+	buffer := make([]byte, 31)
+	n, err := wrapped.Read(buffer[5:19])
+	if n != 3 || err != io.EOF || string(buffer[5:8]) != "abc" {
+		t.Fatalf("Read = %d, %v, %q", n, err, buffer[5:8])
+	}
+	if len(observed) != 14 || &observed[0] != &buffer[5] {
+		t.Fatal("underlying Read did not receive the exact caller slice")
+	}
+	if err := wrapped.Close(); !errors.Is(err, closeError) || underlying.closed != 1 {
+		t.Fatalf("Close = %v, calls=%d", err, underlying.closed)
+	}
+	attribution.markComplete()
+	snapshot := attribution.snapshot()
+	if !snapshot.Complete || snapshot.BodyWraps != 1 || snapshot.Read.Calls != 1 || snapshot.Read.Bytes != 3 || snapshot.ReadEOF != 1 || snapshot.ReadErrors != 0 {
+		t.Fatalf("snapshot = %+v", snapshot)
+	}
+	if sumProxyCopyBuckets(snapshot.Read.Buckets) != snapshot.Read.Calls {
+		t.Fatalf("read histogram = %v calls=%d", snapshot.Read.Buckets, snapshot.Read.Calls)
+	}
+}
+
+func TestProxyCopyAttributionPartialReadErrorAndPublication(t *testing.T) {
+	readError := errors.New("read sentinel")
+	attribution := &proxyCopyAttribution{}
+	wrapped := attribution.wrapResponseBody(&proxyCopyScriptedReadCloser{read: func(buffer []byte) (int, error) {
+		copy(buffer, "xy")
+		return 2, readError
+	}})
+	buffer := make([]byte, 8)
+	n, err := wrapped.Read(buffer)
+	if n != 2 || !errors.Is(err, readError) {
+		t.Fatalf("Read = %d, %v", n, err)
+	}
+	if snapshot := attribution.snapshot(); snapshot.Complete || snapshot.Read.Calls != 0 || snapshot.Read.Bytes != 0 {
+		t.Fatalf("incomplete snapshot exposed mutable data: %+v", snapshot)
+	}
+	attribution.markComplete()
+	snapshot := attribution.snapshot()
+	if !snapshot.Complete || snapshot.Read.Bytes != 2 || snapshot.ReadErrors != 1 || snapshot.ReadEOF != 0 {
+		t.Fatalf("complete snapshot = %+v", snapshot)
+	}
+}
+
+func TestProxyCopyAttributionFixedSummaryBoundedAndConserved(t *testing.T) {
+	metric := proxyCopyAttributionMetric{}
+	base := time.Now()
+	durations := []time.Duration{
+		500 * time.Nanosecond, 5 * time.Microsecond, 50 * time.Microsecond, 500 * time.Microsecond,
+		5 * time.Millisecond, 50 * time.Millisecond, 500 * time.Millisecond, 2 * time.Second,
+		3 * time.Millisecond, 300 * time.Millisecond, 3 * time.Second, 30 * time.Microsecond,
+	}
+	for index, duration := range durations {
+		started := base.Add(time.Duration(index) * 4 * time.Second)
+		metric.observe(started, started.Add(duration), int64(index+1))
+	}
+	snapshot := metric.snapshot()
+	if snapshot.Calls != uint64(len(durations)) || sumProxyCopyBuckets(snapshot.Buckets) != snapshot.Calls {
+		t.Fatalf("summary is not conserved: %+v", snapshot)
+	}
+	for index := 1; index < len(snapshot.Longest); index++ {
+		if snapshot.Longest[index-1].DurationNS < snapshot.Longest[index].DurationNS {
+			t.Fatalf("longest stalls are not descending: %+v", snapshot.Longest)
+		}
+	}
+	if snapshot.Longest[0].DurationNS != uint64((3*time.Second).Nanoseconds()) || snapshot.Longest[7].DurationNS == 0 {
+		t.Fatalf("bounded longest stalls = %+v", snapshot.Longest)
+	}
+}
+
+func TestProxyResponseRecorderCopyAttributionDisabledAndShortWrite(t *testing.T) {
+	writeError := errors.New("write sentinel")
+	payload := []byte("abcdef")
+	var disabledSlice []byte
+	disabledWriter := &proxyCopyScriptedResponseWriter{write: func(buffer []byte) (int, error) {
+		disabledSlice = buffer
+		return len(buffer), writeError
+	}}
+	disabled := &proxyResponseRecorder{ResponseWriter: disabledWriter}
+	n, err := disabled.Write(payload)
+	if n != len(payload) || !errors.Is(err, writeError) || &disabledSlice[0] != &payload[0] || disabled.bytes != uint64(len(payload)) {
+		t.Fatalf("disabled Write = %d, %v bytes=%d", n, err, disabled.bytes)
+	}
+
+	attribution := &proxyCopyAttribution{}
+	enabledWriter := &proxyCopyScriptedResponseWriter{write: func(buffer []byte) (int, error) {
+		if &buffer[0] != &payload[0] {
+			t.Fatal("enabled writer did not receive the exact slice")
+		}
+		return len(buffer) - 2, nil
+	}}
+	enabled := &proxyResponseRecorder{ResponseWriter: enabledWriter, copyAttribution: attribution}
+	n, err = enabled.Write(payload)
+	if n != 4 || err != nil || enabled.bytes != 4 {
+		t.Fatalf("enabled Write = %d, %v bytes=%d", n, err, enabled.bytes)
+	}
+	attribution.markComplete()
+	snapshot := attribution.snapshot()
+	if snapshot.Write.Calls != 1 || snapshot.Write.Bytes != 4 || snapshot.WriteErrors != 0 || snapshot.ShortWrites != 1 || snapshot.ReadFromCalls != 0 {
+		t.Fatalf("write snapshot = %+v", snapshot)
+	}
+}
+
+func TestProxyResponseRecorderCopyAttributionPreservesReadFrom(t *testing.T) {
+	readFromError := errors.New("read-from sentinel")
+	for _, enabled := range []bool{false, true} {
+		name := "disabled"
+		var attribution *proxyCopyAttribution
+		if enabled {
+			name = "enabled"
+			attribution = &proxyCopyAttribution{}
+		}
+		t.Run(name, func(t *testing.T) {
+			underlying := &proxyCopyReaderFromResponseWriter{
+				proxyCopyScriptedResponseWriter: &proxyCopyScriptedResponseWriter{write: func(buffer []byte) (int, error) {
+					return len(buffer), nil
+				}},
+				readFromError: readFromError,
+			}
+			recorder := &proxyResponseRecorder{ResponseWriter: underlying, copyAttribution: attribution}
+			n, err := recorder.ReadFrom(strings.NewReader("reader-from-body"))
+			if n != int64(len("reader-from-body")) || !errors.Is(err, readFromError) || underlying.readFromCalls != 1 || recorder.bytes != uint64(n) {
+				t.Fatalf("ReadFrom = %d, %v calls=%d bytes=%d", n, err, underlying.readFromCalls, recorder.bytes)
+			}
+			if attribution != nil {
+				attribution.markComplete()
+				snapshot := attribution.snapshot()
+				if snapshot.Write.Calls != 1 || snapshot.Write.Bytes != uint64(n) || snapshot.WriteErrors != 1 || snapshot.ReadFromCalls != 1 {
+					t.Fatalf("snapshot = %+v", snapshot)
+				}
+			}
+		})
+	}
+}
+
+func TestQualificationWANCopyAttributionStoreBoundedAndCompleted(t *testing.T) {
+	store := newQualificationWANCopyAttributionStore()
+	handler := store.wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attribution := proxyCopyAttributionFromContext(r.Context())
+		if attribution == nil {
+			t.Fatal("missing attribution context")
+		}
+		started := time.Now()
+		attribution.read.observe(started, started.Add(time.Microsecond), 1)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	for index := 0; index < 33; index++ {
+		request := httptest.NewRequest(http.MethodGet, "/agent/bulk", nil)
+		request.Header.Set("X-Qualification-Diagnostic-Sequence", "1")
+		handler.ServeHTTP(httptest.NewRecorder(), request)
+	}
+	store.mu.Lock()
+	entries := append([]*qualificationWANCopyAttributionEntry(nil), store.entries["1"]...)
+	count, overflow := store.count, store.overflow
+	store.mu.Unlock()
+	if count != 32 || !overflow || len(entries) != 32 {
+		t.Fatalf("store count=%d overflow=%v entries=%d", count, overflow, len(entries))
+	}
+	for _, entry := range entries {
+		snapshot := entry.snapshot()
+		if !snapshot.Attribution.Complete || snapshot.Attribution.Read.Calls != 1 || snapshot.Scope != "response-body-copy" || snapshot.Method != http.MethodGet || snapshot.Path != "/agent/bulk" {
+			t.Fatalf("entry = %+v", snapshot)
+		}
+	}
+	var wait sync.WaitGroup
+	for range 8 {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for range 100 {
+				if !entries[0].snapshot().Attribution.Complete {
+					t.Error("published entry became incomplete")
+				}
+			}
+		}()
+	}
+	wait.Wait()
+}
+
+func TestProxyCopyAttributionPreservesH1H2ResponseFraming(t *testing.T) {
+	for _, protocol := range []string{"h1", "h2"} {
+		for _, streaming := range []bool{false, true} {
+			name := protocol + "/content-length"
+			if streaming {
+				name = protocol + "/streaming"
+			}
+			t.Run(name, func(t *testing.T) {
+				body := []byte("copy-attribution-response-body")
+				origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					if !streaming {
+						w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+						_, _ = w.Write(body)
+						return
+					}
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write(body[:9])
+					w.(http.Flusher).Flush()
+					_, _ = w.Write(body[9:])
+				}))
+				defer origin.Close()
+				originURL, err := url.Parse(origin.URL)
+				if err != nil {
+					t.Fatal(err)
+				}
+				proxy := httputil.NewSingleHostReverseProxy(originURL)
+				var snapshots = make(chan proxyCopyAttributionSnapshot, 1)
+				proxy.ModifyResponse = func(response *http.Response) error {
+					attribution := proxyCopyAttributionFromContext(response.Request.Context())
+					response.Body = attribution.wrapResponseBody(response.Body)
+					return nil
+				}
+				front := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					attribution := &proxyCopyAttribution{}
+					r = r.WithContext(withProxyCopyAttribution(r.Context(), attribution))
+					recorder := &proxyResponseRecorder{ResponseWriter: w, request: r, copyAttribution: attribution}
+					proxy.ServeHTTP(recorder, r)
+					attribution.markComplete()
+					snapshots <- attribution.snapshot()
+				}))
+				front.EnableHTTP2 = true
+				front.StartTLS()
+				defer front.Close()
+
+				protocols := new(http.Protocols)
+				protocols.SetHTTP1(protocol == "h1")
+				protocols.SetHTTP2(protocol == "h2")
+				alpn := "http/1.1"
+				expectedMajor := 1
+				if protocol == "h2" {
+					alpn = "h2"
+					expectedMajor = 2
+				}
+				transport := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, NextProtos: []string{alpn}}, Protocols: protocols}
+				defer transport.CloseIdleConnections()
+				response, err := (&http.Client{Transport: transport}).Get(front.URL)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, readErr := io.ReadAll(response.Body)
+				closeErr := response.Body.Close()
+				if readErr != nil || closeErr != nil || string(got) != string(body) || response.ProtoMajor != expectedMajor {
+					t.Fatalf("response major=%d body=%q read=%v close=%v", response.ProtoMajor, got, readErr, closeErr)
+				}
+				if streaming {
+					if response.ContentLength != -1 || response.Header.Get("Content-Length") != "" {
+						t.Fatalf("streaming framing changed: length=%d header=%q", response.ContentLength, response.Header.Get("Content-Length"))
+					}
+				} else if response.ContentLength != int64(len(body)) || response.Header.Get("Content-Length") != strconv.Itoa(len(body)) {
+					t.Fatalf("content length changed: length=%d header=%q", response.ContentLength, response.Header.Get("Content-Length"))
+				}
+				snapshot := <-snapshots
+				if !snapshot.Complete || snapshot.BodyWraps != 1 || snapshot.Read.Bytes != uint64(len(body)) || snapshot.Write.Bytes != uint64(len(body)) || snapshot.ReadErrors != 0 || snapshot.WriteErrors != 0 || snapshot.ShortWrites != 0 || snapshot.ReadFromCalls != 0 {
+					t.Fatalf("snapshot = %+v", snapshot)
+				}
+				if sumProxyCopyBuckets(snapshot.Read.Buckets) != snapshot.Read.Calls || sumProxyCopyBuckets(snapshot.Write.Buckets) != snapshot.Write.Calls || sumProxyCopyBuckets(snapshot.InterReadGap.Buckets) != snapshot.InterReadGap.Calls {
+					t.Fatalf("histograms are not conserved: %+v", snapshot)
+				}
+			})
+		}
+	}
+}

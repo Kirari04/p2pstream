@@ -1,0 +1,17 @@
+--- /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runner/validate-owned-h2-stability.py
++++ /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/validate-owned-h2-stability.py
+@@ -59,11 +59,11 @@
+         fail(f"row {index} failed exact payload/status/event conservation")
+     if row.get("configured_rtt_ms") != 80:
+         fail(f"row {index} configured_rtt_ms changed")
+-    if row.get("provenance", {}).get("server_source_ref") != "8ac4c8df8237e37777ba2fac0da6f949da17bdea":
++    if row.get("provenance", {}).get("server_source_ref") != manifest["source"]["current_ref"]:
+         fail(f"row {index} server source provenance changed")
+-    if row.get("provenance", {}).get("aggregate_agent_source_ref") != "8ac4c8df8237e37777ba2fac0da6f949da17bdea":
++    if row.get("provenance", {}).get("aggregate_agent_source_ref") != manifest["source"]["current_ref"]:
+         fail(f"row {index} aggregate source provenance changed")
+-    if row.get("provenance", {}).get("legacy_agent_source_ref") != "3ec137c3ad3d07028e867042fb00d3933912d7ab":
++    if row.get("provenance", {}).get("legacy_agent_source_ref") != manifest["source"]["legacy_ref"]:
+         fail(f"row {index} legacy source provenance changed")
+     provenance = row["provenance"]
+     if provenance.get("server_binary_sha256") != hashes["current_server_binary"] or provenance.get("aggregate_agent_binary_sha256") != hashes["current_agent_binary"] or provenance.get("legacy_agent_binary_sha256") != hashes["legacy_agent_binary"] or provenance.get("harness_sha256") != hashes["owned_runner"]:

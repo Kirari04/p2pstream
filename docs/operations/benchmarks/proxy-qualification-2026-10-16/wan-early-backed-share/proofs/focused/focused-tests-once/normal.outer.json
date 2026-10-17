@@ -1,0 +1,185 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-mod=readonly",
+    "-p=2",
+    "-parallel=1",
+    "-count=1",
+    "-timeout=60s",
+    "-run",
+    "^Test(EarlyShare|QualificationEarlyShare|GrowingConn|AggregateReceiveWindowGrowth|AggregateGrowthPublicationFailure|AggregateGrowingConn|ReceiveWindowGrowth|QualificationGrowthTrace)",
+    "-v",
+    "./internal/tunnel"
+  ],
+  "artifact_bytes": 217064115,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 13.423299365997082,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2673271,
+      "pid": 2673271,
+      "ppid": 2673209,
+      "sid": 2673271,
+      "start_ticks": 8474867,
+      "state": "S"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2673272,
+      "ppid": 2673271,
+      "sid": 2673271,
+      "start_ticks": 8474867,
+      "state": "S"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2673529,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8474917,
+      "state": "S"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2673958,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475177,
+      "state": "S"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674037,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475253,
+      "state": "R"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674053,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475278,
+      "state": "R"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674233,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475360,
+      "state": "R"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674249,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475385,
+      "state": "S"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674363,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475488,
+      "state": "S"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674584,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475586,
+      "state": "R"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674588,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475586,
+      "state": "S"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674708,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475695,
+      "state": "R"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674860,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475764,
+      "state": "Z"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674872,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475791,
+      "state": "R"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674948,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475907,
+      "state": "R"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2674964,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8475911,
+      "state": "R"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2675441,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8476103,
+      "state": "S"
+    },
+    {
+      "pgid": 2673271,
+      "pid": 2675458,
+      "ppid": 2673272,
+      "sid": 2673271,
+      "start_ticks": 8476108,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 4194304,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 6089,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

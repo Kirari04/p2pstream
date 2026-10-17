@@ -1,0 +1,24 @@
+ok  	p2pstream/internal/tunnel	1.138s
+	Command being timed: "go test -race -tags=p2pstream_transport_ceiling,p2pstream_http_stage ./internal/tunnel -run ^TestHTTPStage -count=3"
+	User time (seconds): 40.86
+	System time (seconds): 7.40
+	Percent of CPU this job got: 371%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:12.97
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 237268
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 144
+	Minor (reclaiming a frame) page faults: 1827358
+	Voluntary context switches: 117021
+	Involuntary context switches: 22431
+	Swaps: 0
+	File system inputs: 6968
+	File system outputs: 497608
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

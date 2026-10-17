@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-joined-ps.py", line 177, in main
+    if checked!=0:raise RuntimeError('independent arm validation failed')
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: independent arm validation failed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-joined-ps.py", line 194, in <module>
+    main()
+    ~~~~^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-joined-ps.py", line 189, in main
+    finish_screen(runroot,screen)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-joined-ps.py", line 158, in finish_screen
+    if not screen['accepted']:raise RuntimeError(screen.get('failure','screen stopped without complete acceptance'))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: RuntimeError: independent arm validation failed

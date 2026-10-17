@@ -1,0 +1,53 @@
+{
+  "action": "restore pinned full module graph metadata only",
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "list",
+    "-m",
+    "-mod=readonly",
+    "all"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/test-source-continuation-1",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOFLAGS": "",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "https://proxy.golang.org",
+    "GOSUMDB": "sum.golang.org",
+    "GOPRIVATE": "",
+    "GONOPROXY": "",
+    "GONOSUMDB": "",
+    "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+    "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+    "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+    "CGO_ENABLED": "1",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "GOAMD64": "v1"
+  },
+  "pins": {
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/test-source-continuation-1/go.mod": "165d373cd30192573bfd30e0f0997b393c433368d3ac01df8b178aaf4bdb5d65",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/test-source-continuation-1/go.sum": "7e451e21339534258c770d5d4669cffd5c126d38e91026e09f35fa93c89173f2",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-policy.py": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-once/receipt.json": "af0981d4460e0e449879e4f821c7f76d5035752eebadc3fe95310e6c34173254"
+  },
+  "supervisor": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-policy.py",
+  "artifact_root": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017",
+  "artifact_limit": 4294967296,
+  "outer_deadline_seconds": 270,
+  "stream_limit": 1048576,
+  "executor_sha256": "eac6a4b296d967ecad8932a8a44831031d7598a0928aa379f65d1a5710f9e4c0",
+  "compilation": false,
+  "test_execution": false,
+  "endpoint_execution": false
+}

@@ -1,0 +1,3426 @@
+[
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "1",
+    "start_ns": 375994126752549,
+    "end_ns": 376002245691747,
+    "sender": "agent",
+    "local": "10.212.0.2:52800",
+    "peer": "10.211.0.1:34883",
+    "samples": 81,
+    "phase_seconds": 8.118939198,
+    "app_limited_samples": 78,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5889,
+      "max": 5889,
+      "last": 5889
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 80.119,
+      "min": 80.114,
+      "median": 90.073,
+      "max": 91.461,
+      "last": 85.581
+    },
+    "rto_ms": {
+      "first": 281.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 292.0,
+      "last": 286.0
+    },
+    "send_q": {
+      "first": 229,
+      "min": 0,
+      "median": 3186062,
+      "max": 3846288,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 217200,
+      "last": 0
+    },
+    "unacked": {
+      "first": 7,
+      "min": 0,
+      "median": 2425,
+      "max": 2942,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 15112192,
+      "max": 15112192,
+      "last": 15112192
+    },
+    "rcv_wnd": {
+      "first": 74752,
+      "min": 74752,
+      "median": 77824,
+      "max": 77824,
+      "last": 77824
+    },
+    "delivery_rate_bps": {
+      "first": 289168.0,
+      "min": 289168.0,
+      "median": 384682848.0,
+      "max": 384682848.0,
+      "last": 384682848.0
+    },
+    "pacing_rate_bps": {
+      "first": 2891664.0,
+      "min": 2891664.0,
+      "median": 1513905176.0,
+      "max": 1662451456.0,
+      "last": 1594231816.0
+    },
+    "bytes_sent_delta": 269080639,
+    "bytes_acked_delta": 269080868,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3111,
+    "busy_ms_delta": 7925.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 140.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "2",
+    "start_ns": 376002367634709,
+    "end_ns": 376010465400190,
+    "sender": "agent",
+    "local": "10.212.0.2:52818",
+    "peer": "10.211.0.1:34883",
+    "samples": 81,
+    "phase_seconds": 8.097765481,
+    "app_limited_samples": 78,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5895,
+      "max": 5895,
+      "last": 5895
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 80.126,
+      "min": 80.119,
+      "median": 90.074,
+      "max": 90.338,
+      "last": 83.62
+    },
+    "rto_ms": {
+      "first": 281.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 284.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3218908,
+      "max": 3839924,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 233128,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2450,
+      "max": 2939,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 18267136,
+      "max": 18267136,
+      "last": 18267136
+    },
+    "rcv_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 77824,
+      "max": 77824,
+      "last": 77824
+    },
+    "delivery_rate_bps": {
+      "first": 289320.0,
+      "min": 289320.0,
+      "median": 389083136.0,
+      "max": 389083136.0,
+      "last": 389083136.0
+    },
+    "pacing_rate_bps": {
+      "first": 2891440.0,
+      "min": 2891440.0,
+      "median": 1515321512.0,
+      "max": 1671548832.0,
+      "last": 1633278488.0
+    },
+    "bytes_sent_delta": 269087780,
+    "bytes_acked_delta": 269087780,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3327,
+    "busy_ms_delta": 7933.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 185.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 1
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "3",
+    "start_ns": 376010598190718,
+    "end_ns": 376018812842422,
+    "sender": "agent",
+    "local": "10.212.0.2:52816",
+    "peer": "10.211.0.1:34883",
+    "samples": 82,
+    "phase_seconds": 8.214651704,
+    "app_limited_samples": 79,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5871.0,
+      "max": 5934,
+      "last": 5934
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 80.121,
+      "min": 80.098,
+      "median": 90.0385,
+      "max": 104.812,
+      "last": 81.808
+    },
+    "rto_ms": {
+      "first": 281.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 305.0,
+      "last": 282.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3185520.0,
+      "max": 3835816,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 217200,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2430.0,
+      "max": 2933,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 14947328.0,
+      "max": 14947328,
+      "last": 14947328
+    },
+    "rcv_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 77824.0,
+      "max": 77824,
+      "last": 77824
+    },
+    "delivery_rate_bps": {
+      "first": 289328.0,
+      "min": 289328.0,
+      "median": 373204256.0,
+      "max": 374774216.0,
+      "last": 374774216.0
+    },
+    "pacing_rate_bps": {
+      "first": 2891608.0,
+      "min": 2891608.0,
+      "median": 1513247920.0,
+      "max": 1683465064.0,
+      "last": 1680506936.0
+    },
+    "bytes_sent_delta": 269125494,
+    "bytes_acked_delta": 269125494,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3259,
+    "busy_ms_delta": 8047.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 123.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 2
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "4",
+    "start_ns": 376018933614605,
+    "end_ns": 376027601129919,
+    "sender": "agent",
+    "local": "10.212.0.2:52826",
+    "peer": "10.211.0.1:34883",
+    "samples": 87,
+    "phase_seconds": 8.667515314,
+    "app_limited_samples": 83,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5907,
+      "max": 5907,
+      "last": 5907
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 80.228,
+      "min": 80.169,
+      "median": 90.099,
+      "max": 105.445,
+      "last": 86.93
+    },
+    "rto_ms": {
+      "first": 281.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 306.0,
+      "last": 287.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3251222,
+      "max": 3846746,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 219385,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2489,
+      "max": 2947,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 13842432,
+      "max": 13842432,
+      "last": 13842432
+    },
+    "rcv_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 77824,
+      "max": 77824,
+      "last": 77824
+    },
+    "delivery_rate_bps": {
+      "first": 289424.0,
+      "min": 289424.0,
+      "median": 375036688.0,
+      "max": 375036688.0,
+      "last": 375036688.0
+    },
+    "pacing_rate_bps": {
+      "first": 2887744.0,
+      "min": 2887744.0,
+      "median": 1516729616.0,
+      "max": 1671809712.0,
+      "last": 1574284928.0
+    },
+    "bytes_sent_delta": 269120634,
+    "bytes_acked_delta": 269120634,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 4313,
+    "busy_ms_delta": 8479.0,
+    "rwnd_limited_ms_delta": 80.0,
+    "sndbuf_limited_ms_delta": 761.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 3
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "start_ns": 376027723879468,
+    "end_ns": 376035529937976,
+    "sender": "server",
+    "local": "10.211.0.1:34883",
+    "peer": "10.212.0.2:52800",
+    "samples": 78,
+    "phase_seconds": 7.806058508,
+    "app_limited_samples": 74,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5892.0,
+      "max": 5892,
+      "last": 5892
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 96.845,
+      "min": 80.437,
+      "median": 90.137,
+      "max": 96.845,
+      "last": 85.134
+    },
+    "rto_ms": {
+      "first": 297.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 297.0,
+      "last": 286.0
+    },
+    "send_q": {
+      "first": 250,
+      "min": 34,
+      "median": 3432407.0,
+      "max": 3843118,
+      "last": 34
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 234116,
+      "last": 0
+    },
+    "unacked": {
+      "first": 4,
+      "min": 1,
+      "median": 2612.5,
+      "max": 2929,
+      "last": 1
+    },
+    "snd_wnd": {
+      "first": 77824,
+      "min": 77824,
+      "median": 12659712.0,
+      "max": 12659712,
+      "last": 12659712
+    },
+    "rcv_wnd": {
+      "first": 15112192,
+      "min": 15112192,
+      "median": 15112192.0,
+      "max": 15112192,
+      "last": 15112192
+    },
+    "delivery_rate_bps": {
+      "first": 578216.0,
+      "min": 578216.0,
+      "median": 380072696.0,
+      "max": 380072696.0,
+      "last": 380072696.0
+    },
+    "pacing_rate_bps": {
+      "first": 2392256.0,
+      "min": 2392256.0,
+      "median": 1513301576.0,
+      "max": 1629368624.0,
+      "last": 1603414080.0
+    },
+    "bytes_sent_delta": 269076112,
+    "bytes_acked_delta": 269076328,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3162,
+    "busy_ms_delta": 7710.0,
+    "rwnd_limited_ms_delta": 79.0,
+    "sndbuf_limited_ms_delta": 420.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "2",
+    "start_ns": 376035653703973,
+    "end_ns": 376043457329574,
+    "sender": "server",
+    "local": "10.211.0.1:34883",
+    "peer": "10.212.0.2:52818",
+    "samples": 78,
+    "phase_seconds": 7.803625601,
+    "app_limited_samples": 75,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5887.0,
+      "max": 5887,
+      "last": 5887
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 100.538,
+      "min": 80.559,
+      "median": 90.1495,
+      "max": 100.538,
+      "last": 82.353
+    },
+    "rto_ms": {
+      "first": 301.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 301.0,
+      "last": 283.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3424187.0,
+      "max": 3662346,
+      "last": 34
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 310822,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2606.0,
+      "max": 2788,
+      "last": 1
+    },
+    "snd_wnd": {
+      "first": 77824,
+      "min": 77824,
+      "median": 17579008.0,
+      "max": 17579008,
+      "last": 17579008
+    },
+    "rcv_wnd": {
+      "first": 18267136,
+      "min": 18267136,
+      "median": 18267136.0,
+      "max": 18268160,
+      "last": 18268160
+    },
+    "delivery_rate_bps": {
+      "first": 577640.0,
+      "min": 577640.0,
+      "median": 386677328.0,
+      "max": 386677328.0,
+      "last": 386677328.0
+    },
+    "pacing_rate_bps": {
+      "first": 2304384.0,
+      "min": 2304384.0,
+      "median": 1511908436.0,
+      "max": 1668721304.0,
+      "last": 1656155752.0
+    },
+    "bytes_sent_delta": 269075546,
+    "bytes_acked_delta": 269075512,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3162,
+    "busy_ms_delta": 7699.0,
+    "rwnd_limited_ms_delta": 80.0,
+    "sndbuf_limited_ms_delta": 385.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 1
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "3",
+    "start_ns": 376043582476557,
+    "end_ns": 376051388893716,
+    "sender": "server",
+    "local": "10.211.0.1:34883",
+    "peer": "10.212.0.2:52816",
+    "samples": 78,
+    "phase_seconds": 7.806417159,
+    "app_limited_samples": 75,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5901.0,
+      "max": 5901,
+      "last": 5901
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 93.965,
+      "min": 80.476,
+      "median": 90.142,
+      "max": 93.965,
+      "last": 83.182
+    },
+    "rto_ms": {
+      "first": 294.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 294.0,
+      "last": 284.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3399595.0,
+      "max": 3826576,
+      "last": 34
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 310822,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2588.5,
+      "max": 2913,
+      "last": 1
+    },
+    "snd_wnd": {
+      "first": 77824,
+      "min": 77824,
+      "median": 13428736.0,
+      "max": 13428736,
+      "last": 13428736
+    },
+    "rcv_wnd": {
+      "first": 14947328,
+      "min": 14947328,
+      "median": 14947328.0,
+      "max": 14949376,
+      "last": 14949376
+    },
+    "delivery_rate_bps": {
+      "first": 578232.0,
+      "min": 578232.0,
+      "median": 374585416.0,
+      "max": 374585416.0,
+      "last": 374585416.0
+    },
+    "pacing_rate_bps": {
+      "first": 2465584.0,
+      "min": 2465584.0,
+      "median": 1515184808.0,
+      "max": 1672656472.0,
+      "last": 1643542296.0
+    },
+    "bytes_sent_delta": 269076056,
+    "bytes_acked_delta": 269076022,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3094,
+    "busy_ms_delta": 7681.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 563.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 2
+  },
+  {
+    "mode": "legacy",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "4",
+    "start_ns": 376051535282029,
+    "end_ns": 376059342300817,
+    "sender": "server",
+    "local": "10.211.0.1:34883",
+    "peer": "10.212.0.2:52826",
+    "samples": 78,
+    "phase_seconds": 7.807018788,
+    "app_limited_samples": 75,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5888.0,
+      "max": 5888,
+      "last": 5888
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 95.815,
+      "min": 80.417,
+      "median": 90.168,
+      "max": 95.815,
+      "last": 87.103
+    },
+    "rto_ms": {
+      "first": 296.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 296.0,
+      "last": 288.0
+    },
+    "send_q": {
+      "first": 250,
+      "min": 0,
+      "median": 3440644.0,
+      "max": 3859422,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 301184,
+      "last": 0
+    },
+    "unacked": {
+      "first": 4,
+      "min": 0,
+      "median": 2619.5,
+      "max": 2938,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 77824,
+      "min": 77824,
+      "median": 9728000.0,
+      "max": 9728000,
+      "last": 9728000
+    },
+    "rcv_wnd": {
+      "first": 13842432,
+      "min": 13842432,
+      "median": 13842432.0,
+      "max": 13843456,
+      "last": 13843456
+    },
+    "delivery_rate_bps": {
+      "first": 578480.0,
+      "min": 578480.0,
+      "median": 374367728.0,
+      "max": 374367728.0,
+      "last": 374367728.0
+    },
+    "pacing_rate_bps": {
+      "first": 2417968.0,
+      "min": 2417968.0,
+      "median": 1512108684.0,
+      "max": 1667199536.0,
+      "last": 1566113496.0
+    },
+    "bytes_sent_delta": 269075534,
+    "bytes_acked_delta": 269075784,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3400,
+    "busy_ms_delta": 7694.0,
+    "rwnd_limited_ms_delta": 80.0,
+    "sndbuf_limited_ms_delta": 633.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 3
+  },
+  {
+    "mode": "legacy",
+    "stage": "retained-warmup",
+    "direction": "download",
+    "repetition": "1",
+    "start_ns": 376059468290679,
+    "end_ns": 376067680785338,
+    "sender": "agent",
+    "local": "10.212.0.2:52800",
+    "peer": "10.211.0.1:34883",
+    "samples": 82,
+    "phase_seconds": 8.212494659,
+    "app_limited_samples": 79,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5904.0,
+      "max": 5904,
+      "last": 5904
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 90.743,
+      "min": 80.335,
+      "median": 90.0765,
+      "max": 104.984,
+      "last": 88.385
+    },
+    "rto_ms": {
+      "first": 291.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 305.0,
+      "last": 289.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3218891.0,
+      "max": 3857664,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 462281,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2453.5,
+      "max": 2948,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 15112192,
+      "min": 15110144,
+      "median": 15112192.0,
+      "max": 15112192,
+      "last": 15112192
+    },
+    "rcv_wnd": {
+      "first": 12659712,
+      "min": 12659712,
+      "median": 12665856.0,
+      "max": 12665856,
+      "last": 12665856
+    },
+    "delivery_rate_bps": {
+      "first": 384682848.0,
+      "min": 3073032.0,
+      "median": 374522496.0,
+      "max": 384682848.0,
+      "last": 375245936.0
+    },
+    "pacing_rate_bps": {
+      "first": 2553128.0,
+      "min": 2553128.0,
+      "median": 1517531864.0,
+      "max": 1662136632.0,
+      "last": 1547578336.0
+    },
+    "bytes_sent_delta": 269096938,
+    "bytes_acked_delta": 269096938,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3089,
+    "busy_ms_delta": 8043.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 168.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "retained-warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "start_ns": 376067757324593,
+    "end_ns": 376075564137975,
+    "sender": "server",
+    "local": "10.211.0.1:34883",
+    "peer": "10.212.0.2:52818",
+    "samples": 78,
+    "phase_seconds": 7.806813382,
+    "app_limited_samples": 75,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5897.0,
+      "max": 5897,
+      "last": 5897
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 86.543,
+      "min": 80.299,
+      "median": 90.14099999999999,
+      "max": 90.972,
+      "last": 84.22
+    },
+    "rto_ms": {
+      "first": 287.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 285.0
+    },
+    "send_q": {
+      "first": 250,
+      "min": 0,
+      "median": 3440627.0,
+      "max": 3859388,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 513542,
+      "last": 0
+    },
+    "unacked": {
+      "first": 4,
+      "min": 0,
+      "median": 2619.0,
+      "max": 2937,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 17579008,
+      "min": 17579008,
+      "median": 17591296.0,
+      "max": 17591296,
+      "last": 17591296
+    },
+    "rcv_wnd": {
+      "first": 18268160,
+      "min": 18268160,
+      "median": 18268160.0,
+      "max": 18268160,
+      "last": 18268160
+    },
+    "delivery_rate_bps": {
+      "first": 386677328.0,
+      "min": 5765904.0,
+      "median": 374263248.0,
+      "max": 386677328.0,
+      "last": 374285416.0
+    },
+    "pacing_rate_bps": {
+      "first": 2677032.0,
+      "min": 2677032.0,
+      "median": 1514292004.0,
+      "max": 1669362808.0,
+      "last": 1622192912.0
+    },
+    "bytes_sent_delta": 269080252,
+    "bytes_acked_delta": 269076158,
+    "bytes_retrans_delta": 4344,
+    "bytes_received_delta": 3196,
+    "busy_ms_delta": 7691.0,
+    "rwnd_limited_ms_delta": 0.0,
+    "sndbuf_limited_ms_delta": 417.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 1
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "1",
+    "start_ns": 376075640891786,
+    "end_ns": 376083745584025,
+    "sender": "agent",
+    "local": "10.212.0.2:52816",
+    "peer": "10.211.0.1:34883",
+    "samples": 81,
+    "phase_seconds": 8.104692239,
+    "app_limited_samples": 78,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5886,
+      "max": 5898,
+      "last": 5898
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 87.472,
+      "min": 80.418,
+      "median": 90.051,
+      "max": 90.518,
+      "last": 87.558
+    },
+    "rto_ms": {
+      "first": 288.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 288.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3260202,
+      "max": 3851452,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 507113,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2484,
+      "max": 2934,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 14949376,
+      "min": 14940160,
+      "median": 14949376,
+      "max": 14949376,
+      "last": 14949376
+    },
+    "rcv_wnd": {
+      "first": 13428736,
+      "min": 13428736,
+      "median": 13433856,
+      "max": 13433856,
+      "last": 13433856
+    },
+    "delivery_rate_bps": {
+      "first": 374774216.0,
+      "min": 8631992.0,
+      "median": 374125616.0,
+      "max": 374774216.0,
+      "last": 374621840.0
+    },
+    "pacing_rate_bps": {
+      "first": 2648600.0,
+      "min": 2648600.0,
+      "median": 1515384408.0,
+      "max": 1626368800.0,
+      "last": 1560618888.0
+    },
+    "bytes_sent_delta": 269087294,
+    "bytes_acked_delta": 269087294,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3157,
+    "busy_ms_delta": 7938.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 0.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 2
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "1",
+    "start_ns": 376083822751952,
+    "end_ns": 376091632672076,
+    "sender": "server",
+    "local": "10.211.0.1:34883",
+    "peer": "10.212.0.2:52826",
+    "samples": 78,
+    "phase_seconds": 7.809920124,
+    "app_limited_samples": 75,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5904.0,
+      "max": 5904,
+      "last": 5904
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 89.884,
+      "min": 80.447,
+      "median": 90.178,
+      "max": 91.452,
+      "last": 89.777
+    },
+    "rto_ms": {
+      "first": 290.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 292.0,
+      "last": 290.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3424425.0,
+      "max": 3826576,
+      "last": 34
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 513542,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2612.0,
+      "max": 2913,
+      "last": 1
+    },
+    "snd_wnd": {
+      "first": 9728000,
+      "min": 9728000,
+      "median": 9739264.0,
+      "max": 9739264,
+      "last": 9739264
+    },
+    "rcv_wnd": {
+      "first": 13843456,
+      "min": 13843456,
+      "median": 13843456.0,
+      "max": 13843456,
+      "last": 13843456
+    },
+    "delivery_rate_bps": {
+      "first": 374367728.0,
+      "min": 2889496.0,
+      "median": 416000776.0,
+      "max": 416000776.0,
+      "last": 416000776.0
+    },
+    "pacing_rate_bps": {
+      "first": 2577536.0,
+      "min": 2577536.0,
+      "median": 1515783972.0,
+      "max": 1648266544.0,
+      "last": 1523581080.0
+    },
+    "bytes_sent_delta": 269077552,
+    "bytes_acked_delta": 269077518,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3094,
+    "busy_ms_delta": 7703.0,
+    "rwnd_limited_ms_delta": 0.0,
+    "sndbuf_limited_ms_delta": 404.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 3
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "2",
+    "start_ns": 376091715914141,
+    "end_ns": 376099432731895,
+    "sender": "server",
+    "local": "10.211.0.1:34883",
+    "peer": "10.212.0.2:52800",
+    "samples": 77,
+    "phase_seconds": 7.716817754,
+    "app_limited_samples": 74,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5899,
+      "max": 5899,
+      "last": 5899
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 94.652,
+      "min": 80.369,
+      "median": 90.124,
+      "max": 94.652,
+      "last": 82.296
+    },
+    "rto_ms": {
+      "first": 295.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 295.0,
+      "last": 283.0
+    },
+    "send_q": {
+      "first": 525179,
+      "min": 34,
+      "median": 3399544,
+      "max": 3826542,
+      "last": 34
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 511839,
+      "min": 0,
+      "median": 0,
+      "max": 511839,
+      "last": 0
+    },
+    "unacked": {
+      "first": 10,
+      "min": 1,
+      "median": 2587,
+      "max": 2912,
+      "last": 1
+    },
+    "snd_wnd": {
+      "first": 12665856,
+      "min": 12659712,
+      "median": 12670976,
+      "max": 12670976,
+      "last": 12670976
+    },
+    "rcv_wnd": {
+      "first": 15112192,
+      "min": 15112192,
+      "median": 15112192,
+      "max": 15112192,
+      "last": 15112192
+    },
+    "delivery_rate_bps": {
+      "first": 380072696.0,
+      "min": 1915768.0,
+      "median": 392458272.0,
+      "max": 392458272.0,
+      "last": 392458272.0
+    },
+    "pacing_rate_bps": {
+      "first": 2447696.0,
+      "min": 2447696.0,
+      "median": 1515015480.0,
+      "max": 1671166928.0,
+      "last": 1660676024.0
+    },
+    "bytes_sent_delta": 269062602,
+    "bytes_acked_delta": 269075908,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 3103,
+    "busy_ms_delta": 7611.0,
+    "rwnd_limited_ms_delta": 0.0,
+    "sndbuf_limited_ms_delta": 431.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 0
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "2",
+    "start_ns": 376099508662323,
+    "end_ns": 376107622528146,
+    "sender": "agent",
+    "local": "10.212.0.2:52818",
+    "peer": "10.211.0.1:34883",
+    "samples": 81,
+    "phase_seconds": 8.113865823,
+    "app_limited_samples": 77,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5901,
+      "max": 5901,
+      "last": 5901
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 87.523,
+      "min": 80.273,
+      "median": 90.072,
+      "max": 91.571,
+      "last": 83.18
+    },
+    "rto_ms": {
+      "first": 288.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 292.0,
+      "last": 284.0
+    },
+    "send_q": {
+      "first": 525498,
+      "min": 0,
+      "median": 3202468,
+      "max": 3852017,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 34,
+      "last": 0
+    },
+    "notsent": {
+      "first": 515486,
+      "min": 0,
+      "median": 0,
+      "max": 515486,
+      "last": 0
+    },
+    "unacked": {
+      "first": 10,
+      "min": 0,
+      "median": 2437,
+      "max": 2937,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 18268160,
+      "min": 18257920,
+      "median": 18268160,
+      "max": 18268160,
+      "last": 18268160
+    },
+    "rcv_wnd": {
+      "first": 17591296,
+      "min": 17591296,
+      "median": 17591296,
+      "max": 17591296,
+      "last": 17591296
+    },
+    "delivery_rate_bps": {
+      "first": 389083136.0,
+      "min": 2890072.0,
+      "median": 383516568.0,
+      "max": 389083136.0,
+      "last": 383516568.0
+    },
+    "pacing_rate_bps": {
+      "first": 2647064.0,
+      "min": 2647064.0,
+      "median": 1517099480.0,
+      "max": 1667845864.0,
+      "last": 1643594160.0
+    },
+    "bytes_sent_delta": 269066039,
+    "bytes_acked_delta": 269076051,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 2652,
+    "busy_ms_delta": 7946.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 13.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 1
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "3",
+    "start_ns": 376107698961243,
+    "end_ns": 376115580235521,
+    "sender": "agent",
+    "local": "10.212.0.2:52816",
+    "peer": "10.211.0.1:34883",
+    "samples": 78,
+    "phase_seconds": 7.881274278,
+    "app_limited_samples": 72,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5880.0,
+      "max": 5880,
+      "last": 5880
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 86.913,
+      "min": 80.51,
+      "median": 90.07499999999999,
+      "max": 90.563,
+      "last": 82.368
+    },
+    "rto_ms": {
+      "first": 287.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 283.0
+    },
+    "send_q": {
+      "first": 4180252,
+      "min": 0,
+      "median": 3301040.0,
+      "max": 4180252,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 4170240,
+      "min": 0,
+      "median": 0.0,
+      "max": 4170240,
+      "last": 0
+    },
+    "unacked": {
+      "first": 10,
+      "min": 0,
+      "median": 2494.0,
+      "max": 2875,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 14949376,
+      "min": 14918656,
+      "median": 14949376.0,
+      "max": 14949376,
+      "last": 14949376
+    },
+    "rcv_wnd": {
+      "first": 13436928,
+      "min": 13436928,
+      "median": 13436928.0,
+      "max": 13436928,
+      "last": 13436928
+    },
+    "delivery_rate_bps": {
+      "first": 374621840.0,
+      "min": 2889024.0,
+      "median": 376941592.0,
+      "max": 376941592.0,
+      "last": 376941592.0
+    },
+    "pacing_rate_bps": {
+      "first": 2665632.0,
+      "min": 2665632.0,
+      "median": 1511468876.0,
+      "max": 1653880224.0,
+      "last": 1653880224.0
+    },
+    "bytes_sent_delta": 269065177,
+    "bytes_acked_delta": 269075189,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 1870,
+    "busy_ms_delta": 7676.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 0.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 2
+  },
+  {
+    "mode": "legacy",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "3",
+    "start_ns": 376115656872754,
+    "end_ns": 376123228824143,
+    "sender": "server",
+    "local": "10.211.0.1:34883",
+    "peer": "10.212.0.2:52826",
+    "samples": 76,
+    "phase_seconds": 7.571951389,
+    "app_limited_samples": 70,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 6049.0,
+      "max": 6049,
+      "last": 6049
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 94.235,
+      "min": 81.028,
+      "median": 90.12899999999999,
+      "max": 94.235,
+      "last": 85.088
+    },
+    "rto_ms": {
+      "first": 295.0,
+      "min": 282.0,
+      "median": 291.0,
+      "max": 295.0,
+      "last": 286.0
+    },
+    "send_q": {
+      "first": 4183580,
+      "min": 0,
+      "median": 3440627.0,
+      "max": 4183580,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 4170240,
+      "min": 0,
+      "median": 0.0,
+      "max": 4170240,
+      "last": 0
+    },
+    "unacked": {
+      "first": 10,
+      "min": 0,
+      "median": 2575.0,
+      "max": 2924,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 9739264,
+      "min": 9700352,
+      "median": 9739264.0,
+      "max": 9739264,
+      "last": 9739264
+    },
+    "rcv_wnd": {
+      "first": 13843456,
+      "min": 13843456,
+      "median": 13843456.0,
+      "max": 13843456,
+      "last": 13843456
+    },
+    "delivery_rate_bps": {
+      "first": 416000776.0,
+      "min": 2888488.0,
+      "median": 377591224.0,
+      "max": 416000776.0,
+      "last": 377591224.0
+    },
+    "pacing_rate_bps": {
+      "first": 2458520.0,
+      "min": 2458520.0,
+      "median": 1553909704.0,
+      "max": 1712426000.0,
+      "last": 1647036312.0
+    },
+    "bytes_sent_delta": 269062046,
+    "bytes_acked_delta": 269075386,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 2083,
+    "busy_ms_delta": 7484.0,
+    "rwnd_limited_ms_delta": 0.0,
+    "sndbuf_limited_ms_delta": 358.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 3
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "1",
+    "start_ns": 376124074625798,
+    "end_ns": 376132282153536,
+    "sender": "agent",
+    "local": "10.212.0.2:53030",
+    "peer": "10.211.0.1:46353",
+    "samples": 82,
+    "phase_seconds": 8.207527738,
+    "app_limited_samples": 79,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5896.0,
+      "max": 5896,
+      "last": 5896
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 80.102,
+      "min": 80.102,
+      "median": 90.04849999999999,
+      "max": 91.715,
+      "last": 83.852
+    },
+    "rto_ms": {
+      "first": 281.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 292.0,
+      "last": 284.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3153216.0,
+      "max": 3777256,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 260640,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2394.0,
+      "max": 2874,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 71680,
+      "min": 70656,
+      "median": 12576768.0,
+      "max": 12576768,
+      "last": 12576768
+    },
+    "rcv_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 77824.0,
+      "max": 77824,
+      "last": 77824
+    },
+    "delivery_rate_bps": {
+      "first": 289360.0,
+      "min": 289360.0,
+      "median": 374542760.0,
+      "max": 374542760.0,
+      "last": 374542760.0
+    },
+    "pacing_rate_bps": {
+      "first": 2892312.0,
+      "min": 2892312.0,
+      "median": 1515931772.0,
+      "max": 1663391328.0,
+      "last": 1629028600.0
+    },
+    "bytes_sent_delta": 269068150,
+    "bytes_acked_delta": 269068150,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 386603,
+    "busy_ms_delta": 8043.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6859.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 1
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "2",
+    "start_ns": 376132404971342,
+    "end_ns": 376140552921870,
+    "sender": "agent",
+    "local": "10.212.0.2:53032",
+    "peer": "10.211.0.1:46353",
+    "samples": 82,
+    "phase_seconds": 8.147950528,
+    "app_limited_samples": 78,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5899.0,
+      "max": 5899,
+      "last": 5899
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 80.103,
+      "min": 80.103,
+      "median": 90.03200000000001,
+      "max": 90.501,
+      "last": 88.091
+    },
+    "rto_ms": {
+      "first": 281.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 289.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3186062.0,
+      "max": 3777256,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 46,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 266601,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2425.0,
+      "max": 2874,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 17039360.0,
+      "max": 17039360,
+      "last": 17039360
+    },
+    "rcv_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 77824.0,
+      "max": 77824,
+      "last": 77824
+    },
+    "delivery_rate_bps": {
+      "first": 289360.0,
+      "min": 289360.0,
+      "median": 377793768.0,
+      "max": 377793768.0,
+      "last": 377793768.0
+    },
+    "pacing_rate_bps": {
+      "first": 2892264.0,
+      "min": 2892264.0,
+      "median": 1517277736.0,
+      "max": 1664404904.0,
+      "last": 1551428272.0
+    },
+    "bytes_sent_delta": 269063576,
+    "bytes_acked_delta": 269063576,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 381659,
+    "busy_ms_delta": 7985.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6877.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 2
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "3",
+    "start_ns": 376140674886656,
+    "end_ns": 376148820899484,
+    "sender": "agent",
+    "local": "10.212.0.2:53028",
+    "peer": "10.211.0.1:46353",
+    "samples": 81,
+    "phase_seconds": 8.146012828,
+    "app_limited_samples": 78,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5898,
+      "max": 5898,
+      "last": 5898
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 80.135,
+      "min": 80.132,
+      "median": 90.04,
+      "max": 90.252,
+      "last": 86.869
+    },
+    "rto_ms": {
+      "first": 281.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 287.0
+    },
+    "send_q": {
+      "first": 231,
+      "min": 0,
+      "median": 3186062,
+      "max": 3826542,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 191136,
+      "last": 0
+    },
+    "unacked": {
+      "first": 6,
+      "min": 0,
+      "median": 2422,
+      "max": 2912,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 11975680,
+      "max": 11975680,
+      "last": 11975680
+    },
+    "rcv_wnd": {
+      "first": 74752,
+      "min": 74752,
+      "median": 80896,
+      "max": 80896,
+      "last": 80896
+    },
+    "delivery_rate_bps": {
+      "first": 289320.0,
+      "min": 289320.0,
+      "median": 375809920.0,
+      "max": 375809920.0,
+      "last": 375809920.0
+    },
+    "pacing_rate_bps": {
+      "first": 2891104.0,
+      "min": 2891104.0,
+      "median": 1516742664.0,
+      "max": 1670634864.0,
+      "last": 1572985576.0
+    },
+    "bytes_sent_delta": 269073939,
+    "bytes_acked_delta": 269074170,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 391365,
+    "busy_ms_delta": 7982.0,
+    "rwnd_limited_ms_delta": 80.0,
+    "sndbuf_limited_ms_delta": 6802.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 3
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "download",
+    "repetition": "4",
+    "start_ns": 376148943405182,
+    "end_ns": 376157153053956,
+    "sender": "agent",
+    "local": "10.212.0.2:53050",
+    "peer": "10.211.0.1:46353",
+    "samples": 82,
+    "phase_seconds": 8.209648774,
+    "app_limited_samples": 78,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5889.0,
+      "max": 5902,
+      "last": 5902
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 80.124,
+      "min": 80.112,
+      "median": 90.05799999999999,
+      "max": 92.793,
+      "last": 84.212
+    },
+    "rto_ms": {
+      "first": 281.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 293.0,
+      "last": 285.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3168322.0,
+      "max": 3807502,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 46,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 269565,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2410.5,
+      "max": 2896,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 11121664.0,
+      "max": 11123712,
+      "last": 11123712
+    },
+    "rcv_wnd": {
+      "first": 71680,
+      "min": 71680,
+      "median": 77824.0,
+      "max": 77824,
+      "last": 77824
+    },
+    "delivery_rate_bps": {
+      "first": 289288.0,
+      "min": 289288.0,
+      "median": 374749504.0,
+      "max": 374962520.0,
+      "last": 374962520.0
+    },
+    "pacing_rate_bps": {
+      "first": 2891504.0,
+      "min": 2891504.0,
+      "median": 1516541428.0,
+      "max": 1669434488.0,
+      "last": 1623729824.0
+    },
+    "bytes_sent_delta": 269078478,
+    "bytes_acked_delta": 269078478,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 396481,
+    "busy_ms_delta": 8045.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6857.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 4
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "start_ns": 376157277874948,
+    "end_ns": 376165196827480,
+    "sender": "server",
+    "local": "10.211.0.1:46353",
+    "peer": "10.212.0.2:53030",
+    "samples": 79,
+    "phase_seconds": 7.918952532,
+    "app_limited_samples": 75,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5905,
+      "max": 5905,
+      "last": 5905
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 85.443,
+      "min": 80.338,
+      "median": 90.333,
+      "max": 90.58,
+      "last": 82.489
+    },
+    "rto_ms": {
+      "first": 286.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 283.0
+    },
+    "send_q": {
+      "first": 250,
+      "min": 46,
+      "median": 3350292,
+      "max": 3843016,
+      "last": 46
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 46,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 511282,
+      "last": 0
+    },
+    "unacked": {
+      "first": 4,
+      "min": 1,
+      "median": 2550,
+      "max": 2938,
+      "last": 1
+    },
+    "snd_wnd": {
+      "first": 77824,
+      "min": 77824,
+      "median": 14232576,
+      "max": 14232576,
+      "last": 14232576
+    },
+    "rcv_wnd": {
+      "first": 12576768,
+      "min": 12576768,
+      "median": 12576768,
+      "max": 12579840,
+      "last": 12579840
+    },
+    "delivery_rate_bps": {
+      "first": 17557208.0,
+      "min": 2888488.0,
+      "median": 375316048.0,
+      "max": 375316048.0,
+      "last": 375316048.0
+    },
+    "pacing_rate_bps": {
+      "first": 2711480.0,
+      "min": 2711480.0,
+      "median": 1513230848.0,
+      "max": 1674307520.0,
+      "last": 1658485768.0
+    },
+    "bytes_sent_delta": 269075968,
+    "bytes_acked_delta": 269076172,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 380838,
+    "busy_ms_delta": 7810.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6581.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 1
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "2",
+    "start_ns": 376165322784763,
+    "end_ns": 376173259505810,
+    "sender": "server",
+    "local": "10.211.0.1:46353",
+    "peer": "10.212.0.2:53032",
+    "samples": 79,
+    "phase_seconds": 7.936721047,
+    "app_limited_samples": 76,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5879,
+      "max": 5879,
+      "last": 5879
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 89.013,
+      "min": 80.28,
+      "median": 90.328,
+      "max": 96.159,
+      "last": 81.525
+    },
+    "rto_ms": {
+      "first": 290.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 297.0,
+      "last": 282.0
+    },
+    "send_q": {
+      "first": 250,
+      "min": 80,
+      "median": 3366732,
+      "max": 3777290,
+      "last": 80
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 511282,
+      "last": 0
+    },
+    "unacked": {
+      "first": 4,
+      "min": 2,
+      "median": 2563,
+      "max": 2875,
+      "last": 2
+    },
+    "snd_wnd": {
+      "first": 77824,
+      "min": 77824,
+      "median": 14730240,
+      "max": 14730240,
+      "last": 14730240
+    },
+    "rcv_wnd": {
+      "first": 17039360,
+      "min": 17039360,
+      "median": 17039360,
+      "max": 17042432,
+      "last": 17042432
+    },
+    "delivery_rate_bps": {
+      "first": 15804784.0,
+      "min": 1924616.0,
+      "median": 382930288.0,
+      "max": 382930288.0,
+      "last": 382930288.0
+    },
+    "pacing_rate_bps": {
+      "first": 2602752.0,
+      "min": 2602752.0,
+      "median": 1507122312.0,
+      "max": 1673980408.0,
+      "last": 1670707912.0
+    },
+    "bytes_sent_delta": 269075230,
+    "bytes_acked_delta": 269075400,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 379954,
+    "busy_ms_delta": 7811.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6501.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 2
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "3",
+    "start_ns": 376173384140920,
+    "end_ns": 376181311463976,
+    "sender": "server",
+    "local": "10.211.0.1:46353",
+    "peer": "10.212.0.2:53028",
+    "samples": 79,
+    "phase_seconds": 7.927323056,
+    "app_limited_samples": 75,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5884,
+      "max": 5884,
+      "last": 5884
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 88.714,
+      "min": 80.212,
+      "median": 90.318,
+      "max": 90.56,
+      "last": 83.636
+    },
+    "rto_ms": {
+      "first": 289.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 284.0
+    },
+    "send_q": {
+      "first": 250,
+      "min": 0,
+      "median": 3350292,
+      "max": 3842982,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 46,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 488960,
+      "last": 0
+    },
+    "unacked": {
+      "first": 4,
+      "min": 0,
+      "median": 2551,
+      "max": 2925,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 80896,
+      "min": 80896,
+      "median": 12790784,
+      "max": 12790784,
+      "last": 12790784
+    },
+    "rcv_wnd": {
+      "first": 11975680,
+      "min": 11975680,
+      "median": 11975680,
+      "max": 11977728,
+      "last": 11977728
+    },
+    "delivery_rate_bps": {
+      "first": 19883144.0,
+      "min": 2743824.0,
+      "median": 383551936.0,
+      "max": 383551936.0,
+      "last": 383551936.0
+    },
+    "pacing_rate_bps": {
+      "first": 2611520.0,
+      "min": 2611520.0,
+      "median": 1508470864.0,
+      "max": 1670333520.0,
+      "last": 1629916504.0
+    },
+    "bytes_sent_delta": 269083082,
+    "bytes_acked_delta": 269076092,
+    "bytes_retrans_delta": 7240,
+    "bytes_received_delta": 381044,
+    "busy_ms_delta": 7776.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6587.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 3
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "warmup",
+    "direction": "upload",
+    "repetition": "4",
+    "start_ns": 376181445593197,
+    "end_ns": 376189307947478,
+    "sender": "server",
+    "local": "10.211.0.1:46353",
+    "peer": "10.212.0.2:53050",
+    "samples": 79,
+    "phase_seconds": 7.862354281,
+    "app_limited_samples": 76,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5892,
+      "max": 5904,
+      "last": 5904
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 88.715,
+      "min": 80.496,
+      "median": 90.351,
+      "max": 93.019,
+      "last": 83.71
+    },
+    "rto_ms": {
+      "first": 289.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 294.0,
+      "last": 284.0
+    },
+    "send_q": {
+      "first": 250,
+      "min": 0,
+      "median": 3317446,
+      "max": 3842982,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 138,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 512730,
+      "last": 0
+    },
+    "unacked": {
+      "first": 4,
+      "min": 0,
+      "median": 2525,
+      "max": 2925,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 77824,
+      "min": 77824,
+      "median": 12973056,
+      "max": 12973056,
+      "last": 12973056
+    },
+    "rcv_wnd": {
+      "first": 11123712,
+      "min": 11123712,
+      "median": 11123712,
+      "max": 11126784,
+      "last": 11126784
+    },
+    "delivery_rate_bps": {
+      "first": 17322760.0,
+      "min": 2891728.0,
+      "median": 374281712.0,
+      "max": 375115016.0,
+      "last": 375115016.0
+    },
+    "pacing_rate_bps": {
+      "first": 2611488.0,
+      "min": 2611488.0,
+      "median": 1509801320.0,
+      "max": 1676242504.0,
+      "last": 1634010928.0
+    },
+    "bytes_sent_delta": 269076092,
+    "bytes_acked_delta": 269076342,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 381390,
+    "busy_ms_delta": 7766.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6500.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 4
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "retained-warmup",
+    "direction": "download",
+    "repetition": "1",
+    "start_ns": 376189693328322,
+    "end_ns": 376197832569036,
+    "sender": "agent",
+    "local": "10.212.0.2:53030",
+    "peer": "10.211.0.1:46353",
+    "samples": 82,
+    "phase_seconds": 8.139240714,
+    "app_limited_samples": 78,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5870.0,
+      "max": 5895,
+      "last": 5895
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 84.463,
+      "min": 80.399,
+      "median": 90.0565,
+      "max": 90.302,
+      "last": 86.048
+    },
+    "rto_ms": {
+      "first": 285.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 287.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3163352.0,
+      "max": 3849980,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 502905,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2400.0,
+      "max": 2913,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 12579840,
+      "min": 12576768,
+      "median": 12579840.0,
+      "max": 12579840,
+      "last": 12579840
+    },
+    "rcv_wnd": {
+      "first": 14232576,
+      "min": 14232576,
+      "median": 14237696.0,
+      "max": 14237696,
+      "last": 14237696
+    },
+    "delivery_rate_bps": {
+      "first": 374542760.0,
+      "min": 3464328.0,
+      "median": 373402256.0,
+      "max": 374694568.0,
+      "last": 374694568.0
+    },
+    "pacing_rate_bps": {
+      "first": 2742952.0,
+      "min": 2742952.0,
+      "median": 1509579828.0,
+      "max": 1662992000.0,
+      "last": 1587192784.0
+    },
+    "bytes_sent_delta": 269067956,
+    "bytes_acked_delta": 269067956,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 403869,
+    "busy_ms_delta": 7978.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6861.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 1
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "retained-warmup",
+    "direction": "upload",
+    "repetition": "1",
+    "start_ns": 376197911037059,
+    "end_ns": 376205770493089,
+    "sender": "server",
+    "local": "10.211.0.1:46353",
+    "peer": "10.212.0.2:53032",
+    "samples": 79,
+    "phase_seconds": 7.85945603,
+    "app_limited_samples": 76,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5879,
+      "max": 5904,
+      "last": 5904
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 86.088,
+      "min": 80.292,
+      "median": 90.075,
+      "max": 90.382,
+      "last": 85.577
+    },
+    "rto_ms": {
+      "first": 287.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 286.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3383138,
+      "max": 3793696,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 488960,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2575,
+      "max": 2887,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 14730240,
+      "min": 14730240,
+      "median": 14740480,
+      "max": 14740480,
+      "last": 14740480
+    },
+    "rcv_wnd": {
+      "first": 17042432,
+      "min": 17042432,
+      "median": 17042432,
+      "max": 17045504,
+      "last": 17045504
+    },
+    "delivery_rate_bps": {
+      "first": 382930288.0,
+      "min": 2746632.0,
+      "median": 374100632.0,
+      "max": 382930288.0,
+      "last": 374721736.0
+    },
+    "pacing_rate_bps": {
+      "first": 2691184.0,
+      "min": 2691184.0,
+      "median": 1511101800.0,
+      "max": 1662464432.0,
+      "last": 1598360224.0
+    },
+    "bytes_sent_delta": 269076058,
+    "bytes_acked_delta": 269076058,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 380980,
+    "busy_ms_delta": 7777.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6500.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 2
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "1",
+    "start_ns": 376205848039719,
+    "end_ns": 376213995434957,
+    "sender": "agent",
+    "local": "10.212.0.2:53028",
+    "peer": "10.211.0.1:46353",
+    "samples": 81,
+    "phase_seconds": 8.147395238,
+    "app_limited_samples": 78,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5888,
+      "max": 5888,
+      "last": 5888
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 83.636,
+      "min": 80.256,
+      "median": 90.072,
+      "max": 92.369,
+      "last": 82.542
+    },
+    "rto_ms": {
+      "first": 284.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 293.0,
+      "last": 283.0
+    },
+    "send_q": {
+      "first": 231,
+      "min": 0,
+      "median": 3194278,
+      "max": 3777256,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 46,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 503951,
+      "last": 0
+    },
+    "unacked": {
+      "first": 6,
+      "min": 0,
+      "median": 2425,
+      "max": 2874,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 11977728,
+      "min": 11973632,
+      "median": 11977728,
+      "max": 11977728,
+      "last": 11977728
+    },
+    "rcv_wnd": {
+      "first": 12793856,
+      "min": 12793856,
+      "median": 12796928,
+      "max": 12796928,
+      "last": 12796928
+    },
+    "delivery_rate_bps": {
+      "first": 375809920.0,
+      "min": 6911864.0,
+      "median": 374198488.0,
+      "max": 375809920.0,
+      "last": 374198488.0
+    },
+    "pacing_rate_bps": {
+      "first": 2770072.0,
+      "min": 2770072.0,
+      "median": 1513687992.0,
+      "max": 1667653024.0,
+      "last": 1652636768.0
+    },
+    "bytes_sent_delta": 269075781,
+    "bytes_acked_delta": 269076012,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 392809,
+    "busy_ms_delta": 7959.0,
+    "rwnd_limited_ms_delta": 0.0,
+    "sndbuf_limited_ms_delta": 6802.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 3
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "1",
+    "start_ns": 376214076823091,
+    "end_ns": 376221999538112,
+    "sender": "server",
+    "local": "10.211.0.1:46353",
+    "peer": "10.212.0.2:53050",
+    "samples": 79,
+    "phase_seconds": 7.922715021,
+    "app_limited_samples": 76,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5891,
+      "max": 5891,
+      "last": 5891
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 87.68,
+      "min": 80.313,
+      "median": 90.092,
+      "max": 90.51,
+      "last": 82.136
+    },
+    "rto_ms": {
+      "first": 288.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 283.0
+    },
+    "send_q": {
+      "first": 250,
+      "min": 0,
+      "median": 3366766,
+      "max": 3810102,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 46,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 511282,
+      "last": 0
+    },
+    "unacked": {
+      "first": 4,
+      "min": 0,
+      "median": 2564,
+      "max": 2899,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 12973056,
+      "min": 12973056,
+      "median": 12982272,
+      "max": 12982272,
+      "last": 12982272
+    },
+    "rcv_wnd": {
+      "first": 11126784,
+      "min": 11126784,
+      "median": 11126784,
+      "max": 11126784,
+      "last": 11126784
+    },
+    "delivery_rate_bps": {
+      "first": 375115016.0,
+      "min": 5770720.0,
+      "median": 374293432.0,
+      "max": 375115016.0,
+      "last": 374293432.0
+    },
+    "pacing_rate_bps": {
+      "first": 2642320.0,
+      "min": 2642320.0,
+      "median": 1513369800.0,
+      "max": 1663307384.0,
+      "last": 1661654440.0
+    },
+    "bytes_sent_delta": 269075706,
+    "bytes_acked_delta": 269075956,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 380186,
+    "busy_ms_delta": 7806.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6561.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 4
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "2",
+    "start_ns": 376222081899238,
+    "end_ns": 376229856856911,
+    "sender": "server",
+    "local": "10.211.0.1:46353",
+    "peer": "10.212.0.2:53030",
+    "samples": 77,
+    "phase_seconds": 7.774957673,
+    "app_limited_samples": 74,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5886,
+      "max": 5899,
+      "last": 5899
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 85.942,
+      "min": 80.452,
+      "median": 90.115,
+      "max": 92.084,
+      "last": 81.966
+    },
+    "rto_ms": {
+      "first": 286.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 293.0,
+      "last": 282.0
+    },
+    "send_q": {
+      "first": 521726,
+      "min": 80,
+      "median": 3350462,
+      "max": 3810136,
+      "last": 80
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 508386,
+      "min": 0,
+      "median": 0,
+      "max": 508386,
+      "last": 0
+    },
+    "unacked": {
+      "first": 10,
+      "min": 2,
+      "median": 2555,
+      "max": 2900,
+      "last": 2
+    },
+    "snd_wnd": {
+      "first": 14237696,
+      "min": 14237696,
+      "median": 14242816,
+      "max": 14242816,
+      "last": 14242816
+    },
+    "rcv_wnd": {
+      "first": 12579840,
+      "min": 12579840,
+      "median": 12579840,
+      "max": 12579840,
+      "last": 12579840
+    },
+    "delivery_rate_bps": {
+      "first": 375316048.0,
+      "min": 1922240.0,
+      "median": 374511296.0,
+      "max": 375316048.0,
+      "last": 375045400.0
+    },
+    "pacing_rate_bps": {
+      "first": 2695752.0,
+      "min": 2695752.0,
+      "median": 1513602120.0,
+      "max": 1670602608.0,
+      "last": 1667361952.0
+    },
+    "bytes_sent_delta": 269062592,
+    "bytes_acked_delta": 269075852,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 381173,
+    "busy_ms_delta": 7611.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6578.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 1
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "2",
+    "start_ns": 376229933679571,
+    "end_ns": 376237997654127,
+    "sender": "agent",
+    "local": "10.212.0.2:53032",
+    "peer": "10.211.0.1:46353",
+    "samples": 81,
+    "phase_seconds": 8.063974556,
+    "app_limited_samples": 77,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5897,
+      "max": 5897,
+      "last": 5897
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 89.629,
+      "min": 80.384,
+      "median": 90.032,
+      "max": 90.28,
+      "last": 87.355
+    },
+    "rto_ms": {
+      "first": 290.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 288.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3153216,
+      "max": 3777290,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 46,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0,
+      "max": 511107,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2400,
+      "max": 2875,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 17045504,
+      "min": 17043456,
+      "median": 17045504,
+      "max": 17045504,
+      "last": 17045504
+    },
+    "rcv_wnd": {
+      "first": 14740480,
+      "min": 14740480,
+      "median": 14741504,
+      "max": 14741504,
+      "last": 14741504
+    },
+    "delivery_rate_bps": {
+      "first": 377793768.0,
+      "min": 2887840.0,
+      "median": 374591784.0,
+      "max": 377793768.0,
+      "last": 374591784.0
+    },
+    "pacing_rate_bps": {
+      "first": 2584872.0,
+      "min": 2584872.0,
+      "median": 1516117376.0,
+      "max": 1664283976.0,
+      "last": 1563969120.0
+    },
+    "bytes_sent_delta": 269075241,
+    "bytes_acked_delta": 269075241,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 381089,
+    "busy_ms_delta": 7903.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6863.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 2
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "download",
+    "repetition": "3",
+    "start_ns": 376238076886486,
+    "end_ns": 376246049563725,
+    "sender": "agent",
+    "local": "10.212.0.2:53028",
+    "peer": "10.211.0.1:46353",
+    "samples": 80,
+    "phase_seconds": 7.972677239,
+    "app_limited_samples": 75,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5883.0,
+      "max": 5883,
+      "last": 5883
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 82.366,
+      "min": 80.256,
+      "median": 90.036,
+      "max": 90.927,
+      "last": 83.775
+    },
+    "rto_ms": {
+      "first": 283.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 284.0
+    },
+    "send_q": {
+      "first": 0,
+      "min": 0,
+      "median": 3202502.0,
+      "max": 4181690,
+      "last": 0
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "notsent": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 4170240,
+      "last": 0
+    },
+    "unacked": {
+      "first": 0,
+      "min": 0,
+      "median": 2406.0,
+      "max": 2750,
+      "last": 0
+    },
+    "snd_wnd": {
+      "first": 11977728,
+      "min": 11937792,
+      "median": 11977728.0,
+      "max": 11977728,
+      "last": 11977728
+    },
+    "rcv_wnd": {
+      "first": 12796928,
+      "min": 12796928,
+      "median": 12802048.0,
+      "max": 12802048,
+      "last": 12802048
+    },
+    "delivery_rate_bps": {
+      "first": 374198488.0,
+      "min": 5770792.0,
+      "median": 374203320.0,
+      "max": 374343032.0,
+      "last": 374343032.0
+    },
+    "pacing_rate_bps": {
+      "first": 2812792.0,
+      "min": 2812792.0,
+      "median": 1513257916.0,
+      "max": 1660608440.0,
+      "last": 1626938032.0
+    },
+    "bytes_sent_delta": 269075079,
+    "bytes_acked_delta": 269075079,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 379047,
+    "busy_ms_delta": 7812.0,
+    "rwnd_limited_ms_delta": 0.0,
+    "sndbuf_limited_ms_delta": 6867.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 3
+  },
+  {
+    "mode": "aggregate-v1",
+    "stage": "steady",
+    "direction": "upload",
+    "repetition": "3",
+    "start_ns": 376246126523341,
+    "end_ns": 376253754067791,
+    "sender": "server",
+    "local": "10.211.0.1:46353",
+    "peer": "10.212.0.2:53050",
+    "samples": 76,
+    "phase_seconds": 7.62754445,
+    "app_limited_samples": 70,
+    "cwnd": {
+      "first": 10,
+      "min": 10,
+      "median": 5899.0,
+      "max": 5899,
+      "last": 5899
+    },
+    "ssthresh": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 0,
+      "last": 0
+    },
+    "rtt_ms": {
+      "first": 90.865,
+      "min": 80.524,
+      "median": 90.14699999999999,
+      "max": 90.865,
+      "last": 83.766
+    },
+    "rto_ms": {
+      "first": 291.0,
+      "min": 281.0,
+      "median": 291.0,
+      "max": 291.0,
+      "last": 284.0
+    },
+    "send_q": {
+      "first": 4183580,
+      "min": 114,
+      "median": 3416018.0,
+      "max": 4183580,
+      "last": 114
+    },
+    "recv_q": {
+      "first": 0,
+      "min": 0,
+      "median": 0.0,
+      "max": 46,
+      "last": 0
+    },
+    "notsent": {
+      "first": 4170240,
+      "min": 0,
+      "median": 0.0,
+      "max": 4170240,
+      "last": 0
+    },
+    "unacked": {
+      "first": 10,
+      "min": 3,
+      "median": 2588.0,
+      "max": 2937,
+      "last": 3
+    },
+    "snd_wnd": {
+      "first": 12982272,
+      "min": 12951552,
+      "median": 12983296.0,
+      "max": 12983296,
+      "last": 12983296
+    },
+    "rcv_wnd": {
+      "first": 11126784,
+      "min": 11126784,
+      "median": 11126784.0,
+      "max": 11126784,
+      "last": 11126784
+    },
+    "delivery_rate_bps": {
+      "first": 374293432.0,
+      "min": 2889208.0,
+      "median": 376807856.0,
+      "max": 376807856.0,
+      "last": 376807856.0
+    },
+    "pacing_rate_bps": {
+      "first": 2549688.0,
+      "min": 2549688.0,
+      "median": 1515263244.0,
+      "max": 1668008056.0,
+      "last": 1631533224.0
+    },
+    "bytes_sent_delta": 269062194,
+    "bytes_acked_delta": 269075420,
+    "bytes_retrans_delta": 0,
+    "bytes_received_delta": 376961,
+    "busy_ms_delta": 7511.0,
+    "rwnd_limited_ms_delta": 0,
+    "sndbuf_limited_ms_delta": 6501.0,
+    "cwnd_drop_30pct_count": 0,
+    "lane": 4
+  }
+]

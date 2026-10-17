@@ -1,0 +1,25 @@
+1/24 production http h1 c16: exact=333679 errors=0
+2/24 production http h1 c128: exact=302325 errors=0
+3/24 production https h1 c16: exact=303824 errors=0
+4/24 production https h1 c128: exact=279347 errors=0
+5/24 native http h1 c16: exact=449992 errors=0
+6/24 native http h1 c128: exact=460753 errors=0
+7/24 native https h1 c16: exact=422786 errors=0
+8/24 native https h1 c128: exact=427129 errors=0
+9/24 native https h1 c16: exact=427813 errors=0
+10/24 native https h1 c128: exact=452535 errors=0
+11/24 native http h1 c16: exact=457319 errors=0
+12/24 native http h1 c128: exact=475511 errors=0
+13/24 production https h1 c16: exact=297465 errors=0
+14/24 production https h1 c128: exact=286730 errors=0
+15/24 production http h1 c16: exact=307876 errors=0
+16/24 production http h1 c128: exact=296601 errors=0
+17/24 production http h1 c16: exact=309362 errors=0
+18/24 production http h1 c128: exact=299200 errors=0
+19/24 production https h1 c16: exact=298076 errors=0
+20/24 production https h1 c128: exact=285374 errors=0
+21/24 native http h1 c16: exact=446359 errors=0
+22/24 native http h1 c128: exact=455847 errors=0
+23/24 native https h1 c16: exact=422251 errors=0
+24/24 native https h1 c128: exact=421895 errors=0
+/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3

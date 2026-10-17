@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/run-capacity.py", line 78, in <module>
+    try:main()
+        ~~~~^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/run-capacity.py", line 43, in main
+    frozen=check();out=ROOT/'capacity-attempt-1'
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/run-capacity.py", line 24, in check
+    if actual!=set(inventory['source_files']):raise RuntimeError('compiled input file set changed')
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: compiled input file set changed

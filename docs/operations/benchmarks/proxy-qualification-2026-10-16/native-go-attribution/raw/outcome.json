@@ -1,0 +1,12 @@
+{
+  "kind": "p2pstream-native-go-attribution-outcome-v1",
+  "finished_utc": "2026-10-16T15:15:47.805199+00:00",
+  "failure": null,
+  "forced_cleanup": [],
+  "cleanup_errors": [],
+  "remaining_process_groups": [],
+  "remaining_containers": [],
+  "attempted_result_rows": 28,
+  "accepted_result_rows": 24,
+  "complete": true
+}

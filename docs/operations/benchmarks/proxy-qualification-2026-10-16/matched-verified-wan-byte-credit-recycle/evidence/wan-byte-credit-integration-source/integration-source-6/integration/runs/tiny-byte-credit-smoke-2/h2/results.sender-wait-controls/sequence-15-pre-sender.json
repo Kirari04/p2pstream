@@ -1,0 +1,1929 @@
+{
+  "action": "pre",
+  "authorization": "bearer-present",
+  "error": "",
+  "http_status": 200,
+  "request_elapsed_ns": 1965932,
+  "request_finished_unix_ns": 1792213934003857021,
+  "request_started_unix_ns": 1792213934001885017,
+  "response": {
+    "byte_credit_traces": [
+      {
+        "aggregate": true,
+        "lane": 0,
+        "local_address": "10.212.0.2:42226",
+        "remote_address": "10.211.0.1:34805",
+        "session_identity": "0x350899ecc108",
+        "trace": {
+          "active_peer_waits": 0,
+          "active_receiver_publications": 0,
+          "ambiguous": false,
+          "complete": true,
+          "dropped_peer_records": 0,
+          "dropped_receiver_records": 0,
+          "dropped_wait_records": 0,
+          "enabled": true,
+          "orphan_overflow": false,
+          "overflow": false,
+          "peer_records": [],
+          "receiver_records": [],
+          "reset_performed": true,
+          "schema_version": 1,
+          "wait_records": []
+        }
+      },
+      {
+        "aggregate": true,
+        "lane": 1,
+        "local_address": "10.212.0.2:42258",
+        "remote_address": "10.211.0.1:34805",
+        "session_identity": "0x350899c9c588",
+        "trace": {
+          "active_peer_waits": 0,
+          "active_receiver_publications": 0,
+          "ambiguous": false,
+          "complete": true,
+          "dropped_peer_records": 0,
+          "dropped_receiver_records": 0,
+          "dropped_wait_records": 0,
+          "enabled": true,
+          "orphan_overflow": false,
+          "overflow": false,
+          "peer_records": [],
+          "receiver_records": [],
+          "reset_performed": true,
+          "schema_version": 1,
+          "wait_records": []
+        }
+      },
+      {
+        "aggregate": true,
+        "lane": 2,
+        "local_address": "10.212.0.2:42242",
+        "remote_address": "10.211.0.1:34805",
+        "session_identity": "0x350899ecc688",
+        "trace": {
+          "active_peer_waits": 0,
+          "active_receiver_publications": 0,
+          "ambiguous": false,
+          "complete": true,
+          "dropped_peer_records": 0,
+          "dropped_receiver_records": 0,
+          "dropped_wait_records": 0,
+          "enabled": true,
+          "orphan_overflow": false,
+          "overflow": false,
+          "peer_records": [],
+          "receiver_records": [],
+          "reset_performed": true,
+          "schema_version": 1,
+          "wait_records": []
+        }
+      },
+      {
+        "aggregate": true,
+        "lane": 3,
+        "local_address": "10.212.0.2:42254",
+        "remote_address": "10.211.0.1:34805",
+        "session_identity": "0x350899eccc08",
+        "trace": {
+          "active_peer_waits": 0,
+          "active_receiver_publications": 0,
+          "ambiguous": false,
+          "complete": true,
+          "dropped_peer_records": 0,
+          "dropped_receiver_records": 0,
+          "dropped_wait_records": 0,
+          "enabled": true,
+          "orphan_overflow": false,
+          "overflow": false,
+          "peer_records": [],
+          "receiver_records": [],
+          "reset_performed": true,
+          "schema_version": 1,
+          "wait_records": []
+        }
+      },
+      {
+        "aggregate": true,
+        "lane": 4,
+        "local_address": "10.212.0.2:42232",
+        "remote_address": "10.211.0.1:34805",
+        "session_identity": "0x350899c9c008",
+        "trace": {
+          "active_peer_waits": 0,
+          "active_receiver_publications": 0,
+          "ambiguous": false,
+          "complete": true,
+          "dropped_peer_records": 0,
+          "dropped_receiver_records": 0,
+          "dropped_wait_records": 0,
+          "enabled": true,
+          "orphan_overflow": false,
+          "overflow": false,
+          "peer_records": [],
+          "receiver_records": [],
+          "reset_performed": true,
+          "schema_version": 1,
+          "wait_records": []
+        }
+      }
+    ],
+    "capacity": 4096,
+    "captured_unix_nano": 1792213934003030214,
+    "dropped_events": 0,
+    "events": [],
+    "schema_version": 2,
+    "send_counters": [
+      {
+        "byte_credit_zero_observations": 0,
+        "enabled": false,
+        "lane": 0,
+        "local_address": "10.212.0.2:42226",
+        "raw_write_activity": {
+          "active_envelopes": 0,
+          "active_raw_writes": 0,
+          "ambiguous": false,
+          "bound": true,
+          "boundary_active_raw_writes": 0,
+          "boundary_outside_completions": 0,
+          "close_observed": false,
+          "complete": true,
+          "contained": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "contained_raw_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "enabled": true,
+          "envelope_count": 0,
+          "envelope_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "envelope_overlaps": 0,
+          "envelope_payload_bytes": 0,
+          "envelope_wire_bytes": 0,
+          "envelope_zero_raw_calls": 0,
+          "generation": 1,
+          "lane": 0,
+          "local_address": "10.212.0.2:42226",
+          "maximum_active_raw_writes": 0,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "outside": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "overflow": false,
+          "owner_generation_changes": 0,
+          "remote_address": "10.211.0.1:34805",
+          "reset_performed": true,
+          "residual_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "schema_version": 1,
+          "session_joined": false,
+          "straddling": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "stream_observed": false
+        },
+        "remote_address": "10.211.0.1:34805",
+        "reserved_allocation_charged_bytes": 0,
+        "reserved_data_frames": 0,
+        "reserved_payload_bytes": 0,
+        "session_allocation_zero_observations": 0,
+        "session_identity": "0x350899ecc108",
+        "stream_allocation_zero_observations": 0,
+        "timing": {
+          "active_caller_frames": 0,
+          "active_caller_payload_bytes": 0,
+          "active_credit_waits": 0,
+          "active_enqueue_frames": 0,
+          "active_enqueue_payload_bytes": 0,
+          "active_physical_frames": 0,
+          "active_physical_payload_bytes": 0,
+          "active_queued_frames": 0,
+          "active_queued_payload_bytes": 0,
+          "active_reserved_allocation_charged_bytes": 0,
+          "active_reserved_frames": 0,
+          "active_reserved_payload_bytes": 0,
+          "ambiguous": false,
+          "claimed_before_publication_bytes": 0,
+          "claimed_before_publication_frames": 0,
+          "complete": false,
+          "credit_wait_by_cause": {
+            "byte_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "session_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "stream_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "stream_and_session_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "credit_wait_by_outcome": {
+            "aggregate_notify": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "byte_notify": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "credit_wait_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_abandoned_frames": 0,
+          "data_abandoned_payload_bytes": 0,
+          "data_call_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_call_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_completed_frames": 0,
+          "data_completed_payload_bytes": 0,
+          "data_completion_select_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_completion_select_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_enqueue_select_by_outcome": {
+            "accepted": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_enqueue_select_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_enqueued_frames": 0,
+          "data_enqueued_payload_bytes": 0,
+          "data_gather_error_frames": 0,
+          "data_gather_error_payload_bytes": 0,
+          "enqueue_publication_races": 0,
+          "first_wait_token": 0,
+          "last_wait_token": 0,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "overflow": false,
+          "pending_credit_decision": false,
+          "physical_attempt_frames": 0,
+          "physical_attempt_payload_bytes": 0,
+          "physical_attempt_wire_bytes": 0,
+          "physical_error_attempt_wire_bytes": 0,
+          "physical_error_frames": 0,
+          "physical_error_payload_bytes": 0,
+          "physical_error_written_wire_bytes": 0,
+          "physical_short_attempt_wire_bytes": 0,
+          "physical_short_frames": 0,
+          "physical_short_payload_bytes": 0,
+          "physical_short_written_wire_bytes": 0,
+          "physical_success_frames": 0,
+          "physical_success_payload_bytes": 0,
+          "physical_success_wire_bytes": 0,
+          "physical_write_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_write": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "physical_write_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "physical_written_wire_bytes": 0,
+          "reset_performed": false,
+          "send_loop_terminated": false,
+          "stream_observed": false
+        }
+      },
+      {
+        "byte_credit_zero_observations": 0,
+        "enabled": true,
+        "lane": 1,
+        "local_address": "10.212.0.2:42258",
+        "raw_write_activity": {
+          "active_envelopes": 0,
+          "active_raw_writes": 0,
+          "ambiguous": false,
+          "bound": true,
+          "boundary_active_raw_writes": 0,
+          "boundary_outside_completions": 0,
+          "close_observed": false,
+          "complete": true,
+          "contained": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "contained_raw_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "enabled": true,
+          "envelope_count": 0,
+          "envelope_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "envelope_overlaps": 0,
+          "envelope_payload_bytes": 0,
+          "envelope_wire_bytes": 0,
+          "envelope_zero_raw_calls": 0,
+          "generation": 5,
+          "lane": 1,
+          "local_address": "10.212.0.2:42258",
+          "maximum_active_raw_writes": 0,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "outside": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "overflow": false,
+          "owner_generation_changes": 0,
+          "remote_address": "10.211.0.1:34805",
+          "reset_performed": true,
+          "residual_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "schema_version": 1,
+          "session_joined": false,
+          "straddling": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "stream_observed": false
+        },
+        "remote_address": "10.211.0.1:34805",
+        "reserved_allocation_charged_bytes": 0,
+        "reserved_data_frames": 0,
+        "reserved_payload_bytes": 0,
+        "session_allocation_zero_observations": 0,
+        "session_identity": "0x350899c9c588",
+        "stream_allocation_zero_observations": 0,
+        "timing": {
+          "active_caller_frames": 0,
+          "active_caller_payload_bytes": 0,
+          "active_credit_waits": 0,
+          "active_enqueue_frames": 0,
+          "active_enqueue_payload_bytes": 0,
+          "active_physical_frames": 0,
+          "active_physical_payload_bytes": 0,
+          "active_queued_frames": 0,
+          "active_queued_payload_bytes": 0,
+          "active_reserved_allocation_charged_bytes": 0,
+          "active_reserved_frames": 0,
+          "active_reserved_payload_bytes": 0,
+          "ambiguous": false,
+          "claimed_before_publication_bytes": 0,
+          "claimed_before_publication_frames": 0,
+          "complete": true,
+          "credit_wait_by_cause": {
+            "byte_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "session_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "stream_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "stream_and_session_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "credit_wait_by_outcome": {
+            "aggregate_notify": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "byte_notify": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "credit_wait_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_abandoned_frames": 0,
+          "data_abandoned_payload_bytes": 0,
+          "data_call_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_call_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_completed_frames": 0,
+          "data_completed_payload_bytes": 0,
+          "data_completion_select_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_completion_select_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_enqueue_select_by_outcome": {
+            "accepted": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_enqueue_select_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_enqueued_frames": 0,
+          "data_enqueued_payload_bytes": 0,
+          "data_gather_error_frames": 0,
+          "data_gather_error_payload_bytes": 0,
+          "enqueue_publication_races": 0,
+          "first_wait_token": 0,
+          "last_wait_token": 0,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "overflow": false,
+          "pending_credit_decision": false,
+          "physical_attempt_frames": 0,
+          "physical_attempt_payload_bytes": 0,
+          "physical_attempt_wire_bytes": 0,
+          "physical_error_attempt_wire_bytes": 0,
+          "physical_error_frames": 0,
+          "physical_error_payload_bytes": 0,
+          "physical_error_written_wire_bytes": 0,
+          "physical_short_attempt_wire_bytes": 0,
+          "physical_short_frames": 0,
+          "physical_short_payload_bytes": 0,
+          "physical_short_written_wire_bytes": 0,
+          "physical_success_frames": 0,
+          "physical_success_payload_bytes": 0,
+          "physical_success_wire_bytes": 0,
+          "physical_write_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_write": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "physical_write_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "physical_written_wire_bytes": 0,
+          "reset_performed": true,
+          "send_loop_terminated": false,
+          "stream_observed": false
+        }
+      },
+      {
+        "byte_credit_zero_observations": 0,
+        "enabled": true,
+        "lane": 2,
+        "local_address": "10.212.0.2:42242",
+        "raw_write_activity": {
+          "active_envelopes": 0,
+          "active_raw_writes": 0,
+          "ambiguous": false,
+          "bound": true,
+          "boundary_active_raw_writes": 0,
+          "boundary_outside_completions": 0,
+          "close_observed": false,
+          "complete": true,
+          "contained": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "contained_raw_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "enabled": true,
+          "envelope_count": 0,
+          "envelope_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "envelope_overlaps": 0,
+          "envelope_payload_bytes": 0,
+          "envelope_wire_bytes": 0,
+          "envelope_zero_raw_calls": 0,
+          "generation": 3,
+          "lane": 2,
+          "local_address": "10.212.0.2:42242",
+          "maximum_active_raw_writes": 0,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "outside": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "overflow": false,
+          "owner_generation_changes": 0,
+          "remote_address": "10.211.0.1:34805",
+          "reset_performed": true,
+          "residual_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "schema_version": 1,
+          "session_joined": false,
+          "straddling": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "stream_observed": false
+        },
+        "remote_address": "10.211.0.1:34805",
+        "reserved_allocation_charged_bytes": 0,
+        "reserved_data_frames": 0,
+        "reserved_payload_bytes": 0,
+        "session_allocation_zero_observations": 0,
+        "session_identity": "0x350899ecc688",
+        "stream_allocation_zero_observations": 0,
+        "timing": {
+          "active_caller_frames": 0,
+          "active_caller_payload_bytes": 0,
+          "active_credit_waits": 0,
+          "active_enqueue_frames": 0,
+          "active_enqueue_payload_bytes": 0,
+          "active_physical_frames": 0,
+          "active_physical_payload_bytes": 0,
+          "active_queued_frames": 0,
+          "active_queued_payload_bytes": 0,
+          "active_reserved_allocation_charged_bytes": 0,
+          "active_reserved_frames": 0,
+          "active_reserved_payload_bytes": 0,
+          "ambiguous": false,
+          "claimed_before_publication_bytes": 0,
+          "claimed_before_publication_frames": 0,
+          "complete": true,
+          "credit_wait_by_cause": {
+            "byte_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "session_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "stream_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "stream_and_session_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "credit_wait_by_outcome": {
+            "aggregate_notify": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "byte_notify": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "credit_wait_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_abandoned_frames": 0,
+          "data_abandoned_payload_bytes": 0,
+          "data_call_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_call_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_completed_frames": 0,
+          "data_completed_payload_bytes": 0,
+          "data_completion_select_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_completion_select_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_enqueue_select_by_outcome": {
+            "accepted": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_enqueue_select_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_enqueued_frames": 0,
+          "data_enqueued_payload_bytes": 0,
+          "data_gather_error_frames": 0,
+          "data_gather_error_payload_bytes": 0,
+          "enqueue_publication_races": 0,
+          "first_wait_token": 0,
+          "last_wait_token": 0,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "overflow": false,
+          "pending_credit_decision": false,
+          "physical_attempt_frames": 0,
+          "physical_attempt_payload_bytes": 0,
+          "physical_attempt_wire_bytes": 0,
+          "physical_error_attempt_wire_bytes": 0,
+          "physical_error_frames": 0,
+          "physical_error_payload_bytes": 0,
+          "physical_error_written_wire_bytes": 0,
+          "physical_short_attempt_wire_bytes": 0,
+          "physical_short_frames": 0,
+          "physical_short_payload_bytes": 0,
+          "physical_short_written_wire_bytes": 0,
+          "physical_success_frames": 0,
+          "physical_success_payload_bytes": 0,
+          "physical_success_wire_bytes": 0,
+          "physical_write_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_write": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "physical_write_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "physical_written_wire_bytes": 0,
+          "reset_performed": true,
+          "send_loop_terminated": false,
+          "stream_observed": false
+        }
+      },
+      {
+        "byte_credit_zero_observations": 0,
+        "enabled": true,
+        "lane": 3,
+        "local_address": "10.212.0.2:42254",
+        "raw_write_activity": {
+          "active_envelopes": 0,
+          "active_raw_writes": 0,
+          "ambiguous": false,
+          "bound": true,
+          "boundary_active_raw_writes": 0,
+          "boundary_outside_completions": 0,
+          "close_observed": false,
+          "complete": true,
+          "contained": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "contained_raw_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "enabled": true,
+          "envelope_count": 0,
+          "envelope_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "envelope_overlaps": 0,
+          "envelope_payload_bytes": 0,
+          "envelope_wire_bytes": 0,
+          "envelope_zero_raw_calls": 0,
+          "generation": 4,
+          "lane": 3,
+          "local_address": "10.212.0.2:42254",
+          "maximum_active_raw_writes": 0,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "outside": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "overflow": false,
+          "owner_generation_changes": 0,
+          "remote_address": "10.211.0.1:34805",
+          "reset_performed": true,
+          "residual_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "schema_version": 1,
+          "session_joined": false,
+          "straddling": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "stream_observed": false
+        },
+        "remote_address": "10.211.0.1:34805",
+        "reserved_allocation_charged_bytes": 0,
+        "reserved_data_frames": 0,
+        "reserved_payload_bytes": 0,
+        "session_allocation_zero_observations": 0,
+        "session_identity": "0x350899eccc08",
+        "stream_allocation_zero_observations": 0,
+        "timing": {
+          "active_caller_frames": 0,
+          "active_caller_payload_bytes": 0,
+          "active_credit_waits": 0,
+          "active_enqueue_frames": 0,
+          "active_enqueue_payload_bytes": 0,
+          "active_physical_frames": 0,
+          "active_physical_payload_bytes": 0,
+          "active_queued_frames": 0,
+          "active_queued_payload_bytes": 0,
+          "active_reserved_allocation_charged_bytes": 0,
+          "active_reserved_frames": 0,
+          "active_reserved_payload_bytes": 0,
+          "ambiguous": false,
+          "claimed_before_publication_bytes": 0,
+          "claimed_before_publication_frames": 0,
+          "complete": true,
+          "credit_wait_by_cause": {
+            "byte_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "session_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "stream_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "stream_and_session_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "credit_wait_by_outcome": {
+            "aggregate_notify": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "byte_notify": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "credit_wait_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_abandoned_frames": 0,
+          "data_abandoned_payload_bytes": 0,
+          "data_call_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_call_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_completed_frames": 0,
+          "data_completed_payload_bytes": 0,
+          "data_completion_select_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_completion_select_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_enqueue_select_by_outcome": {
+            "accepted": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_enqueue_select_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_enqueued_frames": 0,
+          "data_enqueued_payload_bytes": 0,
+          "data_gather_error_frames": 0,
+          "data_gather_error_payload_bytes": 0,
+          "enqueue_publication_races": 0,
+          "first_wait_token": 0,
+          "last_wait_token": 0,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "overflow": false,
+          "pending_credit_decision": false,
+          "physical_attempt_frames": 0,
+          "physical_attempt_payload_bytes": 0,
+          "physical_attempt_wire_bytes": 0,
+          "physical_error_attempt_wire_bytes": 0,
+          "physical_error_frames": 0,
+          "physical_error_payload_bytes": 0,
+          "physical_error_written_wire_bytes": 0,
+          "physical_short_attempt_wire_bytes": 0,
+          "physical_short_frames": 0,
+          "physical_short_payload_bytes": 0,
+          "physical_short_written_wire_bytes": 0,
+          "physical_success_frames": 0,
+          "physical_success_payload_bytes": 0,
+          "physical_success_wire_bytes": 0,
+          "physical_write_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_write": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "physical_write_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "physical_written_wire_bytes": 0,
+          "reset_performed": true,
+          "send_loop_terminated": false,
+          "stream_observed": false
+        }
+      },
+      {
+        "byte_credit_zero_observations": 0,
+        "enabled": true,
+        "lane": 4,
+        "local_address": "10.212.0.2:42232",
+        "raw_write_activity": {
+          "active_envelopes": 0,
+          "active_raw_writes": 0,
+          "ambiguous": false,
+          "bound": true,
+          "boundary_active_raw_writes": 0,
+          "boundary_outside_completions": 0,
+          "close_observed": false,
+          "complete": true,
+          "contained": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "contained_raw_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "enabled": true,
+          "envelope_count": 0,
+          "envelope_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "envelope_overlaps": 0,
+          "envelope_payload_bytes": 0,
+          "envelope_wire_bytes": 0,
+          "envelope_zero_raw_calls": 0,
+          "generation": 2,
+          "lane": 4,
+          "local_address": "10.212.0.2:42232",
+          "maximum_active_raw_writes": 0,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "outside": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "overflow": false,
+          "owner_generation_changes": 0,
+          "remote_address": "10.211.0.1:34805",
+          "reset_performed": true,
+          "residual_duration": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "schema_version": 1,
+          "session_joined": false,
+          "straddling": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          },
+          "stream_observed": false
+        },
+        "remote_address": "10.211.0.1:34805",
+        "reserved_allocation_charged_bytes": 0,
+        "reserved_data_frames": 0,
+        "reserved_payload_bytes": 0,
+        "session_allocation_zero_observations": 0,
+        "session_identity": "0x350899c9c008",
+        "stream_allocation_zero_observations": 0,
+        "timing": {
+          "active_caller_frames": 0,
+          "active_caller_payload_bytes": 0,
+          "active_credit_waits": 0,
+          "active_enqueue_frames": 0,
+          "active_enqueue_payload_bytes": 0,
+          "active_physical_frames": 0,
+          "active_physical_payload_bytes": 0,
+          "active_queued_frames": 0,
+          "active_queued_payload_bytes": 0,
+          "active_reserved_allocation_charged_bytes": 0,
+          "active_reserved_frames": 0,
+          "active_reserved_payload_bytes": 0,
+          "ambiguous": false,
+          "claimed_before_publication_bytes": 0,
+          "claimed_before_publication_frames": 0,
+          "complete": true,
+          "credit_wait_by_cause": {
+            "byte_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "session_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "stream_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "stream_and_session_allocation_zero": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "credit_wait_by_outcome": {
+            "aggregate_notify": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "byte_notify": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "credit_wait_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_abandoned_frames": 0,
+          "data_abandoned_payload_bytes": 0,
+          "data_call_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_call_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_completed_frames": 0,
+          "data_completed_payload_bytes": 0,
+          "data_completion_select_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_completion_select_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_enqueue_select_by_outcome": {
+            "accepted": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "shutdown": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "timeout": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "data_enqueue_select_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "data_enqueued_frames": 0,
+          "data_enqueued_payload_bytes": 0,
+          "data_gather_error_frames": 0,
+          "data_gather_error_payload_bytes": 0,
+          "enqueue_publication_races": 0,
+          "first_wait_token": 0,
+          "last_wait_token": 0,
+          "multiple_streams": false,
+          "observed_stream_id": 0,
+          "overflow": false,
+          "pending_credit_decision": false,
+          "physical_attempt_frames": 0,
+          "physical_attempt_payload_bytes": 0,
+          "physical_attempt_wire_bytes": 0,
+          "physical_error_attempt_wire_bytes": 0,
+          "physical_error_frames": 0,
+          "physical_error_payload_bytes": 0,
+          "physical_error_written_wire_bytes": 0,
+          "physical_short_attempt_wire_bytes": 0,
+          "physical_short_frames": 0,
+          "physical_short_payload_bytes": 0,
+          "physical_short_written_wire_bytes": 0,
+          "physical_success_frames": 0,
+          "physical_success_payload_bytes": 0,
+          "physical_success_wire_bytes": 0,
+          "physical_write_by_outcome": {
+            "error": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_write": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "physical_write_total": {
+            "count": 0,
+            "max_nanoseconds": 0,
+            "total_nanoseconds": 0
+          },
+          "physical_written_wire_bytes": 0,
+          "reset_performed": true,
+          "send_loop_terminated": false,
+          "stream_observed": false
+        }
+      }
+    ]
+  },
+  "response_bytes": 34173,
+  "role": "agent-drain",
+  "schema_version": 1,
+  "sequence": 15
+}

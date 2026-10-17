@@ -1,0 +1,42 @@
+{
+  "all_build_logs_bytes": 89494,
+  "all_command_statuses_natural_zero": true,
+  "artifact_bytes": 93540268,
+  "endpoint_execution": false,
+  "fresh_commands": 7,
+  "frozen_and_plan_inputs_unchanged": true,
+  "go_tests": {
+    "normal": {
+      "all_pass_including_subtests": 192,
+      "all_skip_including_subtests": 0,
+      "fail": 0,
+      "top_level_pass": 45,
+      "top_level_skip": 0
+    },
+    "race": {
+      "all_pass_including_subtests": 192,
+      "all_skip_including_subtests": 0,
+      "fail": 0,
+      "top_level_pass": 45,
+      "top_level_skip": 0
+    }
+  },
+  "plan_sha256": "698959601a56caa0761b7e274336ae4520f45762119292d06cc95932acdeed91",
+  "pre_post_snapshot_sha256": "ea0caa48e5ca02c8aec2c25f0e45d8df39045426724e75dccb2a5a49f4c06618",
+  "preserved_original_failed_run_sha256": "6d84f0576677e3d8c2830e08817df604f8298823aee5107d2e6f30ac8cca203b",
+  "python_contracts": {
+    "pass": 19,
+    "skip": 0,
+    "tests": 19
+  },
+  "receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "recorded_owned_identity_observations": 33,
+  "remaining_recorded_owned_identities": [],
+  "reused_commands": 4,
+  "runtime_guard_blocked": true,
+  "snapshots_equal": true,
+  "source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+  "source_inventory_sha256": "a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+  "tracked_status": "",
+  "wan_traffic": false
+}

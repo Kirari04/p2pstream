@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-preflight.pcAojAfq/cohort-cases/cohort-validator.py", line 208, in <module>
+    sr=phase(server_live_results[index],index,"server",server_initial)
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-preflight.pcAojAfq/cohort-cases/cohort-validator.py", line 165, in phase
+    integer(value["lane"],"lane",1)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-preflight.pcAojAfq/cohort-cases/cohort-validator.py", line 40, in integer
+    if isinstance(value,bool) or not isinstance(value,int) or value < minimum: raise ValueError(f"{name} must be integer >= {minimum}")
+                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: lane must be integer >= 1

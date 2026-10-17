@@ -1,0 +1,12 @@
+four_cases_exit=1
+four_cases_pass=1
+four_cases_fail=3
+original_normal_exit=0
+original_normal_runs=100
+original_normal_pass=100
+original_normal_fail=0
+original_race_exit=0
+original_race_runs=20
+original_race_pass=20
+original_race_fail=0
+original_race_reports=0

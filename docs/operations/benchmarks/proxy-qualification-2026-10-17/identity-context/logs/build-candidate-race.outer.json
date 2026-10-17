@@ -1,0 +1,142 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "/usr/bin/env",
+    "-C",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "taskset",
+    "-c",
+    "8-11",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-mod=readonly",
+    "-p=2",
+    "-race",
+    "-c",
+    "-o",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate-race.test",
+    "./internal/server"
+  ],
+  "artifact_bytes": 1854289726,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 25.311937457008753,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2854619,
+      "pid": 2854619,
+      "ppid": 2853148,
+      "sid": 2854619,
+      "start_ticks": 9479500,
+      "state": "R"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2854649,
+      "ppid": 2854619,
+      "sid": 2854619,
+      "start_ticks": 9479518,
+      "state": "S"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2854694,
+      "ppid": 2854619,
+      "sid": 2854619,
+      "start_ticks": 9479598,
+      "state": "S"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2854714,
+      "ppid": 2854619,
+      "sid": 2854619,
+      "start_ticks": 9479617,
+      "state": "S"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2854740,
+      "ppid": 2854619,
+      "sid": 2854619,
+      "start_ticks": 9479703,
+      "state": "S"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2854811,
+      "ppid": 2854619,
+      "sid": 2854619,
+      "start_ticks": 9479808,
+      "state": "S"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2855020,
+      "ppid": 2854619,
+      "sid": 2854619,
+      "start_ticks": 9480619,
+      "state": "R"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2855025,
+      "ppid": 2854619,
+      "sid": 2854619,
+      "start_ticks": 9480619,
+      "state": "S"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2855391,
+      "ppid": 2854619,
+      "sid": 2854619,
+      "start_ticks": 9481720,
+      "state": "S"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2855401,
+      "ppid": 2854619,
+      "sid": 2854619,
+      "start_ticks": 9481727,
+      "state": "S"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2855429,
+      "ppid": 2855401,
+      "sid": 2854619,
+      "start_ticks": 9481859,
+      "state": "S"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2855430,
+      "ppid": 2855429,
+      "sid": 2854619,
+      "start_ticks": 9481860,
+      "state": "S"
+    },
+    {
+      "pgid": 2854619,
+      "pid": 2855431,
+      "ppid": 2855430,
+      "sid": 2854619,
+      "start_ticks": 9481860,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 16777216,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 0,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

@@ -1,0 +1,1 @@
+cd /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source && /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test -race ./internal/server -run \^TestQualificationNativeAttributionClientServerNameIsOptInH1Only\$ -count=3 -v 

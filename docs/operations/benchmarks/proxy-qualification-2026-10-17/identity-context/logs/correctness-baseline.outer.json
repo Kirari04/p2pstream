@@ -1,0 +1,42 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "/usr/bin/env",
+    "-C",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "taskset",
+    "-c",
+    "8-11",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+    "-test.run=^(TestClientIdentityResolverDirectPeerIgnoresSpoofedHeaders|TestClientIdentityResolverDisabledSourceDoesNotTrustPeer|TestClientIdentityResolverSingleIPIsStrict|TestClientIdentityResolverTrustedChainWalksRightToLeft|TestClientIdentityResolverTrustedChainSharesOnlySameHeaderChainSources|TestClientIdentityResolverCloudFrontDoesNotTrustCloudflareSingleIPAsXFFHop|TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput|TestClientIdentityResolverOverlappingSourcesRequireAgreement|TestClientIdentityResolverRejectsInvalidConfiguration|TestClientIdentityContextHelpers|TestClientIdentityResolverAttachesAllConfiguredHeaderNames|TestPublicProxyContextUsesOneSnapshotForIdentityAndPolicy|TestResolvedClientIdentityFeedsPolicyAndRateLimit|TestUnknownTrustedIdentityDoesNotFallBackToProxyPeer|TestResolvedClientIdentityFeedsGeneratedForwardingHeaders|TestForwardingHeadersStripConfiguredAndCommonClientIPClaims|TestManagementClientIdentityMiddlewareTrustsOnlyConfiguredProxy|TestManagementLoginClientKeyRejectsUnknownTrustedIdentity|TestResolvedIdentityContextOwnershipAndPrecedence|TestResolvedIdentityContextPreservesParentCancellationAndLifetime|TestResolvedIdentityContextConcurrentReadersAreIsolated)$",
+    "-test.v",
+    "-test.count=1",
+    "-test.timeout=180s"
+  ],
+  "artifact_bytes": 1435455369,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 0.5026279140001861,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2853868,
+      "pid": 2853868,
+      "ppid": 2853148,
+      "sid": 2853868,
+      "start_ticks": 9477696,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 16777216,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 7345,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

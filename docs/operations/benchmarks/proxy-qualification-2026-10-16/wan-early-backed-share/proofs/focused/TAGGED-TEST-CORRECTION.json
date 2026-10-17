@@ -1,0 +1,9 @@
+{
+  "status": "source-only correction; no execution",
+  "old_path": "tmp/wan-controller-screen-20261017/test-source/internal/tunnel/qualification_growth_trace_test.go",
+  "old_sha256": "850b08e8f8c91565f11752298f767d48d50ce9e2f030d211d51e7cdaa8c57cbf",
+  "candidate_path": "tmp/wan-early-share-source-20261017/candidate/internal/tunnel/qualification_growth_trace_test.go",
+  "candidate_sha256": "328da2b5687d8dfa11fac5288f8dd41f0ccbbb51004350c28c70b43dd97ad46f",
+  "patch_sha256": "e9a49c3f35b35f35597bcc12651fcaedb19be311a48c8c10c0ffd3cef175e95c",
+  "original_failed_result_sha256": "9045e0e630d9bf66651f9e71ceca76437af8d06ef292cdb0d301dff2600988bb"
+}

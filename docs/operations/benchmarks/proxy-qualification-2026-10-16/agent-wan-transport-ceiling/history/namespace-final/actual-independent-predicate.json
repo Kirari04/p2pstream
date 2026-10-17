@@ -1,0 +1,35 @@
+{
+  "inode_recycling_observed": true,
+  "measured_rtt_ms": [
+    96.388,
+    96.463,
+    96.714,
+    96.434
+  ],
+  "order": [
+    [
+      1,
+      1,
+      "aggregate-yamux"
+    ],
+    [
+      1,
+      2,
+      "raw-tls"
+    ],
+    [
+      2,
+      1,
+      "raw-tls"
+    ],
+    [
+      2,
+      2,
+      "aggregate-yamux"
+    ]
+  ],
+  "process_instance_count": 12,
+  "status": "pass",
+  "topology_count": 4,
+  "unique_netns_inode_count": 8
+}

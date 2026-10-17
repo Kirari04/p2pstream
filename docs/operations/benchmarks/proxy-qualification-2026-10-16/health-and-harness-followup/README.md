@@ -1,0 +1,23 @@
+# Health admission and qualification follow-up
+
+Implementation checkpoint: `27c8e31f3826ab5326d941b20644c1f56159d99d`, following `c09c1d5bbe8ad4406f7205755a59d8eb6a3fedee`.
+
+Saturated aggregate health-control admission now preserves caller cancellation and agent disconnection. A caller or local gate deadline retains its `context.DeadlineExceeded` cause and is classified as local health-capacity pressure. Four regression tests fail on the previous source and pass with the fix. The HTTP-client regression verifies the local 250 ms gate timeout; direct dial cancellation tests do not make a separate claim about top-level HTTP-client cancellation.
+
+The qualification runners now propagate natural nonzero exits, reject forced stops, verify real Docker container state, and retain an exit receipt for each stopped process. Emergency cleanup is bounded and cannot report success. Standing requires its complete nineteen-key acceptance contract and exact cohort/health cardinality. Capacity requires explicit integer telemetry and exact response totals. Failed attempts retain their raw directory, logs, index, and final status. Six test-harness JSON fields now emit their zero values explicitly. These changes do not relax application, resource, or performance criteria.
+
+Validation at this checkpoint:
+
+- Both candidate evaluations pass 80 focused normal and race tests. The retained health-only tree subsequently passes the complete server, agent, tunnel, and system-metrics race invocation: 1,455 test/subtest results pass, zero fail, and fifteen opt-in tests are skipped. `integration/summary.json` lists every skip and package result; `integration/test-results.jsonl` retains result events without application log output. Source hashes remain unchanged throughout the run and match the implementation checkpoint.
+- Sixteen offline harness contracts pass and run in CI. Actual bounded probes verify host and Docker exits 0/7, a forced TERM handler returning zero still being rejected, HAProxy graceful zero exit, and emergency removal of two owned containers. All fixture owners are cleaned up. The initial probe's excessive Unix-socket path failure is preserved separately.
+- Two hostname allocation candidates save 32 bytes and one allocation for ordinary DNS input, but each fails the predeclared maximum 3% timing regression for a colon-bearing case. Both are rejected. The second revision is a separately specified implementation, not a repetition of the first measurement. Original normalization runtime is retained; semantic cases and a benchmark remain. Samples, rejected patches, and the focused report are included.
+
+The Go invocations used Go 1.26.6. The `/usr/local/go/bin/go` launcher selected that cached toolchain through the repository directive; its native binary is 1.26.3. Subsequent qualification explicitly pins the cached 1.26.6 toolchain directory and records its resolved GOROOT.
+
+The independent standing-pool cohorts pass at this checkpoint: 16 and 32 agents, all nineteen acceptance fields true, exact health counts, stable session identities, and 54 verified natural exit receipts. The process containers retain the 4 GiB/no-swap limits. These are separate cohorts with unchanged assertions and do not repair the failed capacity attempt.
+
+The first capacity attempt at this checkpoint stops during the legacy baseline's combined-topology shutdown: its process requires forced cleanup and exits 137. No candidate capacity or later topology runs in that attempt. One predeclared diagnostic preserves the original ten-second natural deadline and requests stacks only if it is exceeded. Its legacy endpoint exits naturally after about 0.75 seconds, so no stacks are captured and the blocked owner remains unknown. The diagnostic is qualification-ineligible; the original attempt remains rejected. Independent current-candidate capacity and final grown-pool pressure are still pending.
+
+This follow-up establishes the scoped health correction, stricter measurement handling, and race coverage. It does not fix or clear the original WAN download regression or the HAProxy comparison gates, and it makes no broad proxy-parity claim. The prospective WAN cancellation-classification work is independent and does not reclassify historical failed runs.
+
+Worker reports preserve their original pre-commit wording. This README records the later coordinator commit and integration validation. `selection.json` maps the compact retained artifacts to their original local paths; it is not a claim that every local intermediate or application log is published. No private keys, raw management credentials, or complete ready files are selected.

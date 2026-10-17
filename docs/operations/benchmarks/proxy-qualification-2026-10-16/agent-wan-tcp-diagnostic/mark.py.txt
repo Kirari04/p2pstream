@@ -1,0 +1,4 @@
+import json,pathlib,sys,time
+root=pathlib.Path(sys.argv[1]); keys=('boundary','label','mode','stage','direction','repetition','server_pid','agent_pid')
+row=dict(zip(keys,sys.argv[2:])); row.update(monotonic_ns=time.monotonic_ns(),wall_ns=time.time_ns())
+with (root/'telemetry'/'phases.jsonl').open('a') as f: f.write(json.dumps(row,separators=(',',':'))+'\n')

@@ -1,0 +1,242 @@
+{
+  "base_source": {
+    "archive_sha256": "9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76",
+    "ref": "5eeccaaa797254d7bde4db9854a337a02c3bc28e"
+  },
+  "build": {
+    "cgo_enabled": true,
+    "go_version": "go1.26.6",
+    "goamd64": "v1",
+    "goarch": "amd64",
+    "goos": "linux",
+    "tags": []
+  },
+  "created_utc": "2026-10-16T09:08:35.817772+00:00",
+  "driver_origin": {
+    "build_id": "AoY8OBIxVeSpgtQOCr3w/OCEdbba-lwbN0a1BptkW/1rZMnNi3kIuMU7zefMTj/295gYmXem_xeuGWMoqX3",
+    "path": "driver-origin.test",
+    "sha256": "453924e217f211e575440613925c27651e7c14fa3a3316851469ebd70c4b79aa"
+  },
+  "driver_origin_identical_to": "refund-current-batch-control.server",
+  "evidence": {
+    "build_env": {
+      "path": "build-env.txt",
+      "sha256": "a8b33736336017a49cadf5d540a92c935d61e169f30631a3f020bd189514aa13"
+    },
+    "build_provenance": {
+      "path": "build-provenance.txt",
+      "sha256": "bfa306ba5affaa265b4a87fc2b3faccddb454b5c1883194c7f343210ce5aea48"
+    },
+    "readme": {
+      "path": "README.md",
+      "sha256": "56b792868181965c2e82b75f61380ba238f541401cf35be78e46fc38486c3e5f"
+    },
+    "source_hashes": {
+      "path": "source-hashes.json",
+      "sha256": "24d37dbe261ab15f7f949595879117bb7afac8cd1b40597a0062eb3fd4d6dfba"
+    }
+  },
+  "kind": "p2pstream-refund-deferred-global-epoch-causal-bundle-v1",
+  "overlays": {
+    "common_scaffold": {
+      "path": "common-scaffold.patch",
+      "sha256": "3fa10c967b69d4d371c64dd6bb2ca175ffbd9f98d80193d3d41b2722809bfe59"
+    },
+    "deferred_global_overlay": {
+      "path": "deferred-global-toggle.patch",
+      "sha256": "d07cac9d6f5dac0311416282c0c0e19ece2d3369e1d372abc43b406b3e33b81d"
+    }
+  },
+  "validation": {
+    "control_focused_normal": {
+      "count": 10,
+      "pattern": "^(TestAggregateRefundBatch|TestAggregateRefundSelection|TestAggregateTerminalSelectedRefund|TestAggregatePairedRefund)"
+    },
+    "control_focused_race": {
+      "count": 5,
+      "pattern": "^(TestAggregateRefundBatch|TestAggregateRefundSelection|TestAggregateTerminalSelectedRefund|TestAggregatePairedRefund)"
+    },
+    "deferred_conservation_normal": {
+      "count": 3,
+      "includes": [
+        "randomized lifecycle",
+        "early session close",
+        "ambiguous refund write/close",
+        "concurrent grow/close"
+      ]
+    },
+    "deferred_conservation_race": {
+      "count": 3,
+      "includes": [
+        "randomized lifecycle",
+        "early session close",
+        "ambiguous refund write/close",
+        "concurrent grow/close"
+      ]
+    },
+    "deferred_focused_normal": {
+      "count": 10,
+      "pattern": "^TestDeferredGlobal"
+    },
+    "deferred_focused_race": {
+      "count": 5,
+      "pattern": "^TestDeferredGlobal"
+    },
+    "endpoint_compile": {
+      "agent": true,
+      "ordinary_tag_off": true,
+      "server": true
+    },
+    "full_yamux_normal": {
+      "count": 1,
+      "variants": [
+        "refund-current-batch-control",
+        "refund-streams-before-global-epoch"
+      ]
+    },
+    "logs": {
+      "build-refund-current-batch-control-agent.log": {
+        "path": "validation/build-refund-current-batch-control-agent.log",
+        "sha256": "828045192de46a88140f0bc5b6a3f6011dbdf73f9a9d3b1ed8cf4407669682b8"
+      },
+      "build-refund-current-batch-control-server.log": {
+        "path": "validation/build-refund-current-batch-control-server.log",
+        "sha256": "ce34f6b0cec27eeb7e1d12e782a726ddf0fda6a4c7b58c560307d9b70c0e7095"
+      },
+      "build-refund-streams-before-global-epoch-agent.log": {
+        "path": "validation/build-refund-streams-before-global-epoch-agent.log",
+        "sha256": "f364d2abd70d833383ca11c600930aa1273d7814ec6af4538afec58b170b243a"
+      },
+      "build-refund-streams-before-global-epoch-server.log": {
+        "path": "validation/build-refund-streams-before-global-epoch-server.log",
+        "sha256": "a450a189f9e0e54faf6879bacee149c48adc649993b725e478eee2a18e486e44"
+      },
+      "candidate-existing-conservation-normal-go1.26.6.log": {
+        "path": "validation/candidate-existing-conservation-normal-go1.26.6.log",
+        "sha256": "f3ca8f1eddbd0274af94d1535155142405c06bbe22ddf7251ffe135a5d73a538"
+      },
+      "candidate-existing-conservation-normal-go1.26.6.time": {
+        "path": "validation/candidate-existing-conservation-normal-go1.26.6.time",
+        "sha256": "d360c7075b027a8b8a610ef2d7d00cf8d2b114ea562aeb37c7e2ead5fdbbf25c"
+      },
+      "candidate-existing-conservation-race-go1.26.6.log": {
+        "path": "validation/candidate-existing-conservation-race-go1.26.6.log",
+        "sha256": "2022ba1d05746d4e16e910fab4d538ec2adb8999656a683bf6fd3c096030f0f5"
+      },
+      "candidate-existing-conservation-race-go1.26.6.time": {
+        "path": "validation/candidate-existing-conservation-race-go1.26.6.time",
+        "sha256": "3f12aeb00dc54525a66007c68f19379e342bb215b85758d7d258f85cd5222599"
+      },
+      "candidate-focused-normal-go1.26.6.log": {
+        "path": "validation/candidate-focused-normal-go1.26.6.log",
+        "sha256": "f0ccbf81a7537f079589ea9ae427b7a3e434ac17f0b40b9da3ad5d609b29f92e"
+      },
+      "candidate-focused-normal-go1.26.6.time": {
+        "path": "validation/candidate-focused-normal-go1.26.6.time",
+        "sha256": "0be45a554aebbe0b239fd48fda31573db562baa1a19c834bf182dcac636c3656"
+      },
+      "candidate-focused-race-go1.26.6.log": {
+        "path": "validation/candidate-focused-race-go1.26.6.log",
+        "sha256": "f245744b5e822d753788af1937286804f538bb644379d285ba325cad63517575"
+      },
+      "candidate-focused-race-go1.26.6.time": {
+        "path": "validation/candidate-focused-race-go1.26.6.time",
+        "sha256": "6fe4b5082057f8a5012a70afab0c9fb354a221cdf2f5dacd16c0fd3b7d059802"
+      },
+      "candidate-full-normal-go1.26.6.log": {
+        "path": "validation/candidate-full-normal-go1.26.6.log",
+        "sha256": "7689525e09426410a12b345fed25b8b5bdec2f99f6120e6852f8fd7fa8e932a9"
+      },
+      "candidate-full-normal-go1.26.6.time": {
+        "path": "validation/candidate-full-normal-go1.26.6.time",
+        "sha256": "575eefd1a785fc9e3b1f258b7207fe01e9d62e4a4382837b7b8e3e561cce85e5"
+      },
+      "control-focused-normal-go1.26.6.log": {
+        "path": "validation/control-focused-normal-go1.26.6.log",
+        "sha256": "06fe4011e5b2bedd757eb8e3b8c90daa061634b99f84679b8192cd2701b98223"
+      },
+      "control-focused-normal-go1.26.6.time": {
+        "path": "validation/control-focused-normal-go1.26.6.time",
+        "sha256": "8a2b287934812f1dff41d187e5ec49f940b53dd712890aef080541c4005442c4"
+      },
+      "control-focused-race-go1.26.6.log": {
+        "path": "validation/control-focused-race-go1.26.6.log",
+        "sha256": "dd843af0b3075d652763726ed69ff5c835db22db8b919436b410a4887d49a4eb"
+      },
+      "control-focused-race-go1.26.6.time": {
+        "path": "validation/control-focused-race-go1.26.6.time",
+        "sha256": "fadc19167a97396ab72df3fd2c1ce1753a6e4014d8ba69cddc5b2c427261e5d3"
+      },
+      "control-full-normal-go1.26.6.log": {
+        "path": "validation/control-full-normal-go1.26.6.log",
+        "sha256": "2c2c14a87104ecde34d08658fb89a032d894ee459a2263f2d69f9dba8dbac650"
+      },
+      "control-full-normal-go1.26.6.time": {
+        "path": "validation/control-full-normal-go1.26.6.time",
+        "sha256": "5e037162f760db6552676984c6d631c2ce3e26e7334aba68d8282f9e3977f4fc"
+      },
+      "patch-replay-proof.log": {
+        "path": "validation/patch-replay-proof.log",
+        "sha256": "01336ff17df9f66d83ac589bbba631fe60fa9b0534244ed32ac70784beb56f0e"
+      },
+      "superseded-go1.26.3/candidate-focused-normal.log": {
+        "path": "validation/superseded-go1.26.3/candidate-focused-normal.log",
+        "sha256": "f0f96613b7f67abb7f459e1aee1622c58a074dc61cd65d389b16f1185a432c1d"
+      },
+      "superseded-go1.26.3/candidate-focused-normal.time": {
+        "path": "validation/superseded-go1.26.3/candidate-focused-normal.time",
+        "sha256": "543291c830c2c460b9f32349084c8db9871f12859f34977947285fbc9eba952e"
+      },
+      "superseded-go1.26.3/environment.log": {
+        "path": "validation/superseded-go1.26.3/environment.log",
+        "sha256": "b0dfd9106707ca3c3e7b37a77274a0708276ccb86087fc86d4ab45733a56b411"
+      }
+    },
+    "patch_replay": {
+      "forward_exact": true,
+      "log": "validation/patch-replay-proof.log",
+      "reverse_exact": true
+    },
+    "superseded_validation": {
+      "final": false,
+      "go_version": "go1.26.3",
+      "path": "validation/superseded-go1.26.3"
+    }
+  },
+  "variants": {
+    "refund-current-batch-control": {
+      "binaries": {
+        "agent": {
+          "build_id": "_5_3wnEQIV91bIwurS9Z/hbvwhIKopFLf8Yo3HIjP/5csZ2Ew2-DAD59F5XnNw/I_oZXDONDOTviDMzXDSg",
+          "path": "refund-current-batch-control.agent.test",
+          "sha256": "bae850a2c81085148098d90f4d27dd88617a5023f3dd67665bda742806ae6dcf"
+        },
+        "server": {
+          "build_id": "AoY8OBIxVeSpgtQOCr3w/OCEdbba-lwbN0a1BptkW/1rZMnNi3kIuMU7zefMTj/295gYmXem_xeuGWMoqX3",
+          "path": "refund-current-batch-control.server.test",
+          "sha256": "453924e217f211e575440613925c27651e7c14fa3a3316851469ebd70c4b79aa"
+        }
+      },
+      "deferred_global_epoch": false,
+      "source_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/control",
+      "source_identity": "5eeccaaa797254d7bde4db9854a337a02c3bc28e+refund-current-batch-control@sha256:3fa10c967b69d4d371c64dd6bb2ca175ffbd9f98d80193d3d41b2722809bfe59"
+    },
+    "refund-streams-before-global-epoch": {
+      "binaries": {
+        "agent": {
+          "build_id": "bvYuIBn2H6oEuTmrSGbb/9vYnx1FFx2a_w58hrELS/VnfkxNRxUuE9Y9rxyHp-/EtNMcU8wq-zawt4LEs09",
+          "path": "refund-streams-before-global-epoch.agent.test",
+          "sha256": "3a7b45294921e633f9e13a825c8ec572c43e45076aa6e243b5f3baeeb6ddcbde"
+        },
+        "server": {
+          "build_id": "mXw7eDF7q6xva94H80W1/dpQUmCQMo6U3b7opND6M/oZrtqgDqJxd6qOlqiiCT/wueRvQRKhZjg17hvrwml",
+          "path": "refund-streams-before-global-epoch.server.test",
+          "sha256": "ad7f3b2605f9375fa2f5015a73dd10e6f32946124fff21e7494f7185d5019699"
+        }
+      },
+      "deferred_global_epoch": true,
+      "source_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/candidate",
+      "source_identity": "5eeccaaa797254d7bde4db9854a337a02c3bc28e+refund-streams-before-global-epoch@sha256:3fa10c967b69d4d371c64dd6bb2ca175ffbd9f98d80193d3d41b2722809bfe59+sha256:d07cac9d6f5dac0311416282c0c0e19ece2d3369e1d372abc43b406b3e33b81d"
+    }
+  }
+}

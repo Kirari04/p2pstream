@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""Synthetic contract checks only: no Go build, proxy, Docker or network load."""
+import ast
+import copy
+from datetime import datetime, timedelta, timezone
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import statistics
+import subprocess
+import tempfile
+
+repo = Path('/home/user/.codex/worktrees/astra-proxy-performance/p2pstream')
+runner = repo / 'scripts/qualify-proxy-caddy.sh'
+shell = runner.read_text()
+python_source = shell.split("<<'PY'\n", 1)[1].rsplit('\nPY', 1)[0]
+module = ast.parse(python_source)
+names = {'digest_file', 'moderate_calibration', 'ModerateDeliveryError', 'validate_moderate_result', 'summarize_moderate_results'}
+functions = [node for node in module.body if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in names]
+assert {node.name for node in functions} == names
+selected = ast.Module(body=functions, type_ignores=[])
+compile(module, str(runner), 'exec')
+subprocess.run(['bash', '-n', str(runner)], check=True)
+help_text = subprocess.check_output(['bash', str(runner), '--help'], text=True)
+assert '--moderate-load-calibration' in help_text and '--matched-h2-single-connection' in help_text
+parent = repo / 'tmp/proxy-qualification'
+parent.mkdir(parents=True, exist_ok=True)
+out = Path(tempfile.mkdtemp(prefix='moderate-caddy-validation.', dir=parent))
+(out / 'runner.sh').write_bytes(runner.read_bytes())
+fixture_source = out / 'fixture-source'
+(fixture_source / 'scripts').mkdir(parents=True)
+(fixture_source / 'scripts/qualify-proxy-caddy.sh').write_bytes(runner.read_bytes())
+harness = fixture_source / 'harness.go.txt'
+harness.write_text('synthetic source identity; never compiled\n')
+proxy = out / 'proxy.bin.txt'; proxy.write_text('synthetic candidate/driver identity; never executed\n')
+caddy = out / 'caddy.bin.txt'; caddy.write_text('synthetic Caddy identity; never executed\n')
+haproxy = out / 'haproxy.bin.txt'; haproxy.write_text('synthetic HAProxy identity; never executed\n')
+scope = dict(Path=Path, hashlib=hashlib, json=json, math=math, statistics=statistics, os=os,
+             datetime=datetime, timedelta=timedelta, root=fixture_source, harness=harness,
+             source_commits={'candidate': 'a'*40, 'driver': 'a'*40},
+             candidate=proxy, driver=proxy, caddy=caddy, haproxy=haproxy)
+exec(compile(selected, str(runner)+':synthetic-functions', 'exec'), scope)
+sha = scope['digest_file']
+cells = {
+    ('h1', 16): {'candidate': [25000, 26000, 27000], 'haproxy': [62000, 64000, 63000]},
+    ('h1', 128): {'candidate': [20000, 22000, 21000], 'haproxy': [70000, 75000, 72000]},
+    ('h2', 16): {'candidate': [20000, 21000, 19000], 'haproxy': [30000, 31000, 29000]},
+    ('h2', 128): {'candidate': [22000, 24000, 23000], 'haproxy': [34000, 36000, 35000]},
+}
+results = []
+
+
+def fixture(name, mutate=None, rebind=True):
+    folder = out / name
+    evidence = folder / 'evidence'
+    evidence.mkdir(parents=True)
+    rows = []
+    for iteration in (1, 2, 3):
+        kinds = ['caddy', 'haproxy', 'candidate']
+        offset = iteration-1
+        kinds = kinds[offset:]+kinds[:offset]
+        for kind in kinds:
+            for concurrency in (16, 128):
+                for protocol in ('h1', 'h2'):
+                    rps = [1000, 3000, 2000][iteration-1] if kind == 'caddy' else cells[(protocol, concurrency)][kind][iteration-1]
+                    n = rps*10
+                    row = dict(iteration=iteration, proxy_kind=kind, concurrency=concurrency, protocol=protocol,
+                        errors=0, attempted=n, useful_completed=n, response_bytes=256*n, status_codes={'200': n},
+                        observed_http_major=1 if protocol == 'h1' else 2, observed_origin_http_major=1,
+                        configured_duration_seconds=10, warmup_seconds=2, useful_requests_per_second=rps,
+                        wall_seconds=10, p95_ms=1, p99_ms=2, client_tcp_connections=1,
+                        h2_prewarm_requests=1, h2_prewarm_connection_reused=True, h2_prewarm_additional_connection=False)
+                    if kind == 'candidate':
+                        row.update(event_stats_captured=True, persisted_event_delta=n, dropped_event_delta=0,
+                                   event_queue_after_drain=0, h2_prewarm_persisted_events=1)
+                    rows.append(row)
+    cpus = sorted(os.sched_getaffinity(0))
+    provenance = dict(workload='saturated-reference',
+        settings=dict(runs=3, duration_seconds=10, warmup_seconds=2, idle_per_host=128, concurrency='16,128',
+                      protocol='both', matched_h2_single_connection=True, moderate_load_calibration=None),
+        proxy_cpus=','.join(map(str,cpus[:4])), load_cpus=','.join(map(str,cpus[4:] or cpus[:4])),
+        cgroup_limit_bytes=4<<30, cgroup_swap_disabled=True,
+        haproxy_binary_sha256=sha(haproxy), caddy_binary_sha256=sha(caddy))
+    manifest = dict(source_ref='a'*40, reference_run_dir=str(evidence), runner_sha256=sha(runner),
+        harness_sha256=sha(harness), binaries={'candidate_and_driver': {'sha256': sha(proxy)}},
+        workload=dict(exit_code=0, forced_container_cleanup=[], forced_group_cleanup=False))
+    if mutate:
+        mutate(rows, provenance, manifest)
+    (evidence / 'results.jsonl').write_text(''.join(json.dumps(row)+'\n' for row in rows))
+    (evidence / 'provenance.json').write_text(json.dumps(provenance))
+    (folder / 'summary.json').write_text(json.dumps({'row_count': 36, 'fixture_only': True}))
+    manifest.update(results_sha256=sha(evidence/'results.jsonl'),
+        summary_sha256=sha(folder/'summary.json'), reference_provenance_sha256=sha(evidence/'provenance.json'))
+    if not rebind:
+        manifest['results_sha256'] = '0'*64
+    (folder / 'manifest.json').write_text(json.dumps(manifest))
+    return folder
+
+
+def reject_calibration(name, mutate=None, rebind=True):
+    path = fixture(name, mutate, rebind)
+    try:
+        scope['moderate_calibration'](path)
+    except (ValueError, KeyError, TypeError) as error:
+        results.append(dict(case=name, expected_rejection=True, error=str(error)))
+    else:
+        raise AssertionError('accepted invalid calibration: '+name)
+
+
+plan = scope['moderate_calibration'](fixture('positive'))
+assert {key: value['offered_rps'] for key,value in plan['cells'].items()} == {'h1-c16':13000,'h1-c128':10500,'h2-c16':10000,'h2-c128':11500}
+assert all(value['requests']==20*value['offered_rps'] for value in plan['cells'].values())
+results.append(dict(case='positive-rates-ignore-slower-Caddy', passed=True))
+reject_calibration('wrong-source', lambda rows, prov, manifest: manifest.update(source_ref='b'*40))
+reject_calibration('wrong-raw-hash', rebind=False)
+reject_calibration('wrong-h2-topology', lambda rows, prov, manifest: next(row for row in rows if row['protocol']=='h2').update(client_tcp_connections=2))
+reject_calibration('lost-candidate-event', lambda rows, prov, manifest: next(row for row in rows if row['proxy_kind']=='candidate').update(persisted_event_delta=0))
+reject_calibration('queued-candidate-event', lambda rows, prov, manifest: next(row for row in rows if row['proxy_kind']=='candidate').update(event_queue_after_drain=1))
+reject_calibration('wrong-Caddy-payload', lambda rows, prov, manifest: next(row for row in rows if row['proxy_kind']=='caddy').update(response_bytes=0))
+reject_calibration('wrong-warm-reference', lambda rows, prov, manifest: prov['settings'].update(duration_seconds=1))
+
+def wide_spread(rows, provenance, manifest):
+    for row in rows:
+        if row['proxy_kind']=='candidate' and row['protocol']=='h1' and row['concurrency']==16:
+            rps = [10000,50000,30000][row['iteration']-1]
+            n = rps*10
+            row.update(useful_requests_per_second=rps,attempted=n,useful_completed=n,
+                       persisted_event_delta=n,response_bytes=256*n,status_codes={'200':n})
+wide = scope['moderate_calibration'](fixture('wide-spread-reported',wide_spread))
+assert wide['cells']['h1-c16']['offered_rps']==15000
+assert wide['cells']['h1-c16']['calibration']['candidate']['max_to_min']==5
+results.append(dict(case='wide-spread-reported-without-new-gate', passed=True))
+
+rate = dict(offered_rps=500, requests=10000)
+valid = dict(response_bytes=2560000,status_codes={'200':10000},useful_requests_per_second=10000/20.001,
+             wall_seconds=20.001,p95_ms=1,p99_ms=2,offered_requests_per_second=500,attempted=10000,
+             offered_schedule=dict(started_utc='2026-10-16T08:00:00Z', planned_seconds=19.998,
+                                   dispatch_completed_seconds=19.999,dispatch_completed_utc='2026-10-16T08:00:19.999Z'))
+scope['validate_moderate_result'](valid,rate)
+results.append(dict(case='positive-schedule',passed=True))
+mutations = {
+    'missing-schedule': lambda row: row.pop('offered_schedule'),
+    'short-payload': lambda row: row.update(response_bytes=1),
+    'wrong-status': lambda row: row.update(status_codes={'503':10000}),
+    'nonfinite-tail': lambda row: row.update(p99_ms=float('nan')),
+    'wrong-planned': lambda row: row['offered_schedule'].update(planned_seconds=19),
+    'naive-UTC': lambda row: row['offered_schedule'].update(started_utc='2026-10-16T08:00:00'),
+    'dispatch-too-early': lambda row: row['offered_schedule'].update(dispatch_completed_seconds=19),
+    'delivery-RPS': lambda row: row.update(useful_requests_per_second=494,wall_seconds=10000/494),
+    'delivery-elapsed-only': lambda row: row.update(wall_seconds=20.201,useful_requests_per_second=10000/20.201),
+}
+for name, mutate in mutations.items():
+    row=copy.deepcopy(valid); mutate(row)
+    try:
+        scope['validate_moderate_result'](row,rate)
+    except (ValueError,TypeError,KeyError) as error:
+        results.append(dict(case=name,expected_rejection=True,error=str(error)))
+    else:
+        raise AssertionError('accepted invalid schedule: '+name)
+expanded = scope['moderate_calibration'](fixture('caddy-extension'), include_caddy=True)
+assert expanded['cells'] == plan['cells']
+assert expanded['row_count'] == 36 and expanded['references'] == ['haproxy','caddy']
+assert [[kind for kind in order if kind!='caddy'] for order in expanded['proxy_orders']] == plan['proxy_orders']
+assert [[kind for kind in order if kind!='haproxy'] for order in expanded['proxy_orders']] == [['candidate','caddy'],['caddy','candidate'],['candidate','caddy']]
+results.append(dict(case='Caddy-extension-keeps-rates-and-both-paired-orders',passed=True))
+moderate_rows=[]
+for iteration,order in enumerate(expanded['proxy_orders'],1):
+    for kind in order:
+        for concurrency in (16,128):
+            for protocol in ('h1','h2'):
+                moderate_rows.append(dict(iteration=iteration,proxy_kind=kind,protocol=protocol,concurrency=concurrency,
+                    p95_ms=.9 if kind=='haproxy' else 1,p99_ms=1.8 if kind=='haproxy' else 2))
+summarize=scope['summarize_moderate_results']
+summary=summarize(moderate_rows,expanded,[])
+assert summary['row_count']==36 and summary['all_tail_gates_passed'] and summary['all_delivery_checks_passed']
+assert set(summary['reference_comparisons'])=={'haproxy','caddy'}
+legacy_rows=[row for row in moderate_rows if row['proxy_kind']!='caddy']
+legacy_summary=summarize(legacy_rows,plan,[])
+assert legacy_summary['row_count']==24 and legacy_summary['cells']==summary['cells']
+results.append(dict(case='independent-Caddy-HA-gates-and-original24-result',passed=True))
+wrong_tail=copy.deepcopy(moderate_rows)
+for row in wrong_tail:
+    if row['proxy_kind']=='caddy':row['p99_ms']=.5
+summary=summarize(wrong_tail,expanded,[])
+assert not summary['all_tail_gates_passed'] and summary['reference_comparisons']['haproxy']['all_tail_gates_passed']
+assert not summary['reference_comparisons']['caddy']['all_tail_gates_passed']
+results.append(dict(case='Caddy-tail-failure-does-not-relabel-HA-pass',passed=True))
+failures=[dict(proxy_kind='caddy',protocol='h1',concurrency=16,iteration=1,error='schedule delivery failed')]
+summary=summarize(moderate_rows,expanded,failures)
+assert not summary['all_delivery_checks_passed'] and not summary['all_tail_gates_passed']
+assert summary['reference_comparisons']['haproxy']['all_tail_gates_passed']
+assert summary['reference_comparisons']['caddy']['capacity_confounded']
+assert sum(cell['capacity_confounded'] for cell in summary['reference_comparisons']['caddy']['cells'])==1
+assert summary['delivery_failures']==failures
+results.append(dict(case='Caddy-underdelivery-capacity-confounds-only-its-cell',passed=True))
+for name,bad_rows in [('missing-Caddy-cell',moderate_rows[:-1]),('duplicate-Caddy-iteration',copy.deepcopy(moderate_rows))]:
+    if name=='duplicate-Caddy-iteration':
+        next(row for row in bad_rows if row['proxy_kind']=='caddy' and row['iteration']==3)['iteration']=2
+    try:summarize(bad_rows,expanded,[])
+    except ValueError as error:results.append(dict(case=name,expected_rejection=True,error=str(error)))
+    else:raise AssertionError('accepted invalid moderate matrix: '+name)
+missed=copy.deepcopy(valid);missed.update(wall_seconds=20.201,useful_requests_per_second=10000/20.201)
+try:scope['validate_moderate_result'](missed,rate)
+except scope['ModerateDeliveryError']:results.append(dict(case='valid-underdelivery-has-distinct-class',passed=True))
+else:raise AssertionError('underdelivery was not separately classified')
+bad_payload=copy.deepcopy(valid);bad_payload['response_bytes']=1
+try:scope['validate_moderate_result'](bad_payload,rate)
+except scope['ModerateDeliveryError']:raise AssertionError('bad payload mislabeled as capacity')
+except ValueError:results.append(dict(case='payload-error-is-not-capacity',passed=True))
+else:raise AssertionError('bad payload accepted')
+invalid=subprocess.run(['bash',str(runner),'--caddy-binary',str(caddy),'--driver-binary',str(proxy),
+    '--driver-source-ref','a'*40,'--harness-source',str(harness),'--include-moderate-caddy'],text=True,capture_output=True)
+assert invalid.returncode==2 and '--include-moderate-caddy requires --moderate-load-calibration' in invalid.stderr
+results.append(dict(case='Caddy-extension-requires-calibration-mode-before-any-work',passed=True))
+(out/'results.json').write_text(json.dumps(dict(fixture_only=True,runner_sha256=sha(runner),cases=results),indent=2)+'\n')
+(out/'validation-source.py.txt').write_bytes(Path(__file__).read_bytes())
+print(out)
+print('PASS',len(results),'synthetic calibration/schedule contracts; syntax/help passed; no Go, Docker or network load.')

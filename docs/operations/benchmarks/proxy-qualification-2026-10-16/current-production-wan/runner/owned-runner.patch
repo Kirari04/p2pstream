@@ -1,0 +1,347 @@
+--- scripts/qualify-proxy-agent-growth.sh	2026-10-16 05:03:42.568588334 +0200
++++ tmp/continuation-20261016/current-wan-prep/runner/qualify-proxy-agent-growth-owned.sh	2026-10-16 17:58:48.740468863 +0200
+@@ -133,7 +133,7 @@
+   echo "refusing to configure networking outside a disposable namespace" >&2
+   exit 1
+ }
+-for tool in ip tc nsenter jq python3 taskset openssl sha256sum ping; do
++for tool in ip tc nsenter jq python3 taskset openssl sha256sum ping ps readlink setsid; do
+   command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 1; }
+ done
+ if [[ ${P2PSTREAM_GROWTH_PRESSURE_MODE:-0} == 1 ]]; then
+@@ -156,6 +156,10 @@
+ pressure_mode=${P2PSTREAM_GROWTH_PRESSURE_MODE:-0}
+ tiny_response_mode=${P2PSTREAM_GROWTH_TINY_RESPONSE_MODE:-0}
+ configured_rtt_ms=${P2PSTREAM_GROWTH_CONFIGURED_RTT_MS:-80}
++((pressure_mode == 0 && tiny_response_mode == 0)) || {
++  echo "owned WAN pair derivative supports only the original large-transfer workload" >&2
++  exit 2
++}
+ largest_transfer_mib=$((warmup_mib > steady_mib ? warmup_mib : steady_mib))
+ transfer_timeout_seconds=$((60 + (largest_transfer_mib + 1) / 2))
+ warmup_lane_rounds=4
+@@ -166,21 +170,106 @@
+ run_dir=$(mktemp -d -p "$(dirname "$output")" proxy-agent-growth.XXXXXX)
+ : > "$output"
+ 
+-children=()
++declare -A owned_groups=()
+ stops=()
+ cleanup() {
++  local original_status=$? forced=0 pid attempt live
++  trap - EXIT INT TERM
+   for stop in "${stops[@]:-}"; do [[ -n $stop ]] && touch "$stop"; done
+-  for pid in "${children[@]:-}"; do [[ -n $pid ]] && kill "$pid" 2>/dev/null || true; done
+-  wait || true
++  for pid in "${!owned_groups[@]}"; do
++    if kill -0 -- "-$pid" 2>/dev/null; then
++      forced=1
++      kill -TERM -- "-$pid" 2>/dev/null || true
++    fi
++  done
++  for ((attempt=0; attempt<50; attempt++)); do
++    live=0
++    for pid in "${!owned_groups[@]}"; do kill -0 -- "-$pid" 2>/dev/null && live=1; done
++    ((live)) || break
++    sleep .1
++  done
++  for pid in "${!owned_groups[@]}"; do
++    if kill -0 -- "-$pid" 2>/dev/null; then
++      forced=1
++      kill -KILL -- "-$pid" 2>/dev/null || true
++    fi
++    wait "$pid" 2>/dev/null || true
++  done
++  if ((forced)); then
++    printf '{"event":"forced-cleanup","invalidates_success":true}\n' >> "${lifecycle_output:-/dev/null}"
++    ((original_status != 0)) || original_status=1
++  fi
++  exit "$original_status"
+ }
+-trap cleanup EXIT INT TERM
+-
+-unshare --net sleep "$overall_timeout_seconds" &
++trap cleanup EXIT
++trap 'exit 130' INT
++trap 'exit 143' TERM
++
++register_owned_group() {
++  local pid=$1 label=$2 pgid attempt
++  owned_groups[$pid]=$label
++  for ((attempt=0; attempt<100; attempt++)); do
++    pgid=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ' || true)
++    [[ $pgid == "$pid" ]] && return 0
++    kill -0 "$pid" 2>/dev/null || break
++    sleep .01
++  done
++  [[ $pgid == "$pid" ]] || { echo "$label pid $pid does not own process group $pgid" >&2; return 1; }
++}
++process_start_state() {
++  python3 - "$1" <<'PY'
++import os, sys
++pid = int(sys.argv[1])
++text = open(f"/proc/{pid}/stat", encoding="utf-8").read()
++right = text.rfind(")")
++if right < 0:
++    raise SystemExit("malformed process stat")
++fields = text[right + 2:].split()
++if len(fields) < 20:
++    raise SystemExit("short process stat")
++print(fields[19], os.readlink(f"/proc/{pid}/ns/net"))
++PY
++}
++assert_namespace_helper() {
++  local pid=$1 expected=$2 current
++  current=$(process_start_state "$pid") || return 1
++  [[ $current == "$expected" && $(tr -d '\n' < /proc/sys/kernel/random/boot_id) == "$boot_id" ]] || {
++    echo "network namespace helper $pid changed process instance or namespace" >&2
++    return 1
++  }
++}
++lifecycle_output=${output%.jsonl}.lifecycle.jsonl
++: > "$lifecycle_output"
++boot_id=$(tr -d '\n' < /proc/sys/kernel/random/boot_id)
++runner_namespace_identity=$(readlink /proc/self/ns/net)
++agent_namespace_stop=$run_dir/agent-namespace.stop
++router_namespace_stop=$run_dir/router-namespace.stop
++setsid unshare --net bash -c 'namespace_holder() { local stop=$1 timeout=$2; python3 - "$stop" "$timeout" <<'"'"'PY'"'"'
++import pathlib, sys, time
++stop = pathlib.Path(sys.argv[1])
++deadline = time.monotonic() + int(sys.argv[2])
++while not stop.exists():
++    if time.monotonic() >= deadline:
++        raise SystemExit("namespace holder timed out")
++    time.sleep(.05)
++PY
++}; namespace_holder "$1" "$2"' bash "$agent_namespace_stop" "$overall_timeout_seconds" &
+ agent_namespace_pid=$!
+-children+=("$agent_namespace_pid")
+-unshare --net sleep "$overall_timeout_seconds" &
++register_owned_group "$agent_namespace_pid" agent-namespace
++stops+=("$agent_namespace_stop")
++setsid unshare --net bash -c 'namespace_holder() { local stop=$1 timeout=$2; python3 - "$stop" "$timeout" <<'"'"'PY'"'"'
++import pathlib, sys, time
++stop = pathlib.Path(sys.argv[1])
++deadline = time.monotonic() + int(sys.argv[2])
++while not stop.exists():
++    if time.monotonic() >= deadline:
++        raise SystemExit("namespace holder timed out")
++    time.sleep(.05)
++PY
++}; namespace_holder "$1" "$2"' bash "$router_namespace_stop" "$overall_timeout_seconds" &
+ router_namespace_pid=$!
+-children+=("$router_namespace_pid")
++register_owned_group "$router_namespace_pid" router-namespace
++stops+=("$router_namespace_stop")
+ for pid in "$agent_namespace_pid" "$router_namespace_pid"; do
+   for ((attempt=0; attempt<100; attempt++)); do
+     [[ $(readlink "/proc/$pid/ns/net") != "$(readlink /proc/self/ns/net)" ]] && break
+@@ -188,8 +277,18 @@
+   done
+   [[ $(readlink "/proc/$pid/ns/net") != "$(readlink /proc/self/ns/net)" ]]
+ done
+-agent_ns() { nsenter -t "$agent_namespace_pid" -n "$@"; }
+-router_ns() { nsenter -t "$router_namespace_pid" -n "$@"; }
++agent_namespace_instance=$(process_start_state "$agent_namespace_pid")
++router_namespace_instance=$(process_start_state "$router_namespace_pid")
++agent_namespace_start_ticks=${agent_namespace_instance%% *}
++router_namespace_start_ticks=${router_namespace_instance%% *}
++agent_namespace_identity=${agent_namespace_instance#* }
++router_namespace_identity=${router_namespace_instance#* }
++[[ $agent_namespace_identity != "$router_namespace_identity" && $agent_namespace_identity != "$runner_namespace_identity" && $router_namespace_identity != "$runner_namespace_identity" ]]
++printf '{"event":"namespace-helpers-start","boot_id":"%s","runner_namespace":"%s","agent":{"pid":%s,"start_ticks":%s,"namespace":"%s"},"router":{"pid":%s,"start_ticks":%s,"namespace":"%s"}}\n' \
++  "$boot_id" "$runner_namespace_identity" "$agent_namespace_pid" "$agent_namespace_start_ticks" "$agent_namespace_identity" \
++  "$router_namespace_pid" "$router_namespace_start_ticks" "$router_namespace_identity" >> "$lifecycle_output"
++agent_ns() { assert_namespace_helper "$agent_namespace_pid" "$agent_namespace_instance" && nsenter -t "$agent_namespace_pid" -n "$@"; }
++router_ns() { assert_namespace_helper "$router_namespace_pid" "$router_namespace_instance" && nsenter -t "$router_namespace_pid" -n "$@"; }
+ ip link set lo up
+ agent_ns ip link set lo up
+ router_ns ip link set lo up
+@@ -253,18 +352,44 @@
+   return 1
+ }
+ stop_process() {
+-  local pid=$1 stop=$2
++  local label=$1 pid=$2 stop=$3 attempt status group_joined=false
+   touch "$stop"
+   for ((attempt=0; attempt<200; attempt++)); do
+-    kill -0 "$pid" 2>/dev/null || break
++    kill -0 -- "-$pid" 2>/dev/null || break
+     sleep .05
+   done
+-  kill "$pid" 2>/dev/null || true
+-  wait "$pid" 2>/dev/null || true
++  if kill -0 -- "-$pid" 2>/dev/null; then
++    kill -TERM -- "-$pid" 2>/dev/null || true
++    for ((attempt=0; attempt<50; attempt++)); do
++      kill -0 -- "-$pid" 2>/dev/null || break
++      sleep .1
++    done
++    kill -0 -- "-$pid" 2>/dev/null && kill -KILL -- "-$pid" 2>/dev/null || true
++    set +e
++    wait "$pid" 2>/dev/null
++    status=$?
++    set -e
++    for ((attempt=0; attempt<50; attempt++)); do
++      kill -0 -- "-$pid" 2>/dev/null || { group_joined=true; break; }
++      sleep .1
++    done
++    [[ $group_joined == false ]] || unset 'owned_groups[$pid]'
++    printf '{"event":"process-exit","label":"%s","pid":%s,"status":%s,"forced":true,"group_joined":%s,"invalidates_success":true}\n' "$label" "$pid" "$status" "$group_joined" >> "$lifecycle_output"
++    echo "$label required forced process-group cleanup" >&2
++    return 1
++  fi
++  set +e
++  wait "$pid"
++  status=$?
++  set -e
++  unset 'owned_groups[$pid]'
++  printf '{"event":"process-exit","label":"%s","pid":%s,"status":%s,"forced":false,"group_joined":true,"invalidates_success":%s}\n' \
++    "$label" "$pid" "$status" "$([[ $status == 0 ]] && printf false || printf true)" >> "$lifecycle_output"
++  ((status == 0)) || { echo "$label exited with status $status" >&2; return "$status"; }
+ }
+ query_agent_json() {
+   local pid=$1 url=$2
+-  nsenter -t "$pid" -n python3 - "$url" <<'PY'
++  agent_ns python3 - "$url" <<'PY'
+ import json, sys, urllib.request
+ with urllib.request.urlopen(sys.argv[1], timeout=2) as response:
+     json.dump(json.load(response), sys.stdout, separators=(",", ":"))
+@@ -325,7 +450,7 @@
+ 
+ set_agent_ballast() {
+   local pid=$1 admin_url=$2 ballast_mib=$3
+-  nsenter -t "$pid" -n python3 - "$admin_url" "$ballast_mib" <<'PY'
++  agent_ns python3 - "$admin_url" "$ballast_mib" <<'PY'
+ import json, sys, urllib.parse, urllib.request
+ url = sys.argv[1] + ("&" if "?" in sys.argv[1] else "?") + urllib.parse.urlencode({"ballast_mib": sys.argv[2]})
+ with urllib.request.urlopen(url, timeout=30) as response:
+@@ -433,7 +558,8 @@
+   -subj /CN=public.test -days 1 -keyout "$key" -out "$cert" >/dev/null 2>&1
+ origin_ready=$run_dir/origin.ready.json
+ origin_stop=$run_dir/origin.stop
+-nsenter -t "$agent_namespace_pid" -n env \
++assert_namespace_helper "$agent_namespace_pid" "$agent_namespace_instance"
++setsid nsenter -t "$agent_namespace_pid" -n env \
+   P2PSTREAM_QUALIFICATION_ROLE=origin \
+   P2PSTREAM_QUALIFICATION_READY="$origin_ready" \
+   P2PSTREAM_QUALIFICATION_STOP="$origin_stop" \
+@@ -441,7 +567,7 @@
+   taskset -c "$agent_cpu_set" "$server_binary" -test.run '^TestProxyQualificationProcess$' -test.timeout "${overall_timeout_seconds}s" \
+   >"$run_dir/origin.log" 2>&1 &
+ origin_pid=$!
+-children+=("$origin_pid")
++register_owned_group "$origin_pid" origin
+ stops+=("$origin_stop")
+ wait_ready "$origin_ready" "$origin_pid"
+ origin_url=$(jq -r .url "$origin_ready")
+@@ -715,10 +841,10 @@
+   P2PSTREAM_QUALIFICATION_RESOURCE_ENVELOPE="p2pstream-external-agent-canceled-upload" \
+   P2PSTREAM_QUALIFICATION_SEQUENCE="$sequence" \
+   P2PSTREAM_QUALIFICATION_RESULT="$raw" \
+-    taskset -c "$load_cpu_set" "$server_binary" -test.run '^TestProxyQualificationLoad$' -test.timeout 45s \
++    setsid taskset -c "$load_cpu_set" "$server_binary" -test.run '^TestProxyQualificationLoad$' -test.timeout 45s \
+     >"$raw.log" 2>&1 &
+   local load_pid=$!
+-  children+=("$load_pid")
++  register_owned_group "$load_pid" canceled-upload-load
+   while kill -0 "$load_pid" 2>/dev/null; do
+     {
+       query_agent_json "$agent_pid" "$agent_admin"
+@@ -727,6 +853,7 @@
+     sleep .02
+   done
+   wait "$load_pid"
++  unset 'owned_groups[$load_pid]'
+   jq -e --argjson bytes "$payload_bytes" '
+     .attempted == 1 and .useful_completed == 0 and .errors == 1 and .canceled_errors == 1 and .observed_http_major == 2 and
+     .configured_payload_bytes == $bytes and .request_body_bytes > 0 and .request_body_bytes < $bytes and
+@@ -964,7 +1091,7 @@
+   local management_ca=$run_dir/$label-$iteration-management-ca.pem
+   local server_process_pid server_unit="p2p-qual-server-$BASHPID-$iteration"
+   if ((pressure_mode)); then
+-    systemd-run --user --scope --quiet --unit="$server_unit" \
++    setsid systemd-run --user --scope --quiet --unit="$server_unit" \
+       -p MemoryMax=4294967296 -p MemorySwapMax=0 -- \
+       nsenter -t "$$" -n env \
+       P2PSTREAM_QUALIFICATION_ROLE=proxy-external-agent \
+@@ -980,7 +1107,7 @@
+       taskset -c "$server_cpu_set" "$server_binary" -test.run '^TestExternalProxyQualificationServerProcess$' -test.timeout "${overall_timeout_seconds}s" \
+       >"$run_dir/$label-$iteration-server.log" 2>&1 &
+   else
+-    env \
++    setsid env \
+       P2PSTREAM_QUALIFICATION_ROLE=proxy-external-agent \
+       P2PSTREAM_QUALIFICATION_READY="$server_ready" \
+       P2PSTREAM_QUALIFICATION_STOP="$server_stop" \
+@@ -995,7 +1122,7 @@
+       >"$run_dir/$label-$iteration-server.log" 2>&1 &
+   fi
+   server_process_pid=$!
+-  children+=("$server_process_pid")
++  register_owned_group "$server_process_pid" "$label-$iteration-server"
+   stops+=("$server_stop")
+   wait_ready "$server_ready" "$server_process_pid"
+   local server_pid public_url server_admin management_url public_id token
+@@ -1009,7 +1136,8 @@
+   local agent_ready=$run_dir/$label-$iteration-agent.ready.json agent_stop=$run_dir/$label-$iteration-agent.stop
+   local agent_process_pid agent_unit="p2p-qual-agent-$BASHPID-$iteration"
+   if ((pressure_mode)); then
+-    systemd-run --user --scope --quiet --unit="$agent_unit" \
++    assert_namespace_helper "$agent_namespace_pid" "$agent_namespace_instance"
++    setsid systemd-run --user --scope --quiet --unit="$agent_unit" \
+       -p MemoryMax=4294967296 -p MemorySwapMax=0 -- \
+       nsenter -t "$agent_namespace_pid" -n env \
+       P2PSTREAM_QUALIFICATION_ROLE=agent-external \
+@@ -1024,7 +1152,8 @@
+       taskset -c "$agent_cpu_set" "$agent_binary" -test.run '^TestExternalProxyQualificationAgentProcess$' -test.timeout "${overall_timeout_seconds}s" \
+       >"$run_dir/$label-$iteration-agent.log" 2>&1 &
+   else
+-    nsenter -t "$agent_namespace_pid" -n env \
++    assert_namespace_helper "$agent_namespace_pid" "$agent_namespace_instance"
++    setsid nsenter -t "$agent_namespace_pid" -n env \
+       P2PSTREAM_QUALIFICATION_ROLE=agent-external \
+       P2PSTREAM_QUALIFICATION_READY="$agent_ready" \
+       P2PSTREAM_QUALIFICATION_STOP="$agent_stop" \
+@@ -1038,7 +1167,7 @@
+       >"$run_dir/$label-$iteration-agent.log" 2>&1 &
+   fi
+   agent_process_pid=$!
+-  children+=("$agent_process_pid")
++  register_owned_group "$agent_process_pid" "$label-$iteration-agent"
+   stops+=("$agent_stop")
+   wait_ready "$agent_ready" "$agent_process_pid"
+   local agent_pid agent_admin expected_bulk
+@@ -1058,8 +1187,8 @@
+       run_tiny_response "$label" "$mode" "$server_pid" "$public_url" "$server_admin" "$agent_pid" "$agent_admin" \
+         "$tiny_protocol" "$tiny_concurrency" "$iteration"
+     done
+-    stop_process "$agent_process_pid" "$agent_stop"
+-    stop_process "$server_process_pid" "$server_stop"
++    stop_process "$label-$iteration-agent" "$agent_process_pid" "$agent_stop"
++    stop_process "$label-$iteration-server" "$server_process_pid" "$server_stop"
+     return
+   fi
+ 
+@@ -1085,8 +1214,8 @@
+     done
+   fi
+ 
+-  stop_process "$agent_process_pid" "$agent_stop"
+-  stop_process "$server_process_pid" "$server_stop"
++  stop_process "$label-$iteration-agent" "$agent_process_pid" "$agent_stop"
++  stop_process "$label-$iteration-server" "$server_process_pid" "$server_stop"
+ }
+ 
+ for ((iteration=1; iteration<=runs; iteration++)); do
+@@ -1100,7 +1229,9 @@
+       run_cohort current-server-legacy-agent-compat legacy "$legacy_agent_binary" "$iteration"
+   fi
+ done
+-stop_process "$origin_pid" "$origin_stop"
++stop_process origin "$origin_pid" "$origin_stop"
++stop_process agent-namespace "$agent_namespace_pid" "$agent_namespace_stop"
++stop_process router-namespace "$router_namespace_pid" "$router_namespace_stop"
+ summary=${output%.jsonl}.summary.json
+ python3 - "$output" "$summary" "$required_pool_mib" "$smoke_mode" "$pressure_mode" "$tiny_response_mode" <<'PY'
+ import json, statistics, sys

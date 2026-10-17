@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+profile_flags=()
+if [[ ${P2PSTREAM_QUALIFICATION_ROLE:-} == agent-external ]]; then
+  profile_name=$(basename "$P2PSTREAM_QUALIFICATION_READY" .ready.json)
+  profile_prefix=/tmp/p2pstream-tiny-profiles.nz_mznb9/contention/profiles/"$profile_name"
+  profile_flags=("-test.mutexprofile=$profile_prefix.mutex.pprof" -test.mutexprofilefraction=100 "-test.blockprofile=$profile_prefix.block.pprof" -test.blockprofilerate=1000000)
+fi
+exec /tmp/p2p-tiny-15b0354.U9sb6f8a/bin/agent.test "$@" "${profile_flags[@]}"

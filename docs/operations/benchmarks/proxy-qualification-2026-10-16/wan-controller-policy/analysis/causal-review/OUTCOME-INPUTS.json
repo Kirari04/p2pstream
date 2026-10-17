@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "scope": "read-only outcome/source review; no new tests, validators, builds or traffic; arithmetic is independent analysis of saved records",
+  "inputs": [
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/screen-final.json",
+      "sha256": "989d45636acdafadb68be2eb12b979c143b9b12d846d57b22082cc56bfd3a7fd"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/decision.json",
+      "sha256": "6fc4f2cae4f93179b5b0779eb2e75cfb290dcc4c37a8f5957c81325ecdd2b3c8"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/results.jsonl",
+      "sha256": "55e30fb05e780257854637c3ca2417914b31b0d593806f79fdea71db98b31280"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/attestation.json",
+      "sha256": "ed4206cf3722b8ed4e0d8b404c51fd40b81456dc02dd4108688c11feab8bba7d"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/independent-controller-attestation.json",
+      "sha256": "ed4206cf3722b8ed4e0d8b404c51fd40b81456dc02dd4108688c11feab8bba7d"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/supervisor-lifecycle.json",
+      "sha256": "bfbce83ec9dfbdd7a3fcecc6158c0d86dc843734e80c3b6547ec9de5b8bfbfae"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/results.sender-wait-controls/sequence-9-post-sender.json",
+      "sha256": "8d8147019df73c093738332c80efbea6c84e845bf2c8bb6673a40d6b4e3856ca"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/results.sender-wait-controls/sequence-11-post-sender.json",
+      "sha256": "f79ef5e72b65ae1fce58207d2b961b370bbbae9b18106f1c263f56024b525ba0"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/results.sender-wait-controls/sequence-14-post-sender.json",
+      "sha256": "9aca8b1dd854e615704f5b2cb0e7a715515c7416cd069987288e365d65541aaa"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/results.sender-wait-controls/sequence-15-post-sender.json",
+      "sha256": "5af61ae54c99d72431a4efd0a638e8f560a7468d45799157d2b0729064bbb413"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/results.jsonl",
+      "sha256": "1b063c439a48fddbc07e94f46af44bb980242040d2dd8d43427b20734bc03cfb"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/attestation.json",
+      "sha256": "61a5869591b274836460499b35b4ac66a76d1b362b8d468531c5ef43cc34b249"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/independent-controller-attestation.json",
+      "sha256": "61a5869591b274836460499b35b4ac66a76d1b362b8d468531c5ef43cc34b249"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/supervisor-lifecycle.json",
+      "sha256": "a83ea3f1e8fb2de37efa85f69ce4e295a0ad0ce18092fe6d21e79c7838390592"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/results.sender-wait-controls/sequence-9-post-sender.json",
+      "sha256": "e1096c7aef0f2d5dca1243df896cccd5d78eb5e0828a45e29d7d0e4befa9896c"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/results.sender-wait-controls/sequence-11-post-sender.json",
+      "sha256": "9a2b7f22d0c35a248765ae2058f56a48fd8097004388c215d04b28bcddf3b10f"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/results.sender-wait-controls/sequence-14-post-sender.json",
+      "sha256": "bb4f14afb845a5efce40e8a0ae986c751ae4e71d2082fdad158ffca9e94a043c"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/results.sender-wait-controls/sequence-15-post-sender.json",
+      "sha256": "70073c4f5ecf86bf1d345685262ff4e461ee51105224f2d13248d9bb89b1678e"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/results.jsonl",
+      "sha256": "6ce381ec03ab3a4b3f93f21e030457ecad5a100acbc43a832ba0654e22a79712"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/attestation.json",
+      "sha256": "932e0d7913c9a4ed12f197b8c73ea103b963ca4630c43f91cb2f320e10f73776"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/independent-controller-attestation.json",
+      "sha256": "932e0d7913c9a4ed12f197b8c73ea103b963ca4630c43f91cb2f320e10f73776"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/supervisor-lifecycle.json",
+      "sha256": "bfbce83ec9dfbdd7a3fcecc6158c0d86dc843734e80c3b6547ec9de5b8bfbfae"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/results.sender-wait-controls/sequence-9-post-sender.json",
+      "sha256": "a94ebefff0054248b2c1762c06018f321cade889353172a380ec8991fbdd3e76"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/results.sender-wait-controls/sequence-11-post-sender.json",
+      "sha256": "5e939d270e9965ac3844f4a04f8b23a0b6ae2dd79f17585b9813c9b7368d2072"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/results.sender-wait-controls/sequence-14-post-sender.json",
+      "sha256": "d0e94d5ad450e71178afb17f87a5faf2872b7f6086c11377dd43596304da1e3a"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/results.sender-wait-controls/sequence-15-post-sender.json",
+      "sha256": "d77c8ff273dd9d62ea56b612fbc1cf34cf4c72a344c32f258ea0d967ca4cc1f3"
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/results.sender-wait-controls/sequence-11-post-capacity.json",
+      "sha256": "a2e15babeef7a1d09c0a1ef5e5e5bb42b8fd20451b67ead7631b457a5cdd9d58"
+    },
+    {
+      "path": "tmp/wan-source-discrepancy-20261017/ASSESSMENT.md",
+      "sha256": "551333a5691c3e09513c88a51912202f451a9adcf9e78e57c23187f38bbe5d49"
+    },
+    {
+      "path": "tmp/wan-source-discrepancy-20261017/PRIOR-CANDIDATE-CHECK.md",
+      "sha256": "191ff16a2bb3429cc6195b531584915eb8e4aa97462619dd02f035e462ea189c"
+    },
+    {
+      "path": "tmp/wan-source-discrepancy-20261017/POLICY-GROWTH-ANALYSIS.md",
+      "sha256": "826424dd4d40a09e3df929529efb034b3bde9bee5e8d5d7bed6e1a3d903202b2"
+    },
+    {
+      "path": "tmp/continuation-20261016/wan-tcp-state-source/provenance/sustained-tcp-state-1-kernel-source-evidence-1/upstream-v7.0-tcp.h",
+      "sha256": "c56872e278fe3bd4c5ee1c07e218127cb9239edb8883aedfc9192d7b42db5fcd"
+    },
+    {
+      "path": "tmp/continuation-20261016/wan-tcp-state-source/provenance/sustained-tcp-state-1-kernel-source-evidence-1/upstream-v7.0-tcp_output.c",
+      "sha256": "912915a6689f325a2c4ba574bf665ecc8b13f18c7286a4c00443e1335472946c"
+    },
+    {
+      "path": "tmp/continuation-20261016/wan-tcp-state-source/provenance/sustained-tcp-state-1-kernel-source-evidence-1/ubuntu-relevant.diff",
+      "sha256": "0e9d7c2580da9862bcaa5609acb850644cf71354ed35305477b2a89cefc5be23"
+    },
+    {
+      "path": "tmp/continuation-20261016/wan-tcp-state-source/provenance/sustained-tcp-state-1-kernel-source-evidence-1/README.md",
+      "sha256": "7b440ca5866aa4513918efe2cf9a0085b9fcf84abdfb36246981c15009ecb32e"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-tcp-state/evidence/wan-tcp-state-source/provenance/sustained-tcp-state-1-kernel-source-review-1/REPORT.md",
+      "sha256": "fb5e363dc181881047770b7aec210999165e6df9b2f65b46a4c58e20333e6357"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-tcp-state/evidence/wan-tcp-state-source/provenance/sustained-tcp-state-1-kernel-source-review-1/INPUTS.json",
+      "sha256": "c2ccaac17bb718bb863f0c5b964c04d3443b715da2206d084adff75ae54a2c04"
+    },
+    {
+      "path": "tmp/continuation-20261016/wan-tcp-state-source/provenance/sustained-tcp-state-1-kernel-source-review-1-erratum-1/ERRATUM.md",
+      "sha256": "65ccce70c8c70457cc66f8491832e55c5e481ac43c04eee76f8a80b5cac2aad6"
+    },
+    {
+      "path": "internal/tunnel/growing_conn.go",
+      "sha256": "c4db48b961c8a893acd5865dd0866dbd3b003966681363d84a732fa985fa0baf"
+    },
+    {
+      "path": "internal/tunnel/receive_window_growth.go",
+      "sha256": "5954cf0472d92031945c2f8f1417488437ac640103dd927e9fcc390b5ef8f49d"
+    },
+    {
+      "path": "internal/tunnel/yamux.go",
+      "sha256": "bd23c7c38c1bd11c4d20e6650ca328bcb364d8cb1994a33e30edbf5dc5df0fd0"
+    },
+    {
+      "path": "third_party/yamux/aggregate_window.go",
+      "sha256": "0fb6b3e993a5b43a9a5d3e800822b0ac54d8373c160b96969ada2e6fcc0fd4b5"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "tmp/wan-regression-causal-reset-20261017/OUTCOME-REVIEW.md",
+      "sha256": "fd91547d00de1602fdf25eb48b5dd18d7792c67c6ac26bec36e38897dd722928"
+    },
+    {
+      "path": "tmp/wan-regression-causal-reset-20261017/OUTCOME-OBSERVATIONS.json",
+      "sha256": "a78a8cef6f70f7f0d69959d4850b8732ea42cb4b58b86d403965550519287a73"
+    },
+    {
+      "path": "tmp/wan-regression-causal-reset-20261017/OUTCOME-ARITHMETIC.json",
+      "sha256": "234d7e6455aa14d1a16dcefc0c095f457853352367122aadd7fe6930348977d6"
+    }
+  ]
+}

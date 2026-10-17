@@ -1,0 +1,40 @@
+# DESIGN SKETCH ONLY: not an applyable patch; names/schema freeze after core review.
+# No existing source changed. One fresh pair and all original common validators.
+
+--- idle-policy run driver (reference only)
++++ proposed early-share run driver
+@@ startup treatment / namespace expectation
+-ORDER = (1, 0, 1)
++IDLE_ORDER = (1, 1, 1)
++EARLY_SHARE_ORDER = (False, True, False)
++CONTROLLER_ORDER = ('cubic', 'cubic', 'cubic')
+@@ per-arm independent startup binding
++require all three invocations use the SAME reviewed fresh server/agent hashes
++export exact locally controlled qualification early-share enum before endpoints
++require server AND agent actual startup sidecars/readbacks match indexed treatment
++retain all source/receipt/controller/default-idle/namespace/owner checks
+
+--- joined wrapper and generated runner (reference only; BOTH verifier sites)
++++ proposed wrapper/runner derivative
+@@ current-build receipt verifier (historical verifications stay unchanged)
+-verify-terminal-build.py --receipt OLD/build/receipt.json ...
++verify-early-share-build.py --baseline-receipt OLD/build/receipt.json \
++  --expected-baseline-sha256 d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb \
++  --receipt NEW/build/receipt.json --expected-receipt-sha256 REVIEWED_NEW_RECEIPT \
++  --server SAME_FRESH_SERVER --agent SAME_FRESH_AGENT --source-ref EXACT_NEW_FREEZE
+@@ timed run_transfer and cleanup
++NO CHANGE
+
+--- original mature helper calls (reference only)
++++ proposed independent sidecar proof checker
+@@ HTTP/raw/copy schemas and all mature common helpers
++NO CHANGE; no additive envelope fields or projection
+@@ setup / post-join fixture boundary
++startup sidecar records actual local0/1 policy before endpoint creation
++bounded separate attempt ring records trigger/target/backing/order, never estimator epochs
++terminal sidecar seals once after natural producer join, zero active/drop/late records
++strict new proof joins captured session/stream/tuple to existing physical owners
++original complete mature attestation is regenerated exactly; both proofs gate eligibility
+@@ final workload decision
++reuse exact original harmonic108%/per-row95%/Read/floors/performance criteria
++all three required; original_qualification_cleared remains false

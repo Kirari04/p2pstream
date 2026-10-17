@@ -1,0 +1,49 @@
+{
+  "build": {
+    "commands": [
+      "timeout --signal=TERM --kill-after=10s 600s go -C sources/current test -c -o bin/current-server.test ./internal/server",
+      "timeout --signal=TERM --kill-after=10s 600s go -C sources/current test -c -o bin/current-agent.test ./internal/agent",
+      "timeout --signal=TERM --kill-after=10s 600s go -C sources/legacy test -c -o bin/legacy-agent.test ./internal/agent"
+    ],
+    "environment": "env -i; HOME and pinned-Go /usr/bin /bin PATH; GOENV=off GOTOOLCHAIN=local GOWORK=off GOMAXPROCS=4; ordinary Go content-addressed cache",
+    "legacy_overlay": "only canonical internal/agent/proxy_qualification_external_legacy_test.go"
+  },
+  "build_settings": {
+    "CGO_ENABLED": "1",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOFLAGS": "",
+    "GOOS": "linux",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off"
+  },
+  "current_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "go_binary": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+  "go_binary_sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+  "go_version": "go version go1.26.6 linux/amd64",
+  "legacy_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "schema_version": 1,
+  "sha256": {
+    "archives/current.tar": "4e19017a0dbbae1dcf4e390561b08a5f4fa73e1a5d1eb20b1f792080af6c0d8c",
+    "archives/legacy.tar": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+    "bin/current-agent.test": "18c474e2872633c2079997d26db40eddefd87617cfd268d50f00d44c00df6d6f",
+    "bin/current-server.test": "58e0b0eda623ad2d3080261b83720ed5ab760ef5640dfb4b37c48f696cc465e6",
+    "bin/legacy-agent.test": "3eaeb0c5e8851b6f07214582152f7588527c3ae23bed555ca1545cf0317d8b61",
+    "provenance/go-build-settings.json": "ad87f7fb64e023b6664048b530dff183527e9b3ed723831b52394dd747da4377",
+    "provenance/qualify-proxy-agent-growth-pressure-owned.sh": "43315047b3b545d8f45a1186e48792c740f587226180c8d8dc418731466938f3",
+    "provenance/qualify-proxy-pressure-checkpoint.sh": "c2ea1f5ba01ad7bdabb2641b65fa970a0efa081123d07954bcf50b91b1a79230",
+    "provenance/validate-owned-pressure.py": "3ae4060839ea4ae01b93314710fd93bad95c2de768f5676e722785450158419e",
+    "sources/current/internal/agent/testdata/proxy_qualification_external_legacy_test.go": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb"
+  },
+  "topology": "original user/net namespace entry; host PID topology; separate 4GiB no-swap systemd user scopes",
+  "workload": {
+    "canceled_upload_mib": 32,
+    "rate_bits_per_second": 1000000000,
+    "recovery_mib_each_direction": 16,
+    "required_pool_mib_strictly_greater_than": 80,
+    "retained_mib_each_direction": 256,
+    "rtt_ms": 80,
+    "warmup_mib": 256,
+    "warmup_rounds_each_direction": 4
+  }
+}

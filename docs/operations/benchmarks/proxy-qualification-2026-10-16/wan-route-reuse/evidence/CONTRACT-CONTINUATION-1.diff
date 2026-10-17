@@ -1,0 +1,11 @@
+--- /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/contracts/test-qualification-boundaries.py
++++ /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/contracts/test-qualification-boundaries-continuation-1.py
+@@ -23,7 +23,7 @@
+ class Boundaries(unittest.TestCase):
+     def defaults(self):
+         def identity(pid,net,pidns=20):return {'pid':pid,'start_ticks':pid*100,'namespace':f'net:[{net}]','namespace_device':5,'namespace_inode':net,'pid_namespace':f'pid:[{pidns}]'}
+-        def sample(pid,net,when,parent,host=False):return {**identity(pid,net,1 if host else 20),'parent':parent,'controller_default':'cubic','tcp_slow_start_after_idle':1,'monotonic_ns':when,'boot_id':'boot'}
++        def sample(pid,net,when,parent,host=False):return {**identity(pid,net,1 if host else 20),'parent':copy.deepcopy(parent),'controller_default':'cubic','tcp_slow_start_after_idle':1,'monotonic_ns':when,'boot_id':'boot'}
+         meta={'schema_version':1,'read_only':True,'point_in_time_only':True,'socket_controller_observed':False}
+         host_parent=identity(800,13,1)
+         hp={**meta,'sample':sample(801,13,1,host_parent,True)};hz={**meta,'sample':sample(802,13,20,host_parent,True)}

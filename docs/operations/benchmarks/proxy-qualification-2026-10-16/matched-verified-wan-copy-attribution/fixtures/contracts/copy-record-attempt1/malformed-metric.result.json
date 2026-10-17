@@ -1,0 +1,14 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "upstream_read metric missing",
+    "upstream read calls invalid",
+    "inter-read gap calls do not equal read calls minus one",
+    "read plus write duration exceeds handler interval",
+    "read plus inter-read-gap duration exceeds handler interval"
+  ],
+  "name": "malformed-metric",
+  "stderr": "copy attribution validation failed: upstream_read metric missing; upstream read calls invalid; inter-read gap calls do not equal read calls minus one; read plus write duration exceeds handler interval; read plus inter-read-gap duration exceeds handler interval\n",
+  "stdout": ""
+}

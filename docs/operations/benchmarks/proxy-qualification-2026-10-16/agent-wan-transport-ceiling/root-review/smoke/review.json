@@ -1,0 +1,16 @@
+{
+  "accepted_transfer_rows": 32,
+  "both_arms_both_roles_initial_and_post16_five_established_sockets": true,
+  "exact_payload_schedule_source": true,
+  "fresh_network_namespaces": 6,
+  "lifecycle_snapshots": 6,
+  "original_exit_preserved": true,
+  "original_runner_exit_code": 1,
+  "performance_claim": false,
+  "primary_results_sha256": "d0d36c0156e7889b607d999c2d7ad54c0381e00403903a898bfdf685708415d9",
+  "scope": "independent_actual_smoke_lifecycle_review",
+  "snapshots_sha256": "aacbcda24c38caa0b2921c991b4095e42395aec4d63876a4f6f302dac0d14667",
+  "source_tree": "40e1046c2f68ee3d545dfd582cd424c2f3604b2a",
+  "stable_reverse_correlated_socket_identities": true,
+  "terminal_joined_zero_ownership_and_socket_fds": true
+}

@@ -1,0 +1,53 @@
+File: server.test
+Build ID: c124bcafd96127015cd8fcd8fdfa1533fd0fd72e
+Type: alloc_space
+Time: 2026-10-16 06:05:28 CEST
+Showing nodes accounting for 2.97GB, 89.05% of 3.33GB total
+Dropped 366 nodes (cum <= 0.02GB)
+Showing top 45 nodes out of 138
+      flat  flat%   sum%        cum   cum%
+    0.34GB 10.33% 10.33%     1.57GB 47.00%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+    0.24GB  7.20% 17.54%     0.24GB  7.20%  net/http.(*Request).WithContext (inline)
+    0.20GB  6.08% 23.61%     0.20GB  6.12%  database/sql.driverArgsConnLocked
+    0.19GB  5.78% 29.39%     0.19GB  5.78%  net/http.Header.Clone (inline)
+    0.16GB  4.75% 34.14%     0.16GB  4.75%  net/textproto.MIMEHeader.Add (inline)
+    0.16GB  4.69% 38.84%     0.17GB  4.99%  github.com/hashicorp/yamux.(*Session).publishAggregateRefund
+    0.13GB  3.78% 42.62%     0.37GB 10.97%  net/http.(*Request).Clone
+    0.12GB  3.53% 46.16%     0.12GB  3.53%  net/http.(*http2Framer).readMetaFrame.func1
+    0.09GB  2.83% 48.99%     0.11GB  3.43%  net/textproto.readMIMEHeader
+    0.09GB  2.74% 51.73%     0.09GB  2.74%  net/http.http2cloneHeader (inline)
+    0.07GB  2.24% 53.97%     1.65GB 49.63%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+    0.07GB  1.98% 55.95%     0.07GB  1.98%  net/http.setupRewindBody (inline)
+    0.07GB  1.97% 57.92%     0.07GB  1.97%  context.WithValue
+    0.06GB  1.92% 59.84%     0.11GB  3.37%  net/http.(*persistConn).roundTrip
+    0.06GB  1.86% 61.70%     0.08GB  2.36%  net/http.(*Transport).getConn
+    0.05GB  1.63% 63.33%     0.10GB  2.86%  time.NewTimer
+    0.05GB  1.51% 64.84%     0.05GB  1.51%  context.(*cancelCtx).propagateCancel
+    0.05GB  1.45% 66.29%     0.22GB  6.70%  net/http.(*persistConn).readLoop
+    0.05GB  1.41% 67.70%     0.05GB  1.41%  net/http.cloneURL (inline)
+    0.04GB  1.26% 68.96%     0.09GB  2.77%  context.withCancel (inline)
+    0.04GB  1.25% 70.21%     0.04GB  1.25%  time.newTimer
+    0.04GB  1.23% 71.44%     0.04GB  1.23%  context.(*cancelCtx).Done
+    0.03GB  1.04% 72.48%     0.08GB  2.26%  net/http.(*http2serverConn).newStream
+    0.03GB  1.04% 73.52%     0.11GB  3.29%  net/http.newTransferWriter
+    0.03GB  1.01% 74.54%     0.66GB 19.73%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+    0.03GB     1% 75.53%     1.20GB 36.11%  net/http/httputil.(*ReverseProxy).ServeHTTP
+    0.03GB  0.94% 76.47%     0.03GB  0.94%  net/url.parse
+    0.03GB  0.94% 77.41%     0.03GB  0.94%  p2pstream/internal/db.appendProxyRequestEventArgs
+    0.03GB  0.92% 78.33%     0.03GB  0.92%  p2pstream/internal/server.publicRouteTargetHealthConfigFromRouteTarget
+    0.03GB  0.88% 79.21%     0.16GB  4.88%  net/http.ReadResponse
+    0.03GB  0.84% 80.05%     0.07GB  2.24%  net/http.(*transferWriter).probeRequestBody
+    0.03GB  0.82% 80.87%     0.03GB  0.82%  github.com/pressly/goose/v3/internal/sqlparser.init.func1
+    0.03GB  0.79% 81.66%     0.03GB  0.79%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommitOn
+    0.03GB  0.78% 82.44%     0.14GB  4.31%  net/http.(*http2Framer).readMetaFrame
+    0.03GB  0.78% 83.22%     0.03GB  0.78%  net/textproto.canonicalMIMEHeaderKey
+    0.02GB   0.7% 83.92%     0.02GB   0.7%  p2pstream/internal/server.(*publicProxyContext).deferCleanup
+    0.02GB  0.67% 84.60%     0.03GB  0.85%  net/textproto.MIMEHeader.Set (inline)
+    0.02GB  0.65% 85.24%     0.02GB  0.73%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+    0.02GB  0.62% 85.86%     0.02GB  0.62%  net.SplitHostPort.func1 (inline)
+    0.02GB  0.57% 86.43%     0.02GB  0.57%  net/http.(*http2closeWaiter).Init (inline)
+    0.02GB  0.57% 87.00%     0.02GB  0.57%  p2pstream/internal/server.(*requestCapacityLimiter).tryAcquire (inline)
+    0.02GB  0.56% 87.56%     0.03GB  0.78%  p2pstream/internal/server.WithClientIdentity
+    0.02GB  0.54% 88.10%     0.02GB  0.54%  internal/bytealg.MakeNoZero
+    0.02GB  0.48% 88.59%     0.02GB   0.6%  net/http.(*http2responseWriterState).writeChunk
+    0.02GB  0.47% 89.05%     0.22GB  6.67%  p2pstream/internal/server.initializePublicProxyContext

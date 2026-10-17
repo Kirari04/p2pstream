@@ -1,0 +1,45 @@
+{
+  "binary_build_id": {
+    "gather_agent": "wjSoGz2B_CC8FnyLo8Hs/WIIBmlvfbLkmyFXhYPQb/G9ySpW8E8DwuDX4S88bo/glUimzJkJ6nB7ZrwCAho",
+    "server": "NmXR9i8gQBDIDtGUY7C1/QJMgM-BG92CRtg0Gz-oh/pd8tv2YcQtQmQkNrDuoV/YbraIHpkN879ZZBBoAGU",
+    "split_agent": "tOPsdF8vpYcaK_7j5KTf/vpMfAIUPCThJpxd-BdxK/sDd9XT8CJ8Wo39fkZ74-/ncyM0-mlX2zdQp7t9In6"
+  },
+  "binary_sha256": {
+    "gather_agent": "0402a49543908e2a0bd00d8c43b93cfdf48177992ce0f4d90c75d5d48aaff92f",
+    "server": "c7950a1bd250233b395eb8c19d913ffb48d511656d7c41a1ad446baefb6bbaf5",
+    "split_agent": "24ba03fe97f69bed60ae3230fe598789aa00e359e5cd32bc5fc4c468562c8914"
+  },
+  "build_provenance_sha256": "68459f17b6005775a622924289acaffcc8f73e99ed14be1158e8341b3dd716a0",
+  "completed_utc": "2026-10-16T06:32:26Z",
+  "fixed_workload": {
+    "configured_rtt_ms": 80,
+    "order": [
+      "gather-then-split",
+      "split-then-gather",
+      "gather-then-split"
+    ],
+    "pairs": 3,
+    "required_pool_mib": 8,
+    "steady_mib": 256,
+    "timed_transfers_per_direction": 3,
+    "total_transfers": 96,
+    "transfers_per_variant": 16,
+    "transport_mode_both_variants": "aggregate-v1",
+    "warmup_mib": 256
+  },
+  "implementation_difference": "split variant preserves owned payload/capacity/commit and writes DATA header then body instead of one gathered physical write",
+  "overlay_readme_sha256": "8da94bdb538cd98954c9847d84497df395ec5755c62f81353a4998d4a3761db0",
+  "raw_fixture_artifacts": "local only; excluded from SHA256SUMS and evidence because they contain ephemeral fixture credentials",
+  "result_classification": "complete_timing_rejection",
+  "runner_exit_status": 1,
+  "runner_sha256": "028ebc4a2aae3d0d49aebe111fe3c2e6b047f28834bd42717227dac2c58922f2",
+  "scope": "diagnostic_only",
+  "source_refs": {
+    "agent_base_both_variants": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "server": "dc738e9000e60cd7ce3a0279127486f3bc05067a"
+  },
+  "split_overlay_runtime_hunk_sha256": "e84c4de1351c78bcefecaac8701cae48b886e306c74118426872bfff402d942d",
+  "split_overlay_sha256": "ca680a7062735c3d1f236fc5d9d53c66b92724fd5b0dd1d82eef53f299b60d4f",
+  "started_utc": "2026-10-16T06:18:33Z",
+  "wrapper_sha256": "cb0ee448b536553cdaf277998aeea7636dc2f82728248198287cda652caab0a8"
+}

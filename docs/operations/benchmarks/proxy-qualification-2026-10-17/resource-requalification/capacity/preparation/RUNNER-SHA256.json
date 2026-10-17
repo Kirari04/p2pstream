@@ -1,0 +1,9 @@
+{
+  "BUILD-RECEIPT.json": "d428e45fd861c8ed7a4346920e53c2a56d1fe678660fd343707f9841f53af624",
+  "BUILD-SOURCE430.json": "3e17f1137dad2c87e2c63c3e91cfc5ebd152a3dc3f2cd81d0f1cf1746af2fbe5",
+  "FROZEN.json": "dcf7133b241b282ac616c8443cc78b874e7d347de43859d38a9f692041fb9495",
+  "capacity-once.sh": "811c8bebd04a3045546b7948af81d1aaa6ec64057c811285d4c8b1fb83c88d84",
+  "owned-supervisor.py": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767",
+  "run-capacity.py": "13ab49bf0ca3b21f54ba2fb3c4a3b3839cfa9da4282c4a6f07387a64b628a213",
+  "stock-validator.py": "6af38516806dccc0ce0c5661d6accb0a91bbd1a6e69b0ab40f5de401ea99a26b"
+}

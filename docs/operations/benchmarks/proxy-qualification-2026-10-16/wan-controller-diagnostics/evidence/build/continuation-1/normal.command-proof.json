@@ -1,0 +1,93 @@
+{
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "GOMAXPROCS=2",
+    "GOENV=off",
+    "GOWORK=off",
+    "GOFLAGS=",
+    "GOTOOLCHAIN=local",
+    "GOPROXY=off",
+    "GOSUMDB=off",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-p=2",
+    "-tags=p2pstream_qualification",
+    "-count=1",
+    "-timeout=60s",
+    "-run",
+    "^TestQualification(Terminal|RawWrite|TCP|Controller)",
+    "-v",
+    "./internal/agent"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+  "exit_status": 0,
+  "finished_unix": 1792239181.8711278,
+  "forced": false,
+  "name": "normal",
+  "outer_audit_sha256": "d292cebb943ebed7c18af0cd58b62d8c7d9919e56648ea13aa172dc97f53cba7",
+  "output_bytes": 34999,
+  "owned_identities": [
+    {
+      "pgid": 2522957,
+      "pid": 2522957,
+      "ppid": 2522862,
+      "sid": 2522957,
+      "start_ticks": 7672802,
+      "state": "S"
+    },
+    {
+      "pgid": 2522957,
+      "pid": 2522958,
+      "ppid": 2522957,
+      "sid": 2522957,
+      "start_ticks": 7672803,
+      "state": "S"
+    },
+    {
+      "pgid": 2522957,
+      "pid": 2522998,
+      "ppid": 2522958,
+      "sid": 2522957,
+      "start_ticks": 7672815,
+      "state": "S"
+    },
+    {
+      "pgid": 2522957,
+      "pid": 2523046,
+      "ppid": 2522958,
+      "sid": 2522957,
+      "start_ticks": 7672929,
+      "state": "R"
+    },
+    {
+      "pgid": 2522957,
+      "pid": 2523119,
+      "ppid": 2522958,
+      "sid": 2522957,
+      "start_ticks": 7673489,
+      "state": "S"
+    },
+    {
+      "pgid": 2522957,
+      "pid": 2523167,
+      "ppid": 2522958,
+      "sid": 2522957,
+      "start_ticks": 7673703,
+      "state": "S"
+    }
+  ],
+  "remaining_group_members": [],
+  "started_unix": 1792239172.4248707,
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_bytes": 34999,
+  "stdout_sha256": "21dc5081461cdd7b6ab2fed70f5cb68418b4bff155650199fdee929fd2eaafbb"
+}

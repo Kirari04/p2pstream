@@ -1,0 +1,42 @@
+{
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "python3",
+    "-I",
+    "-B",
+    "contracts/test-terminal-attribution.py",
+    "-v"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+  "exit_status": 0,
+  "finished_unix": 1792238466.7279825,
+  "forced": false,
+  "name": "prospective-terminal-contracts",
+  "outer_audit_sha256": "5a29f6f36a9e0714598cd78155dd327b4ac02b5724c7ef77b82f538a4f312c78",
+  "output_bytes": 740,
+  "owned_identities": [
+    {
+      "pgid": 2510720,
+      "pid": 2510720,
+      "ppid": 2510627,
+      "sid": 2510720,
+      "start_ticks": 7602213,
+      "state": "S"
+    }
+  ],
+  "remaining_group_members": [],
+  "started_unix": 1792238466.5306733,
+  "stderr_bytes": 740,
+  "stderr_sha256": "c0f851654136603f1c9a8bc9c31be16a02f2f6db93094fbc03a1be93df4895af",
+  "stdout_bytes": 0,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,0 +1,21 @@
+{
+  "scope": "Completed one-shot sustained diagnostic pair; failed H2 is preserved, no final performance qualification.",
+  "selection": "Explicit completed plans/execution records and arm evidence allowlists. Offline chronology copied only after owner froze all exact hashes.",
+  "omitted": [
+    "private keys/certificates, readyfiles and application secrets/logs",
+    "binaries/archives/full source trees",
+    "repetitive sender/capacity phase data and per-phase validation copies; see INPUT-DISPOSITION.json original hashes/bytes",
+    "previous full local and smoke packages; bound by published root manifests instead"
+  ],
+  "historical_wording": "Original plan96-each error preserved verbatim; corrected plan specifies3 alternating pairs of32,96total. Generated exact diffs show wording-only correction.",
+  "historical_status_labels": "Proposed/not-authorized text remains original predeclaration; actual authorized command results and FINAL-AUDIT establish later execution.",
+  "limits": [
+    "H2 natural1 with two selected-floor failures is a failed performance result, not an accepted arm.",
+    "Old106 and prospective both accepted, classifications empty: no narrow exception exercised.",
+    "Bounded threshold history exhausted at4096 writes on each data lane: first transition unavailable/inconclusive.",
+    "Source is27c8e31+observer, recorder change excluded.",
+    "Original relative aggregate-vs-legacy >=90% each direction/pair and HAProxy gates remain unresolved.",
+    "One pair is not three-pair qualification and cannot clear original historical rejections."
+  ],
+  "no_source_byte_rewrites": true
+}

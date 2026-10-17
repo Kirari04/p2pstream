@@ -1,0 +1,32 @@
+{
+  "error": "",
+  "http_status": 200,
+  "request_elapsed_ns": 6222500,
+  "request_started_unix_ns": 1792181420851124715,
+  "response": {
+    "adaptive": true,
+    "adaptive_admission_limit": 14294,
+    "adaptive_admission_role": "server_stream",
+    "adaptive_public_admission_limit": 14290,
+    "adaptive_raw_admission_limit": 14542,
+    "file_descriptors_limit": 524288,
+    "file_descriptors_used": 24,
+    "generation": 136,
+    "memory_headroom_to_hard_bytes": 3812243046,
+    "memory_limit_bytes": 32309121024,
+    "memory_pressure": "healthy",
+    "memory_source": "host",
+    "memory_used_bytes": 6879916032,
+    "observed_unix_ns": 1792181420857158147,
+    "reject_new": false,
+    "resource_last_good_unix_ns": 1792181420772216589,
+    "resource_next_sample_unix_ns": 1792181420872216589,
+    "resource_pressure_reason": "memory",
+    "resource_sample_error": "",
+    "resource_sampled_unix_ns": 1792181420772216589,
+    "schema_version": 1,
+    "sequence": "11"
+  },
+  "schema_version": 1,
+  "sequence": "11"
+}

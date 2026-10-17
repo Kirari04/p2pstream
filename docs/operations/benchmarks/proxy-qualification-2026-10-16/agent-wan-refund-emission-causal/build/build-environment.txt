@@ -1,0 +1,8 @@
+base_ref=5eeccaaa797254d7bde4db9854a337a02c3bc28e
+go version go1.26.6 linux/amd64
+GOOS=linux
+GOARCH=amd64
+CGO_ENABLED=1
+common_scaffold_sha256=e78b384e8cf2fa28339ca2794dd32aaf57053a2b07aeca873fe4f2430a40c6f7
+split_arm_toggle_sha256=28f4c3d5ac08d32c0e146dde3b1502a2cd8250be200da6c4b7e002eeb02386ed
+overlay_readme_sha256=b9ff483187880bf4c395cccfc77de6604cf1b58c10053ba967472a5cad1b30e3

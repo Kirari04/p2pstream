@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "180s",
+    "/usr/local/go/bin/go",
+    "version"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+  "env_overrides": {
+    "GOTOOLCHAIN": "go1.26.6",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOFLAGS": "",
+    "GOPATH": "/home/user/go",
+    "GOMODCACHE": "/home/user/go/pkg/mod",
+    "GOPROXY": "https://proxy.golang.org",
+    "GOSUMDB": "sum.golang.org",
+    "GONOPROXY": "",
+    "GONOSUMDB": "",
+    "GOPRIVATE": ""
+  },
+  "started_unix": 1792239507.919813,
+  "scope": "restore exact official Go1.26.6 toolchain only; no test/build/traffic"
+}

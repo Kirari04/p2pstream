@@ -1,0 +1,447 @@
+//go:build p2pstream_qualification
+
+package agent
+
+import (
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math"
+	"net"
+	"os"
+)
+
+// This separate diagnostic never resets or rewrites the mature raw/TCP fields.
+// State is guarded by the existing owner.mu; no lock spans transport I/O.
+const terminalRecordLimit = 16
+const terminalHeaderLimit = 17 // sixteen stream refunds plus one global refund
+
+var errQualificationLegacyTerminalIncomplete = errors.New("raw-write diagnostic terminal lifecycle is incomplete")
+
+const (
+	terminalOverflow uint64 = 1 << iota
+	terminalConcurrentWrite
+	terminalPostCloseWrite
+	terminalPostRetirement
+	terminalOtherLegacyAmbiguity
+	terminalCloseOtherActivity
+	terminalOwnerChanged
+	terminalMissingPublicBoundary
+)
+
+type terminalHeader struct {
+	Type   uint8  `json:"type"`
+	Flags  uint16 `json:"flags"`
+	Stream uint32 `json:"stream"`
+	Value  uint32 `json:"value"`
+}
+
+// Only complete, bounded, header-only Yamux controls qualify. DATA (including
+// zero-length DATA), malformed/unknown input, and GoAway(error) stay unknown.
+// Header metadata, not payload bytes or ciphertext length, establishes identity.
+func terminalParseControls(p []byte) ([]terminalHeader, bool) {
+	if len(p) == 0 || len(p)%12 != 0 || len(p)/12 > terminalHeaderLimit {
+		return nil, false
+	}
+	var storage [terminalHeaderLimit]terminalHeader
+	for i := 0; i < len(p)/12; i++ {
+		h := p[i*12 : (i+1)*12]
+		if h[0] != 0 {
+			return nil, false
+		}
+		v := terminalHeader{h[1], binary.BigEndian.Uint16(h[2:4]), binary.BigEndian.Uint32(h[4:8]), binary.BigEndian.Uint32(h[8:12])}
+		switch v.Type {
+		case 1: // WINDOW_UPDATE; length is credit, never payload.
+			if v.Flags != 0 && v.Flags != 1 && v.Flags != 2 && v.Flags != 4 && v.Flags != 5 && v.Flags != 6 && v.Flags != 8 {
+				return nil, false
+			}
+			if (v.Stream == 0 && (v.Flags != 0 || v.Value == 0 || v.Value%4096 != 0)) || (v.Flags == 8 && v.Value != 0) {
+				return nil, false
+			}
+		case 2: // PING SYN/ACK, emitted with stream zero by the real sender.
+			if v.Stream != 0 || (v.Flags != 1 && v.Flags != 2) {
+				return nil, false
+			}
+		case 3: // Only a normal GO_AWAY is benign terminal control.
+			if v.Flags != 0 || v.Stream != 0 || v.Value != 0 {
+				return nil, false
+			}
+		case 4: // Stream allocation refund.
+			if v.Flags != 0 || v.Stream == 0 || v.Value == 0 || v.Value%4096 != 0 {
+				return nil, false
+			}
+		case 5: // Reserved capacity growth, stream zero or a real stream.
+			if v.Flags != 0 || v.Value == 0 || v.Value%4096 != 0 {
+				return nil, false
+			}
+		default:
+			return nil, false
+		}
+		storage[i] = v
+	}
+	return append([]terminalHeader(nil), storage[:len(p)/12]...), true
+}
+
+type terminalPlain struct {
+	Begin   uint64           `json:"begin"`
+	End     uint64           `json:"end"`
+	Attempt int              `json:"attempt"`
+	Control bool             `json:"control"`
+	Headers []terminalHeader `json:"headers"`
+}
+
+type terminalRaw struct {
+	Begin      uint64        `json:"begin"`
+	Return     uint64        `json:"return"`
+	After      uint64        `json:"after"`
+	Generation uint64        `json:"generation"`
+	Attempt    int           `json:"attempt"`
+	Written    int           `json:"written"`
+	Error      bool          `json:"error"`
+	NetClosed  bool          `json:"net_closed"`
+	Short      bool          `json:"short"`
+	Plain      terminalPlain `json:"plain"`
+	Stack      terminalStack `json:"stack"`
+}
+
+type terminalState struct {
+	TCPBound           bool          `json:"tcp_bound"`
+	PhysicalCloseCalls uint64        `json:"physical_close_calls"`
+	PhysicalCloseError bool          `json:"physical_close_error"`
+	UnderlyingEscaped  bool          `json:"underlying_escaped"`
+	Sequence           uint64        `json:"sequence"`
+	Problems           uint64        `json:"problems"`
+	Stop               uint64        `json:"stop"`
+	StopGeneration     uint64        `json:"stop_generation"`
+	CloseBegin         uint64        `json:"close_begin"`
+	CloseEnd           uint64        `json:"close_end"`
+	Joined             uint64        `json:"joined"`
+	RawErrors          uint64        `json:"raw_errors"`
+	RawShorts          uint64        `json:"raw_shorts"`
+	ActivePlain        bool          `json:"active_plain"`
+	ActiveRaw          bool          `json:"active_raw"`
+	LegacyCloseOverlap bool          `json:"legacy_close_overlap"`
+	Records            []terminalRaw `json:"records"`
+	plain              terminalPlain
+	raw                terminalRaw
+	legacyCloseSeen    bool
+}
+
+func (s *terminalState) next() uint64 {
+	if s.Sequence == math.MaxUint64 {
+		s.Problems |= terminalOverflow
+		return s.Sequence
+	}
+	s.Sequence++
+	return s.Sequence
+}
+
+func (s *terminalState) reject(reason uint64) { s.Problems |= reason }
+
+func (body *qualificationObservedTunnelBody) Write(p []byte) (int, error) {
+	if body == nil || body.ReadWriteCloser == nil || body.owner == nil {
+		return 0, net.ErrClosed
+	}
+	owner := body.owner
+	headers, control := terminalParseControls(p)
+	owner.mu.Lock()
+	s := &owner.terminal
+	if s.ActivePlain {
+		s.reject(terminalConcurrentWrite)
+	}
+	if s.CloseBegin != 0 {
+		s.reject(terminalPostCloseWrite)
+	}
+	if s.Joined != 0 {
+		s.reject(terminalPostRetirement)
+	}
+	if s.Stop != 0 && !control {
+		s.reject(terminalMissingPublicBoundary)
+	}
+	s.ActivePlain = true
+	s.plain = terminalPlain{Begin: s.next(), Attempt: len(p), Control: control, Headers: headers}
+	token := s.plain.Begin
+	owner.mu.Unlock()
+	n, err := body.ReadWriteCloser.Write(p)
+	owner.mu.Lock()
+	if !s.ActivePlain || s.plain.Begin != token {
+		s.reject(terminalConcurrentWrite)
+	}
+	end := s.next()
+	for i := range s.Records {
+		if s.Records[i].Plain.Begin == token {
+			s.Records[i].Plain.End = end
+		}
+	}
+	s.ActivePlain = false
+	s.plain = terminalPlain{}
+	owner.mu.Unlock()
+	return n, err
+}
+
+func (owner *qualificationRawWriteOwner) terminalBeginRawLocked() uint64 {
+	s := &owner.terminal
+	if s.ActiveRaw {
+		s.reject(terminalConcurrentWrite)
+	}
+	if s.CloseBegin != 0 {
+		s.reject(terminalPostCloseWrite)
+	}
+	if s.Joined != 0 {
+		s.reject(terminalPostRetirement)
+	}
+	s.ActiveRaw = true
+	s.raw = terminalRaw{Begin: s.next(), Generation: owner.generation, Plain: s.plain}
+	return s.raw.Begin
+}
+
+// Called after the underlying Write returns and before any after capture.
+// Return is the observation under owner.mu, not an atomic transport-return
+// timestamp: preemption or lock contention can move this observation past Close.
+// Its ordering alone does not establish local-close causality. See PROPOSAL.md
+// and successor/DESIGN.md for exclusive-close and live-stack prerequisites.
+func (owner *qualificationRawWriteOwner) terminalRawReturned(token uint64, attempted, written int, err error) {
+	owner.mu.Lock()
+	defer owner.mu.Unlock()
+	s := &owner.terminal
+	if !s.ActiveRaw || token != s.raw.Begin {
+		s.reject(terminalConcurrentWrite)
+	}
+	s.raw.Return = s.next()
+	s.raw.Attempt = attempted
+	s.raw.Written = written
+	s.raw.Error = err != nil
+	s.raw.NetClosed = errors.Is(err, net.ErrClosed)
+	s.raw.Short = err == nil && written != attempted
+	if err != nil {
+		if s.RawErrors == math.MaxUint64 {
+			s.reject(terminalOverflow)
+		} else {
+			s.RawErrors++
+		}
+	}
+	if s.raw.Short {
+		if s.RawShorts == math.MaxUint64 {
+			s.reject(terminalOverflow)
+		} else {
+			s.RawShorts++
+		}
+	}
+}
+
+func (owner *qualificationRawWriteOwner) terminalFinishRawLocked(token uint64) {
+	s := &owner.terminal
+	if !s.ActiveRaw || token != s.raw.Begin || s.raw.Return == 0 {
+		s.reject(terminalConcurrentWrite)
+	}
+	s.raw.After = s.next()
+	// Retain every error, including pre-stop errors; retain all terminal calls.
+	if s.Stop != 0 || s.raw.Error || s.raw.Short {
+		if len(s.Records) >= terminalRecordLimit {
+			s.reject(terminalOverflow)
+			s.ActiveRaw = false
+			s.raw = terminalRaw{}
+			return
+		}
+		s.raw.Stack = terminalCaptureStack()
+		if !terminalApplicationStack(s.raw.Stack) {
+			// Temporal overlap cannot identify a TLS protocol write.
+			s.raw.Plain = terminalPlain{}
+		}
+		if len(s.Records) == terminalRecordLimit {
+			s.reject(terminalOverflow)
+		} else {
+			s.Records = append(s.Records, s.raw)
+		}
+	}
+	s.ActiveRaw = false
+	s.raw = terminalRaw{}
+}
+
+func (owner *qualificationRawWriteOwner) terminalPhysicalCloseBeginLocked() {
+	s := &owner.terminal
+	if s.PhysicalCloseCalls == math.MaxUint64 {
+		s.reject(terminalOverflow)
+	} else {
+		s.PhysicalCloseCalls++
+	}
+	if s.PhysicalCloseCalls != 1 {
+		s.reject(terminalOwnerChanged)
+	}
+	if s.CloseBegin == 0 {
+		s.CloseBegin = s.next()
+	}
+}
+
+func (owner *qualificationRawWriteOwner) terminalPhysicalCloseEnd(closeErr error) {
+	owner.mu.Lock()
+	defer owner.mu.Unlock()
+	s := &owner.terminal
+	if closeErr != nil {
+		s.PhysicalCloseError = true
+		s.reject(terminalOwnerChanged)
+	}
+	if s.CloseEnd == 0 {
+		s.CloseEnd = s.next()
+	}
+}
+
+func (owner *qualificationRawWriteOwner) terminalLegacyCloseLocked() {
+	s := &owner.terminal
+	if s.legacyCloseSeen {
+		return
+	}
+	s.legacyCloseSeen = true
+	if owner.interval.ambiguous || owner.tcp.ambiguous || owner.tcp.invalid {
+		s.reject(terminalOtherLegacyAmbiguity)
+	}
+	other := owner.activeEnvelope || owner.tcp.armed || owner.tcp.transitioning || owner.tcp.activeSamples != 0 ||
+		owner.tcp.pendingRawClaims != 0 || owner.tcp.activeRawPairs != 0 || owner.tcp.activeEnvelopeWaitSlot != 0 || owner.tcp.activeEnvelopePairSlot != 0
+	if other {
+		s.reject(terminalCloseOtherActivity)
+	}
+	if owner.activeRawWrites != 0 {
+		if owner.activeRawWrites == 1 && s.ActiveRaw && s.ActivePlain && s.raw.Plain.Control && !other {
+			s.LegacyCloseOverlap = true
+		} else {
+			s.reject(terminalCloseOtherActivity)
+		}
+	}
+}
+
+// drainTCPStateLocked propagates an existing ambiguity into invalid. Preserve
+// that old flag, but do not invent a second cause for the same proven overlap.
+func (owner *qualificationRawWriteOwner) terminalLegacyDerivedInvalidLocked() {
+	t := &owner.terminal
+	if !(t.LegacyCloseOverlap && t.Problems == 0 && owner.tcp.ambiguous && !owner.tcp.overflow && owner.tcp.captureErrors == 0 && owner.tcpRecordsHealthyLocked()) {
+		t.reject(terminalOtherLegacyAmbiguity)
+	}
+}
+
+type terminalOwnerRecord struct {
+	Lane       int           `json:"lane"`
+	Generation uint64        `json:"generation"`
+	Session    string        `json:"session"`
+	Local      string        `json:"local"`
+	Remote     string        `json:"remote"`
+	State      terminalState `json:"state"`
+}
+
+type terminalRecorderState struct {
+	owners         map[int]*qualificationRawWriteOwner
+	identities     map[int]string
+	intentComplete bool
+	invalid        bool
+}
+
+// Called with recorder.mu held. No independent registry or owner discovery.
+func (r *qualificationRawWriteTerminalRecorder) terminalObserveLocked(o tunnelSessionObservation) {
+	s := &r.terminal
+	if s.owners == nil {
+		s.owners = make(map[int]*qualificationRawWriteOwner)
+		s.identities = make(map[int]string)
+	}
+	body, ok := o.Session.QualificationTerminalObserver().(*qualificationObservedTunnelBody)
+	if !ok || body.owner == nil || o.Lane < 0 || o.Lane >= r.expected {
+		s.invalid = true
+		return
+	}
+	if o.Connected {
+		if s.owners[o.Lane] != nil || s.intentComplete {
+			s.invalid = true
+			return
+		}
+		s.owners[o.Lane] = body.owner
+		s.identities[o.Lane] = fmt.Sprintf("%p", o.Session)
+	} else if s.owners[o.Lane] != body.owner || s.identities[o.Lane] != fmt.Sprintf("%p", o.Session) {
+		s.invalid = true
+	}
+}
+
+// This marker records intent immediately before the existing fixture cancel.
+// It does not wait for or stop producers, and a snapshot drain is not intent.
+func (r *qualificationRawWriteTerminalRecorder) markTerminalIntent() error {
+	if r == nil || r.path == "" {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s := &r.terminal
+	if r.expected != 5 || r.invalid || s.invalid || s.intentComplete || len(r.active) != 5 || len(s.owners) != 5 || len(r.records) != 0 {
+		s.invalid = true
+		return errors.New("terminal intent lacks all five live owners")
+	}
+	for lane := 0; lane < 5; lane++ {
+		owner := s.owners[lane]
+		if owner == nil || r.active[lane] == nil || s.identities[lane] != fmt.Sprintf("%p", r.active[lane]) {
+			s.invalid = true
+			continue
+		}
+		owner.mu.Lock()
+		t := &owner.terminal
+		// The existing terminal drain must have closed each selected interval.
+		// It is only a data-boundary prerequisite, never producer quiescence.
+		if owner.lane != lane || owner.generation == 0 || !owner.rawBound || !owner.bodyBound || owner.closeStarted || owner.closeObserved || owner.sessionJoined ||
+			t.Stop != 0 || owner.activeEnvelope || owner.interval.envelopeCount != 0 || owner.tcp.armed || owner.tcp.transitioning ||
+			owner.tcp.activeSamples != 0 || owner.tcp.pendingRawClaims != 0 || owner.tcp.activeRawPairs != 0 ||
+			(t.ActivePlain && !t.plain.Control) {
+			t.reject(terminalMissingPublicBoundary)
+			s.invalid = true
+		}
+		t.Stop = t.next()
+		t.StopGeneration = owner.generation
+		owner.mu.Unlock()
+	}
+	s.intentComplete = !s.invalid
+	if s.invalid {
+		return errors.New("terminal intent owner validation failed")
+	}
+	return nil
+}
+
+func (r *qualificationRawWriteTerminalRecorder) writeTerminalAttribution(raw []byte) error {
+	r.mu.Lock()
+	digest := sha256.Sum256(raw)
+	result := struct {
+		Schema         int                   `json:"schema_version"`
+		Expected       int                   `json:"expected_owners"`
+		IntentComplete bool                  `json:"intent_complete"`
+		Invalid        bool                  `json:"invalid"`
+		RawSHA256      string                `json:"raw_sha256"`
+		Owners         []terminalOwnerRecord `json:"owners"`
+	}{Schema: 1, Expected: r.expected, IntentComplete: r.terminal.intentComplete, Invalid: r.terminal.invalid, RawSHA256: hex.EncodeToString(digest[:]), Owners: make([]terminalOwnerRecord, 0, 5)}
+	for lane := 0; lane < r.expected; lane++ {
+		owner := r.terminal.owners[lane]
+		if owner == nil {
+			result.Invalid = true
+			continue
+		}
+		owner.mu.Lock()
+		record := terminalOwnerRecord{lane, owner.generation, r.terminal.identities[lane], owner.localAddress, owner.remoteAddress, owner.terminal}
+		record.State.Records = append([]terminalRaw(nil), owner.terminal.Records...)
+		owner.mu.Unlock()
+		result.Owners = append(result.Owners, record)
+	}
+	r.mu.Unlock()
+	data, err := json.Marshal(result)
+	if err != nil {
+		return err
+	}
+	if len(data) > 256*1024 {
+		return errors.New("terminal attribution exceeds fixed bound")
+	}
+	file, err := os.OpenFile(r.path+".attribution.json", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err = file.Write(data); err == nil {
+		err = file.Sync()
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	return err
+}

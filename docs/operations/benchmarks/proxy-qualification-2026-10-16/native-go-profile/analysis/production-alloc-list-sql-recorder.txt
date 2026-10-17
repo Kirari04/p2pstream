@@ -1,0 +1,222 @@
+Total: 4258533290B
+ROUTINE ======================== database/sql.driverArgsConnLocked in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/database/sql/convert.go
+395640372B 405077700B (flat, cum)  9.51% of Total
+         .          .    109:func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.NamedValue, error) {
+395640372B 395640372B    110:	nvargs := make([]driver.NamedValue, len(args))
+         .          .    111:
+         .          .    112:	// -1 means the driver doesn't know how to count the number of
+         .          .    113:	// placeholders, so we won't sanity check input here and instead let the
+         .          .    114:	// driver deal with errors.
+         .          .    115:	want := -1
+         .          .    116:
+         .          .    117:	var si driver.Stmt
+         .          .    118:	var cc ccChecker
+         .          .    119:	if ds != nil {
+         .          .    120:		si = ds.si
+         .          .    121:		want = ds.si.NumInput()
+         .          .    122:		cc.want = want
+         .          .    123:	}
+         .          .    124:
+         .          .    125:	// Check all types of interfaces from the start.
+         .          .    126:	// Drivers may opt to use the NamedValueChecker for special
+         .          .    127:	// argument types, then return driver.ErrSkip to pass it along
+         .          .    128:	// to the column converter.
+         .          .    129:	nvc, ok := si.(driver.NamedValueChecker)
+         .          .    130:	if !ok {
+         .          .    131:		nvc, _ = ci.(driver.NamedValueChecker)
+         .          .    132:	}
+         .          .    133:	cci, ok := si.(driver.ColumnConverter)
+         .          .    134:	if ok {
+         .          .    135:		cc.cci = cci
+         .          .    136:	}
+         .          .    137:
+         .          .    138:	// Loop through all the arguments, checking each one.
+         .          .    139:	// If no error is returned simply increment the index
+         .          .    140:	// and continue. However, if driver.ErrRemoveArgument
+         .          .    141:	// is returned the argument is not included in the query
+         .          .    142:	// argument list.
+         .          .    143:	var err error
+         .          .    144:	var n int
+         .          .    145:	for _, arg := range args {
+         .          .    146:		nv := &nvargs[n]
+         .          .    147:		if np, ok := arg.(NamedArg); ok {
+         .          .    148:			if err = validateNamedValueName(np.Name); err != nil {
+         .          .    149:				return nil, err
+         .          .    150:			}
+         .          .    151:			arg = np.Value
+         .          .    152:			nv.Name = np.Name
+         .          .    153:		}
+         .          .    154:		nv.Ordinal = n + 1
+         .          .    155:		nv.Value = arg
+         .          .    156:
+         .          .    157:		// Checking sequence has four routes:
+         .          .    158:		// A: 1. Default
+         .          .    159:		// B: 1. NamedValueChecker 2. Column Converter 3. Default
+         .          .    160:		// C: 1. NamedValueChecker 3. Default
+         .          .    161:		// D: 1. Column Converter 2. Default
+         .          .    162:		//
+         .          .    163:		// The only time a Column Converter is called is first
+         .          .    164:		// or after NamedValueConverter. If first it is handled before
+         .          .    165:		// the nextCheck label. Thus for repeats tries only when the
+         .          .    166:		// NamedValueConverter is selected should the Column Converter
+         .          .    167:		// be used in the retry.
+         .          .    168:		checker := defaultCheckNamedValue
+         .          .    169:		nextCC := false
+         .          .    170:		switch {
+         .          .    171:		case nvc != nil:
+         .          .    172:			nextCC = cci != nil
+         .          .    173:			checker = nvc.CheckNamedValue
+         .          .    174:		case cci != nil:
+         .          .    175:			checker = cc.CheckNamedValue
+         .          .    176:		}
+         .          .    177:
+         .          .    178:	nextCheck:
+         .   9437328B    179:		err = checker(nv)
+         .          .    180:		switch err {
+         .          .    181:		case nil:
+         .          .    182:			n++
+         .          .    183:			continue
+         .          .    184:		case driver.ErrRemoveArgument:
+ROUTINE ======================== github.com/mattn/go-sqlite3.(*SQLiteStmt).bind in /home/user/go/pkg/mod/github.com/mattn/go-sqlite3@v1.14.49/sqlite3.go
+         0  22021440B (flat, cum)  0.52% of Total
+         .          .   2299:func (s *SQLiteStmt) bind(args []driver.NamedValue) error {
+         .          .   2300:	rv := C._sqlite3_reset_clear(s.s)
+         .          .   2301:	if rv != C.SQLITE_ROW && rv != C.SQLITE_OK && rv != C.SQLITE_DONE {
+         .          .   2302:		return s.c.lastError()
+         .          .   2303:	}
+         .          .   2304:
+         .          .   2305:	hasNamed := false
+         .          .   2306:	for i := range args {
+         .          .   2307:		if args[i].Name != "" {
+         .          .   2308:			hasNamed = true
+         .          .   2309:			break
+         .          .   2310:		}
+         .          .   2311:	}
+         .          .   2312:
+         .          .   2313:	if !hasNamed {
+         .          .   2314:		for _, arg := range args {
+         .          .   2315:			n := C.int(arg.Ordinal)
+         .  22021440B   2316:			rv = bindValue(s.s, n, arg.Value)
+         .          .   2317:			if rv != C.SQLITE_OK {
+         .          .   2318:				return s.bindError(arg.Value)
+         .          .   2319:			}
+         .          .   2320:		}
+         .          .   2321:		return nil
+ROUTINE ======================== github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync in /home/user/go/pkg/mod/github.com/mattn/go-sqlite3@v1.14.49/sqlite3.go
+  1048592B  23070032B (flat, cum)  0.54% of Total
+         .          .   2441:func (s *SQLiteStmt) execSync(args []driver.NamedValue) (driver.Result, error) {
+         .  22021440B   2442:	if err := s.bind(args); err != nil {
+         .          .   2443:		C._sqlite3_reset_clear(s.s)
+         .          .   2444:		return nil, err
+         .          .   2445:	}
+         .          .   2446:
+   524296B    524296B   2447:	var rowid, changes C.longlong
+         .          .   2448:	rv := C._sqlite3_step_row_internal(s.s, &rowid, &changes)
+         .          .   2449:	if rv != C.SQLITE_ROW && rv != C.SQLITE_OK && rv != C.SQLITE_DONE {
+         .          .   2450:		err := s.c.lastError()
+         .          .   2451:		C._sqlite3_reset_clear(s.s)
+         .          .   2452:		return nil, err
+         .          .   2453:	}
+         .          .   2454:
+   524296B    524296B   2455:	return &SQLiteResult{id: int64(rowid), changes: int64(changes)}, nil
+         .          .   2456:}
+         .          .   2457:
+         .          .   2458:// Readonly reports if this statement is considered readonly by SQLite.
+         .          .   2459://
+         .          .   2460:// See: https://sqlite.org/c3ref/stmt_readonly.html
+ROUTINE ======================== p2pstream/internal/db.appendProxyRequestEventArgs in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/db/proxy_request_event_inserter.go
+ 81265956B  81265956B (flat, cum)  1.91% of Total
+         .          .     88:func appendProxyRequestEventArgs(args []any, arg InsertProxyRequestEventAtParams) []any {
+         .          .     89:	return append(args,
+  9961700B   9961700B     90:		arg.OccurredAt,
+         .          .     91:		arg.StatusCode,
+         .          .     92:		arg.DurationMs,
+         .          .     93:		arg.ErrorKind,
+  7340144B   7340144B     94:		arg.Method,
+  6815848B   6815848B     95:		arg.Host,
+  7864440B   7864440B     96:		arg.PathPrefix,
+  6291552B   6291552B     97:		arg.ListenerID,
+  5242960B   5242960B     98:		arg.RouteID,
+  7340144B   7340144B     99:		arg.RouteTargetID,
+  5767256B   5767256B    100:		arg.WafRuleID,
+         .          .    101:		arg.WafAction,
+  3145776B   3145776B    102:		arg.AgentID,
+         .          .    103:		arg.RequestBytes,
+  2621480B   2621480B    104:		arg.ResponseBytes,
+  7340144B   7340144B    105:		arg.CacheRuleID,
+         .          .    106:		arg.CacheStatus,
+         .          .    107:		arg.CacheBytes,
+  3670072B   3670072B    108:		arg.RetryRuleID,
+         .          .    109:		arg.RetryCount,
+         .          .    110:		arg.RetryOutcome,
+         .          .    111:		arg.RetryErrorKind,
+  7864440B   7864440B    112:		arg.RetryFailedAgentID,
+         .          .    113:	)
+         .          .    114:}
+         .          .    115:
+         .          .    116:func (i *ProxyRequestEventInserter) Close() error {
+         .          .    117:	if i == nil || i.stmt == nil {
+ROUTINE ======================== p2pstream/internal/server.(*App).insertProxyRequestEventsWithRollupsAndCacheTouches in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/observability_rollup.go
+         0 494208552B (flat, cum) 11.61% of Total
+         .          .     19:func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Context, events []db.InsertProxyRequestEventAtParams, cacheTouches []db.TouchPublicCacheEntryParams) error {
+         .          .     20:	if a.DB == nil {
+         .          .     21:		return nil
+         .          .     22:	}
+         .          .     23:	if len(events) == 0 && len(cacheTouches) == 0 {
+         .          .     24:		return nil
+         .          .     25:	}
+         .          .     26:
+         .    524392B     27:	tx, err := a.DB.BeginTx(ctx, nil)
+         .          .     28:	if err != nil {
+         .          .     29:		return err
+         .          .     30:	}
+         .          .     31:	defer tx.Rollback()
+         .          .     32:
+         .          .     33:	qtx := a.DB.WithTx(tx)
+         .          .     34:	totals := make(map[int64]db.UpsertProxyRequestRollupMinuteParams)
+         .          .     35:	tuples := make(map[proxyRequestTupleRollupKey]db.UpsertProxyRequestTupleRollupMinuteParams)
+         .          .     36:	statuses := make(map[proxyRequestStatusRollupKey]db.UpsertProxyRequestStatusRollupMinuteParams)
+         .          .     37:	retries := make(map[proxyRetryRollupKey]db.UpsertProxyRetryRollupMinuteParams)
+         .          .     38:	var eventInserter *db.ProxyRequestEventInserter
+         .          .     39:	if len(events) > 0 {
+         .          .     40:		eventInserter, err = db.PrepareProxyRequestEventInserter(ctx, tx)
+         .          .     41:		if err != nil {
+         .          .     42:			return err
+         .          .     43:		}
+         .          .     44:	}
+         .          .     45:	if eventInserter != nil {
+         . 491586200B     46:		if err := eventInserter.InsertBatch(ctx, events); err != nil {
+         .          .     47:			_ = eventInserter.Close()
+         .          .     48:			return err
+         .          .     49:		}
+         .          .     50:		if err := eventInserter.Close(); err != nil {
+         .          .     51:			return err
+         .          .     52:		}
+         .          .     53:	}
+         .          .     54:	for _, event := range events {
+         .          .     55:		total, tuple, status := proxyRequestRollupParams(event)
+         .    524360B     56:		mergeProxyRequestRollup(totals, total)
+         .          .     57:		mergeProxyRequestTupleRollup(tuples, tuple)
+         .          .     58:		mergeProxyRequestStatusRollup(statuses, status)
+         .          .     59:		if retry, ok := proxyRetryRollupParams(event); ok {
+         .          .     60:			mergeProxyRetryRollup(retries, retry)
+         .          .     61:		}
+         .          .     62:	}
+         .          .     63:	for _, total := range totals {
+         .          .     64:		if err := qtx.UpsertProxyRequestRollupMinute(ctx, total); err != nil {
+         .          .     65:			return err
+         .          .     66:		}
+         .          .     67:	}
+         .          .     68:	for _, tuple := range tuples {
+         .    524608B     69:		if err := qtx.UpsertProxyRequestTupleRollupMinute(ctx, tuple); err != nil {
+         .          .     70:			return err
+         .          .     71:		}
+         .          .     72:	}
+         .          .     73:	for _, status := range statuses {
+         .   1048992B     74:		if err := qtx.UpsertProxyRequestStatusRollupMinute(ctx, status); err != nil {
+         .          .     75:			return err
+         .          .     76:		}
+         .          .     77:	}
+         .          .     78:	for _, retry := range retries {
+         .          .     79:		if err := qtx.UpsertProxyRetryRollupMinute(ctx, retry); err != nil {
+

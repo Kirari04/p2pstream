@@ -1,0 +1,41 @@
+{
+  "common_ancestor": {
+    "gid": 1000,
+    "mode": 493,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice",
+    "uid": 1000,
+    "writable": true
+  },
+  "common_ancestor_cgroup_procs": {
+    "gid": 1000,
+    "mode": 420,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/cgroup.procs",
+    "uid": 1000,
+    "writable": true
+  },
+  "destination": {
+    "gid": 1000,
+    "mode": 493,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2541323-679a35e9.scope",
+    "uid": 1000,
+    "writable": true
+  },
+  "destination_cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2541323-679a35e9.scope",
+  "destination_cgroup_procs": {
+    "gid": 1000,
+    "mode": 420,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2541323-679a35e9.scope/cgroup.procs",
+    "uid": 1000,
+    "writable": true
+  },
+  "nearest_common_ancestor": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice",
+  "schema_version": 1,
+  "source": {
+    "gid": 1000,
+    "mode": 493,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/app-t3code.slice/app-t3code-agents.slice/app-t3code-agents-a29d81d75689.slice/t3code-codex-dd731418.scope",
+    "uid": 1000,
+    "writable": true
+  },
+  "source_cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/app-t3code.slice/app-t3code-agents.slice/app-t3code-agents-a29d81d75689.slice/t3code-codex-dd731418.scope"
+}

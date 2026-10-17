@@ -1,0 +1,43 @@
+--- a/internal/db/proxy_request_event_inserter.go
++++ b/internal/db/proxy_request_event_inserter.go
+@@ -94,23 +94,32 @@
+ 		arg.Method,
+ 		arg.Host,
+ 		arg.PathPrefix,
+-		arg.ListenerID,
+-		arg.RouteID,
+-		arg.RouteTargetID,
+-		arg.WafRuleID,
++		proxyRequestEventIDValue(arg.ListenerID),
++		proxyRequestEventIDValue(arg.RouteID),
++		proxyRequestEventIDValue(arg.RouteTargetID),
++		proxyRequestEventIDValue(arg.WafRuleID),
+ 		arg.WafAction,
+-		arg.AgentID,
++		proxyRequestEventIDValue(arg.AgentID),
+ 		arg.RequestBytes,
+ 		arg.ResponseBytes,
+-		arg.CacheRuleID,
++		proxyRequestEventIDValue(arg.CacheRuleID),
+ 		arg.CacheStatus,
+ 		arg.CacheBytes,
+-		arg.RetryRuleID,
++		proxyRequestEventIDValue(arg.RetryRuleID),
+ 		arg.RetryCount,
+ 		arg.RetryOutcome,
+ 		arg.RetryErrorKind,
+-		arg.RetryFailedAgentID,
++		proxyRequestEventIDValue(arg.RetryFailedAgentID),
+ 	)
++}
++
++// proxyRequestEventIDValue preserves sql.NullInt64.Value semantics without
++// boxing the nullable struct before database/sql converts it to nil or int64.
++func proxyRequestEventIDValue(value sql.NullInt64) any {
++	if !value.Valid {
++		return nil
++	}
++	return value.Int64
+ }
+ 
+ func (i *ProxyRequestEventInserter) Close() error {

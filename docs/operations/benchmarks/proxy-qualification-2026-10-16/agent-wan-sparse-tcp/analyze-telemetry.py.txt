@@ -1,0 +1,102 @@
+import csv,json,re,statistics,sys
+from collections import Counter,defaultdict
+from pathlib import Path
+from urllib.parse import urlparse
+from decimal import Decimal
+root=Path(__file__).resolve().parent
+assert (root/'exit.json').exists(), 'analyze after the finite runner exits'
+records=[json.loads(s) for s in (root/'telemetry/tcp-qdisc.jsonl').read_text().splitlines()]
+marks=[]
+for line in (root/'telemetry/phases.tsv').read_text().splitlines():
+ values=line.split('\t'); assert len(values)==9
+ row=dict(zip(('boundary','label','mode','stage','direction','repetition','server_pid','agent_pid','epoch_seconds'),values))
+ row['wall_ns']=int(Decimal(row['epoch_seconds'])*1_000_000_000);marks.append(row)
+phases=[]; starts={}
+for m in marks:
+ key=tuple(m[k] for k in ('label','mode','stage','direction','repetition'))
+ if m['boundary']=='begin': starts[key]=m
+ elif m['boundary']=='end':
+  b=starts.pop(key); phases.append(dict(b,start_unix_ns=b['wall_ns'],end_unix_ns=m['wall_ns']))
+ports={}
+for entry in json.loads((root/'connection-inputs.json').read_text()):
+ value=entry['server_metadata'];ports[value['pid']]=urlparse(value['management_url']).port
+header=re.compile(r'^(\S+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\S+)(?:\s|$)')
+def connections(raw):
+ current=None
+ for line in raw.splitlines():
+  match=header.match(line)
+  if match:
+   if current: yield current
+   state,recv,send,local,peer=match.groups()
+   current={'state':state,'recv_q':int(recv),'send_q':int(send),'local':local,'peer':peer,'raw':''}
+  elif current: current['raw']+=' '+line.strip()
+ if current: yield current
+int_keys=('cwnd','ssthresh','bytes_sent','bytes_acked','bytes_received','bytes_retrans','notsent','unacked','rcv_space','snd_wnd','rcv_wnd','delivered','segs_out','segs_in','data_segs_out','data_segs_in')
+def number(s,key,default=0):
+ m=re.search(r'(?:^|\s)'+re.escape(key)+r':([0-9.]+)',s)
+ return float(m.group(1)) if m else default
+samples=[]
+for r in records:
+ if r['kind']!='tcp' or r.get('exit_code')!=0: continue
+ for c in connections(r.get('stdout','')):
+  raw=c['raw']; c.update(monotonic_ns=r['monotonic_ns'],sample_unix_ns=r['wall_ns'],side=r['side'])
+  for k in int_keys: c[k]=int(number(raw,k))
+  c['rtt_ms']=number(raw,'rtt'); c['rto_ms']=number(raw,'rto')
+  c['busy_ms']=number(raw,'busy'); c['rwnd_limited_ms']=number(raw,'rwnd_limited'); c['sndbuf_limited_ms']=number(raw,'sndbuf_limited')
+  c['lastsnd_ms']=number(raw,'lastsnd'); c['app_limited']=' app_limited' in raw
+  for key in ('delivery_rate','pacing_rate'):
+   m=re.search(r'\b'+key+r'\s+([0-9.]+)([KMG]?)(?:bps|b/s)',raw)
+   c[key+'_bps']=float(m[1])*{'':1,'K':1e3,'M':1e6,'G':1e9}[m[2]] if m else 0
+  c.pop('raw'); samples.append(c)
+phase_summary=[]; csv_rows=[]
+for p in phases:
+ sender='agent' if p['direction']=='download' else 'server'
+ port=ports.get(int(p['server_pid']))
+ selected=defaultdict(list)
+ for s in samples:
+  if not (p['start_unix_ns']<=s['sample_unix_ns']<=p['end_unix_ns']) or s['side']!=sender or s['state']!='ESTAB': continue
+  server_addr=s['peer'] if sender=='agent' else s['local']
+  if int(server_addr.rsplit(':',1)[1])!=port: continue
+  selected[(s['local'],s['peer'])].append(s)
+ if not selected:
+  phase_summary.append({**p,'error':'no sender TCP samples'}); continue
+ local_peer,active=max(selected.items(),key=lambda item:item[1][-1]['bytes_sent']-item[1][0]['bytes_sent'])
+ first,last=active[0],active[-1]
+ prior=[s for s in samples if s['side']==sender and (s['local'],s['peer'])==local_peer and s['sample_unix_ns']<p['start_unix_ns']]
+ baseline=prior[-1] if prior else None
+ report={k:p[k] for k in ('mode','stage','direction','repetition','start_unix_ns','end_unix_ns')}
+ report.update(sender=sender,local=local_peer[0],peer=local_peer[1],samples=len(active),phase_seconds=(p['end_unix_ns']-p['start_unix_ns'])/1e9,app_limited_samples=sum(s['app_limited'] for s in active))
+ for key in ('cwnd','ssthresh','rtt_ms','rto_ms','send_q','recv_q','notsent','unacked','snd_wnd','rcv_wnd','delivery_rate_bps','pacing_rate_bps'):
+  vals=[s[key] for s in active]
+  report[key]={'first':vals[0],'min':min(vals),'median':statistics.median(vals),'max':max(vals),'last':vals[-1]}
+ for key in ('bytes_sent','bytes_acked','bytes_retrans','bytes_received','busy_ms','rwnd_limited_ms','sndbuf_limited_ms'):
+  report[key+'_delta']=last[key]-first[key]
+ report['prephase_baseline']=baseline
+ if baseline:
+  report['baseline_age_at_phase_start_ms']=(p['start_unix_ns']-baseline['sample_unix_ns'])/1e6
+  report['counter_deltas_prephase_to_last_sample']={key:last[key]-baseline[key] for key in ('bytes_sent','bytes_acked','bytes_retrans','busy_ms','rwnd_limited_ms','sndbuf_limited_ms')}
+ report['last_sample_before_phase_end_ms']=(p['end_unix_ns']-last['sample_unix_ns'])/1e6
+ report['phase_clock']='Unix nanoseconds from Bash EPOCHREALTIME; sample wall timestamp is emitted after ss returns'
+ report['cwnd_drop_30pct_count']=sum(b['cwnd']<a['cwnd']*.7 for a,b in zip(active,active[1:]))
+ phase_summary.append(report)
+ for s in active: csv_rows.append({**{k:p[k] for k in ('mode','stage','direction','repetition')},**s})
+(root/'tcp-phases.json').write_text(json.dumps(phase_summary,indent=2)+'\n')
+with (root/'tcp-active-sender.csv').open('w') as f:
+ writer=csv.DictWriter(f,fieldnames=list(csv_rows[0])); writer.writeheader(); writer.writerows(csv_rows)
+cadence={}
+for side in ('server','agent'):
+ stamps=[r['started_ns'] for r in records if r['kind']=='tcp' and r['side']==side]
+ deltas=[(b-a)/1e6 for a,b in zip(stamps,stamps[1:])]
+ cadence[side]={'samples':len(stamps),'interval_ms_min':min(deltas),'interval_ms_median':statistics.median(deltas),'interval_ms_p95':sorted(deltas)[int((len(deltas)-1)*.95)],'interval_ms_max':max(deltas)}
+qdiscs={}
+for iface in ('growth-rs','growth-rr'):
+ rows=[r for r in records if r['kind']=='qdisc' and r['side']==iface and r.get('exit_code')==0]
+ first=json.loads(rows[0]['stdout'])[0]; last=json.loads(rows[-1]['stdout'])[0]
+ qdiscs[iface]={'first':first,'last':last,'delta':{k:last.get(k,0)-first.get(k,0) for k in ('bytes','packets','drops','overlimits','requeues')}}
+summary={'diagnostic_only':True,'phases':len(phases),'unmatched_phase_begins':len(starts),'records':len(records),'capture_errors':[r for r in records if 'error' in r or r.get('exit_code',0)!=0],'capture_error_count':sum('error' in r or r.get('exit_code',0)!=0 for r in records),'collector_stop':[r for r in records if r['kind']=='collector_stop'],'cadence':cadence,'qdiscs':qdiscs}
+(root/'telemetry-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
+print(json.dumps({k:v for k,v in summary.items() if k not in ('capture_errors','qdiscs')},indent=2))
+for p in phase_summary:
+ if p['mode']=='aggregate-v1' and p['direction']=='download':
+  print(json.dumps({k:p[k] for k in ('mode','stage','repetition','phase_seconds','local','peer','samples','cwnd','rtt_ms','send_q','notsent','bytes_retrans_delta','rwnd_limited_ms_delta','sndbuf_limited_ms_delta','cwnd_drop_30pct_count')}))
+print('Qdisc deltas:',{k:v['delta'] for k,v in qdiscs.items()})

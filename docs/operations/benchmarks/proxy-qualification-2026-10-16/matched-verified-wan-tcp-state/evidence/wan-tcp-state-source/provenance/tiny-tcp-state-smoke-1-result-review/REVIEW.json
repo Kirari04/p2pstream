@@ -1,0 +1,119 @@
+{
+  "accepted": true,
+  "arms": {
+    "h1": {
+      "capture_calls": 212,
+      "captured_tcp_info_objects_checked": 252,
+      "maximum_sender_response_bytes": 196419,
+      "natural_process_exits": 5,
+      "post_owner_states": 20,
+      "provider_capture_duration_total_ns": 1407200,
+      "public_http_major": 1,
+      "raw_pairs": 41,
+      "rows": 16,
+      "selected_intervals": 4,
+      "selected_sequences": [
+        9,
+        11,
+        14,
+        15
+      ],
+      "terminal_owners": 5,
+      "verified_alpn": "http/1.1",
+      "wait_records": 45
+    },
+    "h2": {
+      "capture_calls": 196,
+      "captured_tcp_info_objects_checked": 236,
+      "maximum_sender_response_bytes": 198534,
+      "natural_process_exits": 5,
+      "post_owner_states": 20,
+      "provider_capture_duration_total_ns": 1144017,
+      "public_http_major": 2,
+      "raw_pairs": 37,
+      "rows": 16,
+      "selected_intervals": 4,
+      "selected_sequences": [
+        9,
+        11,
+        14,
+        15
+      ],
+      "terminal_owners": 5,
+      "verified_alpn": "h2",
+      "wait_records": 41
+    }
+  },
+  "diagnostic": "wan-tcp-state-tiny-smoke-independent-review",
+  "final_status": {
+    "accepted": true,
+    "performance_result": false,
+    "pre_post_hashes_equal": true,
+    "sha256": "b6e74dcbe96b583fd0b36eb6bbbe8f7065c703a30bd65e04bc96f3a2cc433737",
+    "size_mode": "small"
+  },
+  "launcher": {
+    "direct_status": 0,
+    "natural_group_join": true,
+    "path": "tmp/continuation-20261016/wan-tcp-state-source/provenance/tiny-tcp-state-smoke-1-launch",
+    "records_ledger_sha256": "6b4dc1458316e4d956a0c7e53522ee833b1f65ca32797c8ca308ea1003f3e9e7",
+    "result_sha256": "d1addcc7a5cdb938ab2e0c944714e354d45df86807489f31a68cf8ab685d0fc6"
+  },
+  "limitations": [
+    "This 4 MiB diagnostic smoke validates schema, joins, bounded response size, ownership, protocol/certificate identity, and cleanup. It is not performance evidence.",
+    "TCP_INFO snapshots are discrete synchronous observations; they do not prove atomic packet ownership, exclude unsampled transients, or establish causation.",
+    "Owner-relative monotonic values are comparable only within the same owner/process. Cross-process Unix or monotonic timestamp subtraction is invalid."
+  ],
+  "outer_envelope": {
+    "exit_code": 0,
+    "ledger_sha256": "68546b3b0f1d0d0204f16d490a0c3299f7bb4c400ada083874836e2d6ff28454",
+    "native_session_id": 90860,
+    "path": "tmp/continuation-20261016/wan-tcp-state-source/provenance/tiny-tcp-state-smoke-1-main-tool-envelope",
+    "retry": false
+  },
+  "response_bound": {
+    "limit_bytes": 4194304,
+    "maximum_observed_bytes": 198534,
+    "within_limit": true
+  },
+  "run": {
+    "bytes": 14043006,
+    "file_count": 271,
+    "path": "tmp/continuation-20261016/wan-tcp-state-source/integration-source-3/integration/runs/tiny-tcp-state-smoke-1",
+    "run_sha256sums_sha256": "32d34a75779aa2c9d45a24b810004f7782aed5446072a23132c8d13bd47aa6b2"
+  },
+  "safe_packaging": {
+    "exclude": [
+      "TLS private keys and certificates with private material",
+      "bearer tokens and authenticated-control secrets",
+      "process and namespace private control files",
+      "raw stdout/stderr and topology logs unless separately reviewed and redacted"
+    ],
+    "include": [
+      "RUN-SHA256SUMS.txt",
+      "REVIEW.json",
+      "launcher records ledger/result/lifecycle",
+      "final-status.json",
+      "arm attestations",
+      "results summaries",
+      "sender-wait records and their validator artifacts",
+      "raw post-join supervisor validations",
+      "resource and namespace attestations"
+    ],
+    "note": "The full run ledger preserves excluded files by hash. Selection for publication must remain allowlisted and must not imply omitted files are absent from the immutable run."
+  },
+  "same_verified_leaf_sha256": "f1bd4499767c22e1a6d0051857b58e8d2b06a2e836e761e03323dcc528363bf5",
+  "schema_version": 1,
+  "scope": {
+    "causal_claim": false,
+    "endpoint_execution": true,
+    "payload_bytes_per_transfer": 4194304,
+    "performance_evidence": false,
+    "provider_duration_meaning": "synchronous TCP_INFO/TCP_CONGESTION sampling cost only; it is not network, syscall blocking, delivery, or causal delay",
+    "wan_traffic": true
+  },
+  "source": {
+    "checkpoint_manifest_sha256": "82681c520840f67c35c2e0e85e89693ab2fb67cc11c7967b0b6067a7f564e720",
+    "invocation_sha256": "c5bec2f77e069c752d046fc26276527041c69755d7087e47585c8abe46445903"
+  }
+}

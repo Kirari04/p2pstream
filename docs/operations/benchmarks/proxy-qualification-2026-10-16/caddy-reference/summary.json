@@ -1,0 +1,494 @@
+[
+  {
+    "concurrency": 16,
+    "protocol": "h1",
+    "proxy_kind": "candidate",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 27530.025583029532,
+      "min": 27019.330241910957,
+      "max": 27745.184892164245
+    },
+    "p95_ms": {
+      "median": 1.086452,
+      "min": 1.083111,
+      "max": 1.111709
+    },
+    "p99_ms": {
+      "median": 1.936321,
+      "min": 1.935113,
+      "max": 1.946582
+    },
+    "peak_rss_bytes": {
+      "median": 72847360,
+      "min": 70127616,
+      "max": 73224192
+    },
+    "peak_fds": {
+      "median": 60,
+      "min": 59,
+      "max": 60
+    },
+    "cpu_seconds": {
+      "median": 37.78,
+      "min": 37.51,
+      "max": 37.82
+    },
+    "client_tcp_connections": {
+      "median": 16,
+      "min": 16,
+      "max": 16
+    }
+  },
+  {
+    "concurrency": 16,
+    "protocol": "h1",
+    "proxy_kind": "caddy",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 27305.9453017867,
+      "min": 27047.06514475481,
+      "max": 28741.929488547354
+    },
+    "p95_ms": {
+      "median": 1.290226,
+      "min": 1.24375,
+      "max": 1.322591
+    },
+    "p99_ms": {
+      "median": 2.149687,
+      "min": 2.084295,
+      "max": 2.181203
+    },
+    "peak_rss_bytes": {
+      "median": 59817984,
+      "min": 58347520,
+      "max": 60243968
+    },
+    "peak_fds": {
+      "median": 39,
+      "min": 39,
+      "max": 39
+    },
+    "cpu_seconds": {
+      "median": 37.22,
+      "min": 36.97,
+      "max": 37.39
+    },
+    "client_tcp_connections": {
+      "median": 16,
+      "min": 16,
+      "max": 16
+    }
+  },
+  {
+    "concurrency": 16,
+    "protocol": "h1",
+    "proxy_kind": "haproxy",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 64941.49568465998,
+      "min": 63783.60687518058,
+      "max": 66867.55791212525
+    },
+    "p95_ms": {
+      "median": 0.370466,
+      "min": 0.358678,
+      "max": 0.382168
+    },
+    "p99_ms": {
+      "median": 0.630326,
+      "min": 0.600057,
+      "max": 0.650653
+    },
+    "peak_rss_bytes": {
+      "median": 31023104,
+      "min": 30957568,
+      "max": 31084544
+    },
+    "peak_fds": {
+      "median": 49,
+      "min": 49,
+      "max": 49
+    },
+    "cpu_seconds": {
+      "median": 35.55,
+      "min": 34.92,
+      "max": 35.75
+    },
+    "client_tcp_connections": {
+      "median": 16,
+      "min": 16,
+      "max": 16
+    }
+  },
+  {
+    "concurrency": 16,
+    "protocol": "h2",
+    "proxy_kind": "candidate",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 20491.016112315057,
+      "min": 20443.860097886318,
+      "max": 20905.40986588129
+    },
+    "p95_ms": {
+      "median": 1.299037,
+      "min": 1.2713,
+      "max": 1.307486
+    },
+    "p99_ms": {
+      "median": 1.879644,
+      "min": 1.859461,
+      "max": 1.993563
+    },
+    "peak_rss_bytes": {
+      "median": 73531392,
+      "min": 72871936,
+      "max": 74256384
+    },
+    "peak_fds": {
+      "median": 44,
+      "min": 44,
+      "max": 44
+    },
+    "cpu_seconds": {
+      "median": 31.19,
+      "min": 30.97,
+      "max": 31.35
+    },
+    "client_tcp_connections": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    }
+  },
+  {
+    "concurrency": 16,
+    "protocol": "h2",
+    "proxy_kind": "caddy",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 18619.971208868643,
+      "min": 18511.26648471608,
+      "max": 18981.105195333657
+    },
+    "p95_ms": {
+      "median": 1.509987,
+      "min": 1.486122,
+      "max": 1.513972
+    },
+    "p99_ms": {
+      "median": 2.016029,
+      "min": 1.991124,
+      "max": 2.017749
+    },
+    "peak_rss_bytes": {
+      "median": 61636608,
+      "min": 61562880,
+      "max": 62369792
+    },
+    "peak_fds": {
+      "median": 24,
+      "min": 24,
+      "max": 24
+    },
+    "cpu_seconds": {
+      "median": 31.31,
+      "min": 31.18,
+      "max": 31.32
+    },
+    "client_tcp_connections": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    }
+  },
+  {
+    "concurrency": 16,
+    "protocol": "h2",
+    "proxy_kind": "haproxy",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 35645.48372514091,
+      "min": 35518.75807308866,
+      "max": 36016.43677944573
+    },
+    "p95_ms": {
+      "median": 0.605809,
+      "min": 0.603364,
+      "max": 0.618069
+    },
+    "p99_ms": {
+      "median": 0.800279,
+      "min": 0.796811,
+      "max": 0.810997
+    },
+    "peak_rss_bytes": {
+      "median": 31531008,
+      "min": 31444992,
+      "max": 31666176
+    },
+    "peak_fds": {
+      "median": 34,
+      "min": 34,
+      "max": 34
+    },
+    "cpu_seconds": {
+      "median": 9.92,
+      "min": 9.88,
+      "max": 9.92
+    },
+    "client_tcp_connections": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    }
+  },
+  {
+    "concurrency": 128,
+    "protocol": "h1",
+    "proxy_kind": "candidate",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 26057.278101966862,
+      "min": 25624.513582474243,
+      "max": 26130.49618874867
+    },
+    "p95_ms": {
+      "median": 11.545152,
+      "min": 11.487077,
+      "max": 11.717233
+    },
+    "p99_ms": {
+      "median": 16.557947,
+      "min": 16.413261,
+      "max": 16.789353
+    },
+    "peak_rss_bytes": {
+      "median": 89997312,
+      "min": 87605248,
+      "max": 91496448
+    },
+    "peak_fds": {
+      "median": 278,
+      "min": 277,
+      "max": 284
+    },
+    "cpu_seconds": {
+      "median": 38.73,
+      "min": 38.71,
+      "max": 38.78
+    },
+    "client_tcp_connections": {
+      "median": 128,
+      "min": 128,
+      "max": 128
+    }
+  },
+  {
+    "concurrency": 128,
+    "protocol": "h1",
+    "proxy_kind": "caddy",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 26269.393816727275,
+      "min": 26184.970543566757,
+      "max": 26858.290026040086
+    },
+    "p95_ms": {
+      "median": 11.100833,
+      "min": 10.757689,
+      "max": 11.122354
+    },
+    "p99_ms": {
+      "median": 14.378397,
+      "min": 13.870226,
+      "max": 14.407149
+    },
+    "peak_rss_bytes": {
+      "median": 80478208,
+      "min": 80097280,
+      "max": 80551936
+    },
+    "peak_fds": {
+      "median": 262,
+      "min": 258,
+      "max": 263
+    },
+    "cpu_seconds": {
+      "median": 39.32,
+      "min": 39.27,
+      "max": 39.42
+    },
+    "client_tcp_connections": {
+      "median": 128,
+      "min": 128,
+      "max": 128
+    }
+  },
+  {
+    "concurrency": 128,
+    "protocol": "h1",
+    "proxy_kind": "haproxy",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 79018.62390556667,
+      "min": 78537.93235363546,
+      "max": 79539.96362832277
+    },
+    "p95_ms": {
+      "median": 2.866006,
+      "min": 2.86551,
+      "max": 2.959017
+    },
+    "p99_ms": {
+      "median": 4.580462,
+      "min": 4.438792,
+      "max": 4.644547
+    },
+    "peak_rss_bytes": {
+      "median": 38125568,
+      "min": 37752832,
+      "max": 38473728
+    },
+    "peak_fds": {
+      "median": 273,
+      "min": 273,
+      "max": 273
+    },
+    "cpu_seconds": {
+      "median": 37.56,
+      "min": 37.19,
+      "max": 37.74
+    },
+    "client_tcp_connections": {
+      "median": 128,
+      "min": 128,
+      "max": 128
+    }
+  },
+  {
+    "concurrency": 128,
+    "protocol": "h2",
+    "proxy_kind": "candidate",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 23358.119507730637,
+      "min": 23198.64596873191,
+      "max": 23498.22937848699
+    },
+    "p95_ms": {
+      "median": 9.087045,
+      "min": 9.07359,
+      "max": 9.246298
+    },
+    "p99_ms": {
+      "median": 11.031924,
+      "min": 10.883935,
+      "max": 11.127891
+    },
+    "peak_rss_bytes": {
+      "median": 83070976,
+      "min": 82456576,
+      "max": 85233664
+    },
+    "peak_fds": {
+      "median": 157,
+      "min": 156,
+      "max": 158
+    },
+    "cpu_seconds": {
+      "median": 33.71,
+      "min": 33.65,
+      "max": 33.76
+    },
+    "client_tcp_connections": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    }
+  },
+  {
+    "concurrency": 128,
+    "protocol": "h2",
+    "proxy_kind": "caddy",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 20061.878167919494,
+      "min": 19910.976824570018,
+      "max": 20162.807730209177
+    },
+    "p95_ms": {
+      "median": 10.822445,
+      "min": 10.763548,
+      "max": 10.990212
+    },
+    "p99_ms": {
+      "median": 12.699368,
+      "min": 12.524186,
+      "max": 12.846313
+    },
+    "peak_rss_bytes": {
+      "median": 80998400,
+      "min": 80179200,
+      "max": 81162240
+    },
+    "peak_fds": {
+      "median": 136,
+      "min": 136,
+      "max": 136
+    },
+    "cpu_seconds": {
+      "median": 32.81,
+      "min": 32.67,
+      "max": 32.84
+    },
+    "client_tcp_connections": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    }
+  },
+  {
+    "concurrency": 128,
+    "protocol": "h2",
+    "proxy_kind": "haproxy",
+    "passes": 3,
+    "useful_requests_per_second": {
+      "median": 36680.77090798843,
+      "min": 36203.76566508917,
+      "max": 55482.696456712605
+    },
+    "p95_ms": {
+      "median": 4.566776,
+      "min": 4.503317,
+      "max": 4.939605
+    },
+    "p99_ms": {
+      "median": 5.365253,
+      "min": 5.211883,
+      "max": 5.839939
+    },
+    "peak_rss_bytes": {
+      "median": 50393088,
+      "min": 38961152,
+      "max": 50520064
+    },
+    "peak_fds": {
+      "median": 147,
+      "min": 147,
+      "max": 147
+    },
+    "cpu_seconds": {
+      "median": 10,
+      "min": 9.99,
+      "max": 19.46
+    },
+    "client_tcp_connections": {
+      "median": 2,
+      "min": 2,
+      "max": 2
+    }
+  }
+]

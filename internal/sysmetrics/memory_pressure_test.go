@@ -143,11 +143,20 @@ func TestAdaptiveMemoryControllerConservesLifetimeStreamReservations(t *testing.
 	}
 }
 
-func TestAdaptiveMemoryConfigRejectsChargeBelowYamuxInitialWindow(t *testing.T) {
+func TestAdaptiveMemoryConfigAcceptsExactProtocolFloorAgentOwnership(t *testing.T) {
+	model, err := tunnel.AgentStreamBaseResourceModel(16 * 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
 	config := DefaultAdaptiveMemoryConfig()
-	config.EstimatedBytesPerAdmission = tunnel.MinimumAdaptiveStreamChargeBytes - 1
+	config.EstimatedBytesPerAdmission = model.MemoryBytes
+	config.FileDescriptorsPerAdmission = model.FileDescriptors
+	if err := config.Validate(); err != nil {
+		t.Fatalf("exact protocol-floor agent ownership rejected: %v", err)
+	}
+	config.EstimatedBytesPerAdmission--
 	if err := config.Validate(); err == nil {
-		t.Fatal("sub-initial-window adaptive charge was accepted")
+		t.Fatal("sub-floor agent ownership charge was accepted")
 	}
 }
 
@@ -246,6 +255,48 @@ func TestAdaptiveMemoryControllerEnforcesFileDescriptorHeadroom(t *testing.T) {
 	critical := controller.ForceRefresh(65536, 10)
 	if critical.Level != MemoryPressureCritical || !critical.RejectNew || critical.AdmissionLimit != 10 {
 		t.Fatalf("fd critical snapshot = %+v", critical)
+	}
+}
+
+func TestServerLogicalStreamsDoNotConsumePhantomFileDescriptors(t *testing.T) {
+	model := tunnel.ServerStreamBaseResourceModel()
+	config := DefaultAdaptiveMemoryConfig()
+	config.AdmissionRole = AdaptiveAdmissionRoleServerStream
+	config.EstimatedBytesPerAdmission = model.MemoryBytes
+	config.FileDescriptorsPerAdmission = 0
+	sampler := &memorySetSampler{
+		usages: []MemoryUsage{{UsedBytes: 28 * (4 << 30) / 100, LimitBytes: 4 << 30, Source: "test"}},
+		fd:     FileDescriptorUsage{Used: 8_990, Limit: 10_000},
+	}
+	controller := MustNewAdaptiveMemoryController(config, sampler)
+	snapshot := controller.ForceRefresh(65_536, 0)
+	if snapshot.AdmissionRole != AdaptiveAdmissionRoleServerStream || snapshot.StreamChargeFD != 0 || snapshot.ReservedStreamFD != 0 {
+		t.Fatalf("server ownership dimensions = %+v", snapshot)
+	}
+	if snapshot.AdmissionLimit <= 950 {
+		t.Fatalf("server allowance = %d, want beyond former 950-stream envelope", snapshot.AdmissionLimit)
+	}
+	if got := snapshot.AdmissionLimitWithExternal(0, 10); got != snapshot.AdmissionLimit {
+		t.Fatalf("ten real external FDs changed logical allowance from %d to %d", snapshot.AdmissionLimit, got)
+	}
+	if got := snapshot.AdmissionLimitWithExternal(0, 11); got != -1 {
+		t.Fatalf("external FD overdraw = %d, want -1", got)
+	}
+	sampler.fd.Used = 9_000
+	critical := controller.ForceRefresh(65_536, 0)
+	if critical.Level != MemoryPressureCritical || critical.RejectNew || critical.AdmissionLimit <= 950 {
+		t.Fatalf("FD-critical server snapshot capped zero-FD logical streams: %+v", critical)
+	}
+	if got := critical.AdmissionLimitWithExternal(0, 1); got != -1 {
+		t.Fatalf("FD-critical external reservation = %d, want -1", got)
+	}
+	sampler.fd.Used = 8_990
+	recovered := controller.ForceRefresh(65_536, 0)
+	if recovered.RejectNew || recovered.AdmissionLimit != snapshot.AdmissionLimit {
+		t.Fatalf("server logical allowance did not recover after FD pressure: %+v", recovered)
+	}
+	if got := recovered.AdmissionLimitWithExternal(0, 10); got != recovered.AdmissionLimit {
+		t.Fatalf("external FD headroom did not recover: allowance=%d stream-limit=%d", got, recovered.AdmissionLimit)
 	}
 }
 

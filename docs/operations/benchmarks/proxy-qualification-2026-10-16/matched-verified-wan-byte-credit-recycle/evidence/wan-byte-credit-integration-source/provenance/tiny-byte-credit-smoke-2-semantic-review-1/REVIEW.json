@@ -1,0 +1,331 @@
+{
+  "accepted": true,
+  "arms": {
+    "h1": {
+      "accepted": true,
+      "attestation_sha256": "673a137ff957ff8b176ce9f7b6d9319a888055fc22a046bad5b27ba1721a175b",
+      "byte_credit": [
+        {
+          "delta_bytes_total": 6477028,
+          "eligibility_to_enqueue_observed_ns_total": 348037,
+          "enqueue_to_completion_result_observed_ns_total": 994944,
+          "forced_growth_records": 4,
+          "generation": 5,
+          "lane": 1,
+          "peer_records": 17,
+          "receiver_records": 17,
+          "sequence": 9,
+          "stream_id": 6,
+          "wait_records": 11
+        },
+        {
+          "delta_bytes_total": 6777060,
+          "eligibility_to_enqueue_observed_ns_total": 304422,
+          "enqueue_to_completion_result_observed_ns_total": 976207,
+          "forced_growth_records": 4,
+          "generation": 2,
+          "lane": 3,
+          "peer_records": 17,
+          "receiver_records": 17,
+          "sequence": 11,
+          "stream_id": 6,
+          "wait_records": 13
+        },
+        {
+          "delta_bytes_total": 6632901,
+          "eligibility_to_enqueue_observed_ns_total": 274309,
+          "enqueue_to_completion_result_observed_ns_total": 711285,
+          "forced_growth_records": 4,
+          "generation": 4,
+          "lane": 2,
+          "peer_records": 16,
+          "receiver_records": 16,
+          "sequence": 14,
+          "stream_id": 6,
+          "wait_records": 13
+        },
+        {
+          "delta_bytes_total": 3894801,
+          "eligibility_to_enqueue_observed_ns_total": 86760,
+          "enqueue_to_completion_result_observed_ns_total": 178656,
+          "forced_growth_records": 0,
+          "generation": 2,
+          "lane": 3,
+          "peer_records": 5,
+          "receiver_records": 5,
+          "sequence": 15,
+          "stream_id": 6,
+          "wait_records": 3
+        }
+      ],
+      "http_major": 1,
+      "natural_endpoint_and_namespace_statuses": true,
+      "raw_write": [
+        {
+          "contained_raw_ns": 5906612,
+          "envelope_count": 180,
+          "envelope_ns": 8321216,
+          "generation": 5,
+          "lane": 1,
+          "payload_bytes": 4194532,
+          "raw_calls": 412,
+          "raw_written_bytes": 4205756,
+          "residual_ns": 2414604,
+          "sequence": 9,
+          "stream_id": 6,
+          "wire_bytes": 4196692
+        },
+        {
+          "contained_raw_ns": 6319001,
+          "envelope_count": 149,
+          "envelope_ns": 8850728,
+          "generation": 2,
+          "lane": 3,
+          "payload_bytes": 4194532,
+          "raw_calls": 373,
+          "raw_written_bytes": 4204526,
+          "residual_ns": 2531727,
+          "sequence": 11,
+          "stream_id": 6,
+          "wire_bytes": 4196320
+        },
+        {
+          "contained_raw_ns": 6151072,
+          "envelope_count": 134,
+          "envelope_ns": 8798713,
+          "generation": 4,
+          "lane": 2,
+          "payload_bytes": 4194517,
+          "raw_calls": 387,
+          "raw_written_bytes": 4204639,
+          "residual_ns": 2647641,
+          "sequence": 14,
+          "stream_id": 6,
+          "wire_bytes": 4196125
+        },
+        {
+          "contained_raw_ns": 1798344,
+          "envelope_count": 132,
+          "envelope_ns": 3582727,
+          "generation": 2,
+          "lane": 3,
+          "payload_bytes": 4194517,
+          "raw_calls": 355,
+          "raw_written_bytes": 4203911,
+          "residual_ns": 1784383,
+          "sequence": 15,
+          "stream_id": 6,
+          "wire_bytes": 4196101
+        }
+      ],
+      "raw_write_final_closure_valid": true,
+      "rows": 16,
+      "selected_sequences": [
+        9,
+        11,
+        14,
+        15
+      ],
+      "sender_terminal_closure_valid": true,
+      "server_growth": [
+        {
+          "drops_after": 0,
+          "drops_before": 0,
+          "pre_prior_event_count": 51,
+          "selected_event_count": 10,
+          "sequence": 9
+        },
+        {
+          "drops_after": 0,
+          "drops_before": 0,
+          "pre_prior_event_count": 2,
+          "selected_event_count": 11,
+          "sequence": 11
+        },
+        {
+          "drops_after": 0,
+          "drops_before": 0,
+          "pre_prior_event_count": 3,
+          "selected_event_count": 9,
+          "sequence": 14
+        },
+        {
+          "drops_after": 0,
+          "drops_before": 0,
+          "pre_prior_event_count": 0,
+          "selected_event_count": 7,
+          "sequence": 15
+        }
+      ],
+      "terminal_sessions": 5
+    },
+    "h2": {
+      "accepted": true,
+      "attestation_sha256": "2e6da30d696038153c8238cab7df1fc953c66ac9e4c78802785652f60af8dcbb",
+      "byte_credit": [
+        {
+          "delta_bytes_total": 6718692,
+          "eligibility_to_enqueue_observed_ns_total": 307837,
+          "enqueue_to_completion_result_observed_ns_total": 818182,
+          "forced_growth_records": 4,
+          "generation": 5,
+          "lane": 1,
+          "peer_records": 17,
+          "receiver_records": 17,
+          "sequence": 9,
+          "stream_id": 6,
+          "wait_records": 13
+        },
+        {
+          "delta_bytes_total": 6718692,
+          "eligibility_to_enqueue_observed_ns_total": 260008,
+          "enqueue_to_completion_result_observed_ns_total": 727193,
+          "forced_growth_records": 4,
+          "generation": 4,
+          "lane": 3,
+          "peer_records": 17,
+          "receiver_records": 17,
+          "sequence": 11,
+          "stream_id": 6,
+          "wait_records": 12
+        },
+        {
+          "delta_bytes_total": 6247877,
+          "eligibility_to_enqueue_observed_ns_total": 149791,
+          "enqueue_to_completion_result_observed_ns_total": 371221,
+          "forced_growth_records": 4,
+          "generation": 3,
+          "lane": 2,
+          "peer_records": 15,
+          "receiver_records": 15,
+          "sequence": 14,
+          "stream_id": 6,
+          "wait_records": 12
+        },
+        {
+          "delta_bytes_total": 3764437,
+          "eligibility_to_enqueue_observed_ns_total": 41020,
+          "enqueue_to_completion_result_observed_ns_total": 77560,
+          "forced_growth_records": 0,
+          "generation": 4,
+          "lane": 3,
+          "peer_records": 5,
+          "receiver_records": 5,
+          "sequence": 15,
+          "stream_id": 6,
+          "wait_records": 3
+        }
+      ],
+      "http_major": 2,
+      "natural_endpoint_and_namespace_statuses": true,
+      "raw_write": [
+        {
+          "contained_raw_ns": 5711846,
+          "envelope_count": 178,
+          "envelope_ns": 7999497,
+          "generation": 5,
+          "lane": 1,
+          "payload_bytes": 4194532,
+          "raw_calls": 413,
+          "raw_written_bytes": 4205754,
+          "residual_ns": 2287651,
+          "sequence": 9,
+          "stream_id": 6,
+          "wire_bytes": 4196668
+        },
+        {
+          "contained_raw_ns": 5427078,
+          "envelope_count": 180,
+          "envelope_ns": 7695144,
+          "generation": 4,
+          "lane": 3,
+          "payload_bytes": 4194532,
+          "raw_calls": 414,
+          "raw_written_bytes": 4205800,
+          "residual_ns": 2268066,
+          "sequence": 11,
+          "stream_id": 6,
+          "wire_bytes": 4196692
+        },
+        {
+          "contained_raw_ns": 4271673,
+          "envelope_count": 137,
+          "envelope_ns": 6182942,
+          "generation": 3,
+          "lane": 2,
+          "payload_bytes": 4194517,
+          "raw_calls": 385,
+          "raw_written_bytes": 4204631,
+          "residual_ns": 1911269,
+          "sequence": 14,
+          "stream_id": 6,
+          "wire_bytes": 4196161
+        },
+        {
+          "contained_raw_ns": 1545034,
+          "envelope_count": 135,
+          "envelope_ns": 2940589,
+          "generation": 4,
+          "lane": 3,
+          "payload_bytes": 4194517,
+          "raw_calls": 376,
+          "raw_written_bytes": 4204409,
+          "residual_ns": 1395555,
+          "sequence": 15,
+          "stream_id": 6,
+          "wire_bytes": 4196137
+        }
+      ],
+      "raw_write_final_closure_valid": true,
+      "rows": 16,
+      "selected_sequences": [
+        9,
+        11,
+        14,
+        15
+      ],
+      "sender_terminal_closure_valid": true,
+      "server_growth": [
+        {
+          "drops_after": 0,
+          "drops_before": 0,
+          "pre_prior_event_count": 49,
+          "selected_event_count": 11,
+          "sequence": 9
+        },
+        {
+          "drops_after": 0,
+          "drops_before": 0,
+          "pre_prior_event_count": 2,
+          "selected_event_count": 11,
+          "sequence": 11
+        },
+        {
+          "drops_after": 0,
+          "drops_before": 0,
+          "pre_prior_event_count": 3,
+          "selected_event_count": 8,
+          "sequence": 14
+        },
+        {
+          "drops_after": 0,
+          "drops_before": 0,
+          "pre_prior_event_count": 0,
+          "selected_event_count": 8,
+          "sequence": 15
+        }
+      ],
+      "terminal_sessions": 5
+    }
+  },
+  "final_status_sha256": "38e03bdc2b2e9a25f1eb4127f225f86b5a8ee7aacad1b84ff763d9b5e63810fe",
+  "limitations": [
+    "4 MiB small diagnostic; timing is not a sustained performance result",
+    "local monotonic segment durations are not subtracted across endpoints",
+    "raw occupancy is a temporal envelope and does not identify kernel delivery or ciphertext call-stack ownership"
+  ],
+  "performance_claim": false,
+  "run_root": "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/tiny-byte-credit-smoke-2",
+  "schema_version": 1,
+  "scope": "bounded tiny diagnostic semantic and lifecycle review"
+}

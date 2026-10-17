@@ -1,0 +1,427 @@
+#!/usr/bin/env python3
+"""Build the immutable native-Go attribution test binary from a clean archive."""
+import argparse
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+BASE_REF = "248bad099682878fe398c0ebaad235787ef47858"
+GO = Path("/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go")
+BUILD_TIMEOUT_SECONDS = 600
+COMMAND_TIMEOUT_SECONDS = 120
+TERM_SECONDS = 15
+KILL_SECONDS = 5
+APPLIED_FILES = (
+    "internal/server/proxy_qualification_test.go",
+    "internal/server/native_go_attribution_qualification_linux_test.go",
+)
+COPIED_INPUTS = (
+    "README.md",
+    "initial-test-overlay.patch",
+    "native-go-attribution.patch",
+    "qualify-proxy-native-go-attribution.py",
+    "native-go-attribution-contracts.py",
+    "source-checkpoint.json",
+)
+
+
+def sha(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as source:
+        for block in iter(lambda: source.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def utc():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def resolve_command(command, env=None, cwd=None):
+    requested = [str(value) for value in command]
+    if not requested:
+        raise ValueError("empty command")
+    program = requested[0]
+    if os.path.isabs(program):
+        resolved = Path(program).resolve(strict=True)
+    elif os.sep in program:
+        if cwd is None:
+            raise ValueError("relative command with a slash requires an explicit child cwd")
+        child_cwd = Path(cwd).resolve(strict=True)
+        resolved = (child_cwd / program).resolve(strict=True)
+    else:
+        if env is not None:
+            path = env.get("PATH")
+            if path is None:
+                raise FileNotFoundError(f"child environment has no PATH for {program!r}")
+        else:
+            path = os.environ.get("PATH")
+        found = shutil.which(program, path=path)
+        if found is None:
+            raise FileNotFoundError(f"executable not found on child PATH: {program!r}")
+        resolved = Path(found).resolve(strict=True)
+    if not resolved.is_file() or not os.access(resolved, os.X_OK):
+        raise PermissionError(f"command is not an executable file: {resolved}")
+    return requested, [str(resolved)] + requested[1:]
+
+
+def process_group_alive(group):
+    if group is None:
+        return False
+    try:
+        os.killpg(group, 0)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def terminate_process_group(group, process):
+    outcome = dict(group=group, term_sent=False, kill_sent=False,
+                   direct_process_reaped=False, group_alive_after_cleanup=False)
+    if process_group_alive(group):
+        try:
+            os.killpg(group, signal.SIGTERM)
+            outcome["term_sent"] = True
+        except ProcessLookupError:
+            pass
+        deadline = time.monotonic() + TERM_SECONDS
+        while process_group_alive(group) and time.monotonic() < deadline:
+            if process is not None:
+                process.poll()
+            time.sleep(.05)
+        if process_group_alive(group):
+            try:
+                os.killpg(group, signal.SIGKILL)
+                outcome["kill_sent"] = True
+            except ProcessLookupError:
+                pass
+    if process is not None and process.poll() is None:
+        try:
+            process.wait(timeout=KILL_SECONDS)
+        except subprocess.TimeoutExpired:
+            pass
+    deadline = time.monotonic() + KILL_SECONDS
+    while process_group_alive(group) and time.monotonic() < deadline:
+        time.sleep(.05)
+    outcome["direct_process_reaped"] = process is not None and process.returncode is not None
+    outcome["group_alive_after_cleanup"] = process_group_alive(group)
+    return outcome
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", default="/home/user/.codex/worktrees/astra-proxy-performance/p2pstream")
+    parser.add_argument("--overlay-root", default=str(Path(__file__).resolve().parent))
+    parser.add_argument("--output-parent")
+    args = parser.parse_args()
+
+    repo = Path(args.repo).resolve(strict=True)
+    overlay = Path(args.overlay_root).resolve(strict=True)
+    parent = Path(args.output_parent).resolve() if args.output_parent else repo / "tmp/proxy-qualification"
+    parent.mkdir(parents=True, exist_ok=True)
+    root = Path(tempfile.mkdtemp(prefix="native-go-attribution-build-" + BASE_REF[:8] + ".", dir=parent))
+    root.chmod(0o700)
+
+    manifest_path = root / "manifest.json"
+    manifest = dict(kind="p2pstream-native-go-attribution-build-v1", source_ref=BASE_REF,
+                    created_utc=utc(), complete=False, commands=[], cleanup=[], errors=[])
+
+    def save_manifest():
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+    # Freeze all inputs before any Git, patch, Go, or metadata command. The copied
+    # checkpoint is then the authority for every applied source and tool script.
+    try:
+        for name in COPIED_INPUTS:
+            source_path = overlay / name
+            if not source_path.exists():
+                raise FileNotFoundError(f"missing pinned overlay input: {source_path}")
+            shutil.copy2(source_path, root / name)
+        shutil.copy2(Path(__file__).resolve(strict=True), root / "builder.py.txt")
+        settings_source = repo / "tmp/proxy-qualification/native-go-effective-settings.md"
+        plan_source = repo / "tmp/proxy-qualification/native-go-attribution-plan.md"
+        shutil.copy2(settings_source, root / settings_source.name)
+        shutil.copy2(plan_source, root / plan_source.name)
+        save_manifest()
+    except BaseException as error:
+        manifest["errors"].append(dict(stage="freeze-inputs", error=repr(error)))
+        save_manifest()
+        raise RuntimeError(f"failed to freeze diagnostic inputs; evidence preserved at {root}") from error
+
+    shim = root / "owned-exec-shim.py"
+    shim.write_text(
+        "#!/usr/bin/env python3\n"
+        "import os\n"
+        "import signal\n"
+        "import sys\n\n"
+        "mask = {int(value) for value in sys.argv[1].split(',') if value}\n"
+        "signal.pthread_sigmask(signal.SIG_SETMASK, mask)\n"
+        "os.execve(sys.argv[2], sys.argv[2:], os.environ)\n"
+    )
+    shim.chmod(0o700)
+    shim_python = Path(sys.executable).resolve(strict=True)
+    process_records = []
+
+    old_sigterm = signal.getsignal(signal.SIGTERM)
+    old_sigint = signal.getsignal(signal.SIGINT)
+
+    def interrupt(signum, frame):
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        if signum == signal.SIGINT:
+            raise KeyboardInterrupt()
+        raise SystemExit(128 + signum)
+
+    signal.signal(signal.SIGTERM, interrupt)
+    signal.signal(signal.SIGINT, interrupt)
+
+    def persist_ignoring_interrupts():
+        current_sigterm = signal.getsignal(signal.SIGTERM)
+        current_sigint = signal.getsignal(signal.SIGINT)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            save_manifest()
+        finally:
+            signal.signal(signal.SIGTERM, current_sigterm)
+            signal.signal(signal.SIGINT, current_sigint)
+
+    def run_owned(command, label, *, cwd=None, env=None, timeout=COMMAND_TIMEOUT_SECONDS,
+                  stdin_path=None, stdout_path=None):
+        requested_command = [str(value) for value in command]
+        record = dict(label=label, requested_command=requested_command,
+                      started_utc=utc(), timeout_seconds=timeout)
+        manifest["commands"].append(record)
+        try:
+            _, command = resolve_command(requested_command, env=env, cwd=cwd)
+            record["command"] = command
+        except BaseException as error:
+            record.update(resolution_error=repr(error), finished_utc=utc())
+            persist_ignoring_interrupts()
+            raise
+        process = None
+        stdout_handle = None
+        stdin_handle = None
+        try:
+            if stdout_path is not None:
+                stdout_handle = Path(stdout_path).open("wb")
+            if stdin_path is not None:
+                stdin_handle = Path(stdin_path).open("rb")
+            old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM, signal.SIGINT})
+            try:
+                original_mask = ",".join(str(int(signum)) for signum in sorted(old_mask, key=int))
+                wrapped = [str(shim_python), str(shim), original_mask] + command
+                process = subprocess.Popen(
+                    wrapped, cwd=cwd, env=env, stdin=stdin_handle,
+                    stdout=stdout_handle if stdout_handle is not None else subprocess.PIPE,
+                    stderr=subprocess.STDOUT if stdout_handle is not None else subprocess.PIPE,
+                    start_new_session=True,
+                )
+                record["pid"] = process.pid
+                process_records.append((process.pid, process, label))
+            finally:
+                signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
+            try:
+                stdout, stderr = process.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired as error:
+                record["timed_out"] = True
+                record["cleanup"] = terminate_process_group(process.pid, process)
+                raise TimeoutError(f"bounded command timed out: {label}") from error
+            if process_group_alive(process.pid):
+                record["cleanup"] = terminate_process_group(process.pid, process)
+                raise RuntimeError(f"command descendants survived leader exit: {label}")
+            record.update(exit_code=process.returncode, timed_out=False,
+                          stdout=(stdout or b"").decode(errors="replace"),
+                          stderr=(stderr or b"").decode(errors="replace"),
+                          finished_utc=utc())
+            persist_ignoring_interrupts()
+            return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+        except BaseException as error:
+            record.setdefault("exit_code", process.returncode if process is not None else None)
+            record.setdefault("timed_out", False)
+            record["error"] = repr(error)
+            record["finished_utc"] = utc()
+            if process is not None and process_group_alive(process.pid):
+                record["cleanup"] = terminate_process_group(process.pid, process)
+            persist_ignoring_interrupts()
+            raise
+        finally:
+            if stdin_handle is not None:
+                stdin_handle.close()
+            if stdout_handle is not None:
+                stdout_handle.close()
+
+    def require_success(completed, label):
+        if completed.returncode:
+            raise RuntimeError(f"{label} failed with exit {completed.returncode}")
+        return (completed.stdout or b"").decode().strip()
+
+    source = root / "source"
+    archive = root / "source.tar"
+    patch = root / "native-go-attribution.patch"
+    checkpoint_path = root / "source-checkpoint.json"
+    builder_copy = root / "builder.py.txt"
+    runner = root / "qualify-proxy-native-go-attribution.py"
+    contracts = root / "native-go-attribution-contracts.py"
+    readme = root / "README.md"
+    settings = root / "native-go-effective-settings.md"
+    plan = root / "native-go-attribution-plan.md"
+    build_log = root / "build.log"
+    failure = None
+
+    try:
+        checkpoint = json.loads(checkpoint_path.read_text())
+        checkpoint_files = checkpoint.get("files") or {}
+        if (checkpoint.get("kind") != "p2pstream-native-go-attribution-source-checkpoint-v2"
+                or checkpoint.get("base_ref") != BASE_REF):
+            raise RuntimeError("checkpoint immutable base mismatch")
+        frozen_files = {
+            "README.md": readme,
+            "build-native-go-attribution.py": builder_copy,
+            "initial-test-overlay.patch": root / "initial-test-overlay.patch",
+            "native-go-attribution.patch": patch,
+            "native-go-attribution-contracts.py": contracts,
+            "qualify-proxy-native-go-attribution.py": runner,
+        }
+        for name, path in frozen_files.items():
+            if checkpoint_files.get(name) != sha(path):
+                raise RuntimeError(f"checkpoint hash mismatch: {name}")
+        if (checkpoint["inputs"]["plan"]["sha256"] != sha(plan)
+                or checkpoint["inputs"]["effective_settings"]["sha256"] != sha(settings)):
+            raise RuntimeError("checkpoint plan/settings hash mismatch")
+
+        filesystem = require_success(run_owned(["findmnt", "-no", "FSTYPE", "--target", parent], "findmnt"), "findmnt")
+        if filesystem in ("tmpfs", "ramfs"):
+            raise RuntimeError("build parent must be disk-backed, not tmpfs/ramfs")
+        manifest["build_parent_filesystem"] = filesystem
+
+        resolved = require_success(run_owned(["git", "-C", repo, "rev-parse", BASE_REF + "^{commit}"], "git-commit"), "git rev-parse commit")
+        tree = require_success(run_owned(["git", "-C", repo, "rev-parse", BASE_REF + "^{tree}"], "git-tree"), "git rev-parse tree")
+        if resolved != BASE_REF:
+            raise RuntimeError("base ref does not resolve to the exact immutable commit")
+        manifest["source_tree"] = tree
+
+        source.mkdir()
+        require_success(run_owned(["git", "-C", repo, "archive", "--format=tar", BASE_REF], "git-archive", stdout_path=archive), "git archive")
+        manifest["source_archive"] = dict(path=archive.name, sha256=sha(archive))
+        require_success(run_owned(["tar", "-xf", archive, "-C", source], "extract-archive"), "tar extract")
+        patch_log = root / "patch.log"
+        require_success(run_owned(["patch", "-p1", "--forward", "--batch"], "patch-forward", cwd=source,
+                                  stdin_path=patch, stdout_path=patch_log), "patch forward")
+        reverse_log = root / "patch-reverse-dry-run.log"
+        require_success(run_owned(["patch", "-p1", "--reverse", "--dry-run", "--batch", "-i", patch],
+                                  "patch-reverse", cwd=source, stdout_path=reverse_log), "patch reverse dry-run")
+        applied = {path: sha(source / path) for path in APPLIED_FILES}
+        for path, digest in applied.items():
+            if checkpoint_files.get(path) != digest:
+                raise RuntimeError(f"applied source differs from checkpoint: {path}")
+        manifest["applied_source_files"] = applied
+        manifest["patch_replay"] = dict(forward_log=dict(path=patch_log.name, sha256=sha(patch_log)),
+                                        reverse_log=dict(path=reverse_log.name, sha256=sha(reverse_log)))
+
+        temp = root / "gotmp"
+        temp.mkdir()
+        env = dict(os.environ)
+        for key in ("TMPDIR", "TEMP", "TMP", "GOTMPDIR"):
+            env[key] = str(temp)
+        env.update(GOFLAGS="", GOWORK="off", GOTOOLCHAIN="local")
+        env["PATH"] = str(GO.parent) + os.pathsep + env.get("PATH", "")
+        manifest["temporary_environment"] = {key: env[key] for key in ("TMPDIR", "TEMP", "TMP", "GOTMPDIR")}
+        manifest["go"] = dict(path=str(GO), sha256=sha(GO))
+        save_manifest()
+
+        goversion = require_success(run_owned([GO, "env", "GOVERSION"], "go-env-goversion", cwd=source, env=env), "go env GOVERSION")
+        if goversion != "go1.26.6":
+            raise RuntimeError("pinned Go toolchain mismatch")
+        manifest["go"]["env"] = {}
+        for key in ("GOVERSION", "GOTOOLCHAIN", "GOFLAGS", "GOWORK"):
+            manifest["go"]["env"][key] = require_success(run_owned([GO, "env", key], "go-env-" + key.lower(), cwd=source, env=env), "go env " + key)
+
+        binary = root / "proxy-native-go-attribution.test"
+        compiler_command = [str(GO), "test", "-c", "-o", str(binary), "./internal/server"]
+        build_started = time.monotonic()
+        build_started_utc = utc()
+        manifest["build"] = dict(command=compiler_command, started_utc=build_started_utc,
+                                 timeout_seconds=BUILD_TIMEOUT_SECONDS, state="running")
+        save_manifest()
+        completed = run_owned(compiler_command, "compile", cwd=source, env=env,
+                              timeout=BUILD_TIMEOUT_SECONDS, stdout_path=build_log)
+        manifest["build"].update(state="finished", finished_utc=utc(),
+                                 elapsed_seconds=time.monotonic() - build_started,
+                                 exit_code=completed.returncode, timed_out=False,
+                                 forced_group_cleanup=False, group_alive_after_cleanup=False,
+                                 log_sha256=sha(build_log))
+        save_manifest()
+        if completed.returncode:
+            raise RuntimeError(f"Go compile exited {completed.returncode}")
+
+        # Metadata is a separate bounded phase. Each result is persisted before
+        # the next command, so a metadata failure cannot erase the clean build.
+        selected = require_success(run_owned(
+            [GO, "list", "-f", '{{join .GoFiles "\\n"}}\n{{join .TestGoFiles "\\n"}}', "./internal/server"],
+            "go-list-selected", cwd=source, env=env), "go list selected files")
+        manifest["selected_files"] = selected.splitlines()
+        save_manifest()
+        go_version = require_success(run_owned([GO, "version"], "go-version", cwd=source, env=env), "go version")
+        build_info = require_success(run_owned([GO, "version", "-m", binary], "go-version-m", cwd=source, env=env), "go version -m")
+        build_id = require_success(run_owned([GO, "tool", "buildid", binary], "go-buildid", cwd=source, env=env), "go tool buildid")
+        if "-tags" in build_info or not build_info.splitlines() or not build_info.splitlines()[0].endswith(": go1.26.6"):
+            raise RuntimeError("ordinary tag-off Go1.26.6 binary required")
+        manifest["go"]["version"] = go_version
+        manifest["binary"] = dict(path=str(binary), sha256=sha(binary), build_id=build_id, build_info=build_info)
+        manifest["source_overlay"] = dict(path=patch.name, sha256=sha(patch))
+        manifest["runner"] = dict(path=runner.name, sha256=sha(runner))
+        manifest["contracts"] = dict(path=contracts.name, sha256=sha(contracts))
+        manifest["builder_sha256"] = sha(builder_copy)
+        manifest["readme_sha256"] = sha(readme)
+        manifest["source_checkpoint_sha256"] = sha(checkpoint_path)
+        manifest["plan_sha256"] = sha(plan)
+        manifest["effective_settings_sha256"] = sha(settings)
+        manifest["owned_exec_shim"] = dict(path=shim.name, sha256=sha(shim), python=str(shim_python), python_sha256=sha(shim_python))
+        manifest["complete"] = True
+    except BaseException as error:
+        failure = error
+        manifest["errors"].append(dict(stage="build-or-metadata", error=repr(error), recorded_utc=utc()))
+    finally:
+        # Prevent repeated TERM/INT from escaping bounded cleanup or outcome
+        # persistence. Restore caller handlers only after the manifest is durable.
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        if manifest.get("build", {}).get("state") == "running":
+            command_record = next((record for record in reversed(manifest["commands"])
+                                   if record.get("label") == "compile"), {})
+            manifest["build"].update(
+                state="failed", finished_utc=command_record.get("finished_utc", utc()),
+                exit_code=command_record.get("exit_code"),
+                timed_out=command_record.get("timed_out", False),
+                forced_group_cleanup=bool(command_record.get("cleanup")),
+                group_alive_after_cleanup=command_record.get("cleanup", {}).get("group_alive_after_cleanup"),
+                log_sha256=sha(build_log) if build_log.exists() else None,
+            )
+        for group, process, label in reversed(process_records):
+            if process_group_alive(group):
+                outcome = terminate_process_group(group, process)
+                manifest["cleanup"].append(dict(label=label, outcome=outcome))
+                if outcome["group_alive_after_cleanup"]:
+                    manifest["errors"].append(dict(stage="cleanup", error=f"process group survived: {label}"))
+        manifest["finished_utc"] = utc()
+        manifest["complete"] = bool(manifest.get("complete") and not manifest["cleanup"] and not manifest["errors"])
+        save_manifest()
+        signal.signal(signal.SIGTERM, old_sigterm)
+        signal.signal(signal.SIGINT, old_sigint)
+
+    if failure is not None or not manifest["complete"]:
+        raise RuntimeError(f"bounded build failed; evidence preserved at {root}") from failure
+    print(root)
+
+
+if __name__ == "__main__":
+    main()

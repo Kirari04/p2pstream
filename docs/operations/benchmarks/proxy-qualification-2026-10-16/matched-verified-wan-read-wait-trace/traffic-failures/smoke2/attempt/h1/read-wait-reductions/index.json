@@ -1,0 +1,58 @@
+{
+  "diagnostic_only": true,
+  "duration_relation_to_copy_observer": "descriptive-only",
+  "entries": [
+    {
+      "certificate_der_sha256": "80ce1bad36befd7262a7e31149d3e1cc5290ca4d7c94e33f9251132f8f45dac8",
+      "origin_connection_id": null,
+      "parsed_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/read-wait-reductions/sequence-9.parsed.txt",
+      "parsed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "parser_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/read-wait-reductions/sequence-9.parser.status",
+      "parser_status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "public_protocol": "h1",
+      "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/results.read-wait-traces/runtime-trace-sequence-9.out",
+      "raw_sha256": null,
+      "reduction_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/read-wait-reductions/sequence-9.reduction.json",
+      "reduction_sha256": "436297f68cf93cc7ff0bbd992c2319247d8bab0be371c725c07e6ae4c66d7970",
+      "runner_sha256": "127da1ef1f1a8923fa00b218bf8458cb83f67f8c2b97f5fb2a353162c4624ed6",
+      "sequence": 9,
+      "server_binary_sha256": "47981bcd767fb7eb3e1456ae4d99c6d80d9fffc62eecb6be0fb67f9245f8b2aa",
+      "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+    },
+    {
+      "certificate_der_sha256": "80ce1bad36befd7262a7e31149d3e1cc5290ca4d7c94e33f9251132f8f45dac8",
+      "origin_connection_id": null,
+      "parsed_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/read-wait-reductions/sequence-11.parsed.txt",
+      "parsed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "parser_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/read-wait-reductions/sequence-11.parser.status",
+      "parser_status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "public_protocol": "h1",
+      "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/results.read-wait-traces/runtime-trace-sequence-11.out",
+      "raw_sha256": null,
+      "reduction_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/read-wait-reductions/sequence-11.reduction.json",
+      "reduction_sha256": "3dd778171ba6a411e79185868c1d1d6e6e895e292c9f092a573a70f6dff16490",
+      "runner_sha256": "127da1ef1f1a8923fa00b218bf8458cb83f67f8c2b97f5fb2a353162c4624ed6",
+      "sequence": 11,
+      "server_binary_sha256": "47981bcd767fb7eb3e1456ae4d99c6d80d9fffc62eecb6be0fb67f9245f8b2aa",
+      "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+    },
+    {
+      "certificate_der_sha256": "80ce1bad36befd7262a7e31149d3e1cc5290ca4d7c94e33f9251132f8f45dac8",
+      "origin_connection_id": null,
+      "parsed_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/read-wait-reductions/sequence-13.parsed.txt",
+      "parsed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "parser_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/read-wait-reductions/sequence-13.parser.status",
+      "parser_status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "public_protocol": "h1",
+      "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/results.read-wait-traces/runtime-trace-sequence-13.out",
+      "raw_sha256": null,
+      "reduction_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/runs/tiny-read-wait-smoke-2/h1/read-wait-reductions/sequence-13.reduction.json",
+      "reduction_sha256": "db82a596f92c25220f95dddc7e12e3f7d12a4439f36d621b888780ed4cf0e053",
+      "runner_sha256": "127da1ef1f1a8923fa00b218bf8458cb83f67f8c2b97f5fb2a353162c4624ed6",
+      "sequence": 13,
+      "server_binary_sha256": "47981bcd767fb7eb3e1456ae4d99c6d80d9fffc62eecb6be0fb67f9245f8b2aa",
+      "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+    }
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,102 @@
+{
+  "allowed_conditioning": "Independently reconstruct exact mature reuse_expectations from canonical raw GotConn/PutIdleConn, origin IDs and timestamps for all8 postwarmup rows. Full conditioning_issues list must equal exactly the sequence13..16 fully evidenced reuse/idle/origin conditioning messages implied by those raw predicates. All unknown/nonreuse conditioning issues reject.",
+  "attempts_per_arm": 1,
+  "bounds": {
+    "arm_stream_bytes_each": 16777216,
+    "artifact_tree_bytes": 268435456,
+    "original_supervision": "Unchanged execute_owned, process ownership, joined-ps wrapper and bounded cleanup; no adopted children or forced cleanup permitted",
+    "per_arm_timeout_seconds": 930,
+    "semantics": "Original polled rejection threshold, overshoot possible; complete logs retained; no raised cap",
+    "validator_stream_bytes_each": 1048576
+  },
+  "continuation": "Run all three fresh arms whenever structural and initial conditioning contracts hold. No performance or fully evidenced postwarmup13..16 reuse outcome stops later arms; specifically slow Reno never suppresses final CUBIC. No reused historical controls.",
+  "fixed_inputs": "Same accepted endpoint binaries/receipt, original256MiB payloads for all16 rows, H2/80ms/exact strictly-above8MiB pool predicates/four data lanes, hook/observer/CPU/network/cgroup/certificate policy. Joined-ps wrapper and mature validators unchanged. Zero builds.",
+  "floor_bytes_per_second": 29700000,
+  "history": "Prior narrow screen stopped on an extra CUBIC floor; vector screen stopped on fully evidenced15/16 origin replacements after34seconds with30second idle policy. No Reno ever ran. Neither cohort is reused, relabeled accepted, nor erased.",
+  "interpretation_limit": "Fixed-order finite diagnostic; order confounded and one Reno arm. No randomized causal proof, same-reused-stream claim, HyStart attribution, production Reno recommendation, original96-transfer, HAProxy, parity, merge or release clearance. All historical failures and original qualification failure persist.",
+  "mature_partition": "Preserve complete unchanged independently regenerated mature_attestation including original accepted, integrity_issues, conditioning_issues, performance_issues, validation_issues, classifications and status. accepted equals absence of all three issue partitions, not just performance. Diagnostic eligibility is separate.",
+  "max_transfers": 48,
+  "numerical_method": "Exact Fraction of validated recorded integer/IEEEfloat rates for comparisons; no epsilon, clipping, rounded boundary decisions or wall-inverse alternative primary. Validate each row exactly matches original generated jq formula configured_payload_bytes / wall_seconds under binary64 division. Floats only display pooled summaries. Read sums remain integers.",
+  "offline_test_bounds": {
+    "attempts": 1,
+    "no_builds": true,
+    "no_sockets": true,
+    "no_traffic": true,
+    "outer_seconds": 25,
+    "stream_bytes_each": 1048576
+  },
+  "offline_test_command": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-policy.py"
+  ],
+  "order": [
+    "cubic",
+    "reno",
+    "cubic"
+  ],
+  "original_download_floor_sequences": [
+    1,
+    2,
+    3,
+    4,
+    9,
+    11,
+    14,
+    15
+  ],
+  "primary": {
+    "all_criteria_reported": true,
+    "candidate_floors": "All eight original mature download floors29,700,000bytes/s and all original mature performance predicates; evaluated only after all3 complete eligible arms",
+    "candidate_pooled_minimum": "100 * candidate_exact_pool >=108 * max(control0_exact_pool,control2_exact_pool)",
+    "diagnostic_positive": "Conjunction of pooled108%, each-download95%, positive/lower Read, original candidate floors and candidate mature performance. Mature conditioning failure may coexist with diagnostic_positive. No floor/reproduction gate on CUBIC inclusion.",
+    "endpoint": "aggregate active-transfer useful-byte rate excluding between-request instrumentation/validation gaps; reconnection work within request wall durations is included",
+    "exact_definition": "Fraction(4) / sum(Fraction(1) / Fraction(recorded_bytes_per_second[n])) for exactly[9,11,14,15]",
+    "no_regression": "For EACH retained download candidate rate >=95/100 * max(corresponding control0 rate,control2 rate)",
+    "read": "Sum all4 upstream_read.total_ns; candidate positive and strictly less than BOTH control sums"
+  },
+  "question": "whole fixed-workload data-controller dependence including ordinary postwarmup origin reconnections within the same five owned tunnel TCP sessions",
+  "rejected_fixtures": "Read-only historical arm classifier contract test only. Never historical benchmark/control reuse. No saved fixture modified.",
+  "reported_postwarmup_sequences": [
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+  ],
+  "reported_upload_sequences": [
+    10,
+    12,
+    13,
+    16
+  ],
+  "retained_sequences": [
+    9,
+    11,
+    14,
+    15
+  ],
+  "runtime_command": [
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-policy.py",
+    "--execute-approved-once"
+  ],
+  "runtime_requires_root_final_grant": true,
+  "runtime_root_must_remain_absent": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once",
+  "schema_version": 1,
+  "secondary_reports": "All16 rates; all4 retained Read/Write/wall/handler values; all8 postwarmup payload/rate/wall; upload and all8 harmonic active-transfer rates and total measured wall durations; all8 exact reuse expectations and full raw16 origin traces with GotConn/PutIdleConn times, IDs, reused/was_idle, plus reuse counts; each original download floor outcome symmetrically, preserved mature conditioning/performance issues, both control pooled values and ratio, candidate ratios to each control. Secondary upload/all8 rates have no new decision thresholds.",
+  "status": "prospective SOURCE ONLY; no tests/validators/builds/traffic executed; separate root grants required",
+  "structural_stop": "Any integrity, malformed/missing/negative-time origin evidence, pool/state setup, controller binding, capture coverage, namespaces, resources, ownership or natural-join failure stops remaining traffic and reports comparison_incomplete. Initial four first-post-close lane visits9..12 retain exact fresh-key checks. Physical tunnel TCP owner/session replacement remains outside valid scope.",
+  "supported_revisit_identity": "Exact expected tunnel/lane key required (Yamux stream address is physical session address). In this serial workload reused==was_idle; reused=true requires same origin; reused=false requires changed origin and zero idle_time_ns. Fully evidenced reused=true with elapsed>=30seconds is a retained-origin timing outcome, not a structural failure. No exact timer causation claim.",
+  "transfers_per_arm": 16
+}

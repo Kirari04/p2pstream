@@ -1,0 +1,48 @@
+package main
+
+import (
+ "bufio"
+ "encoding/json"
+ "fmt"
+ "net/http"
+ "os"
+ "runtime"
+ "runtime/debug"
+ "strings"
+)
+
+func main() {
+ const target = 65000
+ prefix := "GET / HTTP/1.1\r\nHost: public.test\r\n"
+ one := prefix + "X: " + strings.Repeat("a", target-len(prefix)-7) + "\r\n\r\n"
+ var b strings.Builder
+ b.WriteString(prefix)
+ for i := 0; ; i++ {
+  line := fmt.Sprintf("X%x:\r\n", i)
+  if b.Len()+len(line)+2 > target { break }
+  b.WriteString(line)
+ }
+ b.WriteString("\r\n")
+ many := b.String()
+ for _, test := range []struct{name, wire string}{{"one_large_value", one}, {"many_distinct_empty_keys", many}} {
+  runtime.GC()
+  old := debug.SetGCPercent(-1)
+  held := make([]*http.Request, 10)
+  var before, after runtime.MemStats
+  runtime.ReadMemStats(&before)
+  for i := range held {
+   req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(test.wire)))
+   if err != nil { panic(err) }
+   held[i] = req
+  }
+  runtime.ReadMemStats(&after)
+  _ = json.NewEncoder(os.Stdout).Encode(map[string]any{
+   "case":test.name, "wire_bytes":len(test.wire), "header_keys":len(held[0].Header),
+   "alloc_bytes_per_parse":(after.TotalAlloc-before.TotalAlloc)/uint64(len(held)),
+   "heap_delta_without_gc_per_parse":(after.HeapAlloc-before.HeapAlloc)/uint64(len(held)),
+   "toolchain":runtime.Version(),
+  })
+  runtime.KeepAlive(held)
+  debug.SetGCPercent(old)
+ }
+}

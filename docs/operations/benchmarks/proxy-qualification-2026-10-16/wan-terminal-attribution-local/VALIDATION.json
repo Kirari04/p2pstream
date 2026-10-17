@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "audit_scope": "File-copy/hash/log consistency and nonprinting fixture-content audit only; no build/test/runtime invocation.",
+  "copies_verified_against_actual_sources": 79,
+  "actual_final_source_files_rehashed": 459,
+  "actual_final_source_bytes": 8164026,
+  "original_materialization_map_hash_verified": true,
+  "exact_manifest_correction_verified": true,
+  "stopped_first_preflight_preserved": true,
+  "accepted_second_window_log_counts_verified": {
+    "python": 7,
+    "normal": 170,
+    "race": 170
+  },
+  "nonprinting_fixture_scan": {
+    "passed": true,
+    "rules": [
+      "prohibited file formats",
+      "binary NUL",
+      "PEM private key/certificate material",
+      "exact known fixture payload fragments",
+      "known local management credential"
+    ],
+    "matched_content_printed": false
+  },
+  "go_source_artifacts_exported_as_text": 10,
+  "go_files_remaining": 0,
+  "copy_bytes": 586862,
+  "package_membership_exact": true
+}

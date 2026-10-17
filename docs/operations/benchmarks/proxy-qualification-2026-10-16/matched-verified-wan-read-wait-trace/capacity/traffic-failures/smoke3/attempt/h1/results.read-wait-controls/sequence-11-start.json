@@ -1,0 +1,40 @@
+{
+  "action": "start",
+  "error": "",
+  "http_status": 200,
+  "request_elapsed_ns": 6645881,
+  "request_started_unix_ns": 1792181420910664069,
+  "response": {
+    "action": "start",
+    "capture": {
+      "active_requests": 0,
+      "candidate_requests": 0,
+      "complete": false,
+      "controller_timed_out": false,
+      "expected_method": "GET",
+      "expected_path": "/agent/bulk",
+      "issue_overflow": false,
+      "issues": null,
+      "marked_requests": 0,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-3/h1/results.read-wait-traces/runtime-trace-sequence-11.out",
+      "region_type": "public-proxy-handler",
+      "requests_outside_capture": 0,
+      "sequence": "11",
+      "started_unix_ns": 1792181420917047832,
+      "state": "active",
+      "task_type": "wan-read-wait-request",
+      "valid": false,
+      "writer": {
+        "bytes": 0,
+        "cap_bytes": 67108864,
+        "input_bytes": 0,
+        "overflow": false
+      }
+    },
+    "error": "",
+    "owner_violation_overflow": false,
+    "owner_violations": null
+  },
+  "schema_version": 1,
+  "sequence": "11"
+}

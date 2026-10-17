@@ -1,0 +1,29 @@
+import csv,json
+from pathlib import Path
+root=Path(__file__).resolve().parent
+run_dir=next(root.glob('proxy-agent-growth.*'))
+metadata={}
+for path in run_dir.glob('*-server.ready.json'):
+ value=json.loads(path.read_text());metadata[path.name.replace('.ready.json','.log')]={k:value[k] for k in ('pid','url','admin_url','management_url') if k in value}
+lanes=[]
+for path in sorted(run_dir.glob('*-server.log')):
+ label='aggregate-v1' if 'aggregate-v1' in path.name else 'legacy'
+ for line in path.read_text().splitlines():
+  try: r=json.loads(line)
+  except json.JSONDecodeError: continue
+  if r.get('message')=='Agent tunnel connected successfully':
+   lanes.append({'mode':label,'remote_addr':r['remote_addr'],'lane':r['tunnel_lane'],'server_log':path.name,'connected_at':r['time'],'server_metadata':metadata[path.name]})
+lookup={(r['mode'],r['remote_addr']):r['lane'] for r in lanes}
+phases=json.loads((root/'tcp-phases.json').read_text())
+for p in phases:
+ remote=p['local'] if p['sender']=='agent' else p['peer']
+ p['lane']=lookup[(p['mode'],remote)]
+(root/'tcp-phases-with-lanes.json').write_text(json.dumps(phases,indent=2)+'\n')
+(root/'physical-lanes.json').write_text(json.dumps(lanes,indent=2)+'\n')
+with (root/'tcp-active-sender.csv').open() as f: rows=list(csv.DictReader(f))
+for r in rows:
+ remote=r['local'] if r['side']=='agent' else r['peer']
+ r['lane']=lookup[(r['mode'],remote)]
+with (root/'tcp-active-sender-with-lanes.csv').open('w') as f:
+ writer=csv.DictWriter(f,fieldnames=list(rows[0])); writer.writeheader(); writer.writerows(rows)
+print('Mapped',len(lanes),'physical connections and',len(phases),'transfer phases to exact logged lane IDs')

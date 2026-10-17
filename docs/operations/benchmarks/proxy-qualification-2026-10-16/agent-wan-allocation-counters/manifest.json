@@ -1,0 +1,83 @@
+{
+  "diagnostic_only": true,
+  "prior_aborted_capture": "/tmp/p2pstream-wan-allocation-diagnostic.a2vmub9x",
+  "capture_validator_correction": "control lane0 stays legacy/disabled; require aggregate counters only bulk1..4; preserve decoded snapshot before validation",
+  "observer_lock_note": "reservation counters reuse held aggregate mutex; byte-zero observations add an acquisition of the existing ledger mutex",
+  "production_base_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "tagged_diagnostic_source_ref": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+  "build_tags": [
+    "p2pstream_qualification"
+  ],
+  "actual_binaries": {
+    "server": {
+      "path": "/tmp/p2pstream-wan-allocation-fixed.tfvi9387/bin/server.test",
+      "original_path": "/tmp/p2pstream-data-counter-diagnostic.PtocI3/server.test",
+      "sha256": "bdeec7bdc9b381237c194de7b99c1126841f427618d24213847a1f8c280d99c7"
+    },
+    "aggregate-agent": {
+      "path": "/tmp/p2pstream-wan-allocation-fixed.tfvi9387/bin/aggregate-agent.test",
+      "original_path": "/tmp/p2pstream-data-counter-diagnostic.PtocI3/agent.test",
+      "sha256": "3c81510fd39b6c341a106bbc06e7fa58fc3db8179d843a58c60648ec4e881e0c"
+    },
+    "legacy-agent": {
+      "path": "/tmp/p2pstream-wan-allocation-fixed.tfvi9387/bin/legacy-agent.test",
+      "original_path": "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec"
+    }
+  },
+  "source_archive_sha256": "9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76",
+  "clean_build_manifest_sha256": "1369f4d5c83c83ec3c297df9002f5dbc5ec2e8c714980a464f353f5fd430c6d2",
+  "clean_build_manifest_note": "external SHA256SUMS verifies final manifest bytes; no self-hash line",
+  "command": [
+    "bash",
+    "/tmp/p2pstream-wan-allocation-fixed.tfvi9387/scripts/qualify-proxy-agent-allocation-drain-diagnostic.sh",
+    "--server-binary",
+    "/tmp/p2pstream-wan-allocation-fixed.tfvi9387/bin/server.test",
+    "--aggregate-agent-binary",
+    "/tmp/p2pstream-wan-allocation-fixed.tfvi9387/bin/aggregate-agent.test",
+    "--legacy-agent-binary",
+    "/tmp/p2pstream-wan-allocation-fixed.tfvi9387/bin/legacy-agent.test",
+    "--output",
+    "/tmp/p2pstream-wan-allocation-fixed.tfvi9387/results.jsonl",
+    "--runs",
+    "1",
+    "--warmup-mib",
+    "256",
+    "--steady-mib",
+    "256",
+    "--transfer-repetitions",
+    "3",
+    "--required-pool-mib",
+    "8",
+    "--rtt-ms",
+    "80",
+    "--server-source-ref",
+    "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "--aggregate-agent-source-ref",
+    "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "--legacy-agent-source-ref",
+    "3ec137c3ad3d07028e867042fb00d3933912d7ab"
+  ],
+  "native_profiles": false,
+  "live_credit_or_tcp_polling": false,
+  "send_counter_semantics": "successful DATA reservation totals; overlapping zero-credit observations are counts, not durations",
+  "ring_capacity": 4096,
+  "ring_semantics": "bounded private mutex at existing completed sample epochs; pointers retained only until bounded drain; overflow counted; diagnostic observer remains",
+  "retrieval": "server and current agent after original transfer result append; frozen legacy agent skips HTTP;2s request timeout/4MiB response cap",
+  "post_transfer_added_delay": "Bash EPOCHREALTIME bookends full two-subprocess drains in growth/post-drain-delays.tsv",
+  "go_runtime_environment": {
+    "GOMAXPROCS": null,
+    "GOGC": null,
+    "GOMEMLIMIT": null,
+    "GODEBUG": null
+  },
+  "files_sha256": {
+    "clean-build.SHA256SUMS": "9752525352f7ed0e2616ccc3497dc7a3b1fb1efbc9b23fc995a7acf5352374be",
+    "clean-build-manifest.txt": "1369f4d5c83c83ec3c297df9002f5dbc5ec2e8c714980a464f353f5fd430c6d2",
+    "runner-diagnostic.patch": "d0d42f2de281f13523b32fe01e373573f2fde8b8e696a9d10eb5e58ae58d9c5e",
+    "validator-correction.patch": "7c529a9314f52cef6d3c50c3eae9a7b8edcbbd9d607e9378605c03b4a846ca0a",
+    "drain-growth.py": "a51e066f877b1e64aa65fe5c969577cc06f182213cff58ddd168f1081720a52e",
+    "original-runner.sh": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+    "scripts/qualify-proxy-agent-allocation-drain-diagnostic.sh": "842a08c92b6fc66203cb870febb157370322ab71da70c6b6eb40fdcad5af1909"
+  }
+}

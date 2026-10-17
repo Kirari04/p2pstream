@@ -1,0 +1,559 @@
+--- runner-source/integration/validate-controller-vector.py
++++ runner-source/integration/validate-controller-policy.py
+@@ -1,8 +1,8 @@
+ #!/usr/bin/env python3
+-"""Fresh whole-retained-vector C/R/C; preserve every mature control outcome."""
++"""Fresh whole-workload controller-policy C/R/C; preserve every mature outcome."""
+ from pathlib import Path
+ from fractions import Fraction
+-import hashlib,importlib.util,json,math,stat,subprocess,sys
++import copy,hashlib,importlib.util,json,math,stat,subprocess,sys
+ HERE=Path(__file__).resolve().parent
+ ORDER=('cubic','reno','cubic');FLOOR=29_700_000
+ SCHEDULE=[('warmup','download')]*4+[('warmup','upload')]*4+[('retained-warmup','download'),('retained-warmup','upload'),('steady','download'),('steady','upload'),('steady','upload'),('steady','download'),('steady','download'),('steady','upload')]
+@@ -41,6 +41,8 @@
+    if envelope['action']=='post' and tcp['sequence']:
+     require(tcp['sequence']==str(envelope['sequence']) and tcp['pre_tcp_info']==tcp['threshold_history']['selected_pre_tcp_info'],'selected pre capture uses wrong interval')
+ RETAINED=(9,11,14,15)
++UPLOADS=(10,12,13,16)
++POSTWARMUP=tuple(range(9,17))
+ DOWNLOADS=(1,2,3,4,9,11,14,15)
+ def positive_number(value):
+  return type(value) in (int,float) and math.isfinite(value) and value>0
+@@ -59,35 +61,76 @@
+   require(row['bytes_per_second']==speeds[str(row['sequence'])] and positive_number(row['wall_seconds']),'retained rate/wall differs')
+   require(type(row['upstream_read_ns']) is int and row['upstream_read_ns']>0 and type(row['downstream_write_ns']) is int and row['downstream_write_ns']>=0 and type(row['handler_elapsed_ns']) is int and row['handler_elapsed_ns']>0,'retained copy durations invalid')
+  return {'pooled_bytes_per_second':pooled([speeds[str(n)] for n in RETAINED]),'aggregate_upstream_read_ns':sum(v['upstream_read_ns'] for v in retained)}
++def reuse_outcomes(rows,attestation):
++ """Reconstruct exact mature reuse predicates from canonical raw evidence."""
++ traces=[];expectations=[];conditions=[];first_keys=set()
++ for n,row in enumerate(rows,1):
++  envelope=row['upstream_transport_trace'];matches=envelope['matches']
++  require(envelope['overflow'] is False and envelope['sequence']==str(n) and envelope['store_count']==n and len(matches)==1,'raw trace envelope correlation/cardinality differs')
++  trace=matches[0];download=row['transfer_direction']=='download'
++  require(trace['sequence']==str(n) and trace['method']==('GET' if download else 'POST') and trace['path']==('/agent/bulk' if download else '/agent/bulk-upload') and trace['callback_overflow'] is False,'raw trace request correlation differs')
++  require(type(trace['got_conn']) is list and len(trace['got_conn'])==1 and type(trace['put_idle_conn']) is list and len(trace['put_idle_conn'])==1,'complete GotConn/PutIdleConn evidence required')
++  got=trace['got_conn'][0];put=trace['put_idle_conn'][0];tls=row['wan_response_tls']
++  require(type(tls) is list and len(tls)==1 and type(tls[0]['origin_connection_id']) is str and tls[0]['origin_connection_id'],'origin identity missing')
++  require(all(type(got[k]) is str and got[k] for k in ['connection_type','local_address','remote_address']),'origin stream identity missing')
++  require(type(got['reused']) is bool and type(got['was_idle']) is bool and type(got['idle_time_ns']) is int and got['idle_time_ns']>=0,'raw reuse flags/idle duration malformed')
++  times=[trace['started_unix_ns'],got['observed_unix_ns'],put['observed_unix_ns'],trace['handler_return_unix_ns']]
++  require(all(type(t) is int and t>0 for t in times) and times==sorted(times) and not put.get('error'),'raw trace timestamps or idle release invalid')
++  traces.append({'sequence':n,'lane_position':((n-9)%4+1) if n>=9 else None,'origin_connection_id':tls[0]['origin_connection_id'],'connection_key':'|'.join(got[k] for k in ['connection_type','local_address','remote_address']),'raw_trace':copy.deepcopy(trace)})
++ for n in range(9,13):
++  t=traces[n-1];got=t['raw_trace']['got_conn'][0];key=t['connection_key']
++  satisfied=key not in first_keys and got['reused'] is False and got['was_idle'] is False and got['idle_time_ns']==0
++  require(satisfied,'initial post-close four-lane conditioning failed');first_keys.add(key)
++  expectations.append({'sequence':n,'kind':'first-post-close-visit','lane_position':n-8,'connection_key':key,'satisfied':True})
++ for n in range(13,17):
++  current=traces[n-1];first=traces[n-5];got=current['raw_trace']['got_conn'][0];prior_put=first['raw_trace']['put_idle_conn'][0]['observed_unix_ns'];elapsed=got['observed_unix_ns']-prior_put
++  require(elapsed>=0,'revisit time precedes prior PutIdleConn')
++  require(current['connection_key']==first['connection_key'],'unsupported revisit tunnel/lane key change')
++  require(got['reused'] is got['was_idle'],'serial revisit reuse/idle flags contradict')
++  require((got['reused'] and current['origin_connection_id']==first['origin_connection_id']) or (not got['reused'] and got['idle_time_ns']==0 and current['origin_connection_id']!=first['origin_connection_id']),'revisit origin identity/reuse flags contradict')
++  satisfied=current['connection_key']==first['connection_key'] and got['reused'] is True and got['was_idle'] is True and elapsed<30_000_000_000 and current['origin_connection_id']==first['origin_connection_id']
++  expectations.append({'sequence':n,'kind':'same-key-revisit','lane_position':n-12,'connection_key':current['connection_key'],'expected_connection_key':first['connection_key'],'prior_put_idle_unix_ns':prior_put,'got_conn_unix_ns':got['observed_unix_ns'],'elapsed_idle_ns':elapsed,'httptrace_idle_time_ns':got['idle_time_ns'],'prior_origin_connection_id':first['origin_connection_id'],'observed_origin_connection_id':current['origin_connection_id'],'satisfied':satisfied})
++  if not satisfied:conditions.append(f'sequence {n} fully evidenced reuse/idle/origin conditioning was not retained')
++ require(attestation['reuse_expectations']==expectations,'attested reuse expectations disagree with raw evidence')
++ require(attestation['conditioning_issues']==conditions,'unknown, uncorrelated or initial conditioning failure')
++ return {'raw_origin_traces':traces,'reuse_expectations':expectations,'revisit_outcome_counts':{'total':4,'satisfied':sum(e['satisfied'] for e in expectations[4:]),'unsatisfied':sum(not e['satisfied'] for e in expectations[4:])},'origin_outcome_counts':{'retained':sum(t['raw_trace']['got_conn'][0]['reused'] for t in traces[12:]),'fresh_replacement':sum(not t['raw_trace']['got_conn'][0]['reused'] for t in traces[12:])},'revisit_outcomes':[dict(e,reused=traces[e['sequence']-1]['raw_trace']['got_conn'][0]['reused'],was_idle=traces[e['sequence']-1]['raw_trace']['got_conn'][0]['was_idle'],outcome='retained-origin' if traces[e['sequence']-1]['raw_trace']['got_conn'][0]['reused'] else 'fresh-origin-replacement') for e in expectations[4:]]}
++def mature_partition(attestation):
++ fields=['integrity_issues','conditioning_issues','performance_issues']
++ require(all(type(attestation[k]) is list and all(type(v) is str for v in attestation[k]) for k in fields),'mature issue partitions malformed')
++ require(attestation['validation_issues']==sum((attestation[k] for k in fields),[]) and attestation['continuation_safe'] is (not attestation['integrity_issues']),'mature partition/continuation malformed')
++ require(type(attestation['accepted']) is bool and attestation['accepted']==(not any(attestation[k] for k in fields)),'mature accepted outcome malformed')
+ def decide_arm(index,rows,attestation):
+  require(type(index) is int and 0<=index<3,'invalid arm index')
+  require(type(rows) is list and len(rows)==16 and [(r['measurement_stage'],r['transfer_direction']) for r in rows]==SCHEDULE and [r['diagnostic_sequence'] for r in rows]==list(range(1,17)),'exact16 transfer schedule differs')
+  require(all(r['configured_payload_bytes']==268435456 and r['public_protocol']=='h2' and r['configured_rtt_ms']==80 for r in rows),'payload/protocol/RTT differs')
+- require(attestation['integrity_issues']==[] and attestation['conditioning_issues']==[],'arm integrity/conditioning failed')
+- issues=attestation['performance_issues'];require(type(issues) is list and all(type(v) is str for v in issues) and type(attestation['accepted']) is bool and attestation['accepted']==(not issues),'mature performance outcome malformed')
++ mature_partition(attestation)
++ require(attestation['integrity_issues']==[],'arm integrity failed')
++ require(all(positive_number(r['wall_seconds']) and positive_number(r['useful_transfer_bytes_per_second']) and r['useful_transfer_bytes_per_second']==r['configured_payload_bytes']/r['wall_seconds'] for r in rows),'recorded rate/payload/wall differs from original jq division')
++ outcomes=reuse_outcomes(rows,attestation)
++ issues=attestation['performance_issues']
+  speeds={str(r['diagnostic_sequence']):r['useful_transfer_bytes_per_second'] for r in rows}
+  retained=[]
+  for n in RETAINED:
+   row=rows[n-1];matches=row['response_copy_attribution']['matches'];require(len(matches)==1,'single retained copy record required')
+-  record=matches[0];copy=record['copy']
+-  retained.append({'sequence':n,'stage':row['measurement_stage'],'bytes_per_second':speeds[str(n)],'wall_seconds':row['wall_seconds'],'handler_elapsed_ns':record['handler_elapsed_ns'],'upstream_read_ns':copy['upstream_read']['total_ns'],'downstream_write_ns':copy['downstream_write']['total_ns']})
+- value={'schema_version':1,'diagnostic':'whole-retained-vector','arm_index':index,'controller':ORDER[index],'eligible_for_diagnostic':True,'mature_performance_accepted':attestation['accepted'],'mature_performance_issues':issues.copy(),'speeds':speeds,'retained_downloads':retained,'eligibility_issues':[]}
++  record=matches[0];attribution=record['copy']
++  retained.append({'sequence':n,'stage':row['measurement_stage'],'bytes_per_second':speeds[str(n)],'wall_seconds':row['wall_seconds'],'handler_elapsed_ns':record['handler_elapsed_ns'],'upstream_read_ns':attribution['upstream_read']['total_ns'],'downstream_write_ns':attribution['downstream_write']['total_ns']})
++ value={'schema_version':1,'diagnostic':'whole-workload-controller-policy','arm_index':index,'controller':ORDER[index],'eligible_for_diagnostic':True,'mature_accepted':attestation['accepted'],'mature_conditioning_issues':attestation['conditioning_issues'].copy(),'mature_performance_issues':issues.copy(),'mature_attestation':copy.deepcopy(attestation),'speeds':speeds,'retained_downloads':retained,'eligibility_issues':[]}
+  value.update(arm_statistics(value))
+- if index==1 and (not attestation['accepted'] or any(speeds[str(n)]<FLOOR for n in DOWNLOADS)):
+-  value['eligible_for_diagnostic']=False;value['eligibility_issues']=['Reno failed at least one original mature download floor']
++ value.update(outcomes)
++ value.update({'measurement_valid':True,'initial_conditions_valid':True,'postwarmup_transfers':[{'sequence':n,'direction':rows[n-1]['transfer_direction'],'payload_bytes':rows[n-1]['configured_payload_bytes'],'wall_seconds':rows[n-1]['wall_seconds'],'bytes_per_second':speeds[str(n)]} for n in POSTWARMUP],'aggregate_active_transfer_rates':{name:float(Fraction(len(sequences))/sum((Fraction(1)/Fraction(speeds[str(n)]) for n in sequences),Fraction(0))) for name,sequences in [('download',RETAINED),('upload',UPLOADS),('all_postwarmup',POSTWARMUP)]},'total_measured_wall_seconds':{name:sum(rows[n-1]['wall_seconds'] for n in sequences) for name,sequences in [('download',RETAINED),('upload',UPLOADS),('all_postwarmup',POSTWARMUP)]},'original_download_floor_outcomes':{str(n):speeds[str(n)]>=FLOOR for n in DOWNLOADS}})
+  return value
+ def decide_screen(arms):
+  require(type(arms) is list and len(arms)==3 and [a['arm_index'] for a in arms]==[0,1,2] and [a['controller'] for a in arms]==list(ORDER),'complete fixed C/R/C required')
+  for arm in arms:
+-  require(arm['diagnostic']=='whole-retained-vector' and arm['eligible_for_diagnostic'] is True and arm['eligibility_issues']==[],'all arms must be independently eligible')
+-  issues=arm['mature_performance_issues'];require(type(issues) is list and all(type(v) is str for v in issues) and type(arm['mature_performance_accepted']) is bool and arm['mature_performance_accepted']==(not issues),'mature control outcome malformed')
++  require(arm['diagnostic']=='whole-workload-controller-policy' and arm['eligible_for_diagnostic'] is True and arm['eligibility_issues']==[],'all arms must be independently eligible')
++  mature_partition(arm['mature_attestation'])
++  require(arm['mature_accepted'] is arm['mature_attestation']['accepted'] and arm['mature_conditioning_issues']==arm['mature_attestation']['conditioning_issues'] and arm['mature_performance_issues']==arm['mature_attestation']['performance_issues'],'reported mature outcome differs')
+  statistics=[arm_statistics(arm) for arm in arms]
+- require(arms[1]['mature_performance_accepted'] is True and all(arms[1]['speeds'][str(n)]>=FLOOR for n in DOWNLOADS),'Reno must pass every original download floor')
+  rates=[v['pooled_bytes_per_second'] for v in statistics];reads=[v['aggregate_upstream_read_ns'] for v in statistics]
+  exact_rates=[pooled_exact([arm['speeds'][str(n)] for n in RETAINED]) for arm in arms]
+  ratios={str(n):float(Fraction(arms[1]['speeds'][str(n)])/max(Fraction(arms[0]['speeds'][str(n)]),Fraction(arms[2]['speeds'][str(n)]))) for n in RETAINED}
+- criteria={'pooled_rate_at_least_108pct_faster_control':100*exact_rates[1]>=108*max(exact_rates[0],exact_rates[2]),'aggregate_read_strictly_below_both_controls':0<reads[1]<min(reads[0],reads[2]),'each_retained_rate_at_least_95pct_faster_control':all(100*Fraction(arms[1]['speeds'][str(n)])>=95*max(Fraction(arms[0]['speeds'][str(n)]),Fraction(arms[2]['speeds'][str(n)])) for n in RETAINED)}
+- return {'schema_version':1,'diagnostic':'whole-retained-vector','accepted':all(criteria.values()),'criteria':criteria,'failed_criteria':[k for k,v in criteria.items() if not v],'arms':arms,'pooled_bytes_per_second':rates,'candidate_pooled_ratio_to_faster_control':float(exact_rates[1]/max(exact_rates[0],exact_rates[2])),'aggregate_upstream_read_ns':reads,'candidate_rate_ratios_to_faster_corresponding_control':ratios,'interpretation':'fresh diagnostic of broad controller dependence only; all mature control failures preserved; no HyStart attribution, production recommendation, original96-transfer, HAProxy, parity, merge or release clearance'}
++ criteria={'candidate_all_original_download_floors':all(arms[1]['speeds'][str(n)]>=FLOOR for n in DOWNLOADS),'candidate_mature_performance_passed':not arms[1]['mature_performance_issues'],'pooled_rate_at_least_108pct_faster_control':100*exact_rates[1]>=108*max(exact_rates[0],exact_rates[2]),'aggregate_read_strictly_below_both_controls':0<reads[1]<min(reads[0],reads[2]),'each_retained_rate_at_least_95pct_faster_control':all(100*Fraction(arms[1]['speeds'][str(n)])>=95*max(Fraction(arms[0]['speeds'][str(n)]),Fraction(arms[2]['speeds'][str(n)])) for n in RETAINED)}
++ return {'schema_version':1,'diagnostic':'whole-workload-controller-policy','accepted':all(criteria.values()),'diagnostic_positive':all(criteria.values()),'original_qualification_cleared':False,'criteria':criteria,'control_pooled_ratio_0_to_2':float(exact_rates[0]/exact_rates[2]),'candidate_pooled_ratios_to_each_control':[float(exact_rates[1]/exact_rates[i]) for i in (0,2)],'rate_endpoint':'aggregate active-transfer rate from recorded rates; excludes between-request gaps','failed_criteria':[k for k,v in criteria.items() if not v],'arms':arms,'pooled_bytes_per_second':rates,'candidate_pooled_ratio_to_faster_control':float(exact_rates[1]/max(exact_rates[0],exact_rates[2])),'aggregate_upstream_read_ns':reads,'candidate_rate_ratios_to_faster_corresponding_control':ratios,'interpretation':'fresh fixed-order whole-workload controller-policy effect including observed postwarmup origin reconnections within the same five owned tunnel TCP sessions; every mature conditioning/performance failure preserved; diagnostic_positive is distinct from mature_accepted; no same-reused-stream claim, randomized causal proof, HyStart attribution, production Reno recommendation, original96-transfer, HAProxy, parity, merge or release clearance'}
+ def validate_arm(index,root,status):
+  expected=ORDER[index];att=load(root/'attestation.json')
+  # Re-run every unchanged authoritative validator, then require exact equality
+@@ -97,7 +140,7 @@
+  result=subprocess.run(argv,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=45,env={'PATH':'/usr/bin:/bin','PYTHONDONTWRITEBYTECODE':'1'})
+  require(result.returncode in [0,1] and load(regen)==att,'independent existing attestation differs')
+  spec=importlib.util.spec_from_file_location('controller_integrity',HERE/'validate-controller-arm-integrity.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+- closure=module.evaluate(load(root/'supervisor-lifecycle.json'),load(root/'outer-namespaces.json'),att);require(closure['accepted'] and closure['conditioning_passed'],'independent natural lifecycle/legacy106/prospective gate failed')
++ closure=module.evaluate(load(root/'supervisor-lifecycle.json'),load(root/'outer-namespaces.json'),att);require(closure['accepted'],'independent natural lifecycle/legacy106/prospective gate failed')
+  require(type(status) is int and status==(0 if att['accepted'] else 1),'outer arm exit differs from existing outcome')
+  require(int((root/'validation.status').read_text())==result.returncode,'saved existing validation status differs')
+  require(load(root/'pre-hashes.json')==load(root/'post-hashes.json'),'source/runner/binary pre/post binding changed')
+--- run-controller-vector.py
++++ run-controller-policy.py
+@@ -153,32 +153,42 @@
+  screen['artifact_bytes']=artifact_bytes();screen['artifact_rejection_threshold_bytes']=BUDGET
+  screen['threshold_semantics']='polled rejection; overshoot possible; complete logs retained; any observed overflow rejects'
+  screen['stream_check_seconds']=POLL_SECONDS;screen['artifact_tree_check_seconds']=INVENTORY_SECONDS
+- if screen['artifact_bytes']>BUDGET-AUDIT_RESERVE:screen.update({'accepted':False,'stopped':True,'failure':'final artifact bound exceeded'})
++ if screen['artifact_bytes']>BUDGET-AUDIT_RESERVE:screen.update({'accepted':False,'diagnostic_positive':False,'comparison_incomplete':True,'stopped':True,'failure':'final artifact bound exceeded'})
+  write_fresh(runroot/'screen-final.json',screen)
+  if not screen['accepted']:raise RuntimeError(screen.get('failure','screen stopped without complete acceptance'))
+ 
+ def main():
+  if sys.argv[1:]!=['--execute-approved-once']:raise SystemExit('requires separately approved runtime command')
+- frozen=json.loads((ROOT/'COMMANDS-vector.json').read_text());grant=(ROOT/'REVIEWED-RECEIPT-SHA256').read_text().strip()
+- if len(grant)!=64 or any(x not in '0123456789abcdef' for x in grant):raise SystemExit('reviewed build receipt absent')
++ frozen=json.loads((ROOT/'COMMANDS-policy.json').read_text());grant=(ROOT/'REVIEWED-RECEIPT-SHA256').read_text().strip()
++ if grant!='d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb':raise SystemExit('exact reviewed build receipt differs')
++ manifest=json.loads((ROOT/'policy-design/SOURCE.json').read_text())
++ for entry in manifest['files']:
++  if hashlib.sha256(Path(entry['path']).read_bytes()).hexdigest()!=entry['sha256']:raise SystemExit('policy source/plan/commands input changed')
+  for entry in json.loads((ROOT/'FROZEN-INPUTS.json').read_text()):
+   if hashlib.sha256(Path(entry['path']).read_bytes()).hexdigest()!=entry['sha256']:raise SystemExit('frozen source/runner/plan input changed')
+- runroot=ROOT/'runner-source/integration/runs/controller-crc-vector-once'
++ runroot=ROOT/'runner-source/integration/runs/controller-crc-policy-once'
+  if runroot.exists():raise SystemExit('fresh complete screen output required; no retry')
+- runroot.mkdir(parents=True);decisions=[];screen={'schema_version':1,'accepted':False,'completed_arms':0,'stopped':True}
++ runroot.mkdir(parents=True);decisions=[];screen={'schema_version':1,'accepted':False,'diagnostic_positive':False,'original_qualification_cleared':False,'completed_arms':0,'comparison_incomplete':True,'stopped':True,'arm_states':[{'index':n,'controller':cc,'state':'unstarted'} for n,cc in enumerate(('cubic','reno','cubic'))]}
+  try:
+   for index,command in enumerate(frozen['arms']):
++   screen['arm_states'][index]['state']='attempted'
+    env=os.environ.copy();env['P2PSTREAM_QUALIFICATION_DATA_CONTROLLER']=('cubic','reno','cubic')[index]
+    write_fresh(runroot/f'arm-{index}.invocation.json',command)
+    status=execute_owned(command['argv'],env,runroot/f'arm-{index}',930)
++   screen['arm_states'][index].update(state='completed-awaiting-validation',mature_outer_status=status)
+    decision=runroot/f'arm-{index}.decision.json'
+-   check=[sys.executable,'-I','-B',str(ROOT/'runner-source/integration/validate-controller-vector.py'),'arm',str(index),command['output_dir'],str(status),str(decision)]
++   check=[sys.executable,'-I','-B',str(ROOT/'runner-source/integration/validate-controller-policy.py'),'arm',str(index),command['output_dir'],str(status),str(decision)]
+    checked=execute_owned(check,{'PATH':'/usr/bin:/bin','PYTHONDONTWRITEBYTECODE':'1'},runroot/f'arm-{index}-validation',60,1<<20)
+-   if checked!=0:raise RuntimeError('independent arm validation failed')
++   if checked!=0:
++    screen['arm_states'][index]['state']='invalid';raise RuntimeError('independent arm validation failed')
++   screen['arm_states'][index].update(state='measurement-valid',decision=str(decision))
+    decisions.append(str(decision));screen['completed_arms']=len(decisions)
+-  status=execute_owned([sys.executable,'-I','-B',str(ROOT/'runner-source/integration/validate-controller-vector.py'),'screen',*decisions,str(runroot/'decision.json')],{'PATH':'/usr/bin:/bin'},runroot/'screen-validation',20,1<<20)
+-  if status!=0:raise RuntimeError('final C/R/C comparison failed')
+-  screen.update({'accepted':True,'stopped':False,'interpretation':'broad controller dependence only'})
++  status=execute_owned([sys.executable,'-I','-B',str(ROOT/'runner-source/integration/validate-controller-policy.py'),'screen',*decisions,str(runroot/'decision.json')],{'PATH':'/usr/bin:/bin'},runroot/'screen-validation',20,1<<20)
++  if not (runroot/'decision.json').is_file():raise RuntimeError('complete comparison output missing')
++  screen['comparison_incomplete']=False
++  if status!=0:
++   screen.update({'accepted':False,'diagnostic_positive':False,'original_qualification_cleared':False,'stopped':False,'failure':'complete three-arm policy diagnostic did not meet all prospective effect criteria'});return
++  screen.update({'accepted':True,'stopped':False,'diagnostic_positive':True,'original_qualification_cleared':False,'interpretation':'whole-workload controller-policy diagnostic only; original qualification remains failed'})
+  except BaseException as error:
+   screen['failure']=type(error).__name__+': '+str(error);raise
+  finally:
+--- COMMANDS-vector.json
++++ COMMANDS-policy.json
+@@ -1,10 +1,6 @@
+ {
+-  "status": "NEW source-only whole-retained-vector diagnostic; separate root grant required; no historical control reuse",
+   "arms": [
+     {
+-      "index": 0,
+-      "controller": "cubic",
+-      "attempts": 1,
+       "argv": [
+         "timeout",
+         "--signal=TERM",
+@@ -28,17 +24,17 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic"
+       ],
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic",
++      "attempts": 1,
++      "controller": "cubic",
+       "env": {
+         "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
+-      }
++      },
++      "index": 0,
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic"
+     },
+     {
+-      "index": 1,
+-      "controller": "reno",
+-      "attempts": 1,
+       "argv": [
+         "timeout",
+         "--signal=TERM",
+@@ -62,17 +58,17 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-1-reno"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno"
+       ],
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-1-reno",
++      "attempts": 1,
++      "controller": "reno",
+       "env": {
+         "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "reno"
+-      }
++      },
++      "index": 1,
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno"
+     },
+     {
+-      "index": 2,
+-      "controller": "cubic",
+-      "attempts": 1,
+       "argv": [
+         "timeout",
+         "--signal=TERM",
+@@ -96,41 +92,46 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-2-cubic"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic"
+       ],
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-2-cubic",
++      "attempts": 1,
++      "controller": "cubic",
+       "env": {
+         "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
+-      }
++      },
++      "index": 2,
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic"
+     }
+   ],
+   "max_transfers": 48,
+-  "transfers_per_arm": 16,
+-  "stop_on_first_invalid_arm": true,
+-  "retry": false,
+-  "workload": {
+-    "protocol": "h2",
+-    "warmup_mib": 256,
+-    "steady_mib": 256,
+-    "steady_repetitions": 3,
+-    "rtt_ms": 80,
+-    "required_pool_mib": 8
+-  },
+   "original_96_transfer_and_HAProxy_gates": "failed; unchanged",
+   "outer_supervision": {
+-    "task_artifact_bytes": 268435456,
++    "KILL_reap_seconds": 5,
++    "TERM_grace_seconds": 10,
+     "arm_stream_bytes_each": 16777216,
+-    "validator_stream_bytes_each": 1048576,
++    "bounded_cleanup_poll_seconds": 0.05,
++    "direct_child_and_two_log_size_poll_seconds": 0.05,
++    "durable_audit_reserved_bytes": 1048576,
++    "full_process_and_artifact_inventory_seconds": 1.0,
++    "independent_validation_seconds": 60,
+     "launcher_seconds": 930,
+-    "independent_validation_seconds": 60,
+-    "TERM_grace_seconds": 10,
+-    "KILL_reap_seconds": 5,
+     "natural_join_required": true,
+     "remaining_groups_or_forced_cleanup": "reject and stop all remaining traffic",
+     "started_and_final_records_required": true,
+-    "full_process_and_artifact_inventory_seconds": 1.0,
+-    "direct_child_and_two_log_size_poll_seconds": 0.05,
+-    "bounded_cleanup_poll_seconds": 0.05,
+-    "durable_audit_reserved_bytes": 1048576
++    "task_artifact_bytes": 268435456,
++    "validator_stream_bytes_each": 1048576
++  },
++  "performance_evaluation": "after all three fresh structurally eligible arms",
++  "retry": false,
++  "status": "NEW source-only whole-workload controller-policy diagnostic; separate root runtime grant required; no historical arm reuse",
++  "stop_on_first_invalid_arm": "strict structural or initial-conditioning invalidity only; reported postwarmup reuse/performance outcomes never stop remaining arms",
++  "transfers_per_arm": 16,
++  "workload": {
++    "protocol": "h2",
++    "required_pool_mib": 8,
++    "rtt_ms": 80,
++    "steady_mib": 256,
++    "steady_repetitions": 3,
++    "warmup_mib": 256
+   }
+ }
+--- contracts/test-controller-vector.py
++++ contracts/test-controller-policy.py
+@@ -1,18 +1,34 @@
+ #!/usr/bin/env python3
+-"""Focused offline outcome controls for the new whole-retained-vector diagnostic."""
++"""Focused offline outcome controls for the new whole-workload controller-policy diagnostic."""
+ from pathlib import Path
+ import copy,importlib.util,math,unittest
+ ROOT=Path(__file__).resolve().parents[1]
+-spec=importlib.util.spec_from_file_location('vector',ROOT/'runner-source/integration/validate-controller-vector.py')
++spec=importlib.util.spec_from_file_location('policy',ROOT/'runner-source/integration/validate-controller-policy.py')
+ vector=importlib.util.module_from_spec(spec);spec.loader.exec_module(vector)
+ class WholeVector(unittest.TestCase):
+  def fixture(self,index,rates=(32_000_000,)*4,read=10):
+-  rows=[]
++  rows=[];expectations=[]
+   for n,(stage,direction) in enumerate(vector.SCHEDULE,1):
+-   rows.append({'diagnostic_sequence':n,'measurement_stage':stage,'transfer_direction':direction,'configured_payload_bytes':268435456,'configured_rtt_ms':80,'public_protocol':'h2','useful_transfer_bytes_per_second':36_000_000,'wall_seconds':8.0,'response_copy_attribution':{'matches':[{'handler_elapsed_ns':8_000_000_000,'copy':{'upstream_read':{'total_ns':read},'downstream_write':{'total_ns':100}}}]}})
+-  for n,rate in zip(vector.RETAINED,rates):rows[n-1]['useful_transfer_bytes_per_second']=rate
++   key=f'lane-{(n-9)%4+1}';origin=f'origin-{(n-9)%4+1}';got_ns=n*1_000_000_000;revisit=n>=13
++   trace={'sequence':str(n),'method':'GET' if direction=='download' else 'POST','path':'/agent/bulk' if direction=='download' else '/agent/bulk-upload','started_unix_ns':got_ns-1,'handler_return_unix_ns':got_ns+10,'callback_overflow':False,'got_conn':[{'connection_type':'stream','local_address':'local','remote_address':key,'reused':revisit,'was_idle':revisit,'idle_time_ns':3_999_999_995 if revisit else 0,'observed_unix_ns':got_ns}],'put_idle_conn':[{'observed_unix_ns':got_ns+5}]}
++   rows.append({'diagnostic_sequence':n,'measurement_stage':stage,'transfer_direction':direction,'configured_payload_bytes':268435456,'configured_rtt_ms':80,'public_protocol':'h2','useful_transfer_bytes_per_second':36_000_000,'wall_seconds':268435456/36_000_000,'wan_response_tls':[{'origin_connection_id':origin}],'upstream_transport_trace':{'matches':[trace],'overflow':False,'sequence':str(n),'store_count':n},'response_copy_attribution':{'matches':[{'handler_elapsed_ns':8_000_000_000,'copy':{'upstream_read':{'total_ns':read},'downstream_write':{'total_ns':100}}}]}})
++   if 9<=n<=12:expectations.append({'sequence':n,'kind':'first-post-close-visit','lane_position':n-8,'connection_key':f'stream|local|{key}','satisfied':True})
++   if n>=13:expectations.append({'sequence':n,'kind':'same-key-revisit','lane_position':n-12,'connection_key':f'stream|local|{key}','expected_connection_key':f'stream|local|{key}','prior_put_idle_unix_ns':(n-4)*1_000_000_000+5,'got_conn_unix_ns':got_ns,'elapsed_idle_ns':3_999_999_995,'httptrace_idle_time_ns':3_999_999_995,'prior_origin_connection_id':origin,'observed_origin_connection_id':origin,'satisfied':True})
++  for n,rate in zip(vector.RETAINED,rates):self.rate(rows,n,rate)
+   issues=[] if all(rows[n-1]['useful_transfer_bytes_per_second']>=vector.FLOOR for n in vector.DOWNLOADS) else ['preserved mature download floor failure']
+-  return rows,{'integrity_issues':[],'conditioning_issues':[],'performance_issues':issues,'accepted':not issues}
++  return rows,{'integrity_issues':[],'conditioning_issues':[],'performance_issues':issues,'validation_issues':issues.copy(),'continuation_safe':True,'accepted':not issues,'reuse_expectations':expectations}
++ def rate(self,rows,n,rate):
++  rows[n-1]['wall_seconds']=268435456/rate
++  rows[n-1]['useful_transfer_bytes_per_second']=268435456/rows[n-1]['wall_seconds']
++ def performance(self,att,issues):
++  att['performance_issues']=issues.copy();att['validation_issues']=att['conditioning_issues']+issues;att['accepted']=not att['validation_issues']
++ def reconnect(self,rows,att,n):
++  rows[n-1]['wan_response_tls'][0]['origin_connection_id']=f'replaced-{n}'
++  got=rows[n-1]['upstream_transport_trace']['matches'][0]['got_conn'][0]
++  got.update(reused=False,was_idle=False,idle_time_ns=0)
++  expected=att['reuse_expectations'][n-9];expected.update(observed_origin_connection_id=f'replaced-{n}',httptrace_idle_time_ns=0,satisfied=False)
++  att['conditioning_issues'].append(f'sequence {n} fully evidenced reuse/idle/origin conditioning was not retained')
++  att['conditioning_issues'].sort();self.performance(att,att['performance_issues'])
+  def arm(self,index,rates=(32_000_000,)*4,read=10):return vector.decide_arm(index,*self.fixture(index,rates,read))
+  def screen(self,control0=(32_000_000,)*4,candidate=(36_000_000,)*4,control2=(32_000_000,)*4):
+   return [self.arm(0,control0),self.arm(1,candidate,8),self.arm(2,control2)]
+@@ -47,16 +63,17 @@
+    self.assertFalse(vector.decide_screen(arms)['criteria']['aggregate_read_strictly_below_both_controls'])
+   rows,att=self.fixture(1);rows[8]['response_copy_attribution']['matches'][0]['copy']['upstream_read']['total_ns']=0
+   self.assertRaises(ValueError,vector.decide_arm,1,rows,att)
+- def test_candidate_all_original_floors_and_control_independence(self):
+-  for index in [0,2]:
+-   for rates in [(14_000_000,27_000_000,27_000_000,35_000_000),(40_000_000,)*4]:
+-    arm=self.arm(index,rates);self.assertTrue(arm['eligible_for_diagnostic'])
+-    self.assertEqual(arm['mature_performance_accepted'],not arm['mature_performance_issues'])
+-  for n in vector.DOWNLOADS:
+-   rows,att=self.fixture(1);rows[n-1]['useful_transfer_bytes_per_second']=vector.FLOOR-1;att.update(accepted=False,performance_issues=['mature floor failure'])
+-   arm=vector.decide_arm(1,rows,att);self.assertFalse(arm['eligible_for_diagnostic']);self.assertFalse(arm['mature_performance_accepted']);self.assertEqual(arm['mature_performance_issues'],att['performance_issues'])
+-  rows,att=self.fixture(1);att.update(accepted=False,performance_issues=['independent mature performance failure'])
+-  self.assertFalse(vector.decide_arm(1,rows,att)['eligible_for_diagnostic'])
++ def test_candidate_all_original_floors_are_final_outcomes(self):
++  for index in [0,1,2]:
++   for n in vector.DOWNLOADS:
++    rows,att=self.fixture(index);self.rate(rows,n,vector.FLOOR-1);self.performance(att,['mature floor failure'])
++    arm=vector.decide_arm(index,rows,att)
++    self.assertTrue(arm['eligible_for_diagnostic']);self.assertFalse(arm['mature_accepted'])
++    self.assertEqual(arm['mature_performance_issues'],att['performance_issues'])
++    if index==1:
++     result=vector.decide_screen([self.arm(0),arm,self.arm(2)])
++     self.assertFalse(result['diagnostic_positive']);self.assertFalse(result['criteria']['candidate_all_original_download_floors'])
++     self.assertEqual(len(result['arms']),3)
+   self.assertTrue(self.arm(1,(vector.FLOOR,)*4)['eligible_for_diagnostic'])
+  def test_nonfinite_shapes_and_structural_failures_reject(self):
+   for bad in [float('nan'),float('inf'),0,-1,True]:
+@@ -77,5 +94,75 @@
+   arms=self.screen((14_000_000,27_000_000,27_000_000,35_000_000),(38_000_000,)*4,(20_000_000,27_000_000,27_000_000,35_000_000))
+   result=vector.decide_screen(arms);self.assertTrue(result['accepted'])
+   for index in [0,2]:
+-   self.assertFalse(result['arms'][index]['mature_performance_accepted']);self.assertEqual(result['arms'][index]['mature_performance_issues'],arms[index]['mature_performance_issues'])
++   self.assertFalse(result['arms'][index]['mature_accepted']);self.assertEqual(result['arms'][index]['mature_performance_issues'],arms[index]['mature_performance_issues'])
++ def test_each_fully_evidenced_reconnect_is_symmetric_and_preserved(self):
++  for index in range(3):
++   for n in range(13,17):
++    rows,att=self.fixture(index);self.reconnect(rows,att,n);saved=copy.deepcopy(att)
++    arm=vector.decide_arm(index,rows,att)
++    self.assertTrue(arm['eligible_for_diagnostic']);self.assertFalse(arm['mature_accepted'])
++    self.assertEqual(arm['mature_attestation'],saved);self.assertEqual(att,saved)
++    self.assertEqual(arm['revisit_outcome_counts'],{'total':4,'satisfied':3,'unsatisfied':1})
++    self.assertEqual(len(arm['raw_origin_traces']),16)
++  arms=[]
++  for index in range(3):
++   rows,att=self.fixture(index,(36_000_000,)*4 if index==1 else (32_000_000,)*4,8 if index==1 else 10)
++   for n in range(13,17):self.reconnect(rows,att,n)
++   arms.append(vector.decide_arm(index,rows,att))
++  self.assertTrue(vector.decide_screen(arms)['diagnostic_positive'])
++  self.assertFalse(arms[1]['mature_accepted'])
++ def test_reuse_missing_malformed_negative_unknown_or_uncorrelated_reject(self):
++  for kind in ['missing-origin','missing-got','missing-put','negative-idle','negative-elapsed','flag-type','bool-time','unknown-conditioning','forged-conditioning','wrong-expectation','pool-failure','duplicate-trace','request-correlation','rate-wall','negative-wall','initial-not-fresh']:
++   rows,att=self.fixture(0);r=rows[12];trace=r['upstream_transport_trace']['matches'][0];got=trace['got_conn'][0]
++   if kind=='missing-origin':r['wan_response_tls']=[]
++   elif kind=='missing-got':trace['got_conn']=[]
++   elif kind=='missing-put':trace['put_idle_conn']=[]
++   elif kind=='negative-idle':got['idle_time_ns']=-1
++   elif kind=='negative-elapsed':got['observed_unix_ns']=1
++   elif kind=='flag-type':got['reused']=1
++   elif kind=='bool-time':got['observed_unix_ns']=True
++   elif kind=='unknown-conditioning':att['conditioning_issues']=['unknown conditioning failure']
++   elif kind=='forged-conditioning':att['conditioning_issues']=['sequence 13 fully evidenced reuse/idle/origin conditioning was not retained']
++   elif kind=='wrong-expectation':att['reuse_expectations'][4]['satisfied']=False
++   elif kind=='pool-failure':att['conditioning_issues']=['row 13 did not retain required aggregate receive-pool evidence']
++   elif kind=='duplicate-trace':r['upstream_transport_trace']['matches'].append(copy.deepcopy(trace))
++   elif kind=='request-correlation':trace['sequence']='14'
++   elif kind=='rate-wall':r['wall_seconds']*=2
++   elif kind=='negative-wall':r['wall_seconds']=-1
++   elif kind=='initial-not-fresh':rows[8]['upstream_transport_trace']['matches'][0]['got_conn'][0]['reused']=True
++   self.performance(att,att['performance_issues'])
++   with self.subTest(kind=kind):self.assertRaises((ValueError,KeyError),vector.decide_arm,0,rows,att)
++ def test_tunnel_key_and_reuse_origin_contradictions_reject(self):
++  for kind in ['changed-key','false-same-origin','true-new-origin','flags-disagree']:
++   rows,att=self.fixture(0);got=rows[12]['upstream_transport_trace']['matches'][0]['got_conn'][0];expected=att['reuse_expectations'][4]
++   if kind=='changed-key':got['remote_address']='other-lane';expected['connection_key']='stream|local|other-lane'
++   elif kind=='false-same-origin':got.update(reused=False,was_idle=False,idle_time_ns=0);expected['httptrace_idle_time_ns']=0
++   elif kind=='true-new-origin':rows[12]['wan_response_tls'][0]['origin_connection_id']='new-origin';expected['observed_origin_connection_id']='new-origin'
++   elif kind=='flags-disagree':got['was_idle']=False
++   expected['satisfied']=False;att['conditioning_issues']=['sequence 13 fully evidenced reuse/idle/origin conditioning was not retained'];self.performance(att,[])
++   with self.subTest(kind=kind):self.assertRaises(ValueError,vector.decide_arm,0,rows,att)
++ def test_retained_origin_past_30_seconds_is_reported_timing_outcome(self):
++  for index in range(3):
++   rows,att=self.fixture(index)
++   for n in range(13,17):
++    trace=rows[n-1]['upstream_transport_trace']['matches'][0];got=trace['got_conn'][0];expected=att['reuse_expectations'][n-9]
++    trace['started_unix_ns']+=31_000_000_000;trace['handler_return_unix_ns']+=31_000_000_000;trace['put_idle_conn'][0]['observed_unix_ns']+=31_000_000_000
++    got['observed_unix_ns']+=31_000_000_000;got['idle_time_ns']+=31_000_000_000
++    for key in ['got_conn_unix_ns','elapsed_idle_ns','httptrace_idle_time_ns']:expected[key]+=31_000_000_000
++    expected['satisfied']=False;att['conditioning_issues'].append(f'sequence {n} fully evidenced reuse/idle/origin conditioning was not retained')
++   self.performance(att,[]);arm=vector.decide_arm(index,rows,att)
++   self.assertTrue(arm['eligible_for_diagnostic']);self.assertFalse(arm['mature_accepted'])
++   self.assertEqual(arm['origin_outcome_counts'],{'retained':4,'fresh_replacement':0})
++ def test_saved_discovery_fixture_classification_does_not_revise_old_verdict(self):
++  import hashlib,json
++  root=ROOT/'runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic'
++  paths=[root/'results.jsonl',root/'attestation.json']
++  before=[hashlib.sha256(p.read_bytes()).hexdigest() for p in paths]
++  rows=[json.loads(line) for line in paths[0].read_text().splitlines()];att=json.loads(paths[1].read_text())
++  self.assertFalse(att['accepted']);self.assertFalse(att['reuse_expectations'][-1]['satisfied'])
++  arm=vector.decide_arm(0,rows,att)
++  self.assertTrue(arm['eligible_for_diagnostic']);self.assertFalse(arm['mature_accepted'])
++  self.assertEqual([e['sequence'] for e in arm['reuse_expectations'][4:] if not e['satisfied']],[15,16])
++  self.assertEqual(before,[hashlib.sha256(p.read_bytes()).hexdigest() for p in paths])
+ if __name__=='__main__':unittest.main()
++
+--- /dev/null
++++ policy-design/PLAN.json
+@@ -0,0 +1,102 @@
++{
++  "allowed_conditioning": "Independently reconstruct exact mature reuse_expectations from canonical raw GotConn/PutIdleConn, origin IDs and timestamps for all8 postwarmup rows. Full conditioning_issues list must equal exactly the sequence13..16 fully evidenced reuse/idle/origin conditioning messages implied by those raw predicates. All unknown/nonreuse conditioning issues reject.",
++  "attempts_per_arm": 1,
++  "bounds": {
++    "arm_stream_bytes_each": 16777216,
++    "artifact_tree_bytes": 268435456,
++    "original_supervision": "Unchanged execute_owned, process ownership, joined-ps wrapper and bounded cleanup; no adopted children or forced cleanup permitted",
++    "per_arm_timeout_seconds": 930,
++    "semantics": "Original polled rejection threshold, overshoot possible; complete logs retained; no raised cap",
++    "validator_stream_bytes_each": 1048576
++  },
++  "continuation": "Run all three fresh arms whenever structural and initial conditioning contracts hold. No performance or fully evidenced postwarmup13..16 reuse outcome stops later arms; specifically slow Reno never suppresses final CUBIC. No reused historical controls.",
++  "fixed_inputs": "Same accepted endpoint binaries/receipt, original256MiB payloads for all16 rows, H2/80ms/exact strictly-above8MiB pool predicates/four data lanes, hook/observer/CPU/network/cgroup/certificate policy. Joined-ps wrapper and mature validators unchanged. Zero builds.",
++  "floor_bytes_per_second": 29700000,
++  "history": "Prior narrow screen stopped on an extra CUBIC floor; vector screen stopped on fully evidenced15/16 origin replacements after34seconds with30second idle policy. No Reno ever ran. Neither cohort is reused, relabeled accepted, nor erased.",
++  "interpretation_limit": "Fixed-order finite diagnostic; order confounded and one Reno arm. No randomized causal proof, same-reused-stream claim, HyStart attribution, production Reno recommendation, original96-transfer, HAProxy, parity, merge or release clearance. All historical failures and original qualification failure persist.",
++  "mature_partition": "Preserve complete unchanged independently regenerated mature_attestation including original accepted, integrity_issues, conditioning_issues, performance_issues, validation_issues, classifications and status. accepted equals absence of all three issue partitions, not just performance. Diagnostic eligibility is separate.",
++  "max_transfers": 48,
++  "numerical_method": "Exact Fraction of validated recorded integer/IEEEfloat rates for comparisons; no epsilon, clipping, rounded boundary decisions or wall-inverse alternative primary. Validate each row exactly matches original generated jq formula configured_payload_bytes / wall_seconds under binary64 division. Floats only display pooled summaries. Read sums remain integers.",
++  "offline_test_bounds": {
++    "attempts": 1,
++    "no_builds": true,
++    "no_sockets": true,
++    "no_traffic": true,
++    "outer_seconds": 25,
++    "stream_bytes_each": 1048576
++  },
++  "offline_test_command": [
++    "timeout",
++    "--signal=TERM",
++    "--kill-after=5s",
++    "20s",
++    "/usr/bin/python3",
++    "-I",
++    "-B",
++    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-policy.py"
++  ],
++  "order": [
++    "cubic",
++    "reno",
++    "cubic"
++  ],
++  "original_download_floor_sequences": [
++    1,
++    2,
++    3,
++    4,
++    9,
++    11,
++    14,
++    15
++  ],
++  "primary": {
++    "all_criteria_reported": true,
++    "candidate_floors": "All eight original mature download floors29,700,000bytes/s and all original mature performance predicates; evaluated only after all3 complete eligible arms",
++    "candidate_pooled_minimum": "100 * candidate_exact_pool >=108 * max(control0_exact_pool,control2_exact_pool)",
++    "diagnostic_positive": "Conjunction of pooled108%, each-download95%, positive/lower Read, original candidate floors and candidate mature performance. Mature conditioning failure may coexist with diagnostic_positive. No floor/reproduction gate on CUBIC inclusion.",
++    "endpoint": "aggregate active-transfer useful-byte rate excluding between-request instrumentation/validation gaps; reconnection work within request wall durations is included",
++    "exact_definition": "Fraction(4) / sum(Fraction(1) / Fraction(recorded_bytes_per_second[n])) for exactly[9,11,14,15]",
++    "no_regression": "For EACH retained download candidate rate >=95/100 * max(corresponding control0 rate,control2 rate)",
++    "read": "Sum all4 upstream_read.total_ns; candidate positive and strictly less than BOTH control sums"
++  },
++  "question": "whole fixed-workload data-controller dependence including ordinary postwarmup origin reconnections within the same five owned tunnel TCP sessions",
++  "rejected_fixtures": "Read-only historical arm classifier contract test only. Never historical benchmark/control reuse. No saved fixture modified.",
++  "reported_postwarmup_sequences": [
++    9,
++    10,
++    11,
++    12,
++    13,
++    14,
++    15,
++    16
++  ],
++  "reported_upload_sequences": [
++    10,
++    12,
++    13,
++    16
++  ],
++  "retained_sequences": [
++    9,
++    11,
++    14,
++    15
++  ],
++  "runtime_command": [
++    "/usr/bin/python3",
++    "-I",
++    "-B",
++    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-policy.py",
++    "--execute-approved-once"
++  ],
++  "runtime_requires_root_final_grant": true,
++  "runtime_root_must_remain_absent": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once",
++  "schema_version": 1,
++  "secondary_reports": "All16 rates; all4 retained Read/Write/wall/handler values; all8 postwarmup payload/rate/wall; upload and all8 harmonic active-transfer rates and total measured wall durations; all8 exact reuse expectations and full raw16 origin traces with GotConn/PutIdleConn times, IDs, reused/was_idle, plus reuse counts; each original download floor outcome symmetrically, preserved mature conditioning/performance issues, both control pooled values and ratio, candidate ratios to each control. Secondary upload/all8 rates have no new decision thresholds.",
++  "status": "prospective SOURCE ONLY; no tests/validators/builds/traffic executed; separate root grants required",
++  "structural_stop": "Any integrity, malformed/missing/negative-time origin evidence, pool/state setup, controller binding, capture coverage, namespaces, resources, ownership or natural-join failure stops remaining traffic and reports comparison_incomplete. Initial four first-post-close lane visits9..12 retain exact fresh-key checks. Physical tunnel TCP owner/session replacement remains outside valid scope.",
++  "supported_revisit_identity": "Exact expected tunnel/lane key required (Yamux stream address is physical session address). In this serial workload reused==was_idle; reused=true requires same origin; reused=false requires changed origin and zero idle_time_ns. Fully evidenced reused=true with elapsed>=30seconds is a retained-origin timing outcome, not a structural failure. No exact timer causation claim.",
++  "transfers_per_arm": 16
++}

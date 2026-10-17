@@ -1,0 +1,442 @@
+### frozen source: internal/db/proxy_request_event_inserter.go
+     1	package db
+     2	
+     3	import (
+     4		"context"
+     5		"database/sql"
+     6		"errors"
+     7		"strings"
+     8	)
+     9	
+    10	// ProxyRequestEventInserter reuses SQLite statements for bounded groups of raw
+    11	// events and their remainder. SQL columns come from sql/query.sql; this wrapper
+    12	// binds the generated parameter type within the caller's transaction.
+    13	type ProxyRequestEventInserter struct {
+    14		tx        *sql.Tx
+    15		stmt      *sql.Stmt
+    16		batchStmt *sql.Stmt
+    17	}
+    18	
+    19	const proxyRequestEventInsertBatchRows = 16
+    20	
+    21	// Derive the fixed multirow statement from the generated single-row SQL so
+    22	// the column contract remains in sql/query.sql. Only the fixed VALUES tuple
+    23	// is repeated; request data is always bound through statement parameters.
+    24	var insertProxyRequestEventsBatch = func() string {
+    25		prefix, values, ok := strings.Cut(insertProxyRequestEventAt, " VALUES ")
+    26		if !ok {
+    27			panic("generated proxy request event insert is missing VALUES")
+    28		}
+    29		tuple := strings.TrimSpace(values)
+    30		return prefix + " VALUES " + strings.Repeat(tuple+",", proxyRequestEventInsertBatchRows-1) + tuple
+    31	}()
+    32	
+    33	func PrepareProxyRequestEventInserter(ctx context.Context, tx *sql.Tx) (*ProxyRequestEventInserter, error) {
+    34		if tx == nil {
+    35			return nil, errors.New("proxy request event transaction is nil")
+    36		}
+    37		stmt, err := tx.PrepareContext(ctx, insertProxyRequestEventAt)
+    38		if err != nil {
+    39			return nil, err
+    40		}
+    41		return &ProxyRequestEventInserter{tx: tx, stmt: stmt}, nil
+    42	}
+    43	
+    44	func (i *ProxyRequestEventInserter) Insert(ctx context.Context, arg InsertProxyRequestEventAtParams) error {
+    45		if i == nil || i.stmt == nil {
+    46			return errors.New("proxy request event inserter is not prepared")
+    47		}
+    48		var args [23]any
+    49		_, err := i.stmt.ExecContext(ctx, appendProxyRequestEventArgs(args[:0], arg)...)
+    50		return err
+    51	}
+    52	
+    53	// InsertBatch amortizes SQLite execution and cancellation coordination over
+    54	// bounded groups. All groups and the short final remainder use the caller's
+    55	// existing transaction and cancellation context.
+    56	func (i *ProxyRequestEventInserter) InsertBatch(ctx context.Context, events []InsertProxyRequestEventAtParams) error {
+    57		if i == nil || i.stmt == nil {
+    58			return errors.New("proxy request event inserter is not prepared")
+    59		}
+    60		if len(events) >= proxyRequestEventInsertBatchRows && i.batchStmt == nil {
+    61			stmt, err := i.tx.PrepareContext(ctx, insertProxyRequestEventsBatch)
+    62			if err != nil {
+    63				return err
+    64			}
+    65			i.batchStmt = stmt
+    66		}
+    67		if len(events) >= proxyRequestEventInsertBatchRows {
+    68			var storage [proxyRequestEventInsertBatchRows * 23]any
+    69			for len(events) >= proxyRequestEventInsertBatchRows {
+    70				args := storage[:0]
+    71				for _, event := range events[:proxyRequestEventInsertBatchRows] {
+    72					args = appendProxyRequestEventArgs(args, event)
+    73				}
+    74				if _, err := i.batchStmt.ExecContext(ctx, args...); err != nil {
+    75					return err
+    76				}
+    77				events = events[proxyRequestEventInsertBatchRows:]
+    78			}
+    79		}
+    80		for _, event := range events {
+    81			if err := i.Insert(ctx, event); err != nil {
+    82				return err
+    83			}
+    84		}
+    85		return nil
+    86	}
+    87	
+    88	func appendProxyRequestEventArgs(args []any, arg InsertProxyRequestEventAtParams) []any {
+    89		return append(args,
+    90			arg.OccurredAt,
+    91			arg.StatusCode,
+    92			arg.DurationMs,
+    93			arg.ErrorKind,
+    94			arg.Method,
+    95			arg.Host,
+    96			arg.PathPrefix,
+    97			arg.ListenerID,
+    98			arg.RouteID,
+    99			arg.RouteTargetID,
+   100			arg.WafRuleID,
+   101			arg.WafAction,
+   102			arg.AgentID,
+   103			arg.RequestBytes,
+   104			arg.ResponseBytes,
+   105			arg.CacheRuleID,
+   106			arg.CacheStatus,
+   107			arg.CacheBytes,
+   108			arg.RetryRuleID,
+   109			arg.RetryCount,
+   110			arg.RetryOutcome,
+   111			arg.RetryErrorKind,
+   112			arg.RetryFailedAgentID,
+   113		)
+   114	}
+   115	
+   116	func (i *ProxyRequestEventInserter) Close() error {
+   117		if i == nil || i.stmt == nil {
+   118			return nil
+   119		}
+   120		var batchErr error
+   121		if i.batchStmt != nil {
+   122			batchErr = i.batchStmt.Close()
+   123		}
+   124		return errors.Join(batchErr, i.stmt.Close())
+   125	}
+### frozen source: internal/server/observability_recorder.go
+     1	package server
+     2	
+     3	import (
+     4		"context"
+     5		"database/sql"
+     6		"math"
+     7		"net/http"
+     8		"sync"
+     9		"sync/atomic"
+    10		"time"
+    11	
+    12		"github.com/rs/zerolog/log"
+    13	
+    14		"p2pstream/internal/db"
+    15	)
+    16	
+    17	const (
+    18		observabilityRecorderQueueSize     = 8192
+    19		observabilityRecorderFlushInterval = 250 * time.Millisecond
+    20		observabilityRecorderFlushTimeout  = 5 * time.Second
+    21		observabilityRecorderMaxBatch      = 512
+    22		observabilityRecorderMaxTouchKeys  = 8192
+    23		observabilityRecorderLogInterval   = time.Minute
+    24		publicCacheTouchCoalesceInterval   = time.Minute
+    25	)
+    26	
+    27	type proxyRequestEvent struct {
+    28		StatusCode         int
+   407		return r.runFlushOperation(ctx, false, flush)
+   408	}
+   409	
+   410	func (r *observabilityRecorder) run() {
+   411		ticker := time.NewTicker(observabilityRecorderFlushInterval)
+   412		defer ticker.Stop()
+   413		batch := make([]db.InsertProxyRequestEventAtParams, 0, observabilityRecorderMaxBatch)
+   414		touches := make(map[publicCacheTouchKey]*publicCacheTouchState)
+   415		for {
+   416			events := r.events
+   417			if len(batch) >= observabilityRecorderMaxBatch {
+   418				// A failed batch must stay fixed-size while it is retried. Leaving
+   419				// additional events in the bounded channel prevents an outage from
+   420				// turning the batch into unbounded heap growth.
+   421				events = nil
+   422			}
+   423			select {
+   424			case event := <-events:
+   425				batch = append(batch, event)
+   426				r.pendingEvents.Store(int64(len(batch)))
+   427				if len(batch) >= observabilityRecorderMaxBatch {
+   428					_ = r.runBackgroundFlush(func(ctx context.Context) error {
+   429						return r.flushBatch(ctx, &batch, touches, time.Now().UTC(), false)
+   430					})
+   431				}
+   432			case touch := <-r.touches:
+   433				r.queuePublicCacheTouch(touches, touch)
+   434			case req := <-r.control:
+   435				eventCount := len(r.events)
+   436				touchCount := len(r.touches)
+   437				err := r.runFlushOperation(req.ctx, req.stop, func(ctx context.Context) error {
+   438					return r.flushQueued(ctx, &batch, touches, eventCount, touchCount)
+   439				})
+   440				if !req.stop {
+   441					req.done <- err
+   442					continue
+   443				}
+   444				if err != nil {
+   445					r.mu.Lock()
+   446					r.restoreCloseAttemptLocked(req.closeAttempt)
+   447					r.mu.Unlock()
+   448					req.done <- err
+   449					continue
+   450				}
+   451				r.pendingEvents.Store(0)
+   452				r.pendingTouches.Store(0)
+   453				r.mu.Lock()
+   454				if r.closeAttempt == req.closeAttempt {
+   455					r.closeAttempt = nil
+   456					close(r.done)
+   457					close(req.closeAttempt)
+   458				}
+   459				r.mu.Unlock()
+   460				req.done <- nil
+   461				return
+   462			case <-ticker.C:
+   463				now := time.Now().UTC()
+   464				r.prunePublicCacheTouches(touches, now)
+   465				_ = r.runBackgroundFlush(func(ctx context.Context) error {
+   466					return r.flushBatch(ctx, &batch, touches, now, false)
+   467				})
+   468			}
+   469		}
+   470	}
+   471	
+   472	func (r *observabilityRecorder) flushQueued(
+   473		ctx context.Context,
+   474		batch *[]db.InsertProxyRequestEventAtParams,
+   475		touches map[publicCacheTouchKey]*publicCacheTouchState,
+   476		eventCount int,
+   477		touchCount int,
+   478	) error {
+   479		for eventCount > 0 {
+   480			if len(*batch) >= observabilityRecorderMaxBatch {
+   481				if err := r.flushBatch(ctx, batch, touches, time.Now().UTC(), true); err != nil {
+   482					return err
+   483				}
+   484			}
+   485			remaining := observabilityRecorderMaxBatch - len(*batch)
+   486			if remaining > eventCount {
+   487				remaining = eventCount
+   488			}
+   489			for i := 0; i < remaining; i++ {
+   490				*batch = append(*batch, <-r.events)
+   491			}
+   492			eventCount -= remaining
+   493			r.pendingEvents.Store(int64(len(*batch)))
+   494		}
+   495		r.prunePublicCacheTouches(touches, time.Now().UTC())
+   496		for i := 0; i < touchCount; i++ {
+   497			r.queuePublicCacheTouch(touches, <-r.touches)
+   498		}
+   499		return r.flushBatch(ctx, batch, touches, time.Now().UTC(), true)
+   500	}
+   501	
+   502	func (r *observabilityRecorder) queuePublicCacheTouch(touches map[publicCacheTouchKey]*publicCacheTouchState, queued publicCacheTouch) {
+   503		if queued.key.keyDigest == "" || queued.key.storedAt.IsZero() || queued.accessedAt.IsZero() {
+   504			return
+   505		}
+   506		queued = newPublicCacheTouch(queued.key.keyDigest, queued.key.storedAt, queued.accessedAt)
+   507		if touch := touches[queued.key]; touch != nil {
+   508			if touch.hitCount == math.MaxInt64 {
+   509				r.dropTouch()
+   510				return
+   511			}
+   512			touch.hitCount++
+   513			if queued.accessedAt.After(touch.lastAccessedAt) {
+   514				touch.lastAccessedAt = queued.accessedAt
+   515			}
+   516			return
+   517		}
+   518		if len(touches) >= observabilityRecorderMaxTouchKeys {
+   519			r.dropTouch()
+   520			return
+   521		}
+   522		touches[queued.key] = &publicCacheTouchState{hitCount: 1, lastAccessedAt: queued.accessedAt}
+   523		r.pendingTouches.Store(int64(len(touches)))
+   524	}
+   525	
+   526	func (r *observabilityRecorder) prunePublicCacheTouches(touches map[publicCacheTouchKey]*publicCacheTouchState, now time.Time) {
+   527		for key, touch := range touches {
+   528			if touch.hitCount != 0 || touch.lastFlushedAt.IsZero() || now.Sub(touch.lastFlushedAt) < publicCacheTouchCoalesceInterval {
+   529				continue
+   530			}
+   531			delete(touches, key)
+   532		}
+   533		r.pendingTouches.Store(int64(len(touches)))
+   534	}
+   535	
+   536	func publicCacheTouchesToFlush(touches map[publicCacheTouchKey]*publicCacheTouchState, now time.Time, force bool) []db.TouchPublicCacheEntryParams {
+   537		var ready []db.TouchPublicCacheEntryParams
+   538		for key, touch := range touches {
+   539			if touch.hitCount <= 0 {
+   540				continue
+   541			}
+   542			if !force && !touch.lastFlushedAt.IsZero() && now.Sub(touch.lastFlushedAt) < publicCacheTouchCoalesceInterval {
+   543				continue
+   544			}
+   545			ready = append(ready, db.TouchPublicCacheEntryParams{
+   546				HitCount:       touch.hitCount,
+   547				KeyDigest:      key.keyDigest,
+   548				StoredAt:       key.storedAt,
+   549				LastAccessedAt: touch.lastAccessedAt,
+   550			})
+   551		}
+   552		return ready
+   553	}
+   554	
+   555	func (r *observabilityRecorder) flushBatch(
+   556		ctx context.Context,
+   557		batch *[]db.InsertProxyRequestEventAtParams,
+   558		touches map[publicCacheTouchKey]*publicCacheTouchState,
+   559		now time.Time,
+   560		forceTouches bool,
+   561	) error {
+   562		touchBatch := publicCacheTouchesToFlush(touches, now, forceTouches)
+   563		if len(*batch) == 0 && len(touchBatch) == 0 {
+   564			return nil
+   565		}
+   566		if r.insertBatch == nil {
+   567			return nil
+   568		}
+   569		if err := r.insertBatch(ctx, *batch, touchBatch); err != nil {
+   570			if !r.closing.Load() || ctx.Err() != context.Canceled {
+   571				r.logFlushError(err)
+   572			}
+   573			return err
+   574		}
+   575		*batch = (*batch)[:0]
+   576		r.pendingEvents.Store(0)
+   577		for _, flushed := range touchBatch {
+   578			key := newPublicCacheTouch(flushed.KeyDigest, flushed.StoredAt, flushed.LastAccessedAt).key
+   579			touch := touches[key]
+   580			if touch == nil {
+### frozen source: internal/server/observability_rollup.go
+     1	package server
+     2	
+     3	import (
+     4		"context"
+     5		"time"
+     6	
+     7		"p2pstream/internal/db"
+     8	)
+     9	
+    10	const (
+    11		observabilityRowCapDeleteBatchRows  = int64(10000)
+    12		observabilityRowCapDeleteMaxBatches = 10
+    13	)
+    14	
+    15	func (a *App) insertProxyRequestEventWithRollups(ctx context.Context, event db.InsertProxyRequestEventAtParams) error {
+    16		return a.insertProxyRequestEventsWithRollupsAndCacheTouches(ctx, []db.InsertProxyRequestEventAtParams{event}, nil)
+    17	}
+    18	
+    19	func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Context, events []db.InsertProxyRequestEventAtParams, cacheTouches []db.TouchPublicCacheEntryParams) error {
+    20		if a.DB == nil {
+    21			return nil
+    22		}
+    23		if len(events) == 0 && len(cacheTouches) == 0 {
+    24			return nil
+    25		}
+    26	
+    27		tx, err := a.DB.BeginTx(ctx, nil)
+    28		if err != nil {
+    29			return err
+    30		}
+    31		defer tx.Rollback()
+    32	
+    33		qtx := a.DB.WithTx(tx)
+    34		totals := make(map[int64]db.UpsertProxyRequestRollupMinuteParams)
+    35		tuples := make(map[proxyRequestTupleRollupKey]db.UpsertProxyRequestTupleRollupMinuteParams)
+    36		statuses := make(map[proxyRequestStatusRollupKey]db.UpsertProxyRequestStatusRollupMinuteParams)
+    37		retries := make(map[proxyRetryRollupKey]db.UpsertProxyRetryRollupMinuteParams)
+    38		var eventInserter *db.ProxyRequestEventInserter
+    39		if len(events) > 0 {
+    40			eventInserter, err = db.PrepareProxyRequestEventInserter(ctx, tx)
+    41			if err != nil {
+    42				return err
+    43			}
+    44		}
+    45		if eventInserter != nil {
+    46			if err := eventInserter.InsertBatch(ctx, events); err != nil {
+    47				_ = eventInserter.Close()
+    48				return err
+    49			}
+    50			if err := eventInserter.Close(); err != nil {
+    51				return err
+    52			}
+    53		}
+    54		for _, event := range events {
+    55			total, tuple, status := proxyRequestRollupParams(event)
+    56			mergeProxyRequestRollup(totals, total)
+    57			mergeProxyRequestTupleRollup(tuples, tuple)
+    58			mergeProxyRequestStatusRollup(statuses, status)
+    59			if retry, ok := proxyRetryRollupParams(event); ok {
+    60				mergeProxyRetryRollup(retries, retry)
+    61			}
+    62		}
+    63		for _, total := range totals {
+    64			if err := qtx.UpsertProxyRequestRollupMinute(ctx, total); err != nil {
+    65				return err
+    66			}
+    67		}
+    68		for _, tuple := range tuples {
+    69			if err := qtx.UpsertProxyRequestTupleRollupMinute(ctx, tuple); err != nil {
+    70				return err
+    71			}
+    72		}
+    73		for _, status := range statuses {
+    74			if err := qtx.UpsertProxyRequestStatusRollupMinute(ctx, status); err != nil {
+    75				return err
+    76			}
+    77		}
+    78		for _, retry := range retries {
+    79			if err := qtx.UpsertProxyRetryRollupMinute(ctx, retry); err != nil {
+    80				return err
+    81			}
+    82		}
+    83		for _, touch := range cacheTouches {
+    84			if touch.KeyDigest == "" || touch.StoredAt.IsZero() || touch.LastAccessedAt.IsZero() || touch.HitCount <= 0 {
+    85				continue
+### frozen source: go.mod sqlite dependency
+    12		github.com/google/cel-go v0.31.0
+    13		github.com/google/uuid v1.6.0
+    14		github.com/hashicorp/yamux v0.1.2
+    15		github.com/joho/godotenv v1.5.1
+    16		github.com/klauspost/compress v1.19.1
+    17		github.com/mattn/go-sqlite3 v1.14.49
+    18		github.com/maxmind/mmdbwriter v1.2.0
+    19		github.com/oschwald/maxminddb-golang/v2 v2.5.0
+    20		github.com/pressly/goose/v3 v3.27.3
+    21		github.com/rs/zerolog v1.35.1
+    22		github.com/spf13/cobra v1.10.2
+### pinned go-sqlite3 variable ceiling
+ 14874	/*
+ 14875	** The maximum value of a ?nnn wildcard that the parser will accept.
+ 14876	** If the value exceeds 32767 then extra space is required for the Expr
+ 14877	** structure.  But otherwise, we believe that the number can be as large
+ 14878	** as a signed 32-bit integer can hold.
+ 14879	*/
+ 14880	#ifndef SQLITE_MAX_VARIABLE_NUMBER
+ 14881	# define SQLITE_MAX_VARIABLE_NUMBER 32766
+ 14882	#endif
+ 14883	
+ 14884	/* Maximum page size.  The upper bound on this value is 65536.  This a limit
+ 14885	** imposed by the use of 16-bit offsets within each page.
+ 14886	**
+

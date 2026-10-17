@@ -1,0 +1,22 @@
+import datetime,hashlib,json,os,pathlib,shlex,shutil,subprocess,time
+root=pathlib.Path('/tmp/p2pstream-wan-growth-diagnostic.k9m08_ma');bundle=pathlib.Path('/tmp/p2pstream-growth-diagnostic.G6GeKb')
+source='6fd2e8a148229b24037c65204c3bc2bab6bd8822';production='dc738e9000e60cd7ce3a0279127486f3bc05067a';legacy='3ec137c3ad3d07028e867042fb00d3933912d7ab'
+assert hashlib.sha256((bundle/'source.tar').read_bytes()).hexdigest()=='02e8b4329f7567b12545fdea76c1496319053967f6e2ffc1734751aeb9756ac3'
+assert hashlib.sha256((bundle/'manifest.txt').read_bytes()).hexdigest()=='da8965f40131c49b0e7aad78796bdecb1abde98e0629da84f3beb8e6bcf53691'
+shutil.copy2(bundle/'manifest.txt',root/'clean-build-manifest.txt')
+(root/'bin').mkdir()
+provided={'server':(str(bundle/'server.test'),'9dae2cfc357de60154bf2c930edc08f6a3538680472d6815cc0740058f5f9363'),'aggregate-agent':(str(bundle/'agent.test'),'8be1081a99e20219a04ff563eff6260c6e647886293d0817dcbb869467b1b3be'),'legacy-agent':('/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test','e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec')}
+binaries={}
+for role,(original,expected) in provided.items():
+ dest=root/'bin'/(role+'.test');shutil.copy2(original,dest);actual=hashlib.sha256(dest.read_bytes()).hexdigest();assert actual==expected
+ binaries[role]={'path':str(dest),'original_path':original,'sha256':actual}
+runner=root/'scripts/qualify-proxy-agent-growth-drain-diagnostic.sh'
+assert hashlib.sha256((root/'original-runner.sh').read_bytes()).hexdigest()=='a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a'
+command=['bash',str(runner),'--server-binary',binaries['server']['path'],'--aggregate-agent-binary',binaries['aggregate-agent']['path'],'--legacy-agent-binary',binaries['legacy-agent']['path'],'--output',str(root/'results.jsonl'),'--runs','1','--warmup-mib','256','--steady-mib','256','--transfer-repetitions','3','--required-pool-mib','8','--rtt-ms','80','--server-source-ref',source,'--aggregate-agent-source-ref',source,'--legacy-agent-source-ref',legacy]
+manifest={'diagnostic_only':True,'production_base_ref':production,'tagged_diagnostic_source_ref':source,'build_tags':['p2pstream_qualification'],'actual_binaries':binaries,'source_archive_sha256':'02e8b4329f7567b12545fdea76c1496319053967f6e2ffc1734751aeb9756ac3','clean_build_manifest_sha256':'da8965f40131c49b0e7aad78796bdecb1abde98e0629da84f3beb8e6bcf53691','clean_build_manifest_note':'embedded self-reported digest covers the text before its final line; external final-file digest above is authoritative','command':command,'native_profiles':False,'live_credit_or_tcp_polling':False,'ring_capacity':4096,'ring_semantics':'bounded private mutex at existing completed sample epochs; pointers retained only until bounded drain; overflow counted; diagnostic observer remains','retrieval':'server and current agent after original transfer result append; frozen legacy agent skips HTTP;2s request timeout/4MiB response cap','post_transfer_added_delay':'Bash EPOCHREALTIME bookends full two-subprocess drains in growth/post-drain-delays.tsv','go_runtime_environment':{k:os.environ.get(k) for k in ('GOMAXPROCS','GOGC','GOMEMLIMIT','GODEBUG')},'files_sha256':{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file() and 'bin' not in p.relative_to(root).parts}}
+(root/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n');(root/'run-command.txt').write_text(shlex.join(command)+'\n')
+subprocess.run(['bash','-n',str(runner)],check=True)
+print(root,flush=True);started=time.monotonic()
+with (root/'run.log').open('w') as f:result=subprocess.run(command,cwd=root,stdout=f,stderr=subprocess.STDOUT)
+(root/'exit.json').write_text(json.dumps({'exit_code':result.returncode,'elapsed_seconds':time.monotonic()-started,'completed_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()},indent=2)+'\n')
+print('deferred growth diagnostic completed',result.returncode,flush=True)

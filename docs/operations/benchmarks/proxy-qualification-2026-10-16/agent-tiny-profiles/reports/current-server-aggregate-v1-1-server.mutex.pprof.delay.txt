@@ -1,0 +1,53 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: delay
+Time: 2026-10-16 05:20:32 CEST
+Showing nodes accounting for 6s, 100% of 6s total
+Dropped 135 nodes (cum <= 0.03s)
+Showing top 45 nodes out of 78
+      flat  flat%   sum%        cum   cum%
+     4.78s 79.76% 79.76%      4.78s 79.76%  sync.(*Mutex).Unlock (partial-inline)
+     1.21s 20.24%   100%      1.21s 20.24%  runtime.unlock (inline)
+         0     0%   100%      0.19s  3.16%  bufio.(*Reader).Peek
+         0     0%   100%      0.19s  3.16%  bufio.(*Reader).fill
+         0     0%   100%      0.20s  3.38%  bufio.(*Writer).Flush
+         0     0%   100%      0.09s  1.42%  github.com/hashicorp/yamux.(*Session).publishAggregateCredit
+         0     0%   100%      0.09s  1.42%  github.com/hashicorp/yamux.(*Session).publishStreamAllocationRefund
+         0     0%   100%      0.19s  3.16%  github.com/hashicorp/yamux.(*Stream).Read
+         0     0%   100%      0.08s  1.42%  github.com/hashicorp/yamux.newSession.gowrap4
+         0     0%   100%      1.21s 20.15%  net/http.(*ServeMux).ServeHTTP
+         0     0%   100%      0.24s  4.08%  net/http.(*conn).serve
+         0     0%   100%      0.24s  4.05%  net/http.(*http2Server).ServeConn (inline)
+         0     0%   100%      0.24s  4.05%  net/http.(*http2Server).serveConn
+         0     0%   100%      0.20s  3.38%  net/http.(*http2responseWriter).Flush (inline)
+         0     0%   100%      0.20s  3.38%  net/http.(*http2responseWriter).FlushError
+         0     0%   100%      0.20s  3.38%  net/http.(*http2responseWriter).handlerDone
+         0     0%   100%      0.20s  3.38%  net/http.(*http2responseWriterState).writeChunk
+         0     0%   100%      1.43s 23.79%  net/http.(*http2serverConn).runHandler
+         0     0%   100%      0.20s  3.38%  net/http.(*http2serverConn).runHandler.func1
+         0     0%   100%      1.21s 20.12%  net/http.(*http2serverConn).scheduleHandler.gowrap1
+         0     0%   100%      0.24s  4.05%  net/http.(*http2serverConn).serve
+         0     0%   100%      0.15s  2.46%  net/http.(*http2serverConn).writeDataFromHandler
+         0     0%   100%      0.20s  3.33%  net/http.(*http2serverConn).writeFrameFromHandler
+         0     0%   100%      0.06s  0.92%  net/http.(*http2serverConn).writeHeaders
+         0     0%   100%      1.21s 20.12%  net/http.(*initALPNRequest).ServeHTTP
+         0     0%   100%      0.19s  3.16%  net/http.(*persistConn).Read
+         0     0%   100%      0.19s  3.21%  net/http.(*persistConn).readLoop
+         0     0%   100%      1.21s 20.12%  net/http.Handler.ServeHTTP-fm
+         0     0%   100%      1.21s 20.18%  net/http.HandlerFunc.ServeHTTP
+         0     0%   100%      0.24s  4.05%  net/http.http2ConfigureServer.func2
+         0     0%   100%      0.24s  4.05%  net/http.http2ConfigureServer.func3
+         0     0%   100%      0.20s  3.38%  net/http.http2chunkWriter.Write
+         0     0%   100%      1.21s 20.15%  net/http.initALPNRequest.ServeHTTP
+         0     0%   100%      1.21s 20.18%  net/http.serverHandler.ServeHTTP
+         0     0%   100%      0.25s  4.13%  net/http/httputil.(*ReverseProxy).ServeHTTP
+         0     0%   100%      0.24s  4.07%  p2pstream/internal/server.(*AgentConn).transportLane
+         0     0%   100%      0.24s  4.07%  p2pstream/internal/server.(*AgentConn).transportLane.deferwrap1
+         0     0%   100%      3.49s 58.17%  p2pstream/internal/server.(*App).StartAdaptiveTunnelCapacity.func1
+         0     0%   100%      0.25s  4.09%  p2pstream/internal/server.(*App).agentTargetTransport
+         0     0%   100%      0.25s  4.14%  p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution (inline)
+         0     0%   100%      0.25s  4.14%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+         0     0%   100%      0.66s 11.06%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+         0     0%   100%      0.66s 11.06%  p2pstream/internal/server.(*App).selectRouteTarget
+         0     0%   100%      1.21s 20.15%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+         0     0%   100%      0.66s 11.06%  p2pstream/internal/server.(*App).targetEligibleForRoute

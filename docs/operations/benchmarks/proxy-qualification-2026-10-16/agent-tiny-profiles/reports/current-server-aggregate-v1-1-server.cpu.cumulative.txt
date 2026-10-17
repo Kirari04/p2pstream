@@ -1,0 +1,108 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: cpu
+Time: 2026-10-16 05:19:29 CEST
+Duration: 15.25s, Total samples = 43.72s (286.75%)
+Showing nodes accounting for 19.14s, 43.78% of 43.72s total
+Showing top 100 nodes out of 1398
+      flat  flat%   sum%        cum   cum%
+     0.04s 0.091% 0.091%     14.15s 32.37%  net/http.(*http2serverConn).runHandler
+         0     0% 0.091%     13.08s 29.92%  net/http.serverHandler.ServeHTTP
+     0.03s 0.069%  0.16%     13.03s 29.80%  net/http.(*ServeMux).ServeHTTP
+         0     0%  0.16%     13.02s 29.78%  net/http.initALPNRequest.ServeHTTP
+         0     0%  0.16%     12.83s 29.35%  net/http.HandlerFunc.ServeHTTP
+     0.03s 0.069%  0.23%     12.77s 29.21%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+     0.02s 0.046%  0.27%     12.74s 29.14%  p2pstream/internal/server.servePublicProxyRequest
+    11.52s 26.35% 26.62%     11.52s 26.35%  internal/runtime/syscall/linux.Syscall6
+     0.01s 0.023% 26.65%     11.31s 25.87%  internal/poll.ignoringEINTRIO (inline)
+     0.05s  0.11% 26.76%     11.24s 25.71%  syscall.Syscall
+     0.05s  0.11% 26.88%     11.22s 25.66%  p2pstream/internal/server.(*publicProxyContext).run
+     0.09s  0.21% 27.08%     11.09s 25.37%  syscall.RawSyscall6
+     0.01s 0.023% 27.10%      8.35s 19.10%  crypto/tls.(*Conn).Write
+     0.06s  0.14% 27.24%      8.28s 18.94%  crypto/tls.(*Conn).writeRecordLocked
+     0.02s 0.046% 27.29%      8.27s 18.92%  internal/poll.(*FD).Write
+     0.02s 0.046% 27.33%      8.19s 18.73%  syscall.Write (inline)
+     0.02s 0.046% 27.38%      8.17s 18.69%  syscall.write
+         0     0% 27.38%      8.15s 18.64%  github.com/hashicorp/yamux.(*Session).send
+     0.07s  0.16% 27.54%      8.15s 18.64%  github.com/hashicorp/yamux.(*Session).sendLoop
+     0.03s 0.069% 27.61%      8.06s 18.44%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+         0     0% 27.61%      7.92s 18.12%  p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution (inline)
+     0.08s  0.18% 27.79%      7.92s 18.12%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+     0.06s  0.14% 27.93%      7.74s 17.70%  crypto/tls.(*Conn).write
+         0     0% 27.93%      7.69s 17.59%  net.(*conn).Write
+     0.01s 0.023% 27.95%      7.69s 17.59%  net.(*netFD).Write
+     0.10s  0.23% 28.18%      6.95s 15.90%  net/http/httputil.(*ReverseProxy).ServeHTTP
+     0.03s 0.069% 28.25%      4.20s  9.61%  io.ReadAtLeast
+         0     0% 28.25%      4.20s  9.61%  io.ReadFull (inline)
+         0     0% 28.25%      4.18s  9.56%  github.com/hashicorp/yamux.(*Session).recv
+     0.02s 0.046% 28.29%      4.18s  9.56%  github.com/hashicorp/yamux.(*Session).recvLoop
+     0.14s  0.32% 28.61%      4.12s  9.42%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+     0.01s 0.023% 28.64%         4s  9.15%  crypto/tls.(*Conn).Read
+         0     0% 28.64%      3.92s  8.97%  crypto/tls.(*Conn).readRecord (inline)
+     0.09s  0.21% 28.84%      3.92s  8.97%  crypto/tls.(*Conn).readRecordOrCCS
+     0.06s  0.14% 28.98%      3.82s  8.74%  bufio.(*Reader).Read
+     0.02s 0.046% 29.03%      3.73s  8.53%  p2pstream/internal/server.(*agentTunnelReadGateConn).Read
+     0.23s  0.53% 29.55%      3.47s  7.94%  runtime.mallocgc
+     1.24s  2.84% 32.39%      3.40s  7.78%  runtime.selectgo
+     0.02s 0.046% 32.43%      3.31s  7.57%  crypto/tls.(*Conn).readFromUntil
+     0.05s  0.11% 32.55%      3.20s  7.32%  bytes.(*Buffer).ReadFrom
+     0.02s 0.046% 32.59%      3.19s  7.30%  internal/poll.(*FD).Read
+     0.05s  0.11% 32.71%      3.14s  7.18%  crypto/tls.(*atLeastReader).Read
+     0.01s 0.023% 32.73%      3.09s  7.07%  net.(*conn).Read
+     0.01s 0.023% 32.75%      3.09s  7.07%  syscall.Read (inline)
+     0.02s 0.046% 32.80%      3.08s  7.04%  net.(*netFD).Read
+         0     0% 32.80%      3.08s  7.04%  syscall.read
+     2.59s  5.92% 38.72%      2.68s  6.13%  runtime.cgocall
+     0.05s  0.11% 38.84%      2.55s  5.83%  net/http.(*persistConn).readLoop
+         0     0% 38.84%      2.54s  5.81%  net/http.(*conn).serve
+         0     0% 38.84%      2.44s  5.58%  github.com/mattn/go-sqlite3.(*SQLiteStmt).exec.func1
+         0     0% 38.84%      2.44s  5.58%  net/http.(*http2Server).ServeConn (inline)
+         0     0% 38.84%      2.44s  5.58%  net/http.(*http2Server).serveConn
+     0.11s  0.25% 39.09%      2.44s  5.58%  net/http.(*http2serverConn).serve
+         0     0% 39.09%      2.44s  5.58%  net/http.http2ConfigureServer.func2
+         0     0% 39.09%      2.44s  5.58%  net/http.http2ConfigureServer.func3
+         0     0% 39.09%      2.43s  5.56%  github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync
+     0.36s  0.82% 39.91%      2.40s  5.49%  runtime.newobject
+     0.05s  0.11% 40.03%      2.24s  5.12%  runtime.systemstack
+     0.03s 0.069% 40.10%      2.17s  4.96%  net/http.(*persistConn).writeLoop
+     0.03s 0.069% 40.16%      2.13s  4.87%  p2pstream/internal/server.(*pooledAgentTransport).RoundTrip
+     0.02s 0.046% 40.21%      2.09s  4.78%  bufio.(*Writer).Flush
+     0.35s   0.8% 41.01%      2.09s  4.78%  runtime.mallocgcSmallScanNoHeader
+     0.05s  0.11% 41.13%      2.08s  4.76%  runtime.mcall
+         0     0% 41.13%      1.91s  4.37%  net/http.(*Transport).RoundTrip (inline)
+     0.05s  0.11% 41.24%      1.91s  4.37%  net/http.(*Transport).roundTrip
+         0     0% 41.24%      1.81s  4.14%  github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync.func2 (inline)
+         0     0% 41.24%      1.81s  4.14%  github.com/mattn/go-sqlite3._Cfunc__sqlite3_step_row_internal
+     0.08s  0.18% 41.42%      1.71s  3.91%  runtime.park_m
+     0.10s  0.23% 41.65%      1.66s  3.80%  runtime.schedule
+     0.01s 0.023% 41.67%      1.53s  3.50%  runtime.newstack
+     0.05s  0.11% 41.79%      1.48s  3.39%  net/http.(*Request).write
+         0     0% 41.79%      1.46s  3.34%  net/http.(*http2serverConn).writeFrameAsync
+     0.02s 0.046% 41.83%      1.38s  3.16%  p2pstream/internal/server.initializePublicProxyContext
+     0.01s 0.023% 41.86%      1.37s  3.13%  runtime.copystack
+     0.13s   0.3% 42.15%      1.28s  2.93%  runtime.findRunnable
+     0.02s 0.046% 42.20%      1.15s  2.63%  net/http.(*http2serverConn).processFrame
+         0     0% 42.20%      1.15s  2.63%  net/http.(*http2serverConn).processFrameFromReader
+     0.04s 0.091% 42.29%      1.11s  2.54%  net/http.(*http2serverConn).processHeaders
+         0     0% 42.29%      1.07s  2.45%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+     0.04s 0.091% 42.38%      1.03s  2.36%  net/http.(*http2serverConn).runHandler.func1
+         0     0% 42.38%      1.02s  2.33%  github.com/hashicorp/yamux.(*Session).handleAggregateData
+     0.03s 0.069% 42.45%      1.02s  2.33%  net/http.(*persistConn).readResponse
+     0.05s  0.11% 42.57%      1.02s  2.33%  p2pstream/internal/server.(*observabilityRecorder).run
+     0.03s 0.069% 42.63%      1.02s  2.33%  p2pstream/internal/server.routeResolutionStage
+     0.01s 0.023% 42.66%      0.99s  2.26%  net/http.ReadResponse
+     0.08s  0.18% 42.84%      0.98s  2.24%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+     0.11s  0.25% 43.09%      0.98s  2.24%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+     0.06s  0.14% 43.23%      0.90s  2.06%  net/http.(*persistConn).roundTrip
+     0.01s 0.023% 43.25%      0.89s  2.04%  net/http.(*http2serverConn).readFrames
+         0     0% 43.25%      0.88s  2.01%  net/http.(*http2responseWriter).handlerDone
+         0     0% 43.25%      0.87s  1.99%  net/http.(*http2responseWriter).Flush (inline)
+         0     0% 43.25%      0.87s  1.99%  net/http.(*http2responseWriter).FlushError
+     0.06s  0.14% 43.39%      0.86s  1.97%  net/http.(*http2responseWriterState).writeChunk
+         0     0% 43.39%      0.86s  1.97%  net/http.http2chunkWriter.Write
+     0.12s  0.27% 43.66%      0.86s  1.97%  p2pstream/internal/server.(*App).selectRouteTarget
+     0.02s 0.046% 43.71%      0.84s  1.92%  github.com/hashicorp/yamux.(*Session).publishAggregateCredit
+     0.03s 0.069% 43.78%      0.84s  1.92%  github.com/hashicorp/yamux.(*Stream).readAggregateDataPayload
+         0     0% 43.78%      0.84s  1.92%  p2pstream/internal/server.(*App).insertProxyRequestEventsWithRollupsAndCacheTouches
+         0     0% 43.78%      0.84s  1.92%  p2pstream/internal/server.(*observabilityRecorder).flushBatch
+         0     0% 43.78%      0.84s  1.92%  p2pstream/internal/server.(*observabilityRecorder).runBackgroundFlush

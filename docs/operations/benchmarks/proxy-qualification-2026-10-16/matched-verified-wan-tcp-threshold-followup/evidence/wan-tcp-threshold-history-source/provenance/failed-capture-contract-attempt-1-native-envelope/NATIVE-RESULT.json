@@ -1,0 +1,17 @@
+{
+  "chunk_id": "f3c73e",
+  "endpoint_execution": false,
+  "exit_code": 0,
+  "forced_intervention": false,
+  "full_native_tool_response_observed": true,
+  "invocation_source_manifest_sha256": "78eb68ceeead6d40e8784f413bdbefc6354e7f92bfb9d08da36355c1957a19cd",
+  "native_tool": "exec_command",
+  "original_token_count": 0,
+  "output": "",
+  "records_ledger_sha256": "8bc0352f71dc740df42a263ec1645646b9834a2550167e30f3781b591fadb307",
+  "schema_version": 1,
+  "session_id": null,
+  "source_package_manifest_sha256": "10fb785112ba9a678e4592defe9251cab7b8077225150bb052140b999fb76b5e",
+  "wall_time_seconds": 0.629793799,
+  "wan_traffic": false
+}

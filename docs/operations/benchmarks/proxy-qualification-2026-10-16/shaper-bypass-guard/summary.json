@@ -1,0 +1,168 @@
+{
+  "frozen-3ec137c": {
+    "useful_requests_per_second": 25901.34148350963,
+    "p95_ms": 11.439112,
+    "p99_ms": 16.629153,
+    "samples": [
+      {
+        "sequence": 1,
+        "useful_requests_per_second": 27089.061689959002,
+        "p99_ms": 16.177463,
+        "attempted": 271009,
+        "useful_completed": 271009,
+        "errors": 0,
+        "persisted_event_delta": 271009,
+        "dropped_event_delta": null,
+        "event_queue_after_drain": null,
+        "event_drain_error": null
+      },
+      {
+        "sequence": 5,
+        "useful_requests_per_second": 25901.34148350963,
+        "p99_ms": 16.97205,
+        "attempted": 259115,
+        "useful_completed": 259115,
+        "errors": 0,
+        "persisted_event_delta": 259115,
+        "dropped_event_delta": null,
+        "event_queue_after_drain": null,
+        "event_drain_error": null
+      },
+      {
+        "sequence": 7,
+        "useful_requests_per_second": 25756.920835699093,
+        "p99_ms": 16.629153,
+        "attempted": 257651,
+        "useful_completed": 257651,
+        "errors": 0,
+        "persisted_event_delta": 257651,
+        "dropped_event_delta": null,
+        "event_queue_after_drain": null,
+        "event_drain_error": null
+      }
+    ]
+  },
+  "haproxy-3.2.9": {
+    "useful_requests_per_second": 82577.05415056617,
+    "p95_ms": 2.708296,
+    "p99_ms": 4.161822,
+    "samples": [
+      {
+        "sequence": 3,
+        "useful_requests_per_second": 83820.4624444433,
+        "p99_ms": 4.161822,
+        "attempted": 838433,
+        "useful_completed": 838433,
+        "errors": 0,
+        "persisted_event_delta": null,
+        "dropped_event_delta": null,
+        "event_queue_after_drain": null,
+        "event_drain_error": null
+      },
+      {
+        "sequence": 6,
+        "useful_requests_per_second": 81826.06629328654,
+        "p99_ms": 4.298688,
+        "attempted": 818501,
+        "useful_completed": 818501,
+        "errors": 0,
+        "persisted_event_delta": null,
+        "dropped_event_delta": null,
+        "event_queue_after_drain": null,
+        "event_drain_error": null
+      },
+      {
+        "sequence": 9,
+        "useful_requests_per_second": 82577.05415056617,
+        "p99_ms": 4.12432,
+        "attempted": 826008,
+        "useful_completed": 826008,
+        "errors": 0,
+        "persisted_event_delta": null,
+        "dropped_event_delta": null,
+        "event_queue_after_drain": null,
+        "event_drain_error": null
+      }
+    ]
+  },
+  "shaper-bypass-guard": {
+    "useful_requests_per_second": 26189.58087388287,
+    "p95_ms": 11.405757,
+    "p99_ms": 16.439444,
+    "samples": [
+      {
+        "sequence": 2,
+        "useful_requests_per_second": 26657.723064069196,
+        "p99_ms": 16.38183,
+        "attempted": 266687,
+        "useful_completed": 266687,
+        "errors": 0,
+        "persisted_event_delta": 266687,
+        "dropped_event_delta": null,
+        "event_queue_after_drain": null,
+        "event_drain_error": null
+      },
+      {
+        "sequence": 4,
+        "useful_requests_per_second": 26171.450150525827,
+        "p99_ms": 16.439444,
+        "attempted": 261824,
+        "useful_completed": 261824,
+        "errors": 0,
+        "persisted_event_delta": 261824,
+        "dropped_event_delta": null,
+        "event_queue_after_drain": null,
+        "event_drain_error": null
+      },
+      {
+        "sequence": 8,
+        "useful_requests_per_second": 26189.58087388287,
+        "p99_ms": 16.753776,
+        "attempted": 262107,
+        "useful_completed": 262107,
+        "errors": 0,
+        "persisted_event_delta": 262107,
+        "dropped_event_delta": null,
+        "event_queue_after_drain": null,
+        "event_drain_error": null
+      }
+    ]
+  },
+  "candidate_change_percent": {
+    "useful_requests_per_second": 1.112835760096642,
+    "p95_ms": -0.2915873190156737,
+    "p99_ms": -1.1408217844889434
+  },
+  "pairs": [
+    {
+      "order": [
+        "frozen-3ec137c",
+        "shaper-bypass-guard",
+        "haproxy-3.2.9"
+      ],
+      "useful_rps_change_percent": -1.5922981416875315,
+      "p99_change_percent": 1.2632821351530987
+    },
+    {
+      "order": [
+        "shaper-bypass-guard",
+        "frozen-3ec137c",
+        "haproxy-3.2.9"
+      ],
+      "useful_rps_change_percent": 1.042836592800267,
+      "p99_change_percent": -3.138135935258246
+    },
+    {
+      "order": [
+        "frozen-3ec137c",
+        "shaper-bypass-guard",
+        "haproxy-3.2.9"
+      ],
+      "useful_rps_change_percent": 1.6797816825375733,
+      "p99_change_percent": 0.7494248203741893
+    }
+  ],
+  "decision": "rejected: no consistent sustained benefit; production unchanged",
+  "timed_candidate_requests": 790618,
+  "timed_baseline_requests": 787775
+}

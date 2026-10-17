@@ -1,0 +1,150 @@
+{
+  "result": "pass",
+  "scope": "complete_moderate_evidence_verification",
+  "rows": 36,
+  "total_exact_requests": 9374040,
+  "hashes_verified": 4,
+  "clean_lifecycle": true,
+  "all_delivery_and_payload_checks": true,
+  "all_h2_single_connection": true,
+  "caddy_tails_all_pass": true,
+  "haproxy_tails_all_fail": true,
+  "latency_cells": [
+    {
+      "protocol": "h1",
+      "concurrency": 16,
+      "medians": {
+        "candidate": {
+          "p95_ms": 0.440303,
+          "p99_ms": 1.538012
+        },
+        "haproxy": {
+          "p95_ms": 0.238388,
+          "p99_ms": 0.322924
+        }
+      },
+      "candidate_to_haproxy": {
+        "p95_ms": 1.8470015269224962,
+        "p99_ms": 4.762767710049423
+      },
+      "capacity_confounded": false,
+      "passed": false
+    },
+    {
+      "protocol": "h1",
+      "concurrency": 128,
+      "medians": {
+        "candidate": {
+          "p95_ms": 0.499027,
+          "p99_ms": 2.619124
+        },
+        "haproxy": {
+          "p95_ms": 0.255985,
+          "p99_ms": 0.433092
+        }
+      },
+      "candidate_to_haproxy": {
+        "p95_ms": 1.949438443658808,
+        "p99_ms": 6.04750030016717
+      },
+      "capacity_confounded": false,
+      "passed": false
+    },
+    {
+      "protocol": "h2",
+      "concurrency": 16,
+      "medians": {
+        "candidate": {
+          "p95_ms": 0.518867,
+          "p99_ms": 1.017191
+        },
+        "haproxy": {
+          "p95_ms": 0.273849,
+          "p99_ms": 0.403659
+        }
+      },
+      "candidate_to_haproxy": {
+        "p95_ms": 1.8947193526359416,
+        "p99_ms": 2.519926472591965
+      },
+      "capacity_confounded": false,
+      "passed": false
+    },
+    {
+      "protocol": "h2",
+      "concurrency": 128,
+      "medians": {
+        "candidate": {
+          "p95_ms": 0.642162,
+          "p99_ms": 2.179775
+        },
+        "haproxy": {
+          "p95_ms": 0.284035,
+          "p99_ms": 0.401535
+        }
+      },
+      "candidate_to_haproxy": {
+        "p95_ms": 2.260855176298696,
+        "p99_ms": 5.4286052274397
+      },
+      "capacity_confounded": false,
+      "passed": false
+    }
+  ],
+  "row_fields": [
+    "label",
+    "path",
+    "scenario",
+    "protocol",
+    "concurrency",
+    "offered_requests_per_second",
+    "offered_schedule",
+    "attempted",
+    "useful_completed",
+    "status_classes",
+    "status_codes",
+    "errors",
+    "wall_seconds",
+    "useful_requests_per_second",
+    "p50_ms",
+    "p95_ms",
+    "p99_ms",
+    "response_bytes",
+    "peak_rss_bytes",
+    "final_rss_bytes",
+    "peak_fds",
+    "cpu_seconds",
+    "peak_heap_alloc_bytes",
+    "cgroup_memory_peak_bytes",
+    "cgroup_memory_final_bytes",
+    "cgroup_memory_max_bytes",
+    "gc_cycles",
+    "gc_pause_seconds",
+    "observed_http_major",
+    "observed_origin_http_major",
+    "initial_rss_bytes",
+    "initial_heap_alloc_bytes",
+    "initial_cgroup_memory_bytes",
+    "peak_socket_fds",
+    "final_socket_fds",
+    "peak_cgroup_sock_bytes",
+    "final_cgroup_sock_bytes",
+    "proxy_cpu_set",
+    "load_cpu_set",
+    "resource_envelope",
+    "client_tcp_connections",
+    "new_origin_tcp_connections",
+    "event_stats_captured",
+    "persisted_events_after_load",
+    "persisted_events_after_drain",
+    "persisted_event_delta",
+    "event_queue_after_load",
+    "event_drain_seconds",
+    "iteration",
+    "sequence",
+    "proxy_kind",
+    "load_process_started_utc",
+    "load_process_finished_utc",
+    "moderate_load_plan"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "accepted": false,
+  "scope": "single offline whole-vector decision-test command; no sockets/build/traffic",
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-vector.py"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+  "exit_status": 1,
+  "error": null,
+  "started_unix": 1792240944.8180618,
+  "finished_unix": 1792240945.1393785,
+  "source_sha256": "16106750d8adc48ff06f919b07e859b02fd159c90ab3efed223112a300ebe0fa",
+  "plan_sha256": "0c63879d7ec57810cba8d12059b710adc4d58da81580458f88f7f66413110a98",
+  "source_changed": [],
+  "parent_frozen_changed": [],
+  "outer_audit_sha256": "9784e767559008e37474459a62a0459aabe8e01451fdba1275ec129c1bbadae3",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "33a03d0c4cd7f58af3007358ca3592d5d74dc550b92c09ea561837601d268959",
+  "forced": false,
+  "remaining_owned": [],
+  "adopted_descendants": []
+}

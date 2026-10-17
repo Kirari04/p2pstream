@@ -1,0 +1,57 @@
+{
+  "baseline_source_commit": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "candidate_base_source_commit": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "candidate_archive": "/tmp/p2pstream-shaper-guard.8mbrurzb",
+  "baseline_binary": "/tmp/p2pstream-caddy-3ec137c.SoeRAa/server.test",
+  "baseline_binary_sha256": "b5ae445e18ba781c73d81f6a6d587b0c51408dafccb7e5702a1b023d53929ea3",
+  "candidate_production_overlay": {
+    "internal/server/public_proxy_pipeline.go": "d6eab3746376c1423c77c6ca8be76400e7b3ccbafbf9434d7ec8b916700ace0a"
+  },
+  "test_overlays": [],
+  "harness_sha256": "9a3ac62225dd404d4a93cb9560678041cfb84995e0c38f7bd183547ff3ee68f0",
+  "status": "completed and rejected",
+  "purpose": "Skip the escaping traffic-shaper decision value copy when no shaper is selected; preserve the selected owned-copy helper.",
+  "started_utc": "2026-10-16T01:48:01.509652+00:00",
+  "runner_sha256": "5ff66a236141370ca761f1217459a97b11c76f3c2a5beecb96f429a89843886e",
+  "acceptance": "Existing semantic regressions pass; selected shaper retains owned-copy semantics; sustained paired throughput must benefit, allocation-only improvement is insufficient.",
+  "finished_utc": "2026-10-16T01:52:35.872375+00:00",
+  "decision": "rejected: no consistent sustained benefit; production unchanged",
+  "candidate_binary_sha256": "550a6f0786611d21409b835a1fcb0aeeacbe46005d46ce947a1d093a6c7e7eb6",
+  "harness_runner_sha256": "13297f8b9fb1fa166819bbee722df431c3b68928ec5b691db146460ff1d69c6e",
+  "sustained_raw_directory": "/tmp/p2pstream-caddy-3ec137c.SoeRAa/tmp/proxy-qualification.hN1QQs",
+  "profile_raw_directory": "/tmp/p2pstream-caddy-3ec137c.SoeRAa/tmp/proxy-qualification.J3tJ6i",
+  "profile_timing": "separate diagnostic only; excluded from sustained comparison",
+  "runtime_source": "No production worktree file was modified.",
+  "semantic_checks": [
+    "focused existing shaping, WebSocket, fail-closed policy and context lifetime tests: normal count3, race count3"
+  ],
+  "paired_orders": [
+    {
+      "order": [
+        "frozen-3ec137c",
+        "shaper-bypass-guard",
+        "haproxy-3.2.9"
+      ],
+      "useful_rps_change_percent": -1.5922981416875315,
+      "p99_change_percent": 1.2632821351530987
+    },
+    {
+      "order": [
+        "shaper-bypass-guard",
+        "frozen-3ec137c",
+        "haproxy-3.2.9"
+      ],
+      "useful_rps_change_percent": 1.042836592800267,
+      "p99_change_percent": -3.138135935258246
+    },
+    {
+      "order": [
+        "frozen-3ec137c",
+        "shaper-bypass-guard",
+        "haproxy-3.2.9"
+      ],
+      "useful_rps_change_percent": 1.6797816825375733,
+      "p99_change_percent": 0.7494248203741893
+    }
+  ]
+}

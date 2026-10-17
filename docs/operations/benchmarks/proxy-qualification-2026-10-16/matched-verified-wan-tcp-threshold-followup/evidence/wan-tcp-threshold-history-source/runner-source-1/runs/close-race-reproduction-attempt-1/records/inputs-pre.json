@@ -1,0 +1,118 @@
+{
+  "audited_build_receipt_sha256": "dae7e3e7e58cd829804b07aea9b063aa6d0233552ae0068d9c38725bed427f13",
+  "audited_source_inventory_sha256": "970b41a3d3bb4ec7f3142e27875b9ba6d951e251b6c0bf6771059fb5ea801dbb",
+  "focused_source_inputs": {
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/audited-tcp-threshold-history-build-receipt.json": {
+      "bytes": 5282,
+      "sha256": "dae7e3e7e58cd829804b07aea9b063aa6d0233552ae0068d9c38725bed427f13"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source/go.mod": {
+      "bytes": 8348,
+      "sha256": "165d373cd30192573bfd30e0f0997b393c433368d3ac01df8b178aaf4bdb5d65"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source/go.sum": {
+      "bytes": 52059,
+      "sha256": "7e451e21339534258c770d5d4669cffd5c126d38e91026e09f35fa93c89173f2"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source/internal/agent/connect_and_serve_qualification.go": {
+      "bytes": 12167,
+      "sha256": "cf2cf5e2076db5ad5bc53db7ead2712500f55d311c31de40e89a3735a241b113"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source/internal/agent/qualification_raw_write_qualification.go": {
+      "bytes": 37098,
+      "sha256": "98be9ca1dda13e6f609adf9d72bf42b207a67d5a4655a0c927f85dd65ef28a53"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source/internal/agent/qualification_tcp_state_qualification.go": {
+      "bytes": 28649,
+      "sha256": "fee94f615cddb9499bc29df6da4691369495f5b59323730a40125a27cd46dbd6"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source/internal/agent/qualification_tcp_threshold_history_qualification.go": {
+      "bytes": 18006,
+      "sha256": "29034e7cd5dae093a6f32e17eefda742865682a816a67296372b26d1036f7b9a"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source/internal/agent/qualification_tcp_threshold_history_qualification_test.go": {
+      "bytes": 31610,
+      "sha256": "ecc25e2b300f23778839c38cc0379413111dda9dad299e7a00bfd2d6a7d1043f"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source/third_party/yamux/qualification_raw_write_activity.go": {
+      "bytes": 7012,
+      "sha256": "68ec75f6260ae4a4118cbd5dc4bdfef2eeb0315581d0a3c265ae778fe2fa0530"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source/third_party/yamux/session.go": {
+      "bytes": 25039,
+      "sha256": "269b135aaf0311c639f6f040c290731c44ca64eb10f413b6ebbcd10b87da3d29"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/tiny-threshold-history-smoke-2-result-review/REVIEW.json": {
+      "bytes": 22453,
+      "sha256": "587cbd834deeb0f6c117c3716a717b2b1c67552fcd0aeb5b3bbd4cc51712b43f"
+    },
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/tiny-threshold-history-smoke-2-result-review/RUN-SHA256SUMS.txt": {
+      "bytes": 32573,
+      "sha256": "5e5c7c1d0ae91caff4379fc1bc13fce227ea9a9337247452f54060f17550163f"
+    },
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/crypto/tls/conn.go": {
+      "bytes": 54551,
+      "sha256": "c5267d4cc54fef91f4346e82865bee81224599c080dd2c559b21e09dd1d7e7d6"
+    }
+  },
+  "invocation": {
+    "files": {
+      "INPUTS.json": "7b6d2b1229b81cb654d23d08fc8a15b6e72be67eb290a7c156c918fa0aa92b45",
+      "README.md": "5fb505665ee7c8fbc8ac68152cef15ef0a34696ad992820e683cd3ca29763216",
+      "run-reproduction.py": "50aac26ee696fea0622143b1b3eca738db7222d3da9b8fe3c6b662cc08852dfa"
+    },
+    "manifest_sha256": "ebe0e35fe7dd8658bff8fa60f824e944406f181c1c951f778293b68f86083a0a"
+  },
+  "reproduction": {
+    "files": {
+      "ARCHITECTURAL-RECOMMENDATION.json": "76227ca0888cd4d8736f35842f2e410f0e327e9ded68b4fe37c9e110f9ec2751",
+      "PROPOSED-INVOCATIONS.json": "10d29b21623b51fbf752cd40e0651b4fe5c40cdfb301ee5637885d65dee3324c",
+      "SOURCE-CHAIN.json": "2aedf4882aefbcf44d67c470244bdd4642e7ba0ad8bb4d64f0de8401b1a8b727",
+      "overlay.json": "5fbe6888d2cf0d9932f61307d95c5b8a0e6909adab6ed9345ffa018be5fbed68",
+      "overlay/internal/agent/qualification_close_cancellation_reproduction_test.go": "b1d6246be86fe5c433156ccbb8b78a87a71948ac37eb7f4f1e087e41859c917e"
+    },
+    "manifest_sha256": "faeff7a78235271a8a0748d27dc739a81d20896e7251f004a1de97db191a3f06"
+  },
+  "tools": {
+    "as": {
+      "path": "/usr/bin/x86_64-linux-gnu-as",
+      "sha256": "4e5fcaa3cdc160173cb5cfe7aa35dc39d7aa1f06ba8d75b8d923bbae5473991b"
+    },
+    "asm": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/pkg/tool/linux_amd64/asm",
+      "sha256": "769ac2d73d09b7cc5479acdeb9f168c1772743420ffca2d9e990a9b0348d2836"
+    },
+    "cc": {
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "sha256": "b5f1b773a7c733738352000c92a077dc5852a1a2fc6d836b1e411be1e9ec5f88"
+    },
+    "cgo": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/pkg/tool/linux_amd64/cgo",
+      "sha256": "0cd2b021821f031ad471a0e0bb39cd85bf777bcdc4defa452ef6028962d05d83"
+    },
+    "compile": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/pkg/tool/linux_amd64/compile",
+      "sha256": "73da54c06c0702ae7c8cff309dd3958980af7ae0307cf319d7d0cb2bbd3fafd2"
+    },
+    "go": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+    },
+    "helper": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-sender-wait-build-source/review/source-checkpoint-3/run-audited-build.py",
+      "sha256": "8d40407691bc70d6341f9932d7e6d8345ccb06e181ceaed4a5cdf3491e234440"
+    },
+    "ld": {
+      "path": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+      "sha256": "97f48d93b8b076a92d2809ec29dcb17f0f37c8827358f832255e2ed22fef6075"
+    },
+    "link": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/pkg/tool/linux_amd64/link",
+      "sha256": "048670775edfd89c6551149c197816dacdcc12c518b29ff1c533751b2dc4b976"
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "binaries": {
+    "agent": {
+      "go_version_m_sha256": "838a2634397e6664f66fc54186ea2ee84a0631db2794c41fc9a4ac090abe4690",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+      "sha256": "b2d938c647c1d8ab4c2199a462b78e66ca7d00b710c08900b4421fc08eae8737",
+      "size": 22049900
+    },
+    "server": {
+      "go_version_m_sha256": "d01bff4ce0162158922192cb0f8a1fb46862e79db0ea7412d71483096dd6237b",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+      "sha256": "7bdac220c824f6d135696377bfc4203ee828c2cd2423e529523586571130b23d",
+      "size": 60252128
+    }
+  },
+  "certificate_dates": [
+    "notBefore=Oct 17 09:14:29 2026 GMT",
+    "notAfter=Oct 18 09:14:29 2026 GMT"
+  ],
+  "certificate_der_sha256": "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+  "certificate_file_sha256": "ff371bbb028ee80cee245567d09261927fe57bcd43513f616514ba699d53c836",
+  "commands_sha256": "e078180ed57f0404b034180756431bbaa85c898f15f7c1b1491da01621caf740",
+  "current_time_utc": "2026-10-17T12:15:14.865399+00:00",
+  "frozen_and_plan_inputs_unchanged": true,
+  "key_file_sha256": "640bf8eb100ec71b7ee9424024b958ea0403751d4b2fb23dd3618986f5a59715",
+  "matching_endpoint_owners_before": [],
+  "network_namespaces_before": [],
+  "prior_failed_run_sha256": "6d84f0576677e3d8c2830e08817df604f8298823aee5107d2e6f30ac8cca203b",
+  "prior_owned_identities_absent": true,
+  "receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "runner_network_namespace": "net:[4026531833]",
+  "source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331"
+}

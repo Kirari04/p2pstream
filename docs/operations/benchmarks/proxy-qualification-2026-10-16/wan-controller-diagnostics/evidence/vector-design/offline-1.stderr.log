@@ -1,0 +1,14 @@
+F.......
+======================================================================
+FAIL: test_108pct_pooled_boundary (__main__.WholeVector.test_108pct_pooled_boundary)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-vector.py", line 33, in test_108pct_pooled_boundary
+    self.assertTrue(vector.decide_screen(self.screen((30_000_000,)*4,(32_400_000,)*4,(30_000_000,)*4))['accepted'])
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.004s
+
+FAILED (failures=1)

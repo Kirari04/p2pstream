@@ -1,0 +1,320 @@
+--- tmp/continuation-20261016/wan-protocol-source/validate-wan-protocol-arm.py
++++ tmp/continuation-20261016/wan-copy-attribution-source/validate-wan-copy-attribution-arm.py
+@@ -1,12 +1,18 @@
+ #!/usr/bin/env python3
+ import hashlib
++import importlib.util
+ import json
+ import math
+ import pathlib
+ import sys
+ 
+ if len(sys.argv) != 11:
+-    raise SystemExit("usage: validate-wan-protocol-arm.py RESULTS LIFECYCLE SUMMARY OUTER SUPERVISOR PRE_HASHES POST_HASHES ATTESTATION PROTOCOL SMOKE")
++    raise SystemExit("usage: validate-wan-copy-attribution-arm.py RESULTS LIFECYCLE SUMMARY OUTER SUPERVISOR PRE_HASHES POST_HASHES ATTESTATION PROTOCOL SMOKE")
++
++copy_validator_path = pathlib.Path(__file__).with_name("validate-copy-record.py")
++spec = importlib.util.spec_from_file_location("copy_record_validator", copy_validator_path)
++copy_record_validator = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(copy_record_validator)
+ 
+ (results_path, lifecycle_path, summary_path, outer_path, supervisor_path,
+  pre_path, post_path, attestation_path) = map(pathlib.Path, sys.argv[1:9])
+@@ -41,7 +47,11 @@
+     issues.append("binary, source overlay, certificate, or harness hashes changed during the arm")
+ hashes = pre.get("sha256", {})
+ required_hashes = {
+-    "supervisor", "runner", "validator", "approved_lifecycle_runner", "runner_patch", "go_base_patch", "go_helper", "diagnostic_build_manifest",
++    "supervisor", "runner", "validator", "approved_lifecycle_runner", "frozen_protocol_runner",
++    "wan_protocol_runner_patch", "copy_runner_patch", "go_base_patch", "go_helper", "diagnostic_build_manifest",
++    "copy_record_validator", "copy_attribution_overlay_patch", "copy_attribution_design",
++    "final_source_attestation", "integration_notes", "copy_timing_decision_map",
++    "runner_reconstruction_attestation",
+     "server_binary", "aggregate_agent_binary", "certificate_pem", "private_key_pem",
+ }
+ if set(hashes) != required_hashes or any(not isinstance(hashes.get(name), str) or len(hashes[name]) != 64 for name in required_hashes):
+@@ -53,6 +63,8 @@
+ floor = 29_700_000
+ phase_download_rates = {stage: [] for stage in ("warmup", "retained-warmup", "steady")}
+ trace_records = []
++copy_records = []
++copy_issues_by_sequence = {}
+ 
+ for index, row in enumerate(rows, 1):
+     direction = row.get("transfer_direction")
+@@ -93,6 +105,25 @@
+             and tls[0].get("peer_leaf_der_sha256") == pre.get("expected_leaf_der_sha256")
+             and tls[0].get("origin_connection_id") and not tls[0].get("validation_error")):
+         issues.append(f"row {index} failed verified public TLS/protocol/origin identity")
++    copy_envelope = row.get("response_copy_attribution", {})
++    copy_issues = copy_record_validator.validate_copy_envelope(copy_envelope, index, direction, payload_bytes)
++    if copy_issues:
++        copy_issues_by_sequence[str(index)] = copy_issues
++        issues.append(f"row {index} copy attribution failed: {'; '.join(copy_issues)}")
++    copy_matches = copy_envelope.get("matches", []) if isinstance(copy_envelope, dict) else []
++    copy_record = copy_matches[0] if len(copy_matches) == 1 and isinstance(copy_matches[0], dict) else {}
++    copy_metrics = copy_record.get("copy", {}) if isinstance(copy_record.get("copy"), dict) else {}
++    started_ns, returned_ns = copy_record.get("started_unix_ns"), copy_record.get("handler_return_unix_ns")
++    copy_records.append({
++        "sequence": index, "direction": direction, "scope": copy_record.get("scope"),
++        "method": copy_record.get("method"), "path": copy_record.get("path"),
++        "complete": copy_metrics.get("complete"),
++        "handler_elapsed_ns": returned_ns - started_ns if isinstance(started_ns, int) and isinstance(returned_ns, int) else None,
++        "upstream_read": copy_metrics.get("upstream_read"),
++        "downstream_write": copy_metrics.get("downstream_write"),
++        "inter_read_gap": copy_metrics.get("inter_read_gap"),
++        "read_eof": copy_metrics.get("read_eof"),
++    })
+     envelope = row.get("upstream_transport_trace", {})
+     matches = envelope.get("matches", [])
+     method = "GET" if direction == "download" else "POST"
+@@ -198,7 +229,8 @@
+ 
+ acceptance = summary.get("acceptance")
+ expected_acceptance = {
+-    "correctness", "verified_tls_and_protocol_every_response", "transport_trace_complete", "expected_upstream_reuse", "download_floor_every_phase"
++    "correctness", "verified_tls_and_protocol_every_response", "transport_trace_complete", "expected_upstream_reuse",
++    "response_copy_attribution_complete", "download_floor_every_phase"
+ }
+ if summary.get("classification") != "observational-complete":
+     issues.append(f"diagnostic classification is not conclusive: {summary.get('classification')!r}")
+@@ -206,6 +238,13 @@
+     issues.append(f"diagnostic acceptance failed or incomplete: {acceptance!r}")
+ if summary.get("public_protocol") != protocol or summary.get("diagnostic_only") is not True:
+     issues.append("summary protocol/scope changed")
++if summary.get("copy_attribution_issues_by_sequence") != copy_issues_by_sequence:
++    issues.append("summary copy-attribution issue evidence differs from independently validated rows")
++expected_copy_interpretation = ("Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with handler wall time. "
++                                "Inter-read gaps include downstream Write time and bookkeeping and are never added as an independent component. "
++                                "POST observations cover only the 32-byte response copy, not upload request-body handling.")
++if summary.get("copy_attribution_interpretation") != expected_copy_interpretation:
++    issues.append("summary copy-attribution interpretation changed")
+ 
+ expected_labels = {
+     f"current-server-aggregate-v1-{protocol}-1-agent",
+@@ -266,6 +305,9 @@
+     "download_floor_bytes_per_second": floor,
+     "download_phase_classification": phase_classification,
+     "reuse_expectations": reuse_expectations,
++    "copy_attribution_records": copy_records,
++    "copy_attribution_issues_by_sequence": copy_issues_by_sequence,
++    "copy_attribution_interpretation": expected_copy_interpretation,
+     "all_observed_http_major": expected_major if rows and all(row.get("observed_http_major") == expected_major for row in rows) else None,
+     "verified_alpn": expected_alpn if rows and all(len(row.get("wan_response_tls", [])) == 1 and row["wan_response_tls"][0].get("negotiated_alpn") == expected_alpn for row in rows) else None,
+     "natural_endpoint_and_namespace_statuses": lifecycle_identity_ok and lifecycle_status_ok and lifecycle_no_invalidation and namespace_ok,
+--- tmp/continuation-20261016/wan-protocol-source/run-wan-protocol-arm.sh
++++ tmp/continuation-20261016/wan-copy-attribution-source/run-wan-copy-attribution-arm.sh
+@@ -2,13 +2,22 @@
+ set -Eeuo pipefail
+ 
+ script_dir=$(cd "$(dirname "$0")" && pwd)
+-runner="$script_dir/generated/qualify-proxy-agent-growth-wan-protocol.sh"
+-validator="$script_dir/validate-wan-protocol-arm.py"
++runner="$script_dir/generated/qualify-proxy-agent-growth-wan-copy-attribution.sh"
++validator="$script_dir/validate-wan-copy-attribution-arm.py"
++copy_record_validator="$script_dir/validate-copy-record.py"
+ approved_runner="$script_dir/../current-wan-prep/runner/qualify-proxy-agent-growth-owned.sh"
+-runner_patch="$script_dir/wan-protocol-runner.patch"
+-go_patch="$script_dir/proxy-qualification-base.patch"
+-go_helper="$script_dir/proxy_qualification_wan_protocol_test.go"
+-build_manifest="$script_dir/provenance/diagnostic-build-manifest.json"
++frozen_protocol_runner="$script_dir/../wan-protocol-source/generated/qualify-proxy-agent-growth-wan-protocol.sh"
++wan_protocol_runner_patch="$script_dir/../wan-protocol-source/wan-protocol-runner.patch"
++copy_runner_patch="$script_dir/copy-attribution-runner.patch"
++go_patch="$script_dir/../wan-protocol-source/proxy-qualification-base.patch"
++go_helper="$script_dir/../wan-protocol-source/proxy_qualification_wan_protocol_test.go"
++copy_overlay="$script_dir/copy-attribution-overlay.patch"
++copy_design="$script_dir/DESIGN.md"
++build_manifest="$script_dir/provenance/copy-attribution-build-manifest.json"
++final_source_attestation="$script_dir/provenance/final-source-binary-toolchain-attestation.json"
++runner_reconstruction_attestation="$script_dir/provenance/runner-reconstruction-attestation.json"
++integration_notes="$script_dir/INTEGRATION-NOTES.md"
++decision_map="$script_dir/../current-wan-prep/COPY-TIMING-DECISION-MAP.md"
+ server_binary=""
+ aggregate_agent_binary=""
+ server_source_ref=""
+@@ -36,8 +45,8 @@
+   esac
+ done
+ 
+-[[ -x $server_binary && -x $aggregate_agent_binary && -x $runner && -x $validator ]] || {
+-  echo "server, agent, runner, and validator must be executable" >&2
++[[ -x $server_binary && -x $aggregate_agent_binary && -x $runner && -x $validator && -x $copy_record_validator ]] || {
++  echo "server, agent, runner, arm validator, and copy validator must be executable" >&2
+   exit 2
+ }
+ [[ -n $server_source_ref && -n $aggregate_agent_source_ref && -n $output_dir ]] || {
+@@ -60,12 +69,16 @@
+   echo "approved lifecycle runner hash changed" >&2
+   exit 2
+ }
++[[ $(sha256sum "$frozen_protocol_runner" | awk '{print $1}') == 309d90622ad36f8f082bfd010ec85a7f87d13d80d9d8ce9a8b97ec883a12bad7 ]] || {
++  echo "frozen WAN protocol runner hash changed" >&2
++  exit 2
++}
+ for name in P2PSTREAM_QUALIFICATION_PROFILE_DIR P2PSTREAM_QUALIFICATION_PROFILE_MODE; do
+   [[ -z ${!name+x} ]] || { echo "$name must be unset" >&2; exit 2; }
+ done
+ server_binary_sha256=$(sha256sum "$server_binary" | awk '{print $1}')
+ agent_binary_sha256=$(sha256sum "$aggregate_agent_binary" | awk '{print $1}')
+-[[ $server_binary_sha256 == 60667aa9bbe7375de77d341c83cd8576301366f26cda25fb980fa7b813ba405e && \
++[[ $server_binary_sha256 == 59eb8af1e6c767776f639b014074d542abb23d4ad019c7558182670372ea92a7 && \
+    $agent_binary_sha256 == 9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137 ]] || {
+   echo "server or aggregate-agent binary is not the approved diagnostic build" >&2
+   exit 2
+@@ -74,12 +87,24 @@
+   --arg server_ref "$server_source_ref" --arg agent_ref "$aggregate_agent_source_ref" '
+     .base_source_ref == $server_ref and .aggregate_agent_source_ref == $agent_ref and
+     .sha256.server_test_binary == $server and .sha256.aggregate_agent_test_binary == $agent and
+-    .sha256.go_base_patch == "b2c90d2ee6bf9ade304163795022071b4d368b61f0e9d5bc73d0e52d2569538b" and
+-    .sha256.go_test_helper == "b0b6d037d51892e89d39e6f55107f73c30647ad9a20283a026007fd69b3be42d" and
+-    .sha256.approved_lifecycle_runner == "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f" and
+-    .production_files_byte_identical_to_base == true and
+-    .focused_normal_status == 0 and .focused_race_status == 0
++    .sha256.frozen_wan_base_patch == "b2c90d2ee6bf9ade304163795022071b4d368b61f0e9d5bc73d0e52d2569538b" and
++    .sha256.frozen_wan_test_helper == "b0b6d037d51892e89d39e6f55107f73c30647ad9a20283a026007fd69b3be42d" and
++    .sha256.copy_attribution_overlay_patch == "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f" and
++    .sha256.design == "a52431ddf9439a7424a9da6e81e26b2121ba0590e32ae8603b4ad20478aa1baf" and
++    .reconstruction_status == 0 and .build_status == 0 and
++    .focused_tests.normal_status == 0 and .focused_tests.race_status == 0 and
++    .traffic_run == false
+   ' "$build_manifest" >/dev/null || { echo "diagnostic build manifest does not bind the requested artifacts" >&2; exit 2; }
++jq -e --arg server "$server_binary_sha256" --arg agent "$agent_binary_sha256" '
++    .source_verification.build_source_equals_independent_reconstruction == true and
++    .source_verification.final_normalized_overlay_sha256 == "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f" and
++    .toolchain.go_version == "go version go1.26.6 linux/amd64" and
++    .binaries.server.sha256 == $server and .binaries.agent.sha256 == $agent and .traffic_run == false
++  ' "$final_source_attestation" >/dev/null || { echo "final source/binary/toolchain attestation does not bind the requested artifacts" >&2; exit 2; }
++[[ $(sha256sum "$decision_map" | awk '{print $1}') == f6dc409926ca8178ba0da8ec262960a6b8e238d2a9d94dbe0afc9077f629c6f7 ]] || {
++  echo "copy timing decision map hash changed" >&2
++  exit 2
++}
+ actual_leaf_sha256=$(openssl x509 -in "$cert" -outform DER | sha256sum | awk '{print $1}')
+ [[ $actual_leaf_sha256 == "$expected_leaf_sha256" ]] || { echo "certificate DER fingerprint mismatch" >&2; exit 2; }
+ 
+@@ -100,11 +125,15 @@
+ 
+ write_hashes() {
+   local destination=$1
+-  python3 - "$destination" "$0" "$runner" "$validator" "$approved_runner" "$runner_patch" "$go_patch" "$go_helper" "$build_manifest" \
++  python3 - "$destination" "$0" "$runner" "$validator" "$copy_record_validator" "$approved_runner" "$frozen_protocol_runner" \
++    "$wan_protocol_runner_patch" "$copy_runner_patch" "$go_patch" "$go_helper" "$copy_overlay" "$copy_design" "$build_manifest" \
++    "$final_source_attestation" "$runner_reconstruction_attestation" "$integration_notes" "$decision_map" \
+     "$server_binary" "$aggregate_agent_binary" "$cert" "$key" "$server_source_ref" \
+     "$aggregate_agent_source_ref" "$expected_leaf_sha256" <<'PY'
+ import hashlib, json, pathlib, sys
+-(destination, supervisor, runner, validator, approved, runner_patch, go_patch, go_helper, build_manifest,
++(destination, supervisor, runner, validator, copy_record_validator, approved, frozen_protocol_runner,
++ wan_protocol_runner_patch, copy_runner_patch, go_patch, go_helper, copy_overlay, copy_design, build_manifest,
++ final_source_attestation, runner_reconstruction_attestation, integration_notes, decision_map,
+  server, agent, cert, key, server_ref, agent_ref, fingerprint) = sys.argv[1:]
+ def sha(path):
+     digest = hashlib.sha256()
+@@ -118,9 +147,15 @@
+     "aggregate_agent_source_ref": agent_ref,
+     "expected_leaf_der_sha256": fingerprint,
+     "sha256": {
+-        "supervisor": sha(supervisor), "runner": sha(runner), "validator": sha(validator), "approved_lifecycle_runner": sha(approved),
+-        "runner_patch": sha(runner_patch), "go_base_patch": sha(go_patch), "go_helper": sha(go_helper),
++        "supervisor": sha(supervisor), "runner": sha(runner), "validator": sha(validator),
++        "copy_record_validator": sha(copy_record_validator), "approved_lifecycle_runner": sha(approved),
++        "frozen_protocol_runner": sha(frozen_protocol_runner), "wan_protocol_runner_patch": sha(wan_protocol_runner_patch),
++        "copy_runner_patch": sha(copy_runner_patch), "go_base_patch": sha(go_patch), "go_helper": sha(go_helper),
++        "copy_attribution_overlay_patch": sha(copy_overlay), "copy_attribution_design": sha(copy_design),
+         "diagnostic_build_manifest": sha(build_manifest),
++        "final_source_attestation": sha(final_source_attestation), "integration_notes": sha(integration_notes),
++        "runner_reconstruction_attestation": sha(runner_reconstruction_attestation),
++        "copy_timing_decision_map": sha(decision_map),
+         "server_binary": sha(server), "aggregate_agent_binary": sha(agent),
+         "certificate_pem": sha(cert), "private_key_pem": sha(key),
+     },
+--- tmp/continuation-20261016/wan-protocol-source/run-wan-protocol-diagnostic.sh
++++ tmp/continuation-20261016/wan-copy-attribution-source/run-wan-copy-attribution-diagnostic.sh
+@@ -2,14 +2,23 @@
+ set -Eeuo pipefail
+ 
+ script_dir=$(cd "$(dirname "$0")" && pwd)
+-supervisor="$script_dir/run-wan-protocol-arm.sh"
+-validator="$script_dir/validate-wan-protocol-arm.py"
+-runner="$script_dir/generated/qualify-proxy-agent-growth-wan-protocol.sh"
+-runner_patch="$script_dir/wan-protocol-runner.patch"
++supervisor="$script_dir/run-wan-copy-attribution-arm.sh"
++validator="$script_dir/validate-wan-copy-attribution-arm.py"
++copy_record_validator="$script_dir/validate-copy-record.py"
++runner="$script_dir/generated/qualify-proxy-agent-growth-wan-copy-attribution.sh"
++frozen_protocol_runner="$script_dir/../wan-protocol-source/generated/qualify-proxy-agent-growth-wan-protocol.sh"
++wan_protocol_runner_patch="$script_dir/../wan-protocol-source/wan-protocol-runner.patch"
++copy_runner_patch="$script_dir/copy-attribution-runner.patch"
+ approved_runner="$script_dir/../current-wan-prep/runner/qualify-proxy-agent-growth-owned.sh"
+-go_patch="$script_dir/proxy-qualification-base.patch"
+-go_helper="$script_dir/proxy_qualification_wan_protocol_test.go"
+-build_manifest="$script_dir/provenance/diagnostic-build-manifest.json"
++go_patch="$script_dir/../wan-protocol-source/proxy-qualification-base.patch"
++go_helper="$script_dir/../wan-protocol-source/proxy_qualification_wan_protocol_test.go"
++copy_overlay="$script_dir/copy-attribution-overlay.patch"
++copy_design="$script_dir/DESIGN.md"
++build_manifest="$script_dir/provenance/copy-attribution-build-manifest.json"
++final_source_attestation="$script_dir/provenance/final-source-binary-toolchain-attestation.json"
++runner_reconstruction_attestation="$script_dir/provenance/runner-reconstruction-attestation.json"
++integration_notes="$script_dir/INTEGRATION-NOTES.md"
++decision_map="$script_dir/../current-wan-prep/COPY-TIMING-DECISION-MAP.md"
+ server_binary=""
+ aggregate_agent_binary=""
+ server_source_ref=""
+@@ -29,8 +38,8 @@
+   esac
+ done
+ 
+-[[ -x $server_binary && -x $aggregate_agent_binary && -x $supervisor && -x $validator && -x $runner ]] || {
+-  echo "executable server, agent, runner, supervisor, and validator are required" >&2
++[[ -x $server_binary && -x $aggregate_agent_binary && -x $supervisor && -x $validator && -x $copy_record_validator && -x $runner ]] || {
++  echo "executable server, agent, runner, supervisor, arm validator, and copy validator are required" >&2
+   exit 2
+ }
+ [[ -n $server_source_ref && -n $aggregate_agent_source_ref && -n $output_dir ]] || {
+@@ -54,7 +63,9 @@
+ 
+ rebuilt="$output_dir/preflight/runner-rebuilt.sh"
+ cp "$approved_runner" "$rebuilt"
+-patch --quiet "$rebuilt" "$runner_patch"
++patch --quiet "$rebuilt" "$wan_protocol_runner_patch"
++cmp "$rebuilt" "$frozen_protocol_runner"
++patch --quiet "$rebuilt" "$copy_runner_patch"
+ cmp "$rebuilt" "$runner"
+ printf '%s\n' verified > "$output_dir/preflight/generated-runner-consistency.status"
+ 
+@@ -71,11 +82,15 @@
+ 
+ write_pair_hashes() {
+   local destination=$1
+-  python3 - "$destination" "$0" "$supervisor" "$validator" "$runner" "$runner_patch" "$approved_runner" \
+-    "$go_patch" "$go_helper" "$build_manifest" "$server_binary" "$aggregate_agent_binary" "$cert" "$key" \
++  python3 - "$destination" "$0" "$supervisor" "$validator" "$copy_record_validator" "$runner" "$frozen_protocol_runner" \
++    "$wan_protocol_runner_patch" "$copy_runner_patch" "$approved_runner" "$go_patch" "$go_helper" "$copy_overlay" "$copy_design" \
++    "$build_manifest" "$final_source_attestation" "$runner_reconstruction_attestation" "$integration_notes" "$decision_map" \
++    "$server_binary" "$aggregate_agent_binary" "$cert" "$key" \
+     "$server_source_ref" "$aggregate_agent_source_ref" "$expected_leaf_sha256" <<'PY'
+ import hashlib, json, pathlib, sys
+-(destination, wrapper, supervisor, validator, runner, runner_patch, approved, go_patch, go_helper, build_manifest,
++(destination, wrapper, supervisor, validator, copy_record_validator, runner, frozen_protocol_runner,
++ wan_protocol_runner_patch, copy_runner_patch, approved, go_patch, go_helper, copy_overlay, copy_design, build_manifest,
++ final_source_attestation, runner_reconstruction_attestation, integration_notes, decision_map,
+  server, agent, cert, key, server_ref, agent_ref, fingerprint) = sys.argv[1:]
+ def sha(path):
+     digest = hashlib.sha256()
+@@ -90,8 +105,13 @@
+     "expected_leaf_der_sha256": fingerprint,
+     "sha256": {
+         "wrapper": sha(wrapper), "supervisor": sha(supervisor), "validator": sha(validator),
+-        "runner": sha(runner), "runner_patch": sha(runner_patch), "approved_lifecycle_runner": sha(approved),
+-        "go_base_patch": sha(go_patch), "go_helper": sha(go_helper), "diagnostic_build_manifest": sha(build_manifest), "server_binary": sha(server),
++        "copy_record_validator": sha(copy_record_validator), "runner": sha(runner), "frozen_protocol_runner": sha(frozen_protocol_runner),
++        "wan_protocol_runner_patch": sha(wan_protocol_runner_patch), "copy_runner_patch": sha(copy_runner_patch),
++        "approved_lifecycle_runner": sha(approved), "go_base_patch": sha(go_patch), "go_helper": sha(go_helper),
++        "copy_attribution_overlay_patch": sha(copy_overlay), "copy_attribution_design": sha(copy_design),
++        "diagnostic_build_manifest": sha(build_manifest), "final_source_attestation": sha(final_source_attestation),
++        "runner_reconstruction_attestation": sha(runner_reconstruction_attestation),
++        "integration_notes": sha(integration_notes), "copy_timing_decision_map": sha(decision_map), "server_binary": sha(server),
+         "aggregate_agent_binary": sha(agent), "certificate_pem": sha(cert), "private_key_pem": sha(key),
+     },
+ }

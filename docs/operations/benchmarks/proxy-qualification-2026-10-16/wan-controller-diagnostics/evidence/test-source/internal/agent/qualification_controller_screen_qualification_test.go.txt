@@ -1,0 +1,363 @@
+//go:build linux && p2pstream_qualification
+
+package agent
+
+import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"sync"
+	"syscall"
+	"testing"
+	"time"
+)
+
+type controllerTestRaw struct {
+	err   error
+	calls int
+}
+
+func (r *controllerTestRaw) Control(fn func(uintptr)) error {
+	r.calls++
+	if r.err != nil {
+		return r.err
+	}
+	fn(7)
+	return nil
+}
+func (*controllerTestRaw) Read(func(uintptr) bool) error  { return errors.New("unexpected Read") }
+func (*controllerTestRaw) Write(func(uintptr) bool) error { return errors.New("unexpected Write") }
+
+func TestQualificationControllerEnumAndLane(t *testing.T) {
+	for _, name := range []string{"cubic", "reno"} {
+		for lane := 0; lane <= 4; lane++ {
+			t.Run(name+string(rune('0'+lane)), func(t *testing.T) {
+				raw := &controllerTestRaw{}
+				sets := 0
+				want := name
+				if lane == 0 {
+					want = "cubic"
+				}
+				got, err := qualificationControllerApply(raw, lane, name, func(_, _, _ int, v string) error {
+					sets++
+					if v != want {
+						t.Fatal(v)
+					}
+					return nil
+				}, func(_, _, _ int) (string, error) { return want, nil })
+				if err != nil || got != want || sets != map[bool]int{true: 0, false: 1}[lane == 0] || raw.calls != 1 {
+					t.Fatalf("%q %v sets%d calls%d", got, err, sets, raw.calls)
+				}
+			})
+		}
+	}
+	for _, name := range []string{"", "CUBIC", "reno\n", " cubic", "bbr", "reno\x00cubic"} {
+		if qualificationControllerEnum(name) {
+			t.Fatal(name)
+		}
+	}
+	for _, lane := range []int{-1, 5} {
+		raw := &controllerTestRaw{}
+		if _, err := qualificationControllerApply(raw, lane, "reno", nil, nil); err == nil || raw.calls != 0 {
+			t.Fatal("invalid lane reached syscall")
+		}
+	}
+}
+func TestQualificationControllerFailures(t *testing.T) {
+	for _, kind := range []string{"set", "read", "mismatch", "control"} {
+		t.Run(kind, func(t *testing.T) {
+			raw := &controllerTestRaw{}
+			reads := 0
+			if kind == "control" {
+				raw.err = errors.New("control failed")
+			}
+			_, err := qualificationControllerApply(raw, 1, "reno", func(_, _, _ int, _ string) error {
+				if kind == "set" {
+					return errors.New("set failed")
+				}
+				return nil
+			}, func(_, _, _ int) (string, error) {
+				reads++
+				if kind == "read" {
+					return "", errors.New("read failed")
+				}
+				if kind == "mismatch" {
+					return "cubic", nil
+				}
+				return "reno", nil
+			})
+			if err == nil {
+				t.Fatal("failure accepted")
+			}
+			if kind == "set" && reads != 0 {
+				t.Fatal("read after failed set")
+			}
+		})
+	}
+	if _, err := qualificationControllerApply(nil, 1, "reno", nil, nil); err == nil {
+		t.Fatal("nil RawConn accepted")
+	}
+	s := &qualificationControllerScreen{Requested: "reno"}
+	if err := s.bind(&controllerTestRaw{}, nil, "a", "b"); err == nil {
+		t.Fatal("missing owner accepted")
+	}
+}
+func TestQualificationControllerSetupRejectsOutsideNamespace(t *testing.T) {
+	t.Setenv(qualificationControllerEnv, "reno")
+	t.Setenv(qualificationControllerNamespaceEnv, "")
+	t.Setenv(qualificationControllerParentNamespaceEnv, "")
+	if _, err := qualificationControllerSetup(); err == nil {
+		t.Fatal("missing disposable namespace accepted")
+	}
+	t.Setenv(qualificationControllerEnv, "RENO")
+	if _, err := qualificationControllerSetup(); err == nil {
+		t.Fatal("invalid enum accepted")
+	}
+}
+func TestQualificationControllerUnboundAndBeforeTLS(t *testing.T) {
+	listener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	client, err := net.DialTCP("tcp", nil, listener.Addr().(*net.TCPAddr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	peer, err := listener.AcceptTCP()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer peer.Close()
+	raw, err := client.SyscallConn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseline, err := qualificationCaptureTCPInfo(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An absent screen must not change the unbound socket or perform a syscall.
+	var disabled *qualificationControllerScreen
+	if err = disabled.bind(nil, nil, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	after, err := qualificationCaptureTCPInfo(raw)
+	if err != nil || baseline.CongestionControl != after.CongestionControl {
+		t.Fatal("unbound controller changed")
+	}
+	// Set/readback and initial TCP snapshot complete before any TLS bytes exist.
+	s := &qualificationControllerScreen{Requested: "cubic"}
+	owner := &qualificationRawWriteOwner{lane: 1, generation: 7}
+	if err = s.bind(raw, owner, client.LocalAddr().String(), client.RemoteAddr().String()); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := qualificationCaptureTCPInfo(raw)
+	if err != nil || snap.CongestionControl != "cubic" || s.Bindings[1] == nil || !s.Bindings[1].BeforeTLS {
+		t.Fatal("pre TLS owner binding missing")
+	}
+	peer.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+	var b [1]byte
+	if n, e := peer.Read(b[:]); n != 0 || e == nil {
+		t.Fatal("binding emitted a pre TLS byte")
+	}
+	if err = s.bind(raw, owner, "a", "b"); err == nil {
+		t.Fatal("duplicate owner accepted")
+	}
+}
+func TestQualificationControllerSourceBeforeTLS(t *testing.T) {
+	data, err := os.ReadFile("qualification_raw_write_qualification.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	bind := strings.Index(s, "install.controllerScreen.bind(raw, owner")
+	capture := strings.Index(s, "bindTCPInfo, err := qualificationCaptureTCPInfo(raw)")
+	returned := strings.Index(s, "return &qualificationObservedSyscallRawConn{")
+	if bind < 0 || capture <= bind || returned <= capture {
+		t.Fatal("controller hook moved after bind capture or dial return")
+	}
+	dial := strings.Index(s, "wrapped, bindErr := binding.bindRaw(conn)")
+	done := strings.Index(s, "return wrapped, nil")
+	if dial < 0 || done <= dial {
+		t.Fatal("DialContext returns before controller binding")
+	}
+	var _ syscall.RawConn = (*controllerTestRaw)(nil)
+}
+
+// Exercise the real installed DialContext with verified fixture trust. Only the
+// test supplies the screen directly after installing an observer without its
+// optional selector; production setup still requires the disposable namespace.
+func TestQualificationControllerInstalledHTTPSBeforeClientHello(t *testing.T) {
+	available, err := qualificationControllerRead("/proc/sys/net/ipv4/tcp_available_congestion_control")
+	if err != nil {
+		t.Fatal(err)
+	}
+	allowed, err := qualificationControllerRead("/proc/sys/net/ipv4/tcp_allowed_congestion_control")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, algorithm := range []string{"cubic", "reno"} {
+		t.Run(algorithm, func(t *testing.T) {
+			contains := func(values, want string) bool {
+				for _, v := range strings.Fields(values) {
+					if v == want {
+						return true
+					}
+				}
+				return false
+			}
+			if !contains(available, algorithm) || !contains(allowed, algorithm) {
+				t.Skip("controller is not already available and allowed; policy unchanged")
+			}
+			t.Setenv(qualificationRawWriteEnableEnv, "1")
+			t.Setenv(qualificationControllerEnv, "")
+			type socket struct {
+				raw      syscall.RawConn
+				baseline string
+			}
+			var mu sync.Mutex
+			sockets := map[string]socket{}
+			expectBound := true
+			screen := &qualificationControllerScreen{Requested: algorithm}
+			hellos := make(chan error, 2)
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = io.WriteString(w, "ok")
+			}))
+			server.Config.ReadHeaderTimeout = time.Second
+			server.TLS = &tls.Config{MinVersion: tls.VersionTLS12, GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+				mu.Lock()
+				entry, ok := sockets[hello.Conn.RemoteAddr().String()]
+				bound := expectBound
+				mu.Unlock()
+				var observed error
+				if !ok {
+					observed = errors.New("ClientHello has no exact dial socket identity")
+				} else {
+					snapshot, captureErr := qualificationCaptureTCPInfo(entry.raw)
+					if captureErr != nil {
+						observed = captureErr
+					} else if bound {
+						screen.mu.Lock()
+						record := screen.Bindings[1]
+						if record == nil || record.Local != hello.Conn.RemoteAddr().String() || record.Remote != hello.Conn.LocalAddr().String() || record.Requested != algorithm || record.Readback != algorithm || !record.BeforeTLS || !record.ExplicitSet || snapshot.CongestionControl != algorithm {
+							observed = fmt.Errorf("binding incomplete at ClientHello: %+v CC%s", record, snapshot.CongestionControl)
+						}
+						screen.mu.Unlock()
+					} else if snapshot.CongestionControl != entry.baseline {
+						observed = errors.New("unbound HTTPS socket controller changed")
+					}
+				}
+				hellos <- observed
+				return nil, observed
+			}}
+			server.StartTLS()
+			defer server.Close()
+			roots := x509.NewCertPool()
+			roots.AddCert(server.Certificate())
+			previous := http.DefaultTransport
+			base := previous.(*http.Transport).Clone()
+			base.TLSClientConfig = &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}
+			base.ForceAttemptHTTP2 = false
+			base.DisableKeepAlives = true
+			base.TLSHandshakeTimeout = time.Second
+			base.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+				conn, dialErr := (&net.Dialer{Timeout: time.Second}).DialContext(ctx, network, address)
+				if dialErr != nil {
+					return nil, dialErr
+				}
+				if e := conn.SetDeadline(time.Now().Add(3 * time.Second)); e != nil {
+					conn.Close()
+					return nil, e
+				}
+				raw, e := conn.(syscall.Conn).SyscallConn()
+				if e != nil {
+					conn.Close()
+					return nil, e
+				}
+				snapshot, e := qualificationCaptureTCPInfo(raw)
+				if e != nil {
+					conn.Close()
+					return nil, e
+				}
+				mu.Lock()
+				sockets[conn.LocalAddr().String()] = socket{raw: raw, baseline: snapshot.CongestionControl}
+				mu.Unlock()
+				return conn, nil
+			}
+			http.DefaultTransport = base
+			defer func() { http.DefaultTransport = previous; base.CloseIdleConnections() }()
+			restore, e := installExternalQualificationRawWriteObserver()
+			if e != nil {
+				t.Fatal(e)
+			}
+			installed := qualificationRawWriteGlobal.install.Load()
+			installed.controllerScreen = screen
+			defer func() {
+				installed.installed.CloseIdleConnections()
+				if e := restore(); e != nil {
+					t.Error(e)
+				}
+			}()
+			client := &http.Client{Transport: http.DefaultTransport, Timeout: 3 * time.Second}
+			for _, bound := range []bool{true, false} {
+				mu.Lock()
+				expectBound = bound
+				mu.Unlock()
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				req, e := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
+				if e != nil {
+					cancel()
+					t.Fatal(e)
+				}
+				if bound {
+					req, e = qualificationBindRawWriteRequest(req, tunnelLaneRegistration{lane: 1})
+					if e != nil {
+						cancel()
+						t.Fatal(e)
+					}
+				}
+				response, e := client.Do(req)
+				if e != nil {
+					cancel()
+					t.Fatal(e)
+				}
+				_, e = io.Copy(io.Discard, response.Body)
+				closeErr := response.Body.Close()
+				cancel()
+				if e != nil || closeErr != nil {
+					t.Fatalf("response body %v/%v", e, closeErr)
+				}
+				select {
+				case observed := <-hellos:
+					if observed != nil {
+						t.Fatal(observed)
+					}
+				case <-time.After(time.Second):
+					t.Fatal("ClientHello observation was not joined")
+				}
+				screen.mu.Lock()
+				count := 0
+				for _, b := range screen.Bindings {
+					if b != nil {
+						count++
+					}
+				}
+				screen.mu.Unlock()
+				if count != 1 {
+					t.Fatalf("bound owner count=%d", count)
+				}
+			}
+		})
+	}
+}

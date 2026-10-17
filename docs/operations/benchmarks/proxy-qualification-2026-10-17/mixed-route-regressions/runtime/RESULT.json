@@ -1,0 +1,47 @@
+{
+  "accepted": true,
+  "automatic_retry": false,
+  "base_compile_input_count": 431,
+  "commands": [
+    {
+      "failures": 0,
+      "name": "normal",
+      "outer_sha256": "17ac00ea13b24f40df6c1ccf2f238e011cab62222a64317f9863971b81bb069e",
+      "package_pass": true,
+      "skips": 0,
+      "status": 0,
+      "stdout_sha256": "8625df43cae393bfedd7359c09b26d380df6ffd15c4142b0d46a9cf45c7a792d",
+      "top_level_pass": [
+        "TestAgentRouteLocalityMixedWarmColdRetirement",
+        "TestAgentRouteLocalityMixedGenerationReplacement"
+      ],
+      "top_level_run": [
+        "TestAgentRouteLocalityMixedWarmColdRetirement",
+        "TestAgentRouteLocalityMixedGenerationReplacement"
+      ]
+    },
+    {
+      "failures": 0,
+      "name": "race",
+      "outer_sha256": "11d58db50a5fb63445423eaa9ecab45a511107dda29bd91a6fcc1db6025e3fa7",
+      "package_pass": true,
+      "skips": 0,
+      "status": 0,
+      "stdout_sha256": "6a80f9edf6cfb60121e734783532eae9809a6d870fe4645589bffdee7740ca02",
+      "top_level_pass": [
+        "TestAgentRouteLocalityMixedWarmColdRetirement",
+        "TestAgentRouteLocalityMixedGenerationReplacement"
+      ],
+      "top_level_run": [
+        "TestAgentRouteLocalityMixedWarmColdRetirement",
+        "TestAgentRouteLocalityMixedGenerationReplacement"
+      ]
+    }
+  ],
+  "head_after": "b5a8915e6fd06ae5f6010ee53ce426254ea74862",
+  "head_at_freeze": "b5a8915e6fd06ae5f6010ee53ce426254ea74862",
+  "head_before": "b5a8915e6fd06ae5f6010ee53ce426254ea74862",
+  "overlay_compile_input_count": 432,
+  "production_checkpoint": "1fa81d839f35ae575c41779a309d356c23c1f956",
+  "source_identity": "37b5fed7ecc7d21066dbf80b4978161b83feca4ee25b7677463d63e2b35fefe0"
+}

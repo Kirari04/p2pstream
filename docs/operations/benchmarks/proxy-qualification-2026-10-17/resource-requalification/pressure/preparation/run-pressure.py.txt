@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""One independent original grown-pool pressure phase, using verified ordinary binaries."""
+from pathlib import Path
+import importlib.util,json,os,signal,sys,subprocess,hashlib
+ROOT=Path(__file__).resolve().parent
+PARENT=ROOT.parent
+REPO=ROOT.parent.parent.parent
+
+def sha(p):
+ h=hashlib.sha256()
+ with Path(p).open('rb') as f:
+  for b in iter(lambda:f.read(1<<20),b''):h.update(b)
+ return h.hexdigest()
+def load_module(n,p):
+ s=importlib.util.spec_from_file_location(n,p);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m
+
+def check():
+ base=load_module('capacity_freeze',PARENT/'capacity-continuation/run-capacity.py');frozen=base.check()
+ for n,h in json.loads((ROOT/'FROZEN-pressure.json').read_text()).items():
+  if sha(n)!=h:raise RuntimeError('pressure input changed:'+n)
+ legacy=REPO/'tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1'
+ manifest=json.loads((legacy/'provenance/build-manifest.json').read_text())
+ if manifest.get('legacy_ref')!='3ec137c3ad3d07028e867042fb00d3933912d7ab':raise RuntimeError('legacy pressure binary source mismatch')
+ if manifest['sha256']['bin/legacy-agent.test']!='3eaeb0c5e8851b6f07214582152f7588527c3ae23bed555ca1545cf0317d8b61' or sha(legacy/'bin/legacy-agent.test')!=manifest['sha256']['bin/legacy-agent.test']:raise RuntimeError('legacy pressure binary does not match accepted manifest')
+ if sha(REPO/'internal/agent/testdata/proxy_qualification_external_legacy_test.go')!=manifest['sha256']['sources/current/internal/agent/testdata/proxy_qualification_external_legacy_test.go']:raise RuntimeError('legacy pressure overlay mismatch')
+ # The full archived compile roots must agree with the binaries' accepted430 inventory.
+ names=json.loads((PARENT/'BUILD-SOURCE430.json').read_text())['source_files']
+ for n,h in names.items():
+  blob=subprocess.check_output(['git','show',frozen['source_ref']+':'+n],cwd=REPO,timeout=10)
+  if hashlib.sha256(blob).hexdigest()!=h:raise RuntimeError('commit archive differs from binary source:'+n)
+ proof=sum(p.stat().st_size for p in ROOT.rglob('*') if p.is_file())
+ dependency=REPO/'tmp/wan-early-share-dependencies-20261017'
+ if proof+sum(p.stat().st_size for p in dependency.rglob('*') if p.is_file())>4<<30:raise RuntimeError('pressure proof+shared dependencies exceeds4GiB threshold')
+ return frozen
+
+def main():
+ if sys.argv[1:]!=['--execute-coordinator-scheduled-once']:raise SystemExit('root must schedule one independent exclusive pressure window')
+ frozen=check();out=ROOT/'pressure-attempt-1'
+ if out.exists():raise RuntimeError('attempt exists; no automatic retry')
+ owned=load_module('owned_supervisor',PARENT/'owned-supervisor.py');owned.ROOT=ROOT;owned.BUDGET=2<<30
+ def artifact_bytes():
+  return sum(p.stat().st_size for p in ROOT.rglob('*') if p.is_file())
+ owned.artifact_bytes=artifact_bytes
+ env={'PATH':str(Path(frozen['go_binary']).parent)+':/usr/sbin:/usr/bin:/bin','HOME':os.environ['HOME'],'GOTOOLCHAIN':'local','GOWORK':'off','GOENV':'off','GOFLAGS':'','CGO_ENABLED':'1','GOOS':'linux','GOARCH':'amd64','GOAMD64':'v1','GOMAXPROCS':'4','GOPROXY':'off','GOSUMDB':'off','XDG_RUNTIME_DIR':os.environ.get('XDG_RUNTIME_DIR','/run/user/'+str(os.getuid()))}
+ for n in ['DBUS_SESSION_BUS_ADDRESS']:
+  if n in os.environ:env[n]=os.environ[n]
+ signal.signal(signal.SIGTERM,owned.terminate)
+ status=owned.execute_owned(['taskset','-c','0-15','bash',str(ROOT/'qualify-proxy-pressure-checkpoint.sh'),'--candidate-ref',frozen['source_ref'],'--output-root',str(out),'--go-binary',frozen['go_binary']],env,ROOT/'pressure',5100,16<<20)
+ check()
+ if status!=0:raise RuntimeError('pressure runner failed')
+ result=json.loads((out/'attempt-1/attestation.json').read_text())
+ if result.get('accepted') is not True:raise RuntimeError('original independent pressure validator rejected')
+ # Validator already requires all6 natural process exits and original13 pressure gates.
+ status=json.loads((out/'status.json').read_text())
+ if status.get('exit_status')!=0 or status.get('forced_supervisor_cleanup') is not False:raise RuntimeError('checkpoint unnaturally exited')
+ # Inspect recorded payloads, all6 process groups, and exact2 systemd scopes.
+ lifecycle=[json.loads(v) for v in (out/'attempt-1/results.lifecycle.jsonl').read_text().splitlines() if v.strip()]
+ remaining=[];groups=[]
+ for row in lifecycle:
+  if row.get('event')!='process-exit':continue
+  pid=row['pid']
+  if Path('/proc',str(pid)).exists():remaining.append(pid)
+  try:os.killpg(pid,0);groups.append(pid)
+  except ProcessLookupError:pass
+ if remaining or groups:raise RuntimeError('owned payload or group remained:'+str((remaining,groups)))
+ rows=[json.loads(v) for v in (out/'attempt-1/results.jsonl').read_text().splitlines() if v.strip()]
+ scopes={v[k]['cgroup_path'] for v in rows for k in ['agent_cgroup','server_cgroup'] if k in v}
+ if len(scopes)!=2:raise RuntimeError('exact2 endpoint scopes not recorded')
+ scope_receipts=[]
+ for cgroup in sorted(scopes):
+  cgroup_dir=Path('/sys/fs/cgroup')/cgroup.lstrip('/')
+  procs=cgroup_dir/'cgroup.procs'
+  if procs.exists() and procs.read_text().strip():raise RuntimeError('owned cgroup still has payloads:'+cgroup)
+  probe=subprocess.run(['systemctl','--user','show',Path(cgroup).name,'--property=LoadState,ActiveState,ControlGroup','--no-pager'],env=env,text=True,capture_output=True,timeout=10)
+  state=dict(v.split('=',1) for v in probe.stdout.splitlines() if '=' in v)
+  if state.get('LoadState')!='not-found' and state.get('ActiveState') not in ['inactive','failed']:raise RuntimeError('owned scope still active:'+str(state))
+  if state.get('ControlGroup','') and Path('/sys/fs/cgroup',state['ControlGroup'].lstrip('/'),'cgroup.procs').exists() and Path('/sys/fs/cgroup',state['ControlGroup'].lstrip('/'),'cgroup.procs').read_text().strip():raise RuntimeError('owned scope control group populated')
+  scope_receipts.append({'cgroup':cgroup,'properties':state,'probe_status':probe.returncode})
+ owned.write_fresh(ROOT/'post-run-owned-resource-audit.json',{'accepted':True,'recorded_payloads_remaining':remaining,'recorded_groups_remaining':groups,'scopes':scope_receipts})
+ owned.write_fresh(ROOT/'pressure-decision.json',{'accepted':True,'source_ref':frozen['source_ref'],'source_files_verified':430,'ordinary_build_reused':True,'original_validator_unmodified':True,'independent_result_sha256':sha(out/'attempt-1/attestation.json'),'pressure_only':True,'source_checked_before_after':True})
+ print('accepted original grown-pool pressure for exact latest430 source')
+if __name__=='__main__':
+ try:main()
+ except BaseException as error:
+  decision=ROOT/'pressure-failure-decision.json'
+  if not decision.exists():decision.write_text(json.dumps({'accepted':False,'failure':type(error).__name__+': '+str(error),'automatic_retry':False},indent=2)+'\n')
+  raise

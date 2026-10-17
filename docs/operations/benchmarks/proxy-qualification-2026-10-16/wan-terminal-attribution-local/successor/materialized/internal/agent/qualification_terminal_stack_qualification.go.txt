@@ -1,0 +1,81 @@
+//go:build p2pstream_qualification
+
+package agent
+
+import "runtime"
+
+const terminalStackLimit = 32
+const terminalPinnedGo = "go1.26.6"
+
+type terminalStack struct {
+	GoVersion string   `json:"go_version"`
+	Complete  bool     `json:"complete"`
+	Functions []string `json:"functions"`
+}
+
+// Called only inside terminalFinishRawLocked's retained-record branch. The
+// underlying Write has returned, but this same raw wrapper and its TLS caller
+// have not. CallersFrames resolves inline frames; no raw PC values are exported.
+// No stack is collected for an ordinary, successful pre-terminal raw call.
+func terminalCaptureStack() terminalStack {
+	var pcs [terminalStackLimit]uintptr
+	n := runtime.Callers(2, pcs[:])
+	result := terminalStack{GoVersion: runtime.Version()}
+	if n == 0 || n == len(pcs) {
+		return result
+	}
+	frames := runtime.CallersFrames(pcs[:n])
+	var names [terminalStackLimit]string
+	for count := 0; count < len(names); count++ {
+		frame, more := frames.Next()
+		if frame.Function == "" || len(frame.Function) > 192 {
+			return result
+		}
+		names[count] = frame.Function
+		if !more {
+			result.Functions = append([]string(nil), names[:count+1]...)
+			result.Complete = frame.Function == "runtime.goexit"
+			return result
+		}
+	}
+	return result
+}
+
+// This is an exact source-bound ancestry, not substring matching. Optional
+// forwarding frames are compiler wrappers for the specified embedded methods;
+// each is allowed once, in its only position. No protocol, test-helper,
+// handshake, alert, key-update, or Close ancestry is accepted.
+func terminalApplicationStack(s terminalStack) bool {
+	if s.GoVersion != terminalPinnedGo || !s.Complete || len(s.Functions) > terminalStackLimit {
+		return false
+	}
+	names := s.Functions
+	consume := func(name string) bool {
+		if len(names) == 0 || names[0] != name {
+			return false
+		}
+		names = names[1:]
+		return true
+	}
+	optional := func(name string) {
+		if len(names) > 0 && names[0] == name {
+			names = names[1:]
+		}
+	}
+	if !consume("p2pstream/internal/agent.(*qualificationRawWriteOwner).terminalFinishRawLocked") ||
+		!consume("p2pstream/internal/agent.(*qualificationRawWriteOwner).finishRawWriteWithTCP") ||
+		!consume("p2pstream/internal/agent.(*qualificationObservedRawConn).Write") {
+		return false
+	}
+	optional("p2pstream/internal/agent.(*qualificationObservedSyscallRawConn).Write")
+	if !consume("crypto/tls.(*Conn).write") || !consume("crypto/tls.(*Conn).writeRecordLocked") || !consume("crypto/tls.(*Conn).Write") {
+		return false
+	}
+	optional("net/http.(*readWriteCloserBody).Write")
+	if !consume("p2pstream/internal/agent.(*qualificationObservedTunnelBody).Write") ||
+		!consume("github.com/hashicorp/yamux.(*Session).sendLoop") || !consume("github.com/hashicorp/yamux.(*Session).send") {
+		return false
+	}
+	optional("github.com/hashicorp/yamux.newSession.gowrap2")
+	return consume("runtime.goexit") && len(names) == 0
+}

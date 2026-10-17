@@ -1,0 +1,157 @@
+diff --git a/internal/server/proxy_qualification_test.go b/internal/server/proxy_qualification_test.go
+--- a/internal/server/proxy_qualification_test.go
++++ b/internal/server/proxy_qualification_test.go
+@@ -463,6 +463,7 @@ type qualificationResult struct {
+ 	AgentTunnelsInitial           []qualificationAgentTunnelRuntime `json:"agent_tunnels_initial,omitempty"`
+ 	AgentTunnelsHighWater         []qualificationAgentTunnelRuntime `json:"agent_tunnels_high_water,omitempty"`
+ 	AgentTunnelsFinal             []qualificationAgentTunnelRuntime `json:"agent_tunnels_final,omitempty"`
++	WANResponseTLS                []qualificationWANResponseTLS      `json:"wan_response_tls,omitempty"`
+ }
+ 
+ // TestProxyQualificationProcess is a bounded subprocess entry point. The
+@@ -870,6 +871,10 @@ func runQualificationExternalAgentProxy(t *testing.T) {
+ 	app := NewApp(appConfig, database)
+ 	app.StartAdaptiveTunnelCapacity(ctx)
+ 	defer app.CloseAgentTransports()
++	var wanTraceStore *qualificationWANTraceStore
++	if os.Getenv(qualificationWANDiagnosticEnv) == "1" {
++		wanTraceStore = newQualificationWANTraceStore()
++	}
+ 
+ 	credentials := make([]qualificationAgentCredential, 0, agentCount)
+ 	agentIDs := make([]int64, 0, agentCount)
+@@ -932,6 +937,21 @@ func runQualificationExternalAgentProxy(t *testing.T) {
+ 	if _, err := app.startPublicListenerFromSnapshot(listener, snapshot); err != nil {
+ 		t.Fatal(err)
+ 	}
++	if wanTraceStore != nil {
++		app.proxyMu.Lock()
++		server := app.publicListenerState[1].Server
++		app.proxyMu.Unlock()
++		if server == nil {
++			t.Fatal("WAN diagnostic public server is unavailable")
++		}
++		mux, ok := server.Handler.(*http.ServeMux)
++		if !ok {
++			t.Fatalf("WAN diagnostic public handler is %T, want *http.ServeMux", server.Handler)
++		}
++		// ServeMux supports concurrent registration. This test-only route keeps the
++		// production handler and every routing/admission policy unchanged.
++		mux.Handle("/agent/", wanTraceStore.wrap(app.publicProxyHandler(1)))
++	}
+ 	app.proxyMu.Lock()
+ 	address := app.publicListenerState[1].BoundAddress
+ 	app.proxyMu.Unlock()
+@@ -952,5 +972,13 @@ func runQualificationExternalAgentProxy(t *testing.T) {
+ 	}
+ 	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if sequence := r.URL.Query().Get("wan_trace"); sequence != "" {
++			if wanTraceStore == nil || !qualificationWANSequenceValid(sequence) {
++				http.Error(w, "WAN diagnostic trace is unavailable", http.StatusBadRequest)
++				return
++			}
++			wanTraceStore.serveHTTP(w, sequence)
++			return
++		}
+ 		healthAgent := r.URL.Query().Get("agent_health")
+ 		if healthAgent == "" {
+ 			runtimeHandler.ServeHTTP(w, r)
+@@ -1307,16 +1327,21 @@ func TestProxyQualificationLoad(t *testing.T) {
+ 	if concurrency < 1 || requests < 1 || concurrency > requests {
+ 		t.Fatalf("invalid concurrency=%d requests=%d", concurrency, requests)
+ 	}
+-	transport := &http.Transport{
+-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true}, // fixture certificate
+-		MaxIdleConns:        concurrency,
+-		MaxIdleConnsPerHost: concurrency,
+-		MaxConnsPerHost:     concurrency,
+-		ForceAttemptHTTP2:   protocol == "h2",
+-		DisableKeepAlives:   strings.HasPrefix(scenario, "h1-churn"),
+-	}
+-	if protocol == "h1" {
+-		transport.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
++	transport, wanExpectedFingerprint, err := qualificationWANLoadTransport(protocol, concurrency, scenario)
++	if err != nil {
++		t.Fatal(err)
+ 	}
++	wanDiagnostic := os.Getenv(qualificationWANDiagnosticEnv) == "1"
++	wanSequence := ""
++	if wanDiagnostic {
++		wanSequence = requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_SEQUENCE")
++		if !qualificationWANSequenceValid(wanSequence) {
++			t.Fatalf("invalid WAN diagnostic sequence %q", wanSequence)
++		}
++	}
++	wanExpectedMajor := 1
++	if protocol == "h2" {
++		wanExpectedMajor = 2
++	}
+ 	defer transport.CloseIdleConnections()
+ 	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
+@@ -1414,5 +1447,6 @@ func TestProxyQualificationLoad(t *testing.T) {
+ 	statusCodes := make(map[string]int)
+ 	latencies := make([]time.Duration, 0, requests)
++	wanResponseTLS := make([]qualificationWANResponseTLS, 0, requests)
+ 	var resultMu sync.Mutex
+ 	var inflight atomic.Int64
+ 	type loadJob struct{ scheduled time.Time }
+@@ -1483,6 +1518,9 @@ func TestProxyQualificationLoad(t *testing.T) {
+ 					continue
+ 				}
+ 				req.Host = "public.test"
++				if wanDiagnostic {
++					req.Header.Set("X-Qualification-Diagnostic-Sequence", wanSequence)
++				}
+ 				if scenario == "growth-upload" || scenario == "growth-upload-cancel" {
+ 					req.ContentLength = int64(growthPayloadBytes)
+ 				}
+@@ -1518,9 +1555,21 @@ func TestProxyQualificationLoad(t *testing.T) {
+ 				}
+ 				observedMajor.CompareAndSwap(0, int64(resp.ProtoMajor))
++				originConnection := resp.Header.Get("X-Qualification-Origin-Connection")
++				var wanTLSError error
++				if wanDiagnostic {
++					observation, observeErr := qualificationWANObserveTLS(resp, wanExpectedMajor, wanExpectedFingerprint, originConnection)
++					if observeErr != nil {
++						observation.ValidationError = observeErr.Error()
++					}
++					resultMu.Lock()
++					wanResponseTLS = append(wanResponseTLS, observation)
++					resultMu.Unlock()
++					wanTLSError = observeErr
++				}
+ 				if originMajor, parseErr := strconv.ParseInt(resp.Header.Get("X-Qualification-Origin-HTTP-Major"), 10, 64); parseErr == nil {
+ 					observedOriginMajor.CompareAndSwap(0, originMajor)
+ 				}
+-				if originConnection := resp.Header.Get("X-Qualification-Origin-Connection"); originConnection != "" {
++				if originConnection != "" {
+ 					if _, loaded := seenOriginConnections.LoadOrStore(originConnection, struct{}{}); !loaded {
+ 						newOriginConnections.Add(1)
+ 					}
+@@ -1586,6 +1635,6 @@ func TestProxyQualificationLoad(t *testing.T) {
+ 				statusCodes[strconv.Itoa(resp.StatusCode)]++
+ 				resultMu.Unlock()
+-				if err != nil || closeErr != nil || !validPayload {
++				if !qualificationWANRequestValid(err, closeErr, validPayload, wanTLSError) {
+ 					errorsSeen.Add(1)
+ 					inflight.Add(-1)
+ 					continue
+@@ -1688,6 +1737,7 @@ func TestProxyQualificationLoad(t *testing.T) {
+ 	result.AgentTunnelsInitial = sampler.agentTunnelsInitial
+ 	result.AgentTunnelsHighWater = sampler.agentTunnelHighWater()
+ 	result.AgentTunnelsFinal = sampler.agentTunnelsFinal
++	result.WANResponseTLS = qualificationWANSortedTLS(wanResponseTLS)
+ 	result.H2PrewarmRequests = h2PrewarmRequests
+ 	result.H2PrewarmEvents = h2PrewarmEvents
+ 	result.H2PrewarmConnectionReused = h2PrewarmConnectionReused.Load()
+@@ -1743,4 +1793,10 @@ func TestProxyQualificationLoad(t *testing.T) {
+ 	if err := writeQualificationJSON(requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_RESULT"), result); err != nil {
+ 		t.Fatal(err)
+ 	}
++	if wanDiagnostic {
++		if len(result.WANResponseTLS) != result.Attempted || result.Errors != 0 {
++			t.Fatalf("WAN diagnostic TLS/protocol evidence is incomplete: responses=%d attempted=%d errors=%d",
++				len(result.WANResponseTLS), result.Attempted, result.Errors)
++		}
++	}
+ }

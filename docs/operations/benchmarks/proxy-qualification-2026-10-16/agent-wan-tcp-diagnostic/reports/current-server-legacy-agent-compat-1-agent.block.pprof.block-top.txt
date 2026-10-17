@@ -1,0 +1,62 @@
+File: agent.test
+Build ID: 2c1b796d824f205535926c758377823561f6140b
+Type: delay
+Time: 2026-10-16 06:46:45 CEST
+Showing nodes accounting for 3649.17s, 100% of 3649.74s total
+Dropped 115 nodes (cum <= 18.25s)
+      flat  flat%   sum%        cum   cum%
+  3002.12s 82.26% 82.26%   3002.12s 82.26%  runtime.selectgo
+   647.05s 17.73%   100%    647.05s 17.73%  runtime.chanrecv1
+         0     0%   100%    516.95s 14.16%  github.com/hashicorp/yamux.(*Session).Accept (inline)
+         0     0%   100%    516.95s 14.16%  github.com/hashicorp/yamux.(*Session).AcceptStream
+         0     0%   100%    516.96s 14.16%  github.com/hashicorp/yamux.(*Session).keepalive
+         0     0%   100%    461.43s 12.64%  github.com/hashicorp/yamux.(*Session).send
+         0     0%   100%    461.43s 12.64%  github.com/hashicorp/yamux.(*Session).sendLoop
+         0     0%   100%    516.96s 14.16%  github.com/hashicorp/yamux.(*Session).sendPingReplies
+         0     0%   100%     55.34s  1.52%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+         0     0%   100%     55.34s  1.52%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+         0     0%   100%    270.02s  7.40%  github.com/hashicorp/yamux.(*Stream).Read
+         0     0%   100%     61.85s  1.69%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0%   100%     61.85s  1.69%  github.com/hashicorp/yamux.(*Stream).write
+         0     0%   100%    461.43s 12.64%  github.com/hashicorp/yamux.newSession.gowrap2
+         0     0%   100%    516.96s 14.16%  github.com/hashicorp/yamux.newSession.gowrap3
+         0     0%   100%    516.96s 14.16%  github.com/hashicorp/yamux.newSession.gowrap5
+         0     0%   100%    331.88s  9.09%  io.Copy (inline)
+         0     0%   100%    331.88s  9.09%  io.copyBuffer
+         0     0%   100%    129.68s  3.55%  main.main
+         0     0%   100%    270.02s  7.40%  net.(*TCPConn).ReadFrom
+         0     0%   100%     61.85s  1.69%  net.(*TCPConn).WriteTo
+         0     0%   100%    270.02s  7.40%  net.(*TCPConn).readFrom
+         0     0%   100%     61.85s  1.69%  net.(*TCPConn).writeTo
+         0     0%   100%    270.02s  7.40%  net.genericReadFrom
+         0     0%   100%     61.85s  1.69%  net.genericWriteTo
+         0     0%   100%    120.16s  3.29%  net/http.(*Transport).dialConn.gowrap3
+         0     0%   100%    120.16s  3.29%  net/http.(*persistConn).writeLoop
+         0     0%   100%    129.67s  3.55%  p2pstream/internal/agent.RunContext
+         0     0%   100%    129.14s  3.54%  p2pstream/internal/agent.RunContext.func1
+         0     0%   100%    517.93s 14.19%  p2pstream/internal/agent.RunContext.func3
+         0     0%   100%       389s 10.66%  p2pstream/internal/agent.RunContext.func4
+         0     0%   100%       389s 10.66%  p2pstream/internal/agent.RunContext.gowrap1
+         0     0%   100%    129.58s  3.55%  p2pstream/internal/agent.TestExternalProxyQualificationAgentProcess
+         0     0%   100%    129.67s  3.55%  p2pstream/internal/agent.TestExternalProxyQualificationAgentProcess.func1
+         0     0%   100%    517.93s 14.19%  p2pstream/internal/agent.connectAndServe
+         0     0%   100%    516.96s 14.16%  p2pstream/internal/agent.connectAndServe.func1
+         0     0%   100%    271.28s  7.43%  p2pstream/internal/agent.handleTunnelStream
+         0     0%   100%    129.58s  3.55%  p2pstream/internal/agent.legacyWaitExternalAgentQualificationStop
+         0     0%   100%    271.28s  7.43%  p2pstream/internal/agent.relayTunnelStream
+         0     0%   100%    270.02s  7.40%  p2pstream/internal/agent.relayTunnelStream.func1
+         0     0%   100%     61.85s  1.69%  p2pstream/internal/agent.relayTunnelStream.func2
+         0     0%   100%    129.14s  3.54%  p2pstream/internal/agent.runStatsReporterWithCapacity
+         0     0%   100%    516.95s 14.16%  p2pstream/internal/agent.serveTunnelSessionWithPolicyAndCapacity
+         0     0%   100%    271.28s  7.43%  p2pstream/internal/agent.serveTunnelSessionWithPolicyAndCapacity.func2
+         0     0%   100%    271.28s  7.43%  p2pstream/internal/agent.serveTunnelSessionWithPolicyAndCapacity.gowrap1
+         0     0%   100%    129.14s  3.54%  p2pstream/internal/agent.startStatsReporterWithCapacity
+         0     0%   100%    270.02s  7.40%  p2pstream/internal/tunnel.(*GrowingConn).Read
+         0     0%   100%     61.85s  1.69%  p2pstream/internal/tunnel.(*GrowingConn).Write
+         0     0%   100%    129.68s  3.55%  runtime.main
+         0     0%   100%    129.68s  3.55%  testing.(*M).Run
+         0     0%   100%    129.68s  3.55%  testing.(*T).Run
+         0     0%   100%    129.58s  3.55%  testing.(*T).Run.gowrap1
+         0     0%   100%    129.68s  3.55%  testing.runTests
+         0     0%   100%    129.68s  3.55%  testing.runTests.func1
+         0     0%   100%    259.26s  7.10%  testing.tRunner

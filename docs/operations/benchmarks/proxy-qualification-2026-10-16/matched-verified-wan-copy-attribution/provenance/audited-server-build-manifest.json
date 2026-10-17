@@ -1,0 +1,75 @@
+{
+  "amended_unix_nano": 1792172829385073936,
+  "base_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "build_status": 0,
+  "copy_attribution_overlay_sha256": "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f",
+  "invocation": "env -i HOME=/home/user PATH=/usr/bin:/bin TMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-attribution-source/build/audited-tmp GOCACHE=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-attribution-source/build/audited-cache GOENV=off GOTOOLCHAIN=local GOWORK=off GOFLAGS= CGO_ENABLED=1 /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test -c -o /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-attribution-source/build/bin/current-server-wan-copy-attribution-audited.test ./internal/server",
+  "metadata_inspection": {
+    "caveat": "The original go-env.json was captured before cd to the recorded compile working directory, so its GOMOD names the active worktree. The compile invocation itself ran after cd to build/source, as recorded by working-directory.txt and the build script. The post-build inspection records go env from that actual directory without rebuilding.",
+    "original_prebuild_go_env": {
+      "captured_before_compile_cd": true,
+      "gomod": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/go.mod",
+      "path": "provenance/audited-server-build/go-env.json",
+      "preserved": true,
+      "sha256": "47fccac216160e9ea49da18dc24ad097fdc0884df0c47464642e5546353b386a"
+    },
+    "postbuild_go_env_in_compile_working_directory": {
+      "environment_identical_to_recorded_compile_environment": true,
+      "gomod": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-attribution-source/build/source/go.mod",
+      "inspection_only_no_compile_or_test": true,
+      "path": "provenance/audited-server-build/go-env-in-build-source.json",
+      "sha256": "924127dbc154025271e1b31d77d310a14539d5c3f4d291e9206b9f5acc7e15b6"
+    }
+  },
+  "output": {
+    "go_version_m_sha256": "9bea38beb35c707daacab331a7b14df4610e2541fd262f719a8a0e193b8382ba",
+    "path": "build/bin/current-server-wan-copy-attribution-audited.test",
+    "sha256": "59eb8af1e6c767776f639b014074d542abb23d4ad019c7558182670372ea92a7"
+  },
+  "preserved_historical_output": {
+    "byte_identical_to_audited_output": true,
+    "historical_builder_executable": "unavailable from retained history; no inference made",
+    "path": "build/bin/current-server-wan-copy-attribution.test",
+    "sha256": "59eb8af1e6c767776f639b014074d542abb23d4ad019c7558182670372ea92a7"
+  },
+  "preserved_pre_amendment_manifest": {
+    "path": "provenance/audited-server-build-manifest.pre-go-env-cwd-correction.json",
+    "sha256": "73bb672c4d1f2889bfa9fe5bc987d129216a284e887e34e7932e6b38670d5996"
+  },
+  "record_files_sha256": {
+    "provenance/audited-server-build/FINAL": "37a40f08d8548dba289b9b0bb35bcf63b359f6d37ee86044ebc6b6da080b9ec1",
+    "provenance/audited-server-build/go-env-in-build-source.json": "924127dbc154025271e1b31d77d310a14539d5c3f4d291e9206b9f5acc7e15b6",
+    "provenance/audited-server-build/go-env.json": "47fccac216160e9ea49da18dc24ad097fdc0884df0c47464642e5546353b386a",
+    "provenance/audited-server-build/go-version.txt": "058fc41f36af1ff69115b2bd237ebf769e90628e64a58c9dc171751384ffef72",
+    "provenance/audited-server-build/invocation.txt": "bfeedbc1650dee32f0087ad30d6f15b72f4e1e8c8d747157f7e0fc7ab887f94f",
+    "provenance/audited-server-build/output.go-version-m.txt": "9bea38beb35c707daacab331a7b14df4610e2541fd262f719a8a0e193b8382ba",
+    "provenance/audited-server-build/output.sha256": "eb60c75c50905c370a29747bfcfdadd697ce349ed634e067320f91aa63401ff6",
+    "provenance/audited-server-build/source-post.json": "eeec8cb594beba848df53d3d8e162a24aa06d468a7b22a9ec52fdac5a97db95e",
+    "provenance/audited-server-build/source-pre-post.status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "provenance/audited-server-build/source-pre-post.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provenance/audited-server-build/source-pre-post.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provenance/audited-server-build/source-pre.json": "eeec8cb594beba848df53d3d8e162a24aa06d468a7b22a9ec52fdac5a97db95e",
+    "provenance/audited-server-build/status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "provenance/audited-server-build/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provenance/audited-server-build/stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provenance/audited-server-build/toolchain-post.sha256": "5281ad948e57317fd29886c30b3a4531727eb54b8f8a2505680fd7c1d5a8f74c",
+    "provenance/audited-server-build/toolchain-pre.sha256": "5281ad948e57317fd29886c30b3a4531727eb54b8f8a2505680fd7c1d5a8f74c",
+    "provenance/audited-server-build/working-directory.txt": "9ad1f0e0e9e5b4c51a1f26fb223d17515f1155e707aa2dc42f161f3da6b9f529"
+  },
+  "recorded_unix_nano": 1792172751479693807,
+  "schema_version": 1,
+  "scope": "fresh audited compile of unchanged final copy-attribution source",
+  "source_compare_status": 0,
+  "source_post_sha256": "eeec8cb594beba848df53d3d8e162a24aa06d468a7b22a9ec52fdac5a97db95e",
+  "source_pre_post_equal": true,
+  "source_pre_sha256": "eeec8cb594beba848df53d3d8e162a24aa06d468a7b22a9ec52fdac5a97db95e",
+  "test_rerun": false,
+  "toolchain": {
+    "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "pre_post_equal": true,
+    "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+    "version": "go version go1.26.6 linux/amd64"
+  },
+  "traffic_run": false,
+  "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-attribution-source/build/source"
+}

@@ -1,0 +1,95 @@
+--- a/validate-terminal-attribution.py
++++ b/validate-terminal-attribution.py
+@@ -9,8 +9,8 @@
+ from pathlib import Path
+ 
+ U64 = (1 << 64) - 1
+-STATE_FIELDS = {"sequence", "problems", "stop", "stop_generation", "close_begin", "close_end", "joined", "raw_errors", "raw_shorts", "active_plain", "active_raw", "legacy_close_overlap", "records"}
+-RAW_FIELDS = {"begin", "return", "after", "generation", "attempt", "written", "error", "net_closed", "short", "plain"}
++STATE_FIELDS = {"sequence", "problems", "stop", "stop_generation", "close_begin", "close_end", "joined", "raw_errors", "raw_shorts", "active_plain", "active_raw", "legacy_close_overlap", "records", "tcp_bound", "physical_close_calls", "physical_close_error", "underlying_escaped"}
++RAW_FIELDS = {"begin", "return", "after", "generation", "attempt", "written", "error", "net_closed", "short", "plain", "stack"}
+ PLAIN_FIELDS = {"begin", "end", "attempt", "control", "headers"}
+ OWNER_FIELDS = {"lane", "generation", "session", "local", "remote", "state"}
+ 
+@@ -50,17 +50,60 @@
+     return True
+ 
+ 
++
++STACK_FIELDS = {"go_version", "complete", "functions"}
++
++
++def application_stack(stack):
++    if type(stack) is not dict or set(stack) != STACK_FIELDS or stack["go_version"] != "go1.26.6" or stack["complete"] is not True:
++        return False
++    names = stack["functions"]
++    if type(names) is not list or len(names) > 32 or not all(type(x) is str and 0 < len(x) <= 192 for x in names):
++        return False
++    names = list(names)
++    def consume(name):
++        if not names or names[0] != name:
++            return False
++        names.pop(0); return True
++    def optional(name):
++        if names and names[0] == name:
++            names.pop(0)
++    if not all(consume(x) for x in (
++        "p2pstream/internal/agent.(*qualificationRawWriteOwner).terminalFinishRawLocked",
++        "p2pstream/internal/agent.(*qualificationRawWriteOwner).finishRawWriteWithTCP",
++        "p2pstream/internal/agent.(*qualificationObservedRawConn).Write")):
++        return False
++    optional("p2pstream/internal/agent.(*qualificationObservedSyscallRawConn).Write")
++    if not all(consume(x) for x in ("crypto/tls.(*Conn).write", "crypto/tls.(*Conn).writeRecordLocked", "crypto/tls.(*Conn).Write")):
++        return False
++    optional("net/http.(*readWriteCloserBody).Write")
++    if not all(consume(x) for x in ("p2pstream/internal/agent.(*qualificationObservedTunnelBody).Write",
++                                   "github.com/hashicorp/yamux.(*Session).sendLoop", "github.com/hashicorp/yamux.(*Session).send")):
++        return False
++    optional("github.com/hashicorp/yamux.newSession.gowrap2")
++    return consume("runtime.goexit") and not names
++
++
++def exclusive_close(state):
++    return (state["tcp_bound"] is True and type(state["physical_close_calls"]) is int and state["physical_close_calls"] == 1
++            and state["physical_close_error"] is False and state["underlying_escaped"] is False)
++
++
+ def record_shape(v):
+     require(type(v) is dict and set(v) == RAW_FIELDS, "raw attribution schema differs")
+-    for k in RAW_FIELDS - {"error", "net_closed", "short", "plain"}:
++    for k in RAW_FIELDS - {"error", "net_closed", "short", "plain", "stack"}:
+         require(uint(v[k]), "raw attribution integer invalid")
+     for k in ("error", "net_closed", "short"):
+         require(type(v[k]) is bool, "raw attribution boolean invalid")
++    stack = v["stack"]
++    require(type(stack) is dict and set(stack) == STACK_FIELDS and type(stack["go_version"]) is str and len(stack["go_version"]) <= 64 and type(stack["complete"]) is bool, "stack metadata schema invalid")
++    require(stack["functions"] is None or type(stack["functions"]) is list and len(stack["functions"]) <= 32 and all(type(x) is str and 0 < len(x) <= 192 for x in stack["functions"]), "stack metadata exceeds bound")
+     p = v["plain"]
+     require(type(p) is dict and set(p) == PLAIN_FIELDS, "plaintext schema differs")
+     require(all(uint(p[k]) for k in ("begin", "end", "attempt")) and type(p["control"]) is bool, "plaintext fields invalid")
+     require(p["headers"] is None or type(p["headers"]) is list and len(p["headers"]) <= 17, "plaintext metadata exceeds bound")
+     if p["control"]:
++        require(application_stack(stack), "plaintext control lacks exact live TLS application ancestry")
+         require(controls(p["headers"]) and p["attempt"] == 12*len(p["headers"]), "control identity does not parse exactly")
+     else:
+         require(p["headers"] is None, "unknown plaintext carries claimed control headers")
+@@ -70,7 +113,7 @@
+ 
+ def control_overlap(v, s, generation):
+     p = v["plain"]
+-    return (p["control"] and controls(p["headers"]) and p["attempt"] == 12*len(p["headers"])
++    return (exclusive_close(s) and application_stack(v["stack"]) and p["control"] and controls(p["headers"]) and p["attempt"] == 12*len(p["headers"])
+             and v["generation"] == generation
+             and 0 < p["begin"] < v["begin"] < s["stop"] < s["close_begin"] < v["after"] < p["end"] < s["joined"])
+ 
+@@ -97,8 +140,8 @@
+             require(old["lane"] == i and old["session_identity"] == owner["session"] and activity["generation"] == owner["generation"] and activity["local_address"] == owner["local"] and activity["remote_address"] == owner["remote"], "owner does not bind the unchanged raw sidecar")
+             s = owner["state"]
+             require(type(s) is dict and set(s) == STATE_FIELDS, "state schema differs")
+-            require(all(uint(s[k]) for k in STATE_FIELDS - {"active_plain", "active_raw", "legacy_close_overlap", "records"}), "state integer invalid")
+-            require(all(type(s[k]) is bool for k in ("active_plain", "active_raw", "legacy_close_overlap")), "state boolean invalid")
++            require(all(uint(s[k]) for k in STATE_FIELDS - {"active_plain", "active_raw", "legacy_close_overlap", "records", "tcp_bound", "physical_close_error", "underlying_escaped"}), "state integer invalid")
++            require(all(type(s[k]) is bool for k in ("active_plain", "active_raw", "legacy_close_overlap", "tcp_bound", "physical_close_error", "underlying_escaped")), "state boolean invalid")
+             require(s["problems"] == 0 and not s["active_plain"] and not s["active_raw"] and s["stop_generation"] == owner["generation"], "independent terminal problem or live ownership")
+             require(0 < s["stop"] < s["close_begin"] < s["close_end"] < s["joined"] <= s["sequence"], "terminal lifecycle ordering invalid")
+             rows = s["records"]

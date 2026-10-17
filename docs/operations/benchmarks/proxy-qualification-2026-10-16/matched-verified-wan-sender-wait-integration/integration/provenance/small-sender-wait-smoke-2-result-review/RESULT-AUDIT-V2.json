@@ -1,0 +1,269 @@
+{
+  "arms": {
+    "h1": {
+      "accepted": false,
+      "arm_pre_post_equal": true,
+      "arm_status": 1,
+      "classification": "observational-complete",
+      "copy_attribution_issue_count": 0,
+      "download_phase_classification": {
+        "retained-warmup": {
+          "all_at_or_above_floor": false,
+          "gating": false,
+          "minimum_bytes_per_second": 4707822.909235088,
+          "samples": 1
+        },
+        "steady": {
+          "all_at_or_above_floor": false,
+          "gating": false,
+          "minimum_bytes_per_second": 4692804.885809519,
+          "samples": 3
+        },
+        "warmup": {
+          "all_at_or_above_floor": false,
+          "gating": false,
+          "minimum_bytes_per_second": 4679530.440322062,
+          "samples": 4
+        }
+      },
+      "first_post_close_all_satisfied": true,
+      "lifecycle_row_count": 6,
+      "namespace_start_record_present": true,
+      "natural_endpoint_and_namespace_statuses": true,
+      "natural_exit_all_joined_unforced": true,
+      "natural_exit_all_status_zero": true,
+      "natural_exit_labels": [
+        "current-server-aggregate-v1-h1-1-agent",
+        "current-server-aggregate-v1-h1-1-server",
+        "origin",
+        "agent-namespace",
+        "router-namespace"
+      ],
+      "natural_exit_row_count": 5,
+      "observed_http_major": 1,
+      "outer_private_user_pid_mount_net": true,
+      "outer_runner_group_joined": true,
+      "performance_gate_enabled": false,
+      "protocol": "h1",
+      "row_count": 16,
+      "runner_status": 0,
+      "same_key_revisits": [
+        {
+          "elapsed_idle_ns": 4182129717,
+          "origin_id_equal": true,
+          "satisfied": true,
+          "sequence": 13
+        },
+        {
+          "elapsed_idle_ns": 4096509106,
+          "origin_id_equal": true,
+          "satisfied": true,
+          "sequence": 14
+        },
+        {
+          "elapsed_idle_ns": 4233851251,
+          "origin_id_equal": true,
+          "satisfied": true,
+          "sequence": 15
+        },
+        {
+          "elapsed_idle_ns": 4064480329,
+          "origin_id_equal": true,
+          "satisfied": true,
+          "sequence": 16
+        }
+      ],
+      "selected_sender_all_valid": true,
+      "selected_sender_sequences": [
+        9,
+        11,
+        14,
+        15
+      ],
+      "selected_sender_stream_ids": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "server_only_delegated_cgroup": true,
+      "supervisor_lifecycle": {
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "runner_status": 0,
+        "sender_evidence": {
+          "terminal_status": 0,
+          "terminal_valid": true,
+          "terminal_validation_status": 0
+        },
+        "server_scope": {
+          "resource_status": 0,
+          "systemd_run_status": 0,
+          "unit_active_state": "inactive",
+          "unit_joined": true,
+          "unit_load_state": "not-found",
+          "unit_query_status": 0,
+          "unit_sub_state": "dead"
+        }
+      },
+      "terminal_sender_closure_valid": true,
+      "validation_issues": [
+        "preflight hash manifest is incomplete"
+      ],
+      "validation_status": 1,
+      "validation_stderr": "WAN protocol arm validation failed: preflight hash manifest is incomplete\n",
+      "verified_alpn": "http/1.1"
+    },
+    "h2": {
+      "accepted": false,
+      "arm_pre_post_equal": true,
+      "arm_status": 1,
+      "classification": "observational-complete",
+      "copy_attribution_issue_count": 0,
+      "download_phase_classification": {
+        "retained-warmup": {
+          "all_at_or_above_floor": false,
+          "gating": false,
+          "minimum_bytes_per_second": 4690500.693948644,
+          "samples": 1
+        },
+        "steady": {
+          "all_at_or_above_floor": false,
+          "gating": false,
+          "minimum_bytes_per_second": 4695758.026663148,
+          "samples": 3
+        },
+        "warmup": {
+          "all_at_or_above_floor": false,
+          "gating": false,
+          "minimum_bytes_per_second": 4654126.902310418,
+          "samples": 4
+        }
+      },
+      "first_post_close_all_satisfied": true,
+      "lifecycle_row_count": 6,
+      "namespace_start_record_present": true,
+      "natural_endpoint_and_namespace_statuses": true,
+      "natural_exit_all_joined_unforced": true,
+      "natural_exit_all_status_zero": true,
+      "natural_exit_labels": [
+        "current-server-aggregate-v1-h2-1-agent",
+        "current-server-aggregate-v1-h2-1-server",
+        "origin",
+        "agent-namespace",
+        "router-namespace"
+      ],
+      "natural_exit_row_count": 5,
+      "observed_http_major": 2,
+      "outer_private_user_pid_mount_net": true,
+      "outer_runner_group_joined": true,
+      "performance_gate_enabled": false,
+      "protocol": "h2",
+      "row_count": 16,
+      "runner_status": 0,
+      "same_key_revisits": [
+        {
+          "elapsed_idle_ns": 4190966131,
+          "origin_id_equal": true,
+          "satisfied": true,
+          "sequence": 13
+        },
+        {
+          "elapsed_idle_ns": 4123436665,
+          "origin_id_equal": true,
+          "satisfied": true,
+          "sequence": 14
+        },
+        {
+          "elapsed_idle_ns": 4269065440,
+          "origin_id_equal": true,
+          "satisfied": true,
+          "sequence": 15
+        },
+        {
+          "elapsed_idle_ns": 4094520384,
+          "origin_id_equal": true,
+          "satisfied": true,
+          "sequence": 16
+        }
+      ],
+      "selected_sender_all_valid": true,
+      "selected_sender_sequences": [
+        9,
+        11,
+        14,
+        15
+      ],
+      "selected_sender_stream_ids": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "server_only_delegated_cgroup": true,
+      "supervisor_lifecycle": {
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "runner_status": 0,
+        "sender_evidence": {
+          "terminal_status": 0,
+          "terminal_valid": true,
+          "terminal_validation_status": 0
+        },
+        "server_scope": {
+          "resource_status": 0,
+          "systemd_run_status": 0,
+          "unit_active_state": "inactive",
+          "unit_joined": true,
+          "unit_load_state": "not-found",
+          "unit_query_status": 0,
+          "unit_sub_state": "dead"
+        }
+      },
+      "terminal_sender_closure_valid": true,
+      "validation_issues": [
+        "preflight hash manifest is incomplete"
+      ],
+      "validation_status": 1,
+      "validation_stderr": "WAN protocol arm validation failed: preflight hash manifest is incomplete\n",
+      "verified_alpn": "h2"
+    }
+  },
+  "audit_revision_note": "V1 incorrectly applied process-exit fields to the namespace-helpers-start row; V2 separates the one start row from five exact natural exit rows. V1 remains immutable.",
+  "classification": "complete-two-arm-smoke-rejected-by-identical-offline-provenance-validator-defect",
+  "diagnostic_only": true,
+  "final_marker_present": true,
+  "final_status": {
+    "accepted": false,
+    "diagnostic": "wan-sender-wait",
+    "diagnostic_only": true,
+    "finished_unix_nano": 1792194897800033770,
+    "fresh_outer_topology_per_started_arm": true,
+    "h1": {
+      "accepted": false,
+      "safe_to_continue": true,
+      "status": 1
+    },
+    "h2": {
+      "accepted": false,
+      "started": true,
+      "status": 1
+    },
+    "order": [
+      "h1",
+      "h2"
+    ],
+    "performance_result": false,
+    "pre_post_hashes_equal": true,
+    "same_binaries_both_arms": true,
+    "same_verified_certificate_both_arms": true,
+    "schema_version": 1,
+    "size_mode": "small"
+  },
+  "no_retry": true,
+  "root_pre_post_equal": true,
+  "run_root": "integration-source/runs/small-sender-wait-smoke-2",
+  "schema_version": 1
+}

@@ -1,0 +1,11 @@
+--- sustained-plan/COMMANDS.json
++++ sustained-plan-2/COMMANDS.json
+@@ -146,7 +146,7 @@
+     "Preserve missing/truncated/failed captures as inconclusive; first sampled change is not an exact kernel transition timestamp and cannot prove congestion-control cause.",
+     "Report floor outcomes and conditioning separately; do not localize an H1/H2 cause from an underconditioned arm.",
+     "No new observer, kernel knobs, source edits, recompilation, traffic retries or broader qualification.",
+-    "This diagnostic cannot clear the original aggregate-vs-legacy three alternating pairs of96 transfers with >=90% each direction/pair, nor revise old rejected runs. Final qualification must use final production source."
++    "This diagnostic cannot clear the original aggregate-vs-legacy three alternating pairs of32 transfers (96 total) with >=90% each direction/pair, nor revise old rejected runs. Final qualification must use final production source."
+   ],
+   "workload_delta_from_smoke": {
+     "argv_changes": [

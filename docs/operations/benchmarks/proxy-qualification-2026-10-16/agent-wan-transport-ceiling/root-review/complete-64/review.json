@@ -1,0 +1,19 @@
+{
+  "result": "pass",
+  "scope": "complete_diagnostic_verification_only",
+  "core_index_entries": 18,
+  "rows": 64,
+  "snapshots": 12,
+  "topologies": 4,
+  "terminal_reports": 8,
+  "exact_payloads": true,
+  "process_lifetimes": 12,
+  "pure_revalidated_outputs_byte_equal": true,
+  "executed_analyzer_source_exact": true,
+  "analyzer_replay_summary_byte_equal": true,
+  "expected_timing_rejection_exit": 1,
+  "original_wan_regression_resolved": false,
+  "classification": "complete_timing_rejection",
+  "source_ref": "40e1046c2f68ee3d545dfd582cd424c2f3604b2a",
+  "harness_commit": "248bad099682878fe398c0ebaad235787ef47858"
+}

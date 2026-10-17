@@ -1,0 +1,54 @@
+--- original/run-controller-screen.py
++++ recovery/run-controller-screen-environment-recovery.py
+@@ -159,11 +159,11 @@
+ 
+ def main():
+  if sys.argv[1:]!=['--execute-approved-once']:raise SystemExit('requires separately approved runtime command')
+- frozen=json.loads((ROOT/'COMMANDS.json').read_text());grant=(ROOT/'REVIEWED-RECEIPT-SHA256').read_text().strip()
++ frozen=json.loads((ROOT/'COMMANDS-environment-recovery.json').read_text());grant=(ROOT/'REVIEWED-RECEIPT-SHA256').read_text().strip()
+  if len(grant)!=64 or any(x not in '0123456789abcdef' for x in grant):raise SystemExit('reviewed build receipt absent')
+  for entry in json.loads((ROOT/'FROZEN-INPUTS.json').read_text()):
+   if hashlib.sha256(Path(entry['path']).read_bytes()).hexdigest()!=entry['sha256']:raise SystemExit('frozen source/runner/plan input changed')
+- runroot=ROOT/'runner-source/integration/runs/controller-crc-once'
++ runroot=ROOT/'runner-source/integration/runs/controller-crc-environment-recovery-once'
+  if runroot.exists():raise SystemExit('fresh complete screen output required; no retry')
+  runroot.mkdir(parents=True);decisions=[];screen={'schema_version':1,'accepted':False,'completed_arms':0,'stopped':True}
+  try:
+--- original/COMMANDS.json
++++ recovery/COMMANDS-environment-recovery.json
+@@ -28,9 +28,9 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-0-cubic"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-0-cubic"
+       ],
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-0-cubic",
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-0-cubic",
+       "env": {
+         "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
+       }
+@@ -62,9 +62,9 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-1-reno"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-1-reno"
+       ],
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-1-reno",
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-1-reno",
+       "env": {
+         "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "reno"
+       }
+@@ -96,9 +96,9 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-2-cubic"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-2-cubic"
+       ],
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-2-cubic",
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-2-cubic",
+       "env": {
+         "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
+       }

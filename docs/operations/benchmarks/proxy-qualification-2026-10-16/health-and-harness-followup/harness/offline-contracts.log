@@ -1,0 +1,21 @@
+test_external_jq_gate (__main__.CapacityContracts.test_external_jq_gate) ... ok
+test_required_cgroup_zero_fields (__main__.CapacityContracts.test_required_cgroup_zero_fields) ... ok
+test_required_event_fields_and_exact_response_classes (__main__.CapacityContracts.test_required_event_fields_and_exact_response_classes) ... ok
+test_strict_integer_load_schema (__main__.CapacityContracts.test_strict_integer_load_schema) ... ok
+test_capacity_failure_keeps_attempt_identity (__main__.LifecycleContracts.test_capacity_failure_keeps_attempt_identity) ... ok
+test_container_state_is_authoritative (__main__.LifecycleContracts.test_container_state_is_authoritative) ... ok
+test_emergency_cleanup_cannot_report_success (__main__.LifecycleContracts.test_emergency_cleanup_cannot_report_success) ... ok
+test_emergency_container_cleanup_is_one_owned_bounded_batch (__main__.LifecycleContracts.test_emergency_container_cleanup_is_one_owned_bounded_batch) ... ok
+test_forced_join_is_rejected_even_if_child_handles_term (__main__.LifecycleContracts.test_forced_join_is_rejected_even_if_child_handles_term) ... ok
+test_natural_zero_and_nonzero (__main__.LifecycleContracts.test_natural_zero_and_nonzero) ... ok
+test_standing_cleanup_cannot_report_nominal_success (__main__.LifecycleContracts.test_standing_cleanup_cannot_report_nominal_success) ... ok
+test_acceptance_keys_match_producer (__main__.StandingContracts.test_acceptance_keys_match_producer) ... ok
+test_exact_contract (__main__.StandingContracts.test_exact_contract) ... ok
+test_summary_rejects_empty_acceptance_and_malformed_rows (__main__.StandingContracts.test_summary_rejects_empty_acceptance_and_malformed_rows) ... ok
+test_summary_retains_malformed_measurement_failure (__main__.StandingContracts.test_summary_retains_malformed_measurement_failure) ... ok
+test_summary_success_and_nonzero_runner (__main__.StandingContracts.test_summary_success_and_nonzero_runner) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.754s
+
+OK

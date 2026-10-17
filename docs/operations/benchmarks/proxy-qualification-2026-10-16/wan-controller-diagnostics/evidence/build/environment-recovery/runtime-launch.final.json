@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-environment-recovery.py",
+    "--execute-approved-once"
+  ],
+  "identity": {
+    "pid": 2530767,
+    "start_ticks": 7716130,
+    "pgid": 2530767,
+    "sid": 2530767
+  },
+  "status": 1,
+  "finished_unix": 1792239612.3125043,
+  "elapsed_seconds": 6.583968639373779
+}

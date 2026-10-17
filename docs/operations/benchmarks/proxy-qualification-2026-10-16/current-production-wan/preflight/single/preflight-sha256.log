@@ -1,0 +1,13 @@
+runner/qualify-proxy-agent-growth-owned.sh: OK
+runner/owned-runner.patch: OK
+runner/run-owned-wan-pair.sh: OK
+runner/validate-owned-h2-result.py: OK
+contracts/lifecycle-contracts.sh: OK
+provenance/build-manifest.json: OK
+provenance/source-verification.json: OK
+provenance/terminal-drain-source.sha256: OK
+build/current-source-8ac4c8d.tar: OK
+build/legacy-source-3ec137c.tar: OK
+bin/current-server.test: OK
+bin/current-agent.test: OK
+bin/legacy-agent.test: OK

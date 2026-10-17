@@ -1,0 +1,503 @@
+--- qualify-proxy-native-go-attribution.py
++++ qualify-proxy-native-go-profile.py
+@@ -1,7 +1,8 @@
+ #!/usr/bin/env python3
+-"""Run the bounded production-versus-native-Go HTTP/HTTPS H1 attribution matrix."""
++"""Run one bounded production-versus-native-Go HTTP/H1/c16 profiling pair."""
+ import argparse
+ from datetime import datetime, timezone
++import gzip
+ import hashlib
+ import json
+ import math
+@@ -12,7 +13,6 @@
+ import signal
+ import socket
+ import ssl
+-import statistics
+ import subprocess
+ import sys
+ import tempfile
+@@ -20,6 +20,9 @@
+ from urllib.parse import urlparse
+ 
+ EXPECTED_BASE = "248bad099682878fe398c0ebaad235787ef47858"
++EXPECTED_BASELINE_RUNNER_SHA256 = "ebda90041f65bcdd317b0cf9aae10c6b334190d35653ce64b2147697375f7a50"
++EXPECTED_BASELINE_MANIFEST_SHA256 = "bc915ed4822c9bfca83b78083b071aa01e3dd9db851d214cbcdf11e32271bfdf"
++EXPECTED_BASELINE_CHECKPOINT_SHA256 = "c0e8ab560d6e2a961ab91871fd459bfc2bf4b0e09e30fa7e094666e234f918fe"
+ PROXY_CPUS = 4
+ MEMORY_BYTES = 4 << 30
+ SMOKE_TIMEOUT_SECONDS = 125
+@@ -121,48 +124,136 @@
+         raise ValueError("load result configuration differs from the requested cell")
+ 
+ 
+-def expected_attribution_cells():
+-    cells = []
+-    arm_orders = (("production", "native"), ("native", "production"), ("production", "native"))
+-    scheme_orders = (("http", "https"), ("https", "http"), ("http", "https"))
+-    for iteration, (arms, schemes) in enumerate(zip(arm_orders, scheme_orders), 1):
+-        for role in arms:
+-            for scheme in schemes:
+-                for concurrency in (16, 128):
+-                    cells.append((iteration, role, scheme, concurrency))
+-    return cells
+-
+-
+-def summarize_attribution_rows(rows):
+-    actual = [(row.get("iteration"), row.get("role"), row.get("public_scheme"), row.get("concurrency")) for row in rows]
+-    if actual != expected_attribution_cells():
+-        raise ValueError("rows do not match the exact chronological 24-cell plan")
+-    cells = []
+-    any_trigger = False
+-    for scheme in ("http", "https"):
+-        for concurrency in (16, 128):
+-            samples = {}
+-            medians = {}
+-            by_iteration = {}
+-            for role in ("production", "native"):
+-                selected = [row for row in rows if row["role"] == role and row["public_scheme"] == scheme and row["concurrency"] == concurrency]
+-                if len(selected) != 3 or {row["iteration"] for row in selected} != {1, 2, 3}:
+-                    raise ValueError("incomplete attribution cell")
+-                values = [row["useful_requests_per_second"] for row in selected]
+-                if not all(math.isfinite(value) and value > 0 for value in values):
+-                    raise ValueError("invalid throughput sample")
+-                samples[role] = values
+-                medians[role] = statistics.median(values)
+-                by_iteration[role] = {row["iteration"]: row["useful_requests_per_second"] for row in selected}
+-            pair_ratios = [by_iteration["production"][iteration] / by_iteration["native"][iteration] for iteration in (1, 2, 3)]
+-            triggered = all(ratio < .85 for ratio in pair_ratios)
+-            any_trigger = any_trigger or triggered
+-            cells.append(dict(public_scheme=scheme, protocol="h1", concurrency=concurrency,
+-                              samples=samples, medians=medians,
+-                              production_to_native_median_rps_ratio=medians["production"] / medians["native"],
+-                              paired_production_to_native_rps_ratios=pair_ratios,
+-                              profiling_trigger_all_three_pairs_below_0_85=triggered))
+-    return cells, any_trigger
++def expected_profile_cells():
++    return (("production", "http", 16), ("native", "http", 16))
++
++
++def validate_profile_row_chronology(rows):
++    actual = tuple((row.get("role"), row.get("public_scheme"), row.get("concurrency")) for row in rows)
++    if actual != expected_profile_cells():
++        raise ValueError("rows do not match the exact production-then-native HTTP/H1/c16 pair")
++
++
++def profile_output_names(label):
++    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", label):
++        raise ValueError(f"unsafe profile label: {label!r}")
++    return {"cpu": label + ".cpu.pprof", "mem": label + ".mem.pprof"}
++
++
++def profile_test_flags(label):
++    names = profile_output_names(label)
++    return ["-test.cpuprofile=/qualification/" + names["cpu"],
++            "-test.memprofile=/qualification/" + names["mem"]]
++
++
++def warmup_timed_completions(result):
++    warmup = result.get("warmup_requests")
++    timed = result.get("useful_completed")
++    if (not isinstance(warmup, int) or isinstance(warmup, bool) or warmup < 1
++            or not isinstance(timed, int) or isinstance(timed, bool) or timed < 1):
++        raise ValueError("profile normalization requires positive integer warmup and timed completions")
++    return warmup + timed
++
++
++def _read_varint(data, offset):
++    value = 0
++    shift = 0
++    while offset < len(data) and shift < 70:
++        byte = data[offset]
++        offset += 1
++        value |= (byte & 0x7f) << shift
++        if not byte & 0x80:
++            return value, offset
++        shift += 7
++    raise ValueError("truncated or oversized profile varint")
++
++
++def _profile_fields(data):
++    offset = 0
++    while offset < len(data):
++        tag, offset = _read_varint(data, offset)
++        field = tag >> 3
++        wire = tag & 7
++        if field == 0:
++            raise ValueError("invalid zero profile field")
++        if wire == 0:
++            value, offset = _read_varint(data, offset)
++        elif wire == 1:
++            if offset + 8 > len(data):
++                raise ValueError("truncated fixed64 profile field")
++            value = data[offset:offset + 8]
++            offset += 8
++        elif wire == 2:
++            size, offset = _read_varint(data, offset)
++            if offset + size > len(data):
++                raise ValueError("truncated length-delimited profile field")
++            value = data[offset:offset + size]
++            offset += size
++        elif wire == 5:
++            if offset + 4 > len(data):
++                raise ValueError("truncated fixed32 profile field")
++            value = data[offset:offset + 4]
++            offset += 4
++        else:
++            raise ValueError(f"unsupported profile protobuf wire type {wire}")
++        yield field, wire, value
++
++
++def _packed_int64(data):
++    values = []
++    offset = 0
++    while offset < len(data):
++        value, offset = _read_varint(data, offset)
++        if value >= 1 << 63:
++            value -= 1 << 64
++        values.append(value)
++    return values
++
++
++def profile_sample_totals(path):
++    """Return pprof sample totals while rejecting empty, truncated, or inconsistent profiles."""
++    path = Path(path)
++    if not path.is_file() or path.stat().st_size < 1:
++        raise ValueError(f"missing or empty profile: {path}")
++    try:
++        payload = gzip.decompress(path.read_bytes())
++    except (OSError, EOFError) as error:
++        raise ValueError(f"invalid gzip profile: {path}") from error
++    sample_type_messages = []
++    sample_messages = []
++    strings = []
++    for field, wire, value in _profile_fields(payload):
++        if field == 1 and wire == 2:
++            sample_type_messages.append(value)
++        elif field == 2 and wire == 2:
++            sample_messages.append(value)
++        elif field == 6 and wire == 2:
++            try:
++                strings.append(value.decode("utf-8"))
++            except UnicodeDecodeError as error:
++                raise ValueError(f"invalid profile string table: {path}") from error
++    if not sample_type_messages or not sample_messages or not strings or strings[0] != "":
++        raise ValueError(f"incomplete profile protobuf: {path}")
++    sample_types = []
++    for message in sample_type_messages:
++        indexes = {field: value for field, wire, value in _profile_fields(message) if wire == 0 and field in (1, 2)}
++        if set(indexes) != {1, 2} or any(index < 0 or index >= len(strings) for index in indexes.values()):
++            raise ValueError(f"invalid profile sample type: {path}")
++        sample_types.append((strings[indexes[1]], strings[indexes[2]]))
++    totals = [0] * len(sample_types)
++    for message in sample_messages:
++        values = []
++        for field, wire, value in _profile_fields(message):
++            if field == 2 and wire == 0:
++                values.append(value if value < 1 << 63 else value - (1 << 64))
++            elif field == 2 and wire == 2:
++                values.extend(_packed_int64(value))
++        if len(values) != len(totals):
++            raise ValueError(f"profile sample width differs from sample types: {path}")
++        totals = [total + value for total, value in zip(totals, values)]
++    if not any(total > 0 for total in totals):
++        raise ValueError(f"profile contains no positive samples: {path}")
++    return {sample_type + ":" + unit: total for (sample_type, unit), total in zip(sample_types, totals)}
+ 
+ 
+ def process_group_alive(group):
+@@ -212,14 +303,43 @@
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("bundle", help="completed build-native-go-attribution.py output root")
+     parser.add_argument("--smoke-only", action="store_true")
++    parser.add_argument("--output-parent", required=True,
++                        help="existing disk-backed directory for the new diagnostic run")
++    parser.add_argument("--lineage-manifest", default=str(Path(__file__).with_name("profile-derivative-manifest.json")))
++    parser.add_argument("--lineage-manifest-sha256", required=True,
++                        help="reviewed SHA-256 pin for the derivative lineage manifest")
+     args = parser.parse_args()
+     bundle = Path(args.bundle).resolve(strict=True)
++    output_parent = Path(args.output_parent).resolve(strict=True)
++    if not output_parent.is_dir():
++        parser.error("output parent must be a directory")
+     build_manifest_path = bundle / "manifest.json"
++    if sha(build_manifest_path) != EXPECTED_BASELINE_MANIFEST_SHA256:
++        parser.error("frozen baseline build manifest changed")
+     build_manifest = json.loads(build_manifest_path.read_text())
+     if build_manifest.get("kind") != "p2pstream-native-go-attribution-build-v1" or build_manifest.get("source_ref") != EXPECTED_BASE:
+         parser.error("unexpected build bundle kind or immutable base")
+     binary = Path(build_manifest["binary"]["path"]).resolve(strict=True)
+     runner = Path(__file__).resolve(strict=True)
++    baseline_runner = (bundle / build_manifest["runner"]["path"]).resolve(strict=True)
++    lineage_manifest_path = Path(args.lineage_manifest).resolve(strict=True)
++    if not re.fullmatch(r"[0-9a-f]{64}", args.lineage_manifest_sha256):
++        parser.error("lineage manifest SHA-256 pin must be 64 lowercase hexadecimal characters")
++    if sha(lineage_manifest_path) != args.lineage_manifest_sha256:
++        parser.error("derivative lineage manifest differs from the reviewed invocation pin")
++    lineage = json.loads(lineage_manifest_path.read_text())
++    if (lineage.get("kind") != "p2pstream-native-go-profile-derivative-v1"
++            or lineage.get("classification") != "diagnostic-only"
++            or lineage.get("baseline", {}).get("source_ref") != EXPECTED_BASE
++            or lineage.get("baseline", {}).get("manifest_sha256") != EXPECTED_BASELINE_MANIFEST_SHA256
++            or lineage.get("baseline", {}).get("runner_sha256") != EXPECTED_BASELINE_RUNNER_SHA256
++            or lineage.get("baseline", {}).get("source_checkpoint_sha256") != EXPECTED_BASELINE_CHECKPOINT_SHA256
++            or lineage.get("derivative", {}).get("runner_sha256") != sha(runner)):
++        parser.error("derivative lineage manifest does not bind the reviewed baseline and runner")
++    derivative_patch = (lineage_manifest_path.parent / lineage["derivative"]["patch_path"]).resolve(strict=True)
++    if (not derivative_patch.is_relative_to(lineage_manifest_path.parent)
++            or sha(derivative_patch) != lineage["derivative"]["patch_sha256"]):
++        parser.error("derivative patch differs from its lineage binding")
+     patch = bundle / build_manifest["source_overlay"]["path"]
+     checkpoint_path = bundle / "source-checkpoint.json"
+     settings_path = bundle / "native-go-effective-settings.md"
+@@ -227,11 +347,11 @@
+     builder_path = bundle / "builder.py.txt"
+     contracts_path = bundle / "native-go-attribution-contracts.py"
+     archive_path = bundle / build_manifest["source_archive"]["path"]
+-    if not binary.is_relative_to(bundle) or runner.parent != bundle:
+-        parser.error("binary and runner must be inside the immutable build bundle")
++    if not binary.is_relative_to(bundle) or not baseline_runner.is_relative_to(bundle):
++        parser.error("binary and baseline runner must be inside the immutable build bundle")
+     for path, expected in ((binary, build_manifest["binary"]["sha256"]),
+                            (patch, build_manifest["source_overlay"]["sha256"]),
+-                           (runner, build_manifest["runner"]["sha256"]),
++                           (baseline_runner, build_manifest["runner"]["sha256"]),
+                            (checkpoint_path, build_manifest["source_checkpoint_sha256"]),
+                            (settings_path, build_manifest["effective_settings_sha256"]),
+                            (plan_path, build_manifest["plan_sha256"]),
+@@ -245,7 +365,7 @@
+     if (checkpoint.get("kind") != "p2pstream-native-go-attribution-source-checkpoint-v2"
+             or checkpoint.get("base_ref") != EXPECTED_BASE
+             or checkpoint_files.get("native-go-attribution.patch") != sha(patch)
+-            or checkpoint_files.get("qualify-proxy-native-go-attribution.py") != sha(runner)
++            or checkpoint_files.get("qualify-proxy-native-go-attribution.py") != sha(baseline_runner)
+             or checkpoint_files.get("build-native-go-attribution.py") != sha(builder_path)
+             or checkpoint_files.get("native-go-attribution-contracts.py") != sha(contracts_path)
+             or checkpoint["inputs"]["plan"]["sha256"] != sha(plan_path)
+@@ -273,7 +393,7 @@
+     proxy_cpus = "0,1,2,3"
+     load_cpus = ",".join(map(str, range(4, 16)))
+     threads = PROXY_CPUS
+-    run_root = Path(tempfile.mkdtemp(prefix="run.", dir=bundle))
++    run_root = Path(tempfile.mkdtemp(prefix="native-profile-run.", dir=output_parent))
+     run_root.chmod(0o700)
+     temp = run_root / "tmp"
+     temp.mkdir()
+@@ -282,6 +402,7 @@
+         env_base[key] = str(temp)
+     env_base.update(GOFLAGS="", GOWORK="off", GOTOOLCHAIN="local")
+     source_identity = EXPECTED_BASE + "+sha256:" + build_manifest["source_overlay"]["sha256"]
++    derivative_identity = "sha256:" + sha(runner)
+     results_path = run_root / "results.jsonl"
+     attempted_results_path = run_root / "attempted-results.jsonl"
+     smoke_path = run_root / "smoke.json"
+@@ -312,23 +433,34 @@
+     shim_python = Path(sys.executable).resolve(strict=True)
+ 
+     def save_provenance(extra=None):
+-        provenance = dict(kind="p2pstream-native-go-attribution-run-v1", source_ref=EXPECTED_BASE,
+-                          source_identity=source_identity, build_manifest_sha256=sha(build_manifest_path),
+-                          binary_sha256=sha(binary), runner_sha256=sha(runner), overlay_sha256=sha(patch),
++        provenance = dict(kind="p2pstream-native-go-profile-run-v1", classification="diagnostic-only",
++                          source_ref=EXPECTED_BASE, source_identity=source_identity,
++                          derivative_identity=derivative_identity,
++                          build_manifest_sha256=sha(build_manifest_path),
++                          baseline_runner_sha256=sha(baseline_runner), binary_sha256=sha(binary),
++                          runner_sha256=sha(runner), derivative_patch_sha256=sha(derivative_patch),
++                          lineage_manifest_sha256=sha(lineage_manifest_path), overlay_sha256=sha(patch),
+                           runner_exec_shim=dict(path=runner_shim.name, sha256=sha(runner_shim),
+                                                 python=str(shim_python), python_sha256=sha(shim_python)),
+                           started_utc=started_utc, proxy_cpus=proxy_cpus, load_cpus=load_cpus,
+                           gomaxprocs=threads, cgroup_limit_bytes=MEMORY_BYTES, cgroup_swap_disabled=True,
+                           temporary_environment={key: env_base[key] for key in ("TMPDIR", "TEMP", "TMP", "GOTMPDIR", "GOFLAGS", "GOWORK", "GOTOOLCHAIN")},
+-                          fixed_plan=dict(rows=24, pairs=3, roles=["production", "native"], schemes=["http", "https"],
+-                                          protocol="h1", concurrency=[16, 128], warmup_seconds=2,
++                          fixed_plan=dict(rows=2, pairs=1, roles=["production", "native"], schemes=["http"],
++                                          protocol="h1", concurrency=[16], warmup_seconds=2,
+                                           duration_seconds=10, idle_per_host=128, response_buffer_bytes=32 << 10,
+-                                          h1_client_tls_server_name="public.test",
+-                                          h1_client_tls_server_name_scope="native-attribution opt-in only; both production and native arms",
+-                                          arm_order=[["production", "native"], ["native", "production"], ["production", "native"]],
+-                                          scheme_order=[["http", "https"], ["https", "http"], ["http", "https"]],
+-                                          profiling_trigger="all three paired production/native RPS ratios below 0.85 in a cell",
++                                          role_order=["production", "native"],
++                                          profile_scope="whole timed proxy lifetime: startup, readiness, warmup, timed load, and teardown",
++                                          profile_flags=["-test.cpuprofile", "-test.memprofile"],
+                                           overall_timeout_seconds=OVERALL_TIMEOUT_SECONDS),
++                          normalization=dict(divisor="warmup_requests + useful_completed",
++                              cpu="sampled CPU nanoseconds per one million warmup-plus-timed completions",
++                              allocation="cumulative allocated bytes and objects per warmup-plus-timed completion"),
++                          limitations=[
++                              "diagnostic-only two-arm sequential observation with no repetitions or release-gate claim",
++                              "whole-lifetime profiles include startup, readiness, idle, and teardown work outside request handling",
++                              "heap alloc_space is cumulative and the heap profile is emitted at normal process exit",
++                              "production event persistence and native intentional omissions make the arms intentionally non-equivalent",
++                              "completion normalization is a scale aid, not a causal per-request cost measurement"],
+                           intentional_native_omissions=["admission and lease accounting", "route and target selection",
+                               "retry and cache middleware", "WAF and access checks", "request-event persistence"],
+                           cleanup=dict(forced=forced_cleanup))
+@@ -429,7 +561,7 @@
+             time.sleep(.05)
+         raise TimeoutError(f"container {name} did not start")
+ 
+-    def docker_proxy(role, scheme, label):
++    def docker_proxy(role, scheme, label, profile_label=None):
+         name = f"p2pstream-native-go-{os.getpid()}-{label}"
+         scratch = run_root / "scratch" / name
+         scratch.mkdir(parents=True, mode=0o700)
+@@ -460,6 +592,13 @@
+         for key, value in container_env.items():
+             invocation += ["--env", f"{key}={value}"]
+         invocation += ["debian:trixie-slim", "/proxy", "-test.run", "^TestProxyQualificationProcess$", "-test.timeout", "15m"]
++        profile_paths = None
++        if profile_label is not None:
++            names = profile_output_names(profile_label)
++            profile_paths = {kind: run_root / name for kind, name in names.items()}
++            if any(path.exists() for path in profile_paths.values()):
++                raise RuntimeError(f"refusing pre-existing profile output for {profile_label}")
++            invocation += profile_test_flags(profile_label)
+         containers.add(name)
+         all_container_identities[name] = None
+         process = launch(invocation, f"{label}.proxy.log")
+@@ -473,7 +612,8 @@
+             raise RuntimeError(f"proxy readiness scheme mismatch: {state}")
+         await_socket(parsed.hostname, parsed.port, process)
+         return dict(name=name, container_id=identity["id"], process=process, pid=identity["pid"],
+-                    ready=state, stop=stop_file, role=role, scheme=scheme)
++                    ready=state, stop=stop_file, role=role, scheme=scheme,
++                    profile_label=profile_label, profile_paths=profile_paths)
+ 
+     def await_ready(path, process):
+         deadline = time.monotonic() + 30
+@@ -540,6 +680,48 @@
+             forced_cleanup.append(dict(kind="origin", pid=origin.pid, reason="descendant-survived-leader", cleanup=outcome))
+             raise RuntimeError("origin process group survived leader")
+ 
++    def validate_profile_outputs(state, result):
++        paths = state.get("profile_paths")
++        label = state.get("profile_label")
++        if not label or not paths or set(paths) != {"cpu", "mem"}:
++            raise RuntimeError("timed proxy did not declare both profile outputs")
++        totals = {}
++        reports = {}
++        for kind, path in paths.items():
++            try:
++                totals[kind] = profile_sample_totals(path)
++            except ValueError as error:
++                raise RuntimeError(f"invalid {kind} profile for {label}: {error}") from error
++            arguments = [go, "tool", "pprof", "-top", "-nodecount=80"]
++            if kind == "mem":
++                arguments += ["-sample_index=alloc_space"]
++            arguments += [binary, path]
++            report = run_owned(arguments, f"pprof-{label}-{kind}")
++            if report.returncode or not report.stdout.strip():
++                raise RuntimeError(f"go tool pprof rejected {kind} profile for {label}")
++            report_path = run_root / f"{label}.{kind}.top.txt"
++            report_path.write_bytes(report.stdout)
++            reports[kind] = dict(path=path.name, sha256=sha(path), bytes=path.stat().st_size,
++                                 sample_totals=totals[kind], report_path=report_path.name,
++                                 report_sha256=sha(report_path))
++        completions = warmup_timed_completions(result)
++        cpu_ns = totals["cpu"].get("cpu:nanoseconds")
++        alloc_bytes = totals["mem"].get("alloc_space:bytes")
++        alloc_objects = totals["mem"].get("alloc_objects:count")
++        if not isinstance(cpu_ns, int) or cpu_ns <= 0:
++            raise RuntimeError(f"CPU profile lacks positive cpu:nanoseconds samples for {label}")
++        if not isinstance(alloc_bytes, int) or alloc_bytes <= 0:
++            raise RuntimeError(f"heap profile lacks positive alloc_space:bytes samples for {label}")
++        if not isinstance(alloc_objects, int) or alloc_objects <= 0:
++            raise RuntimeError(f"heap profile lacks positive alloc_objects:count samples for {label}")
++        return dict(scope="whole timed proxy process lifetime", warmup_requests=result["warmup_requests"],
++                    timed_completions=result["useful_completed"],
++                    warmup_plus_timed_completions=completions,
++                    cpu_sample_nanoseconds_per_million_completions=cpu_ns * 1_000_000 / completions,
++                    allocated_bytes_per_completion=alloc_bytes / completions,
++                    allocated_objects_per_completion=alloc_objects / completions,
++                    profiles=reports)
++
+     def run_load(state, concurrency, duration, warmup, smoke, label):
+         nonlocal sequence
+         sequence += 1
+@@ -729,38 +911,51 @@
+             save_provenance(dict(smoke_sha256=sha(smoke_path), finished_utc=utc(), rows=0))
+             return
+         rows = []
+-        arm_orders = (("production", "native"), ("native", "production"), ("production", "native"))
+-        scheme_orders = (("http", "https"), ("https", "http"), ("http", "https"))
+-        for iteration, (arms, schemes) in enumerate(zip(arm_orders, scheme_orders), 1):
+-            for role in arms:
+-                for scheme in schemes:
+-                    state = docker_proxy(role, scheme, f"pair{iteration}-{role}-{scheme}")
+-                    try:
+-                        for concurrency in (16, 128):
+-                            label = f"pair{iteration}-{role}-{scheme}-h1-c{concurrency}"
+-                            result = run_load(state, concurrency, 10, 2, False, label)
+-                            for reserved in ("iteration", "role", "proxy_kind", "public_scheme", "source_identity", "sequence"):
+-                                if reserved in result:
+-                                    raise RuntimeError(f"raw result unexpectedly contains runner annotation {reserved!r}")
+-                            result.update(iteration=iteration, role=role, proxy_kind=role, public_scheme=scheme,
+-                                          source_identity=source_identity, sequence=len(rows) + 1)
+-                            with results_path.open("a") as combined:
+-                                combined.write(json.dumps(result, separators=(",", ":")) + "\n")
+-                            rows.append(result)
+-                            print(f"{len(rows)}/24 {role} {scheme} h1 c{concurrency}: exact={result['useful_completed']} errors=0", flush=True)
+-                    finally:
+-                        stop_proxy(state)
+-        if len(rows) != 24:
+-            raise RuntimeError("incomplete fixed matrix")
+-        cells, profiling_trigger = summarize_attribution_rows(rows)
+-        summary = dict(scope="application attribution diagnostic; not a release gate or HAProxy qualification",
+-                       row_count=24, exact_correctness=True, cells=cells,
+-                       any_profiling_trigger=profiling_trigger, smoke_sha256=sha(smoke_path),
+-                       completed_utc=utc())
++        for role in ("production", "native"):
++            scheme = "http"
++            concurrency = 16
++            label = f"profile-{role}-http-h1-c16"
++            state = docker_proxy(role, scheme, label, profile_label=label)
++            result = None
++            try:
++                result = run_load(state, concurrency, 10, 2, False, label)
++            finally:
++                stop_proxy(state)
++            profile_record = validate_profile_outputs(state, result)
++            for reserved in ("role", "proxy_kind", "public_scheme", "source_identity", "derivative_identity",
++                             "sequence", "profile"):
++                if reserved in result:
++                    raise RuntimeError(f"raw result unexpectedly contains runner annotation {reserved!r}")
++            result.update(role=role, proxy_kind=role, public_scheme=scheme,
++                          source_identity=source_identity, derivative_identity=derivative_identity,
++                          sequence=len(rows) + 1, profile=profile_record)
++            rows.append(result)
++            print(f"{len(rows)}/2 {role} http h1 c16: exact={result['useful_completed']} errors=0 profiles=valid", flush=True)
++        try:
++            validate_profile_row_chronology(rows)
++        except ValueError as error:
++            raise RuntimeError(f"incomplete or reordered profiling pair: {error}") from error
++        results_path.write_text("".join(json.dumps(row, separators=(",", ":")) + "\n" for row in rows))
++        production, native = rows
++        summary = dict(kind="p2pstream-native-go-profile-summary-v1", classification="diagnostic-only",
++                       scope="one matched production-to-native HTTP/H1/c16 profiling pair; no release-gate claim",
++                       row_count=2, exact_correctness=True,
++                       role_order=["production", "native"], public_scheme="http", protocol="h1", concurrency=16,
++                       warmup_seconds=2, duration_seconds=10,
++                       production_to_native_rps_ratio=(production["useful_requests_per_second"]
++                                                        / native["useful_requests_per_second"]),
++                       normalization_divisor="warmup_requests + useful_completed",
++                       profile_scope="whole timed proxy lifetime: startup, readiness, warmup, timed load, and teardown",
++                       limitations=[
++                           "single sequential pair has no repetition or statistical confidence",
++                           "whole-lifetime CPU and allocation samples include work outside request handling",
++                           "alloc_space is cumulative; the heap profile is emitted at normal process exit",
++                           "normalized values are scale aids and do not isolate causal per-request costs"],
++                       smoke_sha256=sha(smoke_path), completed_utc=utc())
+         (run_root / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+         stop_origin()
+         save_provenance(dict(smoke_sha256=sha(smoke_path), results_sha256=sha(results_path),
+-                             summary_sha256=sha(run_root / "summary.json"), rows=24, finished_utc=utc()))
++                             summary_sha256=sha(run_root / "summary.json"), rows=2, finished_utc=utc()))
+         print(run_root)
+     except BaseException as error:
+         failure = error
+

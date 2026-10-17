@@ -1,0 +1,730 @@
+{
+  "accepted": true,
+  "entries": [
+    {
+      "accepted_for_export_safety": true,
+      "adapter_status": 0,
+      "adapter_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "annotation_and_runtime_strings": {
+        "experimental_names": [],
+        "labels": [],
+        "log_categories": [],
+        "log_messages": [],
+        "metric_names": [
+          "/gc/heap/goal:bytes",
+          "/memory/classes/heap/objects:bytes",
+          "/sched/gomaxprocs:threads"
+        ],
+        "range_names": [
+          "stop-the-world (read mem stats)",
+          "stop-the-world (start trace)"
+        ],
+        "region_types": [
+          "public-proxy-handler"
+        ],
+        "state_reasons": [
+          "",
+          "chan receive",
+          "network",
+          "preempted",
+          "select",
+          "sleep",
+          "sync",
+          "sync.(*Cond).Wait",
+          "system goroutine wait"
+        ],
+        "task_types": [
+          "wan-read-wait-request"
+        ]
+      },
+      "canonical": {
+        "bytes": 60641119,
+        "index_hash_match": true,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.intern",
+        "reader_summary": {
+          "canonical_prefooter_sha256": "cbf7490a3e39cad9630ff4c6610d7148678383d81d82facb4492ec22b8ce0a07",
+          "definition_bytes": 1156338,
+          "definition_count": 473,
+          "event_count": 417632,
+          "expanded_input_bytes": 906836962,
+          "expanded_input_sha256": "7de8b4e1047cbe04d6fe5ddbe5fa08d6a9fba3da1d66f43616df306c7198f8f4",
+          "record_count": 584717
+        },
+        "sha256": "19bdba704c7856e54d16cb554cae9e95fa7e4376963503cd704de63df3949c00"
+      },
+      "canonicalizer_status": 0,
+      "canonicalizer_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "exact_annotations_accepted": true,
+      "logical_event_counts": {
+        "Metric": 29287,
+        "RangeBegin": 856,
+        "RangeEnd": 856,
+        "RegionBegin": 1,
+        "RegionEnd": 1,
+        "StateTransition": 386610,
+        "Sync": 19,
+        "TaskBegin": 1,
+        "TaskEnd": 1
+      },
+      "parser_status": 0,
+      "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "protocol": "h1",
+      "raw": {
+        "bytes": 2694361,
+        "index_hash_match": true,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-9.out",
+        "sha256": "2af2e15c73d88e6619f5833d26c276f0d290c4d4941bdf92f0e6364cadab1130"
+      },
+      "reduction": {
+        "bytes": 210495,
+        "index_hash_match": true,
+        "original_analyzer_status": 1,
+        "original_analyzer_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.analyzer.status",
+        "original_analyzer_status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.reduction.json",
+        "sha256": "cd173d73fb4ff7afc6f90fc4990ec376c093649eb9da97cd988e8ee84712c289"
+      },
+      "runtime_labels_accepted": true,
+      "sensitive_content_scans": [
+        {
+          "accepted": true,
+          "artifact": "raw",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "wire",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "canonical",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "canonical_expanded",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "reduction",
+          "unsafe_labels": []
+        }
+      ],
+      "sequence": 9,
+      "wire": {
+        "bytes": 15309804,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/sustained-trace-export-safety-source/runs/sustained-h1-1/sequence-9.wire.txt",
+        "sha256": "4d06b2f08c43740065c6a999b73f1f0286c7308cb9994a48c6836b7719ca9203",
+        "status": 0,
+        "stderr_bytes": 0
+      },
+      "wire_event_counts": {
+        "ClockSnapshot": 18,
+        "EndOfGeneration\n": 18,
+        "EventBatch": 179,
+        "Frequency": 18,
+        "GoBlock": 47194,
+        "GoCreate": 932,
+        "GoDestroy": 927,
+        "GoStart": 48722,
+        "GoStatus": 219,
+        "GoStatusStack": 780,
+        "GoStop": 291,
+        "GoSyscallBegin": 80378,
+        "GoSyscallEnd": 80068,
+        "GoSyscallEndBlocked": 310,
+        "GoUnblock": 47189,
+        "HeapAlloc": 28412,
+        "HeapGoal": 1,
+        "ProcStart": 39764,
+        "ProcStatus": 72,
+        "ProcSteal": 266,
+        "ProcStop": 39498,
+        "ProcsChange": 874,
+        "STWBegin": 856,
+        "STWEnd": 856,
+        "Stack": 2817,
+        "Stacks\n": 18,
+        "String": 6832,
+        "Strings\n": 18,
+        "Sync\n": 18,
+        "UserRegionBegin": 1,
+        "UserRegionEnd": 1,
+        "UserTaskBegin": 1,
+        "UserTaskEnd": 1
+      },
+      "wire_string_controls": {
+        "accepted": true,
+        "all_utf8": true,
+        "ascii_hex64_values": 0,
+        "contains_nul": false,
+        "count": 6832,
+        "exact_region_name_present": true,
+        "exact_task_name_present": true,
+        "max_utf8_bytes": 195,
+        "unique_count": 765
+      }
+    },
+    {
+      "accepted_for_export_safety": true,
+      "adapter_status": 0,
+      "adapter_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "annotation_and_runtime_strings": {
+        "experimental_names": [],
+        "labels": [],
+        "log_categories": [],
+        "log_messages": [],
+        "metric_names": [
+          "/gc/heap/goal:bytes",
+          "/memory/classes/heap/objects:bytes",
+          "/sched/gomaxprocs:threads"
+        ],
+        "range_names": [
+          "stop-the-world (read mem stats)",
+          "stop-the-world (start trace)"
+        ],
+        "region_types": [
+          "public-proxy-handler"
+        ],
+        "state_reasons": [
+          "",
+          "chan receive",
+          "network",
+          "preempted",
+          "select",
+          "sleep",
+          "sync",
+          "sync.(*Cond).Wait",
+          "system goroutine wait"
+        ],
+        "task_types": [
+          "wan-read-wait-request"
+        ]
+      },
+      "canonical": {
+        "bytes": 54874184,
+        "index_hash_match": true,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.intern",
+        "reader_summary": {
+          "canonical_prefooter_sha256": "762ce91d4e4422f6cef4e813624f611ae7f7c15699741689e2379c52174b2412",
+          "definition_bytes": 1072927,
+          "definition_count": 428,
+          "event_count": 375078,
+          "expanded_input_bytes": 847095155,
+          "expanded_input_sha256": "4b4d768db2483a33e0b3dde79ab848eee58d580da3819355a49347bda1fe556d",
+          "record_count": 541975
+        },
+        "sha256": "4fbc7d50b1d2cd9f87ee399654f3e26f6820ca76e40c04e0cfa37219c62e0b95"
+      },
+      "canonicalizer_status": 0,
+      "canonicalizer_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "exact_annotations_accepted": true,
+      "logical_event_counts": {
+        "Metric": 15848,
+        "RangeBegin": 455,
+        "RangeEnd": 455,
+        "RegionBegin": 1,
+        "RegionEnd": 1,
+        "StateTransition": 358305,
+        "Sync": 11,
+        "TaskBegin": 1,
+        "TaskEnd": 1
+      },
+      "parser_status": 0,
+      "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "protocol": "h1",
+      "raw": {
+        "bytes": 2142077,
+        "index_hash_match": true,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-11.out",
+        "sha256": "1289428cb6965ba3f0aa1cc3a0e4f763d874f19193b96eb29054922417cd4515"
+      },
+      "reduction": {
+        "bytes": 210479,
+        "index_hash_match": true,
+        "original_analyzer_status": 1,
+        "original_analyzer_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.analyzer.status",
+        "original_analyzer_status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.reduction.json",
+        "sha256": "d16a14cd3b403c082ccd7e386bd1957331b7b913acf1e253080952360ddf25e8"
+      },
+      "runtime_labels_accepted": true,
+      "sensitive_content_scans": [
+        {
+          "accepted": true,
+          "artifact": "raw",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "wire",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "canonical",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "canonical_expanded",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "reduction",
+          "unsafe_labels": []
+        }
+      ],
+      "sequence": 11,
+      "wire": {
+        "bytes": 13125051,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/sustained-trace-export-safety-source/runs/sustained-h1-1/sequence-11.wire.txt",
+        "sha256": "98f9173760aed8719bd06e9b59ee08ca21acc18e704aedf80a6e5e77b78bf265",
+        "status": 0,
+        "stderr_bytes": 0
+      },
+      "wire_event_counts": {
+        "ClockSnapshot": 10,
+        "EndOfGeneration\n": 10,
+        "EventBatch": 100,
+        "Frequency": 10,
+        "GoBlock": 48751,
+        "GoCreate": 515,
+        "GoDestroy": 510,
+        "GoStart": 49545,
+        "GoStatus": 110,
+        "GoStatusStack": 481,
+        "GoStop": 115,
+        "GoSyscallBegin": 68848,
+        "GoSyscallEnd": 68679,
+        "GoSyscallEndBlocked": 169,
+        "GoUnblock": 48746,
+        "HeapAlloc": 15382,
+        "HeapGoal": 1,
+        "ProcStart": 35898,
+        "ProcStatus": 40,
+        "ProcSteal": 148,
+        "ProcStop": 35750,
+        "ProcsChange": 465,
+        "STWBegin": 455,
+        "STWEnd": 455,
+        "Stack": 1634,
+        "Stacks\n": 10,
+        "String": 3916,
+        "Strings\n": 10,
+        "Sync\n": 10,
+        "UserRegionBegin": 1,
+        "UserRegionEnd": 1,
+        "UserTaskBegin": 1,
+        "UserTaskEnd": 1
+      },
+      "wire_string_controls": {
+        "accepted": true,
+        "all_utf8": true,
+        "ascii_hex64_values": 0,
+        "contains_nul": false,
+        "count": 3916,
+        "exact_region_name_present": true,
+        "exact_task_name_present": true,
+        "max_utf8_bytes": 195,
+        "unique_count": 701
+      }
+    },
+    {
+      "accepted_for_export_safety": true,
+      "adapter_status": 0,
+      "adapter_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "annotation_and_runtime_strings": {
+        "experimental_names": [],
+        "labels": [],
+        "log_categories": [],
+        "log_messages": [],
+        "metric_names": [
+          "/gc/heap/goal:bytes",
+          "/memory/classes/heap/objects:bytes",
+          "/sched/gomaxprocs:threads"
+        ],
+        "range_names": [
+          "stop-the-world (read mem stats)",
+          "stop-the-world (start trace)"
+        ],
+        "region_types": [
+          "public-proxy-handler"
+        ],
+        "state_reasons": [
+          "",
+          "chan receive",
+          "network",
+          "preempted",
+          "select",
+          "sleep",
+          "sync",
+          "sync.(*Cond).Wait",
+          "system goroutine wait"
+        ],
+        "task_types": [
+          "wan-read-wait-request"
+        ]
+      },
+      "canonical": {
+        "bytes": 55126816,
+        "index_hash_match": true,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.intern",
+        "reader_summary": {
+          "canonical_prefooter_sha256": "a7867c3f28bbb3d2583f5aa11883624524acfd25324eff60eca9694938c912d1",
+          "definition_bytes": 1000714,
+          "definition_count": 390,
+          "event_count": 377267,
+          "expanded_input_bytes": 851406311,
+          "expanded_input_sha256": "b2c2384dcf288d3619793a21e85616d688a71c07c354218e8c9ccd9859930d3f",
+          "record_count": 545391
+        },
+        "sha256": "fdc4167bdf25f27091358f7fc6899030101d539a765a7d475c91a46abf8a4be6"
+      },
+      "canonicalizer_status": 0,
+      "canonicalizer_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "exact_annotations_accepted": true,
+      "logical_event_counts": {
+        "Metric": 15981,
+        "RangeBegin": 453,
+        "RangeEnd": 453,
+        "RegionBegin": 1,
+        "RegionEnd": 1,
+        "StateTransition": 360365,
+        "Sync": 11,
+        "TaskBegin": 1,
+        "TaskEnd": 1
+      },
+      "parser_status": 0,
+      "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "protocol": "h1",
+      "raw": {
+        "bytes": 2184944,
+        "index_hash_match": true,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-14.out",
+        "sha256": "52f2ff5676606f7f542e4f61afa7c24d32c8d2ae63817d037546adbf088ed4d7"
+      },
+      "reduction": {
+        "bytes": 198248,
+        "index_hash_match": true,
+        "original_analyzer_status": 1,
+        "original_analyzer_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.analyzer.status",
+        "original_analyzer_status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.reduction.json",
+        "sha256": "f21dd253df822eaee799c242842e76840c20e9cba0b8e4ee6391ae9c8e040fad"
+      },
+      "runtime_labels_accepted": true,
+      "sensitive_content_scans": [
+        {
+          "accepted": true,
+          "artifact": "raw",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "wire",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "canonical",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "canonical_expanded",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "reduction",
+          "unsafe_labels": []
+        }
+      ],
+      "sequence": 14,
+      "wire": {
+        "bytes": 13151452,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/sustained-trace-export-safety-source/runs/sustained-h1-1/sequence-14.wire.txt",
+        "sha256": "6573cb6fe4b9dea50cfaed595a393b0919cac270d667347af0d4ed3481c4776c",
+        "status": 0,
+        "stderr_bytes": 0
+      },
+      "wire_event_counts": {
+        "ClockSnapshot": 10,
+        "EndOfGeneration\n": 10,
+        "EventBatch": 98,
+        "Frequency": 10,
+        "GoBlock": 49159,
+        "GoCreate": 508,
+        "GoDestroy": 505,
+        "GoStart": 49804,
+        "GoStatus": 130,
+        "GoStatusStack": 483,
+        "GoStop": 64,
+        "GoSyscallBegin": 69219,
+        "GoSyscallEnd": 69143,
+        "GoSyscallEndBlocked": 76,
+        "GoUnblock": 49156,
+        "HeapAlloc": 15517,
+        "HeapGoal": 1,
+        "ProcStart": 36039,
+        "ProcStatus": 40,
+        "ProcSteal": 58,
+        "ProcStop": 35981,
+        "ProcsChange": 463,
+        "STWBegin": 453,
+        "STWEnd": 453,
+        "Stack": 1558,
+        "Stacks\n": 10,
+        "String": 3711,
+        "Strings\n": 10,
+        "Sync\n": 10,
+        "UserRegionBegin": 1,
+        "UserRegionEnd": 1,
+        "UserTaskBegin": 1,
+        "UserTaskEnd": 1
+      },
+      "wire_string_controls": {
+        "accepted": true,
+        "all_utf8": true,
+        "ascii_hex64_values": 0,
+        "contains_nul": false,
+        "count": 3711,
+        "exact_region_name_present": true,
+        "exact_task_name_present": true,
+        "max_utf8_bytes": 195,
+        "unique_count": 662
+      }
+    },
+    {
+      "accepted_for_export_safety": true,
+      "adapter_status": 0,
+      "adapter_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "annotation_and_runtime_strings": {
+        "experimental_names": [],
+        "labels": [],
+        "log_categories": [],
+        "log_messages": [],
+        "metric_names": [
+          "/gc/heap/goal:bytes",
+          "/memory/classes/heap/objects:bytes",
+          "/sched/gomaxprocs:threads"
+        ],
+        "range_names": [
+          "stop-the-world (read mem stats)",
+          "stop-the-world (start trace)"
+        ],
+        "region_types": [
+          "public-proxy-handler"
+        ],
+        "state_reasons": [
+          "",
+          "chan receive",
+          "network",
+          "preempted",
+          "select",
+          "sleep",
+          "sync",
+          "sync.(*Cond).Wait",
+          "system goroutine wait"
+        ],
+        "task_types": [
+          "wan-read-wait-request"
+        ]
+      },
+      "canonical": {
+        "bytes": 54585021,
+        "index_hash_match": true,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.intern",
+        "reader_summary": {
+          "canonical_prefooter_sha256": "6fc7d553b3e684d8bb008c3d90be8a6506d1950767b94923508bcc3a0989ec43",
+          "definition_bytes": 954009,
+          "definition_count": 384,
+          "event_count": 373134,
+          "expanded_input_bytes": 847056641,
+          "expanded_input_sha256": "a3ad526347537bfd2eda47251ee86590ecedd652409b77ab7e0655c0dfb4cf53",
+          "record_count": 543175
+        },
+        "sha256": "62d9901e3beaeec7f8a49cac4a7f4cc59809dfbbd15bee6038ca016282342508"
+      },
+      "canonicalizer_status": 0,
+      "canonicalizer_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "exact_annotations_accepted": true,
+      "logical_event_counts": {
+        "Metric": 13900,
+        "RangeBegin": 396,
+        "RangeEnd": 396,
+        "RegionBegin": 1,
+        "RegionEnd": 1,
+        "StateTransition": 358428,
+        "Sync": 10,
+        "TaskBegin": 1,
+        "TaskEnd": 1
+      },
+      "parser_status": 0,
+      "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "protocol": "h1",
+      "raw": {
+        "bytes": 2057661,
+        "index_hash_match": true,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-15.out",
+        "sha256": "93b9e7665c26e302a550e5d4b4476488f67f021a234b7b3ab3b0b6091e6822f5"
+      },
+      "reduction": {
+        "bytes": 153579,
+        "index_hash_match": true,
+        "original_analyzer_status": 1,
+        "original_analyzer_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.analyzer.status",
+        "original_analyzer_status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.reduction.json",
+        "sha256": "14e712fbe76b0688227bbfbb379e7362579c2a493a23e65ebafe08163ec5a7a0"
+      },
+      "runtime_labels_accepted": true,
+      "sensitive_content_scans": [
+        {
+          "accepted": true,
+          "artifact": "raw",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "wire",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "canonical",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "canonical_expanded",
+          "ascii_hex64_runs": 0,
+          "unsafe_labels": []
+        },
+        {
+          "accepted": true,
+          "artifact": "reduction",
+          "unsafe_labels": []
+        }
+      ],
+      "sequence": 15,
+      "wire": {
+        "bytes": 12834540,
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/sustained-trace-export-safety-source/runs/sustained-h1-1/sequence-15.wire.txt",
+        "sha256": "5ef5b169253ebbfd62ce4a0342c7375072dfc7e7a8e964f29578c618fe94eab5",
+        "status": 0,
+        "stderr_bytes": 0
+      },
+      "wire_event_counts": {
+        "ClockSnapshot": 9,
+        "EndOfGeneration\n": 9,
+        "EventBatch": 92,
+        "Frequency": 9,
+        "GoBlock": 49885,
+        "GoCreate": 441,
+        "GoDestroy": 438,
+        "GoStart": 50481,
+        "GoStatus": 101,
+        "GoStatusStack": 450,
+        "GoStop": 64,
+        "GoSyscallBegin": 67999,
+        "GoSyscallEnd": 67905,
+        "GoSyscallEndBlocked": 94,
+        "GoUnblock": 49882,
+        "HeapAlloc": 13494,
+        "HeapGoal": 1,
+        "ProcStart": 35326,
+        "ProcStatus": 36,
+        "ProcSteal": 78,
+        "ProcStop": 35248,
+        "ProcsChange": 405,
+        "STWBegin": 396,
+        "STWEnd": 396,
+        "Stack": 1357,
+        "Stacks\n": 9,
+        "String": 3352,
+        "Strings\n": 9,
+        "Sync\n": 9,
+        "UserRegionBegin": 1,
+        "UserRegionEnd": 1,
+        "UserTaskBegin": 1,
+        "UserTaskEnd": 1
+      },
+      "wire_string_controls": {
+        "accepted": true,
+        "all_utf8": true,
+        "ascii_hex64_values": 0,
+        "contains_nul": false,
+        "count": 3352,
+        "exact_region_name_present": true,
+        "exact_task_name_present": true,
+        "max_utf8_bytes": 195,
+        "unique_count": 654
+      }
+    }
+  ],
+  "expected_annotations": {
+    "event_logs": 0,
+    "region_types": [
+      "public-proxy-handler"
+    ],
+    "task_types": [
+      "wan-read-wait-request"
+    ]
+  },
+  "export_scope": {
+    "causal_limit": "all four original analyzer statuses remain rejected because positive waiting intervals lack TransitionStack; export safety neither validates causal attribution nor replaces those status records",
+    "disclosed_metadata": [
+      "whole-server scheduler and timing events",
+      "goroutine/thread/proc identifiers",
+      "GC/heap metrics and concurrency",
+      "function names and absolute source, build, and module-cache paths",
+      "Go trace wall-clock synchronization"
+    ],
+    "omit_by_default": [
+      "four compact canonical traces and their logically expanded content",
+      "four wire dumps (review intermediates)"
+    ],
+    "safe_if_packaged_with_hashes": [
+      "four raw runtime trace files",
+      "four original rejected reduction JSON files with their exact analyzer statuses",
+      "adapter, parser, canonicalizer, and analyzer status sidecars",
+      "this export-safety report and its source/provenance manifest"
+    ]
+  },
+  "index": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/index.json",
+    "sha256": "43e4f9dc7be2dda55b7e388c2dbc951a2ff8f87a4b0b7ac758f4dcb152863dc4"
+  },
+  "review_kind": "offline-go-execution-trace-export-safety",
+  "schema_version": 1,
+  "secret_handling": {
+    "agent_auth_token_loaded": true,
+    "certificate_loaded": true,
+    "private_key_loaded": true,
+    "secret_derived_hashes_emitted": false,
+    "trace_bearer_limitation": "generated process-local bearer was not persisted in the closed sustained H1 run; generic ASCII hex64 rejection and annotation inventory cover accidental text serialization, but exact decoded-byte comparison is unavailable",
+    "trace_bearer_recovered": false,
+    "values_emitted": false
+  },
+  "source_run": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1"
+}

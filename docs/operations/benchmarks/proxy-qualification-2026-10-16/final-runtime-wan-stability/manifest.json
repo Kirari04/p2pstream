@@ -1,0 +1,29 @@
+{
+  "binary_sha256": {
+    "aggregate_agent": "e99c619a4a1f07656b422f4c5965c874513d453afc7082939c2affbd59194793",
+    "legacy_agent": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec",
+    "server": "c7950a1bd250233b395eb8c19d913ffb48d511656d7c41a1ad446baefb6bbaf5"
+  },
+  "fixed_workload": {
+    "configured_rtt_ms": 80,
+    "mode_order": [
+      "legacy-then-aggregate",
+      "aggregate-then-legacy",
+      "legacy-then-aggregate"
+    ],
+    "required_pool_mib": 8,
+    "runs": 3,
+    "steady_mib": 256,
+    "transfer_repetitions": 3,
+    "warmup_mib": 256
+  },
+  "runner_exit_status": 1,
+  "runner_sha256": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+  "source_refs": {
+    "aggregate_agent": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+    "legacy_agent": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "server": "dc738e9000e60cd7ce3a0279127486f3bc05067a"
+  },
+  "summary_exit_status": 1,
+  "wrapper_sha256": "bb6bd5dbbf20b7d5e4ae5e65b5ec23b8d1eb5cd75fec6728ef3d78e99da79639"
+}

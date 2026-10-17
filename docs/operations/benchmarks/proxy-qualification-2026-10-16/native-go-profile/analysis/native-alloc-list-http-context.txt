@@ -1,0 +1,89 @@
+Total: 4077536802B
+ROUTINE ======================== context.WithValue in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/context/context.go
+ 27788536B  27788536B (flat, cum)  0.68% of Total
+         .          .    727:func WithValue(parent Context, key, val any) Context {
+         .          .    728:	if parent == nil {
+         .          .    729:		panic("cannot create context from nil parent")
+         .          .    730:	}
+         .          .    731:	if key == nil {
+         .          .    732:		panic("nil key")
+         .          .    733:	}
+         .          .    734:	if !reflectlite.TypeOf(key).Comparable() {
+         .          .    735:		panic("key is not comparable")
+         .          .    736:	}
+ 27788536B  27788536B    737:	return &valueCtx{parent, key, val}
+         .          .    738:}
+         .          .    739:
+         .          .    740:// A valueCtx carries a key-value pair. It implements Value for that key and
+         .          .    741:// delegates all other calls to the embedded Context.
+         .          .    742:type valueCtx struct {
+ROUTINE ======================== context.withCancel in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/context/context.go
+141044232B 274760513B (flat, cum)  6.74% of Total
+         .          .    273:func withCancel(parent Context) *cancelCtx {
+         .          .    274:	if parent == nil {
+         .          .    275:		panic("cannot create context from nil parent")
+         .          .    276:	}
+141044232B 141044232B    277:	c := &cancelCtx{}
+         . 133716281B    278:	c.propagateCancel(parent, c)
+         .          .    279:	return c
+         .          .    280:}
+         .          .    281:
+         .          .    282:// Cause returns a non-nil error explaining why c was canceled.
+         .          .    283:// The first cancellation of c or one of its parents sets the cause.
+ROUTINE ======================== net/http.(*Request).Clone in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/request.go
+179361221B 498206092B (flat, cum) 12.22% of Total
+         .          .    386:func (r *Request) Clone(ctx context.Context) *Request {
+         .          .    387:	if ctx == nil {
+         .          .    388:		panic("nil context")
+         .          .    389:	}
+179361221B 179361221B    390:	r2 := new(Request)
+         .          .    391:	*r2 = *r
+         .          .    392:	r2.ctx = ctx
+         .  85470680B    393:	r2.URL = cloneURL(r.URL)
+         . 233374191B    394:	r2.Header = r.Header.Clone()
+         .          .    395:	r2.Trailer = r.Trailer.Clone()
+         .          .    396:	if s := r.TransferEncoding; s != nil {
+         .          .    397:		s2 := make([]string, len(s))
+         .          .    398:		copy(s2, s)
+         .          .    399:		r2.TransferEncoding = s2
+ROUTINE ======================== net/http.(*Request).WithContext in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/request.go
+206108070B 206108070B (flat, cum)  5.05% of Total
+         .          .    368:func (r *Request) WithContext(ctx context.Context) *Request {
+         .          .    369:	if ctx == nil {
+         .          .    370:		panic("nil context")
+         .          .    371:	}
+206108070B 206108070B    372:	r2 := new(Request)
+         .          .    373:	*r2 = *r
+         .          .    374:	r2.ctx = ctx
+         .          .    375:	return r2
+         .          .    376:}
+         .          .    377:
+ROUTINE ======================== net/http.Header.Clone in /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/header.go
+513418686B 513418686B (flat, cum) 12.59% of Total
+         .          .     94:func (h Header) Clone() Header {
+         .          .     95:	if h == nil {
+         .          .     96:		return nil
+         .          .     97:	}
+         .          .     98:
+         .          .     99:	// Find total number of values.
+         .          .    100:	nv := 0
+         .          .    101:	for _, vv := range h {
+         .          .    102:		nv += len(vv)
+         .          .    103:	}
+ 59248200B  59248200B    104:	sv := make([]string, nv) // shared backing array for headers' values
+ 52955512B  52955512B    105:	h2 := make(Header, len(h))
+         .          .    106:	for k, vv := range h {
+         .          .    107:		if vv == nil {
+         .          .    108:			// Preserve nil values. ReverseProxy distinguishes
+         .          .    109:			// between nil and zero-length header values.
+         .          .    110:			h2[k] = nil
+         .          .    111:			continue
+         .          .    112:		}
+         .          .    113:		n := copy(sv, vv)
+401214974B 401214974B    114:		h2[k] = sv[:n:n]
+         .          .    115:		sv = sv[n:]
+         .          .    116:	}
+         .          .    117:	return h2
+         .          .    118:}
+         .          .    119:
+

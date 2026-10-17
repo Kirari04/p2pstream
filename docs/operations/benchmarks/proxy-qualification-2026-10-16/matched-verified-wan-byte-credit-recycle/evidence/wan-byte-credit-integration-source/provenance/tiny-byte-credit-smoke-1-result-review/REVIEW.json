@@ -1,0 +1,14 @@
+{
+  "classification": "failed_tiny_h1_terminal_phase_mismatch_h2_withheld",
+  "entry_count": 145,
+  "h1_rows": 16,
+  "h1_runner_status": 0,
+  "h1_validation_status": 1,
+  "h2_status": 125,
+  "regular_file_count": 145,
+  "run_root": "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-4/integration/runs/tiny-byte-credit-smoke-1",
+  "schema_version": 1,
+  "secrets_policy": "Manifest hashes every closed-run byte. Future export must omit private keys, readiness/auth/env, endpoint logs/state and any recovered secret hits; no secret values are copied here.",
+  "symlink_count": 0,
+  "total_regular_bytes": 3051794
+}

@@ -1,0 +1,18 @@
+{
+  "run_transfer": {
+    "byte_identical": true,
+    "sha256": "e4ad3f67ecd868cd3532ee917441cf4a79c96c3c786ffb92cbe5e6f8995ae567"
+  },
+  "pressure_logic": {
+    "byte_identical": true,
+    "sha256": "af549cb92304d2ee54c8d061d70372f0a39722ee12777d3769f516015019af7e"
+  },
+  "summary": {
+    "byte_identical": true,
+    "sha256": "f7a7c320ddc06303278627fbece0148afe77260e1eb8ab8228ac451c42092001"
+  },
+  "warmup_and_pressure_dispatch": {
+    "byte_identical": true,
+    "sha256": "0ad9d78e4d46a4d0be10734921810efe0015b59b4d750c3cd1367ddd148acbc1"
+  }
+}

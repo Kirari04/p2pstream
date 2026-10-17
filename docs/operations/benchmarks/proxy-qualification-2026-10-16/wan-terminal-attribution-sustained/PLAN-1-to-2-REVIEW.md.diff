@@ -1,0 +1,8 @@
+--- sustained-plan/REVIEW.md
++++ sustained-plan-2/REVIEW.md
+@@ -10,4 +10,4 @@
+ 
+ Root approved a prospective256 MiB storage allowance for this plan; it changes disk-artifact capacity only. Original100 MiB and smokeH2-only128 MiB manifests and observations remain intact. Application memory/resource policies remain the original sustained policies. Keep all prior/new evidence and stop at the cap without deletion, retries or new copies of source/binaries.
+ 
+-Successful smoke had32/32 correct transfers and natural exits, complete five-owner intent per arm, zero raw errors/shorts, and no exception classification. It proves integrated wiring; it does not answer the sustained threshold question. The proposed diagnostic still cannot clear final qualification, revise historical rejected WAN results, or establish parity. The original final gate requires fresh three alternating pairs,96 transfers each, >=90% each direction for every pair, and final-production source binding. This diagnostic remains pinned27c8e31 plus observer, before the unrelated recorder optimization.
++Successful smoke had32/32 correct transfers and natural exits, complete five-owner intent per arm, zero raw errors/shorts, and no exception classification. It proves integrated wiring; it does not answer the sustained threshold question. The proposed diagnostic still cannot clear final qualification, revise historical rejected WAN results, or establish parity. The original final gate requires fresh three alternating pairs,32 transfers each (96 total), >=90% each direction for every pair, and final-production source binding. This diagnostic remains pinned27c8e31 plus observer, before the unrelated recorder optimization.

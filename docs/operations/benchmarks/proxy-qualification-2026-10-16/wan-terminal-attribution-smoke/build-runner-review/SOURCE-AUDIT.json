@@ -1,0 +1,78 @@
+{
+  "scope": "read-only source inventory, not Go dependency/build evaluation",
+  "tested_files": 459,
+  "tested_files_unchanged": true,
+  "extra_files": [
+    "test-source/stats/stats.go"
+  ],
+  "repository_imports": [
+    "p2pstream/gen/proto/p2pstream/v1",
+    "p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect",
+    "p2pstream/internal/agent",
+    "p2pstream/internal/agentupdate",
+    "p2pstream/internal/agentupdateauth",
+    "p2pstream/internal/agentupdateauthority",
+    "p2pstream/internal/authutil",
+    "p2pstream/internal/buildinfo",
+    "p2pstream/internal/config",
+    "p2pstream/internal/db",
+    "p2pstream/internal/db/migrations",
+    "p2pstream/internal/managementui",
+    "p2pstream/internal/releaseversion",
+    "p2pstream/internal/serverupdate",
+    "p2pstream/internal/sysmetrics",
+    "p2pstream/internal/tcpsocket",
+    "p2pstream/internal/tunnel",
+    "p2pstream/stats"
+  ],
+  "missing_repository_import_directories": [],
+  "go_embed_directives": [
+    {
+      "source": "internal/db/migrate_cutover.go",
+      "pattern": "schema_cutover.sql",
+      "matches": [
+        "internal/db/schema_cutover.sql"
+      ]
+    },
+    {
+      "source": "internal/server/public_config_seed.go",
+      "pattern": "templates/default_welcome.html",
+      "matches": [
+        "internal/server/templates/default_welcome.html"
+      ]
+    },
+    {
+      "source": "internal/server/public_config_seed.go",
+      "pattern": "templates/default_local_access_login.html",
+      "matches": [
+        "internal/server/templates/default_local_access_login.html"
+      ]
+    },
+    {
+      "source": "internal/db/migrations/embed.go",
+      "pattern": "*.sql",
+      "matches": [
+        "internal/db/migrations/00001_current_schema.sql",
+        "internal/db/migrations/00009_retry_status_codes.sql",
+        "internal/db/migrations/00016_managed_agent_updates.sql",
+        "internal/db/migrations/00014_local_access_cookie_scope.sql",
+        "internal/db/migrations/00013_local_access_login_templates.sql",
+        "internal/db/migrations/00005_agent_build_identity.sql",
+        "internal/db/migrations/00015_local_access_login_protection.sql",
+        "internal/db/migrations/00008_traffic_shaper_protocol_scope.sql",
+        "internal/db/migrations/00012_local_access_users.sql",
+        "internal/db/migrations/00006_public_request_retries.sql",
+        "internal/db/migrations/00004_management_tls_rotation.sql",
+        "internal/db/migrations/00002_geo_ip_trusted_proxies.sql",
+        "internal/db/migrations/00011_retry_response_wait.sql",
+        "internal/db/migrations/00007_retry_observability.sql",
+        "internal/db/migrations/00019_public_sites.sql",
+        "internal/db/migrations/00010_retry_response_bodies.sql",
+        "internal/db/migrations/00003_public_access_control.sql"
+      ]
+    }
+  ],
+  "qualification_hook": "internal/server/public_routing.go retains historical response attribution hook plus exact ordinary health delta",
+  "production_mapping": "successor/MATERIALIZED-CHANGES.json and successor/ordinary-health-mapping.diff",
+  "artifact_bytes_before_build": 9707796
+}

@@ -1,0 +1,1 @@
+Sustained1 immutable full-run hash binding. Evidence is complete and naturally closed; both arms are rejected as performance results and classified inconclusive-upstream-reuse. Integrity and terminal/lifecycle gates passed. Export requires a separate safety allowlist and excludes private keys, readiness/auth material, logs, and unrestricted run trees.

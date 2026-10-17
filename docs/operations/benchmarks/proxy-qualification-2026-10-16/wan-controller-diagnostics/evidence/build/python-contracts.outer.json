@@ -1,0 +1,47 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "60s",
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-screen.py"
+  ],
+  "artifact_bytes": 10072383,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 3.908923616996617,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2510722,
+      "pid": 2510722,
+      "ppid": 2510627,
+      "sid": 2510722,
+      "start_ticks": 7602242,
+      "state": "S"
+    },
+    {
+      "pgid": 2510722,
+      "pid": 2510723,
+      "ppid": 2510722,
+      "sid": 2510722,
+      "start_ticks": 7602242,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 1,
+  "stderr_bytes": 1118,
+  "stdout_bytes": 0,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

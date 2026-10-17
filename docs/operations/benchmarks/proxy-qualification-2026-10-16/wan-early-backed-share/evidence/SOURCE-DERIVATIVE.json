@@ -1,0 +1,55 @@
+{
+  "baseline_source_files": 462,
+  "changes": [
+    {
+      "baseline_sha256": "f6ce5e3e02cbbb7e4b6daf74dfe8e2a01edc1aa8ad20a6980e6c54980d9fefe4",
+      "path": "internal/agent/proxy_qualification_external_test.go",
+      "sha256": "265855dd24a1c30f0d15b9cc63b7636b9cbaa4b7ff3f91cb6136775a87c0617e"
+    },
+    {
+      "baseline_sha256": "bae2e41e0c43fc4328fd6ab786440b574b352a1c6c41037e43758367cb0d19f8",
+      "path": "internal/server/proxy_qualification_test.go",
+      "sha256": "34ea67a2db50af237da1f9e7bc4ba659dae4a25e0f1bc401d2edb5f9d4633aed"
+    },
+    {
+      "baseline_sha256": null,
+      "path": "internal/tunnel/early_share.go",
+      "sha256": "1166aa5745c85dcd8462af86a58c9a1a74f0d530b7a4ff7c11d89009a335d96c"
+    },
+    {
+      "baseline_sha256": null,
+      "path": "internal/tunnel/early_share_test.go",
+      "sha256": "a4cad75f74406ae0c66521198360dec0b9f1599536a19f1aa069c381f5b908cf"
+    },
+    {
+      "baseline_sha256": "c4db48b961c8a893acd5865dd0866dbd3b003966681363d84a732fa985fa0baf",
+      "path": "internal/tunnel/growing_conn.go",
+      "sha256": "cdfb4483274bb1361eb58e2bcc1a9c6253d34876bf34dc602ab851b872cf006b"
+    },
+    {
+      "baseline_sha256": null,
+      "path": "internal/tunnel/qualification_early_share.go",
+      "sha256": "faa1bfc9ccc16903befdebb6f4cc3112e322428b145eebfb423e554fe51d681b"
+    },
+    {
+      "baseline_sha256": null,
+      "path": "internal/tunnel/qualification_early_share_disabled.go",
+      "sha256": "455c54fea410542e07033ee73c79ca288b3a576b01bbe004b71152d27f07c70d"
+    },
+    {
+      "baseline_sha256": null,
+      "path": "internal/tunnel/qualification_early_share_read_test.go",
+      "sha256": "9cbf70fc60048fcf8ad9a64c65332dacac671ed8ce4abd5529ce2a78c1528427"
+    },
+    {
+      "baseline_sha256": null,
+      "path": "internal/tunnel/qualification_early_share_test.go",
+      "sha256": "073b7930bf622f89e8d4d8facbf80a606fad50f9a7d9ddd30056c218bfeef0f5"
+    }
+  ],
+  "final_invariant_semantics": "qualification-only unconditional exit87 plus bounded joined subprocess test even with deferredrecover",
+  "frozen_for_focused_tests": true,
+  "preexecution_superseded_inventory": "9825b312dc351ac3e87e8ccc96ea4ad07dcd9cb1595356e61095c4d582440939",
+  "read_test_build_tag": "linux && p2pstream_qualification",
+  "source_files": 468
+}

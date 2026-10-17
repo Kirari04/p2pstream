@@ -1,0 +1,33 @@
+{
+  "cross_arm_lowat_baseline_contrast": true,
+  "origin_natural_exit": true,
+  "performance_evidence": false,
+  "scope": "fixture_only",
+  "variants": [
+    {
+      "agent_natural_exit": true,
+      "agent_sha256": "e2129ca520e07f79186141d000ab2fd0e390574712868c05772fd7122a659c05",
+      "exact_download_4mib": true,
+      "exact_upload_4mib": true,
+      "physical_lanes": 5,
+      "server_natural_exit": true,
+      "server_sha256": "3f7c28fc43105efc69ffbbfea9b277c345e2fd7577653f5cb3be8e8708a7b388",
+      "socket_observations_stable": true,
+      "transport_mode": "aggregate-v1",
+      "variant": "tunnel-lowat-default-control"
+    },
+    {
+      "agent_natural_exit": true,
+      "agent_sha256": "e18c465aaff113e642be4cf8e10eac13263a2b307dcee4f61573801f785862f8",
+      "exact_download_4mib": true,
+      "exact_upload_4mib": true,
+      "physical_lanes": 5,
+      "server_natural_exit": true,
+      "server_sha256": "7bb33c1ee36819be658976cd526051285d80e4f870457884e78216575580a10f",
+      "socket_observations_stable": true,
+      "transport_mode": "aggregate-v1",
+      "variant": "tunnel-lowat-32k"
+    }
+  ],
+  "workload": "one exact 4MiB H2 download and upload per arm solely to validate active physical tunnel settings and lifecycle"
+}

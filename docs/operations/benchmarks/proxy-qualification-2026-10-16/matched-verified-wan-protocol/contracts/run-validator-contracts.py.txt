@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+import copy
+import json
+import pathlib
+import subprocess
+import tempfile
+
+root = pathlib.Path(__file__).resolve().parents[1]
+validator = root / "validate-wan-protocol-arm.py"
+hash_names = {
+    "supervisor", "runner", "validator", "approved_lifecycle_runner", "runner_patch", "go_base_patch", "go_helper", "diagnostic_build_manifest",
+    "server_binary", "aggregate_agent_binary", "certificate_pem", "private_key_pem",
+}
+
+
+def schedule(smoke):
+    value = [("warmup", "download", n) for n in range(1, 5)]
+    value += [("warmup", "upload", n) for n in range(1, 5)]
+    value += [("retained-warmup", "download", 1), ("retained-warmup", "upload", 1)]
+    if smoke:
+        return value + [("steady", "download", 1), ("steady", "upload", 1), ("reuse-probe", "download", 1)]
+    return value + [
+        ("steady", "download", 1), ("steady", "upload", 1),
+        ("steady", "upload", 2), ("steady", "download", 2),
+        ("steady", "download", 3), ("steady", "upload", 3),
+    ]
+
+
+def fixture(smoke):
+    payload = (4 if smoke else 256) << 20
+    hashes = {name: ("1" * 64) for name in hash_names}
+    pre = {
+        "schema_version": 1, "server_source_ref": "8ac4c8d", "aggregate_agent_source_ref": "8ac4c8d",
+        "expected_leaf_der_sha256": "2" * 64, "sha256": hashes,
+    }
+    rows = []
+    for index, (stage, direction, repetition) in enumerate(schedule(smoke), 1):
+        rate = 40_000_000.0
+        lane = (index - 1) % 4 + 1
+        reused = index >= 13
+        origin_index = index - 4 if reused else index
+        got_ns = index * 1_000_000_000
+        rows.append({
+            "diagnostic_sequence": index, "measurement_stage": stage, "transfer_direction": direction,
+            "repetition": repetition, "transport_mode": "aggregate-v1", "public_protocol": "h1",
+            "protocol": "h1",
+            "observed_http_major": 1, "attempted": 1, "useful_completed": 1, "errors": 0,
+            "status_classes": {"2xx": 1}, "status_codes": {"200": 1}, "configured_payload_bytes": payload,
+            "response_bytes": payload if direction == "download" else 32, "wall_seconds": payload / rate,
+            "useful_transfer_bytes_per_second": rate, "event_stats_captured": True, "persisted_event_delta": 1,
+            "dropped_event_delta": 0, "event_queue_after_drain": 0, "event_drain_error": "",
+            "configured_rtt_ms": 80, "shaped_rate_bits_per_second": 1_000_000_000,
+            "receiving_pool_observed_bytes": ((2 if smoke else 8) << 20) + 1,
+            "wan_response_tls": [{"http_major": 1, "negotiated_alpn": "http/1.1",
+                                  "peer_leaf_der_sha256": "2" * 64, "origin_connection_id": f"127.0.0.1:{1000 + origin_index}",
+                                  "validation_error": ""}],
+            "upstream_transport_trace": {
+                "sequence": str(index), "overflow": False, "store_count": index,
+                "matches": [{"sequence": str(index), "method": "GET" if direction == "download" else "POST",
+                             "path": "/agent/bulk" if direction == "download" else "/agent/bulk-upload",
+                             "callback_overflow": False,
+                             "got_conn": [{"reused": reused, "was_idle": reused,
+                                           "idle_time_ns": 3_900_000_000 if reused else 0,
+                                           "connection_type": "*server.agentTunnelStreamConn",
+                                           "local_address": "10.211.0.1:30000",
+                                           "remote_address": f"10.212.0.2:{40000 + lane}",
+                                           "observed_unix_ns": got_ns}],
+                             "put_idle_conn": [{"observed_unix_ns": got_ns + 100_000_000}]}],
+            },
+            "provenance": {"server_binary_sha256": hashes["server_binary"],
+                           "aggregate_agent_binary_sha256": hashes["aggregate_agent_binary"],
+                           "harness_sha256": hashes["runner"], "server_source_ref": "8ac4c8d",
+                           "aggregate_agent_source_ref": "8ac4c8d"},
+        })
+    labels = ["current-server-aggregate-v1-h1-1-agent", "current-server-aggregate-v1-h1-1-server",
+              "origin", "agent-namespace", "router-namespace"]
+    lifecycle = [{"event": "namespace-helpers-start", "agent": {"namespace": "net:[2]", "start_ticks": 2},
+                  "router": {"namespace": "net:[3]", "start_ticks": 3}}]
+    lifecycle += [{"event": "process-exit", "label": label, "pid": index + 10, "status": 0, "forced": False,
+                   "group_joined": True, "invalidates_success": False} for index, label in enumerate(labels)]
+    summary = {"diagnostic_only": True, "public_protocol": "h1", "classification": "observational-complete",
+               "acceptance": {"correctness": True, "verified_tls_and_protocol_every_response": True,
+                              "transport_trace_complete": True, "expected_upstream_reuse": True,
+                              "download_floor_every_phase": True}}
+    return {"rows": rows, "lifecycle": lifecycle, "summary": summary,
+            "outer": {"all_private": True, "shell_pid_is_one": True, "python_parent_is_one": True},
+            "supervisor": {"runner_status": 0, "group_joined": True, "forced": False, "invalidates_success": False},
+            "pre": pre, "post": copy.deepcopy(pre)}
+
+
+def run_case(base, name, value, smoke, want_status, issue_text=None):
+    case = base / name
+    case.mkdir()
+    paths = {key: case / f"{key}.json" for key in ("summary", "outer", "supervisor", "pre", "post")}
+    (case / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in value["rows"]))
+    (case / "lifecycle.jsonl").write_text("".join(json.dumps(row) + "\n" for row in value["lifecycle"]))
+    for key, path in paths.items():
+        path.write_text(json.dumps(value[key]) + "\n")
+    attestation = case / "attestation.json"
+    command = [str(validator), str(case / "results.jsonl"), str(case / "lifecycle.jsonl"),
+               str(paths["summary"]), str(paths["outer"]), str(paths["supervisor"]), str(paths["pre"]),
+               str(paths["post"]), str(attestation), "h1", "1" if smoke else "0"]
+    result = subprocess.run(command, text=True, capture_output=True)
+    assert result.returncode == want_status, (name, result.returncode, result.stdout, result.stderr)
+    evidence = json.loads(attestation.read_text())
+    assert evidence["accepted"] is (want_status == 0), (name, evidence)
+    if issue_text:
+        assert any(issue_text in issue for issue in evidence["validation_issues"]), (name, evidence)
+    return evidence
+
+
+with tempfile.TemporaryDirectory(prefix="wan-protocol-validator-contracts-") as directory:
+    base = pathlib.Path(directory)
+    valid = fixture(True)
+    run_case(base, "valid-smoke", valid, True, 0)
+    bad_sequence = copy.deepcopy(valid)
+    bad_sequence["rows"][3]["upstream_transport_trace"]["matches"][0]["sequence"] = "99"
+    run_case(base, "wrong-sequence", bad_sequence, True, 1, "trace correlation")
+    repeated_trace = copy.deepcopy(valid)
+    repeated_trace["rows"][2]["upstream_transport_trace"]["matches"].append(
+        copy.deepcopy(repeated_trace["rows"][2]["upstream_transport_trace"]["matches"][0]))
+    run_case(base, "repeated-trace", repeated_trace, True, 1, "repeated upstream trace")
+    inconclusive = copy.deepcopy(valid)
+    inconclusive["summary"]["classification"] = "inconclusive-upstream-reuse"
+    run_case(base, "inconclusive", inconclusive, True, 1, "not conclusive")
+    missed_reuse = copy.deepcopy(valid)
+    missed_reuse["rows"][12]["upstream_transport_trace"]["matches"][0]["got_conn"][0].update(
+        {"reused": False, "was_idle": False, "idle_time_ns": 0})
+    run_case(base, "missed-reuse", missed_reuse, True, 1, "did not reuse")
+    wrong_origin = copy.deepcopy(valid)
+    wrong_origin["rows"][12]["wan_response_tls"][0]["origin_connection_id"] = "127.0.0.1:9999"
+    run_case(base, "wrong-reuse-origin", wrong_origin, True, 1, "did not reuse")
+    missing_prior_put = copy.deepcopy(valid)
+    missing_prior_put["rows"][8]["upstream_transport_trace"]["matches"][0]["put_idle_conn"] = []
+    run_case(base, "missing-prior-put", missing_prior_put, True, 1, "successful PutIdleConn")
+    duplicate_first_key = copy.deepcopy(valid)
+    duplicate_first_key["rows"][9]["upstream_transport_trace"]["matches"][0]["got_conn"][0]["remote_address"] = "10.212.0.2:40001"
+    run_case(base, "duplicate-first-key", duplicate_first_key, True, 1, "distinct expected-fresh")
+    empty_acceptance = copy.deepcopy(valid)
+    empty_acceptance["summary"]["acceptance"] = {}
+    run_case(base, "empty-acceptance", empty_acceptance, True, 1, "incomplete")
+    duplicate_pid = copy.deepcopy(valid)
+    duplicate_pid["lifecycle"][-1]["pid"] = duplicate_pid["lifecycle"][-2]["pid"]
+    run_case(base, "duplicate-process", duplicate_pid, True, 1, "process identities")
+    forced_cleanup = copy.deepcopy(valid)
+    forced_cleanup["supervisor"].update({"forced": True, "invalidates_success": True})
+    run_case(base, "forced-cleanup", forced_cleanup, True, 1, "did not join naturally")
+    floor_failure = fixture(False)
+    floor_failure["rows"][0]["wall_seconds"] = ((256 << 20) / 20_000_000.0)
+    floor_failure["rows"][0]["useful_transfer_bytes_per_second"] = 20_000_000.0
+    floor_failure["supervisor"]["runner_status"] = 1
+    floor_evidence = run_case(base, "floor-failure", floor_failure, False, 1, "download phase failed")
+    assert floor_evidence["natural_endpoint_and_namespace_statuses"] is True
+    assert floor_evidence["outer_private_user_pid_mount_net"] is True
+    assert floor_evidence["outer_runner_group_joined"] is True
+    assert floor_evidence["runner_status"] == 1
+    assert any("runner exited nonzero" in issue for issue in floor_evidence["validation_issues"])
+print("validator contracts passed")

@@ -1,0 +1,84 @@
+Total: 33.47s
+ROUTINE ======================== github.com/hashicorp/yamux.(*Stream).Read in /tmp/p2p-tiny-15b0354.U9sb6f8a/third_party/yamux/stream.go
+     130ms     10.47s (flat, cum) 31.28% of Total
+         .          .    123:func (s *Stream) Read(b []byte) (n int, err error) {
+      20ms       20ms    124:	defer asyncNotify(s.recvNotifyCh)
+         .          .    125:	var drainedHead, drainedTail *aggregateChunk
+         .          .    126:	var drainedUnits uint32
+         .          .    127:	var refundAllocation bool
+         .          .    128:START:
+         .          .    129:	refundAllocation = false
+         .          .    130:
+         .          .    131:	// If the stream is closed and there's no data buffered, return EOF
+         .      140ms    132:	s.stateLock.Lock()
+         .          .    133:	switch s.state {
+      10ms       10ms    134:	case streamInit, streamSYNSent, streamSYNReceived, streamEstablished:
+         .          .    135:		refundAllocation = true
+         .          .    136:	case streamLocalClose:
+         .          .    137:		// LocalClose only prohibits further local writes. Handle reads normally.
+         .          .    138:		refundAllocation = true
+         .          .    139:	case streamRemoteClose:
+         .          .    140:		fallthrough
+         .          .    141:	case streamClosed:
+         .          .    142:		s.recvLock.Lock()
+         .          .    143:		if s.receiveBufferedLocked() == 0 {
+         .          .    144:			s.recvLock.Unlock()
+         .          .    145:			s.stateLock.Unlock()
+         .          .    146:			return 0, io.EOF
+         .          .    147:		}
+         .          .    148:		s.recvLock.Unlock()
+         .          .    149:	case streamReset:
+         .          .    150:		s.stateLock.Unlock()
+         .          .    151:		return 0, ErrConnectionReset
+         .          .    152:	}
+         .      150ms    153:	s.stateLock.Unlock()
+         .          .    154:
+         .          .    155:	// If there is no data available, block
+         .      130ms    156:	s.recvLock.Lock()
+         .       30ms    157:	if s.receiveBufferedLocked() == 0 {
+         .      110ms    158:		s.recvLock.Unlock()
+         .          .    159:		goto WAIT
+         .          .    160:	}
+         .          .    161:
+         .          .    162:	if s.session.aggregateEnabled() {
+         .       60ms    163:		n, drainedHead, drainedTail, drainedUnits = s.readAggregateLocked(b)
+         .          .    164:		if drainedUnits > 0 {
+         .      100ms    165:			s.session.returnAggregateChunks(s, drainedHead, drainedTail, drainedUnits, true, refundAllocation)
+         .          .    166:			drainedHead, drainedTail, drainedUnits = nil, nil, 0
+         .          .    167:		}
+         .          .    168:		if s.aggregateBuffered == 0 {
+         .       20ms    169:			s.session.untrackAggregateBuffer(s)
+         .          .    170:		}
+         .          .    171:	} else {
+      20ms       20ms    172:		n, _ = s.recvBuf.Read(b)
+         .          .    173:	}
+         .          .    174:	s.recvLock.Unlock()
+         .          .    175:
+         .          .    176:	// Send a window update potentially
+         .       50ms    177:	err = s.sendWindowUpdate()
+         .          .    178:	if err == ErrSessionShutdown {
+         .          .    179:		err = nil
+         .          .    180:	}
+         .          .    181:	return n, err
+         .          .    182:
+         .          .    183:WAIT:
+         .          .    184:	var timeout <-chan time.Time
+         .          .    185:	var timer *time.Timer
+      10ms       40ms    186:	readDeadline := s.readDeadline.Load().(time.Time)
+      10ms       20ms    187:	if !readDeadline.IsZero() {
+         .          .    188:		delay := time.Until(readDeadline)
+         .          .    189:		timer = time.NewTimer(delay)
+         .          .    190:		timeout = timer.C
+         .          .    191:	}
+      20ms      9.53s    192:	select {
+      10ms       10ms    193:	case <-s.session.shutdownCh:
+         .          .    194:	case <-s.recvNotifyCh:
+         .          .    195:	case <-timeout:
+         .          .    196:		return 0, ErrTimeout
+         .          .    197:	}
+      30ms       30ms    198:	if timer != nil {
+         .          .    199:		if !timer.Stop() {
+         .          .    200:			<-timeout
+         .          .    201:		}
+         .          .    202:	}
+         .          .    203:	goto START

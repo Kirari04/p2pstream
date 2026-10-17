@@ -1,0 +1,29 @@
+{
+  "kind": "p2pstream-native-go-attribution-contracts-v1",
+  "runner": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-source/qualify-proxy-native-go-attribution.py",
+  "runner_sha256": "ebda90041f65bcdd317b0cf9aae10c6b334190d35653ce64b2147697375f7a50",
+  "builder": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-source/build-native-go-attribution.py",
+  "builder_sha256": "533ca913fbf660e2fb1e08b57e380331c45d5a24e373427be4a9191e3a90ced0",
+  "python_version": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+  "case_count": 2,
+  "results": [
+    {
+      "name": "inherited-smoke-sanitized",
+      "passed": true,
+      "started_unix_nano": 1792159921071441850,
+      "finished_unix_nano": 1792159921071548999
+    },
+    {
+      "name": "role-resource-envelope-classifies-event-capture",
+      "passed": true,
+      "started_unix_nano": 1792159921071735573,
+      "finished_unix_nano": 1792159921071742386
+    }
+  ],
+  "selected_cases": [
+    "inherited-smoke-sanitized",
+    "role-resource-envelope-classifies-event-capture"
+  ],
+  "complete": true,
+  "failure": null
+}

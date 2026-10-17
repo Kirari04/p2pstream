@@ -1,0 +1,12 @@
+{
+  "archive_bytes": 48140291,
+  "archive_files": 3184,
+  "bytes": 74234249,
+  "excluded_run_artifacts": 228,
+  "files": 3713,
+  "hash_only_binaries": 6,
+  "loose_bytes": 26093958,
+  "loose_files": 529,
+  "schema_version": 1,
+  "secret_scan_accepted": true
+}

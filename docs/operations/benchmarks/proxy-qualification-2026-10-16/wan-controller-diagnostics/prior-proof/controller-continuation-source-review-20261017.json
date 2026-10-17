@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "verdict": "No meaningful correctness or provenance blocker in the narrow corrected-fixture and continuation delta. Ready for root decision on the exact local continuation only.",
+  "hashes": {
+    "SHA256SUMS": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+    "FROZEN-INPUTS.json": "ea0caa48e5ca02c8aec2c25f0e45d8df39045426724e75dccb2a5a49f4c06618",
+    "BUILD-TEST-PLAN.json": "698959601a56caa0761b7e274336ae4520f45762119292d06cc95932acdeed91",
+    "CONTINUATION.diff": "cdd9851ef454be2f34832dfda3b2dcd275877babb5e56bbff94a9bd208f7a816",
+    "SOURCE-SHA256SUMS": "a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+    "COMMANDS.json": "e078180ed57f0404b034180756431bbaa85c898f15f7c1b1491da01621caf740",
+    "contracts/test-controller-screen.py": "ebe6c41a6b898e857816ca589ae2dfd42c093639ef19781965f1ceeb94e9a179",
+    "runner-source/integration/verify-terminal-build.py": "c68e207909897bb121aca99cb2ec1d6c14c8b0853eb8b239927b499a022ba793"
+  },
+  "verified": [
+    "Same relocated fixture compared before/after arm-root sidecar; relocation discrepancy with original is explicitly preserved.",
+    "Four immutable prior natural-zero proofs retain original execution-freeze origin, exact command/start/audit/log hashes and original proof fields.",
+    "Seven fresh commands retain exact original argv/cwd and require continuation-1 log directory plus current freeze; directory is currently absent.",
+    "All30 original attempt files are pinned in current plan inputs; prior failed controller output remains preserved.",
+    "Natural-zero, empty owner/adoption sets, exact bounded stream bytes/hashes, source inventory, settings and binary tuple predicates retained.",
+    "All541 ledger entries,540 frozen inputs and plan input hashes checked without mismatch; verifier pin matches.",
+    "Compilation inventory and runtime COMMANDS hashes unchanged; reviewed-receipt token remains blocked."
+  ],
+  "reviewer_execution": {
+    "source_reads_and_hash_checks_only": true,
+    "tests": 0,
+    "builds": 0,
+    "traffic": 0,
+    "tracked_edits": 0
+  },
+  "authority": "Root owns local execution and subsequent receipt/runtime authorization; this verdict grants neither."
+}

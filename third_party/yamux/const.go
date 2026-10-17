@@ -48,6 +48,22 @@ var (
 	// ErrReceiveWindowExceeded indicates the window was exceeded
 	ErrRecvWindowExceeded = fmt.Errorf("recv window exceeded")
 
+	// ErrStreamWindowExceeded indicates that an aggregate-mode peer supplied
+	// byte-window credit that would wrap the local sender ledger.
+	ErrStreamWindowExceeded = fmt.Errorf("stream send window exceeded")
+
+	// ErrSessionWindowExceeded indicates that aggregate session DATA credit
+	// or its negotiated protocol maximum was exceeded.
+	ErrSessionWindowExceeded = fmt.Errorf("session recv window exceeded")
+
+	// ErrStreamAllocationWindowExceeded indicates that one stream exhausted
+	// its fair share of aggregate receive chunks.
+	ErrStreamAllocationWindowExceeded = fmt.Errorf("stream allocation window exceeded")
+
+	// ErrDataFrameTooLarge indicates that an aggregate-mode DATA frame exceeds
+	// the negotiated fairness and allocation quantum.
+	ErrDataFrameTooLarge = fmt.Errorf("data frame exceeds negotiated maximum")
+
 	// ErrTimeout is used when we reach an IO deadline
 	ErrTimeout = &NetError{
 		err: fmt.Errorf("i/o deadline reached"),
@@ -101,6 +117,13 @@ const (
 	// GoAway is sent to terminate a session. The StreamID
 	// should be 0 and the length is an error code.
 	typeGoAway
+
+	// AllocationWindowUpdate returns aggregate allocation units to one stream.
+	typeAllocationWindowUpdate
+
+	// WindowGrow explicitly distinguishes reserved receive-capacity growth
+	// from receiver-issued credit refunds.
+	typeWindowGrow
 )
 
 const (

@@ -1,0 +1,80 @@
+--- third_party/yamux/session_test.go.before-mechanical-fix
++++ third_party/yamux/session_test.go
+@@ -1494,6 +1494,19 @@
+ 		client, server := testClientServerConfig(t, clientConn, serverConn, conf, conf.Clone())
+ 
+ 		errCh := make(chan error, 1)
++		allowWriterClose := make(chan struct{})
++		writerCloseErr := make(chan error, 1)
++		writerDone := make(chan struct{})
++		var releaseWriterOnce sync.Once
++		releaseWriter := func() { releaseWriterOnce.Do(func() { close(allowWriterClose) }) }
++		t.Cleanup(func() {
++			releaseWriter()
++			select {
++			case <-writerDone:
++			case <-time.After(time.Second):
++				t.Error("writer did not stop")
++			}
++		})
+ 
+ 		// Choose a huge flood size that we know will result in a window update.
+ 		flood := int64(client.config.MaxStreamWindowSize)
+@@ -1501,13 +1514,13 @@
+ 
+ 		// The server will accept a new stream and then flood data to it.
+ 		go func() {
++			defer close(writerDone)
+ 			var err error
+ 			wr, err = server.AcceptStream()
+ 			if err != nil {
+ 				errCh <- err
+ 				return
+ 			}
+-			defer wr.Close()
+ 
+ 			window := atomic.LoadUint32(&wr.sendWindow)
+ 			if window != client.config.MaxStreamWindowSize {
+@@ -1530,6 +1543,8 @@
+ 				return
+ 			}
+ 			errCh <- err
++			<-allowWriterClose
++			writerCloseErr <- wr.Close()
+ 		}()
+ 
+ 		stream, err := client.OpenStream()
+@@ -1547,15 +1562,26 @@
+ 			t.Fatalf("err: %v", err)
+ 		}
+ 
+-		// Wait for window update to be applied by server. Should be "instant" but CI
+-		// can be slow.
+-		time.Sleep(2 * time.Second)
+-
+-		// Assert server received window update
+-		window := atomic.LoadUint32(&wr.sendWindow)
+-		if exp := uint32(partialReadSize); window != exp {
++		// Wait for the server to apply the update without imposing a fixed delay
++		// on every transport variant.
++		exp := uint32(partialReadSize)
++		deadline := time.Now().Add(time.Second)
++		for atomic.LoadUint32(&wr.sendWindow) != exp && time.Now().Before(deadline) {
++			runtime.Gosched()
++		}
++		if window := atomic.LoadUint32(&wr.sendWindow); window != exp {
+ 			t.Fatalf("sendWindow: exp=%d, got=%d", exp, window)
+ 		}
++
++		releaseWriter()
++		select {
++		case <-writerDone:
++		case <-time.After(time.Second):
++			t.Fatal("writer did not stop after release")
++		}
++		if err := <-writerCloseErr; err != nil {
++			t.Fatalf("close writer: %v", err)
++		}
+ 	})
+ }
+ 

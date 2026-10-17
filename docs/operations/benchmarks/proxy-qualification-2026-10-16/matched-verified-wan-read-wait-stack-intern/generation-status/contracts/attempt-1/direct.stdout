@@ -1,0 +1,1 @@
+{"accepted": true, "case_count": 4, "cases": ["test_single_snapshot_continuity", "test_multiple_snapshots_preserve_one_active_wait", "test_snapshot_does_not_repair_ordinary_missing_stack", "test_inconsistent_snapshot_state_rejected"]}

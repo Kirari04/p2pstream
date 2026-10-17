@@ -1,0 +1,17 @@
+{"event":"namespace-helpers-start","boot_id":"1811fe8e-5c3c-4428-ab82-9b38d6519500","runner_namespace":"net:[4026533519]","agent":{"pid":19,"start_ticks":441841,"namespace":"net:[4026533254]"},"router":{"pid":24,"start_ticks":441842,"namespace":"net:[4026533253]"}}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-1-agent","pid":100,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-1-server","pid":101,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-1-agent","pid":102,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-1-server","pid":103,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-2-agent","pid":104,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-2-server","pid":105,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-2-agent","pid":106,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-2-server","pid":107,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-3-agent","pid":108,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-3-server","pid":109,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-3-agent","pid":110,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-3-server","pid":111,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"origin","pid":112,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"agent-namespace","pid":113,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"router-namespace","pid":114,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-1-agent","pid":100,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}

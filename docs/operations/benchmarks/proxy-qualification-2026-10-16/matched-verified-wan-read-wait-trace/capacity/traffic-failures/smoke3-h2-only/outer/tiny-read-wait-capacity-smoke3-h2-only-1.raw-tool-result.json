@@ -1,0 +1,7 @@
+{
+  "chunk_id": "a209ea",
+  "wall_time_seconds": 26.542306036,
+  "exit_code": 1,
+  "original_token_count": 52,
+  "output": "wrapper_status=1 prepost_compare=0 output=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke3-h2-only-1\n"
+}

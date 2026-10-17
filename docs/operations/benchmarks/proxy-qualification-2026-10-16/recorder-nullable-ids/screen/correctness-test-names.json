@@ -1,0 +1,13 @@
+[
+  "TestRecorderNullableIDPersistenceSingleAndBatch",
+  "TestRecorderNullableIDEdgeValuesMatchGeneratedDatabaseInsert",
+  "TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches",
+  "TestPreparedProxyRequestEventBatchCancellationRollsBack",
+  "TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups",
+  "TestObservabilityRecorderCoalescesPublicCacheTouches",
+  "TestObservabilityRecorderCoalescesCacheTouchesPerGeneration",
+  "TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails",
+  "TestCloseObservabilityRecorderFlushesQueuedEvents",
+  "TestCloseObservabilityRecorderCancelsActiveFlushAndDrains",
+  "TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext"
+]

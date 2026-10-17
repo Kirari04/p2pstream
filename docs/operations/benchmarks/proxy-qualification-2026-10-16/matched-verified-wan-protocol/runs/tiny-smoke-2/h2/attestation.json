@@ -1,0 +1,43 @@
+{
+  "accepted": false,
+  "all_observed_http_major": 2,
+  "classification": "inconclusive-possible-idle-expiry",
+  "diagnostic_only": true,
+  "download_floor_bytes_per_second": 29700000,
+  "download_phase_classification": {
+    "retained-warmup": {
+      "all_at_or_above_floor": false,
+      "gating": false,
+      "minimum_bytes_per_second": 4654594.954038801,
+      "samples": 1
+    },
+    "steady": {
+      "all_at_or_above_floor": false,
+      "gating": false,
+      "minimum_bytes_per_second": 4661580.726123989,
+      "samples": 1
+    },
+    "warmup": {
+      "all_at_or_above_floor": false,
+      "gating": false,
+      "minimum_bytes_per_second": 4639516.565644516,
+      "samples": 4
+    }
+  },
+  "lifecycle_sha256": "77792da95b64ca6d7b24db8ab8523e3721b3fc80368c56b6f97b015a7ad5dae4",
+  "natural_endpoint_and_namespace_statuses": true,
+  "outer_private_user_pid_mount_net": true,
+  "outer_runner_group_joined": true,
+  "protocol": "h2",
+  "results_sha256": "98e8b27d3f8bef950296a861d7dccb1bfbdcbc8053474f8537185eee6574e691",
+  "row_count": 12,
+  "runner_status": 1,
+  "schema_version": 1,
+  "smoke": true,
+  "summary_sha256": "20dab772416de1dbd3fa98f3eb0f75e556767d4cd694f092e044d0c2fc74e581",
+  "validation_issues": [
+    "diagnostic classification is not conclusive: 'inconclusive-possible-idle-expiry'",
+    "runner exited nonzero after preserving evidence: 1"
+  ],
+  "verified_alpn": "h2"
+}

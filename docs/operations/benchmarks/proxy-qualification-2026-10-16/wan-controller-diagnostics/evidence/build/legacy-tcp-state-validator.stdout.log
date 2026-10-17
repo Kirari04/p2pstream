@@ -1,0 +1,347 @@
+{
+  "accepted": true,
+  "case_count": 85,
+  "cases": [
+    {
+      "accepted": true,
+      "name": "valid"
+    },
+    {
+      "accepted": true,
+      "name": "history-not-reproduced"
+    },
+    {
+      "accepted": true,
+      "name": "history-finite-pre-transition-unobserved"
+    },
+    {
+      "accepted": true,
+      "name": "history-later-transition-mismatch"
+    },
+    {
+      "accepted": true,
+      "name": "history-selected-data-attribution"
+    },
+    {
+      "accepted": true,
+      "name": "history-earlier-data-stream-retained"
+    },
+    {
+      "accepted": true,
+      "name": "history-exact-attempt-limit"
+    },
+    {
+      "accepted": true,
+      "name": "history-over-attempt-limit"
+    },
+    {
+      "accepted": true,
+      "name": "history-attempt-limit-status"
+    },
+    {
+      "accepted": true,
+      "name": "history-bracket-requires-raw-monotonic"
+    },
+    {
+      "accepted": true,
+      "name": "history-mismatch-requires-transition"
+    },
+    {
+      "accepted": true,
+      "name": "history-mismatch-requires-comparison"
+    },
+    {
+      "accepted": true,
+      "name": "history-mismatch-rejects-initial-pre"
+    },
+    {
+      "accepted": true,
+      "name": "history-live-healthy-monitoring"
+    },
+    {
+      "accepted": true,
+      "name": "history-healthy-provider-errors"
+    },
+    {
+      "accepted": true,
+      "name": "history-record-ordinal-beyond-attempts"
+    },
+    {
+      "accepted": true,
+      "name": "history-required-owner-lane"
+    },
+    {
+      "accepted": true,
+      "name": "history-compared-transition-resolves-explanation"
+    },
+    {
+      "accepted": true,
+      "name": "history-prebind-reason-requires-marker"
+    },
+    {
+      "accepted": true,
+      "name": "history-no-transition-comparison-is-initial"
+    },
+    {
+      "accepted": true,
+      "name": "history-counter-overflow-exhausted"
+    },
+    {
+      "accepted": true,
+      "name": "history-finite-prebind-gap"
+    },
+    {
+      "accepted": true,
+      "name": "history-initial-bind-rejects-prebind-gap"
+    },
+    {
+      "accepted": true,
+      "name": "history-finite-bind-requires-prebind-gap"
+    },
+    {
+      "accepted": true,
+      "name": "history-invalid-bracket-rejects-location"
+    },
+    {
+      "accepted": true,
+      "name": "history-persistent-progression"
+    },
+    {
+      "accepted": true,
+      "name": "history-arm-ordinal-jump"
+    },
+    {
+      "accepted": true,
+      "name": "history-first-transition-overwrite"
+    },
+    {
+      "accepted": true,
+      "name": "history-retained-transition-freezes-provider-work"
+    },
+    {
+      "accepted": true,
+      "name": "history-retained-transition-freezes-shared-work"
+    },
+    {
+      "accepted": true,
+      "name": "history-sticky-failure-freezes-provider-work"
+    },
+    {
+      "accepted": true,
+      "name": "history-transition-preserves-last-equal"
+    },
+    {
+      "accepted": true,
+      "name": "history-sticky-failure-freezes-history"
+    },
+    {
+      "accepted": true,
+      "name": "exact-zero-boundary"
+    },
+    {
+      "accepted": true,
+      "name": "terminal-retains-sequence-15"
+    },
+    {
+      "accepted": true,
+      "name": "terminal-history-owner-mismatch"
+    },
+    {
+      "accepted": true,
+      "name": "interleaved-stream-sample-ids"
+    },
+    {
+      "accepted": true,
+      "name": "boolean-schema"
+    },
+    {
+      "accepted": true,
+      "name": "invalid-sticky"
+    },
+    {
+      "accepted": true,
+      "name": "overflow-sticky"
+    },
+    {
+      "accepted": true,
+      "name": "record-cap"
+    },
+    {
+      "accepted": true,
+      "name": "capture-count"
+    },
+    {
+      "accepted": true,
+      "name": "unsupported-field"
+    },
+    {
+      "accepted": true,
+      "name": "cursor-change-marker"
+    },
+    {
+      "accepted": true,
+      "name": "cursor-after-invalid"
+    },
+    {
+      "accepted": true,
+      "name": "sample-monotonic"
+    },
+    {
+      "accepted": true,
+      "name": "pair-bracket"
+    },
+    {
+      "accepted": true,
+      "name": "pair-reverse-link"
+    },
+    {
+      "accepted": true,
+      "name": "congestion-change"
+    },
+    {
+      "accepted": true,
+      "name": "entry-congestion-change"
+    },
+    {
+      "accepted": true,
+      "name": "retry-congestion-change"
+    },
+    {
+      "accepted": true,
+      "name": "raw-before-congestion-change"
+    },
+    {
+      "accepted": true,
+      "name": "raw-after-congestion-change"
+    },
+    {
+      "accepted": true,
+      "name": "last-live-mismatch"
+    },
+    {
+      "accepted": true,
+      "name": "applied-retry-zero-credit"
+    },
+    {
+      "accepted": true,
+      "name": "byte-credit-applied-zero-credit"
+    },
+    {
+      "accepted": true,
+      "name": "sysctl-domain"
+    },
+    {
+      "accepted": true,
+      "name": "history-boolean-schema"
+    },
+    {
+      "accepted": true,
+      "name": "history-selected-sequence"
+    },
+    {
+      "accepted": true,
+      "name": "history-selected-pre-snapshot"
+    },
+    {
+      "accepted": true,
+      "name": "history-transition-chronology"
+    },
+    {
+      "accepted": true,
+      "name": "history-provider-count"
+    },
+    {
+      "accepted": true,
+      "name": "history-shared-provider-count"
+    },
+    {
+      "accepted": true,
+      "name": "history-owner-generation"
+    },
+    {
+      "accepted": true,
+      "name": "history-malformed-record-shape"
+    },
+    {
+      "accepted": true,
+      "name": "history-last-equal-order"
+    },
+    {
+      "accepted": true,
+      "name": "byte-credit-wait-join"
+    },
+    {
+      "accepted": true,
+      "name": "selected-stream-join"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-pre-generation-match-9"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-pair-generation-match-9"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-pre-generation-match-11"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-pair-generation-match-11"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-pre-generation-match-14"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-pair-generation-match-14"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-pre-generation-match-15"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-pair-generation-match-15"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-owner-generation-mismatch"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-owner-generation-omitted"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-owner-generation-boolean"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-raw-owner-malformed"
+    },
+    {
+      "accepted": true,
+      "name": "snapshot-selected-data-required-false"
+    },
+    {
+      "accepted": true,
+      "name": "generic-control-lane-zero-required-false"
+    },
+    {
+      "accepted": true,
+      "name": "generic-control-lane-zero-required-true-rejected"
+    },
+    {
+      "accepted": true,
+      "name": "selected-sequence-requires-data-history"
+    },
+    {
+      "accepted": true,
+      "name": "selected-stream-requires-data-history"
+    }
+  ],
+  "schema_version": 1
+}

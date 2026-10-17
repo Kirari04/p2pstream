@@ -1,0 +1,136 @@
+{
+  "status": "source-only; requires separate root runtime grant after frozen build receipt review",
+  "arms": [
+    {
+      "index": 0,
+      "controller": "cubic",
+      "attempts": 1,
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "900s",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+        "--server-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+        "--aggregate-agent-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+        "--server-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+        "--aggregate-agent-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+        "--cert",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+        "--key",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.key.pem",
+        "--expected-leaf-sha256",
+        "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+        "--protocol",
+        "h2",
+        "--output-dir",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-0-cubic"
+      ],
+      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-0-cubic",
+      "env": {
+        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
+      }
+    },
+    {
+      "index": 1,
+      "controller": "reno",
+      "attempts": 1,
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "900s",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+        "--server-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+        "--aggregate-agent-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+        "--server-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+        "--aggregate-agent-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+        "--cert",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+        "--key",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.key.pem",
+        "--expected-leaf-sha256",
+        "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+        "--protocol",
+        "h2",
+        "--output-dir",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-1-reno"
+      ],
+      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-1-reno",
+      "env": {
+        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "reno"
+      }
+    },
+    {
+      "index": 2,
+      "controller": "cubic",
+      "attempts": 1,
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "900s",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+        "--server-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+        "--aggregate-agent-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+        "--server-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+        "--aggregate-agent-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+        "--cert",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+        "--key",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.key.pem",
+        "--expected-leaf-sha256",
+        "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+        "--protocol",
+        "h2",
+        "--output-dir",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-2-cubic"
+      ],
+      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-2-cubic",
+      "env": {
+        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
+      }
+    }
+  ],
+  "max_transfers": 48,
+  "transfers_per_arm": 16,
+  "stop_on_first_invalid_arm": true,
+  "retry": false,
+  "workload": {
+    "protocol": "h2",
+    "warmup_mib": 256,
+    "steady_mib": 256,
+    "steady_repetitions": 3,
+    "rtt_ms": 80,
+    "required_pool_mib": 8
+  },
+  "original_96_transfer_and_HAProxy_gates": "failed; unchanged",
+  "outer_supervision": {
+    "task_artifact_bytes": 268435456,
+    "arm_stream_bytes_each": 16777216,
+    "validator_stream_bytes_each": 1048576,
+    "launcher_seconds": 930,
+    "independent_validation_seconds": 60,
+    "TERM_grace_seconds": 10,
+    "KILL_reap_seconds": 5,
+    "natural_join_required": true,
+    "remaining_groups_or_forced_cleanup": "reject and stop all remaining traffic",
+    "started_and_final_records_required": true,
+    "full_process_and_artifact_inventory_seconds": 1.0,
+    "direct_child_and_two_log_size_poll_seconds": 0.05,
+    "bounded_cleanup_poll_seconds": 0.05,
+    "durable_audit_reserved_bytes": 1048576
+  }
+}

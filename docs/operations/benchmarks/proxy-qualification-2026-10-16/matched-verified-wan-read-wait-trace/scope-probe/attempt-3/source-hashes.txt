@@ -1,0 +1,4 @@
+81ea98f4269c8d0d7c35b756a7c302cfd5264eb9dee10a78dec4022ab6cc4ddf  tmp/continuation-20261016/wan-read-wait-source/scope-probe/host-delegated-probe-v2.sh
+7e8efecd83cdf3e5b554a96044f006e0eb4c9183ae30b7a6da69b3005bc89efa  tmp/continuation-20261016/wan-read-wait-source/scope-probe/host-delegated-dummy-v2.py
+6c5d70d3363c62957961a9157903238fae5ca0a85d2e08ba852423179f132b69  tmp/continuation-20261016/wan-read-wait-source/scope-probe/host-delegated-sentinel.sh
+efe414ca15ec1eb6613ed682e236c8a6a871ce34c6aaa37fe897dd775573ee27  tmp/continuation-20261016/wan-read-wait-source/scope-probe/corrected-pid-provenance.patch

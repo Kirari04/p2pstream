@@ -1,0 +1,38 @@
+{
+  "head_sha": "bd593420a6905f8922bb96d07ec351483c0df2c3",
+  "scope": "read-only CI/source triage; no builds/tests/edits",
+  "logs_complete": true,
+  "log_fetch_limit_bytes": 4194304,
+  "files": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/ci-verify-failed.log",
+      "sha256": "1ade890a40b17aed7086526fcc5071d510d216a01912d7d2c39dc1770bebbd76",
+      "bytes": 12910
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/codeql-go-failed.log",
+      "sha256": "617189a4620cb2101b12e1dbc428bdd61c6123c35714291fa12ec866a99fb497",
+      "bytes": 8215
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/.github/workflows/ci.yml",
+      "sha256": "aaa79b96231d6a74e82503bdcfa69877bc8c57bd429524fe8004a023850a4be0",
+      "bytes": 3848
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/.github/workflows/codeql.yml",
+      "sha256": "14d41283e2badf142cece7ebea3282c5cd953b5b08f5c3ce9eabc8e09a09a611",
+      "bytes": 1519
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/cmd/go/internal/search/search.go",
+      "sha256": "ff88e61e99ed982a207beb43e531437c59652051091c8dc295719b9b94a0adea",
+      "bytes": 18567
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/cmd/go/internal/modload/search.go",
+      "sha256": "3942b6158b71d9cea6f404270bf7662fae5cf31c102379b7accfa35b6b22930e",
+      "bytes": 10202
+    }
+  ]
+}

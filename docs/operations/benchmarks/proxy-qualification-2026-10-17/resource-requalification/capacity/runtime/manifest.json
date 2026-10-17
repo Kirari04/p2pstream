@@ -1,0 +1,33 @@
+{
+  "candidate_ref": "8fa16378af4ac0117276726fe6e51d8bc4c74c85",
+  "baseline_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "go_version": "go version go1.26.6 linux/amd64",
+  "kernel": "Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "docker_version": "28.3.3",
+  "haproxy_version": "HAProxy version 3.2.9-1ubuntu2.2 2026/06/19 - https://haproxy.org/",
+  "cpu_online": "0-15",
+  "cpu_topology": "0,0,0,Y\n1,0,0,Y\n2,1,0,Y\n3,1,0,Y\n4,2,0,Y\n5,2,0,Y\n6,3,0,Y\n7,3,0,Y\n8,4,0,Y\n9,4,0,Y\n10,5,0,Y\n11,5,0,Y\n12,6,0,Y\n13,6,0,Y\n14,7,0,Y\n15,7,0,Y",
+  "harness_sha256": "81ae49bc6c81e239a8617188567919c0113e541115881d5c201ec0d02cbc7149",
+  "orchestrator_sha256": "811c8bebd04a3045546b7948af81d1aaa6ec64057c811285d4c8b1fb83c88d84",
+  "candidate_harnesses": {
+    "server_sha256": "5c6654f4c355c160dde1a5d07a8deb9b0a645555bd779eeea23803542f746984",
+    "agent_sha256": "6066d04dac9320c3a8e5e2efa2c5c82fef400d1683703709ad44f48f23340b36"
+  },
+  "baseline_overlays": {
+    "server_sha256": "32425482c29081d7c41410ecad206d8938fecb0f4e9308e6670be1a413d3952c",
+    "agent_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb"
+  },
+  "binaries": {
+    "candidate_server_sha256": "5d7552f7a51f907dcbbd4c7b3e73590a3a887cbf1333cc7da058a8e23ee27577",
+    "candidate_agent_sha256": "c8f541da6c4be5ea3ed4ae3cc1df9bfb188da210d78ffc00962602354ff41537",
+    "baseline_server_sha256": "5214f3b1926bd7829a10248ba249d87749d211890e1b0493de22be89fbd29553",
+    "baseline_agent_sha256": "64ef9e6eb4607596d85d0ecb4d9878cd0055b795b0e52e9cc1143dac81985dee"
+  },
+  "workload": {
+    "public_h1_connections": 1536,
+    "barrier_seconds": 3,
+    "server_memory_max_bytes": 4294967296,
+    "server_ballast_bytes": 1073741824,
+    "agent_memory_max_bytes": 4294967296
+  }
+}

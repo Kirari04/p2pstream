@@ -1,0 +1,42 @@
+{
+  "after_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2556701-d755c2e0.scope",
+  "before_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/app-t3code.slice/app-t3code-agents.slice/app-t3code-agents-a29d81d75689.slice/t3code-codex-dd731418.scope",
+  "cpu_affinity": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "exec_command": [
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+    "-test.run",
+    "^TestExternalProxyQualificationServerProcess$",
+    "-test.timeout",
+    "4397s"
+  ],
+  "expected_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2556701-d755c2e0.scope",
+  "expected_nonce": "d755c2e0-c58f-48ae-b031-3f5a0d11efb5",
+  "gomaxprocs": "4",
+  "join_error": "",
+  "join_status": 0,
+  "namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026533468]",
+    "net": "net:[4026533918]",
+    "pid": "pid:[4026533469]",
+    "user": "user:[4026533917]"
+  },
+  "nonce": "d755c2e0-c58f-48ae-b031-3f5a0d11efb5",
+  "nspgid": [
+    182
+  ],
+  "nspid": [
+    182
+  ],
+  "pgid": 182,
+  "pid": 182,
+  "role": "server",
+  "schema_version": 1,
+  "sid": 182,
+  "start_ticks": 7882290
+}

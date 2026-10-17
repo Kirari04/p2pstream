@@ -1,0 +1,14 @@
+{
+  "accepted": true,
+  "artifact_bytes": 1721272,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "failure": null,
+  "original96_workload": true,
+  "outer_audit_sha256": "83d92850c0934b575920101470537a34b2df985adf59ad1b85b1fad53148c120",
+  "outer_natural_cleanup": true,
+  "runtime_source_manifest_sha256": "0d938ddd6834144b62b5fc8913b767be1671c9594c246cc9cd3252d6956deb92",
+  "schema_version": 1,
+  "source_before_after_unchanged": true,
+  "traffic_retry": false,
+  "wrapper_status": 0
+}

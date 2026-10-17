@@ -1,0 +1,17 @@
+{
+  "diagnostic_only": true,
+  "every_pair_download_separate_to_batched_ratio_minimum": 1.10,
+  "every_pair_upload_separate_to_batched_ratio_minimum": 0.90,
+  "secondary_transition_screen": {
+    "separate_all_24_download_samples_minimum_bytes_per_second": 29700000,
+    "batched_pairs_with_subthreshold_download_sample_minimum": 2,
+    "all_pair_upload_gates_must_pass": true,
+    "exact_correctness_and_cleanup": true,
+    "does_not_override_main_pair_gates": true
+  },
+  "exact_payload_and_event_conservation": true,
+  "pairs": 3,
+  "pair_order": ["batched-then-separate", "separate-then-batched", "batched-then-separate"],
+  "selective_retries": false,
+  "total_transfers": 96
+}

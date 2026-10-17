@@ -1,0 +1,13 @@
+{
+  "accepted": false,
+  "conditioning_passed": true,
+  "issues": [
+    "supervisor topology, resource, sender, raw, or natural-join closure failed",
+    "H1 attestation contains integrity failures",
+    "supervisor invalidation does not match the exact runner status",
+    "attested H1 data ownership, resource, or closure integrity failed",
+    "selected sender intervals or compound tuple joins failed"
+  ],
+  "performance_passed": true,
+  "schema_version": 1
+}

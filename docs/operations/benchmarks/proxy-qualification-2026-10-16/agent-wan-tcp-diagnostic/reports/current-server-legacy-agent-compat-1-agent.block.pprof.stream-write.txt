@@ -1,0 +1,78 @@
+Total: 1.01hrs
+ROUTINE ======================== github.com/hashicorp/yamux.(*Stream).write in /tmp/p2pstream-legacy-growth-3ec137.rH22MF/src/third_party/yamux/stream.go
+         0     61.85s (flat, cum)  1.69% of Total
+         .          .    261:func (s *Stream) write(b []byte) (n int, err error) {
+         .          .    262:	var flags uint16
+         .          .    263:	var max uint32
+         .          .    264:	var body []byte
+         .          .    265:	var aggregateNotify <-chan struct{}
+         .          .    266:START:
+         .          .    267:	aggregateNotify = nil
+         .          .    268:	s.stateLock.Lock()
+         .          .    269:	switch s.state {
+         .          .    270:	case streamLocalClose:
+         .          .    271:		fallthrough
+         .          .    272:	case streamClosed:
+         .          .    273:		s.stateLock.Unlock()
+         .          .    274:		return 0, ErrStreamClosed
+         .          .    275:	case streamReset:
+         .          .    276:		s.stateLock.Unlock()
+         .          .    277:		return 0, ErrConnectionReset
+         .          .    278:	}
+         .          .    279:	s.stateLock.Unlock()
+         .          .    280:
+         .          .    281:	// If there is no data available, block
+         .          .    282:	window := atomic.LoadUint32(&s.sendWindow)
+         .          .    283:	if window == 0 {
+         .          .    284:		goto WAIT
+         .          .    285:	}
+         .          .    286:
+         .          .    287:	// Send up to our send window
+         .          .    288:	max = min(window, uint32(len(b)))
+         .          .    289:	if s.session.aggregateEnabled() {
+         .          .    290:		max, aggregateNotify = s.reserveAggregateSend(max)
+         .          .    291:		if max == 0 {
+         .          .    292:			goto WAIT
+         .          .    293:		}
+         .          .    294:	}
+         .          .    295:	// Determine flags only after all DATA credit is reserved. Otherwise a
+         .          .    296:	// blocked first write could consume SYN without putting it on the wire.
+         .          .    297:	flags = s.sendFlags()
+         .          .    298:	body = b[:max]
+         .          .    299:
+         .          .    300:	// Send the header
+         .          .    301:	s.sendHdr.encode(typeData, flags, s.id, max)
+         .     55.27s    302:	if err = s.session.waitForSendErr(s.sendHdr, body, s.sendErr); err != nil {
+         .          .    303:		if errors.Is(err, ErrSessionShutdown) || errors.Is(err, ErrConnectionWriteTimeout) {
+         .          .    304:			// Message left in ready queue, header re-use is unsafe.
+         .          .    305:			s.sendHdr = header(make([]byte, headerSize))
+         .          .    306:		}
+         .          .    307:		if s.session.aggregateEnabled() {
+         .          .    308:			// A timeout can race a queued write. Session credit cannot safely be
+         .          .    309:			// restored without knowing whether the peer observed the frame.
+         .          .    310:			s.session.abortAggregate(err)
+         .          .    311:		}
+         .          .    312:		return 0, err
+         .          .    313:	}
+         .          .    314:
+         .          .    315:	// Reduce our send window
+         .          .    316:	atomic.AddUint32(&s.sendWindow, ^uint32(max-1))
+         .          .    317:
+         .          .    318:	// Unlock
+         .          .    319:	return int(max), err
+         .          .    320:
+         .          .    321:WAIT:
+         .          .    322:	var timeout <-chan time.Time
+         .          .    323:	var timer *time.Timer
+         .          .    324:	writeDeadline := s.writeDeadline.Load().(time.Time)
+         .          .    325:	if !writeDeadline.IsZero() {
+         .          .    326:		delay := time.Until(writeDeadline)
+         .          .    327:		timer = time.NewTimer(delay)
+         .          .    328:		timeout = timer.C
+         .          .    329:	}
+         .      6.58s    330:	select {
+         .          .    331:	case <-s.session.shutdownCh:
+         .          .    332:	case <-s.sendNotifyCh:
+         .          .    333:	case <-aggregateNotify:
+         .          .    334:	case <-timeout:
+         .          .    335:		return 0, ErrTimeout

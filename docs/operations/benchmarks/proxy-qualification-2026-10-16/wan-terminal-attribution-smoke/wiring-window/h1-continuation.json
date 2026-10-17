@@ -1,0 +1,159 @@
+{
+  "accepted": true,
+  "case_count": 20,
+  "cases": [
+    {
+      "actual": true,
+      "expected": true,
+      "issues": [],
+      "name": "slow-valid-h1"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "attested integrity/performance partition is malformed"
+      ],
+      "name": "malformed-attestation"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "supervisor topology, resource, sender, raw, or natural-join closure failed"
+      ],
+      "name": "forced-cleanup"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "runner status does not match the attested performance-only outcome"
+      ],
+      "name": "unexpected-runner-status"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "supervisor topology, resource, sender, raw, or natural-join closure failed"
+      ],
+      "name": "boolean-status"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "selected sender intervals or compound tuple joins failed"
+      ],
+      "name": "corrupt-compound-tuple"
+    },
+    {
+      "actual": true,
+      "expected": true,
+      "issues": [],
+      "name": "conditioning-only-h1"
+    },
+    {
+      "actual": true,
+      "expected": true,
+      "issues": [],
+      "name": "successful-h1"
+    },
+    {
+      "actual": true,
+      "expected": true,
+      "issues": [],
+      "name": "preserved-rejecting-reviewed106-verdict"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "prospective H1 attribution and preserved reviewed-106 verdict/record disagree"
+      ],
+      "name": "old-verdict-mismatch"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "prospective H1 attribution and preserved reviewed-106 verdict/record disagree"
+      ],
+      "name": "old-record-mismatch"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "prospective H1 attribution and preserved reviewed-106 verdict/record disagree"
+      ],
+      "name": "attribution-rejection"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "prospective H1 attribution and preserved reviewed-106 verdict/record disagree"
+      ],
+      "name": "attribution-issues"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "prospective H1 attribution and preserved reviewed-106 verdict/record disagree"
+      ],
+      "name": "arbitrary-finalization-status"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "prospective H1 attribution and preserved reviewed-106 verdict/record disagree"
+      ],
+      "name": "boolean-finalization-status"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "prospective H1 attribution and preserved reviewed-106 verdict/record disagree"
+      ],
+      "name": "false-old-closure-label"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "supervisor topology, resource, sender, raw, or natural-join closure failed"
+      ],
+      "name": "prospective-sidecar-error"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "supervisor topology, resource, sender, raw, or natural-join closure failed"
+      ],
+      "name": "boolean-prospective-status"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "prospective H1 attribution and preserved reviewed-106 verdict/record disagree"
+      ],
+      "name": "agent_natural_join_status-failure"
+    },
+    {
+      "actual": false,
+      "expected": false,
+      "issues": [
+        "prospective H1 attribution and preserved reviewed-106 verdict/record disagree"
+      ],
+      "name": "terminal_file_status-failure"
+    }
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,62 @@
+File: proxy-native-go-attribution.test
+Build ID: 056b4397a8375aeabba280b5e29f06d58ce864b0
+Type: alloc_space
+Time: 2026-10-16 17:25:44 CEST
+Showing nodes accounting for 3991851009B, 97.90% of 4077536802B total
+Dropped 97 nodes (cum <= 20387684B)
+      flat  flat%   sum%        cum   cum%
+         0     0%     0% 3184854660B 78.11%  net/http.(*conn).serve
+         0     0%     0% 2380943040B 58.39%  net/http.HandlerFunc.ServeHTTP
+         0     0%     0% 2380943040B 58.39%  net/http.serverHandler.ServeHTTP
+103294416B  2.53%  2.53% 2380418640B 58.38%  net/http/httputil.(*ReverseProxy).ServeHTTP
+         0     0%  2.53% 2380418640B 58.38%  p2pstream/internal/server.runQualificationStdlibProxy.func2
+         0     0%  2.53% 916555289B 22.48%  net/http.(*Transport).RoundTrip
+ 44567880B  1.09%  3.63% 916555289B 22.48%  net/http.(*Transport).roundTrip
+160463378B  3.94%  7.56% 791852132B 19.42%  net/http.(*conn).readRequest
+149435164B  3.66% 11.23% 688494699B 16.89%  net/http.(*persistConn).readLoop
+         0     0% 11.23% 653934494B 16.04%  net/textproto.(*Reader).ReadMIMEHeader (inline)
+605697790B 14.85% 26.08% 653934494B 16.04%  net/textproto.readMIMEHeader
+176738981B  4.33% 30.42% 566368848B 13.89%  net/http.readRequest
+513418686B 12.59% 43.01% 513418686B 12.59%  net/http.Header.Clone (inline)
+         0     0% 43.01% 511270999B 12.54%  net/http.(*persistConn).readResponse
+ 82848880B  2.03% 45.04% 511270999B 12.54%  net/http.ReadResponse
+179361221B  4.40% 49.44% 498206092B 12.22%  net/http.(*Request).Clone
+202395296B  4.96% 54.40% 337674992B  8.28%  net/http.(*persistConn).roundTrip
+         0     0% 54.40% 280044495B  6.87%  net/http.(*response).WriteHeader
+141044232B  3.46% 57.86% 274760513B  6.74%  context.withCancel (inline)
+198731176B  4.87% 62.73% 263746824B  6.47%  net/http.(*Transport).getConn
+         0     0% 62.73% 231276703B  5.67%  net/http.Header.Add (inline)
+         0     0% 62.73% 231276703B  5.67%  net/http/httputil.copyHeader
+231276703B  5.67% 68.41% 231276703B  5.67%  net/textproto.MIMEHeader.Add (inline)
+206108070B  5.05% 73.46% 206108070B  5.05%  net/http.(*Request).WithContext (inline)
+ 12058808B   0.3% 73.76% 187197001B  4.59%  context.WithCancelCause
+ 42467976B  1.04% 74.80% 142622744B  3.50%  net/http.(*Request).write
+         0     0% 74.80% 142622744B  3.50%  net/http.(*persistConn).writeLoop
+ 71309728B  1.75% 76.55% 135279696B  3.32%  time.NewTimer
+133716281B  3.28% 79.83% 133716281B  3.28%  context.(*cancelCtx).propagateCancel
+119550432B  2.93% 82.76% 119550432B  2.93%  context.(*cancelCtx).Done
+ 19923248B  0.49% 83.25% 119545568B  2.93%  context.WithCancel
+ 98056816B  2.40% 85.65%  98056816B  2.40%  net/http.newTransferWriter
+         0     0% 85.65%  87043760B  2.13%  net/url.ParseRequestURI
+ 87043760B  2.13% 87.79%  87043760B  2.13%  net/url.parse
+ 85470680B  2.10% 89.88%  85470680B  2.10%  net/http.cloneURL (inline)
+ 63969968B  1.57% 91.45%  63969968B  1.57%  time.newTimer
+ 52957128B  1.30% 92.75%  52957128B  1.30%  net.(*conn).Read
+         0     0% 92.75%  52957128B  1.30%  net/http.(*connReader).backgroundRead
+ 33556480B  0.82% 93.57%  48761180B  1.20%  net/http.readTransfer
+ 48236704B  1.18% 94.76%  48236704B  1.18%  net/textproto.canonicalMIMEHeaderKey
+         0     0% 94.76%  28009503B  0.69%  sync.(*Pool).Get
+         0     0% 94.76%  27788536B  0.68%  container/list.(*List).PushFront (inline)
+ 27788536B  0.68% 95.44%  27788536B  0.68%  container/list.(*List).insertValue (inline)
+ 27788536B  0.68% 96.12%  27788536B  0.68%  context.WithValue
+         0     0% 96.12%  27788536B  0.68%  net/http.(*Transport).tryPutIdleConn
+         0     0% 96.12%  27788536B  0.68%  net/http.(*connLRU).add
+         0     0% 96.12%  27788536B  0.68%  net/http.(*persistConn).readLoop.func2
+         0     0% 96.12%  27788536B  0.68%  net/http/httptrace.WithClientTrace
+ 26739344B  0.66% 96.77%  26739344B  0.66%  net/textproto.(*Reader).ReadLine (inline)
+         0     0% 96.77%  25911167B  0.64%  net/http/httputil.(*ReverseProxy).copyResponse
+         0     0% 96.77%  24862463B  0.61%  p2pstream/internal/server.(*reverseProxyBufferPool).Get
+ 24337919B   0.6% 97.37%  24337919B   0.6%  p2pstream/internal/server.runQualificationStdlibProxy.newReverseProxyBufferPool.func5
+ 21496792B  0.53% 97.90%  21496792B  0.53%  mime.ParseMediaType
+         0     0% 97.90%  21496792B  0.53%  net/http/httputil.(*ReverseProxy).flushInterval
+

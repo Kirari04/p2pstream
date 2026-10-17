@@ -1,0 +1,20 @@
+{
+  "derived_records": 2,
+  "original_objects": 2,
+  "pair_order": [
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ]
+  ],
+  "schema_version": 1,
+  "semantic_identity": true,
+  "variants": [
+    "aggregate-yamux",
+    "raw-tls"
+  ]
+}

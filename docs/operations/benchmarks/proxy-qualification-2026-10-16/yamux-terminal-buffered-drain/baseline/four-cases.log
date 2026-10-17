@@ -1,0 +1,14 @@
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+    half_close_buffered_drain_test.go:184: Read n=32768 want=32768 err=injected reverse window update failure prefix_match=true got_prefix=5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a want_prefix=5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a
+--- FAIL: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+    half_close_buffered_drain_test.go:232: Read n=32768 want=32768 err=injected reverse window update failure prefix_match=true got_prefix=6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b want_prefix=6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b
+--- FAIL: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+    half_close_buffered_drain_test.go:297: terminal receive credit=262144 want=65536
+--- FAIL: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+FAIL
+FAIL	github.com/hashicorp/yamux	0.005s
+FAIL

@@ -1,0 +1,1612 @@
+{
+  "accepted": true,
+  "adapter": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/run_interned_trace_parser.py",
+    "sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8"
+  },
+  "case_count": 14,
+  "cases": [
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": 0,
+      "captured_child_environments": [
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        }
+      ],
+      "case": "natural_success_clean_environment",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "canonical.bin",
+        "canonical.ledger.json",
+        "canonicalizer.status",
+        "canonicalizer.stderr",
+        "input.trace",
+        "parser.status",
+        "parser.stderr",
+        "process-record.json"
+      ],
+      "popen_roles": [
+        "parser",
+        "canonicalizer"
+      ],
+      "process_record": {
+        "accepted": true,
+        "artifact_error": null,
+        "artifact_identities": {
+          "canonical_output": {
+            "ctime_ns": 1792184133622497659,
+            "device": 64512,
+            "inode": 17047167,
+            "mtime_ns": 1792184133622497659,
+            "sha256": "61947305606db870c72a07f0dc3d7f0e861d872ab4be0e25c37c8ba721509ec3",
+            "size": 27
+          },
+          "ledger": {
+            "ctime_ns": 1792184133622831287,
+            "device": 64512,
+            "inode": 17047168,
+            "mtime_ns": 1792184133622831287,
+            "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+            "size": 3
+          }
+        },
+        "canonicalizer": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588933,
+          "pid": 588933,
+          "status": 0,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": false
+        },
+        "canonicalizer_argv": [
+          "/usr/bin/python3.14",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+          "--input",
+          "-",
+          "--output",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/natural_success_clean_environment/canonical.bin",
+          "--ledger",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/natural_success_clean_environment/canonical.ledger.json"
+        ],
+        "environment": {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        "interrupted_signal": null,
+        "limits": {
+          "kill_grace_seconds": 0.5,
+          "max_raw_trace_bytes": 67108864,
+          "max_stderr_bytes": 1024,
+          "normal_deadline_seconds": 0.2,
+          "term_grace_seconds": 0.2
+        },
+        "parser": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588932,
+          "pid": 588932,
+          "status": 0,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": false
+        },
+        "parser_argv": [
+          "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+          "tool",
+          "trace",
+          "-d=parsed",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/natural_success_clean_environment/input.trace"
+        ],
+        "pinned_inputs": {
+          "canonicalizer": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+            "sha256": "4d1bbcdd2140d148741775842e1ba9d2d74f2541b15933a6232b18cf3473e793"
+          },
+          "format_module": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/stack_intern_format.py",
+            "sha256": "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf"
+          },
+          "go": {
+            "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+            "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+          },
+          "python": {
+            "path": "/usr/bin/python3.14",
+            "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+          }
+        },
+        "raw_trace": {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/natural_success_clean_environment/input.trace",
+          "post": {
+            "ctime_ns": 1792184133535465783,
+            "device": 64512,
+            "inode": 17047164,
+            "mtime_ns": 1792184133535465783,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "pre": {
+            "ctime_ns": 1792184133535465783,
+            "device": 64512,
+            "inode": 17047164,
+            "mtime_ns": 1792184133535465783,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "stable": true
+        },
+        "removed_invalid_artifacts": {},
+        "schema_version": 1,
+        "source_stable": true,
+        "startup_error": null,
+        "timed_out": false,
+        "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/natural_success_clean_environment",
+        "working_directory_identity": {
+          "device": 64512,
+          "inode": 17047163,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_post_identity": {
+          "device": 64512,
+          "inode": 17047163,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_stable": true
+      },
+      "raised": null
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": 1,
+      "captured_child_environments": [
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        }
+      ],
+      "case": "signal_during_parser_spawn",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "canonicalizer.status",
+        "canonicalizer.stderr",
+        "input.trace",
+        "parser.status",
+        "parser.stderr",
+        "process-record.json"
+      ],
+      "popen_roles": [
+        "parser",
+        "canonicalizer"
+      ],
+      "process_record": {
+        "accepted": false,
+        "artifact_error": null,
+        "artifact_identities": {},
+        "canonicalizer": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588955,
+          "pid": 588955,
+          "status": -15,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": true
+        },
+        "canonicalizer_argv": [
+          "/usr/bin/python3.14",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+          "--input",
+          "-",
+          "--output",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/signal_during_parser_spawn/canonical.bin",
+          "--ledger",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/signal_during_parser_spawn/canonical.ledger.json"
+        ],
+        "environment": {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        "interrupted_signal": 15,
+        "limits": {
+          "kill_grace_seconds": 0.5,
+          "max_raw_trace_bytes": 67108864,
+          "max_stderr_bytes": 1024,
+          "normal_deadline_seconds": 0.2,
+          "term_grace_seconds": 0.2
+        },
+        "parser": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588954,
+          "pid": 588954,
+          "status": -15,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": true
+        },
+        "parser_argv": [
+          "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+          "tool",
+          "trace",
+          "-d=parsed",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/signal_during_parser_spawn/input.trace"
+        ],
+        "pinned_inputs": {
+          "canonicalizer": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+            "sha256": "4d1bbcdd2140d148741775842e1ba9d2d74f2541b15933a6232b18cf3473e793"
+          },
+          "format_module": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/stack_intern_format.py",
+            "sha256": "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf"
+          },
+          "go": {
+            "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+            "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+          },
+          "python": {
+            "path": "/usr/bin/python3.14",
+            "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+          }
+        },
+        "raw_trace": {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/signal_during_parser_spawn/input.trace",
+          "post": {
+            "ctime_ns": 1792184133759899657,
+            "device": 64512,
+            "inode": 17047179,
+            "mtime_ns": 1792184133759899657,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "pre": {
+            "ctime_ns": 1792184133759899657,
+            "device": 64512,
+            "inode": 17047179,
+            "mtime_ns": 1792184133759899657,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "stable": true
+        },
+        "removed_invalid_artifacts": {
+          "canonical_output": {
+            "existed": false,
+            "removed": false
+          },
+          "ledger": {
+            "existed": false,
+            "removed": false
+          }
+        },
+        "schema_version": 1,
+        "source_stable": true,
+        "startup_error": "AdapterError: parser adapter received signal 15",
+        "timed_out": false,
+        "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/signal_during_parser_spawn",
+        "working_directory_identity": {
+          "device": 64512,
+          "inode": 17047178,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_post_identity": {
+          "device": 64512,
+          "inode": 17047178,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_stable": true
+      },
+      "raised": null
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": 1,
+      "captured_child_environments": [
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        }
+      ],
+      "case": "signal_during_canonicalizer_spawn",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "canonicalizer.status",
+        "canonicalizer.stderr",
+        "input.trace",
+        "parser.status",
+        "parser.stderr",
+        "process-record.json"
+      ],
+      "popen_roles": [
+        "parser",
+        "canonicalizer"
+      ],
+      "process_record": {
+        "accepted": false,
+        "artifact_error": null,
+        "artifact_identities": {},
+        "canonicalizer": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588958,
+          "pid": 588958,
+          "status": -15,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": true
+        },
+        "canonicalizer_argv": [
+          "/usr/bin/python3.14",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+          "--input",
+          "-",
+          "--output",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/signal_during_canonicalizer_spawn/canonical.bin",
+          "--ledger",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/signal_during_canonicalizer_spawn/canonical.ledger.json"
+        ],
+        "environment": {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        "interrupted_signal": 15,
+        "limits": {
+          "kill_grace_seconds": 0.5,
+          "max_raw_trace_bytes": 67108864,
+          "max_stderr_bytes": 1024,
+          "normal_deadline_seconds": 0.2,
+          "term_grace_seconds": 0.2
+        },
+        "parser": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588957,
+          "pid": 588957,
+          "status": -15,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": true
+        },
+        "parser_argv": [
+          "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+          "tool",
+          "trace",
+          "-d=parsed",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/signal_during_canonicalizer_spawn/input.trace"
+        ],
+        "pinned_inputs": {
+          "canonicalizer": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+            "sha256": "4d1bbcdd2140d148741775842e1ba9d2d74f2541b15933a6232b18cf3473e793"
+          },
+          "format_module": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/stack_intern_format.py",
+            "sha256": "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf"
+          },
+          "go": {
+            "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+            "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+          },
+          "python": {
+            "path": "/usr/bin/python3.14",
+            "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+          }
+        },
+        "raw_trace": {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/signal_during_canonicalizer_spawn/input.trace",
+          "post": {
+            "ctime_ns": 1792184133917198304,
+            "device": 64512,
+            "inode": 17047190,
+            "mtime_ns": 1792184133917198304,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "pre": {
+            "ctime_ns": 1792184133917198304,
+            "device": 64512,
+            "inode": 17047190,
+            "mtime_ns": 1792184133917198304,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "stable": true
+        },
+        "removed_invalid_artifacts": {
+          "canonical_output": {
+            "existed": false,
+            "removed": false
+          },
+          "ledger": {
+            "existed": false,
+            "removed": false
+          }
+        },
+        "schema_version": 1,
+        "source_stable": true,
+        "startup_error": "AdapterError: parser adapter received signal 15",
+        "timed_out": false,
+        "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/signal_during_canonicalizer_spawn",
+        "working_directory_identity": {
+          "device": 64512,
+          "inode": 17047189,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_post_identity": {
+          "device": 64512,
+          "inode": 17047189,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_stable": true
+      },
+      "raised": null
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": 1,
+      "captured_child_environments": [
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        }
+      ],
+      "case": "term_ignoring_children_require_kill",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "canonicalizer.status",
+        "canonicalizer.stderr",
+        "input.trace",
+        "parser.status",
+        "parser.stderr",
+        "process-record.json"
+      ],
+      "popen_roles": [
+        "parser",
+        "canonicalizer"
+      ],
+      "process_record": {
+        "accepted": false,
+        "artifact_error": null,
+        "artifact_identities": {},
+        "canonicalizer": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": true,
+          "pgid": 588961,
+          "pid": 588961,
+          "status": -9,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": true
+        },
+        "canonicalizer_argv": [
+          "/usr/bin/python3.14",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+          "--input",
+          "-",
+          "--output",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/term_ignoring_children_require_kill/canonical.bin",
+          "--ledger",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/term_ignoring_children_require_kill/canonical.ledger.json"
+        ],
+        "environment": {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        "interrupted_signal": null,
+        "limits": {
+          "kill_grace_seconds": 0.5,
+          "max_raw_trace_bytes": 67108864,
+          "max_stderr_bytes": 1024,
+          "normal_deadline_seconds": 0.2,
+          "term_grace_seconds": 0.2
+        },
+        "parser": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": true,
+          "pgid": 588960,
+          "pid": 588960,
+          "status": -9,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": true
+        },
+        "parser_argv": [
+          "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+          "tool",
+          "trace",
+          "-d=parsed",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/term_ignoring_children_require_kill/input.trace"
+        ],
+        "pinned_inputs": {
+          "canonicalizer": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+            "sha256": "4d1bbcdd2140d148741775842e1ba9d2d74f2541b15933a6232b18cf3473e793"
+          },
+          "format_module": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/stack_intern_format.py",
+            "sha256": "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf"
+          },
+          "go": {
+            "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+            "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+          },
+          "python": {
+            "path": "/usr/bin/python3.14",
+            "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+          }
+        },
+        "raw_trace": {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/term_ignoring_children_require_kill/input.trace",
+          "post": {
+            "ctime_ns": 1792184134074360055,
+            "device": 64512,
+            "inode": 17047201,
+            "mtime_ns": 1792184134074360055,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "pre": {
+            "ctime_ns": 1792184134074360055,
+            "device": 64512,
+            "inode": 17047201,
+            "mtime_ns": 1792184134074360055,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "stable": true
+        },
+        "removed_invalid_artifacts": {
+          "canonical_output": {
+            "existed": false,
+            "removed": false
+          },
+          "ledger": {
+            "existed": false,
+            "removed": false
+          }
+        },
+        "schema_version": 1,
+        "source_stable": true,
+        "startup_error": "AdapterError: parser/canonicalizer exceeded fixed offline deadline",
+        "timed_out": true,
+        "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/term_ignoring_children_require_kill",
+        "working_directory_identity": {
+          "device": 64512,
+          "inode": 17047200,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_post_identity": {
+          "device": 64512,
+          "inode": 17047200,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_stable": true
+      },
+      "raised": null
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": 1,
+      "captured_child_environments": [
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        }
+      ],
+      "case": "deadline_terminates_children",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "canonicalizer.status",
+        "canonicalizer.stderr",
+        "input.trace",
+        "parser.status",
+        "parser.stderr",
+        "process-record.json"
+      ],
+      "popen_roles": [
+        "parser",
+        "canonicalizer"
+      ],
+      "process_record": {
+        "accepted": false,
+        "artifact_error": null,
+        "artifact_identities": {},
+        "canonicalizer": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588964,
+          "pid": 588964,
+          "status": -15,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": true
+        },
+        "canonicalizer_argv": [
+          "/usr/bin/python3.14",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+          "--input",
+          "-",
+          "--output",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/deadline_terminates_children/canonical.bin",
+          "--ledger",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/deadline_terminates_children/canonical.ledger.json"
+        ],
+        "environment": {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        "interrupted_signal": null,
+        "limits": {
+          "kill_grace_seconds": 0.5,
+          "max_raw_trace_bytes": 67108864,
+          "max_stderr_bytes": 1024,
+          "normal_deadline_seconds": 0.2,
+          "term_grace_seconds": 0.2
+        },
+        "parser": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588963,
+          "pid": 588963,
+          "status": -15,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": true
+        },
+        "parser_argv": [
+          "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+          "tool",
+          "trace",
+          "-d=parsed",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/deadline_terminates_children/input.trace"
+        ],
+        "pinned_inputs": {
+          "canonicalizer": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+            "sha256": "4d1bbcdd2140d148741775842e1ba9d2d74f2541b15933a6232b18cf3473e793"
+          },
+          "format_module": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/stack_intern_format.py",
+            "sha256": "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf"
+          },
+          "go": {
+            "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+            "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+          },
+          "python": {
+            "path": "/usr/bin/python3.14",
+            "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+          }
+        },
+        "raw_trace": {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/deadline_terminates_children/input.trace",
+          "post": {
+            "ctime_ns": 1792184134729330958,
+            "device": 64512,
+            "inode": 17047212,
+            "mtime_ns": 1792184134729330958,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "pre": {
+            "ctime_ns": 1792184134729330958,
+            "device": 64512,
+            "inode": 17047212,
+            "mtime_ns": 1792184134729330958,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "stable": true
+        },
+        "removed_invalid_artifacts": {
+          "canonical_output": {
+            "existed": false,
+            "removed": false
+          },
+          "ledger": {
+            "existed": false,
+            "removed": false
+          }
+        },
+        "schema_version": 1,
+        "source_stable": true,
+        "startup_error": "AdapterError: parser/canonicalizer exceeded fixed offline deadline",
+        "timed_out": true,
+        "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/deadline_terminates_children",
+        "working_directory_identity": {
+          "device": 64512,
+          "inode": 17047211,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_post_identity": {
+          "device": 64512,
+          "inode": 17047211,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_stable": true
+      },
+      "raised": null
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": 1,
+      "captured_child_environments": [
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        }
+      ],
+      "case": "second_child_startup_failure",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "canonicalizer.status",
+        "canonicalizer.stderr",
+        "input.trace",
+        "parser.status",
+        "parser.stderr",
+        "process-record.json"
+      ],
+      "popen_roles": [
+        "parser",
+        "canonicalizer"
+      ],
+      "process_record": {
+        "accepted": false,
+        "artifact_error": null,
+        "artifact_identities": {},
+        "canonicalizer": {
+          "group_gone": false,
+          "joined": false,
+          "kill_attempted": false,
+          "pgid": null,
+          "pid": null,
+          "status": 127,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": false
+        },
+        "canonicalizer_argv": [
+          "/usr/bin/python3.14",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+          "--input",
+          "-",
+          "--output",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/second_child_startup_failure/canonical.bin",
+          "--ledger",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/second_child_startup_failure/canonical.ledger.json"
+        ],
+        "environment": {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        "interrupted_signal": null,
+        "limits": {
+          "kill_grace_seconds": 0.5,
+          "max_raw_trace_bytes": 67108864,
+          "max_stderr_bytes": 1024,
+          "normal_deadline_seconds": 0.2,
+          "term_grace_seconds": 0.2
+        },
+        "parser": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588966,
+          "pid": 588966,
+          "status": -15,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": true
+        },
+        "parser_argv": [
+          "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+          "tool",
+          "trace",
+          "-d=parsed",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/second_child_startup_failure/input.trace"
+        ],
+        "pinned_inputs": {
+          "canonicalizer": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+            "sha256": "4d1bbcdd2140d148741775842e1ba9d2d74f2541b15933a6232b18cf3473e793"
+          },
+          "format_module": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/stack_intern_format.py",
+            "sha256": "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf"
+          },
+          "go": {
+            "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+            "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+          },
+          "python": {
+            "path": "/usr/bin/python3.14",
+            "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+          }
+        },
+        "raw_trace": {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/second_child_startup_failure/input.trace",
+          "post": {
+            "ctime_ns": 1792184135089772340,
+            "device": 64512,
+            "inode": 17047223,
+            "mtime_ns": 1792184135089772340,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "pre": {
+            "ctime_ns": 1792184135089772340,
+            "device": 64512,
+            "inode": 17047223,
+            "mtime_ns": 1792184135089772340,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "stable": true
+        },
+        "removed_invalid_artifacts": {
+          "canonical_output": {
+            "existed": false,
+            "removed": false
+          },
+          "ledger": {
+            "existed": false,
+            "removed": false
+          }
+        },
+        "schema_version": 1,
+        "source_stable": true,
+        "startup_error": "OSError: synthetic second-child startup failure",
+        "timed_out": false,
+        "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/second_child_startup_failure",
+        "working_directory_identity": {
+          "device": 64512,
+          "inode": 17047222,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_post_identity": {
+          "device": 64512,
+          "inode": 17047222,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_stable": true
+      },
+      "raised": null
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": 1,
+      "captured_child_environments": [
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        }
+      ],
+      "case": "stderr_overflow_invalidates",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "canonicalizer.status",
+        "canonicalizer.stderr",
+        "input.trace",
+        "parser.status",
+        "parser.stderr",
+        "process-record.json"
+      ],
+      "popen_roles": [
+        "parser",
+        "canonicalizer"
+      ],
+      "process_record": {
+        "accepted": false,
+        "artifact_error": null,
+        "artifact_identities": {},
+        "canonicalizer": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588969,
+          "pid": 588969,
+          "status": 0,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": false
+        },
+        "canonicalizer_argv": [
+          "/usr/bin/python3.14",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+          "--input",
+          "-",
+          "--output",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/stderr_overflow_invalidates/canonical.bin",
+          "--ledger",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/stderr_overflow_invalidates/canonical.ledger.json"
+        ],
+        "environment": {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        "interrupted_signal": null,
+        "limits": {
+          "kill_grace_seconds": 0.5,
+          "max_raw_trace_bytes": 67108864,
+          "max_stderr_bytes": 1024,
+          "normal_deadline_seconds": 0.2,
+          "term_grace_seconds": 0.2
+        },
+        "parser": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588968,
+          "pid": 588968,
+          "status": 0,
+          "stderr_bytes": 1024,
+          "stderr_overflow": true,
+          "term_attempted": false
+        },
+        "parser_argv": [
+          "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+          "tool",
+          "trace",
+          "-d=parsed",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/stderr_overflow_invalidates/input.trace"
+        ],
+        "pinned_inputs": {
+          "canonicalizer": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+            "sha256": "4d1bbcdd2140d148741775842e1ba9d2d74f2541b15933a6232b18cf3473e793"
+          },
+          "format_module": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/stack_intern_format.py",
+            "sha256": "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf"
+          },
+          "go": {
+            "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+            "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+          },
+          "python": {
+            "path": "/usr/bin/python3.14",
+            "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+          }
+        },
+        "raw_trace": {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/stderr_overflow_invalidates/input.trace",
+          "post": {
+            "ctime_ns": 1792184135249301190,
+            "device": 64512,
+            "inode": 17047234,
+            "mtime_ns": 1792184135249301190,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "pre": {
+            "ctime_ns": 1792184135249301190,
+            "device": 64512,
+            "inode": 17047234,
+            "mtime_ns": 1792184135249301190,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "stable": true
+        },
+        "removed_invalid_artifacts": {
+          "canonical_output": {
+            "existed": true,
+            "identity": {
+              "ctime_ns": 1792184135326031861,
+              "device": 64512,
+              "inode": 17047235,
+              "mtime_ns": 1792184135326031861,
+              "sha256": "61947305606db870c72a07f0dc3d7f0e861d872ab4be0e25c37c8ba721509ec3",
+              "size": 27
+            },
+            "removal_error": null,
+            "removed": true
+          },
+          "ledger": {
+            "existed": true,
+            "identity": {
+              "ctime_ns": 1792184135326124180,
+              "device": 64512,
+              "inode": 17047236,
+              "mtime_ns": 1792184135326124180,
+              "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+              "size": 3
+            },
+            "removal_error": null,
+            "removed": true
+          }
+        },
+        "schema_version": 1,
+        "source_stable": true,
+        "startup_error": null,
+        "timed_out": false,
+        "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/stderr_overflow_invalidates",
+        "working_directory_identity": {
+          "device": 64512,
+          "inode": 17047233,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_post_identity": {
+          "device": 64512,
+          "inode": 17047233,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_stable": true
+      },
+      "raised": null
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": 1,
+      "captured_child_environments": [
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        }
+      ],
+      "case": "parser_nonzero_removes_partial",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "canonicalizer.status",
+        "canonicalizer.stderr",
+        "input.trace",
+        "parser.status",
+        "parser.stderr",
+        "process-record.json"
+      ],
+      "popen_roles": [
+        "parser",
+        "canonicalizer"
+      ],
+      "process_record": {
+        "accepted": false,
+        "artifact_error": null,
+        "artifact_identities": {},
+        "canonicalizer": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588972,
+          "pid": 588972,
+          "status": 0,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": false
+        },
+        "canonicalizer_argv": [
+          "/usr/bin/python3.14",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+          "--input",
+          "-",
+          "--output",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/parser_nonzero_removes_partial/canonical.bin",
+          "--ledger",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/parser_nonzero_removes_partial/canonical.ledger.json"
+        ],
+        "environment": {
+          "GOENV": "off",
+          "GOTOOLCHAIN": "local",
+          "HOME": "/home/user",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "PATH": "/usr/bin:/bin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "TZ": "Europe/Zurich"
+        },
+        "interrupted_signal": null,
+        "limits": {
+          "kill_grace_seconds": 0.5,
+          "max_raw_trace_bytes": 67108864,
+          "max_stderr_bytes": 1024,
+          "normal_deadline_seconds": 0.2,
+          "term_grace_seconds": 0.2
+        },
+        "parser": {
+          "group_gone": true,
+          "joined": true,
+          "kill_attempted": false,
+          "pgid": 588971,
+          "pid": 588971,
+          "status": 7,
+          "stderr_bytes": 0,
+          "stderr_overflow": false,
+          "term_attempted": false
+        },
+        "parser_argv": [
+          "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+          "tool",
+          "trace",
+          "-d=parsed",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/parser_nonzero_removes_partial/input.trace"
+        ],
+        "pinned_inputs": {
+          "canonicalizer": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/intern_parsed_trace.py",
+            "sha256": "4d1bbcdd2140d148741775842e1ba9d2d74f2541b15933a6232b18cf3473e793"
+          },
+          "format_module": {
+            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/stack_intern_format.py",
+            "sha256": "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf"
+          },
+          "go": {
+            "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+            "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+          },
+          "python": {
+            "path": "/usr/bin/python3.14",
+            "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+          }
+        },
+        "raw_trace": {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/parser_nonzero_removes_partial/input.trace",
+          "post": {
+            "ctime_ns": 1792184135439303813,
+            "device": 64512,
+            "inode": 17047245,
+            "mtime_ns": 1792184135439303813,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "pre": {
+            "ctime_ns": 1792184135439303813,
+            "device": 64512,
+            "inode": 17047245,
+            "mtime_ns": 1792184135439303813,
+            "sha256": "f8cb3f65f33703dfac2b2fc4e10ccb27ead4495c17289b75d45d2e8e4891aa00",
+            "size": 14
+          },
+          "stable": true
+        },
+        "removed_invalid_artifacts": {
+          "canonical_output": {
+            "existed": true,
+            "identity": {
+              "ctime_ns": 1792184135497324790,
+              "device": 64512,
+              "inode": 17047246,
+              "mtime_ns": 1792184135497324790,
+              "sha256": "61947305606db870c72a07f0dc3d7f0e861d872ab4be0e25c37c8ba721509ec3",
+              "size": 27
+            },
+            "removal_error": null,
+            "removed": true
+          },
+          "ledger": {
+            "existed": true,
+            "identity": {
+              "ctime_ns": 1792184135497429102,
+              "device": 64512,
+              "inode": 17047247,
+              "mtime_ns": 1792184135497429102,
+              "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+              "size": 3
+            },
+            "removal_error": null,
+            "removed": true
+          }
+        },
+        "schema_version": 1,
+        "source_stable": true,
+        "startup_error": null,
+        "timed_out": false,
+        "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/parser_nonzero_removes_partial",
+        "working_directory_identity": {
+          "device": 64512,
+          "inode": 17047244,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_post_identity": {
+          "device": 64512,
+          "inode": 17047244,
+          "mode": 448,
+          "uid": 1000
+        },
+        "working_directory_stable": true
+      },
+      "raised": null
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": null,
+      "captured_child_environments": [],
+      "case": "raw_empty_rejected",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "input.trace"
+      ],
+      "popen_roles": [],
+      "process_record": null,
+      "raised": "AdapterError: file size violates bound: /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/raw_empty_rejected/input.trace"
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": null,
+      "captured_child_environments": [],
+      "case": "raw_oversize_rejected",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "input.trace"
+      ],
+      "popen_roles": [],
+      "process_record": null,
+      "raised": "AdapterError: file size violates bound: /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/raw_oversize_rejected/input.trace"
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": null,
+      "captured_child_environments": [],
+      "case": "raw_nonregular_rejected",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "input.trace"
+      ],
+      "popen_roles": [],
+      "process_record": null,
+      "raised": "AdapterError: not a regular file: /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1/raw_nonregular_rejected/input.trace"
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": null,
+      "captured_child_environments": [],
+      "case": "tool_hash_mismatch_rejected",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "input.trace"
+      ],
+      "popen_roles": [],
+      "process_record": null,
+      "raised": "SystemExit: pinned go hash mismatch"
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": null,
+      "captured_child_environments": [],
+      "case": "unsafe_working_directory_rejected",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "input.trace"
+      ],
+      "popen_roles": [],
+      "process_record": null,
+      "raised": "SystemExit: working directory must be an euid-owned non-group/world-writable directory"
+    },
+    {
+      "adapter_sha256": "719eac5dac37a0dc686283025e7005aba3cbf5408436b6257e6fde8811a50df8",
+      "adapter_status": null,
+      "captured_child_environments": [],
+      "case": "duplicate_output_rejected",
+      "child_status": 0,
+      "contract_passed": true,
+      "files": [
+        "input.trace"
+      ],
+      "popen_roles": [],
+      "process_record": null,
+      "raised": "SystemExit: adapter output paths are not distinct"
+    }
+  ],
+  "checkpoint_manifest": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/SHA256SUMS.txt",
+    "sha256": "8a642d8cd435700f95d8016d8c526fcd178cd5197860228e5db12d275086e6b0"
+  },
+  "child_statuses": [
+    {
+      "case": "natural_success_clean_environment",
+      "status": 0
+    },
+    {
+      "case": "signal_during_parser_spawn",
+      "status": 0
+    },
+    {
+      "case": "signal_during_canonicalizer_spawn",
+      "status": 0
+    },
+    {
+      "case": "term_ignoring_children_require_kill",
+      "status": 0
+    },
+    {
+      "case": "deadline_terminates_children",
+      "status": 0
+    },
+    {
+      "case": "second_child_startup_failure",
+      "status": 0
+    },
+    {
+      "case": "stderr_overflow_invalidates",
+      "status": 0
+    },
+    {
+      "case": "parser_nonzero_removes_partial",
+      "status": 0
+    },
+    {
+      "case": "raw_empty_rejected",
+      "status": 0
+    },
+    {
+      "case": "raw_oversize_rejected",
+      "status": 0
+    },
+    {
+      "case": "raw_nonregular_rejected",
+      "status": 0
+    },
+    {
+      "case": "tool_hash_mismatch_rejected",
+      "status": 0
+    },
+    {
+      "case": "unsafe_working_directory_rejected",
+      "status": 0
+    },
+    {
+      "case": "duplicate_output_rejected",
+      "status": 0
+    }
+  ],
+  "contract_source_sha256": "9f3b778aeeefa2fd4eb52803beeef68566ae8d9605206e36dceed4920762dd96",
+  "schema_version": 1
+}

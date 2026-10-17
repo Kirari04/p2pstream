@@ -1,0 +1,53 @@
+File: agent.test
+Build ID: 2c1b796d824f205535926c758377823561f6140b
+Type: alloc_objects
+Time: 2026-10-16 05:19:29 CEST
+Showing nodes accounting for 590707, 98.57% of 599263 total
+Dropped 59 nodes (cum <= 2996)
+Showing top 45 nodes out of 63
+      flat  flat%   sum%        cum   cum%
+    283995 47.39% 47.39%     283995 47.39%  crypto/tls.(*Conn).readFromUntil
+    216285 36.09% 83.48%     216285 36.09%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+     32768  5.47% 88.95%      32768  5.47%  net/textproto.MIMEHeader.Set (inline)
+     31988  5.34% 94.29%      31988  5.34%  strings.Fields
+     11295  1.88% 96.17%      11295  1.88%  encoding/pem.Decode
+      6554  1.09% 97.27%       6554  1.09%  crypto/x509/pkix.(*Name).FillFromRDNSequence
+      4681  0.78% 98.05%       4681  0.78%  time.NewTimer
+      2341  0.39% 98.44%      20534  3.43%  p2pstream/internal/agent.RunContext
+       341 0.057% 98.50%       6895  1.15%  crypto/x509.parseCertificate
+       330 0.055% 98.55%     216615 36.15%  io.copyBuffer
+       129 0.022% 98.57%      11190  1.87%  p2pstream/internal/sysmetrics.resolveCurrentProcessMemoryCgroupPaths
+         0     0% 98.57%     283995 47.39%  bufio.(*Reader).Read
+         0     0% 98.57%     283995 47.39%  crypto/tls.(*Conn).Read
+         0     0% 98.57%     283995 47.39%  crypto/tls.(*Conn).readRecord (inline)
+         0     0% 98.57%     283995 47.39%  crypto/tls.(*Conn).readRecordOrCCS
+         0     0% 98.57%      18190  3.04%  crypto/x509.(*CertPool).AppendCertsFromPEM
+         0     0% 98.57%       6895  1.15%  crypto/x509.ParseCertificate
+         0     0% 98.57%      18193  3.04%  crypto/x509.SystemCertPool
+         0     0% 98.57%      18193  3.04%  crypto/x509.initSystemRoots
+         0     0% 98.57%      18193  3.04%  crypto/x509.loadSystemRoots
+         0     0% 98.57%      18193  3.04%  crypto/x509.systemRootsPool
+         0     0% 98.57%      87544 14.61%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0% 98.57%     284156 47.42%  github.com/hashicorp/yamux.(*Session).recv
+         0     0% 98.57%     284156 47.42%  github.com/hashicorp/yamux.(*Session).recvLoop
+         0     0% 98.57%     216285 36.09%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+         0     0% 98.57%     216285 36.09%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0% 98.57%      87544 14.61%  github.com/hashicorp/yamux.(*Stream).readData
+         0     0% 98.57%      87544 14.61%  github.com/hashicorp/yamux.(*Stream).readDataPayload
+         0     0% 98.57%     216285 36.09%  github.com/hashicorp/yamux.(*Stream).write
+         0     0% 98.57%      87544 14.61%  github.com/hashicorp/yamux.(*recvBuffer).readFrom
+         0     0% 98.57%     216615 36.15%  io.Copy (inline)
+         0     0% 98.57%     196612 32.81%  io.ReadAtLeast
+         0     0% 98.57%     196612 32.81%  io.ReadFull (inline)
+         0     0% 98.57%     216450 36.12%  net.(*TCPConn).WriteTo
+         0     0% 98.57%     216450 36.12%  net.(*TCPConn).writeTo
+         0     0% 98.57%     216450 36.12%  net.genericWriteTo
+         0     0% 98.57%     283995 47.39%  net/http.(*readWriteCloserBody).Read
+         0     0% 98.57%      32768  5.47%  net/http.Header.Set (inline)
+         0     0% 98.57%      35213  5.88%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshot
+         0     0% 98.57%      35213  5.88%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLocked (inline)
+         0     0% 98.57%      35213  5.88%  p2pstream/internal/agent.(*agentTunnelCapacityRuntime).snapshotLockedWithForce
+         0     0% 98.57%      38034  6.35%  p2pstream/internal/agent.RunContext.func1
+         0     0% 98.57%      32768  5.47%  p2pstream/internal/agent.RunContext.func3
+         0     0% 98.57%      32768  5.47%  p2pstream/internal/agent.RunContext.func4
+         0     0% 98.57%       4681  0.78%  p2pstream/internal/agent.TestExternalProxyQualificationAgentProcess

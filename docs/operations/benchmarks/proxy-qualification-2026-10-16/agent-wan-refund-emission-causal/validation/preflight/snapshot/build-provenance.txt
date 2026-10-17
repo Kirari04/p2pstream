@@ -1,0 +1,21 @@
+base_ref: 5eeccaaa797254d7bde4db9854a337a02c3bc28e
+common scaffold: meta/common-scaffold.patch sha256=e78b384e8cf2fa28339ca2794dd32aaf57053a2b07aeca873fe4f2430a40c6f7
+split arm toggle: meta/split-arm-toggle.patch sha256=28f4c3d5ac08d32c0e146dde3b1502a2cd8250be200da6c4b7e002eeb02386ed
+overlay README: meta/overlay-README.txt sha256=b9ff483187880bf4c395cccfc77de6604cf1b58c10053ba967472a5cad1b30e3
+ordinary tags: off
+
+Build commands (with TMPDIR, TEMP, TMP, and GOTMPDIR set to the arm's owned ext4 gotmp directory):
+  (cd control && go test -c -o bin/refund-gathered-control-agent.test ./internal/agent)
+  (cd control && go test -c -o bin/refund-gathered-control-server.test ./internal/server)
+  (cd candidate && go test -c -o bin/refund-split-control-agent.test ./internal/agent)
+  (cd candidate && go test -c -o bin/refund-split-control-server.test ./internal/server)
+  cp bin/refund-gathered-control-server.test bin/driver-origin.test
+
+Validation commands per arm (executed inside ARM/third_party/yamux with the arm's owned ext4 temp variables):
+  go test ./... -run 'Test(DiagnosticAggregateRefund|AggregateRefundBatch|AggregateRefundSelection|AggregateTerminalSelectedRefund|SendLoopGather)' -count=10 -timeout=5m
+  go test -race ./... -run 'Test(DiagnosticAggregateRefund|AggregateRefundBatch|AggregateRefundSelection|AggregateTerminalSelectedRefund|SendLoopGather)' -count=5 -timeout=8m
+  go test ./... -count=1 -timeout=10m
+
+Results:
+  refund-gathered-control focused normal PASS 0.686s; focused race PASS 1.566s; full normal PASS 34.113s
+  refund-split-control focused normal PASS 0.683s; focused race PASS 1.566s; full normal PASS 34.025s

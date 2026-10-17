@@ -1,0 +1,51 @@
+--- /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runner.sh
++++ /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runner.sh
+@@ -3,10 +3,11 @@
+ # share one disposable namespace; the real agent and its origin use a second,
+ # with all tunnel traffic crossing an 80 ms / 1 Gbit/s routed path.
+ set -Eeuo pipefail
++[[ ${P2PSTREAM_QUALIFICATION_DATA_CONTROLLER-} == cubic && ${P2PSTREAM_IDLE_ARM_INDEX-} =~ ^[012]$ ]] || { echo "exact all-CUBIC idle-policy arm required" >&2; exit 125; }
+ [[ ${P2PSTREAM_QUALIFICATION_DATA_CONTROLLER-} == cubic || ${P2PSTREAM_QUALIFICATION_DATA_CONTROLLER-} == reno ]] || { echo "exact diagnostic controller required" >&2; exit 125; }
+ 
+ if [[ ${1:-} != --inside ]]; then
+-  cd "$(dirname "$0")/.."
++  cd "$(dirname "$0")"
+   server_binary=""
+   aggregate_agent_binary=""
+   output=""
+@@ -478,6 +479,12 @@
+   "$router_namespace_pid" "$router_namespace_start_ticks" "$router_namespace_identity" >> "$lifecycle_output"
+ agent_ns() { assert_namespace_helper "$agent_namespace_pid" "$agent_namespace_instance" && nsenter -t "$agent_namespace_pid" -n "$@"; }
+ router_ns() { assert_namespace_helper "$router_namespace_pid" "$router_namespace_instance" && nsenter -t "$router_namespace_pid" -n "$@"; }
++# Private idle policy is configured before origin/agent TCP creation.
++idle_proof_dir=$(dirname "$output")
++python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/idle-policy-proof.py" configure \
++  "$idle_proof_dir/idle-configured.json" "$P2PSTREAM_IDLE_ARM_INDEX" "$idle_proof_dir/idle-host-pre.json" \
++  "$agent_namespace_pid" "$agent_namespace_start_ticks" "$agent_namespace_identity" \
++  "$router_namespace_pid" "$router_namespace_start_ticks" "$router_namespace_identity"
+ ip link set lo up
+ agent_ns ip link set lo up
+ router_ns ip link set lo up
+@@ -1794,6 +1801,11 @@
+   expected_bulk=3
+   [[ $mode == aggregate-v1 ]] && expected_bulk=4
+   wait_mode "$server_admin" "$mode" "$expected_bulk"
++  python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/idle-policy-proof.py" endpoints \
++    "$idle_proof_dir/idle-endpoints-endpoint-binding.json" endpoint-binding "$P2PSTREAM_IDLE_ARM_INDEX" "$idle_proof_dir/idle-configured.json" \
++    "$agent_pid" "$(jq -r .pid "$origin_ready")" "$server_pid" \
++    "$agent_ready" "$origin_ready" "$server_ready"
++
+ 
+   if ((tiny_response_mode)); then
+     local tiny_specs=(h1:16 h1:128 h2:16 h2:128)
+@@ -1838,6 +1850,10 @@
+     fi
+   fi
+ 
++  python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/idle-policy-proof.py" endpoints \
++    "$idle_proof_dir/idle-endpoints-post-workload.json" post-workload "$P2PSTREAM_IDLE_ARM_INDEX" "$idle_proof_dir/idle-configured.json" \
++    "$agent_pid" "$(jq -r .pid "$origin_ready")" "$server_pid" \
++    "$agent_ready" "$origin_ready" "$server_ready"
+ 	local sender_terminal_status=0 sender_terminal_validation_status=0
+ 	set +e
+ 	wan_sender_wait_query agent-drain terminal 15 "$agent_admin" "$sender_wait_control_dir/terminal-sender.json"

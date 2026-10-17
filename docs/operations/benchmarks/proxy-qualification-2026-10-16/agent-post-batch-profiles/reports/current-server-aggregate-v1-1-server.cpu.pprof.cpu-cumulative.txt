@@ -1,0 +1,54 @@
+File: server.test
+Build ID: c124bcafd96127015cd8fcd8fdfa1533fd0fd72e
+Type: cpu
+Time: 2026-10-16 06:05:15 CEST
+Duration: 12.42s, Total samples = 43.25s (348.33%)
+Showing nodes accounting for 15.27s, 35.31% of 43.25s total
+Dropped 1118 nodes (cum <= 0.22s)
+Showing top 45 nodes out of 300
+      flat  flat%   sum%        cum   cum%
+     0.03s 0.069% 0.069%     15.53s 35.91%  net/http.(*http2serverConn).runHandler
+     0.04s 0.092%  0.16%     14.46s 33.43%  net/http.initALPNRequest.ServeHTTP
+     0.01s 0.023%  0.18%     14.46s 33.43%  net/http.serverHandler.ServeHTTP
+         0     0%  0.18%     14.41s 33.32%  net/http.(*ServeMux).ServeHTTP
+     0.01s 0.023%  0.21%     14.13s 32.67%  net/http.HandlerFunc.ServeHTTP
+         0     0%  0.21%     14.08s 32.55%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+     0.01s 0.023%  0.23%     14.08s 32.55%  p2pstream/internal/server.servePublicProxyRequest
+     0.08s  0.18%  0.42%     12.47s 28.83%  p2pstream/internal/server.(*publicProxyContext).run
+     9.66s 22.34% 22.75%      9.66s 22.34%  internal/runtime/syscall/linux.Syscall6
+         0     0% 22.75%      9.62s 22.24%  internal/poll.ignoringEINTRIO (inline)
+     0.06s  0.14% 22.89%      9.59s 22.17%  syscall.Syscall
+     0.03s 0.069% 22.96%      9.23s 21.34%  syscall.RawSyscall6
+     0.05s  0.12% 23.08%      8.86s 20.49%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+         0     0% 23.08%      8.66s 20.02%  p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution (inline)
+     0.08s  0.18% 23.26%      8.66s 20.02%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+     0.13s   0.3% 23.56%      7.78s 17.99%  net/http/httputil.(*ReverseProxy).ServeHTTP
+     0.05s  0.12% 23.68%      7.52s 17.39%  internal/poll.(*FD).Write
+     0.01s 0.023% 23.70%      7.41s 17.13%  syscall.Write (inline)
+     0.02s 0.046% 23.75%      7.40s 17.11%  syscall.write
+     0.03s 0.069% 23.82%      7.32s 16.92%  crypto/tls.(*Conn).Write
+     0.08s  0.18% 24.00%      7.28s 16.83%  crypto/tls.(*Conn).writeRecordLocked
+         0     0% 24.00%      6.88s 15.91%  github.com/hashicorp/yamux.(*Session).send
+     0.07s  0.16% 24.16%      6.88s 15.91%  github.com/hashicorp/yamux.(*Session).sendLoop
+     0.02s 0.046% 24.21%      6.77s 15.65%  crypto/tls.(*Conn).write
+     0.02s 0.046% 24.25%      6.75s 15.61%  net.(*conn).Write
+     0.01s 0.023% 24.28%      6.73s 15.56%  net.(*netFD).Write
+     0.14s  0.32% 24.60%      4.79s 11.08%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+     0.27s  0.62% 25.23%      3.76s  8.69%  runtime.mallocgc
+     0.04s 0.092% 25.32%      3.37s  7.79%  io.ReadAtLeast
+         0     0% 25.32%      3.37s  7.79%  io.ReadFull (inline)
+     0.03s 0.069% 25.39%      3.21s  7.42%  crypto/tls.(*Conn).Read
+         0     0% 25.39%      3.21s  7.42%  github.com/hashicorp/yamux.(*Session).recv
+     0.05s  0.12% 25.50%      3.21s  7.42%  github.com/hashicorp/yamux.(*Session).recvLoop
+         0     0% 25.50%      3.04s  7.03%  crypto/tls.(*Conn).readRecord (inline)
+     0.06s  0.14% 25.64%      3.04s  7.03%  crypto/tls.(*Conn).readRecordOrCCS
+     0.02s 0.046% 25.69%      2.94s  6.80%  bufio.(*Reader).Read
+     0.02s 0.046% 25.73%      2.89s  6.68%  p2pstream/internal/server.(*agentTunnelReadGateConn).Read
+     0.07s  0.16% 25.90%      2.86s  6.61%  net/http.(*persistConn).readLoop
+     2.73s  6.31% 32.21%      2.81s  6.50%  runtime.cgocall
+     1.04s  2.40% 34.61%      2.78s  6.43%  runtime.selectgo
+         0     0% 34.61%      2.64s  6.10%  github.com/mattn/go-sqlite3.(*SQLiteStmt).exec.func1
+         0     0% 34.61%      2.63s  6.08%  github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync
+     0.02s 0.046% 34.66%      2.52s  5.83%  p2pstream/internal/server.(*pooledAgentTransport).RoundTrip
+     0.28s  0.65% 35.31%      2.52s  5.83%  runtime.newobject
+         0     0% 35.31%      2.50s  5.78%  crypto/tls.(*Conn).readFromUntil

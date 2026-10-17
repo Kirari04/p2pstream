@@ -1,0 +1,44 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "30s",
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1/integration/contracts/test-tcp-state-validator.py"
+  ],
+  "artifact_bytes": 10052162,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 0.38162157699116506,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2510695,
+      "pid": 2510695,
+      "ppid": 2510627,
+      "sid": 2510695,
+      "start_ticks": 7602100,
+      "state": "S"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 2097152,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 7152,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

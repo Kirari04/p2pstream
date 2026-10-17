@@ -1,0 +1,13 @@
+e81e961e560025384965de4972d9311b1eb5781f3c850726cb9a1bee04339cc3  tmp/continuation-20261016/wan-sender-wait-build-source/provenance/publication-source-1/SHA256SUMS.txt
+43eadb7664d70f9585887ac824cc7e6dcb55d6fa40731e3888b6fa5a1cc8d74f  tmp/continuation-20261016/wan-sender-wait-integration-source/build/bin/current-agent-wan-sender-wait-audited.test
+f2e6cf390fdcd727b8c7120a6d877dc3a53afe9d8b970aa7b0d7f6cc892a7bdc  tmp/continuation-20261016/wan-sender-wait-integration-source/build/bin/current-server-wan-sender-wait-audited.test
+ba1a31b8f54e7cbb4df8dace0990a4aba87fd4462803a31a6e3082810e9e1b2b  tmp/continuation-20261016/wan-sender-wait-integration-source/provenance/audited-server-build-manifest.json
+a5bf1598dffce3a0c58d579ad210f9efe9e6ee638ab9b0e02ef218ea07937635  tmp/continuation-20261016/wan-sender-wait-integration-source/provenance/local-publication-attempt-1/PUBLICATION-LEDGER-DISCLOSURE.md
+325284f62300a51b8c8a347f5a481052287f7553c59dd82c830ec26d435cfc06  tmp/continuation-20261016/wan-sender-wait-integration-source/provenance/local-publication-attempt-1/PUBLICATION-SHA256SUMS.txt
+a1ddf254487544ad067044a86c0fa0a8f0191516ee6b989e63b2e4b96bd1ba01  tmp/continuation-20261016/wan-sender-wait-integration-source/provenance/local-publication-attempt-1/publication-result.json
+e3c96f77f2a1ef3040de0c50567e304f417f80c7e92e30549e8aa27981eb341e  tmp/continuation-20261016/wan-sender-wait-integration-source/provenance/local-publication-attempt-1/source-post.json
+e3c96f77f2a1ef3040de0c50567e304f417f80c7e92e30549e8aa27981eb341e  tmp/continuation-20261016/wan-sender-wait-integration-source/provenance/local-publication-attempt-1/source-pre.json
+53c092d8a98396259401535a2fd4fa0505be9848e68f45005983c078e8d02cd4  tmp/continuation-20261016/wan-sender-wait-integration-source/provenance/local-publication-attempt-1/start.json
+e09bfd0d257133653b330f7b5797c950deddbf674b1ba40781aab38ca26fb468  tmp/continuation-20261016/wan-sender-wait-integration-source/provenance/local-publication-attempt-1/tool-envelope.json
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  tmp/continuation-20261016/wan-sender-wait-integration-source/provenance/local-publication-attempt-1/tool-envelope.status
+3d51f22da466d04a93ce31cac2627ea4bd7213c9a6fb1ff91890a5519c2beb8b  tmp/continuation-20261016/wan-sender-wait-integration-source/provenance/local-publication-receipt.json

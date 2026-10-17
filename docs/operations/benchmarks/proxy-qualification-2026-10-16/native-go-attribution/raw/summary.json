@@ -1,0 +1,122 @@
+{
+  "scope": "application attribution diagnostic; not a release gate or HAProxy qualification",
+  "row_count": 24,
+  "exact_correctness": true,
+  "cells": [
+    {
+      "public_scheme": "http",
+      "protocol": "h1",
+      "concurrency": 16,
+      "samples": {
+        "production": [
+          33362.06335705878,
+          30782.177359306683,
+          30930.899473829137
+        ],
+        "native": [
+          44991.99727614805,
+          45723.882422382165,
+          44628.53587207287
+        ]
+      },
+      "medians": {
+        "production": 30930.899473829137,
+        "native": 44991.99727614805
+      },
+      "production_to_native_median_rps_ratio": 0.6874755811346648,
+      "paired_production_to_native_rps_ratios": [
+        0.7415110547836307,
+        0.6732188022651067,
+        0.6930744840586338
+      ],
+      "profiling_trigger_all_three_pairs_below_0_85": true
+    },
+    {
+      "public_scheme": "http",
+      "protocol": "h1",
+      "concurrency": 128,
+      "samples": {
+        "production": [
+          30216.621141416887,
+          29647.951585809187,
+          29905.030875308195
+        ],
+        "native": [
+          46061.657025442626,
+          47536.706778877444,
+          45565.48556785222
+        ]
+      },
+      "medians": {
+        "production": 29905.030875308195,
+        "native": 46061.657025442626
+      },
+      "production_to_native_median_rps_ratio": 0.6492391461034467,
+      "paired_production_to_native_rps_ratios": [
+        0.6560037804268837,
+        0.6236854337369248,
+        0.656308837766607
+      ],
+      "profiling_trigger_all_three_pairs_below_0_85": true
+    },
+    {
+      "public_scheme": "https",
+      "protocol": "h1",
+      "concurrency": 16,
+      "samples": {
+        "production": [
+          30376.86771624853,
+          29741.273976353714,
+          29802.33157660645
+        ],
+        "native": [
+          42271.26402080413,
+          42774.057034703066,
+          42220.73974176672
+        ]
+      },
+      "medians": {
+        "production": 29802.33157660645,
+        "native": 42271.26402080413
+      },
+      "production_to_native_median_rps_ratio": 0.7050257962936477,
+      "paired_production_to_native_rps_ratios": [
+        0.7186174442594931,
+        0.6953110375343702,
+        0.7058694792863753
+      ],
+      "profiling_trigger_all_three_pairs_below_0_85": true
+    },
+    {
+      "public_scheme": "https",
+      "protocol": "h1",
+      "concurrency": 128,
+      "samples": {
+        "production": [
+          27919.307851059522,
+          28652.04644040042,
+          28524.408709232746
+        ],
+        "native": [
+          42698.25883536257,
+          45238.21504309207,
+          42174.142429426414
+        ]
+      },
+      "medians": {
+        "production": 28524.408709232746,
+        "native": 42698.25883536257
+      },
+      "production_to_native_median_rps_ratio": 0.6680461800378829,
+      "paired_production_to_native_rps_ratios": [
+        0.6538746218835705,
+        0.6333593492384184,
+        0.6763482803939658
+      ],
+      "profiling_trigger_all_three_pairs_below_0_85": true
+    }
+  ],
+  "any_profiling_trigger": true,
+  "smoke_sha256": "a3f22ed0b6a7da45e1fc777f47bb4cb72f5c39c4e94bbb6199919f9d712a2923",
+  "completed_utc": "2026-10-16T15:15:47.679120+00:00"
+}

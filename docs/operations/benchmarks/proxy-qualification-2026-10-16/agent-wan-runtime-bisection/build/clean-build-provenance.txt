@@ -1,0 +1,25 @@
+created_at=2026-10-16T06:51:57.592030+00:00
+common_source_ref=5eeccaaa797254d7bde4db9854a337a02c3bc28e
+historical_yamux_ref=56336cb212ecd280c926084f43d60a4365f6b843
+overlay_patch_sha256=c400c60b4b20c7a2be3c695481970ae5d43e99446de4afde2a9180b644bcf8cf
+overlay_readme_sha256=bad3c64546b8a3daa26db2e7774e1c8428f9374fd7f7ac572f1a8e1fdb5c3618
+control_root_tree=1aaa66449b8bff7b72a5b8cd4d0aa971b6a1835e
+control_yamux_tree=6d9622d1cb3383f78019ff164452bfd3002e0262
+prepublisher_root_tree=f20a8a5c1f585aa1fb410d4d945c9a6b8919c293
+prepublisher_yamux_tree=96651f7a37ef9bd64da724123c8555dbdc7642a8
+build_tags=ordinary tag-off
+source_archive=git archive common_source_ref for both trees
+overlay_materialization=exact historical file bytes; patch forward/reverse dry-runs pass and candidate file hashes equal git show historical_yamux_ref
+successful_build_commands:
+  env TMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/control-server TEMP=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/control-server TMP=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/control-server GOTMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/control-server go test -c -o /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/bin/control-server.test ./internal/server
+  env TMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/control-agent TEMP=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/control-agent TMP=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/control-agent GOTMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/control-agent go test -c -o /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/bin/control-agent.test ./internal/agent
+  env TMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/prepublisher-server TEMP=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/prepublisher-server TMP=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/prepublisher-server GOTMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/prepublisher-server go test -c -o /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/bin/prepublisher-server.test ./internal/server
+  env TMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/prepublisher-agent TEMP=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/prepublisher-agent TMP=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/prepublisher-agent GOTMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/prepublisher-agent go test -c -o /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/bin/prepublisher-agent.test ./internal/agent
+  cp /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/bin/control-server.test /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/bin/driver-origin.test
+validation_commands:
+  control-server.test -test.run '^(TestRealAgentParallelTunnelsSurvivePrimaryLoss|TestRealAgentProxyPhaseTimingAndReuse)$' -test.count=3 -test.timeout=3m
+  prepublisher-server.test -test.run '^(TestRealAgentParallelTunnelsSurvivePrimaryLoss|TestRealAgentProxyPhaseTimingAndReuse)$' -test.count=3 -test.timeout=3m
+validation_result=both variants PASS, count=3 for both named real-agent fixtures
+api_result=go doc -all ./third_party/yamux is byte-identical; exported-api.diff is empty
+preflight_note=first control link attempt set GOTMPDIR only and failed because the linker inherited quota-limited /tmp; successful commands set TMPDIR,TEMP,TMP,GOTMPDIR to owned ext4 paths
+candidate_scope=diagnostic only; known historical pre-805a8ea shutdown waiter spin restored; never a production candidate

@@ -92,13 +92,13 @@ func newRealAgentProxyFixture(tb testing.TB, lanes int, window int64, rtt time.D
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		connected = app.AgentHub.connectedByID(row.ID)
-		if connected != nil && realAgentLaneCount(connected) == lanes {
+		if connected != nil && realAgentAggregateLaneShape(connected, lanes) {
 			break
 		}
 		time.Sleep(time.Millisecond)
 	}
-	if connected == nil || realAgentLaneCount(connected) != lanes {
-		tb.Fatal("real agent did not establish all lanes")
+	if connected == nil || !realAgentAggregateLaneShape(connected, lanes) {
+		tb.Fatalf("real agent did not establish negotiated control+%d bulk lanes", lanes)
 	}
 	data := bytes.Repeat([]byte("download"), 512*1024)
 	upstream := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -132,6 +132,14 @@ func realAgentLaneCount(agent *AgentConn) int {
 	return count
 }
 
+func realAgentAggregateLaneShape(agent *AgentConn, bulk int) bool {
+	if agent == nil {
+		return false
+	}
+	resources := agent.tunnelResourceSnapshot()
+	return resources.AggregateFlowControl && resources.ControlConnected && resources.BulkSessions == bulk && realAgentLaneCount(agent) == bulk+1
+}
+
 func (f *realAgentProxyFixture) roundTrip(ctx context.Context, path string, trace *trafficRequestTrace) (int64, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, f.upstream.URL+path, nil)
 	rt := &publicAgentAttemptRoundTripper{app: f.app, initial: f.agent, resolution: publicRouteResolution{Target: f.target}, trace: trace, requestID: "real-agent-test"}
@@ -148,13 +156,27 @@ func (f *realAgentProxyFixture) roundTrip(ctx context.Context, path string, trac
 
 func TestRealAgentParallelTunnelsSurvivePrimaryLoss(t *testing.T) {
 	f := newRealAgentProxyFixture(t, 4, 2<<20, 0)
-	for range 8 {
+	warmed := make(map[int]bool)
+	for sequence := range 8 {
 		if n, err := f.roundTrip(t.Context(), "/api", nil); err != nil || n != 2 {
 			t.Fatalf("proxy: %d, %v", n, err)
 		}
+		if sequence < 4 {
+			f.app.AgentTransports.mu.Lock()
+			for key := range f.app.AgentTransports.entries {
+				warmed[key.TunnelLane] = true
+			}
+			f.app.AgentTransports.mu.Unlock()
+			// Retiring the warmup entry exercises every lane while retaining
+			// the production policy for the subsequent serial requests.
+			f.app.AgentTransports.closeAll()
+		}
 	}
-	if got := f.app.AgentTransports.len(); got != 4 {
-		t.Fatalf("pooled lanes=%d, want 4", got)
+	if len(warmed) != 4 || !realAgentAggregateLaneShape(f.agent, 4) {
+		t.Fatalf("warmed lanes=%v, want all four connected bulk lanes", warmed)
+	}
+	if got := f.app.AgentTransports.len(); got != 1 {
+		t.Fatalf("serial same-target pooled entries=%d, want 1", got)
 	}
 	initial := f.agent
 	_ = initial.Session.Close()
@@ -164,10 +186,10 @@ func TestRealAgentParallelTunnelsSurvivePrimaryLoss(t *testing.T) {
 		}
 	}
 	deadline := time.Now().Add(5 * time.Second)
-	for realAgentLaneCount(initial) != 4 && time.Now().Before(deadline) {
+	for !realAgentAggregateLaneShape(initial, 4) && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if got := f.app.AgentHub.connectedByID(initial.AgentID); got != initial || realAgentLaneCount(initial) != 4 {
+	if got := f.app.AgentHub.connectedByID(initial.AgentID); got != initial || !realAgentAggregateLaneShape(initial, 4) {
 		t.Fatal("primary reconnect replaced the agent generation or failed to restore its lane")
 	}
 	if got := f.app.agentStreamCapacity.snapshot().RegisteredSessions; got != 1 {

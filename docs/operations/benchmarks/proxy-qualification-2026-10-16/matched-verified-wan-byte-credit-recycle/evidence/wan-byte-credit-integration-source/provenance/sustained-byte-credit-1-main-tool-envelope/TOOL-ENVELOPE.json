@@ -1,0 +1,25 @@
+{
+  "chunk_ids": [
+    "7e8d57",
+    "674d46",
+    "f26f91",
+    "5d725b",
+    "967052",
+    "de3782",
+    "9540c6",
+    "becfbb",
+    "1ac1f5"
+  ],
+  "command": "/usr/bin/python3.14 -I -B .../sustained-launch-source-1/run-sustained.py .../provenance/sustained-byte-credit-1-launch",
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+  "exit_code": 1,
+  "full_transcript_available": false,
+  "invocation_sha256": "a816b00279d59fb9654c73ac9000deb1c56b9989a099af3586e88e56448288c6",
+  "note": "Chunk identifiers are tool metadata, not filesystem hashes; nonzero status is the preserved cohort result, with natural complete launcher evidence.",
+  "schema_version": 1,
+  "session_id": 64735,
+  "source_manifest_sha256": "0d8eebbd0fa382bbc375103a410128e2242e2bba31b8797e7790405ed6b98f8e",
+  "stderr": "",
+  "stdout": "",
+  "tool": "functions.exec_command/write_stdin native PTY"
+}

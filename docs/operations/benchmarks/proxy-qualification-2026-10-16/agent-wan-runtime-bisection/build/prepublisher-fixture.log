@@ -1,0 +1,19 @@
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:22+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:23+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:23+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:23+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:23+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: write tcp 127.0.0.1:54350->127.0.0.1:39465: write: broken pipe","time":"2026-10-16T08:50:23+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:23+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:24+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:24+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:24+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:24+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:24+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:24+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:25+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:25+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:25+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:25+02:00","message":"Disconnected"}
+{"level":"warn","error":"accept tunnel stream: EOF","time":"2026-10-16T08:50:25+02:00","message":"Disconnected"}
+PASS

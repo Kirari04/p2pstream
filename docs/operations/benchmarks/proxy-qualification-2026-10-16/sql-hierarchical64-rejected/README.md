@@ -1,0 +1,9 @@
+# Rejected hierarchical SQL insert screen
+
+The matched native profile identified event persistence as a distinct application cost. This isolated experiment compares the unchanged 16-row insert with a lazy 64-row → 16-row → single-row candidate. Both use source `8d97b45`, identical test/benchmark overlays, Go 1.26.6, owned ext4 temporary/cache/database files, four logical CPUs and the same transaction/context, 23 bound columns, 512-event flush cap, five-second production deadline, rollups and cache touches.
+
+Both variants pass the retained 35-row checks, a 131-row all-field/rollup/touch comparison and cancellation blocked at row 65 after the first 64 rows execute, normally and under the race detector. The actual SQLite variable ceiling is 32,766, above the required 1,472.
+
+The preregistered three alternating pairs measure full-recorder production-deadline flushes of 63, 127 and 512 events, one second per cell. All three 512-event time ratios pass the ≤0.95 screen (0.85691 / 0.86297 / 0.88067), and allocations decrease. However, the second 127-event pair reaches **1.15052**, above the unchanged 1.10 per-pair ceiling. The median alone cannot override that failure.
+
+**Reject and stop:** no retry, HTTP/E2E experiment or production change is retained. The large-flush gain remains diagnostic only. `REPORT.md` includes all measured times/allocations, exact acceptance limits and the smaller-batch regression. `results/` preserves every raw run. `independent-screen.json` independently extracts the nine paired observations and confirms the rejection. `artifacts/` preserves the source plan, exact commands, portable candidate and shared test/benchmark patches. Source archives, full trees, caches and binaries remain at their manifest paths. `export-map.json` and `SHA256SUMS` bind the copied files; original manifests retain their local artifact hashes.

@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "/usr/bin/bash",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-state-source/review/tiny-tcp-state-smoke-launch-source-1/INVOCATION.sh"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-state-source/integration-source-3",
+  "timeout_seconds": 3600
+}

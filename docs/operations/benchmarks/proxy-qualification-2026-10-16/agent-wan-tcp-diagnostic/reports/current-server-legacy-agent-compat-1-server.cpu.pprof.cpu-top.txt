@@ -1,0 +1,64 @@
+File: server.test
+Build ID: 618a8cb6183a4ad09d1248ee0524066851af9611
+Type: cpu
+Time: 2026-10-16 06:44:35 CEST
+Duration: 129.85s, Total samples = 25.73s (19.82%)
+Showing nodes accounting for 20.87s, 81.11% of 25.73s total
+Dropped 586 nodes (cum <= 0.13s)
+Showing top 55 nodes out of 241
+      flat  flat%   sum%        cum   cum%
+    12.12s 47.10% 47.10%     12.12s 47.10%  internal/runtime/syscall/linux.Syscall6
+     1.80s  7.00% 54.10%      1.80s  7.00%  runtime.futex
+     1.28s  4.97% 59.08%      1.28s  4.97%  crypto/internal/fips140/aes/gcm.gcmAesEnc
+     1.19s  4.62% 63.70%      1.19s  4.62%  crypto/internal/fips140/aes/gcm.gcmAesDec
+     0.98s  3.81% 67.51%      0.98s  3.81%  runtime.memmove
+     0.53s  2.06% 69.57%      1.81s  7.03%  runtime.selectgo
+     0.27s  1.05% 70.62%      0.27s  1.05%  runtime.nanotime (inline)
+     0.19s  0.74% 71.36%      0.19s  0.74%  runtime.usleep
+     0.17s  0.66% 72.02%      0.22s  0.86%  runtime.unlock2
+     0.15s  0.58% 72.60%      0.15s  0.58%  runtime.cputicks
+     0.13s  0.51% 73.11%      4.04s 15.70%  runtime.findRunnable
+     0.12s  0.47% 73.57%      1.70s  6.61%  net/http.(*http2serverConn).serve
+     0.12s  0.47% 74.04%      0.46s  1.79%  runtime.stealWork
+     0.11s  0.43% 74.47%      0.14s  0.54%  runtime.acquireSudog
+     0.11s  0.43% 74.89%      0.22s  0.86%  runtime.fpTracebackPartialExpand
+     0.11s  0.43% 75.32%      0.19s  0.74%  runtime.scanObject
+     0.11s  0.43% 75.75%      4.33s 16.83%  runtime.schedule
+     0.09s  0.35% 76.10%      0.16s  0.62%  runtime.lock2
+     0.08s  0.31% 76.41%      1.40s  5.44%  crypto/tls.(*halfConn).decrypt
+     0.07s  0.27% 76.68%      0.16s  0.62%  runtime.sellock
+     0.06s  0.23% 76.91%      5.49s 21.34%  crypto/tls.(*Conn).Read
+     0.06s  0.23% 77.15%      4.62s 17.96%  runtime.mcall
+     0.06s  0.23% 77.38%      0.15s  0.58%  runtime.reentersyscall
+     0.05s  0.19% 77.57%      7.32s 28.45%  crypto/tls.(*Conn).writeRecordLocked
+     0.05s  0.19% 77.77%      0.13s  0.51%  runtime.selparkcommit
+     0.04s  0.16% 77.92%      5.04s 19.59%  crypto/tls.(*Conn).readRecordOrCCS
+     0.04s  0.16% 78.08%      5.63s 21.88%  crypto/tls.(*Conn).write
+     0.04s  0.16% 78.24%      1.40s  5.44%  crypto/tls.(*xorNonceAEAD).Seal
+     0.04s  0.16% 78.39%      0.24s  0.93%  runtime.(*timers).check
+     0.04s  0.16% 78.55%      0.43s  1.67%  runtime.blockevent
+     0.04s  0.16% 78.70%      0.23s  0.89%  runtime.runqgrab
+     0.03s  0.12% 78.82%      1.35s  5.25%  crypto/internal/fips140/aes/gcm.seal
+     0.03s  0.12% 78.94%      1.58s  6.14%  crypto/tls.(*halfConn).encrypt
+     0.03s  0.12% 79.05%      1.32s  5.13%  crypto/tls.(*xorNonceAEAD).Open
+     0.03s  0.12% 79.17%      0.13s  0.51%  internal/sync.(*Mutex).Unlock
+     0.03s  0.12% 79.28%      3.39s 13.18%  io.ReadAtLeast
+     0.03s  0.12% 79.40%      0.52s  2.02%  net/http.(*http2Framer).ReadFrameForHeader
+     0.03s  0.12% 79.52%      3.48s 13.53%  net/http.(*http2Framer).endWrite
+     0.03s  0.12% 79.63%      4.13s 16.05%  net/http.(*http2serverConn).readFrames
+     0.03s  0.12% 79.75%      0.57s  2.22%  net/http/httputil.(*ReverseProxy).copyBuffer
+     0.03s  0.12% 79.87%      0.15s  0.58%  runtime.casgstatus
+     0.03s  0.12% 79.98%      1.03s  4.00%  runtime.futexsleep
+     0.03s  0.12% 80.10%      1.04s  4.04%  runtime.notesleep
+     0.03s  0.12% 80.22%      0.68s  2.64%  runtime.ready
+     0.03s  0.12% 80.33%      0.65s  2.53%  runtime.send
+     0.02s 0.078% 80.41%      2.64s 10.26%  bufio.(*Reader).Read
+     0.02s 0.078% 80.49%      0.33s  1.28%  bytes.(*Reader).Read (inline)
+     0.02s 0.078% 80.57%      7.51s 29.19%  crypto/tls.(*Conn).Write
+     0.02s 0.078% 80.65%      0.23s  0.89%  crypto/tls.(*Conn).handshakeContext
+     0.02s 0.078% 80.72%      3.46s 13.45%  crypto/tls.(*atLeastReader).Read
+     0.02s 0.078% 80.80%      3.16s 12.28%  github.com/hashicorp/yamux.(*Session).sendLoop
+     0.02s 0.078% 80.88%      0.56s  2.18%  io.copyBuffer
+     0.02s 0.078% 80.96%      3.53s 13.72%  net.(*conn).Read
+     0.02s 0.078% 81.03%      5.73s 22.27%  net.(*conn).Write
+     0.02s 0.078% 81.11%      3.43s 13.33%  net/http.(*http2Framer).ReadFrame

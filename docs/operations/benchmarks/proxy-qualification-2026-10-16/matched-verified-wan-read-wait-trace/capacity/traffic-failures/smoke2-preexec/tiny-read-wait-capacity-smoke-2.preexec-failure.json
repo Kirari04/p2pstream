@@ -1,0 +1,19 @@
+{
+  "artifacts": {
+    "tiny-read-wait-capacity-smoke-2.invocation.txt": "88343114a234d13b8acc3dce0ac82f2022f91d4b6312aabfdf9e0cc39d2d7a61",
+    "tiny-read-wait-capacity-smoke-2.outer-command.sh": "decb626775a1f93bd9bc89295115b5384aba053712e70c690c7427a146ad7a32",
+    "tiny-read-wait-capacity-smoke-2.outer.status": "703d2c10fa601276a4dd96193faed68902a642a44eb5b01b40d6fc8499e12822",
+    "tiny-read-wait-capacity-smoke-2.outer.stderr.log": "a23df0b463d6243264092a947b5f4be35c30a22d1431faed1fa911f735774d6a",
+    "tiny-read-wait-capacity-smoke-2.outer.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tiny-read-wait-capacity-smoke-2.raw-tool-result.json": "30b2a2cd9e5dd40de6af66e6d334df3836be9c4c64bad77636370d885d8d2277"
+  },
+  "attempt": "tiny-read-wait-capacity-smoke-2",
+  "cause": "outer-command sidecar was not executable",
+  "classification": "pre-exec-launch-failure",
+  "coordinator_invoked": false,
+  "endpoint_execution_run": false,
+  "outer_status": 126,
+  "output_directory_created": false,
+  "schema_version": 1,
+  "traffic_run": false
+}

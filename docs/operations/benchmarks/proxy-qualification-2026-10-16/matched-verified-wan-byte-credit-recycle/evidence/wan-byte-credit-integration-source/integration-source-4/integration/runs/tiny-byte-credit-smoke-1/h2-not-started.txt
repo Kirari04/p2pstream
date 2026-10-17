@@ -1,0 +1,1 @@
+H2 not started because H1 data/protocol/ownership/tuple, topology, resource, or natural closure integrity was not proved

@@ -1,0 +1,1353 @@
+{
+  "all16_metrics": [
+    {
+      "direction": "download",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 34057587.438612655,
+      "response_bytes": 268435456,
+      "sequence": 1,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 7.881810668
+    },
+    {
+      "direction": "download",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 34060260.51594159,
+      "response_bytes": 268435456,
+      "sequence": 2,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 7.881192097
+    },
+    {
+      "direction": "download",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 34296388.02916485,
+      "response_bytes": 268435456,
+      "sequence": 3,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 7.826930806
+    },
+    {
+      "direction": "download",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 34075509.144305035,
+      "response_bytes": 268435456,
+      "sequence": 4,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 7.877665301
+    },
+    {
+      "direction": "upload",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 28854863.84266,
+      "response_bytes": 32,
+      "sequence": 5,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 9.30295348
+    },
+    {
+      "direction": "upload",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 28940255.827763516,
+      "response_bytes": 32,
+      "sequence": 6,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 9.275503907
+    },
+    {
+      "direction": "upload",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 28318337.82495314,
+      "response_bytes": 32,
+      "sequence": 7,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 9.479209467
+    },
+    {
+      "direction": "upload",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 29317648.641011924,
+      "response_bytes": 32,
+      "sequence": 8,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 9.156104546
+    },
+    {
+      "direction": "download",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 34132785.23449573,
+      "response_bytes": 268435456,
+      "sequence": 9,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 7.864446284
+    },
+    {
+      "direction": "upload",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 35399705.991655886,
+      "response_bytes": 32,
+      "sequence": 10,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 7.582985465
+    },
+    {
+      "direction": "download",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 27592816.975296006,
+      "response_bytes": 268435456,
+      "sequence": 11,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 9.728454193
+    },
+    {
+      "direction": "upload",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 35958582.57053817,
+      "response_bytes": 32,
+      "sequence": 12,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 7.465128957
+    },
+    {
+      "direction": "upload",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 36092350.79718251,
+      "response_bytes": 32,
+      "sequence": 13,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 7.437461126
+    },
+    {
+      "direction": "download",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 15848814.945614165,
+      "response_bytes": 268435456,
+      "sequence": 14,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 16.93725726
+    },
+    {
+      "direction": "download",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 34099497.411189765,
+      "response_bytes": 268435456,
+      "sequence": 15,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 7.872123532
+    },
+    {
+      "direction": "upload",
+      "errors": 0,
+      "persisted_event_delta": 1,
+      "rate": 35457744.145589516,
+      "response_bytes": 32,
+      "sequence": 16,
+      "status_codes": {
+        "200": 1
+      },
+      "wall_seconds": 7.570573438
+    }
+  ],
+  "attestation": {
+    "accepted": false,
+    "conditioning_issues": [
+      "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+      "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained"
+    ],
+    "integrity_issues": [],
+    "performance_issues": [
+      "steady download phase failed independent 29700000 B/s floor"
+    ]
+  },
+  "build_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "completed_transfer_rows": 16,
+  "finished_unix": 1792241517.28655,
+  "independent_attestation_exact_match": true,
+  "input_changes": [],
+  "mature_supervisor_lifecycle": {
+    "forced": false,
+    "group_joined": true,
+    "invalidates_success": true,
+    "prospective_terminal_attribution": {
+      "accepted": true,
+      "validation_status": 0
+    },
+    "raw_write_evidence": {
+      "final_closure_valid": true,
+      "finalization_status": 0
+    },
+    "runner_status": 1,
+    "sender_evidence": {
+      "terminal_status": 0,
+      "terminal_valid": true,
+      "terminal_validation_status": 0
+    },
+    "server_scope": {
+      "resource_status": 0,
+      "systemd_run_status": 0,
+      "unit_active_state": "inactive",
+      "unit_joined": true,
+      "unit_load_state": "not-found",
+      "unit_query_status": 0,
+      "unit_sub_state": "dead"
+    }
+  },
+  "named_netns_after": [],
+  "natural_endpoint_and_helper_exits": [
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "current-server-aggregate-v1-h2-1-agent",
+      "pid": 217,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "current-server-aggregate-v1-h2-1-server",
+      "pid": 182,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "origin",
+      "pid": 168,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "agent-namespace",
+      "pid": 51,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "router-namespace",
+      "pid": 56,
+      "status": 0
+    }
+  ],
+  "no_additional_test_build_or_traffic": true,
+  "outer_commands": [
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 0.6859801370010246,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-validation.outer.json",
+      "remaining_owned": [],
+      "status": 1
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 156.42049185099313,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0.outer.json",
+      "remaining_owned": [],
+      "status": 1
+    }
+  ],
+  "plan_sha256": "0f5753a7530129cad56a003456dd463ae8686b4681d1d2d4008ed88ad7228025",
+  "pre_post_hashes_equal": true,
+  "prior_ledgers": [
+    {
+      "path": "SHA256SUMS",
+      "sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331"
+    },
+    {
+      "path": "build/runtime-SHA256SUMS",
+      "sha256": "2872d86dbc351819162c286743fbc97fa14ab49b0ddd40b886d3fc2fa9d93c2e"
+    },
+    {
+      "path": "build/environment-recovery/RUNTIME-SHA256SUMS",
+      "sha256": "bff55a66398631782c43b70c23f86230bf250a93b3e16995619cedc7d8b7edda"
+    },
+    {
+      "path": "build/joined-ps/FINAL-SHA256SUMS",
+      "sha256": "614a0aae1eb44c21a0ecc9c825c555d35831a01b8bd9eb35665a650976f51a33"
+    },
+    {
+      "path": "vector-design/SHA256SUMS",
+      "sha256": "fddff4f3f434a346f4b92bab475c97f6bcad43be5fc12d7092684e9fbad8cae5"
+    }
+  ],
+  "private_namespace_ids": {
+    "mnt": [
+      "mnt:[4026533468]"
+    ],
+    "net": [
+      "net:[4026533470]",
+      "net:[4026533532]",
+      "net:[4026533918]",
+      "net:[4026534044]"
+    ],
+    "pid": [
+      "pid:[4026533469]"
+    ],
+    "user": [
+      "user:[4026532932]",
+      "user:[4026533917]"
+    ]
+  },
+  "remaining_pid_start_identities": [],
+  "remaining_private_namespace_processes": [],
+  "retained_copies": {
+    "11": {
+      "matches": [
+        {
+          "copy": {
+            "body_wraps": 1,
+            "complete": true,
+            "downstream_read_from_calls": 0,
+            "downstream_write": {
+              "bytes": 268435456,
+              "calls": 8218,
+              "duration_bucket_counts": [
+                12,
+                1,
+                7063,
+                1142,
+                0,
+                0,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241356423740413,
+              "last_unix_ns": 1792241365872062031,
+              "longest_stalls": [
+                {
+                  "bytes": 32768,
+                  "call": 442,
+                  "duration_ns": 570370,
+                  "started_unix_ns": 1792241358559781988
+                },
+                {
+                  "bytes": 32768,
+                  "call": 2429,
+                  "duration_ns": 522807,
+                  "started_unix_ns": 1792241361049347732
+                },
+                {
+                  "bytes": 32768,
+                  "call": 2,
+                  "duration_ns": 459865,
+                  "started_unix_ns": 1792241356504089664
+                },
+                {
+                  "bytes": 32768,
+                  "call": 7427,
+                  "duration_ns": 450697,
+                  "started_unix_ns": 1792241365239848776
+                },
+                {
+                  "bytes": 32768,
+                  "call": 117,
+                  "duration_ns": 437882,
+                  "started_unix_ns": 1792241357392943744
+                },
+                {
+                  "bytes": 32768,
+                  "call": 6194,
+                  "duration_ns": 408905,
+                  "started_unix_ns": 1792241364196278869
+                },
+                {
+                  "bytes": 32768,
+                  "call": 5775,
+                  "duration_ns": 408205,
+                  "started_unix_ns": 1792241363846287208
+                },
+                {
+                  "bytes": 32768,
+                  "call": 4110,
+                  "duration_ns": 362996,
+                  "started_unix_ns": 1792241362449787420
+                }
+              ],
+              "max_ns": 570370,
+              "span_ns": 9448321598,
+              "total_ns": 679380014
+            },
+            "duration_bucket_upper_bounds_ns": [
+              1000,
+              10000,
+              100000,
+              1000000,
+              10000000,
+              100000000,
+              1000000000,
+              -1
+            ],
+            "inter_read_gap": {
+              "bytes": 0,
+              "calls": 8217,
+              "duration_bucket_counts": [
+                6,
+                7,
+                7033,
+                1171,
+                0,
+                0,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241356423739962,
+              "last_unix_ns": 1792241365871957467,
+              "longest_stalls": [
+                {
+                  "bytes": 0,
+                  "call": 442,
+                  "duration_ns": 574107,
+                  "started_unix_ns": 1792241358559779503
+                },
+                {
+                  "bytes": 0,
+                  "call": 2429,
+                  "duration_ns": 524872,
+                  "started_unix_ns": 1792241361049347010
+                },
+                {
+                  "bytes": 0,
+                  "call": 2,
+                  "duration_ns": 464243,
+                  "started_unix_ns": 1792241356504086898
+                },
+                {
+                  "bytes": 0,
+                  "call": 7427,
+                  "duration_ns": 454505,
+                  "started_unix_ns": 1792241365239846802
+                },
+                {
+                  "bytes": 0,
+                  "call": 117,
+                  "duration_ns": 438844,
+                  "started_unix_ns": 1792241357392943203
+                },
+                {
+                  "bytes": 0,
+                  "call": 6194,
+                  "duration_ns": 410238,
+                  "started_unix_ns": 1792241364196278047
+                },
+                {
+                  "bytes": 0,
+                  "call": 5775,
+                  "duration_ns": 410199,
+                  "started_unix_ns": 1792241363846286216
+                },
+                {
+                  "bytes": 0,
+                  "call": 4110,
+                  "duration_ns": 366082,
+                  "started_unix_ns": 1792241362449786919
+                }
+              ],
+              "max_ns": 574107,
+              "span_ns": 9448217495,
+              "total_ns": 686098278
+            },
+            "read_eof": 1,
+            "read_errors": 0,
+            "short_writes": 0,
+            "upstream_read": {
+              "bytes": 268435456,
+              "calls": 8218,
+              "duration_bucket_counts": [
+                0,
+                860,
+                610,
+                6494,
+                125,
+                128,
+                1,
+                0
+              ],
+              "first_unix_ns": 1792241356423738509,
+              "last_unix_ns": 1792241365872036882,
+              "longest_stalls": [
+                {
+                  "bytes": 32768,
+                  "call": 3,
+                  "duration_ns": 160792696,
+                  "started_unix_ns": 1792241356504551132
+                },
+                {
+                  "bytes": 32768,
+                  "call": 2,
+                  "duration_ns": 80345384,
+                  "started_unix_ns": 1792241356423741545
+                },
+                {
+                  "bytes": 32768,
+                  "call": 5,
+                  "duration_ns": 80104004,
+                  "started_unix_ns": 1792241356665833581
+                },
+                {
+                  "bytes": 32768,
+                  "call": 55,
+                  "duration_ns": 79178463,
+                  "started_unix_ns": 1792241356990550076
+                },
+                {
+                  "bytes": 12518,
+                  "call": 18,
+                  "duration_ns": 78913398,
+                  "started_unix_ns": 1792241356748036870
+                },
+                {
+                  "bytes": 32768,
+                  "call": 43,
+                  "duration_ns": 78480575,
+                  "started_unix_ns": 1792241356909919788
+                },
+                {
+                  "bytes": 32768,
+                  "call": 129,
+                  "duration_ns": 78038985,
+                  "started_unix_ns": 1792241357394520662
+                },
+                {
+                  "bytes": 20695,
+                  "call": 29,
+                  "duration_ns": 78008918,
+                  "started_unix_ns": 1792241356829336551
+                }
+              ],
+              "max_ns": 160792696,
+              "span_ns": 9448298353,
+              "total_ns": 8762200075
+            },
+            "write_errors": 0
+          },
+          "handler_elapsed_ns": 9611306240,
+          "handler_return_unix_ns": 1792241365872076649,
+          "method": "GET",
+          "path": "/agent/bulk",
+          "scope": "response-body-copy",
+          "sequence": "11",
+          "started_unix_ns": 1792241356260770409
+        }
+      ],
+      "overflow": false,
+      "sequence": "11",
+      "store_count": 11
+    },
+    "14": {
+      "matches": [
+        {
+          "copy": {
+            "body_wraps": 1,
+            "complete": true,
+            "downstream_read_from_calls": 0,
+            "downstream_write": {
+              "bytes": 268435456,
+              "calls": 8211,
+              "duration_bucket_counts": [
+                2,
+                1,
+                6336,
+                1872,
+                0,
+                0,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241382235976907,
+              "last_unix_ns": 1792241398835709381,
+              "longest_stalls": [
+                {
+                  "bytes": 32768,
+                  "call": 4621,
+                  "duration_ns": 682178,
+                  "started_unix_ns": 1792241394195054719
+                },
+                {
+                  "bytes": 32768,
+                  "call": 4530,
+                  "duration_ns": 542285,
+                  "started_unix_ns": 1792241394034371357
+                },
+                {
+                  "bytes": 32768,
+                  "call": 1918,
+                  "duration_ns": 528689,
+                  "started_unix_ns": 1792241388234624664
+                },
+                {
+                  "bytes": 32768,
+                  "call": 4178,
+                  "duration_ns": 518559,
+                  "started_unix_ns": 1792241393427291588
+                },
+                {
+                  "bytes": 32768,
+                  "call": 5060,
+                  "duration_ns": 507567,
+                  "started_unix_ns": 1792241394918202101
+                },
+                {
+                  "bytes": 32768,
+                  "call": 1949,
+                  "duration_ns": 500254,
+                  "started_unix_ns": 1792241388355136776
+                },
+                {
+                  "bytes": 32768,
+                  "call": 1189,
+                  "duration_ns": 479282,
+                  "started_unix_ns": 1792241386340044153
+                },
+                {
+                  "bytes": 32768,
+                  "call": 3649,
+                  "duration_ns": 477740,
+                  "started_unix_ns": 1792241392379523958
+                }
+              ],
+              "max_ns": 682178,
+              "span_ns": 16599732484,
+              "total_ns": 781964782
+            },
+            "duration_bucket_upper_bounds_ns": [
+              1000,
+              10000,
+              100000,
+              1000000,
+              10000000,
+              100000000,
+              1000000000,
+              -1
+            ],
+            "inter_read_gap": {
+              "bytes": 0,
+              "calls": 8210,
+              "duration_bucket_counts": [
+                1,
+                2,
+                6291,
+                1916,
+                0,
+                0,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241382235976687,
+              "last_unix_ns": 1792241398835551404,
+              "longest_stalls": [
+                {
+                  "bytes": 0,
+                  "call": 4621,
+                  "duration_ns": 685814,
+                  "started_unix_ns": 1792241394195052415
+                },
+                {
+                  "bytes": 0,
+                  "call": 4530,
+                  "duration_ns": 544118,
+                  "started_unix_ns": 1792241394034370766
+                },
+                {
+                  "bytes": 0,
+                  "call": 1918,
+                  "duration_ns": 529751,
+                  "started_unix_ns": 1792241388234624153
+                },
+                {
+                  "bytes": 0,
+                  "call": 4178,
+                  "duration_ns": 519871,
+                  "started_unix_ns": 1792241393427290857
+                },
+                {
+                  "bytes": 0,
+                  "call": 5060,
+                  "duration_ns": 509421,
+                  "started_unix_ns": 1792241394918201319
+                },
+                {
+                  "bytes": 0,
+                  "call": 1949,
+                  "duration_ns": 506736,
+                  "started_unix_ns": 1792241388355132097
+                },
+                {
+                  "bytes": 0,
+                  "call": 1189,
+                  "duration_ns": 481016,
+                  "started_unix_ns": 1792241386340043693
+                },
+                {
+                  "bytes": 0,
+                  "call": 3649,
+                  "duration_ns": 479573,
+                  "started_unix_ns": 1792241392379523317
+                }
+              ],
+              "max_ns": 685814,
+              "span_ns": 16599574767,
+              "total_ns": 789909658
+            },
+            "read_eof": 1,
+            "read_errors": 0,
+            "short_writes": 0,
+            "upstream_read": {
+              "bytes": 268435456,
+              "calls": 8211,
+              "duration_bucket_counts": [
+                1,
+                2027,
+                1245,
+                4441,
+                142,
+                355,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241382235975735,
+              "last_unix_ns": 1792241398835592213,
+              "longest_stalls": [
+                {
+                  "bytes": 32768,
+                  "call": 3,
+                  "duration_ns": 79975901,
+                  "started_unix_ns": 1792241382236113383
+                },
+                {
+                  "bytes": 32768,
+                  "call": 10,
+                  "duration_ns": 79281559,
+                  "started_unix_ns": 1792241382396995456
+                },
+                {
+                  "bytes": 32768,
+                  "call": 4,
+                  "duration_ns": 79190234,
+                  "started_unix_ns": 1792241382316154250
+                },
+                {
+                  "bytes": 32768,
+                  "call": 257,
+                  "duration_ns": 77871286,
+                  "started_unix_ns": 1792241383685366194
+                },
+                {
+                  "bytes": 32768,
+                  "call": 17,
+                  "duration_ns": 77783376,
+                  "started_unix_ns": 1792241382477975039
+                },
+                {
+                  "bytes": 32768,
+                  "call": 130,
+                  "duration_ns": 77211322,
+                  "started_unix_ns": 1792241383120863245
+                },
+                {
+                  "bytes": 32768,
+                  "call": 44,
+                  "duration_ns": 77172506,
+                  "started_unix_ns": 1792241382638856691
+                },
+                {
+                  "bytes": 20480,
+                  "call": 30,
+                  "duration_ns": 77150664,
+                  "started_unix_ns": 1792241382558730077
+                }
+              ],
+              "max_ns": 79975901,
+              "span_ns": 16599616518,
+              "total_ns": 15809706860
+            },
+            "write_errors": 0
+          },
+          "handler_elapsed_ns": 16761348435,
+          "handler_return_unix_ns": 1792241398835735843,
+          "method": "GET",
+          "path": "/agent/bulk",
+          "scope": "response-body-copy",
+          "sequence": "14",
+          "started_unix_ns": 1792241382074387418
+        }
+      ],
+      "overflow": false,
+      "sequence": "14",
+      "store_count": 14
+    },
+    "15": {
+      "matches": [
+        {
+          "copy": {
+            "body_wraps": 1,
+            "complete": true,
+            "downstream_read_from_calls": 0,
+            "downstream_write": {
+              "bytes": 268435456,
+              "calls": 8741,
+              "duration_bucket_counts": [
+                6,
+                2,
+                8185,
+                548,
+                0,
+                0,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241400156570086,
+              "last_unix_ns": 1792241407527983288,
+              "longest_stalls": [
+                {
+                  "bytes": 32768,
+                  "call": 3711,
+                  "duration_ns": 466728,
+                  "started_unix_ns": 1792241403510763392
+                },
+                {
+                  "bytes": 32768,
+                  "call": 1635,
+                  "duration_ns": 420579,
+                  "started_unix_ns": 1792241401941552653
+                },
+                {
+                  "bytes": 32768,
+                  "call": 1055,
+                  "duration_ns": 394357,
+                  "started_unix_ns": 1792241401501888843
+                },
+                {
+                  "bytes": 32768,
+                  "call": 6434,
+                  "duration_ns": 393485,
+                  "started_unix_ns": 1792241405602734193
+                },
+                {
+                  "bytes": 32768,
+                  "call": 12,
+                  "duration_ns": 377906,
+                  "started_unix_ns": 1792241400318400106
+                },
+                {
+                  "bytes": 32768,
+                  "call": 6644,
+                  "duration_ns": 376623,
+                  "started_unix_ns": 1792241405777979886
+                },
+                {
+                  "bytes": 32768,
+                  "call": 6220,
+                  "duration_ns": 368457,
+                  "started_unix_ns": 1792241405426430321
+                },
+                {
+                  "bytes": 32768,
+                  "call": 4413,
+                  "duration_ns": 366523,
+                  "started_unix_ns": 1792241404036010690
+                }
+              ],
+              "max_ns": 466728,
+              "span_ns": 7371413212,
+              "total_ns": 616300300
+            },
+            "duration_bucket_upper_bounds_ns": [
+              1000,
+              10000,
+              100000,
+              1000000,
+              10000000,
+              100000000,
+              1000000000,
+              -1
+            ],
+            "inter_read_gap": {
+              "bytes": 0,
+              "calls": 8740,
+              "duration_bucket_counts": [
+                5,
+                3,
+                8175,
+                557,
+                0,
+                0,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241400156569865,
+              "last_unix_ns": 1792241407527725397,
+              "longest_stalls": [
+                {
+                  "bytes": 0,
+                  "call": 3711,
+                  "duration_ns": 468982,
+                  "started_unix_ns": 1792241403510762219
+                },
+                {
+                  "bytes": 0,
+                  "call": 1635,
+                  "duration_ns": 423033,
+                  "started_unix_ns": 1792241401941551731
+                },
+                {
+                  "bytes": 0,
+                  "call": 1055,
+                  "duration_ns": 395970,
+                  "started_unix_ns": 1792241401501888392
+                },
+                {
+                  "bytes": 0,
+                  "call": 6434,
+                  "duration_ns": 395720,
+                  "started_unix_ns": 1792241405602733221
+                },
+                {
+                  "bytes": 0,
+                  "call": 12,
+                  "duration_ns": 379468,
+                  "started_unix_ns": 1792241400318399355
+                },
+                {
+                  "bytes": 0,
+                  "call": 6644,
+                  "duration_ns": 378867,
+                  "started_unix_ns": 1792241405777978924
+                },
+                {
+                  "bytes": 0,
+                  "call": 6220,
+                  "duration_ns": 370170,
+                  "started_unix_ns": 1792241405426429820
+                },
+                {
+                  "bytes": 0,
+                  "call": 4413,
+                  "duration_ns": 368497,
+                  "started_unix_ns": 1792241404036009728
+                }
+              ],
+              "max_ns": 468982,
+              "span_ns": 7371155542,
+              "total_ns": 622681535
+            },
+            "read_eof": 1,
+            "read_errors": 0,
+            "short_writes": 0,
+            "upstream_read": {
+              "bytes": 268435456,
+              "calls": 8741,
+              "duration_bucket_counts": [
+                1,
+                478,
+                770,
+                7400,
+                4,
+                88,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241400156568733,
+              "last_unix_ns": 1792241407527925626,
+              "longest_stalls": [
+                {
+                  "bytes": 32768,
+                  "call": 6,
+                  "duration_ns": 80974481,
+                  "started_unix_ns": 1792241400156962108
+                },
+                {
+                  "bytes": 32768,
+                  "call": 11,
+                  "duration_ns": 79295235,
+                  "started_unix_ns": 1792241400238735383
+                },
+                {
+                  "bytes": 32768,
+                  "call": 54,
+                  "duration_ns": 78555263,
+                  "started_unix_ns": 1792241400481862686
+                },
+                {
+                  "bytes": 28672,
+                  "call": 38,
+                  "duration_ns": 78354044,
+                  "started_unix_ns": 1792241400401067211
+                },
+                {
+                  "bytes": 25830,
+                  "call": 20,
+                  "duration_ns": 78239149,
+                  "started_unix_ns": 1792241400319779200
+                },
+                {
+                  "bytes": 32768,
+                  "call": 84,
+                  "duration_ns": 74211773,
+                  "started_unix_ns": 1792241400567524116
+                },
+                {
+                  "bytes": 12288,
+                  "call": 128,
+                  "duration_ns": 70075175,
+                  "started_unix_ns": 1792241400652721774
+                },
+                {
+                  "bytes": 32768,
+                  "call": 180,
+                  "duration_ns": 67633404,
+                  "started_unix_ns": 1792241400736481385
+                }
+              ],
+              "max_ns": 80974481,
+              "span_ns": 7371356903,
+              "total_ns": 6748675368
+            },
+            "write_errors": 0
+          },
+          "handler_elapsed_ns": 7694510082,
+          "handler_return_unix_ns": 1792241407527998638,
+          "method": "GET",
+          "path": "/agent/bulk",
+          "scope": "response-body-copy",
+          "sequence": "15",
+          "started_unix_ns": 1792241399833488546
+        }
+      ],
+      "overflow": false,
+      "sequence": "15",
+      "store_count": 15
+    },
+    "9": {
+      "matches": [
+        {
+          "copy": {
+            "body_wraps": 1,
+            "complete": true,
+            "downstream_read_from_calls": 0,
+            "downstream_write": {
+              "bytes": 268435456,
+              "calls": 8367,
+              "duration_bucket_counts": [
+                6,
+                1,
+                7611,
+                749,
+                0,
+                0,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241340011623327,
+              "last_unix_ns": 1792241347594965638,
+              "longest_stalls": [
+                {
+                  "bytes": 32768,
+                  "call": 180,
+                  "duration_ns": 583575,
+                  "started_unix_ns": 1792241340821067370
+                },
+                {
+                  "bytes": 32768,
+                  "call": 2,
+                  "duration_ns": 497458,
+                  "started_unix_ns": 1792241340092256915
+                },
+                {
+                  "bytes": 32768,
+                  "call": 6285,
+                  "duration_ns": 466898,
+                  "started_unix_ns": 1792241345848772313
+                },
+                {
+                  "bytes": 32768,
+                  "call": 3290,
+                  "duration_ns": 463802,
+                  "started_unix_ns": 1792241343341891524
+                },
+                {
+                  "bytes": 32768,
+                  "call": 7406,
+                  "duration_ns": 445798,
+                  "started_unix_ns": 1792241346803129307
+                },
+                {
+                  "bytes": 32768,
+                  "call": 2421,
+                  "duration_ns": 404668,
+                  "started_unix_ns": 1792241342642470007
+                },
+                {
+                  "bytes": 32768,
+                  "call": 3395,
+                  "duration_ns": 390560,
+                  "started_unix_ns": 1792241343428581365
+                },
+                {
+                  "bytes": 32768,
+                  "call": 588,
+                  "duration_ns": 375370,
+                  "started_unix_ns": 1792241341159419899
+                }
+              ],
+              "max_ns": 583575,
+              "span_ns": 7583342281,
+              "total_ns": 587449250
+            },
+            "duration_bucket_upper_bounds_ns": [
+              1000,
+              10000,
+              100000,
+              1000000,
+              10000000,
+              100000000,
+              1000000000,
+              -1
+            ],
+            "inter_read_gap": {
+              "bytes": 0,
+              "calls": 8366,
+              "duration_bucket_counts": [
+                5,
+                2,
+                7595,
+                764,
+                0,
+                0,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241340011622495,
+              "last_unix_ns": 1792241347594755970,
+              "longest_stalls": [
+                {
+                  "bytes": 0,
+                  "call": 180,
+                  "duration_ns": 585399,
+                  "started_unix_ns": 1792241340821066519
+                },
+                {
+                  "bytes": 0,
+                  "call": 2,
+                  "duration_ns": 501646,
+                  "started_unix_ns": 1792241340092254270
+                },
+                {
+                  "bytes": 0,
+                  "call": 6285,
+                  "duration_ns": 470265,
+                  "started_unix_ns": 1792241345848771702
+                },
+                {
+                  "bytes": 0,
+                  "call": 3290,
+                  "duration_ns": 465586,
+                  "started_unix_ns": 1792241343341890722
+                },
+                {
+                  "bytes": 0,
+                  "call": 7406,
+                  "duration_ns": 447501,
+                  "started_unix_ns": 1792241346803128646
+                },
+                {
+                  "bytes": 0,
+                  "call": 2421,
+                  "duration_ns": 406361,
+                  "started_unix_ns": 1792241342642469466
+                },
+                {
+                  "bytes": 0,
+                  "call": 3395,
+                  "duration_ns": 393766,
+                  "started_unix_ns": 1792241343428579692
+                },
+                {
+                  "bytes": 0,
+                  "call": 588,
+                  "duration_ns": 377314,
+                  "started_unix_ns": 1792241341159419388
+                }
+              ],
+              "max_ns": 585399,
+              "span_ns": 7583133455,
+              "total_ns": 593406399
+            },
+            "read_eof": 1,
+            "read_errors": 0,
+            "short_writes": 0,
+            "upstream_read": {
+              "bytes": 268435456,
+              "calls": 8367,
+              "duration_bucket_counts": [
+                0,
+                177,
+                307,
+                7718,
+                77,
+                88,
+                0,
+                0
+              ],
+              "first_unix_ns": 1792241340011620862,
+              "last_unix_ns": 1792241347594929949,
+              "longest_stalls": [
+                {
+                  "bytes": 32768,
+                  "call": 2,
+                  "duration_ns": 80629129,
+                  "started_unix_ns": 1792241340011625160
+                },
+                {
+                  "bytes": 32768,
+                  "call": 5,
+                  "duration_ns": 80484788,
+                  "started_unix_ns": 1792241340173199193
+                },
+                {
+                  "bytes": 32768,
+                  "call": 6,
+                  "duration_ns": 79937803,
+                  "started_unix_ns": 1792241340253878039
+                },
+                {
+                  "bytes": 32768,
+                  "call": 3,
+                  "duration_ns": 79801498,
+                  "started_unix_ns": 1792241340092755916
+                },
+                {
+                  "bytes": 20695,
+                  "call": 33,
+                  "duration_ns": 78498513,
+                  "started_unix_ns": 1792241340417431713
+                },
+                {
+                  "bytes": 18662,
+                  "call": 18,
+                  "duration_ns": 78277814,
+                  "started_unix_ns": 1792241340335877784
+                },
+                {
+                  "bytes": 32768,
+                  "call": 50,
+                  "duration_ns": 78119165,
+                  "started_unix_ns": 1792241340498973247
+                },
+                {
+                  "bytes": 20480,
+                  "call": 79,
+                  "duration_ns": 73963709,
+                  "started_unix_ns": 1792241340583534367
+                }
+              ],
+              "max_ns": 80629129,
+              "span_ns": 7583309067,
+              "total_ns": 6989902668
+            },
+            "write_errors": 0
+          },
+          "handler_elapsed_ns": 7745241676,
+          "handler_return_unix_ns": 1792241347594981078,
+          "method": "GET",
+          "path": "/agent/bulk",
+          "scope": "response-body-copy",
+          "sequence": "9",
+          "started_unix_ns": 1792241339849739381
+        }
+      ],
+      "overflow": false,
+      "sequence": "9",
+      "store_count": 9
+    }
+  },
+  "runtime_grant_sha256": "e094beefeb0fa0657fa91c38c3547fc2af66d40cc845232b4365adcb5d6f2191",
+  "schema_version": 1,
+  "scope_cgroup_exists": false,
+  "scope_unit_query": {
+    "status": 0,
+    "stderr": "",
+    "stdout": "LoadState=not-found\nActiveState=inactive\nSubState=dead\n"
+  },
+  "screen_final": {
+    "accepted": false,
+    "artifact_bytes": 138919332,
+    "artifact_rejection_threshold_bytes": 268435456,
+    "artifact_tree_check_seconds": 1.0,
+    "completed_arms": 0,
+    "failure": "RuntimeError: independent arm validation failed",
+    "schema_version": 1,
+    "stopped": true,
+    "stream_check_seconds": 0.05,
+    "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+  },
+  "source_sha256": "3df8c3f32d1b6e94c84d467b929d66284cc51f605d701cff956b9c545c7b0095",
+  "status": "rejected structural conditioning; 16 first-control transfers; no Reno or final CUBIC",
+  "tracked_status": "",
+  "unavailable_proc_namespace_reads": 1296,
+  "unlaunched_arms": [
+    1,
+    2
+  ]
+}

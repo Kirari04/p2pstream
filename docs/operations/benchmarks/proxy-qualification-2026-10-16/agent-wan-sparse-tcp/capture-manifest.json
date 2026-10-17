@@ -1,0 +1,73 @@
+{
+  "diagnostic_only": true,
+  "ordinary_frozen_current_source_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "actual_binaries": {
+    "server": {
+      "path": "/tmp/p2pstream-wan-sparse-tcp.i02706cg/bin/server.test",
+      "original_path": "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+      "sha256": "c7950a1bd250233b395eb8c19d913ffb48d511656d7c41a1ad446baefb6bbaf5"
+    },
+    "aggregate-agent": {
+      "path": "/tmp/p2pstream-wan-sparse-tcp.i02706cg/bin/aggregate-agent.test",
+      "original_path": "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/agent.test",
+      "sha256": "e99c619a4a1f07656b422f4c5965c874513d453afc7082939c2affbd59194793"
+    },
+    "legacy-agent": {
+      "path": "/tmp/p2pstream-wan-sparse-tcp.i02706cg/bin/legacy-agent.test",
+      "original_path": "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec"
+    }
+  },
+  "command": [
+    "bash",
+    "/tmp/p2pstream-wan-sparse-tcp.i02706cg/scripts/qualify-proxy-agent-growth-sparse-tcp.sh",
+    "--server-binary",
+    "/tmp/p2pstream-wan-sparse-tcp.i02706cg/bin/server.test",
+    "--aggregate-agent-binary",
+    "/tmp/p2pstream-wan-sparse-tcp.i02706cg/bin/aggregate-agent.test",
+    "--legacy-agent-binary",
+    "/tmp/p2pstream-wan-sparse-tcp.i02706cg/bin/legacy-agent.test",
+    "--output",
+    "/tmp/p2pstream-wan-sparse-tcp.i02706cg/results.jsonl",
+    "--runs",
+    "1",
+    "--warmup-mib",
+    "256",
+    "--steady-mib",
+    "256",
+    "--transfer-repetitions",
+    "3",
+    "--required-pool-mib",
+    "8",
+    "--rtt-ms",
+    "80",
+    "--server-source-ref",
+    "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+    "--aggregate-agent-source-ref",
+    "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+    "--legacy-agent-source-ref",
+    "3ec137c3ad3d07028e867042fb00d3933912d7ab"
+  ],
+  "added_observer": {
+    "TCPss_interval_seconds": 1,
+    "qdisc_schedule": "before_and_after_only",
+    "CPU_affinity": "8-15",
+    "phase_bookends": "Bash EPOCHREALTIME Unix seconds; no subprocess",
+    "native_profiles": false,
+    "ring_or_send_counter_hooks": false,
+    "added_endpoint_HTTP_polling": false
+  },
+  "original_observer_note": "The frozen original load fixture retains its existing standard runtime/resource HTTP sampling; no extra endpoint HTTP is added.",
+  "go_runtime_environment": {
+    "GOMAXPROCS": null,
+    "GOGC": null,
+    "GOMEMLIMIT": null,
+    "GODEBUG": null
+  },
+  "files_sha256": {
+    "runner-diagnostic.patch": "7225fca2f6b050ed79b35e8eb83bcb12e616ee4493387cf059de6806a63376b4",
+    "collector.py": "4c52f0ce07a1afb27e649100da9a80da2423f6f2b22c2626e1d74805c796b4bf",
+    "original-runner.sh": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+    "scripts/qualify-proxy-agent-growth-sparse-tcp.sh": "e75181c4f1be20afed564e37bb87a857bf55799391e704be0415f89ec277db11"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "build_verification": {
+    "accepted": true,
+    "diagnostic": "controller-screen-build-tuple",
+    "reviewed_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+    "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622"
+  },
+  "finished_unix": 1792244864.627997,
+  "host_idle_policy": "1",
+  "input_changes": [],
+  "kernel_release": "7.0.0-38-generic",
+  "offline_proof_sha256": "5c7f892e6d3737688cccd56b1500ca842ae4c730124c43c9c1fa8c2a983502d0",
+  "old_entries": 540,
+  "probe_outer_sha256": "d363e9388c9195f8e4c9e7537b289d57810e87661faa09c0ef6273248cc23cf9",
+  "probe_readbacks": [
+    {
+      "expected": 1,
+      "independent": 1,
+      "index": 0,
+      "router": 1,
+      "runner": 1,
+      "target": 1
+    },
+    {
+      "expected": 0,
+      "independent": 0,
+      "index": 1,
+      "router": 1,
+      "runner": 1,
+      "target": 0
+    },
+    {
+      "expected": 1,
+      "independent": 1,
+      "index": 2,
+      "router": 1,
+      "runner": 1,
+      "target": 1
+    }
+  ],
+  "probe_result_sha256": "f33ec030e558f93d1cd010f8416ee884f2ddf10603141817cc52795096a6c85a",
+  "runtime_root_absent": true,
+  "source_entries": 40,
+  "source_manifest_sha256": "b4896cb6da990e5995bf5882883483a05b20dffaad1112badf155117c29cb33d"
+}

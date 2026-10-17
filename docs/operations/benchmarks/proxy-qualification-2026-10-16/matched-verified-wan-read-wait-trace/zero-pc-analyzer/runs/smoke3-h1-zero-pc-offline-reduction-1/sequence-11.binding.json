@@ -1,0 +1,1050 @@
+{
+  "schema_version": 1,
+  "diagnostic_only": true,
+  "original_smoke3_outcome_unchanged": true,
+  "sequence": 11,
+  "public_protocol": "h1",
+  "stage": "steady",
+  "direction": "download",
+  "origin_identity": "10.212.0.2:51108",
+  "peer_leaf_der_sha256": "d5278beab54121022a6092797fae526b3c1df766cf8ed90aecefbbb4d9183abc",
+  "certificate_pem_sha256": "033db40a86669697e1997e6e3a2e0732dfdf016f1ae17f0709b075bc425f03e9",
+  "server_binary_sha256": "57d77ddc5ee8ec6ab49cab0b7d0dd29641a70fa8598f0c7ba3eac73f46632ff5",
+  "agent_binary_sha256": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+  "runner_sha256": "e9e453206cd479e1d29b78c05cf4d0eaf0cbaefe3c6ff13f0ba9594235c3bea0",
+  "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "raw_trace": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-3/h1/results.read-wait-traces/runtime-trace-sequence-11.out",
+    "sha256": "67ae2b06badb01e358be0d69ebb6ea2b1d3c44bc7c6375472203f889e98636de",
+    "bytes": 156367
+  },
+  "parsed_trace": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-3/h1/read-wait-reductions/sequence-11.parsed.txt",
+    "sha256": "3dad5811599ca86f475c56af5959de184fd5fad4b5e9cafe0b7d8a2c01c49fd1",
+    "bytes": 24951894
+  },
+  "parser_status": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-3/h1/read-wait-reductions/sequence-11.parser.status",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "value": 0
+  },
+  "original_failed_reduction": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-3/h1/read-wait-reductions/sequence-11.reduction.json",
+    "sha256": "bd88dd4e766019bd22c102dabe54ce9a1be81b5642c46657e1eeeddf5cf7c167"
+  },
+  "analyzer": {
+    "original_sha256": "2a88d25f99f0c99ab9f9e98543c73edda52411374062b5764f28a617395a2e61",
+    "corrected_sha256": "93e77e225cc4fae271dfe31a4903564c080600b3218d5d11a787262e164e3455"
+  },
+  "original_trace_record": {
+    "schema_version": 1,
+    "sequence": 11,
+    "stage": "steady",
+    "direction": "download",
+    "repetition": 1,
+    "control_boundary": "start-before-run_transfer-stop-after-run_transfer-including-postqueries",
+    "handler_region_boundary": "unchanged-public-proxy-handler-only",
+    "trace_artifact_scope": "whole-server-process",
+    "qualification_result": false,
+    "pre_runtime": {
+      "heap_alloc_bytes": 75668136,
+      "heap_sys_bytes": 82935808,
+      "num_gc": 5,
+      "pause_total_ns": 301676,
+      "agent_tunnels": [
+        {
+          "id": 1,
+          "public_id": "qualification-external-agent-1",
+          "connected": true,
+          "flow_control": "aggregate-v1",
+          "control_connected": true,
+          "bulk_sessions": 4,
+          "aggregate_initial_pool_bytes": 10485760,
+          "aggregate_current_pool_bytes": 60948480,
+          "session_metadata_bytes": 1048576,
+          "legacy_control_supplement_bytes": 2918912,
+          "session_resource_bytes": 64915968,
+          "lanes": [
+            {
+              "lane": 0,
+              "aggregate": false,
+              "streams": 0
+            },
+            {
+              "lane": 1,
+              "aggregate": true,
+              "streams": 1,
+              "receive_limit_bytes": 13107200,
+              "receive_available_bytes": 13107200,
+              "total_units": 3200,
+              "free_units": 3200
+            },
+            {
+              "lane": 2,
+              "aggregate": true,
+              "streams": 1,
+              "receive_limit_bytes": 11534336,
+              "receive_available_bytes": 11534336,
+              "total_units": 2816,
+              "free_units": 2816
+            },
+            {
+              "lane": 3,
+              "aggregate": true,
+              "streams": 0,
+              "receive_limit_bytes": 12058624,
+              "receive_available_bytes": 12058624,
+              "total_units": 2944,
+              "free_units": 2944
+            },
+            {
+              "lane": 4,
+              "aggregate": true,
+              "streams": 0,
+              "receive_limit_bytes": 12058624,
+              "receive_available_bytes": 12058624,
+              "total_units": 2944,
+              "free_units": 2944
+            }
+          ]
+        }
+      ]
+    },
+    "pre_cgroup": {
+      "pid": 154,
+      "cgroup_path": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h1-504346-d40f737b.scope",
+      "memory_current_bytes": 53190656,
+      "memory_peak_bytes": 54661120,
+      "memory_high_bytes": "max",
+      "memory_max_bytes": 4294967296,
+      "memory_swap_max_bytes": 0,
+      "memory_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_stat_sock_bytes": 978944,
+      "process_rss_bytes": 83955712,
+      "process_fd_count": 23
+    },
+    "pre_server_capacity": {
+      "adaptive": true,
+      "adaptive_admission_limit": 14294,
+      "adaptive_admission_role": "server_stream",
+      "adaptive_public_admission_limit": 14290,
+      "adaptive_raw_admission_limit": 14542,
+      "file_descriptors_limit": 524288,
+      "file_descriptors_used": 24,
+      "generation": 136,
+      "memory_headroom_to_hard_bytes": 3812243046,
+      "memory_limit_bytes": 32309121024,
+      "memory_pressure": "healthy",
+      "memory_source": "host",
+      "memory_used_bytes": 6879916032,
+      "observed_unix_ns": 1792181420857158147,
+      "reject_new": false,
+      "resource_last_good_unix_ns": 1792181420772216589,
+      "resource_next_sample_unix_ns": 1792181420872216589,
+      "resource_pressure_reason": "memory",
+      "resource_sample_error": "",
+      "resource_sampled_unix_ns": 1792181420772216589,
+      "schema_version": 1,
+      "sequence": "11"
+    },
+    "pre_capacity_query_status": 0,
+    "pre_capacity_request": {
+      "error": "",
+      "http_status": 200,
+      "request_elapsed_ns": 6222500,
+      "request_started_unix_ns": 1792181420851124715,
+      "response": {
+        "adaptive": true,
+        "adaptive_admission_limit": 14294,
+        "adaptive_admission_role": "server_stream",
+        "adaptive_public_admission_limit": 14290,
+        "adaptive_raw_admission_limit": 14542,
+        "file_descriptors_limit": 524288,
+        "file_descriptors_used": 24,
+        "generation": 136,
+        "memory_headroom_to_hard_bytes": 3812243046,
+        "memory_limit_bytes": 32309121024,
+        "memory_pressure": "healthy",
+        "memory_source": "host",
+        "memory_used_bytes": 6879916032,
+        "observed_unix_ns": 1792181420857158147,
+        "reject_new": false,
+        "resource_last_good_unix_ns": 1792181420772216589,
+        "resource_next_sample_unix_ns": 1792181420872216589,
+        "resource_pressure_reason": "memory",
+        "resource_sample_error": "",
+        "resource_sampled_unix_ns": 1792181420772216589,
+        "schema_version": 1,
+        "sequence": "11"
+      },
+      "schema_version": 1,
+      "sequence": "11"
+    },
+    "post_runtime": {
+      "heap_alloc_bytes": 80823344,
+      "heap_sys_bytes": 87097344,
+      "num_gc": 5,
+      "pause_total_ns": 301676,
+      "agent_tunnels": [
+        {
+          "id": 1,
+          "public_id": "qualification-external-agent-1",
+          "connected": true,
+          "flow_control": "aggregate-v1",
+          "control_connected": true,
+          "bulk_sessions": 4,
+          "aggregate_initial_pool_bytes": 10485760,
+          "aggregate_current_pool_bytes": 61603840,
+          "session_metadata_bytes": 1048576,
+          "legacy_control_supplement_bytes": 2918912,
+          "session_resource_bytes": 65571328,
+          "lanes": [
+            {
+              "lane": 0,
+              "aggregate": false,
+              "streams": 0
+            },
+            {
+              "lane": 1,
+              "aggregate": true,
+              "streams": 1,
+              "receive_limit_bytes": 13107200,
+              "receive_available_bytes": 13107200,
+              "total_units": 3200,
+              "free_units": 3200
+            },
+            {
+              "lane": 2,
+              "aggregate": true,
+              "streams": 1,
+              "receive_limit_bytes": 11534336,
+              "receive_available_bytes": 11534336,
+              "total_units": 2816,
+              "free_units": 2816
+            },
+            {
+              "lane": 3,
+              "aggregate": true,
+              "streams": 1,
+              "receive_limit_bytes": 12582912,
+              "receive_available_bytes": 12582912,
+              "total_units": 3072,
+              "free_units": 3072
+            },
+            {
+              "lane": 4,
+              "aggregate": true,
+              "streams": 0,
+              "receive_limit_bytes": 12058624,
+              "receive_available_bytes": 12058624,
+              "total_units": 2944,
+              "free_units": 2944
+            }
+          ]
+        }
+      ]
+    },
+    "post_cgroup": {
+      "pid": 154,
+      "cgroup_path": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h1-504346-d40f737b.scope",
+      "memory_current_bytes": 56500224,
+      "memory_peak_bytes": 56745984,
+      "memory_high_bytes": "max",
+      "memory_max_bytes": 4294967296,
+      "memory_swap_max_bytes": 0,
+      "memory_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_stat_sock_bytes": 0,
+      "process_rss_bytes": 86319104,
+      "process_fd_count": 23
+    },
+    "post_server_capacity": {
+      "adaptive": true,
+      "adaptive_admission_limit": 14279,
+      "adaptive_admission_role": "server_stream",
+      "adaptive_public_admission_limit": 14275,
+      "adaptive_raw_admission_limit": 14530,
+      "file_descriptors_limit": 524288,
+      "file_descriptors_used": 24,
+      "generation": 150,
+      "memory_headroom_to_hard_bytes": 3808970342,
+      "memory_limit_bytes": 32309121024,
+      "memory_pressure": "healthy",
+      "memory_source": "host",
+      "memory_used_bytes": 6898835456,
+      "observed_unix_ns": 1792181422248915763,
+      "reject_new": false,
+      "resource_last_good_unix_ns": 1792181422172520435,
+      "resource_next_sample_unix_ns": 1792181422272520435,
+      "resource_pressure_reason": "memory",
+      "resource_sample_error": "",
+      "resource_sampled_unix_ns": 1792181422172520435,
+      "schema_version": 1,
+      "sequence": "11"
+    },
+    "post_capacity_query_status": 0,
+    "post_capacity_request": {
+      "error": "",
+      "http_status": 200,
+      "request_elapsed_ns": 6271034,
+      "request_started_unix_ns": 1792181422242870767,
+      "response": {
+        "adaptive": true,
+        "adaptive_admission_limit": 14279,
+        "adaptive_admission_role": "server_stream",
+        "adaptive_public_admission_limit": 14275,
+        "adaptive_raw_admission_limit": 14530,
+        "file_descriptors_limit": 524288,
+        "file_descriptors_used": 24,
+        "generation": 150,
+        "memory_headroom_to_hard_bytes": 3808970342,
+        "memory_limit_bytes": 32309121024,
+        "memory_pressure": "healthy",
+        "memory_source": "host",
+        "memory_used_bytes": 6898835456,
+        "observed_unix_ns": 1792181422248915763,
+        "reject_new": false,
+        "resource_last_good_unix_ns": 1792181422172520435,
+        "resource_next_sample_unix_ns": 1792181422272520435,
+        "resource_pressure_reason": "memory",
+        "resource_sample_error": "",
+        "resource_sampled_unix_ns": 1792181422172520435,
+        "schema_version": 1,
+        "sequence": "11"
+      },
+      "schema_version": 1,
+      "sequence": "11"
+    },
+    "post_healthy_status": 0,
+    "pre_resource_status": 0,
+    "pre_healthy_status": 0,
+    "start_control": {
+      "action": "start",
+      "error": "",
+      "http_status": 200,
+      "request_elapsed_ns": 6645881,
+      "request_started_unix_ns": 1792181420910664069,
+      "response": {
+        "action": "start",
+        "capture": {
+          "active_requests": 0,
+          "candidate_requests": 0,
+          "complete": false,
+          "controller_timed_out": false,
+          "expected_method": "GET",
+          "expected_path": "/agent/bulk",
+          "issue_overflow": false,
+          "issues": null,
+          "marked_requests": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-3/h1/results.read-wait-traces/runtime-trace-sequence-11.out",
+          "region_type": "public-proxy-handler",
+          "requests_outside_capture": 0,
+          "sequence": "11",
+          "started_unix_ns": 1792181420917047832,
+          "state": "active",
+          "task_type": "wan-read-wait-request",
+          "valid": false,
+          "writer": {
+            "bytes": 0,
+            "cap_bytes": 67108864,
+            "input_bytes": 0,
+            "overflow": false
+          }
+        },
+        "error": "",
+        "owner_violation_overflow": false,
+        "owner_violations": null
+      },
+      "schema_version": 1,
+      "sequence": "11"
+    },
+    "stop_control": {
+      "action": "stop",
+      "error": "",
+      "http_status": 200,
+      "request_elapsed_ns": 15568453,
+      "request_started_unix_ns": 1792181422118141839,
+      "response": {
+        "action": "stop",
+        "capture": {
+          "active_requests": 0,
+          "candidate_requests": 1,
+          "complete": true,
+          "controller_timed_out": false,
+          "expected_method": "GET",
+          "expected_path": "/agent/bulk",
+          "issue_overflow": false,
+          "issues": null,
+          "marked_requests": 1,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-3/h1/results.read-wait-traces/runtime-trace-sequence-11.out",
+          "region_type": "public-proxy-handler",
+          "requests_outside_capture": 0,
+          "sequence": "11",
+          "started_unix_ns": 1792181420917047832,
+          "state": "complete",
+          "stopped_unix_ns": 1792181422125728768,
+          "task_type": "wan-read-wait-request",
+          "trace_elapsed_ns": 1208680916,
+          "valid": true,
+          "writer": {
+            "bytes": 156367,
+            "cap_bytes": 67108864,
+            "input_bytes": 156367,
+            "overflow": false
+          }
+        },
+        "error": "",
+        "owner_violation_overflow": false,
+        "owner_violations": null
+      },
+      "schema_version": 1,
+      "sequence": "11"
+    },
+    "transfer_status": 0,
+    "stop_status": 0,
+    "post_runtime_status": 0,
+    "post_cgroup_status": 0,
+    "resource_status": 0,
+    "complete": true,
+    "valid": true
+  },
+  "original_result_row": {
+    "label": "current-server-aggregate-v1-h1",
+    "path": "agent-external-growth",
+    "scenario": "growth-download",
+    "protocol": "h1",
+    "concurrency": 1,
+    "attempted": 1,
+    "useful_completed": 1,
+    "status_classes": {
+      "2xx": 1
+    },
+    "status_codes": {
+      "200": 1
+    },
+    "errors": 0,
+    "wall_seconds": 0.901687285,
+    "useful_requests_per_second": 1.1090319411568503,
+    "p50_ms": 901.675493,
+    "p95_ms": 901.675493,
+    "p99_ms": 901.675493,
+    "response_bytes": 4194304,
+    "configured_payload_bytes": 4194304,
+    "peak_rss_bytes": 85516288,
+    "final_rss_bytes": 85520384,
+    "peak_fds": 26,
+    "cpu_seconds": 0.09,
+    "peak_heap_alloc_bytes": 80064560,
+    "observed_http_major": 1,
+    "observed_origin_http_major": 1,
+    "initial_rss_bytes": 84168704,
+    "initial_heap_alloc_bytes": 78173200,
+    "peak_socket_fds": 11,
+    "final_socket_fds": 11,
+    "peak_cgroup_sock_bytes": 3452928,
+    "final_cgroup_sock_bytes": 929792,
+    "proxy_cpu_set": "0,1,2,3",
+    "load_cpu_set": "8,9,10,11,12,13,14,15",
+    "resource_envelope": "p2pstream-external-agent-tunnel-netns:80ms,1gbit,current-server,mode=aggregate-v1,public=h1,verified-tls",
+    "client_tcp_connections": 1,
+    "new_origin_tcp_connections": 1,
+    "event_stats_captured": true,
+    "persisted_events_after_load": 10,
+    "persisted_events_after_drain": 11,
+    "persisted_event_delta": 1,
+    "event_queue_after_load": 1,
+    "event_drain_seconds": 0.000897954,
+    "event_drain_cpu_seconds": 0.01,
+    "server_process": {
+      "role": "server",
+      "pid": 154,
+      "cpu_set": "0,1,2,3",
+      "cgroup_path": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h1-504346-d40f737b.scope",
+      "cgroup_inode": 1,
+      "initial_rss_bytes": 84168704,
+      "peak_rss_bytes": 85516288,
+      "final_rss_bytes": 85520384,
+      "peak_fds": 26,
+      "peak_socket_fds": 11,
+      "final_socket_fds": 11,
+      "cpu_seconds": 0.09,
+      "sampling_seconds": 0.902527256,
+      "initial_heap_alloc_bytes": 78173200,
+      "peak_heap_alloc_bytes": 80064560,
+      "peak_cgroup_sock_bytes": 3452928,
+      "final_cgroup_sock_bytes": 929792,
+      "cgroup_memory_events_captured": false
+    },
+    "agent_tunnels_initial": [
+      {
+        "id": 1,
+        "public_id": "qualification-external-agent-1",
+        "connected": true,
+        "flow_control": "aggregate-v1",
+        "control_connected": true,
+        "bulk_sessions": 4,
+        "aggregate_initial_pool_bytes": 10485760,
+        "aggregate_current_pool_bytes": 60948480,
+        "session_metadata_bytes": 1048576,
+        "legacy_control_supplement_bytes": 2918912,
+        "session_resource_bytes": 64915968,
+        "lanes": [
+          {
+            "lane": 0,
+            "aggregate": false,
+            "streams": 0
+          },
+          {
+            "lane": 1,
+            "aggregate": true,
+            "streams": 1,
+            "receive_limit_bytes": 13107200,
+            "receive_available_bytes": 13107200,
+            "total_units": 3200,
+            "free_units": 3200
+          },
+          {
+            "lane": 2,
+            "aggregate": true,
+            "streams": 1,
+            "receive_limit_bytes": 11534336,
+            "receive_available_bytes": 11534336,
+            "total_units": 2816,
+            "free_units": 2816
+          },
+          {
+            "lane": 3,
+            "aggregate": true,
+            "streams": 1,
+            "receive_limit_bytes": 12582912,
+            "receive_available_bytes": 12582912,
+            "total_units": 3072,
+            "free_units": 3072
+          },
+          {
+            "lane": 4,
+            "aggregate": true,
+            "streams": 0,
+            "receive_limit_bytes": 12058624,
+            "receive_available_bytes": 12058624,
+            "total_units": 2944,
+            "free_units": 2944
+          }
+        ]
+      }
+    ],
+    "agent_tunnels_high_water": [
+      {
+        "id": 1,
+        "public_id": "qualification-external-agent-1",
+        "connected": true,
+        "flow_control": "aggregate-v1",
+        "control_connected": true,
+        "bulk_sessions": 4,
+        "aggregate_initial_pool_bytes": 10485760,
+        "aggregate_current_pool_bytes": 61603840,
+        "session_metadata_bytes": 1048576,
+        "legacy_control_supplement_bytes": 2918912,
+        "session_resource_bytes": 65571328,
+        "lanes": [
+          {
+            "lane": 0,
+            "aggregate": false,
+            "streams": 0
+          },
+          {
+            "lane": 1,
+            "aggregate": true,
+            "streams": 1,
+            "receive_limit_bytes": 13107200,
+            "receive_available_bytes": 13107200,
+            "total_units": 3200,
+            "free_units": 3200
+          },
+          {
+            "lane": 2,
+            "aggregate": true,
+            "streams": 1,
+            "receive_limit_bytes": 11534336,
+            "receive_available_bytes": 11534336,
+            "total_units": 2816,
+            "free_units": 2816
+          },
+          {
+            "lane": 3,
+            "aggregate": true,
+            "streams": 1,
+            "receive_limit_bytes": 12582912,
+            "receive_available_bytes": 12582912,
+            "total_units": 3072,
+            "free_units": 3072
+          },
+          {
+            "lane": 4,
+            "aggregate": true,
+            "streams": 0,
+            "receive_limit_bytes": 12058624,
+            "receive_available_bytes": 12058624,
+            "total_units": 2944,
+            "free_units": 2944
+          }
+        ]
+      }
+    ],
+    "agent_tunnels_final": [
+      {
+        "id": 1,
+        "public_id": "qualification-external-agent-1",
+        "connected": true,
+        "flow_control": "aggregate-v1",
+        "control_connected": true,
+        "bulk_sessions": 4,
+        "aggregate_initial_pool_bytes": 10485760,
+        "aggregate_current_pool_bytes": 61603840,
+        "session_metadata_bytes": 1048576,
+        "legacy_control_supplement_bytes": 2918912,
+        "session_resource_bytes": 65571328,
+        "lanes": [
+          {
+            "lane": 0,
+            "aggregate": false,
+            "streams": 0
+          },
+          {
+            "lane": 1,
+            "aggregate": true,
+            "streams": 1,
+            "receive_limit_bytes": 13107200,
+            "receive_available_bytes": 13107200,
+            "total_units": 3200,
+            "free_units": 3200
+          },
+          {
+            "lane": 2,
+            "aggregate": true,
+            "streams": 1,
+            "receive_limit_bytes": 11534336,
+            "receive_available_bytes": 11534336,
+            "total_units": 2816,
+            "free_units": 2816
+          },
+          {
+            "lane": 3,
+            "aggregate": true,
+            "streams": 1,
+            "receive_limit_bytes": 12582912,
+            "receive_available_bytes": 12582912,
+            "total_units": 3072,
+            "free_units": 3072
+          },
+          {
+            "lane": 4,
+            "aggregate": true,
+            "streams": 0,
+            "receive_limit_bytes": 12058624,
+            "receive_available_bytes": 12058624,
+            "total_units": 2944,
+            "free_units": 2944
+          }
+        ]
+      }
+    ],
+    "wan_response_tls": [
+      {
+        "http_major": 1,
+        "negotiated_alpn": "http/1.1",
+        "peer_leaf_der_sha256": "d5278beab54121022a6092797fae526b3c1df766cf8ed90aecefbbb4d9183abc",
+        "origin_connection_id": "10.212.0.2:51108"
+      }
+    ],
+    "measurement_stage": "steady",
+    "transfer_direction": "download",
+    "transport_mode": "aggregate-v1",
+    "public_protocol": "h1",
+    "diagnostic_sequence": 11,
+    "upstream_transport_trace": {
+      "matches": [
+        {
+          "sequence": "11",
+          "method": "GET",
+          "path": "/agent/bulk",
+          "started_unix_ns": 1792181420940318036,
+          "handler_return_unix_ns": 1792181421837512439,
+          "got_conn": [
+            {
+              "reused": false,
+              "was_idle": false,
+              "idle_time_ns": 0,
+              "connection_type": "*server.agentTunnelStreamConn",
+              "local_address": "10.211.0.1:37347",
+              "remote_address": "10.212.0.2:33658",
+              "observed_unix_ns": 1792181421022265993
+            }
+          ],
+          "put_idle_conn": [
+            {
+              "observed_unix_ns": 1792181421837451371
+            }
+          ],
+          "callback_overflow": false
+        }
+      ],
+      "overflow": false,
+      "sequence": "11",
+      "store_count": 11
+    },
+    "response_copy_attribution": {
+      "matches": [
+        {
+          "sequence": "11",
+          "method": "GET",
+          "path": "/agent/bulk",
+          "scope": "response-body-copy",
+          "started_unix_ns": 1792181420940313738,
+          "handler_return_unix_ns": 1792181421837512680,
+          "handler_elapsed_ns": 897198952,
+          "copy": {
+            "complete": true,
+            "body_wraps": 1,
+            "upstream_read": {
+              "calls": 152,
+              "bytes": 4194304,
+              "total_ns": 726147311,
+              "max_ns": 80937955,
+              "first_unix_ns": 1792181421103254948,
+              "last_unix_ns": 1792181421837463064,
+              "span_ns": 734208086,
+              "duration_bucket_counts": [
+                0,
+                17,
+                37,
+                89,
+                0,
+                9,
+                0,
+                0
+              ],
+              "longest_stalls": [
+                {
+                  "call": 3,
+                  "bytes": 32768,
+                  "duration_ns": 80937955,
+                  "started_unix_ns": 1792181421183630302
+                },
+                {
+                  "call": 2,
+                  "bytes": 32768,
+                  "duration_ns": 80148183,
+                  "started_unix_ns": 1792181421103270057
+                },
+                {
+                  "call": 55,
+                  "bytes": 32768,
+                  "duration_ns": 80064891,
+                  "started_unix_ns": 1792181421588898453
+                },
+                {
+                  "call": 6,
+                  "bytes": 32768,
+                  "duration_ns": 79512478,
+                  "started_unix_ns": 1792181421264953305
+                },
+                {
+                  "call": 11,
+                  "bytes": 32768,
+                  "duration_ns": 79406993,
+                  "started_unix_ns": 1792181421345504129
+                },
+                {
+                  "call": 21,
+                  "bytes": 32768,
+                  "duration_ns": 78540802,
+                  "started_unix_ns": 1792181421426551446
+                },
+                {
+                  "call": 37,
+                  "bytes": 30720,
+                  "duration_ns": 78084767,
+                  "started_unix_ns": 1792181421507947642
+                },
+                {
+                  "call": 84,
+                  "bytes": 32768,
+                  "duration_ns": 75285202,
+                  "started_unix_ns": 1792181421674808751
+                }
+              ]
+            },
+            "downstream_write": {
+              "calls": 152,
+              "bytes": 4194304,
+              "total_ns": 7951613,
+              "max_ns": 209888,
+              "first_unix_ns": 1792181421103258004,
+              "last_unix_ns": 1792181421837492791,
+              "span_ns": 734234757,
+              "duration_bucket_counts": [
+                2,
+                2,
+                123,
+                25,
+                0,
+                0,
+                0,
+                0
+              ],
+              "longest_stalls": [
+                {
+                  "call": 2,
+                  "bytes": 32768,
+                  "duration_ns": 209888,
+                  "started_unix_ns": 1792181421183419352
+                },
+                {
+                  "call": 3,
+                  "bytes": 32768,
+                  "duration_ns": 207493,
+                  "started_unix_ns": 1792181421264569951
+                },
+                {
+                  "call": 85,
+                  "bytes": 32768,
+                  "duration_ns": 160461,
+                  "started_unix_ns": 1792181421750352786
+                },
+                {
+                  "call": 133,
+                  "bytes": 32768,
+                  "duration_ns": 148277,
+                  "started_unix_ns": 1792181421833931437
+                },
+                {
+                  "call": 10,
+                  "bytes": 32768,
+                  "duration_ns": 145863,
+                  "started_unix_ns": 1792181421345357544
+                },
+                {
+                  "call": 135,
+                  "bytes": 32768,
+                  "duration_ns": 143619,
+                  "started_unix_ns": 1792181421834173457
+                },
+                {
+                  "call": 87,
+                  "bytes": 32768,
+                  "duration_ns": 137456,
+                  "started_unix_ns": 1792181421750898755
+                },
+                {
+                  "call": 86,
+                  "bytes": 32768,
+                  "duration_ns": 125524,
+                  "started_unix_ns": 1792181421750655914
+                }
+              ]
+            },
+            "inter_read_gap": {
+              "calls": 151,
+              "bytes": 0,
+              "total_ns": 8060775,
+              "max_ns": 212072,
+              "first_unix_ns": 1792181421103257322,
+              "last_unix_ns": 1792181421837261472,
+              "span_ns": 734004099,
+              "duration_bucket_counts": [
+                2,
+                2,
+                121,
+                26,
+                0,
+                0,
+                0,
+                0
+              ],
+              "longest_stalls": [
+                {
+                  "call": 2,
+                  "bytes": 0,
+                  "duration_ns": 212072,
+                  "started_unix_ns": 1792181421183418260
+                },
+                {
+                  "call": 3,
+                  "bytes": 0,
+                  "duration_ns": 210489,
+                  "started_unix_ns": 1792181421264568257
+                },
+                {
+                  "call": 85,
+                  "bytes": 0,
+                  "duration_ns": 162285,
+                  "started_unix_ns": 1792181421750351814
+                },
+                {
+                  "call": 133,
+                  "bytes": 0,
+                  "duration_ns": 149410,
+                  "started_unix_ns": 1792181421833930916
+                },
+                {
+                  "call": 10,
+                  "bytes": 0,
+                  "duration_ns": 147647,
+                  "started_unix_ns": 1792181421345356482
+                },
+                {
+                  "call": 135,
+                  "bytes": 0,
+                  "duration_ns": 144430,
+                  "started_unix_ns": 1792181421834173197
+                },
+                {
+                  "call": 87,
+                  "bytes": 0,
+                  "duration_ns": 141845,
+                  "started_unix_ns": 1792181421750897874
+                },
+                {
+                  "call": 21,
+                  "bytes": 0,
+                  "duration_ns": 129071,
+                  "started_unix_ns": 1792181421505092208
+                }
+              ]
+            },
+            "duration_bucket_upper_bounds_ns": [
+              1000,
+              10000,
+              100000,
+              1000000,
+              10000000,
+              100000000,
+              1000000000,
+              -1
+            ],
+            "read_eof": 1,
+            "read_errors": 0,
+            "write_errors": 0,
+            "short_writes": 0,
+            "downstream_read_from_calls": 0
+          }
+        }
+      ],
+      "overflow": false,
+      "sequence": "11",
+      "store_count": 11
+    },
+    "repetition": 1,
+    "configured_rtt_ms": 80,
+    "measured_rtt_ms": 96.489,
+    "shaped_rate_bits_per_second": 1000000000,
+    "useful_transfer_bytes_per_second": 4651617.106921942,
+    "receiving_pool_observed_bytes": 11534336,
+    "receiving_pool_evidence": "all-server-receive-lanes-prewarmed-and-quiescent",
+    "agent_aggregate_growth_reservation_bytes": 53739520,
+    "agent_runtime_after": {
+      "heap_alloc_bytes": 58870320,
+      "heap_sys_bytes": 70385664,
+      "num_gc": 8,
+      "pause_total_ns": 654650,
+      "agent_capacity": {
+        "adaptive": true,
+        "resource_limited": true,
+        "maximum": 65536,
+        "admission_limit": 12782,
+        "ordinary_admission_limit": 12778,
+        "in_use": 3,
+        "control_in_use": 0,
+        "control_reserved_slots": 4,
+        "control_reserved_base_bytes": 3145728,
+        "control_reserved_base_fds": 8,
+        "pressure": "healthy",
+        "memory_used_bytes": 15082663936,
+        "memory_limit_bytes": 28014153728,
+        "memory_source": "cgroup_v2",
+        "file_descriptors_used": 16,
+        "file_descriptors_limit": 524288,
+        "pressure_reason": "memory",
+        "stream_charge_bytes": 786432,
+        "stream_charge_fds": 2,
+        "receive_window_bytes": 0,
+        "session_resource_bytes": 77138432,
+        "aggregate_initial_pool_bytes": 10485760,
+        "aggregate_growth_pool_bytes": 53739520,
+        "aggregate_current_pool_bytes": 64225280,
+        "aggregate_session_metadata_bytes": 9994240,
+        "legacy_control_supplement_bytes": 2918912,
+        "legacy_session_envelope_bytes": 0,
+        "legacy_stream_supplement_bytes": 0,
+        "rejected_pressure": 0,
+        "rejected_fixed_limit": 0
+      },
+      "tunnel_sessions": [
+        {
+          "lane": 0,
+          "aggregate": true,
+          "session_identity": "0x56d061ee688"
+        },
+        {
+          "lane": 1,
+          "aggregate": true,
+          "session_identity": "0x56d06369088",
+          "receive_limit_bytes": 12058624,
+          "receive_available_bytes": 12058624,
+          "total_units": 2944,
+          "free_units": 2944
+        },
+        {
+          "lane": 2,
+          "aggregate": true,
+          "session_identity": "0x56d06368b08",
+          "receive_limit_bytes": 13107200,
+          "receive_available_bytes": 13107200,
+          "total_units": 3200,
+          "free_units": 3200
+        },
+        {
+          "lane": 3,
+          "aggregate": true,
+          "session_identity": "0x56d06274b08",
+          "receive_limit_bytes": 13631488,
+          "receive_available_bytes": 13631488,
+          "total_units": 3328,
+          "free_units": 3328
+        },
+        {
+          "lane": 4,
+          "aggregate": true,
+          "session_identity": "0x56d06275608",
+          "receive_limit_bytes": 12582912,
+          "receive_available_bytes": 12582912,
+          "total_units": 3072,
+          "free_units": 3072
+        }
+      ]
+    },
+    "provenance": {
+      "server_binary_sha256": "57d77ddc5ee8ec6ab49cab0b7d0dd29641a70fa8598f0c7ba3eac73f46632ff5",
+      "aggregate_agent_binary_sha256": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+      "harness_sha256": "e9e453206cd479e1d29b78c05cf4d0eaf0cbaefe3c6ff13f0ba9594235c3bea0",
+      "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+      "aggregate_agent_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+    }
+  }
+}

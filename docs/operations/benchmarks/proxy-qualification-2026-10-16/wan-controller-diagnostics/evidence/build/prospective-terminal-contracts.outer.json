@@ -1,0 +1,45 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "python3",
+    "-I",
+    "-B",
+    "contracts/test-terminal-attribution.py",
+    "-v"
+  ],
+  "artifact_bytes": 10068462,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 0.18583598399709444,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2510720,
+      "pid": 2510720,
+      "ppid": 2510627,
+      "sid": 2510720,
+      "start_ticks": 7602213,
+      "state": "S"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 740,
+  "stdout_bytes": 0,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

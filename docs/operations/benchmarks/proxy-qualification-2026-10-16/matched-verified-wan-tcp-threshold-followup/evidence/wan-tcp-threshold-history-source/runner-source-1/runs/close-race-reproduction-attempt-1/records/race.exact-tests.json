@@ -1,0 +1,16 @@
+{
+  "accepted": true,
+  "package_pass_count": 1,
+  "passed_tests": [
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation/blocked_raw_write_interrupted_by_close",
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation/completed_raw_write_before_after_capture",
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation"
+  ],
+  "run_order": [
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation",
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation/blocked_raw_write_interrupted_by_close",
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation/completed_raw_write_before_after_capture"
+  ],
+  "schema_version": 1,
+  "test_count": 3
+}

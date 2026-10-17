@@ -1,0 +1,32 @@
+import json,os,pathlib,resource,signal,subprocess,sys,time
+root=pathlib.Path(sys.argv[1]);agent_ns=sys.argv[2];router_ns=sys.argv[3]
+stop=root/'telemetry/collector.stop';requested=False
+os.sched_setaffinity(0,set(range(8,16)))
+out=(root/'telemetry/tcp-qdisc.jsonl').open('w',buffering=1)
+def ending(signum,frame):
+ global requested
+ requested=True
+signal.signal(signal.SIGTERM,ending);signal.signal(signal.SIGINT,ending)
+def emit(kind,**fields):
+ out.write(json.dumps(dict(kind=kind,monotonic_ns=time.monotonic_ns(),wall_ns=time.time_ns(),**fields),separators=(',',':'))+'\n')
+def capture(kind,side,command):
+ begin=time.monotonic_ns()
+ try:
+  p=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=1)
+  emit(kind,side=side,command=command,started_ns=begin,elapsed_ns=time.monotonic_ns()-begin,exit_code=p.returncode,stdout=p.stdout,stderr=p.stderr)
+ except subprocess.TimeoutExpired:
+  emit(kind,side=side,command=command,started_ns=begin,error='capture timeout after1s')
+def qdiscs():
+ for iface in ('growth-rs','growth-rr'):
+  capture('qdisc',iface,['nsenter','-t',router_ns,'-n','tc','-s','-j','qdisc','show','dev',iface])
+emit('collector_start',cpu_affinity=sorted(os.sched_getaffinity(0)),ss_interval_seconds=1,qdisc_schedule='before_and_after_only',no_added_endpoint_HTTP=True)
+qdiscs();deadline=time.monotonic()+1800;iterations=0
+while not requested and not stop.exists() and time.monotonic()<deadline:
+ begin=time.monotonic()
+ capture('tcp','server',['ss','-Htinm','dst','10.212.0.2'])
+ capture('tcp','agent',['nsenter','-t',agent_ns,'-n','ss','-Htinm','dst','10.211.0.1'])
+ iterations+=1
+ time.sleep(max(0,1-(time.monotonic()-begin)))
+qdiscs();usage=resource.getrusage(resource.RUSAGE_SELF);child=resource.getrusage(resource.RUSAGE_CHILDREN)
+emit('collector_stop',iterations=iterations,requested_stop=requested or stop.exists(),deadline_reached=time.monotonic()>=deadline,user_cpu_seconds=usage.ru_utime,system_cpu_seconds=usage.ru_stime,children_user_cpu_seconds=child.ru_utime,children_system_cpu_seconds=child.ru_stime)
+out.close()

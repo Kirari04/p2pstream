@@ -1,0 +1,26 @@
+{
+  "name": "python-contracts",
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "python3",
+    "-I",
+    "-B",
+    "contracts/test-terminal-attribution.py",
+    "-v"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/test-source",
+  "before": {
+    "source_manifest_sha256": "fa9a76a9640ad5084daec1722da509f98dc9eca0c6541536b55d129e3e80fb8b",
+    "changed_sources": [],
+    "toolchain_hash_matches": true
+  },
+  "started_unix": 1792233670.0477998
+}

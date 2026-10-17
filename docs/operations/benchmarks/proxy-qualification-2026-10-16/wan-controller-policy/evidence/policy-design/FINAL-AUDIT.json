@@ -1,0 +1,1319 @@
+{
+  "arms": [
+    {
+      "all16_metrics": [
+        {
+          "diagnostic_sequence": 1,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34574786.36533914,
+          "wall_seconds": 7.763907871
+        },
+        {
+          "diagnostic_sequence": 2,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34035229.46504167,
+          "wall_seconds": 7.886988283
+        },
+        {
+          "diagnostic_sequence": 3,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34331554.37884942,
+          "wall_seconds": 7.818913558
+        },
+        {
+          "diagnostic_sequence": 4,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34372065.23110303,
+          "wall_seconds": 7.809698201
+        },
+        {
+          "diagnostic_sequence": 5,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 29483102.60371203,
+          "wall_seconds": 9.104722105
+        },
+        {
+          "diagnostic_sequence": 6,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 29527166.52359148,
+          "wall_seconds": 9.091134965
+        },
+        {
+          "diagnostic_sequence": 7,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 28608836.730927818,
+          "wall_seconds": 9.382955991
+        },
+        {
+          "diagnostic_sequence": 8,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 14648128.736911757,
+          "wall_seconds": 18.325580067
+        },
+        {
+          "diagnostic_sequence": 9,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 33793464.98442668,
+          "wall_seconds": 7.943413205
+        },
+        {
+          "diagnostic_sequence": 10,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 35698971.56174047,
+          "wall_seconds": 7.519417066
+        },
+        {
+          "diagnostic_sequence": 11,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 33851621.640468776,
+          "wall_seconds": 7.9297665219999995
+        },
+        {
+          "diagnostic_sequence": 12,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 35677558.688712806,
+          "wall_seconds": 7.523930052
+        },
+        {
+          "diagnostic_sequence": 13,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 36392724.9126289,
+          "wall_seconds": 7.376074659
+        },
+        {
+          "diagnostic_sequence": 14,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 27685823.741167188,
+          "wall_seconds": 9.695772772
+        },
+        {
+          "diagnostic_sequence": 15,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34901773.53453273,
+          "wall_seconds": 7.691169497
+        },
+        {
+          "diagnostic_sequence": 16,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 36828009.327748224,
+          "wall_seconds": 7.288893994
+        }
+      ],
+      "arm_decision_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0.decision.json",
+      "arm_decision_sha256": "882c3aa4284be780fe671ec6b1d159b06b06d749953fb3b2578ca38e7effd25a",
+      "arm_statistics": {
+        "aggregate_active_transfer_rates": {
+          "all_postwarmup": 34104127.78456187,
+          "download": 32283159.518450733,
+          "upload": 36142803.660655215
+        },
+        "aggregate_upstream_read_ns": 29337419174,
+        "origin_outcome_counts": {
+          "fresh_replacement": 0,
+          "retained": 4
+        },
+        "original_download_floor_outcomes": {
+          "1": true,
+          "11": true,
+          "14": false,
+          "15": true,
+          "2": true,
+          "3": true,
+          "4": true,
+          "9": true
+        },
+        "pooled_bytes_per_second": 32283159.518450733,
+        "retained_downloads": [
+          {
+            "bytes_per_second": 33793464.98442668,
+            "downstream_write_ns": 614449798,
+            "handler_elapsed_ns": 7822362519,
+            "sequence": 9,
+            "stage": "retained-warmup",
+            "upstream_read_ns": 7038286220,
+            "wall_seconds": 7.943413205
+          },
+          {
+            "bytes_per_second": 33851621.640468776,
+            "downstream_write_ns": 634953210,
+            "handler_elapsed_ns": 7757019817,
+            "sequence": 11,
+            "stage": "steady",
+            "upstream_read_ns": 6873211888,
+            "wall_seconds": 7.9297665219999995
+          },
+          {
+            "bytes_per_second": 27685823.741167188,
+            "downstream_write_ns": 719564839,
+            "handler_elapsed_ns": 9518870337,
+            "sequence": 14,
+            "stage": "steady",
+            "upstream_read_ns": 8631893091,
+            "wall_seconds": 9.695772772
+          },
+          {
+            "bytes_per_second": 34901773.53453273,
+            "downstream_write_ns": 639791082,
+            "handler_elapsed_ns": 7520682357,
+            "sequence": 15,
+            "stage": "steady",
+            "upstream_read_ns": 6794027975,
+            "wall_seconds": 7.691169497
+          }
+        ],
+        "revisit_outcome_counts": {
+          "satisfied": 4,
+          "total": 4,
+          "unsatisfied": 0
+        },
+        "total_measured_wall_seconds": {
+          "all_postwarmup": 62.968437767,
+          "download": 33.260121995999995,
+          "upload": 29.708315771000002
+        }
+      },
+      "attestation_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/attestation.json",
+      "attestation_sha256": "ed4206cf3722b8ed4e0d8b404c51fd40b81456dc02dd4108688c11feab8bba7d",
+      "completed_transfer_rows": 16,
+      "controller": "cubic",
+      "independent_attestation_exact_match": true,
+      "independent_attestation_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/independent-controller-attestation.json",
+      "independent_attestation_sha256": "ed4206cf3722b8ed4e0d8b404c51fd40b81456dc02dd4108688c11feab8bba7d",
+      "index": 0,
+      "mature_outcome": {
+        "accepted": false,
+        "conditioning_issues": [],
+        "integrity_issues": [],
+        "performance_issues": [
+          "steady download phase failed independent 29700000 B/s floor"
+        ]
+      },
+      "mature_supervisor_lifecycle_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-cubic/supervisor-lifecycle.json",
+      "mature_supervisor_lifecycle_sha256": "bfbce83ec9dfbdd7a3fcecc6158c0d86dc843734e80c3b6547ec9de5b8bfbfae",
+      "natural_endpoint_and_helper_exits": [
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-agent",
+          "pid": 215,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-server",
+          "pid": 182,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "origin",
+          "pid": 168,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "agent-namespace",
+          "pid": 51,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "router-namespace",
+          "pid": 56,
+          "status": 0
+        }
+      ],
+      "no_live_remnants": true,
+      "pre_post_hashes_equal": true,
+      "private_namespace_ids": {
+        "mnt": [
+          "mnt:[4026533469]"
+        ],
+        "net": [
+          "net:[4026533472]",
+          "net:[4026533533]",
+          "net:[4026533919]",
+          "net:[4026534045]"
+        ],
+        "pid": [
+          "pid:[4026533470]"
+        ],
+        "user": [
+          "user:[4026533468]",
+          "user:[4026533918]"
+        ]
+      },
+      "remaining_pid_start_identities": [],
+      "remaining_private_namespace_processes": [],
+      "scope_cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2592905-d90e002f.scope",
+      "scope_cgroup_exists": false,
+      "scope_unit_closed": true,
+      "scope_unit_query": {
+        "status": 0,
+        "stderr": "",
+        "stdout": "LoadState=not-found\nActiveState=inactive\nSubState=dead\n"
+      }
+    },
+    {
+      "all16_metrics": [
+        {
+          "diagnostic_sequence": 1,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34583498.46356246,
+          "wall_seconds": 7.7619520269999995
+        },
+        {
+          "diagnostic_sequence": 2,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34371075.01101731,
+          "wall_seconds": 7.809923196
+        },
+        {
+          "diagnostic_sequence": 3,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 33579013.386631005,
+          "wall_seconds": 7.994143631
+        },
+        {
+          "diagnostic_sequence": 4,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34657914.86050914,
+          "wall_seconds": 7.745285805
+        },
+        {
+          "diagnostic_sequence": 5,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 29543417.251406427,
+          "wall_seconds": 9.086134272
+        },
+        {
+          "diagnostic_sequence": 6,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 15674513.261247087,
+          "wall_seconds": 17.125600746
+        },
+        {
+          "diagnostic_sequence": 7,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 35647882.12897037,
+          "wall_seconds": 7.53019366
+        },
+        {
+          "diagnostic_sequence": 8,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 28793423.0534657,
+          "wall_seconds": 9.322804569
+        },
+        {
+          "diagnostic_sequence": 9,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34197969.07425766,
+          "wall_seconds": 7.849456072
+        },
+        {
+          "diagnostic_sequence": 10,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 35186150.83341507,
+          "wall_seconds": 7.629008847
+        },
+        {
+          "diagnostic_sequence": 11,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 33852468.86079917,
+          "wall_seconds": 7.929568065
+        },
+        {
+          "diagnostic_sequence": 12,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 33778539.82232147,
+          "wall_seconds": 7.946923029
+        },
+        {
+          "diagnostic_sequence": 13,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 36329187.81578615,
+          "wall_seconds": 7.388974875
+        },
+        {
+          "diagnostic_sequence": 14,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34173098.75120086,
+          "wall_seconds": 7.855168709
+        },
+        {
+          "diagnostic_sequence": 15,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34608407.160264924,
+          "wall_seconds": 7.75636552
+        },
+        {
+          "diagnostic_sequence": 16,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 36747126.58646309,
+          "wall_seconds": 7.304937309
+        }
+      ],
+      "arm_decision_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1.decision.json",
+      "arm_decision_sha256": "f50a8623cdce9c023491e3d6fc6b02ca3b4db483a19ad37b492209a745aa7ee0",
+      "arm_statistics": {
+        "aggregate_active_transfer_rates": {
+          "all_postwarmup": 34827597.02350698,
+          "download": 34205884.82309382,
+          "upload": 35472327.57035881
+        },
+        "aggregate_upstream_read_ns": 27727152809,
+        "origin_outcome_counts": {
+          "fresh_replacement": 0,
+          "retained": 4
+        },
+        "original_download_floor_outcomes": {
+          "1": true,
+          "11": true,
+          "14": true,
+          "15": true,
+          "2": true,
+          "3": true,
+          "4": true,
+          "9": true
+        },
+        "pooled_bytes_per_second": 34205884.82309382,
+        "retained_downloads": [
+          {
+            "bytes_per_second": 34197969.07425766,
+            "downstream_write_ns": 605168504,
+            "handler_elapsed_ns": 7693006582,
+            "sequence": 9,
+            "stage": "retained-warmup",
+            "upstream_read_ns": 6918825836,
+            "wall_seconds": 7.849456072
+          },
+          {
+            "bytes_per_second": 33852468.86079917,
+            "downstream_write_ns": 602928374,
+            "handler_elapsed_ns": 7751809630,
+            "sequence": 11,
+            "stage": "steady",
+            "upstream_read_ns": 6900244492,
+            "wall_seconds": 7.929568065
+          },
+          {
+            "bytes_per_second": 34173098.75120086,
+            "downstream_write_ns": 599182699,
+            "handler_elapsed_ns": 7678770851,
+            "sequence": 14,
+            "stage": "steady",
+            "upstream_read_ns": 6992625668,
+            "wall_seconds": 7.855168709
+          },
+          {
+            "bytes_per_second": 34608407.160264924,
+            "downstream_write_ns": 577332999,
+            "handler_elapsed_ns": 7579501277,
+            "sequence": 15,
+            "stage": "steady",
+            "upstream_read_ns": 6915456813,
+            "wall_seconds": 7.75636552
+          }
+        ],
+        "revisit_outcome_counts": {
+          "satisfied": 4,
+          "total": 4,
+          "unsatisfied": 0
+        },
+        "total_measured_wall_seconds": {
+          "all_postwarmup": 61.660402426,
+          "download": 31.390558366,
+          "upload": 30.269844059999997
+        }
+      },
+      "attestation_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/attestation.json",
+      "attestation_sha256": "61a5869591b274836460499b35b4ac66a76d1b362b8d468531c5ef43cc34b249",
+      "completed_transfer_rows": 16,
+      "controller": "reno",
+      "independent_attestation_exact_match": true,
+      "independent_attestation_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/independent-controller-attestation.json",
+      "independent_attestation_sha256": "61a5869591b274836460499b35b4ac66a76d1b362b8d468531c5ef43cc34b249",
+      "index": 1,
+      "mature_outcome": {
+        "accepted": true,
+        "conditioning_issues": [],
+        "integrity_issues": [],
+        "performance_issues": []
+      },
+      "mature_supervisor_lifecycle_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-reno/supervisor-lifecycle.json",
+      "mature_supervisor_lifecycle_sha256": "a83ea3f1e8fb2de37efa85f69ce4e295a0ad0ce18092fe6d21e79c7838390592",
+      "natural_endpoint_and_helper_exits": [
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-agent",
+          "pid": 215,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-server",
+          "pid": 182,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "origin",
+          "pid": 168,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "agent-namespace",
+          "pid": 51,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "router-namespace",
+          "pid": 56,
+          "status": 0
+        }
+      ],
+      "no_live_remnants": true,
+      "pre_post_hashes_equal": true,
+      "private_namespace_ids": {
+        "mnt": [
+          "mnt:[4026533469]"
+        ],
+        "net": [
+          "net:[4026533472]",
+          "net:[4026533533]",
+          "net:[4026533919]",
+          "net:[4026534045]"
+        ],
+        "pid": [
+          "pid:[4026533470]"
+        ],
+        "user": [
+          "user:[4026533468]",
+          "user:[4026533918]"
+        ]
+      },
+      "remaining_pid_start_identities": [],
+      "remaining_private_namespace_processes": [],
+      "scope_cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2595931-99cbfabe.scope",
+      "scope_cgroup_exists": false,
+      "scope_unit_closed": true,
+      "scope_unit_query": {
+        "status": 0,
+        "stderr": "",
+        "stdout": "LoadState=not-found\nActiveState=inactive\nSubState=dead\n"
+      }
+    },
+    {
+      "all16_metrics": [
+        {
+          "diagnostic_sequence": 1,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34853456.913512975,
+          "wall_seconds": 7.701831605
+        },
+        {
+          "diagnostic_sequence": 2,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34077596.457651325,
+          "wall_seconds": 7.87718278
+        },
+        {
+          "diagnostic_sequence": 3,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34357665.96196476,
+          "wall_seconds": 7.812971239
+        },
+        {
+          "diagnostic_sequence": 4,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34287456.00439319,
+          "wall_seconds": 7.828969754
+        },
+        {
+          "diagnostic_sequence": 5,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 35388494.44897633,
+          "wall_seconds": 7.5853878550000005
+        },
+        {
+          "diagnostic_sequence": 6,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 29499034.878846608,
+          "wall_seconds": 9.099804692
+        },
+        {
+          "diagnostic_sequence": 7,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 29025178.22828595,
+          "wall_seconds": 9.248365467
+        },
+        {
+          "diagnostic_sequence": 8,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 35402194.50972366,
+          "wall_seconds": 7.582452436
+        },
+        {
+          "diagnostic_sequence": 9,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 14579563.517637983,
+          "wall_seconds": 18.411762168
+        },
+        {
+          "diagnostic_sequence": 10,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 35393863.58918819,
+          "wall_seconds": 7.584237175
+        },
+        {
+          "diagnostic_sequence": 11,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 27264048.8873968,
+          "wall_seconds": 9.845766383
+        },
+        {
+          "diagnostic_sequence": 12,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 35124004.331981525,
+          "wall_seconds": 7.6425072
+        },
+        {
+          "diagnostic_sequence": 13,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 36066627.870998025,
+          "wall_seconds": 7.442765566
+        },
+        {
+          "diagnostic_sequence": 14,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 28686160.420418408,
+          "wall_seconds": 9.357664186
+        },
+        {
+          "diagnostic_sequence": 15,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 268435456,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "download",
+          "useful_transfer_bytes_per_second": 34802769.34933801,
+          "wall_seconds": 7.713048732
+        },
+        {
+          "diagnostic_sequence": 16,
+          "errors": 0,
+          "persisted_event_delta": 1,
+          "response_bytes": 32,
+          "status_codes": {
+            "200": 1
+          },
+          "transfer_direction": "upload",
+          "useful_transfer_bytes_per_second": 36341318.57343592,
+          "wall_seconds": 7.38650843
+        }
+      ],
+      "arm_decision_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2.decision.json",
+      "arm_decision_sha256": "9882ab54006fc8d8f2aeeeff88c781acf8e1f16381d93a25868693d782fc07dc",
+      "arm_statistics": {
+        "aggregate_active_transfer_rates": {
+          "all_postwarmup": 28487162.34075848,
+          "download": 23688142.07659771,
+          "upload": 35724686.17586473
+        },
+        "aggregate_upstream_read_ns": 41551392224,
+        "origin_outcome_counts": {
+          "fresh_replacement": 0,
+          "retained": 4
+        },
+        "original_download_floor_outcomes": {
+          "1": true,
+          "11": false,
+          "14": false,
+          "15": true,
+          "2": true,
+          "3": true,
+          "4": true,
+          "9": false
+        },
+        "pooled_bytes_per_second": 23688142.07659771,
+        "retained_downloads": [
+          {
+            "bytes_per_second": 14579563.517637983,
+            "downstream_write_ns": 805895198,
+            "handler_elapsed_ns": 18235002177,
+            "sequence": 9,
+            "stage": "retained-warmup",
+            "upstream_read_ns": 17258924104,
+            "wall_seconds": 18.411762168
+          },
+          {
+            "bytes_per_second": 27264048.8873968,
+            "downstream_write_ns": 594441141,
+            "handler_elapsed_ns": 9668832850,
+            "sequence": 11,
+            "stage": "steady",
+            "upstream_read_ns": 8905062940,
+            "wall_seconds": 9.845766383
+          },
+          {
+            "bytes_per_second": 28686160.420418408,
+            "downstream_write_ns": 645813003,
+            "handler_elapsed_ns": 9181527529,
+            "sequence": 14,
+            "stage": "steady",
+            "upstream_read_ns": 8448353566,
+            "wall_seconds": 9.357664186
+          },
+          {
+            "bytes_per_second": 34802769.34933801,
+            "downstream_write_ns": 552817424,
+            "handler_elapsed_ns": 7578281434,
+            "sequence": 15,
+            "stage": "steady",
+            "upstream_read_ns": 6939051614,
+            "wall_seconds": 7.713048732
+          }
+        ],
+        "revisit_outcome_counts": {
+          "satisfied": 4,
+          "total": 4,
+          "unsatisfied": 0
+        },
+        "total_measured_wall_seconds": {
+          "all_postwarmup": 75.38425984,
+          "download": 45.328241469,
+          "upload": 30.056018371
+        }
+      },
+      "attestation_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/attestation.json",
+      "attestation_sha256": "932e0d7913c9a4ed12f197b8c73ea103b963ca4630c43f91cb2f320e10f73776",
+      "completed_transfer_rows": 16,
+      "controller": "cubic",
+      "independent_attestation_exact_match": true,
+      "independent_attestation_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/independent-controller-attestation.json",
+      "independent_attestation_sha256": "932e0d7913c9a4ed12f197b8c73ea103b963ca4630c43f91cb2f320e10f73776",
+      "index": 2,
+      "mature_outcome": {
+        "accepted": false,
+        "conditioning_issues": [],
+        "integrity_issues": [],
+        "performance_issues": [
+          "retained-warmup download phase failed independent 29700000 B/s floor",
+          "steady download phase failed independent 29700000 B/s floor"
+        ]
+      },
+      "mature_supervisor_lifecycle_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/supervisor-lifecycle.json",
+      "mature_supervisor_lifecycle_sha256": "bfbce83ec9dfbdd7a3fcecc6158c0d86dc843734e80c3b6547ec9de5b8bfbfae",
+      "natural_endpoint_and_helper_exits": [
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-agent",
+          "pid": 217,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "current-server-aggregate-v1-h2-1-server",
+          "pid": 182,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "origin",
+          "pid": 168,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "agent-namespace",
+          "pid": 51,
+          "status": 0
+        },
+        {
+          "event": "process-exit",
+          "forced": false,
+          "group_joined": true,
+          "invalidates_success": false,
+          "label": "router-namespace",
+          "pid": 56,
+          "status": 0
+        }
+      ],
+      "no_live_remnants": true,
+      "pre_post_hashes_equal": true,
+      "private_namespace_ids": {
+        "mnt": [
+          "mnt:[4026533469]"
+        ],
+        "net": [
+          "net:[4026533472]",
+          "net:[4026533533]",
+          "net:[4026533919]",
+          "net:[4026534045]"
+        ],
+        "pid": [
+          "pid:[4026533470]"
+        ],
+        "user": [
+          "user:[4026533468]",
+          "user:[4026533918]"
+        ]
+      },
+      "remaining_pid_start_identities": [],
+      "remaining_private_namespace_processes": [],
+      "scope_cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2598930-67ecaad1.scope",
+      "scope_cgroup_exists": false,
+      "scope_unit_closed": true,
+      "scope_unit_query": {
+        "status": 0,
+        "stderr": "",
+        "stdout": "LoadState=not-found\nActiveState=inactive\nSubState=dead\n"
+      }
+    }
+  ],
+  "audit_accepted": true,
+  "benchmark_reexecution": false,
+  "build_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "completed_transfer_rows": 48,
+  "decision_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/decision.json",
+  "decision_sha256": "6fc4f2cae4f93179b5b0779eb2e75cfb290dcc4c37a8f5957c81325ecdd2b3c8",
+  "decision_summary": {
+    "accepted": false,
+    "aggregate_upstream_read_ns": [
+      29337419174,
+      27727152809,
+      41551392224
+    ],
+    "candidate_pooled_ratio_to_faster_control": 1.0595581514735009,
+    "candidate_pooled_ratios_to_each_control": [
+      1.0595581514735009,
+      1.444008766600861
+    ],
+    "candidate_rate_ratios_to_faster_corresponding_control": {
+      "11": 1.0000250274666127,
+      "14": 1.1912747558532417,
+      "15": 0.9915945138439012,
+      "9": 1.011969890924692
+    },
+    "control_pooled_ratio_0_to_2": 1.3628405053490593,
+    "criteria": {
+      "aggregate_read_strictly_below_both_controls": true,
+      "candidate_all_original_download_floors": true,
+      "candidate_mature_performance_passed": true,
+      "each_retained_rate_at_least_95pct_faster_control": true,
+      "pooled_rate_at_least_108pct_faster_control": false
+    },
+    "diagnostic_positive": false,
+    "failed_criteria": [
+      "pooled_rate_at_least_108pct_faster_control"
+    ],
+    "interpretation": "fresh fixed-order whole-workload controller-policy effect including observed postwarmup origin reconnections within the same five owned tunnel TCP sessions; every mature conditioning/performance failure preserved; diagnostic_positive is distinct from mature_accepted; no same-reused-stream claim, randomized causal proof, HyStart attribution, production Reno recommendation, original96-transfer, HAProxy, parity, merge or release clearance",
+    "original_qualification_cleared": false,
+    "pooled_bytes_per_second": [
+      32283159.518450733,
+      34205884.82309382,
+      23688142.07659771
+    ],
+    "rate_endpoint": "aggregate active-transfer rate from recorded rates; excludes between-request gaps"
+  },
+  "finished_unix": 1792243705.3094418,
+  "initial_existing_files_checked": 1039,
+  "input_changes": [],
+  "issues": [],
+  "named_netns_query": {
+    "status": 0,
+    "stderr": "",
+    "stdout": ""
+  },
+  "new_source_entries_checked": 6,
+  "no_additional_test_build_or_traffic": true,
+  "outer_commands": [
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 0.6376714729995001,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0-validation.outer.json",
+      "remaining_owned": [],
+      "status": 0
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 155.00027054100065,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0.outer.json",
+      "remaining_owned": [],
+      "status": 1
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 0.6402274659922114,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1-validation.outer.json",
+      "remaining_owned": [],
+      "status": 0
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 151.09570259599423,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1.outer.json",
+      "remaining_owned": [],
+      "status": 0
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 0.7471261600003345,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-validation.outer.json",
+      "remaining_owned": [],
+      "status": 0
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 155.3593320689979,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2.outer.json",
+      "remaining_owned": [],
+      "status": 1
+    },
+    {
+      "accepted_cleanup": true,
+      "adopted_descendants": [],
+      "elapsed_seconds": 0.24126720399362966,
+      "failure_reason": "",
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/screen-validation.outer.json",
+      "remaining_owned": [],
+      "status": 1
+    }
+  ],
+  "plan_sha256": "d1091ed94f0162b5f6ec7011d619a150a9eeaa7d04dadee499f4d13a5f9d25da",
+  "prior_ledgers": [
+    {
+      "path": "SHA256SUMS",
+      "sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331"
+    },
+    {
+      "path": "build/runtime-SHA256SUMS",
+      "sha256": "2872d86dbc351819162c286743fbc97fa14ab49b0ddd40b886d3fc2fa9d93c2e"
+    },
+    {
+      "path": "build/environment-recovery/RUNTIME-SHA256SUMS",
+      "sha256": "bff55a66398631782c43b70c23f86230bf250a93b3e16995619cedc7d8b7edda"
+    },
+    {
+      "path": "build/joined-ps/FINAL-SHA256SUMS",
+      "sha256": "614a0aae1eb44c21a0ecc9c825c555d35831a01b8bd9eb35665a650976f51a33"
+    },
+    {
+      "path": "vector-design/SHA256SUMS",
+      "sha256": "fddff4f3f434a346f4b92bab475c97f6bcad43be5fc12d7092684e9fbad8cae5"
+    },
+    {
+      "path": "policy-design/SHA256SUMS",
+      "sha256": "a3a9e60a6dc2bed3dd2ec679cde5923b5fb848647e8f19b862f9449b9856022d"
+    }
+  ],
+  "private_namespace_ids": {
+    "mnt": [
+      "mnt:[4026533469]"
+    ],
+    "net": [
+      "net:[4026533472]",
+      "net:[4026533533]",
+      "net:[4026533919]",
+      "net:[4026534045]"
+    ],
+    "pid": [
+      "pid:[4026533470]"
+    ],
+    "user": [
+      "user:[4026533468]",
+      "user:[4026533918]"
+    ]
+  },
+  "remaining_pid_start_identities": [],
+  "remaining_private_namespace_processes": [],
+  "runtime_grant_sha256": "056e378240a595545ec5b1df3cffa9cac500db6c59f96c09208a4dc0511345a7",
+  "schema_version": 1,
+  "screen_final": {
+    "accepted": false,
+    "arm_states": [
+      {
+        "controller": "cubic",
+        "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-0.decision.json",
+        "index": 0,
+        "mature_outer_status": 1,
+        "state": "measurement-valid"
+      },
+      {
+        "controller": "reno",
+        "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-1.decision.json",
+        "index": 1,
+        "mature_outer_status": 0,
+        "state": "measurement-valid"
+      },
+      {
+        "controller": "cubic",
+        "decision": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2.decision.json",
+        "index": 2,
+        "mature_outer_status": 1,
+        "state": "measurement-valid"
+      }
+    ],
+    "artifact_bytes": 214627949,
+    "artifact_rejection_threshold_bytes": 268435456,
+    "artifact_tree_check_seconds": 1.0,
+    "comparison_incomplete": false,
+    "completed_arms": 3,
+    "diagnostic_positive": false,
+    "failure": "complete three-arm policy diagnostic did not meet all prospective effect criteria",
+    "original_qualification_cleared": false,
+    "schema_version": 1,
+    "stopped": false,
+    "stream_check_seconds": 0.05,
+    "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+  },
+  "source_sha256": "888660fd56495016ee465ebe05dd30a104d9d75b85f15ec9e5550bbe27de392e",
+  "status": "complete negative policy diagnostic; prospective criteria not all satisfied",
+  "tracked_status_query": {
+    "status": 0,
+    "stderr": "",
+    "stdout": ""
+  },
+  "unavailable_proc_namespace_reads": 1276,
+  "unlaunched_arms": []
+}

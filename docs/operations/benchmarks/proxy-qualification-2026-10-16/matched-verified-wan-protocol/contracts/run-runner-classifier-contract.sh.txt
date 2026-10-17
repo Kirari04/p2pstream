@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+root=$(realpath "$(dirname "$0")/..")
+runner="$root/generated/qualify-proxy-agent-growth-wan-protocol.sh"
+contract="$root/contracts/run-validator-contracts.py"
+work=$(mktemp -d -p "${TMPDIR:-/tmp}" wan-protocol-runner-classifier.XXXXXX)
+trap 'find "$work" -type f -delete; rmdir "$work"' EXIT
+
+awk '
+  /^python3 - "\$output" "\$summary"/ { capture=1; next }
+  capture && /^PY$/ { exit }
+  capture { print }
+' "$runner" > "$work/analyzer.py"
+python3 - "$contract" "$work/results.jsonl" <<'PY'
+import json, pathlib, runpy, sys
+namespace = runpy.run_path(sys.argv[1])
+value = namespace["fixture"](True)
+pathlib.Path(sys.argv[2]).write_text("".join(json.dumps(row) + "\n" for row in value["rows"]))
+PY
+fingerprint=2222222222222222222222222222222222222222222222222222222222222222
+python3 "$work/analyzer.py" "$work/results.jsonl" "$work/summary.json" 2 1 0 0 h1 "$fingerprint"
+jq -e '
+  .classification == "observational-complete" and
+  .acceptance.expected_upstream_reuse == true and
+  (.reuse_expectations | length) == 5 and
+  .reuse_expectations[4].sequence == 13 and .reuse_expectations[4].satisfied == true
+' "$work/summary.json" >/dev/null
+
+python3 - "$work/results.jsonl" "$work/missed.jsonl" <<'PY'
+import json, pathlib, sys
+rows = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines()]
+rows[12]["upstream_transport_trace"]["matches"][0]["got_conn"][0].update(
+    {"reused": False, "was_idle": False, "idle_time_ns": 0})
+pathlib.Path(sys.argv[2]).write_text("".join(json.dumps(row) + "\n" for row in rows))
+PY
+set +e
+python3 "$work/analyzer.py" "$work/missed.jsonl" "$work/missed-summary.json" 2 1 0 0 h1 "$fingerprint" >/dev/null 2>&1
+status=$?
+set -e
+[[ $status != 0 ]]
+jq -e '
+  .classification == "inconclusive-upstream-reuse" and
+  .acceptance.expected_upstream_reuse == false and
+  (.reuse_issues | any(contains("sequence 13")))
+' "$work/missed-summary.json" >/dev/null
+printf '%s\n' "runner classifier contracts passed"

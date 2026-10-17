@@ -1,0 +1,14 @@
+--- a/internal/server/public_proxy_pipeline.go
++++ b/internal/server/public_proxy_pipeline.go
+@@ -986,7 +986,10 @@
+ 		done := ctx.App.beginPublicRouteTargetRequest(ctx.Resolution.RouteTargetID.Int64)
+ 		defer done()
+ 	}
+-	shaper := trafficShaperDecisionIfSelected(ctx.TrafficShaperDecision, ctx.TrafficShaperSelected)
++	var shaper *publicTrafficShaperDecision
++	if ctx.TrafficShaperSelected {
++		shaper = trafficShaperDecisionIfSelected(ctx.TrafficShaperDecision, true)
++	}
+ 	if ctx.Resolution.Target.TargetType == publicRouteTargetTypeStatic {
+ 		ctx.App.staticTargetResponse(ctx.ResponseWriter, ctx.Request, ctx.Resolution, ctx.Trace, shaper, ctx.Observability)
+ 		return publicProxyStageDone

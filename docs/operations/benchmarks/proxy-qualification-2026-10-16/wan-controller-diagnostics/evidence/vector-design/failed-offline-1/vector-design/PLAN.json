@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "status": "fresh diagnostic preregistration; no reuse or resurrection of rejected screen",
+  "question": "Broad controller dependence of the entire fixed retained-download vector",
+  "order": [
+    "cubic",
+    "reno",
+    "cubic"
+  ],
+  "max_transfers": 48,
+  "transfers_per_arm": 16,
+  "retained_sequences": [
+    9,
+    11,
+    14,
+    15
+  ],
+  "original_download_floor_sequences": [
+    1,
+    2,
+    3,
+    4,
+    9,
+    11,
+    14,
+    15
+  ],
+  "floor_bytes_per_second": 29700000,
+  "control_inclusion": "Independent of throughput and every mature performance failure. Keep those failures and mature acceptance false; diagnostic eligibility is distinct.",
+  "structural_stop": "Any integrity, conditioning, resource, lifecycle, controller-binding or strict outer-ownership failure stops remaining traffic.",
+  "candidate_stop": "Reno must have mature accepted true and no performance issues, and every original download rate must meet its floor; failure is recorded in an ineligible arm decision and stops.",
+  "whole_cohort": "Run all3arms whenever structural and candidate-floor eligible. No early11/14 effect gate. Compare effects only after all3.",
+  "primary": {
+    "pool": "4 / sum(1 / bytes_per_second) over exactly[9,11,14,15]",
+    "candidate_pooled_minimum": "1.08 * max(control0 pooled,control2 pooled)",
+    "read": "Sum all4upstream_read.total_ns; candidate strictlypositive and strictly below BOTH control sums",
+    "no_regression": "For EACH retained sequence candidate rate >=0.95 * max(corresponding control0 rate,control2 rate)"
+  },
+  "reports": "All16rates; all4retained Read/Write/wall/handler durations; all3pooledrates and Reads; pooled and per-sequence ratios; every mature control performance failure; explicit diagnostic eligibility vs mature performance acceptance.",
+  "fixed_inputs": "Exact existing16row workload,256MiB80ms8MiBpool,H2,same controller hook,observers,CPU/network/resource policies,certificate and acceptedbuildreceipt/binaries. Joined-ps wrapper is unchanged.",
+  "prohibited": [
+    "historical control reuse",
+    "favorable row subsets",
+    "retry or tuning",
+    "capture expansion",
+    "kernel global policy change",
+    "original qualification gate change"
+  ],
+  "interpretation_limit": "Broad workload controller dependence only; no production CC recommendation,HyStart proof,original96-transfer,HAProxy,parity,merge/release clearance.",
+  "offline_test_command": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-vector.py"
+  ],
+  "offline_test_bounds": {
+    "attempts": 1,
+    "outer_seconds": 25,
+    "stream_bytes_each": 1048576,
+    "no_sockets": true,
+    "no_builds": true,
+    "no_traffic": true
+  },
+  "runtime_command": [
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-vector.py",
+    "--execute-approved-once"
+  ],
+  "runtime_requires_root_final_grant": true
+}

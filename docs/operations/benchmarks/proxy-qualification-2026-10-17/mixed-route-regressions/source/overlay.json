@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/server/agent_transport_locality_mixed_test.go": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/agent_transport_locality_mixed_test.go"
+  }
+}

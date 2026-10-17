@@ -1,0 +1,3 @@
+results=/tmp/p2pstream-wan-runtime-bisection.1bvz_fov/cohort/results.jsonl
+summary=/tmp/p2pstream-wan-runtime-bisection.1bvz_fov/cohort/results.summary.json
+manifest=/tmp/p2pstream-wan-runtime-bisection.1bvz_fov/cohort/manifest.json

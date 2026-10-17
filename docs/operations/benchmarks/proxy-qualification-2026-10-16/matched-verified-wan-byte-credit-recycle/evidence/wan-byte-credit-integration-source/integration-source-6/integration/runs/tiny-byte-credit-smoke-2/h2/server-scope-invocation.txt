@@ -1,0 +1,7 @@
+unit=p2p-senderwait-h2-1871361-e97f4fb3.scope
+memory_max_bytes=4294967296
+memory_swap_max_bytes=0
+delegate=yes
+scope_cgroup=/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-1871361-e97f4fb3.scope
+scope_nonce=e97f4fb3-7392-4921-91b4-e72d5945509e
+expected_server_cpus=0,1,2,3

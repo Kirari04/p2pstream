@@ -1,0 +1,1 @@
+Tiny2 immutable full-run hash binding and accepted small-diagnostic review. RUN-SHA256SUMS covers the complete closed run, including hash-only secret-bearing artifacts. Export must omit private keys, readiness/auth material, logs, and the unrestricted run tree unless a separate safety allowlist approves specific files. No performance claim.

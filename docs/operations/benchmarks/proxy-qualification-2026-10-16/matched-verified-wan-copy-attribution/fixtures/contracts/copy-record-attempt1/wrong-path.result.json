@@ -1,0 +1,10 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "copy record scope/request correlation changed"
+  ],
+  "name": "wrong-path",
+  "stderr": "copy attribution validation failed: copy record scope/request correlation changed\n",
+  "stdout": ""
+}

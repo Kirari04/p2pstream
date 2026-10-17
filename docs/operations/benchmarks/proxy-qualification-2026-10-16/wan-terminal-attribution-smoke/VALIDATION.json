@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "audit_scope": "File/hash/content and saved evidence consistency checks only. No builds/tests/validators under review/runtime invoked.",
+  "copies_verified_against_actual_sources": 186,
+  "input_inventory_counts_rehashed": [
+    459,
+    460
+  ],
+  "frozen_runner_inputs_rehashed": 38,
+  "completed_range_input_hashes_verified": 428,
+  "canonical_transfers_completed": 32,
+  "natural_endpoint_helper_exits": 10,
+  "successful_tls_close_notify_with_cleared_plaintext": 9,
+  "prospective_classifications": [],
+  "exception_exercised": false,
+  "original_audit_944_hash_checks_preserved": true,
+  "original_and_amended_storage_bounds_verified": true,
+  "nonprinting_known_fixture_secret_scan_passed": true,
+  "go_files_remaining": 0,
+  "package_membership_exact": true,
+  "performance_qualification_cleared": false
+}

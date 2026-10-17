@@ -1,0 +1,88 @@
+--- a/internal/server/proxy_qualification_test.go
++++ b/internal/server/proxy_qualification_test.go
+@@ -500,6 +500,7 @@
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	publicScheme := qualificationNativeAttributionScheme(t)
+ 	maxIdle := qualificationEnvInt(t, "P2PSTREAM_QUALIFICATION_STDLIB_MAX_IDLE")
+ 	shards := qualificationOptionalEnvInt("P2PSTREAM_QUALIFICATION_STDLIB_SHARDS")
+ 	if shards == 0 {
+@@ -507,6 +508,9 @@
+ 	}
+ 	if shards < 1 || maxIdle < shards || maxIdle%shards != 0 {
+ 		t.Fatalf("invalid standard-library transport shards=%d total idle=%d", shards, maxIdle)
++	}
++	if qualificationNativeAttributionEnabled() && (shards != 1 || maxIdle != 128 || os.Getenv("P2PSTREAM_QUALIFICATION_STDLIB_POOL") != "1") {
++		t.Fatal("native attribution requires one shard, idle128 and the 32KiB pool")
+ 	}
+ 	certPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_CERT")
+ 	keyPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_KEY")
+@@ -516,6 +520,9 @@
+ 	bufferPool := newReverseProxyBufferPool()
+ 	for range shards {
+ 		transport := &http.Transport{MaxIdleConns: perShardIdle, MaxIdleConnsPerHost: perShardIdle, MaxConnsPerHost: 0, ForceAttemptHTTP2: false}
++		if qualificationNativeAttributionEnabled() {
++			transport = qualificationNativeAttributionTransport()
++		}
+ 		transports = append(transports, transport)
+ 		proxy := httputil.NewSingleHostReverseProxy(origin)
+ 		proxy.Transport = transport
+@@ -538,7 +545,13 @@
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	if qualificationNativeAttributionEnabled() {
++		ln = qualificationNativeAttributionListener{Listener: ln}
++	}
+ 	srv := &http.Server{Handler: handler}
++	if qualificationNativeAttributionEnabled() {
++		srv.TLSConfig = qualificationNativeAttributionTLSConfig()
++	}
+ 	configurePublicHTTPServer(srv, 0)
+ 	adminListener, err := net.Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+@@ -546,8 +559,14 @@
+ 	}
+ 	admin := &http.Server{Handler: qualificationRuntimeHandler(nil)}
+ 	go func() { _ = admin.Serve(adminListener) }()
+-	writeQualificationReady(t, qualificationReady{URL: "https://" + ln.Addr().String(), AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid()})
+-	go func() { _ = srv.ServeTLS(ln, certPath, keyPath) }()
++	writeQualificationReady(t, qualificationReady{URL: publicScheme + "://" + ln.Addr().String(), AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid()})
++	go func() {
++		if publicScheme == "http" {
++			_ = srv.Serve(ln)
++		} else {
++			_ = srv.ServeTLS(ln, certPath, keyPath)
++		}
++	}()
+ 	waitQualificationStop(t)
+ 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+ 	defer cancel()
+@@ -994,6 +1013,7 @@
+ }
+ 
+ func runQualificationProxy(t *testing.T) {
++	publicScheme := qualificationNativeAttributionScheme(t)
+ 	originURL := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_ORIGIN_URL")
+ 	certPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_CERT")
+ 	keyPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_KEY")
+@@ -1019,6 +1039,9 @@
+ 	agent.ID, agent.RouteID, agent.Name, agent.Transport = 802, 702, "qualification-agent", publicRouteTargetTransportAgent
+ 	agent.AgentSelector = publicAgentSelectorConfig{MatchLabels: map[string]string{"qualification": "true"}}
+ 	listener := publicListenerConfig{ID: 1, Name: "qualification", Protocol: publicListenerProtocolHTTPS, BindAddress: "127.0.0.1", Enabled: true}
++	if publicScheme == "http" {
++		listener.Protocol = publicListenerProtocolHTTP
++	}
+ 	snap := &publicProxySnapshot{
+ 		Listeners: map[int64]publicListenerConfig{1: listener},
+ 		RoutesByListener: map[int64][]publicRouteConfig{1: {
+@@ -1043,7 +1066,7 @@
+ 	}
+ 	admin := &http.Server{Handler: qualificationRuntimeHandler(f.app)}
+ 	go func() { _ = admin.Serve(adminListener) }()
+-	writeQualificationReady(t, qualificationReady{URL: "https://" + address, AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid()})
++	writeQualificationReady(t, qualificationReady{URL: publicScheme + "://" + address, AdminURL: "http://" + adminListener.Addr().String(), PID: os.Getpid()})
+ 	waitQualificationStop(t)
+ 	runtime.KeepAlive(ballast)
+ 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

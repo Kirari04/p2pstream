@@ -1,0 +1,23 @@
+[
+  "/tmp/p2pstream-wan-gather-causal.a74qw9cp/source/qualify-proxy-agent-gather-causal-stability.sh",
+  "--runner",
+  "/tmp/p2pstream-wan-gather-causal.a74qw9cp/source/qualify-proxy-agent-gather-causal.sh",
+  "--server-binary",
+  "/tmp/p2p-final-dc738e90.OkWZWjbi/bin/server.test",
+  "--gather-agent-binary",
+  "/tmp/p2pstream-gather-split-causal.w0skAw/bin/gather-control-agent.test",
+  "--split-agent-binary",
+  "/tmp/p2pstream-gather-split-causal.w0skAw/bin/split-agent.test",
+  "--server-source-ref",
+  "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "--agent-base-source-ref",
+  "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+  "--split-overlay",
+  "/tmp/p2pstream-gather-split-causal.w0skAw/agent-data-gather-revert.patch",
+  "--overlay-readme",
+  "/tmp/p2pstream-gather-split-causal.w0skAw/overlay-README.txt",
+  "--build-provenance",
+  "/tmp/p2pstream-wan-gather-causal.a74qw9cp/build-provenance.txt",
+  "--output-dir",
+  "/tmp/p2pstream-wan-gather-causal.a74qw9cp/cohort"
+]

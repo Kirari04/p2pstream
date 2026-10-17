@@ -1,0 +1,1 @@
+(suffix=None, prefix=None, dir=None, ignore_cleanup_errors=False, *, delete=True)

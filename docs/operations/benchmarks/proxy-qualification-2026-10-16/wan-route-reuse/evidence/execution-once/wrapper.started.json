@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "bash",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/run-owned-wan-stability.sh",
+    "--output-dir",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once"
+  ],
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "deadline_seconds": 13320,
+  "per_stream_rejection_threshold_bytes": 4194304,
+  "schema_version": 1,
+  "state": "running",
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

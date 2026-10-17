@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "scope": "one focused offline policy contract command; no sockets, builds, traffic",
+  "source_sha256": "888660fd56495016ee465ebe05dd30a104d9d75b85f15ec9e5550bbe27de392e",
+  "plan_sha256": "d1091ed94f0162b5f6ec7011d619a150a9eeaa7d04dadee499f4d13a5f9d25da",
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-policy.py"
+  ],
+  "started_unix": 1792243046.26672,
+  "finished_unix": 1792243046.7573729,
+  "exit_status": 0,
+  "error": null,
+  "source_changes": [],
+  "outer_sha256": "abd576738c986c8e9d46fff9f1069aa4f3b6708051d7bf6690b527d567a564db",
+  "forced": false,
+  "remaining_owned": [],
+  "adopted_descendants": [],
+  "logs": {
+    "stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "stderr": {
+      "sha256": "e76f1b1986abedd48f852915fa1fdd3fc6b6a6ea5f40773c18f54f9e673d1864",
+      "bytes": 112
+    }
+  },
+  "accepted": true
+}

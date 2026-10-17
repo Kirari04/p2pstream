@@ -1,0 +1,73 @@
+{
+  "aggregate_agent_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "approved_inputs_sha256": "0cd9ae714cde1e5648b914624c88c1ad0fe56d25c8951c7d638b2f8af3ea080f",
+  "base_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "build": {
+    "agent_status": 0,
+    "server_status": 0,
+    "source_compare_status": 0,
+    "status": 0
+  },
+  "build_driver_sha256": "8d40407691bc70d6341f9932d7e6d8345ccb06e181ceaed4a5cdf3491e234440",
+  "build_source_checkpoint_manifest_sha256": "05da69609e176ffb14a9d9147685fb8dc0ef7d5714ea3d5a906c17fd68ece8ac",
+  "capacity_audited_build_manifest_sha256": "2bf50c5e7c7aaa4a1d16c0ab09ae516b92abf714404af7a0869234e80a64e075",
+  "capacity_base_inventory_sha256": "bf1e9f9c270fb39f655fb501a9ae3f3f4f506e015a13e8d428fb6e523f26a2a9",
+  "created_unix_ns": 1792193200216208169,
+  "diagnostic": "wan-sender-wait",
+  "diagnostic_only": true,
+  "endpoint_execution_run": false,
+  "final_corpus_attestation_sha256": "bcc470bfa8f3288e0511af4f9f0c20682b73417d36994a8fa5a5bbabcd750f07",
+  "go_test_json_auditor_sha256": "55470944bf1afcd6ec5055c01f617677ff7b465ee44e91ea26017b6b989e94f5",
+  "integration_contract_evidence_manifest_sha256": "b29c4ed100ffe405a60f4244980d8abd658b25cd6f20060e399c68a2fee2c7c1",
+  "integration_contract_receipt_sha256": "3c2fe28e32e01e137024761c41f0005af319641f3a22140899f9db880f08da62",
+  "module": {
+    "post_sha256": "43207912c2b5c10a760984cb53f72f5841c608c67775d824c474999f01f2453d",
+    "pre_post_status": 0,
+    "pre_sha256": "43207912c2b5c10a760984cb53f72f5841c608c67775d824c474999f01f2453d"
+  },
+  "observer_proof_receipt_sha256": "a7fe20645470f4050816fedb14454013a7440db8ea962fd35b768b132097c8e0",
+  "observer_proof_report_sha256": "ef9180aa9919410998e3da851ba64d997d81e5cd0dce08e6666e81b47c3c24fe",
+  "ordinary_proof_status": 0,
+  "output": {
+    "agent": {
+      "go_version_m_sha256": "704174f1169c610976a6cfb46d9ff70d215e523e023d54e711d81984492cfc87",
+      "path": "bin/current-agent-wan-sender-wait-audited.test",
+      "sha256": "43eadb7664d70f9585887ac824cc7e6dcb55d6fa40731e3888b6fa5a1cc8d74f"
+    },
+    "agent_sha256": "43eadb7664d70f9585887ac824cc7e6dcb55d6fa40731e3888b6fa5a1cc8d74f",
+    "server": {
+      "go_version_m_sha256": "48534c3c7bd7388022dc86a29e4ca66f3fa94ff4006247226d31474b122d57be",
+      "path": "bin/current-server-wan-sender-wait-audited.test",
+      "sha256": "f2e6cf390fdcd727b8c7120a6d877dc3a53afe9d8b970aa7b0d7f6cc892a7bdc"
+    },
+    "server_sha256": "f2e6cf390fdcd727b8c7120a6d877dc3a53afe9d8b970aa7b0d7f6cc892a7bdc"
+  },
+  "result_statuses_sha256": "c92fc27bcb32e44921a517dc9c9fcb8e50f2baccc928ee16c4b88f49168668f0",
+  "reviewed_integration_source_manifest_sha256": "2eee698fdfa8322b42491f3b090ac7f3535c3046d3f3f827460cc142d8c4aca1",
+  "runner_sha256": "404f2edcfdaf39620de3b75195c4e9317b83782565318d3c3ca17bda023fdc1c",
+  "schema_version": 1,
+  "sender_control_patch_sha256": "dc60a099541ad9c67d35a5af46d8af2a94e2f277725f53f8e658598dd5515c9f",
+  "sender_integration_checkpoint_sha256": "fa0f2237aef78d5253882eef1fc45942446f0d96627efa8e0234161858eedb34",
+  "sender_observer_checkpoint10_sha256": "606931a1640153a7317eee7e3eeedd2d039d0720841e6bf62aaf22c65215b5a1",
+  "sender_observer_checkpoint_sha256": "9f96e06bfd571fdf3550d095e6818b949bff0e3cdd733394e7ce93299e965e30",
+  "sender_observer_patch_sha256": "02f5ab266a7c6225dcf242dacb70edcf322cc790420f62e0d9ec8ae1ec11d130",
+  "sender_observer_source_manifest_sha256": "7327b0ef46a4bf25fa52c290fa06af3ab0684c485f239932780712a871f1ea17",
+  "sender_runner_patch_sha256": "7ea2f679c170e0580832c653afcb64e80fa27da9c8ea613f84092b9994ff6e27",
+  "sender_snapshot_validator_sha256": "de77c640a72236f4df2d482702ba21cdc225731bb0a0fef3dac14e915ed32da9",
+  "source": {
+    "post_sha256": "a54eab59cc0d5c8b04519c0d8589e6d0f1dc9ab0d4005eeb977c334f2aadeca2",
+    "pre_post_status": 0,
+    "pre_sha256": "a54eab59cc0d5c8b04519c0d8589e6d0f1dc9ab0d4005eeb977c334f2aadeca2"
+  },
+  "tests": {
+    "normal_status": 0,
+    "race_status": 0
+  },
+  "toolchain": {
+    "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "pre_post_status": 0,
+    "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+    "version": "go version go1.26.6 linux/amd64"
+  },
+  "traffic_run": false
+}

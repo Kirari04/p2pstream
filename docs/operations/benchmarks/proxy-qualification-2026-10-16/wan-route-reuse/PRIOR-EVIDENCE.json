@@ -1,0 +1,91 @@
+{
+  "historical_measurements_reused_as_controls": false,
+  "original_legacy_source_overlay": "3ec137c3ad3d07028e867042fb00d3933912d7ab +43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+  "referenced_files": [
+    {
+      "bytes": 4749,
+      "path": "../current-production-wan/README.md",
+      "sha256": "670153599cc48705efc605933f52840ad574555623936d4c565f32b7315f666e"
+    },
+    {
+      "bytes": 18617,
+      "path": "../current-production-wan/SHA256SUMS",
+      "sha256": "152fbccd97d3d0411246c28217d6b55d4418767738c4ecba089dc04ccc2921ca"
+    },
+    {
+      "bytes": 7558,
+      "path": "../wan-controller-diagnostics/README.md",
+      "sha256": "8789ab68efb9e2dab9f933627eb824d2d1ec6a49e9d19849a6b91c5956e8e0ec"
+    },
+    {
+      "bytes": 68696,
+      "path": "../wan-controller-diagnostics/SHA256SUMS",
+      "sha256": "2b25161f593432ff00667eb0db5129e01bd7afe615c535090f4116fb37ceb123"
+    },
+    {
+      "bytes": 227028,
+      "path": "../wan-controller-diagnostics/EXPORT-MAP.json",
+      "sha256": "47bdd76cc59eccc2f5513e2701e8c2744e3ed2a91b5ed5ed39fef5acd2a31ba9"
+    },
+    {
+      "bytes": 8456,
+      "path": "../wan-controller-policy/README.md",
+      "sha256": "86d4a19d6d30dedd8a3ca42be10971b3c580a0be760886da927e4364c7d9e251"
+    },
+    {
+      "bytes": 41509,
+      "path": "../wan-controller-policy/SHA256SUMS",
+      "sha256": "3f97998b654f696c9ea8a207edc9fa56f87f509767fd50ac6d7cd4b0befe3205"
+    },
+    {
+      "bytes": 203588,
+      "path": "../wan-controller-policy/EXPORT-MAP.json",
+      "sha256": "64853771a534a913a33ca8b8a1e9cff082dc3f6c9cc3782003d95dba49543c59"
+    },
+    {
+      "bytes": 3005,
+      "path": "../wan-controller-policy/PRIOR-EVIDENCE.json",
+      "sha256": "b63cb3c3a944442bf8a93b8567df4d00f701314f5204f5e3db89071129271176"
+    },
+    {
+      "bytes": 10836,
+      "path": "../wan-idle-policy/README.md",
+      "sha256": "2f51b6ffa221c06cd804846de67ff4d5fff63adff7cd9c24bf573594615255a8"
+    },
+    {
+      "bytes": 36234,
+      "path": "../wan-idle-policy/SHA256SUMS",
+      "sha256": "fc88a0a281aa9ae6f66764871f65e0932c4c881afb09db5451c21582a83f94ed"
+    },
+    {
+      "bytes": 215642,
+      "path": "../wan-idle-policy/EXPORT-MAP.json",
+      "sha256": "7b8d2d258471c100ff75bdf2a0da9354ff3ed8abb395ce6d509dcb6d69ea1b02"
+    },
+    {
+      "bytes": 15307,
+      "path": "../wan-idle-policy/PRIOR-EVIDENCE.json",
+      "sha256": "e1cf336c2b5e1717c25a4547ed2824e36b81b6c4396e679dd182acd955a29966"
+    },
+    {
+      "bytes": 9358,
+      "path": "../wan-early-backed-share/README.md",
+      "sha256": "24d205acc97d612ba63e55264a2ac4e73471fc656a7b2efac21c38b0de737cd4"
+    },
+    {
+      "bytes": 41358,
+      "path": "../wan-early-backed-share/SHA256SUMS",
+      "sha256": "2cf5d27682a6788b6d5033a43873971b4a0b6160fd9e060ccd8a238df6987d4b"
+    },
+    {
+      "bytes": 221441,
+      "path": "../wan-early-backed-share/EXPORT-MAP.json",
+      "sha256": "cee8693383b34b154b82bf8586268aa13fda88b34a97a6fd3864ee38d0b5c99d"
+    },
+    {
+      "bytes": 26703,
+      "path": "../wan-early-backed-share/PRIOR-EVIDENCE.json",
+      "sha256": "ade9801503a29c7895ebdd9c389e119ac28900cde78a8b18973425eae1675481"
+    }
+  ]
+}

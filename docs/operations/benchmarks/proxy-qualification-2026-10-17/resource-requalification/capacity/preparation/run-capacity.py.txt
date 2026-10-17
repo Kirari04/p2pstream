@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""One coordinator-scheduled capacity phase; no build, server daemon or automatic retry."""
+from pathlib import Path
+import importlib.util,json,os,signal,subprocess,sys,hashlib
+ROOT=Path(__file__).resolve().parent
+REPO=ROOT.parent.parent.parent
+
+def digest(p):
+ h=hashlib.sha256()
+ with Path(p).open('rb') as f:
+  for b in iter(lambda:f.read(1<<20),b''):h.update(b)
+ return h.hexdigest()
+def check():
+ frozen=json.loads((ROOT/'FROZEN.json').read_text())
+ if subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip()!=frozen['source_ref']:raise RuntimeError('HEAD differs from frozen candidate')
+ for n,h in frozen['files'].items():
+  if digest(n)!=h:raise RuntimeError('frozen input changed: '+n)
+ inventory=json.loads((ROOT/'BUILD-SOURCE430.json').read_text())
+ actual=set()
+ for n in inventory['source_roots']:
+  p=REPO/n
+  if p.is_file():actual.add(n)
+  elif p.exists():actual.update(str(f.relative_to(REPO)) for f in p.rglob('*') if f.is_file())
+ # Only these exact ignored runtime credential paths are outside source closure.
+ # Their names were observed during preflight; contents are never opened/copied.
+ # No go:embed directive includes p2pstream-data. Unknown files remain rejected.
+ runtime_exclusions={'internal/server/p2pstream-data/certs/public-listener-2/tls-1.crt.pem','internal/server/p2pstream-data/certs/public-listener-2/tls-1.key.pem'}
+ if actual-runtime_exclusions!=set(inventory['source_files']):raise RuntimeError('compiled input file set changed')
+ for n,h in inventory['source_files'].items():
+  if digest(REPO/n)!=h:raise RuntimeError('ordinary binary cannot represent changed source: '+n)
+ for n,h in json.loads((ROOT/'RUNNER-SHA256.json').read_text()).items():
+  if digest(ROOT/n)!=h:raise RuntimeError('runner input changed: '+n)
+ if digest(frozen['go_binary'])!='29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45':raise RuntimeError('pinned Go changed')
+ baseline=REPO/'tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1'
+ manifest=json.loads((baseline/'manifest.json').read_text())
+ if manifest.get('baseline_ref')!='3ec137c3ad3d07028e867042fb00d3933912d7ab':raise RuntimeError('legacy baseline manifest source mismatch')
+ for role,want in {'server':'5214f3b1926bd7829a10248ba249d87749d211890e1b0493de22be89fbd29553','agent':'64ef9e6eb4607596d85d0ecb4d9878cd0055b795b0e52e9cc1143dac81985dee'}.items():
+  if manifest['binaries']['baseline_'+role+'_sha256']!=want or digest(baseline/'builds'/('baseline-'+role+'.test'))!=want:raise RuntimeError('legacy baseline binary mismatch:'+role)
+  if digest(REPO/'internal'/role/'testdata/proxy_qualification_external_legacy_test.go')!=manifest['baseline_overlays'][role+'_sha256']:raise RuntimeError('legacy baseline fixture mismatch:'+role)
+ proof=sum(p.stat().st_size for p in ROOT.rglob('*') if p.is_file())
+ dependency=REPO/'tmp/wan-early-share-dependencies-20261017'
+ if proof+sum(p.stat().st_size for p in dependency.rglob('*') if p.is_file())>4<<30:raise RuntimeError('shared dependency+proof exceeds4GiB threshold')
+ return frozen
+
+def main():
+ if sys.argv[1:]!=['--execute-coordinator-scheduled-once']:raise SystemExit('root must schedule exactly one exclusive runtime window')
+ frozen=check();out=ROOT/'capacity-attempt-1'
+ if out.exists():raise RuntimeError('attempt exists; no automatic retry')
+ if subprocess.check_output(['docker','ps','-a','--filter','name=p2pstream-qualification','--format','{{.ID}}'],text=True).strip():raise RuntimeError('qualification container already exists')
+ spec=importlib.util.spec_from_file_location('owned_supervisor',ROOT/'owned-supervisor.py');owned=importlib.util.module_from_spec(spec);spec.loader.exec_module(owned)
+ owned.ROOT=ROOT;owned.BUDGET=512<<20
+ def artifact_bytes():
+  return sum(p.stat().st_size for p in ROOT.rglob('*') if p.is_file())
+ owned.artifact_bytes=artifact_bytes
+ env={'PATH':str(Path(frozen['go_binary']).parent)+':/usr/sbin:/usr/bin:/bin','HOME':os.environ['HOME'],'GOTOOLCHAIN':'local','GOWORK':'off','GOENV':'off','GOFLAGS':'','CGO_ENABLED':'1','GOMAXPROCS':'4','GOPROXY':'off','GOSUMDB':'off'}
+ signal.signal(signal.SIGTERM,owned.terminate)
+ status=owned.execute_owned(['taskset','-c','0-15','bash',str(ROOT/'capacity-once.sh'),'--candidate-ref',frozen['source_ref'],'--output-root',str(out)],env,ROOT/'capacity',600,16<<20)
+ check()
+ if status!=0:raise RuntimeError('capacity runner failed')
+ summary=json.loads((out/'summary.json').read_text())
+ if summary.get('accepted') is not True:raise RuntimeError('original capacity summary rejected')
+ # The stock runner rejects forced/unnatural shutdown; independently demand exact receipts.
+ expected={'combined-4g-server-plus-colocated-agent':3,'external-one-agent-separate-4g-cgroups':4,'external-four-agents-separate-4g-cgroups':7,'compat-current-agent-old-server-1-lane':4,'compat-current-agent-old-server-4-lane':4}
+ receipts={}
+ for name,count in expected.items():
+  raw=out/'raw'/name
+  if json.loads((raw/'status.json').read_text())!={'exit_status':0,'emergency_cleanup':False}:raise RuntimeError('unnatural raw runner:'+name)
+  paths=list(raw.glob('*.stop.exit.json'))
+  if len(paths)!=count:raise RuntimeError('missing/duplicate natural exit receipts:'+name)
+  receipts[name]=[]
+  for p in paths:
+   row=json.loads(p.read_text());receipts[name].append({'file':str(p),'sha256':digest(p),'receipt':row})
+   if row.get('forced_cleanup') is not False or type(row.get('shell_exit_status')) is not int or row['shell_exit_status']!=0 or row.get('natural_exit_verified') is not True:raise RuntimeError('nonnatural process exit:'+str(p))
+   if Path('/proc',str(row['pid'])).exists():raise RuntimeError('recorded PID still exists:'+str(row['pid']))
+   if row.get('container'):
+    c=row.get('container_state',{})
+    if c.get('Running') is not False or type(c.get('ExitCode')) is not int or c['ExitCode']!=0 or c.get('OOMKilled') is not False:raise RuntimeError('invalid container receipt:'+str(p))
+ if subprocess.check_output(['docker','ps','-a','--filter','name=p2pstream-qualification','--format','{{.ID}}'],text=True).strip():raise RuntimeError('qualification container remained')
+ owned.write_fresh(ROOT/'capacity-decision.json',{'accepted':True,'source_ref':frozen['source_ref'],'source_files_verified':430,'summary_sha256':digest(out/'summary.json'),'receipts':receipts,'forced_cleanup':False,'latest_source_absolute_capacity':True,'performance_parity_claimed':False,'standing_or_pressure_cleared':False})
+ print('accepted capacity; original summary and all 22 natural process exits verified')
+if __name__=='__main__':
+ try:main()
+ except BaseException as error:
+  decision=ROOT/'capacity-failure-decision.json'
+  if not decision.exists():
+   decision.write_text(json.dumps({'accepted':False,'failure':type(error).__name__+': '+str(error),'automatic_retry':False},indent=2)+'\n')
+  raise

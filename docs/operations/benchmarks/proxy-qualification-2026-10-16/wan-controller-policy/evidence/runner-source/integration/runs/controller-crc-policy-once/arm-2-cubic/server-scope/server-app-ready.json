@@ -1,0 +1,15 @@
+{
+  "runner_namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026533469]",
+    "net": "net:[4026533919]",
+    "pid": "pid:[4026533470]",
+    "user": "user:[4026533918]"
+  },
+  "runner_sha256": "308ab9ef7e9cb2b3c03014707203824ed19bf74486a8404bc1f2a1c336286416",
+  "schema_version": 1,
+  "server_binary_sha256": "7bdac220c824f6d135696377bfc4203ee828c2cd2423e529523586571130b23d",
+  "server_local_pid": 182,
+  "server_ready_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-policy-once/arm-2-cubic/proxy-agent-growth.ysV4fd/current-server-aggregate-v1-h2-1-server.ready.json",
+  "server_ready_sha256": "ef5b1aedfae9231e58046ea3399047d989d922c7acfc854bed8bd82a664cfb8e"
+}

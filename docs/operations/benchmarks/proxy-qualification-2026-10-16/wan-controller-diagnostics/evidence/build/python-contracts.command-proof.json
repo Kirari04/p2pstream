@@ -1,0 +1,44 @@
+{
+  "adopted_descendants": [],
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "60s",
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-screen.py"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+  "exit_status": 1,
+  "finished_unix": 1792238470.7396085,
+  "forced": false,
+  "name": "python-contracts",
+  "outer_audit_sha256": "f922b1be4b8180654159aac6042f076329ff2587f1c980f44f74340717272374",
+  "output_bytes": 1118,
+  "owned_identities": [
+    {
+      "pgid": 2510722,
+      "pid": 2510722,
+      "ppid": 2510627,
+      "sid": 2510722,
+      "start_ticks": 7602242,
+      "state": "S"
+    },
+    {
+      "pgid": 2510722,
+      "pid": 2510723,
+      "ppid": 2510722,
+      "sid": 2510722,
+      "start_ticks": 7602242,
+      "state": "R"
+    }
+  ],
+  "remaining_group_members": [],
+  "started_unix": 1792238466.8194668,
+  "stderr_bytes": 1118,
+  "stderr_sha256": "4c7290aafa2bf819a0a58589550a44a9129595f8169c5d2d87d99f9e4328416d",
+  "stdout_bytes": 0,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

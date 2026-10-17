@@ -1,0 +1,25 @@
+{
+  "classification": "wan_gate_failed",
+  "cohorts_combined": false,
+  "contract_history_limit": "failed stability-validator attempts 1 and 2 retain status and traceback logs, but their superseded generator versions were not preserved; only the final contract set is independently replayable",
+  "copied_file_count": 160,
+  "excluded": [
+    "binaries",
+    "source archives",
+    "private certificate keys and certificates",
+    "databases",
+    "readiness files",
+    "raw endpoint logs",
+    "raw endpoint state"
+  ],
+  "schema_version": 1,
+  "single_pair_results_sha256": "1cf22fb126080aee135dc996895641fb5ab82acc12e1d54f7b28638cd7ffd4e0",
+  "source_refs": {
+    "legacy_agent": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "server_and_aggregate_agent": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+  },
+  "stability_lifecycle_sha256": "29666352372ce9e51e1b073be910dd49ef576faf108f0e311253972aaf5576d5",
+  "stability_pooled_download_ratio": 0.816745567567725,
+  "stability_pooled_upload_ratio": 0.9903389604899991,
+  "stability_results_sha256": "0b194973977d60080f027f8ee97e6bde89c233d6a2d90af5c6b5ab40b10c5cb7"
+}

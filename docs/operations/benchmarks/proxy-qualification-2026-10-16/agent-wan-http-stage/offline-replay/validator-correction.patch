@@ -1,0 +1,38 @@
+--- validator-original.py
++++ validator-pool-categories.py
+@@ -72,7 +72,7 @@
+   if (s[lane]["local_address"],s[lane]["remote_address"],s[lane]["tls_version"],s[lane]["tls_cipher_suite"])!=(a[lane]["remote_address"],a[lane]["local_address"],a[lane]["tls_version"],a[lane]["tls_cipher_suite"]): raise ValueError(f"reverse {lane}")
+ ledger_base={"limit_bytes","initial_reserved_bytes","growth_reserved_bytes","current_bytes","high_water_bytes","denied_reservations","release_count","final_bytes","actual_heap_alloc_bytes","actual_open_fds","actual_socket_fds"}
+ def ledger(v,n,limit,terminal=False,working=False):
+- required=ledger_base|({"categories"} if working else set())
++ required=ledger_base|{"categories"}
+  if not isinstance(v,dict) or set(v)!=required: raise ValueError(f"{n} schema")
+  for k in ledger_base: integer(v[k],f"{n}.{k}")
+  if v["limit_bytes"]!=limit or v["denied_reservations"]!=0 or not 0<=v["current_bytes"]<=v["high_water_bytes"]<=limit: raise ValueError(f"{n} accounting")
+@@ -83,6 +83,14 @@
+   for x in v["categories"].values(): integer(x,n)
+   if sum(v["categories"].values())!=v["current_bytes"] or terminal and (any(v["categories"].values()) or v["release_count"]<=0): raise ValueError(f"{n} category accounting")
+  else:
++  cats=v["categories"]
++  expected_keys={"initial_pool","growth_pool"} if v["growth_reserved_bytes"]>0 else {"initial_pool"}
++  if not isinstance(cats,dict) or set(cats)!=expected_keys: raise ValueError(f"{n} pool category schema")
++  for key,value in cats.items(): integer(value,f"{n}.{key}")
++  if v["growth_reserved_bytes"]>0 and "growth_pool" not in cats: raise ValueError(f"{n} missing growth category")
++  expected_initial=0 if terminal else v["initial_reserved_bytes"]
++  expected_growth=0 if terminal else v["growth_reserved_bytes"]
++  if cats["initial_pool"]!=expected_initial or cats.get("growth_pool",0)!=expected_growth or sum(cats.values())!=v["current_bytes"]: raise ValueError(f"{n} pool category accounting")
+   reserved=v["initial_reserved_bytes"]+v["growth_reserved_bytes"]
+   if v["high_water_bytes"]!=reserved or v["initial_reserved_bytes"]<=0 or (terminal and v["release_count"]<4) or (not terminal and v["current_bytes"]!=reserved): raise ValueError(f"{n} pool")
+ def base(v,role,completed,terminal=False):
+@@ -148,6 +156,11 @@
+ sr,ar=sl_doc.get("results"),al_doc.get("results")
+ if not isinstance(sr,list) or len(sr)!=16 or not isinstance(ar,list) or len(ar)!=16: raise ValueError("results count")
+ st_doc,at_doc=load(st_path),load(at_path); terminal(st_doc,"server",si,sr); terminal(at_doc,"agent",ai,ar)
++for role,initial_doc,live_doc,terminal_doc in (("server",si_doc,sl_doc,st_doc),("agent",ai_doc,al_doc,at_doc)):
++ initial_pool,live_pool,terminal_pool=(doc["pool_ledger"] for doc in (initial_doc,live_doc,terminal_doc))
++ if initial_pool["initial_reserved_bytes"]!=live_pool["initial_reserved_bytes"]: raise ValueError(f"{role} initial pool reservation changed")
++ for key in ("initial_reserved_bytes","growth_reserved_bytes","high_water_bytes"):
++  if live_pool[key]!=terminal_pool[key]: raise ValueError(f"{role} terminal pool cumulative {key} changed")
+ rows=[]
+ for i in range(16):
+  response=phase(load(phases_dir/f"phase-{i:02d}.json"),i,"server"); server=phase(sr[i],i,"server"); agent=phase(ar[i],i,"agent")

@@ -1,0 +1,8 @@
+=== RUN   TestQualificationNativeAttributionClientServerNameIsOptInH1Only
+--- PASS: TestQualificationNativeAttributionClientServerNameIsOptInH1Only (0.00s)
+=== RUN   TestQualificationNativeAttributionClientServerNameIsOptInH1Only
+--- PASS: TestQualificationNativeAttributionClientServerNameIsOptInH1Only (0.00s)
+=== RUN   TestQualificationNativeAttributionClientServerNameIsOptInH1Only
+--- PASS: TestQualificationNativeAttributionClientServerNameIsOptInH1Only (0.00s)
+PASS
+ok  	p2pstream/internal/server	1.029s

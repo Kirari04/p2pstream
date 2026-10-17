@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "read_only_identity_check": true,
+  "binary_reuse_supported": true,
+  "legacy_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "overlay_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+  "archive_sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+  "binary": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/bin/legacy-agent.test",
+    "sha256": "162f8f19361bb13cf2cbb998ed2886a57a63eb36dc6ef21a4cdae4c2865b3f45",
+    "size": 19594046
+  },
+  "source_verification": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/source-verification.json",
+    "sha256": "10a0bad55567179431c41f663ceb3ee012b1cd9de622545680c7cb6403c9b552",
+    "saved_verdict": "782 archive files byte-identical plus exactly canonical overlay; all_verified true"
+  },
+  "saved_metadata": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/provenance/legacy-agent.build-info.txt",
+    "sha256": "a453a0e0081139c47e0e4c7ffb8ca9570b942094cd542f4dfefda41cd230b5cf",
+    "toolchain": "go1.26.6",
+    "qualification_tag_present": false
+  },
+  "scope": "reuse only this exact existing executable and original source/overlay proof; recheck before/after new cohort; no old measurements reused"
+}

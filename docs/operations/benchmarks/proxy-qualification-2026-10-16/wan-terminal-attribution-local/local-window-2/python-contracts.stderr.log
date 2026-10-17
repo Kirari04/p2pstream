@@ -1,0 +1,12 @@
+test_clean_path (__main__.Contracts.test_clean_path) ... ok
+test_completed_control_overlap (__main__.Contracts.test_completed_control_overlap) ... ok
+test_control_cancel_preserves_legacy (__main__.Contracts.test_control_cancel_preserves_legacy) ... ok
+test_control_shapes (__main__.Contracts.test_control_shapes) ... ok
+test_only_derived_close_ambiguity (__main__.Contracts.test_only_derived_close_ambiguity) ... ok
+test_rejection_matrix (__main__.Contracts.test_rejection_matrix) ... ok
+test_unbound_protocol_success_is_only_ordinary_legacy_evidence (__main__.Contracts.test_unbound_protocol_success_is_only_ordinary_legacy_evidence) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.004s
+
+OK

@@ -1,0 +1,53 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: delay
+Time: 2026-10-16 05:20:18 CEST
+Showing nodes accounting for 2.06s, 99.88% of 2.06s total
+Dropped 141 nodes (cum <= 0.01s)
+Showing top 45 nodes out of 79
+      flat  flat%   sum%        cum   cum%
+     1.79s 86.78% 86.78%      1.79s 86.78%  runtime.unlock (inline)
+     0.27s 13.10% 99.88%      0.27s 13.10%  sync.(*Mutex).Unlock (partial-inline)
+         0     0% 99.88%      0.18s  8.69%  bufio.(*Writer).Flush
+         0     0% 99.88%      0.01s  0.63%  internal/poll.ignoringEINTRIO
+         0     0% 99.88%      0.76s 36.70%  net/http.(*ServeMux).ServeHTTP
+         0     0% 99.88%      0.68s 32.76%  net/http.(*conn).serve
+         0     0% 99.88%      0.67s 32.67%  net/http.(*http2Server).ServeConn (inline)
+         0     0% 99.88%      0.67s 32.67%  net/http.(*http2Server).serveConn
+         0     0% 99.88%      0.18s  8.69%  net/http.(*http2responseWriter).Flush (inline)
+         0     0% 99.88%      0.18s  8.69%  net/http.(*http2responseWriter).FlushError
+         0     0% 99.88%      0.18s  8.69%  net/http.(*http2responseWriter).handlerDone
+         0     0% 99.88%      0.18s  8.69%  net/http.(*http2responseWriterState).writeChunk
+         0     0% 99.88%      0.02s  0.85%  net/http.(*http2serverConn).readFrames
+         0     0% 99.88%      0.98s 47.61%  net/http.(*http2serverConn).runHandler
+         0     0% 99.88%      0.18s  8.69%  net/http.(*http2serverConn).runHandler.func1
+         0     0% 99.88%      0.27s 13.04%  net/http.(*http2serverConn).scheduleHandler.gowrap1
+         0     0% 99.88%      0.05s  2.21%  net/http.(*http2serverConn).sendServeMsg
+         0     0% 99.88%      0.67s 32.67%  net/http.(*http2serverConn).serve
+         0     0% 99.88%      0.09s  4.14%  net/http.(*http2serverConn).writeDataFromHandler
+         0     0% 99.88%      0.18s  8.52%  net/http.(*http2serverConn).writeFrameFromHandler
+         0     0% 99.88%      0.09s  4.42%  net/http.(*http2serverConn).writeHeaders
+         0     0% 99.88%      0.27s 13.04%  net/http.(*initALPNRequest).ServeHTTP
+         0     0% 99.88%      0.27s 13.04%  net/http.Handler.ServeHTTP-fm
+         0     0% 99.88%      0.76s 36.79%  net/http.HandlerFunc.ServeHTTP
+         0     0% 99.88%      0.67s 32.67%  net/http.http2ConfigureServer.func2
+         0     0% 99.88%      0.67s 32.67%  net/http.http2ConfigureServer.func3
+         0     0% 99.88%      0.18s  8.69%  net/http.http2chunkWriter.Write
+         0     0% 99.88%      0.76s 36.70%  net/http.initALPNRequest.ServeHTTP
+         0     0% 99.88%      0.76s 36.79%  net/http.serverHandler.ServeHTTP
+         0     0% 99.88%      0.14s  6.61%  net/http/httputil.(*ReverseProxy).ServeHTTP
+         0     0% 99.88%      0.14s  6.58%  p2pstream/internal/server.(*AgentConn).transportLane
+         0     0% 99.88%      0.14s  6.58%  p2pstream/internal/server.(*AgentConn).transportLane.deferwrap1
+         0     0% 99.88%      0.14s  6.58%  p2pstream/internal/server.(*App).agentTargetTransport
+         0     0% 99.88%      0.15s  7.31%  p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution (inline)
+         0     0% 99.88%      0.15s  7.31%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+         0     0% 99.88%      0.01s  0.68%  p2pstream/internal/server.(*App).proxyRouteTargetRequest.func1
+         0     0% 99.88%      0.01s  0.68%  p2pstream/internal/server.(*App).recordProxyRequestEvent
+         0     0% 99.88%      0.49s 23.54%  p2pstream/internal/server.(*App).servePublicWAFReservedWithSnapshot
+         0     0% 99.88%      0.76s 36.70%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+         0     0% 99.88%      0.12s  5.71%  p2pstream/internal/server.(*App).tryReservePublicOwnedResource
+         0     0% 99.88%      0.11s  5.55%  p2pstream/internal/server.(*agentStreamCapacityManager).refreshAdaptiveCapacity
+         0     0% 99.88%      0.12s  5.71%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResource (inline)
+         0     0% 99.88%      0.12s  5.71%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+         0     0% 99.88%      0.14s  6.58%  p2pstream/internal/server.(*agentTransportPool).publicRouteTargetTransport
+         0     0% 99.88%      0.01s  0.68%  p2pstream/internal/server.(*observabilityRecorder).recordProxyRequestEvent

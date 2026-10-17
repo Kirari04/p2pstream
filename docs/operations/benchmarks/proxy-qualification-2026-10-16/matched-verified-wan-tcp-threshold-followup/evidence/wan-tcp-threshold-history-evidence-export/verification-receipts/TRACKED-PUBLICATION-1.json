@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "accepted": true,
+  "source": "tmp/continuation-20261016/wan-tcp-threshold-history-evidence-export/package-candidates/cutoff-2-attempt-1",
+  "destination": "docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-tcp-threshold-history",
+  "files": 200,
+  "root_manifest_sha256": "7454c54b7dd594b327a225325355d1a1c55a323574870010a28118aa54e9815f",
+  "source_and_destination_equal": true,
+  "commit_or_push": false
+}

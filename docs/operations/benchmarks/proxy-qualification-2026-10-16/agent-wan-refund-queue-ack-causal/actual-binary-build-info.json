@@ -1,0 +1,32 @@
+{
+  "driver_and_origin": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/bundle/driver-origin.test",
+    "sha256": "dbbe77ffa01be06ea9e60827f29485d0d4f654d5e3d3c37af426a492b572c6a9",
+    "build_id": "H4CVnTldrhq275mvh0Wj/usNuflVOZ8h90dXeODsU/zC6uzZlPTR2tckEt5VtV/Aout3DTmJbXQYHsR5pHT",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/bundle/driver-origin.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "batched_server": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/bundle/refund-batched-item-control.server.test",
+    "sha256": "dbbe77ffa01be06ea9e60827f29485d0d4f654d5e3d3c37af426a492b572c6a9",
+    "build_id": "H4CVnTldrhq275mvh0Wj/usNuflVOZ8h90dXeODsU/zC6uzZlPTR2tckEt5VtV/Aout3DTmJbXQYHsR5pHT",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/bundle/refund-batched-item-control.server.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "batched_agent": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/bundle/refund-batched-item-control.agent.test",
+    "sha256": "fc35f33359e69277a8cc25808faea3270789c92d86f872037dac63c20afe2ae1",
+    "build_id": "jiybri0HdF3g98KPVbcc/XpGYT8ozHde8GLmN_CF5/1wba_Ennmxzj-XDiqE2Z/5fCtceRpjCxZyvtoSu1_",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/bundle/refund-batched-item-control.agent.test: go1.26.6\n\tpath\tp2pstream/internal/agent.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "separate_server": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/bundle/refund-separate-items-ack.server.test",
+    "sha256": "c7b2eb8889d41251711c0d46dc30d05e6e3f471ce2a992e8a6347102d52a3f3c",
+    "build_id": "AQAflZHSGtt1A_7fSFt1/HPF6_zP49boL2P40Y1Tw/WlpdIOeRdKSqJvVF5WRw/SrM99lVc2ocNHLE0XR6A",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/bundle/refund-separate-items-ack.server.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "separate_agent": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/bundle/refund-separate-items-ack.agent.test",
+    "sha256": "353066727ad1823eb44e65d86a62087514cd2d224fcbf69b484ba9f66313f48d",
+    "build_id": "pQAcB16H6domDf5lLVfw/IN4F9yC3370IEVORpC6l/-JCI6KE3JIE7az5yqPEU/-HBdIA-cCaf--IPB8_15",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/bundle/refund-separate-items-ack.agent.test: go1.26.6\n\tpath\tp2pstream/internal/agent.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  }
+}

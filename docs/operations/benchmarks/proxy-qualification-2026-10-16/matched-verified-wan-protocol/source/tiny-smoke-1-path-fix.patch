@@ -1,0 +1,33 @@
+--- a/run-wan-protocol-arm.sh
++++ b/run-wan-protocol-arm.sh
+@@ -49,6 +49,10 @@
+   echo "certificate, key, and lowercase DER fingerprint are required" >&2
+   exit 2
+ }
++server_binary=$(realpath "$server_binary")
++aggregate_agent_binary=$(realpath "$aggregate_agent_binary")
++cert=$(realpath "$cert")
++key=$(realpath "$key")
+ for tool in cmp jq lscpu openssl patch python3 readlink setsid sha256sum taskset timeout unshare; do
+   command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 2; }
+ done
+--- a/run-wan-protocol-diagnostic.sh
++++ b/run-wan-protocol-diagnostic.sh
+@@ -37,6 +37,8 @@
+   echo "source refs and output directory are required" >&2
+   exit 2
+ }
++server_binary=$(realpath "$server_binary")
++aggregate_agent_binary=$(realpath "$aggregate_agent_binary")
+ for tool in cmp jq openssl patch python3 sha256sum; do
+   command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 2; }
+ done
+@@ -61,6 +63,8 @@
+ openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+   -subj /CN=public.test -addext subjectAltName=DNS:public.test -days 1 \
+   -keyout "$key" -out "$cert" >/dev/null 2>&1
++cert=$(realpath "$cert")
++key=$(realpath "$key")
+ openssl x509 -in "$cert" -noout -checkhost public.test >/dev/null
+ expected_leaf_sha256=$(openssl x509 -in "$cert" -outform DER | sha256sum | awk '{print $1}')
+ [[ $expected_leaf_sha256 =~ ^[0-9a-f]{64}$ ]]

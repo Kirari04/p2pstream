@@ -1,0 +1,98 @@
+{
+  "fixture_only": true,
+  "runner_sha256": "b9ce587e9878ae85fbfa41d5fc3adc4aa14d3f7a351e96ce4cde14f0016e8dda",
+  "cases": [
+    {
+      "case": "positive-rates-ignore-slower-Caddy",
+      "passed": true
+    },
+    {
+      "case": "wrong-source",
+      "expected_rejection": true,
+      "error": "calibration source, binary, harness, runner or result identity differs"
+    },
+    {
+      "case": "wrong-raw-hash",
+      "expected_rejection": true,
+      "error": "calibration source, binary, harness, runner or result identity differs"
+    },
+    {
+      "case": "wrong-h2-topology",
+      "expected_rejection": true,
+      "error": "calibration H2 connection topology is not matched"
+    },
+    {
+      "case": "lost-candidate-event",
+      "expected_rejection": true,
+      "error": "calibration candidate event conservation failed"
+    },
+    {
+      "case": "queued-candidate-event",
+      "expected_rejection": true,
+      "error": "calibration candidate event conservation failed"
+    },
+    {
+      "case": "wrong-Caddy-payload",
+      "expected_rejection": true,
+      "error": "calibration payload/status/protocol checks failed"
+    },
+    {
+      "case": "wrong-warm-reference",
+      "expected_rejection": true,
+      "error": "calibration must be the fixed warmed matched-H2 reference workload"
+    },
+    {
+      "case": "wide-spread-reported-without-new-gate",
+      "passed": true
+    },
+    {
+      "case": "positive-schedule",
+      "passed": true
+    },
+    {
+      "case": "missing-schedule",
+      "expected_rejection": true,
+      "error": "Invalid isoformat string: ''"
+    },
+    {
+      "case": "short-payload",
+      "expected_rejection": true,
+      "error": "payload/status/measurement validation failed"
+    },
+    {
+      "case": "wrong-status",
+      "expected_rejection": true,
+      "error": "payload/status/measurement validation failed"
+    },
+    {
+      "case": "nonfinite-tail",
+      "expected_rejection": true,
+      "error": "payload/status/measurement validation failed"
+    },
+    {
+      "case": "wrong-planned",
+      "expected_rejection": true,
+      "error": "schedule delivery failed"
+    },
+    {
+      "case": "naive-UTC",
+      "expected_rejection": true,
+      "error": "schedule delivery failed"
+    },
+    {
+      "case": "dispatch-too-early",
+      "expected_rejection": true,
+      "error": "schedule delivery failed"
+    },
+    {
+      "case": "delivery-RPS",
+      "expected_rejection": true,
+      "error": "schedule delivery failed"
+    },
+    {
+      "case": "delivery-elapsed-only",
+      "expected_rejection": true,
+      "error": "schedule delivery failed"
+    }
+  ]
+}

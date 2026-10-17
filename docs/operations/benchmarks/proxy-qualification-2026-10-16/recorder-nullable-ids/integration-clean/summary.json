@@ -1,0 +1,86 @@
+{
+  "accepted": true,
+  "checks": [
+    {
+      "label": "normal-root-suite",
+      "argv": [
+        "taskset",
+        "-c",
+        "0-7",
+        "env",
+        "PATH=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/bin",
+        "GOTOOLCHAIN=local",
+        "GOMAXPROCS=4",
+        "CGO_ENABLED=1",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "TMPDIR=/tmp/rc.5l3hqb6c",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-json",
+        "-count=1",
+        "-timeout=20m",
+        "./..."
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/integration-clean-validation-1/source",
+      "started_at": "2026-10-17T10:49:10.298844+00:00",
+      "exit_status": 0,
+      "finished_at": "2026-10-17T10:51:18.330837+00:00"
+    },
+    {
+      "label": "focused-recorder-race",
+      "argv": [
+        "taskset",
+        "-c",
+        "0-7",
+        "env",
+        "PATH=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/bin",
+        "GOTOOLCHAIN=local",
+        "GOMAXPROCS=4",
+        "CGO_ENABLED=1",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "TMPDIR=/tmp/rc.5l3hqb6c",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-race",
+        "-json",
+        "-count=1",
+        "-timeout=10m",
+        "./internal/server",
+        "-run",
+        "^(TestPreparedProxyRequestEvent.*|TestObservabilityRecorder.*|TestCloseObservabilityRecorder.*)$"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/integration-clean-validation-1/source",
+      "started_at": "2026-10-17T10:51:18.331124+00:00",
+      "exit_status": 0,
+      "finished_at": "2026-10-17T10:51:44.068671+00:00"
+    },
+    {
+      "label": "recorder-vet",
+      "argv": [
+        "taskset",
+        "-c",
+        "0-7",
+        "env",
+        "PATH=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/bin",
+        "GOTOOLCHAIN=local",
+        "GOMAXPROCS=4",
+        "CGO_ENABLED=1",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "TMPDIR=/tmp/rc.5l3hqb6c",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "vet",
+        "./internal/db",
+        "./internal/server"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/integration-clean-validation-1/source",
+      "started_at": "2026-10-17T10:51:44.069083+00:00",
+      "exit_status": 0,
+      "finished_at": "2026-10-17T10:51:47.538522+00:00"
+    }
+  ],
+  "source_changed": [],
+  "no_remeasurement": true
+}

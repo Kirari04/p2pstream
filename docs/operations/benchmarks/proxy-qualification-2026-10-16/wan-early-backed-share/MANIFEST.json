@@ -1,0 +1,15 @@
+{
+  "all_files_in_final_ledger": true,
+  "authoritative_incomplete_audit_accepted": true,
+  "bytes_before_manifest_and_ledger": 46958474,
+  "canonical_copied_files": 309,
+  "classification": "INCOMPLETE: candidate strict raw closure/terminal attribution rejection; third control unstarted",
+  "comparative_effect_established": false,
+  "copied_artifact_bytes": 46016181,
+  "exact_source_mappings": 380,
+  "files_before_manifest_and_ledger": 313,
+  "incomplete_audit_sha256": "b65b35c60afad696f4f9bd03f6bca1ec8a41339d0ac7613b97e93c4c8756b552",
+  "original_qualification_cleared": false,
+  "runtime_source_manifest_sha256": "f7f6b621222a36326aea45611ccc6ceabe733b5097113609e9b582913580bf30",
+  "schema_version": 1
+}

@@ -1,0 +1,1936 @@
+{
+  "acceptance": {
+    "all_pair_gates_passed": false,
+    "all_rows_exact": true,
+    "complete": true,
+    "no_non_timing_failures": true,
+    "overall": false
+  },
+  "all_phase_rows": [
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 1,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 2,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 3,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 4,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 5,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 6,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 7,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 8,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 9,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 10,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 11,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 12,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 13,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 14,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 15,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 16,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 17,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 18,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 19,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 20,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 21,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 22,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 23,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 1,
+      "repetition": 4,
+      "sequence": 24,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 25,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 26,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 27,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 1,
+      "sequence": 28,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 29,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 2,
+      "sequence": 30,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 31,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 1,
+      "repetition": 3,
+      "sequence": 32,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 32
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 33,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 34,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 35,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 36,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 37,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 38,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 39,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 40,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 41,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 42,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 43,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 44,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 45,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 46,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 47,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 48,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 49,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 50,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 51,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 52,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 53,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 54,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 55,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 2,
+      "repetition": 4,
+      "sequence": 56,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 57,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 58,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 59,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 1,
+      "sequence": 60,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 61,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 2,
+      "sequence": 62,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 63,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 2,
+      "repetition": 3,
+      "sequence": 64,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 32
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 65,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 1
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 66,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 2
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 67,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 3
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 68,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 4
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 69,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 5
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 70,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 6
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 71,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 7
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 72,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 8
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 73,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 9
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 74,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 10
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 75,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 11
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 76,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 12
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 77,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 13
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 78,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 14
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 79,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 25000000.0,
+      "wall_seconds": null,
+      "within_pair": 15
+    },
+    {
+      "label": "refund-gathered-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 80,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 16
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 81,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 17
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 82,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 18
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 83,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 19
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 84,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 20
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 85,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 21
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 86,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 22
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 87,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 23
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "warmup",
+      "pair": 3,
+      "repetition": 4,
+      "sequence": 88,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 24
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 89,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 25
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "retained-warmup",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 90,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 26
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 91,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 27
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 1,
+      "sequence": 92,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 28
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 93,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 29
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 2,
+      "sequence": 94,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 30
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 95,
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 26000000.0,
+      "wall_seconds": null,
+      "within_pair": 31
+    },
+    {
+      "label": "refund-split-control",
+      "measurement_stage": "steady",
+      "pair": 3,
+      "repetition": 3,
+      "sequence": 96,
+      "transfer_direction": "upload",
+      "useful_transfer_bytes_per_second": 30000000.0,
+      "wall_seconds": null,
+      "within_pair": 32
+    }
+  ],
+  "failures": [
+    "pair 1 download split/current ratio 1.04 below 1.1",
+    "pair 2 download split/current ratio 1.04 below 1.1",
+    "pair 3 download split/current ratio 1.04 below 1.1"
+  ],
+  "fixed_workload": {
+    "configured_rtt_ms": 80,
+    "mode_order": [
+      "gathered-then-split",
+      "split-then-gathered",
+      "gathered-then-split"
+    ],
+    "pairs": 3,
+    "required_pool_mib": 8,
+    "steady_mib": 256,
+    "total_transfers": 96,
+    "transfer_repetitions": 3,
+    "transfers_per_variant": 16,
+    "transport_mode_both_variants": "aggregate-v1",
+    "warmup_mib": 256
+  },
+  "non_timing_failures": [],
+  "pairs": {
+    "1": {
+      "gates": {
+        "download": {
+          "current_median_useful_bytes_per_second": 25000000.0,
+          "minimum": 1.1,
+          "passed": false,
+          "split_median_useful_bytes_per_second": 26000000.0,
+          "split_to_current_ratio": 1.04
+        },
+        "upload": {
+          "current_median_useful_bytes_per_second": 30000000.0,
+          "minimum": 0.9,
+          "passed": true,
+          "split_median_useful_bytes_per_second": 30000000.0,
+          "split_to_current_ratio": 1.0
+        }
+      },
+      "label_order": [
+        "refund-gathered-control",
+        "refund-split-control"
+      ],
+      "transition_screen": {
+        "current_download_minimum": 25000000.0,
+        "current_has_subthreshold_sample": true,
+        "split_all_eight_download_samples_pass": false,
+        "split_download_minimum": 26000000.0,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "current": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0,
+                25000000.0,
+                25000000.0,
+                25000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0,
+                25000000.0,
+                25000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0,
+                25000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            }
+          }
+        },
+        "split": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0,
+                26000000.0,
+                26000000.0,
+                26000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0,
+                26000000.0,
+                26000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0,
+                26000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            }
+          }
+        }
+      }
+    },
+    "2": {
+      "gates": {
+        "download": {
+          "current_median_useful_bytes_per_second": 25000000.0,
+          "minimum": 1.1,
+          "passed": false,
+          "split_median_useful_bytes_per_second": 26000000.0,
+          "split_to_current_ratio": 1.04
+        },
+        "upload": {
+          "current_median_useful_bytes_per_second": 30000000.0,
+          "minimum": 0.9,
+          "passed": true,
+          "split_median_useful_bytes_per_second": 30000000.0,
+          "split_to_current_ratio": 1.0
+        }
+      },
+      "label_order": [
+        "refund-split-control",
+        "refund-gathered-control"
+      ],
+      "transition_screen": {
+        "current_download_minimum": 25000000.0,
+        "current_has_subthreshold_sample": true,
+        "split_all_eight_download_samples_pass": false,
+        "split_download_minimum": 26000000.0,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "current": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0,
+                25000000.0,
+                25000000.0,
+                25000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0,
+                25000000.0,
+                25000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0,
+                25000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            }
+          }
+        },
+        "split": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0,
+                26000000.0,
+                26000000.0,
+                26000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0,
+                26000000.0,
+                26000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0,
+                26000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            }
+          }
+        }
+      }
+    },
+    "3": {
+      "gates": {
+        "download": {
+          "current_median_useful_bytes_per_second": 25000000.0,
+          "minimum": 1.1,
+          "passed": false,
+          "split_median_useful_bytes_per_second": 26000000.0,
+          "split_to_current_ratio": 1.04
+        },
+        "upload": {
+          "current_median_useful_bytes_per_second": 30000000.0,
+          "minimum": 0.9,
+          "passed": true,
+          "split_median_useful_bytes_per_second": 30000000.0,
+          "split_to_current_ratio": 1.0
+        }
+      },
+      "label_order": [
+        "refund-gathered-control",
+        "refund-split-control"
+      ],
+      "transition_screen": {
+        "current_download_minimum": 25000000.0,
+        "current_has_subthreshold_sample": true,
+        "split_all_eight_download_samples_pass": false,
+        "split_download_minimum": 26000000.0,
+        "threshold_bytes_per_second": 29700000
+      },
+      "variants": {
+        "current": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0,
+                25000000.0,
+                25000000.0,
+                25000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0,
+                25000000.0,
+                25000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0,
+                25000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 25000000.0,
+              "median": 25000000.0,
+              "minimum": 25000000.0,
+              "samples": [
+                25000000.0
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            }
+          }
+        },
+        "split": {
+          "download": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0,
+                26000000.0,
+                26000000.0,
+                26000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0,
+                26000000.0,
+                26000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0,
+                26000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 26000000.0,
+              "median": 26000000.0,
+              "minimum": 26000000.0,
+              "samples": [
+                26000000.0
+              ]
+            }
+          },
+          "upload": {
+            "fresh_lane_warmups": {
+              "count": 4,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "retained_transport_warmup": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            },
+            "timed_all": {
+              "count": 3,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_first_direction_uses": {
+              "count": 2,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0,
+                30000000.0
+              ]
+            },
+            "timed_reused_direction": {
+              "count": 1,
+              "maximum": 30000000.0,
+              "median": 30000000.0,
+              "minimum": 30000000.0,
+              "samples": [
+                30000000.0
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "pooled_diagnostic": {
+    "download": {
+      "current": {
+        "count": 9,
+        "maximum": 25000000.0,
+        "median": 25000000.0,
+        "minimum": 25000000.0,
+        "samples": [
+          25000000.0,
+          25000000.0,
+          25000000.0,
+          25000000.0,
+          25000000.0,
+          25000000.0,
+          25000000.0,
+          25000000.0,
+          25000000.0
+        ]
+      },
+      "split": {
+        "count": 9,
+        "maximum": 26000000.0,
+        "median": 26000000.0,
+        "minimum": 26000000.0,
+        "samples": [
+          26000000.0,
+          26000000.0,
+          26000000.0,
+          26000000.0,
+          26000000.0,
+          26000000.0,
+          26000000.0,
+          26000000.0,
+          26000000.0
+        ]
+      },
+      "split_to_current_ratio_of_medians": 1.04
+    },
+    "upload": {
+      "current": {
+        "count": 9,
+        "maximum": 30000000.0,
+        "median": 30000000.0,
+        "minimum": 30000000.0,
+        "samples": [
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0
+        ]
+      },
+      "split": {
+        "count": 9,
+        "maximum": 30000000.0,
+        "median": 30000000.0,
+        "minimum": 30000000.0,
+        "samples": [
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0,
+          30000000.0
+        ]
+      },
+      "split_to_current_ratio_of_medians": 1.0
+    }
+  },
+  "predeclared_gates": {
+    "current_pairs_with_subthreshold_download_sample_minimum": 2,
+    "every_pair_download_split_to_current_ratio_minimum": 1.1,
+    "every_pair_upload_split_to_current_ratio_minimum": 0.9,
+    "payload_and_event_conservation": "exact",
+    "selective_retries": false,
+    "split_all_24_download_samples_minimum_bytes_per_second": 29700000
+  },
+  "row_count": 96,
+  "scope": "diagnostic_only",
+  "timing_gate_failures": [
+    "pair 1 download split/current ratio 1.04 below 1.1",
+    "pair 2 download split/current ratio 1.04 below 1.1",
+    "pair 3 download split/current ratio 1.04 below 1.1"
+  ],
+  "transition_screen": {
+    "all_pair_upload_gates_passed": true,
+    "consistent_with_stall_elimination": false,
+    "current_pairs_with_subthreshold_download_sample": 3,
+    "current_pairs_with_subthreshold_download_sample_minimum": 2,
+    "diagnostic_only": true,
+    "does_not_override_main_pair_gates": true,
+    "exact_correctness_and_cleanup": true,
+    "split_all_24_download_samples_pass": false,
+    "split_download_minimum": 26000000.0,
+    "split_download_sample_count": 24,
+    "threshold_bytes_per_second": 29700000
+  }
+}

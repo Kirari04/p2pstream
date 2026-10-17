@@ -1,0 +1,88 @@
+File: proxy-native-go-attribution.test
+Build ID: 056b4397a8375aeabba280b5e29f06d58ce864b0
+Type: alloc_space
+Time: 2026-10-16 17:25:30 CEST
+Showing nodes accounting for 3871.43MB, 95.33% of 4061.25MB total
+Dropped 253 nodes (cum <= 20.31MB)
+Showing top 80 nodes out of 96
+      flat  flat%   sum%        cum   cum%
+  432.10MB 10.64% 10.64%   464.11MB 11.43%  net/textproto.readMIMEHeader
+  377.31MB  9.29% 19.93%   386.31MB  9.51%  database/sql.driverArgsConnLocked
+  353.59MB  8.71% 28.64%   353.59MB  8.71%  net/http.Header.Clone (inline)
+  233.57MB  5.75% 34.39%   233.57MB  5.75%  net/http.(*Request).WithContext (inline)
+  195.05MB  4.80% 39.19%   195.05MB  4.80%  net/textproto.MIMEHeader.Add (inline)
+  148.01MB  3.64% 42.84%   235.52MB  5.80%  net/http.(*persistConn).roundTrip
+  131.52MB  3.24% 46.07%   175.52MB  4.32%  net/http.(*Transport).getConn
+  131.04MB  3.23% 49.30%   395.10MB  9.73%  net/http.readRequest
+  126.04MB  3.10% 52.40%  1921.03MB 47.30%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+  116.04MB  2.86% 55.26%   341.59MB  8.41%  net/http.(*Request).Clone
+  107.51MB  2.65% 57.91%   494.58MB 12.18%  net/http.(*persistConn).readLoop
+  104.52MB  2.57% 60.48%   534.12MB 13.15%  net/http.(*conn).readRequest
+  101.01MB  2.49% 62.97%   196.52MB  4.84%  context.withCancel (inline)
+   95.52MB  2.35% 65.32%    95.52MB  2.35%  context.(*cancelCtx).propagateCancel
+   94.01MB  2.31% 67.64%  1772.48MB 43.64%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+   77.50MB  1.91% 69.54%    77.50MB  1.91%  p2pstream/internal/db.appendProxyRequestEventArgs (inline)
+   77.01MB  1.90% 71.44%  1656.98MB 40.80%  net/http/httputil.(*ReverseProxy).ServeHTTP
+   71.51MB  1.76% 73.20%    71.51MB  1.76%  context.(*cancelCtx).Done
+   64.01MB  1.58% 74.78%    64.01MB  1.58%  net/http.newTransferWriter
+   55.50MB  1.37% 76.14%       56MB  1.38%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+   53.51MB  1.32% 77.46%   363.07MB  8.94%  net/http.ReadResponse
+   53.01MB  1.31% 78.77%    53.01MB  1.31%  net/url.parse
+      48MB  1.18% 79.95%    87.51MB  2.15%  time.NewTimer
+   46.51MB  1.15% 81.09%    46.51MB  1.15%  net/http.cloneURL (inline)
+   46.50MB  1.15% 82.24%    46.50MB  1.15%  context.WithValue
+      45MB  1.11% 83.35%    57.51MB  1.42%  p2pstream/internal/server.WithClientIdentity
+   44.50MB  1.10% 84.44%    44.50MB  1.10%  net.SplitHostPort.func1 (inline)
+      40MB  0.99% 85.43%       40MB  0.99%  time.newTimer
+      40MB  0.98% 86.41%       40MB  0.98%  p2pstream/internal/server.(*publicProxyContext).deferCleanup (inline)
+      38MB  0.94% 87.35%       38MB  0.94%  net/textproto.canonicalMIMEHeaderKey
+      35MB  0.86% 88.21%   633.07MB 15.59%  net/http.(*Transport).roundTrip
+      33MB  0.81% 89.02%       33MB  0.81%  net.(*conn).Read
+      27MB  0.66% 89.69%       27MB  0.66%  p2pstream/internal/server.(*requestCapacityLimiter).tryAcquire (inline)
+      27MB  0.66% 90.35%    92.01MB  2.27%  net/http.(*Request).write
+      26MB  0.64% 90.99%       36MB  0.89%  net/http.readTransfer
+   24.01MB  0.59% 91.58%    24.01MB  0.59%  github.com/pressly/goose/v3/internal/sqlparser.init.func1
+      24MB  0.59% 92.17%       24MB  0.59%  container/list.(*List).insertValue (inline)
+      24MB  0.59% 92.77%   233.54MB  5.75%  p2pstream/internal/server.initializePublicProxyContext
+      24MB  0.59% 93.36%       30MB  0.74%  net/textproto.MIMEHeader.Set (inline)
+   21.50MB  0.53% 93.89%    21.50MB  0.53%  mime.ParseMediaType
+      21MB  0.52% 94.40%       21MB  0.52%  github.com/mattn/go-sqlite3.bindValue
+   20.50MB   0.5% 94.91%    20.50MB   0.5%  net/textproto.(*Reader).ReadLine (inline)
+    9.50MB  0.23% 95.14%    73.51MB  1.81%  context.WithCancel
+    4.50MB  0.11% 95.25%   137.02MB  3.37%  context.WithCancelCause
+       2MB 0.049% 95.30%   390.81MB  9.62%  database/sql.resultFromStatement
+       1MB 0.025% 95.33%       22MB  0.54%  github.com/mattn/go-sqlite3.(*SQLiteStmt).execSync
+         0     0% 95.33%       24MB  0.59%  container/list.(*List).PushFront (inline)
+         0     0% 95.33%   391.81MB  9.65%  database/sql.(*DB).retry
+         0     0% 95.33%   391.31MB  9.64%  database/sql.(*Stmt).ExecContext
+         0     0% 95.33%   391.31MB  9.64%  database/sql.(*Stmt).ExecContext.func1
+         0     0% 95.33%       21MB  0.52%  github.com/mattn/go-sqlite3.(*SQLiteStmt).bind
+         0     0% 95.33%       22MB  0.54%  github.com/mattn/go-sqlite3.(*SQLiteStmt).exec.func1
+         0     0% 95.33%    24.01MB  0.59%  github.com/pressly/goose/v3/internal/sqlparser.ParseSQLMigration
+         0     0% 95.33%    24.51MB   0.6%  github.com/pressly/goose/v3/internal/sqlparser.parse
+         0     0% 95.33%    24.51MB   0.6%  golang.org/x/sync/errgroup.(*Group).Go.func1
+         0     0% 95.33%    44.50MB  1.10%  net.SplitHostPort
+         0     0% 95.33%  2349.50MB 57.85%  net/http.(*ServeMux).ServeHTTP
+         0     0% 95.33%   633.07MB 15.59%  net/http.(*Transport).RoundTrip
+         0     0% 95.33%       24MB  0.59%  net/http.(*Transport).tryPutIdleConn
+         0     0% 95.33%  2891.12MB 71.19%  net/http.(*conn).serve
+         0     0% 95.33%       24MB  0.59%  net/http.(*connLRU).add
+         0     0% 95.33%       33MB  0.81%  net/http.(*connReader).backgroundRead
+         0     0% 95.33%       24MB  0.59%  net/http.(*persistConn).readLoop.func2
+         0     0% 95.33%   363.07MB  8.94%  net/http.(*persistConn).readResponse
+         0     0% 95.33%    92.01MB  2.27%  net/http.(*persistConn).writeLoop
+         0     0% 95.33%   174.55MB  4.30%  net/http.(*response).WriteHeader
+         0     0% 95.33%  2330.50MB 57.38%  net/http.HandlerFunc.ServeHTTP
+         0     0% 95.33%   195.05MB  4.80%  net/http.Header.Add (inline)
+         0     0% 95.33%       30MB  0.74%  net/http.Header.Set (inline)
+         0     0% 95.33%     2350MB 57.86%  net/http.serverHandler.ServeHTTP
+         0     0% 95.33%    21.50MB  0.53%  net/http/httputil.(*ReverseProxy).flushInterval
+         0     0% 95.33%   195.05MB  4.80%  net/http/httputil.copyHeader
+         0     0% 95.33%   464.11MB 11.43%  net/textproto.(*Reader).ReadMIMEHeader (inline)
+         0     0% 95.33%    53.01MB  1.31%  net/url.ParseRequestURI
+         0     0% 95.33%   468.81MB 11.54%  p2pstream/internal/db.(*ProxyRequestEventInserter).InsertBatch
+         0     0% 95.33%   471.31MB 11.61%  p2pstream/internal/server.(*App).insertProxyRequestEventsWithRollupsAndCacheTouches
+         0     0% 95.33%  1772.48MB 43.64%  p2pstream/internal/server.(*App).proxyDirectTargetRequestWithResolution (inline)
+         0     0% 95.33%    50.50MB  1.24%  p2pstream/internal/server.(*App).proxyRouteTargetRequest.func2
+         0     0% 95.33%  2319.58MB 57.11%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+         0     0% 95.33%       56MB  1.38%  p2pstream/internal/server.(*App).tryReservePublicOwnedResource

@@ -1,0 +1,76 @@
+{
+  "accepted": false,
+  "all_observed_http_major": 2,
+  "exact_complete_timing_cohort": true,
+  "lifecycle_sha256": "9cd4e3b1a15505d9762c6778a51533ff1a9aaf88c4a7baf604b19b84d9cea723",
+  "natural_endpoint_and_namespace_statuses": true,
+  "original_runner_status": 1,
+  "outer_private_user_pid_mount_net": true,
+  "outer_runner_group_joined": true,
+  "pair_gates": [
+    {
+      "download": {
+        "aggregate_median_bytes_per_second": 33842088.18010405,
+        "legacy_median_bytes_per_second": 33827759.2076813,
+        "pass": true,
+        "ratio": 1.0004235862131683
+      },
+      "minimum_ratio": 0.9,
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 1,
+      "upload": {
+        "aggregate_median_bytes_per_second": 35662325.378173016,
+        "legacy_median_bytes_per_second": 35882062.502892114,
+        "pass": true,
+        "ratio": 0.9938761289237098
+      }
+    },
+    {
+      "download": {
+        "aggregate_median_bytes_per_second": 33842088.18010405,
+        "legacy_median_bytes_per_second": 33827759.2076813,
+        "pass": true,
+        "ratio": 1.0004235862131683
+      },
+      "minimum_ratio": 0.9,
+      "order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "pair": 2,
+      "upload": {
+        "aggregate_median_bytes_per_second": 28529860.302538414,
+        "legacy_median_bytes_per_second": 35882062.502892114,
+        "pass": false,
+        "ratio": 0.7951009031389679
+      }
+    },
+    {
+      "download": {
+        "aggregate_median_bytes_per_second": 33842088.18010405,
+        "legacy_median_bytes_per_second": 33827759.2076813,
+        "pass": true,
+        "ratio": 1.0004235862131683
+      },
+      "minimum_ratio": 0.9,
+      "order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "pair": 3,
+      "upload": {
+        "aggregate_median_bytes_per_second": 35662325.378173016,
+        "legacy_median_bytes_per_second": 35882062.502892114,
+        "pass": true,
+        "ratio": 0.9938761289237098
+      }
+    }
+  ],
+  "results_sha256": "25260f3e19bd5b2dff3ce9c2f2c80ca05ec0564776fd72464b88df820bc4aacd",
+  "row_count": 96,
+  "schema_version": 1,
+  "validation": "three fixed original H2 alternating legacy/aggregate pairs with every-pair gates"
+}

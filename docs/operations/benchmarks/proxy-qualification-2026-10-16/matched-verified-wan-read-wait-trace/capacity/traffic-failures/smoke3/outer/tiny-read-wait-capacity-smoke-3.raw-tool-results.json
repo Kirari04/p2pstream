@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "initial_exec_result": {
+    "chunk_id": "3ac8e7",
+    "wall_time_seconds": 1.001209808,
+    "session_id": 5611,
+    "original_token_count": 0,
+    "output": ""
+  },
+  "final_poll_result": {
+    "chunk_id": "c6b4c4",
+    "wall_time_seconds": 0.000010961,
+    "exit_code": 1,
+    "original_token_count": 0,
+    "output": ""
+  }
+}

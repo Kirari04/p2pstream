@@ -1,0 +1,239 @@
+{
+  "server": {
+    "successful_captures": 13042,
+    "capture_errors": [
+      {
+        "kind": "credit_error",
+        "role": "server",
+        "monotonic_ns": 377780768615331,
+        "wall_ns": 1792127662463891011,
+        "ready_file": "current-server-legacy-agent-compat-1-server.ready.json",
+        "pid": 471930,
+        "started_ns": 377780768367799,
+        "elapsed_ns": 233474,
+        "error": "Remote end closed connection without response"
+      },
+      {
+        "kind": "credit_error",
+        "role": "server",
+        "monotonic_ns": 377780788754119,
+        "wall_ns": 1792127662484029760,
+        "ready_file": "current-server-legacy-agent-compat-1-server.ready.json",
+        "pid": 471930,
+        "started_ns": 377780788496557,
+        "elapsed_ns": 250999,
+        "error": "[Errno 111] Connection refused"
+      },
+      {
+        "kind": "credit_error",
+        "role": "server",
+        "monotonic_ns": 377913861177668,
+        "wall_ns": 1792127795556453299,
+        "ready_file": "current-server-aggregate-v1-1-server.ready.json",
+        "pid": 476914,
+        "started_ns": 377913861029199,
+        "elapsed_ns": 144632,
+        "error": "Remote end closed connection without response"
+      },
+      {
+        "kind": "credit_error",
+        "role": "server",
+        "monotonic_ns": 377913881555127,
+        "wall_ns": 1792127795576830898,
+        "ready_file": "current-server-aggregate-v1-1-server.ready.json",
+        "pid": 476914,
+        "started_ns": 377913881291534,
+        "elapsed_ns": 256099,
+        "error": "[Errno 111] Connection refused"
+      },
+      {
+        "kind": "credit_error",
+        "role": "server",
+        "monotonic_ns": 377913901659935,
+        "wall_ns": 1792127795596935847,
+        "ready_file": "current-server-aggregate-v1-1-server.ready.json",
+        "pid": 476914,
+        "started_ns": 377913901401162,
+        "elapsed_ns": 250838,
+        "error": "[Errno 111] Connection refused"
+      },
+      {
+        "kind": "credit_error",
+        "role": "server",
+        "monotonic_ns": 377913921577429,
+        "wall_ns": 1792127795616852980,
+        "ready_file": "current-server-aggregate-v1-1-server.ready.json",
+        "pid": 476914,
+        "started_ns": 377913921455481,
+        "elapsed_ns": 118581,
+        "error": "[Errno 111] Connection refused"
+      },
+      {
+        "kind": "credit_error",
+        "role": "server",
+        "monotonic_ns": 377913941654754,
+        "wall_ns": 1792127795636930124,
+        "ready_file": "current-server-aggregate-v1-1-server.ready.json",
+        "pid": 476914,
+        "started_ns": 377913941537235,
+        "elapsed_ns": 113952,
+        "error": "[Errno 111] Connection refused"
+      },
+      {
+        "kind": "credit_error",
+        "role": "server",
+        "monotonic_ns": 377913961925194,
+        "wall_ns": 1792127795657201346,
+        "ready_file": "current-server-aggregate-v1-1-server.ready.json",
+        "pid": 476914,
+        "started_ns": 377913961672452,
+        "elapsed_ns": 246099,
+        "error": "[Errno 111] Connection refused"
+      }
+    ],
+    "skipped_legacy": [],
+    "stop_records": [
+      {
+        "kind": "credit_collector_stop",
+        "role": "server",
+        "monotonic_ns": 377913981751861,
+        "wall_ns": 1792127795677027852,
+        "successful_captures": 13042,
+        "capture_errors": 8,
+        "user_cpu_seconds": 6.246582,
+        "system_cpu_seconds": 0.915582,
+        "requested_stop": true,
+        "deadline_reached": false
+      }
+    ],
+    "request_duration_ms": {
+      "min": 0.157917,
+      "median": 0.4290905,
+      "max": 2.482494
+    },
+    "truncated_sessions": 0,
+    "successful_capture_interval_ms_excluding_gaps_over_one_second": {
+      "min": 19.385871,
+      "median": 20.110578,
+      "max": 262.522846
+    }
+  },
+  "agent": {
+    "successful_captures": 6603,
+    "capture_errors": [
+      {
+        "kind": "credit_error",
+        "role": "agent",
+        "monotonic_ns": 377913821026466,
+        "wall_ns": 1792127795516302307,
+        "ready_file": "current-server-aggregate-v1-1-agent.ready.json",
+        "pid": 476929,
+        "started_ns": 377913820806357,
+        "elapsed_ns": 205941,
+        "error": "Remote end closed connection without response"
+      },
+      {
+        "kind": "credit_error",
+        "role": "agent",
+        "monotonic_ns": 377913841170891,
+        "wall_ns": 1792127795536446602,
+        "ready_file": "current-server-aggregate-v1-1-agent.ready.json",
+        "pid": 476929,
+        "started_ns": 377913840918760,
+        "elapsed_ns": 246069,
+        "error": "[Errno 111] Connection refused"
+      },
+      {
+        "kind": "credit_error",
+        "role": "agent",
+        "monotonic_ns": 377913861269517,
+        "wall_ns": 1792127795556545278,
+        "ready_file": "current-server-aggregate-v1-1-agent.ready.json",
+        "pid": 476929,
+        "started_ns": 377913861056282,
+        "elapsed_ns": 206893,
+        "error": "[Errno 111] Connection refused"
+      },
+      {
+        "kind": "credit_error",
+        "role": "agent",
+        "monotonic_ns": 377913881443680,
+        "wall_ns": 1792127795576719972,
+        "ready_file": "current-server-aggregate-v1-1-agent.ready.json",
+        "pid": 476929,
+        "started_ns": 377913881153736,
+        "elapsed_ns": 282079,
+        "error": "[Errno 111] Connection refused"
+      },
+      {
+        "kind": "credit_error",
+        "role": "agent",
+        "monotonic_ns": 377913901613405,
+        "wall_ns": 1792127795596889677,
+        "ready_file": "current-server-aggregate-v1-1-agent.ready.json",
+        "pid": 476929,
+        "started_ns": 377913901297410,
+        "elapsed_ns": 307067,
+        "error": "[Errno 111] Connection refused"
+      },
+      {
+        "kind": "credit_error",
+        "role": "agent",
+        "monotonic_ns": 377913921518664,
+        "wall_ns": 1792127795616794375,
+        "ready_file": "current-server-aggregate-v1-1-agent.ready.json",
+        "pid": 476929,
+        "started_ns": 377913921354635,
+        "elapsed_ns": 159310,
+        "error": "[Errno 111] Connection refused"
+      },
+      {
+        "kind": "credit_error",
+        "role": "agent",
+        "monotonic_ns": 377913941600498,
+        "wall_ns": 1792127795636876199,
+        "ready_file": "current-server-aggregate-v1-1-agent.ready.json",
+        "pid": 476929,
+        "started_ns": 377913941442641,
+        "elapsed_ns": 153338,
+        "error": "[Errno 111] Connection refused"
+      }
+    ],
+    "skipped_legacy": [
+      {
+        "kind": "credit_unavailable",
+        "role": "agent",
+        "monotonic_ns": 377651282495930,
+        "wall_ns": 1792127532977771311,
+        "ready_file": "current-server-legacy-agent-compat-1-agent.ready.json",
+        "pid": 471949,
+        "reason": "frozen legacy agent has no diagnostic snapshot API; no request sent"
+      }
+    ],
+    "stop_records": [
+      {
+        "kind": "credit_collector_stop",
+        "role": "agent",
+        "monotonic_ns": 377913982076804,
+        "wall_ns": 1792127795677353386,
+        "successful_captures": 6603,
+        "capture_errors": 7,
+        "user_cpu_seconds": 3.604914,
+        "system_cpu_seconds": 0.60204,
+        "requested_stop": true,
+        "deadline_reached": false
+      }
+    ],
+    "request_duration_ms": {
+      "min": 0.170642,
+      "median": 0.442452,
+      "max": 2.417205
+    },
+    "truncated_sessions": 0,
+    "successful_capture_interval_ms_excluding_gaps_over_one_second": {
+      "min": 19.314611,
+      "median": 20.1105515,
+      "max": 21.492582
+    }
+  }
+}

@@ -1,0 +1,5 @@
+Added only `docs/operations/benchmarks/go.mod` and its root README. The documentary nested-module boundary preserves every immutable evidence packet and the root production module.
+
+Root authorized the simplified real discovery check: existing failed CI logs establish before-discovery; one fresh offline pinned Go1.26.6 `go list -mod=readonly ./docs/...` establishes after-discovery without traversing ignored tmp. It exited naturally0 in0.129s, stdout empty, stderr only `go: warning: "./docs/..." matched no packages`. Exact430 production input hashes match the frozen focused-test plan both before and after, including unchanged root go.mod and all six candidate Go files. No test, build, traffic, active runtime-output read, evidence edit, broad root ./... invocation or temporary source clone occurred.
+
+`package-discovery-once/COMMAND.json` retains the command/environment/timeout; stdout/stderr and RESULT.json retain status and hashes. This fixes package discovery; skipped downstream CI checks still need their normal rerun after root commits/pushes.

@@ -1,0 +1,61 @@
+{
+  "created_utc": "2026-10-16T09:28:03.548680+00:00",
+  "workload_started": false,
+  "calibration_started": false,
+  "source_ref": null,
+  "scope": "moderate-load peer latency; separate Caddy and HAProxy comparisons; no near-saturation claim",
+  "original_plan": "../moderate-runner-validation/preregistered-plan.json",
+  "unchanged_selection": "floor(0.5 * lower candidate/HAProxy warmed usefulRPS median) per H1/H2 and c16/c128; Caddy never changes the rate",
+  "requests": "20 * offered_rps",
+  "runs": 3,
+  "row_count": 36,
+  "additional_caddy_rows": 12,
+  "proxy_orders": [
+    [
+      "candidate",
+      "caddy",
+      "haproxy"
+    ],
+    [
+      "haproxy",
+      "caddy",
+      "candidate"
+    ],
+    [
+      "candidate",
+      "haproxy",
+      "caddy"
+    ]
+  ],
+  "preserved_haproxy_subsequence": [
+    "candidate-then-haproxy",
+    "haproxy-then-candidate",
+    "candidate-then-haproxy"
+  ],
+  "comparisons": {
+    "haproxy": {
+      "candidate_to_reference_p95_maximum": 1.25,
+      "candidate_to_reference_p99_maximum": 1.25
+    },
+    "caddy": {
+      "candidate_to_reference_p95_maximum": 1.25,
+      "candidate_to_reference_p99_maximum": 1.25
+    }
+  },
+  "delivery": {
+    "useful_rps_minimum_fraction": 0.99,
+    "elapsed_maximum_fraction": 1.01,
+    "exact_payload_status_protocol_and_candidate_events": true,
+    "queue_delay_included": true,
+    "h1_initial_client_tls_included": true,
+    "h2_one_accounted_prewarm_connection": true
+  },
+  "failure_policy": {
+    "caddy_valid_row_underdelivery": "preserve row and delivery failure, continue unchanged schedule and HA matrix; mark that Caddy cell capacity-confounded and not passed",
+    "correctness_or_instrumentation_failure": "fail closed with attempted rows/logs retained",
+    "hard_timeout_or_missing_raw": "incomplete/inconclusive, without attributing capacity",
+    "rate_lowering": false,
+    "selective_cell_dropping": false
+  },
+  "default_mode": "original 24-row candidate/HAProxy comparison remains available; extension opt-in"
+}

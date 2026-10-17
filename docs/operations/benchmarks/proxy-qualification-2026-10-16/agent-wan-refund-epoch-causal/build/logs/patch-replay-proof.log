@@ -1,0 +1,13 @@
+base_ref=5eeccaaa797254d7bde4db9854a337a02c3bc28e
+3fa10c967b69d4d371c64dd6bb2ca175ffbd9f98d80193d3d41b2722809bfe59  /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/meta/deferred-global-common.patch
+d07cac9d6f5dac0311416282c0c0e19ece2d3369e1d372abc43b406b3e33b81d  /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/meta/deferred-global-arm.patch
+patching file third_party/yamux/aggregate_window.go
+patching file third_party/yamux/deferred_global_diagnostic_test.go
+control_forward_exact=true
+patching file third_party/yamux/aggregate_window.go
+candidate_forward_exact=true
+patching file third_party/yamux/aggregate_window.go
+candidate_reverse_to_control_exact=true
+patching file third_party/yamux/aggregate_window.go
+patching file third_party/yamux/deferred_global_diagnostic_test.go
+control_reverse_to_base_exact=true

@@ -1,0 +1,19 @@
+{
+  "production_base": "d08f271e572bcb7600478a1e6396fc99b8ffbf53",
+  "baseline_binary_sha256": "f00475102993c12a736634e9d35987f28d09eaf7538bba5326b3b95abce87065",
+  "candidate_binary_sha256": "c8c7e3524081dbfb181883adf27221a34dc8879c749841c6099f5ec15f55e8f4",
+  "common_test_overlay": "internal/server/observability_prepared_insert_test.go",
+  "common_test_overlay_sha256": "eca0105118edc418b44fbf52b6fed98b38c023905beb52fde3eb91ecfbb3a1b3",
+  "candidate_implementation_overlays": {
+    "internal/db/proxy_request_event_inserter.go": "bdd9bd1b658e7d0f20e5a0965d1b710cb8f9e0d92b46fa7e2e2a2b06ed47921f",
+    "internal/server/observability_rollup.go": "3c35bc755940b90d611e2789547363ca25214bdb49fc29ea6f27e592ada5da98"
+  },
+  "go_version": "go1.26.6",
+  "gomaxprocs": 4,
+  "proxy_cpu_set": "0,1,2,3",
+  "physical_cores": 2,
+  "alternating_pairs": 3,
+  "benchtime": "500ms",
+  "benchmarks_sha256": "6ac56ee10109831993968e20e5af2084967c4c08599862137b08a558e106db15",
+  "sqlite_benchmark_storage": "b.TempDir under host /tmp (tmpfs); not a physical disk throughput benchmark"
+}

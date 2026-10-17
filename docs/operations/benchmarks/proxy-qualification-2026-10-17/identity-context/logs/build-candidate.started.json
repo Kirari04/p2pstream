@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "/usr/bin/env",
+    "-C",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "taskset",
+    "-c",
+    "8-11",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-mod=readonly",
+    "-p=2",
+    "-c",
+    "-o",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+    "./internal/server"
+  ],
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "deadline_seconds": 300,
+  "per_stream_rejection_threshold_bytes": 16777216,
+  "schema_version": 1,
+  "state": "running",
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

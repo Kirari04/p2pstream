@@ -1,0 +1,44 @@
+{
+  "accepted": false,
+  "actual_transfer_rows": 0,
+  "attempt": "small-sender-wait-smoke-1",
+  "closed": true,
+  "diagnostic": "wan-sender-wait",
+  "endpoint_logs": 0,
+  "endpoint_processes_spawned": 0,
+  "endpoint_readiness_files": 0,
+  "exact_failure": {
+    "inner_runner_stderr": "copy record validator is required",
+    "supervisor_stderr": "server did not reach the delegated-scope pre-exec barrier"
+  },
+  "file_count": 38,
+  "final_marker": "complete",
+  "h2_withheld_reason": "H2 not started because H1 topology, resource, or terminal sender-ledger closure was not proved",
+  "lifecycle": {
+    "forced_supervisor_cleanup": false,
+    "natural_endpoint_exits": 0,
+    "runner_group_joined": true,
+    "runner_wait_status": 1,
+    "scope_launcher_wait_status": 0,
+    "sentinel_natural_exit": true,
+    "unit_query_status": 0,
+    "unit_terminal": "not-found/inactive/dead"
+  },
+  "outer_namespaces": {
+    "all_private": true,
+    "cgroup_namespace_unchanged": true,
+    "python_parent_is_one": true,
+    "shell_pid_is_one": true
+  },
+  "pair_pre_post_hashes_equal": true,
+  "pre_endpoint_reasoning": "The generated runner rejects the missing executable copy-record validator before network/topology setup or run_cohort; the run contains no results JSONL, endpoint readiness file, or server/agent/origin log, and no server pre-exec record.",
+  "schema_version": 1,
+  "server_binary_process_spawned": false,
+  "statuses": {
+    "h1_arm": 1,
+    "h1_safe_to_continue": 0,
+    "h2_arm": 125,
+    "h2_started": 0
+  },
+  "tool_status": 1
+}

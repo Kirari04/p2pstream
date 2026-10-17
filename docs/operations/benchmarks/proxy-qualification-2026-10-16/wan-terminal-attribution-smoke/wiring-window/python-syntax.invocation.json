@@ -1,0 +1,20 @@
+{
+  "name": "python-syntax",
+  "argv": [
+    "python3",
+    "-I",
+    "-B",
+    "-c",
+    "import ast,pathlib,sys; [ast.parse(pathlib.Path(p).read_text(),filename=p) for p in sys.argv[1:]]",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/verify-terminal-build.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-arm-outcome.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-h1-continuation.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build-runner-review/build-endpoints.py"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+  "outer_seconds": 20,
+  "max_output_bytes": 65536,
+  "expected_natural_exit": 0
+}

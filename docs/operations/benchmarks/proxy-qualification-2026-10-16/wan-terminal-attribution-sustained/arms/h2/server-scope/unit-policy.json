@@ -1,0 +1,26 @@
+{
+  "accepted": true,
+  "checks": {
+    "active_state_active": true,
+    "delegate_enabled": true,
+    "effective_memory_max_4gib": true,
+    "load_state_loaded": true,
+    "memory_max_4gib": true,
+    "memory_swap_max_zero": true
+  },
+  "properties": {
+    "ActiveState": "active",
+    "ControlGroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2449204-39dd42b1.scope",
+    "Delegate": "yes",
+    "EffectiveMemoryMax": "4294967296",
+    "Id": "p2p-senderwait-h2-2449204-39dd42b1.scope",
+    "LoadState": "loaded",
+    "MemoryCurrent": "5713920",
+    "MemoryHigh": "infinity",
+    "MemoryMax": "4294967296",
+    "MemoryPeak": "5980160",
+    "MemorySwapMax": "0",
+    "SubState": "running"
+  },
+  "schema_version": 1
+}

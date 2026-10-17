@@ -1,0 +1,33 @@
+goos: linux
+goarch: amd64
+pkg: p2pstream/internal/server
+cpu: AMD Ryzen 9 6900HS with Radeon Graphics        
+BenchmarkResolvedIdentityContext/direct/background/resolve 	  655510	       273.0 ns/op	     480 B/op	       2 allocs/op
+BenchmarkResolvedIdentityContext/direct/background/resolve-and-read         	  581532	       312.0 ns/op	     480 B/op	       2 allocs/op
+BenchmarkResolvedIdentityContext/direct/deadline/resolve                    	  649047	       278.9 ns/op	     480 B/op	       2 allocs/op
+BenchmarkResolvedIdentityContext/direct/deadline/resolve-and-read           	  577705	       299.8 ns/op	     480 B/op	       2 allocs/op
+BenchmarkResolvedIdentityContext/invalid-peer/background/resolve            	  598479	       304.8 ns/op	     544 B/op	       4 allocs/op
+BenchmarkResolvedIdentityContext/invalid-peer/background/resolve-and-read   	  523698	       347.7 ns/op	     544 B/op	       4 allocs/op
+BenchmarkResolvedIdentityContext/invalid-peer/deadline/resolve              	  596006	       300.0 ns/op	     544 B/op	       4 allocs/op
+BenchmarkResolvedIdentityContext/invalid-peer/deadline/resolve-and-read     	  531840	       346.1 ns/op	     544 B/op	       4 allocs/op
+BenchmarkResolvedIdentityContext/configured-untrusted/background/resolve    	  630768	       284.6 ns/op	     480 B/op	       2 allocs/op
+BenchmarkResolvedIdentityContext/configured-untrusted/background/resolve-and-read         	  499776	       356.2 ns/op	     496 B/op	       3 allocs/op
+BenchmarkResolvedIdentityContext/configured-untrusted/deadline/resolve                    	  643849	       281.7 ns/op	     480 B/op	       2 allocs/op
+BenchmarkResolvedIdentityContext/configured-untrusted/deadline/resolve-and-read           	  506262	       352.5 ns/op	     496 B/op	       3 allocs/op
+BenchmarkResolvedIdentityContext/trusted-single/background/resolve                        	  466077	       384.6 ns/op	     496 B/op	       3 allocs/op
+BenchmarkResolvedIdentityContext/trusted-single/background/resolve-and-read               	  359677	       508.2 ns/op	     528 B/op	       5 allocs/op
+BenchmarkResolvedIdentityContext/trusted-single/deadline/resolve                          	  450615	       402.7 ns/op	     496 B/op	       3 allocs/op
+BenchmarkResolvedIdentityContext/trusted-single/deadline/resolve-and-read                 	  358152	       498.3 ns/op	     528 B/op	       5 allocs/op
+BenchmarkResolvedIdentityContext/trusted-chain/background/resolve                         	  329666	       545.3 ns/op	     576 B/op	       5 allocs/op
+BenchmarkResolvedIdentityContext/trusted-chain/background/resolve-and-read                	  234667	       663.8 ns/op	     608 B/op	       7 allocs/op
+BenchmarkResolvedIdentityContext/trusted-chain/deadline/resolve                           	  273568	       557.3 ns/op	     576 B/op	       5 allocs/op
+BenchmarkResolvedIdentityContext/trusted-chain/deadline/resolve-and-read                  	  267921	       720.8 ns/op	     608 B/op	       7 allocs/op
+BenchmarkResolvedIdentityContext/conflicting-sources/background/resolve                   	  212786	       720.1 ns/op	     752 B/op	       6 allocs/op
+BenchmarkResolvedIdentityContext/conflicting-sources/background/resolve-and-read          	  183205	       853.1 ns/op	     816 B/op	       8 allocs/op
+BenchmarkResolvedIdentityContext/conflicting-sources/deadline/resolve                     	  216292	       709.1 ns/op	     752 B/op	       6 allocs/op
+BenchmarkResolvedIdentityContext/conflicting-sources/deadline/resolve-and-read            	  187162	       858.4 ns/op	     816 B/op	       8 allocs/op
+BenchmarkResolvedIdentityContext/four-disabled-headers/background/resolve                 	  699547	       259.4 ns/op	     480 B/op	       2 allocs/op
+BenchmarkResolvedIdentityContext/four-disabled-headers/background/resolve-and-read        	  499716	       358.5 ns/op	     544 B/op	       3 allocs/op
+BenchmarkResolvedIdentityContext/four-disabled-headers/deadline/resolve                   	  696927	       261.5 ns/op	     480 B/op	       2 allocs/op
+BenchmarkResolvedIdentityContext/four-disabled-headers/deadline/resolve-and-read          	  502357	       357.0 ns/op	     544 B/op	       3 allocs/op
+PASS

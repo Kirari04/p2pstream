@@ -1,0 +1,54 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: cpu
+Time: 2026-10-16 05:19:29 CEST
+Duration: 15.25s, Total samples = 43.72s (286.75%)
+Showing nodes accounting for 24.50s, 56.04% of 43.72s total
+Dropped 1102 nodes (cum <= 0.22s)
+Showing top 45 nodes out of 296
+      flat  flat%   sum%        cum   cum%
+    11.52s 26.35% 26.35%     11.52s 26.35%  internal/runtime/syscall/linux.Syscall6
+     2.59s  5.92% 32.27%      2.68s  6.13%  runtime.cgocall
+     1.24s  2.84% 35.11%      3.40s  7.78%  runtime.selectgo
+     0.63s  1.44% 36.55%      0.63s  1.44%  runtime.nextFreeFast (inline)
+     0.56s  1.28% 37.83%      0.56s  1.28%  runtime.memmove
+     0.44s  1.01% 38.84%      0.44s  1.01%  runtime.memclrNoHeapPointers
+     0.36s  0.82% 39.66%      2.40s  5.49%  runtime.newobject
+     0.35s   0.8% 40.46%      0.68s  1.56%  net/textproto.CanonicalMIMEHeaderKey
+     0.35s   0.8% 41.26%      0.39s  0.89%  runtime.(*mspan).writeHeapBitsSmall
+     0.35s   0.8% 42.06%      2.09s  4.78%  runtime.mallocgcSmallScanNoHeader
+     0.32s  0.73% 42.80%      0.32s  0.73%  net/textproto.validHeaderFieldByte (inline)
+     0.31s  0.71% 43.50%      0.50s  1.14%  runtime.sellock
+     0.31s  0.71% 44.21%      0.43s  0.98%  runtime.unlock2
+     0.30s  0.69% 44.90%      0.30s  0.69%  runtime.nanotime (inline)
+     0.27s  0.62% 45.52%      0.27s  0.62%  aeshashbody
+     0.27s  0.62% 46.13%      0.41s  0.94%  runtime.lock2
+     0.26s  0.59% 46.73%      0.59s  1.35%  runtime.pcvalue
+     0.25s  0.57% 47.30%      0.25s  0.57%  time.runtimeNow
+     0.23s  0.53% 47.83%      3.47s  7.94%  runtime.mallocgc
+     0.23s  0.53% 48.35%      0.28s  0.64%  runtime.step
+     0.22s   0.5% 48.86%      0.23s  0.53%  internal/runtime/maps.(*Iter).Next
+     0.21s  0.48% 49.34%      0.39s  0.89%  runtime.chanrecv
+     0.20s  0.46% 49.79%      0.26s  0.59%  runtime.findfunc
+     0.18s  0.41% 50.21%      0.29s  0.66%  strings.ToLower
+     0.17s  0.39% 50.59%      0.32s  0.73%  runtime.casgstatus
+     0.15s  0.34% 50.94%      0.36s  0.82%  runtime.mapaccess1_faststr
+     0.15s  0.34% 51.28%      0.36s  0.82%  runtime.selunlock
+     0.15s  0.34% 51.62%      0.34s  0.78%  runtime.tryDeferToSpanScan
+     0.14s  0.32% 51.94%      4.12s  9.42%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+     0.14s  0.32% 52.26%      0.65s  1.49%  runtime.adjustframe
+     0.14s  0.32% 52.58%      0.25s  0.57%  runtime.scanObject
+     0.13s   0.3% 52.88%      0.26s  0.59%  net/textproto.canonicalMIMEHeaderKey
+     0.13s   0.3% 53.18%      1.28s  2.93%  runtime.findRunnable
+     0.12s  0.27% 53.45%      0.86s  1.97%  p2pstream/internal/server.(*App).selectRouteTarget
+     0.12s  0.27% 53.73%      0.47s  1.08%  runtime.(*stkframe).getStackMap
+     0.11s  0.25% 53.98%      2.44s  5.58%  net/http.(*http2serverConn).serve
+     0.11s  0.25% 54.23%      0.98s  2.24%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+     0.11s  0.25% 54.48%      0.40s  0.91%  runtime.(*unwinder).resolveInternal
+     0.10s  0.23% 54.71%      6.95s 15.90%  net/http/httputil.(*ReverseProxy).ServeHTTP
+     0.10s  0.23% 54.94%      0.62s  1.42%  runtime.chansend
+     0.10s  0.23% 55.17%      0.37s  0.85%  runtime.growslice
+     0.10s  0.23% 55.40%      0.29s  0.66%  runtime.scanObjectsSmall
+     0.10s  0.23% 55.63%      1.66s  3.80%  runtime.schedule
+     0.09s  0.21% 55.83%      3.92s  8.97%  crypto/tls.(*Conn).readRecordOrCCS
+     0.09s  0.21% 56.04%     11.09s 25.37%  syscall.RawSyscall6

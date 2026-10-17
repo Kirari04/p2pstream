@@ -1,0 +1,105 @@
+package server
+
+import (
+	"net/http"
+	"sync"
+	"testing"
+	"time"
+)
+
+func TestDirectTransportPoolConcurrentMissCreatesOneTransport(t *testing.T) {
+	pool := newDirectTransportPool(7)
+	defer pool.closeAll()
+	key := directTransportKey{RouteTargetID: 70, TargetOrigin: "https://upstream.test", TLSSkipVerify: true, ResponseHeaderTimeoutMillis: 1000}
+	start := make(chan struct{})
+	results := make(chan http.RoundTripper, 64)
+	for range cap(results) {
+		go func() {
+			<-start
+			results <- pool.getOrCreate(key, true, time.Second)
+		}()
+	}
+	close(start)
+	first := <-results
+	for range cap(results) - 1 {
+		if got := <-results; got != first {
+			t.Fatal("concurrent misses created separate transports for one origin configuration")
+		}
+	}
+	transport := first.(*http.Transport)
+	if transport.MaxConnsPerHost != 7 || transport.ResponseHeaderTimeout != time.Second || transport.TLSClientConfig == nil || !transport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatal("concurrent creation lost operator, timeout or TLS configuration")
+	}
+	if pool.len() != 1 {
+		t.Fatalf("pool entries=%d, want 1", pool.len())
+	}
+}
+
+func TestDirectTransportPoolHitsDuringInvalidationAndReclaim(t *testing.T) {
+	pool := newDirectTransportPool(7)
+	defer pool.closeAll()
+	key := directTransportKey{RouteTargetID: 70, TargetOrigin: "http://upstream.test", ResponseHeaderTimeoutMillis: 1000}
+	pool.getOrCreate(key, false, time.Second)
+	start := make(chan struct{})
+	errors := make(chan struct{}, 16)
+	var workers sync.WaitGroup
+	for range cap(errors) {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			<-start
+			for range 128 {
+				transport := pool.getOrCreate(key, false, time.Second).(*http.Transport)
+				if transport.MaxConnsPerHost != 7 || transport.ResponseHeaderTimeout != time.Second {
+					errors <- struct{}{}
+					return
+				}
+			}
+		}()
+	}
+	workers.Add(1)
+	go func() {
+		defer workers.Done()
+		<-start
+		for range 128 {
+			pool.reclaimOldestIdle()
+			pool.closeRouteTarget(key.RouteTargetID)
+		}
+	}()
+	close(start)
+	workers.Wait()
+	if len(errors) != 0 {
+		t.Fatal("concurrent invalidation returned an incomplete transport configuration")
+	}
+	pool.closeRouteTarget(key.RouteTargetID)
+	want := pool.getOrCreate(key, false, time.Second)
+	if got := pool.getOrCreate(key, false, time.Second); got != want || pool.len() != 1 {
+		t.Fatal("cache did not settle on one reusable transport after invalidation")
+	}
+}
+
+func BenchmarkDirectTransportPoolCacheHit(b *testing.B) {
+	for _, parallelism := range []int{1, 4} {
+		name := "parallelism1"
+		if parallelism == 4 {
+			name = "parallelism4"
+		}
+		b.Run(name, func(b *testing.B) {
+			pool := newDirectTransportPool(7)
+			defer pool.closeAll()
+			key := directTransportKey{RouteTargetID: 70, TargetOrigin: "http://upstream.test", ResponseHeaderTimeoutMillis: 1000}
+			want := pool.getOrCreate(key, false, time.Second)
+			b.SetParallelism(parallelism)
+			b.ReportAllocs()
+			b.ResetTimer()
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					if pool.getOrCreate(key, false, time.Second) != want {
+						b.Error("cache hit replaced the transport")
+						return
+					}
+				}
+			})
+		})
+	}
+}

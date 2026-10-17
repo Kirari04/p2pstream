@@ -1,0 +1,348 @@
+{
+  "acceptance": {
+    "correctness": true,
+    "download_floor_every_phase": true,
+    "expected_upstream_reuse": true,
+    "response_copy_attribution_complete": true,
+    "transport_trace_complete": true,
+    "verified_tls_and_protocol_every_response": true
+  },
+  "classification": "observational-complete",
+  "copy_attribution_interpretation": "Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with monotonic handler elapsed time. Unix timestamps are retained only for coarse correlation. Inter-read gaps include downstream Write time and bookkeeping and are never added as an independent component. POST observations cover only the 32-byte response copy, not upload request-body handling.",
+  "copy_attribution_issues_by_sequence": {},
+  "diagnostic_only": true,
+  "download_by_phase": {
+    "retained-warmup": {
+      "all_at_or_above_floor": false,
+      "minimum_bytes_per_second": 4688656.26134966,
+      "samples": 1
+    },
+    "steady": {
+      "all_at_or_above_floor": false,
+      "minimum_bytes_per_second": 4651617.106921942,
+      "samples": 1
+    },
+    "warmup": {
+      "all_at_or_above_floor": false,
+      "minimum_bytes_per_second": 4629465.181023483,
+      "samples": 4
+    }
+  },
+  "gates": {
+    "download_bytes_per_second_floor": 29700000
+  },
+  "interpretation": "Observational diagnostic only; throughput is not qualification evidence and medians do not establish health or causality. Warmup rows explicitly close idle transports. Sequences 9-12 are the first post-close visits to four concrete lane keys; only later same-key visits classify reuse, bound to the prior successful PutIdleConn timestamp and exact origin connection identity.",
+  "public_protocol": "h1",
+  "reuse_counts": {
+    "new": 12,
+    "put_idle_absent": 0,
+    "reused": 1
+  },
+  "reuse_expectations": [
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33682",
+      "kind": "first-post-close-visit",
+      "lane_position": 1,
+      "satisfied": true,
+      "sequence": 9
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33674",
+      "kind": "first-post-close-visit",
+      "lane_position": 2,
+      "satisfied": true,
+      "sequence": 10
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33658",
+      "kind": "first-post-close-visit",
+      "lane_position": 3,
+      "satisfied": true,
+      "sequence": 11
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33664",
+      "kind": "first-post-close-visit",
+      "lane_position": 4,
+      "satisfied": true,
+      "sequence": 12
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33682",
+      "elapsed_idle_ns": 4309585841,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33682",
+      "got_conn_unix_ns": 1792181423546483672,
+      "httptrace_idle_time_ns": 4309586352,
+      "kind": "same-key-revisit",
+      "lane_position": 1,
+      "observed_origin_connection_id": "10.212.0.2:51090",
+      "prior_origin_connection_id": "10.212.0.2:51090",
+      "prior_put_idle_unix_ns": 1792181419236897831,
+      "satisfied": true,
+      "sequence": 13
+    }
+  ],
+  "reuse_issues": [],
+  "transport_traces": [
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33682",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "got_conn_observed_unix_ns": 1792181408200290481,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:54900",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181409012165818
+        }
+      ],
+      "remote_address": "10.212.0.2:33682",
+      "repetition": 1,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33674",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "got_conn_observed_unix_ns": 1792181409426986552,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:54906",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181410246727851
+        }
+      ],
+      "remote_address": "10.212.0.2:33674",
+      "repetition": 2,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33658",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "got_conn_observed_unix_ns": 1792181410639224689,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:54920",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181411454422972
+        }
+      ],
+      "remote_address": "10.212.0.2:33658",
+      "repetition": 3,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33664",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "got_conn_observed_unix_ns": 1792181411872833326,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:54924",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181412690094745
+        }
+      ],
+      "remote_address": "10.212.0.2:33664",
+      "repetition": 4,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33682",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "got_conn_observed_unix_ns": 1792181413086214819,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:54928",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181413898979682
+        }
+      ],
+      "remote_address": "10.212.0.2:33682",
+      "repetition": 1,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33674",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "got_conn_observed_unix_ns": 1792181414302443975,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:54930",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181415112066230
+        }
+      ],
+      "remote_address": "10.212.0.2:33674",
+      "repetition": 2,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33658",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "got_conn_observed_unix_ns": 1792181415469327710,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:54934",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181416360338748
+        }
+      ],
+      "remote_address": "10.212.0.2:33658",
+      "repetition": 3,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33664",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "got_conn_observed_unix_ns": 1792181416780152893,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:54940",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181417589100965
+        }
+      ],
+      "remote_address": "10.212.0.2:33664",
+      "repetition": 4,
+      "reused": false,
+      "stage": "warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33682",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "got_conn_observed_unix_ns": 1792181418427928113,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:51090",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181419236897831
+        }
+      ],
+      "remote_address": "10.212.0.2:33682",
+      "repetition": 1,
+      "reused": false,
+      "stage": "retained-warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33674",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "got_conn_observed_unix_ns": 1792181419760117040,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:51096",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181420572585634
+        }
+      ],
+      "remote_address": "10.212.0.2:33674",
+      "repetition": 1,
+      "reused": false,
+      "stage": "retained-warmup",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33658",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "got_conn_observed_unix_ns": 1792181421022265993,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:51108",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181421837451371
+        }
+      ],
+      "remote_address": "10.212.0.2:33658",
+      "repetition": 1,
+      "reused": false,
+      "stage": "steady",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33664",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "upload",
+      "got_conn_observed_unix_ns": 1792181422366912982,
+      "idle_time_ns": 0,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:51120",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181423180441318
+        }
+      ],
+      "remote_address": "10.212.0.2:33664",
+      "repetition": 1,
+      "reused": false,
+      "stage": "steady",
+      "valid": true,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:37347|10.212.0.2:33682",
+      "connection_type": "*server.agentTunnelStreamConn",
+      "direction": "download",
+      "got_conn_observed_unix_ns": 1792181423546483672,
+      "idle_time_ns": 4309586352,
+      "local_address": "10.211.0.1:37347",
+      "origin_connection_id": "10.212.0.2:51090",
+      "put_idle_conn": [
+        {
+          "observed_unix_ns": 1792181424272762049
+        }
+      ],
+      "remote_address": "10.212.0.2:33682",
+      "repetition": 1,
+      "reused": true,
+      "stage": "reuse-probe",
+      "valid": true,
+      "was_idle": true
+    }
+  ]
+}

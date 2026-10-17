@@ -1,0 +1,6 @@
+{"event":"namespace-helpers-start","boot_id":"1811fe8e-5c3c-4428-ab82-9b38d6519500","runner_namespace":"net:[4026533519]","agent":{"pid":20,"start_ticks":733978,"namespace":"net:[4026533254]"},"router":{"pid":25,"start_ticks":733978,"namespace":"net:[4026533841]"}}
+{"event":"process-exit","label":"current-server-aggregate-v1-h2-1-agent","pid":175,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-h2-1-server","pid":151,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"origin","pid":137,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"agent-namespace","pid":20,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"router-namespace","pid":25,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}

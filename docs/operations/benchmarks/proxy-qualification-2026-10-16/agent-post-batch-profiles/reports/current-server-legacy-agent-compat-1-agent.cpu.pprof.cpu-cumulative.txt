@@ -1,0 +1,54 @@
+File: agent.test
+Build ID: 2c1b796d824f205535926c758377823561f6140b
+Type: cpu
+Time: 2026-10-16 06:05:03 CEST
+Duration: 12.28s, Total samples = 17.89s (145.64%)
+Showing nodes accounting for 11.60s, 64.84% of 17.89s total
+Dropped 308 nodes (cum <= 0.09s)
+Showing top 45 nodes out of 117
+      flat  flat%   sum%        cum   cum%
+    10.82s 60.48% 60.48%     10.82s 60.48%  internal/runtime/syscall/linux.Syscall6
+         0     0% 60.48%     10.20s 57.02%  internal/poll.ignoringEINTRIO (inline)
+     0.03s  0.17% 60.65%     10.18s 56.90%  syscall.Syscall
+     0.04s  0.22% 60.87%      9.97s 55.73%  syscall.RawSyscall6
+     0.02s  0.11% 60.98%      7.18s 40.13%  net.(*conn).Write
+     0.03s  0.17% 61.15%      7.16s 40.02%  net.(*netFD).Write
+         0     0% 61.15%      7.11s 39.74%  internal/poll.(*FD).Write
+     0.02s  0.11% 61.26%      7.03s 39.30%  syscall.Write (inline)
+     0.01s 0.056% 61.32%      7.01s 39.18%  syscall.write
+         0     0% 61.32%      5.55s 31.02%  github.com/hashicorp/yamux.(*Session).send
+     0.05s  0.28% 61.60%      5.55s 31.02%  github.com/hashicorp/yamux.(*Session).sendLoop
+         0     0% 61.60%      5.02s 28.06%  io.Copy (inline)
+     0.09s   0.5% 62.10%      5.02s 28.06%  io.copyBuffer
+     0.04s  0.22% 62.33%      4.97s 27.78%  crypto/tls.(*Conn).Write
+     0.02s  0.11% 62.44%      4.87s 27.22%  crypto/tls.(*Conn).writeRecordLocked
+     0.02s  0.11% 62.55%      4.52s 25.27%  crypto/tls.(*Conn).write
+         0     0% 62.55%      3.65s 20.40%  runtime.mcall
+     0.02s  0.11% 62.66%      3.64s 20.35%  runtime.park_m
+     0.03s  0.17% 62.83%      3.54s 19.79%  runtime.schedule
+         0     0% 62.83%      3.45s 19.28%  github.com/hashicorp/yamux.(*Session).recv
+     0.03s  0.17% 63.00%      3.45s 19.28%  github.com/hashicorp/yamux.(*Session).recvLoop
+     0.04s  0.22% 63.22%      3.36s 18.78%  internal/poll.(*FD).Read
+     0.10s  0.56% 63.78%      3.36s 18.78%  runtime.findRunnable
+     0.01s 0.056% 63.83%      3.35s 18.73%  net.(*conn).Read
+         0     0% 63.83%      3.34s 18.67%  net.(*netFD).Read
+     0.02s  0.11% 63.95%      3.16s 17.66%  syscall.Read (inline)
+         0     0% 63.95%      3.14s 17.55%  net.(*TCPConn).ReadFrom
+         0     0% 63.95%      3.14s 17.55%  net.(*TCPConn).readFrom
+         0     0% 63.95%      3.14s 17.55%  net.genericReadFrom
+         0     0% 63.95%      3.14s 17.55%  p2pstream/internal/agent.relayTunnelStream.func1
+     0.02s  0.11% 64.06%      3.14s 17.55%  syscall.read
+         0     0% 64.06%      2.96s 16.55%  bufio.(*Reader).Read
+     0.03s  0.17% 64.23%      2.91s 16.27%  crypto/tls.(*Conn).Read
+         0     0% 64.23%      2.91s 16.27%  net/http.(*readWriteCloserBody).Read
+         0     0% 64.23%      2.82s 15.76%  crypto/tls.(*Conn).readRecord (inline)
+     0.02s  0.11% 64.34%      2.82s 15.76%  crypto/tls.(*Conn).readRecordOrCCS
+     0.02s  0.11% 64.45%      2.52s 14.09%  crypto/tls.(*Conn).readFromUntil
+     0.01s 0.056% 64.51%      2.42s 13.53%  bytes.(*Buffer).ReadFrom
+     0.04s  0.22% 64.73%      2.40s 13.42%  crypto/tls.(*atLeastReader).Read
+     0.02s  0.11% 64.84%      2.07s 11.57%  io.ReadAtLeast
+         0     0% 64.84%      2.07s 11.57%  io.ReadFull (inline)
+         0     0% 64.84%      1.88s 10.51%  net.(*TCPConn).WriteTo
+         0     0% 64.84%      1.88s 10.51%  net.(*TCPConn).writeTo
+         0     0% 64.84%      1.88s 10.51%  net.genericWriteTo
+         0     0% 64.84%      1.88s 10.51%  p2pstream/internal/agent.relayTunnelStream.func2

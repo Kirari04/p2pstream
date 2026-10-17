@@ -1,0 +1,775 @@
+--- failed-freeze/contracts/test-controller-screen.py
++++ corrected/contracts/test-controller-screen.py
+@@ -74,13 +74,21 @@
+   with tempfile.TemporaryDirectory() as temporary:
+    run=Path(temporary)/'arm';shutil.copytree(oldrun,run)
+    before={p.name for p in (run/'results.sender-wait-controls').iterdir()}
++   def evaluate(name):
++    att=run/name
++    args=[sys.executable,'-I','-B',str(P/'validate-wan-below-tls-arm.py')]+[str(run/x) for x in ['results.jsonl','results.lifecycle.jsonl','results.summary.json','outer-namespaces.json','supervisor-lifecycle.json','pre-hashes.json','post-hashes.json']]+[str(att),'h2','sustained']
++    status=subprocess.run(args,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=20)
++    self.assertEqual(status.returncode,1)
++    return json.loads(att.read_text())
++   relocated=evaluate('compatibility-before.json')
++   original=json.loads((oldrun/'attestation.json').read_text())
++   # Relocation alone changes the mature validator's path-bound facts. Preserve
++   # that discrepancy; isolate only the effect of adding the root sidecar.
++   self.assertNotEqual(relocated,original)
+    (run/'controller-selection.json').write_text('{"schema_version":1}')
+    self.assertEqual(before,{p.name for p in (run/'results.sender-wait-controls').iterdir()})
+-   att=run/'compatibility-attestation.json'
+-   args=[sys.executable,'-I','-B',str(P/'validate-wan-below-tls-arm.py')]+[str(run/x) for x in ['results.jsonl','results.lifecycle.jsonl','results.summary.json','outer-namespaces.json','supervisor-lifecycle.json','pre-hashes.json','post-hashes.json']]+[str(att),'h2','sustained']
+-   status=subprocess.run(args,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=20)
+-   self.assertEqual(status.returncode,1) # preserve the old performance failure
+-   self.assertEqual(json.loads(att.read_text()),json.loads((oldrun/'attestation.json').read_text()))
++   with_sidecar=evaluate('compatibility-after.json')
++   self.assertEqual(with_sidecar,relocated) # no additional integrity/control-set discrepancy
+  def test_unmodified_mature_validators(self):
+   for p in P.glob('validate-*.py'):
+    if p.name.startswith('validate-controller'):continue
+@@ -94,6 +102,41 @@
+  def test_independent_source_copy(self):
+   for row in json.loads((ROOT/'BASE-SOURCE-INVENTORY.json').read_text())['files']:
+    self.assertNotEqual((ROOT/row['path']).stat().st_ino,(OLD/row['path']).stat().st_ino)
++class ContinuationProofs(unittest.TestCase):
++ def setUp(self):
++  import tempfile
++  self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
++  spec=importlib.util.spec_from_file_location('receipt',P/'verify-terminal-build.py');self.receipt=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.receipt)
++  self.receipt.ROOT=Path(self.temp.name);self.current='a'*64
++ def fixture(self,reused):
++  name='preflight' if reused else 'python-contracts';origin='reused-original-freeze' if reused else 'fresh-continuation-1'
++  directory=self.receipt.ROOT/('build' if reused else 'build/continuation-1');directory.mkdir(parents=True,exist_ok=True)
++  command={'name':name,'argv':['fixture-command'],'cwd':'/fixture','proof_origin':origin,'log_directory':str(directory),'max_output_bytes':1024,'max_stdout_bytes':1024,'max_stderr_bytes':1024}
++  paths={kind:directory/(name+'.'+suffix) for kind,suffix in [('command_proof','command-proof.json'),('outer','outer.json'),('started','started.json'),('stdout','stdout.log'),('stderr','stderr.log')]}
++  paths['stdout'].write_text('ok\n');paths['stderr'].write_text('')
++  outer={'argv':command['argv'],'status':0,'forced':False,'remaining_owned':[],'adopted_descendants':[],'accepted_cleanup':True,'stdout_bytes':3,'stderr_bytes':0}
++  paths['outer'].write_text(json.dumps(outer));paths['started'].write_text(json.dumps({'argv':command['argv']}))
++  sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
++  proof={k:command[k] for k in ['name','argv','cwd']};proof.update({'exit_status':0,'forced':False,'remaining_group_members':[],'adopted_descendants':[],'outer_audit_sha256':sha(paths['outer']),'stdout_sha256':sha(paths['stdout']),'stderr_sha256':sha(paths['stderr']),'stdout_bytes':3,'stderr_bytes':0,'output_bytes':3})
++  paths['command_proof'].write_text(json.dumps(proof))
++  row=proof|{'proof_origin':origin,'log_directory':str(directory),'execution_source_freeze_sha256':self.receipt.ORIGINAL_FREEZE if reused else self.current,'command_proof_sha256':sha(paths['command_proof'])}
++  if reused:command['reused_proof']={'execution_source_freeze_sha256':self.receipt.ORIGINAL_FREEZE,'files':{kind:{'path':str(path),'sha256':sha(path)} for kind,path in paths.items()}}
++  return command,row,paths
++ def test_reused_and_fresh_origins_are_explicit(self):
++  for reused in [True,False]:
++   command,row,_=self.fixture(reused);self.assertEqual(self.receipt.verify_command(command,row,self.current) is not None,reused)
++   for key,value in [('proof_origin','fresh-continuation-1' if reused else 'reused-original-freeze'),('log_directory','/wrong'),('execution_source_freeze_sha256','b'*64),('command_proof_sha256','c'*64)]:
++    bad=copy.deepcopy(row);bad[key]=value;self.assertRaises(ValueError,self.receipt.verify_command,command,bad,self.current)
++ def test_reused_file_hashes_and_paths_are_immutable(self):
++  command,row,paths=self.fixture(True)
++  for kind in paths:
++   bad=copy.deepcopy(command);bad['reused_proof']['files'][kind]['sha256']='d'*64;self.assertRaises(ValueError,self.receipt.verify_command,bad,row,self.current)
++   bad=copy.deepcopy(command);bad['reused_proof']['files'][kind]['path']='/wrong';self.assertRaises(ValueError,self.receipt.verify_command,bad,row,self.current)
++  paths['started'].write_text('{"argv":["tampered"]}');self.assertRaises(ValueError,self.receipt.verify_command,command,row,self.current)
++ def test_fresh_log_tamper_and_remaining_owner_reject(self):
++  command,row,paths=self.fixture(False);paths['stdout'].write_text('tampered');self.assertRaises(ValueError,self.receipt.verify_command,command,row,self.current)
++  for key,value in [('adopted_descendants',[{'pid':1}]),('remaining_group_members',[1]),('remaining_owned',[1]),('remaining_after_cleanup',[1])]:
++   command,row,paths=self.fixture(False);proof=json.loads(paths['command_proof'].read_text());proof[key]=value;paths['command_proof'].write_text(json.dumps(proof));row.update(proof);row['command_proof_sha256']=hashlib.sha256(paths['command_proof'].read_bytes()).hexdigest();self.assertRaises(ValueError,self.receipt.verify_command,command,row,self.current)
+ class Supervisor(unittest.TestCase):
+  def setUp(self):
+   import tempfile
+--- failed-freeze/runner-source/integration/verify-terminal-build.py
++++ corrected/runner-source/integration/verify-terminal-build.py
+@@ -3,17 +3,44 @@
+ from pathlib import Path
+ import argparse,hashlib,json,os,re,stat
+ ROOT=Path(__file__).resolve().parents[2]
++ORIGINAL_FREEZE='12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22'
++REUSED=('preflight','legacy-tcp-state-validator','legacy-failed-capture-validator','prospective-terminal-contracts')
++FRESH=('python-contracts','normal','race','agent-build','server-build','agent-metadata','server-metadata')
+ def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+ def require(ok,message):
+  if not ok:raise ValueError(message)
+ def read(path,limit=4<<20):
+  p=Path(path);m=p.lstat();require(stat.S_ISREG(m.st_mode) and not p.is_symlink() and 0<m.st_size<=limit,'unbounded or nonregular input');return json.loads(p.read_text())
++def verify_command(command,row,current_freeze):
++ name=command['name'];require(name in REUSED+FRESH,'unknown continuation command')
++ reused=name in REUSED;origin='reused-original-freeze' if reused else 'fresh-continuation-1'
++ directory=ROOT/'build' if reused else ROOT/'build/continuation-1'
++ require(command.get('proof_origin')==row.get('proof_origin')==origin and command.get('log_directory')==row.get('log_directory')==str(directory),'proof origin/log directory differs')
++ require(row.get('execution_source_freeze_sha256')==(ORIGINAL_FREEZE if reused else current_freeze),'proof execution freeze differs')
++ paths={kind:directory/(name+'.'+suffix) for kind,suffix in [('command_proof','command-proof.json'),('outer','outer.json'),('started','started.json'),('stdout','stdout.log'),('stderr','stderr.log')]}
++ if reused:
++  pinned=command.get('reused_proof');require(type(pinned) is dict and pinned.get('execution_source_freeze_sha256')==ORIGINAL_FREEZE and set(pinned.get('files',{}))==set(paths),'reused proof binding missing')
++  for kind,path in paths.items():require(pinned['files'][kind]=={'path':str(path),'sha256':sha(path)},'reused proof/audit/log changed')
++ else:require('reused_proof' not in command,'fresh command claims reused proof')
++ proof=read(paths['command_proof']);require(row.get('command_proof_sha256')==sha(paths['command_proof']),'wrapped command proof changed')
++ require(all(row.get(k)==v for k,v in proof.items()),'receipt rewrote original command proof')
++ require(all(proof.get(k)==command[k] for k in ['name','argv','cwd']),'proof command differs')
++ require(type(proof.get('exit_status')) is int and proof['exit_status']==0 and proof.get('forced') is False and proof.get('remaining_group_members')==[] and proof.get('remaining_owned',[])==[] and proof.get('remaining_after_cleanup',[])==[] and proof.get('adopted_descendants',[])==[],'proof did not join naturally')
++ outer=read(paths['outer']);started=read(paths['started'])
++ require(proof.get('outer_audit_sha256')==sha(paths['outer']) and outer.get('argv')==started.get('argv')==command['argv'],'outer/start command binding differs')
++ require(type(outer.get('status')) is int and outer['status']==0 and outer.get('forced') is False and outer.get('remaining_owned')==[] and outer.get('remaining_after_cleanup',[])==[] and outer.get('adopted_descendants',[])==[] and outer.get('accepted_cleanup') is True,'outer proof did not join naturally')
++ for stream in ['stdout','stderr']:
++  path=paths[stream];m=path.lstat();require(stat.S_ISREG(m.st_mode) and not path.is_symlink(),'proof log type differs')
++  require(proof.get(stream+'_sha256')==sha(path) and proof.get(stream+'_bytes')==outer.get(stream+'_bytes')==m.st_size and m.st_size<=command['max_'+stream+'_bytes'],'proof log hash/bytes differ')
++ require(proof.get('output_bytes')==sum(paths[s].stat().st_size for s in ['stdout','stderr'])<=command['max_output_bytes'],'proof aggregate output differs')
++ return {'name':name,'execution_source_freeze_sha256':ORIGINAL_FREEZE,'command_proof_sha256':sha(paths['command_proof'])} if reused else None
+ def main():
+  p=argparse.ArgumentParser()
+  for name in ['receipt','expected-receipt-sha256','server','agent','server-ref','agent-ref']:p.add_argument('--'+name,required=True)
+  a=p.parse_args();require(re.fullmatch('[0-9a-f]{64}',a.expected_receipt_sha256) is not None,'reviewed controller receipt missing');require(sha(a.receipt)==a.expected_receipt_sha256,'reviewed controller receipt changed')
+  v=read(a.receipt);plan=read(ROOT/'BUILD-TEST-PLAN.json')
+- require(v.get('schema_version')==1 and v.get('diagnostic')=='controller-screen-build' and v.get('accepted') is True,'controller build not accepted')
++ require(sha(ROOT/'failed-local-freeze-1/SHA256SUMS')==ORIGINAL_FREEZE,'original execution freeze changed')
++ require(v.get('schema_version')==2 and v.get('diagnostic')=='controller-screen-build' and v.get('accepted') is True,'controller continuation build not accepted')
+  require(v.get('endpoint_execution') is False and v.get('wan_traffic') is False and v.get('source_before_after_unchanged') is True,'build scope/source changed')
+  require(v.get('plan_sha256')==sha(ROOT/'BUILD-TEST-PLAN.json') and v.get('inventory_sha256')==sha(ROOT/'SOURCE-SHA256SUMS'),'plan/source binding differs')
+  expected=set()
+@@ -23,14 +50,16 @@
+  for row in plan['inputs']:require(sha(row['path'])==row['sha256'],'frozen historical/tool input changed')
+  require(v.get('source_ref')==plan['source_ref']==a.server_ref==a.agent_ref,'compiled source reference differs')
+  require(v.get('resolved_settings')==plan['expected_settings'] and read(ROOT/'build/preflight.stdout.log')==plan['expected_settings'],'build settings differ')
++ reused=[];current_freeze=sha(ROOT/'SHA256SUMS')
++ require(v.get('fresh_execution_source_freeze_sha256')==current_freeze,'fresh execution freeze differs')
+  for phase in ['tests','builds']:
+   commands=plan[phase];executions=v.get(phase);require(type(executions) is list and len(executions)==len(commands),'proof cardinality differs')
+   for command,row in zip(commands,executions):
+-   require(all(row.get(k)==command[k] for k in ['name','argv','cwd']),'proof command differs')
+-   require(type(row.get('exit_status')) is int and row['exit_status']==0 and row.get('forced') is False and row.get('remaining_group_members')==[],'proof did not join naturally')
+-   for stream in ['stdout','stderr']:require(row.get(stream+'_sha256')==sha(ROOT/'build'/(row['name']+'.'+stream+'.log')),'proof log changed')
++   prior=verify_command(command,row,current_freeze)
++   if prior is not None:reused.append(prior)
++ require([r['name'] for r in reused]==list(REUSED) and v.get('reused_proofs')==reused,'separate reused proof summary differs')
+  for role,path in [('server',a.server),('agent',a.agent)]:
+   b=v['binaries'][role];q=Path(path);require(str(q.resolve())==b['path'] and q.is_file() and not q.is_symlink() and os.access(q,os.X_OK),'binary path changed');require(sha(q)==b['sha256'] and q.stat().st_size==b['size'],'binary content changed')
+-  metadata=ROOT/'build'/(role+'-metadata.stdout.log');require(b.get('go_version_m_sha256')==sha(metadata) and 'go1.26.6' in metadata.read_text(),'compiled Go metadata differs')
++  metadata=ROOT/'build/continuation-1'/(role+'-metadata.stdout.log');require(b.get('go_version_m_sha256')==sha(metadata) and 'go1.26.6' in metadata.read_text(),'compiled Go metadata differs')
+  print(json.dumps({'accepted':True,'diagnostic':'controller-screen-build-tuple','reviewed_receipt_sha256':a.expected_receipt_sha256,'source_ref':plan['source_ref']}))
+ if __name__=='__main__':main()
+--- failed-freeze/runner-source/integration/run-wan-below-tls-arm.sh
++++ corrected/runner-source/integration/run-wan-below-tls-arm.sh
+@@ -285,7 +285,7 @@
+ ' "$combined_build_receipt" >/dev/null || {
+   echo "historical threshold-history build receipt no longer binds its historical tuple" >&2; exit 2;
+ }
+-[[ $(sha256sum "$integration_dir/verify-terminal-build.py" | awk '{print $1}') == a7d04c74ede96b84d241373117a17885175ef25bab1e4cd5e31b0fe3c00c49d2 ]] || { echo "prospective validator/verifier source changed" >&2; exit 2; }
++[[ $(sha256sum "$integration_dir/verify-terminal-build.py" | awk '{print $1}') == c68e207909897bb121aca99cb2ec1d6c14c8b0853eb8b239927b499a022ba793 ]] || { echo "prospective validator/verifier source changed" >&2; exit 2; }
+ [[ $(sha256sum "$integration_dir/validate-terminal-attribution.py" | awk '{print $1}') == 1be48e2f76dd566630c6427d9cf0a19dc6100fdf71532fb21616da209691d510 ]] || { echo "prospective validator/verifier source changed" >&2; exit 2; }
+ [[ $(sha256sum "$integration_dir/LEGACY-VALIDATOR.json" | awk '{print $1}') == b77ed3613b5d088efeacb1d6d4d763b3b255aa2fc35b5dc674771a39cdc73c38 ]] || { echo "prospective validator/verifier source changed" >&2; exit 2; }
+ PYTHONDONTWRITEBYTECODE=1 python3 -I -B "$integration_dir/verify-terminal-build.py" \
+--- failed-freeze/BUILD-TEST-PLAN.json
++++ corrected/BUILD-TEST-PLAN.json
+@@ -1,5 +1,5 @@
+ {
+-  "status": "proposed only; do not execute until root approves exact frozen source+plan",
++  "status": "corrected source-only continuation proposal; do not execute until root approves exact freeze+plan",
+   "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+   "inventory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/SOURCE-SHA256SUMS",
+   "source_file_count": 462,
+@@ -41,7 +41,34 @@
+       "max_output_bytes": 65536,
+       "max_stdout_bytes": 65536,
+       "max_stderr_bytes": 65536,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "reused-original-freeze",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build",
++      "reused_proof": {
++        "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
++        "files": {
++          "command_proof": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.command-proof.json",
++            "sha256": "a9eb388a656ec6641ef32f97eb21da93afe94c03b6ec2d6944752ba24b25c3a8"
++          },
++          "outer": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.outer.json",
++            "sha256": "df0d4257ccc370c1bb29aee0a0a0bcc68e54b855c93e30ce3893e9b94941dde8"
++          },
++          "started": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.started.json",
++            "sha256": "5b534c08f5416519ebfec4292436abfe0eca42555176297f764afa5ea2507017"
++          },
++          "stdout": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.stdout.log",
++            "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147"
++          },
++          "stderr": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.stderr.log",
++            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++          }
++        }
++      }
+     },
+     {
+       "name": "legacy-tcp-state-validator",
+@@ -64,7 +91,34 @@
+       "max_output_bytes": 2097152,
+       "max_stdout_bytes": 2097152,
+       "max_stderr_bytes": 2097152,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "reused-original-freeze",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build",
++      "reused_proof": {
++        "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
++        "files": {
++          "command_proof": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.command-proof.json",
++            "sha256": "4055ac5dca3d73feeca4c2d897646ef00d0f5d9b09b261da4117d2efbf2f7b67"
++          },
++          "outer": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.outer.json",
++            "sha256": "91e5a1c7e13a696f4ef71f1d5cc2c1bbf5a033a2863ea04654c843c85305d53e"
++          },
++          "started": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.started.json",
++            "sha256": "97963e234c3d19db63f100c7e9fba42265701858bcb4d304fcfbf8cdf4a84398"
++          },
++          "stdout": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.stdout.log",
++            "sha256": "3e9b2af6e4c296e588d5d74d4895d7654625e79f0ae3f3fafd3372a575fb8d48"
++          },
++          "stderr": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.stderr.log",
++            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++          }
++        }
++      }
+     },
+     {
+       "name": "legacy-failed-capture-validator",
+@@ -87,7 +141,34 @@
+       "max_output_bytes": 2097152,
+       "max_stdout_bytes": 2097152,
+       "max_stderr_bytes": 2097152,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "reused-original-freeze",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build",
++      "reused_proof": {
++        "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
++        "files": {
++          "command_proof": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.command-proof.json",
++            "sha256": "dc498398ec29836de1a9c1517ad3c3cce881734b4aece35547862942e6763d9a"
++          },
++          "outer": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.outer.json",
++            "sha256": "6965aa496a443a04c4987051807b3496b8e64464f00800b74a2def81ee6c7d80"
++          },
++          "started": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.started.json",
++            "sha256": "d6dc5f81bfc8b10073028b7fc794e106712262ba90faf0ca1bfaf63569b1b40c"
++          },
++          "stdout": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.stdout.log",
++            "sha256": "32cbd457ac639a770aa9b5a4300ad2e117a2b7b4f0f938185f4d4d160cd49864"
++          },
++          "stderr": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.stderr.log",
++            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++          }
++        }
++      }
+     },
+     {
+       "name": "prospective-terminal-contracts",
+@@ -111,7 +192,34 @@
+       "max_output_bytes": 1048576,
+       "max_stdout_bytes": 1048576,
+       "max_stderr_bytes": 1048576,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "reused-original-freeze",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build",
++      "reused_proof": {
++        "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
++        "files": {
++          "command_proof": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.command-proof.json",
++            "sha256": "d4763bdcf3ab63c0464fe604fde4c2ee4f6b2c23ab3c519d05cddee91586644a"
++          },
++          "outer": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.outer.json",
++            "sha256": "5a29f6f36a9e0714598cd78155dd327b4ac02b5724c7ef77b82f538a4f312c78"
++          },
++          "started": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.started.json",
++            "sha256": "ac8bf4f8b0280a433a6c1543fa3a125b6a8e7d0c155db825b80d4ef4107b0d5c"
++          },
++          "stdout": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.stdout.log",
++            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++          },
++          "stderr": {
++            "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.stderr.log",
++            "sha256": "c0f851654136603f1c9a8bc9c31be16a02f2f6db93094fbc03a1be93df4895af"
++          }
++        }
++      }
+     },
+     {
+       "name": "python-contracts",
+@@ -129,7 +237,9 @@
+       "max_output_bytes": 1048576,
+       "max_stdout_bytes": 1048576,
+       "max_stderr_bytes": 1048576,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "fresh-continuation-1",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1"
+     },
+     {
+       "name": "normal",
+@@ -164,7 +274,9 @@
+       "max_output_bytes": 8388608,
+       "max_stdout_bytes": 8388608,
+       "max_stderr_bytes": 8388608,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "fresh-continuation-1",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1"
+     },
+     {
+       "name": "race",
+@@ -200,7 +312,9 @@
+       "max_output_bytes": 8388608,
+       "max_stdout_bytes": 8388608,
+       "max_stderr_bytes": 8388608,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "fresh-continuation-1",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1"
+     }
+   ],
+   "builds": [
+@@ -235,7 +349,9 @@
+       "max_output_bytes": 2097152,
+       "max_stdout_bytes": 2097152,
+       "max_stderr_bytes": 2097152,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "fresh-continuation-1",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1"
+     },
+     {
+       "name": "server-build",
+@@ -268,7 +384,9 @@
+       "max_output_bytes": 2097152,
+       "max_stdout_bytes": 2097152,
+       "max_stderr_bytes": 2097152,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "fresh-continuation-1",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1"
+     },
+     {
+       "name": "agent-metadata",
+@@ -286,7 +404,9 @@
+       "max_output_bytes": 65536,
+       "max_stdout_bytes": 65536,
+       "max_stderr_bytes": 65536,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "fresh-continuation-1",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1"
+     },
+     {
+       "name": "server-metadata",
+@@ -304,7 +424,9 @@
+       "max_output_bytes": 65536,
+       "max_stdout_bytes": 65536,
+       "max_stderr_bytes": 65536,
+-      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
++      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible",
++      "proof_origin": "fresh-continuation-1",
++      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1"
+     }
+   ],
+   "inputs": [
+@@ -374,7 +496,7 @@
+     },
+     {
+       "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-screen.py",
+-      "sha256": "08623b851e77a9407563ed0e5465eb682e59eba6752c174d8420f5932e3397e2"
++      "sha256": "ebe6c41a6b898e857816ca589ae2dfd42c093639ef19781965f1ceeb94e9a179"
+     },
+     {
+       "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen.py",
+@@ -454,7 +576,7 @@
+     },
+     {
+       "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+-      "sha256": "cd3d64343f0ad5b95005914797fb0dc611d1ae9c30e51a3ca1898b9bab42b43e"
++      "sha256": "a126d7769fddf53dd865dd5ee80f6ed8f5ed7541a7cad54965981998281d5af4"
+     },
+     {
+       "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-diagnostic.sh",
+@@ -538,7 +660,135 @@
+     },
+     {
+       "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/verify-terminal-build.py",
+-      "sha256": "a7d04c74ede96b84d241373117a17885175ef25bab1e4cd5e31b0fe3c00c49d2"
++      "sha256": "c68e207909897bb121aca99cb2ec1d6c14c8b0853eb8b239927b499a022ba793"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.command-proof.json",
++      "sha256": "a9eb388a656ec6641ef32f97eb21da93afe94c03b6ec2d6944752ba24b25c3a8"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.outer.json",
++      "sha256": "df0d4257ccc370c1bb29aee0a0a0bcc68e54b855c93e30ce3893e9b94941dde8"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.started.json",
++      "sha256": "5b534c08f5416519ebfec4292436abfe0eca42555176297f764afa5ea2507017"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.stdout.log",
++      "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.stderr.log",
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.command-proof.json",
++      "sha256": "4055ac5dca3d73feeca4c2d897646ef00d0f5d9b09b261da4117d2efbf2f7b67"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.outer.json",
++      "sha256": "91e5a1c7e13a696f4ef71f1d5cc2c1bbf5a033a2863ea04654c843c85305d53e"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.started.json",
++      "sha256": "97963e234c3d19db63f100c7e9fba42265701858bcb4d304fcfbf8cdf4a84398"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.stdout.log",
++      "sha256": "3e9b2af6e4c296e588d5d74d4895d7654625e79f0ae3f3fafd3372a575fb8d48"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.stderr.log",
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.command-proof.json",
++      "sha256": "dc498398ec29836de1a9c1517ad3c3cce881734b4aece35547862942e6763d9a"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.outer.json",
++      "sha256": "6965aa496a443a04c4987051807b3496b8e64464f00800b74a2def81ee6c7d80"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.started.json",
++      "sha256": "d6dc5f81bfc8b10073028b7fc794e106712262ba90faf0ca1bfaf63569b1b40c"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.stdout.log",
++      "sha256": "32cbd457ac639a770aa9b5a4300ad2e117a2b7b4f0f938185f4d4d160cd49864"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.stderr.log",
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.command-proof.json",
++      "sha256": "d4763bdcf3ab63c0464fe604fde4c2ee4f6b2c23ab3c519d05cddee91586644a"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.outer.json",
++      "sha256": "5a29f6f36a9e0714598cd78155dd327b4ac02b5724c7ef77b82f538a4f312c78"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.started.json",
++      "sha256": "ac8bf4f8b0280a433a6c1543fa3a125b6a8e7d0c155db825b80d4ef4107b0d5c"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.stdout.log",
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.stderr.log",
++      "sha256": "c0f851654136603f1c9a8bc9c31be16a02f2f6db93094fbc03a1be93df4895af"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/failed-local-freeze-1/SHA256SUMS",
++      "sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/failed-local-freeze-1/SOURCE-SHA256SUMS",
++      "sha256": "a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/failed-run.json",
++      "sha256": "6d84f0576677e3d8c2830e08817df604f8298823aee5107d2e6f30ac8cca203b"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/pre-input-hashes.json",
++      "sha256": "79f615e55d4316e3095d6c150c8df49788a01dc284bee3e6caf935f62eeba1ad"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/post-failure-input-hashes.json",
++      "sha256": "79f615e55d4316e3095d6c150c8df49788a01dc284bee3e6caf935f62eeba1ad"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/execute-approved-build.py",
++      "sha256": "a3c90206a80b562553c8e5db2b04444486548e1164d90a31e827b416ffb71dab"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/grant.json",
++      "sha256": "7c54532d9d65fe62ac3d98481f65c7dab04454629c6aebc34019f937251c6199"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/python-contracts.command-proof.json",
++      "sha256": "76f6c01bf6af485bd076eeafa78f64696ef346b23d2d4781a82b2b7d2cbe5ce6"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/python-contracts.outer.json",
++      "sha256": "f922b1be4b8180654159aac6042f076329ff2587f1c980f44f74340717272374"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/python-contracts.started.json",
++      "sha256": "5af2e5139852ca92d7837dc36f13a648a6b098f74b32e099c7b1615cac653357"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/python-contracts.stderr.log",
++      "sha256": "4c7290aafa2bf819a0a58589550a44a9129595f8169c5d2d87d99f9e4328416d"
++    },
++    {
++      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/python-contracts.stdout.log",
++      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+     }
+   ],
+   "expected_settings": {
+@@ -576,15 +826,15 @@
+     "observed_overflow_must_reject": true
+   },
+   "build_receipt_schema": {
+-    "schema_version": 1,
++    "schema_version": 2,
+     "diagnostic": "controller-screen-build",
+     "accepted": "only all frozen commands exit natural0, source unchanged, exact Go settings",
+     "endpoint_execution": false,
+     "wan_traffic": false,
+     "plan_sha256": "sha256 BUILD-TEST-PLAN.json",
+     "inventory_sha256": "sha256 SOURCE-SHA256SUMS",
+-    "tests": "ordered exact command proofs with exit_status/forced/remaining_group_members and hashed bounded logs",
+-    "builds": "same ordered proof format",
++    "tests": "ordered exact command-proof wrappers; first4 reference reused immutable original proofs, final3 reference fresh continuation-1 proofs",
++    "builds": "ordered4 fresh continuation-1 command-proof wrappers",
+     "binaries": "agent/server absolute path,size,sha256,go_version_m_sha256; no binary reuse",
+     "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+     "source_before_after_unchanged": true,
+@@ -599,6 +849,158 @@
+       "GOTOOLCHAIN": "local",
+       "GOVERSION": "go1.26.6",
+       "GOWORK": "off"
+-    }
++    },
++    "fresh_execution_source_freeze_sha256": "sha256 of corrected SHA256SUMS at execution",
++    "reused_proofs": "separate exact ordered4 summary entries: name, original execution_source_freeze_sha256, command_proof_sha256",
++    "proof_wrapper": "copy original unmodified command-proof fields plus proof_origin, log_directory, execution_source_freeze_sha256 and command_proof_sha256; original proof JSON remains unchanged"
++  },
++  "continuation": {
++    "scope": "only this failed local attempt; preserve all original proof files",
++    "original_execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
++    "original_freeze_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/failed-local-freeze-1/SHA256SUMS",
++    "reused_commands": [
++      "preflight",
++      "legacy-tcp-state-validator",
++      "legacy-failed-capture-validator",
++      "prospective-terminal-contracts"
++    ],
++    "reused_dependencies": "the complete462-file compilation source inventory and all original external plan inputs remain unchanged; preflight settings proof retains original provenance",
++    "fresh_commands": [
++      "python-contracts",
++      "normal",
++      "race",
++      "agent-build",
++      "server-build",
++      "agent-metadata",
++      "server-metadata"
++    ],
++    "fresh_log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1",
++    "fresh_log_directory_must_initially_not_exist": true,
++    "fresh_execution_source_freeze_binding": "receipt and each fresh wrapper must equal SHA256 of corrected SHA256SUMS; computed at execution to avoid self-referential freeze",
++    "preserved_failed_run_sha256": "6d84f0576677e3d8c2830e08817df604f8298823aee5107d2e6f30ac8cca203b",
++    "original_failed_controller_proof_sha256": "76f6c01bf6af485bd076eeafa78f64696ef346b23d2d4781a82b2b7d2cbe5ce6",
++    "do_not_rewrite_original_proofs": true,
++    "preserved_attempt_files": [
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/execute-approved-build.py",
++        "sha256": "a3c90206a80b562553c8e5db2b04444486548e1164d90a31e827b416ffb71dab"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/failed-run.json",
++        "sha256": "6d84f0576677e3d8c2830e08817df604f8298823aee5107d2e6f30ac8cca203b"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/grant.json",
++        "sha256": "7c54532d9d65fe62ac3d98481f65c7dab04454629c6aebc34019f937251c6199"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.command-proof.json",
++        "sha256": "dc498398ec29836de1a9c1517ad3c3cce881734b4aece35547862942e6763d9a"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.outer.json",
++        "sha256": "6965aa496a443a04c4987051807b3496b8e64464f00800b74a2def81ee6c7d80"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.started.json",
++        "sha256": "d6dc5f81bfc8b10073028b7fc794e106712262ba90faf0ca1bfaf63569b1b40c"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.stderr.log",
++        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.stdout.log",
++        "sha256": "32cbd457ac639a770aa9b5a4300ad2e117a2b7b4f0f938185f4d4d160cd49864"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.command-proof.json",
++        "sha256": "4055ac5dca3d73feeca4c2d897646ef00d0f5d9b09b261da4117d2efbf2f7b67"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.outer.json",
++        "sha256": "91e5a1c7e13a696f4ef71f1d5cc2c1bbf5a033a2863ea04654c843c85305d53e"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.started.json",
++        "sha256": "97963e234c3d19db63f100c7e9fba42265701858bcb4d304fcfbf8cdf4a84398"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.stderr.log",
++        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.stdout.log",
++        "sha256": "3e9b2af6e4c296e588d5d74d4895d7654625e79f0ae3f3fafd3372a575fb8d48"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/post-failure-input-hashes.json",
++        "sha256": "79f615e55d4316e3095d6c150c8df49788a01dc284bee3e6caf935f62eeba1ad"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/pre-input-hashes.json",
++        "sha256": "79f615e55d4316e3095d6c150c8df49788a01dc284bee3e6caf935f62eeba1ad"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.command-proof.json",
++        "sha256": "a9eb388a656ec6641ef32f97eb21da93afe94c03b6ec2d6944752ba24b25c3a8"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.outer.json",
++        "sha256": "df0d4257ccc370c1bb29aee0a0a0bcc68e54b855c93e30ce3893e9b94941dde8"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.started.json",
++        "sha256": "5b534c08f5416519ebfec4292436abfe0eca42555176297f764afa5ea2507017"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.stderr.log",
++        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.stdout.log",
++        "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.command-proof.json",
++        "sha256": "d4763bdcf3ab63c0464fe604fde4c2ee4f6b2c23ab3c519d05cddee91586644a"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.outer.json",
++        "sha256": "5a29f6f36a9e0714598cd78155dd327b4ac02b5724c7ef77b82f538a4f312c78"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.started.json",
++        "sha256": "ac8bf4f8b0280a433a6c1543fa3a125b6a8e7d0c155db825b80d4ef4107b0d5c"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.stderr.log",
++        "sha256": "c0f851654136603f1c9a8bc9c31be16a02f2f6db93094fbc03a1be93df4895af"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.stdout.log",
++        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/python-contracts.command-proof.json",
++        "sha256": "76f6c01bf6af485bd076eeafa78f64696ef346b23d2d4781a82b2b7d2cbe5ce6"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/python-contracts.outer.json",
++        "sha256": "f922b1be4b8180654159aac6042f076329ff2587f1c980f44f74340717272374"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/python-contracts.started.json",
++        "sha256": "5af2e5139852ca92d7837dc36f13a648a6b098f74b32e099c7b1615cac653357"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/python-contracts.stderr.log",
++        "sha256": "4c7290aafa2bf819a0a58589550a44a9129595f8169c5d2d87d99f9e4328416d"
++      },
++      {
++        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/python-contracts.stdout.log",
++        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++      }
++    ]
+   }
+ }
+--- failed-freeze/REVIEW.md
++++ corrected/REVIEW.md
+@@ -1,6 +1,6 @@
+ # Source-only CUBIC → Reno → CUBIC screen
+ 
+-Prepared from the exact 460-file terminal observation materialization at production reference27c8e31, not recorder HEAD. No tracked file, previous frozen evidence, sysctl, module, endpoint binary, or traffic was changed. No build or test was run. Static parsing/formatting and hash/diff checks only.
++Prepared from the exact 460-file terminal observation materialization at production reference27c8e31, not recorder HEAD. No tracked file, previous frozen evidence, sysctl, module, endpoint binary, or traffic was changed. The initial source stage used static parsing/formatting and hash/diff checks only. A separately approved local attempt subsequently stopped at its first controller-contract failure; its complete logs, audits and failed-run record remain immutable under `build/`, with the source freeze and changed proposal files preserved under `failed-local-freeze-1/`. No Go test, build, endpoint or WAN run occurred.
+ 
+ `SOURCE.diff` is the compact proposal. `BASE-SOURCE-INVENTORY.json` records all460 inputs copied into independent inodes. `SOURCE-SHA256SUMS` covers the resulting462-file compilation tree (one hook file + one focused Go test added; only the old qualification raw binding file edited). `FROZEN-INPUTS.json` covers the reviewable proposal; `SHA256SUMS` freezes it. Size is approximately11MiB. Original imported and embedded assets remain intact.
+ 
+@@ -24,4 +24,8 @@
+ 
+ Outer supervision is part of this proposal: the derivative task artifact rejection threshold is256MiB, each arm stream16MiB and each independent-validator stream1MiB. The launcher records a fresh started journal, creates its own session, inventories descendant identities, inherited groups/sessions with PID start ticks, and the task artifact tree once per second during execution (direct child/two log-size checks every50ms; bounded cleanup checks every50ms), and records final status/forced reason/all observed owned identities/remnants. Existing mature group/namespace/lifecycle gates remain mandatory. Deadline930s, log or artifact overflow, signal or any remnant rejects the arm, invokes TERM with10s cleanup grace then KILL with5s reap allowance, writes a durable failed outer record and stopped screen-final record, and prevents subsequent arms. SIGTERM raises through cleanup/finalization. A hard external KILL can leave only a started journal, which cannot constitute accepted evidence. Fresh output and no-retry rules still apply. These are task-process/artifact bounds; application memory/resource limits remain unchanged.
+ 
+-The256MiB rejection threshold reserves1MiB for durable failure/audit records; timed execution rejects when observed ordinary artifact bytes exceed255MiB. Full proc/artifact inventories run at1Hz, not at the50ms direct-child/log poll cadence. Process ownership uses Linux process-local child-subreaper mode, refusing preexisting direct children, retaining PID/start-tick identities, and recording adopted-child wait status, exit code/signal or explicit unknown-status error. Every unexpected adoption rejects the arm, including a naturally exited-zero orphan. The previous subreaper state is restored only after all owned descendants are gone. This changes no network/host policy. The focused supervisor controls cover this frozen cadence, natural/unknown exits, rapid parent exit with a separate-session survivor, natural-zero adoption, deadline with a separate-session child, log overflow, pre-launch artifact overflow and durable final-bound failure with nonzero exit. They are prepared but unexecuted. The16MiB/1MiB stream values and256MiB task value are rejection thresholds, with50ms log checks and1s task-tree checks. Complete logs and observed byte totals are retained. Writes can overshoot a threshold between polls; every observed overflow is recorded as a failed run with bounded forced cleanup. These are not hard retained-byte caps. Audit records and the build/test plan label this polling semantics explicitly.
++The256MiB rejection threshold reserves1MiB for durable failure/audit records; timed execution rejects when observed ordinary artifact bytes exceed255MiB. Full proc/artifact inventories run at1Hz, not at the50ms direct-child/log poll cadence. Process ownership uses Linux process-local child-subreaper mode, refusing preexisting direct children, retaining PID/start-tick identities, and recording adopted-child wait status, exit code/signal or explicit unknown-status error. Every unexpected adoption rejects the arm, including a naturally exited-zero orphan. The previous subreaper state is restored only after all owned descendants are gone. This changes no network/host policy. The focused supervisor controls cover this frozen cadence, natural/unknown exits, rapid parent exit with a separate-session survivor, natural-zero adoption, deadline with a separate-session child, log overflow, pre-launch artifact overflow and durable final-bound failure with nonzero exit. They ran in the first local Python suite; the corrected suite and new receipt-binding cases remain unexecuted. The16MiB/1MiB stream values and256MiB task value are rejection thresholds, with50ms log checks and1s task-tree checks. Complete logs and observed byte totals are retained. Writes can overshoot a threshold between polls; every observed overflow is recorded as a failed run with bounded forced cleanup. These are not hard retained-byte caps. Audit records and the build/test plan label this polling semantics explicitly.
++
++The local compatibility fixture failed because it compared a relocated historical arm with the original saved attestation. Relocation alone changes path-bound integrity facts. The corrected fixture asserts that discrepancy, then compares the mature validator output for the same relocated fixture before and after adding the arm-root sidecar. Exact equality isolates sidecar compatibility and preserves every relocation discrepancy. This changes only the new controller contract; the mature validators, controller runtime hook, runner, workload and decision gates remain unchanged. The corrected contract is unexecuted.
++
++Continuation must explicitly reuse the original four natural-zero preflight/legacy/terminal proofs and their exact log/audit hashes; they were executed under freeze `12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22`, not this corrected snapshot. Their direct dependencies and compilation source remain unchanged. Fresh execution, if separately granted, starts with the corrected controller contracts, then the previously unrun Go normal/race commands and endpoint builds/metadata. Fresh log/audit paths must preserve the original failed controller files and failed-run record. Receipt schema2 now wraps each immutable original command proof with explicit origin, log directory and execution freeze. The four reused wrappers bind the old freeze and all five original command-proof/outer/start/stdout/stderr file hashes. The seven fresh wrappers must bind the corrected freeze and `build/continuation-1/`, which must initially be absent. The verifier requires these origins/paths/hashes, source/settings/binary constraints, natural-zero direct/group outcomes and no adopted descendants or remaining owners. A separate ordered `reused_proofs` summary prevents claiming reused commands ran under the corrected snapshot. The only arm-wrapper change is the verifier SHA pin; workload and runtime logic are unchanged. Three focused synthetic tamper tests cover origin/freeze/path/hash binding and remnant rejection in the corrected Python-contract command. No continuation command is authorized by this source-only correction.
+--- failed-freeze/freeze-source.py
++++ corrected/freeze-source.py
+@@ -16,6 +16,17 @@
+  for opt in ['--server-source-ref','--aggregate-agent-source-ref']:arm['argv'][arm['argv'].index(opt)+1]=ref
+ (r/'COMMANDS.json').write_text(json.dumps(commands,indent=2)+'\n')
+ plan=json.loads((r/'BUILD-TEST-PLAN.json').read_text());plan['source_ref']=ref;plan['build_receipt_schema']['source_ref']=ref
++prior=json.loads((r/'failed-local-freeze-1/BUILD-TEST-PLAN.json').read_text())
++assert sha(r/'failed-local-freeze-1/SHA256SUMS')=='12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22'
++assert sha(r/'failed-local-freeze-1/SOURCE-SHA256SUMS')==sha(r/'SOURCE-SHA256SUMS')
++assert not (r/'build/continuation-1').exists()
++for before,after in zip(prior['tests']+prior['builds'],plan['tests']+plan['builds']):
++ assert all(before[k]==after[k] for k in ['name','argv','cwd'])
++ if after['proof_origin']=='reused-original-freeze':
++  for row in after['reused_proof']['files'].values():assert sha(Path(row['path']))==row['sha256']
++for row in plan['continuation']['preserved_attempt_files']:assert sha(Path(row['path']))==row['sha256']
++for row in prior['inputs']:
++ if not Path(row['path']).is_relative_to(r):assert sha(Path(row['path']))==row['sha256']
+ for row in plan['inputs']:
+  if Path(row['path']).is_relative_to(r):row['sha256']=sha(Path(row['path']))
+ (r/'BUILD-TEST-PLAN.json').write_text(json.dumps(plan,indent=2)+'\n')
+@@ -27,6 +38,10 @@
+  before=q.read_text().splitlines(True) if q.exists() else []
+  diff+=''.join(difflib.unified_diff(before,p.read_text().splitlines(True),fromfile='a/'+str(q.relative_to(old)) if q.exists() else '/dev/null',tofile='b/'+name))
+ (r/'SOURCE.diff').write_text(diff)
++delta=''
++for name in ['contracts/test-controller-screen.py','runner-source/integration/verify-terminal-build.py','runner-source/integration/run-wan-below-tls-arm.sh','BUILD-TEST-PLAN.json','REVIEW.md','freeze-source.py']:
++ delta+=''.join(difflib.unified_diff((r/'failed-local-freeze-1'/name).read_text().splitlines(True),(r/name).read_text().splitlines(True),fromfile='failed-freeze/'+name,tofile='corrected/'+name))
++(r/'CONTINUATION.diff').write_text(delta)
+ py=[r/'prepare-source.py',r/'patch-runner.py',r/'freeze-source.py',r/'run-controller-screen.py',r/'contracts/test-controller-screen.py',*[r/'runner-source/integration'/n for n in ['verify-terminal-build.py','validate-controller-screen.py','validate-controller-arm-integrity.py']]]
+ for p in py:ast.parse(p.read_text(),filename=str(p))
+ for p in [r/'runner-source/integration/run-wan-below-tls-arm.sh',r/'runner-source/integration/generated/qualify-proxy-agent-growth-wan-below-tls.sh']:subprocess.run(['bash','-n',str(p)],check=True)
+@@ -34,7 +49,7 @@
+ for row in plan['inputs']:assert sha(Path(row['path']))==row['sha256']
+ for p in (r/'runner-source/integration').glob('validate-*.py'):
+  if not p.name.startswith('validate-controller'):assert p.read_bytes()==(old/'runner-source/integration'/p.name).read_bytes()
+-(r/'STATIC-CHECKS.json').write_text(json.dumps({'status':'source-only static syntax/hash/diff checks passed','python_ast_files':len(py),'bash_syntax_files':2,'gofmt':'Go1.26.6 parser/formatter only; no go build/test invoked','base_file_count':460,'result_source_files':462,'changed_compilation_paths':changes,'tracked_changes':False,'builds':0,'tests':0,'wan_transfers':0,'total_artifact_bytes':sum(p.stat().st_size for p in r.rglob('*') if p.is_file()),'future_task_artifact_rejection_threshold_bytes':256<<20,'byte_threshold_semantics':'polled rejection; overshoot possible; complete logs retained; any observed overflow rejects'},indent=2)+'\n')
++(r/'STATIC-CHECKS.json').write_text(json.dumps({'status':'corrected source-only static syntax/hash/diff checks passed; no continuation execution','python_ast_files':len(py),'bash_syntax_files':2,'gofmt':'compilation source unchanged since Go1.26.6 parser/formatter check','base_file_count':460,'result_source_files':462,'changed_compilation_paths':changes,'tracked_changes':False,'builds':0,'tests':0,'wan_transfers':0,'historical_local_attempt':{'commands':5,'natural_zero':4,'failed_python_contract_commands':1,'go_tests':0,'builds':0},'continuation_reused_proofs':4,'continuation_fresh_commands':7,'total_artifact_bytes':sum(p.stat().st_size for p in r.rglob('*') if p.is_file()),'future_task_artifact_rejection_threshold_bytes':256<<20,'byte_threshold_semantics':'polled rejection; overshoot possible; complete logs retained; any observed overflow rejects'},indent=2)+'\n')
+ exclude={'FROZEN-INPUTS.json','SHA256SUMS','REVIEWED-RECEIPT-SHA256'}
+ files=sorted(p for p in r.rglob('*') if p.is_file() and str(p.relative_to(r)) not in exclude and 'build' not in p.relative_to(r).parts and 'runs' not in p.relative_to(r).parts)
+ (r/'FROZEN-INPUTS.json').write_text(json.dumps([{'path':str(p),'sha256':sha(p)} for p in files],indent=2)+'\n')

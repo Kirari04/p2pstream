@@ -1,0 +1,40 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/validate-early-share.py",
+    "arm",
+    "1",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on",
+    "1",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1.decision.json"
+  ],
+  "artifact_bytes": 68946919,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 0.692723391999607,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2714115,
+      "pid": 2714115,
+      "ppid": 2706254,
+      "sid": 2714115,
+      "start_ticks": 8649084,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 1,
+  "stderr_bytes": 1761,
+  "stdout_bytes": 0,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

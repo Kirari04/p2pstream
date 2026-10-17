@@ -1,0 +1,16 @@
+{
+  "recorded_at": "2026-10-17T10:53:19.419147+00:00",
+  "all_exported_files_utf8_text": true,
+  "decoded_files": 85,
+  "source_overlay_destinations": [
+    "screen/recorder_nullable_id_screen_test.go.txt"
+  ],
+  "go_source_destinations": [],
+  "opaque_gzip_or_binary_files": [],
+  "known_credential_markers": [],
+  "filtered_json_schema_violations": [],
+  "original_application_logs_kept_local": true,
+  "raw_benchmark_logs": 20,
+  "notes": "All export content decoded and inspected. Credential-marker scan is supplemental; full application Output omitted, benchmark logs reviewed as local SQLite fixture logs, environment records contain explicit toolchain/affinity values only.",
+  "root_manifest_membership_rule": "Every file except only root SHA256SUMS; nested proposal/SHA256SUMS is included unchanged."
+}

@@ -1,0 +1,102 @@
+{
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "GOMAXPROCS=2",
+    "GOENV=off",
+    "GOWORK=off",
+    "GOFLAGS=",
+    "GOTOOLCHAIN=local",
+    "GOPROXY=off",
+    "GOSUMDB=off",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-p=2",
+    "-tags=p2pstream_qualification",
+    "-race",
+    "-count=1",
+    "-timeout=90s",
+    "-run",
+    "^TestQualification(Terminal|RawWrite|TCP|Controller)",
+    "-v",
+    "./internal/agent"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+  "exit_status": 0,
+  "finished_unix": 1792239198.1778562,
+  "forced": false,
+  "name": "race",
+  "outer_audit_sha256": "09b8201f401033f1735a1fb103cb55a8d1b1dab45569b51ca4d6a170ce07d2e2",
+  "output_bytes": 34999,
+  "owned_identities": [
+    {
+      "pgid": 2523173,
+      "pid": 2523173,
+      "ppid": 2522862,
+      "sid": 2523173,
+      "start_ticks": 7673757,
+      "state": "S"
+    },
+    {
+      "pgid": 2523173,
+      "pid": 2523174,
+      "ppid": 2523173,
+      "sid": 2523173,
+      "start_ticks": 7673757,
+      "state": "S"
+    },
+    {
+      "pgid": 2523173,
+      "pid": 2523198,
+      "ppid": 2523174,
+      "sid": 2523173,
+      "start_ticks": 7673773,
+      "state": "S"
+    },
+    {
+      "pgid": 2523173,
+      "pid": 2523262,
+      "ppid": 2523174,
+      "sid": 2523173,
+      "start_ticks": 7673952,
+      "state": "S"
+    },
+    {
+      "pgid": 2523173,
+      "pid": 2523263,
+      "ppid": 2523174,
+      "sid": 2523173,
+      "start_ticks": 7673952,
+      "state": "R"
+    },
+    {
+      "pgid": 2523173,
+      "pid": 2523361,
+      "ppid": 2523174,
+      "sid": 2523173,
+      "start_ticks": 7674781,
+      "state": "R"
+    },
+    {
+      "pgid": 2523173,
+      "pid": 2523433,
+      "ppid": 2523174,
+      "sid": 2523173,
+      "start_ticks": 7675086,
+      "state": "S"
+    }
+  ],
+  "remaining_group_members": [],
+  "started_unix": 1792239181.9662101,
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_bytes": 34999,
+  "stdout_sha256": "0d06bb38ef14e617ab3f6b72aba6e0066a9e53481d4155eed41ed475665378c2"
+}

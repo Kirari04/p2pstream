@@ -1,0 +1,12 @@
+{
+  "accepted": true,
+  "finished_unix": 1792244817.6136513,
+  "input_changes": [],
+  "outer_sha256": "557fd407a29b239b6d4680d98ca5fc5771348a3d9817f763dc40474d4235f6d8",
+  "result_collector_correction": "Initial collector looked for offline-1.stdout instead of actual offline-1.stdout.log after the sole test command completed. No test rerun; proof reconstructed from saved natural status and logs.",
+  "source_manifest_sha256": "b4896cb6da990e5995bf5882883483a05b20dffaad1112badf155117c29cb33d",
+  "status": 0,
+  "stderr_sha256": "3b4125dbd5e7f4356789c8aaf8a361dce9b02e49454dbb719b1a5f10e6f016e4",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "tests_run": 6
+}

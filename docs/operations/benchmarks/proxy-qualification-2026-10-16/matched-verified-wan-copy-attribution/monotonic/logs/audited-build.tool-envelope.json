@@ -1,0 +1,8 @@
+{
+  "chunk_id": "16c55c",
+  "explanation": "The unified exec wait reported exit_code 1 after the inline shell wrote audited-build-wrapper.status=0. The audited script recorded build status 0, source compare status 0, FINAL=complete, output hash, and go-version-m. The shell ends with exit \"$status\", where status was recorded as 0. No trailing false conditional exists. The discrepancy is unexplained and was preserved without rebuild.",
+  "outer_exit_code": 1,
+  "session_id": 38738,
+  "wrapper_status_file": 0,
+  "wall_time_seconds": 4.259641014
+}

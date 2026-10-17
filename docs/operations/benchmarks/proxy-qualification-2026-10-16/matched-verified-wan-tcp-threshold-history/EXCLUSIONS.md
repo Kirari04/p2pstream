@@ -1,0 +1,5 @@
+# Omitted artifact bytes
+
+EXCLUDED-RUN-ARTIFACTS.tsv accounts for 208 omitted run artifacts with exact source path, SHA-256, byte count, reason and authoritative full-run ledger. Tiny1 partitions145 files into 73 selected/72 omitted; tiny2 partitions271 into 135 selected/136 omitted. Keys, private readiness/control state, raw endpoint/process logs and redundant transfer responses are excluded. Omitted bytes remain bound by unchanged complete run ledgers.
+
+HASH-ONLY-BINARIES.tsv binds two omitted audited binary payloads to the accepted build receipt; payloads are not packaged. OMITTED-ROOTS.plan.tsv records21 copied source/workspace/cache/binary output roots through authoritative build-record ledgers. Materialized source copies are excluded because exact reviewed source corpora are selected. Temporary Python/cache files are outside the selection. The mutable main review log is outside the cutoff. The coordinating Astra review is snapshotted in WAN-ASTRA-REVIEW.md; later failed-capture 106 contracts and local cancellation tests require a separate supplement.

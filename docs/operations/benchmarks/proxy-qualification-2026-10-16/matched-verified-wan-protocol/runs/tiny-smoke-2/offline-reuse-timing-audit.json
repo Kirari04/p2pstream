@@ -1,0 +1,515 @@
+{
+  "arms": {
+    "h1": {
+      "all_got_conn_new": true,
+      "all_origin_ids_unique": true,
+      "all_put_idle_recorded": true,
+      "lifecycle_sha256": "0039650aa6a41726f4571085f5740a94487e2b142d6260385a3fb91972696de8",
+      "observations": [
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169769538559446,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:48244",
+          "put_idle_observed_unix_ns": 1792169770350353369,
+          "receiving_pool_observed_bytes": 12058624,
+          "sequence": 1,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:48658"
+        },
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169770698968483,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:48252",
+          "put_idle_observed_unix_ns": 1792169771509796157,
+          "receiving_pool_observed_bytes": 12845056,
+          "sequence": 2,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:48642"
+        },
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169771862403483,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:48262",
+          "put_idle_observed_unix_ns": 1792169772672812239,
+          "receiving_pool_observed_bytes": 12845056,
+          "sequence": 3,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:48628"
+        },
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169772979295085,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:48276",
+          "put_idle_observed_unix_ns": 1792169773792556502,
+          "receiving_pool_observed_bytes": 13107200,
+          "sequence": 4,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:48614"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169774140684323,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:48280",
+          "put_idle_observed_unix_ns": 1792169774955874526,
+          "receiving_pool_observed_bytes": 11010048,
+          "sequence": 5,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:48658"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169775298361899,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:48290",
+          "put_idle_observed_unix_ns": 1792169776113417402,
+          "receiving_pool_observed_bytes": 11010048,
+          "sequence": 6,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:48642"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169776461218251,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:48300",
+          "put_idle_observed_unix_ns": 1792169777275403351,
+          "receiving_pool_observed_bytes": 12058624,
+          "sequence": 7,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:48628"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169777630211299,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:57406",
+          "put_idle_observed_unix_ns": 1792169778444182346,
+          "receiving_pool_observed_bytes": 12058624,
+          "sequence": 8,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:48614"
+        },
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169779106373859,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:57408",
+          "put_idle_observed_unix_ns": 1792169779915190236,
+          "receiving_pool_observed_bytes": 13107200,
+          "sequence": 9,
+          "stage": "retained-warmup",
+          "upstream_remote_address": "10.212.0.2:48658"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169780197542006,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:57416",
+          "put_idle_observed_unix_ns": 1792169781011112076,
+          "receiving_pool_observed_bytes": 12058624,
+          "sequence": 10,
+          "stage": "retained-warmup",
+          "upstream_remote_address": "10.212.0.2:48642"
+        },
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169781291618641,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:57428",
+          "put_idle_observed_unix_ns": 1792169782107177755,
+          "receiving_pool_observed_bytes": 12582912,
+          "sequence": 11,
+          "stage": "steady",
+          "upstream_remote_address": "10.212.0.2:48628"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169782389669977,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:57430",
+          "put_idle_observed_unix_ns": 1792169783201905799,
+          "receiving_pool_observed_bytes": 11010048,
+          "sequence": 12,
+          "stage": "steady",
+          "upstream_remote_address": "10.212.0.2:48614"
+        }
+      ],
+      "post_last_explicit_close_has_same_remote_revisit": false,
+      "post_last_explicit_close_sequences": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "remote_address_groups": {
+        "10.212.0.2:48614": [
+          4,
+          8,
+          12
+        ],
+        "10.212.0.2:48628": [
+          3,
+          7,
+          11
+        ],
+        "10.212.0.2:48642": [
+          2,
+          6,
+          10
+        ],
+        "10.212.0.2:48658": [
+          1,
+          5,
+          9
+        ]
+      },
+      "results_sha256": "eb8786c3b239bb5284e37b2c3c2406284778c17c1a41f32aaf5fb8ce0edec688",
+      "row_count": 12,
+      "row_validation_issues": [],
+      "same_remote_revisit_gaps": [
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 1,
+          "put_to_next_got_ns": 3790330954,
+          "to_sequence": 5,
+          "upstream_remote_address": "10.212.0.2:48658"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 5,
+          "put_to_next_got_ns": 4150499333,
+          "to_sequence": 9,
+          "upstream_remote_address": "10.212.0.2:48658"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 2,
+          "put_to_next_got_ns": 3788565742,
+          "to_sequence": 6,
+          "upstream_remote_address": "10.212.0.2:48642"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 6,
+          "put_to_next_got_ns": 4084124604,
+          "to_sequence": 10,
+          "upstream_remote_address": "10.212.0.2:48642"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 3,
+          "put_to_next_got_ns": 3788406012,
+          "to_sequence": 7,
+          "upstream_remote_address": "10.212.0.2:48628"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 7,
+          "put_to_next_got_ns": 4016215290,
+          "to_sequence": 11,
+          "upstream_remote_address": "10.212.0.2:48628"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 4,
+          "put_to_next_got_ns": 3837654797,
+          "to_sequence": 8,
+          "upstream_remote_address": "10.212.0.2:48614"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 8,
+          "put_to_next_got_ns": 3945487631,
+          "to_sequence": 12,
+          "upstream_remote_address": "10.212.0.2:48614"
+        }
+      ]
+    },
+    "h2": {
+      "all_got_conn_new": true,
+      "all_origin_ids_unique": true,
+      "all_put_idle_recorded": true,
+      "lifecycle_sha256": "77792da95b64ca6d7b24db8ab8523e3721b3fc80368c56b6f97b015a7ad5dae4",
+      "observations": [
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169789729926275,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:58430",
+          "put_idle_observed_unix_ns": 1792169790543246260,
+          "receiving_pool_observed_bytes": 12582912,
+          "sequence": 1,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:33388"
+        },
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169790890334751,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:58438",
+          "put_idle_observed_unix_ns": 1792169791705463461,
+          "receiving_pool_observed_bytes": 12582912,
+          "sequence": 2,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:33424"
+        },
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169792053341517,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:58440",
+          "put_idle_observed_unix_ns": 1792169792865243592,
+          "receiving_pool_observed_bytes": 13631488,
+          "sequence": 3,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:33412"
+        },
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169793202857256,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:58444",
+          "put_idle_observed_unix_ns": 1792169794020653349,
+          "receiving_pool_observed_bytes": 13631488,
+          "sequence": 4,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:33402"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169794361769850,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:58448",
+          "put_idle_observed_unix_ns": 1792169795174854229,
+          "receiving_pool_observed_bytes": 11272192,
+          "sequence": 5,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:33388"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169795471065707,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:58456",
+          "put_idle_observed_unix_ns": 1792169796285495895,
+          "receiving_pool_observed_bytes": 12058624,
+          "sequence": 6,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:33424"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169796629525255,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:58472",
+          "put_idle_observed_unix_ns": 1792169797446257450,
+          "receiving_pool_observed_bytes": 12058624,
+          "sequence": 7,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:33412"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169797802879570,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:55888",
+          "put_idle_observed_unix_ns": 1792169798623888910,
+          "receiving_pool_observed_bytes": 12058624,
+          "sequence": 8,
+          "stage": "warmup",
+          "upstream_remote_address": "10.212.0.2:33402"
+        },
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169799294839913,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:55904",
+          "put_idle_observed_unix_ns": 1792169800109160740,
+          "receiving_pool_observed_bytes": 13631488,
+          "sequence": 9,
+          "stage": "retained-warmup",
+          "upstream_remote_address": "10.212.0.2:33388"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169800369617864,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:55920",
+          "put_idle_observed_unix_ns": 1792169801187917227,
+          "receiving_pool_observed_bytes": 12058624,
+          "sequence": 10,
+          "stage": "retained-warmup",
+          "upstream_remote_address": "10.212.0.2:33424"
+        },
+        {
+          "direction": "download",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169801471884637,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:55932",
+          "put_idle_observed_unix_ns": 1792169802285228083,
+          "receiving_pool_observed_bytes": 11796480,
+          "sequence": 11,
+          "stage": "steady",
+          "upstream_remote_address": "10.212.0.2:33412"
+        },
+        {
+          "direction": "upload",
+          "got_conn_idle_time_ns": 0,
+          "got_conn_observed_unix_ns": 1792169802573332337,
+          "got_conn_reused": false,
+          "got_conn_was_idle": false,
+          "origin_connection_id": "10.212.0.2:55936",
+          "put_idle_observed_unix_ns": 1792169803386972435,
+          "receiving_pool_observed_bytes": 10747904,
+          "sequence": 12,
+          "stage": "steady",
+          "upstream_remote_address": "10.212.0.2:33402"
+        }
+      ],
+      "post_last_explicit_close_has_same_remote_revisit": false,
+      "post_last_explicit_close_sequences": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "remote_address_groups": {
+        "10.212.0.2:33388": [
+          1,
+          5,
+          9
+        ],
+        "10.212.0.2:33402": [
+          4,
+          8,
+          12
+        ],
+        "10.212.0.2:33412": [
+          3,
+          7,
+          11
+        ],
+        "10.212.0.2:33424": [
+          2,
+          6,
+          10
+        ]
+      },
+      "results_sha256": "98e8b27d3f8bef950296a861d7dccb1bfbdcbc8053474f8537185eee6574e691",
+      "row_count": 12,
+      "row_validation_issues": [],
+      "same_remote_revisit_gaps": [
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 1,
+          "put_to_next_got_ns": 3818523590,
+          "to_sequence": 5,
+          "upstream_remote_address": "10.212.0.2:33388"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 5,
+          "put_to_next_got_ns": 4119985684,
+          "to_sequence": 9,
+          "upstream_remote_address": "10.212.0.2:33388"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 2,
+          "put_to_next_got_ns": 3765602246,
+          "to_sequence": 6,
+          "upstream_remote_address": "10.212.0.2:33424"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 6,
+          "put_to_next_got_ns": 4084121969,
+          "to_sequence": 10,
+          "upstream_remote_address": "10.212.0.2:33424"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 3,
+          "put_to_next_got_ns": 3764281663,
+          "to_sequence": 7,
+          "upstream_remote_address": "10.212.0.2:33412"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 7,
+          "put_to_next_got_ns": 4025627187,
+          "to_sequence": 11,
+          "upstream_remote_address": "10.212.0.2:33412"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 4,
+          "put_to_next_got_ns": 3782226221,
+          "to_sequence": 8,
+          "upstream_remote_address": "10.212.0.2:33402"
+        },
+        {
+          "explicit_close_idle_between": true,
+          "from_sequence": 8,
+          "put_to_next_got_ns": 3949443427,
+          "to_sequence": 12,
+          "upstream_remote_address": "10.212.0.2:33402"
+        }
+      ]
+    }
+  },
+  "expected_leaf_der_sha256": "4270bd6441e7895f8afaa6ebc4b44cc5026abde538614bc6d536166c11ae96d7",
+  "schema_version": 1,
+  "scope": "offline tiny-smoke-2 audit"
+}

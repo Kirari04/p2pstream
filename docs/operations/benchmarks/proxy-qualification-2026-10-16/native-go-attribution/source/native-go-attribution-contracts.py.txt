@@ -1,0 +1,312 @@
+#!/usr/bin/env python3
+"""Finite source contracts for the native-Go attribution runner lifecycle."""
+import argparse
+import importlib.util
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+
+def sha(path):
+    import hashlib
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as source:
+        for block in iter(lambda: source.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def load_module(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def rows_for(module, production=(80.0, 80.0, 80.0), native=(100.0, 100.0, 100.0)):
+    rows = []
+    for iteration, role, scheme, concurrency in module.expected_attribution_cells():
+        value = production[iteration - 1] if role == "production" else native[iteration - 1]
+        rows.append(dict(iteration=iteration, role=role, public_scheme=scheme, concurrency=concurrency,
+                         useful_requests_per_second=value))
+    return rows
+
+
+def wait_group_gone(module, group, seconds=2):
+    deadline = time.monotonic() + seconds
+    while module.process_group_alive(group) and time.monotonic() < deadline:
+        time.sleep(.02)
+    return not module.process_group_alive(group)
+
+
+def run_case(root, name, callback):
+    case = root / name
+    case.mkdir()
+    record = dict(name=name, passed=False, started_unix_nano=time.time_ns())
+    try:
+        callback(case)
+        record["passed"] = True
+    except BaseException as error:
+        record["error"] = repr(error)
+        raise
+    finally:
+        record["finished_unix_nano"] = time.time_ns()
+        (case / "result.json").write_text(json.dumps(record, indent=2) + "\n")
+    return record
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--runner", default=str(Path(__file__).with_name("qualify-proxy-native-go-attribution.py")))
+    parser.add_argument("--builder", default=str(Path(__file__).with_name("build-native-go-attribution.py")))
+    parser.add_argument("--output-parent")
+    parser.add_argument("--only", action="append", default=[], help="run only the named pure contract")
+    args = parser.parse_args()
+    runner_path = Path(args.runner).resolve(strict=True)
+    builder_path = Path(args.builder).resolve(strict=True)
+    parent = Path(args.output_parent).resolve() if args.output_parent else runner_path.parent
+    root = Path(tempfile.mkdtemp(prefix="native-go-attribution-contracts.", dir=parent))
+    root.chmod(0o700)
+    module = load_module(runner_path, "native_go_attribution_runner")
+    builder = load_module(builder_path, "native_go_attribution_builder")
+    results = []
+
+    def environment_contract(case):
+        inherited = dict(os.environ)
+        inherited.update(P2PSTREAM_QUALIFICATION_NATIVE_GO_SMOKE="1",
+                         P2PSTREAM_QUALIFICATION_ROLE="unexpected",
+                         UNRELATED_SENTINEL="retained")
+        timed = module.qualification_child_environment(inherited, smoke=False)
+        smoke = module.qualification_child_environment(inherited, smoke=True)
+        assert timed["P2PSTREAM_QUALIFICATION_NATIVE_GO_SMOKE"] == "0"
+        assert smoke["P2PSTREAM_QUALIFICATION_NATIVE_GO_SMOKE"] == "1"
+        assert "P2PSTREAM_QUALIFICATION_ROLE" not in timed
+        assert timed["UNRELATED_SENTINEL"] == "retained"
+        assert "P2PSTREAM_QUALIFICATION_NATIVE_GO_ATTRIBUTION" not in timed
+        attribution = module.attribution_load_environment(inherited, smoke=False)
+        assert attribution["P2PSTREAM_QUALIFICATION_NATIVE_GO_SMOKE"] == "0"
+        assert attribution["P2PSTREAM_QUALIFICATION_NATIVE_GO_ATTRIBUTION"] == "1"
+        assert "P2PSTREAM_QUALIFICATION_ROLE" not in attribution
+
+    def role_resource_envelope_contract(case):
+        production = module.attribution_resource_envelope("production")
+        native = module.attribution_resource_envelope("native")
+        assert production == "p2pstream-native-go-attribution:4GiB,no-swap"
+        assert native == "native-go-attribution:4GiB,no-swap"
+        assert production.startswith("p2pstream")
+        assert not native.startswith("p2pstream")
+        try:
+            module.attribution_resource_envelope("unexpected")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("unknown role received a resource envelope")
+
+    def executable_resolution_contract(case):
+        executable = Path(sys.executable).resolve(strict=True)
+        for implementation in (module, builder):
+            requested, exact = implementation.resolve_command([executable, "-V"], env={})
+            assert requested == [str(executable), "-V"]
+            assert exact == requested
+            requested, exact = implementation.resolve_command(
+                [executable.name, "-V"], env={"PATH": str(executable.parent)})
+            assert requested == [executable.name, "-V"]
+            assert exact == [str(executable), "-V"]
+            local = case / ("tool-" + implementation.__name__)
+            local.write_text("#!/bin/sh\nexit 0\n")
+            local.chmod(0o700)
+            _, exact = implementation.resolve_command(["./" + local.name], env={}, cwd=case)
+            assert exact == [str(local.resolve(strict=True))]
+            for command, env, cwd in ((["missing-tool"], {}, None), (["./" + local.name], {}, None)):
+                try:
+                    implementation.resolve_command(command, env=env, cwd=cwd)
+                except (FileNotFoundError, ValueError):
+                    continue
+                raise AssertionError(f"invalid executable lookup was accepted: {command}")
+
+    def mixed_trigger_contract(case):
+        cells, triggered = module.summarize_attribution_rows(rows_for(module, production=(80, 80, 90)))
+        assert not triggered
+        assert all(not cell["profiling_trigger_all_three_pairs_below_0_85"] for cell in cells)
+
+    def all_pairs_trigger_contract(case):
+        cells, triggered = module.summarize_attribution_rows(rows_for(module, production=(80, 81, 82)))
+        assert triggered
+        assert all(cell["profiling_trigger_all_three_pairs_below_0_85"] for cell in cells)
+
+    def missing_cell_contract(case):
+        try:
+            module.summarize_attribution_rows(rows_for(module)[:-1])
+        except ValueError:
+            return
+        raise AssertionError("missing cell was accepted")
+
+    def wrong_cell_contract(case):
+        rows = rows_for(module)
+        rows[1], rows[2] = rows[2], rows[1]
+        try:
+            module.summarize_attribution_rows(rows)
+        except ValueError:
+            return
+        raise AssertionError("wrong chronological cell was accepted")
+
+    def wrong_actual_configuration_contract(case):
+        valid = dict(protocol="h1", concurrency=16, configured_duration_seconds=10, warmup_seconds=2)
+        module.validate_attribution_result_configuration(valid, 16, 10, 2)
+        module.validate_attribution_result_configuration(dict(protocol="h1", concurrency=1), 1, 0, 0)
+        for field, value in (("concurrency", 128), ("configured_duration_seconds", 9), ("warmup_seconds", 1)):
+            invalid = dict(valid)
+            invalid[field] = value
+            try:
+                module.validate_attribution_result_configuration(invalid, 16, 10, 2)
+            except ValueError:
+                continue
+            raise AssertionError(f"wrong raw {field} was accepted")
+        for requested in ((16, 10, 2), (16, 0, 2), (16, 10, 0)):
+            try:
+                module.validate_attribution_result_configuration(dict(protocol="h1", concurrency=16), *requested)
+            except ValueError:
+                continue
+            raise AssertionError(f"missing nonzero raw timing was accepted: {requested}")
+
+    def leader_exit_descendant_contract(case):
+        outcomes = {}
+        for implementation, lifecycle in (("runner", module), ("builder", builder)):
+            code = "import subprocess; subprocess.Popen(['sleep','300']); raise SystemExit(0)"
+            process = subprocess.Popen([sys.executable, "-c", code], start_new_session=True)
+            group = process.pid
+            try:
+                assert process.wait(timeout=5) == 0
+                assert lifecycle.process_group_alive(group)
+                outcome = lifecycle.terminate_process_group(group, process)
+                outcomes[implementation] = outcome
+                assert outcome["term_sent"] and not outcome["group_alive_after_cleanup"]
+            finally:
+                if lifecycle.process_group_alive(group):
+                    lifecycle.terminate_process_group(group, process)
+        (case / "cleanup.json").write_text(json.dumps(outcomes, indent=2) + "\n")
+
+    def timeout_forces_kill_contract(case):
+        code = (
+            "import signal,time\n"
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+            "while True: time.sleep(1)\n"
+        )
+        process = subprocess.Popen([sys.executable, "-c", code], start_new_session=True)
+        group = process.pid
+        try:
+            time.sleep(.1)
+            outcome = module.terminate_process_group(group, process, term_seconds=.1, kill_seconds=.5)
+            (case / "cleanup.json").write_text(json.dumps(outcome, indent=2) + "\n")
+            assert outcome["term_sent"] and outcome["kill_sent"]
+            assert outcome["direct_process_reaped"] and not outcome["group_alive_after_cleanup"]
+        finally:
+            if module.process_group_alive(group):
+                module.terminate_process_group(group, process, term_seconds=.1, kill_seconds=.5)
+
+    def repeated_signal_contract(case):
+        outcome_path = case / "child-outcome.json"
+        ready_path = case / "child-ready"
+        script = case / "cleanup-child.py"
+        script.write_text(
+            "import json,os,signal,subprocess,sys,time\n"
+            "path,ready=sys.argv[1:3]\n"
+            "child=subprocess.Popen([sys.executable,'-c','import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(300)'])\n"
+            "def stop(signum,frame):\n"
+            " signal.signal(signal.SIGTERM,signal.SIG_IGN)\n"
+            " try: child.terminate()\n"
+            " except ProcessLookupError: pass\n"
+            " time.sleep(.15)\n"
+            " if child.poll() is None: child.kill()\n"
+            " child.wait(timeout=2)\n"
+            " open(path,'w').write(json.dumps({'child_reaped':child.returncode is not None})+'\\n')\n"
+            " raise SystemExit(128+signum)\n"
+            "signal.signal(signal.SIGTERM,stop)\n"
+            "open(ready,'w').write('ready\\n')\n"
+            "while True: time.sleep(1)\n"
+        )
+        with (case / "child.log").open("w") as log:
+            process = subprocess.Popen([sys.executable, script, outcome_path, ready_path], stdout=log,
+                                       stderr=subprocess.STDOUT, start_new_session=True, text=True)
+            group = process.pid
+            try:
+                deadline = time.monotonic() + 2
+                while not ready_path.exists() and process.poll() is None and time.monotonic() < deadline:
+                    time.sleep(.02)
+                assert ready_path.read_text().strip() == "ready"
+                os.kill(process.pid, signal.SIGTERM)
+                time.sleep(.03)
+                os.kill(process.pid, signal.SIGTERM)
+                process.wait(timeout=3)
+                assert json.loads(outcome_path.read_text()) == {"child_reaped": True}
+                assert wait_group_gone(module, group)
+            finally:
+                if module.process_group_alive(group):
+                    module.terminate_process_group(group, process, term_seconds=.1, kill_seconds=.5)
+
+    def container_absence_contract(case):
+        empty = module.parse_container_inventory(0, "")
+        module.validate_owned_container_absent(empty, "owned", "a" * 64)
+        unrelated = module.parse_container_inventory(0, ("b" * 64) + "\tunrelated\n")
+        module.validate_owned_container_absent(unrelated, "owned", "a" * 64)
+        present = module.parse_container_inventory(0, ("a" * 64) + "\towned\n")
+        for name, container_id in (("owned", "c" * 64), ("different", "a" * 64)):
+            try:
+                module.validate_owned_container_absent(present, name, container_id)
+            except ValueError:
+                continue
+            raise AssertionError("present owned container was accepted as absent")
+        for returncode, stdout in ((1, ""), (125, ""), (0, "malformed")):
+            try:
+                module.parse_container_inventory(returncode, stdout)
+            except ValueError:
+                continue
+            raise AssertionError(f"invalid container inventory was accepted: exit={returncode}")
+
+    cases = (
+        ("inherited-smoke-sanitized", environment_contract),
+        ("role-resource-envelope-classifies-event-capture", role_resource_envelope_contract),
+        ("child-path-executable-resolution", executable_resolution_contract),
+        ("mixed-pair-trigger-rejected", mixed_trigger_contract),
+        ("all-pair-trigger-accepted", all_pairs_trigger_contract),
+        ("missing-cell-rejected", missing_cell_contract),
+        ("wrong-cell-rejected", wrong_cell_contract),
+        ("wrong-actual-load-configuration-rejected", wrong_actual_configuration_contract),
+        ("leader-exit-descendant-cleaned", leader_exit_descendant_contract),
+        ("docker-command-timeout-term-resistant-group-killed", timeout_forces_kill_contract),
+        ("repeated-signal-cleanup-completes", repeated_signal_contract),
+        ("container-absence-fail-closed", container_absence_contract),
+    )
+    selected_cases = cases
+    if args.only:
+        available = {name for name, _ in cases}
+        unknown = sorted(set(args.only) - available)
+        if unknown:
+            parser.error(f"unknown contract cases: {unknown}")
+        selected_cases = tuple((name, callback) for name, callback in cases if name in set(args.only))
+    failure = None
+    try:
+        for name, callback in selected_cases:
+            results.append(run_case(root, name, callback))
+    except BaseException as error:
+        failure = error
+        raise
+    finally:
+        summary = dict(kind="p2pstream-native-go-attribution-contracts-v1",
+                       runner=str(runner_path), runner_sha256=sha(runner_path),
+                       builder=str(builder_path), builder_sha256=sha(builder_path),
+                       python_version=sys.version, case_count=len(results), results=results,
+                       selected_cases=[name for name, _ in selected_cases],
+                       complete=failure is None and len(results) == len(selected_cases) and all(row["passed"] for row in results),
+                       failure=repr(failure) if failure is not None else None)
+        (root / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+        print(root)
+
+
+if __name__ == "__main__":
+    main()

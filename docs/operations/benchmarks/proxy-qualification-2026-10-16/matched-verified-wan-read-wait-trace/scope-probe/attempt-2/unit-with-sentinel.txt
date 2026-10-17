@@ -1,0 +1,12 @@
+Id=p2p-trace-scope-probe-20261016-b.scope
+LoadState=loaded
+ActiveState=active
+SubState=running
+ControlGroup=/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-trace-scope-probe-20261016-b.scope
+MemoryCurrent=2764800
+MemoryPeak=6205440
+EffectiveMemoryMax=4294967296
+Delegate=yes
+MemoryHigh=infinity
+MemoryMax=4294967296
+MemorySwapMax=0

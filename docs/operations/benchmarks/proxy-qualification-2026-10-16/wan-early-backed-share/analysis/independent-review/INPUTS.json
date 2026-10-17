@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "scope": "source-only independent review; no execution",
+  "source_inventory_files_verified": 468,
+  "source_inventory_mismatches": [],
+  "decision": "go for root-authorized focused tunnel tests only",
+  "inputs": [
+    {
+      "path": "tmp/wan-early-share-screen-20261017/SOURCE-SHA256SUMS",
+      "sha256": "b6c59c6631afe0e911f565ebb0d51ba9edc3183d4389b0be87f7b5656899a57d",
+      "bytes": 56263
+    },
+    {
+      "path": "tmp/wan-early-share-source-20261017/FOCUSED-TEST-PLAN.json",
+      "sha256": "790a3677b2bd0cdedd78a928ba7baf7fcebb60e0ff05aea63287a73332dd4e01",
+      "bytes": 5868
+    },
+    {
+      "path": "tmp/wan-early-share-source-20261017/run-focused-tests.py",
+      "sha256": "4731e69388ee64a1cb6d3bba7c79c90219230dd70c48c06f1b41d1ceb7d4602b",
+      "bytes": 6014
+    },
+    {
+      "path": "tmp/wan-idle-policy-source-review-20261017/NEXT-POOL-SHARE-PLAN.md",
+      "sha256": "20f1bf96e8e41e3d52dab910b1aa708850c6ff161b9838f6b980d01476080dac",
+      "bytes": 6435
+    },
+    {
+      "path": "tmp/wan-controller-screen-20261017/run-controller-policy.py",
+      "sha256": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767",
+      "bytes": 13405
+    },
+    {
+      "path": "tmp/wan-early-share-screen-20261017/test-source/internal/tunnel/growing_conn.go",
+      "sha256": "cdfb4483274bb1361eb58e2bcc1a9c6253d34876bf34dc602ab851b872cf006b",
+      "bytes": 9297
+    },
+    {
+      "path": "tmp/wan-early-share-screen-20261017/test-source/internal/tunnel/early_share.go",
+      "sha256": "1166aa5745c85dcd8462af86a58c9a1a74f0d530b7a4ff7c11d89009a335d96c",
+      "bytes": 4987
+    },
+    {
+      "path": "tmp/wan-early-share-screen-20261017/test-source/internal/tunnel/early_share_test.go",
+      "sha256": "a4cad75f74406ae0c66521198360dec0b9f1599536a19f1aa069c381f5b908cf",
+      "bytes": 12481
+    },
+    {
+      "path": "tmp/wan-early-share-screen-20261017/test-source/internal/tunnel/qualification_early_share.go",
+      "sha256": "faa1bfc9ccc16903befdebb6f4cc3112e322428b145eebfb423e554fe51d681b",
+      "bytes": 10537
+    },
+    {
+      "path": "tmp/wan-early-share-screen-20261017/test-source/internal/tunnel/qualification_early_share_disabled.go",
+      "sha256": "455c54fea410542e07033ee73c79ca288b3a576b01bbe004b71152d27f07c70d",
+      "bytes": 485
+    },
+    {
+      "path": "tmp/wan-early-share-screen-20261017/test-source/internal/tunnel/qualification_early_share_test.go",
+      "sha256": "073b7930bf622f89e8d4d8facbf80a606fad50f9a7d9ddd30056c218bfeef0f5",
+      "bytes": 5880
+    },
+    {
+      "path": "tmp/wan-early-share-screen-20261017/test-source/internal/tunnel/qualification_early_share_read_test.go",
+      "sha256": "9cbf70fc60048fcf8ad9a64c65332dacac671ed8ce4abd5529ce2a78c1528427",
+      "bytes": 7151
+    },
+    {
+      "path": "tmp/wan-early-share-screen-20261017/test-source/internal/agent/proxy_qualification_external_test.go",
+      "sha256": "265855dd24a1c30f0d15b9cc63b7636b9cbaa4b7ff3f91cb6136775a87c0617e",
+      "bytes": 17605
+    },
+    {
+      "path": "tmp/wan-early-share-screen-20261017/test-source/internal/server/proxy_qualification_test.go",
+      "sha256": "34ea67a2db50af237da1f9e7bc4ba659dae4a25e0f1bc401d2edb5f9d4633aed",
+      "bytes": 108853
+    }
+  ]
+}

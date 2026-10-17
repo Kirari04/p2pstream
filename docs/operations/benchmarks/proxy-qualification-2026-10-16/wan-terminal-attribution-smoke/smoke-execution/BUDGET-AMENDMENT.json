@@ -1,0 +1,13 @@
+{
+  "approved_by": "root",
+  "approval": "Approve prospective disk-artifact budget amendment to128MiB (134217728B) for remainingH2 only",
+  "reason": "H1 passed and artifacts reached102067747 bytes; H2 of comparable artifact size would predictably exceed100MiB. Preserve all evidence without deletion/compression.",
+  "original_manifest_sha256": "6d898da8254c2a7c2c38fc81fb152235294de7825725dd4322fa4a601fba1f8c",
+  "original_cap_bytes": 104857600,
+  "new_cap_bytes": 134217728,
+  "applies_to": "remaining H2 command exactly once only",
+  "h1_observed_task_bytes": 102067747,
+  "workload_application_memory_timing_acceptance_retry_changes": false,
+  "h1_rerun": false,
+  "recorded_at_utc": "2026-10-17T10:58:40.581161+00:00"
+}

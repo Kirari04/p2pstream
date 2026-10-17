@@ -1,0 +1,1336 @@
+--- baseline/internal/agent/proxy_qualification_external_test.go
++++ test-source/internal/agent/proxy_qualification_external_test.go
+@@ -238,6 +238,10 @@
+ }
+ 
+ func runExternalProxyQualificationAgent(t *testing.T) {
++	earlyShareFinish, earlyShareErr := tunnel.StartQualificationEarlyShareFixture("agent")
++	if earlyShareErr != nil {
++		t.Fatal(earlyShareErr)
++	}
+ 	managementURL := requiredExternalAgentQualificationEnv(t, "P2PSTREAM_QUALIFICATION_MANAGEMENT_URL")
+ 	publicID := requiredExternalAgentQualificationEnv(t, "P2PSTREAM_QUALIFICATION_AGENT_PUBLIC_ID")
+ 	token := requiredExternalAgentQualificationEnv(t, "P2PSTREAM_QUALIFICATION_AGENT_TOKEN")
+@@ -400,13 +404,15 @@
+ 	cancel()
+ 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+ 	defer shutdownCancel()
+-	_ = admin.Shutdown(shutdownCtx)
++	earlyShareJoined := admin.Shutdown(shutdownCtx) == nil
+ 	select {
+ 	case err := <-runDone:
+ 		if err != nil && !errors.Is(err, context.Canceled) {
++			earlyShareJoined = false
+ 			t.Errorf("external qualification agent stopped: %v", err)
+ 		}
+ 	case <-time.After(5 * time.Second):
++		earlyShareJoined = false
+ 		t.Error("external qualification agent did not stop")
+ 	}
+ 	if err := rawTerminal.write(); err != nil {
+@@ -415,6 +421,9 @@
+ 		} else {
+ 			t.Errorf("write raw-write terminal lifecycle: %v", err)
+ 		}
++	}
++	if err := earlyShareFinish(earlyShareJoined, time.Time{}); err != nil {
++		t.Errorf("early-share terminal proof: %v", err)
+ 	}
+ }
+ 
+--- baseline/internal/server/proxy_qualification_test.go
++++ test-source/internal/server/proxy_qualification_test.go
+@@ -465,7 +465,7 @@
+ 	AgentTunnelsInitial           []qualificationAgentTunnelRuntime `json:"agent_tunnels_initial,omitempty"`
+ 	AgentTunnelsHighWater         []qualificationAgentTunnelRuntime `json:"agent_tunnels_high_water,omitempty"`
+ 	AgentTunnelsFinal             []qualificationAgentTunnelRuntime `json:"agent_tunnels_final,omitempty"`
+-	WANResponseTLS                []qualificationWANResponseTLS      `json:"wan_response_tls,omitempty"`
++	WANResponseTLS                []qualificationWANResponseTLS     `json:"wan_response_tls,omitempty"`
+ }
+ 
+ // TestProxyQualificationProcess is a bounded subprocess entry point. The
+@@ -814,6 +814,19 @@
+ }
+ 
+ func runQualificationExternalAgentProxy(t *testing.T) {
++	earlyShareFinish, earlyShareErr := tunnel.StartQualificationEarlyShareFixture("server")
++	if earlyShareErr != nil {
++		t.Fatal(earlyShareErr)
++	}
++	earlyShareJoined := false
++	var earlyShareDeadline time.Time
++	// Registered before CloseAgentTransports: final proof runs after existing
++	// transport cleanup. Live event sessions reject rather than being closed.
++	defer func() {
++		if err := earlyShareFinish(earlyShareJoined, earlyShareDeadline); err != nil {
++			t.Errorf("early-share terminal proof: %v", err)
++		}
++	}()
+ 	originURL := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_ORIGIN_URL")
+ 	certPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_CERT")
+ 	keyPath := requiredQualificationEnv(t, "P2PSTREAM_QUALIFICATION_KEY")
+@@ -1086,9 +1099,11 @@
+ 	}
+ 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+ 	defer shutdownCancel()
+-	_, _ = app.stopPublicListenerRuntime(shutdownCtx, 1)
+-	_ = admin.Shutdown(shutdownCtx)
+-	_ = management.Shutdown(shutdownCtx)
++	earlyShareDeadline, _ = shutdownCtx.Deadline()
++	_, earlySharePublicErr := app.stopPublicListenerRuntime(shutdownCtx, 1)
++	earlyShareAdminErr := admin.Shutdown(shutdownCtx)
++	earlyShareManagementErr := management.Shutdown(shutdownCtx)
++	earlyShareJoined = earlySharePublicErr == nil && earlyShareAdminErr == nil && earlyShareManagementErr == nil
+ }
+ 
+ func runQualificationProxy(t *testing.T) {
+--- /dev/null
++++ test-source/internal/tunnel/early_share.go
+@@ -0,0 +1,127 @@
++package tunnel
++
++import (
++	"errors"
++
++	"github.com/hashicorp/yamux"
++)
++
++const earlyShareThreshold = uint64(512 << 10)
++const earlyShareAbsoluteMaximum = uint32(4 << 20)
++
++// BackedEarlyShareState samples immutable backing dimensions while the common
++// growth-owner mutex excludes ordinary pool growth and reservation changes.
++// Available/free credit is deliberately excluded: reads/refunds can change it.
++type BackedEarlyShareState struct {
++	ByteWindow        uint32
++	AllocationWindow  uint32
++	PoolReceiveLimit  uint32
++	PoolTotalUnits    uint32
++	ReservationLeases int
++}
++
++// BackedEarlyShareObservation is a separate diagnostic event. It is never an
++// estimator epoch or evidence that the ordinary estimator approved a proposal.
++type BackedEarlyShareObservation struct {
++	// ThresholdProgressBytes is capped at 512 KiB, not a lifetime byte total.
++	ThresholdProgressBytes uint64
++	Enabled                bool
++	Maximum                uint32
++	NegotiatedMaximum      uint32
++	Target                 uint32
++	Before                 BackedEarlyShareState
++	After                  BackedEarlyShareState
++	Outcome                string
++	PublicationStage       string
++	// Error is a fixed outcome category; raw transport/peer error text is excluded.
++	Error string
++}
++
++// takeEarlyShareAttempt runs only under c.mu, after a successful positive Read.
++// The counter saturates; a no-op still consumes the single lifetime attempt.
++func (c *GrowingConn) takeEarlyShareAttempt(n uint64) bool {
++	if c.earlyShareAttempted {
++		return false
++	}
++	remaining := earlyShareThreshold - c.earlyShareConsumed
++	c.earlyShareConsumed += min(n, remaining)
++	if c.earlyShareConsumed < earlyShareThreshold {
++		return false
++	}
++	c.earlyShareAttempted = true
++	return true
++}
++
++func backedEarlyShareTarget(pool, maximum, negotiated uint32) uint32 {
++	target := min(earlyShareAbsoluteMaximum, pool/4, maximum, negotiated)
++	unit := uint32(yamux.AggregateWindowUnitSize)
++	return target / unit * unit
++}
++
++// tryBackedReceiveShare NEVER reserves or grows the session pool. Its only
++// publication calls are the existing checked stream allocation then byte APIs.
++// Caller holds the receive wrapper mutex; lock order matches ordinary Grow.
++func (g *AggregateReceiveWindowGrowth) tryBackedReceiveShare(stream *yamux.Stream, maximum uint32, enabled bool) (result BackedEarlyShareObservation, err error) {
++	defer func() {
++		if err != nil {
++			result.Error = result.Outcome
++		}
++	}()
++	result.Enabled, result.Maximum = enabled, maximum
++	result.Outcome, result.PublicationStage = "invalid_owner", "none"
++	if g == nil || g.session == nil || g.reserve == nil || stream == nil {
++		return result, errors.New("aggregate early-share missing owner or stream")
++	}
++	if stream.Session() != g.session {
++		return result, errors.New("aggregate early-share stream belongs to another session")
++	}
++	g.mu.Lock()
++	defer g.mu.Unlock()
++	snapshot := func() BackedEarlyShareState {
++		stats := g.session.AggregateReceiveWindowStats()
++		allocation, _ := stream.AggregateReceiveAllocationWindow()
++		return BackedEarlyShareState{stream.MaxReceiveWindow(), allocation, stats.ReceiveLimit, stats.TotalUnits, len(g.releases)}
++	}
++	result.Before = snapshot()
++	defer func() { result.After = snapshot() }()
++	stats := g.session.AggregateReceiveWindowStats()
++	if g.closing || !stats.Enabled || stats.Closed {
++		result.Outcome = "owner_closed"
++		return result, yamux.ErrSessionShutdown
++	}
++	negotiated, active := stream.AggregateReceiveAllocationMaximum()
++	if !active {
++		return result, errors.New("aggregate early-share used on a legacy stream")
++	}
++	result.NegotiatedMaximum = negotiated
++	result.Target = backedEarlyShareTarget(stats.ReceiveLimit, maximum, negotiated)
++	if !enabled {
++		result.Outcome = "disabled"
++		return result, nil
++	}
++	// Even a target with no delta passes the allocation API's terminal-state
++	// check, so a peer-closed stream cannot silently be called an eligible no-op.
++	result.PublicationStage = "allocation_attempted"
++	if allocationErr := stream.GrowReceiveAllocationWindow(max(result.Target, result.Before.AllocationWindow)); allocationErr != nil {
++		afterAllocation, _ := stream.AggregateReceiveAllocationWindow()
++		if allocationErr == yamux.ErrStreamClosed && afterAllocation == result.Before.AllocationWindow {
++			result.Outcome = "stream_closed"
++			return result, nil // Buffered successful Read bytes remain successful.
++		}
++		result.Outcome = "allocation_error"
++		return result, allocationErr
++	}
++	result.PublicationStage = "allocation_complete"
++	if result.Target <= result.Before.AllocationWindow && result.Target <= result.Before.ByteWindow {
++		result.Outcome = "no_larger_target"
++		return result, nil
++	}
++	result.PublicationStage = "byte_attempted"
++	if byteErr := stream.GrowReceiveWindow(max(result.Target, result.Before.ByteWindow)); byteErr != nil {
++		result.Outcome = "byte_error"
++		return result, byteErr // Allocation publication cannot be rolled back.
++	}
++	result.PublicationStage = "byte_complete"
++	result.Outcome = "granted"
++	return result, nil
++}
+--- /dev/null
++++ test-source/internal/tunnel/early_share_test.go
+@@ -0,0 +1,379 @@
++package tunnel
++
++import (
++	"bytes"
++	"encoding/binary"
++	"errors"
++	"io"
++	"math"
++	"net"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/hashicorp/yamux"
++)
++
++func TestEarlyShareDemandThresholdSaturatesAndAttemptsOnce(t *testing.T) {
++	c := &GrowingConn{}
++	if c.takeEarlyShareAttempt(earlyShareThreshold - 1) {
++		t.Fatal("attempt before threshold")
++	}
++	if c.earlyShareConsumed != earlyShareThreshold-1 {
++		t.Fatal("lost consumed bytes")
++	}
++	if !c.takeEarlyShareAttempt(math.MaxUint64) {
++		t.Fatal("threshold did not trigger")
++	}
++	if c.earlyShareConsumed != earlyShareThreshold {
++		t.Fatal("counter did not saturate")
++	}
++	if c.takeEarlyShareAttempt(math.MaxUint64) || c.takeEarlyShareAttempt(1) {
++		t.Fatal("attempt repeated")
++	}
++	otherDirection := &GrowingConn{}
++	if otherDirection.takeEarlyShareAttempt(1) {
++		t.Fatal("directions shared threshold")
++	}
++}
++
++func TestEarlyShareTargetUsesOnlyBoundedWholeUnits(t *testing.T) {
++	for _, tt := range []struct {
++		name                            string
++		pool, maximum, negotiated, want uint32
++	}{
++		{"initial_pool", 2 << 20, 64 << 20, 64 << 20, 512 << 10},
++		{"grown_pool", 8 << 20, 64 << 20, 64 << 20, 2 << 20},
++		{"absolute_cap", 256 << 20, 64 << 20, 64 << 20, 4 << 20},
++		{"operator", 32 << 20, 1 << 20, 64 << 20, 1 << 20},
++		{"negotiated", 32 << 20, 64 << 20, 1 << 20, 1 << 20},
++		{"round_down", 32 << 20, (1 << 20) + 4095, 64 << 20, 1 << 20},
++		{"subunit", 16383, 64 << 20, 64 << 20, 0},
++	} {
++		t.Run(tt.name, func(t *testing.T) {
++			if got := backedEarlyShareTarget(tt.pool, tt.maximum, tt.negotiated); got != tt.want {
++				t.Fatalf("target=%d want=%d", got, tt.want)
++			}
++		})
++	}
++}
++
++// New helper only for the new ownership contracts; old fixtures are unchanged.
++func earlySharePair(t *testing.T) (*yamux.Session, *yamux.Session, *yamux.Stream, *yamux.Stream) {
++	t.Helper()
++	left, right := net.Pipe()
++	deadline := time.Now().Add(5 * time.Second)
++	_ = left.SetDeadline(deadline)
++	_ = right.SetDeadline(deadline)
++	cfg, err := NewAggregateYamuxConfig(nil, 64<<20, 8)
++	if err != nil {
++		t.Fatal(err)
++	}
++	client, err := yamux.Client(left, cfg)
++	if err != nil {
++		t.Fatal(err)
++	}
++	server, err := yamux.Server(right, cfg)
++	if err != nil {
++		client.Close()
++		t.Fatal(err)
++	}
++	t.Cleanup(func() { _ = client.Close(); _ = server.Close() })
++	writer, err := client.OpenStream()
++	if err != nil {
++		t.Fatal(err)
++	}
++	reader, err := server.AcceptStream()
++	if err != nil {
++		t.Fatal(err)
++	}
++	return client, server, writer, reader
++}
++
++func TestEarlyShareDoesNotReserveOrGrowInitialPool(t *testing.T) {
++	_, server, _, reader := earlySharePair(t)
++	owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { t.Fatal("early share reserved"); return nil, false })
++	got, err := owner.tryBackedReceiveShare(reader, 64<<20, true)
++	if err != nil || got.Outcome != "no_larger_target" {
++		t.Fatalf("result=%+v err=%v", got, err)
++	}
++	if got.Before != got.After || got.Target != 512<<10 {
++		t.Fatalf("no-op changed state: %+v", got)
++	}
++}
++
++func TestEarlyShareUsesGrownBackingWithoutNewLease(t *testing.T) {
++	client, server, _, donor := earlySharePair(t)
++	var calls atomic.Int32
++	owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { calls.Add(1); return func() {}, true })
++	if ok, err := owner.Grow(donor, 2<<20); !ok || err != nil {
++		t.Fatalf("prime backing: %v %v", ok, err)
++	}
++	writer, err := client.OpenStream()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer writer.Close()
++	reader, err := server.AcceptStream()
++	if err != nil {
++		t.Fatal(err)
++	}
++	beforeCalls := calls.Load()
++	got, err := owner.tryBackedReceiveShare(reader, 64<<20, true)
++	if err != nil || got.Outcome != "granted" || got.PublicationStage != "byte_complete" {
++		t.Fatalf("result=%+v err=%v", got, err)
++	}
++	if got.Target != 2<<20 || got.After.ByteWindow != 2<<20 || got.After.AllocationWindow != 2<<20 {
++		t.Fatalf("incorrect grant: %+v", got)
++	}
++	if calls.Load() != beforeCalls || got.Before.PoolReceiveLimit != got.After.PoolReceiveLimit || got.Before.PoolTotalUnits != got.After.PoolTotalUnits || got.Before.ReservationLeases != got.After.ReservationLeases {
++		t.Fatalf("grant changed backing: %+v", got)
++	}
++	// An already-larger stream never shrinks, even with a lower operator target.
++	smaller, err := owner.tryBackedReceiveShare(reader, 512<<10, true)
++	if err != nil || smaller.Before != smaller.After || smaller.Outcome != "no_larger_target" {
++		t.Fatalf("shrink: %+v %v", smaller, err)
++	}
++	disabled, err := owner.tryBackedReceiveShare(donor, 64<<20, false)
++	if err != nil || disabled.Before != disabled.After || disabled.Outcome != "disabled" || disabled.PublicationStage != "none" {
++		t.Fatalf("disabled: %+v %v", disabled, err)
++	}
++}
++
++func TestEarlyShareValidatesOwnerBeforeNoop(t *testing.T) {
++	client, server, writer, reader := earlySharePair(t)
++	owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { t.Fatal("unexpected reserve"); return nil, false })
++	if _, err := owner.tryBackedReceiveShare(writer, 512<<10, true); err == nil {
++		t.Fatal("accepted opposite session")
++	}
++	if _, err := owner.tryBackedReceiveShare(nil, 512<<10, true); err == nil {
++		t.Fatal("accepted nil stream")
++	}
++	_ = client.Close()
++	_ = server.Close()
++	got, err := owner.tryBackedReceiveShare(reader, 512<<10, true)
++	if !errors.Is(err, yamux.ErrSessionShutdown) || got.Outcome != "owner_closed" {
++		t.Fatalf("closed owner: %+v %v", got, err)
++	}
++}
++
++func TestEarlyShareStalledConsumerLeavesOtherAdmittedStreamUsable(t *testing.T) {
++	client, server, stalledWriter, stalledReader := earlySharePair(t)
++	owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { return func() {}, true })
++	if ok, err := owner.Grow(stalledReader, 2<<20); !ok || err != nil {
++		t.Fatalf("prime: %v %v", ok, err)
++	}
++	writer, err := client.OpenStream()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer writer.Close()
++	reader, err := server.AcceptStream()
++	if err != nil {
++		t.Fatal(err)
++	}
++	got, err := owner.tryBackedReceiveShare(reader, 64<<20, true)
++	if err != nil || got.Outcome != "granted" {
++		t.Fatalf("grant: %+v %v", got, err)
++	}
++	// This is an intentionally hostile stall after eligibility. Total advertised
++	// stream shares do not bypass the shared pool's allocation credit.
++	done := make(chan error, 1)
++	go func() { _, err := stalledWriter.Write(make([]byte, 2<<20)); done <- err }()
++	select {
++	case err := <-done:
++		if err != nil {
++			t.Fatal(err)
++		}
++	case <-time.After(2 * time.Second):
++		t.Fatal("stalled stream did not fill its permitted share")
++	}
++	stats := server.AggregateReceiveWindowStats()
++	if stats.BufferedUnits > stats.TotalUnits || stats.TotalUnits != got.Before.PoolTotalUnits || stats.ReceiveLimit != got.Before.PoolReceiveLimit {
++		t.Fatalf("shared backing exceeded: %+v", stats)
++	}
++	payload := bytes.Repeat([]byte{0x5a}, 128<<10)
++	go func() { _, err := writer.Write(payload); done <- err }()
++	received := make([]byte, len(payload))
++	if _, err := io.ReadFull(reader, received); err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(received, payload) {
++		t.Fatal("other stream corrupted")
++	}
++	select {
++	case err := <-done:
++		if err != nil {
++			t.Fatal(err)
++		}
++	case <-time.After(2 * time.Second):
++		t.Fatal("other admitted stream stalled despite available shared pool")
++	}
++}
++
++type earlyShareSentinelFailureConn struct {
++	net.Conn
++	armed    atomic.Bool
++	streamID atomic.Uint32
++	failType byte
++}
++
++func (c *earlyShareSentinelFailureConn) Write(p []byte) (int, error) {
++	if c.armed.Load() && len(p) == 12 && p[1] == c.failType && binary.BigEndian.Uint32(p[4:8]) == c.streamID.Load() && binary.BigEndian.Uint32(p[8:12]) > 0 {
++		return 0, yamux.ErrStreamClosed // A transport error, NOT a state check.
++	}
++	return c.Conn.Write(p)
++}
++
++func TestEarlyShareDoesNotSuppressAmbiguousAllocationOrByteSentinel(t *testing.T) {
++	for _, tt := range []struct {
++		name    string
++		kind    byte
++		outcome string
++	}{
++		{"allocation_transport", 5, "allocation_error"},
++		{"byte_transport", 1, "byte_error"},
++	} {
++		t.Run(tt.name, func(t *testing.T) {
++			left, right := net.Pipe()
++			deadline := time.Now().Add(5 * time.Second)
++			_ = left.SetDeadline(deadline)
++			_ = right.SetDeadline(deadline)
++			failing := &earlyShareSentinelFailureConn{Conn: right, failType: tt.kind}
++			cfg, err := NewAggregateYamuxConfig(nil, 64<<20, 8)
++			if err != nil {
++				t.Fatal(err)
++			}
++			client, err := yamux.Client(left, cfg)
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer client.Close()
++			server, err := yamux.Server(failing, cfg)
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer server.Close()
++			var leases atomic.Int32
++			owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { leases.Add(1); return func() { leases.Add(-1) }, true })
++			_, err = client.OpenStream()
++			if err != nil {
++				t.Fatal(err)
++			}
++			donor, err := server.AcceptStream()
++			if err != nil {
++				t.Fatal(err)
++			}
++			if ok, err := owner.Grow(donor, 2<<20); !ok || err != nil {
++				t.Fatalf("prime: %v %v", ok, err)
++			}
++			_, err = client.OpenStream()
++			if err != nil {
++				t.Fatal(err)
++			}
++			reader, err := server.AcceptStream()
++			if err != nil {
++				t.Fatal(err)
++			}
++			failing.streamID.Store(reader.StreamID())
++			failing.armed.Store(true)
++			got, err := owner.tryBackedReceiveShare(reader, 64<<20, true)
++			if err == nil || got.Outcome != tt.outcome {
++				t.Fatalf("ambiguous error suppressed: %+v %v", got, err)
++			}
++			if got.After.AllocationWindow <= got.Before.AllocationWindow {
++				t.Fatalf("allocation mutation missing: %+v", got)
++			}
++			if leases.Load() != 1 {
++				t.Fatal("ambiguous publication released backing")
++			}
++			_ = server.Close()
++			owner.Release()
++			if leases.Load() != 0 {
++				t.Fatal("backing not released after session close")
++			}
++		})
++	}
++}
++
++func TestEarlyShareFourStallsStayBoundedControlAndDrainRecover(t *testing.T) {
++	client, server, firstWriter, firstReader := earlySharePair(t)
++	var reservations atomic.Int32
++	owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { reservations.Add(1); return func() {}, true })
++	if ok, err := owner.Grow(firstReader, 2<<20); !ok || err != nil {
++		t.Fatalf("prime: %v %v", ok, err)
++	}
++	writers := []*yamux.Stream{firstWriter}
++	readers := []*yamux.Stream{firstReader}
++	for i := 0; i < 4; i++ {
++		writer, err := client.OpenStream()
++		if err != nil {
++			t.Fatal(err)
++		}
++		reader, err := server.AcceptStream()
++		if err != nil {
++			t.Fatal(err)
++		}
++		writers = append(writers, writer)
++		readers = append(readers, reader)
++	}
++	beforeReservations := reservations.Load()
++	for _, reader := range readers[:4] {
++		result, err := owner.tryBackedReceiveShare(reader, 64<<20, true)
++		if err != nil || result.Target != 2<<20 {
++			t.Fatalf("quarter-share: %+v %v", result, err)
++		}
++	}
++	if reservations.Load() != beforeReservations {
++		t.Fatal("early share reserved more backing")
++	}
++	done := make(chan error, 4)
++	for _, writer := range writers[:4] {
++		go func(writer *yamux.Stream) { _, err := writer.Write(make([]byte, 2<<20)); done <- err }(writer)
++	}
++	for i := 0; i < 4; i++ {
++		select {
++		case err := <-done:
++			if err != nil {
++				t.Fatal(err)
++			}
++		case <-time.After(2 * time.Second):
++			t.Fatal("quarter-share stalls did not fill backing")
++		}
++	}
++	stats := server.AggregateReceiveWindowStats()
++	if stats.ReceiveLimit != 8<<20 || stats.FreeUnits != 0 || stats.BufferedUnits != stats.TotalUnits {
++		t.Fatalf("expected bounded full pool: %+v", stats)
++	}
++	fifth := make(chan error, 1)
++	go func() { _, err := writers[4].Write([]byte{0x7b}); fifth <- err }()
++	select {
++	case err := <-fifth:
++		t.Fatalf("fifth data write escaped full shared pool: %v", err)
++	case <-time.After(20 * time.Millisecond):
++	}
++	// No fifth-stream data progress is promised at full occupancy; control
++	// frames must still be processed independently of payload allocation.
++	if _, err := client.Ping(); err != nil {
++		t.Fatalf("control stalled behind full payload pool: %v", err)
++	}
++	if _, err := io.CopyN(io.Discard, readers[0], 2<<20); err != nil {
++		t.Fatal(err)
++	}
++	one := make([]byte, 1)
++	if _, err := io.ReadFull(readers[4], one); err != nil || one[0] != 0x7b {
++		t.Fatalf("data recovery after drain: %x %v", one, err)
++	}
++	select {
++	case err := <-fifth:
++		if err != nil {
++			t.Fatal(err)
++		}
++	case <-time.After(2 * time.Second):
++		t.Fatal("fifth write did not recover after drain")
++	}
++	stats = server.AggregateReceiveWindowStats()
++	if stats.ReceiveLimit != 8<<20 || stats.BufferedUnits > stats.TotalUnits || reservations.Load() != beforeReservations {
++		t.Fatalf("recovery changed global backing: %+v", stats)
++	}
++}
+--- baseline/internal/tunnel/growing_conn.go
++++ test-source/internal/tunnel/growing_conn.go
+@@ -16,14 +16,16 @@
+ // stream usable at its existing window instead of failing the request.
+ type GrowingConn struct {
+ 	net.Conn
+-	stream          *yamux.Stream
+-	maximum         uint32
+-	reserve         func(int64) (func(), bool)
+-	aggregateGrowth *AggregateReceiveWindowGrowth
+-	mu              sync.Mutex
+-	growth          receiveWindowGrowth
+-	closing         bool
+-	releases        []func()
++	stream              *yamux.Stream
++	maximum             uint32
++	reserve             func(int64) (func(), bool)
++	aggregateGrowth     *AggregateReceiveWindowGrowth
++	mu                  sync.Mutex
++	growth              receiveWindowGrowth
++	closing             bool
++	earlyShareConsumed  uint64
++	earlyShareAttempted bool
++	releases            []func()
+ }
+ 
+ func NewGrowingConn(conn net.Conn, maximum int64, reserve func(int64) (func(), bool)) *GrowingConn {
+@@ -92,6 +94,29 @@
+ 		current = allocation
+ 	}
+ 	if c.closing || current >= c.maximum {
++		return nil
++	}
++	if enabled, configured := qualificationEarlyShareMode(); configured && c.aggregateGrowth != nil && c.takeEarlyShareAttempt(n) {
++		qualificationEarlyShareAttemptStarted()
++		observation, err := c.aggregateGrowth.tryBackedReceiveShare(c.stream, c.maximum, enabled)
++		observation.ThresholdProgressBytes = c.earlyShareConsumed
++		c.recordQualificationEarlyShare(now, observation)
++		if err != nil && enabled {
++			return err
++		}
++		if enabled && observation.Outcome == "stream_closed" {
++			return nil // Do not retry through the ordinary estimator on this Read.
++		}
++		// The early attempt owns neither estimator history nor its denial timer.
++		// Refresh both actual limits before observing these consumed bytes once.
++		current = c.stream.MaxReceiveWindow()
++		allocation, active := c.stream.AggregateReceiveAllocationWindow()
++		if !active {
++			return errors.New("aggregate early-share lost allocation capability")
++		}
++		current = allocation
++	}
++	if current >= c.maximum {
+ 		return nil
+ 	}
+ 	next, sampled := c.growth.observe(now, n, current, c.maximum, rtt)
+--- /dev/null
++++ test-source/internal/tunnel/qualification_early_share.go
+@@ -0,0 +1,297 @@
++//go:build linux && p2pstream_qualification
++
++package tunnel
++
++import (
++	"encoding/json"
++	"errors"
++	"fmt"
++	"os"
++	"path/filepath"
++	"strconv"
++	"strings"
++	"sync"
++	"sync/atomic"
++	"syscall"
++	"time"
++
++	"github.com/hashicorp/yamux"
++)
++
++const qualificationEarlyShareCapacity = 64
++const qualificationEarlyShareEnv = "P2PSTREAM_QUALIFICATION_EARLY_SHARE"
++const qualificationEarlyShareDirectoryEnv = "P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR"
++
++type qualificationEarlyShareProcess struct {
++	PID             int    `json:"pid"`
++	StartTicks      uint64 `json:"start_ticks"`
++	Namespace       string `json:"namespace"`
++	NamespaceDevice uint64 `json:"namespace_device"`
++	NamespaceInode  uint64 `json:"namespace_inode"`
++	PIDNamespace    string `json:"pid_namespace"`
++	BootID          string `json:"boot_id"`
++}
++
++type qualificationEarlyShareRecord struct {
++	Ordinal         uint64                      `json:"ordinal"`
++	SampleUnixNS    int64                       `json:"sample_unix_ns"`
++	WrapperIdentity string                      `json:"wrapper_identity"`
++	SessionIdentity string                      `json:"session_identity"`
++	StreamID        uint32                      `json:"stream_id"`
++	LocalAddress    string                      `json:"local_address"`
++	RemoteAddress   string                      `json:"remote_address"`
++	Observation     BackedEarlyShareObservation `json:"observation"`
++	// Retain the wrapper and session through the one terminal drain. Pointer
++	// identities cannot be recycled while a bounded proof record owns them.
++	wrapper *GrowingConn
++	session *yamux.Session
++}
++
++type qualificationEarlyShareRecorder struct {
++	mu         sync.Mutex
++	configured bool
++	enabled    bool
++	sealing    bool
++	sealed     bool
++	started    uint64
++	completed  uint64
++	active     uint64
++	dropped    uint64
++	count      int
++	records    [qualificationEarlyShareCapacity]qualificationEarlyShareRecord
++}
++
++var qualificationEarlyShareState atomic.Pointer[qualificationEarlyShareRecorder]
++
++func init() {
++	qualificationEarlyShareState.Store(&qualificationEarlyShareRecorder{})
++}
++
++func qualificationEarlyShareMode() (bool, bool) {
++	r := qualificationEarlyShareState.Load()
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	return r.enabled, r.configured
++}
++
++// HTTP handlers may recover panics. This tagged invariant must reject the whole
++// endpoint even if a terminal sidecar was already written; no publication follows.
++func qualificationEarlyShareInvariantFailure() {
++	_, _ = os.Stderr.WriteString("early-share diagnostic invariant failed\n")
++	os.Exit(87)
++}
++
++func qualificationEarlyShareAttemptStarted() {
++	r := qualificationEarlyShareState.Load()
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	if !r.configured || r.sealing || r.sealed {
++		// A late attempt after a supposedly complete dump invalidates the
++		// process, rather than silently leaving an accepted terminal proof.
++		qualificationEarlyShareInvariantFailure()
++	}
++	r.started++
++	r.active++
++}
++
++func (c *GrowingConn) recordQualificationEarlyShare(now time.Time, observation BackedEarlyShareObservation) {
++	r := qualificationEarlyShareState.Load()
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	if !r.configured || r.sealed || r.active == 0 {
++		qualificationEarlyShareInvariantFailure()
++	}
++	r.active--
++	r.completed++
++	if r.count == len(r.records) {
++		r.dropped++
++		return
++	}
++	session := c.stream.Session()
++	r.records[r.count] = qualificationEarlyShareRecord{
++		Ordinal: r.completed, SampleUnixNS: now.UnixNano(),
++		WrapperIdentity: fmt.Sprintf("%p", c), SessionIdentity: fmt.Sprintf("%p", session),
++		StreamID: c.stream.StreamID(), LocalAddress: session.LocalAddr().String(),
++		RemoteAddress: session.RemoteAddr().String(), Observation: observation,
++		wrapper: c, session: session,
++	}
++	r.count++
++}
++
++func qualificationEarlyShareIdentity() (qualificationEarlyShareProcess, error) {
++	var result qualificationEarlyShareProcess
++	result.PID = os.Getpid()
++	data, err := os.ReadFile("/proc/self/stat")
++	if err != nil {
++		return result, err
++	}
++	text := string(data)
++	end := strings.LastIndexByte(text, ')')
++	if end < 0 {
++		return result, errors.New("early-share process stat malformed")
++	}
++	fields := strings.Fields(text[end+1:])
++	if len(fields) <= 19 {
++		return result, errors.New("early-share process stat truncated")
++	}
++	result.StartTicks, err = strconv.ParseUint(fields[19], 10, 64)
++	if err != nil {
++		return result, err
++	}
++	if result.Namespace, err = os.Readlink("/proc/self/ns/net"); err != nil {
++		return result, err
++	}
++	if result.PIDNamespace, err = os.Readlink("/proc/self/ns/pid"); err != nil {
++		return result, err
++	}
++	info, err := os.Stat("/proc/self/ns/net")
++	if err != nil {
++		return result, err
++	}
++	stat, ok := info.Sys().(*syscall.Stat_t)
++	if !ok {
++		return result, errors.New("early-share namespace stat unavailable")
++	}
++	result.NamespaceDevice, result.NamespaceInode = uint64(stat.Dev), stat.Ino
++	boot, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
++	if err != nil {
++		return result, err
++	}
++	result.BootID = strings.TrimSpace(string(boot))
++	return result, nil
++}
++
++func qualificationEarlyShareWrite(path string, value any) error {
++	data, err := json.Marshal(value)
++	if err != nil {
++		return err
++	}
++	if len(data) > 256<<10 {
++		return errors.New("early-share sidecar exceeds fixed 256KiB bound")
++	}
++	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
++	if err != nil {
++		return err
++	}
++	if _, err = file.Write(data); err == nil {
++		err = file.Sync()
++	}
++	if closeErr := file.Close(); err == nil {
++		err = closeErr
++	}
++	return err
++}
++
++// StartQualificationEarlyShareFixture is called by the tagged external fixture
++// before endpoint creation. No public handler or production option calls it.
++// The returned terminal writer is called once after existing shutdown/join.
++func StartQualificationEarlyShareFixture(role string) (func(bool, time.Time) error, error) {
++	noop := func(bool, time.Time) error { return nil }
++	raw, directory := os.Getenv(qualificationEarlyShareEnv), os.Getenv(qualificationEarlyShareDirectoryEnv)
++	if raw == "" && directory == "" {
++		return noop, nil // Unrelated existing qualification fixtures stay inert.
++	}
++	if (raw != "0" && raw != "1") || !filepath.IsAbs(directory) || (role != "agent" && role != "server") {
++		return nil, errors.New("early-share requires exact local0/1, absolute proof directory and endpoint role")
++	}
++	info, err := os.Lstat(directory)
++	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
++		return nil, errors.New("early-share proof directory unavailable or aliased")
++	}
++	process, err := qualificationEarlyShareIdentity()
++	if err != nil {
++		return nil, err
++	}
++	r := qualificationEarlyShareState.Load()
++	r.mu.Lock()
++	if r.configured || r.started != 0 || r.sealing || r.sealed {
++		r.mu.Unlock()
++		return nil, errors.New("early-share startup configuration repeated or preceded by an attempt")
++	}
++	r.enabled, r.configured = raw == "1", true
++	r.mu.Unlock()
++	startup := map[string]any{"schema_version": 1, "phase": "startup-before-endpoints", "role": role,
++		"selected_policy": r.enabled, "process": process, "observed_unix_ns": time.Now().UnixNano(),
++		"threshold_bytes": earlyShareThreshold, "maximum_target_bytes": earlyShareAbsoluteMaximum,
++		"capacity": qualificationEarlyShareCapacity}
++	if err := qualificationEarlyShareWrite(filepath.Join(directory, "early-share-"+role+"-startup.json"), startup); err != nil {
++		return nil, err
++	}
++	return func(joined bool, deadline time.Time) error {
++		problems := []string{}
++		r.mu.Lock()
++		if r.sealing || r.sealed {
++			r.mu.Unlock()
++			return errors.New("early-share terminal drain repeated")
++		}
++		r.sealing = true
++		if r.active != 0 || r.started != r.completed || uint64(r.count) != r.completed || r.dropped != 0 {
++			problems = append(problems, "attempts were active, missing or dropped when sealing began")
++		}
++		records := append([]qualificationEarlyShareRecord{}, r.records[:r.count]...)
++		r.mu.Unlock()
++		if !joined {
++			problems = append(problems, "fixture shutdown/producer join failed")
++		}
++		seen := map[*yamux.Session]bool{}
++		joinedSessions := 0
++		liveSessions := 0
++		for _, record := range records {
++			if seen[record.session] {
++				continue
++			}
++			seen[record.session] = true
++			if !record.session.IsClosed() {
++				liveSessions++
++				problems = append(problems, "retained event session still live before terminal join")
++				continue // Never close a live session just to obtain proof.
++			}
++			if role == "server" {
++				remaining := time.Until(deadline)
++				if !joined || deadline.IsZero() || remaining <= 0 {
++					problems = append(problems, "no existing shutdown budget remains for idempotent join")
++					continue
++				}
++				done := make(chan error, 1)
++				go func(session *yamux.Session) { done <- session.Close() }(record.session)
++				select {
++				case err := <-done:
++					if err != nil {
++						problems = append(problems, "idempotent event-session join failed")
++					} else {
++						joinedSessions++
++					}
++				case <-time.After(remaining):
++					problems = append(problems, "existing shutdown deadline expired during idempotent join")
++				}
++			} else if joined {
++				joinedSessions++ // Agent RunContext already joined these workers.
++			}
++		}
++		terminalProcess, identityErr := qualificationEarlyShareIdentity()
++		if identityErr != nil || terminalProcess != process {
++			problems = append(problems, "endpoint process/namespace identity changed")
++		}
++		r.mu.Lock()
++		if r.active != 0 || r.started != r.completed || r.dropped != 0 || uint64(r.count) != r.completed || len(records) != r.count {
++			problems = append(problems, "active, missing or dropped early-share attempts")
++		}
++		r.sealed = true
++		terminal := map[string]any{"schema_version": 1, "phase": "terminal-after-join", "role": role,
++			"selected_policy": r.enabled, "process": terminalProcess, "observed_unix_ns": time.Now().UnixNano(),
++			"threshold_bytes": earlyShareThreshold, "maximum_target_bytes": earlyShareAbsoluteMaximum,
++			"capacity": qualificationEarlyShareCapacity, "attempts_started": r.started,
++			"attempts_completed": r.completed, "active_attempts": r.active, "dropped_events": r.dropped,
++			"records": records, "sealed": true, "producer_joined": joined,
++			"event_sessions_observed": len(seen), "event_sessions_joined": joinedSessions,
++			"event_sessions_live_before_join": liveSessions, "complete": len(problems) == 0, "issues": problems}
++		r.mu.Unlock()
++		if err := qualificationEarlyShareWrite(filepath.Join(directory, "early-share-"+role+"-terminal.json"), terminal); err != nil {
++			return err
++		}
++		if len(problems) != 0 {
++			return errors.New("early-share terminal proof incomplete")
++		}
++		return nil
++	}, nil
++}
+--- /dev/null
++++ test-source/internal/tunnel/qualification_early_share_disabled.go
+@@ -0,0 +1,14 @@
++//go:build !p2pstream_qualification || !linux
++
++package tunnel
++
++import "time"
++
++func qualificationEarlyShareAttemptStarted() {}
++
++func qualificationEarlyShareMode() (bool, bool)                                             { return false, false }
++func (c *GrowingConn) recordQualificationEarlyShare(time.Time, BackedEarlyShareObservation) {}
++
++func StartQualificationEarlyShareFixture(string) (func(bool, time.Time) error, error) {
++	return func(bool, time.Time) error { return nil }, nil
++}
+--- /dev/null
++++ test-source/internal/tunnel/qualification_early_share_read_test.go
+@@ -0,0 +1,199 @@
++//go:build linux && p2pstream_qualification
++
++package tunnel
++
++import (
++	"io"
++	"net"
++	"testing"
++	"time"
++)
++
++type earlyShareReadResult struct {
++	n   int
++	err error
++}
++type earlyShareScriptedReadConn struct {
++	net.Conn
++	reads []earlyShareReadResult
++}
++
++func (c *earlyShareScriptedReadConn) Read(p []byte) (int, error) {
++	if len(c.reads) == 0 {
++		return 0, io.EOF
++	}
++	next := c.reads[0]
++	c.reads = c.reads[1:]
++	if next.n > len(p) {
++		panic("test Read buffer too small")
++	}
++	return next.n, next.err
++}
++
++func TestQualificationEarlyShareReadGatingAndOnceNoop(t *testing.T) {
++	restore := setQualificationEarlyShareTestMode(true, true)
++	defer restore()
++	_, server, _, reader := earlySharePair(t)
++	owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { t.Fatal("initial-pool attempt reserved"); return nil, false })
++	conn := NewAggregateGrowingConn(reader, 64<<20, owner)
++	// No-op below a grown pool still consumes once. Scripted net.Conn results
++	// isolate the public Read contract; the growth owner/stream are real Yamux.
++	conn.Conn = &earlyShareScriptedReadConn{Conn: reader, reads: []earlyShareReadResult{
++		{0, nil}, {16, io.EOF}, {(512 << 10) - 1, nil}, {1, nil}, {512 << 10, nil},
++	}}
++	conn.growth.deniedUntil = time.Now().Add(time.Hour)
++	buffer := make([]byte, 512<<10)
++	for i := 0; i < 3; i++ {
++		_, _ = conn.Read(buffer)
++	}
++	if conn.earlyShareAttempted || conn.earlyShareConsumed != earlyShareThreshold-1 {
++		t.Fatalf("zero/error Read counted: attempted=%v consumed=%d", conn.earlyShareAttempted, conn.earlyShareConsumed)
++	}
++	if n, err := conn.Read(buffer); n != 1 || err != nil {
++		t.Fatalf("threshold Read=%d,%v", n, err)
++	}
++	if !conn.earlyShareAttempted || conn.earlyShareConsumed != earlyShareThreshold {
++		t.Fatal("threshold not consumed")
++	}
++	if _, err := conn.Read(buffer); err != nil {
++		t.Fatal(err)
++	}
++	if conn.earlyShareConsumed != earlyShareThreshold {
++		t.Fatal("once counter kept lifetime bytes")
++	}
++	if got, _ := reader.AggregateReceiveAllocationWindow(); got != 512<<10 {
++		t.Fatal("initial backing allowed a larger share")
++	}
++}
++
++func TestQualificationEarlyShareClosingAndUnconfiguredDoNotCount(t *testing.T) {
++	for _, tt := range []struct {
++		name                string
++		configured, closing bool
++	}{{"closing", true, true}, {"unconfigured", false, false}} {
++		t.Run(tt.name, func(t *testing.T) {
++			restore := setQualificationEarlyShareTestMode(true, tt.configured)
++			defer restore()
++			_, server, _, reader := earlySharePair(t)
++			owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { t.Fatal("unexpected reserve"); return nil, false })
++			conn := NewAggregateGrowingConn(reader, 64<<20, owner)
++			conn.Conn = &earlyShareScriptedReadConn{Conn: reader, reads: []earlyShareReadResult{{512 << 10, nil}}}
++			conn.closing = tt.closing
++			conn.growth.deniedUntil = time.Now().Add(time.Hour)
++			if _, err := conn.Read(make([]byte, 512<<10)); err != nil {
++				t.Fatal(err)
++			}
++			if conn.earlyShareAttempted || conn.earlyShareConsumed != 0 {
++				t.Fatal("ineligible Read counted")
++			}
++		})
++	}
++}
++
++func TestQualificationEarlyShareDisabledOwnerErrorDoesNotChangeRead(t *testing.T) {
++	restore := setQualificationEarlyShareTestMode(false, true)
++	defer restore()
++	_, server, _, reader := earlySharePair(t)
++	owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { return func() {}, true })
++	conn := NewAggregateGrowingConn(reader, 64<<20, owner)
++	conn.Conn = &earlyShareScriptedReadConn{Conn: reader, reads: []earlyShareReadResult{{512 << 10, nil}}}
++	// Original estimator has not completed a demand epoch, so baseline Read
++	// returns success even if this new diagnostic observes owner shutdown.
++	owner.mu.Lock()
++	owner.closing = true
++	owner.mu.Unlock()
++	conn.growth.start = time.Now().Add(time.Hour)
++	if n, err := conn.Read(make([]byte, 512<<10)); n != 512<<10 || err != nil {
++		t.Fatalf("disabled observer changed Read: %d,%v", n, err)
++	}
++	if !conn.earlyShareAttempted {
++		t.Fatal("disabled arm did not record threshold")
++	}
++}
++
++func TestQualificationEarlyShareClosedSkipDoesNotRetryEstimator(t *testing.T) {
++	restore := setQualificationEarlyShareTestMode(true, true)
++	defer restore()
++	_, server, writer, reader := earlySharePair(t)
++	owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { return func() {}, true })
++	if ok, err := owner.Grow(reader, 2<<20); !ok || err != nil {
++		t.Fatalf("prime: %v %v", ok, err)
++	}
++	// Use a fresh receive stream so a larger backed target would be available.
++	client := writer.Session()
++	peer, err := client.OpenStream()
++	if err != nil {
++		t.Fatal(err)
++	}
++	stream, err := server.AcceptStream()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := peer.Close(); err != nil {
++		t.Fatal(err)
++	}
++	if n, err := stream.Read(make([]byte, 1)); n != 0 || err != io.EOF {
++		t.Fatalf("join FIN=%d,%v", n, err)
++	}
++	conn := NewAggregateGrowingConn(stream, 64<<20, owner)
++	conn.Conn = &earlyShareScriptedReadConn{Conn: stream, reads: []earlyShareReadResult{{512 << 10, nil}}}
++	conn.growth.start = time.Now().Add(-80 * time.Millisecond)
++	conn.growth.previous = 4 << 20
++	conn.growth.rate = 64 << 20
++	before := conn.growth
++	if n, err := conn.Read(make([]byte, 512<<10)); n != 512<<10 || err != nil {
++		t.Fatalf("closed skip retried growth: %d,%v", n, err)
++	}
++	if conn.growth != before {
++		t.Fatal("closed skip changed/retried ordinary estimator")
++	}
++}
++
++func TestQualificationEarlyShareReadGrantsOnceWithoutIdleReset(t *testing.T) {
++	restore := setQualificationEarlyShareTestMode(true, true)
++	defer restore()
++	client, server, _, donor := earlySharePair(t)
++	owner := NewAggregateReceiveWindowGrowth(server, func(int64) (func(), bool) { return func() {}, true })
++	if ok, err := owner.Grow(donor, 2<<20); !ok || err != nil {
++		t.Fatalf("prime: %v %v", ok, err)
++	}
++	_, err := client.OpenStream()
++	if err != nil {
++		t.Fatal(err)
++	}
++	stream, err := server.AcceptStream()
++	if err != nil {
++		t.Fatal(err)
++	}
++	conn := NewAggregateGrowingConn(stream, 64<<20, owner)
++	conn.Conn = &earlyShareScriptedReadConn{Conn: stream, reads: []earlyShareReadResult{{256 << 10, nil}, {256 << 10, nil}, {512 << 10, nil}}}
++	denied := time.Now().Add(time.Hour)
++	conn.growth.deniedUntil = denied
++	buffer := make([]byte, 512<<10)
++	if _, err := conn.Read(buffer); err != nil {
++		t.Fatal(err)
++	}
++	if conn.earlyShareAttempted {
++		t.Fatal("early attempt before cumulative threshold")
++	}
++	if _, err := conn.Read(buffer); err != nil {
++		t.Fatal(err)
++	}
++	if got, _ := stream.AggregateReceiveAllocationWindow(); got != 2<<20 || stream.MaxReceiveWindow() != 2<<20 {
++		t.Fatal("threshold did not grant from grown backing")
++	}
++	if conn.growth.deniedUntil != denied {
++		t.Fatal("early share changed estimator denial history")
++	}
++	// More backing and a long pause do not re-arm the lifetime attempt.
++	if ok, err := owner.Grow(donor, 4<<20); !ok || err != nil {
++		t.Fatalf("second backing growth: %v %v", ok, err)
++	}
++	conn.growth.start = time.Now().Add(-time.Hour)
++	if _, err := conn.Read(buffer); err != nil {
++		t.Fatal(err)
++	}
++	if got, _ := stream.AggregateReceiveAllocationWindow(); got != 2<<20 || stream.MaxReceiveWindow() != 2<<20 {
++		t.Fatal("idle pause rearmed early share")
++	}
++}
+--- /dev/null
++++ test-source/internal/tunnel/qualification_early_share_test.go
+@@ -0,0 +1,159 @@
++//go:build linux && p2pstream_qualification
++
++package tunnel
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++	"time"
++)
++
++// Serial tests swap an isolated recorder. This test-only reset has no exported
++// or runtime API and is never called by the endpoint fixture.
++func setQualificationEarlyShareTestMode(enabled, configured bool) func() {
++	previous := qualificationEarlyShareState.Swap(&qualificationEarlyShareRecorder{
++		enabled: enabled, configured: configured,
++	})
++	return func() { qualificationEarlyShareState.Store(previous) }
++}
++
++func earlyShareFixtureForTest(t *testing.T, role, mode string) (func(bool, time.Time) error, string) {
++	t.Helper()
++	t.Cleanup(setQualificationEarlyShareTestMode(false, false))
++	directory := t.TempDir()
++	t.Setenv(qualificationEarlyShareEnv, mode)
++	t.Setenv(qualificationEarlyShareDirectoryEnv, directory)
++	finish, err := StartQualificationEarlyShareFixture(role)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return finish, directory
++}
++
++func earlyShareTerminalForTest(t *testing.T, directory, role string) map[string]any {
++	t.Helper()
++	data, err := os.ReadFile(filepath.Join(directory, "early-share-"+role+"-terminal.json"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	var value map[string]any
++	if err := json.Unmarshal(data, &value); err != nil {
++		t.Fatal(err)
++	}
++	return value
++}
++
++func TestQualificationEarlyShareStartupAndTerminalAreExclusive(t *testing.T) {
++	finish, directory := earlyShareFixtureForTest(t, "agent", "0")
++	if enabled, configured := qualificationEarlyShareMode(); enabled || !configured {
++		t.Fatal("disabled startup was not actually configured")
++	}
++	if _, err := StartQualificationEarlyShareFixture("agent"); err == nil {
++		t.Fatal("repeated configuration accepted")
++	}
++	if err := finish(true, time.Time{}); err != nil {
++		t.Fatal(err)
++	}
++	if value := earlyShareTerminalForTest(t, directory, "agent"); value["complete"] != true || value["selected_policy"] != false {
++		t.Fatal("startup/terminal policy or completion differs")
++	}
++	if err := finish(true, time.Time{}); err == nil {
++		t.Fatal("second terminal drain accepted")
++	}
++}
++
++func TestQualificationEarlyShareRejectsMalformedLocalSelector(t *testing.T) {
++	for _, mode := range []string{"true", "1 ", "-1", "2", ""} {
++		t.Run(mode, func(t *testing.T) {
++			t.Cleanup(setQualificationEarlyShareTestMode(false, false))
++			t.Setenv(qualificationEarlyShareEnv, mode)
++			t.Setenv(qualificationEarlyShareDirectoryEnv, t.TempDir())
++			if _, err := StartQualificationEarlyShareFixture("agent"); err == nil {
++				t.Fatal("invalid/missing exact selector accepted")
++			}
++		})
++	}
++}
++
++func TestQualificationEarlyShareSealPermanentlyRejectsActiveAttempt(t *testing.T) {
++	finish, directory := earlyShareFixtureForTest(t, "agent", "1")
++	qualificationEarlyShareAttemptStarted()
++	if err := finish(true, time.Time{}); err == nil {
++		t.Fatal("in-flight attempt accepted as complete")
++	}
++	value := earlyShareTerminalForTest(t, directory, "agent")
++	if value["complete"] != false || value["active_attempts"] != float64(1) {
++		t.Fatal("incomplete terminal proof lost the seal-time active attempt")
++	}
++}
++
++func TestQualificationEarlyShareLateBeginIsFatalBeforePublication(t *testing.T) {
++	const child = "P2PSTREAM_EARLY_SHARE_LATE_BEGIN_TEST_CHILD"
++	if os.Getenv(child) == "1" {
++		finish, _ := earlyShareFixtureForTest(t, "agent", "1")
++		if err := finish(true, time.Time{}); err != nil {
++			t.Fatal(err)
++		}
++		defer func() {
++			if recover() != nil {
++				_, _ = os.Stderr.WriteString("late invariant was recoverable\n")
++			}
++		}()
++		qualificationEarlyShareAttemptStarted()
++		return
++	}
++	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
++	defer cancel()
++	command := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestQualificationEarlyShareLateBeginIsFatalBeforePublication$", "-test.count=1")
++	command.Env = append(os.Environ(), child+"=1")
++	output, err := command.CombinedOutput()
++	var exited *exec.ExitError
++	if !errors.As(err, &exited) || exited.ExitCode() != 87 || ctx.Err() != nil {
++		t.Fatalf("late invariant exit=%v output=%q", err, output)
++	}
++	if string(output) != "early-share diagnostic invariant failed\n" || strings.Contains(string(output), "recoverable") {
++		t.Fatalf("late invariant did not emit the bounded fatal marker: %q", output)
++	}
++}
++
++func TestQualificationEarlyShareNeverClosesLiveSessionForProof(t *testing.T) {
++	finish, directory := earlyShareFixtureForTest(t, "server", "0")
++	_, server, _, reader := earlySharePair(t)
++	c := &GrowingConn{stream: reader}
++	qualificationEarlyShareAttemptStarted()
++	c.recordQualificationEarlyShare(time.Now(), BackedEarlyShareObservation{Outcome: "disabled"})
++	if err := finish(true, time.Now().Add(time.Second)); err == nil {
++		t.Fatal("live event session accepted at terminal")
++	}
++	if server.IsClosed() {
++		t.Fatal("observer closed a live session to manufacture proof")
++	}
++	if value := earlyShareTerminalForTest(t, directory, "server"); value["complete"] != false || value["event_sessions_live_before_join"] != float64(1) {
++		t.Fatal("live session rejection was not preserved")
++	}
++}
++
++func TestQualificationEarlyShareOverflowIsBoundedAndRejects(t *testing.T) {
++	finish, directory := earlyShareFixtureForTest(t, "agent", "0")
++	client, server, _, reader := earlySharePair(t)
++	for range qualificationEarlyShareCapacity + 1 {
++		c := &GrowingConn{stream: reader}
++		qualificationEarlyShareAttemptStarted()
++		c.recordQualificationEarlyShare(time.Now(), BackedEarlyShareObservation{Outcome: "disabled"})
++	}
++	_ = client.Close()
++	_ = server.Close()
++	if err := finish(true, time.Time{}); err == nil {
++		t.Fatal("overflow accepted")
++	}
++	value := earlyShareTerminalForTest(t, directory, "agent")
++	if value["complete"] != false || value["dropped_events"] != float64(1) || len(value["records"].([]any)) != qualificationEarlyShareCapacity {
++		t.Fatal("overflow lost its bound or rejection evidence")
++	}
++}

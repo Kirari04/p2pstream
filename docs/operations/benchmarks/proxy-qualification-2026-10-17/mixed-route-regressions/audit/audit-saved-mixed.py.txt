@@ -1,0 +1,29 @@
+from pathlib import Path
+import json,hashlib,datetime
+REPO=Path.cwd();ROOT=REPO/'tmp/proxy-mixed-route-tests-20261017';Q=ROOT/'qualification-1fa81d8';RUN=Q/'run-once';DEST=ROOT/'review-export'
+def read(p):return json.loads(p.read_text())
+def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+def require(v,msg):
+ if not v:raise AssertionError(msg)
+plan=read(Q/'PLAN.json');result=read(RUN/'RESULT.json');frozen=read(Q/'FROZEN.json');required={'TestAgentRouteLocalityMixedWarmColdRetirement','TestAgentRouteLocalityMixedGenerationReplacement'}
+for p,h in frozen.items():require(sha(p)==h,'small frozen runner/overlay/plan input changed:'+p)
+source=plan['source_files'];require(len(source)==431 and hashlib.sha256(json.dumps(source,sort_keys=True,separators=(',',':')).encode()).hexdigest()==result['source_identity']==plan['source_identity'],'recorded compile identity invalid')
+cpu=read(REPO/'tmp/proxy-cpu-followup-20261017/frozen-inputs.json');require(cpu['files']['candidate']==source,'recorded431 source closure differs from accepted identity candidate')
+require(result['accepted']is True and result['automatic_retry']is False and result['base_compile_input_count']==431 and result['overlay_compile_input_count']==432 and result['production_checkpoint']=='1fa81d839f35ae575c41779a309d356c23c1f956','result/source scope mismatch')
+require(len(result['commands'])==2 and {v['name'] for v in result['commands']}=={'normal','race'},'command identity mismatch')
+report={'accepted':True,'audit_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'production_checkpoint':result['production_checkpoint'],'source_head_at_execution':result['head_before'],'base_source_count':431,'with_test_overlay_source_count':432,'source_identity':result['source_identity'],'small_frozen_inputs_rehashed':len(frozen),'source_freeze_not_rerun_after_actual_test_integration':True,'recorded_pre_post_source_checks_accepted':True,'commands':[],'test_overlay_sha256':sha(ROOT/'agent_transport_locality_mixed_test.go'),'no_workload_build_or_go_execution_by_auditor':True}
+for name in ['normal','race']:
+ bound=next(x for x in result['commands'] if x['name']==name);outer=read(RUN/(name+'.outer.json'));started=read(RUN/(name+'.started.json'));events=[json.loads(x) for x in (RUN/(name+'.stdout.log')).read_text().splitlines() if x.strip()]
+ require(sha(RUN/(name+'.outer.json'))==bound['outer_sha256'] and sha(RUN/(name+'.stdout.log'))==bound['stdout_sha256'],'saved evidence hash changed')
+ require(type(outer['status'])is int and outer['status']==0 and outer['forced']is False and outer['accepted_cleanup']is True and outer['remaining_owned']==[] and outer['adopted_descendants']==[] and outer['failure_reason']=='','unnatural owner exit')
+ require(outer['argv']==started['argv']==next(x['argv'] for x in plan['commands'] if x['name']==name),'exact command provenance mismatch')
+ run=[x['Test'] for x in events if x['Action']=='run' and x.get('Test') and '/' not in x['Test']];passed=[x['Test'] for x in events if x['Action']=='pass' and x.get('Test') and '/' not in x['Test']];package=[x for x in events if x['Action']=='pass' and not x.get('Test')]
+ require(set(run)==set(passed)==required and len(run)==len(passed)==2 and len(package)==1 and package[0]['Package']=='p2pstream/internal/server','exact two top-level runs/passes/package failed')
+ require(not any(x['Action'] in ['skip','fail'] for x in events),'skip/fail observed')
+ require((RUN/(name+'.stderr.log')).read_bytes()==b'','unexpected stderr output')
+ require(outer['artifact_bytes']<outer['artifact_rejection_threshold_bytes']==4<<30,'combined resource rejection threshold exceeded')
+ for owner in outer['owned_identities']:require(not Path('/proc',str(owner['pid'])).exists(),'saved owner PID remains')
+ report['commands'].append({'name':name,'status':0,'top_level_run':run,'top_level_pass':passed,'skips':0,'failures':0,'package_test_seconds':package[0]['Elapsed'],'outer_elapsed_seconds':outer['elapsed_seconds'],'artifact_bytes_including_shared_dependencies':outer['artifact_bytes'],'natural_cleanup':True,'remaining_recorded_pids':[],'stdout_sha256':bound['stdout_sha256'],'outer_sha256':bound['outer_sha256']})
+integration=read(Q/'INTEGRATION.json');require(integration['matches_tested_overlay']is True and integration['actual_test_sha256']==report['test_overlay_sha256'],'integration record mismatches tested source')
+report['integration_record_matches_tested_overlay']=True;report['runtime_tests_rerun_by_auditor']=False
+(DEST/'AUDIT.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n');print(json.dumps(report,indent=2))

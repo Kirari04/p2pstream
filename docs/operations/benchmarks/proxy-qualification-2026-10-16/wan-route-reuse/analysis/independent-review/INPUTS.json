@@ -1,0 +1,35 @@
+{
+  "decision": "GO for root-owned focused verification; no execution by reviewer",
+  "files": [
+    {
+      "path": "internal/server/agent_transport_pool.go",
+      "bytes": 20911,
+      "sha256": "329ffaf975191049b843301f04d83572c85b9eecb76a5896314073301057dd0f"
+    },
+    {
+      "path": "internal/server/agent_transport_locality_test.go",
+      "bytes": 17659,
+      "sha256": "f1e2b2489996b23a5106057c1147ab7c99487d5d0842072a898d0d5c55ec2925"
+    },
+    {
+      "path": "internal/server/agent_transport_pool_test.go",
+      "bytes": 25332,
+      "sha256": "5a8bae9607cc114351619b8d7c04ec21818e60eb80ca2af287578b7971038168"
+    },
+    {
+      "path": "internal/server/agent_real_transport_test.go",
+      "bytes": 10492,
+      "sha256": "8d5602623ea8aaabbcc9c05374b4c6912fd8afaaeea3eae6383aba92fe1ccce5"
+    },
+    {
+      "path": "internal/server/agent_registry_test.go",
+      "bytes": 54427,
+      "sha256": "8d15a9fd6dd72dcb29911e27eb1e01c78c8315ef1e16a5ef0290c1ffc99f157e"
+    },
+    {
+      "path": "internal/server/direct_transport_pool_test.go",
+      "bytes": 10235,
+      "sha256": "10e93eec5968179e91eb8e13ea77a7290ff8a6cbcb135c196b4088bc1c35f71c"
+    }
+  ]
+}

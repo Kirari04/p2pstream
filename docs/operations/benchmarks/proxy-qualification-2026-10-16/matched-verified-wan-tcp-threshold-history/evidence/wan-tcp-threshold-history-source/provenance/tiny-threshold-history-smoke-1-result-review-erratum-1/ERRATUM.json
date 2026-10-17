@@ -1,0 +1,46 @@
+{
+  "complete_runner_diagnosis": [
+    "validate-sender-wait-snapshot.py omitted raw_write_activity.generation from both raw owner identity dictionaries, causing expected generation None despite matching producer generations.",
+    "validate-tcp-state.py validate_live unconditionally required threshold_history.required=true on generic lane0 control rows; that requirement belongs only to selected nonzero DATA context."
+  ],
+  "correction": {
+    "omitted_issue": "threshold_history.required is not true for the selected DATA lane",
+    "scope": "generic lane0 post rows were incorrectly subjected to a selected-DATA-only required=true check"
+  },
+  "diagnostic": "wan-tcp-threshold-history-tiny-smoke-result-review-erratum",
+  "disposition": {
+    "causal_claim": false,
+    "failed_tiny_accepted": false,
+    "performance_evidence": false,
+    "producer_or_binary_rebuild_required": false,
+    "runner_validator_successor_required": true,
+    "unchanged_retry_allowed": false
+  },
+  "original_review_ledger_sha256": "063428d18eeacb9b84c9ebf9162dedc3ba9d6e541b1b543f312f47bbc16b3997",
+  "original_review_sha256": "66b16eb876c532622c802de1eb4ead352ea8063dc60ea33014e1572705e67ce0",
+  "producer_evidence": {
+    "joined": true,
+    "last_equal_owner_generations_by_lane": [
+      1,
+      5,
+      3,
+      2,
+      4
+    ],
+    "raw_generations_by_lane": [
+      1,
+      5,
+      3,
+      2,
+      4
+    ],
+    "sequences_checked": [
+      9,
+      11,
+      14,
+      15
+    ]
+  },
+  "run_ledger_sha256": "7d18e0427115df2b00f0e3fe13752dd7c9dd278998122e8cb6350968925caeb0",
+  "schema_version": 1
+}

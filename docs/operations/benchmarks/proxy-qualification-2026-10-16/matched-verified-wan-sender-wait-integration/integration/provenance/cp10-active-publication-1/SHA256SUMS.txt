@@ -1,0 +1,4 @@
+a3c33bd66d7c9a4eae772ddba58473ce8e974af1cc56bf8bed6046f1dea6ecd8  ./RESULT
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  ./publication.status
+a337332c5bfb48af7e14e0bf989446c736b41814caf512abaf05a1d069d2185f  ./source-post.json
+b2a92204db6ce685c916f9ecb2785d0123cf176a36365cf4d4242262bfe64c4e  ./source-pre.json

@@ -1,0 +1,155 @@
+{
+  "base_source": {
+    "archive_sha256": "9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76",
+    "ref": "5eeccaaa797254d7bde4db9854a337a02c3bc28e"
+  },
+  "build": {
+    "cgo_enabled": true,
+    "go_version": "go1.26.6",
+    "goamd64": "v1",
+    "goarch": "amd64",
+    "goos": "linux",
+    "tags": []
+  },
+  "created_utc": "2026-10-16T08:17:29.663185+00:00",
+  "driver_origin": {
+    "build_id": "H4CVnTldrhq275mvh0Wj/usNuflVOZ8h90dXeODsU/zC6uzZlPTR2tckEt5VtV/Aout3DTmJbXQYHsR5pHT",
+    "path": "driver-origin.test",
+    "sha256": "dbbe77ffa01be06ea9e60827f29485d0d4f654d5e3d3c37af426a492b572c6a9"
+  },
+  "driver_origin_identical_to": "refund-batched-item-control.server",
+  "evidence": {
+    "build_env": {
+      "path": "build-env.txt",
+      "sha256": "3b3729ecd244fd67769d85fd8acbd11860d9fe7af48e94e6e777cfa94c600996"
+    },
+    "build_provenance": {
+      "path": "build-provenance.txt",
+      "sha256": "f3811a802d27e4e34b62d403ad96f336517bb4d7f46107b672092d27858cad7d"
+    },
+    "readme": {
+      "path": "README.md",
+      "sha256": "6acb3e2114bb3cdf469bfee4dfe5b12055eb238a550853af2ce0db0a818c0f6c"
+    },
+    "source_hashes": {
+      "path": "source-hashes.json",
+      "sha256": "357dcfc0fbbfcb0f09a09d632a5bdac33f26c98c613fbd024b45c8229eb17bc1"
+    }
+  },
+  "kind": "p2pstream-refund-queue-ack-causal-bundle-v1",
+  "overlays": {
+    "common_scaffold": {
+      "path": "common-scaffold.patch",
+      "sha256": "dd1b8a0ef22a7e29fc112bdd201bb758031eaafbaff8e912f90b0e8e50fef53c"
+    },
+    "separate_items_overlay": {
+      "path": "separate-items-toggle.patch",
+      "sha256": "b50b28cbafdb4b7609a547f781154446c484efe381b623dfac4524d5e01a4431"
+    }
+  },
+  "validation": {
+    "endpoint_compile": {
+      "agent": true,
+      "ordinary_tag_off": true,
+      "server": true
+    },
+    "focused_normal": {
+      "count": 10,
+      "pattern": "^(TestDiagnosticAggregateRefundQueue|TestAggregateRefundBatch|TestAggregateRefundSelection|TestAggregateTerminalSelectedRefund|TestSendLoop|TestAggregateGatheredDataWriteError)"
+    },
+    "focused_race": {
+      "count": 5,
+      "pattern": "^(TestDiagnosticAggregateRefundQueue|TestAggregateRefundBatch|TestAggregateRefundSelection|TestAggregateTerminalSelectedRefund|TestSendLoop|TestAggregateGatheredDataWriteError)"
+    },
+    "full_yamux_normal": {
+      "count": 1
+    },
+    "logs": {
+      "build-refund-batched-item-control-agent.log": {
+        "path": "validation/build-refund-batched-item-control-agent.log",
+        "sha256": "6cadf50757847f1a90575041e8366466ace7d8a1ef142125950896b6185df967"
+      },
+      "build-refund-batched-item-control-server.log": {
+        "path": "validation/build-refund-batched-item-control-server.log",
+        "sha256": "4e27097f670a375a1072b2559f8c4c41ed6a9badc0619c731692444d1638dc72"
+      },
+      "build-refund-separate-items-ack-agent.log": {
+        "path": "validation/build-refund-separate-items-ack-agent.log",
+        "sha256": "7f798adcbc8da3d14f6217aaa4e630cb551e6753428ed87a771be4d42b6136f5"
+      },
+      "build-refund-separate-items-ack-server.log": {
+        "path": "validation/build-refund-separate-items-ack-server.log",
+        "sha256": "f8e1efdd8836b56ced5e4a5b57eff92a7005e59df8ba5d44d6e57aa540230c94"
+      },
+      "patch-replay-proof.log": {
+        "path": "validation/patch-replay-proof.log",
+        "sha256": "0c5c291cda6c9f25146ed5b5ef51792b0d65e6af0fb40dd7664fca1021dfe7fc"
+      },
+      "refund-batched-item-control-focused-normal.log": {
+        "path": "validation/refund-batched-item-control-focused-normal.log",
+        "sha256": "8bce70b30dad80e018e15a114f531d98e7faef0de74e19d4f86caee6f4329029"
+      },
+      "refund-batched-item-control-focused-race.log": {
+        "path": "validation/refund-batched-item-control-focused-race.log",
+        "sha256": "06a84fb6e6a5c2b34dce7f8f92b74f5d59ba97154640dc0de5455c40d67e1313"
+      },
+      "refund-batched-item-control-full-normal.log": {
+        "path": "validation/refund-batched-item-control-full-normal.log",
+        "sha256": "3c8eb81f25582f027c2e736689c1474896840dac74afb883bc8589dccf7bb1a9"
+      },
+      "refund-separate-items-ack-focused-normal.log": {
+        "path": "validation/refund-separate-items-ack-focused-normal.log",
+        "sha256": "be15a18c9d2555986514798c244b699ef919eb68e2ec0bc1b2705ee622c4b243"
+      },
+      "refund-separate-items-ack-focused-race.log": {
+        "path": "validation/refund-separate-items-ack-focused-race.log",
+        "sha256": "7d1700e72050528b3e367081462b2172d98071481f6a34ea40401050d94d136e"
+      },
+      "refund-separate-items-ack-full-normal.log": {
+        "path": "validation/refund-separate-items-ack-full-normal.log",
+        "sha256": "cc8f4feec674e3f433c4ac6505140f479db57450e3df3399db9439f6d4bd80ce"
+      }
+    },
+    "patch_replay": {
+      "forward_exact": true,
+      "log": "validation/patch-replay-proof.log",
+      "reverse_exact": true
+    }
+  },
+  "variants": {
+    "refund-batched-item-control": {
+      "binaries": {
+        "agent": {
+          "build_id": "jiybri0HdF3g98KPVbcc/XpGYT8ozHde8GLmN_CF5/1wba_Ennmxzj-XDiqE2Z/5fCtceRpjCxZyvtoSu1_",
+          "path": "refund-batched-item-control.agent.test",
+          "sha256": "fc35f33359e69277a8cc25808faea3270789c92d86f872037dac63c20afe2ae1"
+        },
+        "server": {
+          "build_id": "H4CVnTldrhq275mvh0Wj/usNuflVOZ8h90dXeODsU/zC6uzZlPTR2tckEt5VtV/Aout3DTmJbXQYHsR5pHT",
+          "path": "refund-batched-item-control.server.test",
+          "sha256": "dbbe77ffa01be06ea9e60827f29485d0d4f654d5e3d3c37af426a492b572c6a9"
+        }
+      },
+      "separate_items_ack": false,
+      "source_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/control",
+      "source_identity": "5eeccaaa797254d7bde4db9854a337a02c3bc28e+refund-batched-item-control@sha256:dd1b8a0ef22a7e29fc112bdd201bb758031eaafbaff8e912f90b0e8e50fef53c"
+    },
+    "refund-separate-items-ack": {
+      "binaries": {
+        "agent": {
+          "build_id": "pQAcB16H6domDf5lLVfw/IN4F9yC3370IEVORpC6l/-JCI6KE3JIE7az5yqPEU/-HBdIA-cCaf--IPB8_15",
+          "path": "refund-separate-items-ack.agent.test",
+          "sha256": "353066727ad1823eb44e65d86a62087514cd2d224fcbf69b484ba9f66313f48d"
+        },
+        "server": {
+          "build_id": "AQAflZHSGtt1A_7fSFt1/HPF6_zP49boL2P40Y1Tw/WlpdIOeRdKSqJvVF5WRw/SrM99lVc2ocNHLE0XR6A",
+          "path": "refund-separate-items-ack.server.test",
+          "sha256": "c7b2eb8889d41251711c0d46dc30d05e6e3f471ce2a992e8a6347102d52a3f3c"
+        }
+      },
+      "separate_items_ack": true,
+      "source_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-queue-ack-source.FVfTzL/candidate",
+      "source_identity": "5eeccaaa797254d7bde4db9854a337a02c3bc28e+refund-separate-items-ack@sha256:dd1b8a0ef22a7e29fc112bdd201bb758031eaafbaff8e912f90b0e8e50fef53c+sha256:b50b28cbafdb4b7609a547f781154446c484efe381b623dfac4524d5e01a4431"
+    }
+  }
+}

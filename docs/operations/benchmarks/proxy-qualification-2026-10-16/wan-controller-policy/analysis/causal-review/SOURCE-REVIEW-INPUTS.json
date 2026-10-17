@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "scope": "finite static source/evidence review; no tests, validator execution, builds, or traffic",
+  "inputs": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/policy-design/SHA256SUMS",
+      "sha256": "a3a9e60a6dc2bed3dd2ec679cde5923b5fb848647e8f19b862f9449b9856022d",
+      "bytes": 680
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/policy-design/SOURCE.json",
+      "sha256": "888660fd56495016ee465ebe05dd30a104d9d75b85f15ec9e5550bbe27de392e",
+      "bytes": 257297
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/policy-design/PLAN.json",
+      "sha256": "d1091ed94f0162b5f6ec7011d619a150a9eeaa7d04dadee499f4d13a5f9d25da",
+      "bytes": 7160
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/policy-design/DERIVATIVE.diff",
+      "sha256": "f50cc5e20069c44c49a9b32731375b6c0dcf85f14ed8dafcb35b52d0442b40bc",
+      "bytes": 49458
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/COMMANDS-policy.json",
+      "sha256": "807f772138b57b694108bb381fbf80290c7e176670aedb645fbe04b571bad67e",
+      "bytes": 7861
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-policy.py",
+      "sha256": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767",
+      "bytes": 13405
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-policy.py",
+      "sha256": "436a2a1ad3f115e0233b2c9b263784a8577f7b7b7c8d173e384207d750e17c47",
+      "bytes": 19230
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-policy.py",
+      "sha256": "0076fb7d64f63af7517a4feed07e06f9ce2421649589f73e47371d3bed409206",
+      "bytes": 14117
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-vector.py",
+      "sha256": "e621a7a51b428a21f17198a669776448db0e8d200e60644e0c1a113d347a93a8",
+      "bytes": 12150
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/COMMANDS-vector.json",
+      "sha256": "ba55561484f77d55962f649db164f79a16628a24d0d886a17bbcbd2ed3f380ff",
+      "bytes": 7637
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-vector.py",
+      "sha256": "fef87642749e2fca558be2bbfff1f471360eac63fd64ee3ae10d681650ce17c5",
+      "bytes": 12058
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source/internal/server/agent_request_limiter.go",
+      "sha256": "9a385fd241711c6155ef594df255d3c81971117e32a39ab685c6e615dee2dafe",
+      "bytes": 4145
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source/third_party/yamux/addr.go",
+      "sha256": "11faaa2ebd3ee4288febf5f7af5ddc9bae3149b2e291dd8989ffcc5fc426dac8",
+      "bytes": 1214
+    }
+  ],
+  "review_sha256": "91fa3011af7f63e6f864dcfeb46337e4cbb1d3e7f96e1bbb6c5e689bcb9d0151",
+  "independent_comparisons": {
+    "new_manifest_files_matching": 6,
+    "preexisting_files_matching": 1039,
+    "unchanged_controller_binding": true,
+    "unchanged_process_supervisor_prefix": true,
+    "arm_argv_only_new_output_paths": true,
+    "new_runtime_root_absent": true
+  }
+}

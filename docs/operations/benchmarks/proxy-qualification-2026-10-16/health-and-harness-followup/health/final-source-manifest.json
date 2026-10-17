@@ -1,0 +1,12 @@
+{
+  "health_runtime_retained": true,
+  "hostname_runtime_restored_identical_to_HEAD": true,
+  "candidate_files_sha256": {
+    "internal/server/public_routing.go": "849ee5bf25480a890b314676d2e5fb380096f856f8c28a16d51c8ba4d6e4df86",
+    "internal/server/public_routing_test.go": "3568c19ceaaa522cdbc3bf6c37b905f386cf2628c1879818263ec550d79c48f3",
+    "internal/server/agent_tunnels_aggregate_test.go": "36ddafab3b8824a279fa3cf8c6958ad182d7d897b1a8963ad85806bb2d25d0f3",
+    "internal/server/public_target_health_test.go": "d938d82d69355c1249ea91bd4089f215f62a7550540a3011e8bf2a6fbc9e0c69",
+    "internal/server/public_routing_benchmark_test.go": "0e5163a62aa0ee6020c8208e972e1c8ef32bfff530280b20d08765f3adca2d0e"
+  },
+  "tests": "80 focused tests passed on both rejected combined candidates normal/race; final health-only tree awaits coordinator integration check"
+}

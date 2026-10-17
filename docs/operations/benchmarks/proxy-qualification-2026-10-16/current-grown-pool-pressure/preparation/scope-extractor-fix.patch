@@ -1,0 +1,11 @@
+--- runtime-scope-attempt-1.contract-source.sh
++++ proposal/scripts/contract-pressure-scopes.sh
+@@ -31,7 +31,7 @@
+ for tool in systemd-run systemctl timeout setsid unshare nsenter python3 jq ps taskset; do command -v "$tool" >/dev/null; done
+ printf 'classification=bounded-scope-contract-only\npid_namespace=%s\nnet_namespace=%s\n' \
+   "$(readlink /proc/self/ns/pid)" "$(readlink /proc/self/ns/net)" >"$root/topology.txt"
+-extract() { awk -v name="$1" '$0 == name "() {" {copy=1} copy {print} copy && /^}/ {exit}' "$runner"; }
++extract() { awk -v name="$1" '$0 == name "() {" {copy=1} copy {print} copy && $0 == "}" {exit}' "$runner"; }
+ for name in cleanup register_owned_group process_start_state assert_namespace_helper wait_ready join_owned_group stop_process cgroup_snapshot; do
+   eval "$(extract "$name")"
+ done

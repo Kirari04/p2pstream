@@ -1,0 +1,1 @@
+invalidated: command cwd was tracked repository rather than immutable bundle source; output reported no tests to run

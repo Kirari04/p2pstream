@@ -1,0 +1,65 @@
+{
+  "builds_endpoint_binaries": false,
+  "commands": [
+    {
+      "argv": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-p=1",
+        "-overlay=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/close-race-reproduction-source-1/overlay.json",
+        "-tags=p2pstream_qualification",
+        "-count=1",
+        "-timeout=60s",
+        "-run=^TestQualificationTCPThresholdHistorySessionCloseCancellation$",
+        "-v",
+        "./internal/agent"
+      ],
+      "env": {
+        "GOCACHE": "<fresh-result-directory>/gocache",
+        "GOMAXPROCS": "2",
+        "GOTOOLCHAIN": "local"
+      },
+      "name": "normal"
+    },
+    {
+      "argv": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-p=1",
+        "-race",
+        "-overlay=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/close-race-reproduction-source-1/overlay.json",
+        "-tags=p2pstream_qualification",
+        "-count=1",
+        "-timeout=60s",
+        "-run=^TestQualificationTCPThresholdHistorySessionCloseCancellation$",
+        "-v",
+        "./internal/agent"
+      ],
+      "env": {
+        "GOCACHE": "<fresh-result-directory>/gocache",
+        "GOMAXPROCS": "2",
+        "GOTOOLCHAIN": "local"
+      },
+      "name": "race"
+    }
+  ],
+  "executed": false,
+  "mutates_audited_source": false,
+  "notes": [
+    "Allocate a fresh external result directory and cache for each invocation; retain stdout, stderr and native exit status.",
+    "Run normal before race; these are focused local unit tests, no WAN runner or external network target.",
+    "The reused httptest certificate fixture opens an ephemeral loopback listener; tested TLS transport uses net.Pipe.",
+    "External process supervision and resource limits remain owned by the coordinator."
+  ],
+  "review_required_before_execution": true,
+  "schema_version": 1,
+  "source_verification": {
+    "argv": [
+      "sha256sum",
+      "--check",
+      "SHA256SUMS.txt"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/close-race-reproduction-source-1"
+  },
+  "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source"
+}

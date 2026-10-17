@@ -1,0 +1,517 @@
+--- a/internal/agent/qualification_raw_write_qualification.go
++++ b/internal/agent/qualification_raw_write_qualification.go
+@@ -116,6 +116,7 @@
+ 
+ type qualificationRawWriteOwner struct {
+ 	mu sync.Mutex
++	terminal terminalState
+ 
+ 	lane          int
+ 	generation    uint64
+@@ -146,6 +147,7 @@
+ }
+ 
+ type qualificationRawWriteBegin struct {
++	terminal uint64
+ 	started        time.Time
+ 	generation     uint64
+ 	epoch          uint64
+@@ -189,6 +191,7 @@
+ }
+ 
+ type qualificationRawWriteTerminalRecorder struct {
++	terminal terminalRecorderState
+ 	mu       sync.Mutex
+ 	path     string
+ 	expected int
+@@ -222,6 +225,7 @@
+ 		recorder.invalid = true
+ 		return
+ 	}
++	recorder.terminalObserveLocked(observation)
+ 	if observation.Connected {
+ 		if recorder.active[observation.Lane] != nil {
+ 			recorder.invalid = true
+@@ -316,8 +320,9 @@
+ 	if err != nil {
+ 		return err
+ 	}
++	if err := recorder.writeTerminalAttribution(data); err != nil { return err }
+ 	if !sidecar.Complete {
+-		return errors.New("raw-write diagnostic terminal lifecycle is incomplete")
++		return errQualificationLegacyTerminalIncomplete
+ 	}
+ 	return nil
+ }
+@@ -525,6 +530,7 @@
+ 	begin.started = time.Now()
+ 	written, err := conn.Conn.Write(payload)
+ 	finished := time.Now()
++	conn.owner.terminalRawReturned(begin.terminal, len(payload), written, err)
+ 	if begin.tcp.first || begin.threshold.active {
+ 		raw := begin.tcp.raw
+ 		if raw == nil {
+@@ -545,6 +551,7 @@
+ 	}
+ 	err := conn.Conn.Close()
+ 	if conn.owner != nil {
++		conn.owner.terminalPhysicalCloseEnd()
+ 		conn.owner.markClosed()
+ 	}
+ 	return err
+@@ -625,6 +632,7 @@
+ 	closed := owner.closeStarted || owner.closeObserved || owner.sessionJoined
+ 	if closed {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		owner.tcp.ambiguous = true
+ 		owner.tcp.invalid = true
+ 	}
+@@ -634,8 +642,10 @@
+ 	}
+ 	if owner.activeRawWrites > 1 {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	}
+ 	begin := qualificationRawWriteBegin{
++		terminal: owner.terminalBeginRawLocked(),
+ 		generation:     owner.generation,
+ 		epoch:          owner.epoch,
+ 		envelopeActive: owner.activeEnvelope,
+@@ -651,6 +661,7 @@
+ 
+ func (owner *qualificationRawWriteOwner) beginClose() {
+ 	owner.mu.Lock()
++	owner.terminalPhysicalCloseBeginLocked()
+ 	owner.closeStarted = true
+ 	owner.mu.Unlock()
+ }
+@@ -662,8 +673,10 @@
+ func (owner *qualificationRawWriteOwner) finishRawWriteWithTCP(begin qualificationRawWriteBegin, attempted, written int, writeErr error, finished time.Time, tcpBefore qualificationTCPInfoSnapshot, tcpBeforeErr error, tcpAfter qualificationTCPInfoSnapshot, tcpAfterErr error, tcpBeforeProviderInvoked, tcpAfterProviderInvoked bool) {
+ 	owner.mu.Lock()
+ 	defer owner.mu.Unlock()
++	owner.terminalFinishRawLocked(begin.terminal)
+ 	if owner.activeRawWrites == 0 {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	} else {
+ 		owner.activeRawWrites--
+ 	}
+@@ -678,6 +691,7 @@
+ 	}
+ 	if attempted < 0 || written < 0 || written > attempted || finished.Before(begin.started) {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		attempted = max(attempted, 0)
+ 		written = min(max(written, 0), attempted)
+ 	}
+@@ -701,15 +715,18 @@
+ 	if owner.activeEnvelope {
+ 		owner.interval.envelopeOverlaps = qualificationRawAdd(owner.interval.envelopeOverlaps, 1, &owner.interval.overflow)
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return 0
+ 	}
+ 	if physicalStarted.IsZero() || wireBytes < payloadBytes {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return 0
+ 	}
+ 	owner.nextEnvelopeToken = qualificationRawAdd(owner.nextEnvelopeToken, 1, &owner.interval.overflow)
+ 	if owner.nextEnvelopeToken == 0 {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return 0
+ 	}
+ 	owner.epoch = qualificationRawAdd(owner.epoch, 1, &owner.interval.overflow)
+@@ -729,10 +746,12 @@
+ 	if owner.activeRawWrites != 0 {
+ 		owner.interval.boundaryActiveRawWrites = qualificationRawAdd(owner.interval.boundaryActiveRawWrites, owner.activeRawWrites, &owner.interval.overflow)
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	}
+ 	if !owner.interval.lastRawFinished.IsZero() && owner.interval.lastRawFinished.After(physicalStarted) {
+ 		owner.interval.boundaryOutsideCompletions = qualificationRawAdd(owner.interval.boundaryOutsideCompletions, 1, &owner.interval.overflow)
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	}
+ 	return owner.activeEnvelopeToken
+ }
+@@ -754,24 +773,29 @@
+ func (owner *qualificationRawWriteOwner) finishEnvelopeLocked(token uint64, physicalFinished time.Time) {
+ 	if !owner.activeEnvelope || token == 0 || token != owner.activeEnvelopeToken {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return
+ 	}
+ 	if physicalFinished.Before(owner.activeEnvelopeStarted) {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		physicalFinished = owner.activeEnvelopeStarted
+ 	}
+ 	if owner.activeRawWrites != 0 {
+ 		owner.interval.boundaryActiveRawWrites = qualificationRawAdd(owner.interval.boundaryActiveRawWrites, owner.activeRawWrites, &owner.interval.overflow)
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	}
+ 	if !owner.interval.lastRawFinished.IsZero() && owner.interval.lastRawFinished.After(physicalFinished) {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	}
+ 	contained := &owner.interval.classes[qualificationRawWriteContained]
+ 	containedCalls := uint64(0)
+ 	containedNS := uint64(0)
+ 	if contained.calls < owner.activeEnvelopeCalls || contained.duration.total < owner.activeEnvelopeRawNS {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	} else {
+ 		containedCalls = contained.calls - owner.activeEnvelopeCalls
+ 		containedNS = contained.duration.total - owner.activeEnvelopeRawNS
+@@ -781,6 +805,7 @@
+ 	if containedNS > math.MaxInt64 {
+ 		owner.interval.overflow = true
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	} else {
+ 		owner.interval.containedRawDuration.add(time.Duration(containedNS), &owner.interval.overflow)
+ 	}
+@@ -789,6 +814,7 @@
+ 	}
+ 	if containedNS > uint64(envelopeDuration) || containedNS > math.MaxInt64 {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	} else {
+ 		owner.interval.residualDuration.add(envelopeDuration-time.Duration(containedNS), &owner.interval.overflow)
+ 	}
+@@ -817,6 +843,7 @@
+ 
+ func (owner *qualificationRawWriteOwner) markClosed() {
+ 	owner.mu.Lock()
++	owner.terminalLegacyCloseLocked()
+ 	owner.closeStarted = true
+ 	owner.closeObserved = true
+ 	owner.closeTCPThresholdHistoryLocked()
+@@ -832,12 +859,14 @@
+ 
+ func (owner *qualificationRawWriteOwner) markSessionJoined() {
+ 	owner.mu.Lock()
++	if owner.terminal.Joined == 0 { owner.terminal.Joined = owner.terminal.next() }
+ 	owner.sessionJoined = true
+ 	owner.closeTCPThresholdHistoryLocked()
+ 	if owner.activeEnvelope || owner.activeRawWrites != 0 || owner.tcp.armed || owner.tcp.transitioning ||
+ 		owner.tcp.activeSamples != 0 || owner.tcp.pendingRawClaims != 0 || owner.tcp.activeRawPairs != 0 ||
+ 		owner.tcp.activeEnvelopeWaitSlot != 0 || owner.tcp.activeEnvelopePairSlot != 0 {
+ 		owner.interval.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		owner.tcp.ambiguous = true
+ 		owner.tcp.invalid = true
+ 	}
+--- a/internal/agent/qualification_tcp_state_qualification.go
++++ b/internal/agent/qualification_tcp_state_qualification.go
+@@ -182,12 +182,16 @@
+ 	if captureErr != nil || !snapshot.Captured {
+ 		tcp.captureErrors = qualificationRawAdd(tcp.captureErrors, 1, &tcp.overflow)
+ 		tcp.ambiguous = true
+-		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
++		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return
+ 	}
+ 	if tcp.bound && (snapshot.CongestionControl == "" || snapshot.CongestionControl != tcp.bindTCPInfo.CongestionControl) {
+ 		tcp.ambiguous = true
+-		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
++		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return
+ 	}
+ 	if tcp.lastLiveTCPInfo.captureFinished.IsZero() || snapshot.captureFinished.After(tcp.lastLiveTCPInfo.captureFinished) {
+@@ -200,6 +204,7 @@
+ 	defer owner.mu.Unlock()
+ 	if raw == nil || !snapshot.Captured || owner.tcp.bound || owner.tcp.raw != nil || (slowStartAfterIdle != 0 && slowStartAfterIdle != 1) {
+ 		owner.tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return false
+ 	}
+ 	owner.tcp.raw = raw
+@@ -219,7 +224,9 @@
+ 		tcp.armed || tcp.transitioning || tcp.waitCount != 0 || tcp.rawPairCount != 0 || tcp.activeSamples != 0 ||
+ 		tcp.pendingRawClaims != 0 || tcp.activeRawPairs != 0 || tcp.ambiguous || tcp.overflow || tcp.invalid {
+ 		tcp.ambiguous = true
+-		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
++		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		owner.mu.Unlock()
+ 		return false
+ 	}
+@@ -239,12 +246,16 @@
+ 	owner.recordTCPCaptureLocked(snapshot, captureErr)
+ 	if captureErr != nil || !snapshot.Captured || owner.generation != generation || tcp.raw != raw || owner.closeStarted || owner.closeObserved || owner.sessionJoined || tcp.armed {
+ 		tcp.ambiguous = true
+-		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
++		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return false
+ 	}
+ 	if snapshot.CongestionControl != tcp.bindTCPInfo.CongestionControl {
+ 		tcp.ambiguous = true
+-		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
++		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return false
+ 	}
+ 	owner.compareTCPThresholdHistorySelectedPreLocked(sequence, snapshot, captureErr)
+@@ -262,7 +273,9 @@
+ 		tcp.activeEnvelopePairSlot != 0 || tcp.ambiguous || tcp.overflow || tcp.invalid || tcp.captureErrors != 0 ||
+ 		tcp.droppedWaitRecords != 0 || tcp.droppedRawPairRecords != 0 {
+ 		tcp.ambiguous = true
+-		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
++		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		owner.mu.Unlock()
+ 		return false
+ 	}
+@@ -289,7 +302,9 @@
+ 		owner.tcpRecordsHealthyLocked()
+ 	if !valid {
+ 		tcp.ambiguous = true
+-		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
++		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return false
+ 	}
+ 	return true
+@@ -306,7 +321,9 @@
+ 		(kind != "entry" && kind != "retry") || (kind == "entry" && classification != "pending") ||
+ 		(kind == "retry" && !qualificationTCPRetryClassificationValid(classification)) {
+ 		tcp.ambiguous = true
+-		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
++		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		owner.mu.Unlock()
+ 		return 0
+ 	}
+@@ -316,6 +333,7 @@
+ 			if tcp.waits[i].StreamID == streamID && tcp.waits[i].WaitToken == waitToken {
+ 				tcp.waits[i].Ambiguous = true
+ 				tcp.ambiguous = true
++				owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 				owner.mu.Unlock()
+ 				return 0
+ 			}
+@@ -329,6 +347,7 @@
+ 		tcp.nextRecordID = qualificationRawAdd(tcp.nextRecordID, 1, &tcp.overflow)
+ 		if tcp.nextRecordID == 0 {
+ 			tcp.ambiguous = true
++			owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 			owner.mu.Unlock()
+ 			return 0
+ 		}
+@@ -343,6 +362,7 @@
+ 					candidate.Ambiguous = true
+ 					record.Ambiguous = true
+ 					tcp.ambiguous = true
++					owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 					owner.mu.Unlock()
+ 					return 0
+ 				}
+@@ -354,6 +374,7 @@
+ 				record.Ambiguous = true
+ 			}
+ 			tcp.ambiguous = true
++			owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 			owner.mu.Unlock()
+ 			return 0
+ 		}
+@@ -368,6 +389,7 @@
+ 	if tcp.nextSampleID == 0 {
+ 		record.Ambiguous = true
+ 		tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		owner.mu.Unlock()
+ 		return 0
+ 	}
+@@ -395,6 +417,7 @@
+ 	found := owner.tcpSampleLocked(sampleID)
+ 	if found == nil || owner.generation != generation || tcp.raw != raw || owner.closeStarted || owner.closeObserved || owner.sessionJoined {
+ 		tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return sampleID
+ 	}
+ 	found.TCPInfo = owner.tcpInfoPublicLocked(snapshot, captureErr)
+@@ -433,6 +456,7 @@
+ 				candidate.Ambiguous = true
+ 				record.Ambiguous = true
+ 				tcp.ambiguous = true
++				owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 				return
+ 			}
+ 			record, sample = candidate, current
+@@ -440,6 +464,7 @@
+ 	}
+ 	if record == nil || sample == nil || sample.Complete || !sample.Present {
+ 		tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return
+ 	}
+ 	sample.CursorAfterValid = valid
+@@ -450,10 +475,13 @@
+ 	if !valid {
+ 		record.Ambiguous = true
+ 		tcp.ambiguous = true
+-		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
++		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	}
+ 	if tcp.activeSamples == 0 {
+ 		tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	} else {
+ 		tcp.activeSamples--
+ 	}
+@@ -463,7 +491,9 @@
+ 	if sample.Classification == "retry_zero_after_advance" || (sample.Classification == "applied_range" && sample.Credit == 0) {
+ 		record.Ambiguous = true
+ 		tcp.ambiguous = true
+-		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
++		tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		record.Active = false
+ 		return
+ 	}
+@@ -474,6 +504,7 @@
+ 				other.Ambiguous = true
+ 				record.Ambiguous = true
+ 				tcp.ambiguous = true
++				owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 				record.Active = false
+ 				return
+ 			}
+@@ -498,6 +529,7 @@
+ 			if found {
+ 				record.Ambiguous = true
+ 				owner.tcp.ambiguous = true
++				owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 				return
+ 			}
+ 			record.InterveningAllocation = true
+@@ -506,6 +538,7 @@
+ 	}
+ 	if !found {
+ 		owner.tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	}
+ }
+ 
+@@ -524,6 +557,7 @@
+ 			record.Ambiguous = true
+ 			tcp.waits[slot-1].Ambiguous = true
+ 			tcp.ambiguous = true
++			owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 			return
+ 		}
+ 		slot = i + 1
+@@ -536,6 +570,7 @@
+ 	record.Claimed = true
+ 	if tcp.pendingRawClaims == 0 {
+ 		tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	} else {
+ 		tcp.pendingRawClaims--
+ 	}
+@@ -560,6 +595,7 @@
+ 	tcp.nextRecordID = qualificationRawAdd(tcp.nextRecordID, 1, &tcp.overflow)
+ 	if tcp.nextRecordID == 0 {
+ 		tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return qualificationTCPRawReservation{}
+ 	}
+ 	pair := &tcp.rawPairs[tcp.rawPairCount]
+@@ -585,7 +621,9 @@
+ 		} else {
+ 			pair.Ambiguous = true
+ 			owner.tcp.ambiguous = true
++			owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 			owner.tcp.invalid = true
++			owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		}
+ 		return
+ 	}
+@@ -597,10 +635,13 @@
+ 	}
+ 	if !beforeProviderInvoked || !afterProviderInvoked {
+ 		owner.tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		owner.tcp.invalid = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	}
+ 	if owner.tcp.activeRawPairs == 0 {
+ 		owner.tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	} else {
+ 		owner.tcp.activeRawPairs--
+ 	}
+@@ -624,6 +665,7 @@
+ 	pair.Ambiguous = !valid
+ 	if owner.tcp.activeEnvelopeWaitSlot == 0 || owner.tcp.activeEnvelopeWaitSlot > owner.tcp.waitCount {
+ 		owner.tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 		return
+ 	}
+ 	wait := &owner.tcp.waits[owner.tcp.activeEnvelopeWaitSlot-1]
+@@ -633,6 +675,7 @@
+ 	if !valid {
+ 		wait.Ambiguous = true
+ 		owner.tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	}
+ }
+ 
+@@ -645,6 +688,7 @@
+ 	if tcp.activeEnvelopePairSlot == 0 || wait.RawPairRecordID == 0 || wait.Claimed || wait.Active {
+ 		wait.Ambiguous = true
+ 		tcp.ambiguous = true
++		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+ 	}
+ 	tcp.activeEnvelopeWaitSlot = 0
+ 	tcp.activeEnvelopePairSlot = 0
+@@ -654,6 +698,7 @@
+ 	tcp := &owner.tcp
+ 	if tcp.ambiguous || tcp.overflow || tcp.captureErrors != 0 || !owner.tcpRecordsHealthyLocked() {
+ 		tcp.invalid = true
++		owner.terminalLegacyDerivedInvalidLocked()
+ 	}
+ 	complete := outerComplete && !tcp.armed && !tcp.transitioning && tcp.activeSamples == 0 && tcp.pendingRawClaims == 0 &&
+ 		tcp.activeRawPairs == 0 && tcp.activeEnvelopeWaitSlot == 0 && tcp.activeEnvelopePairSlot == 0 && !tcp.invalid
+--- a/internal/agent/proxy_qualification_external_test.go
++++ b/internal/agent/proxy_qualification_external_test.go
+@@ -394,6 +394,7 @@
+ 
+ 	waitExternalAgentQualificationStop(t, stopPath)
+ 	ballast.keepAlive()
++	if err := rawTerminal.markTerminalIntent(); err != nil { t.Errorf("terminal intent: %v", err) }
+ 	cancel()
+ 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+ 	defer shutdownCancel()
+@@ -407,7 +408,11 @@
+ 		t.Error("external qualification agent did not stop")
+ 	}
+ 	if err := rawTerminal.write(); err != nil {
+-		t.Errorf("write raw-write terminal lifecycle: %v", err)
++		if errors.Is(err, errQualificationLegacyTerminalIncomplete) {
++			t.Log("legacy raw terminal verdict rejected; preserved sidecar requires independent prospective attribution validation")
++		} else {
++			t.Errorf("write raw-write terminal lifecycle: %v", err)
++		}
+ 	}
+ }
+ 

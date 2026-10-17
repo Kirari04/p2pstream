@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "taskset",
+    "-c",
+    "0-15",
+    "bash",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-once.sh",
+    "--candidate-ref",
+    "8fa16378af4ac0117276726fe6e51d8bc4c74c85",
+    "--output-root",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1"
+  ],
+  "artifact_rejection_threshold_bytes": 536870912,
+  "artifact_tree_check_seconds": 1.0,
+  "deadline_seconds": 600,
+  "per_stream_rejection_threshold_bytes": 16777216,
+  "schema_version": 1,
+  "state": "running",
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

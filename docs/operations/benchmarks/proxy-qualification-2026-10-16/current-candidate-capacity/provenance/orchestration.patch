@@ -1,0 +1,19 @@
+--- stock-checkpoint-orchestration
++++ independent-candidate-orchestration
+@@ -26,7 +26,6 @@
+   if ((external_agents > 0)); then
+     external_args=(
+       --external-agents "$external_agents"
+-      --baseline-agent-binary "$baseline_agent"
+       --candidate-agent-binary "$candidate_agent"
+     )
+   else
+@@ -36,8 +35,6 @@
+     --runs 1 \
+     --capacity-only --capacity-concurrency 1536 --capacity-protocol h1 \
+     --ballast-mib 1024 \
+-    --baseline-label "baseline-$baseline_ref" \
+-    --baseline-binary "$baseline_server" \
+     --candidate-label "candidate-$candidate_ref" \
+     --candidate-binary "$candidate_server" \
+     --driver-binary "$candidate_server" \

@@ -1,0 +1,49 @@
+{
+  "attempt_labels": [
+    "smoke-production-http",
+    "smoke-production-https",
+    "smoke-native-http",
+    "smoke-native-https",
+    "profile-production-http-h1-c16",
+    "profile-native-http-h1-c16"
+  ],
+  "checks": {
+    "all_profile_hashes_match": true,
+    "all_report_hashes_match": true,
+    "exact_cell": true,
+    "exact_role_order": true,
+    "native_no_production_event_accounting": true,
+    "outcome_complete": true,
+    "outcome_no_cleanup_errors": true,
+    "outcome_no_failure": true,
+    "outcome_no_forced_cleanup": true,
+    "outcome_no_remaining_resources": true,
+    "production_event_conservation": true,
+    "provenance_outcome_hash_matches": true,
+    "resource_envelope": true,
+    "response_correctness": true,
+    "six_attempts": true,
+    "smoke_certificate_match": true,
+    "smoke_passed": true,
+    "summary_ratio_matches": true,
+    "two_accepted": true
+  },
+  "hashes": {
+    "attempted-results.jsonl": "c26f0f95455bfd289e9e6e310499d6a3ab661b7225beb6aba56dc911442ecf58",
+    "outcome.json": "dd6abaa83031a0768ef2a16cebfb549f0f1a0344fe9c1f37c1d585fa473b1346",
+    "provenance.json": "1da9664a1061e55211e46847f76b0fdd0a30d378073b9a9c41615d1ab94d07ed",
+    "results.jsonl": "ac5a4ac8ce89f25b9608179c78e50ef868489dc09a329989156b5d48fc58b182",
+    "smoke.json": "f3deadc08cd4b42ed1dcf6f5a3ee39f3f17dca2d7e64c6ccc4bcef6331704159",
+    "summary.json": "b81e2654ebec51c8fe3e0fbe2c30381de934be39fa00432cb0621b6b8a726ddf"
+  },
+  "kind": "p2pstream-native-profile-analysis-verification-v1",
+  "provenance_discrepancy": {
+    "actual_results_sha256": "ac5a4ac8ce89f25b9608179c78e50ef868489dc09a329989156b5d48fc58b182",
+    "actual_summary_sha256": "b81e2654ebec51c8fe3e0fbe2c30381de934be39fa00432cb0621b6b8a726ddf",
+    "final_results_sha256": null,
+    "final_rows": null,
+    "final_summary_sha256": null,
+    "interpretation": "The final cleanup save rewrote provenance without carrying the earlier success extras. Outcome and artifacts verify independently, but final provenance does not bind results.jsonl or summary.json."
+  }
+}
+

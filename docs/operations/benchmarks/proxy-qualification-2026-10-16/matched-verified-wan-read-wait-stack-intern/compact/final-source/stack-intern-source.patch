@@ -1,0 +1,1900 @@
+--- tmp/continuation-20261016/wan-read-wait-zero-pc-analyzer-source/analyze_parsed_trace.py	2026-10-16 22:16:40.197078129 +0200
++++ tmp/continuation-20261016/wan-read-wait-stack-intern-source/analyze_interned_trace.py	2026-10-16 22:38:56.757870631 +0200
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env python3
+-"""Reduce pinned Go 1.26.6 `go tool trace -d=parsed` output.
++"""Reduce a lossless interned pinned Go 1.26.6 parsed-trace stream.
+ 
+ This parser is intentionally tied to Event.String in the pinned toolchain.  It
+ reads the input twice, one event at a time: first to bind the unique task and
+@@ -19,10 +19,20 @@
+ import sys
+ from typing import Iterator
+ 
++from stack_intern_format import (
++    CanonicalReader,
++    InvalidCanonicalTrace,
++    MAX_CANONICAL_BYTES,
++    MAX_DEFINITION_BYTES,
++    MAX_EXPANDED_BYTES,
++    MAX_STACK_DEFINITIONS,
++    strict_ledger_keys,
++)
++
+ 
+ TASK_TYPE = "wan-read-wait-request"
+ REGION_TYPE = "public-proxy-handler"
+-MAX_INPUT_BYTES = 512 * 1024 * 1024
++MAX_INPUT_BYTES = MAX_CANONICAL_BYTES
+ MAX_OUTPUT_BYTES = 8 * 1024 * 1024
+ MAX_LINE_BYTES = 1024 * 1024
+ MAX_EVENTS = 5_000_000
+@@ -131,18 +141,21 @@
+     return event
+ 
+ 
+-def event_stream(path: Path) -> Iterator[dict]:
++def event_stream(path: Path, provenance: dict | None = None) -> Iterator[dict]:
+     count = 0
+     current = None
+     continuation_count = 0
+     event_bytes = 0
+     section = None
+     previous_time = None
+-    with path.open("rb", buffering=1024 * 1024) as stream:
++    canonical = CanonicalReader(path)
++    stream = iter(canonical.iter_lines())
++    try:
+         line_number = 0
+         while True:
+-            line = stream.readline(MAX_LINE_BYTES + 1)
+-            if not line:
++            try:
++                line = next(stream)
++            except StopIteration:
+                 break
+             line_number += 1
+             if len(line) > MAX_LINE_BYTES or not line.endswith(b"\n"):
+@@ -204,10 +217,20 @@
+                 current["event_stack"].append(stripped.decode("utf-8", "strict"))
+             elif stripped:
+                 raise InvalidTrace(f"unrecognized event continuation at line {line_number}")
++    except InvalidCanonicalTrace as error:
++        raise InvalidTrace(str(error)) from error
+     if current is not None:
+         yield finalize_event(current)
+     if count == 0:
+         raise InvalidTrace("parsed trace has no events")
++    if canonical.summary is None:
++        raise InvalidTrace("canonical footer was not validated")
++    if canonical.summary["event_count"] != count:
++        raise InvalidTrace("canonical and analyzer event counts disagree")
++    if provenance is not None:
++        if provenance:
++            raise InvalidTrace("canonical provenance target was already populated")
++        provenance.update(canonical.summary)
+ 
+ 
+ def position(event: dict) -> tuple[int, int]:
+@@ -254,10 +277,10 @@
+     }
+ 
+ 
+-def bind_markers(path: Path) -> dict:
++def bind_markers(path: Path, provenance: dict | None = None) -> dict:
+     task_begins, task_ends, region_begins, region_ends = [], [], [], []
+     event_count = 0
+-    for event in event_stream(path):
++    for event in event_stream(path, provenance):
+         event_count = event["order"]
+         task = parse_task(event)
+         if task and task["type"] == TASK_TYPE:
+@@ -473,32 +496,89 @@
+     }
+ 
+ 
++def exact_zero_status(path: Path, label: str) -> str:
++    metadata = path.stat()
++    if not stat.S_ISREG(metadata.st_mode) or metadata.st_size != 2:
++        raise InvalidTrace(f"{label} status has invalid size")
++    value = path.read_bytes()
++    if value != b"0\n":
++        raise InvalidTrace(f"{label} status is not exact zero")
++    return hashlib.sha256(value).hexdigest()
++
++
++def load_ledger(path: Path) -> dict:
++    metadata = path.stat()
++    if not stat.S_ISREG(metadata.st_mode) or metadata.st_size <= 0 or metadata.st_size > 64 * 1024:
++        raise InvalidTrace("canonical ledger is not a bounded regular file")
++    try:
++        value = json.loads(path.read_bytes())
++    except (json.JSONDecodeError, UnicodeDecodeError) as error:
++        raise InvalidTrace(f"canonical ledger is invalid JSON: {error}") from error
++    if not isinstance(value, dict) or set(value) != strict_ledger_keys():
++        raise InvalidTrace("canonical ledger fields are not exact")
++    expected_bounds = {
++        "max_canonical_input_bytes": MAX_CANONICAL_BYTES,
++        "max_expanded_input_bytes": MAX_EXPANDED_BYTES,
++        "max_line_bytes": MAX_LINE_BYTES,
++        "max_events": MAX_EVENTS,
++        "max_event_continuations": MAX_EVENT_CONTINUATIONS,
++        "max_event_bytes": MAX_EVENT_BYTES,
++        "max_stack_definitions": MAX_STACK_DEFINITIONS,
++        "max_definition_bytes": MAX_DEFINITION_BYTES,
++    }
++    if value.get("schema_version") != 1 or value.get("format") != "p2pstream-parsed-stack-intern-v1":
++        raise InvalidTrace("canonical ledger schema/version mismatch")
++    if value.get("fixed_bounds") != expected_bounds:
++        raise InvalidTrace("canonical ledger fixed bounds mismatch")
++    integer_fields = (
++        "canonical_bytes", "expanded_input_bytes", "event_count", "definition_count",
++        "definition_bytes", "record_count",
++    )
++    if any(type(value.get(field)) is not int or value[field] < 0 for field in integer_fields):
++        raise InvalidTrace("canonical ledger has invalid integer field")
++    digest_fields = ("canonical_sha256", "expanded_input_sha256", "canonical_prefooter_sha256")
++    if any(not isinstance(value.get(field), str) or not re.fullmatch(r"[0-9a-f]{64}", value[field])
++           for field in digest_fields):
++        raise InvalidTrace("canonical ledger has invalid digest field")
++    return value
++
++
+ def main() -> int:
+     parser = argparse.ArgumentParser()
+     parser.add_argument("--input", required=True, type=Path)
+     parser.add_argument("--tool-status", required=True, type=Path)
++    parser.add_argument("--canonicalizer-status", required=True, type=Path)
++    parser.add_argument("--ledger", required=True, type=Path)
+     parser.add_argument("--output", required=True, type=Path)
+     arguments = parser.parse_args()
+     source = arguments.input.resolve(strict=False)
+     tool_status_path = arguments.tool_status.resolve(strict=False)
++    canonicalizer_status_path = arguments.canonicalizer_status.resolve(strict=False)
++    ledger_path = arguments.ledger.resolve(strict=False)
+     output = arguments.output.resolve(strict=False)
+     if output.exists():
+         raise SystemExit("output already exists")
+     result = {
+-        "schema_version": 1,
++        "schema_version": 2,
+         "accepted": False,
+         "task_type": TASK_TYPE,
+         "region_type": REGION_TYPE,
+         "input": str(source),
++        "input_representation": "p2pstream-parsed-stack-intern-v1",
+         "input_bytes": None,
+         "parsed_tool_status_file": str(tool_status_path),
++        "canonicalizer_status_file": str(canonicalizer_status_path),
++        "canonical_ledger_file": str(ledger_path),
+         "fixed_bounds": {
+-            "max_input_bytes": MAX_INPUT_BYTES,
++            "max_canonical_input_bytes": MAX_INPUT_BYTES,
++            "max_expanded_input_bytes": MAX_EXPANDED_BYTES,
+             "max_line_bytes": MAX_LINE_BYTES,
+             "max_events": MAX_EVENTS,
+             "max_event_continuations": MAX_EVENT_CONTINUATIONS,
+             "max_event_bytes": MAX_EVENT_BYTES,
+             "max_wait_stack_groups": MAX_WAIT_STACK_GROUPS,
++            "max_stack_definitions": MAX_STACK_DEFINITIONS,
++            "max_definition_bytes": MAX_DEFINITION_BYTES,
+             "max_output_bytes": MAX_OUTPUT_BYTES,
+         },
+         "errors": [],
+@@ -507,22 +587,55 @@
+         initial_identity = file_identity(source)
+         size = initial_identity["size"]
+         result["input_bytes"] = size
+-        tool_status_metadata = tool_status_path.stat()
+-        if not stat.S_ISREG(tool_status_metadata.st_mode) or tool_status_metadata.st_size != 2:
+-            raise InvalidTrace("pinned go tool trace parsed status has invalid size")
+-        status_bytes = tool_status_path.read_bytes()
+-        if status_bytes != b"0\n":
+-            raise InvalidTrace("pinned go tool trace parsed status is not exact zero")
+-        result["parsed_tool_status_sha256"] = hashlib.sha256(status_bytes).hexdigest()
++        parser_status_identity = file_identity(tool_status_path)
++        canonicalizer_status_identity = file_identity(canonicalizer_status_path)
++        result["parsed_tool_status_sha256"] = exact_zero_status(
++            tool_status_path, "pinned go tool trace parsed"
++        )
++        result["canonicalizer_status_sha256"] = exact_zero_status(
++            canonicalizer_status_path, "stack canonicalizer"
++        )
+         if size <= 0 or size > MAX_INPUT_BYTES:
+-            raise InvalidTrace("input size violates fixed bound")
++            raise InvalidTrace("physical canonical input size violates fixed 512 MiB bound")
+         result["input_sha256"] = sha256_file(source)
+-        markers = bind_markers(source)
++        ledger_identity = file_identity(ledger_path)
++        ledger_sha256 = sha256_file(ledger_path)
++        ledger = load_ledger(ledger_path)
++        provenance: dict = {}
++        markers = bind_markers(source, provenance)
++        if ledger["canonical_bytes"] != size or ledger["canonical_sha256"] != result["input_sha256"]:
++            raise InvalidTrace("canonical ledger file identity mismatch")
++        for field in (
++            "expanded_input_bytes", "expanded_input_sha256", "event_count",
++            "definition_count", "definition_bytes", "record_count",
++            "canonical_prefooter_sha256",
++        ):
++            if ledger[field] != provenance[field]:
++                raise InvalidTrace(f"canonical ledger {field} mismatch")
++        result["canonical_ledger_sha256"] = ledger_sha256
++        result["expanded_input_bytes"] = provenance["expanded_input_bytes"]
++        result["expanded_input_sha256"] = provenance["expanded_input_sha256"]
++        result["canonical_dictionary"] = {
++            "definition_count": provenance["definition_count"],
++            "definition_bytes": provenance["definition_bytes"],
++            "record_count": provenance["record_count"],
++            "prefooter_sha256": provenance["canonical_prefooter_sha256"],
++        }
+         if file_identity(source) != initial_identity:
+-            raise InvalidTrace("parsed trace input changed during marker pass")
++            raise InvalidTrace("canonical trace input changed during marker pass")
+         reduction = reduce_states(source, markers)
+         if file_identity(source) != initial_identity or sha256_file(source) != result["input_sha256"]:
+-            raise InvalidTrace("parsed trace input changed across streaming passes")
++            raise InvalidTrace("canonical trace input changed across streaming passes")
++        if file_identity(ledger_path) != ledger_identity or sha256_file(ledger_path) != ledger_sha256:
++            raise InvalidTrace("canonical ledger changed during streaming passes")
++        if (file_identity(tool_status_path) != parser_status_identity or
++                exact_zero_status(tool_status_path, "pinned go tool trace parsed") !=
++                result["parsed_tool_status_sha256"]):
++            raise InvalidTrace("pinned go tool trace parsed status changed during streaming passes")
++        if (file_identity(canonicalizer_status_path) != canonicalizer_status_identity or
++                exact_zero_status(canonicalizer_status_path, "stack canonicalizer") !=
++                result["canonicalizer_status_sha256"]):
++            raise InvalidTrace("stack canonicalizer status changed during streaming passes")
+         result["markers"] = markers
+         result["reduction"] = reduction
+         if reduction["missing_stack_ns"]:
+--- tmp/continuation-20261016/wan-read-wait-stack-intern-source/OUTPUT-SCHEMA.predecessor.json	2026-10-16 22:32:22.124442679 +0200
++++ tmp/continuation-20261016/wan-read-wait-stack-intern-source/OUTPUT-SCHEMA.json	2026-10-16 22:34:21.366120471 +0200
+@@ -1,128 +1,471 @@
+ {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+-  "$id": "urn:p2pstream:wan-read-wait:parsed-trace-reduction:v1",
+-  "title": "Pinned Go parsed-trace handler reduction",
++  "$id": "urn:p2pstream:wan-read-wait:interned-parsed-trace-reduction:v2",
++  "title": "Pinned Go lossless interned parsed-trace handler reduction",
+   "type": "object",
+-  "required": ["schema_version", "accepted", "errors", "task_type", "region_type", "input", "input_bytes", "parsed_tool_status_file", "fixed_bounds"],
++  "required": [
++    "schema_version",
++    "accepted",
++    "errors",
++    "task_type",
++    "region_type",
++    "input",
++    "input_representation",
++    "input_bytes",
++    "parsed_tool_status_file",
++    "canonicalizer_status_file",
++    "canonical_ledger_file",
++    "fixed_bounds"
++  ],
+   "properties": {
+-    "schema_version": {"const": 1},
+-    "accepted": {"type": "boolean"},
+-    "errors": {"type": "array", "items": {"type": "string"}},
+-    "task_type": {"const": "wan-read-wait-request"},
+-    "region_type": {"const": "public-proxy-handler"},
+-    "input": {"type": "string"},
+-    "input_bytes": {"type": ["integer", "null"], "minimum": 1},
+-    "input_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+-    "parsed_tool_status_file": {"type": "string"},
+-    "parsed_tool_status_sha256": {"const": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"},
++    "schema_version": {
++      "const": 2
++    },
++    "accepted": {
++      "type": "boolean"
++    },
++    "errors": {
++      "type": "array",
++      "items": {
++        "type": "string"
++      }
++    },
++    "task_type": {
++      "const": "wan-read-wait-request"
++    },
++    "region_type": {
++      "const": "public-proxy-handler"
++    },
++    "input": {
++      "type": "string"
++    },
++    "input_bytes": {
++      "type": [
++        "integer",
++        "null"
++      ],
++      "minimum": 1
++    },
++    "input_sha256": {
++      "type": "string",
++      "pattern": "^[0-9a-f]{64}$"
++    },
++    "parsed_tool_status_file": {
++      "type": "string"
++    },
++    "parsed_tool_status_sha256": {
++      "const": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
++    },
+     "fixed_bounds": {
+       "type": "object",
+-      "required": ["max_input_bytes", "max_line_bytes", "max_events", "max_event_continuations", "max_event_bytes", "max_wait_stack_groups", "max_output_bytes"],
++      "required": [
++        "max_canonical_input_bytes",
++        "max_expanded_input_bytes",
++        "max_line_bytes",
++        "max_events",
++        "max_event_continuations",
++        "max_event_bytes",
++        "max_wait_stack_groups",
++        "max_stack_definitions",
++        "max_definition_bytes",
++        "max_output_bytes"
++      ],
+       "additionalProperties": false,
+       "properties": {
+-        "max_input_bytes": {"const": 536870912},
+-        "max_line_bytes": {"const": 1048576},
+-        "max_events": {"const": 5000000},
+-        "max_event_continuations": {"const": 4096},
+-        "max_event_bytes": {"const": 4194304},
+-        "max_wait_stack_groups": {"const": 4096},
+-        "max_output_bytes": {"const": 8388608}
++        "max_line_bytes": {
++          "const": 1048576
++        },
++        "max_events": {
++          "const": 5000000
++        },
++        "max_event_continuations": {
++          "const": 4096
++        },
++        "max_event_bytes": {
++          "const": 4194304
++        },
++        "max_wait_stack_groups": {
++          "const": 4096
++        },
++        "max_output_bytes": {
++          "const": 8388608
++        },
++        "max_canonical_input_bytes": {
++          "const": 536870912
++        },
++        "max_expanded_input_bytes": {
++          "const": 4294967296
++        },
++        "max_stack_definitions": {
++          "const": 4096
++        },
++        "max_definition_bytes": {
++          "const": 67108864
++        }
+       }
+     },
+     "markers": {
+       "type": "object",
+-      "required": ["task_id", "handler_gid", "task_begin", "task_end", "region_begin", "region_end", "event_count"],
++      "required": [
++        "task_id",
++        "handler_gid",
++        "task_begin",
++        "task_end",
++        "region_begin",
++        "region_end",
++        "event_count"
++      ],
+       "properties": {
+-        "task_id": {"type": "integer", "minimum": 1},
+-        "handler_gid": {"type": "integer", "minimum": 1},
+-        "task_begin": {"$ref": "#/$defs/position"},
+-        "task_end": {"$ref": "#/$defs/position"},
+-        "region_begin": {"$ref": "#/$defs/position"},
+-        "region_end": {"$ref": "#/$defs/position"},
+-        "event_count": {"type": "integer", "minimum": 1}
++        "task_id": {
++          "type": "integer",
++          "minimum": 1
++        },
++        "handler_gid": {
++          "type": "integer",
++          "minimum": 1
++        },
++        "task_begin": {
++          "$ref": "#/$defs/position"
++        },
++        "task_end": {
++          "$ref": "#/$defs/position"
++        },
++        "region_begin": {
++          "$ref": "#/$defs/position"
++        },
++        "region_end": {
++          "$ref": "#/$defs/position"
++        },
++        "event_count": {
++          "type": "integer",
++          "minimum": 1
++        }
+       }
+     },
+     "reduction": {
+       "type": "object",
+-      "required": ["region_duration_ns", "partition_sum_ns", "partition_delta_ns", "state_ns", "waiting_category_ns", "waiting_reason_ns", "waiting_stack_groups", "top_wait_intervals", "handler_transition_count", "zero_duration_state_interval_counts", "unblock_header_gid_diff_count", "missing_stack_ns", "unknown_stack_ns", "attribution_complete"],
++      "required": [
++        "region_duration_ns",
++        "partition_sum_ns",
++        "partition_delta_ns",
++        "state_ns",
++        "waiting_category_ns",
++        "waiting_reason_ns",
++        "waiting_stack_groups",
++        "top_wait_intervals",
++        "handler_transition_count",
++        "zero_duration_state_interval_counts",
++        "unblock_header_gid_diff_count",
++        "missing_stack_ns",
++        "unknown_stack_ns",
++        "attribution_complete"
++      ],
++      "properties": {
++        "region_duration_ns": {
++          "type": "integer",
++          "minimum": 1
++        },
++        "partition_sum_ns": {
++          "type": "integer",
++          "minimum": 1
++        },
++        "partition_delta_ns": {
++          "const": 0
++        },
++        "state_ns": {
++          "$ref": "#/$defs/stateDurations"
++        },
++        "waiting_category_ns": {
++          "type": "object",
++          "additionalProperties": {
++            "type": "integer",
++            "minimum": 0
++          }
++        },
++        "waiting_reason_ns": {
++          "type": "object",
++          "additionalProperties": {
++            "type": "integer",
++            "minimum": 0
++          }
++        },
++        "waiting_stack_groups": {
++          "type": "array",
++          "maxItems": 4096,
++          "items": {
++            "$ref": "#/$defs/waitGroup"
++          }
++        },
++        "top_wait_intervals": {
++          "type": "array",
++          "maxItems": 8,
++          "items": {
++            "type": "object"
++          }
++        },
++        "handler_transition_count": {
++          "type": "integer",
++          "minimum": 0
++        },
++        "zero_duration_state_interval_counts": {
++          "$ref": "#/$defs/stateDurations"
++        },
++        "unblock_header_gid_diff_count": {
++          "type": "integer",
++          "minimum": 0
++        },
++        "missing_stack_ns": {
++          "const": 0
++        },
++        "unknown_stack_ns": {
++          "type": "integer",
++          "minimum": 0
++        },
++        "attribution_complete": {
++          "type": "boolean"
++        }
++      }
++    },
++    "input_representation": {
++      "const": "p2pstream-parsed-stack-intern-v1"
++    },
++    "canonicalizer_status_file": {
++      "type": "string"
++    },
++    "canonicalizer_status_sha256": {
++      "const": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
++    },
++    "canonical_ledger_file": {
++      "type": "string"
++    },
++    "canonical_ledger_sha256": {
++      "type": "string",
++      "pattern": "^[0-9a-f]{64}$"
++    },
++    "expanded_input_bytes": {
++      "type": "integer",
++      "minimum": 1,
++      "maximum": 4294967296
++    },
++    "expanded_input_sha256": {
++      "type": "string",
++      "pattern": "^[0-9a-f]{64}$"
++    },
++    "canonical_dictionary": {
++      "type": "object",
++      "required": [
++        "definition_count",
++        "definition_bytes",
++        "record_count",
++        "prefooter_sha256"
++      ],
++      "additionalProperties": false,
+       "properties": {
+-        "region_duration_ns": {"type": "integer", "minimum": 1},
+-        "partition_sum_ns": {"type": "integer", "minimum": 1},
+-        "partition_delta_ns": {"const": 0},
+-        "state_ns": {"$ref": "#/$defs/stateDurations"},
+-        "waiting_category_ns": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+-        "waiting_reason_ns": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+-        "waiting_stack_groups": {"type": "array", "maxItems": 4096, "items": {"$ref": "#/$defs/waitGroup"}},
+-        "top_wait_intervals": {"type": "array", "maxItems": 8, "items": {"type": "object"}},
+-        "handler_transition_count": {"type": "integer", "minimum": 0},
+-        "zero_duration_state_interval_counts": {"$ref": "#/$defs/stateDurations"},
+-        "unblock_header_gid_diff_count": {"type": "integer", "minimum": 0},
+-        "missing_stack_ns": {"const": 0},
+-        "unknown_stack_ns": {"type": "integer", "minimum": 0},
+-        "attribution_complete": {"type": "boolean"}
++        "definition_count": {
++          "type": "integer",
++          "minimum": 0,
++          "maximum": 4096
++        },
++        "definition_bytes": {
++          "type": "integer",
++          "minimum": 0,
++          "maximum": 67108864
++        },
++        "record_count": {
++          "type": "integer",
++          "minimum": 1
++        },
++        "prefooter_sha256": {
++          "type": "string",
++          "pattern": "^[0-9a-f]{64}$"
++        }
+       }
+     }
+   },
+   "allOf": [
+     {
+-      "if": {"properties": {"accepted": {"const": true}}, "required": ["accepted"]},
+-      "then": {"required": ["input_sha256", "parsed_tool_status_sha256", "markers", "reduction"], "properties": {"errors": {"maxItems": 0}}}
++      "if": {
++        "properties": {
++          "accepted": {
++            "const": true
++          }
++        },
++        "required": [
++          "accepted"
++        ]
++      },
++      "then": {
++        "required": [
++          "input_sha256",
++          "parsed_tool_status_sha256",
++          "canonicalizer_status_sha256",
++          "canonical_ledger_sha256",
++          "expanded_input_bytes",
++          "expanded_input_sha256",
++          "canonical_dictionary",
++          "markers",
++          "reduction"
++        ],
++        "properties": {
++          "errors": {
++            "maxItems": 0
++          }
++        }
++      }
+     }
+   ],
+   "$defs": {
+-    "position": {"type": "array", "prefixItems": [{"type": "integer", "minimum": 0}, {"type": "integer", "minimum": 1}], "items": false},
++    "position": {
++      "type": "array",
++      "prefixItems": [
++        {
++          "type": "integer",
++          "minimum": 0
++        },
++        {
++          "type": "integer",
++          "minimum": 1
++        }
++      ],
++      "items": false
++    },
+     "stateDurations": {
+       "type": "object",
+-      "required": ["Running", "Runnable", "Syscall", "Waiting"],
++      "required": [
++        "Running",
++        "Runnable",
++        "Syscall",
++        "Waiting"
++      ],
+       "additionalProperties": false,
+       "properties": {
+-        "Running": {"type": "integer", "minimum": 0},
+-        "Runnable": {"type": "integer", "minimum": 0},
+-        "Syscall": {"type": "integer", "minimum": 0},
+-        "Waiting": {"type": "integer", "minimum": 0}
++        "Running": {
++          "type": "integer",
++          "minimum": 0
++        },
++        "Runnable": {
++          "type": "integer",
++          "minimum": 0
++        },
++        "Syscall": {
++          "type": "integer",
++          "minimum": 0
++        },
++        "Waiting": {
++          "type": "integer",
++          "minimum": 0
++        }
+       }
+     },
+     "waitGroup": {
+       "type": "object",
+-      "required": ["reason", "stack_sha256", "stack", "frames", "category", "count", "duration_ns"],
++      "required": [
++        "reason",
++        "stack_sha256",
++        "stack",
++        "frames",
++        "category",
++        "count",
++        "duration_ns"
++      ],
+       "properties": {
+-        "reason": {"type": "string"},
+-        "stack_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+-        "stack": {"type": "array", "items": {"type": "string"}},
++        "reason": {
++          "type": "string"
++        },
++        "stack_sha256": {
++          "type": "string",
++          "pattern": "^[0-9a-f]{64}$"
++        },
++        "stack": {
++          "type": "array",
++          "items": {
++            "type": "string"
++          }
++        },
+         "frames": {
+           "type": "array",
+           "items": {
+             "oneOf": [
+               {
+                 "type": "object",
+-                "required": ["function", "file", "line"],
++                "required": [
++                  "function",
++                  "file",
++                  "line"
++                ],
+                 "properties": {
+-                  "function": {"type": "string", "minLength": 1},
+-                  "file": {"type": "string", "minLength": 1},
+-                  "line": {"type": "integer", "minimum": 0}
++                  "function": {
++                    "type": "string",
++                    "minLength": 1
++                  },
++                  "file": {
++                    "type": "string",
++                    "minLength": 1
++                  },
++                  "line": {
++                    "type": "integer",
++                    "minimum": 0
++                  }
+                 },
+-                "not": {"required": ["zero_pc_sentinel"]}
++                "not": {
++                  "required": [
++                    "zero_pc_sentinel"
++                  ]
++                }
+               },
+               {
+                 "type": "object",
+-                "required": ["function", "file", "line", "pc", "zero_pc_sentinel"],
++                "required": [
++                  "function",
++                  "file",
++                  "line",
++                  "pc",
++                  "zero_pc_sentinel"
++                ],
+                 "properties": {
+-                  "function": {"const": ""},
+-                  "file": {"const": ""},
+-                  "line": {"const": 0},
+-                  "pc": {"const": 0},
+-                  "zero_pc_sentinel": {"const": true}
++                  "function": {
++                    "const": ""
++                  },
++                  "file": {
++                    "const": ""
++                  },
++                  "line": {
++                    "const": 0
++                  },
++                  "pc": {
++                    "const": 0
++                  },
++                  "zero_pc_sentinel": {
++                    "const": true
++                  }
+                 }
+               }
+             ]
+           }
+         },
+-        "category": {"type": "string"},
+-        "count": {"type": "integer", "minimum": 1},
+-        "duration_ns": {"type": "integer", "minimum": 1}
++        "category": {
++          "type": "string"
++        },
++        "count": {
++          "type": "integer",
++          "minimum": 1
++        },
++        "duration_ns": {
++          "type": "integer",
++          "minimum": 1
++        }
+       }
+     }
+   },
+-  "x-p2pstream-cohort-join-required": ["sequence", "server_binary_sha256", "server_source", "runner_sha256", "public_protocol", "certificate_sha256", "origin_identity"],
+-  "x-p2pstream-copy-duration-relation": "descriptive-only; do not require exact equality with trace timestamps"
++  "x-p2pstream-cohort-join-required": [
++    "sequence",
++    "server_binary_sha256",
++    "server_source",
++    "runner_sha256",
++    "public_protocol",
++    "certificate_sha256",
++    "origin_identity"
++  ],
++  "x-p2pstream-copy-duration-relation": "descriptive-only; do not require exact equality with trace timestamps",
++  "x-p2pstream-representation-budget": "512 MiB physical canonical input; NEW 4 GiB logical expanded parsed text; original 512 MiB full-text path remains rejected"
+ }
+--- /dev/null	2026-10-16 16:54:11.033646699 +0200
++++ tmp/continuation-20261016/wan-read-wait-stack-intern-source/stack_intern_format.py	2026-10-16 22:38:56.756870554 +0200
+@@ -0,0 +1,246 @@
++#!/usr/bin/env python3
++"""Bounded lossless container for pinned Go parsed trace stack interning."""
++
++from __future__ import annotations
++
++import hashlib
++from pathlib import Path
++import re
++import struct
++from typing import Iterator
++
++
++MAGIC = b"P2PSTREAM-PARSED-STACK-INTERN\x00\x01\n"
++TAG_LITERAL = 1
++TAG_DEFINITION = 2
++TAG_REFERENCE = 3
++TAG_FOOTER = 255
++RECORD_HEADER = struct.Struct(">BQ")
++STACK_META = struct.Struct(">I32sQ")
++FOOTER = struct.Struct(">QQIQQ32s32s")
++
++MAX_CANONICAL_BYTES = 512 * 1024 * 1024
++MAX_EXPANDED_BYTES = 4_294_967_296
++MAX_LINE_BYTES = 1024 * 1024
++MAX_EVENTS = 5_000_000
++MAX_EVENT_CONTINUATIONS = 4096
++MAX_EVENT_BYTES = 4 * 1024 * 1024
++MAX_STACK_DEFINITIONS = 4096
++MAX_DEFINITION_BYTES = 64 * 1024 * 1024
++
++HEADER_RE = re.compile(
++    rb"^M=(-?\d+) P=(-?\d+) G=(-?\d+) ([A-Za-z]+) Time=(\d+)(?: (.*))?\n?$"
++)
++
++
++class InvalidCanonicalTrace(Exception):
++    pass
++
++
++def _body_lines(body: bytes) -> Iterator[bytes]:
++    cursor = 0
++    while cursor < len(body):
++        newline = body.find(b"\n", cursor)
++        if newline < 0:
++            raise InvalidCanonicalTrace("stack definition has unterminated line")
++        line = body[cursor:newline + 1]
++        if len(line) > MAX_LINE_BYTES:
++            raise InvalidCanonicalTrace("stack definition line exceeds fixed bound")
++        yield line
++        cursor = newline + 1
++
++
++def _validate_stack_body(body: bytes) -> None:
++    lines = list(_body_lines(body))
++    if len(lines) % 2:
++        raise InvalidCanonicalTrace("stack definition has incomplete frame pair")
++    for index, line in enumerate(lines):
++        if index % 2 == 0:
++            if not line.startswith(b"\t") or line.startswith(b"\t\t"):
++                raise InvalidCanonicalTrace("stack definition has invalid function line")
++        elif not line.startswith(b"\t\t"):
++            raise InvalidCanonicalTrace("stack definition has invalid file line")
++
++
++def _literal_lines(payload: bytes) -> Iterator[bytes]:
++    if not payload:
++        raise InvalidCanonicalTrace("empty literal record")
++    yield from _body_lines(payload)
++
++
++class CanonicalReader:
++    """Expand one canonical file while validating every record and footer."""
++
++    def __init__(self, path: Path):
++        self.path = path
++        self.summary: dict | None = None
++
++    def iter_lines(self) -> Iterator[bytes]:
++        definitions: dict[int, tuple[bytes, bytes]] = {}
++        digests: dict[bytes, int] = {}
++        definition_bytes = 0
++        record_count = 0
++        expanded_bytes = 0
++        expanded_hash = hashlib.sha256()
++        prefooter_hash = hashlib.sha256()
++        event_count = 0
++        footer_seen = False
++        expect_stack_record = False
++
++        def emit(payload: bytes, allow_empty: bool = False) -> Iterator[bytes]:
++            nonlocal expanded_bytes, event_count
++            if not payload and allow_empty:
++                return
++            for line in _literal_lines(payload):
++                expanded_bytes += len(line)
++                if expanded_bytes > MAX_EXPANDED_BYTES:
++                    raise InvalidCanonicalTrace("logical expanded text exceeds fixed 4 GiB bound")
++                expanded_hash.update(line)
++                if HEADER_RE.match(line):
++                    event_count += 1
++                    if event_count > MAX_EVENTS:
++                        raise InvalidCanonicalTrace("event count exceeds fixed bound")
++                yield line
++
++        with self.path.open("rb", buffering=1024 * 1024) as stream:
++            magic = stream.read(len(MAGIC))
++            if magic != MAGIC:
++                raise InvalidCanonicalTrace("canonical magic/version mismatch")
++            prefooter_hash.update(magic)
++            while True:
++                header = stream.read(RECORD_HEADER.size)
++                if not header:
++                    raise InvalidCanonicalTrace("canonical footer is missing")
++                if len(header) != RECORD_HEADER.size:
++                    raise InvalidCanonicalTrace("truncated canonical record header")
++                tag, length = RECORD_HEADER.unpack(header)
++                if tag not in (TAG_LITERAL, TAG_DEFINITION, TAG_REFERENCE, TAG_FOOTER):
++                    raise InvalidCanonicalTrace("unknown canonical record tag")
++                if length > MAX_CANONICAL_BYTES:
++                    raise InvalidCanonicalTrace("canonical record length exceeds physical file bound")
++                if tag == TAG_LITERAL and (length == 0 or length > MAX_LINE_BYTES):
++                    raise InvalidCanonicalTrace("literal record size exceeds fixed bound")
++                if tag == TAG_DEFINITION and length > STACK_META.size + MAX_EVENT_BYTES:
++                    raise InvalidCanonicalTrace("stack definition record exceeds fixed bound")
++                if tag == TAG_REFERENCE and length != STACK_META.size:
++                    raise InvalidCanonicalTrace("stack reference record has invalid size")
++                if tag == TAG_FOOTER and length != FOOTER.size:
++                    raise InvalidCanonicalTrace("canonical footer has invalid size")
++                payload = stream.read(length)
++                if len(payload) != length:
++                    raise InvalidCanonicalTrace("truncated canonical record payload")
++                if tag == TAG_FOOTER:
++                    if footer_seen:
++                        raise InvalidCanonicalTrace("duplicate canonical footer")
++                    footer_seen = True
++                    if expect_stack_record:
++                        raise InvalidCanonicalTrace("canonical footer follows an unresolved stack marker")
++                    (
++                        expected_expanded_bytes,
++                        expected_events,
++                        expected_definitions,
++                        expected_definition_bytes,
++                        expected_records,
++                        expected_expanded_hash,
++                        expected_prefooter_hash,
++                    ) = FOOTER.unpack(payload)
++                    if expected_prefooter_hash != prefooter_hash.digest():
++                        raise InvalidCanonicalTrace("canonical pre-footer hash mismatch")
++                    if stream.read(1):
++                        raise InvalidCanonicalTrace("data follows canonical footer")
++                    if expected_expanded_bytes != expanded_bytes:
++                        raise InvalidCanonicalTrace("expanded byte ledger mismatch")
++                    if expected_expanded_hash != expanded_hash.digest():
++                        raise InvalidCanonicalTrace("expanded hash ledger mismatch")
++                    if expected_events != event_count:
++                        raise InvalidCanonicalTrace("event count ledger mismatch")
++                    if expected_definitions != len(definitions):
++                        raise InvalidCanonicalTrace("definition count ledger mismatch")
++                    if expected_definition_bytes != definition_bytes:
++                        raise InvalidCanonicalTrace("definition byte ledger mismatch")
++                    if expected_records != record_count:
++                        raise InvalidCanonicalTrace("record count ledger mismatch")
++                    self.summary = {
++                        "expanded_input_bytes": expanded_bytes,
++                        "expanded_input_sha256": expanded_hash.hexdigest(),
++                        "event_count": event_count,
++                        "definition_count": len(definitions),
++                        "definition_bytes": definition_bytes,
++                        "record_count": record_count,
++                        "canonical_prefooter_sha256": prefooter_hash.hexdigest(),
++                    }
++                    return
++
++                if footer_seen:
++                    raise InvalidCanonicalTrace("record follows canonical footer")
++                prefooter_hash.update(header)
++                prefooter_hash.update(payload)
++                record_count += 1
++
++                if tag == TAG_LITERAL:
++                    if expect_stack_record:
++                        raise InvalidCanonicalTrace("literal record replaces required stack record")
++                    lines = list(_literal_lines(payload))
++                    for index, line in enumerate(lines):
++                        if line.rstrip(b"\n") in (b"Stack=", b"TransitionStack="):
++                            if index != len(lines) - 1:
++                                raise InvalidCanonicalTrace("stack marker is not final in literal record")
++                            expect_stack_record = True
++                        yield from emit(line)
++                    continue
++                if not expect_stack_record:
++                    raise InvalidCanonicalTrace("stack record lacks preceding stack marker")
++                expect_stack_record = False
++                if len(payload) < STACK_META.size:
++                    raise InvalidCanonicalTrace("short stack record")
++                identifier, digest, body_length = STACK_META.unpack(payload[:STACK_META.size])
++                body = payload[STACK_META.size:]
++                if identifier == 0 or body_length > MAX_EVENT_BYTES:
++                    raise InvalidCanonicalTrace("invalid stack identifier or size")
++                if tag == TAG_DEFINITION:
++                    if identifier != len(definitions) + 1:
++                        raise InvalidCanonicalTrace("stack definitions are not sequential")
++                    if len(body) != body_length:
++                        raise InvalidCanonicalTrace("stack definition length mismatch")
++                    if digest in digests or identifier in definitions:
++                        raise InvalidCanonicalTrace("stack definition is redefined")
++                    if hashlib.sha256(body).digest() != digest:
++                        raise InvalidCanonicalTrace("stack definition digest mismatch")
++                    _validate_stack_body(body)
++                    if len(definitions) >= MAX_STACK_DEFINITIONS:
++                        raise InvalidCanonicalTrace("stack definition count exceeds fixed bound")
++                    definition_bytes += len(body)
++                    if definition_bytes > MAX_DEFINITION_BYTES:
++                        raise InvalidCanonicalTrace("decoded stack dictionary exceeds fixed 64 MiB bound")
++                    definitions[identifier] = (digest, body)
++                    digests[digest] = identifier
++                    yield from emit(body, allow_empty=True)
++                    continue
++
++                if len(body) != 0:
++                    raise InvalidCanonicalTrace("stack reference carries unexpected body")
++                definition = definitions.get(identifier)
++                if definition is None:
++                    raise InvalidCanonicalTrace("dangling stack reference")
++                expected_digest, defined_body = definition
++                if digest != expected_digest or body_length != len(defined_body):
++                    raise InvalidCanonicalTrace("stack reference metadata mismatch")
++                yield from emit(defined_body, allow_empty=True)
++
++
++def strict_ledger_keys() -> set[str]:
++    return {
++        "schema_version",
++        "format",
++        "canonical_bytes",
++        "canonical_sha256",
++        "expanded_input_bytes",
++        "expanded_input_sha256",
++        "event_count",
++        "definition_count",
++        "definition_bytes",
++        "record_count",
++        "canonical_prefooter_sha256",
++        "fixed_bounds",
++    }
++
+--- /dev/null	2026-10-16 16:54:11.033646699 +0200
++++ tmp/continuation-20261016/wan-read-wait-stack-intern-source/intern_parsed_trace.py	2026-10-16 22:33:04.138701290 +0200
+@@ -0,0 +1,264 @@
++#!/usr/bin/env python3
++"""Stream pinned Go parsed trace text into a bounded lossless stack container."""
++
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import struct
++import sys
++
++from stack_intern_format import (
++    FOOTER,
++    HEADER_RE,
++    MAGIC,
++    MAX_CANONICAL_BYTES,
++    MAX_DEFINITION_BYTES,
++    MAX_EVENT_BYTES,
++    MAX_EVENT_CONTINUATIONS,
++    MAX_EVENTS,
++    MAX_EXPANDED_BYTES,
++    MAX_LINE_BYTES,
++    MAX_STACK_DEFINITIONS,
++    RECORD_HEADER,
++    STACK_META,
++    TAG_DEFINITION,
++    TAG_FOOTER,
++    TAG_LITERAL,
++    TAG_REFERENCE,
++)
++
++
++class InternError(Exception):
++    pass
++
++
++def sha256_file(path: Path) -> str:
++    digest = hashlib.sha256()
++    with path.open("rb", buffering=1024 * 1024) as stream:
++        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
++            digest.update(chunk)
++    return digest.hexdigest()
++
++
++def open_input(path: str):
++    if path == "-":
++        return sys.stdin.buffer, False
++    return Path(path).open("rb", buffering=1024 * 1024), True
++
++
++def canonicalize(input_name: str, output_path: Path, ledger_path: Path) -> None:
++    if output_path == ledger_path:
++        raise InternError("output and ledger paths must differ")
++    if output_path.exists() or ledger_path.exists():
++        raise InternError("output and ledger must both be fresh")
++    output_created = False
++    ledger_created = False
++    source, close_source = open_input(input_name)
++    try:
++        descriptor = os.open(output_path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
++        output_created = True
++        with os.fdopen(descriptor, "w+b", buffering=1024 * 1024) as output:
++            canonical_hash = hashlib.sha256()
++            expanded_hash = hashlib.sha256()
++            dictionaries: dict[bytes, tuple[int, bytes]] = {}
++            expanded_bytes = 0
++            definition_bytes = 0
++            event_count = 0
++            record_count = 0
++            continuation_count = 0
++            event_bytes = 0
++            literal = bytearray()
++            pending: bytes | None = None
++
++            def raw_line() -> bytes | None:
++                nonlocal expanded_bytes
++                line = source.readline(MAX_LINE_BYTES + 1)
++                if not line:
++                    return None
++                if len(line) > MAX_LINE_BYTES or not line.endswith(b"\n"):
++                    raise InternError("parsed input line exceeds fixed line bound")
++                expanded_bytes += len(line)
++                if expanded_bytes > MAX_EXPANDED_BYTES:
++                    raise InternError("logical expanded text exceeds fixed 4 GiB bound")
++                expanded_hash.update(line)
++                return line
++
++            def account(line: bytes) -> bool:
++                nonlocal event_count, continuation_count, event_bytes
++                if HEADER_RE.match(line):
++                    event_count += 1
++                    if event_count > MAX_EVENTS:
++                        raise InternError("event count exceeds fixed bound")
++                    continuation_count = 0
++                    event_bytes = len(line)
++                    return True
++                if event_count == 0:
++                    raise InternError("continuation before first event")
++                continuation_count += 1
++                event_bytes += len(line)
++                if continuation_count > MAX_EVENT_CONTINUATIONS:
++                    raise InternError("event continuation count exceeds fixed bound")
++                if event_bytes > MAX_EVENT_BYTES:
++                    raise InternError("event byte count exceeds fixed bound")
++                return False
++
++            def raw_record(tag: int, payload: bytes) -> None:
++                nonlocal record_count
++                header = RECORD_HEADER.pack(tag, len(payload))
++                if output.tell() + len(header) + len(payload) + RECORD_HEADER.size + FOOTER.size > MAX_CANONICAL_BYTES:
++                    raise InternError("physical canonical file exceeds fixed 512 MiB bound")
++                output.write(header)
++                output.write(payload)
++                canonical_hash.update(header)
++                canonical_hash.update(payload)
++                record_count += 1
++
++            def flush_literal() -> None:
++                if literal:
++                    raw_record(TAG_LITERAL, bytes(literal))
++                    literal.clear()
++
++            def add_literal(line: bytes) -> None:
++                if literal and len(literal) + len(line) > MAX_LINE_BYTES:
++                    flush_literal()
++                literal.extend(line)
++
++            def emit_stack(body: bytes) -> None:
++                nonlocal definition_bytes
++                flush_literal()
++                digest = hashlib.sha256(body).digest()
++                previous = dictionaries.get(digest)
++                if previous is not None:
++                    identifier, previous_body = previous
++                    if previous_body != body:
++                        raise InternError("SHA-256 stack collision with unequal exact bytes")
++                    raw_record(TAG_REFERENCE, STACK_META.pack(identifier, digest, len(body)))
++                    return
++                if len(dictionaries) >= MAX_STACK_DEFINITIONS:
++                    raise InternError("stack definition count exceeds fixed bound")
++                if definition_bytes + len(body) > MAX_DEFINITION_BYTES:
++                    raise InternError("decoded stack dictionary exceeds fixed 64 MiB bound")
++                identifier = len(dictionaries) + 1
++                dictionaries[digest] = (identifier, body)
++                definition_bytes += len(body)
++                raw_record(TAG_DEFINITION, STACK_META.pack(identifier, digest, len(body)) + body)
++
++            output.write(MAGIC)
++            canonical_hash.update(MAGIC)
++            while True:
++                line = pending
++                pending = None
++                if line is None:
++                    line = raw_line()
++                if line is None:
++                    break
++                account(line)
++                add_literal(line)
++                stripped = line.rstrip(b"\n")
++                if stripped not in (b"Stack=", b"TransitionStack="):
++                    continue
++                body = bytearray()
++                while True:
++                    following = raw_line()
++                    if following is None:
++                        emit_stack(bytes(body))
++                        break
++                    if HEADER_RE.match(following):
++                        emit_stack(bytes(body))
++                        pending = following
++                        break
++                    account(following)
++                    if following == b"\n":
++                        emit_stack(bytes(body))
++                        add_literal(following)
++                        break
++                    body.extend(following)
++                    if len(body) > MAX_EVENT_BYTES:
++                        raise InternError("stack body exceeds fixed event byte bound")
++                if following is None:
++                    break
++
++            if event_count == 0:
++                raise InternError("parsed trace has no events")
++            flush_literal()
++            prefooter_hash = canonical_hash.digest()
++            footer = FOOTER.pack(
++                expanded_bytes,
++                event_count,
++                len(dictionaries),
++                definition_bytes,
++                record_count,
++                expanded_hash.digest(),
++                prefooter_hash,
++            )
++            footer_header = RECORD_HEADER.pack(TAG_FOOTER, len(footer))
++            if output.tell() + len(footer_header) + len(footer) > MAX_CANONICAL_BYTES:
++                raise InternError("physical canonical file exceeds fixed 512 MiB bound")
++            output.write(footer_header)
++            output.write(footer)
++            output.flush()
++            os.fsync(output.fileno())
++
++        canonical_bytes = output_path.stat().st_size
++        canonical_sha256 = sha256_file(output_path)
++        ledger = {
++            "schema_version": 1,
++            "format": "p2pstream-parsed-stack-intern-v1",
++            "canonical_bytes": canonical_bytes,
++            "canonical_sha256": canonical_sha256,
++            "expanded_input_bytes": expanded_bytes,
++            "expanded_input_sha256": expanded_hash.hexdigest(),
++            "event_count": event_count,
++            "definition_count": len(dictionaries),
++            "definition_bytes": definition_bytes,
++            "record_count": record_count,
++            "canonical_prefooter_sha256": prefooter_hash.hex(),
++            "fixed_bounds": {
++                "max_canonical_input_bytes": MAX_CANONICAL_BYTES,
++                "max_expanded_input_bytes": MAX_EXPANDED_BYTES,
++                "max_line_bytes": MAX_LINE_BYTES,
++                "max_events": MAX_EVENTS,
++                "max_event_continuations": MAX_EVENT_CONTINUATIONS,
++                "max_event_bytes": MAX_EVENT_BYTES,
++                "max_stack_definitions": MAX_STACK_DEFINITIONS,
++                "max_definition_bytes": MAX_DEFINITION_BYTES,
++            },
++        }
++        encoded = (json.dumps(ledger, indent=2, sort_keys=True) + "\n").encode()
++        ledger_descriptor = os.open(ledger_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
++        ledger_created = True
++        with os.fdopen(ledger_descriptor, "wb") as ledger_stream:
++            ledger_stream.write(encoded)
++            ledger_stream.flush()
++            os.fsync(ledger_stream.fileno())
++    except Exception:
++        if ledger_created:
++            ledger_path.unlink(missing_ok=True)
++        if output_created:
++            output_path.unlink(missing_ok=True)
++        raise
++    finally:
++        if close_source:
++            source.close()
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--input", default="-")
++    parser.add_argument("--output", required=True, type=Path)
++    parser.add_argument("--ledger", required=True, type=Path)
++    arguments = parser.parse_args()
++    try:
++        canonicalize(arguments.input, arguments.output, arguments.ledger)
++    except (InternError, OSError) as error:
++        print(f"stack interning failed: {error}", file=sys.stderr)
++        return 1
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+--- /dev/null	2026-10-16 16:54:11.033646699 +0200
++++ tmp/continuation-20261016/wan-read-wait-stack-intern-source/run_interned_trace_parser.py	2026-10-16 22:50:20.664531844 +0200
+@@ -0,0 +1,431 @@
++#!/usr/bin/env python3
++"""Run and join the pinned parsed-trace producer and stack canonicalizer."""
++
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import selectors
++import signal
++import stat
++import subprocess
++import time
++
++
++PINNED_GO = Path("/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go")
++PINNED_GO_SHA256 = "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
++PINNED_PYTHON = Path("/usr/bin/python3.14")
++PINNED_PYTHON_SHA256 = "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
++CANONICALIZER_SHA256 = "13154549ed10939e999a537fc8c52f23f42bad8c42d79b976fb16edf15725daa"
++FORMAT_MODULE_SHA256 = "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf"
++
++MAX_RAW_TRACE_BYTES = 64 * 1024 * 1024
++MAX_STDERR_BYTES = 1024 * 1024
++NORMAL_DEADLINE_SECONDS = 600
++TERM_GRACE_SECONDS = 5
++KILL_GRACE_SECONDS = 5
++POLL_SECONDS = 0.05
++
++CHILD_ENVIRONMENT = {
++    "GOENV": "off",
++    "GOTOOLCHAIN": "local",
++    "HOME": "/home/user",
++    "LANG": "C.UTF-8",
++    "LC_ALL": "C.UTF-8",
++    "PATH": "/usr/bin:/bin",
++    "PYTHONDONTWRITEBYTECODE": "1",
++    "PYTHONHASHSEED": "0",
++    "PYTHONNOUSERSITE": "1",
++    "TZ": "Europe/Zurich",
++}
++
++
++class AdapterError(Exception):
++    pass
++
++
++def sha256_file(path: Path) -> str:
++    digest = hashlib.sha256()
++    with path.open("rb", buffering=1024 * 1024) as stream:
++        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
++            digest.update(chunk)
++    return digest.hexdigest()
++
++
++def file_identity(path: Path, maximum: int | None = None) -> dict:
++    metadata = path.stat()
++    if not stat.S_ISREG(metadata.st_mode):
++        raise AdapterError(f"not a regular file: {path}")
++    if maximum is not None and (metadata.st_size <= 0 or metadata.st_size > maximum):
++        raise AdapterError(f"file size violates bound: {path}")
++    return {
++        "device": metadata.st_dev,
++        "inode": metadata.st_ino,
++        "size": metadata.st_size,
++        "mtime_ns": metadata.st_mtime_ns,
++        "ctime_ns": metadata.st_ctime_ns,
++        "sha256": sha256_file(path),
++    }
++
++
++def fresh_write(path: Path, payload: bytes) -> None:
++    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
++    with os.fdopen(descriptor, "wb") as stream:
++        stream.write(payload)
++        stream.flush()
++        os.fsync(stream.fileno())
++
++
++def group_exists(pgid: int | None) -> bool:
++    if pgid is None:
++        return False
++    try:
++        os.killpg(pgid, 0)
++        return True
++    except ProcessLookupError:
++        return False
++    except PermissionError:
++        return True
++
++
++def signal_group(pgid: int | None, requested: signal.Signals) -> bool:
++    if pgid is None or not group_exists(pgid):
++        return False
++    try:
++        os.killpg(pgid, requested)
++        return True
++    except ProcessLookupError:
++        return False
++
++
++def drain_until(
++    processes: list[subprocess.Popen],
++    selector: selectors.BaseSelector,
++    buffers: dict[int, bytearray],
++    overflows: dict[int, bool],
++    deadline: float,
++    stop_requested=None,
++) -> bool:
++    while True:
++        if stop_requested is not None and stop_requested():
++            return False
++        wait = min(POLL_SECONDS, max(0.0, deadline - time.monotonic()))
++        for key, _ in selector.select(timeout=wait):
++            try:
++                chunk = os.read(key.fd, 64 * 1024)
++            except BlockingIOError:
++                continue
++            if not chunk:
++                selector.unregister(key.fileobj)
++                key.fileobj.close()
++                continue
++            remaining = MAX_STDERR_BYTES - len(buffers[key.fd])
++            if remaining > 0:
++                buffers[key.fd].extend(chunk[:remaining])
++            if len(chunk) > remaining:
++                overflows[key.fd] = True
++        complete = all(process.poll() is not None for process in processes)
++        if complete and not selector.get_map():
++            return True
++        if time.monotonic() >= deadline:
++            return False
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--raw-trace", required=True, type=Path)
++    parser.add_argument("--working-directory", required=True, type=Path)
++    parser.add_argument("--canonical-output", required=True, type=Path)
++    parser.add_argument("--ledger", required=True, type=Path)
++    parser.add_argument("--parser-status", required=True, type=Path)
++    parser.add_argument("--canonicalizer-status", required=True, type=Path)
++    parser.add_argument("--parser-stderr", required=True, type=Path)
++    parser.add_argument("--canonicalizer-stderr", required=True, type=Path)
++    parser.add_argument("--process-record", required=True, type=Path)
++    arguments = parser.parse_args()
++
++    script_directory = Path(__file__).resolve(strict=True).parent
++    canonicalizer = (script_directory / "intern_parsed_trace.py").resolve(strict=True)
++    format_module = (script_directory / "stack_intern_format.py").resolve(strict=True)
++    go_binary = PINNED_GO.resolve(strict=True)
++    python_binary = PINNED_PYTHON.resolve(strict=True)
++    working_directory = arguments.working_directory.resolve(strict=True)
++    working_metadata = working_directory.stat()
++    if (not stat.S_ISDIR(working_metadata.st_mode) or working_metadata.st_uid != os.geteuid() or
++            working_metadata.st_mode & 0o022):
++        raise SystemExit("working directory must be an euid-owned non-group/world-writable directory")
++    working_identity = {
++        "device": working_metadata.st_dev,
++        "inode": working_metadata.st_ino,
++        "uid": working_metadata.st_uid,
++        "mode": stat.S_IMODE(working_metadata.st_mode),
++    }
++    raw_trace = arguments.raw_trace.resolve(strict=True)
++    raw_identity = file_identity(raw_trace, MAX_RAW_TRACE_BYTES)
++    pinned_inputs = {
++        "go": (go_binary, PINNED_GO_SHA256),
++        "python": (python_binary, PINNED_PYTHON_SHA256),
++        "canonicalizer": (canonicalizer, CANONICALIZER_SHA256),
++        "format_module": (format_module, FORMAT_MODULE_SHA256),
++    }
++    for label, (path, expected_hash) in pinned_inputs.items():
++        if sha256_file(path) != expected_hash:
++            raise SystemExit(f"pinned {label} hash mismatch")
++
++    output_names = {
++        "canonical_output": arguments.canonical_output,
++        "ledger": arguments.ledger,
++        "parser_status": arguments.parser_status,
++        "canonicalizer_status": arguments.canonicalizer_status,
++        "parser_stderr": arguments.parser_stderr,
++        "canonicalizer_stderr": arguments.canonicalizer_stderr,
++        "process_record": arguments.process_record,
++    }
++    outputs = {name: path.resolve(strict=False) for name, path in output_names.items()}
++    if len(set(outputs.values())) != len(outputs):
++        raise SystemExit("adapter output paths are not distinct")
++    input_paths = {raw_trace, go_binary, python_binary, canonicalizer, format_module}
++    if set(outputs.values()) & input_paths:
++        raise SystemExit("adapter output aliases an input")
++    for name, path in outputs.items():
++        if path.parent.resolve(strict=True) != working_directory or path.exists():
++            raise SystemExit(f"adapter output is not a fresh direct child of working directory: {name}")
++
++    parser_argv = [str(go_binary), "tool", "trace", "-d=parsed", str(raw_trace)]
++    canonicalizer_argv = [
++        str(python_binary), str(canonicalizer), "--input", "-",
++        "--output", str(outputs["canonical_output"]),
++        "--ledger", str(outputs["ledger"]),
++    ]
++    processes: list[subprocess.Popen] = []
++    parser_process = None
++    canonicalizer_process = None
++    parser_status = 127
++    canonicalizer_status = 127
++    timed_out = False
++    interrupted_signal = None
++    startup_error = None
++    term_attempted = {"parser": False, "canonicalizer": False}
++    kill_attempted = {"parser": False, "canonicalizer": False}
++    selector = selectors.DefaultSelector()
++    buffers: dict[int, bytearray] = {}
++    overflows: dict[int, bool] = {}
++
++    def install_pipe(pipe) -> None:
++        descriptor = pipe.fileno()
++        os.set_blocking(descriptor, False)
++        selector.register(pipe, selectors.EVENT_READ)
++        buffers[descriptor] = bytearray()
++        overflows[descriptor] = False
++
++    def interrupted(signum, _frame):
++        nonlocal interrupted_signal
++        if interrupted_signal is None:
++            interrupted_signal = signum
++
++    previous_term = signal.signal(signal.SIGTERM, interrupted)
++    previous_int = signal.signal(signal.SIGINT, interrupted)
++    success = False
++    try:
++        parser_process = subprocess.Popen(
++            parser_argv, cwd=working_directory, env=CHILD_ENVIRONMENT,
++            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
++            close_fds=True, start_new_session=True,
++        )
++        processes.append(parser_process)
++        install_pipe(parser_process.stderr)
++        try:
++            canonicalizer_process = subprocess.Popen(
++                canonicalizer_argv, cwd=working_directory, env=CHILD_ENVIRONMENT,
++                stdin=parser_process.stdout, stdout=subprocess.DEVNULL,
++                stderr=subprocess.PIPE, close_fds=True, start_new_session=True,
++            )
++            processes.append(canonicalizer_process)
++            install_pipe(canonicalizer_process.stderr)
++        finally:
++            if parser_process.stdout is not None:
++                parser_process.stdout.close()
++        if not drain_until(processes, selector, buffers, overflows,
++                           time.monotonic() + NORMAL_DEADLINE_SECONDS,
++                           lambda: interrupted_signal is not None):
++            if interrupted_signal is None:
++                timed_out = True
++                raise AdapterError("parser/canonicalizer exceeded fixed offline deadline")
++            raise AdapterError(f"parser adapter received signal {interrupted_signal}")
++        parser_status = parser_process.returncode
++        canonicalizer_status = canonicalizer_process.returncode
++        success = parser_status == 0 and canonicalizer_status == 0 and not any(overflows.values())
++    except BaseException as error:
++        startup_error = f"{type(error).__name__}: {error}"
++    finally:
++        signal.signal(signal.SIGTERM, signal.SIG_IGN)
++        signal.signal(signal.SIGINT, signal.SIG_IGN)
++        labels = (("parser", parser_process), ("canonicalizer", canonicalizer_process))
++        groups_need_cleanup = not success or any(
++            process is not None and group_exists(process.pid) for _, process in labels
++        )
++        if groups_need_cleanup:
++            success = False
++            for label, process in labels:
++                term_attempted[label] = signal_group(None if process is None else process.pid, signal.SIGTERM)
++            drain_until(processes, selector, buffers, overflows,
++                        time.monotonic() + TERM_GRACE_SECONDS)
++            for label, process in labels:
++                kill_attempted[label] = signal_group(None if process is None else process.pid, signal.SIGKILL)
++            drain_until(processes, selector, buffers, overflows,
++                        time.monotonic() + KILL_GRACE_SECONDS)
++        for process in processes:
++            process.poll()
++        if parser_process is not None and parser_process.returncode is not None:
++            parser_status = parser_process.returncode
++        if canonicalizer_process is not None and canonicalizer_process.returncode is not None:
++            canonicalizer_status = canonicalizer_process.returncode
++        for key in list(selector.get_map().values()):
++            selector.unregister(key.fileobj)
++            key.fileobj.close()
++        selector.close()
++
++    buffer_items = list(buffers.items())
++    parser_stderr = bytes(buffer_items[0][1]) if buffer_items else b""
++    canonicalizer_stderr = bytes(buffer_items[1][1]) if len(buffer_items) > 1 else b""
++    parser_overflow = bool(buffer_items and overflows[buffer_items[0][0]])
++    canonicalizer_overflow = bool(len(buffer_items) > 1 and overflows[buffer_items[1][0]])
++    try:
++        raw_post = file_identity(raw_trace, MAX_RAW_TRACE_BYTES)
++        raw_stable = raw_post == raw_identity
++    except (AdapterError, OSError) as error:
++        raw_post = {"error": f"{type(error).__name__}: {error}"}
++        raw_stable = False
++    try:
++        source_stable = all(
++            sha256_file(path) == expected for path, expected in pinned_inputs.values()
++        )
++    except OSError:
++        source_stable = False
++    parser_group_gone = parser_process is not None and not group_exists(parser_process.pid)
++    canonicalizer_group_gone = canonicalizer_process is not None and not group_exists(canonicalizer_process.pid)
++    parser_joined = parser_process is not None and parser_process.returncode is not None
++    canonicalizer_joined = canonicalizer_process is not None and canonicalizer_process.returncode is not None
++    try:
++        working_post_metadata = working_directory.stat()
++        working_post_identity = {
++            "device": working_post_metadata.st_dev,
++            "inode": working_post_metadata.st_ino,
++            "uid": working_post_metadata.st_uid,
++            "mode": stat.S_IMODE(working_post_metadata.st_mode),
++        }
++        working_stable = working_post_identity == working_identity
++    except OSError as error:
++        working_post_identity = {"error": f"{type(error).__name__}: {error}"}
++        working_stable = False
++    artifact_identities = {}
++    artifact_error = None
++    if success:
++        try:
++            artifact_identities = {
++                "canonical_output": file_identity(outputs["canonical_output"], 512 * 1024 * 1024),
++                "ledger": file_identity(outputs["ledger"], 64 * 1024),
++            }
++        except (AdapterError, OSError) as error:
++            artifact_error = f"{type(error).__name__}: {error}"
++            success = False
++    accepted = (
++        success and raw_stable and source_stable and parser_joined and canonicalizer_joined and
++        parser_group_gone and canonicalizer_group_gone and not parser_overflow and
++        not canonicalizer_overflow and interrupted_signal is None and not timed_out and
++        startup_error is None and artifact_error is None and working_stable
++    )
++    removed_invalid_artifacts = {}
++    if not accepted:
++        cleanup_safe = (
++            (parser_process is None or (parser_joined and parser_group_gone)) and
++            (canonicalizer_process is None or (canonicalizer_joined and canonicalizer_group_gone))
++        )
++        for name in ("canonical_output", "ledger"):
++            path = outputs[name]
++            if not path.exists():
++                removed_invalid_artifacts[name] = {"existed": False, "removed": False}
++                continue
++            try:
++                identity = file_identity(path)
++            except (AdapterError, OSError) as error:
++                identity = {"error": f"{type(error).__name__}: {error}"}
++            removed = False
++            removal_error = None
++            if cleanup_safe:
++                try:
++                    path.unlink()
++                    removed = True
++                except OSError as error:
++                    removal_error = f"{type(error).__name__}: {error}"
++            else:
++                removal_error = "removal skipped because an owned process group did not join"
++            removed_invalid_artifacts[name] = {
++                "existed": True,
++                "identity": identity,
++                "removed": removed,
++                "removal_error": removal_error,
++            }
++    fresh_write(outputs["parser_stderr"], parser_stderr)
++    fresh_write(outputs["canonicalizer_stderr"], canonicalizer_stderr)
++    fresh_write(outputs["parser_status"], f"{parser_status}\n".encode())
++    fresh_write(outputs["canonicalizer_status"], f"{canonicalizer_status}\n".encode())
++    record = {
++        "schema_version": 1,
++        "accepted": accepted,
++        "working_directory": str(working_directory),
++        "working_directory_identity": working_identity,
++        "working_directory_post_identity": working_post_identity,
++        "working_directory_stable": working_stable,
++        "environment": CHILD_ENVIRONMENT,
++        "parser_argv": parser_argv,
++        "canonicalizer_argv": canonicalizer_argv,
++        "raw_trace": {"path": str(raw_trace), "pre": raw_identity, "post": raw_post, "stable": raw_stable},
++        "pinned_inputs": {
++            label: {"path": str(path), "sha256": expected}
++            for label, (path, expected) in pinned_inputs.items()
++        },
++        "parser": {
++            "pid": None if parser_process is None else parser_process.pid,
++            "pgid": None if parser_process is None else parser_process.pid,
++            "status": parser_status, "joined": parser_joined,
++            "group_gone": parser_group_gone,
++            "term_attempted": term_attempted["parser"],
++            "kill_attempted": kill_attempted["parser"],
++            "stderr_bytes": len(parser_stderr), "stderr_overflow": parser_overflow,
++        },
++        "canonicalizer": {
++            "pid": None if canonicalizer_process is None else canonicalizer_process.pid,
++            "pgid": None if canonicalizer_process is None else canonicalizer_process.pid,
++            "status": canonicalizer_status, "joined": canonicalizer_joined,
++            "group_gone": canonicalizer_group_gone,
++            "term_attempted": term_attempted["canonicalizer"],
++            "kill_attempted": kill_attempted["canonicalizer"],
++            "stderr_bytes": len(canonicalizer_stderr),
++            "stderr_overflow": canonicalizer_overflow,
++        },
++        "limits": {
++            "max_raw_trace_bytes": MAX_RAW_TRACE_BYTES,
++            "max_stderr_bytes": MAX_STDERR_BYTES,
++            "normal_deadline_seconds": NORMAL_DEADLINE_SECONDS,
++            "term_grace_seconds": TERM_GRACE_SECONDS,
++            "kill_grace_seconds": KILL_GRACE_SECONDS,
++        },
++        "source_stable": source_stable, "timed_out": timed_out,
++        "interrupted_signal": interrupted_signal, "startup_error": startup_error,
++        "artifact_identities": artifact_identities,
++        "artifact_error": artifact_error,
++        "removed_invalid_artifacts": removed_invalid_artifacts,
++    }
++    fresh_write(outputs["process_record"],
++                (json.dumps(record, indent=2, sort_keys=True) + "\n").encode())
++    signal.signal(signal.SIGTERM, previous_term)
++    signal.signal(signal.SIGINT, previous_int)
++    return 0 if accepted else 1
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+--- /dev/null	2026-10-16 16:54:11.033646699 +0200
++++ tmp/continuation-20261016/wan-read-wait-stack-intern-source/DESIGN.md	2026-10-16 22:50:20.664531844 +0200
+@@ -0,0 +1,74 @@
++# Lossless parsed-trace stack interning derivative
++
++This is an offline diagnostic representation change. It does not change the
++WAN endpoint, handler region, trace capture, timed runner, public listener,
++copy observer, transport policy, resource policy, or performance gates. The
++original direct parsed-text path remains frozen and rejected for sustained
++use because its 512 MiB file cap is plausibly exceeded.
++
++The new path keeps the existing 64 MiB raw runtime-trace cap and 512 MiB
++physical analyzer-input cap. It introduces a separately declared logical
++expanded-text cap of exactly 4,294,967,296 bytes. This is a new offline
++representation budget, chosen before traffic to contain the conservative
++2.56 GB H2 projection. No buffer is sized to that limit.
++
++`run_interned_trace_parser.py` starts pinned Go 1.26.6 `tool trace -d=parsed`
++and `intern_parsed_trace.py` as separate joined processes connected by one
++pipe. It waits for both and writes their exact statuses and PIDs to fresh
++files. A valid prefix cannot pass: the analyzer requires exact parser and
++canonicalizer status `0\n`, and the canonical stream requires its footer.
++The adapter pins the exact Go, Python, canonicalizer, and format-module paths
++and hashes; uses a fixed non-secret environment; binds a regular raw trace no
++larger than 64 MiB before and after parsing; and requires distinct fresh output
++paths in one owned working directory. Each child owns a new process group.
++The clean environment pins `TZ=Europe/Zurich` to match the frozen parser
++evidence and workspace timezone; exact Sync wall lines remain part of the
++byte-for-byte expanded-stream contract.
++The offline normal deadline is 600 seconds; TERM and KILL join windows are five
++seconds each. Parser and canonicalizer stderr are independently drained with a
++1 MiB stored cap; overflow invalidates while the pipe continues to drain.
++The working directory must be owned by the effective user and cannot be group
++or world writable; its identity and mode must remain stable. The signal handler
++records rather than raises during child creation, so ownership registration
++cannot be interrupted between `Popen` and process-group tracking. Cleanup then
++ignores further INT/TERM through exact sidecar publication. Invalid
++canonical/ledger remnants are hashed, recorded, and removed only after every
++started owned process group has joined; an unjoined group leaves them preserved
++and invalid.
++
++The canonical format starts with a fixed versioned magic and uses length
++framed records:
++
++- literal records preserve all event headers, markers, blank lines, ordering,
++  timestamps, and non-stack continuations byte-for-byte;
++- definition records contain a sequential ID, SHA-256, exact byte length, and
++  exact stack body, and also represent the first occurrence;
++- reference records contain the already-defined ID, SHA-256, and exact byte
++  length;
++- the terminal footer binds expanded byte count and SHA-256, event count,
++  definition count/bytes, record count, and SHA-256 of every canonical byte
++  preceding the footer.
++
++Definitions must precede references. IDs are sequential. Digests cannot be
++redefined. The producer compares exact bytes whenever a digest repeats, so a
++SHA-256 collision with unequal bytes fails. The decoder independently hashes
++each definition and rejects dangling references, redefinitions, mismatched
++lengths/digests, unknown tags, trailing bytes, and malformed stack bodies.
++The separate ledger binds the final canonical file byte count and SHA-256 to
++the footer's expanded ledger.
++
++Streaming bounds are exact: 1 MiB per input line, 4 MiB per event, 4,096
++continuations per event, 5,000,000 events, 4,096 stack definitions, and 64 MiB
++total decoded unique stack bytes. The explicitly bounded payload buffers are
++the 64 MiB dictionary, one at-most-4-MiB stack body, and a 1 MiB literal
++buffer. Python objects, parsed frame objects, and runtime overhead make total
++RSS larger; this design does not claim a hard process-memory bound. The 4 GiB
++logical stream is never materialized. The reducer still caps wait stack groups
++at 4,096 and output at 8 MiB.
++
++`analyze_interned_trace.py` changes only the input reader and provenance
++checks. Marker binding, state partitioning, zero-PC handling, wait
++classification, conservation, and acceptance rules are copied unchanged from
++the reviewed zero-PC analyzer SHA-256
++`93e77e225cc4fae271dfe31a4903564c080600b3218d5d11a787262e164e3455`.
++
+--- /dev/null	2026-10-16 16:54:11.033646699 +0200
++++ tmp/continuation-20261016/wan-read-wait-stack-intern-source/TEST-PLAN.md	2026-10-16 22:47:22.048828708 +0200
+@@ -0,0 +1,67 @@
++# Focused verification plan (not yet executed)
++
++No test or trace parser is run before source review.
++
++## Exact closed-trace controls
++
++For each of the same six frozen tiny parsed artifacts (H1 and H2 sequences
++9, 11, and 13):
++
++1. Intern into a fresh canonical file and ledger.
++2. Stream-expand it into a fresh file and require byte-for-byte equality,
++   equal byte count, and equal SHA-256 with the original parsed artifact.
++3. Run the derivative reducer with exact parser/canonicalizer `0\n` statuses.
++4. Require marker and reduction objects to equal the already accepted
++   corrected reduction exactly. Differences are permitted only in the new
++   input-representation/provenance fields.
++5. Bind process statuses/PIDs, require both children joined, and require no
++   remaining process. Parser or canonicalizer nonzero makes the record
++   invalid even if the other produced a syntactically complete prefix.
++
++## Format and bound negatives
++
++Construct fixed small canonical fixtures for: missing footer, truncated
++record, trailing data, unknown tag, dangling reference, nonsequential ID,
++duplicate/redefined ID or digest, definition digest mismatch, reference
++length/digest mismatch, malformed stack lines, literal replacing a required
++stack record, and a stack record without a marker. Each must fail closed.
++An empty background `Stack=` or `TransitionStack=` must round-trip exactly;
++the inherited analyzer must still reject a positive handler waiting interval
++whose transition has no stack.
++
++Use locally reduced test-only constants to exercise logical expansion,
++physical output, line, event, continuation, definition-count, and total
++definition-byte exhaustion without allocating near production bounds. Verify
++the production constants separately by exact source/schema assertions. A
++forced digest collision with unequal bodies must fail at the producer.
++
++## Status, mutation, and cleanup negatives
++
++- parser nonzero with a valid canonical prefix;
++- canonicalizer nonzero with parser zero;
++- missing, malformed, or changed status and ledger files;
++- ledger canonical/expanded hash, byte, count, bounds, or footer mismatch;
++- canonical or ledger mutation between analyzer passes;
++- producer input error and output/ledger creation error, requiring no partial
++  canonical output or ledger owned by that failed invocation;
++- adapter interruption, startup failure, and producer/consumer failure,
++  requiring both started child process groups joined and exact statuses
++  recorded; TERM-ignoring descendants exercise the bounded KILL fallback;
++- SIGINT/SIGTERM delivered at each child-start ownership boundary and again
++  during sidecar publication, requiring no unowned group or missing record;
++- raw trace nonregular/empty/over-64-MiB/mutated cases, inherited-environment
++  exclusion, source/tool hash mismatch, duplicate/aliased/preexisting outputs,
++  unsafe or replaced working directory, stderr overflow, and the fixed offline
++  deadline. Forced cleanup records and removes partial canonical/ledger files
++  only after every started process group joins.
++
++## Static integration checks
++
++The later runner derivative must bind the exact canonicalizer, format module,
++adapter, analyzer, schema, and test hashes. It must retain the frozen timed
++runner byte-for-byte, run canonicalization only after handler/endpoint exit,
++capture parser/canonicalizer/adapter statuses separately, require the process
++record's exact natural joins, pin per-sequence canonical/ledger/status paths,
++and retain all inherited TLS, protocol, payload, copy, reuse, resource,
++lifecycle, floor, and conditioning checks.
++
+--- /dev/null	2026-10-16 16:54:11.033646699 +0200
++++ tmp/continuation-20261016/wan-read-wait-stack-intern-source/PREDECESSOR-SHA256.txt	2026-10-16 22:43:17.146992644 +0200
+@@ -0,0 +1,4 @@
++93e77e225cc4fae271dfe31a4903564c080600b3218d5d11a787262e164e3455  /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-zero-pc-analyzer-source/analyze_parsed_trace.py
++4097ad6cff150fced9d96e1b3706e7b51e5a7bbe8c3e25187bd390b0722bc893  /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-zero-pc-analyzer-source/OUTPUT-SCHEMA.json
++8b187e6efb441531e0c2109cc1b251a7f732eb54c9f7373c95ed7bb7a01bce4b  /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-zero-pc-analyzer-source/review/sustained-parser-cap-risk/REPORT.md
++2edb3df431f0b5c7558e2cad183d4250f5efbadbd9981b1a50bb7c43f337f026  /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-zero-pc-analyzer-source/review/sustained-parser-cap-risk/REPORT-UNITS-NOTE.md

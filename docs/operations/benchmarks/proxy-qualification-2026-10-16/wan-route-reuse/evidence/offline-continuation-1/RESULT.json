@@ -1,0 +1,14 @@
+{
+  "accepted": true,
+  "complete_logs_retained": true,
+  "fresh_tests": 1,
+  "inputs_unchanged": true,
+  "method_equivalence_sha256": "de34bedeb184349f6895df52e0ef0699cf5d109015f28725ab3cca652b9ab07f",
+  "no_endpoints_or_traffic": true,
+  "original_failed_result_sha256": "d756c69b9878a9a50997f31707bb8e35c560393c904322b445142c743ce90036",
+  "outer_sha256": "38145036f75bbcf237c6c0b7718244c1f249cf79ab00b1579912cbebf6bfea15",
+  "pinned_input_count": 523,
+  "plan_sha256": "2f0ebe92fe8940ac01df3f29857e7bd6227f58289f14ad37248774a371e51887",
+  "reused_tests": 4,
+  "status": 0
+}

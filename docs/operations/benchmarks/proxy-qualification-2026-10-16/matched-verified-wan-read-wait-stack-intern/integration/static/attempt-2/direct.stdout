@@ -1,0 +1,10 @@
+COMPACT-CHECKPOINT.json: OK
+INTEGRATION-DESIGN.md: OK
+PREDECESSOR-SHA256.txt: OK
+SOURCE-HASHES.txt: OK
+integration-checkpoint-1-to-2.patch: OK
+run-static-integration-checks.sh: OK
+run-wan-read-wait-arm.sh: OK
+run-wan-read-wait-diagnostic.sh: OK
+validate-wan-read-wait-arm.py: OK
+static compact integration checks passed

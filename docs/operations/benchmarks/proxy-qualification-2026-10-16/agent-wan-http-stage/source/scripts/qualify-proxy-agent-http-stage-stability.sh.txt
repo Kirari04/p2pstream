@@ -1,0 +1,355 @@
+#!/usr/bin/env bash
+# Freeze and own one diagnostic-only native HTTP/1 agent-stage screen.
+set -Eeuo pipefail
+
+runner=""
+server_binary=""
+agent_binary=""
+source_ref=""
+build_manifest=""
+expected_runner_sha256=""
+expected_server_sha256=""
+expected_agent_sha256=""
+expected_build_manifest_sha256=""
+output_dir=""
+preflight_only=0
+
+while (($#)); do
+  case "$1" in
+    --runner) runner=$2; shift 2 ;;
+    --server-binary) server_binary=$2; shift 2 ;;
+    --agent-binary) agent_binary=$2; shift 2 ;;
+    --source-ref) source_ref=$2; shift 2 ;;
+    --build-manifest) build_manifest=$2; shift 2 ;;
+    --expected-runner-sha256) expected_runner_sha256=$2; shift 2 ;;
+    --expected-server-sha256) expected_server_sha256=$2; shift 2 ;;
+    --expected-agent-sha256) expected_agent_sha256=$2; shift 2 ;;
+    --expected-build-manifest-sha256) expected_build_manifest_sha256=$2; shift 2 ;;
+    --output-dir) output_dir=$2; shift 2 ;;
+    --preflight-only) preflight_only=1; shift ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+is_sha256() { [[ $1 =~ ^[0-9a-f]{64}$ ]]; }
+fixed_source_ref=364e7744603841f5d306f4c242f3acd2b04183bf
+fixed_runner_sha256=6188584e29e901f23723b1e3152009d2176999c858acde3c4c3cb9b2d0e5d0bb
+fixed_server_sha256=3e74cf33e4814eaea0dd255f100fa36f1156b4672ae79bf990566002838f6a0d
+fixed_agent_sha256=07bbdf9f85216d7d8100c3483cdfca2d72cd3a99de7c030a8a50574d24c1b31f
+fixed_manifest_sha256=54a41841370ed5db8fad65cec2bddd1d97bca8e422fbd5e3d7ab111f784b249c
+fixed_checksum_index_sha256=b817216364e18b9033e414db171f58f414781cd6074ec70eecd2d9c388636eb1
+fixed_checksum_entries=904
+fixed_base_commit=ccb9c9cb683b555044033d68ff59112aa4bf21d9
+fixed_accepted_tree=40e1046c2f68ee3d545dfd582cd424c2f3604b2a
+fixed_accepted_overlay_sha256=67d8434cdc2c616c89d2d60ea3cb2d57e37071278c8638942bc82581916e9037
+fixed_eof_review_sha256=8bdaac6f39e191b6848abfe765a37078e3bd86aae6d8f351d09a531077d651b1
+fixed_http_overlay_sha256=df69555d8bd7ff561623e30469b554dc4cc5b05c0afe481013694d704e01c255
+fixed_configuration_sha256=386ad1d2b1a469a6dad261a61d533e13a3e3e2d6ed6f7d7ee3948d2f5282978a
+fixed_validation_sha256=acaeeb96c43d12036c01a9d8fc2d5b739a964488ffc2a8428ec9bc41416c832f
+fixed_payload_sha256=721c6db233ff1ebd27b45d87f6d5e9252cb1eb7c2f31c1a0bb2e3b81c2c6d368
+fixed_go_binary=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go
+fixed_server_build_id='c6m16llWWKp-BHDcZOeo/1Ede0Cyqg_MjNjeEIeD0/LOREtsAeR64QNQqO6OZ-/9UMzTXmZVd4WYrrIKXfr'
+fixed_agent_build_id='nDxClBuvL2HZsjzRrJiS/1GTZvDUpaXVj_10Nggiz/LsEG8aUMVsaaUjKvGX8-/8mLo-PnoqwCInaT5vTo1'
+
+[[ -f $runner && -x $server_binary && -x $agent_binary && -f $build_manifest &&
+   $source_ref =~ ^[0-9a-f]{40}$ && -n $output_dir ]] || {
+  echo "runner, server/agent binaries, source ref, build manifest and output dir are required" >&2
+  exit 2
+}
+for digest in "$expected_runner_sha256" "$expected_server_sha256" \
+  "$expected_agent_sha256" "$expected_build_manifest_sha256"; do
+  is_sha256 "$digest" || { echo "all expected identities must be lowercase full SHA-256 values" >&2; exit 2; }
+done
+[[ $source_ref == "$fixed_source_ref" && $expected_runner_sha256 == "$fixed_runner_sha256" &&
+   $expected_server_sha256 == "$fixed_server_sha256" && $expected_agent_sha256 == "$fixed_agent_sha256" &&
+   $expected_build_manifest_sha256 == "$fixed_manifest_sha256" ]] || {
+  echo "requested identities do not match the immutable native HTTP-stage bundle" >&2
+  exit 2
+}
+for tool in find jq python3 realpath setsid sha256sum unshare; do
+  command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 2; }
+done
+[[ $EUID -eq 0 ]] || { echo "the owned PID/network namespace fixture requires root" >&2; exit 2; }
+wrapper_initial_sha256=$(sha256sum "$0" | awk '{print $1}')
+
+runner=$(realpath "$runner")
+server_binary=$(realpath "$server_binary")
+agent_binary=$(realpath "$agent_binary")
+build_manifest=$(realpath "$build_manifest")
+[[ $(sha256sum "$runner" | awk '{print $1}') == "$expected_runner_sha256" ]] || { echo "runner hash mismatch" >&2; exit 2; }
+[[ $(sha256sum "$server_binary" | awk '{print $1}') == "$expected_server_sha256" ]] || { echo "server binary hash mismatch" >&2; exit 2; }
+[[ $(sha256sum "$agent_binary" | awk '{print $1}') == "$expected_agent_sha256" ]] || { echo "agent binary hash mismatch" >&2; exit 2; }
+[[ $(sha256sum "$build_manifest" | awk '{print $1}') == "$expected_build_manifest_sha256" ]] || { echo "build manifest hash mismatch" >&2; exit 2; }
+
+bundle_root=$(dirname "$build_manifest")
+[[ -f $bundle_root/SHA256SUMS ]] || { echo "bundle SHA256SUMS is required" >&2; exit 2; }
+[[ $(sha256sum "$bundle_root/SHA256SUMS" | awk '{print $1}') == "$fixed_checksum_index_sha256" ]] || {
+  echo "bundle checksum index hash mismatch" >&2
+  exit 2
+}
+python3 - "$bundle_root" "$fixed_checksum_entries" <<'PY'
+import hashlib,os,re,stat,sys
+from pathlib import Path,PurePosixPath
+root=Path(sys.argv[1]); expected_count=int(sys.argv[2]); index=root/'SHA256SUMS'
+regular_files=set(); stack=[root]
+while stack:
+    directory=stack.pop()
+    with os.scandir(directory) as entries:
+        for entry in entries:
+            relative=str(Path(entry.path).relative_to(root))
+            if entry.is_symlink(): raise SystemExit(f"bundle symlink is forbidden: {relative}")
+            mode=entry.stat(follow_symlinks=False).st_mode
+            if stat.S_ISDIR(mode): stack.append(Path(entry.path))
+            elif stat.S_ISREG(mode): regular_files.add(relative)
+            else: raise SystemExit(f"bundle nonregular node is forbidden: {relative}")
+rows=[]; seen=set()
+for number,line in enumerate(index.read_text().splitlines(),1):
+    match=re.fullmatch(r"([0-9a-f]{64})  (.+)",line)
+    if not match: raise SystemExit(f"malformed checksum line {number}")
+    digest,relative=match.groups(); path=PurePosixPath(relative)
+    if path.is_absolute() or not path.parts or any(part in ("",".","..") for part in path.parts) or relative in seen:
+        raise SystemExit(f"unsafe checksum path {relative!r}")
+    seen.add(relative); target=root.joinpath(*path.parts)
+    if not target.is_file() or target.is_symlink(): raise SystemExit(f"indexed path is not a regular file: {relative}")
+    if hashlib.sha256(target.read_bytes()).hexdigest()!=digest: raise SystemExit(f"checksum mismatch: {relative}")
+    rows.append(relative)
+if len(rows)!=expected_count: raise SystemExit(f"checksum entry count {len(rows)} != {expected_count}")
+actual={relative for relative in regular_files if relative!='SHA256SUMS'}
+if actual!=seen: raise SystemExit(f"indexed file set mismatch: missing={sorted(actual-seen)} extra={sorted(seen-actual)}")
+PY
+
+python3 - "$build_manifest" "$fixed_base_commit" "$fixed_accepted_tree" "$fixed_source_ref" \
+  "$fixed_accepted_overlay_sha256" "$fixed_eof_review_sha256" "$fixed_http_overlay_sha256" \
+  "$fixed_configuration_sha256" "$fixed_validation_sha256" "$fixed_payload_sha256" \
+  "$fixed_runner_sha256" "$fixed_server_sha256" "$fixed_agent_sha256" \
+  "$fixed_server_build_id" "$fixed_agent_build_id" "$fixed_go_binary" <<'PY'
+import hashlib,json,re,sys
+from pathlib import Path
+(path,base,accepted_tree,source_ref,accepted_overlay,eof_review,http_overlay,configuration_sha,
+ validation_sha,payload_sha,runner_sha,server_sha,agent_sha,server_build_id,agent_build_id,go_binary)=sys.argv[1:]
+value=json.loads(Path(path).read_text())
+def require(condition,message):
+    if not condition: raise SystemExit(message)
+def canonical_sha(item):
+    return hashlib.sha256(json.dumps(item,sort_keys=True,separators=(",",":")).encode()).hexdigest()
+require(set(value)=={"schema_version","kind","scope","base_commit","accepted_transport","http_stage","ordinary_tags","configuration","payload","binaries","runner","toolchain","validation","traffic_executed","wrapper_executed"},"manifest top-level schema")
+require(value["schema_version"]==1 and value["kind"]=="p2pstream-agent-http-stage-build-bundle-v1" and value["base_commit"]==base,"manifest identity")
+require(value["scope"]=="test-build-only native HTTP/1 agent-stage diagnostic; no production change and no traffic result","manifest scope")
+accepted=value["accepted_transport"]
+require(accepted=={"source_tree_sha1":accepted_tree,"patch":{"path":"overlay/accepted-transport-ceiling.patch","sha256":accepted_overlay},"eof_review_patch":{"path":"overlay/accepted-eof-correction-review.patch","sha256":eof_review}},"accepted transport identity")
+http=value["http_stage"]
+require(http.get("source_tree_sha1")==source_ref and http.get("patch")=={"path":"overlay/http-stage.patch","sha256":http_overlay},"HTTP-stage identity")
+expected_files={
+ "source/internal/agent/http_stage_qualification_linux_test.go":"e8196ab8fcec2100d4f8c2da170117f79958105aa6a545a3e52a40581fffb532",
+ "source/internal/server/http_stage_qualification_linux_test.go":"e9bbe9fc6a9ec59a47314ddcfca1705ebacb8fd05835a90ae903598719f5fa64",
+ "source/internal/tunnel/http_stage_qualification_linux.go":"ca0e093473a66d8be91940b76dbaf1a6a01fb1d2a2a616e4e236f2cb9ba57e81",
+ "source/internal/tunnel/http_stage_qualification_linux_test.go":"6cd7d516088bab10627ce7bd818a9bfb753334933c9c6cb32c27d5d936a9551e"}
+require(http.get("selected_files")==expected_files,"HTTP-stage selected files")
+require(value["ordinary_tags"]==["p2pstream_transport_ceiling","p2pstream_http_stage"],"manifest tags")
+configuration=value["configuration"]
+require(set(configuration)=={"server","agent"} and canonical_sha(configuration)==configuration_sha,"manifest configuration identity")
+for role in ("server","agent"):
+    item=configuration[role]
+    require(isinstance(item,dict) and set(item)=={"tls_yamux_configuration","fixed_capacity_streams","http_idle_timeout_nanoseconds","response_header_timeout_nanoseconds","max_idle_connections","max_idle_connections_per_host","max_connections_per_host","disable_keep_alives","response_pump_buffer_bytes","final_consumer_read_bytes","origin_write_bytes","origin_flush","upload_origin_io_copy_sha256","conditioning_closes_whole_pool"},f"manifest {role} configuration schema")
+    require(item["fixed_capacity_streams"]==16 and item["max_idle_connections"]==11 and item["max_idle_connections_per_host"]==11 and item["http_idle_timeout_nanoseconds"]==30000000000 and item["response_header_timeout_nanoseconds"]==90000000000,f"manifest {role} HTTP settings")
+    require(item["response_pump_buffer_bytes"]==32768 and item["final_consumer_read_bytes"]==8192 and item["origin_write_bytes"]==35840 and item["origin_flush"] is False and item["upload_origin_io_copy_sha256"] is True and item["conditioning_closes_whole_pool"] is True,f"manifest {role} data boundaries")
+    tls=item["tls_yamux_configuration"]
+    require(isinstance(tls,dict) and tls.get("yamux_enabled") is True and tls.get("data_incoming_hard_bound")==(-1 if role=="server" else 16),f"manifest {role} TLS/Yamux settings")
+require(canonical_sha(value["validation"])==validation_sha and value["validation"]["pure_validator"]["final_case_count"]==28 and value["validation"]["pure_validator"]["final_failed_count"]==0,"manifest validation")
+require(canonical_sha(value["payload"])==payload_sha and value["payload"]=={"bytes":268435456,"download_sha256":"e1a511c229b7fdd398a94b74c98b7f16411fa0ec93302744f7e5d959275a907a","upload_sha256":"a6d72ac7690f53be6ae46ba88506bd97302a093f7108472bd9efc3cefda06484"},"manifest payload")
+require(value["runner"]=={"path":"scripts/qualify-proxy-agent-http-stage.sh","sha256":runner_sha,"wrapper_status":"deferred; no wrapper included or executed"},"manifest runner")
+expected={"server":("bin/http-stage-server.test",server_sha,server_build_id),"agent":("bin/http-stage-agent.test",agent_sha,agent_build_id)}
+for role,(binary_path,digest,build_id) in expected.items():
+    require(value["binaries"].get(role)=={"path":binary_path,"sha256":digest,"build_id":build_id},f"manifest {role} binary")
+toolchain=value["toolchain"]
+require(toolchain=={"go_binary":go_binary,"go_version":"go1.26.6","goarch":"amd64","goflags":"","goos":"linux","gotoolchain":"local","gowork":"off"},"manifest toolchain")
+require(value["traffic_executed"] is False and value["wrapper_executed"] is False,"manifest pre-traffic state")
+PY
+[[ -x $fixed_go_binary ]] || { echo "pinned Go binary is unavailable" >&2; exit 2; }
+[[ $($fixed_go_binary tool buildid "$server_binary") == "$fixed_server_build_id" ]] || { echo "server build ID mismatch" >&2; exit 2; }
+[[ $($fixed_go_binary tool buildid "$agent_binary") == "$fixed_agent_build_id" ]] || { echo "agent build ID mismatch" >&2; exit 2; }
+
+output_dir=$(realpath -m "$output_dir")
+if [[ -e $output_dir ]]; then
+  [[ -d $output_dir && -z $(find "$output_dir" -mindepth 1 -maxdepth 1 -print -quit) ]] || {
+    echo "--output-dir must not exist or must be empty" >&2
+    exit 2
+  }
+else
+  mkdir -p "$output_dir"
+fi
+
+snapshot=$output_dir/snapshot
+mkdir -p "$snapshot/scripts" "$snapshot/bundle"
+cp -a "$bundle_root/." "$snapshot/bundle/"
+cp "$0" "$snapshot/scripts/qualify-proxy-agent-http-stage-stability.sh"
+python3 - "$snapshot/bundle" "$fixed_checksum_entries" <<'PY'
+import hashlib,os,re,stat,sys
+from pathlib import Path,PurePosixPath
+root=Path(sys.argv[1]); expected_count=int(sys.argv[2]); rows=[]; seen=set(); regular_files=set(); stack=[root]
+while stack:
+    directory=stack.pop()
+    with os.scandir(directory) as entries:
+        for entry in entries:
+            relative=str(Path(entry.path).relative_to(root))
+            if entry.is_symlink(): raise SystemExit(f"snapshot symlink is forbidden: {relative}")
+            mode=entry.stat(follow_symlinks=False).st_mode
+            if stat.S_ISDIR(mode): stack.append(Path(entry.path))
+            elif stat.S_ISREG(mode): regular_files.add(relative)
+            else: raise SystemExit(f"snapshot nonregular node is forbidden: {relative}")
+for number,line in enumerate((root/'SHA256SUMS').read_text().splitlines(),1):
+    match=re.fullmatch(r"([0-9a-f]{64})  (.+)",line)
+    if not match: raise SystemExit(f"malformed snapshot checksum line {number}")
+    digest,relative=match.groups(); path=PurePosixPath(relative)
+    if path.is_absolute() or any(part in ("",".","..") for part in path.parts) or relative in seen: raise SystemExit(f"unsafe snapshot path {relative!r}")
+    seen.add(relative); target=root.joinpath(*path.parts)
+    if not target.is_file() or target.is_symlink() or hashlib.sha256(target.read_bytes()).hexdigest()!=digest: raise SystemExit(f"snapshot mismatch {relative}")
+    rows.append(relative)
+actual={relative for relative in regular_files if relative!='SHA256SUMS'}
+if len(rows)!=expected_count or actual!=seen: raise SystemExit("snapshotted bundle file-set mismatch")
+PY
+runner_snapshot=$snapshot/bundle/scripts/qualify-proxy-agent-http-stage.sh
+wrapper_snapshot=$snapshot/scripts/qualify-proxy-agent-http-stage-stability.sh
+server_binary=$snapshot/bundle/bin/http-stage-server.test
+agent_binary=$snapshot/bundle/bin/http-stage-agent.test
+build_manifest=$snapshot/bundle/build-manifest.json
+[[ $(sha256sum "$runner_snapshot" | awk '{print $1}') == "$expected_runner_sha256" &&
+   $(sha256sum "$wrapper_snapshot" | awk '{print $1}') == "$wrapper_initial_sha256" &&
+   $(sha256sum "$0" | awk '{print $1}') == "$wrapper_initial_sha256" &&
+   $(sha256sum "$build_manifest" | awk '{print $1}') == "$expected_build_manifest_sha256" &&
+   $(sha256sum "$server_binary" | awk '{print $1}') == "$expected_server_sha256" &&
+   $(sha256sum "$agent_binary" | awk '{print $1}') == "$expected_agent_sha256" ]] || {
+  echo "snapshotted source, manifest or binary identity mismatch" >&2
+  exit 2
+}
+cmp -s "$runner" "$runner_snapshot" || { echo "caller runner differs from indexed bundle runner" >&2; exit 2; }
+
+cat > "$snapshot/scripts/launch-owned-pidns.py" <<'PY'
+import ctypes
+import os
+import signal
+import sys
+
+if len(sys.argv) < 3:
+    raise SystemExit("usage: launch-owned-pidns.py PARENT_PID COMMAND [ARG...]")
+expected_parent = int(sys.argv[1])
+if os.getppid() != expected_parent:
+    raise SystemExit("wrapper parent changed before PR_SET_PDEATHSIG")
+libc = ctypes.CDLL(None, use_errno=True)
+if libc.prctl(1, signal.SIGKILL, 0, 0, 0) != 0:
+    error = ctypes.get_errno()
+    raise OSError(error, os.strerror(error))
+if os.getppid() != expected_parent:
+    raise SystemExit("wrapper parent changed while installing PR_SET_PDEATHSIG")
+os.execvp(sys.argv[2], sys.argv[2:])
+PY
+
+runner_sha256=$(sha256sum "$runner_snapshot" | awk '{print $1}')
+wrapper_sha256=$(sha256sum "$wrapper_snapshot" | awk '{print $1}')
+shim_sha256=$(sha256sum "$snapshot/scripts/launch-owned-pidns.py" | awk '{print $1}')
+manifest_sha256=$(sha256sum "$build_manifest" | awk '{print $1}')
+checksum_index_sha256=$(sha256sum "$snapshot/bundle/SHA256SUMS" | awk '{print $1}')
+[[ $checksum_index_sha256 == "$fixed_checksum_index_sha256" ]] || { echo "snapshotted checksum index hash mismatch" >&2; exit 2; }
+[[ $($fixed_go_binary tool buildid "$server_binary") == "$fixed_server_build_id" &&
+   $($fixed_go_binary tool buildid "$agent_binary") == "$fixed_agent_build_id" ]] || {
+  echo "snapshotted binary build ID mismatch" >&2
+  exit 2
+}
+
+python3 - "$output_dir/preflight.json" "$runner_sha256" "$wrapper_sha256" "$shim_sha256" \
+  "$expected_server_sha256" "$expected_agent_sha256" "$manifest_sha256" "$checksum_index_sha256" \
+  "$source_ref" "$preflight_only" "$fixed_base_commit" "$fixed_accepted_tree" \
+  "$fixed_accepted_overlay_sha256" "$fixed_http_overlay_sha256" "$fixed_server_build_id" "$fixed_agent_build_id" <<'PY'
+import json,sys,time
+(path,runner,wrapper,shim,server,agent,manifest,index,source_ref,preflight_only,base,accepted_tree,accepted_overlay,http_overlay,server_build_id,agent_build_id)=sys.argv[1:]
+value={"schema_version":1,"scope":"diagnostic_only_native_http1_agent_stage","preflight_only":preflight_only=="1",
+       "workload_started":False,"acceptance_result":None,"captured_unix_nano":time.time_ns(),
+       "workload":{"configured_rtt_ms":80,"rate_bits_per_second":1000000000,"phases":16,"payload_bytes":268435456,"cohorts":1},
+       "source_ref":source_ref,
+       "identities":{"runner_sha256":runner,"wrapper_sha256":wrapper,"pidns_shim_sha256":shim,
+                     "server_binary_sha256":server,"agent_binary_sha256":agent,
+                     "server_build_id":server_build_id,"agent_build_id":agent_build_id,
+                     "build_manifest_sha256":manifest,"bundle_checksum_index_sha256":index,
+                     "base_commit":base,"accepted_transport_tree":accepted_tree,
+                     "accepted_transport_overlay_sha256":accepted_overlay,"http_stage_overlay_sha256":http_overlay},
+       "ownership":{"pid_namespace":True,"mount_proc":True,"network_namespace":True,
+                    "parent_death_signal":"SIGKILL","unshare_kill_child":"SIGKILL"}}
+open(path,"w").write(json.dumps(value,indent=2,sort_keys=True)+"\n")
+PY
+
+if ((preflight_only)); then
+  python3 - "$output_dir/exit.json" <<'PY'
+import json,sys,time
+open(sys.argv[1],"w").write(json.dumps({"schema_version":1,"exit_code":0,"preflight_only":True,"workload_started":False,"timed_out":False,"interrupted":False,"finished_unix_nano":time.time_ns()},indent=2,sort_keys=True)+"\n")
+PY
+  exit 0
+fi
+
+owned_pid=""
+finished=0
+stop_owned() {
+  local attempt
+  [[ -n $owned_pid ]] || return 0
+  kill -TERM -- "-$owned_pid" 2>/dev/null || true
+  for ((attempt=0; attempt<100; attempt++)); do
+    kill -0 -- "-$owned_pid" 2>/dev/null || break
+    sleep .1
+  done
+  kill -KILL -- "-$owned_pid" 2>/dev/null || true
+  wait "$owned_pid" 2>/dev/null || true
+}
+write_exit() {
+  local status=$1 timed_out=$2 interrupted=$3
+  python3 - "$output_dir/exit.json" "$status" "$timed_out" "$interrupted" <<'PY'
+import json,sys,time
+path,status,timed_out,interrupted=sys.argv[1:]
+open(path,"w").write(json.dumps({"schema_version":1,"exit_code":int(status),"preflight_only":False,"workload_started":True,"timed_out":timed_out=="1","interrupted":interrupted=="1","finished_unix_nano":time.time_ns()},indent=2,sort_keys=True)+"\n")
+PY
+}
+on_signal() {
+  local status=$1
+  trap - INT TERM
+  stop_owned
+  write_exit "$status" 0 1
+  finished=1
+  exit "$status"
+}
+on_exit() {
+  local status=$?
+  ((finished)) || { stop_owned; write_exit "$status" 0 0; }
+}
+trap 'on_signal 130' INT
+trap 'on_signal 143' TERM
+trap on_exit EXIT
+
+results=$output_dir/results.jsonl
+setsid python3 "$snapshot/scripts/launch-owned-pidns.py" "$$" \
+  unshare --fork --pid --mount --mount-proc --net --kill-child=KILL \
+  env P2PSTREAM_TRANSPORT_CEILING_INNER_FIXTURE=1 \
+  "$runner_snapshot" \
+    --server-binary "$server_binary" \
+    --agent-binary "$agent_binary" \
+    --source-ref "$source_ref" \
+    --build-manifest "$build_manifest" \
+    --output "$results" > "$output_dir/run.log" 2>&1 &
+owned_pid=$!
+
+timed_out=0
+for ((elapsed=0; elapsed<1200; elapsed++)); do
+  kill -0 -- "-$owned_pid" 2>/dev/null || break
+  sleep 1
+done
+if kill -0 -- "-$owned_pid" 2>/dev/null; then
+  timed_out=1
+  stop_owned
+  status=124
+else
+  set +e
+  wait "$owned_pid"
+  status=$?
+  set -e
+fi
+owned_pid=""
+write_exit "$status" "$timed_out" 0
+finished=1
+exit "$status"

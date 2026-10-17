@@ -1,0 +1,832 @@
+--- a/internal/server/agent_transport_pool.go
++++ b/internal/server/agent_transport_pool.go
+@@ -111,7 +111,7 @@
+ 	key := agentTransportKey{
+ 		Kind:                        agentTransportKindRouteTarget,
+ 		AgentID:                     agent.AgentID,
+-		TunnelLane:                  agent.transportLane(),
++		TunnelLane:                  -1,
+ 		RouteTargetID:               target.ID,
+ 		TargetOrigin:                routeTargetTransportOrigin(target),
+ 		TLSSkipVerify:               target.TLSSkipVerify,
+@@ -121,7 +121,92 @@
+ 	if target.TLSSkipVerify {
+ 		tlsConfig = &tls.Config{InsecureSkipVerify: true}
+ 	}
+-	return p.getOrCreate(app, agent, key, tlsConfig, timeout)
++	if p == nil {
++		key.TunnelLane = agent.transportLane()
++		return p.getOrCreate(app, agent, key, tlsConfig, timeout)
++	}
++	return &publicRouteAgentTransport{pool: p, app: app, agent: agent, key: key, tlsConfig: tlsConfig, timeout: timeout}
++}
++
++// A reusable factory carries no request ownership until RoundTrip is invoked.
++// Only public route targets prefer an idle same-key entry; environment and
++// trusted one-shot/control transports keep their existing selection semantics.
++type publicRouteAgentTransport struct {
++	pool      *agentTransportPool
++	app       *App
++	agent     *AgentConn
++	key       agentTransportKey
++	tlsConfig *tls.Config
++	timeout   time.Duration
++}
++
++func (rt *publicRouteAgentTransport) RoundTrip(req *http.Request) (*http.Response, error) {
++	if entry := rt.claimIdle(); entry != nil {
++		return entry.roundTripClaimed(req)
++	}
++	key := rt.key
++	key.TunnelLane = rt.agent.transportLane()
++	return rt.pool.getOrCreate(rt.app, rt.agent, key, rt.tlsConfig, rt.timeout).RoundTrip(req)
++}
++
++// claimIdle checks at most four full pool keys. Larger tunnel groups retain
++// ordinary round robin for lanes outside this bounded preference window.
++// Lock order is tunnelMu -> pool.mu; lane cleanup releases tunnelMu before
++// retiring pool entries. Neither lock spans dialing, HTTP I/O or idle closing.
++func (rt *publicRouteAgentTransport) claimIdle() *pooledAgentTransport {
++	a, p := rt.agent, rt.pool
++	if a == nil || p == nil {
++		return nil
++	}
++	a.tunnelMu.Lock()
++	defer a.tunnelMu.Unlock()
++	first, count := 0, len(a.tunnels)
++	if a.AggregateFlowControl {
++		first = 1
++		count--
++	}
++	start := a.nextTunnel
++	if start < first || start >= first+count {
++		start = first
++	}
++	if !a.tunnelsInitialized {
++		if a.AggregateFlowControl || a.Session == nil || a.Session.IsClosed() {
++			return nil
++		}
++		start, first, count = 0, 0, 1
++	}
++	p.mu.Lock()
++	defer p.mu.Unlock()
++	var preferred *pooledAgentTransport
++	checked := 0
++	for offset := 0; offset < count && checked < 4; offset++ {
++		lane := first + (start-first+offset)%count
++		if a.tunnelsInitialized {
++			if session := a.tunnels[lane]; session == nil || session.IsClosed() {
++				continue
++			}
++		}
++		checked++
++		key := rt.key
++		key.TunnelLane = lane
++		entry := p.entries[key]
++		if entry == nil || entry.agent != a || entry.retired || entry.transport == nil || entry.inFlight != 0 || !entry.idleHint {
++			continue
++		}
++		// lastUsed is request-start recency, not TCP activity or proof that
++		// net/http still owns an idle connection. A stale hint is safe.
++		if preferred == nil || entry.lastUsed.After(preferred.lastUsed) {
++			preferred = entry
++		}
++	}
++	if preferred != nil {
++		preferred.inFlight++
++		preferred.lastUsed = time.Now()
++		if a.tunnelsInitialized {
++			a.nextTunnel = first + (preferred.key.TunnelLane-first+1)%count
++		}
++	}
++	return preferred
+ }
+ 
+ func (p *agentTransportPool) publicRouteTargetOneShotTransport(app *App, agent *AgentConn, target publicRouteTargetConfig) http.RoundTripper {
+@@ -360,8 +445,14 @@
+ 	}
+ 	entry.inFlight++
+ 	entry.lastUsed = time.Now()
++	entry.pool.mu.Unlock()
++	return entry.roundTripClaimed(req)
++}
++
++// The caller owns one inFlight claim, including if retirement happens before
++// this call. Existing draining/body ownership releases that claim exactly once.
++func (entry *pooledAgentTransport) roundTripClaimed(req *http.Request) (*http.Response, error) {
+ 	transport := entry.transport
+-	entry.pool.mu.Unlock()
+ 	if timing := agentTimingFromContext(req.Context()); timing != nil {
+ 		timing.lane.Store(int64(entry.key.TunnelLane))
+ 	}
+--- a/internal/server/agent_transport_locality_test.go
++++ b/internal/server/agent_transport_locality_test.go
+@@ -0,0 +1,527 @@
++package server
++
++import (
++	"context"
++	"errors"
++	"fmt"
++	"io"
++	"net/http"
++	"net/http/httptest"
++	"strconv"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++)
++
++type localityRoundTripper func(*http.Request) (*http.Response, error)
++
++func (f localityRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
++
++func localityFixture(t *testing.T, aggregate bool) (*agentTransportPool, *AgentConn, *publicRouteAgentTransport) {
++	t.Helper()
++	pool := newAgentTransportPool()
++	agent := &AgentConn{AgentID: 7, AggregateFlowControl: aggregate}
++	first := 0
++	if aggregate {
++		first = 1
++	}
++	for lane := first; lane < first+4; lane++ {
++		session, _ := newAgentTunnelTestSession(t)
++		agent.installTunnel(lane, session)
++	}
++	key := agentTransportKey{Kind: agentTransportKindRouteTarget, AgentID: 7, TunnelLane: -1, RouteTargetID: 70, TargetOrigin: "http://origin.test", ResponseHeaderTimeoutMillis: 2000}
++	rt := &publicRouteAgentTransport{pool: pool, agent: agent, key: key}
++	t.Cleanup(pool.closeAll)
++	return pool, agent, rt
++}
++
++func localityEntry(pool *agentTransportPool, agent *AgentConn, key agentTransportKey) *pooledAgentTransport {
++	entry := &pooledAgentTransport{pool: pool, agent: agent, key: key, transport: &http.Transport{}, idleHint: true, lastUsed: time.Now()}
++	pool.entries[key] = entry
++	return entry
++}
++
++func TestAgentRouteLocalityConcurrentClaims(t *testing.T) {
++	for _, aggregate := range []bool{false, true} {
++		t.Run(fmt.Sprintf("aggregate=%t", aggregate), func(t *testing.T) {
++			pool, agent, rt := localityFixture(t, aggregate)
++			first := 0
++			if aggregate {
++				first = 1
++			}
++			for lane := first; lane < first+4; lane++ {
++				key := rt.key
++				key.TunnelLane = lane
++				entry := localityEntry(pool, agent, key)
++				entry.transport.RegisterProtocol("locality", localityRoundTripper(func(req *http.Request) (*http.Response, error) {
++
++					return &http.Response{StatusCode: 200, Header: http.Header{"Lane": []string{strconv.Itoa(lane)}}, Body: io.NopCloser(strings.NewReader("body"))}, nil
++				}))
++			}
++			start := make(chan struct{})
++			type result struct {
++				response *http.Response
++				err      error
++			}
++			results := make(chan result, 4)
++			var wg sync.WaitGroup
++			for range 4 {
++				wg.Add(1)
++				go func() {
++					defer wg.Done()
++					<-start
++					req, _ := http.NewRequestWithContext(t.Context(), "GET", "locality://origin.test", nil)
++					resp, err := rt.RoundTrip(req)
++					results <- result{resp, err}
++				}()
++			}
++			close(start)
++			seen := map[string]bool{}
++			var responses []*http.Response
++			for range 4 {
++				select {
++				case got := <-results:
++					if got.err != nil {
++						t.Fatal(got.err)
++					}
++					lane := got.response.Header.Get("Lane")
++					if seen[lane] {
++						t.Fatalf("concurrent bodies claimed lane %s twice", lane)
++					}
++					seen[lane] = true
++					responses = append(responses, got.response)
++				case <-time.After(2 * time.Second):
++					t.Fatal("concurrent selection did not finish")
++				}
++			}
++			wg.Wait()
++			if rt.claimIdle() != nil {
++				t.Fatal("all busy entries should fall back rather than wait")
++			}
++			for _, resp := range responses {
++				_, _ = io.Copy(io.Discard, resp.Body)
++				_ = resp.Body.Close()
++			}
++			for _, entry := range pool.entries {
++				if entry.inFlight != 0 {
++					t.Fatal("body claim leaked")
++				}
++			}
++		})
++	}
++}
++
++func TestAgentRouteLocalityRejectsIneligibleEntry(t *testing.T) {
++	cases := map[string]func(*pooledAgentTransport, *agentTransportKey, *AgentConn){
++		"kind": func(_ *pooledAgentTransport, k *agentTransportKey, _ *AgentConn) {
++			k.Kind = agentTransportKindEnvironment
++		},
++		"agent ID":    func(_ *pooledAgentTransport, k *agentTransportKey, _ *AgentConn) { k.AgentID++ },
++		"target":      func(_ *pooledAgentTransport, k *agentTransportKey, _ *AgentConn) { k.RouteTargetID++ },
++		"environment": func(_ *pooledAgentTransport, k *agentTransportKey, _ *AgentConn) { k.EnvironmentID++ },
++		"origin":      func(_ *pooledAgentTransport, k *agentTransportKey, _ *AgentConn) { k.TargetOrigin += "/other" },
++		"management":  func(_ *pooledAgentTransport, k *agentTransportKey, _ *AgentConn) { k.ManagementURL = "https://other" },
++		"TLS":         func(_ *pooledAgentTransport, k *agentTransportKey, _ *AgentConn) { k.TLSSkipVerify = true },
++		"certificate": func(_ *pooledAgentTransport, k *agentTransportKey, _ *AgentConn) {
++			k.TrustedCertificateSHA256 = "other"
++		},
++		"timeout":           func(_ *pooledAgentTransport, k *agentTransportKey, _ *AgentConn) { k.ResponseHeaderTimeoutMillis++ },
++		"generation":        func(e *pooledAgentTransport, _ *agentTransportKey, _ *AgentConn) { e.agent = &AgentConn{AgentID: 7} },
++		"retired":           func(e *pooledAgentTransport, _ *agentTransportKey, _ *AgentConn) { e.retired = true },
++		"missing transport": func(e *pooledAgentTransport, _ *agentTransportKey, _ *AgentConn) { e.transport = nil },
++		"busy":              func(e *pooledAgentTransport, _ *agentTransportKey, _ *AgentConn) { e.inFlight = 1 },
++		"no idle hint":      func(e *pooledAgentTransport, _ *agentTransportKey, _ *AgentConn) { e.idleHint = false },
++		"removed lane":      func(_ *pooledAgentTransport, k *agentTransportKey, a *AgentConn) { a.tunnels[k.TunnelLane] = nil },
++		"closed lane":       func(_ *pooledAgentTransport, k *agentTransportKey, a *AgentConn) { _ = a.tunnels[k.TunnelLane].Close() },
++		"control lane": func(_ *pooledAgentTransport, k *agentTransportKey, a *AgentConn) {
++			k.TunnelLane = 0
++			a.tunnels[0] = a.tunnels[1]
++		},
++	}
++	for name, mutate := range cases {
++		t.Run(name, func(t *testing.T) {
++			pool, agent, rt := localityFixture(t, true)
++			key := rt.key
++			key.TunnelLane = 1
++			entry := &pooledAgentTransport{pool: pool, agent: agent, transport: &http.Transport{}, idleHint: true}
++			mutate(entry, &key, agent)
++			entry.key = key
++			pool.entries[key] = entry
++			if rt.claimIdle() != nil {
++				t.Fatal("selected ineligible or different security key")
++			}
++		})
++	}
++}
++
++type localityErrorBody struct {
++	readErr error
++	writes  int
++}
++
++func (b *localityErrorBody) Read([]byte) (int, error)    { return 0, b.readErr }
++func (b *localityErrorBody) Close() error                { return nil }
++func (b *localityErrorBody) Write(p []byte) (int, error) { b.writes++; return len(p), nil }
++
++func TestAgentRouteLocalityBodyOwnership(t *testing.T) {
++	for _, outcome := range []string{"EOF", "read error", "Close", "upgrade", "transport error", "retired during request"} {
++		t.Run(outcome, func(t *testing.T) {
++			pool, agent, rt := localityFixture(t, false)
++			key := rt.key
++			key.TunnelLane = 0
++			entry := localityEntry(pool, agent, key)
++			body := &localityErrorBody{readErr: io.EOF}
++			if outcome == "read error" {
++				body.readErr = io.ErrUnexpectedEOF
++			}
++			entry.transport.RegisterProtocol("locality", localityRoundTripper(func(req *http.Request) (*http.Response, error) {
++				if !pool.mu.TryLock() {
++					t.Fatal("pool lock spans I/O")
++				}
++				pool.mu.Unlock()
++				if !agent.tunnelMu.TryLock() {
++					t.Fatal("tunnel lock spans I/O")
++				}
++				agent.tunnelMu.Unlock()
++				if entry.inFlight != 1 {
++					t.Errorf("missing invocation claim")
++				}
++				if outcome == "transport error" {
++					return nil, errors.New("injected transport error")
++				}
++				if outcome == "retired during request" {
++					pool.closeAll()
++				}
++				status := 200
++				if outcome == "upgrade" {
++					status = http.StatusSwitchingProtocols
++				}
++				return &http.Response{StatusCode: status, Header: make(http.Header), Body: body}, nil
++			}))
++			req, _ := http.NewRequestWithContext(t.Context(), "GET", "locality://origin.test", nil)
++			resp, err := rt.RoundTrip(req)
++			if outcome == "transport error" {
++				if err == nil || entry.inFlight != 0 {
++					t.Fatal("transport error did not release claim")
++				}
++				return
++			}
++			if err != nil {
++				t.Fatal(err)
++			}
++			if entry.inFlight != 1 {
++				t.Fatal("claim released before body completion")
++			}
++			if outcome == "upgrade" {
++				if _, err := resp.Body.(io.Writer).Write([]byte("x")); err != nil {
++					t.Fatal(err)
++				}
++			}
++			if outcome != "Close" {
++				_, _ = resp.Body.Read(make([]byte, 1))
++			}
++			_ = resp.Body.Close()
++			_ = resp.Body.Close()
++			if entry.inFlight != 0 || len(pool.draining) != 0 {
++				t.Fatal("claim/draining entry leaked or double released")
++			}
++			if outcome == "upgrade" && body.writes != 1 {
++				t.Fatal("upgrade writer not preserved")
++			}
++		})
++	}
++}
++
++func TestAgentRouteLocalityFactoryDoesNotClaimOrAllocatePoolEntry(t *testing.T) {
++	pool := newAgentTransportPool()
++	agent := &AgentConn{AgentID: 7}
++	for range 100 {
++		_ = pool.publicRouteTargetTransport(nil, agent, publicRouteTargetConfig{ID: 70})
++	}
++	if len(pool.entries) != 0 || len(pool.draining) != 0 || agent.nextTunnel != 0 {
++		t.Fatal("uninvoked factories retained entries or advanced lane ownership")
++	}
++}
++
++func TestAgentRouteLocalityWarmupCloseAllPreservesRoundRobin(t *testing.T) {
++	app, target, agent, fakes, upstream := localityLiveFixture(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		_, _ = io.Copy(io.Discard, r.Body)
++		_, _ = w.Write([]byte("ok"))
++	}))
++	rt := app.agentTargetTransport(agent, target)
++	for sequence := 0; sequence < 8; sequence++ {
++		method := http.MethodGet
++		if sequence >= 4 {
++			method = http.MethodPost
++		}
++		req, _ := http.NewRequestWithContext(t.Context(), method, upstream.URL, strings.NewReader("warmup"))
++		resp, err := rt.RoundTrip(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		_, err = io.Copy(io.Discard, resp.Body)
++		_ = resp.Body.Close()
++		if err != nil {
++			t.Fatal(err)
++		}
++		// This is the same retirement operation invoked by the qualification
++		// admin endpoint after EACH of its four down and four up warmups.
++		app.AgentTransports.closeAll()
++		if app.AgentTransports.len() != 0 {
++			t.Fatal("closeAll retained a preferred entry")
++		}
++		fakes[sequence%4].waitOpenRequestCount(t, sequence/4+1)
++	}
++	for lane, fake := range fakes {
++		if got := fake.openRequestCount(); got != 2 {
++			t.Fatalf("lane %d warmed %d times, want both directions", lane, got)
++		}
++	}
++	// Without retirement, method/path changes retain the exact target key.
++	for sequence := 0; sequence < 2; sequence++ {
++		req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, upstream.URL+"/retained", nil)
++		resp, err := rt.RoundTrip(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		_, _ = io.Copy(io.Discard, resp.Body)
++		_ = resp.Body.Close()
++	}
++	if got := fakes[0].openRequestCount(); got != 3 {
++		t.Fatalf("retained same-target connection opened %d times, want three total", got)
++	}
++	for lane := 1; lane < 4; lane++ {
++		if got := fakes[lane].openRequestCount(); got != 2 {
++			t.Fatalf("retained request rotated to lane %d", lane)
++		}
++	}
++}
++
++func TestAgentRouteLocalityBoundedWindowAndMaximumLane(t *testing.T) {
++	for _, aggregate := range []bool{false, true} {
++		t.Run(fmt.Sprintf("aggregate=%t", aggregate), func(t *testing.T) {
++			pool, agent, rt := localityFixture(t, aggregate)
++			first := 0
++			if aggregate {
++				first = 1
++			}
++			fifth := first + 4
++			session, _ := newAgentTunnelTestSession(t)
++			agent.installTunnel(fifth, session)
++			key := rt.key
++			key.TunnelLane = fifth
++			entry := localityEntry(pool, agent, key)
++			agent.nextTunnel = first
++			if rt.claimIdle() != nil {
++				t.Fatal("preference exceeded four live full-key lookups")
++			}
++			agent.nextTunnel = first + 1
++			if rt.claimIdle() != entry {
++				t.Fatal("cursor window did not include fifth live lane")
++			}
++			if agent.nextTunnel != fifth+1 {
++				t.Fatal("successful preference did not advance RR cursor")
++			}
++			entry.roundTripDone(true)
++			pool.closeAll()
++			maximum := len(agent.tunnels) - 1
++			session, _ = newAgentTunnelTestSession(t)
++			agent.installTunnel(maximum, session)
++			key.TunnelLane = maximum
++			entry = localityEntry(pool, agent, key)
++			agent.nextTunnel = maximum
++			if rt.claimIdle() != entry || agent.nextTunnel != first {
++				t.Fatal("maximum lane selection/cursor wrap differs from RR topology")
++			}
++			entry.roundTripDone(true)
++		})
++	}
++}
++
++func TestAgentRouteLocalityAllBusyUsesRoundRobinWithoutWaiting(t *testing.T) {
++	pool, agent, rt := localityFixture(t, false)
++	for lane := 0; lane < 4; lane++ {
++		key := rt.key
++		key.TunnelLane = lane
++		entry := localityEntry(pool, agent, key)
++		entry.inFlight = 1 // another response already owns this entry
++		entry.transport.RegisterProtocol("locality", localityRoundTripper(func(req *http.Request) (*http.Response, error) {
++			return &http.Response{StatusCode: 200, Header: http.Header{"Lane": []string{strconv.Itoa(lane)}}, Body: io.NopCloser(strings.NewReader("body"))}, nil
++		}))
++	}
++	for lane := 0; lane < 4; lane++ {
++		req, _ := http.NewRequestWithContext(t.Context(), "GET", "locality://origin.test", nil)
++		resp, err := rt.RoundTrip(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if got := resp.Header.Get("Lane"); got != strconv.Itoa(lane) {
++			t.Fatalf("busy fallback lane %s, want %d", got, lane)
++		}
++		_ = resp.Body.Close()
++	}
++	if len(pool.entries) != 4 {
++		t.Fatal("fallback retained extra entries")
++	}
++	for _, entry := range pool.entries {
++		if entry.inFlight != 1 {
++			t.Fatal("fallback released another response's claim")
++		}
++		entry.roundTripDone(false)
++	}
++}
++
++func localityLiveFixture(t *testing.T, handler http.Handler) (*App, publicRouteTargetConfig, *AgentConn, []*fakeYamuxAgent, *httptest.Server) {
++	t.Helper()
++	upstream := httptest.NewServer(handler)
++	t.Cleanup(upstream.Close)
++	app, target, agent, first := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
++	fakes := []*fakeYamuxAgent{first}
++	agent.installTunnel(0, first.serverSession)
++	for lane := 1; lane < 4; lane++ {
++		_, fake := newFakeYamuxAgent(t, 7, fmt.Sprintf("lane-%d", lane))
++		agent.installTunnel(lane, fake.serverSession)
++		fakes = append(fakes, fake)
++	}
++	t.Cleanup(app.AgentTransports.closeAll)
++	return app, target, agent, fakes, upstream
++}
++
++func TestAgentRouteLocalityConcurrentColdLiveLanes(t *testing.T) {
++	release := make(chan struct{})
++	var once sync.Once
++	unblock := func() { once.Do(func() { close(release) }) }
++	app, target, agent, fakes, upstream := localityLiveFixture(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		_, _ = w.Write([]byte("start"))
++		w.(http.Flusher).Flush()
++		<-release
++		_, _ = w.Write([]byte("end"))
++	}))
++	defer unblock()
++	rt := app.agentTargetTransport(agent, target)
++	start := make(chan struct{})
++	type result struct {
++		resp *http.Response
++		err  error
++	}
++	results := make(chan result, 4)
++	var wg sync.WaitGroup
++	for range 4 {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			<-start
++			req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL, nil)
++			resp, err := rt.RoundTrip(req)
++			results <- result{resp, err}
++		}()
++	}
++	close(start)
++	var responses []*http.Response
++	for range 4 {
++		select {
++		case got := <-results:
++			if got.err != nil {
++				t.Fatal(got.err)
++			}
++			responses = append(responses, got.resp)
++		case <-time.After(3 * time.Second):
++			t.Fatal("cold concurrent requests failed to establish four live responses")
++		}
++	}
++	wg.Wait()
++	for _, fake := range fakes {
++		fake.waitOpenRequestCount(t, 1)
++	}
++	app.AgentTransports.mu.Lock()
++	count := len(app.AgentTransports.entries)
++	for _, entry := range app.AgentTransports.entries {
++		if entry.inFlight != 1 {
++			t.Errorf("held response inFlight=%d, want1", entry.inFlight)
++		}
++	}
++	app.AgentTransports.mu.Unlock()
++	if count != 4 {
++		t.Fatalf("cold concurrent pool entries=%d, want4", count)
++	}
++	unblock()
++	for _, resp := range responses {
++		data, err := io.ReadAll(resp.Body)
++		_ = resp.Body.Close()
++		if err != nil || string(data) != "startend" {
++			t.Fatalf("body=%q err=%v", data, err)
++		}
++	}
++	for _, entry := range app.AgentTransports.entries {
++		if entry.inFlight != 0 {
++			t.Fatal("live body claim leaked")
++		}
++	}
++}
++
++func TestAgentRouteLocalityStaleIdleHintAndCancellation(t *testing.T) {
++	release := make(chan struct{})
++	var once sync.Once
++	unblock := func() { once.Do(func() { close(release) }) }
++	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		_, _ = w.Write([]byte("start"))
++		if r.URL.Path == "/hold" {
++			w.(http.Flusher).Flush()
++			<-release
++		}
++	}))
++	defer func() { unblock(); upstream.Close() }()
++	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, 2*time.Second)
++	defer app.AgentTransports.closeAll()
++	rt := app.agentTargetTransport(agent, target)
++	consume := func() {
++		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL, nil)
++		resp, err := rt.RoundTrip(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		_, err = io.Copy(io.Discard, resp.Body)
++		_ = resp.Body.Close()
++		if err != nil {
++			t.Fatal(err)
++		}
++	}
++	consume()
++	var entry *pooledAgentTransport
++	for _, e := range app.AgentTransports.entries {
++		entry = e
++	}
++	if entry == nil || !entry.idleHint {
++		t.Fatal("missing reusable entry")
++	}
++	entry.transport.CloseIdleConnections() // expire actual socket, retaining advisory hint
++	consume()
++	consume()
++	fake.waitOpenRequestCount(t, 2) // stale hint redials once; reusable wrapper then reuses
++	ctx, cancel := context.WithCancel(t.Context())
++	defer cancel()
++	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, upstream.URL+"/hold", nil)
++	resp, err := rt.RoundTrip(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if entry.inFlight != 1 {
++		t.Fatal("streaming response released ownership early")
++	}
++	cancel()
++	if _, err = io.ReadAll(resp.Body); err == nil {
++		t.Fatal("cancellation did not terminate held body")
++	}
++	_ = resp.Body.Close()
++	_ = resp.Body.Close()
++	if entry.inFlight != 0 {
++		t.Fatal("canceled body retained claim")
++	}
++	unblock()
++	consume()
++	fake.waitOpenRequestCount(t, 3)
++	if app.AgentTransports.len() != 1 {
++		t.Fatal("stale hint or canceled response expanded retained pool")
++	}
++}
+--- a/internal/server/agent_transport_pool_test.go
++++ b/internal/server/agent_transport_pool_test.go
+@@ -533,7 +533,10 @@
+ }
+ 
+ func TestAgentTransportPoolSeparatesAgentsAndRouteTargets(t *testing.T) {
++	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) }))
++	defer upstream.Close()
+ 	app := NewApp(nil, nil)
++	t.Cleanup(app.AgentTransports.closeAll)
+ 	first, firstFake := newFakeYamuxAgent(t, 7, "agent-7")
+ 	defer firstFake.close()
+ 	second, secondFake := newFakeYamuxAgent(t, 8, "agent-8")
+@@ -541,29 +544,36 @@
+ 
+ 	target := publicRouteTargetConfig{
+ 		ID:                            70,
+-		URL:                           "http://upstream.test:9000",
++		URL:                           upstream.URL,
+ 		UpstreamResponseHeaderTimeout: time.Second,
+ 	}
+ 	firstTransport := app.agentTargetTransport(first, target)
+ 	secondAgentTransport := app.agentTargetTransport(second, target)
+-	if firstTransport == secondAgentTransport {
+-		t.Fatal("different agents shared a pooled transport")
+-	}
+ 
+ 	secondTarget := target
+ 	secondTarget.ID = 71
+-	secondTarget.URL = "http://upstream.test:9000"
++	secondTarget.URL = upstream.URL
+ 	secondTargetTransport := app.agentTargetTransport(first, secondTarget)
+-	if firstTransport == secondTargetTransport {
+-		t.Fatal("different route target ids shared a pooled transport")
+-	}
+ 
+ 	timeoutTarget := target
+ 	timeoutTarget.UpstreamResponseHeaderTimeout = 2 * time.Second
+ 	timeoutTransport := app.agentTargetTransport(first, timeoutTarget)
+-	if firstTransport == timeoutTransport {
+-		t.Fatal("different route target timeout config shared a pooled transport")
+-	}
++	// Factories hold no lease or pool entry; exercise their actual requests
++	// before asserting isolation, rather than comparing wrapper addresses.
++	for _, rt := range []http.RoundTripper{firstTransport, secondAgentTransport, secondTargetTransport, timeoutTransport} {
++		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL, nil)
++		resp, err := rt.RoundTrip(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		_, err = io.Copy(io.Discard, resp.Body)
++		_ = resp.Body.Close()
++		if err != nil {
++			t.Fatal(err)
++		}
++	}
++	firstFake.waitOpenRequestCount(t, 3)
++	secondFake.waitOpenRequestCount(t, 1)
+ 
+ 	if got := app.AgentTransports.len(); got != 4 {
+ 		t.Fatalf("agent transport pool len = %d, want 4", got)
+--- a/internal/server/agent_real_transport_test.go
++++ b/internal/server/agent_real_transport_test.go
+@@ -156,13 +156,27 @@
+ 
+ func TestRealAgentParallelTunnelsSurvivePrimaryLoss(t *testing.T) {
+ 	f := newRealAgentProxyFixture(t, 4, 2<<20, 0)
+-	for range 8 {
++	warmed := make(map[int]bool)
++	for sequence := range 8 {
+ 		if n, err := f.roundTrip(t.Context(), "/api", nil); err != nil || n != 2 {
+ 			t.Fatalf("proxy: %d, %v", n, err)
+ 		}
+-	}
+-	if got := f.app.AgentTransports.len(); got != 4 {
+-		t.Fatalf("pooled lanes=%d, want 4", got)
++		if sequence < 4 {
++			f.app.AgentTransports.mu.Lock()
++			for key := range f.app.AgentTransports.entries {
++				warmed[key.TunnelLane] = true
++			}
++			f.app.AgentTransports.mu.Unlock()
++			// Retiring the warmup entry exercises every lane while retaining
++			// the production policy for the subsequent serial requests.
++			f.app.AgentTransports.closeAll()
++		}
++	}
++	if len(warmed) != 4 || !realAgentAggregateLaneShape(f.agent, 4) {
++		t.Fatalf("warmed lanes=%v, want all four connected bulk lanes", warmed)
++	}
++	if got := f.app.AgentTransports.len(); got != 1 {
++		t.Fatalf("serial same-target pooled entries=%d, want 1", got)
+ 	}
+ 	initial := f.agent
+ 	_ = initial.Session.Close()
+--- a/internal/server/agent_registry_test.go
++++ b/internal/server/agent_registry_test.go
+@@ -407,7 +407,7 @@
+ 	if err := app.AgentHub.connect(conn); err != nil {
+ 		t.Fatalf("connect agent: %v", err)
+ 	}
+-	_ = app.agentTargetTransport(conn, publicRouteTargetConfig{
++	seedAgentRouteTransportForTest(app, conn, publicRouteTargetConfig{
+ 		ID:                            700,
+ 		URL:                           "http://upstream.test:9000",
+ 		UpstreamResponseHeaderTimeout: time.Second,
+@@ -1071,7 +1071,7 @@
+ 		t.Fatalf("connect old agent: %v", err)
+ 	}
+ 	target := agentReplacementTransportTarget()
+-	_ = app.agentTargetTransport(old, target)
++	seedAgentRouteTransportForTest(app, old, target)
+ 
+ 	hubRemoved := make(chan struct{})
+ 	releaseCleanup := make(chan struct{})
+@@ -1139,7 +1139,7 @@
+ 			replacementDone <- replacementResult{err: fmt.Errorf("unexpected displaced connections: %d", len(displaced))}
+ 			return
+ 		}
+-		_ = app.agentTargetTransport(newConn, target)
++		seedAgentRouteTransportForTest(app, newConn, target)
+ 		replacementDone <- replacementResult{conn: newConn}
+ 	}()
+ 	<-replacementStarted
+@@ -1181,7 +1181,7 @@
+ 		t.Fatalf("connect old agent: %v", err)
+ 	}
+ 	target := agentReplacementTransportTarget()
+-	_ = app.agentTargetTransport(old, target)
++	seedAgentRouteTransportForTest(app, old, target)
+ 
+ 	newConn := agentRegistryTestConn(agent)
+ 	newConn.ConnectedAt = time.Now()
+@@ -1198,7 +1198,7 @@
+ 	for _, conn := range displaced {
+ 		app.retireDisplacedAgentConnection(conn)
+ 	}
+-	_ = app.agentTargetTransport(newConn, target)
++	seedAgentRouteTransportForTest(app, newConn, target)
+ 	unlock()
+ 
+ 	if disconnected := app.cleanupAgentConnection(old); disconnected {
+@@ -1566,3 +1566,12 @@
+ func (w *failingHijackResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+ 	return nil, nil, errors.New("hijack failed")
+ }
++
++// Registry lifecycle tests need an existing shard, not a never-invoked lazy
++// public factory. Seed through the same keyed pool constructor without I/O.
++func seedAgentRouteTransportForTest(app *App, agent *AgentConn, target publicRouteTargetConfig) http.RoundTripper {
++	selector := app.agentTargetTransport(agent, target).(*publicRouteAgentTransport)
++	key := selector.key
++	key.TunnelLane = agent.transportLane()
++	return app.AgentTransports.getOrCreate(app, agent, key, selector.tlsConfig, selector.timeout)
++}
+--- a/internal/server/direct_transport_pool_test.go
++++ b/internal/server/direct_transport_pool_test.go
+@@ -172,8 +172,8 @@
+ 	keptDirectTransport := app.directTargetTransport(keptDirect)
+ 	changedDirectTransport := app.directTargetTransport(changedDirect)
+ 	_ = app.directTargetTransport(removedDirect)
+-	keptAgentTransport := app.agentTargetTransport(agent, keptAgent)
+-	changedAgentTransport := app.agentTargetTransport(agent, changedAgent)
++	keptAgentTransport := seedAgentRouteTransportForTest(app, agent, keptAgent)
++	changedAgentTransport := seedAgentRouteTransportForTest(app, agent, changedAgent)
+ 
+ 	previous := &publicProxySnapshot{RouteTargets: map[int64]publicRouteTargetConfig{
+ 		keptDirect.ID:    keptDirect,
+@@ -207,10 +207,10 @@
+ 	if got := app.directTargetTransport(changedDirect); got == changedDirectTransport {
+ 		t.Fatal("changed direct target kept stale pooled transport")
+ 	}
+-	if got := app.agentTargetTransport(agent, keptAgent); got != keptAgentTransport {
++	if got := seedAgentRouteTransportForTest(app, agent, keptAgent); got != keptAgentTransport {
+ 		t.Fatal("unchanged agent target did not keep its pooled transport")
+ 	}
+-	if got := app.agentTargetTransport(agent, changedAgent); got == changedAgentTransport {
++	if got := seedAgentRouteTransportForTest(app, agent, changedAgent); got == changedAgentTransport {
+ 		t.Fatal("changed agent target kept stale pooled transport")
+ 	}
+ }

@@ -1,0 +1,10 @@
+3ba6b88c4cbdd9d921083fe5c6c06dd0f7b9f94e23487aac1bc39c9ec3308b0f  run-wan-read-wait-diagnostic.sh
+c925beccf97bbde989a063df712bfbcee417f47744ca7630cce01394ee709eed  run-wan-read-wait-arm.sh
+08ae4cf404413604ba02f3c433cdf2c4919cafed8850328075ecf1268f128ff2  validate-wan-read-wait-arm.py
+127da1ef1f1a8923fa00b218bf8458cb83f67f8c2b97f5fb2a353162c4624ed6  generated/qualify-proxy-agent-growth-wan-read-wait.sh
+299ee323e0cdf77b53a9ec2efb401e05d1e2278222a740771eed3a7e1a2043d1  read-wait-runner.patch
+733015d22b976d23bfc5d7d78cd4b7bde5015f3c1a041a2d995fd5a31064ec81  runner-integration.patch
+2e753d31416ef563e8d7bacedcd4083ecd1b4e45c6d3d9969e64c9917cc9e9fc  smoke1-preflight-path-correction.patch
+5c3d01456b9de0a158f3d42095edd5bdbc015334877d10ca7fc3f735aa13f6a9  review/smoke1-preflight-correction-checkpoint-1/SHA256SUMS.txt
+47981bcd767fb7eb3e1456ae4d99c6d80d9fffc62eecb6be0fb67f9245f8b2aa  build/bin/current-server-wan-read-wait-audited.test
+9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137  ../current-wan-prep/bin/current-agent.test

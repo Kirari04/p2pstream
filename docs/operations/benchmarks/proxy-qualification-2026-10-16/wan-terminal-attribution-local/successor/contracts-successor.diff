@@ -1,0 +1,72 @@
+--- a/contracts/test-terminal-attribution.py
++++ b/contracts/test-terminal-attribution.py
+@@ -12,11 +12,22 @@
+ terminal = importlib.util.module_from_spec(spec); spec.loader.exec_module(terminal)
+ 
+ 
++
++def app_stack():
++    return {"go_version": "go1.26.6", "complete": True, "functions": [
++        "p2pstream/internal/agent.(*qualificationRawWriteOwner).terminalFinishRawLocked",
++        "p2pstream/internal/agent.(*qualificationRawWriteOwner).finishRawWriteWithTCP",
++        "p2pstream/internal/agent.(*qualificationObservedRawConn).Write",
++        "crypto/tls.(*Conn).write", "crypto/tls.(*Conn).writeRecordLocked", "crypto/tls.(*Conn).Write",
++        "p2pstream/internal/agent.(*qualificationObservedTunnelBody).Write",
++        "github.com/hashicorp/yamux.(*Session).sendLoop", "github.com/hashicorp/yamux.(*Session).send", "runtime.goexit"]}
++
++
+ def fixture():
+     attr = {"schema_version": 1, "expected_owners": 5, "intent_complete": True, "invalid": False, "raw_sha256": "0"*64, "owners": []}
+     raw = {"records": []}
+     for lane in range(5):
+-        state = {"sequence": 5, "problems": 0, "stop": 1, "stop_generation": lane+1, "close_begin": 2, "close_end": 3, "joined": 4,
++        state = {"tcp_bound": True, "physical_close_calls": 1, "physical_close_error": False, "underlying_escaped": False, "sequence": 5, "problems": 0, "stop": 1, "stop_generation": lane+1, "close_begin": 2, "close_end": 3, "joined": 4,
+                  "raw_errors": 0, "raw_shorts": 0, "active_plain": False, "active_raw": False, "legacy_close_overlap": False, "records": None}
+         owner = {"lane": lane, "generation": lane+1, "session": f"session-{lane}", "local": f"127.0.0.1:{10000+lane}", "remote": "127.0.0.1:20000", "state": state}
+         attr["owners"].append(owner)
+@@ -31,7 +42,7 @@
+     attr, raw, legacy = fixture()
+     s = attr["owners"][4]["state"]
+     s.update(sequence=9, stop=3, close_begin=4, close_end=5, joined=9, raw_errors=1,
+-             records=[{"begin": 2, "return": 6, "after": 7, "generation": 5, "attempt": 34, "written": 0, "error": True, "net_closed": True, "short": False,
++             records=[{"stack": app_stack(), "begin": 2, "return": 6, "after": 7, "generation": 5, "attempt": 34, "written": 0, "error": True, "net_closed": True, "short": False,
+                        "plain": {"begin": 1, "end": 8, "attempt": 12, "control": True, "headers": [{"type": 3, "flags": 0, "stream": 0, "value": 0}]}}])
+     raw["records"][4]["raw_write_activity"]["outside"].update(error_calls=1, error_attempt_bytes=34)
+     legacy.update(accepted=False, issues=["raw-write final record 4.raw_write_activity.outside contains error or short raw writes"])
+@@ -70,6 +81,13 @@
+ 
+     def test_rejection_matrix(self):
+         changes = {
++            "non_tcp": lambda a,r,l: a["owners"][4]["state"].update(tcp_bound=False),
++            "duplicate_close": lambda a,r,l: a["owners"][4]["state"].update(physical_close_calls=2),
++            "close_error": lambda a,r,l: a["owners"][4]["state"].update(physical_close_error=True),
++            "underlying_escape": lambda a,r,l: a["owners"][4]["state"].update(underlying_escaped=True),
++            "wrong_go": lambda a,r,l: a["owners"][4]["state"]["records"][0]["stack"].update(go_version="go1.26.8"),
++            "truncated_stack": lambda a,r,l: a["owners"][4]["state"]["records"][0]["stack"].update(complete=False),
++            "protocol_path": lambda a,r,l: a["owners"][4]["state"]["records"][0]["stack"]["functions"].__setitem__(5,"crypto/tls.(*Conn).handleKeyUpdate"),
+             "missing_coverage": lambda a,r,l: a.update(intent_complete=False),
+             "missing_owner": lambda a,r,l: a["owners"].pop(),
+             "changed_generation": lambda a,r,l: a["owners"][4].update(generation=99),
+@@ -98,6 +116,22 @@
+                 inputs=cancelled();change(*inputs)
+                 self.assertFalse(terminal.classify(*inputs)["attribution_accepted"])
+ 
++    def test_unbound_protocol_success_is_only_ordinary_legacy_evidence(self):
++        a,r,l=cancelled();s=a["owners"][4]["state"];v=s["records"][0]
++        s["raw_errors"]=0
++        v.update(error=False,net_closed=False,written=34)
++        v["plain"]={"begin":0,"end":0,"attempt":0,"control":False,"headers":None}
++        v["stack"]["functions"][5]="crypto/tls.(*Conn).handleKeyUpdate"
++        r["records"][4]["raw_write_activity"]["outside"].update(error_calls=0,error_attempt_bytes=0)
++        l.update(accepted=True,issues=[])
++        result=terminal.classify(a,r,l)
++        self.assertTrue(result["attribution_accepted"])
++        self.assertEqual(result["classifications"],[])
++        s["legacy_close_overlap"]=True
++        r["records"][4]["raw_write_activity"]["ambiguous"]=True
++        l.update(accepted=False,issues=["raw-write final record 4 ambiguous is not false"])
++        self.assertFalse(terminal.classify(a,r,l)["attribution_accepted"])
++
+     def test_control_shapes(self):
+         for typ,flags,stream,value in [(1,0,1,123),(1,4,1,0),(1,0,0,4096),(2,1,0,7),(2,2,0,7),(3,0,0,0),(4,0,1,4096),(5,0,1,4096),(5,0,0,4096)]:
+             self.assertTrue(terminal.controls([dict(type=typ,flags=flags,stream=stream,value=value)]))

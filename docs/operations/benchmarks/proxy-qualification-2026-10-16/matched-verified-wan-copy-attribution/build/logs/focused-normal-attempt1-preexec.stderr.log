@@ -1,0 +1,1 @@
+Log redirection resolved the repository-relative evidence path below build/source; shell failed before go test executed.

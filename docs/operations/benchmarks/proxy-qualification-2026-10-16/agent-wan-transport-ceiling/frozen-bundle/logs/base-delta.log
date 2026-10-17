@@ -1,0 +1,3 @@
+M	scripts/server-updater-host.py
+M	scripts/test-server-updater-host.py
+go_module_and_yamux_inputs_unchanged=true

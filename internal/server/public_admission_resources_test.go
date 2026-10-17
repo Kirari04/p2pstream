@@ -24,10 +24,10 @@ func TestPublicAdmissionIdleReclaimRecoversDirectSocketReservation(t *testing.T)
 
 	app := NewApp(nil, nil)
 	usage := sysmetrics.MemoryUsage{
-		// The 90% hard watermark leaves exactly 3.75 MiB of headroom, or
-		// three default 1.25 MiB admission units. The protected control slot
-		// leaves two units for public external owners.
-		UsedBytes:  (896 << 20) + (256 << 10),
+		// The 90% hard watermark leaves 2.75 MiB: a 2 MiB public owner and
+		// one 256 KiB server-base control slot fit after reclaim, while the
+		// additional 768 KiB idle direct socket forces that reclaim first.
+		UsedBytes:  (897 << 20) + (256 << 10),
 		LimitBytes: 1000 << 20,
 		Source:     "test",
 	}
@@ -43,6 +43,13 @@ func TestPublicAdmissionIdleReclaimRecoversDirectSocketReservation(t *testing.T)
 	_ = response.Body.Close()
 	if got := app.agentStreamCapacity.snapshot().AdaptiveExternalBytes; got != 768<<10 {
 		t.Fatalf("idle direct reservation = %d, want %d", got, 768<<10)
+	}
+	probeRelease, probeOK, probeConstrained := app.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerOther, 2<<20, 0)
+	if probeRelease != nil {
+		probeRelease()
+	}
+	if !probeConstrained || probeOK {
+		t.Fatalf("public reservation fit before idle reclaim: ok %t constrained %t", probeOK, probeConstrained)
 	}
 
 	firstRelease, _, constrained := app.tryReservePublicResource(2<<20, 0)

@@ -1,0 +1,63 @@
+diff --git a/third_party/yamux/stream.go b/third_party/yamux/stream.go
+--- a/third_party/yamux/stream.go
++++ b/third_party/yamux/stream.go
+@@ -174,6 +174,17 @@ START:
+ 
+ 	// Send a window update potentially
+ 	err = s.sendWindowUpdate()
++	if err != nil && n > 0 {
++		// A final FIN can become visible while the synchronous credit write is
++		// blocked. The bytes already returned remain valid, and a peer that has
++		// closed its send side cannot consume more per-stream receive credit.
++		s.stateLock.Lock()
++		switch s.state {
++		case streamRemoteClose, streamClosed:
++			err = nil
++		}
++		s.stateLock.Unlock()
++	}
+ 	if err == ErrSessionShutdown {
+ 		err = nil
+ 	}
+@@ -434,6 +445,15 @@ func (s *Stream) sendWindowUpdateMode(force bool) error {
+ 	var bufLen uint32
+ 	s.stateLock.Lock()
+ 	s.recvLock.Lock()
++	// Aggregate storage and session-wide credit are returned by Read before
++	// this per-stream update. Once peer FIN is visible, no sender can consume
++	// more per-stream credit, so publishing it is obsolete.
++	switch s.state {
++	case streamRemoteClose, streamClosed:
++		s.recvLock.Unlock()
++		s.stateLock.Unlock()
++		return nil
++	}
+ 	if s.session.aggregateEnabled() {
+ 		bufLen = uint32(s.aggregateBuffered)
+ 	} else if s.recvBuf != nil {
+diff --git a/third_party/yamux/session_test.go b/third_party/yamux/session_test.go
+--- a/third_party/yamux/session_test.go
++++ b/third_party/yamux/session_test.go
+@@ -968,15 +968,18 @@ func TestHalfCloseSessionShutdown(t *testing.T) {
+ 	}
+ 
+ 	buf := make([]byte, dataSize)
+-	n, err := stream2.Read(buf)
++	n, err := io.ReadFull(stream2, buf)
+ 	if err != nil {
+ 		t.Fatalf("err: %v", err)
+ 	}
+-	if int64(n) != dataSize {
+-		t.Fatalf("bad: %v", n)
++	if n != len(data) {
++		t.Fatalf("read bytes: got %d, want %d", n, len(data))
++	}
++	if !bytes.Equal(buf, data) {
++		t.Fatal("read payload differs from written payload")
+ 	}
+ 
+-	// EOF after close
++	// EOF after all accepted payload has drained.
+ 	n, err = stream2.Read(buf)
+ 	if err != io.EOF {
+ 		t.Fatalf("err: %v", err)

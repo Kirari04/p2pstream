@@ -1,0 +1,22 @@
+{
+  "Reno_arms": 0,
+  "binary_private_key_certificate_database_or_full_tree_payloads_exported": false,
+  "copied_bytes": 46116613,
+  "copied_files": 446,
+  "earlier_narrow_completed_transfers": 16,
+  "fresh_vector_completed_transfers": 16,
+  "fresh_vector_genuine_conditioning_rejections": [
+    15,
+    16
+  ],
+  "new_packaging_tests_builds_traffic": 0,
+  "no_go_files": true,
+  "original_metadata_snapshot_files_preserved": 7,
+  "original_snapshot_evidence_copies_verified_unchanged": 317,
+  "outcome_assessment_sha256": "d47ee6dbdc8fa6a94a282d50cc0fd02766f59575c671bfe688b06e2c08fe7d14",
+  "prepared_unix": 1792241840.7783427,
+  "preserved_staging_selection_correction": "five old application temp/database/certificate files removed before first manifest; originals untouched and hash-only omissions retained",
+  "private_key_certificate_marker_matches": [],
+  "source_byte_rewrites": 0,
+  "status": "extended completed-outcome exact-copy/hash/membership packaging audit passed"
+}

@@ -1,0 +1,19 @@
+{
+  "accepted": false,
+  "errors": [
+    "outer_status=1",
+    "dummy_cpu_contract",
+    "dummy_net_namespace_join",
+    "dummy_cgroup_membership",
+    "unit_join",
+    "natural_exit_marker",
+    "cgroup_snapshots"
+  ],
+  "forced_cleanup": false,
+  "natural_exit": false,
+  "outer_status": 1,
+  "schema_version": 1,
+  "systemd_run_status": null,
+  "unit": "p2p-trace-scope-probe-20261016-a.scope",
+  "unit_joined": false
+}

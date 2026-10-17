@@ -1,0 +1,54 @@
+--- integration-runner-source-2/integration/validate-tcp-state.py
++++ validator-capture-source-1/integration/validate-tcp-state.py
+@@ -540,6 +540,31 @@
+     return value
+ 
+ 
++def unavailable_raw_control_capture(value: Any, baseline: dict[str, Any]) -> bool:
++    """Recognize a declared provider failure before either getsockopt ran."""
++    if type(value) is not dict:
++        return False
++    zero_fields = (INFO_UINT8_FIELDS | INFO_UINT16_FIELDS | INFO_UINT32_FIELDS | INFO_UINT64_FIELDS) - {
++        "capture_duration_ns", "capture_started_monotonic_ns", "capture_finished_monotonic_ns",
++        "tcp_info_struct_size", "required_field_end_offset",
++    }
++    availability = value.get("availability")
++    return (value.get("captured") is False and value.get("failure_stage") == "raw_control"
++            and value.get("capture_monotonic_valid") is True
++            and exact_int64(value.get("capture_started_unix_ns"), positive=True)
++            and exact_int64(value.get("capture_finished_unix_ns"), positive=True)
++            and exact_int64(value.get("failure_errno")) and value.get("failure_errno") >= 0
++            and all(value.get(key) is False for key in (
++                "tcp_info_attempted", "tcp_info_succeeded",
++                "congestion_control_attempted", "congestion_control_succeeded"))
++            and value.get("congestion_control") == ""
++            and all(type(value.get(key)) is int and value[key] == 0 for key in zero_fields)
++            and all(value.get(key) == baseline.get(key) for key in (
++                "tcp_info_struct_size", "required_field_end_offset"))
++            and type(availability) is dict and set(availability) == AVAILABILITY_FIELDS
++            and all(availability[key] is False for key in AVAILABILITY_FIELDS))
++
++
+ def validate_threshold_history(value: Any, *, bind_tcp_info: Any, path: str) -> dict[str, Any]:
+     issues: list[str] = []
+     if type(value) is not dict:
+@@ -600,8 +625,17 @@
+         if row.get("present") is True:
+             for endpoint in ("before", "after"):
+                 info = row.get(endpoint, {})
+-                if type(info) is dict and info.get("schema_version") == 1 and info.get("congestion_control") != baseline_cc:
+-                    issues.append(f"{path}.{label}.{endpoint} congestion control differs from baseline")
++                if type(info) is dict and info.get("schema_version") == 1:
++                    capture_path = f"{path}.{label}.{endpoint}"
++                    if info.get("captured") is True:
++                        prior_capture_issues = len(issues)
++                        tcp_info(info, capture_path, issues, require_healthy=True)
++                        if len(issues) == prior_capture_issues and info.get("congestion_control") != baseline_cc:
++                            issues.append(f"{capture_path} congestion control differs from baseline")
++                    elif (label != "failure" or value.get("inconclusive") is not True
++                          or not exact_uint(value.get("provider_capture_errors"), positive=True)
++                          or not unavailable_raw_control_capture(info, baseline)):
++                        issues.append(f"{capture_path} unavailable capture lacks declared failure evidence")
+             if row.get("raw_write_ordinal", 0) > value.get("raw_write_ordinal", 0):
+                 issues.append(f"{path}.{label} ordinal exceeds the raw-write cursor")
+             if row.get("raw_write_ordinal", 0) > value.get("monitored_raw_write_attempts", 0):

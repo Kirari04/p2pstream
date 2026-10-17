@@ -3555,14 +3555,13 @@ func (q *Queries) InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRe
 	return err
 }
 
-const insertProxyRequestEventAt = `-- name: InsertProxyRequestEventAt :one
+const insertProxyRequestEventAt = `-- name: InsertProxyRequestEventAt :exec
 INSERT INTO proxy_request_events (
     occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix, listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes, cache_rule_id, cache_status, cache_bytes,
     retry_rule_id, retry_count, retry_outcome, retry_error_kind, retry_failed_agent_id
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id
 `
 
 type InsertProxyRequestEventAtParams struct {
@@ -3591,8 +3590,8 @@ type InsertProxyRequestEventAtParams struct {
 	RetryFailedAgentID sql.NullInt64 `json:"retry_failed_agent_id"`
 }
 
-func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, insertProxyRequestEventAt,
+func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) error {
+	_, err := q.db.ExecContext(ctx, insertProxyRequestEventAt,
 		arg.OccurredAt,
 		arg.StatusCode,
 		arg.DurationMs,
@@ -3617,9 +3616,7 @@ func (q *Queries) InsertProxyRequestEventAt(ctx context.Context, arg InsertProxy
 		arg.RetryErrorKind,
 		arg.RetryFailedAgentID,
 	)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
+	return err
 }
 
 const isPublicListenerSiteMigrated = `-- name: IsPublicListenerSiteMigrated :one

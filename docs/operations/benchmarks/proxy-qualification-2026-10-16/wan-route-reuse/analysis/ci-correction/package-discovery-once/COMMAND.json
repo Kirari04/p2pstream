@@ -1,0 +1,41 @@
+{
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "list",
+    "-mod=readonly",
+    "./docs/..."
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+  "timeout_seconds": 50,
+  "toolchain_sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+  "environment": {
+    "CGO_ENABLED": "1",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+    "GOENV": "off",
+    "GOFLAGS": "",
+    "GOMAXPROCS": "2",
+    "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+    "GONOPROXY": "",
+    "GONOSUMDB": "",
+    "GOOS": "linux",
+    "GOPRIVATE": "",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off"
+  },
+  "network_dependency_lookup": false,
+  "test_or_build_execution": false,
+  "source_file_count": 430,
+  "source_before_matches_frozen": true,
+  "prior_discovery_evidence": {
+    "ci": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/ci-verify-failed.log",
+    "codeql": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/codeql-go-failed.log"
+  }
+}

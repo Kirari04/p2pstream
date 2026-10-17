@@ -1,0 +1,32 @@
+{
+  "result": "pass",
+  "runner_sha256": "87cf7c1b008c86e5a416713f34d5c45d59774efa6d6f038b895f6da681e1a70b",
+  "wrapper_sha256": "beed4036380ee6da291259f0dbba43b1f46ddc7ed7515ef5a8c7924aec8b3b54",
+  "source_blocks_exact": true,
+  "topologies": 4,
+  "process_lifetimes": 12,
+  "namespace_inodes": 8,
+  "actual_rtts_ms": [
+    96.388,
+    96.463,
+    96.714,
+    96.434
+  ],
+  "additional_contracts": [
+    {
+      "case": "pid-reuse-new-start-after-joined-predecessor",
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "contract_only": true
+    },
+    {
+      "case": "noninteger-helper-pid",
+      "expected_exit": 2,
+      "actual_exit": 2,
+      "contract_only": true
+    }
+  ],
+  "performance_evidence": false,
+  "qualification_index_entries_independently_verified": 130,
+  "earlier_root_assertion": "Expected block hash includes its trailing newline; initial missing-newline hash assertion corrected without changing any fixture source/evidence."
+}

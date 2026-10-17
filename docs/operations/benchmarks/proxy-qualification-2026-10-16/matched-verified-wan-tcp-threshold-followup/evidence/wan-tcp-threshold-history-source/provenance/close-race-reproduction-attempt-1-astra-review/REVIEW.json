@@ -1,0 +1,77 @@
+{
+  "accepted_for_scope": true,
+  "decision": "Accept the local reproduction evidence with stated limits. Keep tiny2 rejected, production unchanged, and WAN on hold pending a materially justified candidate; no retry-until-pass.",
+  "does_not_prove": [
+    "The exact tiny2 interleaving, plaintext identity of either 34-byte record, or that the record was a TLS close_notify.",
+    "A kernel RawConn.Control failure: TCP captures are synthetic; tested TLS transport is net.Pipe.",
+    "That observer overhead caused tiny2, or a quantitative perturbation bound.",
+    "Absence of every possible race, leak or shutdown defect outside the two executed schedules.",
+    "A guaranteed no-error natural close with live control producers or an established no-future-write barrier.",
+    "Any throughput improvement, 90 percent download gate result, WAN qualification, release readiness or production remediation."
+  ],
+  "existing_sources_or_evidence_mutated": false,
+  "forced_overlap_limit": "The fixture deliberately holds after-capture until body/physical Close completes. Existing close_race/ambiguous/invalid flags are expected in that schedule and differ from tiny2 final raw/TCP complete=true, invalid=false, ambiguous=false. It demonstrates a compatible lifecycle mechanism, not an exact flag-for-flag WAN reproduction.",
+  "join_limit": "Session.Close return and retirement establish the source-defined completion-channel contract for send/receive loops and aggregate publisher, plus its ping-reply wait. This is not runtime enumeration of every goroutine.",
+  "new_tests_or_builds_or_traffic": false,
+  "preserved_preparation_failure": "Native-envelope metadata writer initially failed Python parsing; its failure artifact is retained and reports no Go execution. The corrected envelope did not rerun either test stage.",
+  "production_fix_justified": false,
+  "production_fix_reason": "Expected cancellation of an active control write is not a demonstrated ownership or lifecycle defect. Neither schedule shows failure to join, retained active ownership after retirement, or a violated existing shutdown contract. Reordering Close to wait for a blocked writer risks deadlock and changes cancellation semantics.",
+  "proves": [
+    "In both forced schedules, the actual TLS/Yamux Session.Close path completes its existing join/retirement contract and all explicit fixture workers return before failure cleanup.",
+    "A blocked raw write can be interrupted by intentional Close and retains its error and zero written bytes.",
+    "A raw write can finish successfully while its surrounding TLS Write remains active in after-capture; concurrent Close can leave a failed simulated after-capture without changing the raw success result.",
+    "Existing observer logic conservatively retains close-race, incomplete/invalid evidence and the actual write result instead of promoting cancellation to a congestion-control transition.",
+    "The tested schedules completed with the race detector enabled without a reported race."
+  ],
+  "review_kind": "Astra bounded architectural and retained-result review",
+  "review_operations": [
+    "Read retained source, invocation, native envelope, lifecycle, result and JSON test logs.",
+    "Independently verified every records-ledger entry and expected ledger/result hashes.",
+    "Compared pre/post input documents for exact equality and independently parsed exact run/pass names."
+  ],
+  "schema_version": 1,
+  "scope": "Local cancellation correctness reproduction only; no acceptance of tiny2, WAN qualification, performance or production fix.",
+  "smallest_remaining_prerequisite": {
+    "admissible_future_candidate": "Would need to stop admitting new work and resolve outstanding work through an established bounded lifecycle contract while retaining the ability to interrupt an unresponsive peer; no such implementation is proposed or authorized by this review.",
+    "current_status": "No such candidate is established by these results. The justified validator-only correction changes diagnosis, not the write/close behavior.",
+    "first_decision": "Determine whether any actual contract violation remains to fix from available source/evidence. If none can be identified, record this qualification path as blocked under its current no-error requirement instead of manufacturing a production change or sampling shutdown until it happens to pass.",
+    "not_sufficient": [
+      "Another unchanged tiny/WAN run after the validator correction.",
+      "Calling shutdown errors healthy, skipping post-close records or relaxing the raw error gate.",
+      "An arbitrary idle wait, endpoint stop-order swap or qualification-only drain barrier.",
+      "A single healthy snapshot while control producers remain live."
+    ],
+    "required": "A concrete, reviewed, evidence-backed hypothesis and candidate that addresses the remaining final raw-write error or establishes a relevant changed condition, with a bounded local demonstration that preserves existing cancellation, ownership and fixed validation gates. Freeze the candidate and a single predeclared WAN experiment before any new WAN execution."
+  },
+  "source_tools_and_overlay_unchanged": true,
+  "stages": {
+    "normal": {
+      "accepted": true,
+      "direct_status": 0,
+      "exact_named_test_count": 3,
+      "forced_cleanup": false,
+      "natural_process_group_join": true,
+      "package_pass_count": 1,
+      "stderr_bytes": 0,
+      "subtest_schedule_count": 2
+    },
+    "race": {
+      "accepted": true,
+      "direct_status": 0,
+      "exact_named_test_count": 3,
+      "forced_cleanup": false,
+      "natural_process_group_join": true,
+      "package_pass_count": 1,
+      "stderr_bytes": 0,
+      "subtest_schedule_count": 2
+    }
+  },
+  "tiny2_disposition": "Rejected and preserved. Natural endpoint/process joins and exact completed transfers do not override final raw error rejection.",
+  "validator_context": {
+    "full_tiny2_revalidation": "Coordinator reports rejection remains exactly for lane4 outside write error; this final review did not rerun the validator.",
+    "interpretation": "Removing a false congestion-control mismatch diagnosis cannot erase the independently recorded write error or turn tiny2 into an accepted run.",
+    "retained_result_accepted": true,
+    "retained_result_case_count": 106
+  },
+  "wan_resume_ready": false
+}

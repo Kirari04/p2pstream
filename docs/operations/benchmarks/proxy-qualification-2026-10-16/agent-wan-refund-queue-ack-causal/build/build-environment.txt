@@ -1,0 +1,10 @@
+go version go1.26.6 linux/amd64
+GOOS=linux
+GOARCH=amd64
+GOVERSION=go1.26.6
+CGO_ENABLED=1
+GOAMD64=v1
+GOEXPERIMENT=
+Build tags: none (ordinary tag-off binaries)
+Source filesystem: ext4
+TMPDIR, TEMP, TMP, GOTMPDIR, and GOCACHE were rooted under the owned ext4 diagnostic tree before the first successful Go invocation.

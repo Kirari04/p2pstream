@@ -1,0 +1,11 @@
+Clean archived source: e92162962e7bebe9e5a8d28a2efe6f9373ea9db9
+GOMAXPROCS=4 go -C <archive> test -c -o <archive>/bin/server.test ./internal/server
+GOMAXPROCS=4 go -C <archive> test -c -o <archive>/bin/agent.test ./internal/agent
+Driver is the same server.test binary.
+Server/driver SHA256: 9f35c8b7cba4235cfcdc84528c9d6196f999cbef677d7fd44f0c1bb643e37e10
+Agent SHA256: eb6ac68d282bab5076e0da88e714417511e51e6e84beed05fb9e9ba6b7b0cf3e
+The wrapper freezes exact committed runners, source fixtures and copied binaries.
+Compared with the cold fb1cad92 cohort, no non-test Go production file differs.
+Changed Go files are:
+internal/agent/proxy_qualification_external_test.go
+internal/server/proxy_qualification_test.go

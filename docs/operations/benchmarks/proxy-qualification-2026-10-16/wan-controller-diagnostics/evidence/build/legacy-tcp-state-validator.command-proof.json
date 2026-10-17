@@ -1,0 +1,41 @@
+{
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "30s",
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1/integration/contracts/test-tcp-state-validator.py"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+  "exit_status": 0,
+  "finished_unix": 1792238465.7989879,
+  "forced": false,
+  "name": "legacy-tcp-state-validator",
+  "outer_audit_sha256": "91e5a1c7e13a696f4ef71f1d5cc2c1bbf5a033a2863ea04654c843c85305d53e",
+  "output_bytes": 7152,
+  "owned_identities": [
+    {
+      "pgid": 2510695,
+      "pid": 2510695,
+      "ppid": 2510627,
+      "sid": 2510695,
+      "start_ticks": 7602100,
+      "state": "S"
+    }
+  ],
+  "remaining_group_members": [],
+  "started_unix": 1792238465.4070582,
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_bytes": 7152,
+  "stdout_sha256": "3e9b2af6e4c296e588d5d74d4895d7654625e79f0ae3f3fafd3372a575fb8d48"
+}

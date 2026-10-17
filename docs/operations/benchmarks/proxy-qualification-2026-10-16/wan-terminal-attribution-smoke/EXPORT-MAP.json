@@ -1,0 +1,1319 @@
+{
+  "source_root": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+  "hash": "sha256",
+  "copies": [
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/BUILD-SOURCE-SHA256SUMS",
+      "destination": "build-runner-review/BUILD-SOURCE-SHA256SUMS",
+      "sha256": "f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+      "bytes": 55235,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/CHANGE.diff",
+      "destination": "build-runner-review/CHANGE.diff",
+      "sha256": "aa59945949f29b2fee2dc39a73785e0f4a858f416ef5ba80e28bd83ba0644cd1",
+      "bytes": 38622,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/COMMANDS.json",
+      "destination": "build-runner-review/COMMANDS.json",
+      "sha256": "bb13a1ca8f88a216c24e21c1ef9eb76f371b8a50a0cc9e4ab49de168f73fa5a9",
+      "bytes": 9679,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/FUTURE-SMOKE-COMMANDS.json",
+      "destination": "build-runner-review/FUTURE-SMOKE-COMMANDS.json",
+      "sha256": "98ceef0bb7b49594dde7af8414c39e8b33e3cb3c760d4aa1de106b0755c10e39",
+      "bytes": 5800,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/REVIEW.md",
+      "destination": "build-runner-review/REVIEW.md",
+      "sha256": "094bf55ef8dcc8e47c111ddd1597daf63504a009ab4a94f24573fa02aa528e5e",
+      "bytes": 5414,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/RUNNER-SOURCE-MAP.json",
+      "destination": "build-runner-review/RUNNER-SOURCE-MAP.json",
+      "sha256": "67f75bb8870195394a41924f35775c3d6e03ae1cfe0942df672f48b097b5d92b",
+      "bytes": 17522,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/SERVER-SUPPORT.json",
+      "destination": "build-runner-review/SERVER-SUPPORT.json",
+      "sha256": "3b741c1525f8c8698c062b6f37d75863e061f1aa36f8c70fa340605a7edc75b0",
+      "bytes": 766,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/SHA256SUMS",
+      "destination": "build-runner-review/SHA256SUMS",
+      "sha256": "40a9d620cd0f3fcae264ee739e7dee9d2f0881ef7e78b774ab7326736cbe97e7",
+      "bytes": 1772,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/SOURCE-AUDIT.json",
+      "destination": "build-runner-review/SOURCE-AUDIT.json",
+      "sha256": "550158fd03b0493840c42ee44d84484a570d821fe8dc731d2be03422da161721",
+      "bytes": 3112,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/WIRING-COMMANDS.json",
+      "destination": "build-runner-review/WIRING-COMMANDS.json",
+      "sha256": "bd1aed620dfbf24eca3028319d175495a5255098e5711b5d9ab561986eabe4c0",
+      "bytes": 4283,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build-runner-review/build-endpoints.py",
+      "destination": "build-runner-review/build-endpoints.py",
+      "sha256": "e97be25b2d9ce0d8d79542e786d779859964fba20bf1a47e46050d4de88af1ab",
+      "bytes": 4853,
+      "selection": "Frozen reviewed source diff, exact build/wiring declarations, driver and source binding."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/RESULT.json",
+      "destination": "wiring-window/RESULT.json",
+      "sha256": "5428155be544c96a2c231a0dd3a9db14c3bd47e18441c9ee95dd1a11f40ffcf7",
+      "bytes": 5305,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/SHA256SUMS",
+      "destination": "wiring-window/SHA256SUMS",
+      "sha256": "7d976ca7ce63e8d850dec978c26654bafd44c73d118de056e7b768539bcc3fc0",
+      "bytes": 13931,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.invocation.json",
+      "destination": "wiring-window/arm-outcome.invocation.json",
+      "sha256": "54e74ce4471f7c439b7c0cce0d8cbaff0df71455fadb9b493128a185b53976bf",
+      "bytes": 1052,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.json",
+      "destination": "wiring-window/arm-outcome.json",
+      "sha256": "30a61b84f28fa12e61daf5a1d19617c98c08f7cb6b442d442737f574a063302d",
+      "bytes": 9347,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.result.json",
+      "destination": "wiring-window/arm-outcome.result.json",
+      "sha256": "fb54f6ae34249dfd8680e78713ea77eb0c447f72b08f2c0e991cc9a0428c22c4",
+      "bytes": 1351,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.stderr.log",
+      "destination": "wiring-window/arm-outcome.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.stdout.log",
+      "destination": "wiring-window/arm-outcome.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.invocation.json",
+      "destination": "wiring-window/h1-continuation.invocation.json",
+      "sha256": "5de36478eddee9ab65c145c91725752f81a897d1300989447dd5a9f0db484d82",
+      "bytes": 747,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.json",
+      "destination": "wiring-window/h1-continuation.json",
+      "sha256": "1a42d6f76f3d54a44307728e1c7fd8e3c17c863f7d3a27959abb822792e62ad9",
+      "bytes": 3936,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.result.json",
+      "destination": "wiring-window/h1-continuation.result.json",
+      "sha256": "f3e187bb2335aec469bd9e0f4e3edeaa0964f1a681c57c82dbfc4f025519241e",
+      "bytes": 1046,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.stderr.log",
+      "destination": "wiring-window/h1-continuation.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.stdout.log",
+      "destination": "wiring-window/h1-continuation.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/python-syntax.invocation.json",
+      "destination": "wiring-window/python-syntax.invocation.json",
+      "sha256": "be40b4fcfffc08f246ab1be705ee28bb42c0f185e819bfe05ae58f592b11a9b6",
+      "bytes": 1348,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/python-syntax.result.json",
+      "destination": "wiring-window/python-syntax.result.json",
+      "sha256": "99385015905a0714f4800e70b114195219145abbdbdefbf89b8104d7eee259eb",
+      "bytes": 1648,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/python-syntax.stderr.log",
+      "destination": "wiring-window/python-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/python-syntax.stdout.log",
+      "destination": "wiring-window/python-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/shell-syntax.invocation.json",
+      "destination": "wiring-window/shell-syntax.invocation.json",
+      "sha256": "41babaa399f05e16009024b0235e2f42c927aef318a4ab58b88f33dc542eec8c",
+      "bytes": 419,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/shell-syntax.result.json",
+      "destination": "wiring-window/shell-syntax.result.json",
+      "sha256": "c7c16ac751e4de3d5cd3aeb98f4789f252eb8bb8a6cf43877f23d3ef05ff7322",
+      "bytes": 717,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/shell-syntax.stderr.log",
+      "destination": "wiring-window/shell-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/shell-syntax.stdout.log",
+      "destination": "wiring-window/shell-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All four actual bounded wiring/syntax invocation, output, status and result records."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/write-hashes-producer.sh",
+      "destination": "wiring-window/arm-outcome-fixture/write-hashes-producer.sh",
+      "sha256": "badaf0039365933d60a2c25bc9d9c54331355905d6b44c8323a2172537b539f9",
+      "bytes": 32704,
+      "selection": "Exact generated hash-mapping producer and test mapping; repetitive bound stubs omitted by inventory."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome-fixture/pre-hashes.json",
+      "destination": "wiring-window/arm-outcome-fixture/pre-hashes.json",
+      "sha256": "b21408a32a58828231207e9974bdfd91e713a256e464fd246dab1cb195ed7b6a",
+      "bytes": 10858,
+      "selection": "Exact generated hash-mapping producer and test mapping; repetitive bound stubs omitted by inventory."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/POST-AUDIT.json",
+      "destination": "build/POST-AUDIT.json",
+      "sha256": "86ea380d678d3207d61ab9827cba54fddca23e69538e81162d16ac5e8e3b2a2b",
+      "bytes": 601,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/RESULT.md",
+      "destination": "build/RESULT.md",
+      "sha256": "1dd18b149288dc20be9c068d63b725eb1405f25c206efdbb9867a3ba3ea9ca21",
+      "bytes": 1890,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/SHA256SUMS",
+      "destination": "build/SHA256SUMS",
+      "sha256": "6b9b432066ce20d09154c7fd8f1ba4316a78396d0219190a951029db8f65ca25",
+      "bytes": 1322,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/agent-build.stderr.log",
+      "destination": "build/agent-build.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/agent-build.stdout.log",
+      "destination": "build/agent-build.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/agent-metadata.stderr.log",
+      "destination": "build/agent-metadata.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/agent-metadata.stdout.log",
+      "destination": "build/agent-metadata.stdout.log",
+      "sha256": "a9a62261ef7bd5ea5ce9000f86f8485904c4e2bc075f5633f1c3593e617ea439",
+      "bytes": 441,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/go-env.stderr.log",
+      "destination": "build/go-env.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/go-env.stdout.log",
+      "destination": "build/go-env.stdout.log",
+      "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147",
+      "bytes": 264,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/receipt.json",
+      "destination": "build/receipt.json",
+      "sha256": "ad0dbfb3adafab686a4fc84f75effaee57819f2694ae644ada901a192604ad62",
+      "bytes": 7569,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/server-build.stderr.log",
+      "destination": "build/server-build.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/server-build.stdout.log",
+      "destination": "build/server-build.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/server-metadata.stderr.log",
+      "destination": "build/server-metadata.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/build/server-metadata.stdout.log",
+      "destination": "build/server-metadata.stdout.log",
+      "sha256": "7075a93439987066fe44b84b3476a1e6e6a78ca5408c8323e4e932f8e79e4aa7",
+      "bytes": 443,
+      "selection": "All compile-only records/logs/metadata and original receipt; endpoint binaries omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/COMMANDS.json",
+      "destination": "smoke-freeze/COMMANDS.json",
+      "sha256": "6d898da8254c2a7c2c38fc81fb152235294de7825725dd4322fa4a601fba1f8c",
+      "bytes": 7044,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/REVIEW.md",
+      "destination": "smoke-freeze/REVIEW.md",
+      "sha256": "0f1a6b3f63686ef98396f26b9a0eed1a9318df62c7dadd838f8f0d4fddb1f24a",
+      "bytes": 1601,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/SHA256SUMS",
+      "destination": "smoke-freeze/SHA256SUMS",
+      "sha256": "1dca099b51530c8d4a6bb0a0459f99760b8e7ad5c4f94a12358a900361b65d81",
+      "bytes": 488,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/UNBLOCK.diff",
+      "destination": "smoke-freeze/UNBLOCK.diff",
+      "sha256": "01e8011cd35f71cc7d3783af3a98f2f2a48d846a786d4e2c71aa36b78a0e0f3b",
+      "bytes": 557,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-freeze/blocked-runner.sh",
+      "destination": "smoke-freeze/blocked-runner.sh",
+      "sha256": "6597c4b73e715ab89d4a08ebdc90eae44af21a119dc9d8f2113543183080a353",
+      "bytes": 82033,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/BUDGET-AMENDMENT.json",
+      "destination": "smoke-execution/BUDGET-AMENDMENT.json",
+      "sha256": "51bac01e8846524e89b29dea5a7759ac384a53795a009936741285ca377ea9de",
+      "bytes": 727,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/BUDGET-AMENDMENT.sha256",
+      "destination": "smoke-execution/BUDGET-AMENDMENT.sha256",
+      "sha256": "232c1fe17f1f52682b789bdceab054d77be24000db7434d0639fe93e1b36faba",
+      "bytes": 88,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/FINAL-AUDIT.json",
+      "destination": "smoke-execution/FINAL-AUDIT.json",
+      "sha256": "603d657ce35e81ad934ca86715127feb49cae645c460082be174e9730d8e423f",
+      "bytes": 1883,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/SHA256SUMS",
+      "destination": "smoke-execution/SHA256SUMS",
+      "sha256": "094afff9e304a5866538f33858795b356efc306d9698c6f5e9d051d815df8c03",
+      "bytes": 45796,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1-continuation.result.json",
+      "destination": "smoke-execution/h1-continuation.result.json",
+      "sha256": "5e98b8111382b617587e5c126e4647002fa7293c7ddd02ccdbde7a16daaa8334",
+      "bytes": 1150,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1-continuation.stderr.log",
+      "destination": "smoke-execution/h1-continuation.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1-continuation.stdout.log",
+      "destination": "smoke-execution/h1-continuation.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1.invocation.json",
+      "destination": "smoke-execution/h1.invocation.json",
+      "sha256": "99628e8249a5fce5bd479fa120a7db31899fee0a132c9c3732a7fade1d6c4e59",
+      "bytes": 1943,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1.result.json",
+      "destination": "smoke-execution/h1.result.json",
+      "sha256": "c31e821735987e5c9c7560b15e2657ef1a82eb99512dbb672277fd1877eed926",
+      "bytes": 2286,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1.stderr.log",
+      "destination": "smoke-execution/h1.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h1.stdout.log",
+      "destination": "smoke-execution/h1.stdout.log",
+      "sha256": "d64f829a1a23a1b76c05e40ea807336008f65995451716cffebc6b5cfef7a320",
+      "bytes": 309,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h2.invocation.json",
+      "destination": "smoke-execution/h2.invocation.json",
+      "sha256": "c199f28965634c20b4919f7b07e86a7f1d972d8e5fcedc3259b9f3c4cc48f971",
+      "bytes": 2024,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h2.result.json",
+      "destination": "smoke-execution/h2.result.json",
+      "sha256": "64c02c18ee9b4946af9e09148f7aceb50cc77fe65af74584849760b6b0566f03",
+      "bytes": 2368,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h2.stderr.log",
+      "destination": "smoke-execution/h2.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/h2.stdout.log",
+      "destination": "smoke-execution/h2.stdout.log",
+      "sha256": "d64f829a1a23a1b76c05e40ea807336008f65995451716cffebc6b5cfef7a320",
+      "bytes": 309,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/smoke-execution/preflight.json",
+      "destination": "smoke-execution/preflight.json",
+      "sha256": "926e57b8492010976ce74f6edc1c156946d71245e7c3d83d32c17151f98c231a",
+      "bytes": 1004,
+      "selection": "Complete frozen smoke command, budget amendment, actual command/result/log and final audit record."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/TEST-SOURCE-SHA256SUMS",
+      "destination": "source-binding/TEST-SOURCE-SHA256SUMS",
+      "sha256": "fa9a76a9640ad5084daec1722da509f98dc9eca0c6541536b55d129e3e80fb8b",
+      "bytes": 55142,
+      "selection": "Exact tested-source/toolchain/ordinary mapping metadata; detailed local tests published separately."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/TOOLCHAIN.json",
+      "destination": "source-binding/TOOLCHAIN.json",
+      "sha256": "8a07d445d806bd86323326d901f864281bc07095b6b9c934d98a6b5efe8b27ba",
+      "bytes": 1989,
+      "selection": "Exact tested-source/toolchain/ordinary mapping metadata; detailed local tests published separately."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/MATERIALIZED-CHANGES.json",
+      "destination": "source-binding/MATERIALIZED-CHANGES.json",
+      "sha256": "ba4871df444eb8054754a1c7ebd4fcf0159b9079a2bce10f78e46ae60039c714",
+      "bytes": 4171,
+      "selection": "Exact tested-source/toolchain/ordinary mapping metadata; detailed local tests published separately."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/ordinary-health-mapping.diff",
+      "destination": "source-binding/ordinary-health-mapping.diff",
+      "sha256": "4afae3b30bcfe061ee9224e7bca8d17def644808b35b2c180ccab9cdcd80cf37",
+      "bytes": 1068,
+      "selection": "Exact tested-source/toolchain/ordinary mapping metadata; detailed local tests published separately."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+      "destination": "final-source/integration/run-wan-below-tls-arm.sh",
+      "sha256": "7769587f80f70c441a4c25554b1647b78d41aea76eb6f2f6099104aa93443e9a",
+      "bytes": 82090,
+      "selection": "Exact final smoke launcher, generated lifecycle runner, verifier or adapted acceptance contract/validator; all hashes checked against frozen review/unblock."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/generated/qualify-proxy-agent-growth-wan-below-tls.sh",
+      "destination": "final-source/integration/generated/qualify-proxy-agent-growth-wan-below-tls.sh",
+      "sha256": "a672ab078d424a59d795c522a40f96da815b8aaa55af6f21fce4eed07a63b1ad",
+      "bytes": 125964,
+      "selection": "Exact final smoke launcher, generated lifecycle runner, verifier or adapted acceptance contract/validator; all hashes checked against frozen review/unblock."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/verify-terminal-build.py",
+      "destination": "final-source/integration/verify-terminal-build.py",
+      "sha256": "20252be46c66bc9577b56c8632001059db8bb04de20d9b578e7f9e1fa87f7cdb",
+      "bytes": 4446,
+      "selection": "Exact final smoke launcher, generated lifecycle runner, verifier or adapted acceptance contract/validator; all hashes checked against frozen review/unblock."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-terminal-attribution.py",
+      "destination": "final-source/integration/validate-terminal-attribution.py",
+      "sha256": "1be48e2f76dd566630c6427d9cf0a19dc6100fdf71532fb21616da209691d510",
+      "bytes": 17684,
+      "selection": "Exact final smoke launcher, generated lifecycle runner, verifier or adapted acceptance contract/validator; all hashes checked against frozen review/unblock."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+      "destination": "final-source/integration/validate-wan-below-tls-arm.py",
+      "sha256": "dd526df214e7adcbcfd4c790d2581348f8b1048d13fd5ca0d832306f57860235",
+      "bytes": 57892,
+      "selection": "Exact final smoke launcher, generated lifecycle runner, verifier or adapted acceptance contract/validator; all hashes checked against frozen review/unblock."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+      "destination": "final-source/integration/validate-h1-continuation.py",
+      "sha256": "f2ec2b1507291fe648d2293e9f345e664266d34a66abee3df5e85222c54fd913",
+      "bytes": 7356,
+      "selection": "Exact final smoke launcher, generated lifecycle runner, verifier or adapted acceptance contract/validator; all hashes checked against frozen review/unblock."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-arm-outcome.py",
+      "destination": "final-source/integration/validate-arm-outcome.py",
+      "sha256": "4c4f1c8119aac278b732fadabb72fa08f9249ee9ed003d0b881c5220b74f1eb1",
+      "bytes": 6486,
+      "selection": "Exact final smoke launcher, generated lifecycle runner, verifier or adapted acceptance contract/validator; all hashes checked against frozen review/unblock."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-post-join-raw-closure.py",
+      "destination": "final-source/integration/validate-post-join-raw-closure.py",
+      "sha256": "7b5b7962f603ebd7c160fabcdb9d4a78b7699e9866b4ed4172480be25b847eae",
+      "bytes": 4256,
+      "selection": "Exact final smoke launcher, generated lifecycle runner, verifier or adapted acceptance contract/validator; all hashes checked against frozen review/unblock."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-h1-continuation.py",
+      "destination": "final-source/integration/contracts/test-h1-continuation.py",
+      "sha256": "45d7d486dd8ee4489fe42b17dd38df86fd99456b998ef0108206a2d4109cd43f",
+      "bytes": 6881,
+      "selection": "Exact final smoke launcher, generated lifecycle runner, verifier or adapted acceptance contract/validator; all hashes checked against frozen review/unblock."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-arm-outcome.py",
+      "destination": "final-source/integration/contracts/test-arm-outcome.py",
+      "sha256": "652f64b00a5b05257c8613be823fea8de7558f7c4fdb4f3637f51f47d28b4ee4",
+      "bytes": 15744,
+      "selection": "Exact final smoke launcher, generated lifecycle runner, verifier or adapted acceptance contract/validator; all hashes checked against frozen review/unblock."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/attestation.json",
+      "destination": "arms/h1/attestation.json",
+      "sha256": "4828baf88bff0012a8841eb9de0726bbf70c7ac99cf41ba16f52f20c634df7e0",
+      "bytes": 1529374,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/historical-cp10-source-verification.json",
+      "destination": "arms/h1/historical-cp10-source-verification.json",
+      "sha256": "f5e3f2a0fe8bb30975f4554abc3d5c8b73f00b9957cf1d756b42df2d5d66c85a",
+      "bytes": 4153,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/host-settings.txt",
+      "destination": "arms/h1/host-settings.txt",
+      "sha256": "10a0c852dcc31b1391aa9eeb6275d7c5a0920e01f83925eebada1aa322f02400",
+      "bytes": 4780,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/invocation.txt",
+      "destination": "arms/h1/invocation.txt",
+      "sha256": "d4f8aecaaf4b962e7917c05ca05fc87821d78bbbacccbce0a30bae517d511a38",
+      "bytes": 2456,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/outer-namespaces.json",
+      "destination": "arms/h1/outer-namespaces.json",
+      "sha256": "0630971e427639e4131eba2c997734aba1b77a8516aa3aa43e3df323d539f396",
+      "bytes": 629,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/post-hashes.json",
+      "destination": "arms/h1/post-hashes.json",
+      "sha256": "4f3c0b05ddf56d24e46e3d2ea0f4ecec27dea60a7ca9e424ceceeb0ea861101d",
+      "bytes": 11071,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/pre-hashes.json",
+      "destination": "arms/h1/pre-hashes.json",
+      "sha256": "4f3c0b05ddf56d24e46e3d2ea0f4ecec27dea60a7ca9e424ceceeb0ea861101d",
+      "bytes": 11071,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/prospective-terminal-attribution.json",
+      "destination": "arms/h1/prospective-terminal-attribution.json",
+      "sha256": "16f5acbcf3522f5b4ed021b18b978282856dc30f8130d691267e27bc296cfc13",
+      "bytes": 1357,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/raw-post-join-supervisor-validation.json",
+      "destination": "arms/h1/raw-post-join-supervisor-validation.json",
+      "sha256": "e5e586d828210f254ba075caa6ae2552688caf9e1d188cb3d418429d44a6cdcf",
+      "bytes": 225587,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.jsonl",
+      "destination": "arms/h1/results.jsonl",
+      "sha256": "65b28859b89dcb8a0177d3209a528a7729262ab7d04e0d1906c6e2d8751096c3",
+      "bytes": 178169,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.lifecycle.jsonl",
+      "destination": "arms/h1/results.lifecycle.jsonl",
+      "sha256": "0586baa5c43e265552e396f36ed8002d97090e6cbad117380c775a9e8ff52624",
+      "bytes": 980,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.summary.json",
+      "destination": "arms/h1/results.summary.json",
+      "sha256": "cb759e0fc7abc789ab7d08194966bf37e37cb26763aa50af67846da956f294b4",
+      "bytes": 15344,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/runner.status",
+      "destination": "arms/h1/runner.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/runner.stderr.log",
+      "destination": "arms/h1/runner.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/runner.stdout.log",
+      "destination": "arms/h1/runner.stdout.log",
+      "sha256": "140ff1a91ab4a2a129a878872153745b320e5259080cfdd6b0194e5f6596d612",
+      "bytes": 543,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope-invocation.txt",
+      "destination": "arms/h1/server-scope-invocation.txt",
+      "sha256": "7577938f6f6a3fd6f1028b3b1704dcd0cb6878a150d258ef19273e751d63ce10",
+      "bytes": 299,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/supervisor-cleanup.json",
+      "destination": "arms/h1/supervisor-cleanup.json",
+      "sha256": "ed21eb54c20162ffe13eabed1790f826e0ca6eec860f96b399fb029e12e17662",
+      "bytes": 489,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/supervisor-lifecycle.json",
+      "destination": "arms/h1/supervisor-lifecycle.json",
+      "sha256": "a83ea3f1e8fb2de37efa85f69ce4e295a0ad0ce18092fe6d21e79c7838390592",
+      "bytes": 511,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/validation.status",
+      "destination": "arms/h1/validation.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/validation.stderr.log",
+      "destination": "arms/h1/validation.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/validation.stdout.log",
+      "destination": "arms/h1/validation.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/final-raw-write-record.json",
+      "destination": "arms/h1/results.sender-wait-controls/final-raw-write-record.json",
+      "sha256": "00a69e953e3b0b0ec474ad9de9767a1416b602833292742d5da3a05ec4a8afb8",
+      "bytes": 893,
+      "selection": "Final raw owner closure/prospective stack evidence and status; exception not exercised."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/final-raw-write-terminal.json",
+      "destination": "arms/h1/results.sender-wait-controls/final-raw-write-terminal.json",
+      "sha256": "209931c5e8d45271cce87af2fe60a9eb848f88068421fa2278209125355ad22c",
+      "bytes": 120780,
+      "selection": "Final raw owner closure/prospective stack evidence and status; exception not exercised."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/final-raw-write-terminal.json.attribution.json",
+      "destination": "arms/h1/results.sender-wait-controls/final-raw-write-terminal.json.attribution.json",
+      "sha256": "5a2d51c39c767dd3130d1c34f226febbf84568808d981e62516894bced9216c2",
+      "bytes": 8930,
+      "selection": "Final raw owner closure/prospective stack evidence and status; exception not exercised."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/final-raw-write-validation.json",
+      "destination": "arms/h1/results.sender-wait-controls/final-raw-write-validation.json",
+      "sha256": "a04c0ef249f64a5cc75b3d9e041fe623533cd26e33c08051c0c90bd54d98a688",
+      "bytes": 89,
+      "selection": "Final raw owner closure/prospective stack evidence and status; exception not exercised."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/results.sender-wait-controls/terminal-validation.json",
+      "destination": "arms/h1/results.sender-wait-controls/terminal-validation.json",
+      "sha256": "5de5117c2fa0d3df21a12ff1477c5da91ec8547d3a54e1b77551471feb8fdd50",
+      "bytes": 127,
+      "selection": "Final raw owner closure/prospective stack evidence and status; exception not exercised."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/cgroup-delegation-paths.json",
+      "destination": "arms/h1/server-scope/cgroup-delegation-paths.json",
+      "sha256": "9de3f8ebc5f078ac2537f872dd85ed6e8e30abf2791ea4b006cda2a9313547d5",
+      "bytes": 1612,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/cgroup-with-sentinel.json",
+      "destination": "arms/h1/server-scope/cgroup-with-sentinel.json",
+      "sha256": "40b2dab51a954928d85b528262d45deff61c4da966db9a5add960efcc188a8d7",
+      "bytes": 471,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/runner-owned-namespaces.json",
+      "destination": "arms/h1/server-scope/runner-owned-namespaces.json",
+      "sha256": "e29813bd0afd7ce6ca29ccb087c619a958eb023d9863c4c71b9c6e26f3053141",
+      "bytes": 248,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/scope-launcher.json",
+      "destination": "arms/h1/server-scope/scope-launcher.json",
+      "sha256": "b3dc783e7d904fce54276dc0030c0fba03ea5591e44a233c9556a2599fd584c1",
+      "bytes": 171,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/scope-process-join.json",
+      "destination": "arms/h1/server-scope/scope-process-join.json",
+      "sha256": "753f4659492ef972745df7438aff4fadd1f505d340021d42c112d9db3ea83924",
+      "bytes": 151,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/sentinel.json",
+      "destination": "arms/h1/server-scope/sentinel.json",
+      "sha256": "1c0d5becea3f20ab4d0685a1966350b39e8cc4bd37a61a844f04c67b7bad6ff7",
+      "bytes": 404,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/sentinel.json.natural-exit",
+      "destination": "arms/h1/server-scope/sentinel.json.natural-exit",
+      "sha256": "61fb22e66cdb32d8bc9cdf8246d8d58544f3f06f794cdde3937595c4860d0900",
+      "bytes": 13,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-application-binding.json",
+      "destination": "arms/h1/server-scope/server-application-binding.json",
+      "sha256": "55d3ae346a9addeef2dda1629a892a8b782849466a6b6bfa072913506f6f667d",
+      "bytes": 3403,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-cgroup-post-workload.json",
+      "destination": "arms/h1/server-scope/server-cgroup-post-workload.json",
+      "sha256": "e3da17607db3939aad5b58a0422ec57451538b0281e129b7a33592780a7d3ded",
+      "bytes": 452,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-cgroup-pre-traffic.json",
+      "destination": "arms/h1/server-scope/server-cgroup-pre-traffic.json",
+      "sha256": "3ab1d20ada93f84b4121129be943f46fd9ff9b851a983d1adcb867095773f531",
+      "bytes": 473,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-preexec-binding.json",
+      "destination": "arms/h1/server-scope/server-preexec-binding.json",
+      "sha256": "bf1e1d966d03ceadee2eec89384ed95e8e55c17edb3e5248273bdc49eebf602b",
+      "bytes": 4621,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-preexec.json",
+      "destination": "arms/h1/server-scope/server-preexec.json",
+      "sha256": "0cd14c74f450954826325957591b3015defb7be17ffd365819d56bc533d898f2",
+      "bytes": 1269,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-resource-attestation.json",
+      "destination": "arms/h1/server-scope/server-resource-attestation.json",
+      "sha256": "9e42567b80731665350a612b9c3957db17e51217e95b0e6456955549b8c86409",
+      "bytes": 1416,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/server-resource.status",
+      "destination": "arms/h1/server-scope/server-resource.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/systemd-run.status",
+      "destination": "arms/h1/server-scope/systemd-run.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/systemd-run.stderr.log",
+      "destination": "arms/h1/server-scope/systemd-run.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/systemd-run.stdout.log",
+      "destination": "arms/h1/server-scope/systemd-run.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-cleanup-query.txt",
+      "destination": "arms/h1/server-scope/unit-cleanup-query.txt",
+      "sha256": "a0c2edd4128d9aa1601ae769a535c71c9f7f041601581064c5075b6511a2d00a",
+      "bytes": 64,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-control-group.status",
+      "destination": "arms/h1/server-scope/unit-control-group.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-final-polls.txt",
+      "destination": "arms/h1/server-scope/unit-final-polls.txt",
+      "sha256": "1b1077a93fc73e23fb2fcc94c9f6da073a42ca8ebb68a1031a2a9f66c64d022f",
+      "bytes": 64,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-final.json",
+      "destination": "arms/h1/server-scope/unit-final.json",
+      "sha256": "6a4488011f89a66601f3f4b4161e2949ccca33ae8e310a8db8828f31ab02b42b",
+      "bytes": 226,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-policy.json",
+      "destination": "arms/h1/server-scope/unit-policy.json",
+      "sha256": "4acf135b70e979b8d58728e342615f7edcb310b786389d9b32b71d096177c340",
+      "bytes": 750,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-server-preexec.txt",
+      "destination": "arms/h1/server-scope/unit-server-preexec.txt",
+      "sha256": "3f02cb90ce5fa622f7f16026cc72f1aa4289d7d51301e32c876999f9bb7d06d1",
+      "bytes": 176,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-with-sentinel.status",
+      "destination": "arms/h1/server-scope/unit-with-sentinel.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit-with-sentinel.txt",
+      "destination": "arms/h1/server-scope/unit-with-sentinel.txt",
+      "sha256": "61f7dee812c0ae731e3f9ac469dd3912432b74dc505f732c488d0be36d562d40",
+      "bytes": 348,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h1/server-scope/unit.joined",
+      "destination": "arms/h1/server-scope/unit.joined",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/attestation.json",
+      "destination": "arms/h2/attestation.json",
+      "sha256": "64de516c6a4672e68f7fc6297913613dead1d6a7a775d203940abba4064510d0",
+      "bytes": 1406914,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/historical-cp10-source-verification.json",
+      "destination": "arms/h2/historical-cp10-source-verification.json",
+      "sha256": "f5e3f2a0fe8bb30975f4554abc3d5c8b73f00b9957cf1d756b42df2d5d66c85a",
+      "bytes": 4153,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/host-settings.txt",
+      "destination": "arms/h2/host-settings.txt",
+      "sha256": "0c298b8abebc96f21c543da9d2800abad31e23108902765c67112bb5bcfd39a1",
+      "bytes": 4780,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/invocation.txt",
+      "destination": "arms/h2/invocation.txt",
+      "sha256": "25c245dd98b01b885c2546d0832d830cf5f809bb2c487627b4b58d81dc320a2e",
+      "bytes": 2456,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/outer-namespaces.json",
+      "destination": "arms/h2/outer-namespaces.json",
+      "sha256": "0630971e427639e4131eba2c997734aba1b77a8516aa3aa43e3df323d539f396",
+      "bytes": 629,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/post-hashes.json",
+      "destination": "arms/h2/post-hashes.json",
+      "sha256": "4f3c0b05ddf56d24e46e3d2ea0f4ecec27dea60a7ca9e424ceceeb0ea861101d",
+      "bytes": 11071,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/pre-hashes.json",
+      "destination": "arms/h2/pre-hashes.json",
+      "sha256": "4f3c0b05ddf56d24e46e3d2ea0f4ecec27dea60a7ca9e424ceceeb0ea861101d",
+      "bytes": 11071,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/prospective-terminal-attribution.json",
+      "destination": "arms/h2/prospective-terminal-attribution.json",
+      "sha256": "9875a893f5dd479dd7954d90147751a0a7a859ea61d04c4ba0ef4ff86748cb68",
+      "bytes": 1357,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/raw-post-join-supervisor-validation.json",
+      "destination": "arms/h2/raw-post-join-supervisor-validation.json",
+      "sha256": "b767d8b3be1e3e9c64962f3080c3141799c73875529dede73cae5ad93debb2c1",
+      "bytes": 225894,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.jsonl",
+      "destination": "arms/h2/results.jsonl",
+      "sha256": "2eaabb6cf31f4b75dec6e7c80efa877d2038c0464e601ec66b4f88f68f814abf",
+      "bytes": 178320,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.lifecycle.jsonl",
+      "destination": "arms/h2/results.lifecycle.jsonl",
+      "sha256": "d92a95c2fb034d110f557905f00f62d280bd8ee95f2ee32d5c19b9a2072b9f42",
+      "bytes": 980,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.summary.json",
+      "destination": "arms/h2/results.summary.json",
+      "sha256": "2405aeaa87e5d1b48689d434f172f38e88880fce86aa80b1293db7da8e69d8b6",
+      "bytes": 15344,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/runner.status",
+      "destination": "arms/h2/runner.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/runner.stderr.log",
+      "destination": "arms/h2/runner.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/runner.stdout.log",
+      "destination": "arms/h2/runner.stdout.log",
+      "sha256": "cffc0b03c17c3c6b080c826a6ba07bd173eb32d148b16ebbd7c7b6fed77d832c",
+      "bytes": 543,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope-invocation.txt",
+      "destination": "arms/h2/server-scope-invocation.txt",
+      "sha256": "c5cd8772a680ea67f64fbf18b99afcc15bb98d7e1055342f54d455ea31a32fa5",
+      "bytes": 299,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/supervisor-cleanup.json",
+      "destination": "arms/h2/supervisor-cleanup.json",
+      "sha256": "ed21eb54c20162ffe13eabed1790f826e0ca6eec860f96b399fb029e12e17662",
+      "bytes": 489,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/supervisor-lifecycle.json",
+      "destination": "arms/h2/supervisor-lifecycle.json",
+      "sha256": "a83ea3f1e8fb2de37efa85f69ce4e295a0ad0ce18092fe6d21e79c7838390592",
+      "bytes": 511,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/validation.status",
+      "destination": "arms/h2/validation.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/validation.stderr.log",
+      "destination": "arms/h2/validation.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/validation.stdout.log",
+      "destination": "arms/h2/validation.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete authoritative arm attestation, canonical rows, source hashes, lifecycle or independent final verdict."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/final-raw-write-record.json",
+      "destination": "arms/h2/results.sender-wait-controls/final-raw-write-record.json",
+      "sha256": "91dab3adfdfe1f7d1d8a7a86b5f1b9a00fea868549d1aadc0a16182d4d936af8",
+      "bytes": 893,
+      "selection": "Final raw owner closure/prospective stack evidence and status; exception not exercised."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/final-raw-write-terminal.json",
+      "destination": "arms/h2/results.sender-wait-controls/final-raw-write-terminal.json",
+      "sha256": "d343a5de9db227a094ff50d48f2fc7d4e1c5ff6d65111c1799899528bec0fc1c",
+      "bytes": 121087,
+      "selection": "Final raw owner closure/prospective stack evidence and status; exception not exercised."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/final-raw-write-terminal.json.attribution.json",
+      "destination": "arms/h2/results.sender-wait-controls/final-raw-write-terminal.json.attribution.json",
+      "sha256": "383a974a6416e913ed2df003ff6d29795d7bc30b434e5da4bcd8d58e241faff6",
+      "bytes": 8097,
+      "selection": "Final raw owner closure/prospective stack evidence and status; exception not exercised."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/final-raw-write-validation.json",
+      "destination": "arms/h2/results.sender-wait-controls/final-raw-write-validation.json",
+      "sha256": "a04c0ef249f64a5cc75b3d9e041fe623533cd26e33c08051c0c90bd54d98a688",
+      "bytes": 89,
+      "selection": "Final raw owner closure/prospective stack evidence and status; exception not exercised."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/results.sender-wait-controls/terminal-validation.json",
+      "destination": "arms/h2/results.sender-wait-controls/terminal-validation.json",
+      "sha256": "5de5117c2fa0d3df21a12ff1477c5da91ec8547d3a54e1b77551471feb8fdd50",
+      "bytes": 127,
+      "selection": "Final raw owner closure/prospective stack evidence and status; exception not exercised."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/cgroup-delegation-paths.json",
+      "destination": "arms/h2/server-scope/cgroup-delegation-paths.json",
+      "sha256": "2f68b31b428800a9b86e3046654eed643e811ae1f0f02fb2dfac986762ac39ac",
+      "bytes": 1612,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/cgroup-with-sentinel.json",
+      "destination": "arms/h2/server-scope/cgroup-with-sentinel.json",
+      "sha256": "c2ced622d8c8f985d6ce48eebc4448a84cae299c3e339d507c29791b51844a0b",
+      "bytes": 471,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/runner-owned-namespaces.json",
+      "destination": "arms/h2/server-scope/runner-owned-namespaces.json",
+      "sha256": "e29813bd0afd7ce6ca29ccb087c619a958eb023d9863c4c71b9c6e26f3053141",
+      "bytes": 248,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/scope-launcher.json",
+      "destination": "arms/h2/server-scope/scope-launcher.json",
+      "sha256": "f710a0c7aed89f6c88e68f897350c2ed7ee5df542ff87a7a4e0c67eb8c232e35",
+      "bytes": 171,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/scope-process-join.json",
+      "destination": "arms/h2/server-scope/scope-process-join.json",
+      "sha256": "753f4659492ef972745df7438aff4fadd1f505d340021d42c112d9db3ea83924",
+      "bytes": 151,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/sentinel.json",
+      "destination": "arms/h2/server-scope/sentinel.json",
+      "sha256": "cc377026bc3778404c2c82fb7da44903a21d26e7608374f45c7f8b228d6fe942",
+      "bytes": 404,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/sentinel.json.natural-exit",
+      "destination": "arms/h2/server-scope/sentinel.json.natural-exit",
+      "sha256": "61fb22e66cdb32d8bc9cdf8246d8d58544f3f06f794cdde3937595c4860d0900",
+      "bytes": 13,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-application-binding.json",
+      "destination": "arms/h2/server-scope/server-application-binding.json",
+      "sha256": "6e748492890834905352b5f0cf7f9d133ab2b13b03b5fbc9506cdad6bd62f468",
+      "bytes": 3403,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-cgroup-post-workload.json",
+      "destination": "arms/h2/server-scope/server-cgroup-post-workload.json",
+      "sha256": "e28481716bad5d343340fbc63203342ba0cef89f70c19b4086c86de8e47395ef",
+      "bytes": 453,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-cgroup-pre-traffic.json",
+      "destination": "arms/h2/server-scope/server-cgroup-pre-traffic.json",
+      "sha256": "be3381621f0020dc8586eb20683638e23d7ce6d4376072d85946d7799155a457",
+      "bytes": 473,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-preexec-binding.json",
+      "destination": "arms/h2/server-scope/server-preexec-binding.json",
+      "sha256": "b7d081d13cfa905655c4f38833ac9071ce340c2865ae8ab016529e522f9ee42d",
+      "bytes": 4621,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-preexec.json",
+      "destination": "arms/h2/server-scope/server-preexec.json",
+      "sha256": "3f70bc55c4814cd0d6f9c40e39928d0a280fa6541f027d110f34079941f9bfed",
+      "bytes": 1269,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-resource-attestation.json",
+      "destination": "arms/h2/server-scope/server-resource-attestation.json",
+      "sha256": "2773a29703edc9f8a1f1f6f2ecfffa1bbd9e85f9c7f22348b797bfed5b9ec670",
+      "bytes": 1417,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/server-resource.status",
+      "destination": "arms/h2/server-scope/server-resource.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/systemd-run.status",
+      "destination": "arms/h2/server-scope/systemd-run.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/systemd-run.stderr.log",
+      "destination": "arms/h2/server-scope/systemd-run.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/systemd-run.stdout.log",
+      "destination": "arms/h2/server-scope/systemd-run.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-cleanup-query.txt",
+      "destination": "arms/h2/server-scope/unit-cleanup-query.txt",
+      "sha256": "a0c2edd4128d9aa1601ae769a535c71c9f7f041601581064c5075b6511a2d00a",
+      "bytes": 64,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-control-group.status",
+      "destination": "arms/h2/server-scope/unit-control-group.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-final-polls.txt",
+      "destination": "arms/h2/server-scope/unit-final-polls.txt",
+      "sha256": "1b1077a93fc73e23fb2fcc94c9f6da073a42ca8ebb68a1031a2a9f66c64d022f",
+      "bytes": 64,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-final.json",
+      "destination": "arms/h2/server-scope/unit-final.json",
+      "sha256": "6a4488011f89a66601f3f4b4161e2949ccca33ae8e310a8db8828f31ab02b42b",
+      "bytes": 226,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-policy.json",
+      "destination": "arms/h2/server-scope/unit-policy.json",
+      "sha256": "3fbee2a775cd83c94b4e02a00ff078eb85078540323184aa64f1c3c52df12760",
+      "bytes": 750,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-server-preexec.txt",
+      "destination": "arms/h2/server-scope/unit-server-preexec.txt",
+      "sha256": "731a746eff71fbbf8eb92e7d84b5fc18b7db59fc78c43380c2c2b68099a35513",
+      "bytes": 176,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-with-sentinel.status",
+      "destination": "arms/h2/server-scope/unit-with-sentinel.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit-with-sentinel.txt",
+      "destination": "arms/h2/server-scope/unit-with-sentinel.txt",
+      "sha256": "e619397549ebe7ef8b5f9ccadc68a843a91d18ab8bab9a9cf8ea400d69f75526",
+      "bytes": 348,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-smoke-once/h2/server-scope/unit.joined",
+      "destination": "arms/h2/server-scope/unit.joined",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "selection": "Actual server-only cgroup/namespace binding, resource, scope join and cleanup evidence; complete ready file omitted."
+    }
+  ],
+  "generated": [
+    "README.md",
+    "EXPORT-MAP.json",
+    "SELECTION.json",
+    "SOURCE-BINDING.json",
+    "INPUT-DISPOSITION.json",
+    "VERIFY-PACKAGE.py",
+    "VALIDATION.json",
+    "SHA256SUMS"
+  ],
+  "no_source_byte_rewrites": true
+}

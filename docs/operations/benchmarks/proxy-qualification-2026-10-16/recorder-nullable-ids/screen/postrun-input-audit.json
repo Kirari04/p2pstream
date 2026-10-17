@@ -1,0 +1,67 @@
+{
+  "accepted": true,
+  "failures": [],
+  "recorded_at": "2026-10-17T10:38:26.445673+00:00",
+  "frozen_input_manifest_sha256": "85350f068f96011c53ceaa03c3cb315071b70a347c9f42ef9618f6bfcee0dbad",
+  "frozen_input_checks": {
+    "frozen_source_manifest": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/frozen-source-manifest.json",
+      "sha256": "fcb05c0d31dc1289eeb212e89a750bdc5489bcd1a001e32d4a9e57020bcb58a9",
+      "unchanged": true
+    },
+    "patch": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/candidate.patch",
+      "sha256": "0c80d4082c44fbc6cedd85866c862d3a51efbe90d4de052c829f3360b914925b",
+      "unchanged": true
+    },
+    "approved_screen": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/SCREEN.md",
+      "sha256": "7fa737f174f5907b50d3f13cca780c3a9cdc93d4d2f73f51f59dead391122665",
+      "unchanged": true
+    },
+    "overlay": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/recorder_nullable_id_screen_test.go",
+      "sha256": "30938436f27225e768f17ece52d25ea3ebb12ff3e7466f6c8e1464084e59a48d",
+      "unchanged": true
+    },
+    "measurement_script": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/measure-fixed.py",
+      "sha256": "16e0118ad3c92414e73d2bb4ff9227616af7c60fb0d7d5f7cefa4181c1d3b0e1",
+      "unchanged": true
+    },
+    "correctness_commands": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/preparation-commands.json",
+      "sha256": "de7fa4c35d404b0215ce1a25d58cd53f8615a8ee181b6a571c3dbe9e14d092b7",
+      "unchanged": true
+    },
+    "baseline.test": {
+      "sha256": "a30877b8be0718b8a08fba49eea03d9454e999ae1bb267f76e925fc3a7ec9ef8",
+      "unchanged": true
+    },
+    "candidate-race.test": {
+      "sha256": "56154da4b933a62e8eabdc94ca7bbc58397564897654d6e149a734dc1d0bcab2",
+      "unchanged": true
+    },
+    "candidate.test": {
+      "sha256": "3c72f00c3a8431632470855937b3a867dc5119c8d6c835ab59d4fef46f1eab2f",
+      "unchanged": true
+    }
+  },
+  "source_checks": {
+    "baseline": {
+      "files_verified": 8213,
+      "changed_files": []
+    },
+    "candidate": {
+      "files_verified": 8213,
+      "changed_files": []
+    }
+  },
+  "measurement_invocations": 20,
+  "measurement_nonzero_exits": 0,
+  "timed_inputs_unchanged": true,
+  "collector_postprocessing_exit_status": 1,
+  "collector_postprocessing_failure": "existing flush logger split benchmark names from numeric metric lines; all20timedinvocations completed first",
+  "remaining_test_or_benchmark_processes": [],
+  "extra_samples_or_retries": false
+}

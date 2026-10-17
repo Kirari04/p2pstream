@@ -1,0 +1,14 @@
+{
+  "reason": "Corrected tiny2 exposed a different teardown failure; difficult ownership/expected cancellation distinction needs latest Astra architecture, not another Sol retry.",
+  "catalog_observation": "Live orchestrator_capabilities immediately before spawn resolved codex latest Astra gpt-6-astra; high effort, fork none. Resolution is observation, not pin.",
+  "worker": "wan_close_astra",
+  "scope": "Read-only bounded architectural decision; no tests/builds/traffic/source mutations/recursive delegation.",
+  "owned_processes": "None active; tiny2 native25907 exited1 naturally. All artifacts preserved.",
+  "evidence": {
+    "run_ledger": "5e5c7c1d0ae91caff4379fc1bc13fce227ea9a9337247452f54060f17550163f",
+    "review_ledger": "67ba39f2e71a39b8d6d7d6c86fbeb8278fad01103f241a6edc91a9fceaf176d3",
+    "native_ledger": "a2f9c47a260bf2153e9e109164082dc75b7bd4273a21d63bd7883d2c7285a798",
+    "sol_handoff": "handoff/runner-adapter-correction-tiny2-20261017/HANDOFF.md"
+  },
+  "decision_pending": "Smallest deterministic close/write reproduction and whether production change is justified; no relaxation of genuine raw-write error gate, no unchanged retry/sustained."
+}

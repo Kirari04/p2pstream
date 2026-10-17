@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "30s",
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/contracts/test-qualification-boundaries-continuation-1.py",
+    "Boundaries.test_nested_default_scope_and_typed_identity_failures",
+    "-v"
+  ],
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "deadline_seconds": 45,
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "schema_version": 1,
+  "state": "running",
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

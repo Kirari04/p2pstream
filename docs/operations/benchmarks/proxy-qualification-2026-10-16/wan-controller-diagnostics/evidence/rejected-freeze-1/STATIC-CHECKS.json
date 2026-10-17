@@ -1,0 +1,19 @@
+{
+  "status": "source-only static syntax/hash/diff checks passed",
+  "python_ast_files": 8,
+  "bash_syntax_files": 2,
+  "gofmt": "Go1.26.6 parser/formatter only; no go build/test invoked",
+  "base_file_count": 460,
+  "result_source_files": 462,
+  "changed_compilation_paths": [
+    "test-source/internal/agent/qualification_controller_screen_qualification.go",
+    "test-source/internal/agent/qualification_controller_screen_qualification_test.go",
+    "test-source/internal/agent/qualification_raw_write_qualification.go"
+  ],
+  "tracked_changes": false,
+  "builds": 0,
+  "tests": 0,
+  "wan_transfers": 0,
+  "total_artifact_bytes": 9386053,
+  "future_task_artifact_limit_bytes": 268435456
+}

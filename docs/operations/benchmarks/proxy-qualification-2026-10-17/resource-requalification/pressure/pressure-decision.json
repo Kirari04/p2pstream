@@ -1,0 +1,10 @@
+{
+  "accepted": true,
+  "independent_result_sha256": "a559c49d647cd294d5e1a0584aa6d8b6e56b06a62efa4fa365222a1173709264",
+  "ordinary_build_reused": true,
+  "original_validator_unmodified": true,
+  "pressure_only": true,
+  "source_checked_before_after": true,
+  "source_files_verified": 430,
+  "source_ref": "8fa16378af4ac0117276726fe6e51d8bc4c74c85"
+}

@@ -1,0 +1,69 @@
+{
+  "source_sha256": "16106750d8adc48ff06f919b07e859b02fd159c90ab3efed223112a300ebe0fa",
+  "offline_failed_proof_sha256": "163493a3e67b229ee5790bafb6c684fd371066627e538c7e82e40b95d80506c5",
+  "copies": [
+    {
+      "original_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-vector.py",
+      "snapshot_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/failed-offline-1/runner-source/integration/validate-controller-vector.py",
+      "sha256": "55f638c226a4bbc5c71bba15fce16c629e31b5780cc1cc3f98d735847069198e"
+    },
+    {
+      "original_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-vector.py",
+      "snapshot_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/failed-offline-1/run-controller-vector.py",
+      "sha256": "e621a7a51b428a21f17198a669776448db0e8d200e60644e0c1a113d347a93a8"
+    },
+    {
+      "original_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/COMMANDS-vector.json",
+      "snapshot_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/failed-offline-1/COMMANDS-vector.json",
+      "sha256": "ba55561484f77d55962f649db164f79a16628a24d0d886a17bbcbd2ed3f380ff"
+    },
+    {
+      "original_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-vector.py",
+      "snapshot_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/failed-offline-1/contracts/test-controller-vector.py",
+      "sha256": "4b8c39c889c54ec8184e995d6d9e6281df13b8d0cfe0de14e5f782c68b605c33"
+    },
+    {
+      "original_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/PLAN.json",
+      "snapshot_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/failed-offline-1/vector-design/PLAN.json",
+      "sha256": "0c63879d7ec57810cba8d12059b710adc4d58da81580458f88f7f66413110a98"
+    },
+    {
+      "original_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/DERIVATIVE.diff",
+      "snapshot_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/failed-offline-1/vector-design/DERIVATIVE.diff",
+      "sha256": "9b7516b27baa2b77da88bf6c14be4b3fc38a361132f7482f6fa68620e0a9cf2f"
+    },
+    {
+      "original_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/SOURCE.json",
+      "snapshot_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/failed-offline-1/vector-design/SOURCE.json",
+      "sha256": "16106750d8adc48ff06f919b07e859b02fd159c90ab3efed223112a300ebe0fa"
+    },
+    {
+      "original_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/SHA256SUMS",
+      "snapshot_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/failed-offline-1/vector-design/SHA256SUMS",
+      "sha256": "887908fabea97bed1a59bbb7990b1a546707d9db014203eb98b0bbd1483b15cf"
+    },
+    {
+      "original_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/OFFLINE-PROOF.json",
+      "snapshot_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/failed-offline-1/vector-design/OFFLINE-PROOF.json",
+      "sha256": "163493a3e67b229ee5790bafb6c684fd371066627e538c7e82e40b95d80506c5"
+    }
+  ],
+  "original_logs_preserved": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/offline-1.outer.json",
+      "sha256": "9784e767559008e37474459a62a0459aabe8e01451fdba1275ec129c1bbadae3"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/offline-1.started.json",
+      "sha256": "78f6baa84452752a3731b0a9e6e585489904ae2c32ca4ea1d955c48fd16115c6"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/offline-1.stderr.log",
+      "sha256": "33a03d0c4cd7f58af3007358ca3592d5d74dc550b92c09ea561837601d268959"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/offline-1.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

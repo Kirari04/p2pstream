@@ -1,0 +1,13 @@
+=== RUN   TestAggregateControlAdmissionPreservesCallerCancellation
+    agent_tunnels_aggregate_test.go:175: cancelled control admission error = server_capacity: agent control stream capacity reached, want context.Canceled
+--- FAIL: TestAggregateControlAdmissionPreservesCallerCancellation (0.00s)
+=== RUN   TestAggregateControlAdmissionPreservesAgentDisconnect
+    agent_tunnels_aggregate_test.go:189: disconnected control admission error = server_capacity: agent control stream capacity reached, want errAgentDisconnected
+--- FAIL: TestAggregateControlAdmissionPreservesAgentDisconnect (0.00s)
+=== RUN   TestAggregateControlAdmissionCallerDeadlineRemainsHealthCapacity
+    agent_tunnels_aggregate_test.go:201: deadline control admission error = server_capacity: agent control stream capacity reached, want server_health_capacity
+--- FAIL: TestAggregateControlAdmissionCallerDeadlineRemainsHealthCapacity (0.01s)
+=== RUN   TestAggregateHealthControlGateTimeoutIsSkippedAtHTTPClient
+    public_target_health_test.go:502: control gate attempt skipped=true errorKind="agent_server_capacity" err=Get "http://127.0.0.1:8888/health": server_capacity: agent control stream capacity reached, want skipped agent_server_health_capacity
+--- FAIL: TestAggregateHealthControlGateTimeoutIsSkippedAtHTTPClient (0.25s)
+FAIL

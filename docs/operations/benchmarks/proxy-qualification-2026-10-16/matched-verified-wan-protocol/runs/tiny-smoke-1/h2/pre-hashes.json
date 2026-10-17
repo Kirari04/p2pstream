@@ -1,0 +1,20 @@
+{
+  "aggregate_agent_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "expected_leaf_der_sha256": "f9529da1f1abbcc3c136f27c18f686f0c385599d10a8ae7d6c838fe018496533",
+  "schema_version": 1,
+  "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "sha256": {
+    "aggregate_agent_binary": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+    "approved_lifecycle_runner": "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f",
+    "certificate_pem": "0fed69a72477732b348a3fdf397ee232d7154cce2f4e73d26c8224c971aa6a0b",
+    "diagnostic_build_manifest": "58b2b7cd734d656033fac9cffbddb7f602d0c83a48bfabbfd146ec8d0e5c6b83",
+    "go_base_patch": "b2c90d2ee6bf9ade304163795022071b4d368b61f0e9d5bc73d0e52d2569538b",
+    "go_helper": "b0b6d037d51892e89d39e6f55107f73c30647ad9a20283a026007fd69b3be42d",
+    "private_key_pem": "eaded3c00a567d470416e6dd37b01631c848643d4e8a1fdb4b91a324cdb90b69",
+    "runner": "dd16eb3f484fdfc3196c1845ecac8f85a83d4b7d25bd90463dd5321a63e726b3",
+    "runner_patch": "98742fd32a5f9e49b235b159c5521065e1af705012a847ca339175e2f5b6c316",
+    "server_binary": "60667aa9bbe7375de77d341c83cd8576301366f26cda25fb980fa7b813ba405e",
+    "supervisor": "bf981ba7e9c3f12cffb65c65e4b831ab2741596832847246a431288a1bd6c49b",
+    "validator": "59613b08362d9938cf22e2648deddcb9bfb648f692169a3bddaa61c38334c45b"
+  }
+}

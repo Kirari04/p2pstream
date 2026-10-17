@@ -1,0 +1,196 @@
+{
+  "acceptance": {
+    "all_rows_conserved": true,
+    "every_pair_direction_passed": false,
+    "overall": false,
+    "runner_passed": false
+  },
+  "complete": true,
+  "failures": [
+    "pair 1 download ratio 0.8040100667979821 is below 0.90",
+    "pair 2 download ratio 0.8160836763466922 is below 0.90",
+    "pair 3 download ratio 0.797212108961102 is below 0.90"
+  ],
+  "gates": {
+    "minimum_every_pair_direction_ratio": 0.9
+  },
+  "mode_order": [
+    "legacy-then-aggregate",
+    "aggregate-then-legacy",
+    "legacy-then-aggregate"
+  ],
+  "pairs": {
+    "1": {
+      "download": {
+        "aggregate_median_useful_bytes_per_second": 27297445.531585686,
+        "aggregate_samples": [
+          15055887.108137546,
+          27297445.531585686,
+          34670212.74363259
+        ],
+        "legacy_median_useful_bytes_per_second": 33951621.57645536,
+        "legacy_samples": [
+          33484272.424915742,
+          33951621.57645536,
+          35081438.19601159
+        ],
+        "passed": false,
+        "ratio": 0.8040100667979821
+      },
+      "mode_order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "upload": {
+        "aggregate_median_useful_bytes_per_second": 35664209.37140814,
+        "aggregate_samples": [
+          34875663.5925784,
+          35664209.37140814,
+          36819325.75066855
+        ],
+        "legacy_median_useful_bytes_per_second": 35484336.3287746,
+        "legacy_samples": [
+          35364719.70952068,
+          35484336.3287746,
+          37066874.72234205
+        ],
+        "passed": true,
+        "ratio": 1.005069082903706
+      }
+    },
+    "2": {
+      "download": {
+        "aggregate_median_useful_bytes_per_second": 27445169.553495232,
+        "aggregate_samples": [
+          14250363.247690381,
+          27445169.553495232,
+          34357352.72096155
+        ],
+        "legacy_median_useful_bytes_per_second": 33630337.60993383,
+        "legacy_samples": [
+          33630337.60993383,
+          28805200.341880847,
+          35094768.39924064
+        ],
+        "passed": false,
+        "ratio": 0.8160836763466922
+      },
+      "mode_order": [
+        "aggregate-v1",
+        "legacy"
+      ],
+      "upload": {
+        "aggregate_median_useful_bytes_per_second": 35667489.16136523,
+        "aggregate_samples": [
+          35375579.41304598,
+          35667489.16136523,
+          36494235.39635727
+        ],
+        "legacy_median_useful_bytes_per_second": 36297275.9812604,
+        "legacy_samples": [
+          36169043.32749987,
+          36297275.9812604,
+          37067573.18377347
+        ],
+        "passed": true,
+        "ratio": 0.9826491987933114
+      }
+    },
+    "3": {
+      "download": {
+        "aggregate_median_useful_bytes_per_second": 27320208.170299783,
+        "aggregate_samples": [
+          14306703.902245883,
+          27320208.170299783,
+          34363683.60478368
+        ],
+        "legacy_median_useful_bytes_per_second": 34269685.39891158,
+        "legacy_samples": [
+          33698743.427242994,
+          34269685.39891158,
+          35128758.81023057
+        ],
+        "passed": false,
+        "ratio": 0.797212108961102
+      },
+      "mode_order": [
+        "legacy",
+        "aggregate-v1"
+      ],
+      "upload": {
+        "aggregate_median_useful_bytes_per_second": 35700822.57924281,
+        "aggregate_samples": [
+          35697250.89206954,
+          35700822.57924281,
+          36809339.7065704
+        ],
+        "legacy_median_useful_bytes_per_second": 36308685.55464794,
+        "legacy_samples": [
+          35623295.784892455,
+          36308685.55464794,
+          37071307.06853184
+        ],
+        "passed": true,
+        "ratio": 0.983258469258265
+      }
+    }
+  },
+  "pooled_diagnostic": {
+    "download": {
+      "aggregate_median_useful_bytes_per_second": 27320208.170299783,
+      "aggregate_samples": [
+        15055887.108137546,
+        27297445.531585686,
+        34670212.74363259,
+        14250363.247690381,
+        27445169.553495232,
+        34357352.72096155,
+        14306703.902245883,
+        27320208.170299783,
+        34363683.60478368
+      ],
+      "legacy_median_useful_bytes_per_second": 33951621.57645536,
+      "legacy_samples": [
+        33484272.424915742,
+        33951621.57645536,
+        35081438.19601159,
+        33630337.60993383,
+        28805200.341880847,
+        35094768.39924064,
+        33698743.427242994,
+        34269685.39891158,
+        35128758.81023057
+      ],
+      "ratio_of_medians": 0.8046805101422813
+    },
+    "upload": {
+      "aggregate_median_useful_bytes_per_second": 35697250.89206954,
+      "aggregate_samples": [
+        34875663.5925784,
+        35664209.37140814,
+        36819325.75066855,
+        35375579.41304598,
+        35667489.16136523,
+        36494235.39635727,
+        35697250.89206954,
+        35700822.57924281,
+        36809339.7065704
+      ],
+      "legacy_median_useful_bytes_per_second": 36297275.9812604,
+      "legacy_samples": [
+        35364719.70952068,
+        35484336.3287746,
+        37066874.72234205,
+        36169043.32749987,
+        36297275.9812604,
+        37067573.18377347,
+        35623295.784892455,
+        36308685.55464794,
+        37071307.06853184
+      ],
+      "ratio_of_medians": 0.983469142711959
+    }
+  },
+  "row_count": 96,
+  "runner_exit_status": 1
+}

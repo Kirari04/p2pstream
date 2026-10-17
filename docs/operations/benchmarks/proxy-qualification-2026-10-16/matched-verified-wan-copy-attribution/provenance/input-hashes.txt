@@ -1,0 +1,3 @@
+fc9e27fcc0706e7cfc1c2d2e22ff1a6d1e7aa1e3ca04cbbe6f8655a744473f00  tmp/continuation-20261016/wan-copy-attribution-source/copy-attribution-overlay.patch
+b2c90d2ee6bf9ade304163795022071b4d368b61f0e9d5bc73d0e52d2569538b  tmp/continuation-20261016/wan-protocol-source/proxy-qualification-base.patch
+b0b6d037d51892e89d39e6f55107f73c30647ad9a20283a026007fd69b3be42d  tmp/continuation-20261016/wan-protocol-source/proxy_qualification_wan_protocol_test.go

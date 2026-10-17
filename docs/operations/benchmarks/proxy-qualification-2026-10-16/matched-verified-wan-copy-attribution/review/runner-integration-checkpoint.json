@@ -1,0 +1,70 @@
+{
+  "contracts": {
+    "arm_validator": {
+      "expected_status": 0,
+      "status": 0,
+      "status_path": "runner-logs/arm-validator-contracts-attempt3.status",
+      "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "copy_record": {
+      "expected_status": 0,
+      "status": 0,
+      "status_path": "runner-logs/copy-record-contracts-attempt1.status",
+      "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "preserved_runner_analyzer_failure": {
+      "expected_status": 1,
+      "status": 1,
+      "status_path": "runner-logs/runner-analyzer-contracts-attempt1.status",
+      "status_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "runner_analyzer": {
+      "expected_status": 0,
+      "status": 0,
+      "status_path": "runner-logs/runner-analyzer-contracts-attempt2.status",
+      "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "static_integration": {
+      "expected_status": 0,
+      "status": 0,
+      "status_path": "runner-logs/static-integration-contracts-attempt3.status",
+      "status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  },
+  "frozen_inputs": {
+    "copy_timing_decision_map_sha256": "f6dc409926ca8178ba0da8ec262960a6b8e238d2a9d94dbe0afc9077f629c6f7",
+    "owned_lifecycle_runner_sha256": "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f",
+    "wan_protocol_generated_runner_sha256": "309d90622ad36f8f082bfd010ec85a7f87d13d80d9d8ce9a8b97ec883a12bad7"
+  },
+  "go_overlay_focused_results": {
+    "normal_attempt4": "PASS status 0, seven-test source before allocation/publication barrier additions",
+    "normal_attempt5": "PASS status 0, final nine-test source",
+    "race_attempt1": "PASS status 0, same seven-test source",
+    "race_attempt2": "PASS status 0, final nine-test source"
+  },
+  "historical_build_invocation": "unavailable; status/stdout/stderr were captured but no invocation file was written",
+  "recorded_unix_nano": 1792172605473601538,
+  "schema_version": 1,
+  "scope": "source-only copy-attribution runner integration",
+  "source_sha256": {
+    "DESIGN.md": "a52431ddf9439a7424a9da6e81e26b2121ba0590e32ae8603b4ad20478aa1baf",
+    "INTEGRATION-NOTES.md": "29fab0000d63e750b3c2cbfcd645318bc4701b57cd01a3614d54ac987f5b745f",
+    "contracts/run-arm-validator-contracts.py": "01fcd567bf8ae1c939863d93c6d29964288cd7c6a48d5cef49d81b3a8eb678fe",
+    "contracts/run-copy-record-contracts.py": "88345bb4b3fc98825dc396f66888c75c468f699fa525b6d71166e42a25f6f854",
+    "contracts/run-runner-analyzer-contract.sh": "ade3a9685bc1e0e27ead0220f2dd2134528603732a09c89245a63a09f884ab34",
+    "contracts/run-static-integration-contracts.sh": "a2014b3d5629ca9d21e725e61b713822471316940288acf57598cbaa31d027c8",
+    "copy-attribution-overlay.patch": "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f",
+    "copy-attribution-runner.patch": "2be3634deee247d26fa31d5ae174d3fdd536a87c208371467875923025af32d8",
+    "generated/qualify-proxy-agent-growth-wan-copy-attribution.sh": "4c76336266bceaab9d2639a5d81e3ce272b4dc924d15154bb6ccbdea4b58f852",
+    "provenance/copy-attribution-build-manifest.json": "f190707ec0bfb43277ea2d368bfdd4591648aab0277e9026535b06049ea3ef12",
+    "provenance/final-source-binary-toolchain-attestation.json": "5ba8ea19d697266e63f2d04d4a3fee611f2a34bebe14928196e9c23cb85be722",
+    "provenance/runner-reconstruction-attestation.json": "d502ec26a7445bce777c0b5e69602d22561a5c64461531dcd30528ab75433af7",
+    "review/contract-artifact-manifest.json": "e649a85cd95cab3340c2491ae11146165f440f1e9671ae9b1e5ec7a3e29e46f9",
+    "review/runner-integration-supervisor-validator.patch": "dcc81c8fa58896bfa61bd144b836e2fedc3f8916de940f7c1003862c7166a9c0",
+    "run-wan-copy-attribution-arm.sh": "daeddcde9c4e30df580368b24fbed98fbc779ad5879fa05fe42e596c2ed719a1",
+    "run-wan-copy-attribution-diagnostic.sh": "d6d9bb820a427e9541cb5940c53ea4dee9a43a765f158aa1fb2f3274ea1f0f9c",
+    "validate-copy-record.py": "0637a58ab67f498e747837e6edffc61474a583750f6ee4f00f402979dd7948ed",
+    "validate-wan-copy-attribution-arm.py": "a7cec8a28001e77c1c8fe881518ecea633c7b1fc256f23f8f829cdd6d22bd9fd"
+  },
+  "traffic_run": false
+}

@@ -1,0 +1,501 @@
+[
+  {
+    "export": "proposal/SCREEN.md",
+    "original": "tmp/recorder-allocation-next-20261017/SCREEN.md",
+    "sha256": "7fa737f174f5907b50d3f13cca780c3a9cdc93d4d2f73f51f59dead391122665",
+    "bytes": 5628
+  },
+  {
+    "export": "proposal/candidate.patch",
+    "original": "tmp/recorder-allocation-next-20261017/candidate.patch",
+    "sha256": "0c80d4082c44fbc6cedd85866c862d3a51efbe90d4de052c829f3360b914925b",
+    "bytes": 1195
+  },
+  {
+    "export": "proposal/PARAMETER-MAP.md",
+    "original": "tmp/recorder-allocation-next-20261017/PARAMETER-MAP.md",
+    "sha256": "c7583a0ca5edd235f4a4314672f173a5f5d26a195fef17090a53064da8572a46",
+    "bytes": 2753
+  },
+  {
+    "export": "proposal/parameter-map.json",
+    "original": "tmp/recorder-allocation-next-20261017/parameter-map.json",
+    "sha256": "4b177afbac4895e5bc54053652a0f12ceffe2d0ad40e1c5e9afb706e1808d222",
+    "bytes": 3548
+  },
+  {
+    "export": "proposal/source-citations.txt",
+    "original": "tmp/recorder-allocation-next-20261017/source-citations.txt",
+    "sha256": "81d75341ed58f4b01196dad38e7a6395759121580b81b7ba8e38e879d36724fc",
+    "bytes": 6019
+  },
+  {
+    "export": "proposal/evidence.json",
+    "original": "tmp/recorder-allocation-next-20261017/evidence.json",
+    "sha256": "afbf5b2e546288e6fe4ae09c2b280339cf390f62ea3b21f96b24ee2f87393346",
+    "bytes": 837
+  },
+  {
+    "export": "proposal/manifest.json",
+    "original": "tmp/recorder-allocation-next-20261017/manifest.json",
+    "sha256": "e330edec49fbf805b5dd336a0153f8915b4d211541c776cadf910104202e96d6",
+    "bytes": 4817
+  },
+  {
+    "export": "proposal/SHA256SUMS",
+    "original": "tmp/recorder-allocation-next-20261017/SHA256SUMS",
+    "sha256": "8ac7960f2bc3a720b01b54ff7a42f7bbc2db4256ae1dc693139242ead839b52b",
+    "bytes": 729
+  },
+  {
+    "export": "proposal/REPORT.md",
+    "original": "tmp/recorder-allocation-next-20261017/REPORT.md",
+    "sha256": "7fc52aef289a70939dc7c8ed9d393005534ab8c678748ee24bfe65650a6ce23c",
+    "bytes": 5299
+  },
+  {
+    "export": "screen/frozen-inputs.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/frozen-inputs.json",
+    "sha256": "85350f068f96011c53ceaa03c3cb315071b70a347c9f42ef9618f6bfcee0dbad",
+    "bytes": 3163
+  },
+  {
+    "export": "screen/frozen-source-manifest.json.binding.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/frozen-source-manifest.json",
+    "original_sha256": "fcb05c0d31dc1289eeb212e89a750bdc5489bcd1a001e32d4a9e57020bcb58a9",
+    "sha256": "ca88c8d472243b42e2ba000ef49e2d34bfc4a63df75acb1222331ef47448a474",
+    "bytes": 347,
+    "transform": "inventory binding only"
+  },
+  {
+    "export": "screen/correctness-test-names.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/correctness-test-names.json",
+    "sha256": "a4d64aa6a55f89c0b687dd928c06541c545cdceae5fda25269ecc47bc37a8855",
+    "bytes": 704
+  },
+  {
+    "export": "screen/preparation-commands.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/preparation-commands.json",
+    "sha256": "de7fa4c35d404b0215ce1a25d58cd53f8615a8ee181b6a571c3dbe9e14d092b7",
+    "bytes": 6034
+  },
+  {
+    "export": "screen/prepare-and-test.py",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/prepare-and-test.py",
+    "sha256": "7df1e6349d0c5a90f02a3974089506f3e33358387c77861978e28a79d6b94553",
+    "bytes": 2690
+  },
+  {
+    "export": "screen/recorder_nullable_id_screen_test.go.txt",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/recorder_nullable_id_screen_test.go",
+    "sha256": "30938436f27225e768f17ece52d25ea3ebb12ff3e7466f6c8e1464084e59a48d",
+    "bytes": 11720
+  },
+  {
+    "export": "screen/measure-fixed.py",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/measure-fixed.py",
+    "sha256": "16e0118ad3c92414e73d2bb4ff9227616af7c60fb0d7d5f7cefa4181c1d3b0e1",
+    "bytes": 4405
+  },
+  {
+    "export": "screen/measurement-commands.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/measurement-commands.json",
+    "sha256": "5b0eb16539d3c404913fef2ece5c0a23810d7ef626187784b87075b468c5e8c9",
+    "bytes": 19325
+  },
+  {
+    "export": "screen/measurement-ledger.jsonl",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/measurement-ledger.jsonl",
+    "sha256": "952666c2d21c5c47fc8118685c633c9b2f6dda329aa58908ee2e8b5bc74678b7",
+    "bytes": 17406
+  },
+  {
+    "export": "screen/postprocess-stateful.py",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/postprocess-stateful.py",
+    "sha256": "057e8f5509cc5c7d11d9ebca6404fdf85d24e9990427fbbe631a9522a3015733",
+    "bytes": 9697
+  },
+  {
+    "export": "screen/postprocessor-inputs.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/postprocessor-inputs.json",
+    "sha256": "05df982bda566c728b392b85c625a6ab7840b6ff10dc88a80e584c8a34c2894a",
+    "bytes": 7782
+  },
+  {
+    "export": "screen/postrun-input-audit.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/postrun-input-audit.json",
+    "sha256": "56b4cdc3415a4a4a26fedc4f063e6166d134b31af6934521274b8acee45dc962",
+    "bytes": 2956
+  },
+  {
+    "export": "screen/analysis-invocation.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/analysis-invocation.json",
+    "sha256": "ed668ac22c671f7c37a2d73248d0f058f3c6c89191f7110d77c7d8fa036aa03e",
+    "bytes": 712
+  },
+  {
+    "export": "screen/analysis-status.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/analysis-status.json",
+    "sha256": "4d5a0f4870d5b7cec480a915f1829669a61af2c549b6e2b368043dbef5cc8364",
+    "bytes": 95
+  },
+  {
+    "export": "screen/logs/baseline-correctness.results.txt",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/baseline-correctness.log",
+    "original_sha256": "2af195720415d858e447ae8debf46db170ccfc6076e02c8cc4710684337f0f42",
+    "original_bytes": 5632,
+    "sha256": "21328a1bdfb784a95e33fad3d2013659810cdf1d088b97a7ada7053fc90c196c",
+    "bytes": 1907,
+    "transform": "test action/result lines only; full original retained locally"
+  },
+  {
+    "export": "screen/logs/candidate-build.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/candidate-build.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "export": "screen/logs/candidate-correctness-race.results.txt",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/candidate-correctness-race.log",
+    "original_sha256": "c0d259604adf8aa593e573dbe4e4cbf7a565e2d11561b561f13196ad65791c0d",
+    "original_bytes": 5631,
+    "sha256": "ea0b76c0d8e60832ecd80346511e36f76625c326321abdd501681f7cbe72ca7c",
+    "bytes": 1907,
+    "transform": "test action/result lines only; full original retained locally"
+  },
+  {
+    "export": "screen/logs/candidate-correctness.results.txt",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/candidate-correctness.log",
+    "original_sha256": "672d8e1cb75bcc4ee20f75fb00d7906b728a7fd7de499a2c424ed72d40b792f8",
+    "original_bytes": 5632,
+    "sha256": "259f8a3526650e538df9dd3959dc7530edba23817c9e7195cad7fb3384748a23",
+    "bytes": 1907,
+    "transform": "test action/result lines only; full original retained locally"
+  },
+  {
+    "export": "screen/logs/candidate-race-build.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/candidate-race-build.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "export": "screen/logs/measurement-runner.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/measurement-runner.log",
+    "sha256": "a404db175c26076848fe02bdf0e01410d1c49bec726ebac4c1099a7f5cd3ab15",
+    "bytes": 949
+  },
+  {
+    "export": "screen/logs/pair-01-baseline.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-01-baseline.log",
+    "sha256": "862587ceb25933d028f7030c40cd2468564aab619f722fb14b69b44d9f7b00af",
+    "bytes": 6159
+  },
+  {
+    "export": "screen/logs/pair-01-candidate.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-01-candidate.log",
+    "sha256": "83249199e35e28c8c1886ffadf91dd2c73a95921b32ab89e1122993f1e2cb6af",
+    "bytes": 6158
+  },
+  {
+    "export": "screen/logs/pair-02-baseline.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-02-baseline.log",
+    "sha256": "74374e17f062294c1e263b69962b8b9419ef96b7dce787a2b8b3c755c097e985",
+    "bytes": 6158
+  },
+  {
+    "export": "screen/logs/pair-02-candidate.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-02-candidate.log",
+    "sha256": "e2069c186548eb4561b05111f61b63f1c8571fe9175e05ab2fc744d33e7278ee",
+    "bytes": 6160
+  },
+  {
+    "export": "screen/logs/pair-03-baseline.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-03-baseline.log",
+    "sha256": "520fb0bc73926b18125e6f5c4437310558a854e32e0db9c0be654fa1fdf72a45",
+    "bytes": 6160
+  },
+  {
+    "export": "screen/logs/pair-03-candidate.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-03-candidate.log",
+    "sha256": "f936200a094707379d122a4e75d19d8746544aa14c98fc9cea3d85dd5b66fd82",
+    "bytes": 6162
+  },
+  {
+    "export": "screen/logs/pair-04-baseline.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-04-baseline.log",
+    "sha256": "00c235ffba2dd802908e54a0f401711ce066e9c896d91f67994982109973c304",
+    "bytes": 6161
+  },
+  {
+    "export": "screen/logs/pair-04-candidate.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-04-candidate.log",
+    "sha256": "a143bf6fba7c82c8fe78457a1cd8ff33762ebe1c47010f4439fc23d99f38e1b6",
+    "bytes": 6156
+  },
+  {
+    "export": "screen/logs/pair-05-baseline.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-05-baseline.log",
+    "sha256": "fe3eb6175b627fecb7f8557ec1576e23780bf3b489fb9444d2dd38fea9308eeb",
+    "bytes": 6158
+  },
+  {
+    "export": "screen/logs/pair-05-candidate.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-05-candidate.log",
+    "sha256": "97f8fccc880499fea97fa93d899d685c5b3a3e27390ea04177786446893f0708",
+    "bytes": 6163
+  },
+  {
+    "export": "screen/logs/pair-06-baseline.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-06-baseline.log",
+    "sha256": "a027168368f9c0c272ad098007c0bd3adf9f62c7865a8fea699c937dfefbdb1a",
+    "bytes": 6162
+  },
+  {
+    "export": "screen/logs/pair-06-candidate.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-06-candidate.log",
+    "sha256": "cfc515238f76f6d4ef3606883403169b6da7dbe93c3dd20af3d2579868f1787f",
+    "bytes": 6159
+  },
+  {
+    "export": "screen/logs/pair-07-baseline.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-07-baseline.log",
+    "sha256": "d8fe719ba2283795d1ae95c6505f78d7e5be6655903bcd1e5575ec0f29187cbe",
+    "bytes": 6156
+  },
+  {
+    "export": "screen/logs/pair-07-candidate.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-07-candidate.log",
+    "sha256": "612df0c637058a825001925bc6b9847501df563444dda906f2589c6c142a8eff",
+    "bytes": 6159
+  },
+  {
+    "export": "screen/logs/pair-08-baseline.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-08-baseline.log",
+    "sha256": "3e53a0202ac468be4d174d324338682691b96e61ae3a56a6d284381f7f4a9be8",
+    "bytes": 6159
+  },
+  {
+    "export": "screen/logs/pair-08-candidate.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-08-candidate.log",
+    "sha256": "cb949991df99ad69c17cad667c30e7a6d0916267cd77297f97a6a40b56c83cb9",
+    "bytes": 6159
+  },
+  {
+    "export": "screen/logs/pair-09-baseline.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-09-baseline.log",
+    "sha256": "1be6c4d249d8ddb32385c4900d6d5abaca879da71cbf0a9d17af342598d59ba7",
+    "bytes": 6160
+  },
+  {
+    "export": "screen/logs/pair-09-candidate.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-09-candidate.log",
+    "sha256": "32f3093f12de3d584f507b89aa4b3ad0341034126b943e80e97c3edd11c448ba",
+    "bytes": 6161
+  },
+  {
+    "export": "screen/logs/pair-10-baseline.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-10-baseline.log",
+    "sha256": "46eb5676ed4b254ced1350808e629d6e57b158acf1089e64c3929baa4a3e8088",
+    "bytes": 6160
+  },
+  {
+    "export": "screen/logs/pair-10-candidate.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-10-candidate.log",
+    "sha256": "b7e2b3811220705760b5cff7046a1d2a9eb684fbcec6990057cc3d73b695323c",
+    "bytes": 6161
+  },
+  {
+    "export": "screen/logs/preparation-runner.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/preparation-runner.log",
+    "sha256": "66c94c9c30580d45f1086581f44078ddc2f02c91688b2e6683bddaae5fa11259",
+    "bytes": 142
+  },
+  {
+    "export": "screen/logs/setup-baseline-build.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/setup-baseline-build.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "export": "screen/logs/setup-path-failure.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/setup-path-failure.json",
+    "sha256": "90c5cce0b09b9ef7305533538672c68c565eccf883c98290c9aadcc6caff9832",
+    "bytes": 330
+  },
+  {
+    "export": "screen/logs/stateful-postprocessor.stderr.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/stateful-postprocessor.stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "export": "screen/logs/stateful-postprocessor.stdout.log",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/stateful-postprocessor.stdout.log",
+    "sha256": "1b6d617fb4d6190e1e91d1dc8a53365f9dc297ce6b4580a5b1a0ad6cbb604852",
+    "bytes": 13449
+  },
+  {
+    "export": "screen/postprocessing-reviewed/all-200-samples.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/postprocessing-reviewed/all-200-samples.json",
+    "sha256": "b839df0fa671b18995808da7a89683886511e79bdcf260c4599837a361d79fce",
+    "bytes": 278252
+  },
+  {
+    "export": "screen/postprocessing-reviewed/results.json",
+    "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/postprocessing-reviewed/results.json",
+    "sha256": "1b6d617fb4d6190e1e91d1dc8a53365f9dc297ce6b4580a5b1a0ad6cbb604852",
+    "bytes": 13449
+  },
+  {
+    "export": "integration-clean/input-manifest.json",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/input-manifest.json",
+    "sha256": "4ab02a99a0f3145d2d5128c6f74145f9ee7f88b61ba44c3b7a73692d9358fbf6",
+    "bytes": 1294
+  },
+  {
+    "export": "integration-clean/source-files.json.binding.json",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/source-files.json",
+    "original_sha256": "b489c84da8d5a81ece1db1210740fdbf31ca1389b9942a6411081c7715fd234d",
+    "sha256": "d113ba7ea568a1c4eb9279eeb23196a83524483bc2cbf24f7e3f740b8a745d87",
+    "bytes": 305,
+    "transform": "inventory binding only"
+  },
+  {
+    "export": "integration-clean/retained-two-file.patch",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/retained-two-file.patch",
+    "sha256": "43b120ec6c80d684d35079c7031e28f7dd82797521fba3122b8db7275c4aa6a8",
+    "bytes": 5216
+  },
+  {
+    "export": "integration-clean/run-checks.py",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/run-checks.py",
+    "sha256": "2341ce02f94e7197fb2ecfb6957c91b0dc1c451718d4497483fb6fadfc501c52",
+    "bytes": 2169
+  },
+  {
+    "export": "integration-clean/toolchain.json",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/toolchain.json",
+    "sha256": "4fb6f62ba1c6a2ae45a83773b82040700e1e0dd065c20ac8086aa7f8a0976885",
+    "bytes": 173
+  },
+  {
+    "export": "integration-clean/commands.json",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/commands.json",
+    "sha256": "614f3c1eeebf2f45f3ca2bfab03383162a0bbdf2e3d390b36d48e66f19cbb1b3",
+    "bytes": 2663
+  },
+  {
+    "export": "integration-clean/summary.json",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/summary.json",
+    "sha256": "88c868e6f956b49585d17e027f1b7621bd6048e2d94ef17a83223d20b127cffd",
+    "bytes": 2911
+  },
+  {
+    "export": "integration-clean/check-runner.log",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/check-runner.log",
+    "sha256": "549dd93f7b84510369e21882b4c46086914927374a0ea5fb528f9a5221ac023f",
+    "bytes": 74
+  },
+  {
+    "export": "integration-clean/setup-preflight-failure.json",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/setup-preflight-failure.json",
+    "sha256": "b2bc88d2df2b87f640dd92f0fd769b6af18626fdae566419fc2fa0a26612ec1b",
+    "bytes": 1081
+  },
+  {
+    "export": "integration-clean/normal-root-suite.log.results.jsonl",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/normal-root-suite.log",
+    "original_sha256": "69a36af45541f3c8bb277f799fff741fa9f55d09e2978e6e982cd3bf8eb95343",
+    "original_bytes": 2515327,
+    "sha256": "423c295cb12ce30856cd7968615d26ea8a45610b9c900169838e849b0b877b61",
+    "bytes": 547669,
+    "transform": "Go JSON non-output actions; only Action/Package/Test/Elapsed; full original retained locally"
+  },
+  {
+    "export": "integration-clean/focused-recorder-race.log.results.jsonl",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/focused-recorder-race.log",
+    "original_sha256": "9623288094063e5beb2ccdc4d008edecc625cff384bf374bc5c42c55341c85dd",
+    "original_bytes": 21688,
+    "sha256": "ddf0fc55ee6c4bd0c38b60405363930f0b7d98edf1f7e2804a9c1e8e2fae77e2",
+    "bytes": 3803,
+    "transform": "Go JSON non-output actions; only Action/Package/Test/Elapsed; full original retained locally"
+  },
+  {
+    "export": "integration-clean/recorder-vet.log.results.jsonl",
+    "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/recorder-vet.log",
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "original_bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "transform": "Go JSON non-output actions; only Action/Package/Test/Elapsed; full original retained locally"
+  },
+  {
+    "export": "integration-invalid-scope/check-runner.log.results.jsonl",
+    "original": "tmp/recorder-allocation-next-20261017/integration-validation-1/check-runner.log",
+    "original_sha256": "684d9350b2994efa16e0c87cadc37d3b5446b3ecf1fe4a9c6fdf504f9f9c1f41",
+    "original_bytes": 25,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "transform": "Go JSON non-output actions; only Action/Package/Test/Elapsed; full original retained locally"
+  },
+  {
+    "export": "integration-invalid-scope/commands.json",
+    "original": "tmp/recorder-allocation-next-20261017/integration-validation-1/commands.json",
+    "sha256": "3a2da9176fde8f471670764fe690ecb251b3d4dcc870be1036e22191f39466e9",
+    "bytes": 772
+  },
+  {
+    "export": "integration-invalid-scope/focused-recorder-race.log.results.jsonl",
+    "original": "tmp/recorder-allocation-next-20261017/integration-validation-1/focused-recorder-race.log",
+    "original_sha256": "889cd89eadc766ddc957ee531fee9c603dc5f4197644dceb611c1910bdf1ef80",
+    "original_bytes": 15700,
+    "sha256": "b8099e11f16318e29948b9904d7bd80456a2bf3959fdaca819ddb4366bd32e7b",
+    "bytes": 2781,
+    "transform": "Go JSON non-output actions; only Action/Package/Test/Elapsed; full original retained locally"
+  },
+  {
+    "export": "integration-invalid-scope/input-manifest.json",
+    "original": "tmp/recorder-allocation-next-20261017/integration-validation-1/input-manifest.json",
+    "sha256": "71f21e0c56c3a6fff22ca24d0269a19fb4f65158727df84b465f3d460bfd293b",
+    "bytes": 467
+  },
+  {
+    "export": "integration-invalid-scope/normal-root-suite.log.results.jsonl",
+    "original": "tmp/recorder-allocation-next-20261017/integration-validation-1/normal-root-suite.log",
+    "original_sha256": "d3de724ce13403ac4d854415a9462ca267a7a23b8c71356cc7488d89a911d7c7",
+    "original_bytes": 3266805,
+    "sha256": "3f7e67436047c061903b8fb17da3435c9d0cddcdebdb57930eeec776082464a3",
+    "bytes": 592618,
+    "transform": "Go JSON non-output actions; only Action/Package/Test/Elapsed; full original retained locally"
+  },
+  {
+    "export": "integration-invalid-scope/owned-temp-path.txt",
+    "original": "tmp/recorder-allocation-next-20261017/integration-validation-1/owned-temp-path.txt",
+    "sha256": "632d97847787354b855cb6f3f4834a3860559507ed75dbf0e7704f51a10b3235",
+    "bytes": 17
+  },
+  {
+    "export": "integration-invalid-scope/run-checks.py",
+    "original": "tmp/recorder-allocation-next-20261017/integration-validation-1/run-checks.py",
+    "sha256": "0cdeac512762f02ec7a421d78eae3b147c4b546eac9c8a252fd255b3c8574486",
+    "bytes": 2782
+  },
+  {
+    "export": "integration-invalid-scope/scope-correction.json",
+    "original": "tmp/recorder-allocation-next-20261017/integration-validation-1/scope-correction.json",
+    "sha256": "d1ec8a02daa7dd6cc342158235c237da22385118b6a4a0d6358f3416868b9023",
+    "bytes": 1015
+  },
+  {
+    "export": "final-audit.json",
+    "original": "tmp/recorder-allocation-next-20261017/final-audit.json",
+    "sha256": "3fbb7d8c5b311bdfe0481c9fe3d325a5506323ba7fdcb8671d1600265cd9a94a",
+    "bytes": 816
+  },
+  {
+    "export": "prepare-compact-export.py",
+    "original": "tmp/recorder-allocation-next-20261017/prepare-compact-export.py",
+    "sha256": "ec25e3a0f2d35d25ee5d4f06dd2ce0c2c60edd317658acc6e4a2567b8ffc96ff",
+    "bytes": 13670
+  }
+]

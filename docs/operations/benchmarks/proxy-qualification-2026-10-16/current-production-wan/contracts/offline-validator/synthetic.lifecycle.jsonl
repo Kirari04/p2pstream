@@ -1,0 +1,8 @@
+{"event":"namespace-helpers-start","boot_id":"00000000-0000-0000-0000-000000000000","runner_namespace":"net:[1]","agent":{"pid":101,"start_ticks":1,"namespace":"net:[2]"},"router":{"pid":102,"start_ticks":2,"namespace":"net:[3]"}}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-1-agent","pid":200,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-legacy-agent-compat-1-server","pid":201,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-1-agent","pid":202,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-1-server","pid":203,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"origin","pid":204,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"agent-namespace","pid":205,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"router-namespace","pid":206,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}

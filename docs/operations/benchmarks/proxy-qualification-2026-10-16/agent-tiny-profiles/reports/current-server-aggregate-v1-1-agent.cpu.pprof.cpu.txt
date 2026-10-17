@@ -1,0 +1,54 @@
+File: agent.test
+Build ID: 6348dbe52ed03eaad5cbdae6114c39eb12517a24
+Type: cpu
+Time: 2026-10-16 05:19:29 CEST
+Duration: 15.07s, Total samples = 33.47s (222.10%)
+Showing nodes accounting for 28.89s, 86.32% of 33.47s total
+Dropped 337 nodes (cum <= 0.17s)
+Showing top 45 nodes out of 122
+      flat  flat%   sum%        cum   cum%
+    14.69s 43.89% 43.89%     14.69s 43.89%  internal/runtime/syscall/linux.Syscall6
+     3.92s 11.71% 55.60%      3.92s 11.71%  runtime.futex
+     2.14s  6.39% 62.00%     10.45s 31.22%  runtime.selectgo
+     1.64s  4.90% 66.90%      1.64s  4.90%  runtime.procyieldAsm
+     1.11s  3.32% 70.21%      4.61s 13.77%  runtime.lock2
+     0.85s  2.54% 72.75%      2.37s  7.08%  runtime.unlock2
+     0.45s  1.34% 74.10%      4.89s 14.61%  runtime.sellock
+     0.41s  1.22% 75.32%      2.67s  7.98%  runtime.selunlock
+     0.40s  1.20% 76.52%      0.40s  1.20%  runtime.osyield
+     0.36s  1.08% 77.59%      0.36s  1.08%  internal/sync.(*Mutex).Lock (inline)
+     0.35s  1.05% 78.64%      0.35s  1.05%  internal/sync.(*Mutex).Unlock (inline)
+     0.30s   0.9% 79.53%      0.30s   0.9%  runtime.nanotime (inline)
+     0.18s  0.54% 80.07%      0.21s  0.63%  runtime.(*waitq).dequeue (inline)
+     0.17s  0.51% 80.58%      0.17s  0.51%  runtime.cheaprand (inline)
+     0.14s  0.42% 81.00%     11.84s 35.37%  io.copyBuffer
+     0.13s  0.39% 81.39%      1.20s  3.59%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+     0.13s  0.39% 81.77%     10.47s 31.28%  github.com/hashicorp/yamux.(*Stream).Read
+     0.12s  0.36% 82.13%      3.37s 10.07%  runtime.findRunnable
+     0.10s   0.3% 82.43%      8.95s 26.74%  github.com/hashicorp/yamux.(*Session).sendLoop
+     0.08s  0.24% 82.67%      3.66s 10.94%  runtime.schedule
+     0.08s  0.24% 82.91%      0.27s  0.81%  runtime.stealWork
+     0.07s  0.21% 83.12%      8.11s 24.23%  crypto/tls.(*Conn).writeRecordLocked
+     0.07s  0.21% 83.33%      0.23s  0.69%  runtime.cheaprandn (inline)
+     0.07s  0.21% 83.54%      1.35s  4.03%  runtime.unlock2Wake
+     0.06s  0.18% 83.72%      4.30s 12.85%  io.ReadAtLeast
+     0.05s  0.15% 83.87%      8.24s 24.62%  crypto/tls.(*Conn).Write
+     0.05s  0.15% 84.02%      4.04s 12.07%  crypto/tls.(*Conn).readRecordOrCCS
+     0.05s  0.15% 84.16%      1.24s  3.70%  internal/runtime/syscall/linux.EpollWait
+     0.05s  0.15% 84.31%      0.56s  1.67%  runtime.chansend
+     0.05s  0.15% 84.46%      2.19s  6.54%  runtime.futexsleep
+     0.05s  0.15% 84.61%      0.31s  0.93%  runtime.newobject
+     0.05s  0.15% 84.76%      0.67s  2.00%  runtime.systemstack
+     0.05s  0.15% 84.91%      0.61s  1.82%  runtime.wakep
+     0.05s  0.15% 85.06%     13.53s 40.42%  syscall.RawSyscall6
+     0.04s  0.12% 85.18%      0.28s  0.84%  crypto/internal/fips140/aes/gcm.(*GCMWithXORCounterNonce).Open
+     0.04s  0.12% 85.30%      0.20s   0.6%  crypto/internal/fips140/aes/gcm.open
+     0.04s  0.12% 85.42%      0.40s  1.20%  crypto/tls.(*halfConn).encrypt
+     0.04s  0.12% 85.54%      4.35s 13.00%  net.(*conn).Read
+     0.04s  0.12% 85.66%      9.94s 29.70%  net.(*conn).Write
+     0.04s  0.12% 85.78%      0.21s  0.63%  runtime.makechan
+     0.04s  0.12% 85.90%      1.34s  4.00%  runtime.netpoll
+     0.04s  0.12% 86.02%      0.94s  2.81%  runtime.notesleep
+     0.04s  0.12% 86.14%      9.74s 29.10%  syscall.Write (inline)
+     0.03s  0.09% 86.23%      4.20s 12.55%  crypto/tls.(*Conn).Read
+     0.03s  0.09% 86.32%      7.57s 22.62%  crypto/tls.(*Conn).write

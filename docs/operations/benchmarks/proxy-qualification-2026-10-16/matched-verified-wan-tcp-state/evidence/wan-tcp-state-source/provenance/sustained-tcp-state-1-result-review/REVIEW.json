@@ -1,0 +1,860 @@
+{
+  "accepted_evidence": true,
+  "arms": {
+    "h1": {
+      "accepted": true,
+      "classification": "observational-complete",
+      "conditioning_issues": [],
+      "continuation_safe": true,
+      "download_phase_classification": {
+        "retained-warmup": {
+          "all_at_or_above_floor": true,
+          "gating": true,
+          "minimum_bytes_per_second": 29810187.389349204,
+          "samples": 1
+        },
+        "steady": {
+          "all_at_or_above_floor": true,
+          "gating": true,
+          "minimum_bytes_per_second": 29856107.015224475,
+          "samples": 3
+        },
+        "warmup": {
+          "all_at_or_above_floor": true,
+          "gating": true,
+          "minimum_bytes_per_second": 34080901.05152803,
+          "samples": 4
+        }
+      },
+      "failed_reuse_expectations": [],
+      "natural_process_exits": 5,
+      "performance_issues": [],
+      "selected": [
+        {
+          "capture_calls": 78,
+          "conditioning_clean": true,
+          "credit_wait_total_ns": 1029903493,
+          "first_raw_write_duration_ns": 24107,
+          "first_wait_entry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 475181,
+            "rto_us": 285000,
+            "rtt_us": 84410,
+            "send_congestion_window": 24,
+            "send_slow_start_threshold": 466,
+            "send_window_bytes": 15751168,
+            "total_retrans": 0,
+            "unacked": 24
+          },
+          "first_wait_retry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 0,
+            "rto_us": 281000,
+            "rtt_us": 80471,
+            "send_congestion_window": 212,
+            "send_slow_start_threshold": 466,
+            "send_window_bytes": 15751168,
+            "total_retrans": 0,
+            "unacked": 165
+          },
+          "httptrace_idle_ns": null,
+          "lane": 1,
+          "physical_write_max_ns": 158766334,
+          "physical_write_total_ns": 7460613831,
+          "pre_to_post": {
+            "bytes_acked_delta": 269078530,
+            "bytes_retransmitted_delta": 13032,
+            "bytes_sent_delta": 269091562,
+            "total_retrans_delta": 9,
+            "total_rto_delta": 0,
+            "total_rto_time_ms_delta": 0
+          },
+          "provider_capture_duration_total_ns": 572794,
+          "raw_pairs": 18,
+          "reuse_idle_ns": null,
+          "sample_extrema": {
+            "bytes_retransmitted": {
+              "max": 13032,
+              "min": 0
+            },
+            "not_sent_bytes": {
+              "max": 2640320,
+              "min": 0
+            },
+            "rto_us": {
+              "max": 289000,
+              "min": 281000
+            },
+            "rtt_us": {
+              "max": 88384,
+              "min": 80392
+            },
+            "send_congestion_window": {
+              "max": 2442,
+              "min": 10
+            },
+            "send_slow_start_threshold": {
+              "max": 1782,
+              "min": 466
+            },
+            "send_window_bytes": {
+              "max": 15752192,
+              "min": 15745024
+            },
+            "total_retrans": {
+              "max": 9,
+              "min": 0
+            },
+            "unacked": {
+              "max": 684,
+              "min": 0
+            }
+          },
+          "sequence": 9,
+          "stage": "retained-warmup",
+          "stream_id": 6,
+          "throughput_bytes_per_second": 29810187.389349204,
+          "wait_local_max_ns": 320838083,
+          "wait_local_total_ns": 950347922,
+          "wait_records": 20,
+          "wait_retry_classes": {
+            "applied_range": 18,
+            "stale": 2
+          }
+        },
+        {
+          "capture_calls": 74,
+          "conditioning_clean": true,
+          "credit_wait_total_ns": 1186324271,
+          "first_raw_write_duration_ns": 28976,
+          "first_wait_entry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 475147,
+            "rto_us": 282000,
+            "rtt_us": 81818,
+            "send_congestion_window": 24,
+            "send_slow_start_threshold": 462,
+            "send_window_bytes": 9897984,
+            "total_retrans": 0,
+            "unacked": 24
+          },
+          "first_wait_retry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 197131,
+            "rto_us": 281000,
+            "rtt_us": 80208,
+            "send_congestion_window": 122,
+            "send_slow_start_threshold": 462,
+            "send_window_bytes": 9897984,
+            "total_retrans": 0,
+            "unacked": 118
+          },
+          "httptrace_idle_ns": null,
+          "lane": 3,
+          "physical_write_max_ns": 156941106,
+          "physical_write_total_ns": 7280884288,
+          "pre_to_post": {
+            "bytes_acked_delta": 269064212,
+            "bytes_retransmitted_delta": 0,
+            "bytes_sent_delta": 269064212,
+            "total_retrans_delta": 0,
+            "total_rto_delta": 0,
+            "total_rto_time_ms_delta": 0
+          },
+          "provider_capture_duration_total_ns": 776933,
+          "raw_pairs": 17,
+          "reuse_idle_ns": null,
+          "sample_extrema": {
+            "bytes_retransmitted": {
+              "max": 0,
+              "min": 0
+            },
+            "not_sent_bytes": {
+              "max": 3004564,
+              "min": 0
+            },
+            "rto_us": {
+              "max": 285000,
+              "min": 281000
+            },
+            "rtt_us": {
+              "max": 84987,
+              "min": 80208
+            },
+            "send_congestion_window": {
+              "max": 3068,
+              "min": 10
+            },
+            "send_slow_start_threshold": {
+              "max": 462,
+              "min": 462
+            },
+            "send_window_bytes": {
+              "max": 9900032,
+              "min": 9887744
+            },
+            "total_retrans": {
+              "max": 0,
+              "min": 0
+            },
+            "unacked": {
+              "max": 657,
+              "min": 0
+            }
+          },
+          "sequence": 11,
+          "stage": "steady",
+          "stream_id": 6,
+          "throughput_bytes_per_second": 29856107.015224475,
+          "wait_local_max_ns": 240410986,
+          "wait_local_total_ns": 1032885460,
+          "wait_records": 19,
+          "wait_retry_classes": {
+            "applied_range": 17,
+            "stale": 2
+          }
+        },
+        {
+          "capture_calls": 70,
+          "conditioning_clean": true,
+          "credit_wait_total_ns": 1030565851,
+          "first_raw_write_duration_ns": 77330,
+          "first_wait_entry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 426958,
+            "rto_us": 281000,
+            "rtt_us": 80740,
+            "send_congestion_window": 40,
+            "send_slow_start_threshold": 460,
+            "send_window_bytes": 16521216,
+            "total_retrans": 0,
+            "unacked": 40
+          },
+          "first_wait_retry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 224238,
+            "rto_us": 281000,
+            "rtt_us": 80181,
+            "send_congestion_window": 110,
+            "send_slow_start_threshold": 460,
+            "send_window_bytes": 16521216,
+            "total_retrans": 0,
+            "unacked": 110
+          },
+          "httptrace_idle_ns": 25899085836,
+          "lane": 2,
+          "physical_write_max_ns": 157975895,
+          "physical_write_total_ns": 7501908771,
+          "pre_to_post": {
+            "bytes_acked_delta": 269075291,
+            "bytes_retransmitted_delta": 0,
+            "bytes_sent_delta": 269075291,
+            "total_retrans_delta": 0,
+            "total_rto_delta": 0,
+            "total_rto_time_ms_delta": 0
+          },
+          "provider_capture_duration_total_ns": 521228,
+          "raw_pairs": 15,
+          "reuse_idle_ns": 25899085314,
+          "sample_extrema": {
+            "bytes_retransmitted": {
+              "max": 0,
+              "min": 0
+            },
+            "not_sent_bytes": {
+              "max": 2792426,
+              "min": 0
+            },
+            "rto_us": {
+              "max": 286000,
+              "min": 281000
+            },
+            "rtt_us": {
+              "max": 85239,
+              "min": 80181
+            },
+            "send_congestion_window": {
+              "max": 3093,
+              "min": 10
+            },
+            "send_slow_start_threshold": {
+              "max": 460,
+              "min": 460
+            },
+            "send_window_bytes": {
+              "max": 16521216,
+              "min": 16483328
+            },
+            "total_retrans": {
+              "max": 0,
+              "min": 0
+            },
+            "unacked": {
+              "max": 692,
+              "min": 0
+            }
+          },
+          "sequence": 14,
+          "stage": "steady",
+          "stream_id": 6,
+          "throughput_bytes_per_second": 30148071.729569796,
+          "wait_local_max_ns": 160169223,
+          "wait_local_total_ns": 871040863,
+          "wait_records": 19,
+          "wait_retry_classes": {
+            "applied_range": 15,
+            "stale": 4
+          }
+        },
+        {
+          "capture_calls": 2,
+          "conditioning_clean": true,
+          "credit_wait_total_ns": 0,
+          "first_raw_write_duration_ns": null,
+          "httptrace_idle_ns": 26123122856,
+          "lane": 3,
+          "physical_write_max_ns": 561815559,
+          "physical_write_total_ns": 7273932665,
+          "pre_to_post": {
+            "bytes_acked_delta": 269075067,
+            "bytes_retransmitted_delta": 0,
+            "bytes_sent_delta": 269075067,
+            "total_retrans_delta": 0,
+            "total_rto_delta": 0,
+            "total_rto_time_ms_delta": 0
+          },
+          "provider_capture_duration_total_ns": 9398,
+          "raw_pairs": 0,
+          "reuse_idle_ns": 26123121835,
+          "sample_extrema": {
+            "bytes_retransmitted": {
+              "max": 0,
+              "min": 0
+            },
+            "not_sent_bytes": {
+              "max": 0,
+              "min": 0
+            },
+            "rto_us": {
+              "max": 284000,
+              "min": 283000
+            },
+            "rtt_us": {
+              "max": 83342,
+              "min": 82610
+            },
+            "send_congestion_window": {
+              "max": 3063,
+              "min": 10
+            },
+            "send_slow_start_threshold": {
+              "max": 2301,
+              "min": 2301
+            },
+            "send_window_bytes": {
+              "max": 9900032,
+              "min": 9900032
+            },
+            "total_retrans": {
+              "max": 0,
+              "min": 0
+            },
+            "unacked": {
+              "max": 0,
+              "min": 0
+            }
+          },
+          "sequence": 15,
+          "stage": "steady",
+          "stream_id": 6,
+          "throughput_bytes_per_second": 34883606.229848206,
+          "wait_local_max_ns": 0,
+          "wait_local_total_ns": 0,
+          "wait_records": 0,
+          "wait_retry_classes": {}
+        }
+      ],
+      "terminal_owners": 5,
+      "validation_issues": []
+    },
+    "h2": {
+      "accepted": false,
+      "classification": "inconclusive-upstream-reuse",
+      "conditioning_issues": [
+        "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained"
+      ],
+      "continuation_safe": true,
+      "download_phase_classification": {
+        "retained-warmup": {
+          "all_at_or_above_floor": false,
+          "gating": true,
+          "minimum_bytes_per_second": 27633615.36212867,
+          "samples": 1
+        },
+        "steady": {
+          "all_at_or_above_floor": false,
+          "gating": true,
+          "minimum_bytes_per_second": 16810103.37028414,
+          "samples": 3
+        },
+        "warmup": {
+          "all_at_or_above_floor": true,
+          "gating": true,
+          "minimum_bytes_per_second": 33565182.789591126,
+          "samples": 4
+        }
+      },
+      "failed_reuse_expectations": [
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:45873|10.212.0.2:56850",
+          "elapsed_idle_ns": 35148949166,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:45873|10.212.0.2:56850",
+          "got_conn_unix_ns": 1792222178243421438,
+          "httptrace_idle_time_ns": 0,
+          "kind": "same-key-revisit",
+          "lane_position": 3,
+          "observed_origin_connection_id": "10.212.0.2:42452",
+          "prior_origin_connection_id": "10.212.0.2:34736",
+          "prior_put_idle_unix_ns": 1792222143094472272,
+          "satisfied": false,
+          "sequence": 15
+        },
+        {
+          "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:45873|10.212.0.2:56864",
+          "elapsed_idle_ns": 35486652930,
+          "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:45873|10.212.0.2:56864",
+          "got_conn_unix_ns": 1792222186707461360,
+          "httptrace_idle_time_ns": 0,
+          "kind": "same-key-revisit",
+          "lane_position": 4,
+          "observed_origin_connection_id": "10.212.0.2:42464",
+          "prior_origin_connection_id": "10.212.0.2:48920",
+          "prior_put_idle_unix_ns": 1792222151220808430,
+          "satisfied": false,
+          "sequence": 16
+        }
+      ],
+      "natural_process_exits": 5,
+      "performance_issues": [
+        "retained-warmup download phase failed independent 29700000 B/s floor",
+        "steady download phase failed independent 29700000 B/s floor"
+      ],
+      "selected": [
+        {
+          "capture_calls": 92,
+          "conditioning_clean": true,
+          "credit_wait_total_ns": 1822479797,
+          "first_raw_write_duration_ns": 36852,
+          "first_wait_entry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 475249,
+            "rto_us": 283000,
+            "rtt_us": 82909,
+            "send_congestion_window": 24,
+            "send_slow_start_threshold": 240,
+            "send_window_bytes": 13756416,
+            "total_retrans": 0,
+            "unacked": 24
+          },
+          "first_wait_retry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 0,
+            "rto_us": 281000,
+            "rtt_us": 80560,
+            "send_congestion_window": 192,
+            "send_slow_start_threshold": 240,
+            "send_window_bytes": 13756416,
+            "total_retrans": 0,
+            "unacked": 185
+          },
+          "httptrace_idle_ns": null,
+          "lane": 1,
+          "physical_write_max_ns": 156527125,
+          "physical_write_total_ns": 7371850268,
+          "pre_to_post": {
+            "bytes_acked_delta": 269080184,
+            "bytes_retransmitted_delta": 0,
+            "bytes_sent_delta": 269080184,
+            "total_retrans_delta": 0,
+            "total_rto_delta": 0,
+            "total_rto_time_ms_delta": 0
+          },
+          "provider_capture_duration_total_ns": 790962,
+          "raw_pairs": 21,
+          "reuse_idle_ns": null,
+          "sample_extrema": {
+            "bytes_retransmitted": {
+              "max": 0,
+              "min": 0
+            },
+            "not_sent_bytes": {
+              "max": 3075730,
+              "min": 0
+            },
+            "rto_us": {
+              "max": 290000,
+              "min": 281000
+            },
+            "rtt_us": {
+              "max": 89406,
+              "min": 80124
+            },
+            "send_congestion_window": {
+              "max": 3122,
+              "min": 10
+            },
+            "send_slow_start_threshold": {
+              "max": 240,
+              "min": 240
+            },
+            "send_window_bytes": {
+              "max": 13756416,
+              "min": 13742080
+            },
+            "total_retrans": {
+              "max": 0,
+              "min": 0
+            },
+            "unacked": {
+              "max": 564,
+              "min": 0
+            }
+          },
+          "sequence": 9,
+          "stage": "retained-warmup",
+          "stream_id": 6,
+          "throughput_bytes_per_second": 27633615.36212867,
+          "wait_local_max_ns": 241846888,
+          "wait_local_total_ns": 1704392536,
+          "wait_records": 24,
+          "wait_retry_classes": {
+            "applied_range": 21,
+            "stale": 3
+          }
+        },
+        {
+          "capture_calls": 88,
+          "conditioning_clean": true,
+          "credit_wait_total_ns": 1821998852,
+          "first_raw_write_duration_ns": 357245,
+          "first_wait_entry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 475181,
+            "rto_us": 287000,
+            "rtt_us": 86096,
+            "send_congestion_window": 24,
+            "send_slow_start_threshold": 246,
+            "send_window_bytes": 15305728,
+            "total_retrans": 0,
+            "unacked": 24
+          },
+          "first_wait_retry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 92909,
+            "rto_us": 281000,
+            "rtt_us": 80835,
+            "send_congestion_window": 168,
+            "send_slow_start_threshold": 246,
+            "send_window_bytes": 15304704,
+            "total_retrans": 0,
+            "unacked": 144
+          },
+          "httptrace_idle_ns": null,
+          "lane": 3,
+          "physical_write_max_ns": 160058690,
+          "physical_write_total_ns": 7434660998,
+          "pre_to_post": {
+            "bytes_acked_delta": 269078340,
+            "bytes_retransmitted_delta": 0,
+            "bytes_sent_delta": 269078340,
+            "total_retrans_delta": 0,
+            "total_rto_delta": 0,
+            "total_rto_time_ms_delta": 0
+          },
+          "provider_capture_duration_total_ns": 791100,
+          "raw_pairs": 20,
+          "reuse_idle_ns": null,
+          "sample_extrema": {
+            "bytes_retransmitted": {
+              "max": 0,
+              "min": 0
+            },
+            "not_sent_bytes": {
+              "max": 3360424,
+              "min": 0
+            },
+            "rto_us": {
+              "max": 294000,
+              "min": 281000
+            },
+            "rtt_us": {
+              "max": 93220,
+              "min": 80172
+            },
+            "send_congestion_window": {
+              "max": 3125,
+              "min": 10
+            },
+            "send_slow_start_threshold": {
+              "max": 246,
+              "min": 246
+            },
+            "send_window_bytes": {
+              "max": 15306752,
+              "min": 15297536
+            },
+            "total_retrans": {
+              "max": 0,
+              "min": 0
+            },
+            "unacked": {
+              "max": 586,
+              "min": 0
+            }
+          },
+          "sequence": 11,
+          "stage": "steady",
+          "stream_id": 6,
+          "throughput_bytes_per_second": 27511761.35946631,
+          "wait_local_max_ns": 240351879,
+          "wait_local_total_ns": 1584343503,
+          "wait_records": 23,
+          "wait_retry_classes": {
+            "applied_range": 20,
+            "stale": 3
+          }
+        },
+        {
+          "capture_calls": 72,
+          "conditioning_clean": true,
+          "credit_wait_total_ns": 1825135139,
+          "first_raw_write_duration_ns": 4288,
+          "first_wait_entry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 427240,
+            "rto_us": 282000,
+            "rtt_us": 81314,
+            "send_congestion_window": 40,
+            "send_slow_start_threshold": 246,
+            "send_window_bytes": 12347392,
+            "total_retrans": 0,
+            "unacked": 40
+          },
+          "first_wait_retry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 131848,
+            "rto_us": 281000,
+            "rtt_us": 80372,
+            "send_congestion_window": 142,
+            "send_slow_start_threshold": 246,
+            "send_window_bytes": 12347392,
+            "total_retrans": 0,
+            "unacked": 142
+          },
+          "httptrace_idle_ns": 28478322090,
+          "lane": 2,
+          "physical_write_max_ns": 158683164,
+          "physical_write_total_ns": 13697428139,
+          "pre_to_post": {
+            "bytes_acked_delta": 269075743,
+            "bytes_retransmitted_delta": 11584,
+            "bytes_sent_delta": 269087327,
+            "total_retrans_delta": 8,
+            "total_rto_delta": 0,
+            "total_rto_time_ms_delta": 0
+          },
+          "provider_capture_duration_total_ns": 686963,
+          "raw_pairs": 17,
+          "reuse_idle_ns": 28478321869,
+          "sample_extrema": {
+            "bytes_retransmitted": {
+              "max": 11584,
+              "min": 0
+            },
+            "not_sent_bytes": {
+              "max": 3213098,
+              "min": 0
+            },
+            "rto_us": {
+              "max": 289000,
+              "min": 281000
+            },
+            "rtt_us": {
+              "max": 88985,
+              "min": 80217
+            },
+            "send_congestion_window": {
+              "max": 1769,
+              "min": 10
+            },
+            "send_slow_start_threshold": {
+              "max": 606,
+              "min": 246
+            },
+            "send_window_bytes": {
+              "max": 12348416,
+              "min": 12338176
+            },
+            "total_retrans": {
+              "max": 8,
+              "min": 0
+            },
+            "unacked": {
+              "max": 576,
+              "min": 0
+            }
+          },
+          "sequence": 14,
+          "stage": "steady",
+          "stream_id": 6,
+          "throughput_bytes_per_second": 16810103.37028414,
+          "wait_local_max_ns": 161489844,
+          "wait_local_total_ns": 1588135905,
+          "wait_records": 18,
+          "wait_retry_classes": {
+            "applied_range": 17,
+            "stale": 1
+          }
+        },
+        {
+          "capture_calls": 76,
+          "conditioning_clean": false,
+          "credit_wait_total_ns": 865189817,
+          "first_raw_write_duration_ns": 21672,
+          "first_wait_entry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 405677,
+            "rto_us": 282000,
+            "rtt_us": 81053,
+            "send_congestion_window": 48,
+            "send_slow_start_threshold": 2343,
+            "send_window_bytes": 15306752,
+            "total_retrans": 0,
+            "unacked": 48
+          },
+          "first_wait_retry": {
+            "bytes_retransmitted": 0,
+            "not_sent_bytes": 178341,
+            "rto_us": 281000,
+            "rtt_us": 80274,
+            "send_congestion_window": 128,
+            "send_slow_start_threshold": 2343,
+            "send_window_bytes": 15306752,
+            "total_retrans": 0,
+            "unacked": 125
+          },
+          "httptrace_idle_ns": 0,
+          "lane": 3,
+          "physical_write_max_ns": 70236786,
+          "physical_write_total_ns": 6602691890,
+          "pre_to_post": {
+            "bytes_acked_delta": 269066796,
+            "bytes_retransmitted_delta": 0,
+            "bytes_sent_delta": 269066796,
+            "total_retrans_delta": 0,
+            "total_rto_delta": 0,
+            "total_rto_time_ms_delta": 0
+          },
+          "provider_capture_duration_total_ns": 703972,
+          "raw_pairs": 18,
+          "reuse_idle_ns": 35148949166,
+          "sample_extrema": {
+            "bytes_retransmitted": {
+              "max": 0,
+              "min": 0
+            },
+            "not_sent_bytes": {
+              "max": 405677,
+              "min": 0
+            },
+            "rto_us": {
+              "max": 292000,
+              "min": 281000
+            },
+            "rtt_us": {
+              "max": 91317,
+              "min": 80274
+            },
+            "send_congestion_window": {
+              "max": 3109,
+              "min": 10
+            },
+            "send_slow_start_threshold": {
+              "max": 2343,
+              "min": 2343
+            },
+            "send_window_bytes": {
+              "max": 15306752,
+              "min": 15296512
+            },
+            "total_retrans": {
+              "max": 0,
+              "min": 0
+            },
+            "unacked": {
+              "max": 2098,
+              "min": 0
+            }
+          },
+          "sequence": 15,
+          "stage": "steady",
+          "stream_id": 8,
+          "throughput_bytes_per_second": 33641356.78321704,
+          "wait_local_max_ns": 160256153,
+          "wait_local_total_ns": 706159766,
+          "wait_records": 19,
+          "wait_retry_classes": {
+            "applied_range": 18,
+            "stale": 1
+          }
+        }
+      ],
+      "terminal_owners": 5,
+      "validation_issues": [
+        "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained",
+        "retained-warmup download phase failed independent 29700000 B/s floor",
+        "steady download phase failed independent 29700000 B/s floor"
+      ]
+    }
+  },
+  "classification": "H1 accepted; H2 inconclusive because expected origin reuse expired on sequences 15 and 16 and the retained-warmup and steady download floors failed",
+  "cohort_accepted": false,
+  "diagnostic": "wan-tcp-state-sustained-independent-review",
+  "final_status_sha256": "a5aad1efced5715d56fb64bf6401deb8867e301d772176cc86c526bb371dbea8",
+  "interpretation_limits": [
+    "The nonzero status and H2 rejection are preserved. No retry or timeout adjustment is justified.",
+    "H2 sequence 14 is conditioning-clean with same origin reuse after 28.478321869 seconds; it is valid for observation despite failing the throughput floor. H2 sequence 15 is conditioning-confounded after 35.148949166 seconds and is excluded from clean causal comparison.",
+    "TCP_INFO samples are discrete synchronous socket observations. They can support or contradict sampled preconditions, but cannot exclude unsampled transients or prove atomic packet ownership or causation.",
+    "Provider capture duration measures synchronous TCP_INFO/TCP_CONGESTION sampling cost only. It is not network, delivery, or raw-write duration.",
+    "Only owner-relative monotonic durations within one process are compared. No clock values are subtracted across endpoints.",
+    "Credit-wait, physical-write, raw-write, and wall durations are retained separately; this review does not add durations across observers."
+  ],
+  "launcher": {
+    "direct_status": 1,
+    "natural_group_join": true,
+    "records_ledger_sha256": "28eb260e9b0c088209b8985d4208393d66e247e11fb05e2095b979e703e68190",
+    "source_pre_post_accepted": true
+  },
+  "maximum_control_response_bytes": 552221,
+  "outer_envelope": {
+    "exit_code": 1,
+    "ledger_sha256": "3bcdba2fcd00113130f726f7974b7b18fe033c26e1cc0f30e44f13db57af6bda",
+    "native_session_id": 46749,
+    "retry": false
+  },
+  "response_limit_bytes": 4194304,
+  "run": {
+    "bytes": 28213160,
+    "file_count": 271,
+    "path": "tmp/continuation-20261016/wan-tcp-state-source/integration-source-3/integration/runs/sustained-tcp-state-1",
+    "run_sha256sums_sha256": "2d17e16efca00ea772b5183c1a196450e38ebc019f7dd9995de1cca45f284cfd"
+  },
+  "same_verified_leaf_sha256": "f462afe264b6a22a341710b963f833b077c711b57324568a6eb4bb33a2caa6e3",
+  "schema_version": 1,
+  "source": {
+    "invocation_sha256": "97fd71b9c6fbf5420dcbf561e7a73e52f4e521d06cf765d33d4a7b5af0ee61d9",
+    "manifest_sha256": "5d933f624cb721f1a13e6a2528f005ce265d9903bb41080e6184d93b51a574fd"
+  }
+}

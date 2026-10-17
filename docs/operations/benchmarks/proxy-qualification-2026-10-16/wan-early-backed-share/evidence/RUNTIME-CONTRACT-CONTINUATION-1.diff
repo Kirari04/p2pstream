@@ -1,0 +1,11 @@
+--- tmp/wan-early-share-screen-20261017/contracts/test-early-share-runtime.py
++++ tmp/wan-early-share-screen-20261017/contracts/test-early-share-runtime-continuation-1.py
+@@ -150,7 +150,7 @@
+                     ('--protocol','h2')]: self.assertEqual(argv[argv.index(flag)+1], expected)
+         base = (ROOT.parent/'wan-idle-policy-screen-20261017/runner.sh').read_text()
+         current = (ROOT/'runner.sh').read_text()
+-        start = base.index('run_transfer() {'); end = base.index('\nrun_maybe_sender_wait_transfer()',start)
++        start = base.index('run_transfer() {'); end = base.index('\n}\n',start)+3
+         body = base[start:end]
+         self.assertIn(body, current)
+         self.assertEqual(hashlib.sha256(body.encode()).hexdigest(), 'b86593361c76c3d2903d722b1b0292fa1bc833210d5efb2438dea1aac08ad798')

@@ -1,0 +1,54 @@
+{
+  "candidate_ref": "f2213cf14c158c62c158f2be3d270354d38a7639",
+  "prepaid_control_ref": "fb1cad92c9a814f598171fa181d1a4f230dbd107",
+  "legacy_agent_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "legacy_agent_overlay_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+  "server_binary_sha256": "af8740f860c7756915a3ea71e051a60974fa87bfa8177244ed84d8fbd663d272",
+  "agent_binary_sha256": "624d550d915237862f83730b13c455d1b6edd96629008acf67a86a274760c2b9",
+  "legacy_agent_binary_sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec",
+  "harness_sha256": "956fb270b9bb6241b688ef991f6ea4b0dfb5f99c53543735d4ad812a9844c21b",
+  "go_version": "go version go1.26.6 linux/amd64",
+  "kernel": "Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep 4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "systemd": "systemd 259 (259.5-0ubuntu3.4)",
+  "cpu_sets": {
+    "server": "0,1,2,3",
+    "agent_and_origin": "4,5,6,7",
+    "load": "8,9,10,11,12,13,14,15",
+    "topology_note": "Adjacent logical CPU pairs are SMT siblings; each four-logical-CPU proxy set spans two physical cores."
+  },
+  "network": {
+    "configured_one_way_delay_ms_per_interface": 40,
+    "configured_path_rtt_ms": 80,
+    "shaped_rate_bits_per_second": 1000000000
+  },
+  "resource_envelope": {
+    "server_cgroup_memory_max_bytes": 4294967296,
+    "agent_cgroup_memory_max_bytes": 4294967296,
+    "memory_swap_max_bytes": 0,
+    "server_and_agent_cgroups_distinct": true
+  },
+  "workload": {
+    "runs": 1,
+    "lane_growth_warmups_per_direction": 4,
+    "lane_growth_warmup_bytes": 268435456,
+    "retained_transport_warmups_per_direction": 1,
+    "retained_transport_warmup_bytes": 268435456,
+    "required_receiving_pool_bytes_strictly_greater_than": 83886080,
+    "canceled_upload_configured_bytes": 33554432,
+    "recovery_transfer_bytes_per_direction": 16777216
+  },
+  "pressure": {
+    "ballast_mib": 3584,
+    "agent_critical_memory_current_bytes": 3909738496,
+    "agent_memory_max_bytes": 4294967296,
+    "agent_margin_below_max_bytes": 385228800,
+    "server_memory_current_at_agent_critical_bytes": 345448448,
+    "agent_recovered_memory_current_bytes": 124456960,
+    "server_recovered_memory_current_bytes": 353992704,
+    "agent_oom_delta": 0,
+    "agent_oom_kill_delta": 0,
+    "server_oom_delta": 0,
+    "server_oom_kill_delta": 0
+  },
+  "qualification_exit": 0
+}

@@ -1,0 +1,93 @@
+{
+  "source_tree": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/test-source",
+  "production_reference": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "go_files_different_from_current_production": [
+    "internal/agent/agent.go",
+    "internal/agent/proxy_qualification_credit_snapshot_disabled_test.go",
+    "internal/agent/proxy_qualification_credit_snapshot_enabled_test.go",
+    "internal/agent/proxy_qualification_external_test.go",
+    "internal/server/agent_tunnels_aggregate_test.go",
+    "internal/server/proxy_qualification_credit_snapshot_enabled_test.go",
+    "internal/server/proxy_qualification_test.go",
+    "internal/server/public_proxy_pipeline.go",
+    "internal/server/public_routing.go",
+    "internal/server/public_routing_test.go",
+    "internal/server/public_target_health_test.go",
+    "internal/server/traffic_trace_request.go",
+    "third_party/yamux/aggregate_window.go",
+    "third_party/yamux/qualification_aggregate_send_counters.go",
+    "third_party/yamux/qualification_aggregate_send_counters_disabled.go",
+    "third_party/yamux/qualification_aggregate_send_counters_test.go",
+    "third_party/yamux/session.go",
+    "third_party/yamux/stream.go"
+  ],
+  "changes_against_audited_source": [
+    {
+      "path": "LEGACY-VALIDATOR.json",
+      "base_sha256": null,
+      "current_sha256": "b77ed3613b5d088efeacb1d6d4d763b3b255aa2fc35b5dc674771a39cdc73c38"
+    },
+    {
+      "path": "contracts/test-terminal-attribution.py",
+      "base_sha256": null,
+      "current_sha256": "22bcbf0bd7f1f01b0bed2b0608686ee6fae1c8f7a65c52dadfb7abd9e9cc5493"
+    },
+    {
+      "path": "internal/agent/proxy_qualification_external_test.go",
+      "base_sha256": "01f09c1c3fb080d6b494c38ccdad84c52e474e6e6cfbf8ed28d664062f6d2573",
+      "current_sha256": "f6ce5e3e02cbbb7e4b6daf74dfe8e2a01edc1aa8ad20a6980e6c54980d9fefe4"
+    },
+    {
+      "path": "internal/agent/qualification_raw_write_qualification.go",
+      "base_sha256": "98be9ca1dda13e6f609adf9d72bf42b207a67d5a4655a0c927f85dd65ef28a53",
+      "current_sha256": "46a888b5f1c06f9c96f2ee444d76994eeb3f419c1b5635414ac9a01f37a5274f"
+    },
+    {
+      "path": "internal/agent/qualification_tcp_state_qualification.go",
+      "base_sha256": "fee94f615cddb9499bc29df6da4691369495f5b59323730a40125a27cd46dbd6",
+      "current_sha256": "6f29e186fa3ac9f925baddec9159a3d5f97d5df9a25c61a6f6438b695c7d2656"
+    },
+    {
+      "path": "internal/agent/qualification_terminal_attribution_qualification.go",
+      "base_sha256": null,
+      "current_sha256": "58af27e2adb1d721ee42fa2f70b5f274000be4fa40460a282cde63f967c6ec69"
+    },
+    {
+      "path": "internal/agent/qualification_terminal_attribution_test.go",
+      "base_sha256": null,
+      "current_sha256": "febb668be66df11f1dcd1c9c8464e2d629fa8758ef05f26ecaa976fc6f85b2d3"
+    },
+    {
+      "path": "internal/agent/qualification_terminal_stack_qualification.go",
+      "base_sha256": null,
+      "current_sha256": "70d85ae0c7922ec1880c2cef76cdc0ee942b01b5445ffbbe1196bf6612c9127f"
+    },
+    {
+      "path": "internal/agent/qualification_terminal_stack_test.go",
+      "base_sha256": null,
+      "current_sha256": "9c7163b88ab8384a9a1a396d91ed8b95f938989001d0597d7dbe1c0279b2943e"
+    },
+    {
+      "path": "internal/agent/qualification_terminal_transport_test.go",
+      "base_sha256": null,
+      "current_sha256": "20147f71d2940941baaf0639494c219b05f5d622611691b230e1355affd42033"
+    },
+    {
+      "path": "internal/server/public_routing.go",
+      "base_sha256": "3172fb9bcdaf0d3a5fc3695a96357b263d354dfc3178149ceda265319db9936c",
+      "current_sha256": "0d20373ff4340186092f57dbf955f3a5fd0a265bc6787fe7f0a03fcad9ac49dd"
+    },
+    {
+      "path": "third_party/yamux/qualification_terminal_attribution.go",
+      "base_sha256": null,
+      "current_sha256": "95691d49ddfbac39b6f95d83fccd67ebcf9c6b833f51c94a733d07fd6b604c03"
+    },
+    {
+      "path": "validate-terminal-attribution.py",
+      "base_sha256": null,
+      "current_sha256": "1be48e2f76dd566630c6427d9cf0a19dc6100fdf71532fb21616da209691d510"
+    }
+  ],
+  "historical_inputs_unchanged": true,
+  "copied_inodes_distinct": true
+}

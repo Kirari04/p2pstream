@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 147, in <module>
+    sl_doc,al_doc=load(sl_path),load(al_path); sl,al=live(sl_doc,"server",si),live(al_doc,"agent",ai); reverse(sl,al)
+                                                                              ~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 102, in live
+    base(v,role,16)
+    ~~~~^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 92, in base
+    ledger(v.get("pool_ledger"),role+" pool",2147483648,terminal); ledger(v.get("working_ledger"),role+" working",67108864,terminal,True); owner(v.get("ownership"),role)
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 87, in ledger
+    if v["high_water_bytes"]!=reserved or v["initial_reserved_bytes"]<=0 or (terminal and v["release_count"]<4) or (not terminal and v["current_bytes"]!=reserved): raise ValueError(f"{n} pool")
+                                                                                                                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: agent pool pool

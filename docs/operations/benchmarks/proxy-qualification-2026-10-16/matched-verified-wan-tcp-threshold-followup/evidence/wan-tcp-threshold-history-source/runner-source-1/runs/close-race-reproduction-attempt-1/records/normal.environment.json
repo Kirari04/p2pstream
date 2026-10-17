@@ -1,0 +1,23 @@
+{
+  "available_bytes": 15685251072,
+  "environment": {
+    "CC": "/usr/bin/x86_64-linux-gnu-gcc-15",
+    "CGO_ENABLED": "1",
+    "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/gocache-normal",
+    "GOENV": "off",
+    "GOFLAGS": "",
+    "GOMAXPROCS": "2",
+    "GOMODCACHE": "/home/user/go/pkg/mod",
+    "GOPATH": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/gopath",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/tmp-normal",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off",
+    "HOME": "/home/user",
+    "LC_ALL": "C",
+    "PATH": "/usr/bin:/bin",
+    "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/tmp-normal",
+    "TZ": "Europe/Zurich"
+  }
+}

@@ -1,0 +1,5 @@
+LoadState=loaded
+ActiveState=active
+SubState=running
+ControlGroup=/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h1-436874-09bf1ba0.scope
+Delegate=yes

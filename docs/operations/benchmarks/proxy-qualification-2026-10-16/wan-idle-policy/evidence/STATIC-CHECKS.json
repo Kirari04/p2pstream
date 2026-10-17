@@ -1,0 +1,22 @@
+{
+  "scope": "syntax only; no contracts/probes/validators executed",
+  "python_ast": {
+    "contracts/test-idle-policy.py": "passed",
+    "freeze-source.py": "passed",
+    "idle-policy-proof.py": "passed",
+    "prepare-derivative.py": "passed",
+    "probe-idle-namespace.py": "passed",
+    "run-idle-policy.py": "passed",
+    "validate-idle-policy.py": "passed"
+  },
+  "bash_n": {
+    "arm-wrapper.sh": {
+      "status": 0,
+      "stderr": ""
+    },
+    "runner.sh": {
+      "status": 0,
+      "stderr": ""
+    }
+  }
+}

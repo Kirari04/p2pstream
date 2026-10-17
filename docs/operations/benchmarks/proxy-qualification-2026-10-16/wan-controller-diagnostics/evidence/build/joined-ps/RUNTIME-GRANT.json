@@ -1,0 +1,11 @@
+{
+  "scope": "one fixed CUBIC/Reno/CUBIC run after source-identified helper join correction; max48 transfers; original gates and no retry",
+  "source_sha256": "83dacdb85a74130730a6ced36905343470616ca56b2adba10b01248f25c62c00",
+  "paired_probe_sha256": "28bd786937712722d1417a4f525b68da0d6c8fd3f8e8c01adcc98fb8c9e9d9da",
+  "accepted_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "frozen_parent_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+  "runner_sha256": "cb7abac504c3d74b5aa65361d5e542b6cf9635c3a94f1fc3ba32eac75faa21cf",
+  "commands_sha256": "f4d615ea784edd84097f6c50869522fec920eea61ca80f75b5167eae38a4edf3",
+  "all_inputs_and_binaries_match": true,
+  "probe_no_remaining_identities": true
+}

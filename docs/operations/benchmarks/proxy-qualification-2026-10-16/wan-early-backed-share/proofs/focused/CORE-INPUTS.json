@@ -1,0 +1,11 @@
+{
+  "internal/tunnel/growing_conn.go": "c4db48b961c8a893acd5865dd0866dbd3b003966681363d84a732fa985fa0baf",
+  "internal/tunnel/receive_window_growth.go": "5954cf0472d92031945c2f8f1417488437ac640103dd927e9fcc390b5ef8f49d",
+  "third_party/yamux/aggregate_window.go": "0fb6b3e993a5b43a9a5d3e800822b0ac54d8373c160b96969ada2e6fcc0fd4b5",
+  "third_party/yamux/stream.go": "a5fc23ea8f1d1c033126b629db47af5ee49c3e9b3c6ddb714ea1ce2416923cd7",
+  "internal/agent/agent.go": "db72d5947cae3f6c841a039947d288f72d6d64d04f97c7518b4107e0a31ad733",
+  "internal/server/server.go": "e1515f72aec95a169fa83a52f9b0d24974a704c90522801286d0794bddc72b4c",
+  "internal/server/public_routing.go": "849ee5bf25480a890b314676d2e5fb380096f856f8c28a16d51c8ba4d6e4df86",
+  "internal/tunnel/qualification_growth_trace.go": "84e222e812aa61537cc166a867cc596967605b8e517f3ff7333b1e1d6be6f325",
+  "tmp/wan-idle-policy-source-review-20261017/NEXT-POOL-SHARE-PLAN.md": "20f1bf96e8e41e3d52dab910b1aa708850c6ff161b9838f6b980d01476080dac"
+}

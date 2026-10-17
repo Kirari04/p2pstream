@@ -1,0 +1,53 @@
+File: server.test
+Build ID: c124bcafd96127015cd8fcd8fdfa1533fd0fd72e
+Type: alloc_objects
+Time: 2026-10-16 06:05:15 CEST
+Showing nodes accounting for 37174197, 81.21% of 45775783 total
+Dropped 330 nodes (cum <= 228878)
+Showing top 45 nodes out of 166
+      flat  flat%   sum%        cum   cum%
+   3123923  6.82%  6.82%    3123923  6.82%  p2pstream/internal/db.appendProxyRequestEventArgs
+   2004984  4.38% 11.20%    2004984  4.38%  net/textproto.MIMEHeader.Add (inline)
+   1802750  3.94% 15.14%   20142492 44.00%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+   1572933  3.44% 18.58%    1572933  3.44%  context.WithValue
+   1378870  3.01% 21.59%    1378870  3.01%  net/http.Header.Clone (inline)
+   1365942  2.98% 24.58%    1890254  4.13%  net/textproto.readMIMEHeader
+   1335642  2.92% 27.49%    1335642  2.92%  net/http.http2cloneHeader (inline)
+   1092286  2.39% 29.88%    1092286  2.39%  p2pstream/internal/server.(*requestCapacityLimiter).tryAcquire
+   1048591  2.29% 32.17%    1179665  2.58%  net/textproto.MIMEHeader.Set (inline)
+   1011195  2.21% 34.38%    1643199  3.59%  net/http.(*persistConn).roundTrip
+    989894  2.16% 36.54%     989894  2.16%  net/http.(*Request).WithContext (inline)
+    961222  2.10% 38.64%     977832  2.14%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+    942105  2.06% 40.70%     942105  2.06%  p2pstream/internal/server.(*publicProxyContext).deferCleanup
+    880691  1.92% 42.62%    3814120  8.33%  net/http.(*persistConn).readLoop
+    869188  1.90% 44.52%    1281172  2.80%  time.NewTimer
+    868377  1.90% 46.42%     868377  1.90%  net.SplitHostPort.func1 (inline)
+    862932  1.89% 48.30%   17318450 37.83%  net/http/httputil.(*ReverseProxy).ServeHTTP
+    841083  1.84% 50.14%    9526882 20.81%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+    837962  1.83% 51.97%    1487130  3.25%  net/http.(*transferWriter).probeRequestBody
+    832882  1.82% 53.79%    1637999  3.58%  net/http.(*http2Framer).readMetaFrame
+    819212  1.79% 55.58%    2545584  5.56%  net/http.(*Request).write
+    805117  1.76% 57.34%     805117  1.76%  net/http.(*http2Framer).readMetaFrame.func1
+    772459  1.69% 59.03%    1381966  3.02%  net/http.(*Transport).getConn
+    688152  1.50% 60.53%     688152  1.50%  p2pstream/internal/server.publicRouteTargetHealthConfigFromRouteTarget
+    655386  1.43% 61.96%     655386  1.43%  net/textproto.canonicalMIMEHeaderKey
+    644454  1.41% 63.37%    1678932  3.67%  p2pstream/internal/server.applyPublicRequestBodyLimits
+    629192  1.37% 64.74%    1055225  2.31%  context.withCancel (inline)
+    600762  1.31% 66.06%     600762  1.31%  strings.genSplit
+    557064  1.22% 67.27%    1002742  2.19%  context.WithCancel
+    557064  1.22% 68.49%     557064  1.22%  net/netip.Addr.string4 (inline)
+    535284  1.17% 69.66%     535284  1.17%  net/http.cloneURL (inline)
+    491535  1.07% 70.73%     491535  1.07%  p2pstream/internal/server.(*App).eligibleTargetAgentCandidatesFromSnapshot
+    436926  0.95% 71.69%     436926  0.95%  internal/bytealg.MakeNoZero
+    426033  0.93% 72.62%     426033  0.93%  context.(*cancelCtx).propagateCancel
+    411984   0.9% 73.52%     411984   0.9%  time.newTimer
+    406447  0.89% 74.41%    2320601  5.07%  net/http.(*Request).Clone
+    404149  0.88% 75.29%    5602247 12.24%  p2pstream/internal/server.(*pooledAgentTransport).RoundTrip
+    382304  0.84% 76.13%    3203872  7.00%  p2pstream/internal/server.initializePublicProxyContext
+    360485  0.79% 76.91%     360485  0.79%  context.(*cancelCtx).Done
+    360453  0.79% 77.70%     970000  2.12%  context.WithCancelCause
+    349533  0.76% 78.46%     513380  1.12%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip.func2 (inline)
+    345770  0.76% 79.22%     345770  0.76%  net/http.setupRewindBody (inline)
+    327684  0.72% 79.94%     327684  0.72%  database/sql.NullInt64.Value
+    294916  0.64% 80.58%     294916  0.64%  github.com/google/uuid.NewRandomFromReader
+    288380  0.63% 81.21%    5198098 11.36%  net/http.(*Transport).roundTrip

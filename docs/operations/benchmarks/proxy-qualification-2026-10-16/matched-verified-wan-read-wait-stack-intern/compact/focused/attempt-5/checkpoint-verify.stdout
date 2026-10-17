@@ -1,0 +1,12 @@
+DESIGN.md: OK
+OUTPUT-SCHEMA.json: OK
+OUTPUT-SCHEMA.predecessor.json: OK
+PREDECESSOR-SHA256.txt: OK
+TEST-PLAN.md: OK
+analyze_interned_trace.py: OK
+checkpoint-7-to-8-source.patch: OK
+intern_parsed_trace.py: OK
+run_contracts.py: OK
+run_interned_trace_parser.py: OK
+stack-intern-source.patch: OK
+stack_intern_format.py: OK

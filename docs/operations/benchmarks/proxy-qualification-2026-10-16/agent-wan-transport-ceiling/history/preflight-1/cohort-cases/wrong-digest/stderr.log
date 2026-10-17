@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-preflight.pcAojAfq/cohort-cases/cohort-validator.py", line 204, in <module>
+    if value.get("results")!=live_results: raise ValueError(f"{role} terminal results changed")
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: server terminal results changed

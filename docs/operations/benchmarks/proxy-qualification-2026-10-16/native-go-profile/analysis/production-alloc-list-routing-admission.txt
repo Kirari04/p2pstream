@@ -1,0 +1,159 @@
+Total: 4258533290B
+ROUTINE ======================== p2pstream/internal/server.(*App).tryReservePublicOwnedResource in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/public_admission_resources.go
+         0  58722888B (flat, cum)  1.38% of Total
+         .          .     16:func (a *App) tryReservePublicOwnedResource(owner adaptiveResourceOwner, memoryBytes, fileDescriptors int64) (release func(), ok, constrained bool) {
+         .          .     17:	if a == nil || a.agentStreamCapacity == nil {
+         .          .     18:		return func() {}, true, false
+         .          .     19:	}
+         .  58722888B     20:	release, ok, constrained = a.agentStreamCapacity.tryReserveAdaptiveResource(owner, memoryBytes, fileDescriptors)
+         .          .     21:	if ok || !constrained {
+         .          .     22:		return release, ok, constrained
+         .          .     23:	}
+         .          .     24:
+         .          .     25:	a.schedulePublicAdmissionReclaim()
+ROUTINE ======================== p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/agent_stream_capacity.go
+ 58198152B  58722888B (flat, cum)  1.38% of Total
+         .          .   1374:func (m *agentStreamCapacityManager) tryReserveAdaptiveResourceMode(owner adaptiveResourceOwner, memoryBytes, fileDescriptors int64, legacyStreamSupplement bool) (release func(), ok, constrained bool) {
+         .          .   1375:	if m == nil {
+         .          .   1376:		return func() {}, true, false
+         .          .   1377:	}
+         .    524736B   1378:	m.refreshAdaptiveCapacity(false)
+         .          .   1379:	_ = m.lockAdaptiveAdmission(context.Background())
+         .          .   1380:	if m.adaptiveMemory == nil {
+         .          .   1381:		m.mu.Unlock()
+         .          .   1382:		return func() {}, true, false
+         .          .   1383:	}
+         .          .   1384:	if owner >= adaptiveResourceOwnerCount || memoryBytes < 0 || fileDescriptors < 0 || m.resourceSnapshot.RejectNew || !m.resourceSnapshot.Usage.Valid() || m.resourceSnapshot.StreamChargeByte <= 0 {
+         .          .   1385:		m.mu.Unlock()
+         .          .   1386:		return nil, false, true
+         .          .   1387:	}
+         .          .   1388:	proposedBytes := saturatingAddInt64(m.adaptiveExternalBytes, memoryBytes)
+         .          .   1389:	proposedFDs := saturatingAddInt64(m.adaptiveExternalFDs, fileDescriptors)
+         .          .   1390:	limit := m.resourceSnapshot.AdmissionLimitWithExternal(proposedBytes, proposedFDs)
+         .          .   1391:	protectedControl := m.adaptiveProtectedControlLocked() - m.usedControl
+         .          .   1392:	if protectedControl < 0 {
+         .          .   1393:		protectedControl = 0
+         .          .   1394:	}
+         .          .   1395:	if limit < m.usedTotal+protectedControl {
+         .          .   1396:		m.mu.Unlock()
+         .          .   1397:		return nil, false, true
+         .          .   1398:	}
+         .          .   1399:	m.adaptiveExternalBytes = proposedBytes
+         .          .   1400:	m.adaptiveExternalFDs = proposedFDs
+         .          .   1401:	m.adaptiveExternalBytesByOwner[owner] = saturatingAddInt64(m.adaptiveExternalBytesByOwner[owner], memoryBytes)
+         .          .   1402:	m.adaptiveExternalFDsByOwner[owner] = saturatingAddInt64(m.adaptiveExternalFDsByOwner[owner], fileDescriptors)
+         .          .   1403:	m.adaptiveExternalReservationsByOwner[owner] = saturatingAddInt64(m.adaptiveExternalReservationsByOwner[owner], 1)
+         .          .   1404:	if legacyStreamSupplement {
+         .          .   1405:		m.legacyStreamSupplementBytes = saturatingAddInt64(m.legacyStreamSupplementBytes, memoryBytes)
+         .          .   1406:	}
+         .          .   1407:	m.mu.Unlock()
+         .          .   1408:
+ 15728880B  15728880B   1409:	var once sync.Once
+ 42469272B  42469272B   1410:	return func() {
+         .          .   1411:		once.Do(func() {
+         .          .   1412:			m.mu.Lock()
+         .          .   1413:			m.adaptiveExternalBytes -= memoryBytes
+         .          .   1414:			m.adaptiveExternalFDs -= fileDescriptors
+         .          .   1415:			m.adaptiveExternalBytesByOwner[owner] -= memoryBytes
+ROUTINE ======================== p2pstream/internal/server.activeTargetAccountingAndForwardStage in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/public_proxy_pipeline.go
+132164932B 2014342107B (flat, cum) 47.30% of Total
+         .          .    977:func activeTargetAccountingAndForwardStage(ctx *publicProxyContext) publicProxyStageResult {
+         .          .    978:	if ctx.Resolution.Target.TargetType == publicRouteTargetTypeProxy && ctx.Resolution.RouteTargetID.Valid && ctx.App.publicTargetRequests != nil {
+         .  14156072B    979:		release, ok := ctx.App.publicTargetRequests.tryAcquire(ctx.Resolution.RouteTargetID.Int64)
+         .          .    980:		if !ok {
+         .          .    981:			return rejectPublicRequestCapacity(ctx, "route_target_capacity", "Route target capacity reached")
+         .          .    982:		}
+         .          .    983:		defer release()
+         .          .    984:	}
+         .          .    985:	if ctx.Resolution.RouteTargetID.Valid {
+         .   9437328B    986:		done := ctx.App.beginPublicRouteTargetRequest(ctx.Resolution.RouteTargetID.Int64)
+         .          .    987:		defer done()
+         .          .    988:	}
+132164932B 132164932B    989:	shaper := trafficShaperDecisionIfSelected(ctx.TrafficShaperDecision, ctx.TrafficShaperSelected)
+         .          .    990:	if ctx.Resolution.Target.TargetType == publicRouteTargetTypeStatic {
+         .          .    991:		ctx.App.staticTargetResponse(ctx.ResponseWriter, ctx.Request, ctx.Resolution, ctx.Trace, shaper, ctx.Observability)
+         .          .    992:		return publicProxyStageDone
+         .          .    993:	}
+         .          .    994:	if ctx.Resolution.Target.Transport == publicRouteTargetTransportAgent {
+         .          .    995:		ctx.App.proxyAgentTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
+         .          .    996:		return publicProxyStageDone
+         .          .    997:	}
+         . 1858583775B    998:	ctx.App.proxyDirectTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
+         .          .    999:	return publicProxyStageDone
+         .          .   1000:}
+ROUTINE ======================== p2pstream/internal/server.initializePublicProxyContext in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/public_proxy_pipeline.go
+ 25166752B 244889676B (flat, cum)  5.75% of Total
+         .          .    182:func initializePublicProxyContext(ctx *publicProxyContext, app *App, listenerID int64, w http.ResponseWriter, r *http.Request) {
+         .          .    183:	if ctx == nil {
+         .          .    184:		return
+         .          .    185:	}
+         .          .    186:	*ctx = publicProxyContext{}
+         .          .    187:	var snap *publicProxySnapshot
+         .          .    188:	if app != nil {
+         .          .    189:		snap = app.currentPublicSnapshot()
+         .          .    190:	}
+         . 210285452B    191:	r = resolvePublicRequestIdentity(snap, r)
+         .          .    192:	if app != nil && app.Config != nil {
+         .          .    193:		r = applyPublicRequestBodyLimits(app.Config.PublicMaxRequestBodyBytes, app.Config.PublicRequestBodyIdleMillis, w, r)
+         .          .    194:	} else {
+         .          .    195:		r = applyPublicRequestBodyLimits(0, 0, w, r)
+         .          .    196:	}
+  7340144B   7340144B    197:	var requestBytes atomic.Uint64
+         .          .    198:	if r.Body != nil && r.Body != http.NoBody {
+         .          .    199:		r.Body = &countingReadCloser{ReadCloser: r.Body, bytes: &requestBytes}
+         .          .    200:	}
+         .          .    201:	bodyState, _ := r.Context().Value(publicRequestBodyStateContextKey{}).(*publicRequestBodyState)
+ 17826608B  17826608B    202:	recorder := &proxyResponseRecorder{ResponseWriter: w, request: r, requestBodyState: bodyState}
+         .          .    203:	responseWriter := http.ResponseWriter(recorder)
+         .          .    204:	observability := proxyRequestObservability{requestBytes: &requestBytes, responseRecorder: recorder}
+         .          .    205:	trace := newPublicProxyTrafficTrace(app, r, recorder, func() string {
+         .          .    206:		return publicTracePathForRequest(app, snap, listenerID, r)
+         .          .    207:	})
+         .          .    208:	if trace != nil {
+         .          .    209:		trace.emitReceived(listenerID)
+         .          .    210:	}
+         .          .    211:	*ctx = publicProxyContext{
+         .          .    212:		App:            app,
+         .          .    213:		ListenerID:     listenerID,
+         .          .    214:		StartedAt:      time.Now(),
+         .          .    215:		Snapshot:       snap,
+         .          .    216:		Writer:         w,
+         .          .    217:		ResponseWriter: responseWriter,
+         .          .    218:		Recorder:       recorder,
+         .          .    219:		Request:        r,
+         .          .    220:		Observability:  observability,
+         .   9437472B    221:		RequestContext: proxyRequestContextFromHTTP(r),
+         .          .    222:		Trace:          trace,
+         .          .    223:	}
+         .          .    224:}
+         .          .    225:
+         .          .    226:func newPublicProxyTrafficTrace(app *App, r *http.Request, recorder *proxyResponseRecorder, safePath func() string) *trafficRequestTrace {
+ROUTINE ======================== p2pstream/internal/server.proxyRequestContextFromHTTP in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/dashboard.go
+         0  19923552B (flat, cum)  0.47% of Total
+         .          .    414:func proxyRequestContextFromHTTP(r *http.Request) proxyRequestContext {
+         .          .    415:	if r == nil {
+         .          .    416:		return proxyRequestContext{}
+         .          .    417:	}
+         .          .    418:	path := "/"
+         .          .    419:	if r.URL != nil {
+         .          .    420:		path = r.URL.EscapedPath()
+         .          .    421:		if path == "" {
+         .          .    422:			path = r.URL.Path
+         .          .    423:		}
+         .          .    424:	}
+         .  19923552B    425:	host := normalizeRequestHost(r.Host)
+         .          .    426:	if host == "" && r.URL != nil {
+         .          .    427:		host = normalizeRequestHost(r.URL.Host)
+         .          .    428:	}
+         .          .    429:	return proxyRequestContext{
+         .          .    430:		Method:     truncateProxyRequestContextValue(strings.ToUpper(strings.TrimSpace(r.Method)), 16),
+ROUTINE ======================== p2pstream/internal/server.proxyRequestContextFromResolution in /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source/internal/server/dashboard.go
+         0  10486080B (flat, cum)  0.25% of Total
+         .          .    436:func proxyRequestContextFromResolution(r *http.Request, resolution publicRouteResolution) proxyRequestContext {
+         .  10486080B    437:	requestContext := proxyRequestContextFromHTTP(r)
+         .          .    438:	if resolution.DefaultRoute {
+         .          .    439:		return requestContext
+         .          .    440:	}
+         .          .    441:	prefix := strings.TrimSpace(resolution.Route.PathPrefix)
+         .          .    442:	if prefix == "" {
+

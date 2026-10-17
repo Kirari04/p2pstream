@@ -1,0 +1,18 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "upstream_read timestamps outside handler interval",
+    "upstream_read stall 0 timestamp invalid",
+    "upstream_read stall 1 timestamp invalid",
+    "downstream_write timestamps outside handler interval",
+    "downstream_write stall 0 timestamp invalid",
+    "inter_read_gap timestamps outside handler interval",
+    "inter_read_gap stall 0 timestamp invalid",
+    "read plus write duration exceeds handler interval",
+    "read plus inter-read-gap duration exceeds handler interval"
+  ],
+  "name": "handler-time-bound",
+  "stderr": "copy attribution validation failed: upstream_read timestamps outside handler interval; upstream_read stall 0 timestamp invalid; upstream_read stall 1 timestamp invalid; downstream_write timestamps outside handler interval; downstream_write stall 0 timestamp invalid; inter_read_gap timestamps outside handler interval; inter_read_gap stall 0 timestamp invalid; read plus write duration exceeds handler interval; read plus inter-read-gap duration exceeds handler interval\n",
+  "stdout": ""
+}

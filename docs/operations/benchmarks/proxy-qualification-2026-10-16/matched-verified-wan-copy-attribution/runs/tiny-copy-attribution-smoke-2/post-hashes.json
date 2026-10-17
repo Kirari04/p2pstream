@@ -1,0 +1,31 @@
+{
+  "aggregate_agent_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "expected_leaf_der_sha256": "88e08b6b8743647fe55d7418ac8da78cb4713dd6085733fead5bac8b844b3fce",
+  "schema_version": 1,
+  "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "sha256": {
+    "aggregate_agent_binary": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+    "approved_lifecycle_runner": "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f",
+    "audited_build_manifest": "70be2d865f415653f1344ec29d230bae39a0de9148afa37830c05da2dc8f81bb",
+    "certificate_pem": "7ded6aa4b657d96aa654314bf491e3b5ce94ee6f0a32a01ca25d39be40ea5473",
+    "copy_attribution_design": "a52431ddf9439a7424a9da6e81e26b2121ba0590e32ae8603b4ad20478aa1baf",
+    "copy_attribution_overlay_patch": "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f",
+    "copy_record_validator": "0637a58ab67f498e747837e6edffc61474a583750f6ee4f00f402979dd7948ed",
+    "copy_runner_patch": "2be3634deee247d26fa31d5ae174d3fdd536a87c208371467875923025af32d8",
+    "copy_timing_decision_map": "f6dc409926ca8178ba0da8ec262960a6b8e238d2a9d94dbe0afc9077f629c6f7",
+    "diagnostic_build_manifest": "f190707ec0bfb43277ea2d368bfdd4591648aab0277e9026535b06049ea3ef12",
+    "final_source_attestation": "5ba8ea19d697266e63f2d04d4a3fee611f2a34bebe14928196e9c23cb85be722",
+    "frozen_protocol_runner": "309d90622ad36f8f082bfd010ec85a7f87d13d80d9d8ce9a8b97ec883a12bad7",
+    "go_base_patch": "b2c90d2ee6bf9ade304163795022071b4d368b61f0e9d5bc73d0e52d2569538b",
+    "go_helper": "b0b6d037d51892e89d39e6f55107f73c30647ad9a20283a026007fd69b3be42d",
+    "integration_notes": "29fab0000d63e750b3c2cbfcd645318bc4701b57cd01a3614d54ac987f5b745f",
+    "private_key_pem": "8e2f165c9da6991d3cbc69190b9ce4d8e3f1585083cac1c4b4c5f8d6211f5c47",
+    "runner": "4c76336266bceaab9d2639a5d81e3ce272b4dc924d15154bb6ccbdea4b58f852",
+    "runner_reconstruction_attestation": "d502ec26a7445bce777c0b5e69602d22561a5c64461531dcd30528ab75433af7",
+    "server_binary": "59eb8af1e6c767776f639b014074d542abb23d4ad019c7558182670372ea92a7",
+    "supervisor": "13723c76082aa0787086f93213fe2d0a3416640694f7c901a0b9b02a7215f02c",
+    "validator": "10a798e6f728c072ee1469250387b49fc8f8cd02054a79cb22eb26f76bd33c01",
+    "wan_protocol_runner_patch": "5bdfbb4d5ae6abdc3912f001f0b37d726888a255587cd0a478d5a120281db983",
+    "wrapper": "46ec1ad875f3b77bacdd23ebec7453c2d7cdb9c21e19aca6cfdcafb65374e8a4"
+  }
+}

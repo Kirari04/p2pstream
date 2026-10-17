@@ -1,0 +1,20 @@
+{
+  "scope": "independent Astra raw smoke audit; not qualification",
+  "leaf_der_sha256": "255c9b66ffb2fe1cb24860422c84b5aeb2fbafd6c7dc7a9c36d33503b6596efc",
+  "arms": {
+    "h1": {
+      "rows": 13,
+      "raw_sha256": "91cff224d13904a8f62d345071a3c71d942e82abe096a54736a860cf3b02b5bb",
+      "natural_exits": 5,
+      "reuse_idle_ns": 3648808806,
+      "independent_checks": "pass"
+    },
+    "h2": {
+      "rows": 13,
+      "raw_sha256": "dad6a215239771b569e4b07effc2d428d085acdbb0b053612900734e83c6fddc",
+      "natural_exits": 5,
+      "reuse_idle_ns": 3654630891,
+      "independent_checks": "pass"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "chunk_id": "3916c6",
+  "explanation": "The unified exec wait reported exit_code 1 after the inline shell wrote focused-race-attempt1.status=0, printed the passing Go result, and left stderr empty. The shell ends with exit \"$race\", where race was recorded as 0. No trailing false conditional exists. The discrepancy is unexplained and was preserved without rerun.",
+  "outer_exit_code": 1,
+  "session_id": 4012,
+  "test_status_file": 0,
+  "wall_time_seconds": 12.013043891
+}

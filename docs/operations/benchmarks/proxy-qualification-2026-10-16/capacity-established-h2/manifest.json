@@ -1,0 +1,58 @@
+{
+  "started_at_utc": "2026-10-16T03:05:27.519657+00:00",
+  "candidate_ref": "e92162962e7bebe9e5a8d28a2efe6f9373ea9db9",
+  "binary_source_association": "Caller asserts binaries were built from this clean commit; hashes freeze their identity.",
+  "binary_sha256": {
+    "server": "9f35c8b7cba4235cfcdc84528c9d6196f999cbef677d7fd44f0c1bb643e37e10",
+    "agent": "eb6ac68d282bab5076e0da88e714417511e51e6e84beed05fb9e9ba6b7b0cf3e",
+    "driver": "9f35c8b7cba4235cfcdc84528c9d6196f999cbef677d7fd44f0c1bb643e37e10"
+  },
+  "runner_sha256": "5669733e64dd637009bc39c6bd1951073f1520f5630b27b0e48bdb7729819e31",
+  "boundary_runner_sha256": "49bd949d3a3fc3795a63bea9515ae1a131985f0af5637eacf84f48f3de4c8ea8",
+  "fixture_sha256": {
+    "server": "396849e9acb5cc158c62c128b80cf03265573c0130b6a00b78a14dabb7c5f566",
+    "agent": "6221e8d457085be19e461b08ab6e33ff845f71e6b1879957bf8a979272a55707"
+  },
+  "go_version": "go version go1.26.6 linux/amd64",
+  "kernel": "Linux srv02 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "haproxy_version": "HAProxy version 3.2.9-1ubuntu2.2 2026/06/19 - https://haproxy.org/",
+  "cpu_affinity": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "cpu_topology": "# The following is the parsable format, which can be fed to other\n# programs. Each different item in every column has an unique ID\n# starting usually from zero.\n# CPU,Core,Socket,Online\n0,0,0,Y\n1,0,0,Y\n2,1,0,Y\n3,1,0,Y\n4,2,0,Y\n5,2,0,Y\n6,3,0,Y\n7,3,0,Y\n8,4,0,Y\n9,4,0,Y\n10,5,0,Y\n11,5,0,Y\n12,6,0,Y\n13,6,0,Y\n14,7,0,Y\n15,7,0,Y",
+  "policy": {
+    "initial_points": [
+      3072
+    ],
+    "refinement_resolution": null,
+    "lower_probes_if_2048_fails": [],
+    "additional_best_point_confirmations": 1,
+    "fresh_processes_per_point": true,
+    "server_ballast_bytes": 1073741824,
+    "direct_topology": "server plus idle colocated agent in one shared 4 GiB cgroup; independent ledgers",
+    "remote_agent_topology": "server 4 GiB plus one agent 4 GiB, distinct cgroups; four bulk lanes",
+    "control_scope": "HAProxy direct host process; no ballast or matching cgroup, not an agent or memory-parity gate",
+    "meaning": "Simultaneously held tiny requests, not sustained throughput or maximum body/header capacity",
+    "lower_probes_if_3072_fails": [
+      2048
+    ],
+    "mode": "remote-agent H2 after exactly one successful H2 prewarm",
+    "prewarm_event_policy": "persist exactly one prewarm event before measured event baseline",
+    "ceiling": "No new 4096 attempt; cold 4096 instability remains preserved separately"
+  }
+}

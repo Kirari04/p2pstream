@@ -1,0 +1,134 @@
+diff --git a/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-final.OrgDda/internal/agent/transport_ceiling_qualification_test.go b/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-eof-final.ccb9c9c/internal/agent/transport_ceiling_qualification_test.go
+index ad197c7..d72df97 100644
+--- a/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-final.OrgDda/internal/agent/transport_ceiling_qualification_test.go
++++ b/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-eof-final.ccb9c9c/internal/agent/transport_ceiling_qualification_test.go
+@@ -61,6 +61,7 @@ type transportCeilingAgentFixture struct {
+ 	sequencer       tunnel.TransportCeilingPhaseSequencer
+ 	activeLogical   int
+ 	logicalJoined   bool
++	post16Live      bool
+ 	workingReleases []func()
+ 	handlerWG       sync.WaitGroup
+ 	relayWG         sync.WaitGroup
+@@ -359,10 +360,7 @@ func (f *transportCeilingAgentFixture) acceptLane(lane *transportCeilingAgentLan
+ 	for {
+ 		conn, err := lane.session.Accept()
+ 		if err != nil {
+-			if !errors.Is(err, yamux.ErrSessionShutdown) {
+-				f.endpoint.MarkInvalid(err)
+-				f.cancel()
+-			}
++			f.handleAcceptLaneError(err)
+ 			return
+ 		}
+ 		f.handlerWG.Add(1)
+@@ -370,6 +368,24 @@ func (f *transportCeilingAgentFixture) acceptLane(lane *transportCeilingAgentLan
+ 	}
+ }
+ 
++func (f *transportCeilingAgentFixture) handleAcceptLaneError(err error) {
++	if errors.Is(err, yamux.ErrSessionShutdown) {
++		return
++	}
++	f.mu.Lock()
++	expectedEOF := errors.Is(err, io.EOF) &&
++		f.post16Live &&
++		f.logicalJoined &&
++		f.activeLogical == 0 &&
++		f.sequencer.Completed() == tunnel.TransportCeilingExpectedPhases
++	f.mu.Unlock()
++	if expectedEOF {
++		return
++	}
++	f.endpoint.MarkInvalid(err)
++	f.cancel()
++}
++
+ func (f *transportCeilingAgentFixture) handleLogical(lane *transportCeilingAgentLane, conn net.Conn) {
+ 	defer f.handlerWG.Done()
+ 	growing := tunnel.NewAggregateGrowingConn(conn, tunnel.DefaultMaxStreamWindowSizeBytes, lane.growth)
+@@ -489,6 +505,10 @@ func (f *transportCeilingAgentFixture) logicalFinished() {
+ 		if err != nil {
+ 			f.endpoint.MarkInvalid(err)
+ 			f.cancel()
++		} else {
++			// Session EOF becomes an expected server-driven shutdown only after
++			// the post-phase-16 state and the five live sockets were published.
++			f.post16Live = true
+ 		}
+ 	} else {
+ 		f.endpoint.SetLogicalState(active, false)
+@@ -577,3 +597,73 @@ func TestTransportCeilingAgentRoleRejectsEphemeralAdminAddress(t *testing.T) {
+ 		t.Fatal("ephemeral external admin address accepted")
+ 	}
+ }
++
++func TestTransportCeilingAgentAcceptLaneEOFRequiresPublishedPost16State(t *testing.T) {
++	newFixture := func(t *testing.T, completed, active int, joined, live bool) (*transportCeilingAgentFixture, context.Context) {
++		t.Helper()
++		pool := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingPoolLimitBytes)
++		working := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingWorkingLimitBytes)
++		endpoint, err := tunnel.NewTransportCeilingEndpoint("agent", tunnel.TransportCeilingVariantYamux, "test-source", pool, working)
++		if err != nil {
++			t.Fatal(err)
++		}
++		ctx, cancel := context.WithCancel(context.Background())
++		t.Cleanup(cancel)
++		fixture := &transportCeilingAgentFixture{ctx: ctx, cancel: cancel, endpoint: endpoint, activeLogical: active, logicalJoined: joined, post16Live: live}
++		for index := 0; index < completed; index++ {
++			if err := fixture.sequencer.Accept(index); err != nil {
++				t.Fatal(err)
++			}
++		}
++		return fixture, ctx
++	}
++
++	tests := []struct {
++		name              string
++		completed, active int
++		joined, live      bool
++		err               error
++		wantCanceled      bool
++	}{
++		{name: "early EOF", err: io.EOF, wantCanceled: true},
++		{name: "completed with active logical", completed: tunnel.TransportCeilingExpectedPhases, active: 1, joined: true, live: true, err: io.EOF, wantCanceled: true},
++		{name: "completed but not joined", completed: tunnel.TransportCeilingExpectedPhases, live: true, err: io.EOF, wantCanceled: true},
++		{name: "completed but not published live", completed: tunnel.TransportCeilingExpectedPhases, joined: true, err: io.EOF, wantCanceled: true},
++		{name: "published post16 EOF", completed: tunnel.TransportCeilingExpectedPhases, joined: true, live: true, err: io.EOF},
++		{name: "non EOF after post16", completed: tunnel.TransportCeilingExpectedPhases, joined: true, live: true, err: errors.New("accept failed"), wantCanceled: true},
++		{name: "session shutdown remains expected", err: yamux.ErrSessionShutdown},
++	}
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			fixture, ctx := newFixture(t, test.completed, test.active, test.joined, test.live)
++			fixture.handleAcceptLaneError(test.err)
++			select {
++			case <-ctx.Done():
++				if !test.wantCanceled {
++					t.Fatal("expected accept error canceled fixture")
++				}
++			default:
++				if test.wantCanceled {
++					t.Fatal("invalid accept error did not cancel fixture")
++				}
++			}
++			report := fixture.endpoint.Terminal(nil, false)
++			if test.wantCanceled {
++				if report.InvalidReason != test.err.Error() || len(report.Errors) != 1 || report.Errors[0] != test.err.Error() {
++					t.Fatalf("invalid accept error was not recorded exactly once: reason=%q errors=%v", report.InvalidReason, report.Errors)
++				}
++			} else if report.InvalidReason != "" || len(report.Errors) != 0 {
++				t.Fatalf("expected accept shutdown was recorded invalid: reason=%q errors=%v", report.InvalidReason, report.Errors)
++			}
++		})
++	}
++
++	fixture, _ := newFixture(t, tunnel.TransportCeilingExpectedPhases, 0, true, true)
++	prior := errors.New("prior diagnostic failure")
++	fixture.endpoint.MarkInvalid(prior)
++	fixture.handleAcceptLaneError(io.EOF)
++	report := fixture.endpoint.Terminal(nil, false)
++	if report.InvalidReason != prior.Error() || len(report.Errors) != 1 || report.Errors[0] != prior.Error() {
++		t.Fatalf("expected EOF changed prior invalid state: reason=%q errors=%v", report.InvalidReason, report.Errors)
++	}
++}

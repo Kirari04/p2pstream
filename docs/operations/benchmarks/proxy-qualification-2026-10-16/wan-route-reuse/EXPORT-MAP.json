@@ -1,0 +1,1210 @@
+{
+  "canonical_copied_file_count": 125,
+  "copied_files": [
+    {
+      "bytes": 6316,
+      "destination": "source/SOURCE.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "six-file reviewed production patch inventory",
+      "sha256": "53fed87c89722c3f21833da854b3de922e931115c41f2d03887d4437812b18c4",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-source-20261017/SOURCE.json"
+    },
+    {
+      "bytes": 10492,
+      "destination": "source/internal/server/agent_real_transport_test.go",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact reviewed compiled production/test file",
+      "sha256": "8d5602623ea8aaabbcc9c05374b4c6912fd8afaaeea3eae6383aba92fe1ccce5",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/server/agent_real_transport_test.go"
+    },
+    {
+      "bytes": 54427,
+      "destination": "source/internal/server/agent_registry_test.go",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact reviewed compiled production/test file",
+      "sha256": "8d15a9fd6dd72dcb29911e27eb1e01c78c8315ef1e16a5ef0290c1ffc99f157e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/server/agent_registry_test.go"
+    },
+    {
+      "bytes": 17659,
+      "destination": "source/internal/server/agent_transport_locality_test.go",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact reviewed compiled production/test file",
+      "sha256": "f1e2b2489996b23a5106057c1147ab7c99487d5d0842072a898d0d5c55ec2925",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/server/agent_transport_locality_test.go"
+    },
+    {
+      "bytes": 20911,
+      "destination": "source/internal/server/agent_transport_pool.go",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact reviewed compiled production/test file",
+      "sha256": "329ffaf975191049b843301f04d83572c85b9eecb76a5896314073301057dd0f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/server/agent_transport_pool.go"
+    },
+    {
+      "bytes": 25332,
+      "destination": "source/internal/server/agent_transport_pool_test.go",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact reviewed compiled production/test file",
+      "sha256": "5a8bae9607cc114351619b8d7c04ec21818e60eb80ca2af287578b7971038168",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/server/agent_transport_pool_test.go"
+    },
+    {
+      "bytes": 10235,
+      "destination": "source/internal/server/direct_transport_pool_test.go",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact reviewed compiled production/test file",
+      "sha256": "10e93eec5968179e91eb8e13ea77a7290ff8a6cbcb135c196b4088bc1c35f71c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/server/direct_transport_pool_test.go"
+    },
+    {
+      "bytes": 12876,
+      "destination": "DEPENDENCY-REFERENCES.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "a32c68e8fd8d779abf12c228f4228654cd1e5e8beb897b4bac6d37e28bda6061",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-publication-20261017/DEPENDENCY-REFERENCES.json"
+    },
+    {
+      "bytes": 8022,
+      "destination": "EXPORT-GRANT.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "post-completion documentary export authorization and frozen final input map",
+      "sha256": "3eb71eb8800704c01e1d04a759a99b4bfa29ba546e16021641b2a0cbaeb1efb1",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-publication-20261017/EXPORT-GRANT.json"
+    },
+    {
+      "bytes": 2218,
+      "destination": "PUBLICATION-PLAN.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "prospective source-only publication boundaries",
+      "sha256": "c45be4a3ebe16db5261dc47e8690cf1824cfe0db6b8df85a9e6b145f1654728f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-publication-20261017/PUBLICATION-PLAN.json"
+    },
+    {
+      "bytes": 7746,
+      "destination": "README.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "root-reviewed final outcome explanation",
+      "sha256": "5d0f6b3e155c531a236efd482673ad2de513fdc6bd2073cbd5a9ef1c63d35ae8",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-publication-20261017/README.md"
+    },
+    {
+      "bytes": 23401,
+      "destination": "analysis/OUTCOME.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-frozen final outcome/independent review/audit",
+      "sha256": "15cbf3c6164f962af1114df75c39d5b4d3a97310011a3a9f88b66c381a25442d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/OUTCOME.json"
+    },
+    {
+      "bytes": 2401,
+      "destination": "analysis/PLAN.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-frozen final outcome/independent review/audit",
+      "sha256": "5b737fe2847c3437e1c17760c4c12144068b2b2873b89e579ccc4a0ec716b643",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/PLAN.md"
+    },
+    {
+      "bytes": 3439,
+      "destination": "analysis/ci-correction/ASSESSMENT.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "c88a3f865dc2ccbcee973e3d566e95ff3838620cf5ce02375d3e92d6e7255e7e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/ASSESSMENT.md"
+    },
+    {
+      "bytes": 1061,
+      "destination": "analysis/ci-correction/CORRECTION.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "b17aa2b9a242b2e48b641a7fa259b57b94a5a5978a8c65dc85175181cb173a64",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/CORRECTION.md"
+    },
+    {
+      "bytes": 1649,
+      "destination": "analysis/ci-correction/INPUTS.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "7a5377dcacbf5cc2d8a3c742139f46bad1a92f981353b4afec292b55ccffe397",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/INPUTS.json"
+    },
+    {
+      "bytes": 573,
+      "destination": "analysis/ci-correction/benchmarks-module/README.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "69ce0c826b6048736f504f3e6147c944c5d601744c0bfcb9ca6ee201f9ce7c0a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/README.md"
+    },
+    {
+      "bytes": 285,
+      "destination": "analysis/ci-correction/benchmarks-module/go.mod",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "0ac6f3f6fd964cba0da71f4ff301cf10f7860df58c47ee211ef1e197e2fa2e63",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/go.mod"
+    },
+    {
+      "bytes": 12910,
+      "destination": "analysis/ci-correction/ci-verify-failed.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "1ade890a40b17aed7086526fcc5071d510d216a01912d7d2c39dc1770bebbd76",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/ci-verify-failed.log"
+    },
+    {
+      "bytes": 8215,
+      "destination": "analysis/ci-correction/codeql-go-failed.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "617189a4620cb2101b12e1dbc428bdd61c6123c35714291fa12ec866a99fb497",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/codeql-go-failed.log"
+    },
+    {
+      "bytes": 1568,
+      "destination": "analysis/ci-correction/package-discovery-once/COMMAND.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "2af0edd4e3546f792322af9a3b8eabbc37a5f9c7c2c0b570dbbf3e9d5061f8ab",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/package-discovery-once/COMMAND.json"
+    },
+    {
+      "bytes": 1101,
+      "destination": "analysis/ci-correction/package-discovery-once/RESULT.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "a5e17356e3baab456355806eeef93b6aa79ddd049d84b24a62d8fce16985d8a8",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/package-discovery-once/RESULT.json"
+    },
+    {
+      "bytes": 46,
+      "destination": "analysis/ci-correction/package-discovery-once/stderr.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "7d9f9fe35ea6fe0f9d08bae582dfd2de06c1462d5acdfea83a02cb2ea41975b9",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/package-discovery-once/stderr.log"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-ci-review-20261017/package-discovery-once/stdout.log"
+    },
+    {
+      "bytes": 10570,
+      "destination": "analysis/design-basis/WARM-LANE-FEASIBILITY.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "6b1c95b7759a7b2170e5bbdda698aa933f0cd99ccb35a1a93eb210a90105693a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-review-20261017/WARM-LANE-FEASIBILITY.md"
+    },
+    {
+      "bytes": 1831,
+      "destination": "analysis/design-basis/WARM-LANE-INPUTS.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-selected frozen source/audit dependency",
+      "sha256": "6c18f7ef11e180a7ede75bc54505baff893bb981dbde533a3a627131cbd6208a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-review-20261017/WARM-LANE-INPUTS.json"
+    },
+    {
+      "bytes": 16517,
+      "destination": "analysis/extract-saved.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-frozen final outcome/independent review/audit",
+      "sha256": "0925446995624d4379af7aae91c36c86d10f91365be3283fa6113f21880391d4",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/extract-saved.py"
+    },
+    {
+      "bytes": 2,
+      "destination": "analysis/extraction.status",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-frozen final outcome/independent review/audit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/extraction.status"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-frozen final outcome/independent review/audit",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/extraction.stderr"
+    },
+    {
+      "bytes": 100,
+      "destination": "analysis/extraction.stdout",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-frozen final outcome/independent review/audit",
+      "sha256": "f90134142597003f40ca4a4e7870a442238674b701e379575a15a9b3b296c903",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-outcome-20261017/extraction.stdout"
+    },
+    {
+      "bytes": 1708,
+      "destination": "analysis/independent-review/BUILD-RESULT-REVIEW.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen source/build/qualification review",
+      "sha256": "20d2a111c31f649aca87d18eeaade44ecab666798869f54485a58f7239bb3da5",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/BUILD-RESULT-REVIEW.md"
+    },
+    {
+      "bytes": 2485,
+      "destination": "analysis/independent-review/BUILD-SOURCE-REVIEW.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen source/build/qualification review",
+      "sha256": "1f1d9c950cacedbf0d8256d0f90f810431d0947fdd3361e1a5221934a064267f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/BUILD-SOURCE-REVIEW.md"
+    },
+    {
+      "bytes": 7918,
+      "destination": "analysis/independent-review/FINAL-OUTCOME-ARITHMETIC.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-frozen final outcome/independent review/audit",
+      "sha256": "839df1fd5511998b7417af2220fbfc3b378e78fff6a943b334e637f981335867",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/FINAL-OUTCOME-ARITHMETIC.json"
+    },
+    {
+      "bytes": 803,
+      "destination": "analysis/independent-review/FINAL-OUTCOME-HASHES.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-frozen final outcome/independent review/audit",
+      "sha256": "f3a62e3f20ad977abf040d44a7b7287f4a9064c624c6642248c044c522d444fa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/FINAL-OUTCOME-HASHES.json"
+    },
+    {
+      "bytes": 5742,
+      "destination": "analysis/independent-review/FINAL-OUTCOME-INPUTS.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-frozen final outcome/independent review/audit",
+      "sha256": "2d6793f4972a053a4f82b1e327dca926700811db5f628450fb2c1e7adf7e4539",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/FINAL-OUTCOME-INPUTS.json"
+    },
+    {
+      "bytes": 5809,
+      "destination": "analysis/independent-review/FINAL-OUTCOME-REVIEW.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "explicit root-frozen final outcome/independent review/audit",
+      "sha256": "6a5d5b3abe89a94a92f0c3e8c55d41ac8f889de841312a005fcc502a5c1fad30",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/FINAL-OUTCOME-REVIEW.md"
+    },
+    {
+      "bytes": 2904,
+      "destination": "analysis/independent-review/FINAL-QUALIFICATION-BINDING-REVIEW.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen source/build/qualification review",
+      "sha256": "8a640a074869cd47fe95b97f3c6ba9c93467a7287dc4a58ae802d85adb073ced",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/FINAL-QUALIFICATION-BINDING-REVIEW.md"
+    },
+    {
+      "bytes": 1176,
+      "destination": "analysis/independent-review/INPUTS.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen source/build/qualification review",
+      "sha256": "04ee3833a7504fb3259a9bb25a045d9cede921f41ecfd4be88e07ec730ae1f86",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/INPUTS.json"
+    },
+    {
+      "bytes": 2564,
+      "destination": "analysis/independent-review/OUTCOME-EXTRACTOR-SOURCE-REVIEW.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen source/build/qualification review",
+      "sha256": "aaf75d8395719830e512f60d8cde5c15c5e2afbc34c1935beeafd7709b2eb0c1",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/OUTCOME-EXTRACTOR-SOURCE-REVIEW.md"
+    },
+    {
+      "bytes": 5745,
+      "destination": "analysis/independent-review/QUALIFICATION-SOURCE-REVIEW.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen source/build/qualification review",
+      "sha256": "f0ef60b211920ee56a1b95c20496e318ac670c42832e971fe94eb4fb12d460fc",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/QUALIFICATION-SOURCE-REVIEW.md"
+    },
+    {
+      "bytes": 6352,
+      "destination": "analysis/independent-review/SOURCE-REVIEW.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen source/build/qualification review",
+      "sha256": "de9091bfdb897a11b79e7c8678ac47ce450f5b4f7a464c01fcb4332527e96c14",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-review-20261017/SOURCE-REVIEW.md"
+    },
+    {
+      "bytes": 2337,
+      "destination": "evidence/COMMANDS.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "4e3eaa4103e19777c1be505af0a718445588466a308c7b6df817783f9e50ba13",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/COMMANDS.json"
+    },
+    {
+      "bytes": 98231,
+      "destination": "evidence/CONTRACT-CONTINUATION-1-PLAN.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "2f0ebe92fe8940ac01df3f29857e7bd6227f58289f14ad37248774a371e51887",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/CONTRACT-CONTINUATION-1-PLAN.json"
+    },
+    {
+      "bytes": 1294,
+      "destination": "evidence/CONTRACT-CONTINUATION-1.diff",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "e44517a98132eb81a33a2416132c48abe629dd786814d20b1e3d3f17667cf59e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/CONTRACT-CONTINUATION-1.diff"
+    },
+    {
+      "bytes": 1612,
+      "destination": "evidence/CONTRACT-CONTINUATION-1.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "de34bedeb184349f6895df52e0ef0699cf5d109015f28725ab3cca652b9ab07f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/CONTRACT-CONTINUATION-1.json"
+    },
+    {
+      "bytes": 95760,
+      "destination": "evidence/CONTRACT-PLAN.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "1c69369f8897d8ea7bd3771ff7d1e56a125de99e262ac06f35ac892f42f1db45",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/CONTRACT-PLAN.json"
+    },
+    {
+      "bytes": 4566,
+      "destination": "evidence/INPUTS.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "d046a98cb042284cb12723f881ea0cd571e57ad38bf341dbee4a3f0953ca6595",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/INPUTS.json"
+    },
+    {
+      "bytes": 9527,
+      "destination": "evidence/PLAN.md",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "de5c040cb801c8ac1c782fff4629113be86a9b91ad8ed0f7de8a6a76d775e039",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/PLAN.md"
+    },
+    {
+      "bytes": 4670,
+      "destination": "evidence/PREPARATION.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "ba6b3764562c7e946868427fc479133205b459abc1f83d0d2d5da6721d7786ee",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/PREPARATION.json"
+    },
+    {
+      "bytes": 65,
+      "destination": "evidence/REVIEWED-BUILD-RECEIPT-SHA256",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "ffc89e5a76c8dff1471a6afa9d581cf32e17d7190e986ab2981e4343aff1148e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/REVIEWED-BUILD-RECEIPT-SHA256"
+    },
+    {
+      "bytes": 176,
+      "destination": "evidence/RUNTIME-GRANT.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "3fcf7474a1aa937684f93bade75a1374184bc9e9c9069f8f6e36f5c53dfab8e3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/RUNTIME-GRANT.json"
+    },
+    {
+      "bytes": 92514,
+      "destination": "evidence/SOURCE-SHA256SUMS",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "8ce19a07cd9e0156b8c7e621f2ebae1bcde9f445aa945b12b1caa66f4bfac075",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/SOURCE-SHA256SUMS"
+    },
+    {
+      "bytes": 130377,
+      "destination": "evidence/SOURCE.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "0d938ddd6834144b62b5fc8913b767be1671c9594c246cc9cd3252d6956deb92",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/SOURCE.json"
+    },
+    {
+      "bytes": 10845,
+      "destination": "evidence/contracts/test-qualification-boundaries-continuation-1.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "0661b7640cc95d3e500ed73731fb6a3ee23218abbcc922f0ae1def46ec35ab1f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/contracts/test-qualification-boundaries-continuation-1.py"
+    },
+    {
+      "bytes": 10830,
+      "destination": "evidence/contracts/test-qualification-boundaries.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "ab461e36089c65299d74c216499152e7eeebb743071170061eac03dcc0eb55bf",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/contracts/test-qualification-boundaries.py"
+    },
+    {
+      "bytes": 495,
+      "destination": "evidence/execution-once/RESULT.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "5bb876c4997d5ddbd46e074c93966235bf617d92dca23f9344db6978fe0728fe",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/execution-once/RESULT.json"
+    },
+    {
+      "bytes": 23467,
+      "destination": "evidence/execution-once/wrapper.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "83d92850c0934b575920101470537a34b2df985adf59ad1b85b1fad53148c120",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/execution-once/wrapper.outer.json"
+    },
+    {
+      "bytes": 696,
+      "destination": "evidence/execution-once/wrapper.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "fa973ad2fc5988c964fc441bc746ed0a3fd8f7d3ad768372299b7babb6b86c69",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/execution-once/wrapper.started.json"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/execution-once/wrapper.stderr.log"
+    },
+    {
+      "bytes": 307,
+      "destination": "evidence/execution-once/wrapper.stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "022f0330527beb8e086b7bdc5608b2b401d7a94792d9ead1aa052753f7570fc1",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/execution-once/wrapper.stdout.log"
+    },
+    {
+      "bytes": 578,
+      "destination": "evidence/offline-continuation-1/RESULT.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "75b343b09d3fe1afce1840e64187a496a6729193ccfa2f667efd4587042c6cf6",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/offline-continuation-1/RESULT.json"
+    },
+    {
+      "bytes": 1206,
+      "destination": "evidence/offline-continuation-1/boundaries.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "38145036f75bbcf237c6c0b7718244c1f249cf79ab00b1579912cbebf6bfea15",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/offline-continuation-1/boundaries.outer.json"
+    },
+    {
+      "bytes": 776,
+      "destination": "evidence/offline-continuation-1/boundaries.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "8f629f8080dcdff6efe0b39d51b4aa3c79d2daaabdd8f7d2d1fdc74c8350f151",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/offline-continuation-1/boundaries.started.json"
+    },
+    {
+      "bytes": 234,
+      "destination": "evidence/offline-continuation-1/boundaries.stderr.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "eeed14f770e97b3720f85d63a21dd8048fe9a62f1af54c9737ef0bd54db36e30",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/offline-continuation-1/boundaries.stderr.log"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/offline-continuation-1/boundaries.stdout.log"
+    },
+    {
+      "bytes": 350,
+      "destination": "evidence/offline-once/RESULT.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "d756c69b9878a9a50997f31707bb8e35c560393c904322b445142c743ce90036",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/offline-once/RESULT.json"
+    },
+    {
+      "bytes": 1120,
+      "destination": "evidence/offline-once/boundaries.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "42927970390cf874056d2c0b79efac3aeeb9d936ec89da5fe4b896c8145bb091",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/offline-once/boundaries.outer.json"
+    },
+    {
+      "bytes": 689,
+      "destination": "evidence/offline-once/boundaries.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "1828182084bb1d8e4a0eb4f2edfd3992c5f096e8423d95ec86e154d14b629b17",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/offline-once/boundaries.started.json"
+    },
+    {
+      "bytes": 1801,
+      "destination": "evidence/offline-once/boundaries.stderr.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "9c64fef3eecdfff82ad5fdc6e7b35ec2800462c6a49a1115629f7281d9635257",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/offline-once/boundaries.stderr.log"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/offline-once/boundaries.stdout.log"
+    },
+    {
+      "bytes": 8356,
+      "destination": "evidence/prove-default-transport.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "69b0735ad234c51c5362b7f3043427b26fa43c4e2bbe9d7e52cdd0df6067652d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/prove-default-transport.py"
+    },
+    {
+      "bytes": 1459,
+      "destination": "evidence/provenance/LEGACY-REUSE.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "0d201138b58d52ef25ac8aac9cf5fb66e6e08531357b1242e54169baa57c3a58",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/provenance/LEGACY-REUSE.json"
+    },
+    {
+      "bytes": 4016,
+      "destination": "evidence/provenance/stability-manifest.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "624b8979038417e25fd64bbdc3ea8d8d7db8c0de5f28ce349b28d5192d7b72b2",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/provenance/stability-manifest.json"
+    },
+    {
+      "bytes": 2643,
+      "destination": "evidence/provenance/stability-manifest.template.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "4c19d0649757a1053f9eacfa3138a1ad3985d71d84d7c8d6ceb752b99bcd749a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/provenance/stability-manifest.template.json"
+    },
+    {
+      "bytes": 3358,
+      "destination": "evidence/run-qualification.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "580019e1b6199afec68e1532140615dce5d3813ac7b831dedf7e8dc3f8237dca",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/run-qualification.py"
+    },
+    {
+      "bytes": 77928,
+      "destination": "evidence/runner/qualify-proxy-agent-growth-owned.sh",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "eac4b98a50df86cc71c026da8f0a7ab27a60543bf5eac9054ce6be410a913d8e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/qualify-proxy-agent-growth-owned.sh"
+    },
+    {
+      "bytes": 1508,
+      "destination": "evidence/runner/qualify-proxy-agent-growth-owned.sh.diff",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "109dbef04d6954a77941dcce2f8838dcdd414c6c1b58a525522b8c90521d3ddd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/qualify-proxy-agent-growth-owned.sh.diff"
+    },
+    {
+      "bytes": 8584,
+      "destination": "evidence/runner/run-owned-wan-stability.sh",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "48043824b36dc6b64b18a4406d6be62da9753fdfed414feb62b9adb7d017c023",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/run-owned-wan-stability.sh"
+    },
+    {
+      "bytes": 4916,
+      "destination": "evidence/runner/run-owned-wan-stability.sh.diff",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "8f1b57cf699a0ac0a4c99cb49ab328eb829c906078ab1fb845e9b84016de8348",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/run-owned-wan-stability.sh.diff"
+    },
+    {
+      "bytes": 8213,
+      "destination": "evidence/runner/validate-owned-h2-stability.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "2384b55b34789d1956e2ccb227dd31af98f10919ce79ee73e6b908580bce937c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/validate-owned-h2-stability.py"
+    },
+    {
+      "bytes": 1668,
+      "destination": "evidence/runner/validate-owned-h2-stability.py.diff",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "reviewed harness, original/corrected offline histories or owned outer execution proof",
+      "sha256": "3babf07a79e8efc52cf8608c6d48cf5dd341a259d8d02422a28b11ccca54cf5b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/validate-owned-h2-stability.py.diff"
+    },
+    {
+      "bytes": 2243,
+      "destination": "evidence/runs/original96-once/h2-stability-attestation.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "80d44b183addf743ba8e8a3788451f696d83b6fae1df2c6eb63db5f8fd3664ef",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/h2-stability-attestation.json"
+    },
+    {
+      "bytes": 4724,
+      "destination": "evidence/runs/original96-once/host-settings.txt",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "e5e5782a4a726bf29fada86d8e31199c9d9a0a88650c45f8f4f799ecd8f6fdcc",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/host-settings.txt"
+    },
+    {
+      "bytes": 1301,
+      "destination": "evidence/runs/original96-once/invocation.txt",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "27a8a2a766e6016a91ba6f0f3c028df0144bc164be1b2591b0d7f4c3c1831854",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/invocation.txt"
+    },
+    {
+      "bytes": 517,
+      "destination": "evidence/runs/original96-once/outer-namespaces.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "c31c2d0758c57c26ee4dfa95309d8995fe28ccef1eb795a894575d6de81ab56b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/outer-namespaces.json"
+    },
+    {
+      "bytes": 581392,
+      "destination": "evidence/runs/original96-once/results.jsonl",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "b40508e50a8ec599ba6b5968302c07e38ebae3f9d40123fce6632b4cbaad2c6e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/results.jsonl"
+    },
+    {
+      "bytes": 2577,
+      "destination": "evidence/runs/original96-once/results.lifecycle.jsonl",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "9707c34d1e31bd057ed8a881ba817fafa22513e28d5afceb319d591b57389e45",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/results.lifecycle.jsonl"
+    },
+    {
+      "bytes": 1480,
+      "destination": "evidence/runs/original96-once/results.summary.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "7e4714dad22ba47feb7d9ce971335dbea70eaa7ff1b0d939d468dc99beb9440e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/results.summary.json"
+    },
+    {
+      "bytes": 2,
+      "destination": "analysis/extraction.status",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/runner.status"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/runner.stderr.log"
+    },
+    {
+      "bytes": 459,
+      "destination": "evidence/runs/original96-once/runner.stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "fd5e0a3ba77d648fe01cd99f93efbe560ee026b1881a324e4b5b8632e6dd8b8a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/runner.stdout.log"
+    },
+    {
+      "bytes": 83,
+      "destination": "evidence/runs/original96-once/supervisor-lifecycle.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "2c28a9ea4012a6233d4b1817c5a555a722bf5a686a9331bd8599d7fec4c18183",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/supervisor-lifecycle.json"
+    },
+    {
+      "bytes": 854,
+      "destination": "evidence/runs/original96-once/transport-defaults-host-post.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "69b1663709f5434281c9952faaad61f84aafeb98cfd6478af37a34ae1873cf80",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-host-post.json"
+    },
+    {
+      "bytes": 854,
+      "destination": "evidence/runs/original96-once/transport-defaults-host-pre.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "4cebcd5446099a02629330a18a4c037544965934a9d015f81d3f3b19ab7ca304",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-host-pre.json"
+    },
+    {
+      "bytes": 2441,
+      "destination": "evidence/runs/original96-once/transport-defaults-post.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "a792360ad1e84965d0ff6f19c42ae3746a4ed24388ac47eb55f6e3a3dc264c7a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-post.json"
+    },
+    {
+      "bytes": 2435,
+      "destination": "evidence/runs/original96-once/transport-defaults-pre.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "5af38eb9366f113c29d0689622cfe65d6c36196d5b232f74bd7308145d7dc3e5",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-pre.json"
+    },
+    {
+      "bytes": 269,
+      "destination": "evidence/runs/original96-once/transport-defaults-validation.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "cf5932e664cf912696267e0ae7629f39b4c3684b5646b9a663d972cf3dfd9c12",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-validation.json"
+    },
+    {
+      "bytes": 2,
+      "destination": "analysis/extraction.status",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-validation.status"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-validation.stderr.log"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-validation.stdout.log"
+    },
+    {
+      "bytes": 2,
+      "destination": "analysis/extraction.status",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/validation.status"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/validation.stderr.log"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/validation.stdout.log"
+    },
+    {
+      "bytes": 626,
+      "destination": "evidence/runs/original96-once/verified-binding-post.txt",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "83e451f27734392de351cb6e257730c43dd438bc1662b01ee4ffca32f5778830",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/verified-binding-post.txt"
+    },
+    {
+      "bytes": 626,
+      "destination": "evidence/runs/original96-once/verified-binding-post.txt",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "83e451f27734392de351cb6e257730c43dd438bc1662b01ee4ffca32f5778830",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/verified-binding.txt"
+    },
+    {
+      "bytes": 2,
+      "destination": "analysis/extraction.status",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact canonical rows/summary/attestation/lifecycle/defaults/statuses and durable wrapper logs",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runs/original96-once/wrapper.status"
+    },
+    {
+      "bytes": 4909,
+      "destination": "evidence/verify-runtime-inputs.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "frozen qualification source, plan, grant or proof",
+      "sha256": "48be97fc46c90d5f87d6de19df1b39e72ae3750be77d8299d7890eeb6b6fc070",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/verify-runtime-inputs.py"
+    },
+    {
+      "bytes": 15608,
+      "destination": "export.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "exact documentary exporter source",
+      "sha256": "02b18935864140968885af3e3ec8e8c1efbcb154056c15d39df2e7f0215fb0c3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-publication-20261017/export.py"
+    },
+    {
+      "bytes": 9592,
+      "destination": "proofs/build/PLAN.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "ffa870be730c767237622d4472548bae3bdf628e6a439e99efe827c99fc3c0b2",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/PLAN.json"
+    },
+    {
+      "bytes": 197,
+      "destination": "proofs/build/ROOT-BUILD-GRANT.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "f46f5170da6409058675032efaa48ac7fff90e803dd6a61ac5b06e4a478272aa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/ROOT-BUILD-GRANT.json"
+    },
+    {
+      "bytes": 1567,
+      "destination": "proofs/build/build-once/agent-build.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "8f6f1f411393c3adb25f21feca7744ea8b52612f5bcb45defbf872f8c4b0ffba",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-build.outer.json"
+    },
+    {
+      "bytes": 833,
+      "destination": "proofs/build/build-once/agent-build.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "03b27ef4dbba442e8cafa5ed589661aeb838d93e4da8dcac1b3e624f8930bc58",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-build.started.json"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-build.stderr.log"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-build.stdout.log"
+    },
+    {
+      "bytes": 1201,
+      "destination": "proofs/build/build-once/agent-metadata.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "34812555ab54eff5324c616516e2308444beb1f99706d0f4583bb7fba005d39c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-metadata.outer.json"
+    },
+    {
+      "bytes": 767,
+      "destination": "proofs/build/build-once/agent-metadata.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "ce38fcca973b89c1c6d9f5e0a054312ae6d6d345ba137d7dac20fe30c0de67a4",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-metadata.started.json"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-metadata.stderr.log"
+    },
+    {
+      "bytes": 430,
+      "destination": "proofs/build/build-once/agent-metadata.stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "c70c16e26bb84cbfdf8be51e86c57e2b8c4ed0fc327baef9db5918a216d7b68d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-metadata.stdout.log"
+    },
+    {
+      "bytes": 1032,
+      "destination": "proofs/build/build-once/modules.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "3135868fedd16f59de5a25d91e5edce133550348afdfda75373c564503709ddf",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/modules.outer.json"
+    },
+    {
+      "bytes": 601,
+      "destination": "proofs/build/build-once/modules.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "4a33ad8b339bad943c6ea9fa1f3142655fd5d196446049034bb703f7d3f45c7d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/modules.started.json"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/modules.stderr.log"
+    },
+    {
+      "bytes": 21,
+      "destination": "proofs/build/build-once/modules.stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/modules.stdout.log"
+    },
+    {
+      "bytes": 9763,
+      "destination": "proofs/build/build-once/receipt.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "d428e45fd861c8ed7a4346920e53c2a56d1fe678660fd343707f9841f53af624",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/receipt.json"
+    },
+    {
+      "bytes": 2026,
+      "destination": "proofs/build/build-once/server-build.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "d099d7d4ac0fdd7af7f157ed9cc7b663eb94025537ccee83cd66cab1a47f6d27",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-build.outer.json"
+    },
+    {
+      "bytes": 835,
+      "destination": "proofs/build/build-once/server-build.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "892512dae8b792394d5ec01818fd503022e08f90fabe3eb4993af3cd2e5b0e8a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-build.started.json"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-build.stderr.log"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-build.stdout.log"
+    },
+    {
+      "bytes": 1201,
+      "destination": "proofs/build/build-once/server-metadata.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "f171303d14777ae4c03f95ccc12d6a2b389bb08618caca3ab7eee894fa72926b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-metadata.outer.json"
+    },
+    {
+      "bytes": 768,
+      "destination": "proofs/build/build-once/server-metadata.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "d940688f49656204d045f3331216f25627645ad677f565aa45b35a83e854b9d6",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-metadata.started.json"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-metadata.stderr.log"
+    },
+    {
+      "bytes": 432,
+      "destination": "proofs/build/build-once/server-metadata.stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "7a8b4f4d456cd50980682ca453addb68a7948362c210104450ca99cb403db682",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-metadata.stdout.log"
+    },
+    {
+      "bytes": 1185,
+      "destination": "proofs/build/build-once/settings.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "443f52c4667f752a8cf5445515d5d82d96b3cfb14dacdd71b94bd74bef0c6f43",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/settings.outer.json"
+    },
+    {
+      "bytes": 751,
+      "destination": "proofs/build/build-once/settings.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "9cfcea1e71b6ecbf1f61f3d9f6e12ee9aad13fd7ef1889f49eaab3c5556f6b22",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/settings.started.json"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/settings.stderr.log"
+    },
+    {
+      "bytes": 264,
+      "destination": "proofs/build/build-once/settings.stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/settings.stdout.log"
+    },
+    {
+      "bytes": 5961,
+      "destination": "proofs/build/build-proof.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "6c784f971cddd7a499ebf88165f28aec07f5ca69265fdba9c3314268f4c3a340",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-proof.py"
+    },
+    {
+      "bytes": 4792,
+      "destination": "proofs/build/run-build.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "1f8671ac2758e3700cf2f83e5f1d08002debe8676310d8fafc26b5290b10bb96",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/run-build.py"
+    },
+    {
+      "bytes": 1203,
+      "destination": "proofs/build/verify-build.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "46dfdbc58e9adaeec86c26209f3727dc5bbce37210e31714cebc580ebb5e7260",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/verify-build.py"
+    },
+    {
+      "bytes": 64620,
+      "destination": "proofs/focused/PLAN.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "3e17f1137dad2c87e2c63c3e91cfc5ebd152a3dc3f2cd81d0f1cf1746af2fbe5",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/PLAN.json"
+    },
+    {
+      "bytes": 4839,
+      "destination": "proofs/focused/run-checks.py",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "dc421e59b6624e41fb10c596b13527d3612c8a43c58c2abd6ca9776cef2df59c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-checks.py"
+    },
+    {
+      "bytes": 13314,
+      "destination": "proofs/focused/run-once/RESULT.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "aa21fb8cff45b18d041f62282c29bb7815c30c1f9f76000dbb81bdfdccece251",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/RESULT.json"
+    },
+    {
+      "bytes": 6205,
+      "destination": "proofs/focused/run-once/normal.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "25d8cc3fadbfdbb5c8852b5967408019ad9025adb38b8cb32e22899424db2e3f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/normal.outer.json"
+    },
+    {
+      "bytes": 4402,
+      "destination": "proofs/focused/run-once/normal.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "80ea112ed420306c152a469d02866befd6bde3677f3a33fd7ccd6dfc1d7b44ec",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/normal.started.json"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/normal.stderr.log"
+    },
+    {
+      "bytes": 122998,
+      "destination": "proofs/focused/run-once/normal.stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "5da6c2b90e253787bb924e07d2870a354efe4c20cf58952d6615b59e6610e200",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/normal.stdout.log"
+    },
+    {
+      "bytes": 10018,
+      "destination": "proofs/focused/run-once/race.outer.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "6c38a6e599c591935a390a912ff417dd4f253a18215b958681e4571aa9c6a4d8",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/race.outer.json"
+    },
+    {
+      "bytes": 4415,
+      "destination": "proofs/focused/run-once/race.started.json",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "5c509bf81e2ce4d2314d062401188864256f17848b76cb7ca31d60d29605761b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/race.started.json"
+    },
+    {
+      "bytes": 0,
+      "destination": "analysis/ci-correction/package-discovery-once/stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/race.stderr.log"
+    },
+    {
+      "bytes": 120281,
+      "destination": "proofs/focused/run-once/race.stdout.log",
+      "disposition": "exact bytes; identical selected content shares canonical destination",
+      "origin": "ordinary source/check/build plans and complete natural command/metadata proof; no executable bytes",
+      "sha256": "3328ef483281bbe1cce1b9872a6217118f2e604afd14b879689a47b96fdd3e75",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/race.stdout.log"
+    }
+  ],
+  "exact_source_mapping_count": 149,
+  "generated_files": [
+    "source/PRODUCTION.patch",
+    "source/BASE-IDENTITY.json",
+    "EXPORT-MAP.json",
+    "INPUT-DISPOSITION.json",
+    "PRIOR-EVIDENCE.json",
+    "CREDENTIAL-SCAN.json",
+    "MANIFEST.json",
+    "SHA256SUMS"
+  ],
+  "no_tests_builds_validator_or_traffic": true,
+  "schema_version": 1
+}

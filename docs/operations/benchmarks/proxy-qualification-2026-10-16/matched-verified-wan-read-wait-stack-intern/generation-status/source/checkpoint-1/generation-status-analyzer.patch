@@ -1,0 +1,75 @@
+--- predecessor/analyze_interned_trace.py
++++ generation-status/analyze_interned_trace.py
+@@ -361,12 +361,16 @@
+     top_waits: list[tuple[int, int, dict]] = []
+     transition_count = 0
+     unblock_header_gid_diff = 0
++    waiting_status_snapshot_count = 0
++    waiting_status_snapshot_carried_ns = 0
+     zero_duration_counts = {name: 0 for name in state_totals}
+     initial_state_checked = False
++    waiting_status_snapshot_active = False
+     serial = 0
+ 
+-    def add_interval(state: str, start: int, finish: int, wait: dict | None) -> None:
+-        nonlocal serial
++    def add_interval(state: str, start: int, finish: int, wait: dict | None,
++                     carried_status_snapshot: bool = False) -> None:
++        nonlocal serial, waiting_status_snapshot_carried_ns
+         if finish < start:
+             raise InvalidTrace("negative state interval")
+         duration = finish - start
+@@ -379,6 +383,8 @@
+             return
+         if wait is None:
+             raise InvalidTrace("waiting interval lacks entry metadata")
++        if carried_status_snapshot:
++            waiting_status_snapshot_carried_ns += duration
+         reason = wait["reason"]
+         category = classify_wait(reason, wait["frames"])
+         wait_categories[category] = wait_categories.get(category, 0) + duration
+@@ -435,17 +441,31 @@
+         transition_count += 1
+         if transition["old"] != current_state:
+             raise InvalidTrace("handler transition old state disagrees with partition state")
+-        add_interval(current_state, cursor, transition["time"], current_wait)
++        add_interval(current_state, cursor, transition["time"], current_wait,
++                     waiting_status_snapshot_active)
+         cursor = transition["time"]
+-        current_state = transition["new"]
+-        current_wait = transition if current_state == "Waiting" else None
++        waiting_status_snapshot = bool(
++            transition["old"] == transition["new"] == "Waiting"
++            and transition["reason"] == ""
++            and not transition["stack"]
++            and not transition["frames"]
++        )
++        if waiting_status_snapshot:
++            if current_wait is None:
++                raise InvalidTrace("waiting status snapshot has no active wait metadata")
++            waiting_status_snapshot_count += 1
++            waiting_status_snapshot_active = True
++        else:
++            current_state = transition["new"]
++            current_wait = transition if current_state == "Waiting" else None
++            waiting_status_snapshot_active = False
+         if transition["new"] == "Runnable" and transition["header_g"] != gid:
+             unblock_header_gid_diff += 1
+     if current_state is None:
+         raise InvalidTrace("handler state not established at region start")
+     if not initial_state_checked and current_state != "Running":
+         raise InvalidTrace("handler is not Running at region begin marker")
+-    add_interval(current_state, cursor, end[0], current_wait)
++    add_interval(current_state, cursor, end[0], current_wait, waiting_status_snapshot_active)
+ 
+     region_duration = end[0] - begin[0]
+     partition_sum = sum(state_totals.values())
+@@ -467,6 +487,8 @@
+         "waiting_stack_groups": groups,
+         "top_wait_intervals": [item[2] for item in sorted(top_waits, reverse=True)],
+         "handler_transition_count": transition_count,
++        "waiting_status_snapshot_count": waiting_status_snapshot_count,
++        "waiting_status_snapshot_carried_ns": waiting_status_snapshot_carried_ns,
+         "zero_duration_state_interval_counts": zero_duration_counts,
+         "unblock_header_gid_diff_count": unblock_header_gid_diff,
+         "missing_stack_ns": missing_stack_ns,

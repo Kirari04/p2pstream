@@ -1,0 +1,12 @@
+Id=p2p-senderwait-h2-2629962-8b56926a.scope
+LoadState=loaded
+ActiveState=active
+SubState=running
+ControlGroup=/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2629962-8b56926a.scope
+MemoryCurrent=5713920
+MemoryPeak=5996544
+EffectiveMemoryMax=4294967296
+Delegate=yes
+MemoryHigh=infinity
+MemoryMax=4294967296
+MemorySwapMax=0

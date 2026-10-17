@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+repo_root=$(realpath "$(dirname "$0")/../../../..")
+cd "$repo_root"
+server=tmp/continuation-20261016/wan-protocol-source/build/bin/current-server-wan-protocol.test
+agent=tmp/continuation-20261016/current-wan-prep/bin/current-agent.test
+[[ -x $server && -x $agent ]]
+server=$(realpath "$server")
+agent=$(realpath "$agent")
+cd tmp/continuation-20261016/wan-protocol-source
+[[ $server == /* && $agent == /* && -x $server && -x $agent ]]
+printf 'server=%s\nagent=%s\n' "$server" "$agent"

@@ -1,0 +1,52 @@
+File: agent.test
+Build ID: 2c1b796d824f205535926c758377823561f6140b
+Type: alloc_space
+Time: 2026-10-16 05:19:29 CEST
+Showing nodes accounting for 62.23MB, 100% of 62.23MB total
+Showing top 45 nodes out of 122
+      flat  flat%   sum%        cum   cum%
+   16.50MB 26.52% 26.52%    16.50MB 26.52%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+   10.32MB 16.58% 43.10%    26.82MB 43.10%  io.copyBuffer
+   10.11MB 16.24% 59.34%    10.11MB 16.24%  github.com/hashicorp/yamux.(*recvBuffer).allocateChunk (inline)
+    6.50MB 10.45% 69.78%     6.50MB 10.45%  crypto/tls.(*Conn).readFromUntil
+    2.52MB  4.04% 73.83%     2.52MB  4.04%  slices.Grow[go.shape.[]uint8,go.shape.uint8] (inline)
+       2MB  3.21% 77.04%        2MB  3.21%  strings.Fields
+    1.60MB  2.56% 79.61%     4.11MB  6.61%  os.readFileContents
+    1.52MB  2.44% 82.04%     5.53MB  8.89%  p2pstream/internal/sysmetrics.resolveCurrentProcessMemoryCgroupPaths
+    1.50MB  2.41% 84.46%     1.50MB  2.41%  runtime.mallocgc
+    1.16MB  1.86% 86.32%     1.16MB  1.86%  runtime/pprof.StartCPUProfile
+       1MB  1.61% 87.92%        1MB  1.61%  encoding/pem.Decode
+       1MB  1.61% 89.53%        1MB  1.61%  crypto/x509/pkix.(*Name).FillFromRDNSequence
+    0.88MB  1.42% 90.95%     0.88MB  1.42%  compress/flate.NewWriter (inline)
+    0.56MB   0.9% 91.85%     0.56MB   0.9%  p2pstream/gen/proto/p2pstream/v1.init
+    0.56MB  0.89% 92.74%     0.56MB  0.89%  google.golang.org/protobuf/internal/strs.(*Builder).grow (inline)
+    0.51MB  0.82% 93.56%     0.51MB  0.82%  runtime/pprof.(*profMap).lookup
+    0.50MB  0.81% 94.37%     1.06MB  1.70%  google.golang.org/protobuf/internal/filedesc.(*Message).unmarshalFull
+    0.50MB  0.81% 95.18%     0.50MB  0.81%  bufio.(*Scanner).Scan
+    0.50MB   0.8% 95.98%     1.50MB  2.41%  crypto/x509.parseCertificate
+    0.50MB   0.8% 96.79%     0.50MB   0.8%  strings.genSplit
+    0.50MB   0.8% 97.59%     3.60MB  5.78%  p2pstream/internal/agent.RunContext
+    0.50MB   0.8% 98.39%     0.50MB   0.8%  connectrpc.com/connect.(*protocolGRPC).NewClient
+    0.50MB   0.8% 99.20%     0.50MB   0.8%  time.NewTimer
+    0.50MB   0.8%   100%     0.50MB   0.8%  net/textproto.MIMEHeader.Set
+         0     0%   100%     6.50MB 10.45%  bufio.(*Reader).Read
+         0     0%   100%     0.88MB  1.42%  compress/gzip.(*Writer).Write
+         0     0%   100%     0.50MB   0.8%  connectrpc.com/connect.NewClient[go.shape.struct { p2pstream/gen/proto/p2pstream/v1.state google.golang.org/protobuf/internal/impl.MessageState "protogen:\"open.v1\""; Id int64 "protobuf:\"varint,1,opt,name=id,proto3\" json:\"id,omitempty\""; p2pstream/gen/proto/p2pstream/v1.unknownFields []uint8; p2pstream/gen/proto/p2pstream/v1.sizeCache int32 },go.shape.struct { p2pstream/gen/proto/p2pstream/v1.state google.golang.org/protobuf/internal/impl.MessageState "protogen:\"open.v1\""; p2pstream/gen/proto/p2pstream/v1.unknownFields []uint8; p2pstream/gen/proto/p2pstream/v1.sizeCache int32 }]
+         0     0%   100%     6.50MB 10.45%  crypto/tls.(*Conn).Read
+         0     0%   100%     6.50MB 10.45%  crypto/tls.(*Conn).readRecord (inline)
+         0     0%   100%     6.50MB 10.45%  crypto/tls.(*Conn).readRecordOrCCS
+         0     0%   100%     2.50MB  4.02%  crypto/x509.(*CertPool).AppendCertsFromPEM
+         0     0%   100%     1.50MB  2.41%  crypto/x509.ParseCertificate
+         0     0%   100%     3.10MB  4.98%  crypto/x509.SystemCertPool
+         0     0%   100%     3.10MB  4.98%  crypto/x509.initSystemRoots
+         0     0%   100%     3.10MB  4.98%  crypto/x509.loadSystemRoots
+         0     0%   100%     3.10MB  4.98%  crypto/x509.systemRootsPool
+         0     0%   100%    12.11MB 19.46%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0%   100%    16.61MB 26.69%  github.com/hashicorp/yamux.(*Session).recv
+         0     0%   100%    16.61MB 26.69%  github.com/hashicorp/yamux.(*Session).recvLoop
+         0     0%   100%    16.50MB 26.52%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+         0     0%   100%    16.50MB 26.52%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0%   100%    12.11MB 19.46%  github.com/hashicorp/yamux.(*Stream).readData
+         0     0%   100%    12.11MB 19.46%  github.com/hashicorp/yamux.(*Stream).readDataPayload
+         0     0%   100%    16.50MB 26.52%  github.com/hashicorp/yamux.(*Stream).write
+         0     0%   100%    12.11MB 19.46%  github.com/hashicorp/yamux.(*recvBuffer).readFrom

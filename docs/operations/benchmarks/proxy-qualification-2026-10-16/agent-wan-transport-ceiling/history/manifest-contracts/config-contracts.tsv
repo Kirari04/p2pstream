@@ -1,0 +1,8 @@
+valid-actual	0	0
+endpoint-missing-key	1	1
+endpoint-bool-for-int	1	1
+endpoint-wrong-value	1	1
+manifest-missing-agent-raw	1	1
+manifest-server-raw-not-object	1	1
+manifest-key-set-differs	1	1
+manifest-invalid-field-type	1	1

@@ -1,0 +1,15 @@
+{
+  "head": "dc4c25df876c238204ecaa16630471a94dda264a",
+  "archive_sha256": "1f2d1ae1be8e0dac4aeb146bfdb5c1a235004f8136df0f5e5da26aaa77f44a5c",
+  "composite_patch_sha256": "43b120ec6c80d684d35079c7031e28f7dd82797521fba3122b8db7275c4aa6a8",
+  "source_files_sha256": "754ddf3807932751aa64b89913447e5c334247d2e740880ba1d3f39deb911d63",
+  "file_count": 8430,
+  "source_root": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/integration-clean-validation-1/source",
+  "approved_retained_files": {
+    "internal/db/proxy_request_event_inserter.go": "bdd9bd1b658e7d0f20e5a0965d1b710cb8f9e0d92b46fa7e2e2a2b06ed47921f",
+    "internal/server/observability_prepared_insert_test.go": "eca0105118edc418b44fbf52b6fed98b38c023905beb52fde3eb91ecfbb3a1b3"
+  },
+  "worktree_matches": false,
+  "scope": "tracked HEAD archive plus exact approved two-file diff; excludes ignored tmp evidence",
+  "prior_attempt": "integration-validation-1: scope invalid, normal exit1 (128 failures all p2pstream/tmp), race compiler/runner terminated, vet not run"
+}

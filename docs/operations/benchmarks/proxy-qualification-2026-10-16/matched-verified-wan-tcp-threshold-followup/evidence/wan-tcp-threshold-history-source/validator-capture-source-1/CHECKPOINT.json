@@ -1,0 +1,24 @@
+{
+  "base_runner_manifest_sha256": "a4176af4c1d9b6594d7ec786688d4792b3e326d799ef3ec03338fbc4c2fe70a5",
+  "endpoint_execution": false,
+  "expected_case_count": 106,
+  "expected_cases_sha256": "d38f81ece2a1fc17cc15babd7ed9f10572dd535f1d1b676d4f8ab30555325af1",
+  "focused_case_count": 21,
+  "focused_contract_sha256": "4d34030265f3dacee2cdb513d7a786d1cbc1d0a69779054ae3211ba0a3dab056",
+  "go_execution": false,
+  "inherited_case_count": 85,
+  "inherited_contract_sha256": "ef63d7db6c3078a4484571a721b4f565113a898d9d1d4a971fd9f80fee504c9b",
+  "inputs_sha256": "d9ff8216eee2092050897a37c26c5e3a0d657862d2d3a670a5f3f63c9475a2c3",
+  "materialization": false,
+  "runner_cascade": false,
+  "runtime_changed_file_count": 1,
+  "runtime_changed_paths": [
+    "integration/validate-tcp-state.py"
+  ],
+  "runtime_diff_sha256": "2f3627a1317849ea20d2505d0bfc6c6847ef9f0df94c960761ceb764cd93a1dc",
+  "runtime_fix_claimed": false,
+  "schema_version": 1,
+  "status": "ready_for_bounded_contract_source_review",
+  "tcp_validator_sha256": "4a7addc3981eb892f364e85932b82856afcc1283139105b6d4d228ead2c4fa2c",
+  "wan_traffic": false
+}

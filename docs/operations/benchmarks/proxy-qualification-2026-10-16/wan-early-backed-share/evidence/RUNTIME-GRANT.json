@@ -1,0 +1,21 @@
+{
+  "source_manifest_sha256": "f7f6b621222a36326aea45611ccc6ceabe733b5097113609e9b582913580bf30",
+  "runtime_approved": true,
+  "maximum_arms": 3,
+  "maximum_transfers": 48,
+  "early_share_order": [
+    0,
+    1,
+    0
+  ],
+  "idle_policy_order": [
+    1,
+    1,
+    1
+  ],
+  "controller_order": [
+    "cubic",
+    "cubic",
+    "cubic"
+  ]
+}

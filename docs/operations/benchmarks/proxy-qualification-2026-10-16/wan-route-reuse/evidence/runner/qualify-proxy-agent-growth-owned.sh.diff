@@ -1,0 +1,18 @@
+--- /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runner/qualify-proxy-agent-growth-owned.sh
++++ /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/runner/qualify-proxy-agent-growth-owned.sh
+@@ -556,6 +556,7 @@
+ key=$run_dir/public.key.pem
+ openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+   -subj /CN=public.test -days 1 -keyout "$key" -out "$cert" >/dev/null 2>&1
++python3 -I -B /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/prove-default-transport.py snapshot "$(dirname "$output")/transport-defaults-pre.json" pre "$agent_namespace_pid" "$router_namespace_pid"
+ origin_ready=$run_dir/origin.ready.json
+ origin_stop=$run_dir/origin.stop
+ assert_namespace_helper "$agent_namespace_pid" "$agent_namespace_instance"
+@@ -1229,6 +1230,7 @@
+       run_cohort current-server-legacy-agent-compat legacy "$legacy_agent_binary" "$iteration"
+   fi
+ done
++python3 -I -B /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-qualification-20261017/prove-default-transport.py snapshot "$(dirname "$output")/transport-defaults-post.json" post "$agent_namespace_pid" "$router_namespace_pid"
+ stop_process origin "$origin_pid" "$origin_stop"
+ stop_process agent-namespace "$agent_namespace_pid" "$agent_namespace_stop"
+ stop_process router-namespace "$router_namespace_pid" "$router_namespace_stop"

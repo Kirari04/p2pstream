@@ -1,0 +1,70 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-mod=readonly",
+    "-p=2",
+    "-parallel=1",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "-overlay=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/overlay.json",
+    "-run",
+    "^TestAgentRouteLocalityMixed(WarmColdRetirement|GenerationReplacement)$",
+    "./internal/server"
+  ],
+  "artifact_bytes": 2009889440,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 8.747175626005628,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2885691,
+      "pid": 2885691,
+      "ppid": 2885688,
+      "sid": 2885691,
+      "start_ticks": 9609741,
+      "state": "S"
+    },
+    {
+      "pgid": 2885691,
+      "pid": 2885720,
+      "ppid": 2885691,
+      "sid": 2885691,
+      "start_ticks": 9609768,
+      "state": "S"
+    },
+    {
+      "pgid": 2885691,
+      "pid": 2885924,
+      "ppid": 2885691,
+      "sid": 2885691,
+      "start_ticks": 9610422,
+      "state": "R"
+    },
+    {
+      "pgid": 2885691,
+      "pid": 2885934,
+      "ppid": 2885691,
+      "sid": 2885691,
+      "start_ticks": 9610427,
+      "state": "S"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 8388608,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 2084,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

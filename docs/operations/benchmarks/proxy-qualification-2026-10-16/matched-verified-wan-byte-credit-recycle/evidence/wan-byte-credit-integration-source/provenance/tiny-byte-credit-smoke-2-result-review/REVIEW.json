@@ -1,0 +1,29 @@
+{
+  "accepted": true,
+  "endpoint_execution": true,
+  "export_exclusions": [
+    "tls/private.test.key.pem",
+    "tls/public.test.key.pem",
+    "h1/readiness.json",
+    "h2/readiness.json",
+    "private bearer/auth/log material and full run tree; export selection requires separate safety allowlist"
+  ],
+  "file_count": 271,
+  "final_complete": true,
+  "final_status_sha256": "38e03bdc2b2e9a25f1eb4127f225f86b5a8ee7aacad1b84ff763d9b5e63810fe",
+  "h1_accepted": true,
+  "h1_attestation_sha256": "673a137ff957ff8b176ce9f7b6d9319a888055fc22a046bad5b27ba1721a175b",
+  "h2_accepted": true,
+  "h2_attestation_sha256": "2e6da30d696038153c8238cab7df1fc953c66ac9e4c78802785652f60af8dcbb",
+  "launcher_records_ledger_sha256": "09fcb7700dcb032ad3888a1fdc1d2780bb84af6d9cdcf6202a98648902ec8c06",
+  "launcher_result_sha256": "f1b2bafeb12887101a3fe8319bfd4d458e1266613167f598914a2758a7276d39",
+  "performance_claim": false,
+  "run_ledger_sha256": "3d9057407075685cf4541fbf5e65156a9a2991d92733436e8ad0b01b81a1e2c0",
+  "run_root": "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/tiny-byte-credit-smoke-2",
+  "schema_version": 1,
+  "semantic_review_ledger_sha256": "4b5c30c2da2120c32ffbd5cd2579c9e658614cd7432cfad3bdb3e2cd1f1626a8",
+  "semantic_review_sha256": "910825f829ff275c82c20a236393941d1a5477f3b633cb6bd75f213b0d33ce9c",
+  "size_mode": "small",
+  "total_bytes": 6257241,
+  "wan_traffic": true
+}

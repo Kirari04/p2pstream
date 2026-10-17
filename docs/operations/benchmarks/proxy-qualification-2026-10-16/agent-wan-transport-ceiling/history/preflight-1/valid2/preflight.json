@@ -1,0 +1,31 @@
+{
+  "acceptance_result": null,
+  "captured_unix_nano": 1792150223639453627,
+  "expected_payload_sha256": "ad818ce955253fd9030cbefa352527321b308cfc574cb4bbee9cbcd0d4930790",
+  "fixture_smoke": true,
+  "identities": {
+    "agent_binary_sha256": "d5bdfffda469e2f2fafafe70ebe9715531b2bcc08d61228ef400013014ee587a",
+    "agent_build_id": "Hhsq90pkk8J9v60SH60p/6tRhs7e-9QBM4DqqXh2s/TR8KUKQGRvki4PRyieV-/aYBMD0jHv94etLU_bh07",
+    "base_commit": "7bc5148c3a96734d9deb90f22421679c457b9e1e",
+    "build_manifest_sha256": "f5ab6117a1fb90992ba0efb9c57b3b85029358277bf31ee7a48c1c84207b9044",
+    "bundle_checksum_index_sha256": "7437466b2b4359c27fb81a2c047e84a644baa6830a02df3ddc0f51fc5818ee21",
+    "overlay_sha256": "fb996f1c2ee44b72f5530406deb2ac4d05c51e8bbc4f505231428ccc12362170",
+    "pidns_shim_sha256": "86137a143b706b28d120e2ed013c1774dbf028fd209d6e61dd09767fec8efa46",
+    "runner_sha256": "a38fa1ae4f4a9196c06f0e14127a598005d5cbed00e33224d507780aef5219b8",
+    "server_binary_sha256": "2253b2bc3423836c2a65cd503791e7e29d2516427c8da532c7d6956f3cdb86b0",
+    "server_build_id": "rUzS2qXo9w0v4mloqJo-/bYFAXQ7N1mKBZ8DiQiDJ/0SILvb90ME8RlCr0jHsW/Nsy94_CJ6MUBcFrLoK-M",
+    "wrapper_sha256": "459b03c150114d28e22d64b1cc1037c39caa891a3e8b7a43206ee5691c1a9275"
+  },
+  "ownership": {
+    "mount_proc": true,
+    "network_namespace": true,
+    "parent_death_signal": "SIGKILL",
+    "pid_namespace": true,
+    "unshare_kill_child": "SIGKILL"
+  },
+  "preflight_only": true,
+  "schema_version": 1,
+  "scope": "fixture_smoke_only",
+  "source_ref": "326e4a0016ff14d818eb0483d7789849db0a9fde",
+  "workload_started": false
+}

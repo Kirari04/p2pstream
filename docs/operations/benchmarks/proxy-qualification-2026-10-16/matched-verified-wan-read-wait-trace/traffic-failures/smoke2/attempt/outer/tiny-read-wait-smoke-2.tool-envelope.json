@@ -1,0 +1,20 @@
+{
+  "command": "cd /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source\n./run-wan-read-wait-diagnostic.sh \\\n  --server-binary build/bin/current-server-wan-read-wait-audited.test \\\n  --aggregate-agent-binary ../current-wan-prep/bin/current-agent.test \\\n  --server-source-ref 8ac4c8df8237e37777ba2fac0da6f949da17bdea \\\n  --aggregate-agent-source-ref 8ac4c8df8237e37777ba2fac0da6f949da17bdea \\\n  --output-dir runs/tiny-read-wait-smoke-2 \\\n  --smoke\n",
+  "functions_exec_initial": {
+    "chunk_id": "8f1641",
+    "exit_code": null,
+    "output": "",
+    "session_id": 10035,
+    "wall_time_seconds": 1.000696055
+  },
+  "functions_exec_wait": {
+    "chunk_id": "1dfa4f",
+    "exit_code": 1,
+    "original_token_count": 0,
+    "output": "",
+    "wall_time_seconds": 9.635404797
+  },
+  "no_retry": true,
+  "saved_wrapper_status": 1,
+  "schema_version": 1
+}

@@ -1,0 +1,123 @@
+{
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "GOMAXPROCS=2",
+    "GOENV=off",
+    "GOWORK=off",
+    "GOFLAGS=",
+    "GOTOOLCHAIN=local",
+    "GOPROXY=off",
+    "GOSUMDB=off",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "180s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-c",
+    "-p=2",
+    "-tags=p2pstream_qualification",
+    "-o",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+    "./internal/server"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+  "exit_status": 0,
+  "finished_unix": 1792239211.3110964,
+  "forced": false,
+  "name": "server-build",
+  "outer_audit_sha256": "14d276014247ac11c283a5d5f44346ec7a6108cfb834797296725ce61075195c",
+  "output_bytes": 0,
+  "owned_identities": [
+    {
+      "pgid": 2523514,
+      "pid": 2523514,
+      "ppid": 2522862,
+      "sid": 2523514,
+      "start_ticks": 7675486,
+      "state": "S"
+    },
+    {
+      "pgid": 2523514,
+      "pid": 2523515,
+      "ppid": 2523514,
+      "sid": 2523514,
+      "start_ticks": 7675486,
+      "state": "S"
+    },
+    {
+      "pgid": 2523514,
+      "pid": 2523539,
+      "ppid": 2523515,
+      "sid": 2523514,
+      "start_ticks": 7675503,
+      "state": "R"
+    },
+    {
+      "pgid": 2523514,
+      "pid": 2523571,
+      "ppid": 2523515,
+      "sid": 2523514,
+      "start_ticks": 7675532,
+      "state": "S"
+    },
+    {
+      "pgid": 2523514,
+      "pid": 2523600,
+      "ppid": 2523515,
+      "sid": 2523514,
+      "start_ticks": 7675634,
+      "state": "S"
+    },
+    {
+      "pgid": 2523514,
+      "pid": 2523721,
+      "ppid": 2523515,
+      "sid": 2523514,
+      "start_ticks": 7676413,
+      "state": "R"
+    },
+    {
+      "pgid": 2523514,
+      "pid": 2523732,
+      "ppid": 2523515,
+      "sid": 2523514,
+      "start_ticks": 7676418,
+      "state": "R"
+    },
+    {
+      "pgid": 2523514,
+      "pid": 2523778,
+      "ppid": 2523732,
+      "sid": 2523514,
+      "start_ticks": 7676552,
+      "state": "S"
+    },
+    {
+      "pgid": 2523514,
+      "pid": 2523779,
+      "ppid": 2523778,
+      "sid": 2523514,
+      "start_ticks": 7676552,
+      "state": "S"
+    },
+    {
+      "pgid": 2523514,
+      "pid": 2523780,
+      "ppid": 2523779,
+      "sid": 2523514,
+      "start_ticks": 7676552,
+      "state": "R"
+    }
+  ],
+  "remaining_group_members": [],
+  "started_unix": 1792239199.2604055,
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_bytes": 0,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

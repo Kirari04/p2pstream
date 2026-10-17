@@ -1,0 +1,16 @@
+{
+  "classification": "outer-tool-exit-inconsistent-with-verbatim-shell-final-exit-and-saved-direct-evidence",
+  "direct_status": 0,
+  "direct_status_file": "driver.status",
+  "exact_tool_command_source": "transcribed verbatim from the retained functions.exec tool-call input in this conversation",
+  "explanation": "No failing shell condition is supported by the retained command or files. The command reached and wrote its final manifest after direct status 0 and compare status 0, then explicitly exited with that saved zero status. The returned tool record nevertheless reports exit_code 1. The exact outer wrapper beyond the supplied shell body is not available, so the source of the nonzero cannot be identified without inventing evidence. It remains an unresolved nonzero outer envelope and is not reclassified as success.",
+  "input_compare_status": 0,
+  "last_explicit_exit_value_from_saved_status": 0,
+  "last_explicit_exit_variable": "status",
+  "last_explicit_shell_statement": "exit \"$status\"",
+  "outer_tool_exit_code": 1,
+  "rerun": false,
+  "result": "complete",
+  "schema_version": 1,
+  "stderr_bytes": 0
+}

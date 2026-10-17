@@ -1,0 +1,136 @@
+{
+  "fixture_only": true,
+  "runner_sha256": "9e4f85d39b71a76733c0881bf1d9dfcbe09970ddb043dfcfd11f1c45a73db70b",
+  "cases": [
+    {
+      "case": "positive-rates-ignore-slower-Caddy",
+      "passed": true
+    },
+    {
+      "case": "wrong-source",
+      "expected_rejection": true,
+      "error": "calibration source, binary, harness, runner or result identity differs"
+    },
+    {
+      "case": "wrong-raw-hash",
+      "expected_rejection": true,
+      "error": "calibration source, binary, harness, runner or result identity differs"
+    },
+    {
+      "case": "wrong-h2-topology",
+      "expected_rejection": true,
+      "error": "calibration H2 connection topology is not matched"
+    },
+    {
+      "case": "lost-candidate-event",
+      "expected_rejection": true,
+      "error": "calibration candidate event conservation failed"
+    },
+    {
+      "case": "queued-candidate-event",
+      "expected_rejection": true,
+      "error": "calibration candidate event conservation failed"
+    },
+    {
+      "case": "wrong-Caddy-payload",
+      "expected_rejection": true,
+      "error": "calibration payload/status/protocol checks failed"
+    },
+    {
+      "case": "wrong-warm-reference",
+      "expected_rejection": true,
+      "error": "calibration must be the fixed warmed matched-H2 reference workload"
+    },
+    {
+      "case": "wide-spread-reported-without-new-gate",
+      "passed": true
+    },
+    {
+      "case": "positive-schedule",
+      "passed": true
+    },
+    {
+      "case": "missing-schedule",
+      "expected_rejection": true,
+      "error": "Invalid isoformat string: ''"
+    },
+    {
+      "case": "short-payload",
+      "expected_rejection": true,
+      "error": "payload/status/measurement validation failed"
+    },
+    {
+      "case": "wrong-status",
+      "expected_rejection": true,
+      "error": "payload/status/measurement validation failed"
+    },
+    {
+      "case": "nonfinite-tail",
+      "expected_rejection": true,
+      "error": "payload/status/measurement validation failed"
+    },
+    {
+      "case": "wrong-planned",
+      "expected_rejection": true,
+      "error": "schedule metadata validation failed"
+    },
+    {
+      "case": "naive-UTC",
+      "expected_rejection": true,
+      "error": "schedule metadata validation failed"
+    },
+    {
+      "case": "dispatch-too-early",
+      "expected_rejection": true,
+      "error": "schedule metadata validation failed"
+    },
+    {
+      "case": "delivery-RPS",
+      "expected_rejection": true,
+      "error": "schedule delivery failed"
+    },
+    {
+      "case": "delivery-elapsed-only",
+      "expected_rejection": true,
+      "error": "schedule delivery failed"
+    },
+    {
+      "case": "Caddy-extension-keeps-rates-and-both-paired-orders",
+      "passed": true
+    },
+    {
+      "case": "independent-Caddy-HA-gates-and-original24-result",
+      "passed": true
+    },
+    {
+      "case": "Caddy-tail-failure-does-not-relabel-HA-pass",
+      "passed": true
+    },
+    {
+      "case": "Caddy-underdelivery-capacity-confounds-only-its-cell",
+      "passed": true
+    },
+    {
+      "case": "missing-Caddy-cell",
+      "expected_rejection": true,
+      "error": "incomplete moderate-load matrix"
+    },
+    {
+      "case": "duplicate-Caddy-iteration",
+      "expected_rejection": true,
+      "error": "incomplete moderate-load latency cell"
+    },
+    {
+      "case": "valid-underdelivery-has-distinct-class",
+      "passed": true
+    },
+    {
+      "case": "payload-error-is-not-capacity",
+      "passed": true
+    },
+    {
+      "case": "Caddy-extension-requires-calibration-mode-before-any-work",
+      "passed": true
+    }
+  ]
+}

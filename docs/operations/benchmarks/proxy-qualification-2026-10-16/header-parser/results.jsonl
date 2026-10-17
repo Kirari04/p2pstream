@@ -1,0 +1,2 @@
+{"case":"one_large_value","wire_bytes":65000,"header_keys":1,"alloc_bytes_per_parse":323787,"heap_delta_without_gc_per_parse":323787,"toolchain":"go1.26.6"}
+{"case":"many_distinct_empty_keys","wire_bytes":64997,"header_keys":8666,"alloc_bytes_per_parse":1709479,"heap_delta_without_gc_per_parse":1709479,"toolchain":"go1.26.6"}

@@ -1,0 +1,281 @@
+{
+  "accepted": true,
+  "issues": [],
+  "local_parser_acceptance_only": true,
+  "rows": [
+    {
+      "attribution_complete": false,
+      "checks": {
+        "corrected_accepted": true,
+        "corrected_errors_empty": true,
+        "corrected_missing_zero": true,
+        "original_rejected": true,
+        "original_single_expected_error": true,
+        "partition_conserved": true,
+        "snapshot_carried_equals_original_missing": true,
+        "snapshot_count_positive": true
+      },
+      "corrected_missing_stack_ns": 0,
+      "corrected_reduction_sha256": "896bacdf1c571f3df5583230bce7259136a830d0d28e51d541d8161048896b06",
+      "exact_unchanged": {
+        "canonical_input_identity": true,
+        "handler_transition_count": true,
+        "markers": true,
+        "partition_delta_ns": true,
+        "partition_sum_ns": true,
+        "region_duration_ns": true,
+        "state_ns": true
+      },
+      "handler_transition_count": 50884,
+      "markers": {
+        "event_count": 1213160,
+        "handler_gid": 156882,
+        "region_begin": [
+          24569695632448,
+          950
+        ],
+        "region_end": [
+          24579264535616,
+          1210610
+        ],
+        "task_begin": [
+          24569695631296,
+          949
+        ],
+        "task_end": [
+          24579264536000,
+          1210611
+        ],
+        "task_id": 1
+      },
+      "original_missing_stack_ns": 4676,
+      "original_reduction_sha256": "b8f44f5098df61a7f398133f12a766036faa977c3f5a1f392dd127526abe593a",
+      "partition_delta_ns": 0,
+      "partition_sum_ns": 9568903168,
+      "region_duration_ns": 9568903168,
+      "sequence": 9,
+      "state_ns": {
+        "Runnable": 107897646,
+        "Running": 86274906,
+        "Syscall": 12608,
+        "Waiting": 9374718008
+      },
+      "unknown_stack_ns": 1584365896,
+      "waiting_category_ns": {
+        "waiting_credit_publication_path": 8123969,
+        "waiting_credit_send_result": 2619198,
+        "waiting_growth_or_reservation": 15808,
+        "waiting_unknown_stack": 1584365896,
+        "waiting_yamux_empty_receive": 7779593137
+      },
+      "waiting_status_snapshot_carried_ns": 4676,
+      "waiting_status_snapshot_count": 9
+    },
+    {
+      "attribution_complete": false,
+      "checks": {
+        "corrected_accepted": true,
+        "corrected_errors_empty": true,
+        "corrected_missing_zero": true,
+        "original_rejected": true,
+        "original_single_expected_error": true,
+        "partition_conserved": true,
+        "snapshot_carried_equals_original_missing": true,
+        "snapshot_count_positive": true
+      },
+      "corrected_missing_stack_ns": 0,
+      "corrected_reduction_sha256": "0dab381223a7b57f3761542a6d8dd9e15befb6ca0d659368c9a77a6a990fb8ed",
+      "exact_unchanged": {
+        "canonical_input_identity": true,
+        "handler_transition_count": true,
+        "markers": true,
+        "partition_delta_ns": true,
+        "partition_sum_ns": true,
+        "region_duration_ns": true,
+        "state_ns": true
+      },
+      "handler_transition_count": 49426,
+      "markers": {
+        "event_count": 1206905,
+        "handler_gid": 196619,
+        "region_begin": [
+          24587871430912,
+          886
+        ],
+        "region_end": [
+          24597513656896,
+          1204917
+        ],
+        "task_begin": [
+          24587871422016,
+          885
+        ],
+        "task_end": [
+          24597513657088,
+          1204918
+        ],
+        "task_id": 2
+      },
+      "original_missing_stack_ns": 5505,
+      "original_reduction_sha256": "45d61eacba8f8736710b944aae70172ffbc6fe60640bd5374c55d49f053cc754",
+      "partition_delta_ns": 0,
+      "partition_sum_ns": 9642225984,
+      "region_duration_ns": 9642225984,
+      "sequence": 11,
+      "state_ns": {
+        "Runnable": 104519610,
+        "Running": 80680893,
+        "Syscall": 30592,
+        "Waiting": 9456994889
+      },
+      "unknown_stack_ns": 1640512480,
+      "waiting_category_ns": {
+        "waiting_credit_publication_path": 47373186,
+        "waiting_credit_send_result": 1573633,
+        "waiting_growth_or_reservation": 43008,
+        "waiting_unknown_stack": 1640512480,
+        "waiting_yamux_empty_receive": 7767492582
+      },
+      "waiting_status_snapshot_carried_ns": 5505,
+      "waiting_status_snapshot_count": 9
+    },
+    {
+      "attribution_complete": false,
+      "checks": {
+        "corrected_accepted": true,
+        "corrected_errors_empty": true,
+        "corrected_missing_zero": true,
+        "original_rejected": true,
+        "original_single_expected_error": true,
+        "partition_conserved": true,
+        "snapshot_carried_equals_original_missing": true,
+        "snapshot_count_positive": true
+      },
+      "corrected_missing_stack_ns": 0,
+      "corrected_reduction_sha256": "80d53467eadab9029bdf0ac524995195a13e1aeadb4235da55ab2760f5d7042a",
+      "exact_unchanged": {
+        "canonical_input_identity": true,
+        "handler_transition_count": true,
+        "markers": true,
+        "partition_delta_ns": true,
+        "partition_sum_ns": true,
+        "region_duration_ns": true,
+        "state_ns": true
+      },
+      "handler_transition_count": 48777,
+      "markers": {
+        "event_count": 1197820,
+        "handler_gid": 248265,
+        "region_begin": [
+          24613791982464,
+          548
+        ],
+        "region_end": [
+          24623355334272,
+          1195363
+        ],
+        "task_begin": [
+          24613791980352,
+          547
+        ],
+        "task_end": [
+          24623355334528,
+          1195364
+        ],
+        "task_id": 3
+      },
+      "original_missing_stack_ns": 3776,
+      "original_reduction_sha256": "b1316a7a655dc0bce79a31946dafd6c2dd55585655eb08633487225980ae3b79",
+      "partition_delta_ns": 0,
+      "partition_sum_ns": 9563351808,
+      "region_duration_ns": 9563351808,
+      "sequence": 14,
+      "state_ns": {
+        "Runnable": 99641419,
+        "Running": 79227238,
+        "Syscall": 18112,
+        "Waiting": 9384465039
+      },
+      "unknown_stack_ns": 1905062034,
+      "waiting_category_ns": {
+        "waiting_credit_publication_path": 5973420,
+        "waiting_credit_send_result": 2034367,
+        "waiting_growth_or_reservation": 75520,
+        "waiting_unknown_stack": 1905062034,
+        "waiting_yamux_empty_receive": 7471319698
+      },
+      "waiting_status_snapshot_carried_ns": 3776,
+      "waiting_status_snapshot_count": 8
+    },
+    {
+      "attribution_complete": false,
+      "checks": {
+        "corrected_accepted": true,
+        "corrected_errors_empty": true,
+        "corrected_missing_zero": true,
+        "original_rejected": true,
+        "original_single_expected_error": true,
+        "partition_conserved": true,
+        "snapshot_carried_equals_original_missing": true,
+        "snapshot_count_positive": true
+      },
+      "corrected_missing_stack_ns": 0,
+      "corrected_reduction_sha256": "9e0c7ae595e387b95a7b816fd04024d0a07e5b3cf9ca2b344f1bb6799db0672d",
+      "exact_unchanged": {
+        "canonical_input_identity": true,
+        "handler_transition_count": true,
+        "markers": true,
+        "partition_delta_ns": true,
+        "partition_sum_ns": true,
+        "region_duration_ns": true,
+        "state_ns": true
+      },
+      "handler_transition_count": 48723,
+      "markers": {
+        "event_count": 1195546,
+        "handler_gid": 273457,
+        "region_begin": [
+          24624120317760,
+          556
+        ],
+        "region_end": [
+          24631813943616,
+          1192892
+        ],
+        "task_begin": [
+          24624120312256,
+          555
+        ],
+        "task_end": [
+          24631813952320,
+          1192896
+        ],
+        "task_id": 4
+      },
+      "original_missing_stack_ns": 3904,
+      "original_reduction_sha256": "e528534da507ae147038e0c7379d447ffa9f9053c2e7a7e5b7d7382cbbeefbb0",
+      "partition_delta_ns": 0,
+      "partition_sum_ns": 7693625856,
+      "region_duration_ns": 7693625856,
+      "sequence": 15,
+      "state_ns": {
+        "Runnable": 93127475,
+        "Running": 70499284,
+        "Syscall": 14528,
+        "Waiting": 7529984569
+      },
+      "unknown_stack_ns": 911426514,
+      "waiting_category_ns": {
+        "waiting_credit_publication_path": 60619769,
+        "waiting_credit_send_result": 508160,
+        "waiting_unknown_stack": 911426514,
+        "waiting_yamux_empty_receive": 6557430126
+      },
+      "waiting_status_snapshot_carried_ns": 3904,
+      "waiting_status_snapshot_count": 7
+    }
+  ],
+  "schema_version": 1,
+  "scope": "same frozen H2 canonical inputs; original arm/reductions/index unchanged",
+  "unknown_stack_interpretation": "unresolved attribution; corrected acceptance does not make attribution complete"
+}

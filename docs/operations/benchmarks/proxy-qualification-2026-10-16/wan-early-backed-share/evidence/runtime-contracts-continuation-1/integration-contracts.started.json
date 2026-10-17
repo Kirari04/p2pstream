@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "20s",
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/contracts/test-early-share-runtime-continuation-1.py",
+    "RuntimeBoundary.test_exact_command_pair_policy_and_timed_function_bindings",
+    "-v"
+  ],
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "deadline_seconds": 30,
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "schema_version": 1,
+  "state": "running",
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

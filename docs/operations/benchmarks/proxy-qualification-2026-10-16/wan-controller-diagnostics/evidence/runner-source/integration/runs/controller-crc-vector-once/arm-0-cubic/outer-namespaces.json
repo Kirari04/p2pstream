@@ -1,0 +1,27 @@
+{
+  "all_private": true,
+  "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+  "cgroup_namespace_unchanged": true,
+  "nspid": [
+    2
+  ],
+  "owned": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026533468]",
+    "net": "net:[4026533470]",
+    "pid": "pid:[4026533469]",
+    "user": "user:[4026532932]"
+  },
+  "parent": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026531832]",
+    "net": "net:[4026531833]",
+    "pid": "pid:[4026531836]",
+    "user": "user:[4026531837]"
+  },
+  "python_parent_is_one": true,
+  "python_parent_pid": 1,
+  "schema_version": 1,
+  "shell_pid": 1,
+  "shell_pid_is_one": true
+}

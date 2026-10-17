@@ -1,0 +1,17 @@
+{
+  "attempts": 1,
+  "command": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "25s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/contracts/test-idle-policy.py"
+  ],
+  "outer_seconds": 30,
+  "source_manifest_sha256": "b4896cb6da990e5995bf5882883483a05b20dffaad1112badf155117c29cb33d",
+  "source_review_sha256": "45b592283024a1efda55472ea0a01a55189b265ea45f2edb57a38be7ca284ece",
+  "stream_bytes_each": 1048576
+}

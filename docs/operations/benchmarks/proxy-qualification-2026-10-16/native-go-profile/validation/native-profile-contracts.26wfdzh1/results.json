@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "contracts": [
+    {
+      "name": "lineage-and-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "exact-production-native-chronology",
+      "passed": true
+    },
+    {
+      "name": "symmetric-test-profile-flags",
+      "passed": true
+    },
+    {
+      "name": "warmup-plus-timed-normalization",
+      "passed": true
+    },
+    {
+      "name": "missing-partial-profile-fail-closed",
+      "passed": true
+    },
+    {
+      "name": "inherited-lifecycle-and-resource-contracts-byte-identical",
+      "passed": true
+    }
+  ]
+}

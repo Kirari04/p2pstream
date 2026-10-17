@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "purpose": "prospective original96 route-reuse qualification; pending current production source and ordinary builds",
+  "source": {
+    "current_ref": null,
+    "current_archive_sha256": null,
+    "legacy_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "legacy_archive_sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+    "legacy_overlay_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb"
+  },
+  "toolchain": {
+    "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "version": "go version go1.26.6 linux/amd64",
+    "binary_sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+  },
+  "sha256": {
+    "current_server_binary": null,
+    "current_agent_binary": null,
+    "owned_runner": null,
+    "stability_supervisor": null,
+    "stability_validator": null,
+    "legacy_agent_binary": "162f8f19361bb13cf2cbb998ed2886a57a63eb36dc6ef21a4cdae4c2865b3f45"
+  },
+  "fixed_workload": {
+    "runs": 3,
+    "pair_order": [
+      [
+        "legacy",
+        "aggregate-v1"
+      ],
+      [
+        "aggregate-v1",
+        "legacy"
+      ],
+      [
+        "legacy",
+        "aggregate-v1"
+      ]
+    ],
+    "flags": [
+      "--runs",
+      "3",
+      "--warmup-mib",
+      "256",
+      "--steady-mib",
+      "256",
+      "--transfer-repetitions",
+      "3",
+      "--required-pool-mib",
+      "8",
+      "--rtt-ms",
+      "80"
+    ],
+    "expected_rows": 96,
+    "expected_natural_process_exits": 15,
+    "every_pair_minimum_download_ratio": 0.9,
+    "every_pair_minimum_upload_ratio": 0.9,
+    "cpu_sets": {
+      "server": "0-3",
+      "agent_and_origin": "4-7",
+      "load": "8-15"
+    },
+    "canonical_runner_timeout_seconds": 12591,
+    "outer_timeout_seconds": 13200,
+    "topology_scope": "one shared owned user/PID/mount/network boundary and one shared routed namespace topology for all three fresh endpoint pairs"
+  },
+  "historical_tls_reproduction": {
+    "label": "faithful reproduction",
+    "client_public_listener": "H2 over public HTTPS with canonical InsecureSkipVerify load behavior",
+    "url_identity": "IP URL and no SNI retained",
+    "protocol_or_tls_changes": false
+  },
+  "separation": {
+    "prior_single_pair_path": "runs/original-h2-pair-1",
+    "combine_rows": false,
+    "selective_retry": false
+  },
+  "current_build_receipt": null,
+  "current_build_receipt_sha256": null,
+  "runtime_approved": false,
+  "candidate_scope": "same new server route-entry reuse policy in BOTH legacy and aggregate modes; ordinary untagged endpoints; no early-share or observer overlay"
+}

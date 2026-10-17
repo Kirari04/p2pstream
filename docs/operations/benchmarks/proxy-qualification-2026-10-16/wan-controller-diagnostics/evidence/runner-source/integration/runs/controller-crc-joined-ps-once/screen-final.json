@@ -1,0 +1,12 @@
+{
+  "accepted": false,
+  "artifact_bytes": 117758791,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "completed_arms": 0,
+  "failure": "RuntimeError: independent arm validation failed",
+  "schema_version": 1,
+  "stopped": true,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

@@ -1,0 +1,14 @@
+{
+  "action": "terminal",
+  "authorization": "bearer-present",
+  "error": "JSONDecodeError('Expecting value: line 1 column 1 (char 0)')",
+  "http_status": 409,
+  "request_elapsed_ns": 1181065,
+  "request_finished_unix_ns": 1792211663531582892,
+  "request_started_unix_ns": 1792211663530395716,
+  "response": null,
+  "response_bytes": 92,
+  "role": "agent-drain",
+  "schema_version": 1,
+  "sequence": 15
+}

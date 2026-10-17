@@ -1,0 +1,10 @@
+pattern	reason	retained_binding
+**/*.key.pem	private TLS keys	full run ledgers and EXCLUDED-RUN-ARTIFACTS.tsv
+**/*.ready.json	readiness records may contain addresses or management credentials	full run ledgers and EXCLUDED-RUN-ARTIFACTS.tsv
+**/proxy-agent-growth.*/**	endpoint fixture logs, recoverable management tokens and transient state	full run ledgers and EXCLUDED-RUN-ARTIFACTS.tsv
+**/server-scope/server-app-ready.json	server readiness state	full run ledgers and EXCLUDED-RUN-ARTIFACTS.tsv
+build/bin/** and audited-build-attempt-1/bin/**	compiled binaries	build manifest, binary hashes, result and supplement ledgers, publication receipts
+audited-build-attempt-1/source/**	full reconstructed source tree	source pre/post inventories and corpus attestations
+**/{gocache,gopath,tmp,tmp-normal,tmp-race}/**	build caches and temporary state	commands, environment, statuses and lifecycle records
+active mutable source roots outside frozen checkpoints	unreviewed or superseded bytes	frozen checkpoints 1-10 and labeled partial unused checkpoint 11
+process-local trace bearer	not persisted by design	authentication-configured statuses and nonprinting scan limitation

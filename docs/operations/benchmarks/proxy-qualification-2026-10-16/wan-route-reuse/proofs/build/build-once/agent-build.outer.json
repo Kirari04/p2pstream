@@ -1,0 +1,62 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-c",
+    "-mod=readonly",
+    "-p=2",
+    "-o",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-agent-route-reuse.test",
+    "./internal/agent"
+  ],
+  "artifact_bytes": 1227191701,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 1.819558250004775,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2748414,
+      "pid": 2748414,
+      "ppid": 2748199,
+      "sid": 2748414,
+      "start_ticks": 8804735,
+      "state": "S"
+    },
+    {
+      "pgid": 2748414,
+      "pid": 2748415,
+      "ppid": 2748414,
+      "sid": 2748414,
+      "start_ticks": 8804735,
+      "state": "S"
+    },
+    {
+      "pgid": 2748414,
+      "pid": 2748465,
+      "ppid": 2748415,
+      "sid": 2748414,
+      "start_ticks": 8804828,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 0,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

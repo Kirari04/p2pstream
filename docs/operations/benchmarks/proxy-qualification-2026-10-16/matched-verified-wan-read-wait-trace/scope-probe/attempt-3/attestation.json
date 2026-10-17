@@ -1,0 +1,14 @@
+{
+  "accepted": true,
+  "errors": [],
+  "forced_cleanup": false,
+  "schema_version": 1,
+  "sentinel_exited_before_interval": true,
+  "statuses": {
+    "dummy": 0,
+    "outer": 0,
+    "systemd_run": 0
+  },
+  "unit": "p2p-trace-scope-probe-20261016-c.scope",
+  "unit_joined": true
+}

@@ -1,0 +1,303 @@
+{
+  "accepted": true,
+  "bound_actual_input_checks": {
+    "archives/current.tar": {
+      "actual_sha256": "4e19017a0dbbae1dcf4e390561b08a5f4fa73e1a5d1eb20b1f792080af6c0d8c",
+      "expected_sha256": "4e19017a0dbbae1dcf4e390561b08a5f4fa73e1a5d1eb20b1f792080af6c0d8c"
+    },
+    "archives/legacy.tar": {
+      "actual_sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+      "expected_sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a"
+    },
+    "bin/current-agent.test": {
+      "actual_sha256": "18c474e2872633c2079997d26db40eddefd87617cfd268d50f00d44c00df6d6f",
+      "expected_sha256": "18c474e2872633c2079997d26db40eddefd87617cfd268d50f00d44c00df6d6f"
+    },
+    "bin/current-server.test": {
+      "actual_sha256": "58e0b0eda623ad2d3080261b83720ed5ab760ef5640dfb4b37c48f696cc465e6",
+      "expected_sha256": "58e0b0eda623ad2d3080261b83720ed5ab760ef5640dfb4b37c48f696cc465e6"
+    },
+    "bin/legacy-agent.test": {
+      "actual_sha256": "3eaeb0c5e8851b6f07214582152f7588527c3ae23bed555ca1545cf0317d8b61",
+      "expected_sha256": "3eaeb0c5e8851b6f07214582152f7588527c3ae23bed555ca1545cf0317d8b61"
+    },
+    "provenance/go-build-settings.json": {
+      "actual_sha256": "ad87f7fb64e023b6664048b530dff183527e9b3ed723831b52394dd747da4377",
+      "expected_sha256": "ad87f7fb64e023b6664048b530dff183527e9b3ed723831b52394dd747da4377"
+    },
+    "provenance/qualify-proxy-agent-growth-pressure-owned.sh": {
+      "actual_sha256": "43315047b3b545d8f45a1186e48792c740f587226180c8d8dc418731466938f3",
+      "expected_sha256": "43315047b3b545d8f45a1186e48792c740f587226180c8d8dc418731466938f3"
+    },
+    "provenance/qualify-proxy-pressure-checkpoint.sh": {
+      "actual_sha256": "c2ea1f5ba01ad7bdabb2641b65fa970a0efa081123d07954bcf50b91b1a79230",
+      "expected_sha256": "c2ea1f5ba01ad7bdabb2641b65fa970a0efa081123d07954bcf50b91b1a79230"
+    },
+    "provenance/validate-owned-pressure.py": {
+      "actual_sha256": "3ae4060839ea4ae01b93314710fd93bad95c2de768f5676e722785450158419e",
+      "expected_sha256": "3ae4060839ea4ae01b93314710fd93bad95c2de768f5676e722785450158419e"
+    },
+    "sources/current/internal/agent/testdata/proxy_qualification_external_legacy_test.go": {
+      "actual_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+      "expected_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb"
+    }
+  },
+  "build_manifest_sha256": "e74aff713be8052a83dcfb2a6da4e39cdaf8990b53b464ed34f97b8e542dd64a",
+  "cancellation": {
+    "agent_in_use_after": 0,
+    "all_five_session_identities_unchanged": true,
+    "all_four_bulk_refunds_quiescent": true,
+    "canceled_errors": 1,
+    "configured_bytes": 33554432,
+    "observed_http_major": 2,
+    "origin_independent_received_body_bytes": 9486336,
+    "origin_request_body_bytes": 8912896,
+    "request_body_bytes": 9502720
+  },
+  "checkpoint_status": {
+    "exit_status": 0,
+    "forced_supervisor_cleanup": false,
+    "stage": "complete"
+  },
+  "classification": "final_grown_pool_pressure_pass",
+  "control": {
+    "control_in_use_after": 0,
+    "control_in_use_before": 0,
+    "http_status": 200,
+    "ok": true,
+    "ordinary_limit_after": 0,
+    "ordinary_limit_before": 0,
+    "ordinary_pressure_rejections_after": 1,
+    "ordinary_pressure_rejections_before": 1,
+    "reserved_base_bytes": 3145728,
+    "reserved_base_fds": 8,
+    "reserved_slots": 4
+  },
+  "critical_memory": {
+    "ballast_mib": 3648,
+    "current_bytes": 3887235072,
+    "margin_bytes": 407732224,
+    "maximum_bytes": 4294967296
+  },
+  "event_conservation": {
+    "all_explicit_strict_zero_telemetry": true,
+    "load_rows": 14,
+    "persisted_events": 14
+  },
+  "inner_status": {
+    "emergency_cleanup": false,
+    "exit_status": 0,
+    "raw_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/proxy-agent-growth.3FNs2p"
+  },
+  "legacy_source_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "lifecycle_sha256": "869cb620063cf7b841259d6814621a654f387c7ead9a4afb014d4f6b7cec4f81",
+  "natural_owners": [
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "canceled-upload-load",
+      "pgid": 2384692,
+      "status": 0
+    },
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "current-server-aggregate-v1-1-agent",
+      "pgid": 2382733,
+      "status": 0
+    },
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "current-server-aggregate-v1-1-server",
+      "pgid": 2382708,
+      "status": 0
+    },
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "origin",
+      "pgid": 2382695,
+      "status": 0
+    },
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "agent-namespace",
+      "pgid": 2382473,
+      "status": 0
+    },
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "router-namespace",
+      "pgid": 2382478,
+      "status": 0
+    }
+  ],
+  "notes": [
+    "One authorized full pressure attempt; no retry or source changes.",
+    "No private readiness files, certificate keys or duplicate binary/source bundle copied into this report.",
+    "WAN throughput, capacity, standing and race gates are separate qualifications."
+  ],
+  "outer_exit_status": 0,
+  "payload_pids": [
+    {
+      "exists_after_join": false,
+      "pid": 2382733,
+      "ready_file": "current-server-aggregate-v1-1-agent.ready.json"
+    },
+    {
+      "exists_after_join": false,
+      "pid": 2382708,
+      "ready_file": "current-server-aggregate-v1-1-server.ready.json"
+    },
+    {
+      "exists_after_join": false,
+      "pid": 2382695,
+      "ready_file": "origin.ready.json"
+    }
+  ],
+  "prerequisite_contract_history": [
+    {
+      "attempt": 1,
+      "exit_status": 2,
+      "result": "failed before owner/scope launch; heredoc extractor truncated embedded Python dictionary",
+      "source_receipt": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-1/source.sha256"
+    },
+    {
+      "attempt": 2,
+      "exit_status": 0,
+      "result": "separately authorized corrected fixture; actual original-topology scopes, 0/7 propagation and cleanup passed",
+      "source_receipt": "tmp/pressure-final-readiness-20261017/runtime-scope-attempt-2/source.sha256"
+    }
+  ],
+  "pressure_acceptance": {
+    "admission_rejected_under_pressure": true,
+    "all_receiving_pools_exceeded_required_size_before_pressure": true,
+    "all_receiving_pools_retained_after_recovery": true,
+    "canceled_upload_reached_origin": true,
+    "canceled_upload_refunds_quiescent": true,
+    "control_did_not_consume_ordinary_pressure_rejection": true,
+    "control_progress_during_pressure": true,
+    "control_reservation_owned": true,
+    "control_slot_returned_to_baseline": true,
+    "functional_recovery": true,
+    "no_oom": true,
+    "ordinary_admission_closed_during_pressure": true,
+    "pressure_reached": true
+  },
+  "public_rejection": {
+    "attempted": 1,
+    "rejections_after": 1,
+    "rejections_before": 0,
+    "status_classes": {
+      "5xx": 1
+    },
+    "status_codes": {
+      "503": 1
+    },
+    "useful_completed": 0
+  },
+  "receiving_pools_bytes": {
+    "post_recovery": {
+      "agent_bytes": [
+        100139008,
+        100663296,
+        105119744,
+        105381888
+      ],
+      "agent_cgroup_memory_current_bytes": 27869184,
+      "agent_max_bytes": 105381888,
+      "agent_min_bytes": 100139008,
+      "server_bytes": [
+        94371840,
+        95944704,
+        95944704,
+        97255424
+      ],
+      "server_cgroup_memory_current_bytes": 236945408,
+      "server_max_bytes": 97255424,
+      "server_min_bytes": 94371840
+    },
+    "pre_pressure": {
+      "agent_bytes": [
+        100139008,
+        100663296,
+        105119744,
+        105381888
+      ],
+      "agent_cgroup_memory_current_bytes": 49913856,
+      "agent_max_bytes": 105381888,
+      "agent_min_bytes": 100139008,
+      "server_bytes": [
+        94371840,
+        95944704,
+        95944704,
+        97255424
+      ],
+      "server_cgroup_memory_current_bytes": 183578624,
+      "server_max_bytes": 97255424,
+      "server_min_bytes": 94371840
+    },
+    "required_strictly_greater_than_bytes": 83886080
+  },
+  "recovery": [
+    {
+      "configured_payload_bytes": 16777216,
+      "direction": "download",
+      "errors": 0,
+      "status_codes": {
+        "200": 1
+      },
+      "useful_completed": 1
+    },
+    {
+      "configured_payload_bytes": 16777216,
+      "direction": "upload",
+      "errors": 0,
+      "status_codes": {
+        "200": 1
+      },
+      "useful_completed": 1
+    }
+  ],
+  "result_rows": 77,
+  "results_sha256": "e7560c24cf8784c2c3b15f93e388675f6028b8cfcde1c82c8350f276189f2ad3",
+  "runtime_root": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1",
+  "schema_version": 1,
+  "scopes": [
+    {
+      "show_exit_status": 0,
+      "state": "LoadState=not-found\nActiveState=inactive\nControlGroup=",
+      "stderr": "",
+      "unit": "p2p-qual-agent-2382456-1.scope"
+    },
+    {
+      "show_exit_status": 0,
+      "state": "LoadState=not-found\nActiveState=inactive\nControlGroup=",
+      "stderr": "",
+      "unit": "p2p-qual-server-2382456-1.scope"
+    }
+  ],
+  "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "supervisor": {
+    "forced": false,
+    "group_joined": true,
+    "invalidates_success": false,
+    "pid": 2382455,
+    "runner_status": 0
+  },
+  "toolchain": {
+    "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+    "version": "go version go1.26.6 linux/amd64"
+  },
+  "transfer_rows": 12
+}

@@ -10,16 +10,20 @@ const publicAdmissionReclaimCooldown = 100 * time.Millisecond
 // direct transport; both pool operations preserve active requests and
 // control-plane capacity.
 func (a *App) tryReservePublicResource(memoryBytes, fileDescriptors int64) (release func(), ok, constrained bool) {
+	return a.tryReservePublicOwnedResource(adaptiveResourceOwnerOther, memoryBytes, fileDescriptors)
+}
+
+func (a *App) tryReservePublicOwnedResource(owner adaptiveResourceOwner, memoryBytes, fileDescriptors int64) (release func(), ok, constrained bool) {
 	if a == nil || a.agentStreamCapacity == nil {
 		return func() {}, true, false
 	}
-	release, ok, constrained = a.agentStreamCapacity.tryReserveAdaptiveExternal(memoryBytes, fileDescriptors)
+	release, ok, constrained = a.agentStreamCapacity.tryReserveAdaptiveResource(owner, memoryBytes, fileDescriptors)
 	if ok || !constrained {
 		return release, ok, constrained
 	}
 
 	a.schedulePublicAdmissionReclaim()
-	return a.agentStreamCapacity.tryReserveAdaptiveExternal(memoryBytes, fileDescriptors)
+	return a.agentStreamCapacity.tryReserveAdaptiveResource(owner, memoryBytes, fileDescriptors)
 }
 
 func (a *App) schedulePublicAdmissionReclaim() {

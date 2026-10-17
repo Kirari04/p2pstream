@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "launch_exec_command": {
+    "cmd": "set -u\nprep=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep\noutput=$prep/runs/original-h2-stability-1\n[[ ! -e $output && ! -e ${output}.start.utc && ! -e ${output}.end.utc && ! -e ${output}.shell.status ]] || { echo 'fresh output or sidecar check failed' >&2; exit 2; }\ndate -u +%Y-%m-%dT%H:%M:%S.%NZ > \"${output}.start.utc\"\nprintf 'OWNED_WAN_STABILITY_TOOL_LAUNCH output=%s start_utc=%s\\n' \"$output\" \"$(cat \"${output}.start.utc\")\"\nset +e\n\"$prep/runner/run-owned-wan-stability.sh\" --output-dir \"$output\"\nshell_status=$?\nset -e\ndate -u +%Y-%m-%dT%H:%M:%S.%NZ > \"${output}.end.utc\"\nprintf '%s\\n' \"$shell_status\" > \"${output}.shell.status\"\nprintf 'OWNED_WAN_STABILITY_SHELL_FINAL status=%s output=%s end_utc=%s\\n' \"$shell_status\" \"$output\" \"$(cat \"${output}.end.utc\")\"\nexit \"$shell_status\"",
+    "workdir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+    "yield_time_ms": 1000,
+    "initial_observation": {
+      "session_id": 16344,
+      "chunk_id": "afca39",
+      "output": "OWNED_WAN_STABILITY_TOOL_LAUNCH output=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runs/original-h2-stability-1 start_utc=2026-10-16T16:20:41.682587108Z\n"
+    }
+  },
+  "terminal_write_stdin": {
+    "request": {"session_id": 16344, "chars": "", "yield_time_ms": 55000, "max_output_tokens": 5000},
+    "continuation_cell_id": "132",
+    "continuation_wait": {"yield_time_ms": 30000, "max_tokens": 5000},
+    "observation": {
+      "chunk_id": "68d44a",
+      "exit_code": 1,
+      "output": "OWNED_WAN_STABILITY_FINAL runner_status=1 validation_status=1 wrapper_status=1 results=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runs/original-h2-stability-1/results.jsonl results_sha256=0b194973977d60080f027f8ee97e6bde89c233d6a2d90af5c6b5ab40b10c5cb7\nOWNED_WAN_STABILITY_SHELL_FINAL status=1 output=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/runs/original-h2-stability-1 end_utc=2026-10-16T16:33:42.659142908Z\n"
+    }
+  },
+  "persisted_statuses": {"runner": 1, "validator": 1, "wrapper": 1, "launch_shell": 1},
+  "conclusion": "Tool exit 1 matches the shell, wrapper, validator, and canonical runner statuses; no envelope discrepancy occurred."
+}

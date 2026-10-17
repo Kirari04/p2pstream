@@ -1,0 +1,70 @@
+--- checkpoint-1/run-static-integration-checks.sh
++++ checkpoint-2/run-static-integration-checks.sh
+@@ -4,7 +4,7 @@
+ compact="$root/tmp/continuation-20261016/wan-read-wait-stack-intern-source"
+ integration="$compact/integration-source"
+ capacity="$root/tmp/continuation-20261016/wan-read-wait-capacity-source"
+-checkpoint="$compact/review/compact-integration-source-checkpoint-1"
++checkpoint="$compact/review/compact-integration-source-checkpoint-2"
+ (cd "$checkpoint" && sha256sum -c SHA256SUMS.txt)
+ for script in "$integration/run-wan-read-wait-arm.sh" "$integration/run-wan-read-wait-diagnostic.sh"; do
+   bash -n "$script"
+@@ -39,5 +39,17 @@
+ for name in ('trace_parser_adapter', 'trace_canonicalizer', 'trace_format', 'trace_focused_summary',
+              'trace_lifecycle_summary', 'trace_compact_checkpoint'):
+     assert name in required
++
++identity_function = next(node for node in module.body
++                         if isinstance(node, ast.FunctionDef) and node.name == 'valid_compact_child_identities')
++identity_module = ast.Module(body=[identity_function], type_ignores=[])
++namespace = {}
++exec(compile(ast.fix_missing_locations(identity_module), str(sys.argv[2]), 'exec'), namespace)
++valid = namespace['valid_compact_child_identities']
++assert valid({'pid': 101, 'pgid': 101}, {'pid': 202, 'pgid': 202}) is True
++assert valid({'pid': None, 'pgid': None}, {'pid': 202, 'pgid': 202}) is False
++assert valid({'pid': 101, 'pgid': 101}, {'pid': 101, 'pgid': 101}) is False
++assert valid({'pid': 101, 'pgid': 999}, {'pid': 202, 'pgid': 202}) is False
++assert valid({'pid': True, 'pgid': True}, {'pid': 202, 'pgid': 202}) is False
+ PY
+ printf 'static compact integration checks passed\n'
+--- checkpoint-1/validate-wan-read-wait-arm.py
++++ checkpoint-2/validate-wan-read-wait-arm.py
+@@ -45,6 +45,19 @@
+     except OSError:
+         return None
+ 
++def valid_compact_child_identities(parser_process, canonicalizer_process):
++    parser_pid = parser_process.get("pid")
++    parser_pgid = parser_process.get("pgid")
++    canonicalizer_pid = canonicalizer_process.get("pid")
++    canonicalizer_pgid = canonicalizer_process.get("pgid")
++    return bool(
++        type(parser_pid) is int and parser_pid > 0
++        and type(parser_pgid) is int and parser_pgid == parser_pid
++        and type(canonicalizer_pid) is int and canonicalizer_pid > 0
++        and type(canonicalizer_pgid) is int and canonicalizer_pgid == canonicalizer_pid
++        and parser_pid != canonicalizer_pid
++    )
++
+ expected = [("warmup", "download", n) for n in range(1, 5)]
+ expected += [("warmup", "upload", n) for n in range(1, 5)]
+ expected += [("retained-warmup", "download", 1), ("retained-warmup", "upload", 1)]
+@@ -570,6 +583,7 @@
+         and process_record.get("canonicalizer_argv") == [str(expected_python), str(expected_canonicalizer),
+                                                            "--input", "-", "--output", str(canonical_path),
+                                                            "--ledger", str(ledger_path)]
++        and valid_compact_child_identities(parser_process, canonicalizer_process)
+         and all(parser_process.get(key) == value for key, value in expected_process.items())
+         and all(canonicalizer_process.get(key) == value for key, value in expected_process.items())
+         and process_record.get("raw_trace", {}).get("path") == str(raw_path)
+--- checkpoint-1/SOURCE-HASHES.txt
++++ checkpoint-2/SOURCE-HASHES.txt
+@@ -1,6 +1,6 @@
+ 7a851aca80494e1b12d4e9dd4c94406f02445cf067e3b0c497dc679ab0fd2cbc  COMPACT-CHECKPOINT.json
+ dddae7dd1a9b097fd0bfdb4316bcdc042294c932488e9960c4d6fdd5269bbd16  INTEGRATION-DESIGN.md
+-e691cb53fb9e3a88173a11bfd70bfd42463350cc78b16a5c5069dff864d3a368  run-static-integration-checks.sh
++bb0df10f355ed355de233264aaeeba54dced75729c4458cca48f9a2c2a7eda53  run-static-integration-checks.sh
+ 60573b4432d082b017627d185f8e8ff38a8a9265c04b16a8a958413a9ba6acd9  run-wan-read-wait-arm.sh
+ 15971b96a594dee345fa629343f8f4be0121fe146c9ef2865cc57a0e143c0b47  run-wan-read-wait-diagnostic.sh
+-9c63e8d0c6ff56d400520cc37050a5d16fa1a4051ffb129bff51440c583ac119  validate-wan-read-wait-arm.py
++9997c8ed5795219217382ed99121484d9512ef7b2b85cd5c9e2305b4f744ccfe  validate-wan-read-wait-arm.py

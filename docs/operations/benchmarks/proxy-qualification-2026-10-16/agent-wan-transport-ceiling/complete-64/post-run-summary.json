@@ -1,0 +1,121 @@
+{
+  "aggregate_growth": {
+    "exercised": true,
+    "live_growth_reserved_bytes_by_pair_role": {
+      "1": {
+        "agent": 464322560,
+        "server": 460062720
+      },
+      "2": {
+        "agent": 467271680,
+        "server": 476446720
+      }
+    },
+    "status": "exercised"
+  },
+  "classification": "complete_timing_rejection",
+  "diagnostic_reproduced": false,
+  "exit": {
+    "exit_code": 1,
+    "finished_unix_nano": 1792154813139765382,
+    "fixture_smoke": false,
+    "interrupted": false,
+    "preflight_only": false,
+    "schema_version": 1,
+    "timed_out": false,
+    "workload_started": true
+  },
+  "fresh_namespace_instance_count": 12,
+  "harness_commit": "248bad099682878fe398c0ebaad235787ef47858",
+  "interpretation": "Standalone Yamux did not reproduce the original proxy WAN transition stall in either fresh pair; this is a complete timing rejection of this diagnostic signature, not evidence that the original proxy WAN regression recovered.",
+  "measured_rtt_ms_by_pair_arm": {
+    "1": {
+      "aggregate-yamux": 96.128,
+      "raw-tls": 96.51
+    },
+    "2": {
+      "aggregate-yamux": 96.331,
+      "raw-tls": 96.538
+    }
+  },
+  "non_timing_failures": [],
+  "pairs": {
+    "1": {
+      "order": [
+        "aggregate-yamux",
+        "raw-tls"
+      ],
+      "raw_no_analogous_stall": {
+        "fresh_download_median": 34945772.27072555,
+        "minimum": 0.9,
+        "passed": true,
+        "postwarm_to_fresh_median_ratios": {
+          "10": 1.0042999364183056,
+          "13": 1.0175321410333915,
+          "14": 1.0035258499069755,
+          "8": 1.0038892146529934
+        }
+      },
+      "yamux_stall_signature": {
+        "at_least_one_transition_below_floor": false,
+        "fresh_download_median": 34373278.258857444,
+        "fresh_download_minimum": 29700000,
+        "fresh_download_passed": true,
+        "passed": false,
+        "reused_lane3_download": 35386387.118932456,
+        "reused_lane3_minimum": 29700000,
+        "reused_lane3_passed": true,
+        "transition_samples": {
+          "10": 34330797.34983495,
+          "13": 34961451.35315085,
+          "8": 34361679.85459175
+        }
+      }
+    },
+    "2": {
+      "order": [
+        "raw-tls",
+        "aggregate-yamux"
+      ],
+      "raw_no_analogous_stall": {
+        "fresh_download_median": 35170601.43766414,
+        "minimum": 0.9,
+        "passed": true,
+        "postwarm_to_fresh_median_ratios": {
+          "10": 0.9980696238496838,
+          "13": 1.002504376353772,
+          "14": 0.9894821464200332,
+          "8": 0.997771345530964
+        }
+      },
+      "yamux_stall_signature": {
+        "at_least_one_transition_below_floor": false,
+        "fresh_download_median": 34614203.02268326,
+        "fresh_download_minimum": 29700000,
+        "fresh_download_passed": true,
+        "passed": false,
+        "reused_lane3_download": 35112663.39574811,
+        "reused_lane3_minimum": 29700000,
+        "reused_lane3_passed": true,
+        "transition_samples": {
+          "10": 34328737.7799267,
+          "13": 34885498.69903614,
+          "8": 34588727.00841945
+        }
+      }
+    }
+  },
+  "pure_validator_replay": true,
+  "row_count": 64,
+  "schema_version": 1,
+  "scope": "transport_ceiling_diagnostic_only",
+  "snapshot_count": 12,
+  "survivor_check": "survivor-check.json",
+  "terminal_zero_verification": "terminal-zero-verification.json",
+  "timing_failures": [
+    "pair 1 did not reproduce the Yamux transition signature",
+    "pair 2 did not reproduce the Yamux transition signature"
+  ],
+  "topology_count": 4,
+  "unique_netns_inode_count": 9
+}

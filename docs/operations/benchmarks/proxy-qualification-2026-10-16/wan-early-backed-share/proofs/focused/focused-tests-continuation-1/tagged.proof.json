@@ -1,0 +1,9 @@
+{
+  "name": "tagged",
+  "outer_sha256": "b62defeb0704de7fdc253d5a7fb677b96e815787cd76deafb4f6923a9d3f2497",
+  "proof_origin": "fresh-continuation-1",
+  "source_unchanged": true,
+  "status": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "6181d0a83c58f1f2700a655b4d9c2c4b8524b355d56a9b23b1e3c2bca030f8ad"
+}

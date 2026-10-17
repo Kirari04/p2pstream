@@ -1,0 +1,586 @@
+diff --git a/third_party/yamux/aggregate_window.go b/third_party/yamux/aggregate_window.go
+index 6069548..bcba7b2 100644
+--- a/third_party/yamux/aggregate_window.go
++++ b/third_party/yamux/aggregate_window.go
+@@ -19,7 +19,6 @@ const (
+ 	// page rounding. Payload storage is allocated separately from descriptors.
+ 	aggregateChunkAccounting     = 1024
+ 	aggregateStreamWindowDivisor = 4
+-	aggregateRefundBatchStreams  = 16
+ )
+ 
+ type aggregateChunk struct {
+@@ -52,20 +51,15 @@ func aggregateDataCharge(length uint32) uint32 {
+ }
+ 
+ type aggregateWindow struct {
+-	// qualification is a zero-size type in ordinary builds. Tagged diagnostic
+-	// builds use it for bounded per-session sender counters.
+-	qualification qualificationAggregateSendCounters
+-	protocolMax   uint32
+-	mu            sync.Mutex
++	protocolMax uint32
++	mu          sync.Mutex
+ 
+ 	sendWindow uint32
+ 	sendLimit  uint32
+ 	// sendNotify is closed and replaced for every credit generation. Closing
+ 	// broadcasts to all competing writers; no writer can consume another's
+-	// only wakeup. sendNotifyRegistered avoids allocating a replacement for
+-	// credit updates when no writer observed an exhausted aggregate window.
+-	sendNotify           chan struct{}
+-	sendNotifyRegistered bool
++	// only wakeup.
++	sendNotify chan struct{}
+ 
+ 	recvWindow       uint32
+ 	recvLimit        uint32
+@@ -82,12 +76,6 @@ type aggregateWindow struct {
+ 
+ 	pendingStreamHead *Stream
+ 	pendingStreamTail *Stream
+-	// publishingRefunds retains every selected stream until the physical send
+-	// loop has either committed its credit or joined during session shutdown.
+-	// A selected stream can leave both the pending and buffered-owner lists, so
+-	// the session pool cannot rely on either list to clear an uncommitted batch.
+-	publishingRefunds      [aggregateRefundBatchStreams]aggregateRefundPart
+-	publishingRefundsCount uint8
+ 
+ 	// publishMu preserves wire order between session growth, stream growth and
+ 	// receiver-only refunds.
+@@ -232,28 +220,17 @@ func (s *Stream) reserveAggregateSend(max uint32) (uint32, <-chan struct{}) {
+ 	if max > 0 {
+ 		a.sendWindow -= charge
+ 		s.allocationSendWindow -= charge
+-		if qualificationAggregateSendCountersEnabled {
+-			a.qualification.recordReservedData(max, charge)
+-		}
+ 		a.mu.Unlock()
+ 		return max, nil
+ 	}
+-	if qualificationAggregateSendCountersEnabled {
+-		a.qualification.recordAllocationZero(a.sendWindow == 0, s.allocationSendWindow == 0)
+-	}
+-	a.sendNotifyRegistered = true
+ 	wake := a.sendNotify
+ 	a.mu.Unlock()
+ 	return 0, wake
+ }
+ 
+ func (a *aggregateWindow) broadcastSendLocked() {
+-	if !a.sendNotifyRegistered {
+-		return
+-	}
+ 	close(a.sendNotify)
+ 	a.sendNotify = make(chan struct{})
+-	a.sendNotifyRegistered = false
+ }
+ 
+ func (s *Session) handleAggregateWindowUpdate(hdr header) error {
+@@ -496,18 +473,6 @@ func (s *Session) closeAggregatePool() {
+ 		stream.allocationRefundPending = 0
+ 		stream.allocationRefundPublishing = 0
+ 	}
+-	for i := uint8(0); i < a.publishingRefundsCount; i++ {
+-		part := a.publishingRefunds[i]
+-		if part.stream != nil {
+-			if part.stream.allocationRefundPublishing >= part.delta {
+-				part.stream.allocationRefundPublishing -= part.delta
+-			} else {
+-				part.stream.allocationRefundPublishing = 0
+-			}
+-		}
+-		a.publishingRefunds[i] = aggregateRefundPart{}
+-	}
+-	a.publishingRefundsCount = 0
+ 	for stream := owners; stream != nil; stream = stream.aggregateOwnerNext {
+ 		stream.aggregateOwnerPrev = nil
+ 		stream.aggregateBufferTracked = false
+@@ -545,11 +510,20 @@ func (s *Session) publishAggregateCredit() {
+ 			return
+ 		}
+ 		for {
+-			work := s.takeAggregateRefundWork()
+-			if work.count == 0 && work.global == 0 {
++			if stream, delta := s.takeStreamAllocationRefund(); stream != nil {
++				if err := s.publishStreamAllocationRefund(stream, delta); err != nil {
++					if !errors.Is(err, ErrSessionShutdown) {
++						s.abortAggregate(err)
++					}
++					return
++				}
++				continue
++			}
++			delta := s.takeGlobalRefund()
++			if delta == 0 {
+ 				break
+ 			}
+-			if err := s.publishAggregateRefund(work); err != nil {
++			if err := s.publishGlobalRefund(delta); err != nil {
+ 				if !errors.Is(err, ErrSessionShutdown) {
+ 					s.abortAggregate(err)
+ 				}
+@@ -559,190 +533,82 @@ func (s *Session) publishAggregateCredit() {
+ 	}
+ }
+ 
+-type aggregateRefundPart struct {
+-	stream *Stream
+-	delta  uint64
+-	slot   uint8
+-}
+-
+-type aggregateRefundWork struct {
+-	parts  [aggregateRefundBatchStreams]aggregateRefundPart
+-	count  uint8
+-	global uint64
+-}
+-
+-const aggregateMaxWindowUpdate = uint64(math.MaxUint32 - math.MaxUint32%AggregateWindowUnitSize)
+-
+-// takeAggregateRefundWork chooses stream and session credit under one lock.
+-// Every ordinary read adds equal stream and global credit under this same
+-// mutex. Global-only discard credit never adds a stream entry. Selecting a
+-// bounded set of queued streams first and moving their matching global credit
+-// atomically therefore prevents a global-only publication from consuming a
+-// stream's match. A partially selected head remains at the front and ends this
+-// batch so the same stream never appears twice in one control-lock set.
+-func (s *Session) takeAggregateRefundWork() aggregateRefundWork {
++func (s *Session) takeStreamAllocationRefund() (*Stream, uint64) {
+ 	a := s.aggregate
+ 	a.mu.Lock()
+ 	defer a.mu.Unlock()
+-	var work aggregateRefundWork
+-	remaining := aggregateMaxWindowUpdate
+-	for work.count < aggregateRefundBatchStreams && remaining > 0 {
+-		stream := a.pendingStreamHead
+-		if stream == nil {
+-			break
+-		}
+-		delta := stream.allocationRefundPending
+-		if delta > remaining {
+-			delta = remaining
+-		}
+-		if delta > a.pendingGlobal {
+-			delta = a.pendingGlobal
+-		}
+-		delta -= delta % uint64(AggregateWindowUnitSize)
+-		if delta == 0 {
+-			break
+-		}
+-		slot := work.count
+-		part := aggregateRefundPart{stream: stream, delta: delta, slot: slot}
+-		work.parts[work.count] = part
+-		work.count++
+-		work.global += delta
+-		remaining -= delta
+-		stream.allocationRefundPending -= delta
+-		stream.allocationRefundPublishing += delta
+-		a.pendingGlobal -= delta
+-		a.publishingGlobal += delta
+-		a.publishingRefunds[slot] = part
+-		a.publishingRefundsCount = work.count
+-		if stream.allocationRefundPending != 0 {
+-			break
+-		}
+-		a.pendingStreamHead = stream.allocationRefundNext
+-		if a.pendingStreamHead == nil {
+-			a.pendingStreamTail = nil
+-		}
+-		stream.allocationRefundNext = nil
+-		stream.allocationRefundQueued = false
++	stream := a.pendingStreamHead
++	if stream == nil {
++		return nil, 0
++	}
++	a.pendingStreamHead = stream.allocationRefundNext
++	if a.pendingStreamHead == nil {
++		a.pendingStreamTail = nil
++	}
++	stream.allocationRefundNext = nil
++	stream.allocationRefundQueued = false
++	delta := stream.allocationRefundPending
++	stream.allocationRefundPending = 0
++	stream.allocationRefundPublishing += delta
++	return stream, delta
++}
++
++func (s *Session) publishStreamAllocationRefund(stream *Stream, delta uint64) error {
++	stream.controlHdrLock.Lock()
++	defer stream.controlHdrLock.Unlock()
++	if !stream.acceptsAggregateData() {
++		s.aggregate.mu.Lock()
++		stream.allocationRefundPublishing -= delta
++		s.aggregate.mu.Unlock()
++		return nil
+ 	}
+-	// Only credit beyond all queued stream matches is known to be global-only.
+-	// If the stream queue remains, preserve the rest for its future batch.
+-	if a.pendingStreamHead == nil && remaining > 0 {
+-		delta := a.pendingGlobal
+-		if delta > remaining {
+-			delta = remaining
++	s.aggregate.publishMu.Lock()
++	defer s.aggregate.publishMu.Unlock()
++	for delta > 0 {
++		part := delta
++		if part > math.MaxUint32 {
++			part = math.MaxUint32 - math.MaxUint32%uint64(AggregateWindowUnitSize)
+ 		}
+-		delta -= delta % uint64(AggregateWindowUnitSize)
+-		work.global += delta
+-		a.pendingGlobal -= delta
+-		a.publishingGlobal += delta
+-	}
+-	return work
+-}
+-
+-func sortAggregateRefundParts(parts []aggregateRefundPart) {
+-	for i := 1; i < len(parts); i++ {
+-		part := parts[i]
+-		j := i
+-		for j > 0 && parts[j-1].stream.id > part.stream.id {
+-			parts[j] = parts[j-1]
+-			j--
++		hdr := header(make([]byte, headerSize))
++		hdr.encode(typeAllocationWindowUpdate, 0, stream.id, uint32(part))
++		errCh := make(chan error, 1)
++		if err := s.waitForSendErrCommit(hdr, nil, errCh, func() {
++			s.aggregate.mu.Lock()
++			stream.allocationRefundPublishing -= part
++			stream.allocationRecvWindow += uint32(part)
++			s.aggregate.mu.Unlock()
++		}); err != nil {
++			return err
+ 		}
+-		parts[j] = part
++		delta -= part
+ 	}
++	return nil
+ }
+ 
+-func (s *Session) discardPublishingRefundPart(part aggregateRefundPart) {
++func (s *Session) takeGlobalRefund() uint64 {
+ 	a := s.aggregate
+ 	a.mu.Lock()
+-	if part.stream.allocationRefundPublishing >= part.delta {
+-		part.stream.allocationRefundPublishing -= part.delta
+-	} else {
+-		part.stream.allocationRefundPublishing = 0
++	defer a.mu.Unlock()
++	delta := a.pendingGlobal
++	if delta > math.MaxUint32 {
++		delta = math.MaxUint32 - math.MaxUint32%uint64(AggregateWindowUnitSize)
+ 	}
+-	a.publishingRefunds[part.slot] = aggregateRefundPart{}
+-	a.mu.Unlock()
++	a.pendingGlobal -= delta
++	a.publishingGlobal += delta
++	return delta
+ }
+ 
+-func (s *Session) publishAggregateRefund(work aggregateRefundWork) error {
+-	a := s.aggregate
+-	// Snapshot the fixed in-flight ledger into function-local storage before
+-	// taking stream locks. Some lock-bearing stream operations make their
+-	// receiver escape; sourcing those pointers from the session ledger keeps
+-	// the by-value selection work and its fixed array on the caller's stack.
+-	var lockedStorage [aggregateRefundBatchStreams]aggregateRefundPart
+-	lockedCount := uint8(0)
+-	a.mu.Lock()
+-	for i := uint8(0); i < a.publishingRefundsCount; i++ {
+-		part := a.publishingRefunds[i]
+-		if part.stream == nil {
+-			continue
+-		}
+-		lockedStorage[lockedCount] = part
+-		lockedCount++
+-	}
+-	a.mu.Unlock()
+-	lockedParts := lockedStorage[:lockedCount]
+-	sortAggregateRefundParts(lockedParts)
+-	for i := range lockedParts {
+-		lockedParts[i].stream.controlHdrLock.Lock()
+-	}
+-	defer func() {
+-		for i := len(lockedParts) - 1; i >= 0; i-- {
+-			lockedParts[i].stream.controlHdrLock.Unlock()
+-		}
+-	}()
+-
+-	var activeParts [aggregateRefundBatchStreams]aggregateRefundPart
+-	active := uint8(0)
+-	for i := range lockedParts {
+-		part := lockedParts[i]
+-		if !part.stream.acceptsAggregateData() {
+-			s.discardPublishingRefundPart(part)
+-			continue
+-		}
+-		activeParts[active] = part
+-		active++
+-	}
+-	parts := activeParts[:active]
+-
+-	a.publishMu.Lock()
+-	defer a.publishMu.Unlock()
+-	global := work.global
+-	headerCount := len(parts)
+-	if global != 0 {
+-		headerCount++
+-	}
+-	if headerCount == 0 {
+-		return nil
+-	}
+-	batch := header(make([]byte, headerCount*headerSize))
+-	for i, part := range parts {
+-		hdr := header(batch[i*headerSize : (i+1)*headerSize])
+-		hdr.encode(typeAllocationWindowUpdate, 0, part.stream.id, uint32(part.delta))
+-	}
+-	if global != 0 {
+-		hdr := header(batch[(headerCount-1)*headerSize:])
+-		hdr.encode(typeWindowUpdate, 0, 0, uint32(global))
+-	}
++func (s *Session) publishGlobalRefund(delta uint64) error {
++	s.aggregate.publishMu.Lock()
++	defer s.aggregate.publishMu.Unlock()
++	hdr := header(make([]byte, headerSize))
++	hdr.encode(typeWindowUpdate, 0, 0, uint32(delta))
+ 	errCh := make(chan error, 1)
+-	return s.waitForAggregateControlBatchErrCommit(batch, errCh, func() {
+-		a.mu.Lock()
+-		// The session ledger owns selected parts until this single publisher's
+-		// queued send commits or shutdown joins it. Reading the fixed ledger here
+-		// avoids retaining the work and active-parts arrays in the closure.
+-		for i := uint8(0); i < a.publishingRefundsCount; i++ {
+-			part := a.publishingRefunds[i]
+-			if part.stream == nil {
+-				continue
+-			}
+-			part.stream.allocationRefundPublishing -= part.delta
+-			part.stream.allocationRecvWindow += uint32(part.delta)
+-			a.publishingRefunds[i] = aggregateRefundPart{}
+-		}
+-		a.publishingRefundsCount = 0
+-		a.publishingGlobal -= global
+-		a.recvWindow += uint32(global)
+-		a.mu.Unlock()
++	return s.waitForSendErrCommit(hdr, nil, errCh, func() {
++		s.aggregate.mu.Lock()
++		s.aggregate.publishingGlobal -= delta
++		s.aggregate.recvWindow += uint32(delta)
++		s.aggregate.mu.Unlock()
+ 	})
+ }
+ 
+diff --git a/third_party/yamux/session.go b/third_party/yamux/session.go
+index b3f1b0c..8332697 100644
+--- a/third_party/yamux/session.go
++++ b/third_party/yamux/session.go
+@@ -467,21 +467,6 @@ func (s *Session) waitForSendErr(hdr header, body []byte, errCh chan error) erro
+ // before writing the header. This is used for receive-credit publication: a
+ // peer cannot observe the WINDOW_UPDATE before local validation accepts it.
+ func (s *Session) waitForSendErrCommit(hdr header, body []byte, errCh chan error, commit func()) error {
+-	queue := s.sendCh
+-	if s.aggregate != nil && isAggregatePriorityControl(hdr, body) {
+-		queue = s.controlCh
+-	}
+-	return s.waitForSendErrCommitOn(queue, hdr, body, errCh, commit)
+-}
+-
+-// waitForAggregateControlBatchErrCommit writes a bounded sequence of ordinary
+-// allocation refunds followed by their summed session refund as one priority
+-// queue item and one physical write.
+-func (s *Session) waitForAggregateControlBatchErrCommit(batch header, errCh chan error, commit func()) error {
+-	return s.waitForSendErrCommitOn(s.controlCh, batch, nil, errCh, commit)
+-}
+-
+-func (s *Session) waitForSendErrCommitOn(queue chan *sendReady, hdr header, body []byte, errCh chan error, commit func()) error {
+ 	t := timerPool.Get()
+ 	timer := t.(*time.Timer)
+ 	timer.Reset(s.config.ConnectionWriteTimeout)
+@@ -495,6 +480,10 @@ func (s *Session) waitForSendErrCommitOn(queue chan *sendReady, hdr header, body
+ 	}()
+ 
+ 	ready := &sendReady{Hdr: hdr, Body: body, Err: errCh, Commit: commit}
++	queue := s.sendCh
++	if s.aggregate != nil && isAggregatePriorityControl(hdr, body) {
++		queue = s.controlCh
++	}
+ 	select {
+ 	case queue <- ready:
+ 	case <-s.shutdownCh:
+@@ -633,45 +622,38 @@ func (s *Session) sendLoop() error {
+ 			}
+ 		}
+ 
+-		// A DATA caller retains ownership of its body until this worker detaches
+-		// it under ready.mu. Copy both header and body before the first physical
+-		// byte: a concurrent timeout can then return and reuse the body safely.
+-		// A caller whose queued header times out replaces that header before
+-		// reuse, so the queued backing remains stable. Header-only controls stay
+-		// separate.
+-		var frame []byte
++		// Send a header if ready.
++		if ready.Hdr != nil {
++			if ready.Commit != nil {
++				ready.Commit()
++			}
++			_, err := s.conn.Write(ready.Hdr)
++			if err != nil {
++				s.logger.Printf("[ERR] yamux: Failed to write header: %v", err)
++				asyncSendErr(ready.Err, err)
++				return err
++			}
++		}
++
+ 		ready.mu.Lock()
+ 		if ready.Body != nil {
+-			bodyBuf.Grow(len(ready.Hdr) + len(ready.Body))
+-			_, err := bodyBuf.Write(ready.Hdr)
+-			if err == nil {
+-				_, err = bodyBuf.Write(ready.Body)
+-			}
++			// Copy the body into the buffer to avoid holding a mutex lock during
++			// the physical write.
++			_, err := bodyBuf.Write(ready.Body)
+ 			if err != nil {
+ 				ready.Body = nil
+ 				ready.mu.Unlock()
+-				s.logger.Printf("[ERR] yamux: Failed to gather frame: %v", err)
++				s.logger.Printf("[ERR] yamux: Failed to copy body into buffer: %v", err)
+ 				asyncSendErr(ready.Err, err)
+ 				return err
+ 			}
+ 			ready.Body = nil
+-			frame = bodyBuf.Bytes()
+ 		}
+ 		ready.mu.Unlock()
+ 
+-		if frame == nil {
+-			frame = ready.Hdr
+-		}
+-		if len(frame) > 0 {
+-			if ready.Commit != nil {
+-				ready.Commit()
+-			}
+-			written, err := s.conn.Write(frame)
+-			if err == nil && written != len(frame) {
+-				err = io.ErrShortWrite
+-			}
+-			if err != nil {
+-				s.logger.Printf("[ERR] yamux: Failed to write frame: %v", err)
++		if bodyBuf.Len() > 0 {
++			if _, err := s.conn.Write(bodyBuf.Bytes()); err != nil {
++				s.logger.Printf("[ERR] yamux: Failed to write body: %v", err)
+ 				asyncSendErr(ready.Err, err)
+ 				return err
+ 			}
+diff --git a/third_party/yamux/stream.go b/third_party/yamux/stream.go
+index 96a3103..7728396 100644
+--- a/third_party/yamux/stream.go
++++ b/third_party/yamux/stream.go
+@@ -186,59 +186,21 @@ WAIT:
+ 	readDeadline := s.readDeadline.Load().(time.Time)
+ 	if !readDeadline.IsZero() {
+ 		delay := time.Until(readDeadline)
+-		if delay <= 0 {
+-			return 0, ErrTimeout
+-		}
+ 		timer = time.NewTimer(delay)
+ 		timeout = timer.C
+ 	}
+ 	select {
+ 	case <-s.session.shutdownCh:
+-		// Session.Close closes shutdownCh before joining the physical reader.
+-		// Wait for that join so any final accepted payload is visible before
+-		// deciding whether the stream is empty. This also prevents an empty,
+-		// established stream from spinning on the permanently closed channel
+-		// while the remaining session workers finish.
+-		if s.session.recvDoneCh != nil {
+-			select {
+-			case <-s.session.recvDoneCh:
+-			case <-s.recvNotifyCh:
+-				// SetReadDeadline uses recvNotifyCh to interrupt an existing
+-				// wait. Rebuild the timer from the newly stored deadline, but
+-				// remain in WAIT: shutdownCh is already closed and START would
+-				// merely rediscover an empty established stream.
+-				stopDeadlineTimer(timer)
+-				goto WAIT
+-			case <-timeout:
+-				return 0, ErrTimeout
+-			}
+-		}
+-		stopDeadlineTimer(timer)
+-		s.recvLock.Lock()
+-		buffered := s.receiveBufferedLocked() != 0
+-		s.recvLock.Unlock()
+-		if buffered {
+-			goto START
+-		}
+-		return 0, ErrSessionShutdown
+ 	case <-s.recvNotifyCh:
+ 	case <-timeout:
+ 		return 0, ErrTimeout
+ 	}
+-	stopDeadlineTimer(timer)
+-	goto START
+-}
+-
+-func stopDeadlineTimer(timer *time.Timer) {
+-	if timer == nil {
+-		return
+-	}
+-	if !timer.Stop() {
+-		select {
+-		case <-timer.C:
+-		default:
++	if timer != nil {
++		if !timer.Stop() {
++			<-timeout
+ 		}
+ 	}
++	goto START
+ }
+ 
+ func (s *Stream) receiveBufferedLocked() int {
+@@ -319,9 +281,6 @@ START:
+ 	// If there is no data available, block
+ 	window := atomic.LoadUint32(&s.sendWindow)
+ 	if window == 0 {
+-		if qualificationAggregateSendCountersEnabled && s.session.aggregateEnabled() {
+-			s.session.recordQualificationByteCreditZero()
+-		}
+ 		goto WAIT
+ 	}
+ 
+@@ -365,25 +324,21 @@ WAIT:
+ 	writeDeadline := s.writeDeadline.Load().(time.Time)
+ 	if !writeDeadline.IsZero() {
+ 		delay := time.Until(writeDeadline)
+-		if delay <= 0 {
+-			return 0, ErrTimeout
+-		}
+ 		timer = time.NewTimer(delay)
+ 		timeout = timer.C
+ 	}
+ 	select {
+ 	case <-s.session.shutdownCh:
+-		stopDeadlineTimer(timer)
+-		// No DATA credit has been reserved at WAIT. Once shutdown begins no
+-		// future credit can make this write safe, so return instead of spinning
+-		// until Session.Close eventually marks every stream terminal.
+-		return 0, ErrSessionShutdown
+ 	case <-s.sendNotifyCh:
+ 	case <-aggregateNotify:
+ 	case <-timeout:
+ 		return 0, ErrTimeout
+ 	}
+-	stopDeadlineTimer(timer)
++	if timer != nil {
++		if !timer.Stop() {
++			<-timeout
++		}
++	}
+ 	goto START
+ }
+ 

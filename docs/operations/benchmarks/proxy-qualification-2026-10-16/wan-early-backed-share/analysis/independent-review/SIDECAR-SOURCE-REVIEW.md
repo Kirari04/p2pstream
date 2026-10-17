@@ -1,0 +1,11 @@
+# Independent sidecar checker source review
+
+Decision: GO for root's bounded offline contracts. Checker SHA256 `17d06ddecf43a5f0cef072a8311115aeb525ee16d018f05430607e544bea4ffb`; contracts SHA256 `ba2f3acf432724dc683c5800516ecddae713174efe0d957a572474e030f974e6`. No checker or contract was executed by this reviewer.
+
+The checker separately binds startup/terminal role, actual selection, process/start/namespace and boot identity to the existing endpoint proof and natural zero-exit lifecycle. It requires exact sidecar fields, bounded record count, no drops or active attempts, sealed/joined completion and once-per-wrapper records. It joins each event's session identity, tuple and logical stream ID to canonical ordinary credit/growth evidence. Exact operator ceilings are joined where available for the stream, otherwise to the same owner's ordinary growth observations.
+
+The earlier canonical pre-snapshot defect is fixed: null pre credit snapshots remain valid, and stream context comes from existing trace records and post snapshots. A saved-shape contract now exercises both agent and server evidence without re-running old validators. Canonical input reads retain a 16 MiB bound; sidecars retain 256 KiB.
+
+Target arithmetic is exact and unit-rounded, constrained by 4 MiB, current pool/4 and matched ceilings. Pool bytes/units are consistent and bounded. Before/after backing and reservation cardinality must agree; windows must be positive and within their respective ceilings, with allocation unit alignment. Disabled, no-larger-target, closed-stream and granted outcomes have distinct permitted stages and state changes. Publication/owner/shutdown errors reject. Sample timestamps are explicitly attempt observations, not publication-completion timestamps.
+
+The runtime composer must first accept the existing common and namespace proofs; this checker consumes their already-validated owner context and does not replace them. Same-pair receipt binding, default idle policy, off/on/off order, unchanged timed workload and all-three/five-effect decision rules remain the final runtime-source review boundary. Candidate actual grants in both receiver roles are a preregistered exposure check, not permission to retry an arm that fails it.

@@ -1,0 +1,66 @@
+{
+  "aggregate_agent_binary_sha256": "7bd93f07cda1d91d0da106d8fcc06b6ec3ceb8c268689e07de4e972b51f17e88",
+  "build_commands": [
+    "git archive 79650caf4f028f4680748d33dbe1f038e7c3d109 | tar -x -C \"$BUILD_ROOT\"",
+    "(cd \"$BUILD_ROOT\" && go test -c -o bin/server.test ./internal/server)",
+    "(cd \"$BUILD_ROOT\" && go test -c -o bin/agent.test ./internal/agent)",
+    "git archive 3ec137c3ad3d07028e867042fb00d3933912d7ab | tar -x -C \"$LEGACY_BUILD_ROOT\"",
+    "cp proxy_qualification_external_legacy_agent_test.go.txt \"$LEGACY_BUILD_ROOT/internal/agent/proxy_qualification_external_legacy_test.go\"",
+    "(cd \"$LEGACY_BUILD_ROOT\" && go test -c -o bin/agent.test ./internal/agent)"
+  ],
+  "candidate_ref": "79650caf4f028f4680748d33dbe1f038e7c3d109",
+  "conservation": {
+    "attempted": 1062699,
+    "drain_errors": 0,
+    "dropped_events": 0,
+    "persisted_events": 1062699,
+    "useful_completed": 1062699
+  },
+  "cpu_sets": {
+    "agent_and_origin": "4,5,6,7",
+    "load": "8,9,10,11,12,13,14,15",
+    "server": "0,1,2,3",
+    "topology_note": "Each four-logical-CPU proxy or agent set spans two physical cores with two SMT siblings per core."
+  },
+  "gates": {
+    "maximum_median_p95_ratio": 1.1,
+    "maximum_median_p99_ratio": 1.1,
+    "minimum_median_throughput_ratio": 0.9
+  },
+  "go_version": "go version go1.26.6 linux/amd64",
+  "harness_sha256": "5650df2e7d0c3d9b01098c95e186d22028941523031677b3032d5b21c656f155",
+  "kernel": "Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep 4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "legacy_agent_binary_sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec",
+  "legacy_agent_overlay_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+  "legacy_agent_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "network": {
+    "configured_one_way_delay_per_interface": "500us",
+    "configured_rtt_ms": 1,
+    "measured_rtt_ms": 1.325,
+    "shaped_rate_bits_per_second": 1000000000
+  },
+  "parent_full_cohort_ref": "805a8ea9313336908570d3495d97509e342248c9",
+  "qualification_exit": 1,
+  "qualification_outcome": "screen failed: h2-c128 p95 and p99 exceeded the unchanged 1.10 gates; full 24-row qualification was not run",
+  "results_sha256": "ccedc29dcf53b8b864c1402a036d673f504f4622d165fe82fac8189e4cd91180",
+  "run_command": "bash qualify-proxy-agent-growth-h2c128.sh.txt --server-binary \"$BUILD_ROOT/bin/server.test\" --aggregate-agent-binary \"$BUILD_ROOT/bin/agent.test\" --legacy-agent-binary \"$LEGACY_BUILD_ROOT/bin/agent.test\" --output results.jsonl --server-source-ref 79650caf4f028f4680748d33dbe1f038e7c3d109 --aggregate-agent-source-ref 79650caf4f028f4680748d33dbe1f038e7c3d109 --legacy-agent-source-ref 3ec137c3ad3d07028e867042fb00d3933912d7ab --tiny-response --rtt-ms 1",
+  "run_finished_at": "2026-10-16T05:46:02+02:00",
+  "runner_filter_patch_sha256": "8deae21bbcc04f55cca308f0486a1b3084ff0b0f0337f2ea6c7758d7bc8e316f",
+  "screening_scope": "h2-c128 only; three alternating legacy/aggregate pairs; a pass was required before running the full 24-row gate",
+  "server_binary_sha256": "96785039c75f33d40472a45906baf1acff6aed9d2a445e14390aec6cb27783eb",
+  "summary_sha256": "5ec0eed4a474526b23fbb2f25773005c7bc6b6a24c64c903786314ed299ae77d",
+  "systemd": "systemd 259 (259.5-0ubuntu3.4)",
+  "workload": {
+    "closed_loop": true,
+    "concurrency": 128,
+    "mode_order": [
+      "legacy then aggregate-v1 on odd repetitions",
+      "aggregate-v1 then legacy on even repetitions"
+    ],
+    "payload_bytes": 256,
+    "protocol": "h2",
+    "runs_per_mode": 3,
+    "timed_seconds": 10,
+    "warmup_seconds": 2
+  }
+}

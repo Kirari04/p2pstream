@@ -1,0 +1,160 @@
+{
+  "row_count": 36,
+  "cells": [
+    {
+      "protocol": "h1",
+      "concurrency": 16,
+      "medians": {
+        "candidate": {
+          "useful_requests_per_second": 29287.255008071792,
+          "p95_ms": 0.995445,
+          "p99_ms": 1.588967
+        },
+        "caddy": {
+          "useful_requests_per_second": 28093.586429096234,
+          "p95_ms": 1.260141,
+          "p99_ms": 2.109379
+        },
+        "haproxy": {
+          "useful_requests_per_second": 67352.2924367902,
+          "p95_ms": 0.364339,
+          "p99_ms": 0.629905
+        }
+      },
+      "ratios": {
+        "caddy": {
+          "useful_requests_per_second": 1.0424890065918848,
+          "p95_ms": 0.7899473154194651,
+          "p99_ms": 0.7532866308046112
+        },
+        "haproxy": {
+          "useful_requests_per_second": 0.43483679542990666,
+          "p95_ms": 2.732194467240674,
+          "p99_ms": 2.522550225827704
+        }
+      },
+      "haproxy_throughput_gate": false,
+      "saturated_tail_diagnostics": {
+        "p95": false,
+        "p99": false
+      }
+    },
+    {
+      "protocol": "h1",
+      "concurrency": 128,
+      "medians": {
+        "candidate": {
+          "useful_requests_per_second": 27829.179611583455,
+          "p95_ms": 10.584379,
+          "p99_ms": 15.518216
+        },
+        "caddy": {
+          "useful_requests_per_second": 27492.334586926798,
+          "p95_ms": 10.777867,
+          "p99_ms": 14.105588
+        },
+        "haproxy": {
+          "useful_requests_per_second": 82783.5678752203,
+          "p95_ms": 2.683474,
+          "p99_ms": 4.098259
+        }
+      },
+      "ratios": {
+        "caddy": {
+          "useful_requests_per_second": 1.0122523252287507,
+          "p95_ms": 0.9820476537704538,
+          "p99_ms": 1.100146693636593
+        },
+        "haproxy": {
+          "useful_requests_per_second": 0.33616791744867036,
+          "p95_ms": 3.944282299735343,
+          "p99_ms": 3.7865386253040625
+        }
+      },
+      "haproxy_throughput_gate": false,
+      "saturated_tail_diagnostics": {
+        "p95": false,
+        "p99": false
+      }
+    },
+    {
+      "protocol": "h2",
+      "concurrency": 16,
+      "medians": {
+        "candidate": {
+          "useful_requests_per_second": 21929.3557292274,
+          "p95_ms": 1.160646,
+          "p99_ms": 1.571041
+        },
+        "caddy": {
+          "useful_requests_per_second": 19284.619246183804,
+          "p95_ms": 1.443291,
+          "p99_ms": 1.913551
+        },
+        "haproxy": {
+          "useful_requests_per_second": 37592.24102680275,
+          "p95_ms": 0.559822,
+          "p99_ms": 0.713796
+        }
+      },
+      "ratios": {
+        "caddy": {
+          "useful_requests_per_second": 1.1371422712204682,
+          "p95_ms": 0.8041663115754203,
+          "p99_ms": 0.8210081675377348
+        },
+        "haproxy": {
+          "useful_requests_per_second": 0.5833479231416949,
+          "p95_ms": 2.0732411373615185,
+          "p99_ms": 2.2009663825518775
+        }
+      },
+      "haproxy_throughput_gate": false,
+      "saturated_tail_diagnostics": {
+        "p95": false,
+        "p99": false
+      }
+    },
+    {
+      "protocol": "h2",
+      "concurrency": 128,
+      "medians": {
+        "candidate": {
+          "useful_requests_per_second": 25114.955521413172,
+          "p95_ms": 8.312886,
+          "p99_ms": 10.368647
+        },
+        "caddy": {
+          "useful_requests_per_second": 20917.32794760998,
+          "p95_ms": 10.377887,
+          "p99_ms": 12.132934
+        },
+        "haproxy": {
+          "useful_requests_per_second": 37659.596091004,
+          "p95_ms": 4.464658,
+          "p99_ms": 5.311967
+        }
+      },
+      "ratios": {
+        "caddy": {
+          "useful_requests_per_second": 1.2006770455727742,
+          "p95_ms": 0.8010191284603505,
+          "p99_ms": 0.8545869449219784
+        },
+        "haproxy": {
+          "useful_requests_per_second": 0.6668939162470877,
+          "p95_ms": 1.861931193833884,
+          "p99_ms": 1.9519411547549146
+        }
+      },
+      "haproxy_throughput_gate": false,
+      "saturated_tail_diagnostics": {
+        "p95": false,
+        "p99": false
+      }
+    }
+  ],
+  "all_reference_throughput_gates_pass": false,
+  "below_capacity_offered_load_latency_qualified": false,
+  "scope": "direct tiny GET reference; topology-matched H2, not HAProxy maximum throughput or broad parity"
+}

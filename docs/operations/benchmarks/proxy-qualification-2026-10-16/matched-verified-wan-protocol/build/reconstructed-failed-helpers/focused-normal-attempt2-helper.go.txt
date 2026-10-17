@@ -1,0 +1,474 @@
+//go:build linux
+
+package server
+
+import (
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httptrace"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+)
+
+const qualificationWANDiagnosticEnv = "P2PSTREAM_QUALIFICATION_WAN_PROTOCOL_DIAGNOSTIC"
+
+type qualificationWANResponseTLS struct {
+	HTTPMajor        int    `json:"http_major"`
+	NegotiatedALPN   string `json:"negotiated_alpn"`
+	PeerLeafSHA256   string `json:"peer_leaf_der_sha256"`
+	OriginConnection string `json:"origin_connection_id"`
+	ValidationError  string `json:"validation_error,omitempty"`
+}
+
+type qualificationWANUpstreamGotConn struct {
+	Reused           bool   `json:"reused"`
+	WasIdle          bool   `json:"was_idle"`
+	IdleTimeNanos    int64  `json:"idle_time_ns"`
+	ConnectionType   string `json:"connection_type"`
+	LocalAddress     string `json:"local_address"`
+	RemoteAddress    string `json:"remote_address"`
+	ObservedUnixNano int64  `json:"observed_unix_ns"`
+}
+
+type qualificationWANUpstreamPutIdle struct {
+	ObservedUnixNano int64  `json:"observed_unix_ns"`
+	Error            string `json:"error,omitempty"`
+}
+
+type qualificationWANUpstreamTrace struct {
+	Sequence          string                            `json:"sequence"`
+	Method            string                            `json:"method"`
+	Path              string                            `json:"path"`
+	StartedUnixNano   int64                             `json:"started_unix_ns"`
+	HandlerReturnNano int64                             `json:"handler_return_unix_ns,omitempty"`
+	GotConn           []qualificationWANUpstreamGotConn `json:"got_conn"`
+	PutIdleConn       []qualificationWANUpstreamPutIdle `json:"put_idle_conn"`
+	CallbackOverflow  bool                              `json:"callback_overflow"`
+	mu                sync.Mutex
+}
+
+type qualificationWANUpstreamTraceRecord struct {
+	Sequence          string                            `json:"sequence"`
+	Method            string                            `json:"method"`
+	Path              string                            `json:"path"`
+	StartedUnixNano   int64                             `json:"started_unix_ns"`
+	HandlerReturnNano int64                             `json:"handler_return_unix_ns,omitempty"`
+	GotConn           []qualificationWANUpstreamGotConn `json:"got_conn"`
+	PutIdleConn       []qualificationWANUpstreamPutIdle `json:"put_idle_conn"`
+	CallbackOverflow  bool                              `json:"callback_overflow"`
+}
+
+func (trace *qualificationWANUpstreamTrace) snapshot() qualificationWANUpstreamTraceRecord {
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
+	return qualificationWANUpstreamTraceRecord{
+		Sequence:          trace.Sequence,
+		Method:            trace.Method,
+		Path:              trace.Path,
+		StartedUnixNano:   trace.StartedUnixNano,
+		HandlerReturnNano: trace.HandlerReturnNano,
+		GotConn:           append([]qualificationWANUpstreamGotConn(nil), trace.GotConn...),
+		PutIdleConn:       append([]qualificationWANUpstreamPutIdle(nil), trace.PutIdleConn...),
+		CallbackOverflow:  trace.CallbackOverflow,
+	}
+}
+
+type qualificationWANTraceStore struct {
+	mu       sync.Mutex
+	entries  map[string][]*qualificationWANUpstreamTrace
+	count    int
+	overflow bool
+}
+
+func newQualificationWANTraceStore() *qualificationWANTraceStore {
+	return &qualificationWANTraceStore{entries: make(map[string][]*qualificationWANUpstreamTrace)}
+}
+
+func (store *qualificationWANTraceStore) wrap(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sequence := r.Header.Get("X-Qualification-Diagnostic-Sequence")
+		if !qualificationWANSequenceValid(sequence) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		entry := &qualificationWANUpstreamTrace{
+			Sequence: sequence, Method: r.Method, Path: r.URL.EscapedPath(), StartedUnixNano: time.Now().UnixNano(),
+		}
+		store.mu.Lock()
+		if store.count >= 32 {
+			store.overflow = true
+		} else {
+			store.entries[sequence] = append(store.entries[sequence], entry)
+			store.count++
+		}
+		store.mu.Unlock()
+
+		trace := &httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) {
+				observed := qualificationWANUpstreamGotConn{
+					Reused: info.Reused, WasIdle: info.WasIdle, IdleTimeNanos: info.IdleTime.Nanoseconds(),
+					ObservedUnixNano: time.Now().UnixNano(),
+				}
+				if info.Conn != nil {
+					observed.ConnectionType = fmt.Sprintf("%T", info.Conn)
+					if local := info.Conn.LocalAddr(); local != nil {
+						observed.LocalAddress = local.String()
+					}
+					if remote := info.Conn.RemoteAddr(); remote != nil {
+						observed.RemoteAddress = remote.String()
+					}
+				}
+				entry.mu.Lock()
+				if len(entry.GotConn) >= 4 {
+					entry.CallbackOverflow = true
+				} else {
+					entry.GotConn = append(entry.GotConn, observed)
+				}
+				entry.mu.Unlock()
+			},
+			PutIdleConn: func(err error) {
+				observed := qualificationWANUpstreamPutIdle{ObservedUnixNano: time.Now().UnixNano()}
+				if err != nil {
+					observed.Error = err.Error()
+				}
+				entry.mu.Lock()
+				if len(entry.PutIdleConn) >= 4 {
+					entry.CallbackOverflow = true
+				} else {
+					entry.PutIdleConn = append(entry.PutIdleConn, observed)
+				}
+				entry.mu.Unlock()
+			},
+		}
+		next.ServeHTTP(w, r.WithContext(httptrace.WithClientTrace(r.Context(), trace)))
+		entry.mu.Lock()
+		entry.HandlerReturnNano = time.Now().UnixNano()
+		entry.mu.Unlock()
+	})
+}
+
+func qualificationWANSequenceValid(sequence string) bool {
+	if len(sequence) < 1 || len(sequence) > 2 || sequence[0] == '0' {
+		return false
+	}
+	value, err := strconv.Atoi(sequence)
+	return err == nil && value >= 1 && value <= 16
+}
+
+func (store *qualificationWANTraceStore) serveHTTP(w http.ResponseWriter, sequence string) {
+	w.Header().Set("Content-Type", "application/json")
+	store.mu.Lock()
+	entries := append([]*qualificationWANUpstreamTrace(nil), store.entries[sequence]...)
+	count, overflow := store.count, store.overflow
+	store.mu.Unlock()
+	snapshots := make([]qualificationWANUpstreamTraceRecord, 0, len(entries))
+	for _, entry := range entries {
+		snapshots = append(snapshots, entry.snapshot())
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"sequence": sequence, "matches": snapshots, "store_count": count, "overflow": overflow,
+	})
+}
+
+func qualificationWANLoadTransport(protocol string, concurrency int, scenario string) (*http.Transport, string, error) {
+	diagnostic := os.Getenv(qualificationWANDiagnosticEnv) == "1"
+	transport := &http.Transport{
+		MaxIdleConns:        concurrency,
+		MaxIdleConnsPerHost: concurrency,
+		MaxConnsPerHost:     concurrency,
+		ForceAttemptHTTP2:   protocol == "h2",
+		DisableKeepAlives:   strings.HasPrefix(scenario, "h1-churn"),
+	}
+	if !diagnostic {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // historical fixture behavior
+		if protocol == "h1" {
+			transport.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
+		}
+		return transport, "", nil
+	}
+	if protocol != "h1" && protocol != "h2" {
+		return nil, "", fmt.Errorf("WAN diagnostic protocol %q is not h1 or h2", protocol)
+	}
+	caFile := strings.TrimSpace(os.Getenv("P2PSTREAM_QUALIFICATION_WAN_ROOT_CA_FILE"))
+	serverName := strings.TrimSpace(os.Getenv("P2PSTREAM_QUALIFICATION_WAN_SERVER_NAME"))
+	expectedFingerprint := strings.ToLower(strings.TrimSpace(os.Getenv("P2PSTREAM_QUALIFICATION_WAN_EXPECTED_LEAF_SHA256")))
+	if caFile == "" || serverName == "" {
+		return nil, "", fmt.Errorf("WAN diagnostic requires root CA file and server name")
+	}
+	decoded, err := hex.DecodeString(expectedFingerprint)
+	if err != nil || len(decoded) != sha256.Size {
+		return nil, "", fmt.Errorf("WAN diagnostic expected leaf fingerprint must be 64 hexadecimal characters")
+	}
+	caPEM, err := os.ReadFile(caFile)
+	if err != nil {
+		return nil, "", fmt.Errorf("read WAN diagnostic root CA: %w", err)
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(caPEM) {
+		return nil, "", fmt.Errorf("WAN diagnostic root CA file contains no certificate")
+	}
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(protocol == "h1")
+	protocols.SetHTTP2(protocol == "h2")
+	expectedALPN := "http/1.1"
+	if protocol == "h2" {
+		expectedALPN = "h2"
+	}
+	transport.TLSClientConfig = &tls.Config{RootCAs: roots, ServerName: serverName, NextProtos: []string{expectedALPN}}
+	transport.Protocols = protocols
+	return transport, expectedFingerprint, nil
+}
+
+func qualificationWANObserveTLS(resp *http.Response, expectedMajor int, expectedFingerprint, originConnection string) (qualificationWANResponseTLS, error) {
+	observation := qualificationWANResponseTLS{OriginConnection: originConnection}
+	if resp == nil {
+		return observation, fmt.Errorf("WAN diagnostic response is nil")
+	}
+	observation.HTTPMajor = resp.ProtoMajor
+	if resp.TLS == nil {
+		return observation, fmt.Errorf("WAN diagnostic response has no TLS state")
+	}
+	observation.NegotiatedALPN = resp.TLS.NegotiatedProtocol
+	if len(resp.TLS.PeerCertificates) < 1 {
+		return observation, fmt.Errorf("WAN diagnostic response has no peer certificate")
+	}
+	fingerprint := sha256.Sum256(resp.TLS.PeerCertificates[0].Raw)
+	observation.PeerLeafSHA256 = hex.EncodeToString(fingerprint[:])
+	expectedALPN := "http/1.1"
+	if expectedMajor == 2 {
+		expectedALPN = "h2"
+	}
+	if observation.HTTPMajor != expectedMajor {
+		return observation, fmt.Errorf("WAN diagnostic negotiated HTTP/%d, want HTTP/%d", observation.HTTPMajor, expectedMajor)
+	}
+	if observation.NegotiatedALPN != expectedALPN {
+		return observation, fmt.Errorf("WAN diagnostic negotiated ALPN %q, want %q", observation.NegotiatedALPN, expectedALPN)
+	}
+	if observation.PeerLeafSHA256 != expectedFingerprint {
+		return observation, fmt.Errorf("WAN diagnostic peer leaf fingerprint mismatch")
+	}
+	return observation, nil
+}
+
+func qualificationWANRequestValid(requestErr, closeErr error, payloadValid bool, tlsErr error) bool {
+	return requestErr == nil && closeErr == nil && payloadValid && tlsErr == nil
+}
+
+func qualificationWANSortedTLS(values []qualificationWANResponseTLS) []qualificationWANResponseTLS {
+	result := append([]qualificationWANResponseTLS(nil), values...)
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].OriginConnection == result[j].OriginConnection {
+			return result[i].PeerLeafSHA256 < result[j].PeerLeafSHA256
+		}
+		return result[i].OriginConnection < result[j].OriginConnection
+	})
+	return result
+}
+
+func TestQualificationWANLoadTransportHistoricalDisabled(t *testing.T) {
+	t.Setenv(qualificationWANDiagnosticEnv, "0")
+	transport, fingerprint, err := qualificationWANLoadTransport("h2", 1, "growth-download")
+	if err != nil || fingerprint != "" || transport.Protocols != nil || !transport.ForceAttemptHTTP2 || !transport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatalf("historical H2 transport changed: fingerprint=%q transport=%+v err=%v", fingerprint, transport, err)
+	}
+	transport, _, err = qualificationWANLoadTransport("h1", 1, "growth-download")
+	if err != nil || transport.Protocols != nil || transport.TLSNextProto == nil || !transport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatalf("historical H1 transport changed: transport=%+v err=%v", transport, err)
+	}
+}
+
+type qualificationWANTLSTestServer struct {
+	server      *httptest.Server
+	caFile      string
+	fingerprint string
+}
+
+func newQualificationWANTLSTestServer(t *testing.T, hostname string, enableHTTP2 bool) qualificationWANTLSTestServer {
+	t.Helper()
+	certPEM, keyPEM, leaf, err := generatePublicSelfSignedCertificatePEM(hostname, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certificate, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, "ok")
+	}))
+	server.EnableHTTP2 = enableHTTP2
+	server.TLS = &tls.Config{Certificates: []tls.Certificate{certificate}, NextProtos: []string{"h2", "http/1.1"}}
+	server.StartTLS()
+	t.Cleanup(server.Close)
+	caFile := t.TempDir() + "/ca.pem"
+	if err := os.WriteFile(caFile, certPEM, 0600); err != nil {
+		t.Fatal(err)
+	}
+	fingerprint := sha256.Sum256(leaf.Raw)
+	return qualificationWANTLSTestServer{server: server, caFile: caFile, fingerprint: hex.EncodeToString(fingerprint[:])}
+}
+
+func qualificationWANConfigureTestTransport(t *testing.T, fixture qualificationWANTLSTestServer, protocol, serverName, fingerprint string) *http.Transport {
+	t.Helper()
+	t.Setenv(qualificationWANDiagnosticEnv, "1")
+	t.Setenv("P2PSTREAM_QUALIFICATION_WAN_ROOT_CA_FILE", fixture.caFile)
+	t.Setenv("P2PSTREAM_QUALIFICATION_WAN_SERVER_NAME", serverName)
+	t.Setenv("P2PSTREAM_QUALIFICATION_WAN_EXPECTED_LEAF_SHA256", fingerprint)
+	transport, gotFingerprint, err := qualificationWANLoadTransport(protocol, 1, "growth-download")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotFingerprint != fingerprint {
+		t.Fatalf("expected fingerprint=%q, got %q", fingerprint, gotFingerprint)
+	}
+	t.Cleanup(transport.CloseIdleConnections)
+	return transport
+}
+
+func TestQualificationWANVerifiedProtocolNegotiation(t *testing.T) {
+	fixture := newQualificationWANTLSTestServer(t, "public.test", true)
+	for _, test := range []struct {
+		protocol string
+		major    int
+	}{
+		{protocol: "h1", major: 1},
+		{protocol: "h2", major: 2},
+	} {
+		t.Run(test.protocol, func(t *testing.T) {
+			transport := qualificationWANConfigureTestTransport(t, fixture, test.protocol, "public.test", fixture.fingerprint)
+			resp, err := (&http.Client{Transport: transport}).Get(fixture.server.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if _, err := io.ReadAll(resp.Body); err != nil {
+				t.Fatal(err)
+			}
+			observation, err := qualificationWANObserveTLS(resp, test.major, fixture.fingerprint, "origin-id")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if observation.HTTPMajor != test.major || observation.OriginConnection != "origin-id" {
+				t.Fatalf("observation=%+v", observation)
+			}
+		})
+	}
+}
+
+func TestQualificationWANVerifiedTLSFailures(t *testing.T) {
+	fixture := newQualificationWANTLSTestServer(t, "public.test", true)
+	wrongCA := newQualificationWANTLSTestServer(t, "wrong-ca.test", true)
+
+	t.Run("wrong CA", func(t *testing.T) {
+		transport := qualificationWANConfigureTestTransport(t, wrongCA, "h2", "public.test", wrongCA.fingerprint)
+		if resp, err := (&http.Client{Transport: transport}).Get(fixture.server.URL); err == nil {
+			resp.Body.Close()
+			t.Fatal("request with the wrong root CA succeeded")
+		}
+	})
+
+	t.Run("wrong SAN", func(t *testing.T) {
+		transport := qualificationWANConfigureTestTransport(t, fixture, "h2", "other.test", fixture.fingerprint)
+		if resp, err := (&http.Client{Transport: transport}).Get(fixture.server.URL); err == nil {
+			resp.Body.Close()
+			t.Fatal("request with the wrong server name succeeded")
+		}
+	})
+
+	t.Run("fingerprint mismatch", func(t *testing.T) {
+		wrongFingerprint := strings.Repeat("0", sha256.Size*2)
+		transport := qualificationWANConfigureTestTransport(t, fixture, "h2", "public.test", wrongFingerprint)
+		resp, err := (&http.Client{Transport: transport}).Get(fixture.server.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		_, observeErr := qualificationWANObserveTLS(resp, 2, wrongFingerprint, "origin-id")
+		if observeErr == nil {
+			t.Fatal("mismatched peer leaf fingerprint was accepted")
+		}
+		useful, errorsSeen := int64(0), int64(0)
+		if qualificationWANRequestValid(nil, nil, true, observeErr) {
+			useful++
+		} else {
+			errorsSeen++
+		}
+		if useful != 0 || errorsSeen != 1 {
+			t.Fatalf("fingerprint mismatch accounting: useful=%d errors=%d", useful, errorsSeen)
+		}
+	})
+}
+
+func TestQualificationWANForcedH2DoesNotFallback(t *testing.T) {
+	fixture := newQualificationWANTLSTestServer(t, "public.test", false)
+	transport := qualificationWANConfigureTestTransport(t, fixture, "h2", "public.test", fixture.fingerprint)
+	if resp, err := (&http.Client{Transport: transport}).Get(fixture.server.URL); err == nil {
+		resp.Body.Close()
+		t.Fatal("H2-only diagnostic transport fell back to HTTP/1")
+	}
+}
+
+func TestQualificationWANTraceStoreBoundedAndComposes(t *testing.T) {
+	store := newQualificationWANTraceStore()
+	var parentGotConn int
+	parent := &httptrace.ClientTrace{GotConn: func(httptrace.GotConnInfo) { parentGotConn++ }}
+	left, right := net.Pipe()
+	defer left.Close()
+	defer right.Close()
+	handler := store.wrap(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		trace := httptrace.ContextClientTrace(r.Context())
+		for range 5 {
+			trace.GotConn(httptrace.GotConnInfo{Conn: left, Reused: true, WasIdle: true, IdleTime: time.Second})
+			trace.PutIdleConn(nil)
+		}
+	}))
+	request := httptest.NewRequest(http.MethodGet, "https://public.test/agent/bulk", nil)
+	request.Header.Set("X-Qualification-Diagnostic-Sequence", "1")
+	request = request.WithContext(httptrace.WithClientTrace(request.Context(), parent))
+	handler.ServeHTTP(httptest.NewRecorder(), request)
+	if parentGotConn != 5 {
+		t.Fatalf("parent GotConn callbacks=%d, want 5", parentGotConn)
+	}
+
+	store.mu.Lock()
+	entry := store.entries["1"][0]
+	store.mu.Unlock()
+	var snapshots sync.WaitGroup
+	for range 16 {
+		snapshots.Add(1)
+		go func() {
+			defer snapshots.Done()
+			_ = entry.snapshot()
+		}()
+	}
+	snapshots.Wait()
+	snapshot := entry.snapshot()
+	if !snapshot.CallbackOverflow || len(snapshot.GotConn) != 4 || len(snapshot.PutIdleConn) != 4 {
+		t.Fatalf("bounded callback snapshot=%+v", snapshot)
+	}
+
+	for index := 0; index < 32; index++ {
+		request := httptest.NewRequest(http.MethodGet, "https://public.test/agent/bulk", nil)
+		request.Header.Set("X-Qualification-Diagnostic-Sequence", strconv.Itoa(index%16+1))
+		store.wrap(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})).ServeHTTP(httptest.NewRecorder(), request)
+	}
+	store.mu.Lock()
+	count, overflow := store.count, store.overflow
+	store.mu.Unlock()
+	if count != 32 || !overflow {
+		t.Fatalf("bounded request store count=%d overflow=%t, want 32/true", count, overflow)
+	}
+}

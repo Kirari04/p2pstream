@@ -1,0 +1,758 @@
+WORK=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/control-server/go-build1061311297
+mkdir -p $WORK/b001/
+mkdir -p $WORK/b006/
+mkdir -p $WORK/b008/
+mkdir -p $WORK/b012/
+mkdir -p $WORK/b014/
+mkdir -p $WORK/b015/
+mkdir -p $WORK/b045/
+mkdir -p $WORK/b025/
+mkdir -p $WORK/b032/
+mkdir -p $WORK/b017/
+mkdir -p $WORK/b018/
+mkdir -p $WORK/b047/
+mkdir -p $WORK/b016/
+mkdir -p $WORK/b065/
+mkdir -p $WORK/b023/
+mkdir -p $WORK/b029/
+mkdir -p $WORK/b085/
+mkdir -p $WORK/b033/
+mkdir -p $WORK/b060/
+mkdir -p $WORK/b089/
+mkdir -p $WORK/b030/
+mkdir -p $WORK/b035/
+mkdir -p $WORK/b094/
+mkdir -p $WORK/b108/
+mkdir -p $WORK/b146/
+mkdir -p $WORK/b166/
+mkdir -p $WORK/b157/
+mkdir -p $WORK/b193/
+mkdir -p $WORK/b205/
+mkdir -p $WORK/b223/
+mkdir -p $WORK/b234/
+mkdir -p $WORK/b022/
+mkdir -p $WORK/b264/
+mkdir -p $WORK/b308/
+mkdir -p $WORK/b340/
+mkdir -p $WORK/b342/
+mkdir -p $WORK/b011/
+mkdir -p $WORK/b021/
+mkdir -p $WORK/b042/
+mkdir -p $WORK/b093/
+mkdir -p $WORK/b019/
+mkdir -p $WORK/b005/
+mkdir -p $WORK/b027/
+mkdir -p $WORK/b104/
+mkdir -p $WORK/b024/
+mkdir -p $WORK/b103/
+mkdir -p $WORK/b026/
+mkdir -p $WORK/b013/
+mkdir -p $WORK/b010/
+mkdir -p $WORK/b090/
+mkdir -p $WORK/b034/
+mkdir -p $WORK/b031/
+mkdir -p $WORK/b020/
+mkdir -p $WORK/b043/
+mkdir -p $WORK/b041/
+mkdir -p $WORK/b028/
+mkdir -p $WORK/b058/
+mkdir -p $WORK/b009/
+mkdir -p $WORK/b004/
+mkdir -p $WORK/b048/
+mkdir -p $WORK/b186/
+mkdir -p $WORK/b003/
+mkdir -p $WORK/b046/
+mkdir -p $WORK/b040/
+mkdir -p $WORK/b038/
+mkdir -p $WORK/b044/
+mkdir -p $WORK/b127/
+mkdir -p $WORK/b059/
+mkdir -p $WORK/b222/
+mkdir -p $WORK/b268/
+mkdir -p $WORK/b113/
+mkdir -p $WORK/b056/
+mkdir -p $WORK/b170/
+mkdir -p $WORK/b051/
+mkdir -p $WORK/b354/
+mkdir -p $WORK/b224/
+mkdir -p $WORK/b137/
+mkdir -p $WORK/b185/
+mkdir -p $WORK/b039/
+mkdir -p $WORK/b050/
+mkdir -p $WORK/b226/
+mkdir -p $WORK/b301/
+mkdir -p $WORK/b265/
+mkdir -p $WORK/b079/
+mkdir -p $WORK/b084/
+mkdir -p $WORK/b107/
+mkdir -p $WORK/b169/
+mkdir -p $WORK/b071/
+mkdir -p $WORK/b123/
+mkdir -p $WORK/b136/
+mkdir -p $WORK/b324/
+mkdir -p $WORK/b068/
+mkdir -p $WORK/b062/
+mkdir -p $WORK/b192/
+mkdir -p $WORK/b078/
+mkdir -p $WORK/b057/
+mkdir -p $WORK/b225/
+mkdir -p $WORK/b091/
+mkdir -p $WORK/b243/
+mkdir -p $WORK/b052/
+mkdir -p $WORK/b296/
+mkdir -p $WORK/b284/
+mkdir -p $WORK/b070/
+mkdir -p $WORK/b083/
+mkdir -p $WORK/b220/
+mkdir -p $WORK/b280/
+mkdir -p $WORK/b231/
+mkdir -p $WORK/b273/
+mkdir -p $WORK/b119/
+mkdir -p $WORK/b067/
+mkdir -p $WORK/b105/
+mkdir -p $WORK/b118/
+mkdir -p $WORK/b092/
+mkdir -p $WORK/b088/
+mkdir -p $WORK/b095/
+mkdir -p $WORK/b055/
+mkdir -p $WORK/b188/
+mkdir -p $WORK/b295/
+mkdir -p $WORK/b187/
+mkdir -p $WORK/b049/
+mkdir -p $WORK/b087/
+mkdir -p $WORK/b206/
+mkdir -p $WORK/b054/
+mkdir -p $WORK/b086/
+mkdir -p $WORK/b063/
+mkdir -p $WORK/b323/
+mkdir -p $WORK/b278/
+mkdir -p $WORK/b037/
+mkdir -p $WORK/b102/
+mkdir -p $WORK/b099/
+mkdir -p $WORK/b179/
+mkdir -p $WORK/b143/
+mkdir -p $WORK/b198/
+mkdir -p $WORK/b098/
+mkdir -p $WORK/b208/
+mkdir -p $WORK/b215/
+mkdir -p $WORK/b036/
+mkdir -p $WORK/b320/
+mkdir -p $WORK/b082/
+mkdir -p $WORK/b053/
+mkdir -p $WORK/b184/
+mkdir -p $WORK/b142/
+mkdir -p $WORK/b196/
+mkdir -p $WORK/b178/
+mkdir -p $WORK/b321/
+mkdir -p $WORK/b209/
+mkdir -p $WORK/b129/
+mkdir -p $WORK/b257/
+cp /home/user/.cache/go-build/35/35ecbc01c116bd35989833b4c19548bb631e16537a61f6cf6fc2841cdb0db557-d $WORK/b129/_cgo_gotypes.go
+cp /home/user/.cache/go-build/8c/8cf03d012d3fc91a4352a4f84a3fc7a0ee5850a872369ce7fc54d167257cc407-d $WORK/b129/cgo.cgo1.go
+cp /home/user/.cache/go-build/0c/0c1deb02bb6d30a0e774faa6804b8c09aece427188149a896e6d1c4f912775a6-d $WORK/b129/_cgo_import.go
+mkdir -p $WORK/b261/
+mkdir -p $WORK/b177/
+mkdir -p $WORK/b002/
+mkdir -p $WORK/b135/
+mkdir -p $WORK/b248/
+mkdir -p $WORK/b100/
+mkdir -p $WORK/b069/
+mkdir -p $WORK/b260/
+mkdir -p $WORK/b066/
+mkdir -p $WORK/b207/
+mkdir -p $WORK/b072/
+mkdir -p $WORK/b097/
+mkdir -p $WORK/b064/
+mkdir -p $WORK/b073/
+mkdir -p $WORK/b074/
+mkdir -p $WORK/b096/
+mkdir -p $WORK/b101/
+mkdir -p $WORK/b112/
+mkdir -p $WORK/b106/
+mkdir -p $WORK/b116/
+mkdir -p $WORK/b081/
+mkdir -p $WORK/b061/
+mkdir -p $WORK/b122/
+mkdir -p $WORK/b080/
+mkdir -p $WORK/b124/
+mkdir -p $WORK/b128/
+mkdir -p $WORK/b134/
+mkdir -p $WORK/b077/
+cp /home/user/.cache/go-build/e5/e5a8916f2e2b0a4d143e99a1a80a0491295eb556b9004ea078d17b803da3d1bf-d $WORK/b128/_cgo_gotypes.go
+mkdir -p $WORK/b221/
+mkdir -p $WORK/b168/
+cp /home/user/.cache/go-build/ee/ee90f20f42d4f3da7aa3408458e9707d048521be7a5417ff0ab0da60f5566b84-d $WORK/b128/cgo_lookup_cgo.cgo1.go
+mkdir -p $WORK/b173/
+mkdir -p $WORK/b164/
+cp /home/user/.cache/go-build/4a/4adab19b49d506b979ab782b22ad7a624a27cc033246d7ad8a96183deee544d0-d $WORK/b128/getgrouplist_unix.cgo1.go
+mkdir -p $WORK/b176/
+mkdir -p $WORK/b174/
+cp /home/user/.cache/go-build/fc/fc774bde60825afb49f8900d9766a24209d9ab2ed2efed0784bca80c93c90ea6-d $WORK/b128/_cgo_import.go
+mkdir -p $WORK/b183/
+mkdir -p $WORK/b121/
+cp /home/user/.cache/go-build/1c/1c315fb54dd1fee3cd91300cf670884ee961786c4b5d9162483397e875c9d355-d $WORK/b221/_cgo_gotypes.go
+mkdir -p $WORK/b195/
+cp /home/user/.cache/go-build/68/6823936ec3357b754f73899e1f5395f916108ed955738380fd7e494651c33c97-d $WORK/b221/cgo_linux.cgo1.go
+mkdir -p $WORK/b160/
+mkdir -p $WORK/b133/
+mkdir -p $WORK/b189/
+cp /home/user/.cache/go-build/f1/f19ee18536b21d2e4db78353941c9f88caf6be5fda126b63fb9bd76797b5e98b-d $WORK/b221/cgo_resnew.cgo1.go
+mkdir -p $WORK/b197/
+cp /home/user/.cache/go-build/d7/d788ec6c0a8dd796d43a3cbd4a9613df940dccd55de963a4ff6358376f1c78d5-d $WORK/b221/cgo_socknew.cgo1.go
+mkdir -p $WORK/b199/
+cp /home/user/.cache/go-build/56/56e3c7619c564c0f5bf9d2157d510e77b92f88012ccf7cd921bf1665b0bdc63b-d $WORK/b221/cgo_unix_cgo.cgo1.go
+cp /home/user/.cache/go-build/4b/4b3f37b3c0ed95e09243a946f0f13eff007c18634f9aad134aad9ad2fd367f84-d $WORK/b221/cgo_unix_cgo_res.cgo1.go
+mkdir -p $WORK/b171/
+cp /home/user/.cache/go-build/bc/bca71504e28a4bf5bcebbf30b08932aa5a2d1317cf2be7491937962171059a50-d $WORK/b221/_cgo_import.go
+mkdir -p $WORK/b204/
+mkdir -p $WORK/b202/
+mkdir -p $WORK/b126/
+mkdir -p $WORK/b211/
+mkdir -p $WORK/b210/
+mkdir -p $WORK/b213/
+mkdir -p $WORK/b175/
+mkdir -p $WORK/b120/
+mkdir -p $WORK/b201/
+mkdir -p $WORK/b214/
+mkdir -p $WORK/b227/
+mkdir -p $WORK/b219/
+mkdir -p $WORK/b132/
+mkdir -p $WORK/b233/
+mkdir -p $WORK/b203/
+mkdir -p $WORK/b236/
+mkdir -p $WORK/b238/
+mkdir -p $WORK/b181/
+mkdir -p $WORK/b167/
+mkdir -p $WORK/b235/
+mkdir -p $WORK/b182/
+mkdir -p $WORK/b217/
+mkdir -p $WORK/b191/
+mkdir -p $WORK/b240/
+mkdir -p $WORK/b242/
+mkdir -p $WORK/b246/
+mkdir -p $WORK/b255/
+mkdir -p $WORK/b140/
+mkdir -p $WORK/b258/
+mkdir -p $WORK/b141/
+mkdir -p $WORK/b200/
+mkdir -p $WORK/b147/
+mkdir -p $WORK/b148/
+mkdir -p $WORK/b151/
+mkdir -p $WORK/b149/
+mkdir -p $WORK/b153/
+mkdir -p $WORK/b145/
+mkdir -p $WORK/b163/
+mkdir -p $WORK/b218/
+mkdir -p $WORK/b245/
+mkdir -p $WORK/b190/
+mkdir -p $WORK/b232/
+mkdir -p $WORK/b194/
+mkdir -p $WORK/b212/
+mkdir -p $WORK/b239/
+mkdir -p $WORK/b262/
+mkdir -p $WORK/b247/
+mkdir -p $WORK/b254/
+mkdir -p $WORK/b263/
+mkdir -p $WORK/b152/
+mkdir -p $WORK/b180/
+mkdir -p $WORK/b274/
+mkdir -p $WORK/b159/
+mkdir -p $WORK/b276/
+mkdir -p $WORK/b282/
+mkdir -p $WORK/b275/
+mkdir -p $WORK/b289/
+mkdir -p $WORK/b290/
+mkdir -p $WORK/b281/
+mkdir -p $WORK/b293/
+mkdir -p $WORK/b294/
+mkdir -p $WORK/b297/
+mkdir -p $WORK/b144/
+mkdir -p $WORK/b300/
+mkdir -p $WORK/b230/
+mkdir -p $WORK/b303/
+mkdir -p $WORK/b279/
+mkdir -p $WORK/b253/
+mkdir -p $WORK/b256/
+mkdir -p $WORK/b304/
+mkdir -p $WORK/b272/
+mkdir -p $WORK/b299/
+mkdir -p $WORK/b259/
+mkdir -p $WORK/b311/
+mkdir -p $WORK/b309/
+mkdir -p $WORK/b298/
+mkdir -p $WORK/b150/
+mkdir -p $WORK/b314/
+mkdir -p $WORK/b315/
+mkdir -p $WORK/b216/
+mkdir -p $WORK/b266/
+mkdir -p $WORK/b316/
+mkdir -p $WORK/b229/
+mkdir -p $WORK/b156/
+mkdir -p $WORK/b139/
+mkdir -p $WORK/b337/
+mkdir -p $WORK/b353/
+mkdir -p $WORK/b355/
+mkdir -p $WORK/b252/
+mkdir -p $WORK/b357/
+mkdir -p $WORK/b365/
+mkdir -p $WORK/b307/
+mkdir -p $WORK/b271/
+mkdir -p $WORK/b251/
+mkdir -p $WORK/b310/
+mkdir -p $WORK/b312/
+mkdir -p $WORK/b158/
+mkdir -p $WORK/b318/
+mkdir -p $WORK/b313/
+mkdir -p $WORK/b237/
+mkdir -p $WORK/b228/
+mkdir -p $WORK/b270/
+mkdir -p $WORK/b250/
+mkdir -p $WORK/b162/
+mkdir -p $WORK/b319/
+mkdir -p $WORK/b172/
+mkdir -p $WORK/b317/
+mkdir -p $WORK/b241/
+mkdir -p $WORK/b244/
+mkdir -p $WORK/b155/
+mkdir -p $WORK/b306/
+mkdir -p $WORK/b277/
+mkdir -p $WORK/b249/
+mkdir -p $WORK/b154/
+cp /home/user/.cache/go-build/75/75f2a4ee2552a220ccc831fccca58628f27b484d374324ed7bf200fce79656a0-d $WORK/b249/_cgo_gotypes.go
+cp /home/user/.cache/go-build/45/45c8aec4f1835b01566b67e2f6c40e9a5cf0f9ad9542399d981b45a3b471225c-d $WORK/b249/backup.cgo1.go
+mkdir -p $WORK/b138/
+cp /home/user/.cache/go-build/83/832f966624e75c9bf363cead43d5271da0d411541e8d8280ea207b1348a96394-d $WORK/b249/callback.cgo1.go
+cp /home/user/.cache/go-build/f0/f0a61232ecb6d9bbd7053707652bca7a35b6796ba5e7bc7df472b4fc1cdf253d-d $WORK/b249/error.cgo1.go
+cp /home/user/.cache/go-build/b1/b17cf8b62665d0dd94dd04e3158686ce70226575a843c2965c96d25cafe0d35a-d $WORK/b249/sqlite3.cgo1.go
+mkdir -p $WORK/b161/
+mkdir -p $WORK/b330/
+mkdir -p $WORK/b329/
+mkdir -p $WORK/b328/
+mkdir -p $WORK/b344/
+mkdir -p $WORK/b345/
+cp /home/user/.cache/go-build/5e/5e4a1dc8a484a614cf860aa8e275d439a3c1b1b5f939a9746b8d6b2d4d54a4a7-d $WORK/b249/sqlite3_context.cgo1.go
+mkdir -p $WORK/b327/
+mkdir -p $WORK/b361/
+cp /home/user/.cache/go-build/a0/a001b9dbd239a3937b73ca534c0de3b46b0dec0318a668d98972f9de8a55ad6c-d $WORK/b249/sqlite3_load_extension.cgo1.go
+mkdir -p $WORK/b131/
+mkdir -p $WORK/b335/
+mkdir -p $WORK/b165/
+cp /home/user/.cache/go-build/b7/b7ed49d99174326d4a23002b57b2d9dafc775c486152c1ef0a53adfde73a65f9-d $WORK/b249/sqlite3_opt_serialize.cgo1.go
+cp /home/user/.cache/go-build/88/885e3b2de3c7509f802ce6222a62564cf5791e005fa365909b5f48a5d17c1cb7-d $WORK/b249/sqlite3_opt_userauth_omit.cgo1.go
+cp /home/user/.cache/go-build/9f/9fbfb309a265f3ccba032bf2fdfbfceaee835a0ba360c3557f4fffd8d1605d39-d $WORK/b249/sqlite3_other.cgo1.go
+cp /home/user/.cache/go-build/b9/b9b445161bd19bcf7de106d5d33d1a195d6642d3c4cd4849fce16a7fd413ec38-d $WORK/b249/sqlite3_type.cgo1.go
+mkdir -p $WORK/b360/
+cp /home/user/.cache/go-build/2f/2fb849a38de078a81791314a808cec169dfcbe0f1772b15280cb8440ed70db53-d $WORK/b249/_cgo_import.go
+mkdir -p $WORK/b362/
+mkdir -p $WORK/b326/
+mkdir -p $WORK/b364/
+mkdir -p $WORK/b286/
+mkdir -p $WORK/b334/
+mkdir -p $WORK/b267/
+mkdir -p $WORK/b283/
+mkdir -p $WORK/b292/
+mkdir -p $WORK/b359/
+mkdir -p $WORK/b285/
+mkdir -p $WORK/b333/
+mkdir -p $WORK/b363/
+mkdir -p $WORK/b339/
+mkdir -p $WORK/b291/
+mkdir -p $WORK/b338/
+mkdir -p $WORK/b343/
+mkdir -p $WORK/b302/
+mkdir -p $WORK/b322/
+mkdir -p $WORK/b336/
+mkdir -p $WORK/b366/
+mkdir -p $WORK/b130/
+mkdir -p $WORK/b346/
+mkdir -p $WORK/b269/
+mkdir -p $WORK/b305/
+mkdir -p $WORK/b287/
+mkdir -p $WORK/b288/
+mkdir -p $WORK/b341/
+mkdir -p $WORK/b332/
+mkdir -p $WORK/b348/
+mkdir -p $WORK/b358/
+mkdir -p $WORK/b356/
+mkdir -p $WORK/b349/
+mkdir -p $WORK/b351/
+mkdir -p $WORK/b352/
+mkdir -p $WORK/b347/
+mkdir -p $WORK/b350/
+mkdir -p $WORK/b331/
+mkdir -p $WORK/b325/
+mkdir -p $WORK/b125/
+cat >/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/gotmp/control-server/go-build1061311297/b001/importcfg.link << 'EOF' # internal
+packagefile p2pstream/internal/server.test=/home/user/.cache/go-build/41/4198c664fb7ed1d1f8f57c3537736434891b0dd4bdb3c98630b3313d541f55db-d
+packagefile os=/home/user/.cache/go-build/42/42c2f73abee7bc29a29c34d119ade97bfaacf012fd031d153e6f4b55322c7bfd-d
+packagefile reflect=/home/user/.cache/go-build/7a/7a01c251a32615772d12aeb467dea8dcf56c45c3e03b1a7a363e0d2db4cdf051-d
+packagefile testing=/home/user/.cache/go-build/4f/4fca1d3999573f25997c23edbbbfd887195466e04c8c062f6c681834db11f2f7-d
+packagefile testing/internal/testdeps=/home/user/.cache/go-build/66/66d15f1d543e3f00782baf75d7e83d5b2f271fbf84d9830d45c42f37cdb27ec4-d
+packagefile runtime=/home/user/.cache/go-build/b8/b8421b01da1808e7f666020305188b8e2c9042b1f23454e4899bf0c113d59ffe-d
+packagefile p2pstream/internal/server=/home/user/.cache/go-build/fc/fc0dc7fa94fc0a3cd89f0d0e32ea4c753378df0a91c2175acee31e1133bac0cd-d
+packagefile errors=/home/user/.cache/go-build/f4/f4c0c919dac52dffeb84d77dab4a33354840be9f9c4275930816b502ce9c609c-d
+packagefile internal/bytealg=/home/user/.cache/go-build/54/54bdbcc3d5b880f7b279285cfd0bfc3da4b93a7557ba381ef82c93daef0a3ab7-d
+packagefile internal/byteorder=/home/user/.cache/go-build/94/94f48d34c32628f50ee0c54247f9da10510b0b22a1d63ee3dd27ef57ae4e0135-d
+packagefile internal/filepathlite=/home/user/.cache/go-build/be/be264eaaff880de942053f08399d8ecce7968ff338c84f028a61818972b77d9d-d
+packagefile internal/goarch=/home/user/.cache/go-build/e8/e80a6a64aea6f490497804e8d98e9aa07d863f07be0f99649da410d220434cee-d
+packagefile internal/poll=/home/user/.cache/go-build/74/74de67086e0a8b2e4bb6fc44050331c61266dd6480715bd166787919e3cad13b-d
+packagefile internal/strconv=/home/user/.cache/go-build/11/11d629ee6a6563f68661ce2c75294f1bde4cf67ce999f700f6f5f9163fa387f0-d
+packagefile internal/stringslite=/home/user/.cache/go-build/ec/ec87a2ecb81b0ee7c21a579fdabeed0b93430178ad2c4e7a31461ffba8d85669-d
+packagefile internal/syscall/execenv=/home/user/.cache/go-build/db/dbb5b08cd9857f9ff47a72e04af414325022d6090b9a1a2bf28ace361120d1fd-d
+packagefile internal/syscall/unix=/home/user/.cache/go-build/31/31858cd120a163b880f53c9f89e34a8c0e25791ab4d63a90bd516cd396d3b017-d
+packagefile internal/testlog=/home/user/.cache/go-build/d1/d166b226bd16a1fab61e31ba2e0a1add0467e59d3e5c400faa16e25e0397a2d9-d
+packagefile io=/home/user/.cache/go-build/f3/f385666eff32028c4e2a8276d095e9ab6621146ef01c77dd0762afcbd1d9f5bc-d
+packagefile io/fs=/home/user/.cache/go-build/57/57c33c29accbe3fe7e08917a2a3e9615c2350c003fcd3250328b88943bdc95e3-d
+packagefile slices=/home/user/.cache/go-build/b1/b1d9de275a65ae313437e674449a734c054ed3803980dbab589e49a0ef850938-d
+packagefile sync=/home/user/.cache/go-build/e9/e9aa0c2cd5656eb2d12e15732812b749246d63e22820dc18e415949d87e54cd3-d
+packagefile sync/atomic=/home/user/.cache/go-build/a4/a44a11e2b271216ef525e84958bcc210fb0c280a1b4e0ec0e47b76931a47d0bc-d
+packagefile syscall=/home/user/.cache/go-build/a5/a5c388af8423e804fad107d51b5f3f71368ba6932fe0cbab276273283aafa24d-d
+packagefile time=/home/user/.cache/go-build/66/66f0e4eb78ef5a3b5fed9ffd4072098c76f3ed184bcf3119cb0c0428e7504bd6-d
+packagefile internal/abi=/home/user/.cache/go-build/fd/fd941bfb7dfe0fbd5c6535bb54bb7f671606944dcd866951c7d6bfbeeb49250b-d
+packagefile internal/race=/home/user/.cache/go-build/6a/6a580bf9ed273d471560b1386856e81045942c622dfec39519d6017946493f23-d
+packagefile internal/runtime/maps=/home/user/.cache/go-build/15/152d687724fe46f13c12833e8420ad8a11260e84f073f1925db7a579329a95e5-d
+packagefile internal/runtime/sys=/home/user/.cache/go-build/d0/d0e7ef9011e3f8bd9792240fc8f83cbda1be9d801c25d9b61c7cd4b6604d0991-d
+packagefile internal/unsafeheader=/home/user/.cache/go-build/0c/0c49f8ca44a905cf1572544c3198836a491785838e7fbf2509de2ca1b065443d-d
+packagefile iter=/home/user/.cache/go-build/44/44ceb7782d00b1818e8f5c7be612cfe3322dc5c85a0946381a3165618898bb98-d
+packagefile math=/home/user/.cache/go-build/1a/1a359e6736066c2aa6f44ad714800718cfbe2e7497bbe3dfdd65a063f68901c1-d
+packagefile strconv=/home/user/.cache/go-build/da/dafb0f59e7b717c37bf8b3d0ee8908ac00cfa660025459b647c324e3e13c1d98-d
+packagefile unicode=/home/user/.cache/go-build/68/685a6c59563723ade32123b2367d8d7e6cf45d9c5e2f3d0527c0922ecf360ce2-d
+packagefile unicode/utf8=/home/user/.cache/go-build/6d/6d6629aa3f89f9d267476b04ffe8544dc2438605788849c2da4352f8ff90c66f-d
+packagefile bytes=/home/user/.cache/go-build/cc/cc6ab73a4ec36ac6c5284be9e2190e02c5162f7a2e3e61c549c1c789ea43b70d-d
+packagefile context=/home/user/.cache/go-build/b6/b6457f4033a89e98a5fc168558b12a0da233281b9fe665dfa4f98f5cc35e5160-d
+packagefile flag=/home/user/.cache/go-build/f2/f2f7024cdccfec8ffa275df1918de4156921f2268d025209942e566d94fafc7b-d
+packagefile fmt=/home/user/.cache/go-build/48/48ebfa979f7318ec77964c6eff9e82de7962c2fb14dea9ca142c772427ba25e9-d
+packagefile internal/sysinfo=/home/user/.cache/go-build/48/48c51f7e7cf577c5e14184095e6fe86ae01d309b474bc299d33bee33218086a6-d
+packagefile math/rand=/home/user/.cache/go-build/1f/1fe881bb22227d07749c01252e19d8a4d76986b24890b135e9a7c85127b37e2d-d
+packagefile path/filepath=/home/user/.cache/go-build/91/91a40ae923dc9e3c4afff747a030197d49453f9fdd40368ae80100b27bdef08c-d
+packagefile runtime/debug=/home/user/.cache/go-build/08/0806d3ae1fcfc095a9f9ae9008f07cf08d4509f5b8943383978c68b3758e6db8-d
+packagefile runtime/trace=/home/user/.cache/go-build/d3/d3a2d0ff997895ca6eb4393a095eab140bf63b2528f382300dc53bb147b3da46-d
+packagefile strings=/home/user/.cache/go-build/e5/e5610f007613d8b9b5bc8b052e7f56b169cd2ca07bb249b6db9e6f2a7ef36c96-d
+packagefile bufio=/home/user/.cache/go-build/3c/3c1f8c06ff8b15743bb76712dd0ae750d51feb153f4a1b076436539615022534-d
+packagefile internal/fuzz=/home/user/.cache/go-build/5e/5e8da66f1e7551accab722d91464e3f218067c0e06172acdb597a4c71795f930-d
+packagefile os/signal=/home/user/.cache/go-build/1c/1c87247cec6c6a703db686f7c3a5770d36b943cfc696db92fbbc26fbb6a94fd9-d
+packagefile regexp=/home/user/.cache/go-build/5c/5cf70b087bdb82fd76f79b6fbe71c93c344bd548c7601404b178896d8433ccf4-d
+packagefile runtime/pprof=/home/user/.cache/go-build/eb/eb2474ab3a7d90df2c62a27789774cbbc97784d2795574371038e22f0bc5680d-d
+packagefile internal/chacha8rand=/home/user/.cache/go-build/4f/4f076604cada5cbec8c8c1ba0203bfdefa8a93ec4dea3b1947eb000b154292c8-d
+packagefile internal/coverage/rtcov=/home/user/.cache/go-build/2f/2f2db47bf71e359434c889f8b51b04021fd0ea47af970833df8ef2bac15ddbb1-d
+packagefile internal/cpu=/home/user/.cache/go-build/08/080922d110324abb84be2c5bd1883106a807ec4477c8cf8acafa9cb8f769af7e-d
+packagefile internal/godebugs=/home/user/.cache/go-build/bf/bffd0e3ba35c43815c1c9212ac554f1655c3f44689d5f841cc42e937e630f009-d
+packagefile internal/goexperiment=/home/user/.cache/go-build/63/63f6846e8832e6be7593bc04e53feb0cbce3c9d054c0dd1361ec77c766f5bbff-d
+packagefile internal/goos=/home/user/.cache/go-build/59/5914196aa85387d29dfa7c4ec38cff5191f3be5b03bf551cae86090af918c715-d
+packagefile internal/profilerecord=/home/user/.cache/go-build/ed/ed94cbf1478720e7a4b803d9f19e5b687d32d2c9a7d5737ff350dc213b7544b6-d
+packagefile internal/runtime/atomic=/home/user/.cache/go-build/63/6380ea632d36fd7de4b350e79879d6823264aa81a1a6a196b39082f0c86d4435-d
+packagefile internal/runtime/cgroup=/home/user/.cache/go-build/4a/4a53fe55b5285082f48b6d82caf8ea3a5d2dffb56d41bddc5315d10f9073db24-d
+packagefile internal/runtime/exithook=/home/user/.cache/go-build/84/84003839547c846cbaa10a6c38e93d3b19d3c68278a23fc9154a39da3467c07b-d
+packagefile internal/runtime/gc=/home/user/.cache/go-build/86/86536295b057f9808dd512d3fba5aca92be7b14d78c3bec91035dbbbc4d6fe7b-d
+packagefile internal/runtime/gc/scan=/home/user/.cache/go-build/c8/c8c9c6ad44f82ab03e84f2d2bd0b20580ff2e5396bae733660ce6a8cd5e52234-d
+packagefile internal/runtime/math=/home/user/.cache/go-build/c5/c5108f9b46313178fee2bb7103326c2f690a9885c47cfe2cf747377a41081f27-d
+packagefile internal/runtime/pprof/label=/home/user/.cache/go-build/58/5886adb04c7c03a075a7b6258846d9dcdd8152c7a9cba0efffab5e58c35ab1db-d
+packagefile internal/runtime/syscall/linux=/home/user/.cache/go-build/67/6758c68b59d6be7d0d378ea943645ca29c2e16ed6b31653d0eae47f95f248705-d
+packagefile internal/trace/tracev2=/home/user/.cache/go-build/92/92feb8b5149825a35361faea8f9b87982f8af15b98ca30a13b13813f7d5b019d-d
+packagefile math/bits=/home/user/.cache/go-build/20/20ed99c3e928e5605b196accca23b491a70093fbfcd4037a255033a7fc6e12b1-d
+packagefile archive/tar=/home/user/.cache/go-build/57/574be9077e18893aea3330b3aa9e6d06649c37a7f130c55198a0f0234ad4e956-d
+packagefile compress/gzip=/home/user/.cache/go-build/db/dbd503610d20b621dd14a92f975eb279dd04409b933410ed8e701d965cc03c02-d
+packagefile connectrpc.com/connect=/home/user/.cache/go-build/4b/4bf140153bf234fb9d5624ae8447e121f69743a1b07d493568dbca52dd7e3136-d
+packagefile crypto/ecdsa=/home/user/.cache/go-build/87/874097316cfc46f62f7181a48a6ad356de82b24b0fb56fee6661622e39abb371-d
+packagefile crypto/ed25519=/home/user/.cache/go-build/39/397503c5fa68df853a7c6de74f9125b57d0ee9b2d1555857897be117f956a4bb-d
+packagefile crypto/elliptic=/home/user/.cache/go-build/d2/d203efcc6df4defc0ff0630c7c198a2c3ece3ae144c2e88e524745b81974aeef-d
+packagefile crypto/rand=/home/user/.cache/go-build/12/1260406844e6b9a5a1a225126fc8076f6ceafff66b2dedaa10d71c52e2657c6b-d
+packagefile crypto/sha256=/home/user/.cache/go-build/9f/9f3c988c9ef78af31997488a73ca8473794d213178c070543af9cb66d5380ac8-d
+packagefile crypto/tls=/home/user/.cache/go-build/df/df66d9fed77e9998114f779794b0ee238940f5928af8bcd586694266fb7694d4-d
+packagefile crypto/x509=/home/user/.cache/go-build/d1/d1db6977f7a785ca66b4d992327a5f00cc3fea1139e8f7d5da6efe87f9a791ae-d
+packagefile crypto/x509/pkix=/home/user/.cache/go-build/e7/e7aa2c8969f22b4f7c77c60a7943e18594399c4c3f33a465479ba681af2af0ca-d
+packagefile database/sql=/home/user/.cache/go-build/29/29a46aa14ad25f066712b675d339f2d26d453d7a493d16ee9c45335a63d778c3-d
+packagefile encoding/base64=/home/user/.cache/go-build/55/55df750d7927f5521fabb8e0782d293e60036299d15772e6bae0cae3270db271-d
+packagefile encoding/binary=/home/user/.cache/go-build/01/01618a423c9364fe98ffde01e6ce95e8d037317573bd28e1e1e48e3ad63798be-d
+packagefile encoding/hex=/home/user/.cache/go-build/91/91a33c9348b4993d3140854868de9ac8ac21265548a417a343c0a7b378098fe0-d
+packagefile encoding/json=/home/user/.cache/go-build/22/222f7475896bfa4d105e6cc7b618f51c75c69b5cf234b2a602be014e1ca02e9b-d
+packagefile encoding/pem=/home/user/.cache/go-build/7f/7f631776b7a7e9dfeb1af49d08fd2dc292facf3265ea9f307ad1737b30159595-d
+packagefile github.com/hashicorp/yamux=/home/user/.cache/go-build/1f/1f6a49176b9d265076ce72b5bb473cdb2c12c225aa0a2b53289d9119466164ac-d
+packagefile github.com/mattn/go-sqlite3=/home/user/.cache/go-build/67/67602b3a8b1e30393ba149c838dd4ecaada9caebf2e6d7249d074a6420ee2df4-d
+packagefile github.com/maxmind/mmdbwriter=/home/user/.cache/go-build/91/91056e65a21904e7a8a950625ffbf76d996a5bcbac348da51100c080d4e5198b-d
+packagefile github.com/maxmind/mmdbwriter/mmdbtype=/home/user/.cache/go-build/0d/0d25a981bb860e596ee62b120b796b4914a853e8b6b4e2461e791ee0dfc269c7-d
+packagefile github.com/rs/zerolog=/home/user/.cache/go-build/2a/2a2c92930a5be228515cf77d34bd5c87c530004433b7defc311264c49f07a48c-d
+packagefile github.com/rs/zerolog/log=/home/user/.cache/go-build/64/64751ce2605114e6c8484909836aa19d44b39321aee7646e0615d7b3ee971909-d
+packagefile golang.org/x/crypto/acme=/home/user/.cache/go-build/ad/ad4a8ff54c192e271a6c8ccf5fc0a8b0c3854d33547e9889c28a3665ce4b35cd-d
+packagefile golang.org/x/net/dns/dnsmessage=/home/user/.cache/go-build/fd/fd9e91338a904d01236777e488f106b7150e5d03660a5ebd7124e8e58fca12e7-d
+packagefile golang.org/x/net/http2=/home/user/.cache/go-build/b2/b21d897521eea7f96368790ba1c1fded3e3f5fb8d0be71dede8d3c07dde03948-d
+packagefile google.golang.org/protobuf/encoding/protowire=/home/user/.cache/go-build/5d/5d88a96f292a315da946efff7940490069d7a2fd10d4f47d2b0fc12f6e333818-d
+packagefile google.golang.org/protobuf/proto=/home/user/.cache/go-build/50/50f30738f647291fd006b3e4d7d0b82b888e33a55e985c9980130c1227163340-d
+packagefile hash=/home/user/.cache/go-build/ff/ff0816b839c9b1c65ac5bada3bfb72aeb9f49a5125170943f8eb83e36c547591-d
+packagefile html/template=/home/user/.cache/go-build/39/397a7c103518fbe8bc5655db7ea0fa450a967a6bc9d5f404af64ac61df4866eb-d
+packagefile math/big=/home/user/.cache/go-build/f3/f3e8ee56f868d3d1e627d31cb40815b2eff2e19e79690c7f0798f2e65216a9b1-d
+packagefile net=/home/user/.cache/go-build/63/630e5d3a736100c6e54cb91ac6d1c09614df28e5a8977a81b82aee36c7291366-d
+packagefile net/http=/home/user/.cache/go-build/3a/3ac95236eeb7f1f7e1409202c468daf55a3f9ff4d02fe0b5bb91aa3c84ca124a-d
+packagefile net/http/httptest=/home/user/.cache/go-build/a9/a90f40eb478ac09bd65925e2c0828acf5a3e3c60dfba093b28e430b60e882a68-d
+packagefile net/http/httptrace=/home/user/.cache/go-build/d7/d732b96a5fa102cb0051324eeb2aed7f1e0e3b4ff6f1483ddbcefad80b50ddac-d
+packagefile net/http/httputil=/home/user/.cache/go-build/ea/eaec4c7146c4ddc75d8c6113dc59a21296cd20afde60a9e590fd4055cc582a4f-d
+packagefile net/netip=/home/user/.cache/go-build/21/21abb2e83b45c0f0af3f533b69cc2e2de4fb10b5570b0b1e154ca274fc215621-d
+packagefile net/url=/home/user/.cache/go-build/3f/3f460cae3d6337ae0134acdaeab570ce6f72ba276e471eb8524d00408bebad54-d
+packagefile os/exec=/home/user/.cache/go-build/6f/6f7d5f88cb968087f48af417af038577c918094fbea53d5df9b9302d49fa5784-d
+packagefile p2pstream/gen/proto/p2pstream/v1=/home/user/.cache/go-build/29/29b03df13a971710dfbe9561c35d1876b321b2b7b73ac601ccdbbb71bebb3ef9-d
+packagefile p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect=/home/user/.cache/go-build/29/2917e91b118f563f9194894e0a02c68bb5a72a4e17c21947a7f5ae4f0f66fb2b-d
+packagefile p2pstream/internal/agent=/home/user/.cache/go-build/b9/b9a37cdce09a9930d0118a0dfcf98436a990b133a039a06316c7b668c1f55ab0-d
+packagefile p2pstream/internal/agentupdate=/home/user/.cache/go-build/f1/f162d59b87df27255b7c3383adfcec629cc97dbbd51ef43e52e37dffb8d2b7a0-d
+packagefile p2pstream/internal/agentupdateauth=/home/user/.cache/go-build/bb/bb9810a0a1bb5a4204d65428e6e2c16b584423ac086db57ed9e1b77267b6a02a-d
+packagefile p2pstream/internal/agentupdateauthority=/home/user/.cache/go-build/a6/a6a7a37c6229b5a31e767fe25f9f5148e6f2d7309f65492c650a719534d6eaf9-d
+packagefile p2pstream/internal/authutil=/home/user/.cache/go-build/6e/6e8220431b5e19ceed644cad8d57c1c9cdeac7d9ac0be6afcdb5a910edb604d2-d
+packagefile p2pstream/internal/buildinfo=/home/user/.cache/go-build/37/37cf6f1fb33654e71d9163e730106da2290cf653f3563fc97279b1ecc43eaf1e-d
+packagefile p2pstream/internal/config=/home/user/.cache/go-build/43/43cde8bf26921cc645d4a8c6c71c835a7d9ed87804a9273b97b2b61d0d36531e-d
+packagefile p2pstream/internal/db=/home/user/.cache/go-build/63/630d4f2f35d2ae090f744d62a48da5ea0653bff5a59ef0b45cfbe24856f4ce93-d
+packagefile p2pstream/internal/serverupdate=/home/user/.cache/go-build/64/643bac44dd27f6b1f000c6e455f6f5f793cd76c16e806dd7e1e039d0a528e432-d
+packagefile p2pstream/internal/sysmetrics=/home/user/.cache/go-build/06/0685104ef3567cc815f56490c001bd62f1d4ee72693a94c3bc489beac83c0918-d
+packagefile p2pstream/internal/tcpsocket=/home/user/.cache/go-build/c6/c64e136a8ec729502376a2b6c7cdc336886fd70886e9cfc81714a1720023a9be-d
+packagefile p2pstream/internal/tunnel=/home/user/.cache/go-build/3a/3a0c6ff76e6cf969e48e3a62e6dd52bbb7d2bd85ebad57da2f5ebe17bec88f89-d
+packagefile p2pstream/stats=/home/user/.cache/go-build/b4/b44e695e25bcba5309260ab8e1a48be18b642e8596429b29c2d7ab064e92510f-d
+packagefile sort=/home/user/.cache/go-build/ab/ab24934d43cfd94259cc2ec3fc7da1c3046c79764c4ae1de02ced47dbf685269-d
+packagefile cmp=/home/user/.cache/go-build/ad/ad755c47b5c0ce3c6a5752824e17e7639348395108446d4a8939871132acdf24-d
+packagefile container/list=/home/user/.cache/go-build/6b/6be80520765218207cd91d5fe3bfb7c31436d32e8879d2f3fc4aa8785f71fe39-d
+packagefile crypto=/home/user/.cache/go-build/6f/6fd3611ac9ed3075a4b7477f0ad650366e6472e12fdb6c1bf43176205203e7ca-d
+packagefile crypto/hmac=/home/user/.cache/go-build/3a/3ad6c1ef94e0d22cedf631223458ccffd2c6c2bcd39c36ba51a1ddd7b4f405c7-d
+packagefile crypto/subtle=/home/user/.cache/go-build/c0/c0de198351329027aec94d3587a08552f7fd25974769fe85c3d4e2553d444e6b-d
+packagefile embed=/home/user/.cache/go-build/74/7494dd91ca102a5d60f70f424b89cb96eb2d96a2c48b98baf345ac5b4ecce358-d
+packagefile encoding/base32=/home/user/.cache/go-build/08/0845aa642c951c44c0b9dbf60b61221485c6752307b216c7ca328e19a082bd15-d
+packagefile github.com/google/cel-go/cel=/home/user/.cache/go-build/f4/f4405d891aa0027da3cf2da58950200092b631ba5006b2776c1ef0ecab7ee48f-d
+packagefile github.com/google/cel-go/common/ast=/home/user/.cache/go-build/c0/c0ca02882b363372544f775db534a5322cf3c7fd450a58b068aeb2874165beef-d
+packagefile github.com/google/cel-go/common/types=/home/user/.cache/go-build/55/55629677237c51320f34789a4074802340cd572972e4de48d3190e81a2742ac9-d
+packagefile github.com/google/cel-go/common/types/ref=/home/user/.cache/go-build/55/55999d165848fea5dbcc4138f586486138377ed5083d012e25fb442b78047a61-d
+packagefile github.com/google/cel-go/interpreter=/home/user/.cache/go-build/90/9053b62207ce8e1a24e80bbf63a979cf2515d67297eac3f14e60c7d9851805bb-d
+packagefile github.com/google/uuid=/home/user/.cache/go-build/00/0044909086abe62b7e59c887eb87533de5b128f9ebe735f3664a2e3a854fc3ae-d
+packagefile github.com/oschwald/maxminddb-golang/v2=/home/user/.cache/go-build/70/700c18a3562e64e77517c6218673d751fd815605fbfd24ed09dc82be5d749a0a-d
+packagefile golang.org/x/crypto/bcrypt=/home/user/.cache/go-build/4b/4b49bc6ab6d5c3a3413432e416d52de3932c576ffe7fd8cfc616d3015f5d99c0-d
+packagefile golang.org/x/mod/semver=/home/user/.cache/go-build/6d/6d25a1fe4d639d7917485f7544e6a366c5dc6db6ec5902b880aee775bc490a62-d
+packagefile golang.org/x/net/http/httpguts=/home/user/.cache/go-build/a5/a5f906798b2cf3b193a9ee320bb3364959e158bdaf46f2afae2095a578574f49-d
+packagefile golang.org/x/net/idna=/home/user/.cache/go-build/b9/b9ca2f33b66f0987a6fdcf6b757430af2b819a6e922446c34e08006f7461dc14-d
+packagefile golang.org/x/net/publicsuffix=/home/user/.cache/go-build/d7/d7c5e5286e312aabb0dc6a92011a877e7fe9ff8fc289f161bac113ce2074c056-d
+packagefile google.golang.org/protobuf/encoding/protojson=/home/user/.cache/go-build/10/10c9fc415d60ff73e8a4dfa7c42c0d146e87db2eee7df8ee0d4ff69ebde18a34-d
+packagefile html=/home/user/.cache/go-build/cd/cdb75832a13ff36c9b50186137dc28351ad706ab94c8f45eab78d60dbf4c864d-d
+packagefile mime=/home/user/.cache/go-build/3a/3a2c9f66ebf4748fffa224de29a0992e7b9fc676dfa19e8151cd2c9a61efea86-d
+packagefile net/mail=/home/user/.cache/go-build/55/5599676e32d2274bc13ba118ead966dcce0e4b109e889e2377466b3a4f2e805a-d
+packagefile net/textproto=/home/user/.cache/go-build/25/255cb298e995afc551aa0e56cedf1780e7e817ef9be3dc52c01c5ca347238413-d
+packagefile p2pstream/internal/managementui=/home/user/.cache/go-build/8b/8badd781448e3f7c0ce8df55174c5a78965b572b0eca4c95a110da37b2ec73ef-d
+packagefile path=/home/user/.cache/go-build/cb/cb262b70007ea559a9a475d42611c7ed00d2aafa050f41b567dc89b0da5226bf-d
+packagefile text/template/parse=/home/user/.cache/go-build/cf/cf7cb3da655e0af7d9efa64c7789df6ec34fd940b34b660f4f6854d8d2c368c3-d
+packagefile internal/reflectlite=/home/user/.cache/go-build/f4/f4298ab7a8f4c14792bbee446cc564c8969db644dc37728cf2892a143ce0ff6b-d
+packagefile internal/oserror=/home/user/.cache/go-build/93/93f665b7de91d92b6ff73800e2c999e1b502d65bb56b1ab8952d2fa2a44dfb15-d
+packagefile internal/sync=/home/user/.cache/go-build/d2/d299d83a010d3bf2fda2e342b7daac271cd409b4ed4b733a93bfdd400fbb5aa5-d
+packagefile internal/synctest=/home/user/.cache/go-build/6e/6e76e074e536ab03465a0d0ad783aa88e2faf6a6603248833daed64b09d03971-d
+packagefile internal/asan=/home/user/.cache/go-build/5c/5cfaae44a9915db4dc95439abbbfbdaaf4f9d1f1552b8057163f3f4f46bcb192-d
+packagefile internal/msan=/home/user/.cache/go-build/39/39c5bf598c82b5273c6e61b8586b1438d845225b5ddb57909477e24ffbd40dbe-d
+packagefile internal/godebug=/home/user/.cache/go-build/c7/c739536727186dc36e41408c1c585e861abde3d9d0381e2004a3d3f8d74ab78e-d
+packagefile encoding=/home/user/.cache/go-build/1c/1c2dec8e2a687450eb51a1a65c8adf8ec99914714a0e8e5c027773e12e58e99f-d
+packagefile internal/fmtsort=/home/user/.cache/go-build/64/6424703af53ce58f644d5204c4fe211a48ecf34bde6149d88c24610427315a31-d
+packagefile go/ast=/home/user/.cache/go-build/91/9158c3e3e181c2aea9ebb67606c5d7c8af1f89c28d85d01938c6843f067e47b4-d
+packagefile go/parser=/home/user/.cache/go-build/f7/f7aa8a38aeae2de1cec5f2cf082f7322e97fc0b7b8d2e6577769d6279892a117-d
+packagefile go/token=/home/user/.cache/go-build/b0/b02a9479da7eeb99df3df1ab01ebea8e52aa256d81088b2b45f5d79e126951de-d
+packagefile regexp/syntax=/home/user/.cache/go-build/5c/5ce0736d436d7b0393b5c86a5a09442c67e1b339a5e8c6e1dfa089265f3a7360-d
+packagefile text/tabwriter=/home/user/.cache/go-build/31/31c93c36dea72376ea4effaf6e3fdd408df845dc3dc687bcc6e71953bb4959d1-d
+packagefile maps=/home/user/.cache/go-build/ec/ec62a46ead13379c06441418b844f942a75a06ab8a83ec1d9a6517f3072e5509-d
+packagefile os/user=/home/user/.cache/go-build/f1/f1a878978eb4e366708f4d85d0fdce4f05fd938a6a908ed040ee83803544eff5-d
+packagefile compress/flate=/home/user/.cache/go-build/d1/d16f4da7917cbbe86a242f2efe6fef336554140e92f5bb26f5855b3caebd7345-d
+packagefile hash/crc32=/home/user/.cache/go-build/07/07098d6c718145ce2e7fcf1b1043febdbbbebe9c8626275d5a980f6819f257a2-d
+packagefile connectrpc.com/connect/internal/gen/connectext/grpc/status/v1=/home/user/.cache/go-build/29/2902f6bb7d6afcad4783cdc18f0784acc5b064ba66cf42ace831b5d608ef8c4b-d
+packagefile google.golang.org/protobuf/runtime/protoiface=/home/user/.cache/go-build/a0/a0fda6d50c2da2a228ff6417e61b79048dcfa68edbec4318eb85b91bbc22e384-d
+packagefile google.golang.org/protobuf/types/known/anypb=/home/user/.cache/go-build/8d/8d66f1c127f9635b046120792474da560cf2eb5015ec13ddcb58c76dc44c3bbe-d
+packagefile crypto/ecdh=/home/user/.cache/go-build/05/053ee0d18f5e91c88f07cce6a44ca00b563ac6d5dcb3f432b13e7ea270e7c39b-d
+packagefile crypto/internal/boring=/home/user/.cache/go-build/8e/8e4a6c6efe2fd23081448f640378143e25d089c2506e28ba5b3669089052e00d-d
+packagefile crypto/internal/boring/bbig=/home/user/.cache/go-build/a7/a7fdb1d730995d19bda672aa4c3e5370f0eb9ff68adcaba5a2c16b92bc3f674f-d
+packagefile crypto/internal/fips140/ecdsa=/home/user/.cache/go-build/cc/ccbab936dd705afc816f8937ed251e167567d2288a381c6b51ac6217c7db2063-d
+packagefile crypto/internal/fips140/nistec=/home/user/.cache/go-build/29/295b7de560d3836e01ca447daf32ccfa1c820e2c9daa63c9a09ae8d6b549d58e-d
+packagefile crypto/internal/fips140cache=/home/user/.cache/go-build/97/970628f1aa694a7d4c829fa1b9d65c7ac38d688e9a43b49ef88b609f864b55d2-d
+packagefile crypto/internal/fips140hash=/home/user/.cache/go-build/0f/0f87ec989f268d3fb8a3988fd3784276976b66f753ea7f6bc72cd1264bee5dda-d
+packagefile crypto/internal/fips140only=/home/user/.cache/go-build/69/69ec939eb84a07c91794ff352961697f7b1b44bc16a05b79778ffbf27bac377a-d
+packagefile crypto/internal/rand=/home/user/.cache/go-build/2e/2ed001c45f18d60feda3091e76ce5201cd3d6cb6459f5c84afa6d2761608f196-d
+packagefile crypto/sha512=/home/user/.cache/go-build/e3/e301b586b83f9da2e00af00c432e48db3c1b16d68a9407f93aabd987d746d066-d
+packagefile vendor/golang.org/x/crypto/cryptobyte=/home/user/.cache/go-build/2c/2c99959a6561ec37641e1ce774f374636b160338ec3a8814faf67db2484b1fa8-d
+packagefile vendor/golang.org/x/crypto/cryptobyte/asn1=/home/user/.cache/go-build/2e/2ead4ea35cbc76fa2fd5d3f49c3dbd87ab12bd384b3ba3a5de3f9f10ce6d5ab2-d
+packagefile math/rand/v2=/home/user/.cache/go-build/51/5195ab79101499d7155eb9a49851ca5bd98d4048cdf38c037de014689b557780-d
+packagefile crypto/internal/fips140/ed25519=/home/user/.cache/go-build/40/40f4cbe0e4ad1b901305b374806eead92ff8ac42618ba04b68e9b253060fd916-d
+packagefile crypto/internal/fips140/drbg=/home/user/.cache/go-build/91/91ea46713d98fc55f5e78bdd36bb4f445f8f598936b8ee5ccd8975f65bf96437-d
+packagefile crypto/internal/fips140/sha256=/home/user/.cache/go-build/f7/f792637031c9d422b27c6844bb86be1b47aad2c49083a75cecec11ae4d936e80-d
+packagefile crypto/aes=/home/user/.cache/go-build/ee/ee1d7420116606a507ad08be0003370c0795afe988797175ed8769c2221cb3a6-d
+packagefile crypto/cipher=/home/user/.cache/go-build/93/9317991e9a8146c3825e6086faa905305b9779d233c351333404c8ec0efd9e18-d
+packagefile crypto/des=/home/user/.cache/go-build/bf/bf18bea6946196f481160c6ab90c4ee0a2423e8504251fec97bed72d43f678db-d
+packagefile crypto/fips140=/home/user/.cache/go-build/24/24e6f2db3bb5e48fa40666d536f5dcb8d1944fd174e1863f4dbe8a28a44c9c51-d
+packagefile crypto/hkdf=/home/user/.cache/go-build/15/15a249b13edcb40064b6cad7de9e2c90a9a3d12987dd1bec9f6695991285b3f4-d
+packagefile crypto/hpke=/home/user/.cache/go-build/91/91cc5daa22e114666c308a050c06fbc6429a9c9f6e3aaa301e8f1f9238d5e807-d
+packagefile crypto/internal/fips140/aes=/home/user/.cache/go-build/c5/c56f41ed964581f7d9f039f039fd89e40d7eaaee3cf31acd4b31b3a5c26c7239-d
+packagefile crypto/internal/fips140/aes/gcm=/home/user/.cache/go-build/36/36bf43397c4e55c1790365ee29e463c2c840ffdda25f1a6fdf38ac4a3e995848-d
+packagefile crypto/internal/fips140/tls12=/home/user/.cache/go-build/74/742dc323d45692beddbea555c6ebc9620caa1b7f644bcb143ce46ecc4b3b8582-d
+packagefile crypto/internal/fips140/tls13=/home/user/.cache/go-build/ea/ea733a3e58f82f269be6fe5cd35a0ee21807e23f3f8c85f72bef5f634cc4301d-d
+packagefile crypto/md5=/home/user/.cache/go-build/bf/bf08aa22992c2e226cf40eec229a57f6cbd7dfc9d3d053cb6708f27a0e9d137a-d
+packagefile crypto/mlkem=/home/user/.cache/go-build/ed/ed04bafe47b555046ba80390fe0c009a297fa60b677c87b2850ff4a349a4c885-d
+packagefile crypto/rc4=/home/user/.cache/go-build/dc/dc3f2475b524aae6b0fb0c5d399d56549a7e994db17e8838235a098684ce0dd8-d
+packagefile crypto/rsa=/home/user/.cache/go-build/46/46d4e7105f76d531f9e465d2e1dd2a5c63b84470f76c930dd6f215585ca9067c-d
+packagefile crypto/sha1=/home/user/.cache/go-build/aa/aae075d3a277d3c17d2e2765b9057a1d0bf2bf219e6942a458bfba8bf09e2fc1-d
+packagefile crypto/tls/internal/fips140tls=/home/user/.cache/go-build/d1/d1c6921ffe96a79fcc98c48db7a552d1638027b2f0c2c24c70d1e1b39004f58c-d
+packagefile vendor/golang.org/x/crypto/chacha20poly1305=/home/user/.cache/go-build/34/34b3c61d8438118441065652198370d1f5964f9f143e842f8b13c7a57da88522-d
+packagefile weak=/home/user/.cache/go-build/23/231e6f9e854679298e212869e42baf5bd0dadc76fa7dee728aa25f64a651c2e3-d
+packagefile crypto/dsa=/home/user/.cache/go-build/95/95ea0ba56782f2c2619372435b34bf1269577dadb7dc01f0349cf9317f6eaaf8-d
+packagefile encoding/asn1=/home/user/.cache/go-build/9d/9d75ec2112736dbc8e4b512172d23499d6b4ba713a5fb9f7f8e78e3be212cc67-d
+packagefile unicode/utf16=/home/user/.cache/go-build/f5/f573ff73cd16c6cd35c73f0e5b3f5fe8bfd62086927f25ee0472da49b41ca0e6-d
+packagefile database/sql/driver=/home/user/.cache/go-build/94/945c4f4ce9470f41fdf3bb7f2e7a7278fe0ec357d8fad114c11e42f360f947fa-d
+packagefile io/ioutil=/home/user/.cache/go-build/a8/a86046ec92695dec30a970ed63d2a7bab06ef50aab873018048e268ab567ac65-d
+packagefile log=/home/user/.cache/go-build/78/78c69ba9950b47b9a2aa7b5fb679e48789dacb983612edaf9ecb26f0fe27a50b-d
+packagefile runtime/cgo=/home/user/.cache/go-build/65/654e155000cc2f81b1addbb469ff8d01d87b4cc964d763625afba0b97cbc9f13-d
+packagefile github.com/maxmind/mmdbwriter/inserter=/home/user/.cache/go-build/05/05f769c795c89ef935e000644700e8814dda462cef8656e5fb16de238357f723-d
+packagefile go4.org/netipx=/home/user/.cache/go-build/60/60a2aacd89701cc12aef6aefcc585adafbf647ffe16d4d46767593878d26abe6-d
+packagefile github.com/oschwald/maxminddb-golang/v2/mmdbdata=/home/user/.cache/go-build/60/6006cf367edf1a8208b6290a780708c92bb033640c05fcce6fcaa96945cb73a0-d
+packagefile github.com/mattn/go-colorable=/home/user/.cache/go-build/ae/ae2c2643524e72d691d38f30309b425df4146680945db80b0c1d16b1b16b3895-d
+packagefile github.com/rs/zerolog/internal/json=/home/user/.cache/go-build/e4/e447f8a98759f063166796690c69ccba88a3b8de77a2d72eac4ffd1d9578d542-d
+packagefile log/slog=/home/user/.cache/go-build/26/2683049bbc751c08a79435b37b35f69c71f4f42344cf0e0b625842042b779cfe-d
+packagefile golang.org/x/net/http2/hpack=/home/user/.cache/go-build/5d/5d9a0a56be0d98e3b3e8d5c0cadbbb5d7100d00b4d48efe3ae8da8b7db966fde-d
+packagefile golang.org/x/net/internal/httpcommon=/home/user/.cache/go-build/60/609fd82961b5fa03a2172a837a5d39583f766e0c4b15d8a7331bc6a1785a0e67-d
+packagefile golang.org/x/net/internal/httpsfv=/home/user/.cache/go-build/9e/9e24f66f077f9da8ef9d01b3a5fba00702427e74972764e5d85a2a778c94b284-d
+packagefile google.golang.org/protobuf/internal/errors=/home/user/.cache/go-build/62/6266a45cccedf3ea5d597f40485f53f25119ea0e914043e1133c661e9f8955b1-d
+packagefile google.golang.org/protobuf/internal/encoding/messageset=/home/user/.cache/go-build/14/14f5bfba8ff7b0913ed9ad952147d1eba2e90770e782a69b3f13355ae72f59ce-d
+packagefile google.golang.org/protobuf/internal/flags=/home/user/.cache/go-build/5e/5ec0bd58450114c934404abe5bad05f4ebbca39c75bcd339d46ca54cae356d0f-d
+packagefile google.golang.org/protobuf/internal/genid=/home/user/.cache/go-build/60/60d653fc9bf501ebbaf3e246a49bdd832265ecac9bfb68763a31aac3119e7b9c-d
+packagefile google.golang.org/protobuf/internal/order=/home/user/.cache/go-build/ee/ee8339c6d2029eb95393386a19334fba62428f18fe43555e7071e80fd28c782b-d
+packagefile google.golang.org/protobuf/internal/pragma=/home/user/.cache/go-build/02/02cfb6bb5fc906270cfcebfe02e8d4965b08139c1cfc0ba7a309d865bbecb736-d
+packagefile google.golang.org/protobuf/internal/strs=/home/user/.cache/go-build/4a/4a9ec5a8ed014169b09e3c8577f815e78c7f62aa1ec49728e12049802d2d3179-d
+packagefile google.golang.org/protobuf/reflect/protoreflect=/home/user/.cache/go-build/a1/a10ed3afb763e825e2ae66d7a2980badb2a4caab92c5cdfcfb21f28001965d0f-d
+packagefile google.golang.org/protobuf/reflect/protoregistry=/home/user/.cache/go-build/cf/cf29579eabbcf897964478804356dc4520eb4c33138570ccc59534c64bd95e48-d
+packagefile text/template=/home/user/.cache/go-build/5c/5c4dd547320d000f5668b8928992d2dcc0892443afbcfc737979480927c5bd4c-d
+packagefile vendor/golang.org/x/net/dns/dnsmessage=/home/user/.cache/go-build/39/393dfe4f30d64d60ce3cbe462da9c36234ae117c02443750982193a8e8a8f6bb-d
+packagefile internal/nettrace=/home/user/.cache/go-build/a9/a9d6a746f5a66dde15b7e66bc7dcec8240082839526925e516f5f8345e2cde6c-d
+packagefile internal/singleflight=/home/user/.cache/go-build/25/255eb3497b1d857bc116c0f2815b922051b371e73bfeb93fee3cb59e18a333c9-d
+packagefile vendor/golang.org/x/net/http/httpguts=/home/user/.cache/go-build/63/63e45572254561ce7d281f1d3755b91773c01054c0c1ed942ec46eb3309ae56e-d
+packagefile vendor/golang.org/x/net/http/httpproxy=/home/user/.cache/go-build/8b/8b5e1b6329f0617ab3d45960133ad3c14c34e77ffd01d04e5bb2d96808154cdf-d
+packagefile vendor/golang.org/x/net/http2/hpack=/home/user/.cache/go-build/75/756e9590bc3cfdea6a8c862f63ae8d04e4470eb306babbc97519d9e9b5814854-d
+packagefile vendor/golang.org/x/net/idna=/home/user/.cache/go-build/43/4317a1ee2fb5e6735402ec8595cd533b4e0ec377aadce5e53203316578f871a5-d
+packagefile mime/multipart=/home/user/.cache/go-build/da/da7e04bfe85f5d222e11e452aaf5ff1bf6698869b8e50842230098ec03ab390f-d
+packagefile net/http/internal=/home/user/.cache/go-build/54/54afd9adc82b3781f91639e916c5fe8ef40173737e839864489018c72fb8d708-d
+packagefile net/http/internal/ascii=/home/user/.cache/go-build/4d/4dcd79661a4a165e64305e055e2df699ba4d55bead04d0da346d8ca3dc04104a-d
+packagefile net/http/internal/httpcommon=/home/user/.cache/go-build/48/48feaf4edb9bebc23ece9c8ac6e7014a2240b11fbbfccbfe0c817c2c87f373f6-d
+packagefile net/http/internal/testcert=/home/user/.cache/go-build/73/7388f271bcd6cc103e58736c1bd85242bec3c20061b095192fca321c94e9beff-d
+packagefile unique=/home/user/.cache/go-build/2d/2d6b429ef458fa8700f4344680efce9f1bd96614fa425316b3a7c3f968d4810b-d
+packagefile google.golang.org/protobuf/runtime/protoimpl=/home/user/.cache/go-build/56/56f15fec9616eb9c89782490b6aba3ccea683f8719f4c1c7cbf19d1c82921582-d
+packagefile p2pstream/internal/releaseversion=/home/user/.cache/go-build/68/6849b4d8a7fc6ae582c8cf6f05115831275cc7aec1f8efb64cb2e7f736f87a7f-d
+packagefile golang.org/x/sys/unix=/home/user/.cache/go-build/88/88461ac1fd46ead101592a925a65170ade76b2b9abbec0580ff13b837362cd9d-d
+packagefile github.com/caarlos0/env/v10=/home/user/.cache/go-build/26/2631540f7716ad2d8bab292d1816b8874cd9e8636f2c537c876a3ff8d1b5adcc-d
+packagefile github.com/joho/godotenv=/home/user/.cache/go-build/b2/b2cb044154f221af84d7df111277e01d858b7010859847872656060a431857be-d
+packagefile github.com/pressly/goose/v3=/home/user/.cache/go-build/7a/7afe5e105b7f1738af449a9658e8f04322721b3e48481c63303bef212ea714a4-d
+packagefile p2pstream/internal/db/migrations=/home/user/.cache/go-build/08/083d8a4d7b5b544ebb879927fc28d77bd8b671ff867e857ceb41cdc5fc4c8aa1-d
+packagefile crypto/internal/fips140/hmac=/home/user/.cache/go-build/a3/a34f3f51bbe65a3881e4982b09a3255e6d3cb7ee0067f478b2ea01a28d177c12-d
+packagefile crypto/internal/constanttime=/home/user/.cache/go-build/f0/f0baf5761e89a5a2cc063d210039fdfdde05275eadb5d2cfe794c66913d4db74-d
+packagefile crypto/internal/fips140/subtle=/home/user/.cache/go-build/b4/b4a3ff477440a1d20ae0b2a9d77e46e3da2d7c934491dfcc34ba19b9c3378471-d
+packagefile cel.dev/expr=/home/user/.cache/go-build/f2/f2bdc121f772c8ed2ff507ee423f931f5f2c7a2313af8a54629fc36ce600a69c-d
+packagefile github.com/google/cel-go/cel/async=/home/user/.cache/go-build/1f/1f49eca07199ef252da4652e8e6e1751c15445febe6dfac69beabfd3a1efb6bd-d
+packagefile github.com/google/cel-go/checker=/home/user/.cache/go-build/aa/aada4eb9ac181751b90fe5c4ee5783023ddf182f750173379122352ab80138cc-d
+packagefile github.com/google/cel-go/checker/decls=/home/user/.cache/go-build/10/10f5655cb705dcdafd263aab5f21737ea25bb1dd2a54ec1d0cbdf4909ad80ccd-d
+packagefile github.com/google/cel-go/common=/home/user/.cache/go-build/7e/7eb86ab2a2c9ffe595e16204d585ede72f55ee1b71c7e9b0068fe7558ae1874b-d
+packagefile github.com/google/cel-go/common/containers=/home/user/.cache/go-build/41/41c7051591b79e512160907c552a3842c6bff6dff560746e14625ff5f3f48a4c-d
+packagefile github.com/google/cel-go/common/decls=/home/user/.cache/go-build/2a/2a134a0cfafe32b3a5f3e42184291a377e9b6e0c862797ffcfc734cc9bef749b-d
+packagefile github.com/google/cel-go/common/env=/home/user/.cache/go-build/36/36b65c694fc89e7ba244c00a358a5de2591dba2e4e781c0dbb76984636873e50-d
+packagefile github.com/google/cel-go/common/functions=/home/user/.cache/go-build/59/59c7a1c18a1d663cbf5adca8de6bebec50fb6a93159494cdb029e88e12e855ff-d
+packagefile github.com/google/cel-go/common/operators=/home/user/.cache/go-build/0c/0c42dde2b4de50faca29b73fe45fea062f451068d59204166b4ab0a0e3177543-d
+packagefile github.com/google/cel-go/common/overloads=/home/user/.cache/go-build/46/46ed6da62872ddde96f640b4d110f8eed1ba095e4a688bb0b319a088b4a9aa0a-d
+packagefile github.com/google/cel-go/common/stdlib=/home/user/.cache/go-build/5b/5bc160157ca9632bfc04313ecc2c662dd758da5170faaf5cd65bb177d416aeb9-d
+packagefile github.com/google/cel-go/common/types/pb=/home/user/.cache/go-build/90/90fb3ed2720a550f407ca98c67777828e0c79917113c7b88289674b492a0e498-d
+packagefile github.com/google/cel-go/common/types/traits=/home/user/.cache/go-build/a1/a1cdf5323d9a67c8e7f23b8dbb2fc1e179373e9ba2ddb6a6bfc2bcbb30b0922a-d
+packagefile github.com/google/cel-go/parser=/home/user/.cache/go-build/ad/add9ee1931e8dc4ae0072cd0d2e55d924ea072def8c5315c045303228bf3fed0-d
+packagefile google.golang.org/genproto/googleapis/api/expr/v1alpha1=/home/user/.cache/go-build/a4/a4d6b4e860c490b17fce79ad77757633ad00103c2bbdb8d96cf906ea4b17fda3-d
+packagefile google.golang.org/protobuf/reflect/protodesc=/home/user/.cache/go-build/ac/ac0cd05ecbd153b5c8f6db98e8df1db206b41652af2f3a930d4d0925f88697de-d
+packagefile google.golang.org/protobuf/types/descriptorpb=/home/user/.cache/go-build/55/55a27906f1c850f8ccb0b789e805f628869b7681ec0a0c68691cac1b03b05f88-d
+packagefile google.golang.org/protobuf/types/dynamicpb=/home/user/.cache/go-build/75/75bc19aa11b951161f64979432b0505192439cd7b749157e81c6b169bb481a98-d
+packagefile google.golang.org/protobuf/types/known/structpb=/home/user/.cache/go-build/15/151c84d91b15bdf78ef4ffbcf8350917c3c1539be5551cfb3a75aa3bf9b14097-d
+packagefile google.golang.org/protobuf/types/known/durationpb=/home/user/.cache/go-build/c5/c55d142e9a807f385d035a399914544ce0e6f38db3ba97b14a82ff3cf05f09e3-d
+packagefile google.golang.org/protobuf/types/known/timestamppb=/home/user/.cache/go-build/d0/d035c00499f43c18d2dea4caab23787cd0296f4623651f1ba00062723ffb3c0b-d
+packagefile google.golang.org/protobuf/types/known/wrapperspb=/home/user/.cache/go-build/04/04920bf620106acb62c7377132769d11638362ee8234f63355acdd69c9045b63-d
+packagefile hash/fnv=/home/user/.cache/go-build/de/de15b55ff68690a7a1d822c350ae8ace021d929aa3317a7b5a64ae000fe8705c-d
+packagefile github.com/oschwald/maxminddb-golang/v2/internal/decoder=/home/user/.cache/go-build/e8/e81839c51558673bc6c3e9da6e19f32619a7fffc2c08e5a4ad6e6ec54ce204c2-d
+packagefile github.com/oschwald/maxminddb-golang/v2/internal/mmdberrors=/home/user/.cache/go-build/23/23f089ffa1b7c3bc5a1e286be3fc93d0db61ac45bd45b9e67bc9b8a14d39d6cd-d
+packagefile golang.org/x/crypto/blowfish=/home/user/.cache/go-build/9b/9b5c97ab476199c80bd7d696fb3fc5a0e115e5990e277fabec6b9f135f89d6ce-d
+packagefile golang.org/x/text/secure/bidirule=/home/user/.cache/go-build/fe/fe10a040010f72ce525126e90d3ff0bc9c891479a923d550653472228267db69-d
+packagefile golang.org/x/text/unicode/bidi=/home/user/.cache/go-build/e5/e5c642ec418f54e75972d02f5fd4407f7be1fd2df8754704bd721014ac1e7c0f-d
+packagefile golang.org/x/text/unicode/norm=/home/user/.cache/go-build/f9/f97791beaf1639e5705e7cc386c9cb16792752e5fc217e7bae3854a0d69d18dc-d
+packagefile net/http/cookiejar=/home/user/.cache/go-build/19/19a1137618be5082f1116f93d7a8213c246cb8f597a808347f7ac5499e2549a7-d
+packagefile google.golang.org/protobuf/internal/encoding/json=/home/user/.cache/go-build/c3/c3bdfaa7a483c663c7d10b12a00f059ebaf9542ec5c901b65fa45ec895fe746c-d
+packagefile google.golang.org/protobuf/internal/filedesc=/home/user/.cache/go-build/71/716eef8796434ed354f2b0a622131a3b8db6cb01d28f9a12b06b69e5f58d4117-d
+packagefile google.golang.org/protobuf/internal/set=/home/user/.cache/go-build/4d/4d6dc54419ef689fa5c1d8c773f80c38a1e8d3e038cc8ea40153a81275cb7c10-d
+packagefile internal/bisect=/home/user/.cache/go-build/d9/d92da876f99ad20393495164cecfd8f91f93e4cde9a3574107f1af8e7c10dbb4-d
+packagefile go/scanner=/home/user/.cache/go-build/11/113bf84044a102bd4d49b1494647aff7cb9fc93757280149293656d37e51393f-d
+packagefile go/build/constraint=/home/user/.cache/go-build/e7/e79b9a663c006ab21bada0005713010aa5822f5b37ce261c100289c9554305ab-d
+packagefile go/internal/scannerhooks=/home/user/.cache/go-build/5c/5cc986a8eafe17c9c96652353f3247f0b36367eebc1913254006bebe51919675-d
+packagefile crypto/internal/fips140/ecdh=/home/user/.cache/go-build/cf/cf5c5641314fe5be7264948f4c2dceebdf5dd0f3487428412ae90cc953553317-d
+packagefile crypto/internal/fips140/edwards25519/field=/home/user/.cache/go-build/84/84752026bb3359a9bde8bc043e35a26ad3c19cbb98eedd57be28716b2c70a728-d
+packagefile crypto/internal/boring/sig=/home/user/.cache/go-build/a8/a8c5a4ed65a0f503e94476765f5810b8c791492698d52aace858a66aa61ae269-d
+packagefile crypto/internal/fips140=/home/user/.cache/go-build/ce/ce5f819328d519fd323038505198882123c5da4ef9318930c07303f322630793-d
+packagefile crypto/internal/fips140/bigmod=/home/user/.cache/go-build/97/97900ff6f78ae54d4da6e5a596c3d40fb8260097bcec31b1d9dfcfbcb4c32acc-d
+packagefile crypto/internal/fips140/check=/home/user/.cache/go-build/39/39c78410e74e2e44e6de17b139d0de25d354a80ed584444b77d5df8efa191549-d
+packagefile crypto/internal/fips140/sha512=/home/user/.cache/go-build/af/af30703630e4346d93c14f24dc666cdeef6b37e9b48a7ddb5c5848d73bca27a2-d
+packagefile crypto/internal/fips140/nistec/fiat=/home/user/.cache/go-build/a8/a88833eb886b12036e4ba731118d29974a52edd97210b2baa9f6094bd464d31a-d
+packagefile crypto/internal/fips140deps/byteorder=/home/user/.cache/go-build/c0/c0c42d588a9209daf9f66dbfd5e793fc1671edc0c887914d35418f6e2b88140c-d
+packagefile crypto/internal/fips140/sha3=/home/user/.cache/go-build/b2/b22cd6ec67d668fd1d3ee0870bc68e079bb55c0d96f412949f235e41e5a1a78e-d
+packagefile crypto/sha3=/home/user/.cache/go-build/82/82d5614006871f42ea9a99868a2b81fa06bc67b827f2806370c1e9eef8710d3d-d
+packagefile crypto/internal/randutil=/home/user/.cache/go-build/ce/ce5db099bb48e6432b92cd346722e5043e7b6b09147bbd57911cdd16ce02fa97-d
+packagefile crypto/internal/fips140/edwards25519=/home/user/.cache/go-build/2b/2b7a71dd47c9cea34d41748faf33b679cf93945c4b1f759d56e7686d6351aa5d-d
+packagefile crypto/internal/entropy/v1.0.0=/home/user/.cache/go-build/34/3409c10b5cfff815c744a0e7eaefafd9ab3384d14ee832554fafb0ef3b2b679a-d
+packagefile crypto/internal/sysrand=/home/user/.cache/go-build/77/7701232ada70f0ef66123ce8032be6fd74f0ba088f7d17b4a39fd817e0114921-d
+packagefile crypto/internal/fips140deps/cpu=/home/user/.cache/go-build/47/47151c9f5b56d508e42367fda21d7e6cd9c8a04dc1cd2e4034d6a5c2abf5a110-d
+packagefile crypto/internal/impl=/home/user/.cache/go-build/20/2048f13535f20de125cedf0abcfbe36dd5ebc711f7ae2a2982565eb729ba95e9-d
+packagefile crypto/internal/fips140/alias=/home/user/.cache/go-build/13/1398278ff175069ab0fcf4702478a307e70fa347692408be7fc95c3f4d384a7b-d
+packagefile crypto/internal/fips140/hkdf=/home/user/.cache/go-build/02/0266acc78b052af5b3df66a03619b236e31d10e25419d39a133af4a23250a5fa-d
+packagefile crypto/internal/fips140deps/godebug=/home/user/.cache/go-build/60/60c40f85a2999dda3ca598eeae5c15e3d50813961eff7e7dda3394c7b4e81787-d
+packagefile crypto/internal/fips140/mlkem=/home/user/.cache/go-build/70/704c00146acbd295b4f263f4c3fb9e8d2be7b6c79670738d01387421457295d6-d
+packagefile crypto/internal/fips140/rsa=/home/user/.cache/go-build/86/867799c8b97aaa029fc8921e81cfb5d875ac4be2d490000f6e37bf00406ea3ba-d
+packagefile vendor/golang.org/x/crypto/chacha20=/home/user/.cache/go-build/db/db509ac5e3a9a8a6de56a0a31d980ccb48fe8aa831ca1e9b8885bc998baf54f4-d
+packagefile vendor/golang.org/x/crypto/internal/alias=/home/user/.cache/go-build/bf/bf15e224372f587806daaff59bef56f5f645c1a2ec80a3176dfbce386aa7585c-d
+packagefile vendor/golang.org/x/crypto/internal/poly1305=/home/user/.cache/go-build/19/195a21658d8028edb7fd0bfd14308a2967a9697820b47923b2fbe4e1647da393-d
+packagefile vendor/golang.org/x/sys/cpu=/home/user/.cache/go-build/ee/eeb08d96ed960a3fd57017304b9011c0f06a15e84059b9d18f5b63f102efa81e-d
+packagefile internal/saferio=/home/user/.cache/go-build/f2/f24bf26b8fed42dcc98affd70440e5d713cd2a4176c2d8a3bafbd7d9080a8127-d
+packagefile log/internal=/home/user/.cache/go-build/72/726f299a3a596d4d82d26c7256d5507f645c9beaabe7e5227cdbcf1b716361e6-d
+packagefile github.com/mattn/go-isatty=/home/user/.cache/go-build/60/6025ff78fdac778737e652fef72046a4f70ad5f3e1df835dd03c074328b06e7d-d
+packagefile log/slog/internal=/home/user/.cache/go-build/ef/efaa6d3bd108361e1cb47b295b47bc4148e83225b11807775f2547f5171e4524-d
+packagefile log/slog/internal/buffer=/home/user/.cache/go-build/34/34a3b40a5feecd978187585c2366c76ee82d2cf07ee58ed5f63760edb701cd65-d
+packagefile google.golang.org/protobuf/internal/detrand=/home/user/.cache/go-build/66/66d0d1d41d5f82146b8ab8f87793dd96ca3f445b2f5737f8b42f8a97cd0d2610-d
+packagefile vendor/golang.org/x/text/secure/bidirule=/home/user/.cache/go-build/76/763cb494dc9f1cb4a84ed22c909cee8847bddf107cd1e9ccf8c6c2122c451a09-d
+packagefile vendor/golang.org/x/text/unicode/bidi=/home/user/.cache/go-build/29/29848ab4d3f157784465d92a7eec8e224907dcf417083741617d82cc174e6b4c-d
+packagefile vendor/golang.org/x/text/unicode/norm=/home/user/.cache/go-build/f1/f1f1a960003ab57b693c76923089c2a5ad57bbac6974507190028611ef9f443f-d
+packagefile mime/quotedprintable=/home/user/.cache/go-build/12/12d967f0d9da5dfb5bb5a138662a73c30d8c88645e52aa14145fc15a2d32441d-d
+packagefile google.golang.org/protobuf/internal/filetype=/home/user/.cache/go-build/bd/bdb906589fd0bab22bb1a7f18f96e98313a42166c5edfb0ce9fe6c030f4dcd40-d
+packagefile google.golang.org/protobuf/internal/impl=/home/user/.cache/go-build/03/03fed693ece795734f61ec7356f76960d329bf86a070e3ae3593ece3a91522d0-d
+packagefile google.golang.org/protobuf/internal/protolazy=/home/user/.cache/go-build/eb/eb32f2d4c7254d6e52cbc64516bcb02b2dbc8d011da1e6d9216ebaa04d4c360c-d
+packagefile google.golang.org/protobuf/internal/version=/home/user/.cache/go-build/bc/bc97029c4cb942bd8d5727ff77196a3926f214e332460884c3c20ae463ff8b27-d
+packagefile github.com/pressly/goose/v3/database=/home/user/.cache/go-build/b5/b520d0f4545133996de1f7de6ac9967ba4a8f94f13332c3e0c438f73bf179065-d
+packagefile github.com/pressly/goose/v3/internal/controller=/home/user/.cache/go-build/5e/5e7c201a88b7d104f3dbdc6cadf90c84b52eebdc7be9168bec8f3f175b048c09-d
+packagefile github.com/pressly/goose/v3/internal/gooseutil=/home/user/.cache/go-build/a9/a9b62ddbc10d2aea8136bde0a9005545a7be3e35d7d86d922cd1fd6f3842c2aa-d
+packagefile github.com/pressly/goose/v3/internal/legacystore=/home/user/.cache/go-build/83/83cd71e1c6ef9b506d1bc9c19dba358e5691ccd06bba9baee6b3ae574e5d6daa-d
+packagefile github.com/pressly/goose/v3/internal/sqlparser=/home/user/.cache/go-build/3a/3a7daf83a3234f9f59a179441b9b7fd162d9dda5a01d4ea909f6abafcc572c32-d
+packagefile github.com/pressly/goose/v3/lock=/home/user/.cache/go-build/88/885b7b76b635542d0fe286ed16820f1f7f00e913b107c5cd35048472ce7346d8-d
+packagefile github.com/sethvargo/go-retry=/home/user/.cache/go-build/9f/9f0554d9e80b77c79c2ab9d78300726984a5b994037cba136e41f8e0323a39be-d
+packagefile go.uber.org/multierr=/home/user/.cache/go-build/4b/4b440fc04710d0fa09c504ae146fd1a201a16fe168c211ba7575817134def566-d
+packagefile google.golang.org/protobuf/types/known/emptypb=/home/user/.cache/go-build/69/69fed2d83e868da4c7b5acf83a1a4cc1d3c88c0a938d61849e2a0b5a3e0b6bc2-d
+packagefile github.com/google/cel-go/common/debug=/home/user/.cache/go-build/6f/6f20f21fa38e9973c47081b88d5d5ce2d9f775cb8e79dc5d654aa25c5cd052b5-d
+packagefile github.com/google/cel-go/common/runes=/home/user/.cache/go-build/ed/ed8fb8967d58ea2ac66d3a9a0c0699c985d000f4eccbcee4d7b37ace6430aa53-d
+packagefile go.yaml.in/yaml/v3=/home/user/.cache/go-build/ff/ff6141e45032cca56464489a1808059f08d3bd019ae8682426878a463f9d31fc-d
+packagefile github.com/antlr4-go/antlr/v4=/home/user/.cache/go-build/06/06a257ec8b216d88bbb6f83ca9856eeda6daf3ce624f2175f03e221543dfbb27-d
+packagefile github.com/google/cel-go/parser/gen=/home/user/.cache/go-build/f4/f49cbea5818123f6d4ea700267f344c109f1940863b43198daedfc0588a5a6e9-d
+packagefile google.golang.org/genproto/googleapis/rpc/status=/home/user/.cache/go-build/ce/ce762f4ff57f1f0f6e5e53b46956c514aee9c52c083139e04e068fd4b06627af-d
+packagefile google.golang.org/protobuf/internal/editiondefaults=/home/user/.cache/go-build/7b/7bc35aeb2fa78eee940092018c1e63854c08e4f0d9476a4c4aada5c667e25df5-d
+packagefile google.golang.org/protobuf/internal/editionssupport=/home/user/.cache/go-build/6b/6b8ca4761b2e5d1f8128eeb0fe17a983c873861d11d4050bd446013e56ad11f7-d
+packagefile google.golang.org/protobuf/internal/encoding/defval=/home/user/.cache/go-build/c7/c76c538b8108d046b5848f3353b82aac903d7701824ef3caadbd818a1cbb31ec-d
+packagefile google.golang.org/protobuf/types/gofeaturespb=/home/user/.cache/go-build/3e/3e07a69deed22731ba26df029e5310728ea9e320078edc136f94a870403d1a7a-d
+packagefile golang.org/x/text/transform=/home/user/.cache/go-build/aa/aa4d2fb0e3cd46ff7ec80f085990bd04f6e31ae7b8061c0a17543b130c13106b-d
+packagefile google.golang.org/protobuf/internal/descfmt=/home/user/.cache/go-build/45/450abb1b7f16af4e2c7d95f399e45ed7af66f9b259ff9e1b82397ca641dbff36-d
+packagefile google.golang.org/protobuf/internal/descopts=/home/user/.cache/go-build/bd/bd20b35a7fedfaa6a42236e4dc2915f56f737c0f2d6cae394b25ad2cdd194b0d-d
+packagefile crypto/internal/fips140deps/time=/home/user/.cache/go-build/1b/1b4b971d2be37027fc777a0b3087650c4aec2430f895fea6e445beba030bbbf8-d
+packagefile vendor/golang.org/x/text/transform=/home/user/.cache/go-build/ea/eafe44f0698edbc9809eff23ccb8b205eea0ba8e014ae9d6f4a75f0ff2c43ac8-d
+packagefile google.golang.org/protobuf/encoding/prototext=/home/user/.cache/go-build/7f/7f2c967420492494a9a7877f130c8655a1e9a0631bff4cee260e15955e9d8f06-d
+packagefile google.golang.org/protobuf/internal/encoding/tag=/home/user/.cache/go-build/20/2005d5ef7abc931f12197ab85a22583c2b1908b19dc8f53b9cd2bbba56d8370e-d
+packagefile github.com/pressly/goose/v3/database/dialect=/home/user/.cache/go-build/aa/aae513e55ec6fafd5fd3eab6332b83caf67ec752c1271cbbfa27e4d26f50dee2-d
+packagefile github.com/pressly/goose/v3/internal/dialects=/home/user/.cache/go-build/93/9308dbedae5ce07ccd4b233c99fe52b4a995878c122f9c157c2724289c68b4d6-d
+packagefile github.com/mfridman/interpolate=/home/user/.cache/go-build/e9/e90bd93466a1a0ea6fa6c19eab1ac2a28c364503b3f6dd3934157bdf9e0b2059-d
+packagefile golang.org/x/sync/errgroup=/home/user/.cache/go-build/e6/e6a008aaf17c752be7bfeabd2530ac013002239859c8ab6b8f285eeb38160573-d
+packagefile github.com/pressly/goose/v3/lock/internal/store=/home/user/.cache/go-build/c7/c745b51e9597813ca8ba2361173b91d5f6190b7ad689c10d3b83c31a24ab0b88-d
+packagefile github.com/pressly/goose/v3/lock/internal/table=/home/user/.cache/go-build/90/90dd33040ecffa61ac3786ff8aad89624bd3bddfb5360362b74928ee6a5d392c-d
+packagefile golang.org/x/exp/slices=/home/user/.cache/go-build/8b/8bc1c3bdd9073adb3062e889a760982cd2f196fa6229fa55ec9b68d20e478b0d-d
+packagefile google.golang.org/protobuf/internal/encoding/text=/home/user/.cache/go-build/45/454307c71e7506448182ac86321536ab3fbc0c91bad73f7d35a44daf9d46fa76-d
+modinfo "0w\xaf\f\x92t\b\x02A\xe1\xc1\a\xe6\xd6\x18\xe6path\tp2pstream/internal/server.test\nmod\tp2pstream\t(devel)\t\nbuild\t-buildmode=exe\nbuild\t-compiler=gc\nbuild\tCGO_ENABLED=1\nbuild\tCGO_CFLAGS=\nbuild\tCGO_CPPFLAGS=\nbuild\tCGO_CXXFLAGS=\nbuild\tCGO_LDFLAGS=\nbuild\tGOARCH=amd64\nbuild\tGOOS=linux\nbuild\tGOAMD64=v1\n\xf92C1\x86\x18 r\x00\x82B\x10A\x16\xd8\xf2"
+EOF
+cd .
+GOROOT='/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64' /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/pkg/tool/linux_amd64/link -o $WORK/b001/server.test -importcfg $WORK/b001/importcfg.link -buildmode=exe -buildid=to9VO6DDLurULeBEImQ_/vBU9blcpuIiz_kH22k8H/FTbEjp_IM9jZKCN5qf19/to9VO6DDLurULeBEImQ_ -X testing.testBinary=1 -extld=gcc /home/user/.cache/go-build/41/4198c664fb7ed1d1f8f57c3537736434891b0dd4bdb3c98630b3313d541f55db-d
+go tool buildid -w $WORK/b001/server.test # internal
+mkdir -p /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/bin/
+mv $WORK/b001/server.test /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/prepublisher-causal-build.Dh6cxH/bin/control-server.test
+rm -rf $WORK/b001/

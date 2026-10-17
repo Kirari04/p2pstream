@@ -1,0 +1,6 @@
+5697829f1adb2a1b6d4d516df490db7af34fc6a79aadab8f3fd435b9d567d415  ./FIXED-BINDINGS.txt
+a49d82d5ac10a5737d4201245d69d83bba6d56a8104d964d2de917e77691cb58  ./PLAN.md
+0b61f7f2ee4a150bccb782c5df0cf6c8328bec476589a248dc690fe17e1cdccb  ./SHA256SUMS.txt
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  ./bash-n.status
+7a50771a0b40c9bdedd5edc0beb2ba9e87b1de58d92c1df4960708fb2253db28  ./launch.invocation.sh
+025886df814c516ed7e12b55150f633e8c9689f5120bc23c74b2b7048733760e  ./offline-reduction.invocation.sh

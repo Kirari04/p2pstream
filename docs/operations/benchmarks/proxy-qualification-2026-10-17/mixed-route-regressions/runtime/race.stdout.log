@@ -1,0 +1,12 @@
+{"Time":"2026-10-17T19:36:02.824555159+02:00","Action":"start","Package":"p2pstream/internal/server"}
+{"Time":"2026-10-17T19:36:02.847525267+02:00","Action":"run","Package":"p2pstream/internal/server","Test":"TestAgentRouteLocalityMixedWarmColdRetirement"}
+{"Time":"2026-10-17T19:36:02.847562148+02:00","Action":"output","Package":"p2pstream/internal/server","Test":"TestAgentRouteLocalityMixedWarmColdRetirement","Output":"=== RUN   TestAgentRouteLocalityMixedWarmColdRetirement\n"}
+{"Time":"2026-10-17T19:36:02.857330942+02:00","Action":"output","Package":"p2pstream/internal/server","Test":"TestAgentRouteLocalityMixedWarmColdRetirement","Output":"--- PASS: TestAgentRouteLocalityMixedWarmColdRetirement (0.01s)\n"}
+{"Time":"2026-10-17T19:36:02.857361872+02:00","Action":"pass","Package":"p2pstream/internal/server","Test":"TestAgentRouteLocalityMixedWarmColdRetirement","Elapsed":0.01}
+{"Time":"2026-10-17T19:36:02.857367843+02:00","Action":"run","Package":"p2pstream/internal/server","Test":"TestAgentRouteLocalityMixedGenerationReplacement"}
+{"Time":"2026-10-17T19:36:02.857370799+02:00","Action":"output","Package":"p2pstream/internal/server","Test":"TestAgentRouteLocalityMixedGenerationReplacement","Output":"=== RUN   TestAgentRouteLocalityMixedGenerationReplacement\n"}
+{"Time":"2026-10-17T19:36:02.859897331+02:00","Action":"output","Package":"p2pstream/internal/server","Test":"TestAgentRouteLocalityMixedGenerationReplacement","Output":"--- PASS: TestAgentRouteLocalityMixedGenerationReplacement (0.00s)\n"}
+{"Time":"2026-10-17T19:36:02.859914585+02:00","Action":"pass","Package":"p2pstream/internal/server","Test":"TestAgentRouteLocalityMixedGenerationReplacement","Elapsed":0}
+{"Time":"2026-10-17T19:36:02.859917961+02:00","Action":"output","Package":"p2pstream/internal/server","Output":"PASS\n"}
+{"Time":"2026-10-17T19:36:03.86498534+02:00","Action":"output","Package":"p2pstream/internal/server","Output":"ok  \tp2pstream/internal/server\t1.040s\n"}
+{"Time":"2026-10-17T19:36:03.865029506+02:00","Action":"pass","Package":"p2pstream/internal/server","Elapsed":1.04}

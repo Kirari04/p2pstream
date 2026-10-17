@@ -1,0 +1,92 @@
+{
+  "acceptance": {
+    "h2-c128_p95": true,
+    "h2-c128_p99": true,
+    "h2-c128_throughput": true
+  },
+  "gates": {
+    "maximum_latency_ratio": 1.1,
+    "minimum_throughput_ratio": 0.9
+  },
+  "network": {
+    "configured_rtt_ms": 1,
+    "measured_rtt_ms": 1.314,
+    "shaped_rate_bits_per_second": 1000000000
+  },
+  "workloads": {
+    "h2-c128": {
+      "aggregate-v1": {
+        "median_p95_ms": 11.308158,
+        "median_p99_ms": 13.412401,
+        "median_useful_requests_per_second": 17937.530981259744,
+        "p95_ms": [
+          11.637559,
+          11.308158,
+          11.26346
+        ],
+        "p99_ms": [
+          13.850894,
+          13.412401,
+          13.116485
+        ],
+        "samples": 3,
+        "useful_requests_per_second": [
+          17805.35609852961,
+          18205.064949311876,
+          17937.530981259744
+        ]
+      },
+      "candidate_to_legacy": {
+        "median_p95_ratio": 1.0763699919701712,
+        "median_p99_ratio": 1.0596982083640019,
+        "median_throughput_ratio": 0.9282811858472665,
+        "paired_ratios": [
+          {
+            "p95_ratio": 1.1360434824966725,
+            "p99_ratio": 1.123312079099423,
+            "repetition": 1,
+            "throughput_ratio": 0.8922127280493533
+          },
+          {
+            "p95_ratio": 1.0763699919701712,
+            "p99_ratio": 1.0553939349397263,
+            "repetition": 2,
+            "throughput_ratio": 0.9421262768677262
+          },
+          {
+            "p95_ratio": 1.0632277002218689,
+            "p99_ratio": 1.03631822926658,
+            "repetition": 3,
+            "throughput_ratio": 0.9286192836555742
+          }
+        ],
+        "paired_throughput_ratio_population_stddev": 0.021079844276217136,
+        "paired_throughput_ratio_range": [
+          0.8922127280493533,
+          0.9421262768677262
+        ]
+      },
+      "legacy": {
+        "median_p95_ms": 10.505828,
+        "median_p99_ms": 12.656812,
+        "median_useful_requests_per_second": 19323.38094829283,
+        "p95_ms": [
+          10.243938,
+          10.505828,
+          10.593648
+        ],
+        "p99_ms": [
+          12.330406,
+          12.708431,
+          12.656812
+        ],
+        "samples": 3,
+        "useful_requests_per_second": [
+          19956.40225561173,
+          19323.38094829283,
+          19316.34556483407
+        ]
+      }
+    }
+  }
+}

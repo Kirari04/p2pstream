@@ -1,0 +1,17 @@
+{
+  "name": "arm-outcome",
+  "argv": [
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-arm-outcome.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-arm-outcome.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.json"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+  "outer_seconds": 20,
+  "max_output_bytes": 65536,
+  "expected_natural_exit": 0
+}

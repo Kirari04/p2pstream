@@ -1,0 +1,25 @@
+{
+  "base": {
+    "third_party/yamux/aggregate_window_test.go": "98b590540d8ee4fedfa6ad4d9318c617b32695aa7617db6a82569ba7536033cd",
+    "third_party/yamux/refund_emission_diagnostic_test.go": null,
+    "third_party/yamux/session.go": "268e0a49a1b2f43c5dcaf2ebf3d3d1106faa71b6091931e4041adbc2d872bf41"
+  },
+  "candidate": {
+    "third_party/yamux/aggregate_window_test.go": "830d250fd0878e0edfb56fd513a602796b7fec3418fa5e90923e717b6b979653",
+    "third_party/yamux/refund_emission_diagnostic_test.go": "1913aae079f5d0504022af62e34765987eaefb9dca4916cc4fe5e7bf95c54e5b",
+    "third_party/yamux/session.go": "6e41cacaea3c248fd11706425856dfff573ef5b8ba0c01d59557c465f86f35ae"
+  },
+  "control": {
+    "third_party/yamux/aggregate_window_test.go": "830d250fd0878e0edfb56fd513a602796b7fec3418fa5e90923e717b6b979653",
+    "third_party/yamux/refund_emission_diagnostic_test.go": "1913aae079f5d0504022af62e34765987eaefb9dca4916cc4fe5e7bf95c54e5b",
+    "third_party/yamux/session.go": "3f72cd9126b4b9394e18dbb91a415da638dbab2f51199d39e749d1a883297d5b"
+  },
+  "meta/common-scaffold.patch": {
+    "bytes": 15660,
+    "sha256": "e78b384e8cf2fa28339ca2794dd32aaf57053a2b07aeca873fe4f2430a40c6f7"
+  },
+  "meta/split-arm-toggle.patch": {
+    "bytes": 449,
+    "sha256": "28f4c3d5ac08d32c0e146dde3b1502a2cd8250be200da6c4b7e002eeb02386ed"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "endpoint_execution": true,
+  "final_chunk_id": "ad5661",
+  "forced_intervention": false,
+  "full_native_tool_responses_observed": true,
+  "initial_chunk_id": "e10c09",
+  "launcher_source_sha256": "5b4fb47170d85274588c5cd334ee76d79b3e53012a7ef6567b5d5f28ecbda0be",
+  "native_exit_status": 1,
+  "native_session_id": 25907,
+  "native_stderr": "",
+  "native_stdout": "",
+  "observed_native_results": [
+    {
+      "chunk_id": "e10c09",
+      "original_token_count": 0,
+      "output": "",
+      "session_id": 25907,
+      "wall_time_seconds": 1.00014962
+    },
+    {
+      "chunk_id": "086933",
+      "original_token_count": 0,
+      "output": "",
+      "session_id": 25907,
+      "wall_time_seconds": 5.001413815
+    },
+    {
+      "chunk_id": "84a5af",
+      "original_token_count": 0,
+      "output": "",
+      "session_id": 25907,
+      "wall_time_seconds": 5.000784208
+    },
+    {
+      "chunk_id": "ad5661",
+      "exit_code": 1,
+      "original_token_count": 0,
+      "output": "",
+      "wall_time_seconds": 1.3887e-05
+    }
+  ],
+  "retry": false,
+  "run_ledger_sha256": "5e5c7c1d0ae91caff4379fc1bc13fce227ea9a9337247452f54060f17550163f",
+  "schema_version": 1,
+  "wan_traffic": true
+}

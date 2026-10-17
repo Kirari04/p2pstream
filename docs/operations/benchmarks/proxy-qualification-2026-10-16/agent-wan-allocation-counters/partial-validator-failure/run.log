@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/p2pstream-wan-allocation-diagnostic.a2vmub9x/drain-growth.py", line 41, in <module>
+    if counter['enabled']!=(mode=='aggregate-v1'):raise ValueError('send-counter wire mode mismatch')
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: send-counter wire mode mismatch

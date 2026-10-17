@@ -1,0 +1,66 @@
+{
+  "build_receipt_sha256": "dae7e3e7e58cd829804b07aea9b063aa6d0233552ae0068d9c38725bed427f13",
+  "endpoint_binary_builds": false,
+  "expected_tests": [
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation",
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation/blocked_raw_write_interrupted_by_close",
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation/completed_raw_write_before_after_capture"
+  ],
+  "go_execution": false,
+  "go_test_deadline": "60s",
+  "go_version": "go1.26.6 linux/amd64",
+  "gomaxprocs": "2",
+  "package": "p2pstream/internal/agent",
+  "package_parallelism": "1",
+  "schema_version": 1,
+  "source_inventory_sha256": "970b41a3d3bb4ec7f3142e27875b9ba6d951e251b6c0bf6771059fb5ea801dbb",
+  "source_manifest_sha256": "faeff7a78235271a8a0748d27dc739a81d20896e7251f004a1de97db191a3f06",
+  "stage_order": [
+    "normal",
+    "race"
+  ],
+  "stage_outer_deadline_seconds": 600,
+  "tools": {
+    "as": {
+      "path": "/usr/bin/x86_64-linux-gnu-as",
+      "sha256": "4e5fcaa3cdc160173cb5cfe7aa35dc39d7aa1f06ba8d75b8d923bbae5473991b"
+    },
+    "asm": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/pkg/tool/linux_amd64/asm",
+      "sha256": "769ac2d73d09b7cc5479acdeb9f168c1772743420ffca2d9e990a9b0348d2836"
+    },
+    "cc": {
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "sha256": "b5f1b773a7c733738352000c92a077dc5852a1a2fc6d836b1e411be1e9ec5f88"
+    },
+    "cgo": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/pkg/tool/linux_amd64/cgo",
+      "sha256": "0cd2b021821f031ad471a0e0bb39cd85bf777bcdc4defa452ef6028962d05d83"
+    },
+    "compile": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/pkg/tool/linux_amd64/compile",
+      "sha256": "73da54c06c0702ae7c8cff309dd3958980af7ae0307cf319d7d0cb2bbd3fafd2"
+    },
+    "go": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+    },
+    "helper": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-sender-wait-build-source/review/source-checkpoint-3/run-audited-build.py",
+      "sha256": "8d40407691bc70d6341f9932d7e6d8345ccb06e181ceaed4a5cdf3491e234440"
+    },
+    "ld": {
+      "path": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+      "sha256": "97f48d93b8b076a92d2809ec29dcb17f0f37c8827358f832255e2ed22fef6075"
+    },
+    "link": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/pkg/tool/linux_amd64/link",
+      "sha256": "048670775edfd89c6551149c197816dacdcc12c518b29ff1c533751b2dc4b976"
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+    }
+  },
+  "wan_traffic": false
+}

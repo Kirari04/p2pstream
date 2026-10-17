@@ -1,0 +1,36 @@
+{
+  "name": "preflight",
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "GOMAXPROCS=2",
+    "GOENV=off",
+    "GOWORK=off",
+    "GOFLAGS=",
+    "GOTOOLCHAIN=local",
+    "GOPROXY=off",
+    "GOSUMDB=off",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "env",
+    "-json",
+    "GOENV",
+    "GOWORK",
+    "GOFLAGS",
+    "GOROOT",
+    "GOVERSION",
+    "GOAMD64",
+    "GOARCH",
+    "GOOS",
+    "CGO_ENABLED",
+    "GOTOOLCHAIN"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/test-source",
+  "before": {
+    "source_manifest_sha256": "fa9a76a9640ad5084daec1722da509f98dc9eca0c6541536b55d129e3e80fb8b",
+    "changed_sources": [],
+    "toolchain_hash_matches": true
+  },
+  "started_unix": 1792233669.8671334
+}

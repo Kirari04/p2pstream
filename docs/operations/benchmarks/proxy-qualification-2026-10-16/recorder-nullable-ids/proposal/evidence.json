@@ -1,0 +1,20 @@
+{
+  "profile_source_ref": "248bad099682878fe398c0ebaad235787ef47858",
+  "runtime_source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "profile_normalization_completions": 411173,
+  "nullable_id_flat_sample_bytes": {
+    "ListenerID": 6291552,
+    "RouteID": 5242960,
+    "RouteTargetID": 7340144,
+    "WafRuleID": 5767256,
+    "AgentID": 3145776,
+    "CacheRuleID": 7340144,
+    "RetryRuleID": 3670072,
+    "RetryFailedAgentID": 7864440
+  },
+  "nullable_id_flat_sample_bytes_total": 46662344,
+  "nullable_id_sample_bytes_per_completion": 113.48591468797805,
+  "production_alloc_gap_bytes_per_completion": 3247.44169544717,
+  "fraction_of_recorded_alloc_gap": 0.0349462516438963,
+  "limits": "Sampled whole-process profile; targeted flat source cost only; no measured candidate result. Cumulative SQLite and event nodes overlap."
+}

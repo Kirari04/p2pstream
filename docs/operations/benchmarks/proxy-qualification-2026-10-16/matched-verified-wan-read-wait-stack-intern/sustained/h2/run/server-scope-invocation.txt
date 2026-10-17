@@ -1,0 +1,7 @@
+unit=p2p-readwait-h2-641681-5d5be3e8.scope
+memory_max_bytes=4294967296
+memory_swap_max_bytes=0
+delegate=yes
+scope_cgroup=/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h2-641681-5d5be3e8.scope
+scope_nonce=5d5be3e8-c6e1-4982-a335-e157459476dd
+expected_server_cpus=0,1,2,3

@@ -1,0 +1,110 @@
+{
+  "recorded_at": "2026-10-17T10:18:14.011499+00:00",
+  "prepared_manifest_sha256": "c4d4d6bd9dae8d3d3860b0a487602923f837896b1f906340bc65c936b4cf0542",
+  "independent_absolute_candidate_capacity": true,
+  "clears_legacy_performance_comparison": false,
+  "clears_wan": false,
+  "files": {
+    "stock_runner": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/scripts/qualify-proxy-performance.sh",
+      "sha256": "81ae49bc6c81e239a8617188567919c0113e541115881d5c201ec0d02cbc7149",
+      "expected_sha256": "81ae49bc6c81e239a8617188567919c0113e541115881d5c201ec0d02cbc7149"
+    },
+    "stock_checkpoint": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/scripts/qualify-proxy-capacity-checkpoint.sh",
+      "sha256": "aa49e5ae7eaddfabd1834556f78e9c364099b236d5811a5895e3c0422400ddf8",
+      "expected_sha256": "aa49e5ae7eaddfabd1834556f78e9c364099b236d5811a5895e3c0422400ddf8"
+    },
+    "independent_orchestrator": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/independent-candidate-capacity-20261017/independent-capacity.sh",
+      "sha256": "9c9f26d8ad2a77d9ae963b0c50c42a53e5dbb7e0250334770d9fc95a7f5a083c",
+      "expected_sha256": "9c9f26d8ad2a77d9ae963b0c50c42a53e5dbb7e0250334770d9fc95a7f5a083c"
+    },
+    "input_rehash_helper": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/independent-candidate-capacity-20261017/rehash-inputs.py",
+      "sha256": "4114839f86ac3adfc4461322cc5e6803134b5609c16b885b6ac2f00e57951e57",
+      "expected_sha256": "4114839f86ac3adfc4461322cc5e6803134b5609c16b885b6ac2f00e57951e57"
+    },
+    "stock_validator_copy": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/independent-candidate-capacity-20261017/stock-validator.py",
+      "sha256": "6af38516806dccc0ce0c5661d6accb0a91bbd1a6e69b0ab40f5de401ea99a26b",
+      "expected_sha256": "6af38516806dccc0ce0c5661d6accb0a91bbd1a6e69b0ab40f5de401ea99a26b"
+    },
+    "original_clean_archive_manifest": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/provenance/clean-archive-manifest.json",
+      "sha256": "11ef7180d713e80ea4aa1a6df51748cd6e84c9d544c428457944eff3db1427cc",
+      "expected_sha256": "11ef7180d713e80ea4aa1a6df51748cd6e84c9d544c428457944eff3db1427cc"
+    },
+    "original_build_manifest": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/manifest.json",
+      "sha256": "7214f6320da708b2d0c7377baa9460f5f71434ba8b17206302b2e1ca37374bbe",
+      "expected_sha256": "7214f6320da708b2d0c7377baa9460f5f71434ba8b17206302b2e1ca37374bbe"
+    },
+    "candidate-server.test": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/builds/candidate-server.test",
+      "sha256": "aa5633baa3976e8aa8df74b9baf315cea03b2552fa9a8a038ee9db11edc0bc2b",
+      "expected_sha256": "aa5633baa3976e8aa8df74b9baf315cea03b2552fa9a8a038ee9db11edc0bc2b"
+    },
+    "candidate-agent.test": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/builds/candidate-agent.test",
+      "sha256": "c77d87930c620ebb27dbd2300150e6db54c3cd663eb51ac2c439731e771638a3",
+      "expected_sha256": "c77d87930c620ebb27dbd2300150e6db54c3cd663eb51ac2c439731e771638a3"
+    },
+    "baseline-server.test": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/builds/baseline-server.test",
+      "sha256": "5214f3b1926bd7829a10248ba249d87749d211890e1b0493de22be89fbd29553",
+      "expected_sha256": "5214f3b1926bd7829a10248ba249d87749d211890e1b0493de22be89fbd29553"
+    },
+    "baseline-agent.test": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/builds/baseline-agent.test",
+      "sha256": "64ef9e6eb4607596d85d0ecb4d9878cd0055b795b0e52e9cc1143dac81985dee",
+      "expected_sha256": "64ef9e6eb4607596d85d0ecb4d9878cd0055b795b0e52e9cc1143dac81985dee"
+    },
+    "failed_capacity_immutable_index": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-failure-artifact-index.json",
+      "sha256": "748985c811898a76ceb6b67e6d3c41af9d0031f0a37c46d43df04a8f8b038b19",
+      "expected_sha256": "748985c811898a76ceb6b67e6d3c41af9d0031f0a37c46d43df04a8f8b038b19"
+    },
+    "legacy_stack_diagnostic_immutable_index": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/legacy-shutdown-diagnostic-20261017/attempt-1/artifact-index.json",
+      "sha256": "90f6894186765c7b07007b2fb4ad36954aaa3aaa77d92ee8c824db4cfcb74cbb",
+      "expected_sha256": "90f6894186765c7b07007b2fb4ad36954aaa3aaa77d92ee8c824db4cfcb74cbb"
+    }
+  },
+  "archives": {
+    "candidate": {
+      "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+      "source_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/builds/candidate.TJJjK2",
+      "archive_stream_sha256": "4e19017a0dbbae1dcf4e390561b08a5f4fa73e1a5d1eb20b1f792080af6c0d8c",
+      "file_count": 8212,
+      "intentional_overlay_paths": []
+    },
+    "baseline": {
+      "source_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+      "source_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/builds/baseline.NLIFoh",
+      "archive_stream_sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+      "file_count": 784,
+      "intentional_overlay_paths": [
+        "internal/agent/proxy_qualification_external_legacy_test.go",
+        "internal/server/proxy_qualification_external_legacy_test.go"
+      ]
+    }
+  },
+  "preserved_attempts": {
+    "failed_capacity": {
+      "files_verified": 49,
+      "changed_files": []
+    },
+    "legacy_stack_diagnostic": {
+      "files_verified": 29,
+      "changed_files": []
+    }
+  },
+  "failures": [],
+  "validator_sha256": "6af38516806dccc0ce0c5661d6accb0a91bbd1a6e69b0ab40f5de401ea99a26b",
+  "accepted": true,
+  "full_manifest": {
+    "source": "tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-independent-attempt-1/provenance/input-rehash-manifest.json",
+    "sha256": "40a82547b1a2e63249be9f7246348ba4f10a935eae11735446a937d4d7d071ca"
+  }
+}

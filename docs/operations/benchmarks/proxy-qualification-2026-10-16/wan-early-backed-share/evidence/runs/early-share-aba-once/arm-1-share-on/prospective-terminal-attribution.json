@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scope": "prospective-terminal-attribution-only",
+  "legacy_final_verdict": {
+    "schema_version": 1,
+    "mode": "final-closure",
+    "issues": [
+      "raw-write final closure is incomplete or invalid",
+      "raw-write final record 3.raw_write_activity.tcp_state is invalid, ambiguous, or overflowed",
+      "raw-write final record 3.raw_write_activity.tcp_state is invalid, ambiguous, or overflowed",
+      "raw-write final record 3.raw_write_activity.tcp_state.complete is not true at final closure",
+      "raw-write final record 3.raw_write_activity.tcp_state.reset_performed is not true at final closure",
+      "raw-write final record 3.raw_write_activity.tcp_state.invalid is not false at final closure",
+      "raw-write final record 3 complete is not true",
+      "raw-write final record 3 reset_performed is not true",
+      "raw-write final record 3 ambiguous is not false",
+      "raw-write final record 3.raw_write_activity.tcp_state is invalid, ambiguous, or overflowed",
+      "raw-write final record 3.raw_write_activity.outside contains error or short raw writes",
+      "raw-write final record 3.raw_write_activity.tcp_state is invalid, ambiguous, or overflowed",
+      "raw-write final record 3.raw_write_activity.tcp_state is invalid, ambiguous, or overflowed"
+    ],
+    "accepted": false
+  },
+  "classifications": [],
+  "attribution_accepted": false,
+  "issues": [
+    "independent terminal problem or live ownership"
+  ],
+  "recognized_legacy_issues": [],
+  "performance_gate_cleared": false,
+  "tcp_unavailable_captures_remain_inconclusive": true,
+  "legacy_final_record": {
+    "agent_natural_join_status": 0,
+    "diagnostic": "raw-write-final-closure",
+    "schema_version": 1,
+    "terminal_artifact": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on/results.sender-wait-controls/final-raw-write-terminal.json",
+      "sha256": "9c8d09371f40173e8dca9f30ee051c9f42abb2fe21c6c36b05751a2b3db2a704",
+      "size": 122163
+    },
+    "terminal_file_status": 0,
+    "valid": false,
+    "validation_artifact": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on/results.sender-wait-controls/final-raw-write-validation.json",
+      "sha256": "1801772768d48f390b84ef66f916eddb48e5d7ecc339458b3b08ec2bad4f5d80",
+      "size": 1204
+    },
+    "validation_status": 1
+  }
+}

@@ -1,0 +1,54 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: cpu
+Time: 2026-10-16 05:19:16 CEST
+Duration: 12.49s, Total samples = 42.40s (339.40%)
+Showing nodes accounting for 22.42s, 52.88% of 42.40s total
+Dropped 1104 nodes (cum <= 0.21s)
+Showing top 45 nodes out of 290
+      flat  flat%   sum%        cum   cum%
+     8.65s 20.40% 20.40%      8.65s 20.40%  internal/runtime/syscall/linux.Syscall6
+     2.79s  6.58% 26.98%      2.93s  6.91%  runtime.cgocall
+     0.94s  2.22% 29.20%      2.73s  6.44%  runtime.selectgo
+     0.67s  1.58% 30.78%      0.67s  1.58%  runtime.nextFreeFast (inline)
+     0.64s  1.51% 32.29%      0.64s  1.51%  runtime.memmove
+     0.43s  1.01% 33.30%      0.43s  1.01%  runtime.memclrNoHeapPointers
+     0.41s  0.97% 34.27%      0.77s  1.82%  net/textproto.CanonicalMIMEHeaderKey
+     0.40s  0.94% 35.21%      0.40s  0.94%  aeshashbody
+     0.40s  0.94% 36.16%      2.70s  6.37%  runtime.newobject
+     0.39s  0.92% 37.08%      0.42s  0.99%  runtime.(*mspan).writeHeapBitsSmall
+     0.38s   0.9% 37.97%      0.42s  0.99%  runtime.step
+     0.33s  0.78% 38.75%      0.81s  1.91%  runtime.pcvalue
+     0.32s  0.75% 39.50%      0.32s  0.75%  net/textproto.validHeaderFieldByte (inline)
+     0.29s  0.68% 40.19%      0.29s  0.68%  time.runtimeNow
+     0.28s  0.66% 40.85%      0.47s  1.11%  runtime.sellock
+     0.27s  0.64% 41.49%      0.42s  0.99%  runtime.tryDeferToSpanScan
+     0.26s  0.61% 42.10%      0.26s  0.61%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     0.26s  0.61% 42.71%      0.29s  0.68%  runtime.findfunc
+     0.24s  0.57% 43.28%      2.33s  5.50%  runtime.mallocgcSmallScanNoHeader
+     0.23s  0.54% 43.82%      3.73s  8.80%  runtime.mallocgc
+     0.22s  0.52% 44.34%      0.31s  0.73%  internal/runtime/maps.(*Iter).Next
+     0.22s  0.52% 44.86%      0.34s   0.8%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+     0.22s  0.52% 45.38%      0.32s  0.75%  runtime.unlock2
+     0.21s   0.5% 45.87%      0.23s  0.54%  runtime.acquireSudog
+     0.21s   0.5% 46.37%      0.32s  0.75%  runtime.lock2
+     0.19s  0.45% 46.82%      0.87s  2.05%  runtime.adjustframe
+     0.18s  0.42% 47.24%      1.27s  3.00%  p2pstream/internal/server.(*App).selectRouteTarget
+     0.18s  0.42% 47.67%      0.66s  1.56%  runtime.(*unwinder).resolveInternal
+     0.17s   0.4% 48.07%      0.60s  1.42%  runtime.(*stkframe).getStackMap
+     0.17s   0.4% 48.47%      0.52s  1.23%  runtime.mapassign_faststr
+     0.17s   0.4% 48.87%      0.23s  0.54%  strings.ToLower
+     0.16s  0.38% 49.25%      1.45s  3.42%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+     0.16s  0.38% 49.62%      0.25s  0.59%  runtime.casgstatus
+     0.14s  0.33% 49.95%      5.03s 11.86%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+     0.13s  0.31% 50.26%      0.58s  1.37%  runtime.makechan
+     0.12s  0.28% 50.54%      9.26s 21.84%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+     0.12s  0.28% 50.83%      1.90s  4.48%  p2pstream/internal/server.initializePublicProxyContext
+     0.12s  0.28% 51.11%      0.28s  0.66%  runtime.scanObject
+     0.12s  0.28% 51.39%      1.65s  3.89%  runtime.schedule
+     0.11s  0.26% 51.65%      0.66s  1.56%  runtime.chansend
+     0.11s  0.26% 51.91%      1.24s  2.92%  runtime.findRunnable
+     0.11s  0.26% 52.17%      0.41s  0.97%  runtime.growslice
+     0.10s  0.24% 52.41%      2.21s  5.21%  net/http.(*http2serverConn).serve
+     0.10s  0.24% 52.64%      2.61s  6.16%  net/http.(*persistConn).readLoop
+     0.10s  0.24% 52.88%      1.26s  2.97%  net/http.(*persistConn).roundTrip

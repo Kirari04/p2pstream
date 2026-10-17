@@ -1,0 +1,1995 @@
+{
+  "accepted": true,
+  "errors": [],
+  "fixed_bounds": {
+    "max_event_bytes": 4194304,
+    "max_event_continuations": 4096,
+    "max_events": 5000000,
+    "max_input_bytes": 536870912,
+    "max_line_bytes": 1048576,
+    "max_output_bytes": 8388608,
+    "max_wait_stack_groups": 4096
+  },
+  "input": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-3/h1/read-wait-reductions/sequence-13.parsed.txt",
+  "input_bytes": 22482033,
+  "input_sha256": "16818ef9617bb2cc454d86348a1292cbbbaefa928409ad5a70c2dc2fee7f99b8",
+  "markers": {
+    "event_count": 12075,
+    "handler_gid": 1215,
+    "region_begin": [
+      18979123777088,
+      494
+    ],
+    "region_end": [
+      18979850245440,
+      10399
+    ],
+    "task_begin": [
+      18979123776384,
+      493
+    ],
+    "task_end": [
+      18979850245952,
+      10400
+    ],
+    "task_id": 3
+  },
+  "parsed_tool_status_file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/runs/tiny-read-wait-capacity-smoke-3/h1/read-wait-reductions/sequence-13.parser.status",
+  "parsed_tool_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+  "reduction": {
+    "attribution_complete": false,
+    "handler_transition_count": 943,
+    "missing_stack_ns": 0,
+    "partition_delta_ns": 0,
+    "partition_sum_ns": 726468352,
+    "region_duration_ns": 726468352,
+    "state_ns": {
+      "Runnable": 1591296,
+      "Running": 3406976,
+      "Syscall": 3974080,
+      "Waiting": 717496000
+    },
+    "top_wait_intervals": [
+      {
+        "category": "waiting_unknown_stack",
+        "duration_ns": 80493760,
+        "end_ns": 18979204446464,
+        "reason": "select",
+        "stack_sha256": "b39cc7b6a9a758a930553601466c1fe9b02ac4f692f893a40463d92cb20bf6ed",
+        "start_ns": 18979123952704
+      },
+      {
+        "category": "waiting_yamux_empty_receive",
+        "duration_ns": 80189760,
+        "end_ns": 18979284682944,
+        "reason": "select",
+        "stack_sha256": "1bf5c00e53250ae2cafbdf1737b9096e3f2a3e43d6d59339eb8126ea77ac4e8f",
+        "start_ns": 18979204493184
+      },
+      {
+        "category": "waiting_yamux_empty_receive",
+        "duration_ns": 79966912,
+        "end_ns": 18979364761216,
+        "reason": "select",
+        "stack_sha256": "1bf5c00e53250ae2cafbdf1737b9096e3f2a3e43d6d59339eb8126ea77ac4e8f",
+        "start_ns": 18979284794304
+      },
+      {
+        "category": "waiting_yamux_empty_receive",
+        "duration_ns": 79893696,
+        "end_ns": 18979444722944,
+        "reason": "select",
+        "stack_sha256": "1bf5c00e53250ae2cafbdf1737b9096e3f2a3e43d6d59339eb8126ea77ac4e8f",
+        "start_ns": 18979364829248
+      },
+      {
+        "category": "waiting_yamux_empty_receive",
+        "duration_ns": 79395200,
+        "end_ns": 18979524903424,
+        "reason": "select",
+        "stack_sha256": "1bf5c00e53250ae2cafbdf1737b9096e3f2a3e43d6d59339eb8126ea77ac4e8f",
+        "start_ns": 18979445508224
+      },
+      {
+        "category": "waiting_yamux_empty_receive",
+        "duration_ns": 78523584,
+        "end_ns": 18979605094400,
+        "reason": "select",
+        "stack_sha256": "1bf5c00e53250ae2cafbdf1737b9096e3f2a3e43d6d59339eb8126ea77ac4e8f",
+        "start_ns": 18979526570816
+      },
+      {
+        "category": "waiting_yamux_empty_receive",
+        "duration_ns": 76620288,
+        "end_ns": 18979685358720,
+        "reason": "select",
+        "stack_sha256": "1bf5c00e53250ae2cafbdf1737b9096e3f2a3e43d6d59339eb8126ea77ac4e8f",
+        "start_ns": 18979608738432
+      },
+      {
+        "category": "waiting_yamux_empty_receive",
+        "duration_ns": 72859072,
+        "end_ns": 18979765705856,
+        "reason": "select",
+        "stack_sha256": "1bf5c00e53250ae2cafbdf1737b9096e3f2a3e43d6d59339eb8126ea77ac4e8f",
+        "start_ns": 18979692846784
+      }
+    ],
+    "unblock_header_gid_diff_count": 137,
+    "unknown_stack_ns": 89412608,
+    "waiting_category_ns": {
+      "waiting_credit_publication_path": 1176640,
+      "waiting_credit_send_result": 88320,
+      "waiting_unknown_stack": 89412608,
+      "waiting_yamux_empty_receive": 626818432
+    },
+    "waiting_reason_ns": {
+      "chan receive": 8704,
+      "select": 707450560,
+      "sync": 10036736
+    },
+    "waiting_stack_groups": [
+      {
+        "category": "waiting_yamux_empty_receive",
+        "count": 71,
+        "duration_ns": 626818432,
+        "frames": [
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/select.go",
+            "function": "runtime.selectgo",
+            "line": 351
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).Read",
+            "line": 207
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go",
+            "function": "p2pstream/internal/tunnel.(*GrowingConn).Read",
+            "line": 70
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go",
+            "function": "p2pstream/internal/server.(*agentTunnelStreamConn).Read",
+            "line": 92
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*persistConn).Read",
+            "line": 2174
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go",
+            "function": "bufio.(*Reader).Read",
+            "line": 231
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go",
+            "function": "io.(*LimitedReader).Read",
+            "line": 479
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).readLocked",
+            "line": 845
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).Read",
+            "line": 837
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*bodyEOFSignal).Read",
+            "line": 3075
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go",
+            "function": "p2pstream/internal/server.(*agentTransportTrackedBody).Read",
+            "line": 423
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go",
+            "function": "p2pstream/internal/server.(*activeAgentResponseBody).Read",
+            "line": 388
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go",
+            "function": "p2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read",
+            "line": 199
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyBuffer",
+            "line": 731
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyResponse",
+            "line": 719
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).ServeHTTP",
+            "line": 603
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyRouteTargetRequest",
+            "line": 736
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution",
+            "line": 480
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.activeTargetAccountingAndForwardStage",
+            "line": 998
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.(*publicProxyContext).run",
+            "line": 397
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.servePublicProxyRequest",
+            "line": 310
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5",
+            "line": 302
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6",
+            "line": 568
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7",
+            "line": 156
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8",
+            "line": 86
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*ServeMux).ServeHTTP",
+            "line": 2826
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.serverHandler.ServeHTTP",
+            "line": 3309
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*conn).serve",
+            "line": 2067
+          }
+        ],
+        "reason": "select",
+        "stack": [
+          "\truntime.selectgo @ 0x46d6c4",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/select.go:351",
+          "\tgithub.com/hashicorp/yamux.(*Stream).Read @ 0xa702ae",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:207",
+          "\tp2pstream/internal/tunnel.(*GrowingConn).Read @ 0xa754e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go:70",
+          "\tp2pstream/internal/server.(*agentTunnelStreamConn).Read @ 0xf82742",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go:92",
+          "\tnet/http.(*persistConn).Read @ 0x919c46",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:2174",
+          "\tbufio.(*Reader).Read @ 0x547fa1",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go:231",
+          "\tio.(*LimitedReader).Read @ 0x4cff02",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go:479",
+          "\tnet/http.(*body).readLocked @ 0x90dd5a",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:845",
+          "\tnet/http.(*body).Read @ 0x90dc5e",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:837",
+          "\tnet/http.(*bodyEOFSignal).Read @ 0x91df1b",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:3075",
+          "\tp2pstream/internal/server.(*agentTransportTrackedBody).Read @ 0xf92128",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go:423",
+          "\tp2pstream/internal/server.(*activeAgentResponseBody).Read @ 0x109cd64",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go:388",
+          "\tp2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read @ 0x10162a8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go:199",
+          "\tnet/http/httputil.(*ReverseProxy).copyBuffer @ 0xcf8c04",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:731",
+          "\tnet/http/httputil.(*ReverseProxy).copyResponse @ 0xcf87ac",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:719",
+          "\tnet/http/httputil.(*ReverseProxy).ServeHTTP @ 0xcf7617",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:603",
+          "\tp2pstream/internal/server.(*App).proxyRouteTargetRequest @ 0x10a6d4d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:736",
+          "\tp2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution @ 0x1095649",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:480",
+          "\tp2pstream/internal/server.activeTargetAccountingAndForwardStage @ 0x1095606",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:998",
+          "\tp2pstream/internal/server.(*publicProxyContext).run @ 0x10908e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:397",
+          "\tp2pstream/internal/server.servePublicProxyRequest @ 0x10a443d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:310",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5 @ 0x121a01d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:302",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6 @ 0x1219e8e",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go:568",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7 @ 0x12197aa",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go:156",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8 @ 0x1219354",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go:86",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tnet/http.(*ServeMux).ServeHTTP @ 0x903626",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2826",
+          "\tnet/http.serverHandler.ServeHTTP @ 0x920b2d",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:3309",
+          "\tnet/http.(*conn).serve @ 0x8ff88f",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2067"
+        ],
+        "stack_sha256": "1bf5c00e53250ae2cafbdf1737b9096e3f2a3e43d6d59339eb8126ea77ac4e8f"
+      },
+      {
+        "category": "waiting_unknown_stack",
+        "count": 2,
+        "duration_ns": 80543808,
+        "frames": [
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/select.go",
+            "function": "runtime.selectgo",
+            "line": 351
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*persistConn).roundTrip",
+            "line": 2911
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*Transport).roundTrip",
+            "line": 704
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/roundtrip.go",
+            "function": "net/http.(*Transport).RoundTrip",
+            "line": 33
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go",
+            "function": "p2pstream/internal/server.(*pooledAgentTransport).RoundTrip",
+            "line": 369
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go",
+            "function": "p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip",
+            "line": 907
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).ServeHTTP",
+            "line": 564
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyRouteTargetRequest",
+            "line": 736
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution",
+            "line": 480
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.activeTargetAccountingAndForwardStage",
+            "line": 998
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.(*publicProxyContext).run",
+            "line": 397
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.servePublicProxyRequest",
+            "line": 310
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5",
+            "line": 302
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6",
+            "line": 568
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7",
+            "line": 156
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8",
+            "line": 86
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*ServeMux).ServeHTTP",
+            "line": 2826
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.serverHandler.ServeHTTP",
+            "line": 3309
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*conn).serve",
+            "line": 2067
+          }
+        ],
+        "reason": "select",
+        "stack": [
+          "\truntime.selectgo @ 0x46d6c4",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/select.go:351",
+          "\tnet/http.(*persistConn).roundTrip @ 0x91d13c",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:2911",
+          "\tnet/http.(*Transport).roundTrip @ 0x910c79",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:704",
+          "\tnet/http.(*Transport).RoundTrip @ 0xf91ce4",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/roundtrip.go:33",
+          "\tp2pstream/internal/server.(*pooledAgentTransport).RoundTrip @ 0xf91cc6",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go:369",
+          "\tp2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip @ 0x10a03e4",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go:907",
+          "\tnet/http/httputil.(*ReverseProxy).ServeHTTP @ 0xcf72cd",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:564",
+          "\tp2pstream/internal/server.(*App).proxyRouteTargetRequest @ 0x10a6d4d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:736",
+          "\tp2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution @ 0x1095649",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:480",
+          "\tp2pstream/internal/server.activeTargetAccountingAndForwardStage @ 0x1095606",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:998",
+          "\tp2pstream/internal/server.(*publicProxyContext).run @ 0x10908e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:397",
+          "\tp2pstream/internal/server.servePublicProxyRequest @ 0x10a443d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:310",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5 @ 0x121a01d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:302",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6 @ 0x1219e8e",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go:568",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7 @ 0x12197aa",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go:156",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8 @ 0x1219354",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go:86",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tnet/http.(*ServeMux).ServeHTTP @ 0x903626",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2826",
+          "\tnet/http.serverHandler.ServeHTTP @ 0x920b2d",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:3309",
+          "\tnet/http.(*conn).serve @ 0x8ff88f",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2067"
+        ],
+        "stack_sha256": "b39cc7b6a9a758a930553601466c1fe9b02ac4f692f893a40463d92cb20bf6ed"
+      },
+      {
+        "category": "waiting_unknown_stack",
+        "count": 42,
+        "duration_ns": 8860096,
+        "frames": [
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/sync/mutex.go",
+            "function": "sync.(*Mutex).Lock",
+            "line": 46
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).Read",
+            "line": 156
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go",
+            "function": "p2pstream/internal/tunnel.(*GrowingConn).Read",
+            "line": 70
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go",
+            "function": "p2pstream/internal/server.(*agentTunnelStreamConn).Read",
+            "line": 92
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*persistConn).Read",
+            "line": 2174
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go",
+            "function": "bufio.(*Reader).Read",
+            "line": 231
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go",
+            "function": "io.(*LimitedReader).Read",
+            "line": 479
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).readLocked",
+            "line": 845
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).Read",
+            "line": 837
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*bodyEOFSignal).Read",
+            "line": 3075
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go",
+            "function": "p2pstream/internal/server.(*agentTransportTrackedBody).Read",
+            "line": 423
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go",
+            "function": "p2pstream/internal/server.(*activeAgentResponseBody).Read",
+            "line": 388
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go",
+            "function": "p2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read",
+            "line": 199
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyBuffer",
+            "line": 731
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyResponse",
+            "line": 719
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).ServeHTTP",
+            "line": 603
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyRouteTargetRequest",
+            "line": 736
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution",
+            "line": 480
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.activeTargetAccountingAndForwardStage",
+            "line": 998
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.(*publicProxyContext).run",
+            "line": 397
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.servePublicProxyRequest",
+            "line": 310
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5",
+            "line": 302
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6",
+            "line": 568
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7",
+            "line": 156
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8",
+            "line": 86
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*ServeMux).ServeHTTP",
+            "line": 2826
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.serverHandler.ServeHTTP",
+            "line": 3309
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*conn).serve",
+            "line": 2067
+          }
+        ],
+        "reason": "sync",
+        "stack": [
+          "\tsync.(*Mutex).Lock @ 0xa7005d",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/sync/mutex.go:46",
+          "\tgithub.com/hashicorp/yamux.(*Stream).Read @ 0xa70083",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:156",
+          "\tp2pstream/internal/tunnel.(*GrowingConn).Read @ 0xa754e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go:70",
+          "\tp2pstream/internal/server.(*agentTunnelStreamConn).Read @ 0xf82742",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go:92",
+          "\tnet/http.(*persistConn).Read @ 0x919c46",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:2174",
+          "\tbufio.(*Reader).Read @ 0x547fa1",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go:231",
+          "\tio.(*LimitedReader).Read @ 0x4cff02",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go:479",
+          "\tnet/http.(*body).readLocked @ 0x90dd5a",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:845",
+          "\tnet/http.(*body).Read @ 0x90dc5e",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:837",
+          "\tnet/http.(*bodyEOFSignal).Read @ 0x91df1b",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:3075",
+          "\tp2pstream/internal/server.(*agentTransportTrackedBody).Read @ 0xf92128",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go:423",
+          "\tp2pstream/internal/server.(*activeAgentResponseBody).Read @ 0x109cd64",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go:388",
+          "\tp2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read @ 0x10162a8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go:199",
+          "\tnet/http/httputil.(*ReverseProxy).copyBuffer @ 0xcf8c04",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:731",
+          "\tnet/http/httputil.(*ReverseProxy).copyResponse @ 0xcf87ac",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:719",
+          "\tnet/http/httputil.(*ReverseProxy).ServeHTTP @ 0xcf7617",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:603",
+          "\tp2pstream/internal/server.(*App).proxyRouteTargetRequest @ 0x10a6d4d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:736",
+          "\tp2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution @ 0x1095649",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:480",
+          "\tp2pstream/internal/server.activeTargetAccountingAndForwardStage @ 0x1095606",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:998",
+          "\tp2pstream/internal/server.(*publicProxyContext).run @ 0x10908e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:397",
+          "\tp2pstream/internal/server.servePublicProxyRequest @ 0x10a443d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:310",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5 @ 0x121a01d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:302",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6 @ 0x1219e8e",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go:568",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7 @ 0x12197aa",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go:156",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8 @ 0x1219354",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go:86",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tnet/http.(*ServeMux).ServeHTTP @ 0x903626",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2826",
+          "\tnet/http.serverHandler.ServeHTTP @ 0x920b2d",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:3309",
+          "\tnet/http.(*conn).serve @ 0x8ff88f",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2067"
+        ],
+        "stack_sha256": "4a7fc83d46e03ec9a6dce3b494c35521ca17149eec59d054194f0b157c6cae1c"
+      },
+      {
+        "category": "waiting_credit_publication_path",
+        "count": 5,
+        "duration_ns": 952192,
+        "frames": [
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/sync/mutex.go",
+            "function": "sync.(*Mutex).Lock",
+            "line": 46
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).sendWindowUpdateMode",
+            "line": 448
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).sendWindowUpdate",
+            "line": 430
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).Read",
+            "line": 177
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go",
+            "function": "p2pstream/internal/tunnel.(*GrowingConn).Read",
+            "line": 70
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go",
+            "function": "p2pstream/internal/server.(*agentTunnelStreamConn).Read",
+            "line": 92
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*persistConn).Read",
+            "line": 2174
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go",
+            "function": "bufio.(*Reader).Read",
+            "line": 231
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go",
+            "function": "io.(*LimitedReader).Read",
+            "line": 479
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).readLocked",
+            "line": 845
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).Read",
+            "line": 837
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*bodyEOFSignal).Read",
+            "line": 3075
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go",
+            "function": "p2pstream/internal/server.(*agentTransportTrackedBody).Read",
+            "line": 423
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go",
+            "function": "p2pstream/internal/server.(*activeAgentResponseBody).Read",
+            "line": 388
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go",
+            "function": "p2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read",
+            "line": 199
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyBuffer",
+            "line": 731
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyResponse",
+            "line": 719
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).ServeHTTP",
+            "line": 603
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyRouteTargetRequest",
+            "line": 736
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution",
+            "line": 480
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.activeTargetAccountingAndForwardStage",
+            "line": 998
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.(*publicProxyContext).run",
+            "line": 397
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.servePublicProxyRequest",
+            "line": 310
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5",
+            "line": 302
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6",
+            "line": 568
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7",
+            "line": 156
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8",
+            "line": 86
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*ServeMux).ServeHTTP",
+            "line": 2826
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.serverHandler.ServeHTTP",
+            "line": 3309
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*conn).serve",
+            "line": 2067
+          }
+        ],
+        "reason": "sync",
+        "stack": [
+          "\tsync.(*Mutex).Lock @ 0xa715d5",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/sync/mutex.go:46",
+          "\tgithub.com/hashicorp/yamux.(*Stream).sendWindowUpdateMode @ 0xa715f5",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:448",
+          "\tgithub.com/hashicorp/yamux.(*Stream).sendWindowUpdate @ 0xa70576",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:430",
+          "\tgithub.com/hashicorp/yamux.(*Stream).Read @ 0xa70577",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:177",
+          "\tp2pstream/internal/tunnel.(*GrowingConn).Read @ 0xa754e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go:70",
+          "\tp2pstream/internal/server.(*agentTunnelStreamConn).Read @ 0xf82742",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go:92",
+          "\tnet/http.(*persistConn).Read @ 0x919c46",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:2174",
+          "\tbufio.(*Reader).Read @ 0x547fa1",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go:231",
+          "\tio.(*LimitedReader).Read @ 0x4cff02",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go:479",
+          "\tnet/http.(*body).readLocked @ 0x90dd5a",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:845",
+          "\tnet/http.(*body).Read @ 0x90dc5e",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:837",
+          "\tnet/http.(*bodyEOFSignal).Read @ 0x91df1b",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:3075",
+          "\tp2pstream/internal/server.(*agentTransportTrackedBody).Read @ 0xf92128",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go:423",
+          "\tp2pstream/internal/server.(*activeAgentResponseBody).Read @ 0x109cd64",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go:388",
+          "\tp2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read @ 0x10162a8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go:199",
+          "\tnet/http/httputil.(*ReverseProxy).copyBuffer @ 0xcf8c04",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:731",
+          "\tnet/http/httputil.(*ReverseProxy).copyResponse @ 0xcf87ac",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:719",
+          "\tnet/http/httputil.(*ReverseProxy).ServeHTTP @ 0xcf7617",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:603",
+          "\tp2pstream/internal/server.(*App).proxyRouteTargetRequest @ 0x10a6d4d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:736",
+          "\tp2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution @ 0x1095649",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:480",
+          "\tp2pstream/internal/server.activeTargetAccountingAndForwardStage @ 0x1095606",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:998",
+          "\tp2pstream/internal/server.(*publicProxyContext).run @ 0x10908e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:397",
+          "\tp2pstream/internal/server.servePublicProxyRequest @ 0x10a443d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:310",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5 @ 0x121a01d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:302",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6 @ 0x1219e8e",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go:568",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7 @ 0x12197aa",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go:156",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8 @ 0x1219354",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go:86",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tnet/http.(*ServeMux).ServeHTTP @ 0x903626",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2826",
+          "\tnet/http.serverHandler.ServeHTTP @ 0x920b2d",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:3309",
+          "\tnet/http.(*conn).serve @ 0x8ff88f",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2067"
+        ],
+        "stack_sha256": "243766f54b2f023f17a392588df0f63e20d8eebaf674c68864cf0408a4e96e1f"
+      },
+      {
+        "category": "waiting_credit_publication_path",
+        "count": 10,
+        "duration_ns": 221568,
+        "frames": [
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/sync/mutex.go",
+            "function": "sync.(*Mutex).Lock",
+            "line": 46
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).sendWindowUpdateMode",
+            "line": 441
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).sendWindowUpdate",
+            "line": 430
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).Read",
+            "line": 177
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go",
+            "function": "p2pstream/internal/tunnel.(*GrowingConn).Read",
+            "line": 70
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go",
+            "function": "p2pstream/internal/server.(*agentTunnelStreamConn).Read",
+            "line": 92
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*persistConn).Read",
+            "line": 2174
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go",
+            "function": "bufio.(*Reader).Read",
+            "line": 231
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go",
+            "function": "io.(*LimitedReader).Read",
+            "line": 479
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).readLocked",
+            "line": 845
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).Read",
+            "line": 837
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*bodyEOFSignal).Read",
+            "line": 3075
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go",
+            "function": "p2pstream/internal/server.(*agentTransportTrackedBody).Read",
+            "line": 423
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go",
+            "function": "p2pstream/internal/server.(*activeAgentResponseBody).Read",
+            "line": 388
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go",
+            "function": "p2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read",
+            "line": 199
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyBuffer",
+            "line": 731
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyResponse",
+            "line": 719
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).ServeHTTP",
+            "line": 603
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyRouteTargetRequest",
+            "line": 736
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution",
+            "line": 480
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.activeTargetAccountingAndForwardStage",
+            "line": 998
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.(*publicProxyContext).run",
+            "line": 397
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.servePublicProxyRequest",
+            "line": 310
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5",
+            "line": 302
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6",
+            "line": 568
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7",
+            "line": 156
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8",
+            "line": 86
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*ServeMux).ServeHTTP",
+            "line": 2826
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.serverHandler.ServeHTTP",
+            "line": 3309
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*conn).serve",
+            "line": 2067
+          }
+        ],
+        "reason": "sync",
+        "stack": [
+          "\tsync.(*Mutex).Lock @ 0xa7155c",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/sync/mutex.go:46",
+          "\tgithub.com/hashicorp/yamux.(*Stream).sendWindowUpdateMode @ 0xa7153e",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:441",
+          "\tgithub.com/hashicorp/yamux.(*Stream).sendWindowUpdate @ 0xa70576",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:430",
+          "\tgithub.com/hashicorp/yamux.(*Stream).Read @ 0xa70577",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:177",
+          "\tp2pstream/internal/tunnel.(*GrowingConn).Read @ 0xa754e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go:70",
+          "\tp2pstream/internal/server.(*agentTunnelStreamConn).Read @ 0xf82742",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go:92",
+          "\tnet/http.(*persistConn).Read @ 0x919c46",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:2174",
+          "\tbufio.(*Reader).Read @ 0x547fa1",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go:231",
+          "\tio.(*LimitedReader).Read @ 0x4cff02",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go:479",
+          "\tnet/http.(*body).readLocked @ 0x90dd5a",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:845",
+          "\tnet/http.(*body).Read @ 0x90dc5e",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:837",
+          "\tnet/http.(*bodyEOFSignal).Read @ 0x91df1b",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:3075",
+          "\tp2pstream/internal/server.(*agentTransportTrackedBody).Read @ 0xf92128",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go:423",
+          "\tp2pstream/internal/server.(*activeAgentResponseBody).Read @ 0x109cd64",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go:388",
+          "\tp2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read @ 0x10162a8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go:199",
+          "\tnet/http/httputil.(*ReverseProxy).copyBuffer @ 0xcf8c04",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:731",
+          "\tnet/http/httputil.(*ReverseProxy).copyResponse @ 0xcf87ac",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:719",
+          "\tnet/http/httputil.(*ReverseProxy).ServeHTTP @ 0xcf7617",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:603",
+          "\tp2pstream/internal/server.(*App).proxyRouteTargetRequest @ 0x10a6d4d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:736",
+          "\tp2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution @ 0x1095649",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:480",
+          "\tp2pstream/internal/server.activeTargetAccountingAndForwardStage @ 0x1095606",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:998",
+          "\tp2pstream/internal/server.(*publicProxyContext).run @ 0x10908e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:397",
+          "\tp2pstream/internal/server.servePublicProxyRequest @ 0x10a443d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:310",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5 @ 0x121a01d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:302",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6 @ 0x1219e8e",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go:568",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7 @ 0x12197aa",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go:156",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8 @ 0x1219354",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go:86",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tnet/http.(*ServeMux).ServeHTTP @ 0x903626",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2826",
+          "\tnet/http.serverHandler.ServeHTTP @ 0x920b2d",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:3309",
+          "\tnet/http.(*conn).serve @ 0x8ff88f",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2067"
+        ],
+        "stack_sha256": "48cd47ad14e28a45ea608d759d96fdf2c8cbc361ddb4cbf0525a475a741b2d4f"
+      },
+      {
+        "category": "waiting_credit_send_result",
+        "count": 5,
+        "duration_ns": 88320,
+        "frames": [
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/select.go",
+            "function": "runtime.selectgo",
+            "line": 351
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/session.go",
+            "function": "github.com/hashicorp/yamux.(*Session).waitForSendErrCommitOn",
+            "line": 526
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/session.go",
+            "function": "github.com/hashicorp/yamux.(*Session).waitForSendErrCommit",
+            "line": 474
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/session.go",
+            "function": "github.com/hashicorp/yamux.(*Session).waitForSendErr",
+            "line": 463
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).sendWindowUpdateMode",
+            "line": 491
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).sendWindowUpdate",
+            "line": 430
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).Read",
+            "line": 177
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go",
+            "function": "p2pstream/internal/tunnel.(*GrowingConn).Read",
+            "line": 70
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go",
+            "function": "p2pstream/internal/server.(*agentTunnelStreamConn).Read",
+            "line": 92
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*persistConn).Read",
+            "line": 2174
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go",
+            "function": "bufio.(*Reader).Read",
+            "line": 231
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go",
+            "function": "io.(*LimitedReader).Read",
+            "line": 479
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).readLocked",
+            "line": 845
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).Read",
+            "line": 837
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*bodyEOFSignal).Read",
+            "line": 3075
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go",
+            "function": "p2pstream/internal/server.(*agentTransportTrackedBody).Read",
+            "line": 423
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go",
+            "function": "p2pstream/internal/server.(*activeAgentResponseBody).Read",
+            "line": 388
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go",
+            "function": "p2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read",
+            "line": 199
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyBuffer",
+            "line": 731
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyResponse",
+            "line": 719
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).ServeHTTP",
+            "line": 603
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyRouteTargetRequest",
+            "line": 736
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution",
+            "line": 480
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.activeTargetAccountingAndForwardStage",
+            "line": 998
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.(*publicProxyContext).run",
+            "line": 397
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.servePublicProxyRequest",
+            "line": 310
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5",
+            "line": 302
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6",
+            "line": 568
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7",
+            "line": 156
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8",
+            "line": 86
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*ServeMux).ServeHTTP",
+            "line": 2826
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.serverHandler.ServeHTTP",
+            "line": 3309
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*conn).serve",
+            "line": 2067
+          }
+        ],
+        "reason": "select",
+        "stack": [
+          "\truntime.selectgo @ 0x46d6c4",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/select.go:351",
+          "\tgithub.com/hashicorp/yamux.(*Session).waitForSendErrCommitOn @ 0xa6ca72",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/session.go:526",
+          "\tgithub.com/hashicorp/yamux.(*Session).waitForSendErrCommit @ 0xa6c657",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/session.go:474",
+          "\tgithub.com/hashicorp/yamux.(*Session).waitForSendErr @ 0xa71914",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/session.go:463",
+          "\tgithub.com/hashicorp/yamux.(*Stream).sendWindowUpdateMode @ 0xa718e2",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:491",
+          "\tgithub.com/hashicorp/yamux.(*Stream).sendWindowUpdate @ 0xa70576",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:430",
+          "\tgithub.com/hashicorp/yamux.(*Stream).Read @ 0xa70577",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:177",
+          "\tp2pstream/internal/tunnel.(*GrowingConn).Read @ 0xa754e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go:70",
+          "\tp2pstream/internal/server.(*agentTunnelStreamConn).Read @ 0xf82742",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go:92",
+          "\tnet/http.(*persistConn).Read @ 0x919c46",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:2174",
+          "\tbufio.(*Reader).Read @ 0x547fa1",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go:231",
+          "\tio.(*LimitedReader).Read @ 0x4cff02",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go:479",
+          "\tnet/http.(*body).readLocked @ 0x90dd5a",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:845",
+          "\tnet/http.(*body).Read @ 0x90dc5e",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:837",
+          "\tnet/http.(*bodyEOFSignal).Read @ 0x91df1b",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:3075",
+          "\tp2pstream/internal/server.(*agentTransportTrackedBody).Read @ 0xf92128",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go:423",
+          "\tp2pstream/internal/server.(*activeAgentResponseBody).Read @ 0x109cd64",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go:388",
+          "\tp2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read @ 0x10162a8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go:199",
+          "\tnet/http/httputil.(*ReverseProxy).copyBuffer @ 0xcf8c04",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:731",
+          "\tnet/http/httputil.(*ReverseProxy).copyResponse @ 0xcf87ac",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:719",
+          "\tnet/http/httputil.(*ReverseProxy).ServeHTTP @ 0xcf7617",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:603",
+          "\tp2pstream/internal/server.(*App).proxyRouteTargetRequest @ 0x10a6d4d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:736",
+          "\tp2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution @ 0x1095649",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:480",
+          "\tp2pstream/internal/server.activeTargetAccountingAndForwardStage @ 0x1095606",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:998",
+          "\tp2pstream/internal/server.(*publicProxyContext).run @ 0x10908e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:397",
+          "\tp2pstream/internal/server.servePublicProxyRequest @ 0x10a443d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:310",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5 @ 0x121a01d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:302",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6 @ 0x1219e8e",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go:568",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7 @ 0x12197aa",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go:156",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8 @ 0x1219354",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go:86",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tnet/http.(*ServeMux).ServeHTTP @ 0x903626",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2826",
+          "\tnet/http.serverHandler.ServeHTTP @ 0x920b2d",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:3309",
+          "\tnet/http.(*conn).serve @ 0x8ff88f",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2067"
+        ],
+        "stack_sha256": "456d7f627fb4248b187445aa0bb9de24ce94fa1cae3c50eb8c9776ba664fdbfb"
+      },
+      {
+        "category": "waiting_unknown_stack",
+        "count": 1,
+        "duration_ns": 8704,
+        "frames": [
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/chan.go",
+            "function": "runtime.chanrecv1",
+            "line": 509
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*persistConn).readLoop.func4",
+            "line": 2422
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*bodyEOFSignal).condfn",
+            "line": 3106
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*bodyEOFSignal).Read",
+            "line": 3082
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go",
+            "function": "p2pstream/internal/server.(*agentTransportTrackedBody).Read",
+            "line": 423
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go",
+            "function": "p2pstream/internal/server.(*activeAgentResponseBody).Read",
+            "line": 388
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go",
+            "function": "p2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read",
+            "line": 199
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyBuffer",
+            "line": 731
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyResponse",
+            "line": 719
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).ServeHTTP",
+            "line": 603
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyRouteTargetRequest",
+            "line": 736
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution",
+            "line": 480
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.activeTargetAccountingAndForwardStage",
+            "line": 998
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.(*publicProxyContext).run",
+            "line": 397
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.servePublicProxyRequest",
+            "line": 310
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5",
+            "line": 302
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6",
+            "line": 568
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7",
+            "line": 156
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8",
+            "line": 86
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*ServeMux).ServeHTTP",
+            "line": 2826
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.serverHandler.ServeHTTP",
+            "line": 3309
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*conn).serve",
+            "line": 2067
+          }
+        ],
+        "reason": "chan receive",
+        "stack": [
+          "\truntime.chanrecv1 @ 0x420051",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/runtime/chan.go:509",
+          "\tnet/http.(*persistConn).readLoop.func4 @ 0x91b4a6",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:2422",
+          "\tnet/http.(*bodyEOFSignal).condfn @ 0x91dfd2",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:3106",
+          "\tnet/http.(*bodyEOFSignal).Read @ 0x91dfbf",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:3082",
+          "\tp2pstream/internal/server.(*agentTransportTrackedBody).Read @ 0xf92128",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go:423",
+          "\tp2pstream/internal/server.(*activeAgentResponseBody).Read @ 0x109cd64",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go:388",
+          "\tp2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read @ 0x10162a8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go:199",
+          "\tnet/http/httputil.(*ReverseProxy).copyBuffer @ 0xcf8c04",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:731",
+          "\tnet/http/httputil.(*ReverseProxy).copyResponse @ 0xcf87ac",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:719",
+          "\tnet/http/httputil.(*ReverseProxy).ServeHTTP @ 0xcf7617",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:603",
+          "\tp2pstream/internal/server.(*App).proxyRouteTargetRequest @ 0x10a6d4d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:736",
+          "\tp2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution @ 0x1095649",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:480",
+          "\tp2pstream/internal/server.activeTargetAccountingAndForwardStage @ 0x1095606",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:998",
+          "\tp2pstream/internal/server.(*publicProxyContext).run @ 0x10908e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:397",
+          "\tp2pstream/internal/server.servePublicProxyRequest @ 0x10a443d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:310",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5 @ 0x121a01d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:302",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6 @ 0x1219e8e",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go:568",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7 @ 0x12197aa",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go:156",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8 @ 0x1219354",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go:86",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tnet/http.(*ServeMux).ServeHTTP @ 0x903626",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2826",
+          "\tnet/http.serverHandler.ServeHTTP @ 0x920b2d",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:3309",
+          "\tnet/http.(*conn).serve @ 0x8ff88f",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2067"
+        ],
+        "stack_sha256": "e1404001ee4a5799aeef6045c834af0eb1ec65ce67125618fd8225f484ae6124"
+      },
+      {
+        "category": "waiting_credit_publication_path",
+        "count": 1,
+        "duration_ns": 2880,
+        "frames": [
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/sync/mutex.go",
+            "function": "sync.(*Mutex).Lock",
+            "line": 46
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).sendWindowUpdateMode",
+            "line": 447
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).sendWindowUpdate",
+            "line": 430
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go",
+            "function": "github.com/hashicorp/yamux.(*Stream).Read",
+            "line": 177
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go",
+            "function": "p2pstream/internal/tunnel.(*GrowingConn).Read",
+            "line": 70
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go",
+            "function": "p2pstream/internal/server.(*agentTunnelStreamConn).Read",
+            "line": 92
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*persistConn).Read",
+            "line": 2174
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go",
+            "function": "bufio.(*Reader).Read",
+            "line": 231
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go",
+            "function": "io.(*LimitedReader).Read",
+            "line": 479
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).readLocked",
+            "line": 845
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go",
+            "function": "net/http.(*body).Read",
+            "line": 837
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+            "function": "net/http.(*bodyEOFSignal).Read",
+            "line": 3075
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go",
+            "function": "p2pstream/internal/server.(*agentTransportTrackedBody).Read",
+            "line": 423
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go",
+            "function": "p2pstream/internal/server.(*activeAgentResponseBody).Read",
+            "line": 388
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go",
+            "function": "p2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read",
+            "line": 199
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyBuffer",
+            "line": 731
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).copyResponse",
+            "line": 719
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+            "function": "net/http/httputil.(*ReverseProxy).ServeHTTP",
+            "line": 603
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyRouteTargetRequest",
+            "line": 736
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution",
+            "line": 480
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.activeTargetAccountingAndForwardStage",
+            "line": 998
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go",
+            "function": "p2pstream/internal/server.(*publicProxyContext).run",
+            "line": 397
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.servePublicProxyRequest",
+            "line": 310
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5",
+            "line": 302
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6",
+            "line": 568
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7",
+            "line": 156
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go",
+            "function": "p2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8",
+            "line": 86
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.HandlerFunc.ServeHTTP",
+            "line": 2284
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*ServeMux).ServeHTTP",
+            "line": 2826
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.serverHandler.ServeHTTP",
+            "line": 3309
+          },
+          {
+            "file": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go",
+            "function": "net/http.(*conn).serve",
+            "line": 2067
+          }
+        ],
+        "reason": "sync",
+        "stack": [
+          "\tsync.(*Mutex).Lock @ 0xa715b5",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/sync/mutex.go:46",
+          "\tgithub.com/hashicorp/yamux.(*Stream).sendWindowUpdateMode @ 0xa715b4",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:447",
+          "\tgithub.com/hashicorp/yamux.(*Stream).sendWindowUpdate @ 0xa70576",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:430",
+          "\tgithub.com/hashicorp/yamux.(*Stream).Read @ 0xa70577",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/third_party/yamux/stream.go:177",
+          "\tp2pstream/internal/tunnel.(*GrowingConn).Read @ 0xa754e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/tunnel/growing_conn.go:70",
+          "\tp2pstream/internal/server.(*agentTunnelStreamConn).Read @ 0xf82742",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_request_limiter.go:92",
+          "\tnet/http.(*persistConn).Read @ 0x919c46",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:2174",
+          "\tbufio.(*Reader).Read @ 0x547fa1",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/bufio/bufio.go:231",
+          "\tio.(*LimitedReader).Read @ 0x4cff02",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/io/io.go:479",
+          "\tnet/http.(*body).readLocked @ 0x90dd5a",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:845",
+          "\tnet/http.(*body).Read @ 0x90dc5e",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transfer.go:837",
+          "\tnet/http.(*bodyEOFSignal).Read @ 0x91df1b",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go:3075",
+          "\tp2pstream/internal/server.(*agentTransportTrackedBody).Read @ 0xf92128",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/agent_transport_pool.go:423",
+          "\tp2pstream/internal/server.(*activeAgentResponseBody).Read @ 0x109cd64",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_retry_transport.go:388",
+          "\tp2pstream/internal/server.(*proxyCopyAttributionReadCloser).Read @ 0x10162a8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_copy_attribution.go:199",
+          "\tnet/http/httputil.(*ReverseProxy).copyBuffer @ 0xcf8c04",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:731",
+          "\tnet/http/httputil.(*ReverseProxy).copyResponse @ 0xcf87ac",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:719",
+          "\tnet/http/httputil.(*ReverseProxy).ServeHTTP @ 0xcf7617",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go:603",
+          "\tp2pstream/internal/server.(*App).proxyRouteTargetRequest @ 0x10a6d4d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:736",
+          "\tp2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution @ 0x1095649",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:480",
+          "\tp2pstream/internal/server.activeTargetAccountingAndForwardStage @ 0x1095606",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:998",
+          "\tp2pstream/internal/server.(*publicProxyContext).run @ 0x10908e8",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_proxy_pipeline.go:397",
+          "\tp2pstream/internal/server.servePublicProxyRequest @ 0x10a443d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:310",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*App).publicProxyHandler.func5 @ 0x121a01d",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/public_routing.go:302",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.wrapQualificationWANReadWaitTrace.func6 @ 0x1219e8e",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_read_wait_trace_test.go:568",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANTraceStore).wrap.func7 @ 0x12197aa",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_protocol_test.go:156",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tp2pstream/internal/server.runQualificationExternalAgentProxy.(*qualificationWANCopyAttributionStore).wrap.func8 @ 0x1219354",
+          "\t\t/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/build/source/internal/server/proxy_qualification_wan_copy_attribution_test.go:86",
+          "\tnet/http.HandlerFunc.ServeHTTP @ 0x901828",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2284",
+          "\tnet/http.(*ServeMux).ServeHTTP @ 0x903626",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2826",
+          "\tnet/http.serverHandler.ServeHTTP @ 0x920b2d",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:3309",
+          "\tnet/http.(*conn).serve @ 0x8ff88f",
+          "\t\t/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/server.go:2067"
+        ],
+        "stack_sha256": "02f7ddaea5dfcde55296052032f621335695ce874252acd0adc1f5dd9d3a338c"
+      }
+    ],
+    "zero_duration_state_interval_counts": {
+      "Runnable": 0,
+      "Running": 0,
+      "Syscall": 0,
+      "Waiting": 0
+    }
+  },
+  "region_type": "public-proxy-handler",
+  "schema_version": 1,
+  "task_type": "wan-read-wait-request"
+}

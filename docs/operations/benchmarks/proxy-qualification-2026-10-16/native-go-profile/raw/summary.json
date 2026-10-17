@@ -1,0 +1,27 @@
+{
+  "kind": "p2pstream-native-go-profile-summary-v1",
+  "classification": "diagnostic-only",
+  "scope": "one matched production-to-native HTTP/H1/c16 profiling pair; no release-gate claim",
+  "row_count": 2,
+  "exact_correctness": true,
+  "role_order": [
+    "production",
+    "native"
+  ],
+  "public_scheme": "http",
+  "protocol": "h1",
+  "concurrency": 16,
+  "warmup_seconds": 2,
+  "duration_seconds": 10,
+  "production_to_native_rps_ratio": 0.7192466054637741,
+  "normalization_divisor": "warmup_requests + useful_completed",
+  "profile_scope": "whole timed proxy lifetime: startup, readiness, warmup, timed load, and teardown",
+  "limitations": [
+    "single sequential pair has no repetition or statistical confidence",
+    "whole-lifetime CPU and allocation samples include work outside request handling",
+    "alloc_space is cumulative; the heap profile is emitted at normal process exit",
+    "normalized values are scale aids and do not isolate causal per-request costs"
+  ],
+  "smoke_sha256": "f3deadc08cd4b42ed1dcf6f5a3ee39f3f17dca2d7e64c6ccc4bcef6331704159",
+  "completed_utc": "2026-10-16T15:25:44.924932+00:00"
+}

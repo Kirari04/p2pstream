@@ -1,0 +1,61 @@
+Total: 33.47s
+ROUTINE ======================== github.com/hashicorp/yamux.(*Session).waitForSendErrCommit in /tmp/p2p-tiny-15b0354.U9sb6f8a/third_party/yamux/session.go
+     130ms      1.20s (flat, cum)  3.59% of Total
+         .          .    469:func (s *Session) waitForSendErrCommit(hdr header, body []byte, errCh chan error, commit func()) error {
+         .       30ms    470:	t := timerPool.Get()
+      10ms       10ms    471:	timer := t.(*time.Timer)
+      10ms      200ms    472:	timer.Reset(s.config.ConnectionWriteTimeout)
+         .          .    473:	defer func() {
+         .          .    474:		timer.Stop()
+         .          .    475:		select {
+         .          .    476:		case <-timer.C:
+         .          .    477:		default:
+         .          .    478:		}
+         .          .    479:		timerPool.Put(t)
+         .          .    480:	}()
+         .          .    481:
+      50ms      130ms    482:	ready := &sendReady{Hdr: hdr, Body: body, Err: errCh, Commit: commit}
+         .          .    483:	queue := s.sendCh
+         .          .    484:	if s.aggregate != nil && isAggregatePriorityControl(hdr, body) {
+         .          .    485:		queue = s.controlCh
+         .          .    486:	}
+      30ms      370ms    487:	select {
+         .          .    488:	case queue <- ready:
+         .          .    489:	case <-s.shutdownCh:
+         .          .    490:		return ErrSessionShutdown
+         .          .    491:	case <-timer.C:
+         .          .    492:		return ErrConnectionWriteTimeout
+         .          .    493:	}
+         .          .    494:
+         .          .    495:	bodyCopy := func() {
+         .          .    496:		if body == nil {
+         .          .    497:			return // A nil body is ignored.
+         .          .    498:		}
+         .          .    499:
+         .          .    500:		// In the event of session shutdown or connection write timeout,
+         .          .    501:		// we need to prevent `send` from reading the body buffer after
+         .          .    502:		// returning from this function since the caller may re-use the
+         .          .    503:		// underlying array.
+         .          .    504:		ready.mu.Lock()
+         .          .    505:		defer ready.mu.Unlock()
+         .          .    506:
+         .          .    507:		if ready.Body == nil {
+         .          .    508:			return // Body was already copied in `send`.
+         .          .    509:		}
+         .          .    510:		newBody := make([]byte, len(body))
+         .          .    511:		copy(newBody, body)
+         .          .    512:		ready.Body = newBody
+         .          .    513:	}
+         .          .    514:
+         .      340ms    515:	select {
+         .          .    516:	case err := <-errCh:
+         .       90ms    517:		return err
+         .          .    518:	case <-s.shutdownCh:
+         .          .    519:		bodyCopy()
+         .          .    520:		return ErrSessionShutdown
+      30ms       30ms    521:	case <-timer.C:
+         .          .    522:		bodyCopy()
+         .          .    523:		return ErrConnectionWriteTimeout
+         .          .    524:	}
+         .          .    525:}
+         .          .    526:

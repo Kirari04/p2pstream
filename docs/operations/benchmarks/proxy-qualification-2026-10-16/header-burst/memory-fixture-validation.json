@@ -1,0 +1,16 @@
+{
+  "production_source_commit": "a2063ee287d309a6d3ed7283986b5c3a0035fb92",
+  "overlay_file": "internal/server/public_memory_stress_test.go",
+  "overlay_sha256": "22f25b9dfde15a7304860c60c04b2282d3bd9b94f533ddbcaa4d57c5f623c745",
+  "binary_sha256": "1a15457f91e79c65e6335d2ca7a2e820510818a5da4ed4217d7df057089dbcf4",
+  "command": "scripts/test-proxy-memory.sh",
+  "cgroup_limit_bytes": 536870912,
+  "swap_enabled": false,
+  "slow_readers": 24,
+  "lowat_socket_growth_bytes": 5996544,
+  "pressure_peak_cgroup_bytes": 461987840,
+  "resource_rejections": 6,
+  "recovered_cgroup_bytes": 370282496,
+  "recovered_pressure_level": "healthy",
+  "result": "both focused tests passed"
+}

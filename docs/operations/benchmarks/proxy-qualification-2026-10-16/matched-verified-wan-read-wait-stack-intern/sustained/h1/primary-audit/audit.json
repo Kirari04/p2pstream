@@ -1,0 +1,627 @@
+{
+  "accepted": false,
+  "correctness_summary": {
+    "all_http_major": 1,
+    "classification": "observational-complete",
+    "copy_issues_by_sequence": {},
+    "expected_reuse": [
+      {
+        "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38456",
+        "kind": "first-post-close-visit",
+        "lane_position": 1,
+        "satisfied": true,
+        "sequence": 9
+      },
+      {
+        "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38428",
+        "kind": "first-post-close-visit",
+        "lane_position": 2,
+        "satisfied": true,
+        "sequence": 10
+      },
+      {
+        "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38434",
+        "kind": "first-post-close-visit",
+        "lane_position": 3,
+        "satisfied": true,
+        "sequence": 11
+      },
+      {
+        "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38440",
+        "kind": "first-post-close-visit",
+        "lane_position": 4,
+        "satisfied": true,
+        "sequence": 12
+      },
+      {
+        "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38456",
+        "elapsed_idle_ns": 25931971356,
+        "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38456",
+        "got_conn_unix_ns": 1792185095226776236,
+        "httptrace_idle_time_ns": 25931971836,
+        "kind": "same-key-revisit",
+        "lane_position": 1,
+        "observed_origin_connection_id": "10.212.0.2:40756",
+        "prior_origin_connection_id": "10.212.0.2:40756",
+        "prior_put_idle_unix_ns": 1792185069294804880,
+        "satisfied": true,
+        "sequence": 13
+      },
+      {
+        "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38428",
+        "elapsed_idle_ns": 25787265653,
+        "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38428",
+        "got_conn_unix_ns": 1792185103250325094,
+        "httptrace_idle_time_ns": 25787265884,
+        "kind": "same-key-revisit",
+        "lane_position": 2,
+        "observed_origin_connection_id": "10.212.0.2:38388",
+        "prior_origin_connection_id": "10.212.0.2:38388",
+        "prior_put_idle_unix_ns": 1792185077463059441,
+        "satisfied": true,
+        "sequence": 14
+      },
+      {
+        "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38434",
+        "elapsed_idle_ns": 25976907829,
+        "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38434",
+        "got_conn_unix_ns": 1792185112765340697,
+        "httptrace_idle_time_ns": 25976908110,
+        "kind": "same-key-revisit",
+        "lane_position": 3,
+        "observed_origin_connection_id": "10.212.0.2:46732",
+        "prior_origin_connection_id": "10.212.0.2:46732",
+        "prior_put_idle_unix_ns": 1792185086788432868,
+        "satisfied": true,
+        "sequence": 15
+      },
+      {
+        "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38440",
+        "elapsed_idle_ns": 26141571969,
+        "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38440",
+        "got_conn_unix_ns": 1792185120996225366,
+        "httptrace_idle_time_ns": 26141572230,
+        "kind": "same-key-revisit",
+        "lane_position": 4,
+        "observed_origin_connection_id": "10.212.0.2:58764",
+        "prior_origin_connection_id": "10.212.0.2:58764",
+        "prior_put_idle_unix_ns": 1792185094854653397,
+        "satisfied": true,
+        "sequence": 16
+      }
+    ],
+    "natural_endpoint_and_namespace_statuses": true,
+    "server_only_delegated_cgroup": true,
+    "verified_alpn": "http/1.1"
+  },
+  "diagnostic_only": true,
+  "downloads": [
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38456",
+      "idle_time_ns": 0,
+      "origin_connection_id": "10.212.0.2:36060",
+      "rate_bytes_per_second": 33899525.401502535,
+      "repetition": 1,
+      "reused": false,
+      "sequence": 1,
+      "stage": "warmup",
+      "wall_seconds": 7.918560889,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38428",
+      "idle_time_ns": 0,
+      "origin_connection_id": "10.212.0.2:36066",
+      "rate_bytes_per_second": 33831365.84699256,
+      "repetition": 2,
+      "reused": false,
+      "sequence": 2,
+      "stage": "warmup",
+      "wall_seconds": 7.934514297,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38434",
+      "idle_time_ns": 0,
+      "origin_connection_id": "10.212.0.2:57338",
+      "rate_bytes_per_second": 34100322.89289179,
+      "repetition": 3,
+      "reused": false,
+      "sequence": 3,
+      "stage": "warmup",
+      "wall_seconds": 7.871932968,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38440",
+      "idle_time_ns": 0,
+      "origin_connection_id": "10.212.0.2:52916",
+      "rate_bytes_per_second": 33840450.4636451,
+      "repetition": 4,
+      "reused": false,
+      "sequence": 4,
+      "stage": "warmup",
+      "wall_seconds": 7.932384242,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38456",
+      "idle_time_ns": 0,
+      "origin_connection_id": "10.212.0.2:40756",
+      "rate_bytes_per_second": 15780557.495401775,
+      "repetition": 1,
+      "reused": false,
+      "sequence": 9,
+      "stage": "retained-warmup",
+      "wall_seconds": 17.010517916,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38434",
+      "idle_time_ns": 0,
+      "origin_connection_id": "10.212.0.2:46732",
+      "rate_bytes_per_second": 29883939.196555454,
+      "repetition": 1,
+      "reused": false,
+      "sequence": 11,
+      "stage": "steady",
+      "wall_seconds": 8.982599457,
+      "was_idle": false
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38428",
+      "idle_time_ns": 25787265884,
+      "origin_connection_id": "10.212.0.2:38388",
+      "rate_bytes_per_second": 29979696.42064508,
+      "repetition": 2,
+      "reused": true,
+      "sequence": 14,
+      "stage": "steady",
+      "wall_seconds": 8.953908413,
+      "was_idle": true
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:42177|10.212.0.2:38434",
+      "idle_time_ns": 25976908110,
+      "origin_connection_id": "10.212.0.2:46732",
+      "rate_bytes_per_second": 34361498.16491421,
+      "repetition": 3,
+      "reused": true,
+      "sequence": 15,
+      "stage": "steady",
+      "wall_seconds": 7.812099889,
+      "was_idle": true
+    }
+  ],
+  "final_status": {
+    "accepted": false,
+    "diagnostic_only": true,
+    "finished_unix_nano": 1792185287745457884,
+    "fresh_outer_topology_per_started_arm": true,
+    "h1": {
+      "accepted": false,
+      "safe_to_continue": false,
+      "status": 1
+    },
+    "h2": {
+      "accepted": false,
+      "started": false,
+      "status": 125
+    },
+    "order": [
+      "h1",
+      "h2"
+    ],
+    "pre_post_hashes_equal": true,
+    "same_binaries_both_arms": true,
+    "same_verified_certificate_both_arms": true,
+    "schema_version": 1,
+    "smoke": false
+  },
+  "fixed_floor_bytes_per_second": 29700000,
+  "h2_started": false,
+  "interpretation_limits": [
+    "Observer is diagnostic-only; floor outcomes are not qualification.",
+    "All four analyzers rejected positive waiting intervals without TransitionStack; partitions conserve time but stack attribution is incomplete.",
+    "No H2 arm ran because H1 continuation gates failed.",
+    "This single instrumented H1 cohort cannot establish that tracing caused the retained-warmup slowdown.",
+    "Inter-read gap overlaps downstream write time and is not additive with read and write durations."
+  ],
+  "phase_floor_pass": {
+    "retained-warmup": {
+      "all_at_or_above_floor": false,
+      "gating": true,
+      "minimum_bytes_per_second": 15780557.495401775,
+      "samples": 1
+    },
+    "steady": {
+      "all_at_or_above_floor": true,
+      "gating": true,
+      "minimum_bytes_per_second": 29883939.196555454,
+      "samples": 3
+    },
+    "warmup": {
+      "all_at_or_above_floor": true,
+      "gating": true,
+      "minimum_bytes_per_second": 33831365.84699256,
+      "samples": 4
+    }
+  },
+  "protocol": "h1",
+  "provenance": {
+    "agent_binary_sha256": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+    "arm_supervisor_sha256": "60573b4432d082b017627d185f8e8ff38a8a9265c04b16a8a958413a9ba6acd9",
+    "attestation_sha256": "9df018ab18de90ed6f05da4f8c70d787bb54113c513f68bd77d70b46fd15ec35",
+    "certificate_der_sha256": "db0a24013e5ff45e4ac69cbe5b14db1ea580e6543b6a592f3bab5a839bc3709f",
+    "compact_checkpoint_sha256": "7a851aca80494e1b12d4e9dd4c94406f02445cf067e3b0c497dc679ab0fd2cbc",
+    "coordinator_sha256": "15971b96a594dee345fa629343f8f4be0121fe146c9ef2865cc57a0e143c0b47",
+    "index_sha256": "43e4f9dc7be2dda55b7e388c2dbc951a2ff8f87a4b0b7ac758f4dcb152863dc4",
+    "integration_checkpoint_2_manifest_sha256": "2fa59a35a579f76261f1debc870fead34632e00dafcca8339404985575111d6c",
+    "invocation_sha256": "fa84b85f0f78ab385b95cdbe38261f22870d60b0a1f8726586970d67a5571545",
+    "lifecycle_sha256": "4c2958f920cbc8a2fdbdf57099bf6fa03b791ed4a62e459825761f874b76c32b",
+    "pre_post_hashes_equal": true,
+    "results_sha256": "a8c072662c07e2cef067dfa236b311768ca8511a838adf4518a3a3e51ea0bf6e",
+    "server_binary_sha256": "57d77ddc5ee8ec6ab49cab0b7d0dd29641a70fa8598f0c7ba3eac73f46632ff5",
+    "source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+    "supervisor_lifecycle_sha256": "8bbef7fe33bf071bfc0e06e56763d8b4bb5259fe4446203f45a1a21a3f2e0e3d",
+    "timed_runner_sha256": "e9e453206cd479e1d29b78c05cf4d0eaf0cbaefe3c6ff13f0ba9594235c3bea0",
+    "validator_sha256": "9997c8ed5795219217382ed99121484d9512ef7b2b85cd5c9e2305b4f744ccfe"
+  },
+  "raw_lifecycle": {
+    "endpoint_rows": [
+      {
+        "agent": {
+          "namespace": "net:[4026533254]",
+          "pid": 23,
+          "start_ticks": 2253708
+        },
+        "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+        "event": "namespace-helpers-start",
+        "router": {
+          "namespace": "net:[4026533841]",
+          "pid": 28,
+          "start_ticks": 2253708
+        },
+        "runner_namespace": "net:[4026533520]"
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "current-server-aggregate-v1-h1-1-agent",
+        "pid": 190,
+        "status": 0
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "current-server-aggregate-v1-h1-1-server",
+        "pid": 154,
+        "status": 0
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "origin",
+        "pid": 140,
+        "status": 0
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "agent-namespace",
+        "pid": 23,
+        "status": 0
+      },
+      {
+        "event": "process-exit",
+        "forced": false,
+        "group_joined": true,
+        "invalidates_success": false,
+        "label": "router-namespace",
+        "pid": 28,
+        "status": 0
+      }
+    ],
+    "note": "attestation outer_runner_group_joined is a composite success gate and is false because analyzer_status is 1; raw supervisor group_joined is true and forced is false",
+    "resource": {
+      "accepted": true,
+      "checks": {
+        "expected_cgroup_paths": true,
+        "memory_high_unbounded": true,
+        "memory_max_4gib": true,
+        "memory_swap_max_zero": true,
+        "post_events_unchanged_zero": true,
+        "post_peak_within_limit": true,
+        "pre_events_zero": true
+      },
+      "post": {
+        "cgroup_path": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h1-607295-da4fe04d.scope",
+        "memory_current_bytes": 231104512,
+        "memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "memory_high_bytes": "max",
+        "memory_max_bytes": 4294967296,
+        "memory_peak_bytes": 235331584,
+        "memory_stat_sock_bytes": 4096,
+        "memory_swap_max_bytes": 0,
+        "pid": 154,
+        "process_fd_count": 21,
+        "process_rss_bytes": 252104704
+      },
+      "pre": {
+        "members": [
+          607817
+        ],
+        "memory_current_bytes": 13434880,
+        "memory_events": {
+          "high": 0,
+          "low": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_group_kill": 0,
+          "oom_kill": 0,
+          "sock_throttled": 0
+        },
+        "memory_high_bytes": "max",
+        "memory_max_bytes": 4294967296,
+        "memory_peak_bytes": 13438976,
+        "memory_swap_max_bytes": 0,
+        "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h1-607295-da4fe04d.scope"
+      },
+      "schema_version": 1
+    },
+    "supervisor": {
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": true,
+      "runner_status": 1,
+      "server_scope": {
+        "resource_status": 0,
+        "systemd_run_status": 0,
+        "unit_active_state": "inactive",
+        "unit_joined": true,
+        "unit_load_state": "not-found",
+        "unit_query_status": 0,
+        "unit_sub_state": "dead"
+      },
+      "trace_reduction": {
+        "adapter_status": 0,
+        "analyzer_status": 1,
+        "canonicalizer_status": 0,
+        "parser_status": 0
+      }
+    }
+  },
+  "reductions": [
+    {
+      "adapter_accepted": true,
+      "adapter_status": 0,
+      "analyzer_accepted": false,
+      "analyzer_status": 1,
+      "attribution_complete": false,
+      "canonical_bytes": 60641119,
+      "canonical_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.intern",
+      "canonical_sha256": "19bdba704c7856e54d16cb554cae9e95fa7e4376963503cd704de63df3949c00",
+      "canonicalizer_pgid": 610966,
+      "canonicalizer_pid": 610966,
+      "canonicalizer_status": 0,
+      "definition_bytes": 1156338,
+      "definition_count": 473,
+      "errors": [
+        "positive waiting interval has no TransitionStack"
+      ],
+      "event_count": 417632,
+      "expanded_input_bytes": 906836962,
+      "expanded_input_sha256": "7de8b4e1047cbe04d6fe5ddbe5fa08d6a9fba3da1d66f43616df306c7198f8f4",
+      "missing_stack_ns": 12032,
+      "origin_connection_id": "10.212.0.2:40756",
+      "parser_pgid": 610965,
+      "parser_pid": 610965,
+      "parser_status": 0,
+      "partition_delta_ns": 0,
+      "raw_bytes": 2694361,
+      "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-9.out",
+      "raw_sha256": "2af2e15c73d88e6619f5833d26c276f0d290c4d4941bdf92f0e6364cadab1130",
+      "record_count": 584717,
+      "region_duration_ns": 16834737728,
+      "sequence": 9,
+      "state_ns": {
+        "Runnable": 105559432,
+        "Running": 208194728,
+        "Syscall": 238305189,
+        "Waiting": 16282678379
+      },
+      "unknown_stack_ns": 2968609724,
+      "waiting_category_ns": {
+        "waiting_credit_publication_path": 352591613,
+        "waiting_credit_send_result": 3120256,
+        "waiting_missing_stack": 12032,
+        "waiting_unknown_stack": 2968609724,
+        "waiting_yamux_empty_receive": 12958344754
+      }
+    },
+    {
+      "adapter_accepted": true,
+      "adapter_status": 0,
+      "analyzer_accepted": false,
+      "analyzer_status": 1,
+      "attribution_complete": false,
+      "canonical_bytes": 54874184,
+      "canonical_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.intern",
+      "canonical_sha256": "4fbc7d50b1d2cd9f87ee399654f3e26f6820ca76e40c04e0cfa37219c62e0b95",
+      "canonicalizer_pgid": 611615,
+      "canonicalizer_pid": 611615,
+      "canonicalizer_status": 0,
+      "definition_bytes": 1072927,
+      "definition_count": 428,
+      "errors": [
+        "positive waiting interval has no TransitionStack"
+      ],
+      "event_count": 375078,
+      "expanded_input_bytes": 847095155,
+      "expanded_input_sha256": "4b4d768db2483a33e0b3dde79ab848eee58d580da3819355a49347bda1fe556d",
+      "missing_stack_ns": 4224,
+      "origin_connection_id": "10.212.0.2:46732",
+      "parser_pgid": 611614,
+      "parser_pid": 611614,
+      "parser_status": 0,
+      "partition_delta_ns": 0,
+      "raw_bytes": 2142077,
+      "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-11.out",
+      "raw_sha256": "1289428cb6965ba3f0aa1cc3a0e4f763d874f19193b96eb29054922417cd4515",
+      "record_count": 541975,
+      "region_duration_ns": 8806179136,
+      "sequence": 11,
+      "state_ns": {
+        "Runnable": 60945528,
+        "Running": 171700684,
+        "Syscall": 206019593,
+        "Waiting": 8367513331
+      },
+      "unknown_stack_ns": 816723197,
+      "waiting_category_ns": {
+        "waiting_credit_publication_path": 127854905,
+        "waiting_credit_send_result": 2327872,
+        "waiting_missing_stack": 4224,
+        "waiting_unknown_stack": 816723197,
+        "waiting_yamux_empty_receive": 7420603133
+      }
+    },
+    {
+      "adapter_accepted": true,
+      "adapter_status": 0,
+      "analyzer_accepted": false,
+      "analyzer_status": 1,
+      "attribution_complete": false,
+      "canonical_bytes": 55126816,
+      "canonical_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.intern",
+      "canonical_sha256": "fdc4167bdf25f27091358f7fc6899030101d539a765a7d475c91a46abf8a4be6",
+      "canonicalizer_pgid": 612234,
+      "canonicalizer_pid": 612234,
+      "canonicalizer_status": 0,
+      "definition_bytes": 1000714,
+      "definition_count": 390,
+      "errors": [
+        "positive waiting interval has no TransitionStack"
+      ],
+      "event_count": 377267,
+      "expanded_input_bytes": 851406311,
+      "expanded_input_sha256": "b2c2384dcf288d3619793a21e85616d688a71c07c354218e8c9ccd9859930d3f",
+      "missing_stack_ns": 7168,
+      "origin_connection_id": "10.212.0.2:38388",
+      "parser_pgid": 612233,
+      "parser_pid": 612233,
+      "parser_status": 0,
+      "partition_delta_ns": 0,
+      "raw_bytes": 2184944,
+      "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-14.out",
+      "raw_sha256": "52f2ff5676606f7f542e4f61afa7c24d32c8d2ae63817d037546adbf088ed4d7",
+      "record_count": 545391,
+      "region_duration_ns": 8775656576,
+      "sequence": 14,
+      "state_ns": {
+        "Runnable": 61711107,
+        "Running": 177644021,
+        "Syscall": 214182552,
+        "Waiting": 8322118896
+      },
+      "unknown_stack_ns": 643250111,
+      "waiting_category_ns": {
+        "waiting_credit_publication_path": 17601724,
+        "waiting_credit_send_result": 1786752,
+        "waiting_missing_stack": 7168,
+        "waiting_unknown_stack": 643250111,
+        "waiting_yamux_empty_receive": 7659473141
+      }
+    },
+    {
+      "adapter_accepted": true,
+      "adapter_status": 0,
+      "analyzer_accepted": false,
+      "analyzer_status": 1,
+      "attribution_complete": false,
+      "canonical_bytes": 54585021,
+      "canonical_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.intern",
+      "canonical_sha256": "62d9901e3beaeec7f8a49cac4a7f4cc59809dfbbd15bee6038ca016282342508",
+      "canonicalizer_pgid": 612817,
+      "canonicalizer_pid": 612817,
+      "canonicalizer_status": 0,
+      "definition_bytes": 954009,
+      "definition_count": 384,
+      "errors": [
+        "positive waiting interval has no TransitionStack"
+      ],
+      "event_count": 373134,
+      "expanded_input_bytes": 847056641,
+      "expanded_input_sha256": "a3ad526347537bfd2eda47251ee86590ecedd652409b77ab7e0655c0dfb4cf53",
+      "missing_stack_ns": 3392,
+      "origin_connection_id": "10.212.0.2:46732",
+      "parser_pgid": 612816,
+      "parser_pid": 612816,
+      "parser_status": 0,
+      "partition_delta_ns": 0,
+      "raw_bytes": 2057661,
+      "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-15.out",
+      "raw_sha256": "93b9e7665c26e302a550e5d4b4476488f67f021a234b7b3ab3b0b6091e6822f5",
+      "record_count": 543175,
+      "region_duration_ns": 7634729216,
+      "sequence": 15,
+      "state_ns": {
+        "Runnable": 47243329,
+        "Running": 161622125,
+        "Syscall": 197924695,
+        "Waiting": 7227939067
+      },
+      "unknown_stack_ns": 183456704,
+      "waiting_category_ns": {
+        "waiting_credit_publication_path": 62531008,
+        "waiting_credit_send_result": 717569,
+        "waiting_missing_stack": 3392,
+        "waiting_unknown_stack": 183456704,
+        "waiting_yamux_empty_receive": 6981230394
+      }
+    }
+  ],
+  "row_count": 16,
+  "run_root": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1",
+  "schema_version": 1,
+  "statuses": {
+    "adapter_all": 0,
+    "analyzer_all": 1,
+    "canonicalizer_all": 0,
+    "h1_arm": 1,
+    "h1_safe_to_continue": 0,
+    "h2_arm": 125,
+    "h2_started": 0,
+    "parser_all": 0,
+    "runner": 1,
+    "validator": 1,
+    "wrapper": 1
+  },
+  "validation_issues": [
+    "retained-warmup download phase failed independent 29700000 B/s floor",
+    "one or more aggregate adapter/parser/reducer statuses are nonzero or unreadable",
+    "trace reduction sequence 9 failed adapter/parser/reducer contract",
+    "trace reduction sequence 11 failed adapter/parser/reducer contract",
+    "trace reduction sequence 14 failed adapter/parser/reducer contract",
+    "trace reduction sequence 15 failed adapter/parser/reducer contract",
+    "diagnostic acceptance failed or incomplete: {'correctness': True, 'download_floor_every_phase': False, 'expected_upstream_reuse': True, 'response_copy_attribution_complete': True, 'transport_trace_complete': True, 'verified_tls_and_protocol_every_response': True}",
+    "outer runner process group did not join naturally: {'runner_status': 1, 'group_joined': True, 'forced': False, 'invalidates_success': True, 'server_scope': {'systemd_run_status': 0, 'resource_status': 0, 'unit_joined': True, 'unit_query_status': 0, 'unit_load_state': 'not-found', 'unit_active_state': 'inactive', 'unit_sub_state': 'dead'}, 'trace_reduction': {'adapter_status': 0, 'parser_status': 0, 'canonicalizer_status': 0, 'analyzer_status': 1}}",
+    "runner exited nonzero after preserving evidence: 1"
+  ]
+}

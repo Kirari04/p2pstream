@@ -1,0 +1,27 @@
+Total: 3.28GB
+ROUTINE ======================== p2pstream/internal/server.activeTargetAccountingAndForwardStage in /tmp/p2pstream-caddy-3ec137c.SoeRAa/internal/server/public_proxy_pipeline.go
+  111.54MB     1.60GB (flat, cum) 48.64% of Total
+         .          .    977:func activeTargetAccountingAndForwardStage(ctx *publicProxyContext) publicProxyStageResult {
+         .          .    978:	if ctx.Resolution.Target.TargetType == publicRouteTargetTypeProxy && ctx.Resolution.RouteTargetID.Valid && ctx.App.publicTargetRequests != nil {
+         .    12.50MB    979:		release, ok := ctx.App.publicTargetRequests.tryAcquire(ctx.Resolution.RouteTargetID.Int64)
+         .          .    980:		if !ok {
+         .          .    981:			return rejectPublicRequestCapacity(ctx, "route_target_capacity", "Route target capacity reached")
+         .          .    982:		}
+         .          .    983:		defer release()
+         .          .    984:	}
+         .          .    985:	if ctx.Resolution.RouteTargetID.Valid {
+         .     8.50MB    986:		done := ctx.App.beginPublicRouteTargetRequest(ctx.Resolution.RouteTargetID.Int64)
+         .          .    987:		defer done()
+         .          .    988:	}
+  111.54MB   111.54MB    989:	shaper := trafficShaperDecisionIfSelected(ctx.TrafficShaperDecision, ctx.TrafficShaperSelected)
+         .          .    990:	if ctx.Resolution.Target.TargetType == publicRouteTargetTypeStatic {
+         .          .    991:		ctx.App.staticTargetResponse(ctx.ResponseWriter, ctx.Request, ctx.Resolution, ctx.Trace, shaper, ctx.Observability)
+         .          .    992:		return publicProxyStageDone
+         .          .    993:	}
+         .          .    994:	if ctx.Resolution.Target.Transport == publicRouteTargetTransportAgent {
+         .          .    995:		ctx.App.proxyAgentTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
+         .          .    996:		return publicProxyStageDone
+         .          .    997:	}
+         .     1.47GB    998:	ctx.App.proxyDirectTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
+         .          .    999:	return publicProxyStageDone
+         .          .   1000:}

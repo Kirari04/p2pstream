@@ -1,0 +1,54 @@
+File: server.test
+Build ID: c124bcafd96127015cd8fcd8fdfa1533fd0fd72e
+Type: cpu
+Time: 2026-10-16 06:05:15 CEST
+Duration: 12.42s, Total samples = 43.25s (348.33%)
+Showing nodes accounting for 22.71s, 52.51% of 43.25s total
+Dropped 1118 nodes (cum <= 0.22s)
+Showing top 45 nodes out of 300
+      flat  flat%   sum%        cum   cum%
+     9.66s 22.34% 22.34%      9.66s 22.34%  internal/runtime/syscall/linux.Syscall6
+     2.73s  6.31% 28.65%      2.81s  6.50%  runtime.cgocall
+     1.04s  2.40% 31.05%      2.78s  6.43%  runtime.selectgo
+     0.62s  1.43% 32.49%      0.62s  1.43%  runtime.nextFreeFast (inline)
+     0.53s  1.23% 33.71%      0.53s  1.23%  runtime.memmove
+     0.51s  1.18% 34.89%      0.51s  1.18%  runtime.memclrNoHeapPointers
+     0.38s  0.88% 35.77%      0.68s  1.57%  net/textproto.CanonicalMIMEHeaderKey
+     0.37s  0.86% 36.62%      0.39s   0.9%  runtime.(*mspan).writeHeapBitsSmall
+     0.34s  0.79% 37.41%      0.46s  1.06%  runtime.unlock2
+     0.31s  0.72% 38.13%      0.35s  0.81%  runtime.step
+     0.30s  0.69% 38.82%      0.30s  0.69%  aeshashbody
+     0.30s  0.69% 39.51%      2.36s  5.46%  runtime.mallocgcSmallScanNoHeader
+     0.30s  0.69% 40.21%      0.71s  1.64%  runtime.pcvalue
+     0.29s  0.67% 40.88%      0.29s  0.67%  net/textproto.validHeaderFieldByte (inline)
+     0.28s  0.65% 41.53%      2.52s  5.83%  runtime.newobject
+     0.27s  0.62% 42.15%      3.76s  8.69%  runtime.mallocgc
+     0.26s   0.6% 42.75%      0.44s  1.02%  runtime.lock2
+     0.26s   0.6% 43.35%      0.26s   0.6%  runtime.nanotime (inline)
+     0.25s  0.58% 43.93%      0.42s  0.97%  runtime.tryDeferToSpanScan
+     0.25s  0.58% 44.51%      0.25s  0.58%  time.runtimeNow
+     0.23s  0.53% 45.04%      1.52s  3.51%  runtime.schedule
+     0.22s  0.51% 45.55%      0.23s  0.53%  internal/runtime/maps.(*Iter).Next
+     0.20s  0.46% 46.01%      0.63s  1.46%  runtime.(*unwinder).resolveInternal
+     0.20s  0.46% 46.47%      0.43s  0.99%  runtime.sellock
+     0.19s  0.44% 46.91%      0.57s  1.32%  runtime.(*stkframe).getStackMap
+     0.18s  0.42% 47.33%      0.22s  0.51%  runtime.exitsyscall
+     0.16s  0.37% 47.70%      0.52s  1.20%  runtime.mapassign_faststr
+     0.16s  0.37% 48.07%      0.36s  0.83%  runtime.scanObjectsSmall
+     0.15s  0.35% 48.42%      0.65s  1.50%  runtime.chansend
+     0.15s  0.35% 48.76%      0.36s  0.83%  runtime.mapaccess1_faststr
+     0.14s  0.32% 49.09%      4.79s 11.08%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+     0.14s  0.32% 49.41%      0.86s  1.99%  runtime.adjustframe
+     0.13s   0.3% 49.71%      7.78s 17.99%  net/http/httputil.(*ReverseProxy).ServeHTTP
+     0.13s   0.3% 50.01%      1.02s  2.36%  runtime.findRunnable
+     0.13s   0.3% 50.31%      0.53s  1.23%  runtime.makechan
+     0.11s  0.25% 50.57%      0.27s  0.62%  fmt.(*pp).doPrintf
+     0.11s  0.25% 50.82%      0.22s  0.51%  runtime.chanrecv
+     0.10s  0.23% 51.05%      1.10s  2.54%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+     0.10s  0.23% 51.28%      2.23s  5.16%  runtime.systemstack
+     0.10s  0.23% 51.51%      0.24s  0.55%  sync.(*Pool).Get
+     0.09s  0.21% 51.72%      2.21s  5.11%  net/http.(*http2serverConn).serve
+     0.09s  0.21% 51.93%      0.98s  2.27%  p2pstream/internal/server.(*App).selectRouteTarget
+     0.09s  0.21% 52.14%      0.29s  0.67%  runtime.scanObject
+     0.08s  0.18% 52.32%      7.28s 16.83%  crypto/tls.(*Conn).writeRecordLocked
+     0.08s  0.18% 52.51%      8.66s 20.02%  p2pstream/internal/server.(*App).proxyRouteTargetRequest

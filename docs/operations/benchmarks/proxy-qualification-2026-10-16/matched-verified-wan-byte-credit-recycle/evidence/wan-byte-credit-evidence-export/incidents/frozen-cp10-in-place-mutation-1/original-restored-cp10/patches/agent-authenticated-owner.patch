@@ -1,0 +1,111 @@
+--- a/internal/agent/proxy_qualification_wan_sender_wait_test.go
++++ b/internal/agent/proxy_qualification_wan_sender_wait_test.go
+@@ -4,13 +4,11 @@
+ 
+ import (
+ 	"crypto/subtle"
+-	"encoding/json"
+ 	"errors"
+ 	"net/http"
+-	"net/http/httptest"
+ 	"os"
+ 	"strings"
+-	"testing"
++	"sync"
+ )
+ 
+ const (
+@@ -21,8 +19,13 @@
+ )
+ 
+ type externalQualificationWANSenderWaitOwner struct {
+-	bearer    string
+-	sequences map[string]struct{}
++	bearer           string
++	sequences        map[string]struct{}
++	mu               sync.Mutex
++	state            map[string]string
++	activeSequence   string
++	nextSequence     int
++	terminalConsumed bool
+ }
+ 
+ func externalQualificationWANSenderWaitOwnerFromEnv() (*externalQualificationWANSenderWaitOwner, error) {
+@@ -50,7 +53,11 @@
+ 	for _, sequence := range strings.Split(sequences, ",") {
+ 		configured[sequence] = struct{}{}
+ 	}
+-	return &externalQualificationWANSenderWaitOwner{bearer: bearer, sequences: configured}, nil
++	state := make(map[string]string, len(configured))
++	for sequence := range configured {
++		state[sequence] = "unstarted"
++	}
++	return &externalQualificationWANSenderWaitOwner{bearer: bearer, sequences: configured, state: state}, nil
+ }
+ 
+ func externalQualificationWANSenderWaitBearerValid(bearer string) bool {
+@@ -76,64 +83,3 @@
+ 	provided := strings.TrimPrefix(authorization, "Bearer ")
+ 	return len(provided) == len(owner.bearer) && subtle.ConstantTimeCompare([]byte(provided), []byte(owner.bearer)) == 1
+ }
+-
+-func (owner *externalQualificationWANSenderWaitOwner) serveDrainHTTP(w http.ResponseWriter, r *http.Request, sessions *externalQualificationSessionRegistry) {
+-	if !owner.authorized(r) {
+-		http.Error(w, "WAN sender-wait authorization failed", http.StatusUnauthorized)
+-		return
+-	}
+-	if r.Method != http.MethodGet || r.URL.Query().Get("wan_sender_wait_snapshot") != "drain" {
+-		http.Error(w, "invalid WAN sender-wait action", http.StatusBadRequest)
+-		return
+-	}
+-	sequence := r.URL.Query().Get("sequence")
+-	if _, configured := owner.sequences[sequence]; !configured {
+-		http.Error(w, "WAN sender-wait sequence is unavailable", http.StatusConflict)
+-		return
+-	}
+-	writeExternalQualificationGrowthSnapshot(w, sessions)
+-}
+-
+-func TestExternalQualificationWANSenderWaitControl(t *testing.T) {
+-	bearer := strings.Repeat("a1", 32)
+-	owner, err := newExternalQualificationWANSenderWaitOwner("1", bearer, externalQualificationWANSenderWaitSequences)
+-	if err != nil || owner == nil {
+-		t.Fatalf("create owner: owner=%v err=%v", owner, err)
+-	}
+-	for name, authorization := range map[string]string{
+-		"missing": "", "raw": bearer, "wrong": "Bearer " + strings.Repeat("b2", 32),
+-	} {
+-		t.Run(name, func(t *testing.T) {
+-			request := httptest.NewRequest(http.MethodGet, "/?wan_sender_wait_snapshot=drain&sequence=9", nil)
+-			request.Header.Set("Authorization", authorization)
+-			recorder := httptest.NewRecorder()
+-			owner.serveDrainHTTP(recorder, request, newExternalQualificationSessionRegistry(5))
+-			if recorder.Code != http.StatusUnauthorized {
+-				t.Fatalf("status=%d, want %d", recorder.Code, http.StatusUnauthorized)
+-			}
+-		})
+-	}
+-	request := httptest.NewRequest(http.MethodGet, "/?wan_sender_wait_snapshot=drain&sequence=9", nil)
+-	request.Header.Set("Authorization", "Bearer "+bearer)
+-	recorder := httptest.NewRecorder()
+-	owner.serveDrainHTTP(recorder, request, newExternalQualificationSessionRegistry(5))
+-	if recorder.Code != http.StatusOK {
+-		t.Fatalf("status=%d body=%q", recorder.Code, recorder.Body.String())
+-	}
+-	var snapshot externalQualificationGrowthResponse
+-	if err := json.NewDecoder(recorder.Body).Decode(&snapshot); err != nil {
+-		t.Fatal(err)
+-	}
+-	if snapshot.SchemaVersion != externalQualificationCreditSnapshotSchemaVersion || snapshot.Capacity != 4096 || len(snapshot.SendCounters) != 0 {
+-		t.Fatalf("unexpected snapshot: %+v", snapshot)
+-	}
+-	for _, invalid := range [][3]string{
+-		{"", bearer, externalQualificationWANSenderWaitSequences},
+-		{"1", strings.Repeat("A1", 32), externalQualificationWANSenderWaitSequences},
+-		{"1", bearer, "9,11,13"},
+-	} {
+-		if got, err := newExternalQualificationWANSenderWaitOwner(invalid[0], invalid[1], invalid[2]); err == nil || got != nil {
+-			t.Fatalf("invalid configuration accepted: %#v", invalid)
+-		}
+-	}
+-}

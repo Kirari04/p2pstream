@@ -1,0 +1,11 @@
+{
+  "cause": "runs parent directory did not exist",
+  "output_directory_created": false,
+  "recorded_unix_nano": 1792172913759442906,
+  "retry_performed": false,
+  "schema_version": 1,
+  "stage": "parent-shell-redirection-before-wrapper-exec",
+  "status": 1,
+  "traffic_started": false,
+  "wrapper_executed": false
+}

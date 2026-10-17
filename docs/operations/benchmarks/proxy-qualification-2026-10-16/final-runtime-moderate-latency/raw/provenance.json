@@ -1,0 +1,270 @@
+{
+  "started_utc": "2026-10-16T13:08:02.553598+00:00",
+  "workload": "moderate-load-latency",
+  "moderate_load_plan": {
+    "root": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b",
+    "source_ref": "248bad099682878fe398c0ebaad235787ef47858",
+    "manifest_sha256": "052aa49518aa383f612aa9efe89064ce8cc43dbd579ef909761b35c993541878",
+    "summary_sha256": "b1396716922db45a8126cb95793322589b068d050644b4c8d3b0dfa9ae37b92f",
+    "results_sha256": "da75bdd486993353170dd4d14358dfd518bb0d51dfc26c6f7ec3dfd77494bdf7",
+    "reference_provenance_sha256": "c57055a11cd39490bd7ad9f3098c11682d2a4e550df33f838f54ee520bbc5df0",
+    "cells": {
+      "h1-c16": {
+        "offered_rps": 14643,
+        "requests": 292860,
+        "calibration": {
+          "candidate": {
+            "samples": [
+              29824.37032239221,
+              28946.988723631697,
+              29287.255008071792
+            ],
+            "median": 29287.255008071792,
+            "minimum": 28946.988723631697,
+            "maximum": 29824.37032239221,
+            "max_to_min": 1.0303099437090752
+          },
+          "haproxy": {
+            "samples": [
+              67492.47040248475,
+              65974.53688351093,
+              67352.2924367902
+            ],
+            "median": 67352.2924367902,
+            "minimum": 65974.53688351093,
+            "maximum": 67492.47040248475,
+            "max_to_min": 1.0230078692580136
+          },
+          "caddy": {
+            "samples": [
+              30288.67725753029,
+              28093.586429096234,
+              27806.09638832694
+            ],
+            "median": 28093.586429096234,
+            "minimum": 27806.09638832694,
+            "maximum": 30288.67725753029,
+            "max_to_min": 1.0892818910836237
+          }
+        }
+      },
+      "h1-c128": {
+        "offered_rps": 13914,
+        "requests": 278280,
+        "calibration": {
+          "candidate": {
+            "samples": [
+              28302.19964424947,
+              27795.919955890833,
+              27829.179611583455
+            ],
+            "median": 27829.179611583455,
+            "minimum": 27795.919955890833,
+            "maximum": 28302.19964424947,
+            "max_to_min": 1.0182141727693148
+          },
+          "haproxy": {
+            "samples": [
+              85010.61216538333,
+              82783.5678752203,
+              82584.7002236239
+            ],
+            "median": 82783.5678752203,
+            "minimum": 82584.7002236239,
+            "maximum": 85010.61216538333,
+            "max_to_min": 1.0293748349899012
+          },
+          "caddy": {
+            "samples": [
+              27492.334586926798,
+              27695.548039648813,
+              27292.81169796442
+            ],
+            "median": 27492.334586926798,
+            "minimum": 27292.81169796442,
+            "maximum": 27695.548039648813,
+            "max_to_min": 1.0147561323524037
+          }
+        }
+      },
+      "h2-c16": {
+        "offered_rps": 10964,
+        "requests": 219280,
+        "calibration": {
+          "candidate": {
+            "samples": [
+              22484.771515096032,
+              21929.3557292274,
+              21911.522736138933
+            ],
+            "median": 21929.3557292274,
+            "minimum": 21911.522736138933,
+            "maximum": 22484.771515096032,
+            "max_to_min": 1.026161978145482
+          },
+          "haproxy": {
+            "samples": [
+              37676.85473191956,
+              37592.24102680275,
+              37029.73927143489
+            ],
+            "median": 37592.24102680275,
+            "minimum": 37029.73927143489,
+            "maximum": 37676.85473191956,
+            "max_to_min": 1.0174755608118433
+          },
+          "caddy": {
+            "samples": [
+              20149.994392581415,
+              19284.619246183804,
+              19239.778831500855
+            ],
+            "median": 19284.619246183804,
+            "minimum": 19239.778831500855,
+            "maximum": 20149.994392581415,
+            "max_to_min": 1.0473090449246893
+          }
+        }
+      },
+      "h2-c128": {
+        "offered_rps": 12557,
+        "requests": 251140,
+        "calibration": {
+          "candidate": {
+            "samples": [
+              25114.955521413172,
+              24786.170579668586,
+              25134.217705131705
+            ],
+            "median": 25114.955521413172,
+            "minimum": 24786.170579668586,
+            "maximum": 25134.217705131705,
+            "max_to_min": 1.0140419886300875
+          },
+          "haproxy": {
+            "samples": [
+              39523.57156618091,
+              37659.596091004,
+              37440.716404833045
+            ],
+            "median": 37659.596091004,
+            "minimum": 37440.716404833045,
+            "maximum": 39523.57156618091,
+            "max_to_min": 1.0556307507267408
+          },
+          "caddy": {
+            "samples": [
+              21614.170899109427,
+              20911.554434770034,
+              20917.32794760998
+            ],
+            "median": 20917.32794760998,
+            "minimum": 20911.554434770034,
+            "maximum": 21614.170899109427,
+            "max_to_min": 1.033599437408208
+          }
+        }
+      }
+    },
+    "calibration_scope": "complete warmed three-repeat medians; spread reported without a variance rejection threshold",
+    "selection": "floor(0.5 * lower candidate/HAProxy useful-throughput median); N=floor(20 * offeredRPS)",
+    "pairs": 3,
+    "order": [
+      "candidate-then-caddy-then-haproxy",
+      "haproxy-then-caddy-then-candidate",
+      "candidate-then-haproxy-then-caddy"
+    ],
+    "proxy_orders": [
+      [
+        "candidate",
+        "caddy",
+        "haproxy"
+      ],
+      [
+        "haproxy",
+        "caddy",
+        "candidate"
+      ],
+      [
+        "candidate",
+        "haproxy",
+        "caddy"
+      ]
+    ],
+    "references": [
+      "haproxy",
+      "caddy"
+    ],
+    "row_count": 36,
+    "effective_duration_seconds": 0,
+    "effective_warmup_seconds": 0,
+    "h1_initial_client_establishment_included": true,
+    "h2_validated_prewarm_requests": 1,
+    "delivery": {
+      "useful_rps_minimum_fraction": 0.99,
+      "elapsed_maximum_fraction": 1.01
+    },
+    "p95_p99_ratio_maximum": 1.25,
+    "scope": "moderate load; does not qualify near-saturation latency"
+  },
+  "source_commits": {
+    "driver": "248bad099682878fe398c0ebaad235787ef47858",
+    "candidate": "248bad099682878fe398c0ebaad235787ef47858"
+  },
+  "harness_sha256": "48bb7f2d5b7efcecf29ca4d46b5358713d50c7686530417ce8f784deb653b0bd",
+  "test_overlays": [],
+  "source_contract": "binaries built from clean archives of source_commits, without test or production overlays",
+  "caddy_version": "v2.11.7 h1:yj0Y4fYZGPkSvibBJ1sTWE33xC0fxztVyXEW5iIdUT4=",
+  "caddy_binary_sha256": "678ade3bfc088749c81a681adc603333ee0bb023b6a6cfe3c0f58bef8ff854e9",
+  "driver_binary_sha256": "500868b7ece509cdff42df3a2c7c47412b47c1633d2753cc1a2ca87535c8fff3",
+  "candidate_binary_sha256": "500868b7ece509cdff42df3a2c7c47412b47c1633d2753cc1a2ca87535c8fff3",
+  "candidate_label": "final-moderate-248bad09",
+  "driver_build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b/bin/server.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1",
+  "candidate_build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b/bin/server.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1",
+  "script_sha256": "9e4f85d39b71a76733c0881bf1d9dfcbe09970ddb043dfcfd11f1c45a73db70b",
+  "haproxy_path": "/usr/sbin/haproxy",
+  "haproxy_binary_sha256": "f8e2302a546565ddd6784e9dc39ac94a4bf8635bf6236b9f9a14a208c4b491fe",
+  "haproxy_version": "HAProxy version 3.2.9-1ubuntu2.2 2026/06/19 - https://haproxy.org/\nStatus: long-term supported branch - will stop receiving fixes around Q2 2030.\nKnown bugs: http://www.haproxy.org/bugs/bugs-3.2.9.html\nRunning on: Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64",
+  "go_version": "go version go1.26.6 linux/amd64",
+  "kernel": {
+    "sysname": "Linux",
+    "release": "7.0.0-38-generic",
+    "version": "#38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026",
+    "machine": "x86_64"
+  },
+  "cpu_topology": "CPU CORE SOCKET NODE ONLINE\n  0    0      0    0    yes\n  1    0      0    0    yes\n  2    1      0    0    yes\n  3    1      0    0    yes\n  4    2      0    0    yes\n  5    2      0    0    yes\n  6    3      0    0    yes\n  7    3      0    0    yes\n  8    4      0    0    yes\n  9    4      0    0    yes\n 10    5      0    0    yes\n 11    5      0    0    yes\n 12    6      0    0    yes\n 13    6      0    0    yes\n 14    7      0    0    yes\n 15    7      0    0    yes",
+  "docker_image_id": "sha256:ec92d6b34c6a7e6372d87dc9ef2fd6e8ca8125353fe7d033c676f51cf923a13b",
+  "proxy_cpus": "0,1,2,3",
+  "load_cpus": "4,5,6,7,8,9,10,11,12,13,14,15",
+  "gomaxprocs": 4,
+  "settings": {
+    "caddy_binary": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b/bin/caddy",
+    "driver_binary": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b/bin/server.test",
+    "candidate_binary": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b/bin/server.test",
+    "candidate_label": "final-moderate-248bad09",
+    "driver_source_ref": "248bad099682878fe398c0ebaad235787ef47858",
+    "harness_source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b/source/internal/server/proxy_qualification_test.go",
+    "candidate_source_ref": "248bad099682878fe398c0ebaad235787ef47858",
+    "runs": 3,
+    "duration_seconds": 10,
+    "warmup_seconds": 2,
+    "idle_per_host": 128,
+    "concurrency": "16,128",
+    "protocol": "both",
+    "matched_h2_single_connection": true,
+    "moderate_load_calibration": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/final-reference-248bad09.4i3hzp0b",
+    "include_moderate_caddy": true
+  },
+  "cgroup_limit_bytes": 4294967296,
+  "cgroup_swap_disabled": true,
+  "scratch_storage": "private per-container disk-backed bind mounted at /tmp",
+  "scratch_host_filesystem": "ext4",
+  "scratch_available_bytes_before": 54100566016,
+  "h2_connection_contract": "one validated prewarmed client connection reused by each timed H2 row",
+  "limitations": [
+    "HAProxy remains a host process; its cgroup memory is not isolated.",
+    "Caddy official release and p2pstream may use different Go patch releases.",
+    "p2pstream includes its full policy/recorder pipeline and an idle in-process agent fixture.",
+    "Matched single-connection H2 is a topology-controlled comparison, not HAProxy maximum multi-thread throughput."
+  ]
+}

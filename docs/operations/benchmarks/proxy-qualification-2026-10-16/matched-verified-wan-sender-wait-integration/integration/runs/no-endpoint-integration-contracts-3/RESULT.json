@@ -1,0 +1,62 @@
+{
+  "accepted": true,
+  "attempt": "no-endpoint-integration-contracts-3",
+  "checkpoint_manifest_sha256": "601ffd71333a0476e9a6aef92eb3947604fd91a594d6d4c906d9f1e8a2de3fc0",
+  "diagnostic": "wan-sender-wait",
+  "driver_stream_bytes": {
+    "stderr": 0,
+    "stdout": 0
+  },
+  "endpoint_execution": false,
+  "go_build_or_test": false,
+  "helper_contract": {
+    "accepted": true,
+    "actual_statuses": {
+      "exported_child_correct": 0,
+      "inner_changed": 2,
+      "inner_correct": 0,
+      "inner_missing": 2,
+      "outer_changed": 2,
+      "outer_correct": 0,
+      "outer_missing": 2
+    },
+    "case_count": 7,
+    "expected_statuses": {
+      "exported_child_correct": 0,
+      "inner_changed": 2,
+      "inner_correct": 0,
+      "inner_missing": 2,
+      "outer_changed": 2,
+      "outer_correct": 0,
+      "outer_missing": 2
+    },
+    "summary_sha256": "3dafb4cbd35d3862d16478be14833da77084989793eed1908759ee40e5550700"
+  },
+  "namespace_execution": false,
+  "raw_tool_result_sha256": "ab84cff98b9c892b8a588d140397ad5134e50426d796ebc4dc64c9f5a342a3f1",
+  "reviewed_manifest_candidate_sha256": "fdf2e441f130aac840d2b08cd0b82a7196a71d4dd1519a1c49b6dfcdebfc3fab",
+  "runner": {
+    "run_transfer": {
+      "bytes": 7350,
+      "equal": true,
+      "schema_version": 1,
+      "sha256": "b86593361c76c3d2903d722b1b0292fa1bc833210d5efb2438dea1aac08ad798"
+    },
+    "sha256": "02c1e76bee7fa6bf81f1242761ac7ae533f47b006cac86cda35523344cb05da4"
+  },
+  "schema_version": 1,
+  "source": {
+    "equal": true,
+    "post_sha256": "0843cff3362bc2daf0ea518757e5be8c158140187482098542f940ade587ae56",
+    "pre_sha256": "0843cff3362bc2daf0ea518757e5be8c158140187482098542f940ade587ae56"
+  },
+  "statuses": {
+    "direct.status": 0,
+    "driver.status": 0,
+    "saved-outer.status": 0,
+    "source-compare.status": 0,
+    "source-post.status": 0,
+    "tool-envelope.status": 0
+  },
+  "wan_traffic": false
+}

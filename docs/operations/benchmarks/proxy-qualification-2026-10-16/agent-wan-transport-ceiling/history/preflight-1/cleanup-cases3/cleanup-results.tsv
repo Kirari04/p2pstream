@@ -1,0 +1,5 @@
+dead-parent-before-prctl	nonzero	1
+natural	0	0
+timeout-owned-group	no-survivors	pass
+sigterm-owned-group	no-survivors	pass
+live-parent-death	shim-and-descendant-gone	pass

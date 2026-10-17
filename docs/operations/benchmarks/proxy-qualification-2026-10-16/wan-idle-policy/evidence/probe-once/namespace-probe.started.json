@@ -1,0 +1,31 @@
+{
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "20s",
+    "unshare",
+    "--user",
+    "--map-root-user",
+    "--pid",
+    "--fork",
+    "--kill-child=TERM",
+    "--mount",
+    "--mount-proc",
+    "--net",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-idle-namespace.py",
+    "--inside",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/probe-once"
+  ],
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "deadline_seconds": 30,
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "schema_version": 1,
+  "state": "running",
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

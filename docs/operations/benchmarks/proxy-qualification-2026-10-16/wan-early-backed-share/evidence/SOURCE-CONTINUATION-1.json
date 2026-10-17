@@ -1,0 +1,9 @@
+{
+  "changed_only_excluded_tag_test": "internal/tunnel/qualification_growth_trace_test.go",
+  "continuation_inventory_sha256": "3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+  "original_failed_tree_and_outputs_unchanged": true,
+  "original_inventory_sha256": "b6c59c6631afe0e911f565ebb0d51ba9edc3183d4389b0be87f7b5656899a57d",
+  "production_and_non_tagged_inputs_equal": true,
+  "source_files": 468,
+  "tests_builds_executed": 0
+}

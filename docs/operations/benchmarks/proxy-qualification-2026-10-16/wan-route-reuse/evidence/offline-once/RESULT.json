@@ -1,0 +1,11 @@
+{
+  "accepted": false,
+  "complete_logs_retained": true,
+  "inputs_unchanged": true,
+  "no_endpoints_or_traffic": true,
+  "outer_sha256": "42927970390cf874056d2c0b79efac3aeeb9d936ec89da5fe4b896c8145bb091",
+  "pinned_input_count": 514,
+  "plan_sha256": "1c69369f8897d8ea7bd3771ff7d1e56a125de99e262ac06f35ac892f42f1db45",
+  "status": 1,
+  "tests": 5
+}

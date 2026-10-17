@@ -1,0 +1,22 @@
+{
+  "profile-native-http-h1-c16.mem.pprof": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-native-http-h1-c16.mem.pprof",
+    "bytes": 9435,
+    "sha256": "73a9b522606ddec52af65d0087693a6bb4a53c1402d188bbb6d40dfac1e6b8e4"
+  },
+  "profile-production-http-h1-c16.cpu.pprof": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-production-http-h1-c16.cpu.pprof",
+    "bytes": 96741,
+    "sha256": "228ccd7610064ebea5d760151c78555b116d4def27f2ec52de74c72b1ffab9f8"
+  },
+  "profile-production-http-h1-c16.mem.pprof": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-production-http-h1-c16.mem.pprof",
+    "bytes": 21317,
+    "sha256": "c13fbc507254611f2639a53dbbb3eeb26985715cc0cce7f6b1b643d0f0c62613"
+  },
+  "profile-native-http-h1-c16.cpu.pprof": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-profile-results/native-profile-run.gqg05rke/profile-native-http-h1-c16.cpu.pprof",
+    "bytes": 73915,
+    "sha256": "81cf76f2be95f6aaad01a78792a7b2443ef493aac25d38d36d2c8238629fa671"
+  }
+}

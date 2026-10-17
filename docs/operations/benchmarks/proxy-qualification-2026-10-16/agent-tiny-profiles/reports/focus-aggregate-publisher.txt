@@ -1,0 +1,32 @@
+Total: 33.47s
+ROUTINE ======================== github.com/hashicorp/yamux.(*Session).publishAggregateCredit in /tmp/p2p-tiny-15b0354.U9sb6f8a/third_party/yamux/aggregate_window.go
+      10ms      1.04s (flat, cum)  3.11% of Total
+         .          .    503:func (s *Session) publishAggregateCredit() {
+         .          .    504:	a := s.aggregate
+         .          .    505:	defer close(a.publishDone)
+         .          .    506:	for {
+         .       20ms    507:		select {
+         .          .    508:		case <-a.publishWake:
+         .          .    509:		case <-s.shutdownCh:
+         .          .    510:			return
+         .          .    511:		}
+         .          .    512:		for {
+         .       20ms    513:			if stream, delta := s.takeStreamAllocationRefund(); stream != nil {
+         .      540ms    514:				if err := s.publishStreamAllocationRefund(stream, delta); err != nil {
+         .          .    515:					if !errors.Is(err, ErrSessionShutdown) {
+         .          .    516:						s.abortAggregate(err)
+         .          .    517:					}
+         .          .    518:					return
+         .          .    519:				}
+         .          .    520:				continue
+         .          .    521:			}
+         .       10ms    522:			delta := s.takeGlobalRefund()
+         .          .    523:			if delta == 0 {
+         .          .    524:				break
+         .          .    525:			}
+      10ms      450ms    526:			if err := s.publishGlobalRefund(delta); err != nil {
+         .          .    527:				if !errors.Is(err, ErrSessionShutdown) {
+         .          .    528:					s.abortAggregate(err)
+         .          .    529:				}
+         .          .    530:				return
+         .          .    531:			}

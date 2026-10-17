@@ -1,0 +1,4 @@
+d8c9b50d75aea4737ea62aebc37477d8e6abc7b9be3cffcdecf9e42c1e4e5b1f  tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/REPORT-SUPPLEMENT.md
+a3c6f421f86d9ef28e79211fa4642e60e4dba9a8b17fbad3513ebb6e61b03b76  tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/REPORT.md
+22a87032adbc4096fde3dc97db2de80a2cad6ae86994cbacb37aec6366915897  tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/FINAL-SHA256SUMS.txt
+9f3b778aeeefa2fd4eb52803beeef68566ae8d9605206e36dceed4920762dd96  tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/run_adapter_contracts.py

@@ -1,0 +1,23 @@
+{
+  "entry_status": 0,
+  "forced_supervisor_cleanup": false,
+  "invalidates_success": false,
+  "runner": {
+    "group_joined": false,
+    "kill_status": null,
+    "pid": null,
+    "term_status": null,
+    "wait_status": null
+  },
+  "schema_version": 1,
+  "scope_launcher": {
+    "pid": null,
+    "wait_status": null
+  },
+  "sentinel_release_status": 0,
+  "unit": {
+    "show": "LoadState=not-found\nActiveState=inactive\nSubState=dead",
+    "show_status": 0,
+    "stop_status": null
+  }
+}

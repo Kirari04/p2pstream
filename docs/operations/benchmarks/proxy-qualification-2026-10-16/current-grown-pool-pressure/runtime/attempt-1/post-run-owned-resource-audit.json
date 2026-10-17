@@ -1,0 +1,167 @@
+{
+  "boot_id_matches": true,
+  "candidate_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "checkpoint_status": {
+    "exit_status": 0,
+    "forced_supervisor_cleanup": false,
+    "stage": "complete"
+  },
+  "classification": "final-owned-resource-and-input-audit",
+  "inner_status": {
+    "emergency_cleanup": false,
+    "exit_status": 0,
+    "raw_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/attempt-1/proxy-agent-growth.3FNs2p"
+  },
+  "measurements": {
+    "cancellation_classified_errors": 1,
+    "cancellation_origin_received_body_bytes": 9486336,
+    "control_http_status": 200,
+    "control_in_use_after": 0,
+    "control_in_use_before": 0,
+    "control_ordinary_limit_after": 0,
+    "control_ordinary_limit_before": 0,
+    "critical_agent_memory_current_bytes": 3887235072,
+    "critical_agent_memory_margin_bytes": 407732224,
+    "critical_agent_memory_max_bytes": 4294967296,
+    "pressure_ballast_mib": 3648,
+    "pressure_rejections_after_control": 1,
+    "pressure_rejections_before_control": 1,
+    "public_rejection_status_codes": {
+      "503": 1
+    },
+    "receiving_pools": {
+      "post_recovery": {
+        "agent_bytes": [
+          100139008,
+          100663296,
+          105119744,
+          105381888
+        ],
+        "agent_cgroup_memory_current_bytes": 27869184,
+        "agent_max_bytes": 105381888,
+        "agent_min_bytes": 100139008,
+        "server_bytes": [
+          94371840,
+          95944704,
+          95944704,
+          97255424
+        ],
+        "server_cgroup_memory_current_bytes": 236945408,
+        "server_max_bytes": 97255424,
+        "server_min_bytes": 94371840
+      },
+      "pre_pressure": {
+        "agent_bytes": [
+          100139008,
+          100663296,
+          105119744,
+          105381888
+        ],
+        "agent_cgroup_memory_current_bytes": 49913856,
+        "agent_max_bytes": 105381888,
+        "agent_min_bytes": 100139008,
+        "server_bytes": [
+          94371840,
+          95944704,
+          95944704,
+          97255424
+        ],
+        "server_cgroup_memory_current_bytes": 183578624,
+        "server_max_bytes": 97255424,
+        "server_min_bytes": 94371840
+      },
+      "required_strictly_greater_than_bytes": 83886080
+    },
+    "result_rows": 77,
+    "strict_acceptance_count": 13
+  },
+  "outer_exit_status": 0,
+  "payload_pids": [
+    {
+      "exists_after_join": false,
+      "pid": 2382733,
+      "ready_file": "current-server-aggregate-v1-1-agent.ready.json"
+    },
+    {
+      "exists_after_join": false,
+      "pid": 2382708,
+      "ready_file": "current-server-aggregate-v1-1-server.ready.json"
+    },
+    {
+      "exists_after_join": false,
+      "pid": 2382695,
+      "ready_file": "origin.ready.json"
+    }
+  ],
+  "process_groups": [
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "canceled-upload-load",
+      "pgid": 2384692,
+      "status": 0
+    },
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "current-server-aggregate-v1-1-agent",
+      "pgid": 2382733,
+      "status": 0
+    },
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "current-server-aggregate-v1-1-server",
+      "pgid": 2382708,
+      "status": 0
+    },
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "origin",
+      "pgid": 2382695,
+      "status": 0
+    },
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "agent-namespace",
+      "pgid": 2382473,
+      "status": 0
+    },
+    {
+      "exists_after_join": false,
+      "forced": false,
+      "group_joined": true,
+      "label": "router-namespace",
+      "pgid": 2382478,
+      "status": 0
+    }
+  ],
+  "scopes": [
+    {
+      "show_exit_status": 0,
+      "state": "LoadState=not-found\nActiveState=inactive\nControlGroup=",
+      "stderr": "",
+      "unit": "p2p-qual-agent-2382456-1.scope"
+    },
+    {
+      "show_exit_status": 0,
+      "state": "LoadState=not-found\nActiveState=inactive\nControlGroup=",
+      "stderr": "",
+      "unit": "p2p-qual-server-2382456-1.scope"
+    }
+  ],
+  "supervisor": {
+    "forced": false,
+    "group_joined": true,
+    "invalidates_success": false,
+    "pid": 2382455,
+    "runner_status": 0
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "base_commit": "7bc5148c3a96734d9deb90f22421679c457b9e1e",
+  "changed_files": [
+    "internal/agent/transport_ceiling_qualification_test.go",
+    "internal/server/transport_ceiling_qualification_test.go",
+    "internal/tunnel/transport_ceiling_qualification_linux.go",
+    "internal/tunnel/transport_ceiling_qualification_test.go"
+  ],
+  "forward_tree_exact": true,
+  "original_worktree_index_untouched": true,
+  "overlay_sha256": "fb996f1c2ee44b72f5530406deb2ac4d05c51e8bbc4f505231428ccc12362170",
+  "reverse_tree_exact": true,
+  "source_file_hashes_exact": true,
+  "source_tree": "326e4a0016ff14d818eb0483d7789849db0a9fde"
+}

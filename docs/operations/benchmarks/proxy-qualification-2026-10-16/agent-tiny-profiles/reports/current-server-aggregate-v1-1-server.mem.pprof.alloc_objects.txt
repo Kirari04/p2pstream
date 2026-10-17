@@ -1,0 +1,53 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: alloc_objects
+Time: 2026-10-16 05:19:44 CEST
+Showing nodes accounting for 32104271, 76.90% of 41746707 total
+Dropped 334 nodes (cum <= 208733)
+Showing top 45 nodes out of 179
+      flat  flat%   sum%        cum   cum%
+   1998871  4.79%  4.79%    1998871  4.79%  p2pstream/internal/db.appendProxyRequestEventArgs
+   1937926  4.64%  9.43%    1937926  4.64%  net/textproto.MIMEHeader.Add (inline)
+   1476408  3.54% 12.97%   17833135 42.72%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+   1211169  2.90% 15.87%    1211169  2.90%  net/http.Header.Clone (inline)
+   1194142  2.86% 18.73%    1641991  3.93%  net/textproto.readMIMEHeader
+   1125084  2.70% 21.42%    1125084  2.70%  context.WithValue
+   1086393  2.60% 24.03%    1086393  2.60%  net/http.http2cloneHeader (inline)
+   1050206  2.52% 26.54%    1752424  4.20%  net/http.(*persistConn).roundTrip
+   1048590  2.51% 29.05%    1343506  3.22%  net/textproto.MIMEHeader.Set (inline)
+    936655  2.24% 31.30%    8740818 20.94%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+    906629  2.17% 33.47%    3501670  8.39%  net/http.(*persistConn).readLoop
+    830168  1.99% 35.46%    1129792  2.71%  time.NewTimer
+    814943  1.95% 37.41%     814943  1.95%  net/http.(*http2Framer).readMetaFrame.func1
+    808317  1.94% 39.35%   15575738 37.31%  net/http/httputil.(*ReverseProxy).ServeHTTP
+    800507  1.92% 41.26%    1023346  2.45%  github.com/hashicorp/yamux.(*Session).publishStreamAllocationRefund
+    786455  1.88% 43.15%     815502  1.95%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+    758808  1.82% 44.96%     758808  1.82%  net/http.(*Request).WithContext (inline)
+    742765  1.78% 46.74%     742765  1.78%  net/textproto.canonicalMIMEHeaderKey
+    731841  1.75% 48.50%     731841  1.75%  p2pstream/internal/server.publicRouteTargetHealthConfigFromRouteTarget
+    644448  1.54% 50.04%     644448  1.54%  p2pstream/internal/server.(*requestCapacityLimiter).tryAcquire
+    625346  1.50% 51.54%    1440289  3.45%  net/http.(*http2Framer).readMetaFrame
+    620281  1.49% 53.02%    1047855  2.51%  net/http.(*transferWriter).probeRequestBody
+    612869  1.47% 54.49%    1084747  2.60%  net/http.(*Transport).getConn
+    579568  1.39% 55.88%     579568  1.39%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+    557072  1.33% 57.22%     557072  1.33%  net.SplitHostPort.func1 (inline)
+    557070  1.33% 58.55%    1455544  3.49%  p2pstream/internal/server.applyPublicRequestBodyLimits
+    524327  1.26% 59.81%     896588  2.15%  context.withCancel (inline)
+    502452  1.20% 61.01%     502452  1.20%  p2pstream/internal/server.(*App).beginAgentUpdateProtectedRequest
+    491526  1.18% 62.19%    1755682  4.21%  net/http.(*Request).write
+    486855  1.17% 63.35%     650707  1.56%  github.com/hashicorp/yamux.(*Session).publishGlobalRefund
+    472843  1.13% 64.49%     472843  1.13%  context.(*cancelCtx).Done
+    436926  1.05% 65.53%     436926  1.05%  internal/bytealg.MakeNoZero
+    434192  1.04% 66.57%     434192  1.04%  p2pstream/internal/server.(*publicProxyContext).deferCleanup
+    404490  0.97% 67.54%     404490  0.97%  strings.genSplit
+    393224  0.94% 68.48%     393224  0.94%  crypto/tls.(*Conn).readFromUntil
+    382305  0.92% 69.40%    2828873  6.78%  p2pstream/internal/server.initializePublicProxyContext
+    372261  0.89% 70.29%     372261  0.89%  context.(*cancelCtx).propagateCancel
+    367780  0.88% 71.17%     367780  0.88%  net/http.cloneURL (inline)
+    365167  0.87% 72.05%     365167  0.87%  github.com/hashicorp/yamux.(*aggregateWindow).broadcastSendLocked
+    360453  0.86% 72.91%     360453  0.86%  p2pstream/internal/server.(*publicRouteTargetHealthMonitor).beginRequest
+    349533  0.84% 73.75%     349533  0.84%  p2pstream/internal/server.publicAccessConfiguredHeaderNames
+    342529  0.82% 74.57%    1921478  4.60%  net/http.(*Request).Clone
+    335885   0.8% 75.37%     336013   0.8%  net/http.(*http2serverConn).startFrameWrite
+    327687  0.78% 76.16%    2893778  6.93%  net/http.(*http2serverConn).processHeaders
+    311305  0.75% 76.90%     311305  0.75%  p2pstream/internal/server.(*App).eligibleTargetAgentCandidatesFromSnapshot

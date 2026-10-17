@@ -1,0 +1,200 @@
+{
+  "accepted": true,
+  "artifact_bytes": 1227198067,
+  "binaries": {
+    "agent": {
+      "go_version_m_sha256": "c70c16e26bb84cbfdf8be51e86c57e2b8c4ed0fc327baef9db5918a216d7b68d",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-agent-route-reuse.test",
+      "sha256": "c8f541da6c4be5ea3ed4ae3cc1df9bfb188da210d78ffc00962602354ff41537",
+      "size": 19994870
+    },
+    "server": {
+      "go_version_m_sha256": "7a8b4f4d456cd50980682ca453addb68a7948362c210104450ca99cb403db682",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-server-route-reuse.test",
+      "sha256": "5d7552f7a51f907dcbbd4c7b3e73590a3a887cbf1333cc7da058a8e23ee27577",
+      "size": 58637352
+    }
+  },
+  "byte_threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects",
+  "commands": [
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 1185,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/settings.outer.json",
+          "sha256": "443f52c4667f752a8cf5445515d5d82d96b3cfb14dacdd71b94bd74bef0c6f43"
+        },
+        "started.json": {
+          "bytes": 751,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/settings.started.json",
+          "sha256": "9cfcea1e71b6ecbf1f61f3d9f6e12ee9aad13fd7ef1889f49eaab3c5556f6b22"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/settings.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 264,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/settings.stdout.log",
+          "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147"
+        }
+      },
+      "name": "settings",
+      "source_unchanged": true,
+      "status": 0
+    },
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 1032,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/modules.outer.json",
+          "sha256": "3135868fedd16f59de5a25d91e5edce133550348afdfda75373c564503709ddf"
+        },
+        "started.json": {
+          "bytes": 601,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/modules.started.json",
+          "sha256": "4a33ad8b339bad943c6ea9fa1f3142655fd5d196446049034bb703f7d3f45c7d"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/modules.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 21,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/modules.stdout.log",
+          "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+        }
+      },
+      "name": "modules",
+      "source_unchanged": true,
+      "status": 0
+    },
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 2026,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-build.outer.json",
+          "sha256": "d099d7d4ac0fdd7af7f157ed9cc7b663eb94025537ccee83cd66cab1a47f6d27"
+        },
+        "started.json": {
+          "bytes": 835,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-build.started.json",
+          "sha256": "892512dae8b792394d5ec01818fd503022e08f90fabe3eb4993af3cd2e5b0e8a"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-build.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-build.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "name": "server-build",
+      "source_unchanged": true,
+      "status": 0
+    },
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 1567,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-build.outer.json",
+          "sha256": "8f6f1f411393c3adb25f21feca7744ea8b52612f5bcb45defbf872f8c4b0ffba"
+        },
+        "started.json": {
+          "bytes": 833,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-build.started.json",
+          "sha256": "03b27ef4dbba442e8cafa5ed589661aeb838d93e4da8dcac1b3e624f8930bc58"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-build.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-build.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "name": "agent-build",
+      "source_unchanged": true,
+      "status": 0
+    },
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 1201,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-metadata.outer.json",
+          "sha256": "f171303d14777ae4c03f95ccc12d6a2b389bb08618caca3ab7eee894fa72926b"
+        },
+        "started.json": {
+          "bytes": 768,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-metadata.started.json",
+          "sha256": "d940688f49656204d045f3331216f25627645ad677f565aa45b35a83e854b9d6"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-metadata.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 432,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/server-metadata.stdout.log",
+          "sha256": "7a8b4f4d456cd50980682ca453addb68a7948362c210104450ca99cb403db682"
+        }
+      },
+      "name": "server-metadata",
+      "source_unchanged": true,
+      "status": 0
+    },
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 1201,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-metadata.outer.json",
+          "sha256": "34812555ab54eff5324c616516e2308444beb1f99706d0f4583bb7fba005d39c"
+        },
+        "started.json": {
+          "bytes": 767,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-metadata.started.json",
+          "sha256": "ce38fcca973b89c1c6d9f5e0a054312ae6d6d345ba137d7dac20fe30c0de67a4"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-metadata.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 430,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/agent-metadata.stdout.log",
+          "sha256": "c70c16e26bb84cbfdf8be51e86c57e2b8c4ed0fc327baef9db5918a216d7b68d"
+        }
+      },
+      "name": "agent-metadata",
+      "source_unchanged": true,
+      "status": 0
+    }
+  ],
+  "endpoint_execution": false,
+  "failure": null,
+  "focused_result": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017/run-once/RESULT.json",
+    "sha256": "aa21fb8cff45b18d041f62282c29bb7815c30c1f9f76000dbb81bdfdccece251"
+  },
+  "plan_sha256": "ffa870be730c767237622d4472548bae3bdf628e6a439e99efe827c99fc3c0b2",
+  "proof_artifact_bytes": 47494,
+  "purpose": "ordinary-route-reuse-qualification-build",
+  "schema_version": 1,
+  "source_before_after_unchanged": true,
+  "source_identity": {
+    "source_file_count": 430,
+    "source_files_sha256": "b359dc67c290193f68bf33519853df3473e31f9a4d8e718c0bd1ccc282d14947"
+  },
+  "source_ref": "bd593420a6905f8922bb96d07ec351483c0df2c3+public-route-idle-reuse-source-b359dc67c290193f68bf33519853df3473e31f9a4d8e718c0bd1ccc282d14947",
+  "wan_traffic": false
+}

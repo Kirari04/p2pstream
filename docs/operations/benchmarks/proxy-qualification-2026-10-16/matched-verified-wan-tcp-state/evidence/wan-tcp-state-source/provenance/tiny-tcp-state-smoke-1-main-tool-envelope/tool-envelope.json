@@ -1,0 +1,26 @@
+{
+  "command_source_manifest_sha256": "82681c520840f67c35c2e0e85e89693ab2fb67cc11c7967b0b6067a7f564e720",
+  "driver_sha256": "748f57106b5d904b93e81567f45c41c8082c5a9b738c81c90fb3ff19f7afee93",
+  "endpoint_execution": true,
+  "evidence_root": "tmp/continuation-20261016/wan-tcp-state-source/provenance/tiny-tcp-state-smoke-1-launch",
+  "final_chunk_id": "3cff8b",
+  "final_yield_wall_seconds": 1.6011e-05,
+  "initial_chunk_id": "b9f95f",
+  "initial_yield_wall_seconds": 1.001197934,
+  "invocation_sha256": "c5bec2f77e069c752d046fc26276527041c69755d7087e47585c8abe46445903",
+  "native_exit_status": 0,
+  "poll_chunk_ids": [
+    "f86f64",
+    "f055fe"
+  ],
+  "poll_wall_seconds": [
+    10.001742903,
+    20.001767388
+  ],
+  "retry": false,
+  "schema_version": 1,
+  "session_id": 90860,
+  "stderr_empty": true,
+  "stdout_empty": true,
+  "wan_traffic": true
+}

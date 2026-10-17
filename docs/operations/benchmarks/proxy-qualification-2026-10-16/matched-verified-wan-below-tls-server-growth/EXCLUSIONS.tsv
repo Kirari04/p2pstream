@@ -1,0 +1,9 @@
+category	disposition	binding_or_limit
+TLS private keys	excluded whole artifacts	Complete tiny/sustained run and freeze ledgers retain path, size and SHA-256; public test certificate remains eligible.
+Readiness and authentication values	excluded whole artifacts	Complete run ledgers bind omitted files; nonprinting exact-value scan found zero selected hit artifacts.
+Endpoint logs, state and temporary runtime trees	excluded whole artifacts	Run ledgers 0d2b8fb2... (invalid sustained 1) and 54dee8f7... (completed sustained 2) bind the full local inventories.
+Audited agent binary	hash only	3467c211595b95a5ca21242630f83a976e0d6f9131aac65fa21a50d8739ad94a; build, Go metadata and publication evidence selected.
+Audited server binary	hash only	dd604b0ee93ab7d413b88b42cee2028e6cc7eab9e33a3046a0759046b8e9512a; build, Go metadata and publication evidence selected.
+Compiled Go archives and caches	hash only	Exact hashes remain in proof/build ledgers; raw assembly, escape, nm and object evidence needed by the comparator remains selected.
+Reconstructed full source trees	excluded	Immutable checkpoint overlays, diffs, source inventories and exact base bindings selected instead.
+Process-local trace bearer	unavailable for exact scan	The value was never persisted; no value is reconstructed or printed.

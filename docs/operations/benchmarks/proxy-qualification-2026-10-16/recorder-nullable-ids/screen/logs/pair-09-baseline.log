@@ -1,0 +1,43 @@
+{"level":"info","url":"/tmp/BenchmarkPreparedProxyRequestEventBatchFlushbackground2429224987/001/observability-benchmark.db","time":"2026-10-17T12:37:17+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:17+02:00","message":"Database connected and configured successfully"}
+goos: linux
+goarch: amd64
+pkg: p2pstream/internal/server
+cpu: AMD Ryzen 9 6900HS with Radeon Graphics        
+BenchmarkPreparedProxyRequestEventBatchFlush/background         	{"level":"info","url":"/tmp/BenchmarkPreparedProxyRequestEventBatchFlushbackground3368465824/002/observability-benchmark.db","time":"2026-10-17T12:37:17+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:17+02:00","message":"Database connected and configured successfully"}
+{"level":"info","url":"/tmp/BenchmarkPreparedProxyRequestEventBatchFlushbackground2390028687/003/observability-benchmark.db","time":"2026-10-17T12:37:18+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:18+02:00","message":"Database connected and configured successfully"}
+      93	   3765603 ns/op	       512.0 events/op	  703832 B/op	    7623 allocs/op
+{"level":"info","url":"/tmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline2191046247/001/observability-benchmark.db","time":"2026-10-17T12:37:18+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:18+02:00","message":"Database connected and configured successfully"}
+BenchmarkPreparedProxyRequestEventBatchFlush/production_deadline         	{"level":"info","url":"/tmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline2184255330/002/observability-benchmark.db","time":"2026-10-17T12:37:18+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:18+02:00","message":"Database connected and configured successfully"}
+{"level":"info","url":"/tmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline865268283/003/observability-benchmark.db","time":"2026-10-17T12:37:18+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:19+02:00","message":"Database connected and configured successfully"}
+      90	   3880990 ns/op	       512.0 events/op	  716465 B/op	    7858 allocs/op
+{"level":"info","url":"/tmp/BenchmarkRecorderNullableIDFixedBatchInsertall_nullbackground229683570/001/nullable-insert.db","time":"2026-10-17T12:37:19+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:19+02:00","message":"Database connected and configured successfully"}
+BenchmarkRecorderNullableIDFixedBatchInsert/all_null/background          	     100	   3520474 ns/op	       512.0 events/op	  717224 B/op	   11042 allocs/op
+{"level":"info","url":"/tmp/BenchmarkRecorderNullableIDFixedBatchInsertall_nullproduction_608677002/001/nullable-insert.db","time":"2026-10-17T12:37:19+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:19+02:00","message":"Database connected and configured successfully"}
+BenchmarkRecorderNullableIDFixedBatchInsert/all_null/production_deadline 	      88	   3594427 ns/op	       512.0 events/op	  724824 B/op	   11183 allocs/op
+{"level":"info","url":"/tmp/BenchmarkRecorderNullableIDFixedBatchInsertordinary_directback1691399180/001/nullable-insert.db","time":"2026-10-17T12:37:20+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:20+02:00","message":"Database connected and configured successfully"}
+BenchmarkRecorderNullableIDFixedBatchInsert/ordinary_direct/background   	     100	   3910523 ns/op	       512.0 events/op	  717224 B/op	   11042 allocs/op
+{"level":"info","url":"/tmp/BenchmarkRecorderNullableIDFixedBatchInsertordinary_directprod4266676603/001/nullable-insert.db","time":"2026-10-17T12:37:20+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:20+02:00","message":"Database connected and configured successfully"}
+BenchmarkRecorderNullableIDFixedBatchInsert/ordinary_direct/production_deadline         	     103	   3508772 ns/op	       512.0 events/op	  724824 B/op	   11183 allocs/op
+{"level":"info","url":"/tmp/BenchmarkRecorderNullableIDFixedBatchInsertall_smallbackground2356548435/001/nullable-insert.db","time":"2026-10-17T12:37:21+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:21+02:00","message":"Database connected and configured successfully"}
+BenchmarkRecorderNullableIDFixedBatchInsert/all_small/background                        	     100	   3673685 ns/op	       512.0 events/op	  717224 B/op	   11042 allocs/op
+{"level":"info","url":"/tmp/BenchmarkRecorderNullableIDFixedBatchInsertall_smallproduction3735341663/001/nullable-insert.db","time":"2026-10-17T12:37:21+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:21+02:00","message":"Database connected and configured successfully"}
+BenchmarkRecorderNullableIDFixedBatchInsert/all_small/production_deadline               	      92	   3846616 ns/op	       512.0 events/op	  724824 B/op	   11183 allocs/op
+{"level":"info","url":"/tmp/BenchmarkRecorderNullableIDFixedBatchInsertall_largebackground1381632415/001/nullable-insert.db","time":"2026-10-17T12:37:22+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:22+02:00","message":"Database connected and configured successfully"}
+BenchmarkRecorderNullableIDFixedBatchInsert/all_large/background                        	      94	   3857712 ns/op	       512.0 events/op	  749992 B/op	   15138 allocs/op
+{"level":"info","url":"/tmp/BenchmarkRecorderNullableIDFixedBatchInsertall_largeproduction3003601551/001/nullable-insert.db","time":"2026-10-17T12:37:22+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-17T12:37:22+02:00","message":"Database connected and configured successfully"}
+BenchmarkRecorderNullableIDFixedBatchInsert/all_large/production_deadline               	      93	   3820748 ns/op	       512.0 events/op	  757592 B/op	   15279 allocs/op
+PASS

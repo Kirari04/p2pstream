@@ -1,0 +1,13 @@
+diff --git a/third_party/yamux/aggregate_window.go b/third_party/yamux/aggregate_window.go
+index edcfd92..94b12a2 100644
+--- a/third_party/yamux/aggregate_window.go
++++ b/third_party/yamux/aggregate_window.go
+@@ -25,7 +25,7 @@ const (
+ 
+ // diagnosticDeferredGlobalEpoch differs only in the causal diagnostic arm.
+ // Both arms retain this scaffold and the same aggregateWindow layout.
+-var diagnosticDeferredGlobalEpoch = false
++var diagnosticDeferredGlobalEpoch = true
+ 
+ type aggregateChunk struct {
+ 	next        *aggregateChunk

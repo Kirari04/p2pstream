@@ -1,0 +1,78 @@
+{
+  "base_archive_sha256": "9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76",
+  "base_ref": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+  "common_scaffold_sha256": "1f5406709d4347975f6110830fbaf24ef06f96e6a22280071ac8ab76eaba24d8",
+  "files": {
+    "internal/agent/agent.go": {
+      "base": "cf44e618578a5114631490bfd029f40c13160a86dc45ecc444e6714712d8157e",
+      "tunnel-lowat-32k": "c8048fdf2fc6ed1d90d237123543241d17b423bc7bef251e4d889420a21ce22a",
+      "tunnel-lowat-default-control": "c8048fdf2fc6ed1d90d237123543241d17b423bc7bef251e4d889420a21ce22a"
+    },
+    "internal/agent/proxy_qualification_external_test.go": {
+      "base": "6066d04dac9320c3a8e5e2efa2c5c82fef400d1683703709ad44f48f23340b36",
+      "tunnel-lowat-32k": "dd6ff4b05feff9d74f4318215b8cf74e695ef989e4a5a99bbb4ca4359e1061b3",
+      "tunnel-lowat-default-control": "dd6ff4b05feff9d74f4318215b8cf74e695ef989e4a5a99bbb4ca4359e1061b3"
+    },
+    "internal/agent/proxy_qualification_lowat_adapter_test.go": {
+      "base": null,
+      "tunnel-lowat-32k": "a2b5adc1c8842f0c35be04970c7cd3a22102fdf335e73153dcd55536888115ae",
+      "tunnel-lowat-default-control": "a2b5adc1c8842f0c35be04970c7cd3a22102fdf335e73153dcd55536888115ae"
+    },
+    "internal/agent/tunnel_socket_diagnostic_test.go": {
+      "base": null,
+      "tunnel-lowat-32k": "d7fde6aaa86aa3ad049a26eaa24c05133a17a3c1d3cf70fdedc57ed3852ef9f4",
+      "tunnel-lowat-default-control": "d7fde6aaa86aa3ad049a26eaa24c05133a17a3c1d3cf70fdedc57ed3852ef9f4"
+    },
+    "internal/server/agent_tunnel_socket_diagnostic_test.go": {
+      "base": null,
+      "tunnel-lowat-32k": "b8da22cbd6a674e14fa3d1641a9db616e371ed3cabc5d212f41e235302a3afe3",
+      "tunnel-lowat-default-control": "b8da22cbd6a674e14fa3d1641a9db616e371ed3cabc5d212f41e235302a3afe3"
+    },
+    "internal/server/proxy_qualification_lowat_adapter_test.go": {
+      "base": null,
+      "tunnel-lowat-32k": "11ea97567b6670dc531214165482080c88cc60780b0d5dee1fa51b9b11cb5445",
+      "tunnel-lowat-default-control": "11ea97567b6670dc531214165482080c88cc60780b0d5dee1fa51b9b11cb5445"
+    },
+    "internal/server/proxy_qualification_test.go": {
+      "base": "7ab2d40e55da980857e4e8234174851ff6f8f2d4aa1785f24382246d6c348667",
+      "tunnel-lowat-32k": "9639d8a3eafc7599312d0cbc82b55d3a987d4af45ec74b8d033defd1ef1b384e",
+      "tunnel-lowat-default-control": "9639d8a3eafc7599312d0cbc82b55d3a987d4af45ec74b8d033defd1ef1b384e"
+    },
+    "internal/server/server.go": {
+      "base": "e1515f72aec95a169fa83a52f9b0d24974a704c90522801286d0794bddc72b4c",
+      "tunnel-lowat-32k": "639187b82230a85a5fd9a7f2d7e6fb8de22346b09d87041ae9d694b71b17dee2",
+      "tunnel-lowat-default-control": "639187b82230a85a5fd9a7f2d7e6fb8de22346b09d87041ae9d694b71b17dee2"
+    },
+    "internal/tunnel/physical_socket_diagnostic.go": {
+      "base": null,
+      "tunnel-lowat-32k": "bde7d86958993db6b4c1fc9cf028f7165d41c7deab5dfe5b2706849c86cf233e",
+      "tunnel-lowat-default-control": "bcdd444cd617cf5f20ec811ca806d41f0c0115e8508a36bfafd1450ff833bb0a"
+    },
+    "internal/tunnel/physical_socket_diagnostic_linux.go": {
+      "base": null,
+      "tunnel-lowat-32k": "8a4efa51870fa0459eee76fc4af3bb49716b4ffab7421dce472487fe19580338",
+      "tunnel-lowat-default-control": "8a4efa51870fa0459eee76fc4af3bb49716b4ffab7421dce472487fe19580338"
+    },
+    "internal/tunnel/physical_socket_diagnostic_linux_test.go": {
+      "base": null,
+      "tunnel-lowat-32k": "e64d8288698863e5562d7e4df7d88d1c308fced8432a4492c471b2737368f0f8",
+      "tunnel-lowat-default-control": "e64d8288698863e5562d7e4df7d88d1c308fced8432a4492c471b2737368f0f8"
+    },
+    "internal/tunnel/physical_socket_diagnostic_other.go": {
+      "base": null,
+      "tunnel-lowat-32k": "8f82b77ff0e88f57e04932c2a075829c687ee208dccc36954599757e63be0ed3",
+      "tunnel-lowat-default-control": "8f82b77ff0e88f57e04932c2a075829c687ee208dccc36954599757e63be0ed3"
+    }
+  },
+  "lowat_32k_overlay_sha256": "076c8dfc22212296e30b9430c9654625dd312b03cfaa19a55b1faa4c1fb69379",
+  "only_arm_difference": {
+    "candidate": true,
+    "control": false,
+    "field": "apply_tunnel_notsent_lowat",
+    "path": "internal/tunnel/physical_socket_diagnostic.go"
+  },
+  "source_tree_sha256": {
+    "tunnel-lowat-32k": "708c62aea24859992d709d8dfa10ed07d599efb24e1dd8dbbfa6fe94b8e9d19a",
+    "tunnel-lowat-default-control": "bf529688c742710bb5cd37922aca5a829e1be745535b79f4204eafab4c2a656d"
+  }
+}

@@ -1,0 +1,53 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: alloc_objects
+Time: 2026-10-16 05:19:29 CEST
+Showing nodes accounting for 39179877, 80.62% of 48600691 total
+Dropped 349 nodes (cum <= 243003)
+Showing top 45 nodes out of 167
+      flat  flat%   sum%        cum   cum%
+   3244077  6.67%  6.67%    3244077  6.67%  p2pstream/internal/db.appendProxyRequestEventArgs
+   1939446  3.99% 10.67%    1939446  3.99%  net/textproto.MIMEHeader.Add (inline)
+   1853531  3.81% 14.48%   21114798 43.45%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+   1507924  3.10% 17.58%    1507924  3.10%  net/http.http2cloneHeader (inline)
+   1422843  2.93% 20.51%    1990847  4.10%  net/textproto.readMIMEHeader
+   1420010  2.92% 23.43%    1420010  2.92%  context.WithValue
+   1309002  2.69% 26.12%    1309002  2.69%  net/http.Header.Clone (inline)
+   1256140  2.58% 28.71%    1286194  2.65%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+   1245202  2.56% 31.27%    1507350  3.10%  net/textproto.MIMEHeader.Set (inline)
+   1143837  2.35% 33.63%    1719668  3.54%  net/http.(*persistConn).roundTrip
+   1063641  2.19% 35.81%   18392891 37.84%  net/http/httputil.(*ReverseProxy).ServeHTTP
+   1051946  2.16% 37.98%    4009507  8.25%  net/http.(*persistConn).readLoop
+   1015841  2.09% 40.07%    1015841  2.09%  p2pstream/internal/server.publicRouteTargetHealthConfigFromRouteTarget
+    961212  1.98% 42.05%     961212  1.98%  p2pstream/internal/server.(*requestCapacityLimiter).tryAcquire
+    935810  1.93% 43.97%     935810  1.93%  net/http.(*Request).WithContext (inline)
+    933915  1.92% 45.89%     933915  1.92%  p2pstream/internal/server.(*publicProxyContext).deferCleanup
+    917517  1.89% 47.78%    2667455  5.49%  net/http.(*Request).write
+    890322  1.83% 49.61%     890322  1.83%  net/http.(*http2Framer).readMetaFrame.func1
+    876575  1.80% 51.42%    1767125  3.64%  net/http.(*http2Framer).readMetaFrame
+    852006  1.75% 53.17%    1507418  3.10%  net/http.(*transferWriter).probeRequestBody
+    839717  1.73% 54.90%   10214785 21.02%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+    830152  1.71% 56.61%     830152  1.71%  net/textproto.canonicalMIMEHeaderKey
+    753715  1.55% 58.16%    1235924  2.54%  time.NewTimer
+    753675  1.55% 59.71%    1201913  2.47%  context.WithCancel
+    740612  1.52% 61.23%    1224669  2.52%  context.withCancel (inline)
+    737301  1.52% 62.75%     737301  1.52%  net.SplitHostPort.func1 (inline)
+    731837  1.51% 64.25%    1719349  3.54%  p2pstream/internal/server.applyPublicRequestBodyLimits
+    610176  1.26% 65.51%    1573583  3.24%  net/http.(*Transport).getConn
+    557064  1.15% 66.66%     557064  1.15%  net/netip.Addr.string4 (inline)
+    521635  1.07% 67.73%     521635  1.07%  net/http.setupRewindBody (inline)
+    491534  1.01% 68.74%     491534  1.01%  p2pstream/internal/server.(*App).eligibleTargetAgentCandidatesFromSnapshot
+    484057     1% 69.74%     484057     1%  context.(*cancelCtx).propagateCancel
+    482209  0.99% 70.73%     482209  0.99%  time.newTimer
+    472845  0.97% 71.70%     472845  0.97%  context.(*cancelCtx).Done
+    458814  0.94% 72.65%     458814  0.94%  net/http.cloneURL (inline)
+    458766  0.94% 73.59%    3334248  6.86%  p2pstream/internal/server.initializePublicProxyContext
+    458761  0.94% 74.53%     458761  0.94%  p2pstream/internal/server.(*App).beginAgentUpdateProtectedRequest
+    455613  0.94% 75.47%    2223429  4.57%  net/http.(*Request).Clone
+    447843  0.92% 76.39%    6263803 12.89%  p2pstream/internal/server.(*pooledAgentTransport).RoundTrip
+    430684  0.89% 77.28%     430684  0.89%  internal/bytealg.MakeNoZero
+    404151  0.83% 78.11%     404151  0.83%  strings.genSplit
+    327684  0.67% 78.78%     327684  0.67%  database/sql.NullInt64.Value
+    300385  0.62% 79.40%     300385  0.62%  net/http.(*http2serverConn).startFrameWrite
+    294925  0.61% 80.01%     294925  0.61%  github.com/google/uuid.UUID.String (inline)
+    294925  0.61% 80.62%    1787968  3.68%  net/http.(*http2serverConn).newWriterAndRequest

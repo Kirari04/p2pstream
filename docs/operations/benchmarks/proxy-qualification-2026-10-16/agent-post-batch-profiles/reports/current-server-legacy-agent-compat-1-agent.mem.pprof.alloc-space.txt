@@ -1,0 +1,52 @@
+File: agent.test
+Build ID: 2c1b796d824f205535926c758377823561f6140b
+Type: alloc_space
+Time: 2026-10-16 06:05:15 CEST
+Showing nodes accounting for 59.64MB, 100% of 59.64MB total
+Showing top 45 nodes out of 125
+      flat  flat%   sum%        cum   cum%
+      20MB 33.54% 33.54%       20MB 33.54%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+   12.38MB 20.75% 54.29%    32.38MB 54.29%  io.copyBuffer
+    6.91MB 11.59% 65.88%     6.91MB 11.59%  github.com/hashicorp/yamux.(*recvBuffer).allocateChunk (inline)
+    6.50MB 10.90% 76.78%     6.50MB 10.90%  crypto/tls.(*Conn).readFromUntil
+    2.01MB  3.37% 80.15%     2.01MB  3.37%  slices.Grow[go.shape.[]uint8,go.shape.uint8] (inline)
+    1.16MB  1.94% 82.09%     1.16MB  1.94%  runtime/pprof.StartCPUProfile
+    1.10MB  1.84% 83.92%     3.10MB  5.20%  os.readFileContents
+       1MB  1.68% 85.60%        1MB  1.68%  strings.(*trieNode).add
+    0.88MB  1.48% 87.08%     1.52MB  2.54%  compress/flate.NewWriter (inline)
+    0.64MB  1.07% 88.14%     0.64MB  1.07%  compress/flate.(*compressor).init
+    0.56MB  0.94% 89.09%     0.56MB  0.94%  p2pstream/gen/proto/p2pstream/v1.init
+    0.51MB  0.85% 89.93%     5.01MB  8.41%  p2pstream/internal/sysmetrics.resolveCurrentProcessMemoryCgroupPaths
+    0.50MB  0.84% 90.77%     0.50MB  0.84%  p2pstream/internal/agent.releaseAgentTunnelCapacityAfterPeerClose
+    0.50MB  0.84% 91.61%     0.50MB  0.84%  runtime.mallocgc
+    0.50MB  0.84% 92.45%     0.50MB  0.84%  crypto/x509.parseCertificate
+    0.50MB  0.84% 93.29%     0.50MB  0.84%  os.(*File).Stat
+    0.50MB  0.84% 94.13%     0.50MB  0.84%  os.statNolog
+    0.50MB  0.84% 94.97%     0.50MB  0.84%  compress/gzip.NewWriterLevel
+    0.50MB  0.84% 95.81%     0.50MB  0.84%  strings.NewReplacer (inline)
+    0.50MB  0.84% 96.65%     0.50MB  0.84%  strings.Fields
+    0.50MB  0.84% 97.48%     0.50MB  0.84%  time.NewTimer
+    0.50MB  0.84% 98.32%     0.50MB  0.84%  runtime/pprof.allFrames
+    0.50MB  0.84% 99.16%     0.50MB  0.84%  syscall.ByteSliceFromString
+    0.50MB  0.84%   100%     0.50MB  0.84%  net/http.(*Server).Serve
+         0     0%   100%     6.50MB 10.90%  bufio.(*Reader).Read
+         0     0%   100%     1.52MB  2.54%  compress/gzip.(*Writer).Write
+         0     0%   100%     6.50MB 10.90%  crypto/tls.(*Conn).Read
+         0     0%   100%     6.50MB 10.90%  crypto/tls.(*Conn).readRecord (inline)
+         0     0%   100%     6.50MB 10.90%  crypto/tls.(*Conn).readRecordOrCCS
+         0     0%   100%     0.50MB  0.84%  crypto/x509.(*CertPool).AppendCertsFromPEM
+         0     0%   100%     0.50MB  0.84%  crypto/x509.ParseCertificate
+         0     0%   100%     1.10MB  1.84%  crypto/x509.SystemCertPool
+         0     0%   100%     1.10MB  1.84%  crypto/x509.initSystemRoots
+         0     0%   100%     1.10MB  1.84%  crypto/x509.loadSystemRoots
+         0     0%   100%     1.10MB  1.84%  crypto/x509.systemRootsPool
+         0     0%   100%     8.41MB 14.11%  github.com/hashicorp/yamux.(*Session).handleStreamMessage
+         0     0%   100%    13.41MB 22.49%  github.com/hashicorp/yamux.(*Session).recv
+         0     0%   100%    13.41MB 22.49%  github.com/hashicorp/yamux.(*Session).recvLoop
+         0     0%   100%       20MB 33.54%  github.com/hashicorp/yamux.(*Session).waitForSendErr (inline)
+         0     0%   100%       20MB 33.54%  github.com/hashicorp/yamux.(*Stream).Write
+         0     0%   100%     8.41MB 14.11%  github.com/hashicorp/yamux.(*Stream).readData
+         0     0%   100%     8.41MB 14.11%  github.com/hashicorp/yamux.(*Stream).readDataPayload
+         0     0%   100%       20MB 33.54%  github.com/hashicorp/yamux.(*Stream).write
+         0     0%   100%     8.41MB 14.11%  github.com/hashicorp/yamux.(*recvBuffer).readFrom
+         0     0%   100%    32.38MB 54.29%  io.Copy (inline)

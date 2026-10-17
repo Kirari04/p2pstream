@@ -1,0 +1,11 @@
+{
+  "active_state": "inactive",
+  "confirmation": "show",
+  "failed_state_rejected": true,
+  "joined": true,
+  "load_state": "not-found",
+  "query_status": 0,
+  "schema_version": 1,
+  "show_status": 0,
+  "sub_state": "dead"
+}

@@ -1,0 +1,570 @@
+{
+  "source_root": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+  "hash": "sha256",
+  "copies": [
+    {
+      "source": "tmp/wan-next-candidate-20261017/LOCAL-ACCEPTANCE.md",
+      "destination": "earlier-real-tcp-tls/LOCAL-ACCEPTANCE.md",
+      "sha256": "3df5a72cd11d4375e3d57ba8c56ef30af35cb45d8b288ee4f283e49d5687d4fe",
+      "bytes": 3787,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/RESULT.json",
+      "destination": "earlier-real-tcp-tls/RESULT.json",
+      "sha256": "08e9a347b32c5c56b3027c801edf19a7de10cd7a0ae9180762883d9dc9840241",
+      "bytes": 5342,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/RESULT.md",
+      "destination": "earlier-real-tcp-tls/RESULT.md",
+      "sha256": "9745436d6cdb27a55d5b7f8ccd1d8d53faecfa1f06b09d9fd9f7ba92a58cfd10",
+      "bytes": 3278,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/REVIEW.md",
+      "destination": "earlier-real-tcp-tls/REVIEW.md",
+      "sha256": "d6558e414a65c47fb7648130224464977f232efcc51a70c4e8f024baca61890f",
+      "bytes": 13654,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/SHA256SUMS",
+      "destination": "earlier-real-tcp-tls/SHA256SUMS",
+      "sha256": "582ad1d659440440bd139b82b5918953749b345f38ee461180b8621cf8ec29c8",
+      "bytes": 1138,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/SOURCE-SHA256SUMS",
+      "destination": "earlier-real-tcp-tls/SOURCE-SHA256SUMS",
+      "sha256": "e80c8fad5a2f89bb50eda71d07cccf6585c421961f243fd653a8d59560ce8e52",
+      "bytes": 246,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/SOURCE.diff",
+      "destination": "earlier-real-tcp-tls/SOURCE.diff",
+      "sha256": "5cbd12a3770c15e4cbab5ccac2e27271361be379f620a739f88f5e547a31d886",
+      "bytes": 17067,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/cancellation_test.go",
+      "destination": "earlier-real-tcp-tls/cancellation_test.go.txt",
+      "sha256": "91d92e5c6efbdf48c69bae406899532711a5ae0a6add6887b61528f71f2100e1",
+      "bytes": 12292,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/go.mod",
+      "destination": "earlier-real-tcp-tls/go.mod",
+      "sha256": "ee4c391afd48d311922815c3b86ef4d5eda9797db6e6b7c258048894b73bc675",
+      "bytes": 161,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/normal.result.json",
+      "destination": "earlier-real-tcp-tls/normal.result.json",
+      "sha256": "e4469ac9158c09ab914334388ae6acc2a0771382084c176ec8d7c545e330cf24",
+      "bytes": 4062,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/normal.stderr.log",
+      "destination": "earlier-real-tcp-tls/normal.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/normal.stdout.log",
+      "destination": "earlier-real-tcp-tls/normal.stdout.log",
+      "sha256": "1e4cbc23c9166966b34075a447eb189c8de8b623c3753cf1bb09495ef0f9a2cd",
+      "bytes": 3847,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/race.result.json",
+      "destination": "earlier-real-tcp-tls/race.result.json",
+      "sha256": "9b5c6fbcc8ac1b8b4d00958bc0ec0807cddcfd527e4a9439fdd2e0941097e54e",
+      "bytes": 4073,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/race.stderr.log",
+      "destination": "earlier-real-tcp-tls/race.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-next-candidate-20261017/race.stdout.log",
+      "destination": "earlier-real-tcp-tls/race.stdout.log",
+      "sha256": "abb8d98a30d819dfa58d0522eb6094d1d90aff41df195a4d819e619f0839a957",
+      "bytes": 3847,
+      "selection": "Earlier standalone fixture: reviewed source, full local normal/race records and immutable inventories."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/CHECKPOINT-1-SHA256SUMS",
+      "destination": "blocked-predecessor/CHECKPOINT-1-SHA256SUMS",
+      "sha256": "38edc835e7e331629f02b385c5a143542713205e132eb4268aec1e143f39f66d",
+      "bytes": 1025,
+      "selection": "Preserved blocked observer/validator source and review; no claim of accepted predecessor classification."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/INPUTS.json",
+      "destination": "blocked-predecessor/INPUTS.json",
+      "sha256": "dd177820f5644566e867b69596f11523d5e16571be663cb68a88bf92b0e0c9c4",
+      "bytes": 2272,
+      "selection": "Preserved blocked observer/validator source and review; no claim of accepted predecessor classification."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/LEGACY-VALIDATOR.json",
+      "destination": "blocked-predecessor/LEGACY-VALIDATOR.json",
+      "sha256": "b77ed3613b5d088efeacb1d6d4d763b3b255aa2fc35b5dc674771a39cdc73c38",
+      "bytes": 1137,
+      "selection": "Preserved blocked observer/validator source and review; no claim of accepted predecessor classification."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/PROPOSAL.md",
+      "destination": "blocked-predecessor/PROPOSAL.md",
+      "sha256": "ad55a5e994c0235e0d429ffa524f12113ef374aaa49e4d2e7709c88af1966e47",
+      "bytes": 6877,
+      "selection": "Preserved blocked observer/validator source and review; no claim of accepted predecessor classification."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/observer-integration.diff",
+      "destination": "blocked-predecessor/observer-integration.diff",
+      "sha256": "4025f8b091c58212b28f4ea17fa2566a94243df1f81de26736daff8fe98fb494",
+      "bytes": 18014,
+      "selection": "Preserved blocked observer/validator source and review; no claim of accepted predecessor classification."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/validate-terminal-attribution.py",
+      "destination": "blocked-predecessor/validate-terminal-attribution.py",
+      "sha256": "196b2b4186033cb9192bacf2dc84c9a3ce27ae07be1d248b72f1747ff1da28fe",
+      "bytes": 14982,
+      "selection": "Preserved blocked observer/validator source and review; no claim of accepted predecessor classification."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/contracts/test-terminal-attribution.py",
+      "destination": "blocked-predecessor/contracts/test-terminal-attribution.py",
+      "sha256": "ac51c95b992045a271fe86a2de5f1f113d62e9fc099f4eea403f8c2ed37209af",
+      "bytes": 7343,
+      "selection": "Preserved blocked observer/validator source and review; no claim of accepted predecessor classification."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/source/internal/agent/qualification_terminal_attribution_qualification.go",
+      "destination": "blocked-predecessor/source/internal/agent/qualification_terminal_attribution_qualification.go.txt",
+      "sha256": "5dd557e8832989d09e48018fd6e6ddb7b91a039016605729056d97e10ecbe087",
+      "bytes": 13694,
+      "selection": "Preserved blocked observer/validator source and review; no claim of accepted predecessor classification."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/source/internal/agent/qualification_terminal_attribution_test.go",
+      "destination": "blocked-predecessor/source/internal/agent/qualification_terminal_attribution_test.go.txt",
+      "sha256": "f01d0b65336fd915eb306748c1daafcfe53e8dc48d25664966e15abaae84abe9",
+      "bytes": 6810,
+      "selection": "Preserved blocked observer/validator source and review; no claim of accepted predecessor classification."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/source/third_party/yamux/qualification_terminal_attribution.go",
+      "destination": "blocked-predecessor/source/third_party/yamux/qualification_terminal_attribution.go.txt",
+      "sha256": "95691d49ddfbac39b6f95d83fccd67ebcf9c6b833f51c94a733d07fd6b604c03",
+      "bytes": 311,
+      "selection": "Preserved blocked observer/validator source and review; no claim of accepted predecessor classification."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/DESIGN.md",
+      "destination": "successor/DESIGN.md",
+      "sha256": "31ab32cd9c24793a2dfe9a68e9b10f89e31f8321ed10e0e10c2a58af8c541839",
+      "bytes": 9128,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/TEST-SOURCE-REVIEW.md",
+      "destination": "successor/TEST-SOURCE-REVIEW.md",
+      "sha256": "58a08f29a64565c90ac0d76846cf731d7d501530e0dd4dce0e887b45eb73c0c1",
+      "bytes": 7791,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/TOOLCHAIN.json",
+      "destination": "successor/TOOLCHAIN.json",
+      "sha256": "8a07d445d806bd86323326d901f864281bc07095b6b9c934d98a6b5efe8b27ba",
+      "bytes": 1989,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/observer-successor.diff",
+      "destination": "successor/observer-successor.diff",
+      "sha256": "c8a080fa4fe4eb7350987efa64115ed6260a4c14c77e7185d61ee576dcac31d0",
+      "bytes": 4439,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/validator-successor.diff",
+      "destination": "successor/validator-successor.diff",
+      "sha256": "14356533fd8a28068ea1d203daa99a1f871c1e2df323bae957c57c1f414c4b89",
+      "bytes": 6555,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/contracts-successor.diff",
+      "destination": "successor/contracts-successor.diff",
+      "sha256": "f41e5a66b45c309f060789201f831bfa04a12c4b6a40b6ee685b4bb169f324c0",
+      "bytes": 5193,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/ordinary-health-mapping.diff",
+      "destination": "successor/ordinary-health-mapping.diff",
+      "sha256": "4afae3b30bcfe061ee9224e7bca8d17def644808b35b2c180ccab9cdcd80cf37",
+      "bytes": 1068,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/MATERIALIZED-FOCUS.diff",
+      "destination": "successor/MATERIALIZED-FOCUS.diff",
+      "sha256": "4df73ec795558dc573ae9cd0ff776558c3bdea944d53d5bb6f69e306bf919a2f",
+      "bytes": 30682,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/MATERIALIZED-CHANGES.json",
+      "destination": "successor/MATERIALIZED-CHANGES.json",
+      "sha256": "ba4871df444eb8054754a1c7ebd4fcf0159b9079a2bce10f78e46ae60039c714",
+      "bytes": 4171,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/TEST-SOURCE-SHA256SUMS",
+      "destination": "successor/TEST-SOURCE-SHA256SUMS",
+      "sha256": "fa9a76a9640ad5084daec1722da509f98dc9eca0c6541536b55d129e3e80fb8b",
+      "bytes": 55142,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/TEST-CHECKPOINT-SHA256SUMS",
+      "destination": "successor/TEST-CHECKPOINT-SHA256SUMS",
+      "sha256": "0e904b22533119e162dfe0ab380487ee66ddc423f4df8ad059a4a77ae136555a",
+      "bytes": 903,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/SHA256SUMS",
+      "destination": "successor/SHA256SUMS",
+      "sha256": "fabd04102fb097e14b9c90bd2a6e9b65a7e1f009bca7aa4ec09db900c401911c",
+      "bytes": 1018,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/PREDECLARED-COMMANDS.json",
+      "destination": "successor/PREDECLARED-COMMANDS.json",
+      "sha256": "7fe59f1231cce7aad08966ecf7b350e5166e63434ecb5323450dd46a4d345f84",
+      "bytes": 2714,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/PREDECLARED-COMMANDS-2.json",
+      "destination": "successor/PREDECLARED-COMMANDS-2.json",
+      "sha256": "b7a06963f30bb636da10f9344c774eab5afd9bde230163f2931d3c02bca2d9e9",
+      "bytes": 4396,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/successor/PREDECLARED-COMMANDS-3.json",
+      "destination": "successor/PREDECLARED-COMMANDS-3.json",
+      "sha256": "c91bf02c52c9c5027683a60c7e81d9d51b867e0f2c51cc6ddbb15bb07a63f3fa",
+      "bytes": 5013,
+      "selection": "Frozen successor review, exact source changes, inventory and predeclaration history; excludes future runner wiring."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/test-source/internal/agent/qualification_terminal_attribution_qualification.go",
+      "destination": "successor/materialized/internal/agent/qualification_terminal_attribution_qualification.go.txt",
+      "sha256": "58af27e2adb1d721ee42fa2f70b5f274000be4fa40460a282cde63f967c6ec69",
+      "bytes": 14576,
+      "selection": "Exact final new helper/test or Python source used in accepted local window; existing large inputs represented by diffs and inventory."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/test-source/internal/agent/qualification_terminal_attribution_test.go",
+      "destination": "successor/materialized/internal/agent/qualification_terminal_attribution_test.go.txt",
+      "sha256": "febb668be66df11f1dcd1c9c8464e2d629fa8758ef05f26ecaa976fc6f85b2d3",
+      "bytes": 6813,
+      "selection": "Exact final new helper/test or Python source used in accepted local window; existing large inputs represented by diffs and inventory."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/test-source/internal/agent/qualification_terminal_stack_qualification.go",
+      "destination": "successor/materialized/internal/agent/qualification_terminal_stack_qualification.go.txt",
+      "sha256": "70d85ae0c7922ec1880c2cef76cdc0ee942b01b5445ffbbe1196bf6612c9127f",
+      "bytes": 2892,
+      "selection": "Exact final new helper/test or Python source used in accepted local window; existing large inputs represented by diffs and inventory."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/test-source/internal/agent/qualification_terminal_stack_test.go",
+      "destination": "successor/materialized/internal/agent/qualification_terminal_stack_test.go.txt",
+      "sha256": "9c7163b88ab8384a9a1a396d91ed8b95f938989001d0597d7dbe1c0279b2943e",
+      "bytes": 3545,
+      "selection": "Exact final new helper/test or Python source used in accepted local window; existing large inputs represented by diffs and inventory."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/test-source/internal/agent/qualification_terminal_transport_test.go",
+      "destination": "successor/materialized/internal/agent/qualification_terminal_transport_test.go.txt",
+      "sha256": "20147f71d2940941baaf0639494c219b05f5d622611691b230e1355affd42033",
+      "bytes": 12024,
+      "selection": "Exact final new helper/test or Python source used in accepted local window; existing large inputs represented by diffs and inventory."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/test-source/third_party/yamux/qualification_terminal_attribution.go",
+      "destination": "successor/materialized/third_party/yamux/qualification_terminal_attribution.go.txt",
+      "sha256": "95691d49ddfbac39b6f95d83fccd67ebcf9c6b833f51c94a733d07fd6b604c03",
+      "bytes": 311,
+      "selection": "Exact final new helper/test or Python source used in accepted local window; existing large inputs represented by diffs and inventory."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/test-source/validate-terminal-attribution.py",
+      "destination": "successor/materialized/validate-terminal-attribution.py",
+      "sha256": "1be48e2f76dd566630c6427d9cf0a19dc6100fdf71532fb21616da209691d510",
+      "bytes": 17684,
+      "selection": "Exact final new helper/test or Python source used in accepted local window; existing large inputs represented by diffs and inventory."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/test-source/contracts/test-terminal-attribution.py",
+      "destination": "successor/materialized/contracts/test-terminal-attribution.py",
+      "sha256": "22bcbf0bd7f1f01b0bed2b0608686ee6fae1c8f7a65c52dadfb7abd9e9cc5493",
+      "bytes": 9848,
+      "selection": "Exact final new helper/test or Python source used in accepted local window; existing large inputs represented by diffs and inventory."
+    },
+    {
+      "source": "tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1/integration/validate-sender-wait-snapshot.py",
+      "destination": "legacy-validator/validate-sender-wait-snapshot.py",
+      "sha256": "25a934047a84c82d41852871047486138fa10fa4e8a1d3db3e867f38ad50e260",
+      "bytes": 30662,
+      "selection": "Unchanged historical rejecting validator dependencies, pinned by LEGACY-VALIDATOR.json; no historical verdict changed."
+    },
+    {
+      "source": "tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1/integration/validate-raw-write-activity.py",
+      "destination": "legacy-validator/validate-raw-write-activity.py",
+      "sha256": "66ff26fcdbfe71143d49b816e448f28ff7de789daba11e02c8d618d11c361bff",
+      "bytes": 26572,
+      "selection": "Unchanged historical rejecting validator dependencies, pinned by LEGACY-VALIDATOR.json; no historical verdict changed."
+    },
+    {
+      "source": "tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1/integration/validate-tcp-state.py",
+      "destination": "legacy-validator/validate-tcp-state.py",
+      "sha256": "4a7addc3981eb892f364e85932b82856afcc1283139105b6d4d228ead2c4fa2c",
+      "bytes": 77529,
+      "selection": "Unchanged historical rejecting validator dependencies, pinned by LEGACY-VALIDATOR.json; no historical verdict changed."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-1/RESULT.json",
+      "destination": "local-window-1/RESULT.json",
+      "sha256": "8351dec92795aed4cce650339a0a4f6ebcba79b9ed2b8fc1db44c2fdb42c2342",
+      "bytes": 2088,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-1/execute-approved.py",
+      "destination": "local-window-1/execute-approved.py",
+      "sha256": "12eca5fca39e4995e18058c19ee9268a7bef0f6df33c8c847146748f635cb4e1",
+      "bytes": 4115,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-1/preflight.invocation.json",
+      "destination": "local-window-1/preflight.invocation.json",
+      "sha256": "49a6a5d3819164efaf92d12e1041b07b50015d87b044a45370d9796ec7510e07",
+      "bytes": 826,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-1/preflight.result.json",
+      "destination": "local-window-1/preflight.result.json",
+      "sha256": "36bb8bdc60300e9d1bf4b0a7e4a7cc07d056b7a7132aa1d515fd7f512250fb04",
+      "bytes": 1635,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-1/preflight.stderr.log",
+      "destination": "local-window-1/preflight.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-1/preflight.stdout.log",
+      "destination": "local-window-1/preflight.stdout.log",
+      "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147",
+      "bytes": 264,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/COUNTS.json",
+      "destination": "local-window-2/COUNTS.json",
+      "sha256": "09100c5886a98dd63809b0ca04fa68136be00a99203f3190db88df4b9b138df5",
+      "bytes": 225,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/POST-AUDIT.json",
+      "destination": "local-window-2/POST-AUDIT.json",
+      "sha256": "527a54d84e10ef60e0acaa96c53cddaf07dee8364dfbfaeda02011a347263d2d",
+      "bytes": 1490,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/RESULT.json",
+      "destination": "local-window-2/RESULT.json",
+      "sha256": "43b22269b292eb568218c0bb18dfa09608fb48c9b35ddaeb86b55be246ba5204",
+      "bytes": 6603,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/RESULT.md",
+      "destination": "local-window-2/RESULT.md",
+      "sha256": "d51bd63b8c884f60bc8ecb1304188f12a6ce936922227c5d91128723283141c3",
+      "bytes": 1460,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/SHA256SUMS",
+      "destination": "local-window-2/SHA256SUMS",
+      "sha256": "9316f8b45257f7e91c3ed7607523a3e1c541f677c532278c81664fe14ca73040",
+      "bytes": 1812,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/execute-approved.py",
+      "destination": "local-window-2/execute-approved.py",
+      "sha256": "0a26b1cb6f939ec41f951327c9d7c6f82130d5cac248239c68c9ac78a7d685df",
+      "bytes": 4115,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/normal.invocation.json",
+      "destination": "local-window-2/normal.invocation.json",
+      "sha256": "21cae4c1fec15b39335c21e3ed5505a2e5aae4d2de78c33449c3466f68d126a6",
+      "bytes": 910,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/normal.result.json",
+      "destination": "local-window-2/normal.result.json",
+      "sha256": "72b83caee0a39d488f189bca392a1ccd9d5c35e21d7fccfad6b6e4e1c97e21b7",
+      "bytes": 1377,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/normal.stderr.log",
+      "destination": "local-window-2/normal.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/normal.stdout.log",
+      "destination": "local-window-2/normal.stdout.log",
+      "sha256": "cf71fcdc4a3a42989e1570f13fe1a90d5bce4b94cf661063d3b4160fb4e7d579",
+      "bytes": 32251,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/preflight.invocation.json",
+      "destination": "local-window-2/preflight.invocation.json",
+      "sha256": "9140bb8eb98a4c374d2470ebe65b615baadad5a3a7ad9aa5cc6638465c1c68a1",
+      "bytes": 826,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/preflight.result.json",
+      "destination": "local-window-2/preflight.result.json",
+      "sha256": "373cf834e9fc9e5041e5e55ba4ffce5078c82056998066f584f620ff1a284326",
+      "bytes": 1631,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/preflight.stderr.log",
+      "destination": "local-window-2/preflight.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/preflight.stdout.log",
+      "destination": "local-window-2/preflight.stdout.log",
+      "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147",
+      "bytes": 264,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/python-contracts.invocation.json",
+      "destination": "local-window-2/python-contracts.invocation.json",
+      "sha256": "7486ae2dc5df66e8c74ae70037acbe78311a42e6e312669d9c9648eb16d6f129",
+      "bytes": 632,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/python-contracts.result.json",
+      "destination": "local-window-2/python-contracts.result.json",
+      "sha256": "222189d544f3da37a13367da1bf11a8031844b13dc18ffeec1a317500e012593",
+      "bytes": 1122,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/python-contracts.stderr.log",
+      "destination": "local-window-2/python-contracts.stderr.log",
+      "sha256": "92a5c47b815de9b4f6927c7565ee107e603dd13e6a00b5c116a0b43754332951",
+      "bytes": 740,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/python-contracts.stdout.log",
+      "destination": "local-window-2/python-contracts.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/race.invocation.json",
+      "destination": "local-window-2/race.invocation.json",
+      "sha256": "a1a2c79298c01b77890f74ccbf550fcc06da3d1864f6f407676829c2447f9e3e",
+      "bytes": 921,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/race.result.json",
+      "destination": "local-window-2/race.result.json",
+      "sha256": "1de98f691a3c90c0d5b63b771ff1fc6d481f805b294286ec52f2d7e6c7427fbb",
+      "bytes": 1387,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/race.stderr.log",
+      "destination": "local-window-2/race.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    },
+    {
+      "source": "tmp/wan-terminal-attribution-20261017/local-window-2/race.stdout.log",
+      "destination": "local-window-2/race.stdout.log",
+      "sha256": "4975e99093019f16fc036523c4d2068f393fcb2b112d6c6b78f4ecaf4d0f89ad",
+      "bytes": 32251,
+      "selection": "Complete bounded invocation/output/exit/audit record; stopped preflight preserved alongside accepted corrected window."
+    }
+  ],
+  "generated": [
+    "README.md",
+    "EXPORT-MAP.json",
+    "SELECTION.json",
+    "FULL-SOURCE-BINDING.json",
+    "PREDECLARED-2-to-3.diff",
+    "VERIFY-PACKAGE.py",
+    "VALIDATION.json",
+    "SHA256SUMS"
+  ],
+  "no_redactions_or_source_rewrites": true
+}

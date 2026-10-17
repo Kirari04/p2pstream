@@ -1,0 +1,33 @@
+{
+  "acceptance_result": null,
+  "binary_build_id": {
+    "control_agent": "JmKJYw8KMvNj1CxakY_2/72HBPwL5aZjAl666VJJd/4mSrbmOolkrgCmqlC4c0/hal-FTrbQZyd-zItfr-p",
+    "control_server": "f2jkMDYLK7iBShfeOszJ/CZECMA-_TJypHrs3FlyP/Uo7o6e_HN40xd6MYBeo4/GvKTaJkV4lR0imUW2DKI",
+    "driver_and_origin": "f2jkMDYLK7iBShfeOszJ/CZECMA-_TJypHrs3FlyP/Uo7o6e_HN40xd6MYBeo4/GvKTaJkV4lR0imUW2DKI",
+    "lowat_agent": "oe8tOMUnFjV6gDVUkAmL/-VNmCYKRZAXpiSzNnKTS/frEe3Pb3lRnS01UrvF08/wW9z1yzEoWTKzrHPEBmD",
+    "lowat_server": "rci6Em1-XN3eEwpbjcDR/KGxBt2bWNW2vfoFJV9Na/leBjvOWDJTMtz5fAeDpl/a7QizS6kFucue4StWjZT"
+  },
+  "binary_sha256": {
+    "control_agent": "e2129ca520e07f79186141d000ab2fd0e390574712868c05772fd7122a659c05",
+    "control_server": "3f7c28fc43105efc69ffbbfea9b277c345e2fd7577653f5cb3be8e8708a7b388",
+    "driver_and_origin": "3f7c28fc43105efc69ffbbfea9b277c345e2fd7577653f5cb3be8e8708a7b388",
+    "lowat_agent": "e18c465aaff113e642be4cf8e10eac13263a2b307dcee4f61573801f785862f8",
+    "lowat_server": "7bb33c1ee36819be658976cd526051285d80e4f870457884e78216575580a10f"
+  },
+  "build_manifest_sha256": "1c3cc0f51ca0cbabc9d45b3b6d52cdba5334ef8170d870112b02dfcd83e34d06",
+  "build_provenance_sha256": "1de229556fb15aa5accd165b8b153ab09df37a104223b8092633c79589c9a72f",
+  "common_scaffold_sha256": "1f5406709d4347975f6110830fbaf24ef06f96e6a22280071ac8ab76eaba24d8",
+  "lowat_32k_overlay_sha256": "076c8dfc22212296e30b9430c9654625dd312b03cfaa19a55b1faa4c1fb69379",
+  "overlay_readme_sha256": "f5cbb3db08768afa55f6e4108c8739bf2e6162d60b9529a0b6c8f712d8f34096",
+  "runner_sha256": "0adef903ef51c3bffe153b2a528442dda1ed8e9678078123520cb4c70c556d4b",
+  "schema_version": 1,
+  "scope": "fixture_preflight_only",
+  "source_hashes_sha256": "e8775e1fccb30889697c000a48597e17acc14354e79138cc7ca5790a178659b9",
+  "source_refs": {
+    "application_and_harness": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "default_lowat_control_base": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "lowat_32k_base": "5eeccaaa797254d7bde4db9854a337a02c3bc28e"
+  },
+  "workload_started": false,
+  "wrapper_sha256": "a813e75d1bde257fb337e0054f3cb902a7f0a9a6a4d89dc1815c24137de4f2e5"
+}

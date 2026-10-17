@@ -1,0 +1,51 @@
+import http.client,json,pathlib,re,sys,time
+from urllib.parse import parse_qsl,urlencode,urlsplit,urlunsplit
+root=pathlib.Path(sys.argv[1]);role=sys.argv[2];url=sys.argv[3]
+label,mode,stage,direction,repetition,sequence=sys.argv[4:]
+assert role in ('server','agent') and all(re.fullmatch(r'[A-Za-z0-9_.-]+',s) for s in (label,mode,stage,direction,repetition,sequence))
+name='-'.join((sequence,label,stage,direction,repetition,role))+'.json'
+metadata=dict(role=role,label=label,transport_mode=mode,measurement_stage=stage,transfer_direction=direction,repetition=int(repetition),sequence=int(sequence),drain_after_transfer=True)
+started=time.monotonic_ns();metadata['started_monotonic_ns']=started;metadata['started_unix_nano']=time.time_ns()
+conn=None
+try:
+ if role=='agent' and mode!='aggregate-v1':
+  metadata.update(skipped=True,reason='frozen legacy agent has no growth ring; no HTTP request sent')
+ else:
+  parsed=urlsplit(url);assert parsed.scheme=='http' and parsed.hostname in ('127.0.0.1','localhost')
+  query=dict(parse_qsl(parsed.query));query['growth_snapshot']='drain'
+  path=urlunsplit(('', '',parsed.path or '/',urlencode(query),''))
+  conn=http.client.HTTPConnection(parsed.hostname,parsed.port,timeout=2)
+  conn.request('GET',path,headers={'Accept':'application/json'})
+  response=conn.getresponse();raw=response.read((4<<20)+1)
+  if response.status!=200:raise ValueError('growth drain HTTP status '+str(response.status))
+  if len(raw)>(4<<20):raise ValueError('growth drain exceeds 4 MiB bound')
+  value=json.loads(raw)
+  metadata.update(skipped=False,response_bytes=len(raw),snapshot=value)
+  if value.get('schema_version')!=1 or value.get('capacity')!=4096:raise ValueError('unexpected growth ring schema/capacity')
+  events=value.get('events')
+  if not isinstance(events,list) or len(events)>4096:raise ValueError('events missing or exceed fixed capacity')
+  dropped=value.get('dropped_events')
+  if not isinstance(dropped,int) or dropped<0:raise ValueError('invalid overwritten event count')
+  required={'sample_unix_nano','lane','session_identity','stream_id','aggregate','current','proposed','maximum','rtt_nanoseconds','rate_bytes_per_second','previous','denied_until_unix_nano','denial_active_after_outcome','outcome'}
+  outcomes={'no_proposal','grown','reservation_denied','publication_error'}
+  for event in events:
+   if not required<=event.keys() or event['outcome'] not in outcomes:raise ValueError('invalid growth event schema/outcome')
+   if not -1<=event['lane']<=4:raise ValueError('growth event lane outside expected single-agent lane range')
+  counters=value.get('send_counters')
+  if not isinstance(counters,list) or len(counters)>5:raise ValueError('missing or unbounded session send counters')
+  expected_lanes=list(range(5 if mode=='aggregate-v1' else 4))
+  if sorted(c['lane'] for c in counters)!=expected_lanes:raise ValueError('unexpected send-counter physical lane set')
+  counter_keys={'reserved_data_frames','reserved_payload_bytes','reserved_allocation_charged_bytes','byte_credit_zero_observations','stream_allocation_zero_observations','session_allocation_zero_observations'}
+  for counter in counters:
+   if not counter_keys<=counter.keys() or not {'lane','session_identity','local_address','remote_address','enabled'}<=counter.keys():raise ValueError('invalid send-counter schema')
+   if any(type(counter[k]) is not int or counter[k]<0 for k in counter_keys):raise ValueError('invalid send-counter scalar')
+   if counter['enabled']!=(mode=='aggregate-v1' and counter['lane']>0):raise ValueError('send-counter wire mode mismatch')
+   if not counter['enabled'] and any(counter[k] for k in counter_keys):raise ValueError('disabled legacy counters must stay zero')
+ metadata['elapsed_ns']=time.monotonic_ns()-started
+ (root/'growth'/name).write_text(json.dumps(metadata,separators=(',',':'))+'\n')
+except BaseException as error:
+ metadata.update(error=str(error),elapsed_ns=time.monotonic_ns()-started)
+ (root/'growth'/name).write_text(json.dumps(metadata,separators=(',',':'))+'\n')
+ raise
+finally:
+ if conn:conn.close()

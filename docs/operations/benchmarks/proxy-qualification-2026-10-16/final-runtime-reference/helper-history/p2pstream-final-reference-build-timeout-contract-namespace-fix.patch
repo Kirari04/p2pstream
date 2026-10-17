@@ -1,0 +1,42 @@
+--- /tmp/p2pstream-final-reference-build-timeout-contract.py.pre-namespace-fix	2026-10-16 14:34:56.659673714 +0200
++++ /tmp/p2pstream-final-reference-build-timeout-contract.py	2026-10-16 14:52:30.763858336 +0200
+@@ -194,7 +194,9 @@
+     signal_thread = None
+     before_term = signal.getsignal(signal.SIGTERM)
+     before_int = signal.getsignal(signal.SIGINT)
+-    with tempfile.TemporaryDirectory(prefix="final-reference-build-contract-") as directory:
++    with tempfile.TemporaryDirectory(
++        prefix="final-reference-build-contract-" + scenario + ".", delete=False,
++    ) as directory:
+         root = Path(directory)
+         manifest_path = root / "manifest.json"
+         manifest = {"workload_started": False}
+@@ -216,6 +218,7 @@
+             "go": Path("/synthetic/exact-go"),
+             "manifest": manifest,
+             "os": os,
++            "Path": Path,
+             "root": root,
+             "save": save,
+             "sha": sha,
+@@ -244,6 +247,10 @@
+ 
+         assert signal.getsignal(signal.SIGTERM) == before_term
+         assert signal.getsignal(signal.SIGINT) == before_int
++        if not manifest_path.is_file():
++            if caught is not None:
++                raise caught
++            raise AssertionError(f"{scenario}: exact build block did not write its manifest")
+         persisted = json.loads(manifest_path.read_text())
+         build = persisted["build"]
+         assert (root / "build.log").is_file()
+@@ -304,7 +311,8 @@
+             assert build["forced_group_cleanup"] is True
+             assert build["sigterm_sent"] is True
+             assert build["sigkill_sent"] is True
+-        return {"scenario": scenario, "build": build, "exception": repr(caught)}
++        return {"scenario": scenario, "evidence_root": str(root),
++            "build": build, "exception": repr(caught)}
+ 
+ 
+ def main():

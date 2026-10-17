@@ -1,0 +1,5 @@
+{
+  "status": "superseded before any test execution",
+  "inventory_sha256": "9825b312dc351ac3e87e8ccc96ea4ad07dcd9cb1595356e61095c4d582440939",
+  "reason": "late invariant panic can be recovered by net/http; replace with qualification-only unconditional exit87 and bounded subprocess proof"
+}

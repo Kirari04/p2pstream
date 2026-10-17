@@ -1,0 +1,175 @@
+{
+  "scope": "read-only architecture review; no validation suite or traffic executed",
+  "reviewed_head": "2a24e894498d1eda90483a1ddb4e7d4110ebd1b3",
+  "files": [
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/results.jsonl",
+      "sha256": "ec5486d8f07ecc862fe5d565e1efd70326d1948e61465d8d1dd2e6279070692a"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/results.summary.json",
+      "sha256": "2ff019a6a65628b95ebcc8e28034d1e3387712df172981694be73b2cb3b9dd3e"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/attestation.json",
+      "sha256": "fdea8ff6f12efe387b15bd9c4dd4ce0a8fd7b668c56da7d3db94e3b256aab720"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/prospective-terminal-attribution.json",
+      "sha256": "7708aed76c5b5668e097a8b65ee1f8954c4453d51d24557edf6feaa0f965843e"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/pre-hashes.json",
+      "sha256": "4ac17d6f20838a637c71ac15f6f2e1c75d85b2908c8c192022cfaba5f62e9e6c"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/results.jsonl",
+      "sha256": "62a2e476593d698f4c765c5cf9205c1e6e83af90f11f03e948cf10946a268712"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/results.summary.json",
+      "sha256": "84ca4e191eaf3f28aa9577ec71a198911eb0c179277311cc89f54df2ba8b4b87"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/attestation.json",
+      "sha256": "583e1ec1b67bf6982fae972ea098a08d4ea9d0bde4c347918298ccd7e6bf0dfa"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/prospective-terminal-attribution.json",
+      "sha256": "72b290d35f3c078ceeac3d3d842700a63804e304da6b52d2c7bc4e3c7271ca3a"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/pre-hashes.json",
+      "sha256": "4ac17d6f20838a637c71ac15f6f2e1c75d85b2908c8c192022cfaba5f62e9e6c"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/build/receipt.json",
+      "sha256": "ad0dbfb3adafab686a4fc84f75effaee57819f2694ae644ada901a192604ad62"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/test-source/internal/agent/qualification_raw_write_qualification.go",
+      "sha256": "46a888b5f1c06f9c96f2ee444d76994eeb3f419c1b5635414ac9a01f37a5274f"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/test-source/internal/agent/connect_and_serve_qualification.go",
+      "sha256": "cf2cf5e2076db5ad5bc53db7ead2712500f55d311c31de40e89a3735a241b113"
+    },
+    {
+      "path": "internal/server/public_routing.go",
+      "sha256": "849ee5bf25480a890b314676d2e5fb380096f856f8c28a16d51c8ba4d6e4df86"
+    },
+    {
+      "path": "internal/server/http_defaults.go",
+      "sha256": "d9f1cd9a6b02e67abc88cc49905f3cbf4979e9801b35fab51da0c847b37d280d"
+    },
+    {
+      "path": "internal/server/reverse_proxy_buffer_pool.go",
+      "sha256": "56f347fb67cc31aa7b620e9a984a317109f3103705f9c1f336d276ab85c4e6a6"
+    },
+    {
+      "path": "third_party/yamux/stream.go",
+      "sha256": "a5fc23ea8f1d1c033126b629db47af5ee49c3e9b3c6ddb714ea1ce2416923cd7"
+    },
+    {
+      "path": "third_party/yamux/session.go",
+      "sha256": "268e0a49a1b2f43c5dcaf2ebf3d3d1106faa71b6091931e4041adbc2d872bf41"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/h2_bundle.go",
+      "sha256": "6541e350500d6b3525d99dce470034c7756bd5c931fd507f9f0352280a16c31e"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+      "sha256": "1c170ec3581321bd19ccd1b15863f46b16dc749ac6d54d00f5e97f7ffa2ccb5f"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/httputil/reverseproxy.go",
+      "sha256": "ca2e28a34be2093ff685bcf3a874976a0a68ca769b2fa2c7453a6325beb134d0"
+    }
+  ],
+  "extracted_copy_metrics": [
+    {
+      "protocol": "h1",
+      "sequence": 9,
+      "bytes_per_second": 33897135.29620678,
+      "handler_ns": 7745367945,
+      "read_ns": 7292279323,
+      "write_ns": 285146319,
+      "write_max_ns": 219837,
+      "inter_read_gap_max_ns": 223264
+    },
+    {
+      "protocol": "h1",
+      "sequence": 11,
+      "bytes_per_second": 33837608.02470043,
+      "handler_ns": 7813139643,
+      "read_ns": 7199114509,
+      "write_ns": 286313010,
+      "write_max_ns": 186342,
+      "inter_read_gap_max_ns": 189899
+    },
+    {
+      "protocol": "h1",
+      "sequence": 14,
+      "bytes_per_second": 30707863.692193322,
+      "handler_ns": 8606013613,
+      "read_ns": 8162299816,
+      "write_ns": 357178097,
+      "write_max_ns": 217342,
+      "inter_read_gap_max_ns": 218795
+    },
+    {
+      "protocol": "h1",
+      "sequence": 15,
+      "bytes_per_second": 34201609.25344641,
+      "handler_ns": 7696633627,
+      "read_ns": 7342035703,
+      "write_ns": 269235666,
+      "write_max_ns": 212122,
+      "inter_read_gap_max_ns": 213495
+    },
+    {
+      "protocol": "h2",
+      "sequence": 9,
+      "bytes_per_second": 33883496.81003548,
+      "handler_ns": 7761279829,
+      "read_ns": 6922309873,
+      "write_ns": 588870870,
+      "write_max_ns": 1498723,
+      "inter_read_gap_max_ns": 1499554
+    },
+    {
+      "protocol": "h2",
+      "sequence": 11,
+      "bytes_per_second": 27480695.314998038,
+      "handler_ns": 9592362506,
+      "read_ns": 8763731485,
+      "write_ns": 659098270,
+      "write_max_ns": 788683,
+      "inter_read_gap_max_ns": 790336
+    },
+    {
+      "protocol": "h2",
+      "sequence": 14,
+      "bytes_per_second": 27495905.7358898,
+      "handler_ns": 9585002426,
+      "read_ns": 8813615438,
+      "write_ns": 683567222,
+      "write_max_ns": 547915,
+      "inter_read_gap_max_ns": 550059
+    },
+    {
+      "protocol": "h2",
+      "sequence": 15,
+      "bytes_per_second": 34927637.84539039,
+      "handler_ns": 7518585979,
+      "read_ns": 6856479145,
+      "write_ns": 574793414,
+      "write_max_ns": 445837,
+      "inter_read_gap_max_ns": 619624
+    }
+  ],
+  "host_read_only_congestion_available": "reno cubic",
+  "host_read_only_congestion_allowed": "reno cubic",
+  "host_read_only_congestion_default": "cubic"
+}

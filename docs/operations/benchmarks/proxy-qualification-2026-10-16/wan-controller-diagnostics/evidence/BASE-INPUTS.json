@@ -1,0 +1,30 @@
+[
+  {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/receipt.json",
+    "sha256": "ad0dbfb3adafab686a4fc84f75effaee57819f2694ae644ada901a192604ad62"
+  },
+  {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build-runner-review/BUILD-SOURCE-SHA256SUMS",
+    "sha256": "f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc"
+  },
+  {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/smoke-freeze/COMMANDS.json",
+    "sha256": "6d898da8254c2a7c2c38fc81fb152235294de7825725dd4322fa4a601fba1f8c"
+  },
+  {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/sustained-plan-2/COMMANDS.json",
+    "sha256": "6074b85b05bc7b71426e1d3956b0fbad776eb669aef6d89404bff9756fc8bdbd"
+  },
+  {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+    "sha256": "7769587f80f70c441a4c25554b1647b78d41aea76eb6f2f6099104aa93443e9a"
+  },
+  {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/source-h2-next-review-20261017/ASSESSMENT.md",
+    "sha256": "16f194427cdee4ccc2778ed8d9cf19a1af21e9dd514c0c0a49ff9651d014cd66"
+  },
+  {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/source-h2-next-review-20261017/INPUTS.json",
+    "sha256": "d8a2a730e2806814b7db6bd8df5e8cec96b6635c6307e39b7b84a8428d4addec"
+  }
+]

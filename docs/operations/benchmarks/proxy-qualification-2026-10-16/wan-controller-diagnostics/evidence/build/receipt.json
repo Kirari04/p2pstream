@@ -1,0 +1,789 @@
+{
+  "accepted": true,
+  "artifact_bytes": 93512459,
+  "binaries": {
+    "agent": {
+      "go_version_m_sha256": "838a2634397e6664f66fc54186ea2ee84a0631db2794c41fc9a4ac090abe4690",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+      "sha256": "b2d938c647c1d8ab4c2199a462b78e66ca7d00b710c08900b4421fc08eae8737",
+      "size": 22049900
+    },
+    "server": {
+      "go_version_m_sha256": "d01bff4ce0162158922192cb0f8a1fb46862e79db0ea7412d71483096dd6237b",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+      "sha256": "7bdac220c824f6d135696377bfc4203ee828c2cd2423e529523586571130b23d",
+      "size": 60252128
+    }
+  },
+  "builds": [
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "180s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-c",
+        "-p=2",
+        "-tags=p2pstream_qualification",
+        "-o",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+        "./internal/agent"
+      ],
+      "command_proof_sha256": "1ced99c4bcdad5b1fa85bfdd97887a2d85567978fe2a1e1c1ea550d6e537933c",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "execution_source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+      "exit_status": 0,
+      "finished_unix": 1792239199.169833,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1",
+      "name": "agent-build",
+      "outer_audit_sha256": "dae1bc0c4c6c301eb5729edcb12db7055d4078226446e4d69f13f913eb0e77a1",
+      "output_bytes": 0,
+      "owned_identities": [
+        {
+          "pgid": 2523459,
+          "pid": 2523459,
+          "ppid": 2522862,
+          "sid": 2523459,
+          "start_ticks": 7675387,
+          "state": "S"
+        }
+      ],
+      "proof_origin": "fresh-continuation-1",
+      "remaining_group_members": [],
+      "started_unix": 1792239198.275385,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "180s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-c",
+        "-p=2",
+        "-tags=p2pstream_qualification",
+        "-o",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+        "./internal/server"
+      ],
+      "command_proof_sha256": "f7aaf9eec9a3dabb5d7a7ae3fd81e33c8466713a88a77a07bd365a9b245b1372",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "execution_source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+      "exit_status": 0,
+      "finished_unix": 1792239211.3110964,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1",
+      "name": "server-build",
+      "outer_audit_sha256": "14d276014247ac11c283a5d5f44346ec7a6108cfb834797296725ce61075195c",
+      "output_bytes": 0,
+      "owned_identities": [
+        {
+          "pgid": 2523514,
+          "pid": 2523514,
+          "ppid": 2522862,
+          "sid": 2523514,
+          "start_ticks": 7675486,
+          "state": "S"
+        },
+        {
+          "pgid": 2523514,
+          "pid": 2523515,
+          "ppid": 2523514,
+          "sid": 2523514,
+          "start_ticks": 7675486,
+          "state": "S"
+        },
+        {
+          "pgid": 2523514,
+          "pid": 2523539,
+          "ppid": 2523515,
+          "sid": 2523514,
+          "start_ticks": 7675503,
+          "state": "R"
+        },
+        {
+          "pgid": 2523514,
+          "pid": 2523571,
+          "ppid": 2523515,
+          "sid": 2523514,
+          "start_ticks": 7675532,
+          "state": "S"
+        },
+        {
+          "pgid": 2523514,
+          "pid": 2523600,
+          "ppid": 2523515,
+          "sid": 2523514,
+          "start_ticks": 7675634,
+          "state": "S"
+        },
+        {
+          "pgid": 2523514,
+          "pid": 2523721,
+          "ppid": 2523515,
+          "sid": 2523514,
+          "start_ticks": 7676413,
+          "state": "R"
+        },
+        {
+          "pgid": 2523514,
+          "pid": 2523732,
+          "ppid": 2523515,
+          "sid": 2523514,
+          "start_ticks": 7676418,
+          "state": "R"
+        },
+        {
+          "pgid": 2523514,
+          "pid": 2523778,
+          "ppid": 2523732,
+          "sid": 2523514,
+          "start_ticks": 7676552,
+          "state": "S"
+        },
+        {
+          "pgid": 2523514,
+          "pid": 2523779,
+          "ppid": 2523778,
+          "sid": 2523514,
+          "start_ticks": 7676552,
+          "state": "S"
+        },
+        {
+          "pgid": 2523514,
+          "pid": 2523780,
+          "ppid": 2523779,
+          "sid": 2523514,
+          "start_ticks": 7676552,
+          "state": "R"
+        }
+      ],
+      "proof_origin": "fresh-continuation-1",
+      "remaining_group_members": [],
+      "started_unix": 1792239199.2604055,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "20s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version",
+        "-m",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test"
+      ],
+      "command_proof_sha256": "d1d924b9b2651870a3f39b71c2808c3788c451eac560d750c8414e440bc4560b",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "execution_source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+      "exit_status": 0,
+      "finished_unix": 1792239211.539569,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1",
+      "name": "agent-metadata",
+      "outer_audit_sha256": "e026b3534ded425aa07b9feddafe48f1a5f9572b4b5f4991aff0e7dc74e40d30",
+      "output_bytes": 440,
+      "owned_identities": [
+        {
+          "pgid": 2523800,
+          "pid": 2523800,
+          "ppid": 2522862,
+          "sid": 2523800,
+          "start_ticks": 7676700,
+          "state": "Z"
+        }
+      ],
+      "proof_origin": "fresh-continuation-1",
+      "remaining_group_members": [],
+      "started_unix": 1792239211.4028385,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 440,
+      "stdout_sha256": "838a2634397e6664f66fc54186ea2ee84a0631db2794c41fc9a4ac090abe4690"
+    },
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "20s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version",
+        "-m",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test"
+      ],
+      "command_proof_sha256": "1bf68155090dc674c875f5dd599dc79a56c2315ca980cd005ef6d688dbd381a9",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "execution_source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+      "exit_status": 0,
+      "finished_unix": 1792239211.7625062,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1",
+      "name": "server-metadata",
+      "outer_audit_sha256": "0d7598915eab0b99ba764c11d440d70a9b01265a4a330144afd7a1acf2d03fb9",
+      "output_bytes": 442,
+      "owned_identities": [
+        {
+          "pgid": 2523806,
+          "pid": 2523806,
+          "ppid": 2522862,
+          "sid": 2523806,
+          "start_ticks": 7676723,
+          "state": "Z"
+        }
+      ],
+      "proof_origin": "fresh-continuation-1",
+      "remaining_group_members": [],
+      "started_unix": 1792239211.6290445,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 442,
+      "stdout_sha256": "d01bff4ce0162158922192cb0f8a1fb46862e79db0ea7412d71483096dd6237b"
+    }
+  ],
+  "byte_threshold_semantics": "all byte values are rejection thresholds, not hard retained-byte caps; overshoot is possible and must be recorded as a failed run",
+  "complete_logs_retained": true,
+  "diagnostic": "controller-screen-build",
+  "endpoint_execution": false,
+  "finished_unix": 1792239211.9502292,
+  "fresh_execution_source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+  "inventory_sha256": "a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+  "log_bytes": 89494,
+  "plan_sha256": "698959601a56caa0761b7e274336ae4520f45762119292d06cc95932acdeed91",
+  "post_input_hashes_sha256": "ea0caa48e5ca02c8aec2c25f0e45d8df39045426724e75dccb2a5a49f4c06618",
+  "pre_input_hashes_sha256": "ea0caa48e5ca02c8aec2c25f0e45d8df39045426724e75dccb2a5a49f4c06618",
+  "resolved_settings": {
+    "CGO_ENABLED": "1",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOENV": "",
+    "GOFLAGS": "",
+    "GOOS": "linux",
+    "GOROOT": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64",
+    "GOTOOLCHAIN": "local",
+    "GOVERSION": "go1.26.6",
+    "GOWORK": "off"
+  },
+  "reused_proofs": [
+    {
+      "command_proof_sha256": "a9eb388a656ec6641ef32f97eb21da93afe94c03b6ec2d6944752ba24b25c3a8",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "name": "preflight"
+    },
+    {
+      "command_proof_sha256": "4055ac5dca3d73feeca4c2d897646ef00d0f5d9b09b261da4117d2efbf2f7b67",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "name": "legacy-tcp-state-validator"
+    },
+    {
+      "command_proof_sha256": "dc498398ec29836de1a9c1517ad3c3cce881734b4aece35547862942e6763d9a",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "name": "legacy-failed-capture-validator"
+    },
+    {
+      "command_proof_sha256": "d4763bdcf3ab63c0464fe604fde4c2ee4f6b2c23ab3c519d05cddee91586644a",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "name": "prospective-terminal-contracts"
+    }
+  ],
+  "schema_version": 2,
+  "source_before_after_unchanged": true,
+  "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+  "started_unix": 1792239169.249664,
+  "tests": [
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "20s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "-json",
+        "GOENV",
+        "GOWORK",
+        "GOFLAGS",
+        "GOROOT",
+        "GOVERSION",
+        "GOAMD64",
+        "GOARCH",
+        "GOOS",
+        "CGO_ENABLED",
+        "GOTOOLCHAIN"
+      ],
+      "command_proof_sha256": "a9eb388a656ec6641ef32f97eb21da93afe94c03b6ec2d6944752ba24b25c3a8",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "exit_status": 0,
+      "finished_unix": 1792238465.3119795,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build",
+      "name": "preflight",
+      "outer_audit_sha256": "df0d4257ccc370c1bb29aee0a0a0bcc68e54b855c93e30ce3893e9b94941dde8",
+      "output_bytes": 264,
+      "owned_identities": [
+        {
+          "pgid": 2510689,
+          "pid": 2510689,
+          "ppid": 2510627,
+          "sid": 2510689,
+          "start_ticks": 7602076,
+          "state": "Z"
+        }
+      ],
+      "proof_origin": "reused-original-freeze",
+      "remaining_group_members": [],
+      "started_unix": 1792238465.1659904,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 264,
+      "stdout_sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147"
+    },
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "30s",
+        "python3",
+        "-I",
+        "-B",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1/integration/contracts/test-tcp-state-validator.py"
+      ],
+      "command_proof_sha256": "4055ac5dca3d73feeca4c2d897646ef00d0f5d9b09b261da4117d2efbf2f7b67",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "exit_status": 0,
+      "finished_unix": 1792238465.7989879,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build",
+      "name": "legacy-tcp-state-validator",
+      "outer_audit_sha256": "91e5a1c7e13a696f4ef71f1d5cc2c1bbf5a033a2863ea04654c843c85305d53e",
+      "output_bytes": 7152,
+      "owned_identities": [
+        {
+          "pgid": 2510695,
+          "pid": 2510695,
+          "ppid": 2510627,
+          "sid": 2510695,
+          "start_ticks": 7602100,
+          "state": "S"
+        }
+      ],
+      "proof_origin": "reused-original-freeze",
+      "remaining_group_members": [],
+      "started_unix": 1792238465.4070582,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 7152,
+      "stdout_sha256": "3e9b2af6e4c296e588d5d74d4895d7654625e79f0ae3f3fafd3372a575fb8d48"
+    },
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "30s",
+        "python3",
+        "-I",
+        "-B",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1/integration/contracts/test-failed-capture-validator.py"
+      ],
+      "command_proof_sha256": "dc498398ec29836de1a9c1517ad3c3cce881734b4aece35547862942e6763d9a",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "exit_status": 0,
+      "finished_unix": 1792238466.4404151,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build",
+      "name": "legacy-failed-capture-validator",
+      "outer_audit_sha256": "6965aa496a443a04c4987051807b3496b8e64464f00800b74a2def81ee6c7d80",
+      "output_bytes": 9222,
+      "owned_identities": [
+        {
+          "pgid": 2510698,
+          "pid": 2510698,
+          "ppid": 2510627,
+          "sid": 2510698,
+          "start_ticks": 7602149,
+          "state": "S"
+        }
+      ],
+      "proof_origin": "reused-original-freeze",
+      "remaining_group_members": [],
+      "started_unix": 1792238465.8920352,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 9222,
+      "stdout_sha256": "32cbd457ac639a770aa9b5a4300ad2e117a2b7b4f0f938185f4d4d160cd49864"
+    },
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "20s",
+        "python3",
+        "-I",
+        "-B",
+        "contracts/test-terminal-attribution.py",
+        "-v"
+      ],
+      "command_proof_sha256": "d4763bdcf3ab63c0464fe604fde4c2ee4f6b2c23ab3c519d05cddee91586644a",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "exit_status": 0,
+      "finished_unix": 1792238466.7279825,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build",
+      "name": "prospective-terminal-contracts",
+      "outer_audit_sha256": "5a29f6f36a9e0714598cd78155dd327b4ac02b5724c7ef77b82f538a4f312c78",
+      "output_bytes": 740,
+      "owned_identities": [
+        {
+          "pgid": 2510720,
+          "pid": 2510720,
+          "ppid": 2510627,
+          "sid": 2510720,
+          "start_ticks": 7602213,
+          "state": "S"
+        }
+      ],
+      "proof_origin": "reused-original-freeze",
+      "remaining_group_members": [],
+      "started_unix": 1792238466.5306733,
+      "stderr_bytes": 740,
+      "stderr_sha256": "c0f851654136603f1c9a8bc9c31be16a02f2f6db93094fbc03a1be93df4895af",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "60s",
+        "python3",
+        "-I",
+        "-B",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-screen.py"
+      ],
+      "command_proof_sha256": "8a7f4c765071116671ea1c5406d7057bf90c2228ce596824e834076063a50a7c",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+      "execution_source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+      "exit_status": 0,
+      "finished_unix": 1792239172.3346288,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1",
+      "name": "python-contracts",
+      "outer_audit_sha256": "e5080c5973f34e05f4d2581522c37049a9c24919e0d9cbdd124d83c35f481816",
+      "output_bytes": 118,
+      "owned_identities": [
+        {
+          "pgid": 2522924,
+          "pid": 2522924,
+          "ppid": 2522862,
+          "sid": 2522924,
+          "start_ticks": 7672493,
+          "state": "S"
+        },
+        {
+          "pgid": 2522924,
+          "pid": 2522925,
+          "ppid": 2522924,
+          "sid": 2522924,
+          "start_ticks": 7672493,
+          "state": "S"
+        },
+        {
+          "pgid": 2522924,
+          "pid": 2522927,
+          "ppid": 2522925,
+          "sid": 2522924,
+          "start_ticks": 7672589,
+          "state": "R"
+        }
+      ],
+      "proof_origin": "fresh-continuation-1",
+      "remaining_group_members": [],
+      "started_unix": 1792239169.322123,
+      "stderr_bytes": 118,
+      "stderr_sha256": "3582aa86607facbe61bfdede8ee6e9c2e064926b36c842e43672033f0ca905aa",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "240s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-p=2",
+        "-tags=p2pstream_qualification",
+        "-count=1",
+        "-timeout=60s",
+        "-run",
+        "^TestQualification(Terminal|RawWrite|TCP|Controller)",
+        "-v",
+        "./internal/agent"
+      ],
+      "command_proof_sha256": "9a453e2ad16a40bacca78f40c0aed7f053b82ab6f4221aefcda87f9d94c97e11",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "execution_source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+      "exit_status": 0,
+      "finished_unix": 1792239181.8711278,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1",
+      "name": "normal",
+      "outer_audit_sha256": "d292cebb943ebed7c18af0cd58b62d8c7d9919e56648ea13aa172dc97f53cba7",
+      "output_bytes": 34999,
+      "owned_identities": [
+        {
+          "pgid": 2522957,
+          "pid": 2522957,
+          "ppid": 2522862,
+          "sid": 2522957,
+          "start_ticks": 7672802,
+          "state": "S"
+        },
+        {
+          "pgid": 2522957,
+          "pid": 2522958,
+          "ppid": 2522957,
+          "sid": 2522957,
+          "start_ticks": 7672803,
+          "state": "S"
+        },
+        {
+          "pgid": 2522957,
+          "pid": 2522998,
+          "ppid": 2522958,
+          "sid": 2522957,
+          "start_ticks": 7672815,
+          "state": "S"
+        },
+        {
+          "pgid": 2522957,
+          "pid": 2523046,
+          "ppid": 2522958,
+          "sid": 2522957,
+          "start_ticks": 7672929,
+          "state": "R"
+        },
+        {
+          "pgid": 2522957,
+          "pid": 2523119,
+          "ppid": 2522958,
+          "sid": 2522957,
+          "start_ticks": 7673489,
+          "state": "S"
+        },
+        {
+          "pgid": 2522957,
+          "pid": 2523167,
+          "ppid": 2522958,
+          "sid": 2522957,
+          "start_ticks": 7673703,
+          "state": "S"
+        }
+      ],
+      "proof_origin": "fresh-continuation-1",
+      "remaining_group_members": [],
+      "started_unix": 1792239172.4248707,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 34999,
+      "stdout_sha256": "21dc5081461cdd7b6ab2fed70f5cb68418b4bff155650199fdee929fd2eaafbb"
+    },
+    {
+      "adopted_descendants": [],
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "240s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-p=2",
+        "-tags=p2pstream_qualification",
+        "-race",
+        "-count=1",
+        "-timeout=90s",
+        "-run",
+        "^TestQualification(Terminal|RawWrite|TCP|Controller)",
+        "-v",
+        "./internal/agent"
+      ],
+      "command_proof_sha256": "d269b2bf42ee2355866df91ef1d3a710923a5e976be2a515bd385de969b67865",
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "execution_source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+      "exit_status": 0,
+      "finished_unix": 1792239198.1778562,
+      "forced": false,
+      "log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1",
+      "name": "race",
+      "outer_audit_sha256": "09b8201f401033f1735a1fb103cb55a8d1b1dab45569b51ca4d6a170ce07d2e2",
+      "output_bytes": 34999,
+      "owned_identities": [
+        {
+          "pgid": 2523173,
+          "pid": 2523173,
+          "ppid": 2522862,
+          "sid": 2523173,
+          "start_ticks": 7673757,
+          "state": "S"
+        },
+        {
+          "pgid": 2523173,
+          "pid": 2523174,
+          "ppid": 2523173,
+          "sid": 2523173,
+          "start_ticks": 7673757,
+          "state": "S"
+        },
+        {
+          "pgid": 2523173,
+          "pid": 2523198,
+          "ppid": 2523174,
+          "sid": 2523173,
+          "start_ticks": 7673773,
+          "state": "S"
+        },
+        {
+          "pgid": 2523173,
+          "pid": 2523262,
+          "ppid": 2523174,
+          "sid": 2523173,
+          "start_ticks": 7673952,
+          "state": "S"
+        },
+        {
+          "pgid": 2523173,
+          "pid": 2523263,
+          "ppid": 2523174,
+          "sid": 2523173,
+          "start_ticks": 7673952,
+          "state": "R"
+        },
+        {
+          "pgid": 2523173,
+          "pid": 2523361,
+          "ppid": 2523174,
+          "sid": 2523173,
+          "start_ticks": 7674781,
+          "state": "R"
+        },
+        {
+          "pgid": 2523173,
+          "pid": 2523433,
+          "ppid": 2523174,
+          "sid": 2523173,
+          "start_ticks": 7675086,
+          "state": "S"
+        }
+      ],
+      "proof_origin": "fresh-continuation-1",
+      "remaining_group_members": [],
+      "started_unix": 1792239181.9662101,
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 34999,
+      "stdout_sha256": "0d06bb38ef14e617ab3f6b72aba6e0066a9e53481d4155eed41ed475665378c2"
+    }
+  ],
+  "wan_traffic": false
+}

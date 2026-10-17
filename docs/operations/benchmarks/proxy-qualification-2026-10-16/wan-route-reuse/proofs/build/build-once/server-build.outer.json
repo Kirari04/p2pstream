@@ -1,0 +1,86 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-c",
+    "-mod=readonly",
+    "-p=2",
+    "-o",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-server-route-reuse.test",
+    "./internal/server"
+  ],
+  "artifact_bytes": 1196832877,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 2.8265079650009284,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2748319,
+      "pid": 2748319,
+      "ppid": 2748199,
+      "sid": 2748319,
+      "start_ticks": 8804434,
+      "state": "S"
+    },
+    {
+      "pgid": 2748319,
+      "pid": 2748320,
+      "ppid": 2748319,
+      "sid": 2748319,
+      "start_ticks": 8804434,
+      "state": "S"
+    },
+    {
+      "pgid": 2748319,
+      "pid": 2748361,
+      "ppid": 2748320,
+      "sid": 2748319,
+      "start_ticks": 8804457,
+      "state": "S"
+    },
+    {
+      "pgid": 2748319,
+      "pid": 2748390,
+      "ppid": 2748361,
+      "sid": 2748319,
+      "start_ticks": 8804563,
+      "state": "S"
+    },
+    {
+      "pgid": 2748319,
+      "pid": 2748391,
+      "ppid": 2748390,
+      "sid": 2748319,
+      "start_ticks": 8804563,
+      "state": "S"
+    },
+    {
+      "pgid": 2748319,
+      "pid": 2748392,
+      "ppid": 2748391,
+      "sid": 2748319,
+      "start_ticks": 8804563,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 0,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

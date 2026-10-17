@@ -1,0 +1,17 @@
+{
+  "phase": "host-pre",
+  "sample": {
+    "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+    "kernel_release": "7.0.0-38-generic",
+    "monotonic_ns": 82373407811048,
+    "namespace": "net:[4026531833]",
+    "namespace_device": 5,
+    "namespace_inode": 4026531833,
+    "pid": 2628434,
+    "ppid": 2628372,
+    "start_ticks": 8237334,
+    "time_namespace": "time:[4026531834]",
+    "value": 1
+  },
+  "schema_version": 1
+}

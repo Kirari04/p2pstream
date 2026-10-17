@@ -1,0 +1,3 @@
+owned process group 602632 did not stop within its graceful shutdown deadline
+Command exited with non-zero status 1
+elapsed=16.48 exit=1

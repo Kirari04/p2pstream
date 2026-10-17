@@ -1,0 +1,9 @@
+Source-only checkpoint. No checkpoint-10 contract, build, test, endpoint, or
+traffic execution performed.
+
+Supersedes source-checkpoint-9 while preserving it and failed validation
+attempt 4 unchanged. Production and tagged observer source, body extractions,
+layout probe, and proof comparator are byte-identical to checkpoints 7 through
+9. Checkpoint 10 changes only the focused negative-contract predicate: each
+expected extractor rejection must return exactly status 1, so timeout, signal,
+and any other nonzero status fail the contract rather than being accepted.

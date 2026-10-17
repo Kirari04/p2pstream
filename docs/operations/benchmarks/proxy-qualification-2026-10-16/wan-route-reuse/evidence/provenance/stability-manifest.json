@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "purpose": "fresh ordinary production route-reuse original96 WAN qualification",
+  "source": {
+    "current_ref": "bd593420a6905f8922bb96d07ec351483c0df2c3+public-route-idle-reuse-source-b359dc67c290193f68bf33519853df3473e31f9a4d8e718c0bd1ccc282d14947",
+    "current_archive_sha256": null,
+    "legacy_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "legacy_archive_sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+    "legacy_overlay_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+    "current_source_identity": {
+      "source_file_count": 430,
+      "source_files_sha256": "b359dc67c290193f68bf33519853df3473e31f9a4d8e718c0bd1ccc282d14947"
+    }
+  },
+  "toolchain": {
+    "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "version": "go version go1.26.6 linux/amd64",
+    "binary_sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+  },
+  "sha256": {
+    "current_server_binary": "5d7552f7a51f907dcbbd4c7b3e73590a3a887cbf1333cc7da058a8e23ee27577",
+    "current_agent_binary": "c8f541da6c4be5ea3ed4ae3cc1df9bfb188da210d78ffc00962602354ff41537",
+    "owned_runner": "eac4b98a50df86cc71c026da8f0a7ab27a60543bf5eac9054ce6be410a913d8e",
+    "stability_supervisor": "48043824b36dc6b64b18a4406d6be62da9753fdfed414feb62b9adb7d017c023",
+    "stability_validator": "2384b55b34789d1956e2ccb227dd31af98f10919ce79ee73e6b908580bce937c",
+    "legacy_agent_binary": "162f8f19361bb13cf2cbb998ed2886a57a63eb36dc6ef21a4cdae4c2865b3f45",
+    "transport_defaults_proof": "69b0735ad234c51c5362b7f3043427b26fa43c4e2bbe9d7e52cdd0df6067652d"
+  },
+  "fixed_workload": {
+    "runs": 3,
+    "pair_order": [
+      [
+        "legacy",
+        "aggregate-v1"
+      ],
+      [
+        "aggregate-v1",
+        "legacy"
+      ],
+      [
+        "legacy",
+        "aggregate-v1"
+      ]
+    ],
+    "flags": [
+      "--runs",
+      "3",
+      "--warmup-mib",
+      "256",
+      "--steady-mib",
+      "256",
+      "--transfer-repetitions",
+      "3",
+      "--required-pool-mib",
+      "8",
+      "--rtt-ms",
+      "80"
+    ],
+    "expected_rows": 96,
+    "expected_natural_process_exits": 15,
+    "every_pair_minimum_download_ratio": 0.9,
+    "every_pair_minimum_upload_ratio": 0.9,
+    "cpu_sets": {
+      "server": "0-3",
+      "agent_and_origin": "4-7",
+      "load": "8-15"
+    },
+    "canonical_runner_timeout_seconds": 12591,
+    "outer_timeout_seconds": 13200,
+    "topology_scope": "one shared owned user/PID/mount/network boundary and one shared routed namespace topology for all three fresh endpoint pairs"
+  },
+  "historical_tls_reproduction": {
+    "label": "faithful reproduction",
+    "client_public_listener": "H2 over public HTTPS with canonical InsecureSkipVerify load behavior",
+    "url_identity": "IP URL and no SNI retained",
+    "protocol_or_tls_changes": false
+  },
+  "separation": {
+    "prior_single_pair_path": "runs/original-h2-pair-1",
+    "combine_rows": false,
+    "selective_retry": false
+  },
+  "current_build_receipt": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-build-20261017/build-once/receipt.json",
+  "current_build_receipt_sha256": "d428e45fd861c8ed7a4346920e53c2a56d1fe678660fd343707f9841f53af624",
+  "runtime_approved": false,
+  "candidate_scope": "same new server route-entry reuse policy in BOTH legacy and aggregate modes; ordinary untagged endpoints; no early-share or observer overlay",
+  "binaries": {
+    "agent": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-agent-route-reuse.test",
+    "server": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output/current-server-route-reuse.test",
+    "legacy": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-wan-prep/bin/legacy-agent.test"
+  }
+}

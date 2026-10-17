@@ -493,6 +493,23 @@ func TestAgentActiveHealthCheckServerCapacityIsSkippedWithoutChangingHealthyStat
 	}
 }
 
+func TestAggregateHealthControlGateTimeoutIsSkippedAtHTTPClient(t *testing.T) {
+	agent := newSaturatedAggregateControlAgent(t)
+	backend := testHealthTarget(t, 108, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
+	attempt := (&App{}).runPublicRouteTargetHealthCheckViaAgent(context.Background(), backend, agent)
+
+	if !attempt.Skipped || attempt.ErrorKind != "agent_server_health_capacity" {
+		t.Fatalf("control gate attempt skipped=%v errorKind=%q err=%v, want skipped agent_server_health_capacity", attempt.Skipped, attempt.ErrorKind, attempt.Err)
+	}
+	if !errors.Is(attempt.Err, context.DeadlineExceeded) {
+		t.Fatalf("control gate attempt lost timeout cause: %v", attempt.Err)
+	}
+	var dialErr agentDialError
+	if !errors.As(attempt.Err, &dialErr) || !agentDialErrorIsAdmissionPressure(dialErr) {
+		t.Fatalf("control gate attempt is not local admission pressure: %v", attempt.Err)
+	}
+}
+
 func TestAgentActiveHealthCheckResourcePressureIsSkippedWithoutUnhealthyStreak(t *testing.T) {
 	app := NewApp(nil, nil)
 	backend := testHealthTarget(t, 107, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")

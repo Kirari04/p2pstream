@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-screen.py", line 84, in <module>
+    if __name__=='__main__':main()
+                            ~~~~^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-screen.py", line 80, in main
+    if sys.argv[1]=='arm':value=validate_arm(int(sys.argv[2]),Path(sys.argv[3]),int(sys.argv[4]));out=Path(sys.argv[5])
+                                ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-screen.py", line 63, in validate_arm
+    expected=ORDER[index];att=load(root/'attestation.json')
+                              ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-screen.py", line 11, in load
+    m=path.lstat();require(stat.S_ISREG(m.st_mode) and not path.is_symlink() and 0<m.st_size<=16<<20,'input file bound/type differs');return json.loads(path.read_text())
+  File "/usr/lib/python3.14/pathlib/__init__.py", line 662, in lstat
+    return os.lstat(self)
+           ~~~~~~~~^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-0-cubic/attestation.json'

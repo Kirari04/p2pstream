@@ -1,0 +1,48 @@
+{
+  "checks": {
+    "cpu_match": true,
+    "local_pgid_match": true,
+    "local_pid_match": true,
+    "namespaces_match_dummy": true,
+    "namespaces_match_outer": true,
+    "nonce_match": true,
+    "role_match": true,
+    "start_ticks_match": true
+  },
+  "cmdline": [
+    "python3",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/scope-probe/host-delegated-dummy-v2.py",
+    "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-trace-scope-probe-20261016-c.scope/cgroup.procs",
+    "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-trace-scope-probe-20261016-c.scope",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/scope-probe/attempt-3/dummy.json",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/scope-probe/attempt-3/measure-release",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-source/scope-probe/attempt-3/exit-release",
+    "6178f05d-d5b6-4312-857d-78ff6a371da6"
+  ],
+  "host_cpu_affinity": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "host_namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026532932]",
+    "net": "net:[4026532935]",
+    "pid": "pid:[4026532934]",
+    "user": "user:[4026532931]"
+  },
+  "host_nspgid": [
+    373564,
+    3
+  ],
+  "host_nspid": [
+    373564,
+    3
+  ],
+  "host_pid": 373564,
+  "host_start_ticks": 1411993,
+  "local_pid": 3,
+  "nonce": "6178f05d-d5b6-4312-857d-78ff6a371da6",
+  "role": "server-dummy"
+}

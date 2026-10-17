@@ -1,0 +1,61 @@
+{
+  "accepted_build_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "binaries_included": false,
+  "referenced_files": [
+    {
+      "bytes": 7558,
+      "disposition": "unchanged predecessor build, validator or failed-history evidence; referenced, not recopied",
+      "path": "../wan-controller-diagnostics/README.md",
+      "sha256": "8789ab68efb9e2dab9f933627eb824d2d1ec6a49e9d19849a6b91c5956e8e0ec"
+    },
+    {
+      "bytes": 68696,
+      "disposition": "unchanged predecessor build, validator or failed-history evidence; referenced, not recopied",
+      "path": "../wan-controller-diagnostics/SHA256SUMS",
+      "sha256": "2b25161f593432ff00667eb0db5129e01bd7afe615c535090f4116fb37ceb123"
+    },
+    {
+      "bytes": 227028,
+      "disposition": "unchanged predecessor build, validator or failed-history evidence; referenced, not recopied",
+      "path": "../wan-controller-diagnostics/EXPORT-MAP.json",
+      "sha256": "47bdd76cc59eccc2f5513e2701e8c2744e3ed2a91b5ed5ed39fef5acd2a31ba9"
+    },
+    {
+      "bytes": 489796,
+      "disposition": "unchanged predecessor build, validator or failed-history evidence; referenced, not recopied",
+      "path": "../wan-controller-diagnostics/INPUT-DISPOSITION.json",
+      "sha256": "642d8f86eb201d49be9362d8d9fccd58ad1d0c9f35345ea3e83ce31eb94bada4"
+    },
+    {
+      "bytes": 27809,
+      "disposition": "unchanged predecessor build, validator or failed-history evidence; referenced, not recopied",
+      "path": "../wan-controller-diagnostics/evidence/build/receipt.json",
+      "sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb"
+    },
+    {
+      "bytes": 137750,
+      "disposition": "unchanged predecessor build, validator or failed-history evidence; referenced, not recopied",
+      "path": "../wan-controller-diagnostics/evidence/FROZEN-INPUTS.json",
+      "sha256": "ea0caa48e5ca02c8aec2c25f0e45d8df39045426724e75dccb2a5a49f4c06618"
+    },
+    {
+      "bytes": 55466,
+      "disposition": "unchanged predecessor build, validator or failed-history evidence; referenced, not recopied",
+      "path": "../wan-controller-diagnostics/evidence/BUILD-TEST-PLAN.json",
+      "sha256": "698959601a56caa0761b7e274336ae4520f45762119292d06cc95932acdeed91"
+    },
+    {
+      "bytes": 82178,
+      "disposition": "unchanged predecessor build, validator or failed-history evidence; referenced, not recopied",
+      "path": "../wan-controller-diagnostics/evidence/runner-source/integration/run-wan-below-tls-arm-joined-ps.sh",
+      "sha256": "7e3578c19ff0041118ddbbcf88bc03d43b3c6ebb0bf496cb3dba9fef60eda6b1"
+    },
+    {
+      "bytes": 7356,
+      "disposition": "unchanged predecessor build, validator or failed-history evidence; referenced, not recopied",
+      "path": "../wan-controller-diagnostics/evidence/runner-source/integration/validate-controller-arm-integrity.py",
+      "sha256": "b344f4711518af36593d437ab65b07ad2415f53a27645a6f0d1da274e5a86ac9"
+    }
+  ],
+  "schema_version": 1
+}

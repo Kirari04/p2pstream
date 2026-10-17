@@ -1,0 +1,60 @@
+Toolchain
+=========
+
+go version go1.26.6 linux/amd64
+
+Compiler escape analysis
+========================
+
+Working directory:
+  third_party/yamux
+
+Command used for both source states:
+  go test -run '^$' -gcflags='-m=2' .
+
+The complete transient reports were written outside the repository as:
+  /tmp/p2pstream-yamux-publisher-escape.before.log
+  /tmp/p2pstream-yamux-publisher-escape-v5.log
+
+Both commands exited 0. The checked-in compiler-before.txt and
+compiler-after.txt files contain the relevant excerpts. The baseline source was
+restored from 6bc95a3ada7c3dfc2c341e31218c96dd11d8165a; its aggregate_window.go
+is byte-identical to f18c27bc010ce2f9f597866696b4f4c8a699e725 and to the
+candidate parent 3bd56a56f5b589b3dc7aea6d93c779b7fd335bb0. The candidate source is
+dc738e9000e60cd7ce3a0279127486f3bc05067a.
+
+Focused normal test
+===================
+
+Working directory:
+  third_party/yamux
+
+Command:
+  go test . -run '^(TestAggregateRefundBatch.*|TestAggregateTerminalSelectedRefundPublishesOnlyGlobalCredit|TestAggregateRefundSelection.*|TestAggregatePairedRefundAmbiguousWriteCommitsBothHalves)$' -count=20
+
+Result:
+  ok github.com/hashicorp/yamux 0.441s
+
+Focused race test
+=================
+
+Working directory:
+  third_party/yamux
+
+Command:
+  go test -race . -run '^(TestAggregateRefundBatch.*|TestAggregateTerminalSelectedRefundPublishesOnlyGlobalCredit|TestAggregateRefundSelection.*|TestAggregatePairedRefundAmbiguousWriteCommitsBothHalves)$' -count=10
+
+Result:
+  ok github.com/hashicorp/yamux 1.262s
+
+Full Yamux normal test
+======================
+
+Working directory:
+  third_party/yamux
+
+Command:
+  go test . -count=1
+
+Result:
+  ok github.com/hashicorp/yamux 34.232s

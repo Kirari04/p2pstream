@@ -1,0 +1,10 @@
+UTC-capture=2026-10-16T13:52:27Z
+Go-tool=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go
+GOTOOLCHAIN=local
+GOWORK=off
+GOFLAGS=
+GOOS=linux
+GOARCH=amd64
+base_commit=ccb9c9cb683b555044033d68ff59112aa4bf21d9
+accepted_transport_tree=40e1046c2f68ee3d545dfd582cd424c2f3604b2a
+http_stage_tree=364e7744603841f5d306f4c242f3acd2b04183bf

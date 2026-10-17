@@ -1,0 +1,5 @@
+{
+  "exit_status": 1,
+  "stderr": "bound input hash mismatch: bin/current-agent.test\n",
+  "stdout": ""
+}

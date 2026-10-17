@@ -1,0 +1,107 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: alloc_space
+Time: 2026-10-16 05:19:29 CEST
+Showing nodes accounting for 3059.07MB, 83.42% of 3667.21MB total
+Showing top 100 nodes out of 516
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%  2335.83MB 63.70%  net/http.(*http2serverConn).runHandler
+         0     0%     0%  2304.21MB 62.83%  net/http.serverHandler.ServeHTTP
+         0     0%     0%  2303.70MB 62.82%  net/http.(*ServeMux).ServeHTTP
+         0     0%     0%  2302.82MB 62.80%  net/http.initALPNRequest.ServeHTTP
+         0     0%     0%  2301.71MB 62.76%  net/http.HandlerFunc.ServeHTTP
+         0     0%     0%  2300.32MB 62.73%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+         0     0%     0%  2300.32MB 62.73%  p2pstream/internal/server.servePublicProxyRequest
+         0     0%     0%  2034.27MB 55.47%  p2pstream/internal/server.(*publicProxyContext).run
+   82.03MB  2.24%  2.24%  1873.75MB 51.09%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+         0     0%  2.24%  1779.22MB 48.52%  p2pstream/internal/server.(*App).proxyAgentTargetRequestWithResolution (inline)
+  368.85MB 10.06% 12.29%  1779.22MB 48.52%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+   47.50MB  1.30% 13.59%  1384.37MB 37.75%  net/http/httputil.(*ReverseProxy).ServeHTTP
+   38.50MB  1.05% 14.64%   777.62MB 21.20%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+   14.50MB   0.4% 15.04%   462.56MB 12.61%  p2pstream/internal/server.(*pooledAgentTransport).RoundTrip
+         0     0% 15.04%   448.06MB 12.22%  net/http.(*Transport).RoundTrip (inline)
+   19.50MB  0.53% 15.57%   448.06MB 12.22%  net/http.(*Transport).roundTrip
+  139.04MB  3.79% 19.36%   400.61MB 10.92%  net/http.(*Request).Clone
+         0     0% 19.36%   320.97MB  8.75%  net/http.(*conn).serve
+         0     0% 19.36%   314.58MB  8.58%  net/http.(*http2Server).ServeConn (inline)
+         0     0% 19.36%   314.58MB  8.58%  net/http.(*http2Server).serveConn
+         0     0% 19.36%   314.58MB  8.58%  net/http.(*http2serverConn).serve
+         0     0% 19.36%   314.58MB  8.58%  net/http.http2ConfigureServer.func2
+         0     0% 19.36%   314.58MB  8.58%  net/http.http2ConfigureServer.func3
+         0     0% 19.36%   306.75MB  8.36%  p2pstream/internal/server.(*App).insertProxyRequestEventsWithRollupsAndCacheTouches
+         0     0% 19.36%   306.75MB  8.36%  p2pstream/internal/server.(*observabilityRecorder).flushBatch
+         0     0% 19.36%   306.75MB  8.36%  p2pstream/internal/server.(*observabilityRecorder).run
+         0     0% 19.36%   306.75MB  8.36%  p2pstream/internal/server.(*observabilityRecorder).runFlushOperation
+         0     0% 19.36%   304.72MB  8.31%  p2pstream/internal/server.(*observabilityRecorder).runBackgroundFlush
+         0     0% 19.36%   302.75MB  8.26%  p2pstream/internal/db.(*ProxyRequestEventInserter).InsertBatch
+         0     0% 19.36%   300.58MB  8.20%  net/http.(*http2serverConn).processFrame
+         0     0% 19.36%   300.58MB  8.20%  net/http.(*http2serverConn).processFrameFromReader
+    5.50MB  0.15% 19.51%   300.58MB  8.20%  net/http.(*http2serverConn).processHeaders
+  285.59MB  7.79% 27.30%   285.59MB  7.79%  net/http.(*Request).WithContext (inline)
+         0     0% 27.30%   282.93MB  7.72%  p2pstream/internal/server.(*observabilityRecorder).run.func1
+   15.50MB  0.42% 27.72%   265.05MB  7.23%  p2pstream/internal/server.initializePublicProxyContext
+   56.50MB  1.54% 29.26%   259.54MB  7.08%  net/http.(*persistConn).readLoop
+         0     0% 29.26%   251.25MB  6.85%  database/sql.(*DB).retry
+         0     0% 29.26%   250.25MB  6.82%  database/sql.(*Stmt).ExecContext
+         0     0% 29.26%   250.25MB  6.82%  database/sql.(*Stmt).ExecContext.func1
+         0     0% 29.26%   250.25MB  6.82%  database/sql.resultFromStatement
+  244.75MB  6.67% 35.93%   249.75MB  6.81%  database/sql.driverArgsConnLocked
+   13.50MB  0.37% 36.30%   206.57MB  5.63%  net/http.(*http2serverConn).newWriterAndRequest
+  198.55MB  5.41% 41.72%   198.55MB  5.41%  net/http.Header.Clone (inline)
+         0     0% 41.72%   193.03MB  5.26%  net/http.(*persistConn).readResponse
+   31.50MB  0.86% 42.58%   193.03MB  5.26%  net/http.ReadResponse
+         0     0% 42.58%   178.55MB  4.87%  net/http.Header.Add (inline)
+  178.55MB  4.87% 47.44%   178.55MB  4.87%  net/textproto.MIMEHeader.Add (inline)
+         0     0% 47.44%   170.03MB  4.64%  net/http.(*http2Framer).ReadFrame
+         0     0% 47.44%   170.03MB  4.64%  net/http.(*http2Framer).ReadFrameForHeader
+         0     0% 47.44%   170.03MB  4.64%  net/http.(*http2serverConn).readFrames
+   33.50MB  0.91% 48.36%   160.53MB  4.38%  net/http.(*http2Framer).readMetaFrame
+         0     0% 48.36%   158.02MB  4.31%  net/http.(*persistConn).writeLoop
+         0     0% 48.36%   143.53MB  3.91%  net/textproto.(*Reader).ReadMIMEHeader (inline)
+  117.53MB  3.20% 51.56%   143.53MB  3.91%  net/textproto.readMIMEHeader
+      14MB  0.38% 51.94%   142.51MB  3.89%  net/http.(*Request).write
+   79.51MB  2.17% 54.11%   130.01MB  3.55%  net/http.(*persistConn).roundTrip
+   37.01MB  1.01% 55.12%   128.51MB  3.50%  net/http.newTransferWriter
+         0     0% 55.12%   127.03MB  3.46%  vendor/golang.org/x/net/http2/hpack.(*Decoder).Write
+         0     0% 55.12%   127.03MB  3.46%  vendor/golang.org/x/net/http2/hpack.(*Decoder).parseHeaderFieldRepr
+  126.53MB  3.45% 58.57%   126.53MB  3.45%  net/http.(*http2Framer).readMetaFrame.func1
+         0     0% 58.57%   126.53MB  3.45%  vendor/golang.org/x/net/http2/hpack.(*Decoder).callEmit
+         0     0% 58.57%   126.53MB  3.45%  vendor/golang.org/x/net/http2/hpack.(*Decoder).parseFieldIndexed
+      19MB  0.52% 59.09%   123.02MB  3.35%  p2pstream/internal/server.applyPublicRequestBodyLimits
+    8.50MB  0.23% 59.32%   120.54MB  3.29%  net/http.(*http2serverConn).newWriterAndRequestNoBody
+         0     0% 59.32%   119.03MB  3.25%  p2pstream/internal/server.(*ClientIdentityResolver).ResolveRequest
+         0     0% 59.32%   119.03MB  3.25%  p2pstream/internal/server.resolvePublicRequestIdentity
+   56.50MB  1.54% 60.86%   118.02MB  3.22%  context.withCancel (inline)
+         0     0% 60.86%   106.03MB  2.89%  net/http/httputil.copyHeader
+   53.01MB  1.45% 62.31%   104.51MB  2.85%  time.NewTimer
+         0     0% 62.31%   100.53MB  2.74%  net/http.(*http2responseWriter).WriteHeader
+         0     0% 62.31%   100.53MB  2.74%  net/http.(*http2responseWriterState).writeHeader
+  100.53MB  2.74% 65.05%   100.53MB  2.74%  net/http.http2cloneHeader (inline)
+         0     0% 65.05%   100.53MB  2.74%  p2pstream/internal/server.(*proxyResponseRecorder).WriteHeader
+   68.51MB  1.87% 66.92%    98.01MB  2.67%  net/http.(*Transport).getConn
+      38MB  1.04% 67.95%    91.51MB  2.50%  net/http.(*transferWriter).probeRequestBody
+         0     0% 67.95%    91.51MB  2.50%  net/http.(*transferWriter).shouldSendChunkedRequestBody
+       3MB 0.082% 68.04%    86.01MB  2.35%  context.WithCancelCause
+      32MB  0.87% 68.91%    80.02MB  2.18%  net/http.(*http2serverConn).newStream
+   79.02MB  2.15% 71.06%    79.02MB  2.15%  net/http.setupRewindBody (inline)
+      65MB  1.77% 72.84%       65MB  1.77%  context.WithValue
+   63.01MB  1.72% 74.55%    63.01MB  1.72%  net/http.cloneURL (inline)
+   61.52MB  1.68% 76.23%    61.52MB  1.68%  context.(*cancelCtx).propagateCancel
+         0     0% 76.23%    55.50MB  1.51%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+         0     0% 76.23%    55.50MB  1.51%  p2pstream/internal/server.(*App).selectRouteTarget
+         0     0% 76.23%    55.50MB  1.51%  p2pstream/internal/server.routeResolutionStage
+   52.50MB  1.43% 77.66%    52.50MB  1.43%  p2pstream/internal/db.appendProxyRequestEventArgs (inline)
+   51.51MB  1.40% 79.07%    51.51MB  1.40%  time.newTimer
+   50.51MB  1.38% 80.44%    50.51MB  1.38%  context.(*cancelCtx).Done
+         0     0% 80.44%    47.51MB  1.30%  bufio.(*Writer).Flush
+   11.50MB  0.31% 80.76%    46.51MB  1.27%  context.WithCancel
+         0     0% 80.76%    45.50MB  1.24%  p2pstream/internal/server.publicRequestAdmissionStage
+         0     0% 80.76%    38.51MB  1.05%  p2pstream/internal/server.(*App).tryReservePublicOwnedResource
+         0     0% 80.76%    38.51MB  1.05%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResource (inline)
+   35.50MB  0.97% 81.73%    38.51MB  1.05%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+         0     0% 81.73%    37.64MB  1.03%  sync.(*Pool).Get
+      26MB  0.71% 82.44%       36MB  0.98%  p2pstream/internal/server.WithClientIdentity
+         0     0% 82.44%       36MB  0.98%  p2pstream/internal/server.(*App).targetEligibleForRoute
+      36MB  0.98% 83.42%       36MB  0.98%  p2pstream/internal/server.publicRouteTargetHealthConfigFromRouteTarget
+         0     0% 83.42%    35.51MB  0.97%  p2pstream/internal/server.publicResponseAdmissionStage
+         0     0% 83.42%    33.50MB  0.91%  net/http/internal/httpcommon.NewServerRequest

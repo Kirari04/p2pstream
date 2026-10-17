@@ -1,0 +1,79 @@
+{
+  "diagnostic_only": true,
+  "production_base_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "tagged_diagnostic_source_ref": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+  "build_tags": [
+    "p2pstream_qualification"
+  ],
+  "actual_binaries": {
+    "server": {
+      "path": "/tmp/p2pstream-wan-allocation-diagnostic.a2vmub9x/bin/server.test",
+      "original_path": "/tmp/p2pstream-data-counter-diagnostic.PtocI3/server.test",
+      "sha256": "bdeec7bdc9b381237c194de7b99c1126841f427618d24213847a1f8c280d99c7"
+    },
+    "aggregate-agent": {
+      "path": "/tmp/p2pstream-wan-allocation-diagnostic.a2vmub9x/bin/aggregate-agent.test",
+      "original_path": "/tmp/p2pstream-data-counter-diagnostic.PtocI3/agent.test",
+      "sha256": "3c81510fd39b6c341a106bbc06e7fa58fc3db8179d843a58c60648ec4e881e0c"
+    },
+    "legacy-agent": {
+      "path": "/tmp/p2pstream-wan-allocation-diagnostic.a2vmub9x/bin/legacy-agent.test",
+      "original_path": "/tmp/p2pstream-legacy-growth-3ec137.rH22MF/bin/agent.test",
+      "sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec"
+    }
+  },
+  "source_archive_sha256": "9462183f979ff47b3bbbb81573bfb6a31bfa04015a31312c8872726582028c76",
+  "clean_build_manifest_sha256": "1369f4d5c83c83ec3c297df9002f5dbc5ec2e8c714980a464f353f5fd430c6d2",
+  "clean_build_manifest_note": "external SHA256SUMS verifies final manifest bytes; no self-hash line",
+  "command": [
+    "bash",
+    "/tmp/p2pstream-wan-allocation-diagnostic.a2vmub9x/scripts/qualify-proxy-agent-allocation-drain-diagnostic.sh",
+    "--server-binary",
+    "/tmp/p2pstream-wan-allocation-diagnostic.a2vmub9x/bin/server.test",
+    "--aggregate-agent-binary",
+    "/tmp/p2pstream-wan-allocation-diagnostic.a2vmub9x/bin/aggregate-agent.test",
+    "--legacy-agent-binary",
+    "/tmp/p2pstream-wan-allocation-diagnostic.a2vmub9x/bin/legacy-agent.test",
+    "--output",
+    "/tmp/p2pstream-wan-allocation-diagnostic.a2vmub9x/results.jsonl",
+    "--runs",
+    "1",
+    "--warmup-mib",
+    "256",
+    "--steady-mib",
+    "256",
+    "--transfer-repetitions",
+    "3",
+    "--required-pool-mib",
+    "8",
+    "--rtt-ms",
+    "80",
+    "--server-source-ref",
+    "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "--aggregate-agent-source-ref",
+    "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "--legacy-agent-source-ref",
+    "3ec137c3ad3d07028e867042fb00d3933912d7ab"
+  ],
+  "native_profiles": false,
+  "live_credit_or_tcp_polling": false,
+  "send_counter_semantics": "successful DATA reservation totals; overlapping zero-credit observations are counts, not durations",
+  "ring_capacity": 4096,
+  "ring_semantics": "bounded private mutex at existing completed sample epochs; pointers retained only until bounded drain; overflow counted; diagnostic observer remains",
+  "retrieval": "server and current agent after original transfer result append; frozen legacy agent skips HTTP;2s request timeout/4MiB response cap",
+  "post_transfer_added_delay": "Bash EPOCHREALTIME bookends full two-subprocess drains in growth/post-drain-delays.tsv",
+  "go_runtime_environment": {
+    "GOMAXPROCS": null,
+    "GOGC": null,
+    "GOMEMLIMIT": null,
+    "GODEBUG": null
+  },
+  "files_sha256": {
+    "clean-build.SHA256SUMS": "9752525352f7ed0e2616ccc3497dc7a3b1fb1efbc9b23fc995a7acf5352374be",
+    "clean-build-manifest.txt": "1369f4d5c83c83ec3c297df9002f5dbc5ec2e8c714980a464f353f5fd430c6d2",
+    "runner-diagnostic.patch": "7e03c7b4b6e514b4b20b4f2475611da334e561b83b676c8370d50e62b92b838d",
+    "drain-growth.py": "fe6f1b383626d8d22d42d98c37463fcc277ebaa2334776a0e3928eab7c82634e",
+    "original-runner.sh": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+    "scripts/qualify-proxy-agent-allocation-drain-diagnostic.sh": "1b2435d201327e49a593d239c765d102653db14c24405ded64daa1c65eecfabf"
+  }
+}

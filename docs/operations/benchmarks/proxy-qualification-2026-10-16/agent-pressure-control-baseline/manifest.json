@@ -1,0 +1,19 @@
+{
+  "candidate_ref": "c3a9fa47d72595a592fb7a1c200704b5ed7cd234",
+  "server_binary_sha256": "e6ffa18c5a62a8f4f474f6b6f78be55eebfcd18849d87659e3adb606e74a96ca",
+  "agent_binary_sha256": "46a2ec4a32f9ac65a2475687d7ce822fdff8b54b6f8e0382964e28feab2a86fa",
+  "harness_sha256": "a8b4bb7e343c8887e0e38bb719906cea1f47bcff967e6434d256f209d4870d6a",
+  "go_version": "go version go1.26.6 linux/amd64",
+  "kernel": "Linux 7.0.0-38-generic x86_64 GNU/Linux",
+  "systemd": "systemd 259 (259.5-0ubuntu3.4)",
+  "configured_rtt_ms": 80,
+  "warmup_mib_per_lane_direction": 4,
+  "required_pool_mib": 2,
+  "pressure_ballast_mib": 3712,
+  "agent_critical_memory_current_bytes": 3933089792,
+  "agent_memory_max_bytes": 4294967296,
+  "agent_released_memory_current_bytes": 24477696,
+  "server_sampled_peak_memory_current_bytes": 80719872,
+  "qualification_exit": 1,
+  "qualification_exit_reason": "control_progress_during_pressure=false"
+}

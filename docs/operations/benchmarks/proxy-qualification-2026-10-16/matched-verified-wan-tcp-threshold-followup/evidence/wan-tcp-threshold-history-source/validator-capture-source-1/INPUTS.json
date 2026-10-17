@@ -1,0 +1,36 @@
+{
+  "base_runner_manifest_sha256": "a4176af4c1d9b6594d7ec786688d4792b3e326d799ef3ec03338fbc4c2fe70a5",
+  "base_tcp_validator_sha256": "b76c169749db53a38b3275fd0d85670b2b07ee35e786cc9669f2f88c603b1056",
+  "endpoint_execution": false,
+  "producer_provider_source_sha256": "abe3994f1286349c0210b7344770a5c95a80cf4e6af2e9bb9fa73b1b37d05486",
+  "schema_version": 1,
+  "tiny2_fixture_hashes": {
+    "h1/results.sender-wait-controls/final-raw-write-terminal.json": "39bd166c2cba12ffcd464c7a317a2605c2c5cf40cca91c5b15a7ef0e677e534a",
+    "h1/results.sender-wait-controls/sequence-11-post-sender.json": "bec17348408e9dcd7ba0e6cc06bb67d217f0da2ed3478b1c7a4c6edf3b02b6ff",
+    "h1/results.sender-wait-controls/sequence-11-pre-sender.json": "7ac72da3b3927cb5fd8a25cb15461f9956dd77d78183469523f5af53c4d72744",
+    "h1/results.sender-wait-controls/sequence-14-post-sender.json": "f54048c90d594811a91c21c5eb146e13ed00718e54d5bde5f70f6d6657e07f50",
+    "h1/results.sender-wait-controls/sequence-14-pre-sender.json": "a660504b29413437dbb40cc159d1f936115d661f02581115eda82b67190592a0",
+    "h1/results.sender-wait-controls/sequence-15-post-sender.json": "33785f051dea815efa2a1ad86763eb586f2aaa36e7721456268c68e958fac52c",
+    "h1/results.sender-wait-controls/sequence-15-pre-sender.json": "5860d01ba43c704650166a55684af76ed2c072df8f2c7ce85b394b2086a525cb",
+    "h1/results.sender-wait-controls/sequence-9-post-sender.json": "74432083f8b46a9946a630a4f8c4e73aa905293d529c1e156b58ba9c6a0d9015",
+    "h1/results.sender-wait-controls/sequence-9-pre-sender.json": "c391ba9f345acd4cf342aac42ccc1c418be694ee0c1c428e12de8940f912f514",
+    "h1/results.sender-wait-controls/terminal-sender.json": "f88f85c7925a93378fe80ea5f11182b6f94d372a57b3fb577fb4b6fbfa35571b",
+    "h2/results.sender-wait-controls/final-raw-write-terminal.json": "2012950b69c3089a4be8797c7d18b5e2dcf7f9cf6e6da9af30b7b4c31f80bea9",
+    "h2/results.sender-wait-controls/sequence-11-post-sender.json": "c49ca1252843cce262b077e9d11ade8130de23257f4c39fbdc8201c0017f4d65",
+    "h2/results.sender-wait-controls/sequence-11-pre-sender.json": "fc3473328d94ef99d23c6b159d78f51d9d1b5ced6922e4202841e4d483aecee1",
+    "h2/results.sender-wait-controls/sequence-14-post-sender.json": "63b3467c228be804c00c63e12cb961b4eeab68cafa5cfdee9e5c881efab972c8",
+    "h2/results.sender-wait-controls/sequence-14-pre-sender.json": "30aeb13568d777482b1b8d8728302b0ef3bcf46359395b9b33556a1d1535d07b",
+    "h2/results.sender-wait-controls/sequence-15-post-sender.json": "881864927ef98e28f7df2b3d757d1533b4b6ccbd1738f61a8b924fabafbe3dba",
+    "h2/results.sender-wait-controls/sequence-15-pre-sender.json": "39d060eb4f026cb7b4ae1c24d01bb2e0192becc95d710c9ce3c80d733dcd1acc",
+    "h2/results.sender-wait-controls/sequence-9-post-sender.json": "9823a9d2bf0f0e303e2a3f832972a4faf6e8a80a7aba4d5a32b804ec182f7335",
+    "h2/results.sender-wait-controls/sequence-9-pre-sender.json": "4b2ce2d3db80077bb29362c81f369261a3bd92994970b15e6d9c3c15cb9eeb35",
+    "h2/results.sender-wait-controls/terminal-sender.json": "144045fffc0e1dcfb78f984c2c75765863fbb34f797664bd2a88bf40b577e85b"
+  },
+  "tiny2_run_ledger_sha256": "5e5c7c1d0ae91caff4379fc1bc13fce227ea9a9337247452f54060f17550163f",
+  "unchanged_dependencies": {
+    "integration/contracts/test-tcp-state-validator.py": "ef63d7db6c3078a4484571a721b4f565113a898d9d1d4a971fd9f80fee504c9b",
+    "integration/validate-raw-write-activity.py": "66ff26fcdbfe71143d49b816e448f28ff7de789daba11e02c8d618d11c361bff",
+    "integration/validate-sender-wait-snapshot.py": "25a934047a84c82d41852871047486138fa10fa4e8a1d3db3e867f38ad50e260"
+  },
+  "wan_traffic": false
+}

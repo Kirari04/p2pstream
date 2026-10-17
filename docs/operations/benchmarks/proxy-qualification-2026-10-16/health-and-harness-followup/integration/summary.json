@@ -1,0 +1,53 @@
+{
+  "tests": {
+    "pass": 1455,
+    "fail": 0,
+    "skip": 15
+  },
+  "skips": [
+    "TestProductionAgentHeldStreamsRespect512MiBResourceEnvelope",
+    "TestExternalProxyQualificationAgentProcess",
+    "TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap/single-agent_3000-request_50-rps_geo-latency_soak",
+    "TestManagedUpdatesSystemdLifecycle",
+    "TestHTTP2UploadCapacity",
+    "TestPublicHTTP2LargeReceiveWindowIsAdvertisedOnWire",
+    "TestProxyQualificationProcess",
+    "TestExternalProxyQualificationServerProcess",
+    "TestProxyQualificationLoad",
+    "TestPublicHeaderBurstQualification",
+    "TestPublicHeaderBurstProxy",
+    "TestPublicOutboundTCPQueueLowatBurst",
+    "TestPublicAdmissionControlledMemoryPressure",
+    "TestPublicProxyWANThroughput",
+    "TestPublicWANOriginProcess"
+  ],
+  "packages": [
+    {
+      "Time": "2026-10-17T11:52:11.935332586+02:00",
+      "Action": "pass",
+      "Package": "p2pstream/internal/tunnel",
+      "Elapsed": 1.2730000000000001
+    },
+    {
+      "Time": "2026-10-17T11:52:12.009102904+02:00",
+      "Action": "pass",
+      "Package": "p2pstream/internal/sysmetrics",
+      "Elapsed": 1.021
+    },
+    {
+      "Time": "2026-10-17T11:52:25.848994254+02:00",
+      "Action": "pass",
+      "Package": "p2pstream/internal/agent",
+      "Elapsed": 11.722
+    },
+    {
+      "Time": "2026-10-17T11:59:11.469726366+02:00",
+      "Action": "pass",
+      "Package": "p2pstream/internal/server",
+      "Elapsed": 407.252
+    }
+  ],
+  "source_changed": [],
+  "validated_source_commit": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "exit_status": 0
+}

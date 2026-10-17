@@ -1,0 +1,6 @@
+{
+  "source_manifest_sha256": "0d938ddd6834144b62b5fc8913b767be1671c9594c246cc9cd3252d6956deb92",
+  "runtime_approved": true,
+  "maximum_transfers": 96,
+  "maximum_pairs": 3
+}

@@ -1,0 +1,163 @@
+[
+  {
+    "position": 1,
+    "field": "OccurredAt",
+    "type": "time.Time",
+    "changed": false,
+    "candidate_argument": "arg.OccurredAt"
+  },
+  {
+    "position": 2,
+    "field": "StatusCode",
+    "type": "int64",
+    "changed": false,
+    "candidate_argument": "arg.StatusCode"
+  },
+  {
+    "position": 3,
+    "field": "DurationMs",
+    "type": "int64",
+    "changed": false,
+    "candidate_argument": "arg.DurationMs"
+  },
+  {
+    "position": 4,
+    "field": "ErrorKind",
+    "type": "string",
+    "changed": false,
+    "candidate_argument": "arg.ErrorKind"
+  },
+  {
+    "position": 5,
+    "field": "Method",
+    "type": "string",
+    "changed": false,
+    "candidate_argument": "arg.Method"
+  },
+  {
+    "position": 6,
+    "field": "Host",
+    "type": "string",
+    "changed": false,
+    "candidate_argument": "arg.Host"
+  },
+  {
+    "position": 7,
+    "field": "PathPrefix",
+    "type": "string",
+    "changed": false,
+    "candidate_argument": "arg.PathPrefix"
+  },
+  {
+    "position": 8,
+    "field": "ListenerID",
+    "type": "sql.NullInt64",
+    "changed": true,
+    "candidate_argument": "proxyRequestEventIDValue(arg.ListenerID)"
+  },
+  {
+    "position": 9,
+    "field": "RouteID",
+    "type": "sql.NullInt64",
+    "changed": true,
+    "candidate_argument": "proxyRequestEventIDValue(arg.RouteID)"
+  },
+  {
+    "position": 10,
+    "field": "RouteTargetID",
+    "type": "sql.NullInt64",
+    "changed": true,
+    "candidate_argument": "proxyRequestEventIDValue(arg.RouteTargetID)"
+  },
+  {
+    "position": 11,
+    "field": "WafRuleID",
+    "type": "sql.NullInt64",
+    "changed": true,
+    "candidate_argument": "proxyRequestEventIDValue(arg.WafRuleID)"
+  },
+  {
+    "position": 12,
+    "field": "WafAction",
+    "type": "string",
+    "changed": false,
+    "candidate_argument": "arg.WafAction"
+  },
+  {
+    "position": 13,
+    "field": "AgentID",
+    "type": "sql.NullInt64",
+    "changed": true,
+    "candidate_argument": "proxyRequestEventIDValue(arg.AgentID)"
+  },
+  {
+    "position": 14,
+    "field": "RequestBytes",
+    "type": "int64",
+    "changed": false,
+    "candidate_argument": "arg.RequestBytes"
+  },
+  {
+    "position": 15,
+    "field": "ResponseBytes",
+    "type": "int64",
+    "changed": false,
+    "candidate_argument": "arg.ResponseBytes"
+  },
+  {
+    "position": 16,
+    "field": "CacheRuleID",
+    "type": "sql.NullInt64",
+    "changed": true,
+    "candidate_argument": "proxyRequestEventIDValue(arg.CacheRuleID)"
+  },
+  {
+    "position": 17,
+    "field": "CacheStatus",
+    "type": "string",
+    "changed": false,
+    "candidate_argument": "arg.CacheStatus"
+  },
+  {
+    "position": 18,
+    "field": "CacheBytes",
+    "type": "int64",
+    "changed": false,
+    "candidate_argument": "arg.CacheBytes"
+  },
+  {
+    "position": 19,
+    "field": "RetryRuleID",
+    "type": "sql.NullInt64",
+    "changed": true,
+    "candidate_argument": "proxyRequestEventIDValue(arg.RetryRuleID)"
+  },
+  {
+    "position": 20,
+    "field": "RetryCount",
+    "type": "int64",
+    "changed": false,
+    "candidate_argument": "arg.RetryCount"
+  },
+  {
+    "position": 21,
+    "field": "RetryOutcome",
+    "type": "string",
+    "changed": false,
+    "candidate_argument": "arg.RetryOutcome"
+  },
+  {
+    "position": 22,
+    "field": "RetryErrorKind",
+    "type": "string",
+    "changed": false,
+    "candidate_argument": "arg.RetryErrorKind"
+  },
+  {
+    "position": 23,
+    "field": "RetryFailedAgentID",
+    "type": "sql.NullInt64",
+    "changed": true,
+    "candidate_argument": "proxyRequestEventIDValue(arg.RetryFailedAgentID)"
+  }
+]

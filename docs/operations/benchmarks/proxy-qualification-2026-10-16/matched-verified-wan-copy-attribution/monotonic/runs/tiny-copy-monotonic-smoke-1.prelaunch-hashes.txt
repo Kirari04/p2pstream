@@ -1,0 +1,6 @@
+0530cdc308bf06964f61d55ca730309e125cabd3c296ed3c22f0cfe218552013  tmp/continuation-20261016/wan-copy-monotonic-source/build/bin/current-server-wan-copy-monotonic-audited.test
+9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137  tmp/continuation-20261016/wan-copy-monotonic-source/../current-wan-prep/bin/current-agent.test
+990077dbececd5f0c92ef0b845cc95b50a0af1b415e301048ab35ea53a67b5e5  tmp/continuation-20261016/wan-copy-monotonic-source/run-wan-copy-monotonic-diagnostic.sh
+2eaf7ca1898313f8f3d1b145dc9a91278d3c78c45936714d12a7bc9c91cc24e0  tmp/continuation-20261016/wan-copy-monotonic-source/run-wan-copy-monotonic-arm.sh
+959cec45868ceaf080bd26560c3ea0fb90d6da695f8ae77679fe3ba40b9bbdb2  tmp/continuation-20261016/wan-copy-monotonic-source/generated/qualify-proxy-agent-growth-wan-copy-monotonic.sh
+f1c70a2f347a77975a00330d4d37929700b1a38bac5fa195c3dff02b3f773c26  tmp/continuation-20261016/wan-copy-monotonic-source/validate-copy-record.py

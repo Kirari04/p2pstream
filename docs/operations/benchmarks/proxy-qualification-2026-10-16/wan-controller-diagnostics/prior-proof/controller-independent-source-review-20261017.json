@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "verdict": "No remaining source-review blocker in assigned scope; eligible for root decision on bounded local tests/build only.",
+  "scope": [
+    "fixed CUBIC-Reno-CUBIC H2 runner",
+    "independent outcome and binding validators",
+    "new build/source receipt verification",
+    "outer process ownership and failure finalization"
+  ],
+  "hashes": {
+    "SHA256SUMS": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+    "FROZEN-INPUTS.json": "79f615e55d4316e3095d6c150c8df49788a01dc284bee3e6caf935f62eeba1ad",
+    "SOURCE-SHA256SUMS": "a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+    "SOURCE.diff": "cbdfa3c2432a35017353950e608a953485bc66089e9723eab583420f8b03e7f8",
+    "BUILD-TEST-PLAN.json": "4bd921978e886a6894597de5b8ca810228ccada16a4db15912fae7e05808cc22",
+    "COMMANDS.json": "e078180ed57f0404b034180756431bbaa85c898f15f7c1b1491da01621caf740",
+    "run-controller-screen.py": "621cffe67aacba1dc5ead223c5034c97cfcda402f104e92c07fbbd576beeaac8"
+  },
+  "independent_manifest_check": {
+    "ledger_entries": 524,
+    "frozen_entries": 523,
+    "mismatches": []
+  },
+  "findings_resolved": [
+    "Controller sidecar resides at arm root, preserving mature exact sender-control file set; compatibility contract is prepared.",
+    "Process-local Linux subreaper rejects preexisting children and unexpected adoptions, including exited-zero orphans, retaining PID/start ticks and wait status; rapid-parent-exit and separate-session controls are prepared.",
+    "Final artifact threshold failure writes a rejected screen record and raises nonzero.",
+    "Root accepted polled detection/abort semantics. Plan, review and audit labels explicitly disclose overshoot, retain complete logs and observed totals, and reject observed overflow."
+  ],
+  "preserved_gates": [
+    "Fresh complete endpoints per arm, fixed H2 C/R/C order, at most 48 transfers, no retry or appended rows.",
+    "Both controls reproduce sequences 11 and 14 below 29700000 B/s with healthy sequence 15 and existing conditioning.",
+    "Reno passes every existing download floor; sequences 11 and 14 each exceed or equal 1.08 times faster control and have lower upstream-Read total than both controls.",
+    "Unchanged mature validators regenerate exact saved attestation; integrity, conditioning, resource, natural lifecycle, legacy106 and prospective attribution predicates remain required.",
+    "New receipt must bind exact plan, complete compilation inventory, proof command cardinality/argv/cwd/natural statuses/log hashes, resolved settings, source references and binary tuple before root review token can permit endpoints."
+  ],
+  "limitations": [
+    "Go hook and Go tests are root review scope.",
+    "Prepared contracts and build plan have not been executed by this reviewer.",
+    "This source review does not grant runtime, recommend production Reno, identify HyStart, resolve threshold-history creation, or clear original96-transfer/HAProxy/parity/merge/release gates."
+  ],
+  "reviewer_actions": {
+    "source_reads_and_hash_checks_only": true,
+    "builds": 0,
+    "tests": 0,
+    "endpoint_execution": 0,
+    "wan_transfers": 0,
+    "tracked_edits": 0
+  }
+}

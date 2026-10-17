@@ -1,0 +1,81 @@
+Total: 3333.33s
+ROUTINE ======================== github.com/hashicorp/yamux.(*Stream).write in /tmp/p2p-final-dc738e90.OkWZWjbi/third_party/yamux/stream.go
+         0     57.95s (flat, cum)  1.74% of Total
+         .          .    299:func (s *Stream) write(b []byte) (n int, err error) {
+         .          .    300:	var flags uint16
+         .          .    301:	var max uint32
+         .          .    302:	var body []byte
+         .          .    303:	var aggregateNotify <-chan struct{}
+         .          .    304:START:
+         .          .    305:	aggregateNotify = nil
+         .          .    306:	s.stateLock.Lock()
+         .          .    307:	switch s.state {
+         .          .    308:	case streamLocalClose:
+         .          .    309:		fallthrough
+         .          .    310:	case streamClosed:
+         .          .    311:		s.stateLock.Unlock()
+         .          .    312:		return 0, ErrStreamClosed
+         .          .    313:	case streamReset:
+         .          .    314:		s.stateLock.Unlock()
+         .          .    315:		return 0, ErrConnectionReset
+         .          .    316:	}
+         .          .    317:	s.stateLock.Unlock()
+         .          .    318:
+         .          .    319:	// If there is no data available, block
+         .          .    320:	window := atomic.LoadUint32(&s.sendWindow)
+         .          .    321:	if window == 0 {
+         .          .    322:		goto WAIT
+         .          .    323:	}
+         .          .    324:
+         .          .    325:	// Send up to our send window
+         .          .    326:	max = min(window, uint32(len(b)))
+         .          .    327:	if s.session.aggregateEnabled() {
+         .          .    328:		max, aggregateNotify = s.reserveAggregateSend(max)
+         .          .    329:		if max == 0 {
+         .          .    330:			goto WAIT
+         .          .    331:		}
+         .          .    332:	}
+         .          .    333:	// Determine flags only after all DATA credit is reserved. Otherwise a
+         .          .    334:	// blocked first write could consume SYN without putting it on the wire.
+         .          .    335:	flags = s.sendFlags()
+         .          .    336:	body = b[:max]
+         .          .    337:
+         .          .    338:	// Send the header
+         .          .    339:	s.sendHdr.encode(typeData, flags, s.id, max)
+         .     52.95s    340:	if err = s.session.waitForSendErr(s.sendHdr, body, s.sendErr); err != nil {
+         .          .    341:		if errors.Is(err, ErrSessionShutdown) || errors.Is(err, ErrConnectionWriteTimeout) {
+         .          .    342:			// Message left in ready queue, header re-use is unsafe.
+         .          .    343:			s.sendHdr = header(make([]byte, headerSize))
+         .          .    344:		}
+         .          .    345:		if s.session.aggregateEnabled() {
+         .          .    346:			// A timeout can race a queued write. Session credit cannot safely be
+         .          .    347:			// restored without knowing whether the peer observed the frame.
+         .          .    348:			s.session.abortAggregate(err)
+         .          .    349:		}
+         .          .    350:		return 0, err
+         .          .    351:	}
+         .          .    352:
+         .          .    353:	// Reduce our send window
+         .          .    354:	atomic.AddUint32(&s.sendWindow, ^uint32(max-1))
+         .          .    355:
+         .          .    356:	// Unlock
+         .          .    357:	return int(max), err
+         .          .    358:
+         .          .    359:WAIT:
+         .          .    360:	var timeout <-chan time.Time
+         .          .    361:	var timer *time.Timer
+         .          .    362:	writeDeadline := s.writeDeadline.Load().(time.Time)
+         .          .    363:	if !writeDeadline.IsZero() {
+         .          .    364:		delay := time.Until(writeDeadline)
+         .          .    365:		if delay <= 0 {
+         .          .    366:			return 0, ErrTimeout
+         .          .    367:		}
+         .          .    368:		timer = time.NewTimer(delay)
+         .          .    369:		timeout = timer.C
+         .          .    370:	}
+         .         5s    371:	select {
+         .          .    372:	case <-s.session.shutdownCh:
+         .          .    373:		stopDeadlineTimer(timer)
+         .          .    374:		// No DATA credit has been reserved at WAIT. Once shutdown begins no
+         .          .    375:		// future credit can make this write safe, so return instead of spinning
+         .          .    376:		// until Session.Close eventually marks every stream terminal.

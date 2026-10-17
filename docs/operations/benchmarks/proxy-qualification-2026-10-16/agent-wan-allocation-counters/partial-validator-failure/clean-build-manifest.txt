@@ -1,0 +1,10 @@
+schema_version=1
+head=5eeccaaa797254d7bde4db9854a337a02c3bc28e
+archive=/tmp/p2pstream-data-counter-diagnostic.PtocI3/source.tar
+source=/tmp/p2pstream-data-counter-diagnostic.PtocI3/source
+built_utc=2026-10-16T05:45:36Z
+go_version=go version go1.26.6 linux/amd64
+go_env=linux amd64 1 auto 
+agent_command=go test -c -tags=p2pstream_qualification -o /tmp/p2pstream-data-counter-diagnostic.PtocI3/agent.test ./internal/agent
+server_command=go test -c -tags=p2pstream_qualification -o /tmp/p2pstream-data-counter-diagnostic.PtocI3/server.test ./internal/server
+source_provenance=git archive of head; caller worktree and index tracked diffs empty before archive

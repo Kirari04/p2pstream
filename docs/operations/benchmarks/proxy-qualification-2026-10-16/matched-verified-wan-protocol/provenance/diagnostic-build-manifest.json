@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "scope": "source-only WAN public protocol diagnostic",
+  "base_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "aggregate_agent_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "go_toolchain": "go1.26.6 linux/amd64",
+  "production_files_byte_identical_to_base": true,
+  "focused_normal_status": 0,
+  "focused_race_status": 0,
+  "sha256": {
+    "server_test_binary": "60667aa9bbe7375de77d341c83cd8576301366f26cda25fb980fa7b813ba405e",
+    "aggregate_agent_test_binary": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+    "go_base_patch": "b2c90d2ee6bf9ade304163795022071b4d368b61f0e9d5bc73d0e52d2569538b",
+    "go_test_helper": "b0b6d037d51892e89d39e6f55107f73c30647ad9a20283a026007fd69b3be42d",
+    "approved_lifecycle_runner": "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f"
+  }
+}

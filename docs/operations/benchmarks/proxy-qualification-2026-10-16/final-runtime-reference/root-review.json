@@ -1,0 +1,11 @@
+{
+  "result": "pass",
+  "rows": 36,
+  "all_attempted_equal_exact_200_useful": true,
+  "errors": 0,
+  "public_and_origin_protocols_exact": true,
+  "h2_single_connection_all18": true,
+  "prior_hash_provenance_and_clean_lifecycle_check": "pass",
+  "haproxy_gate_unmet": true,
+  "universal_parity_claim": false
+}

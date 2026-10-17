@@ -1,0 +1,74 @@
+{
+  "authorized_manifest_sha256": "b7a06963f30bb636da10f9344c774eab5afd9bde230163f2931d3c02bca2d9e9",
+  "executions": [
+    {
+      "name": "preflight",
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "-json",
+        "GOENV",
+        "GOWORK",
+        "GOFLAGS",
+        "GOROOT",
+        "GOVERSION",
+        "GOAMD64",
+        "GOARCH",
+        "GOOS",
+        "CGO_ENABLED",
+        "GOTOOLCHAIN"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/test-source",
+      "before": {
+        "source_manifest_sha256": "fa9a76a9640ad5084daec1722da509f98dc9eca0c6541536b55d129e3e80fb8b",
+        "changed_sources": [],
+        "toolchain_hash_matches": true
+      },
+      "started_unix": 1792233616.5347033,
+      "pid": 2405646,
+      "exit_status": 0,
+      "finished_unix": 1792233616.6361356,
+      "forced": false,
+      "remaining_group_members": [],
+      "after": {
+        "source_manifest_sha256": "fa9a76a9640ad5084daec1722da509f98dc9eca0c6541536b55d129e3e80fb8b",
+        "changed_sources": [],
+        "toolchain_hash_matches": true
+      },
+      "output_bytes": 264,
+      "go_run_count": 0,
+      "go_pass_count": 0,
+      "go_fail_count": 0,
+      "go_skip_count": 0,
+      "python_summary": [],
+      "resolved_settings": {
+        "CGO_ENABLED": "1",
+        "GOAMD64": "v1",
+        "GOARCH": "amd64",
+        "GOENV": "",
+        "GOFLAGS": "",
+        "GOOS": "linux",
+        "GOROOT": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64",
+        "GOTOOLCHAIN": "local",
+        "GOVERSION": "go1.26.6",
+        "GOWORK": "off"
+      },
+      "settings_match": false,
+      "accepted": false
+    }
+  ],
+  "stopped": true,
+  "no_wan": true,
+  "stop_at": "preflight"
+}

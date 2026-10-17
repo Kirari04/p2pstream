@@ -1,0 +1,19 @@
+{
+  "common_ancestor_procs": {
+    "gid": 1000,
+    "mode": 420,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/cgroup.procs",
+    "uid": 1000,
+    "writable": true
+  },
+  "destination_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-trace-scope-probe-20261016-c.scope",
+  "destination_procs": {
+    "gid": 1000,
+    "mode": 420,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-trace-scope-probe-20261016-c.scope/cgroup.procs",
+    "uid": 1000,
+    "writable": true
+  },
+  "nearest_common_ancestor": "/user.slice/user-1000.slice/user@1000.service/app.slice",
+  "source_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/app-t3code.slice/app-t3code-agents.slice/app-t3code-agents-a29d81d75689.slice/t3code-codex-f83127a3.scope"
+}

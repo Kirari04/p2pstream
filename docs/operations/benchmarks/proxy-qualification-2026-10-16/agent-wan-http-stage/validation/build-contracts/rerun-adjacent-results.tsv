@@ -1,0 +1,29 @@
+case	actual_exit	expected_exit	classification	expected_classification
+invalid-agent-growth-zero	1	1		
+invalid-boundary-nonquiescent	1	1		
+invalid-config-missing	1	1		
+invalid-config-type	1	1		
+invalid-config-value	1	1		
+invalid-connection-bool-type	1	1		
+invalid-connection-int-type	1	1		
+invalid-connection-string-type	1	1		
+invalid-protocol-status	1	1		
+invalid-response-http-status-float	1	1		
+invalid-response-origin-major-bool	1	1		
+invalid-server-growth-zero	1	1		
+invalid-terminal-capacity_total_in_use	1	1		
+invalid-terminal-connection-int-type	1	1		
+invalid-terminal-lane-stream	1	1		
+invalid-terminal-origin_active_requests	1	1		
+invalid-terminal-transport_draining	1	1		
+invalid-topology-alias	1	1		
+invalid-topology-cpu	1	1		
+invalid-topology-inode-mismatch	1	1		
+invalid-topology-netem	1	1		
+invalid-topology-pid-type	1	1		
+invalid-topology-rtt	1	1		
+invalid-topology-unjoined	1	1		
+valid-healthy_nonreproduction	0	0	healthy_nonreproduction	healthy_nonreproduction
+valid-inconclusive_conditioning	0	0	inconclusive_conditioning	inconclusive_conditioning
+valid-inconclusive_other_slowdown	0	0	inconclusive_other_slowdown	inconclusive_other_slowdown
+valid-reproduced_signature	0	0	reproduced_signature	reproduced_signature

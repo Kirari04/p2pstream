@@ -1,0 +1,311 @@
+{
+  "accepted": true,
+  "independent_context": "tmp/continuation-20261016/wan-read-wait-stack-intern-source/independent-canonical-partition-source/runs/sustained-h1-1/missing-wait-context.json",
+  "issues": [],
+  "local_parser_acceptance_only": true,
+  "rows": [
+    {
+      "canonical_input": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.intern",
+      "canonical_input_sha256": "19bdba704c7856e54d16cb554cae9e95fa7e4376963503cd704de63df3949c00",
+      "checks": {
+        "corrected_accepted": true,
+        "corrected_errors_empty": true,
+        "missing_stack_zero": true,
+        "original_missing_matches_context": true,
+        "original_preserved_false": true,
+        "partition_conserved": true,
+        "snapshot_carried_ns_expected": true,
+        "snapshot_count_expected": true
+      },
+      "corrected_attribution_complete": false,
+      "corrected_missing_stack_ns": 0,
+      "corrected_reduction": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-generation-status-source/runs/sustained-h1-corrected-reductions-2/sequence-9.reduction.json",
+      "corrected_reduction_sha256": "9c5b6a288eb52afb863b8c58c97a407f1e6ae07d550e740db8ac4abbfa360945",
+      "corrected_unknown_stack_ns": 2968612540,
+      "corrected_waiting_category_ns": {
+        "waiting_credit_publication_path": 352591613,
+        "waiting_credit_send_result": 3120256,
+        "waiting_unknown_stack": 2968612540,
+        "waiting_yamux_empty_receive": 12958353970
+      },
+      "exact_unchanged": {
+        "canonical_ledger_sha256": true,
+        "canonicalizer_status_sha256": true,
+        "expanded_input_sha256": true,
+        "handler_transition_count": true,
+        "input_sha256": true,
+        "markers": true,
+        "parser_status_sha256": true,
+        "partition_delta_ns": true,
+        "partition_sum_ns": true,
+        "region_duration_ns": true,
+        "state_ns": true
+      },
+      "handler_transition_count": 59531,
+      "markers": {
+        "event_count": 417632,
+        "handler_gid": 3750,
+        "region_begin": [
+          22608037527040,
+          467
+        ],
+        "region_end": [
+          22624872264768,
+          415075
+        ],
+        "task_begin": [
+          22608037525824,
+          466
+        ],
+        "task_end": [
+          22624872265216,
+          415076
+        ],
+        "task_id": 1
+      },
+      "original_missing_stack_ns": 12032,
+      "original_reduction": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.reduction.json",
+      "original_reduction_sha256": "cd173d73fb4ff7afc6f90fc4990ec376c093649eb9da97cd988e8ee84712c289",
+      "partition_delta_ns": 0,
+      "partition_sum_ns": 16834737728,
+      "region_duration_ns": 16834737728,
+      "sequence": 9,
+      "state_ns": {
+        "Runnable": 105559432,
+        "Running": 208194728,
+        "Syscall": 238305189,
+        "Waiting": 16282678379
+      },
+      "waiting_status_snapshot_carried_ns": 12032,
+      "waiting_status_snapshot_count": 16
+    },
+    {
+      "canonical_input": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.intern",
+      "canonical_input_sha256": "4fbc7d50b1d2cd9f87ee399654f3e26f6820ca76e40c04e0cfa37219c62e0b95",
+      "checks": {
+        "corrected_accepted": true,
+        "corrected_errors_empty": true,
+        "missing_stack_zero": true,
+        "original_missing_matches_context": true,
+        "original_preserved_false": true,
+        "partition_conserved": true,
+        "snapshot_carried_ns_expected": true,
+        "snapshot_count_expected": true
+      },
+      "corrected_attribution_complete": false,
+      "corrected_missing_stack_ns": 0,
+      "corrected_reduction": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-generation-status-source/runs/sustained-h1-corrected-reductions-2/sequence-11.reduction.json",
+      "corrected_reduction_sha256": "732640f237cab669eb5a3b06f63247f7f47543db21e00d882fa9ca8bf6440359",
+      "corrected_unknown_stack_ns": 816723197,
+      "corrected_waiting_category_ns": {
+        "waiting_credit_publication_path": 127854905,
+        "waiting_credit_send_result": 2327872,
+        "waiting_unknown_stack": 816723197,
+        "waiting_yamux_empty_receive": 7420607357
+      },
+      "exact_unchanged": {
+        "canonical_ledger_sha256": true,
+        "canonicalizer_status_sha256": true,
+        "expanded_input_sha256": true,
+        "handler_transition_count": true,
+        "input_sha256": true,
+        "markers": true,
+        "parser_status_sha256": true,
+        "partition_delta_ns": true,
+        "partition_sum_ns": true,
+        "region_duration_ns": true,
+        "state_ns": true
+      },
+      "handler_transition_count": 58194,
+      "markers": {
+        "event_count": 375078,
+        "handler_gid": 5162,
+        "region_begin": [
+          22633559715392,
+          505
+        ],
+        "region_end": [
+          22642365894528,
+          372212
+        ],
+        "task_begin": [
+          22633559714368,
+          504
+        ],
+        "task_end": [
+          22642365894976,
+          372213
+        ],
+        "task_id": 2
+      },
+      "original_missing_stack_ns": 4224,
+      "original_reduction": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.reduction.json",
+      "original_reduction_sha256": "d16a14cd3b403c082ccd7e386bd1957331b7b913acf1e253080952360ddf25e8",
+      "partition_delta_ns": 0,
+      "partition_sum_ns": 8806179136,
+      "region_duration_ns": 8806179136,
+      "sequence": 11,
+      "state_ns": {
+        "Runnable": 60945528,
+        "Running": 171700684,
+        "Syscall": 206019593,
+        "Waiting": 8367513331
+      },
+      "waiting_status_snapshot_carried_ns": 4224,
+      "waiting_status_snapshot_count": 8
+    },
+    {
+      "canonical_input": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.intern",
+      "canonical_input_sha256": "fdc4167bdf25f27091358f7fc6899030101d539a765a7d475c91a46abf8a4be6",
+      "checks": {
+        "corrected_accepted": true,
+        "corrected_errors_empty": true,
+        "missing_stack_zero": true,
+        "original_missing_matches_context": true,
+        "original_preserved_false": true,
+        "partition_conserved": true,
+        "snapshot_carried_ns_expected": true,
+        "snapshot_count_expected": true
+      },
+      "corrected_attribution_complete": false,
+      "corrected_missing_stack_ns": 0,
+      "corrected_reduction": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-generation-status-source/runs/sustained-h1-corrected-reductions-2/sequence-14.reduction.json",
+      "corrected_reduction_sha256": "ff35d67b81f3d8a777fa64089a5dab8752d742252d4a45d0137da1b8014955ac",
+      "corrected_unknown_stack_ns": 643250111,
+      "corrected_waiting_category_ns": {
+        "waiting_credit_publication_path": 17601724,
+        "waiting_credit_send_result": 1786752,
+        "waiting_unknown_stack": 643250111,
+        "waiting_yamux_empty_receive": 7659480309
+      },
+      "exact_unchanged": {
+        "canonical_ledger_sha256": true,
+        "canonicalizer_status_sha256": true,
+        "expanded_input_sha256": true,
+        "handler_transition_count": true,
+        "input_sha256": true,
+        "markers": true,
+        "parser_status_sha256": true,
+        "partition_delta_ns": true,
+        "partition_sum_ns": true,
+        "region_duration_ns": true,
+        "state_ns": true
+      },
+      "handler_transition_count": 58403,
+      "markers": {
+        "event_count": 377267,
+        "handler_gid": 6550,
+        "region_begin": [
+          22658827605632,
+          480
+        ],
+        "region_end": [
+          22667603262208,
+          374415
+        ],
+        "task_begin": [
+          22658827604544,
+          479
+        ],
+        "task_end": [
+          22667603262656,
+          374416
+        ],
+        "task_id": 3
+      },
+      "original_missing_stack_ns": 7168,
+      "original_reduction": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.reduction.json",
+      "original_reduction_sha256": "f21dd253df822eaee799c242842e76840c20e9cba0b8e4ee6391ae9c8e040fad",
+      "partition_delta_ns": 0,
+      "partition_sum_ns": 8775656576,
+      "region_duration_ns": 8775656576,
+      "sequence": 14,
+      "state_ns": {
+        "Runnable": 61711107,
+        "Running": 177644021,
+        "Syscall": 214182552,
+        "Waiting": 8322118896
+      },
+      "waiting_status_snapshot_carried_ns": 7168,
+      "waiting_status_snapshot_count": 8
+    },
+    {
+      "canonical_input": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.intern",
+      "canonical_input_sha256": "62d9901e3beaeec7f8a49cac4a7f4cc59809dfbbd15bee6038ca016282342508",
+      "checks": {
+        "corrected_accepted": true,
+        "corrected_errors_empty": true,
+        "missing_stack_zero": true,
+        "original_missing_matches_context": true,
+        "original_preserved_false": true,
+        "partition_conserved": true,
+        "snapshot_carried_ns_expected": true,
+        "snapshot_count_expected": true
+      },
+      "corrected_attribution_complete": false,
+      "corrected_missing_stack_ns": 0,
+      "corrected_reduction": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-generation-status-source/runs/sustained-h1-corrected-reductions-2/sequence-15.reduction.json",
+      "corrected_reduction_sha256": "992098c10519a2daf20c360aef224bdba9b72215efeca94940335d401597381b",
+      "corrected_unknown_stack_ns": 183456896,
+      "corrected_waiting_category_ns": {
+        "waiting_credit_publication_path": 62531008,
+        "waiting_credit_send_result": 717569,
+        "waiting_unknown_stack": 183456896,
+        "waiting_yamux_empty_receive": 6981233594
+      },
+      "exact_unchanged": {
+        "canonical_ledger_sha256": true,
+        "canonicalizer_status_sha256": true,
+        "expanded_input_sha256": true,
+        "handler_transition_count": true,
+        "input_sha256": true,
+        "markers": true,
+        "parser_status_sha256": true,
+        "partition_delta_ns": true,
+        "partition_sum_ns": true,
+        "region_duration_ns": true,
+        "state_ns": true
+      },
+      "handler_transition_count": 57604,
+      "markers": {
+        "event_count": 373134,
+        "handler_gid": 7064,
+        "region_begin": [
+          22668342651328,
+          499
+        ],
+        "region_end": [
+          22675977380544,
+          370285
+        ],
+        "task_begin": [
+          22668342650624,
+          498
+        ],
+        "task_end": [
+          22675977381120,
+          370286
+        ],
+        "task_id": 4
+      },
+      "original_missing_stack_ns": 3392,
+      "original_reduction": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.reduction.json",
+      "original_reduction_sha256": "14e712fbe76b0688227bbfbb379e7362579c2a493a23e65ebafe08163ec5a7a0",
+      "partition_delta_ns": 0,
+      "partition_sum_ns": 7634729216,
+      "region_duration_ns": 7634729216,
+      "sequence": 15,
+      "state_ns": {
+        "Runnable": 47243329,
+        "Running": 161622125,
+        "Syscall": 197924695,
+        "Waiting": 7227939067
+      },
+      "waiting_status_snapshot_carried_ns": 3392,
+      "waiting_status_snapshot_count": 7
+    }
+  ],
+  "schema_version": 1,
+  "scope": "separate corrected offline reductions of the same frozen sustained H1 canonical inputs; original reductions/index unchanged",
+  "unknown_stack_interpretation": "unresolved attribution; corrected acceptance does not make attribution complete"
+}

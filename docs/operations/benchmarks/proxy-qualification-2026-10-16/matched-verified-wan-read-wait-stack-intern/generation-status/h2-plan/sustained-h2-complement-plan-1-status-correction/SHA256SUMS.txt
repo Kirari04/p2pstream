@@ -1,0 +1,5 @@
+fc4d0f845eda4aac811fd95a851bff42a9e85456293ae37e780c0471d04959f0  ./README.txt
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  ./bash-n.status
+3419bded955c76a4aa301955c1784d1143f1ce7200f70356270049c82048ddd3  ./offline-reduction.invocation.corrected.sh
+025886df814c516ed7e12b55150f633e8c9689f5120bc23c74b2b7048733760e  ./offline-reduction.invocation.reviewed-original.sh
+99fa950c22e6fb1b03db6652764ac358dd01bd97516180e017c8e56e7aac18f2  ./status-capture.patch

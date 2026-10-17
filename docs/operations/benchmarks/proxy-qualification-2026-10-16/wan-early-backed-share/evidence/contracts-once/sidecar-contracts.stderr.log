@@ -1,0 +1,10 @@
+test_backing_caps_order_and_noop_truthfulness_reject (__main__.EarlyShareProof.test_backing_caps_order_and_noop_truthfulness_reject) ... ok
+test_saved_common_pre_null_and_post_stream_shapes (__main__.EarlyShareProof.test_saved_common_pre_null_and_post_stream_shapes) ... ok
+test_symmetric_disabled_and_real_grant (__main__.EarlyShareProof.test_symmetric_disabled_and_real_grant) ... ok
+test_terminal_drain_noop_and_closed_stream_remain_explicit (__main__.EarlyShareProof.test_terminal_drain_noop_and_closed_stream_remain_explicit) ... ok
+test_unknown_malformed_unjoined_or_wrong_owner_proofs_reject (__main__.EarlyShareProof.test_unknown_malformed_unjoined_or_wrong_owner_proofs_reject) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.055s
+
+OK

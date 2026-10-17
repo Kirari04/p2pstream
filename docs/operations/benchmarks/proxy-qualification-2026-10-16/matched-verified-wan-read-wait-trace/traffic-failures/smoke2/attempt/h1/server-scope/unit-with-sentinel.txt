@@ -1,0 +1,12 @@
+Id=p2p-readwait-h1-436874-09bf1ba0.scope
+LoadState=loaded
+ActiveState=active
+SubState=running
+ControlGroup=/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h1-436874-09bf1ba0.scope
+MemoryCurrent=6033408
+MemoryPeak=6299648
+EffectiveMemoryMax=4294967296
+Delegate=yes
+MemoryHigh=infinity
+MemoryMax=4294967296
+MemorySwapMax=0

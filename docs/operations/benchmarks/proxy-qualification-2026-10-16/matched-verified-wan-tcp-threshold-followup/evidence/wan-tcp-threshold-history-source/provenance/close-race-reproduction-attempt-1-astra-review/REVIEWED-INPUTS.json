@@ -1,0 +1,145 @@
+{
+  "inputs": [
+    {
+      "bytes": 682,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/RESULT.json",
+      "sha256": "3d462373df9ad7ff1ecb10dd8580b72f975d417d8e615a7af5f9f4ebc3a8c300"
+    },
+    {
+      "bytes": 2,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/final.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 7521,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/inputs-post.json",
+      "sha256": "7b94fa9062b505015c8bc976b4eb7606b96cec2a9e17cbe8ea373fe315d55704"
+    },
+    {
+      "bytes": 7521,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/inputs-pre.json",
+      "sha256": "7b94fa9062b505015c8bc976b4eb7606b96cec2a9e17cbe8ea373fe315d55704"
+    },
+    {
+      "bytes": 2,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/normal.direct.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 1248,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/normal.environment.json",
+      "sha256": "8313d3a51c617e55309566b1b323d8e3c50f4c3547e265804ad349c5a62ae3c3"
+    },
+    {
+      "bytes": 705,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/normal.exact-tests.json",
+      "sha256": "45c72596459613af16cf96d5f1d3c70d600d2de7d07c11edaa969410eead051a"
+    },
+    {
+      "bytes": 716,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/normal.invocation.json",
+      "sha256": "e5616a74a026c985f56c7b5511c604872900e6fe0b8c53f939e051e656479093"
+    },
+    {
+      "bytes": 396,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/normal.lifecycle.json",
+      "sha256": "c642aa80f64b140e9ce969a67f2d3b5dcd0b024776104bed5e7b6d87be1eb1c7"
+    },
+    {
+      "bytes": 0,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/normal.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 3596,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/normal.stdout.log",
+      "sha256": "f15c606d040e89f9646ca5e9d9422da3496d6b1bc754e9788db171dfd091e278"
+    },
+    {
+      "bytes": 2,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/race.direct.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 1242,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/race.environment.json",
+      "sha256": "1175fd0b0994e01cc87430128f186e04aed1301da3a30f0b359a5d39f9f9fa4e"
+    },
+    {
+      "bytes": 705,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/race.exact-tests.json",
+      "sha256": "45c72596459613af16cf96d5f1d3c70d600d2de7d07c11edaa969410eead051a"
+    },
+    {
+      "bytes": 729,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/race.invocation.json",
+      "sha256": "4bfd918eca1dd53376077a5d26645e4bf15f51c49fa35f4fee5c9184e82c3069"
+    },
+    {
+      "bytes": 396,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/race.lifecycle.json",
+      "sha256": "86bf3dc150d74fd318a1ce7775d8efd3873187d67e2aaeef7e38f773220ed2bf"
+    },
+    {
+      "bytes": 0,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/race.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 3600,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/race.stdout.log",
+      "sha256": "79a51a50192925481483e46fc70a2ca067492fecd3843ecc7834711a551a8e91"
+    },
+    {
+      "bytes": 1568,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records/SHA256SUMS.txt",
+      "sha256": "3e54bedee7b93e71880495b2bd4f4c19b49ebcf4449666ddf6ec15ce4996fec6"
+    },
+    {
+      "bytes": 498,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/close-race-reproduction-source-1/SHA256SUMS.txt",
+      "sha256": "faeff7a78235271a8a0748d27dc739a81d20896e7251f004a1de97db191a3f06"
+    },
+    {
+      "bytes": 10705,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/close-race-reproduction-source-1/overlay/internal/agent/qualification_close_cancellation_reproduction_test.go",
+      "sha256": "b1d6246be86fe5c433156ccbb8b78a87a71948ac37eb7f4f1e087e41859c917e"
+    },
+    {
+      "bytes": 3709,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/close-race-reproduction-source-1/ARCHITECTURAL-RECOMMENDATION.json",
+      "sha256": "76227ca0888cd4d8736f35842f2e410f0e327e9ded68b4fe37c9e110f9ec2751"
+    },
+    {
+      "bytes": 185,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/close-race-reproduction-attempt-1-native-envelope/SHA256SUMS.txt",
+      "sha256": "e55b3eaab71f5e3a61f0b37b9396f0bcccaa433bb57e1bd6f3630934aea7312c"
+    },
+    {
+      "bytes": 892,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/close-race-reproduction-attempt-1-native-envelope/tool-envelope.json",
+      "sha256": "3ebbaddfd2c36483c45373b0c55dc9f7f64a451cbb5c9e001e5d8cb91132027c"
+    },
+    {
+      "bytes": 465,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/close-race-reproduction-attempt-1-native-envelope/ENVELOPE-PREPARATION-FAILURE.json",
+      "sha256": "e590986b058ea0515232409be8b3b31083ea101506116688547631356a79d244"
+    },
+    {
+      "bytes": 365,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/failed-capture-contract-attempt-1/records/RESULT.json",
+      "sha256": "a33e0711147464e022d33a03fbe0112474915e6f07fa03a69778064f38ce0cf4"
+    },
+    {
+      "bytes": 9222,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/failed-capture-contract-attempt-1/records/tcp-state-contracts.stdout.log",
+      "sha256": "32cbd457ac639a770aa9b5a4300ad2e117a2b7b4f0f938185f4d4d160cd49864"
+    },
+    {
+      "bytes": 22453,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/tiny-threshold-history-smoke-2-result-review/REVIEW.json",
+      "sha256": "587cbd834deeb0f6c117c3716a717b2b1c67552fcd0aeb5b3bbd4cc51712b43f"
+    }
+  ],
+  "schema_version": 1
+}

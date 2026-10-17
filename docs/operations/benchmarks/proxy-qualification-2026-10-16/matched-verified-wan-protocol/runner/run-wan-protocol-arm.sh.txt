@@ -1,0 +1,262 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+script_dir=$(cd "$(dirname "$0")" && pwd)
+runner="$script_dir/generated/qualify-proxy-agent-growth-wan-protocol.sh"
+validator="$script_dir/validate-wan-protocol-arm.py"
+approved_runner="$script_dir/../current-wan-prep/runner/qualify-proxy-agent-growth-owned.sh"
+runner_patch="$script_dir/wan-protocol-runner.patch"
+go_patch="$script_dir/proxy-qualification-base.patch"
+go_helper="$script_dir/proxy_qualification_wan_protocol_test.go"
+build_manifest="$script_dir/provenance/diagnostic-build-manifest.json"
+server_binary=""
+aggregate_agent_binary=""
+server_source_ref=""
+aggregate_agent_source_ref=""
+protocol=""
+cert=""
+key=""
+expected_leaf_sha256=""
+output_dir=""
+smoke=0
+
+while (($#)); do
+  case "$1" in
+    --server-binary) server_binary=$2; shift 2 ;;
+    --aggregate-agent-binary) aggregate_agent_binary=$2; shift 2 ;;
+    --server-source-ref) server_source_ref=$2; shift 2 ;;
+    --aggregate-agent-source-ref) aggregate_agent_source_ref=$2; shift 2 ;;
+    --protocol) protocol=$2; shift 2 ;;
+    --cert) cert=$2; shift 2 ;;
+    --key) key=$2; shift 2 ;;
+    --expected-leaf-sha256) expected_leaf_sha256=$2; shift 2 ;;
+    --output-dir) output_dir=$2; shift 2 ;;
+    --smoke) smoke=1; shift ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+[[ -x $server_binary && -x $aggregate_agent_binary && -x $runner && -x $validator ]] || {
+  echo "server, agent, runner, and validator must be executable" >&2
+  exit 2
+}
+[[ -n $server_source_ref && -n $aggregate_agent_source_ref && -n $output_dir ]] || {
+  echo "source refs and output directory are required" >&2
+  exit 2
+}
+[[ $protocol == h1 || $protocol == h2 ]] || { echo "protocol must be h1 or h2" >&2; exit 2; }
+[[ -f $cert && -f $key && $expected_leaf_sha256 =~ ^[0-9a-f]{64}$ ]] || {
+  echo "certificate, key, and lowercase DER fingerprint are required" >&2
+  exit 2
+}
+server_binary=$(realpath "$server_binary")
+aggregate_agent_binary=$(realpath "$aggregate_agent_binary")
+cert=$(realpath "$cert")
+key=$(realpath "$key")
+for tool in cmp jq lscpu openssl patch python3 readlink setsid sha256sum taskset timeout unshare; do
+  command -v "$tool" >/dev/null || { echo "$tool is required" >&2; exit 2; }
+done
+[[ $(sha256sum "$approved_runner" | awk '{print $1}') == b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f ]] || {
+  echo "approved lifecycle runner hash changed" >&2
+  exit 2
+}
+for name in P2PSTREAM_QUALIFICATION_PROFILE_DIR P2PSTREAM_QUALIFICATION_PROFILE_MODE; do
+  [[ -z ${!name+x} ]] || { echo "$name must be unset" >&2; exit 2; }
+done
+server_binary_sha256=$(sha256sum "$server_binary" | awk '{print $1}')
+agent_binary_sha256=$(sha256sum "$aggregate_agent_binary" | awk '{print $1}')
+[[ $server_binary_sha256 == 60667aa9bbe7375de77d341c83cd8576301366f26cda25fb980fa7b813ba405e && \
+   $agent_binary_sha256 == 9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137 ]] || {
+  echo "server or aggregate-agent binary is not the approved diagnostic build" >&2
+  exit 2
+}
+jq -e --arg server "$server_binary_sha256" --arg agent "$agent_binary_sha256" \
+  --arg server_ref "$server_source_ref" --arg agent_ref "$aggregate_agent_source_ref" '
+    .base_source_ref == $server_ref and .aggregate_agent_source_ref == $agent_ref and
+    .sha256.server_test_binary == $server and .sha256.aggregate_agent_test_binary == $agent and
+    .sha256.go_base_patch == "b2c90d2ee6bf9ade304163795022071b4d368b61f0e9d5bc73d0e52d2569538b" and
+    .sha256.go_test_helper == "b0b6d037d51892e89d39e6f55107f73c30647ad9a20283a026007fd69b3be42d" and
+    .sha256.approved_lifecycle_runner == "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f" and
+    .production_files_byte_identical_to_base == true and
+    .focused_normal_status == 0 and .focused_race_status == 0
+  ' "$build_manifest" >/dev/null || { echo "diagnostic build manifest does not bind the requested artifacts" >&2; exit 2; }
+actual_leaf_sha256=$(openssl x509 -in "$cert" -outform DER | sha256sum | awk '{print $1}')
+[[ $actual_leaf_sha256 == "$expected_leaf_sha256" ]] || { echo "certificate DER fingerprint mismatch" >&2; exit 2; }
+
+output_dir=$(realpath -m "$output_dir")
+allowed_root=$(realpath -m "$script_dir/runs")
+[[ $output_dir == "$allowed_root"/* ]] || { echo "output must remain below $allowed_root" >&2; exit 2; }
+[[ ! -e $output_dir ]] || { echo "output directory already exists: $output_dir" >&2; exit 2; }
+mkdir -p "$output_dir/tmp"
+export TMPDIR="$output_dir/tmp"
+results="$output_dir/results.jsonl"
+lifecycle="$output_dir/results.lifecycle.jsonl"
+summary="$output_dir/results.summary.json"
+outer="$output_dir/outer-namespaces.json"
+supervisor="$output_dir/supervisor-lifecycle.json"
+pre_hashes="$output_dir/pre-hashes.json"
+post_hashes="$output_dir/post-hashes.json"
+attestation="$output_dir/attestation.json"
+
+write_hashes() {
+  local destination=$1
+  python3 - "$destination" "$0" "$runner" "$validator" "$approved_runner" "$runner_patch" "$go_patch" "$go_helper" "$build_manifest" \
+    "$server_binary" "$aggregate_agent_binary" "$cert" "$key" "$server_source_ref" \
+    "$aggregate_agent_source_ref" "$expected_leaf_sha256" <<'PY'
+import hashlib, json, pathlib, sys
+(destination, supervisor, runner, validator, approved, runner_patch, go_patch, go_helper, build_manifest,
+ server, agent, cert, key, server_ref, agent_ref, fingerprint) = sys.argv[1:]
+def sha(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+value = {
+    "schema_version": 1,
+    "server_source_ref": server_ref,
+    "aggregate_agent_source_ref": agent_ref,
+    "expected_leaf_der_sha256": fingerprint,
+    "sha256": {
+        "supervisor": sha(supervisor), "runner": sha(runner), "validator": sha(validator), "approved_lifecycle_runner": sha(approved),
+        "runner_patch": sha(runner_patch), "go_base_patch": sha(go_patch), "go_helper": sha(go_helper),
+        "diagnostic_build_manifest": sha(build_manifest),
+        "server_binary": sha(server), "aggregate_agent_binary": sha(agent),
+        "certificate_pem": sha(cert), "private_key_pem": sha(key),
+    },
+}
+pathlib.Path(destination).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+PY
+}
+write_hashes "$pre_hashes"
+
+{
+  uname -a
+  taskset -pc $$
+  lscpu
+  stat -f -c 'tmpdir_filesystem=%T' "$TMPDIR"
+  printf 'TMPDIR=%s\n' "$TMPDIR"
+  env | LC_ALL=C sort | grep -E '^(GOFLAGS|P2PSTREAM_.*PROFILE|TMPDIR)=' || true
+  printf 'self_cgroup='; tr '\n' ';' < /proc/self/cgroup; printf '\n'
+  for name in cpu.max cpuset.cpus.effective memory.current memory.high memory.max memory.swap.max pids.current pids.max; do
+    path=/sys/fs/cgroup/$name
+    [[ -r $path ]] && printf '%s=%s\n' "$name" "$(<"$path")"
+  done
+  for path in /sys/class/thermal/thermal_zone*/temp /sys/class/hwmon/hwmon*/temp*_input; do
+    [[ -r $path ]] && printf '%s=%s\n' "$path" "$(<"$path")"
+  done
+} > "$output_dir/host-settings.txt"
+
+command=(
+  "$runner"
+  --server-binary "$server_binary"
+  --aggregate-agent-binary "$aggregate_agent_binary"
+  --output "$results"
+  --runs 1
+  --warmup-mib 256
+  --steady-mib 256
+  --transfer-repetitions 3
+  --required-pool-mib 8
+  --rtt-ms 80
+  --server-source-ref "$server_source_ref"
+  --aggregate-agent-source-ref "$aggregate_agent_source_ref"
+  --protocol "$protocol"
+  --cert "$cert"
+  --key "$key"
+  --expected-leaf-sha256 "$expected_leaf_sha256"
+)
+timeout_seconds=4800
+if ((smoke)); then
+  command+=(--smoke)
+  timeout_seconds=1200
+fi
+printf '%q ' "${command[@]}" > "$output_dir/invocation.txt"
+printf '\n' >> "$output_dir/invocation.txt"
+
+runner_pid=""
+forced=0
+cleanup() {
+  local status=$? attempt joined=false
+  trap - EXIT INT TERM
+  if [[ -n $runner_pid ]] && kill -0 -- "-$runner_pid" 2>/dev/null; then
+    forced=1
+    kill -TERM -- "-$runner_pid" 2>/dev/null || true
+    for ((attempt=0; attempt<100; attempt++)); do
+      kill -0 -- "-$runner_pid" 2>/dev/null || { joined=true; break; }
+      sleep .05
+    done
+    [[ $joined == true ]] || kill -KILL -- "-$runner_pid" 2>/dev/null || true
+    wait "$runner_pid" 2>/dev/null || true
+  fi
+  if ((forced)); then
+    printf '{"forced_supervisor_cleanup":true,"invalidates_success":true}\n' > "$output_dir/supervisor-cleanup.json"
+    ((status != 0)) || status=1
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+set +e
+parent_user_ns=$(readlink /proc/self/ns/user)
+parent_pid_ns=$(readlink /proc/self/ns/pid)
+parent_mount_ns=$(readlink /proc/self/ns/mnt)
+parent_net_ns=$(readlink /proc/self/ns/net)
+setsid timeout --signal=TERM --kill-after=10s "${timeout_seconds}s" \
+  unshare --user --map-root-user --pid --fork --kill-child=TERM --mount --mount-proc --net \
+  bash -c '
+    out=$1 parent_user=$2 parent_pid=$3 parent_mount=$4 parent_net=$5
+    shift 5
+    python3 - "$out" "$parent_user" "$parent_pid" "$parent_mount" "$parent_net" "$$" <<'"'"'PY'"'"'
+import json, os, pathlib, sys
+out, parent_user, parent_pid, parent_mount, parent_net, shell_pid = sys.argv[1:]
+current = {name: os.readlink(f"/proc/self/ns/{name}") for name in ("user", "pid", "mnt", "net")}
+nspid = next(line.split()[1:] for line in pathlib.Path("/proc/self/status").read_text().splitlines() if line.startswith("NSpid:"))
+payload = {
+    "schema_version": 1,
+    "boot_id": pathlib.Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
+    "parent": {"user": parent_user, "pid": parent_pid, "mnt": parent_mount, "net": parent_net},
+    "owned": current,
+    "shell_pid": int(shell_pid),
+    "shell_pid_is_one": int(shell_pid) == 1,
+    "python_parent_pid": os.getppid(),
+    "python_parent_is_one": os.getppid() == 1,
+    "nspid": [int(value) for value in nspid],
+    "all_private": all(current[name] != value for name, value in (("user", parent_user), ("pid", parent_pid), ("mnt", parent_mount), ("net", parent_net))),
+}
+pathlib.Path(out).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+PY
+    exec "$@"
+  ' bash "$outer" "$parent_user_ns" "$parent_pid_ns" "$parent_mount_ns" "$parent_net_ns" "${command[@]}" \
+  > "$output_dir/runner.stdout.log" 2> "$output_dir/runner.stderr.log" &
+runner_pid=$!
+wait "$runner_pid"
+runner_status=$?
+set -e
+printf '%s\n' "$runner_status" > "$output_dir/runner.status"
+
+group_joined=false
+for ((attempt=0; attempt<100; attempt++)); do
+  kill -0 -- "-$runner_pid" 2>/dev/null || { group_joined=true; break; }
+  sleep .05
+done
+if [[ $group_joined == false ]]; then
+  forced=1
+  kill -TERM -- "-$runner_pid" 2>/dev/null || true
+  sleep .1
+  kill -KILL -- "-$runner_pid" 2>/dev/null || true
+fi
+printf '{"runner_status":%s,"group_joined":%s,"forced":%s,"invalidates_success":%s}\n' \
+  "$runner_status" "$group_joined" "$([[ $forced == 0 ]] && printf false || printf true)" \
+  "$([[ $forced == 0 ]] && printf false || printf true)" > "$supervisor"
+runner_pid=""
+write_hashes "$post_hashes"
+
+set +e
+"$validator" "$results" "$lifecycle" "$summary" "$outer" "$supervisor" "$pre_hashes" "$post_hashes" \
+  "$attestation" "$protocol" "$smoke" > "$output_dir/validation.stdout.log" 2> "$output_dir/validation.stderr.log"
+validation_status=$?
+set -e
+printf '%s\n' "$validation_status" > "$output_dir/validation.status"
+((runner_status == 0 && forced == 0 && validation_status == 0))

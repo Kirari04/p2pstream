@@ -1,0 +1,9 @@
+{
+  "step": "format/copy overlay before baseline compile",
+  "exit_status": 2,
+  "error": "relative overlay path resolved from baseline source cwd; lstat no such file",
+  "build_started": false,
+  "tests_started": false,
+  "timed_measurement_started": false,
+  "correction": "use absolute overlay paths before isolated compile"
+}

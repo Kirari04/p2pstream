@@ -1,0 +1,68 @@
+{
+  "frozen_at": "2026-10-17T10:35:50.080208+00:00",
+  "runtime_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "source_manifest_sha256": "fcb05c0d31dc1289eeb212e89a750bdc5489bcd1a001e32d4a9e57020bcb58a9",
+  "patch_sha256": "0c80d4082c44fbc6cedd85866c862d3a51efbe90d4de052c829f3360b914925b",
+  "approved_screen_sha256": "7fa737f174f5907b50d3f13cca780c3a9cdc93d4d2f73f51f59dead391122665",
+  "overlay_sha256": "30938436f27225e768f17ece52d25ea3ebb12ff3e7466f6c8e1464084e59a48d",
+  "measurement_script_sha256": "16e0118ad3c92414e73d2bb4ff9227616af7c60fb0d7d5f7cefa4181c1d3b0e1",
+  "executables": {
+    "baseline.test": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/bin/baseline.test",
+      "sha256": "a30877b8be0718b8a08fba49eea03d9454e999ae1bb267f76e925fc3a7ec9ef8",
+      "bytes": 58547928
+    },
+    "candidate-race.test": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/bin/candidate-race.test",
+      "sha256": "56154da4b933a62e8eabdc94ca7bbc58397564897654d6e149a734dc1d0bcab2",
+      "bytes": 73940024
+    },
+    "candidate.test": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/bin/candidate.test",
+      "sha256": "3c72f00c3a8431632470855937b3a867dc5119c8d6c835ab59d4fef46f1eab2f",
+      "bytes": 58548336
+    }
+  },
+  "toolchain": "go version go1.26.6 linux/amd64",
+  "build_environment": {
+    "GOTOOLCHAIN": "local",
+    "GOMAXPROCS": 4,
+    "CGO_ENABLED": 1,
+    "GOWORK": "off",
+    "GOFLAGS": "",
+    "affinity": "CPUs0-7"
+  },
+  "measurement_environment": {
+    "affinity": "CPU0",
+    "GOMAXPROCS": 1,
+    "samples_per_arm_per_case": 10,
+    "pairs": "AB,BA repeated5times",
+    "benchtime": "300ms",
+    "events_per_op": 512,
+    "batch_rows": 16
+  },
+  "benchmark_cases": [
+    "BenchmarkPreparedProxyRequestEventBatchFlush/background",
+    "BenchmarkPreparedProxyRequestEventBatchFlush/production_deadline",
+    "BenchmarkRecorderNullableIDFixedBatchInsert/all_null/background",
+    "BenchmarkRecorderNullableIDFixedBatchInsert/all_null/production_deadline",
+    "BenchmarkRecorderNullableIDFixedBatchInsert/ordinary_direct/background",
+    "BenchmarkRecorderNullableIDFixedBatchInsert/ordinary_direct/production_deadline",
+    "BenchmarkRecorderNullableIDFixedBatchInsert/all_small/background",
+    "BenchmarkRecorderNullableIDFixedBatchInsert/all_small/production_deadline",
+    "BenchmarkRecorderNullableIDFixedBatchInsert/all_large/background",
+    "BenchmarkRecorderNullableIDFixedBatchInsert/all_large/production_deadline"
+  ],
+  "retention_criteria": {
+    "all_correctness_and_race_tests_pass": true,
+    "bytes_saved_per_event_min": 64,
+    "allocs_saved_per_event_min": 4,
+    "median_candidate_baseline_ns_ratio_max": 1.03,
+    "extra_samples_or_retries": false
+  },
+  "correctness_test_count": 11,
+  "correctness_commands_sha256": "de7fa4c35d404b0215ce1a25d58cd53f8615a8ee181b6a571c3dbe9e14d092b7",
+  "setup_failures_retained": [
+    "logs/setup-path-failure.json"
+  ]
+}

@@ -1,0 +1,50 @@
+--- original-runner.sh
++++ qualify-proxy-agent-growth-credit-diagnostic.sh
+@@ -168,7 +168,18 @@
+ 
+ children=()
+ stops=()
++diag_pids=()
+ cleanup() {
++  touch /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/telemetry/collector.stop
++  for diag_pid in "${diag_pids[@]:-}"; do
++    [[ -n $diag_pid ]] || continue
++    for ((diag_join=0; diag_join<50; diag_join++)); do
++      kill -0 "$diag_pid" 2>/dev/null || break
++      sleep .1
++    done
++    kill "$diag_pid" 2>/dev/null || true
++    wait "$diag_pid" 2>/dev/null || true
++  done
+   for stop in "${stops[@]:-}"; do [[ -n $stop ]] && touch "$stop"; done
+   for pid in "${children[@]:-}"; do [[ -n $pid ]] && kill "$pid" 2>/dev/null || true; done
+   wait || true
+@@ -226,6 +237,12 @@
+     raise SystemExit(f"measured RTT {measured}ms is outside the expected envelope for configured {configured}ms")
+ PY
+ 
++taskset -c 8-15 python3 /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/collector.py /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk "$agent_namespace_pid" "$router_namespace_pid" "$run_dir" >/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/telemetry/collector.log 2>&1 &
++diag_pids+=("$!")
++taskset -c 8-15 python3 /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/credit-collector.py /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk "$run_dir" server >/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/telemetry/credit-server.log 2>&1 &
++diag_pids+=("$!")
++nsenter -t "$agent_namespace_pid" -n taskset -c 8-15 python3 /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/credit-collector.py /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk "$run_dir" agent >/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/telemetry/credit-agent.log 2>&1 &
++diag_pids+=("$!")
+ server_binary_sha256=$(sha256sum "$server_binary" | awk '{print $1}')
+ aggregate_agent_binary_sha256=$(sha256sum "$aggregate_agent_binary" | awk '{print $1}')
+ legacy_agent_binary_sha256=$(sha256sum "$legacy_agent_binary" | awk '{print $1}')
+@@ -476,6 +493,7 @@
+ run_transfer() {
+   local label=$1 mode=$2 server_pid=$3 public_url=$4 server_admin=$5 agent_pid=$6 agent_admin=$7
+   local stage=$8 direction=$9 payload_bytes=${10} repetition=${11}
++  python3 /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/mark.py /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk begin "$label" "$mode" "$stage" "$direction" "$repetition" "$server_pid" "$agent_pid"
+   local scenario suffix
+   if [[ $direction == download ]]; then
+     scenario=growth-download
+@@ -510,6 +528,7 @@
+   P2PSTREAM_QUALIFICATION_RESULT="$raw" \
+     taskset -c "$load_cpu_set" "$server_binary" -test.run '^TestProxyQualificationLoad$' -test.timeout "${transfer_timeout_seconds}s" \
+     >"$raw.log" 2>&1
++  python3 /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/mark.py /tmp/p2pstream-wan-credit-diagnostic.x4j_xovk end "$label" "$mode" "$stage" "$direction" "$repetition" "$server_pid" "$agent_pid"
+   local agent_runtime
+   agent_runtime=$(query_agent_json "$agent_namespace_pid" "$agent_admin")
+   jq -e --arg mode "$mode" --arg direction "$direction" --argjson bytes "$payload_bytes" '

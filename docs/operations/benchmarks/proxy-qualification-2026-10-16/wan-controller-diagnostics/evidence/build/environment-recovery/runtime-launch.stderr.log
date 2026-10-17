@@ -1,0 +1,21 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-environment-recovery.py", line 173, in main
+    status=execute_owned(command['argv'],env,runroot/f'arm-{index}',930)
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-environment-recovery.py", line 149, in execute_owned
+    if forced or remaining or status not in [0,1]:raise RuntimeError('outer command invalid; durable outer audit: '+str(record))
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: outer command invalid; durable outer audit: /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-0.outer.json
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-environment-recovery.py", line 194, in <module>
+    main()
+    ~~~~^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-environment-recovery.py", line 189, in main
+    finish_screen(runroot,screen)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-environment-recovery.py", line 158, in finish_screen
+    if not screen['accepted']:raise RuntimeError(screen.get('failure','screen stopped without complete acceptance'))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: RuntimeError: outer command invalid; durable outer audit: /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-0.outer.json

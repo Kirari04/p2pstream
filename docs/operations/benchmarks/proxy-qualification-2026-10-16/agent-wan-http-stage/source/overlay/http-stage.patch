@@ -1,0 +1,1845 @@
+diff --git a/internal/agent/http_stage_qualification_linux_test.go b/internal/agent/http_stage_qualification_linux_test.go
+new file mode 100644
+index 0000000..6f1b41d
+--- /dev/null
++++ b/internal/agent/http_stage_qualification_linux_test.go
+@@ -0,0 +1,517 @@
++//go:build linux && p2pstream_transport_ceiling && p2pstream_http_stage
++
++package agent
++
++// Test-build-only native HTTP/1 stage. The fixture deliberately invokes the
++// production tunnel-session accept/OpenRequest/destination/relay stack; only
++// physical setup, origin, bounded ledgers and reporting are fixture code.
++
++import (
++	"context"
++	"crypto/sha256"
++	"crypto/tls"
++	"crypto/x509"
++	"encoding/hex"
++	"errors"
++	"flag"
++	"fmt"
++	"io"
++	"net"
++	"net/http"
++	"os"
++	"sort"
++	"strconv"
++	"strings"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/hashicorp/yamux"
++	"p2pstream/internal/tunnel"
++)
++
++var (
++	httpStageAgentServer     = flag.String("http-stage-server", "", "test-only HTTP stage tunnel server")
++	httpStageAgentAdmin      = flag.String("http-stage-admin", "", "test-only HTTP stage admin")
++	httpStageAgentOrigin     = flag.String("http-stage-origin", "", "test-only native HTTP/1 origin")
++	httpStageAgentCA         = flag.String("http-stage-ca", "", "test-only tunnel CA")
++	httpStageAgentServerName = flag.String("http-stage-server-name", "", "test-only tunnel TLS name")
++	httpStageAgentAuth       = flag.String("http-stage-auth-key-file", "", "test-only tunnel auth key")
++	httpStageAgentOutput     = flag.String("http-stage-output", "", "test-only terminal report")
++)
++
++const httpStageAgentTimeout = 90 * time.Second
++
++type httpStageAgentLane struct {
++	lane            int
++	tlsConn         *tls.Conn
++	tcpConn         *net.TCPConn
++	session         *yamux.Session
++	growth          *tunnel.AggregateReceiveWindowGrowth
++	releasePool     func()
++	releaseCapacity func()
++	releaseMetadata func()
++}
++
++type httpStageAgentFixture struct {
++	ctx      context.Context
++	cancel   context.CancelFunc
++	endpoint *tunnel.HTTPStageEndpoint
++	pool     *tunnel.TransportCeilingLedger
++	working  *tunnel.TransportCeilingLedger
++	capacity *agentTunnelCapacityRuntime
++	policy   *agentDestinationPolicy
++
++	mu              sync.Mutex
++	lanes           [tunnel.TransportCeilingPhysicalLanes]*httpStageAgentLane
++	workingReleases []func()
++	physicalWG      sync.WaitGroup
++	serveWG         sync.WaitGroup
++	originWG        sync.WaitGroup
++	originActive    atomic.Int64
++	originCompleted atomic.Int64
++	originSeenMu    sync.Mutex
++	originSeen      map[string]struct{}
++	admin           *http.Server
++	origin          *http.Server
++}
++
++func TestHTTPStageExternalAgentRole(t *testing.T) {
++	if os.Getenv("P2PSTREAM_HTTP_STAGE_EXTERNAL") != "1" {
++		t.Skip("external HTTP stage role")
++	}
++	fixture, err := newHTTPStageAgentFixture()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := fixture.run(); err != nil {
++		t.Fatal(err)
++	}
++}
++
++func newHTTPStageAgentFixture() (*httpStageAgentFixture, error) {
++	if stringsTrimmedEmpty(*httpStageAgentServer, *httpStageAgentAdmin, *httpStageAgentOrigin, *httpStageAgentOutput) {
++		return nil, errors.New("HTTP stage agent tunnel/admin/origin/output are required")
++	}
++	for _, address := range []string{*httpStageAgentServer, *httpStageAgentAdmin, *httpStageAgentOrigin} {
++		_, port, err := net.SplitHostPort(address)
++		if err != nil || port == "0" {
++			return nil, fmt.Errorf("HTTP stage agent address %q must have a concrete nonzero port", address)
++		}
++	}
++	if *httpStageAgentServerName != tunnel.TransportCeilingTLSName {
++		return nil, fmt.Errorf("HTTP stage TLS server name must be %q", tunnel.TransportCeilingTLSName)
++	}
++	ctx, cancel := context.WithCancel(context.Background())
++	pool := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingPoolLimitBytes)
++	working := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingWorkingLimitBytes)
++	endpoint, err := tunnel.NewHTTPStageEndpoint("agent", os.Getenv("P2PSTREAM_HTTP_STAGE_SOURCE_REF"), pool, working)
++	if err != nil {
++		cancel()
++		return nil, err
++	}
++	policy, err := newAgentDestinationPolicy([]string{*httpStageAgentOrigin})
++	if err != nil {
++		cancel()
++		return nil, err
++	}
++	fixture := &httpStageAgentFixture{
++		ctx: ctx, cancel: cancel, endpoint: endpoint, pool: pool, working: working,
++		capacity: newAgentTunnelCapacityRuntime(tunnel.HTTPStageFixedCapacity, false, nil), policy: policy,
++		originSeen: make(map[string]struct{}),
++	}
++	endpoint.SetCallbacks(nil, nil, fixture.ownership)
++	return fixture, nil
++}
++
++func stringsTrimmedEmpty(values ...string) bool {
++	for _, value := range values {
++		if strings.TrimSpace(value) == "" {
++			return true
++		}
++	}
++	return false
++}
++
++func (f *httpStageAgentFixture) reserveWorking(category string, bytes int64) (func(), error) {
++	release, ok := f.working.Reserve(category, bytes)
++	if !ok {
++		return nil, fmt.Errorf("reserve HTTP stage agent %s bytes=%d", category, bytes)
++	}
++	f.mu.Lock()
++	f.workingReleases = append(f.workingReleases, release)
++	f.mu.Unlock()
++	return release, nil
++}
++
++func (f *httpStageAgentFixture) run() error {
++	envelopeReleases, err := tunnel.ReserveHTTPStageWorkingEnvelope(f.working)
++	if err != nil {
++		return err
++	}
++	f.workingReleases = append(f.workingReleases, envelopeReleases...)
++	if err := f.startOrigin(); err != nil {
++		return err
++	}
++	if err := f.connectPhysical(); err != nil {
++		return err
++	}
++	rows, err := f.liveSocketRows()
++	if err != nil {
++		return err
++	}
++	f.endpoint.SetReady(rows)
++	adminListener, err := net.Listen("tcp", *httpStageAgentAdmin)
++	if err != nil {
++		return err
++	}
++	f.admin = &http.Server{Handler: f.endpoint, ReadHeaderTimeout: 2 * time.Second}
++	adminDone := make(chan error, 1)
++	go func() { adminDone <- f.admin.Serve(adminListener) }()
++
++	physicalDone := make(chan struct{})
++	go func() { f.physicalWG.Wait(); close(physicalDone) }()
++	select {
++	case <-physicalDone:
++	case <-f.ctx.Done():
++		f.closeSockets()
++		select {
++		case <-physicalDone:
++		case <-time.After(35 * time.Second):
++			return errors.New("HTTP stage agent physical sessions did not join")
++		}
++	}
++	f.cancel()
++	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
++	adminShutdownErr := f.admin.Shutdown(shutdownCtx)
++	originShutdownErr := f.origin.Shutdown(shutdownCtx)
++	shutdownCancel()
++	if adminShutdownErr != nil && !errors.Is(adminShutdownErr, http.ErrServerClosed) {
++		return fmt.Errorf("shutdown HTTP stage agent admin: %w", adminShutdownErr)
++	}
++	if originShutdownErr != nil && !errors.Is(originShutdownErr, http.ErrServerClosed) {
++		return fmt.Errorf("shutdown HTTP stage agent origin: %w", originShutdownErr)
++	}
++	if err := waitHTTPStageAgentGroup(&f.serveWG, 35*time.Second, "production tunnel-session handlers"); err != nil {
++		return err
++	}
++	if err := waitHTTPStageAgentGroup(&f.originWG, 10*time.Second, "native HTTP origin"); err != nil {
++		return err
++	}
++	f.closeSockets()
++	f.releaseResources()
++	report := f.endpoint.Terminal(f.socketRows(false))
++	if err := tunnel.WriteHTTPStageReport(*httpStageAgentOutput, report); err != nil {
++		return err
++	}
++	select {
++	case serveErr := <-adminDone:
++		if serveErr != nil && serveErr != http.ErrServerClosed {
++			return serveErr
++		}
++	case <-time.After(5 * time.Second):
++		return errors.New("HTTP stage agent admin did not stop")
++	}
++	if report.InvalidReason != "" || report.PoolLedger.FinalBytes != 0 || report.WorkingLedger.FinalBytes != 0 {
++		return fmt.Errorf("invalid HTTP stage agent terminal report: %s", report.InvalidReason)
++	}
++	return nil
++}
++
++func waitHTTPStageAgentGroup(group *sync.WaitGroup, timeout time.Duration, label string) error {
++	done := make(chan struct{})
++	go func() { group.Wait(); close(done) }()
++	select {
++	case <-done:
++		return nil
++	case <-time.After(timeout):
++		return fmt.Errorf("HTTP stage agent %s did not join", label)
++	}
++}
++
++func (f *httpStageAgentFixture) startOrigin() error {
++	listener, err := net.Listen("tcp", *httpStageAgentOrigin)
++	if err != nil {
++		return err
++	}
++	f.origin = &http.Server{Handler: http.HandlerFunc(f.handleOrigin), ReadHeaderTimeout: 5 * time.Second}
++	f.originWG.Add(1)
++	go func() {
++		defer f.originWG.Done()
++		if err := f.origin.Serve(listener); err != nil && err != http.ErrServerClosed {
++			f.endpoint.MarkInvalid(err)
++			f.cancel()
++		}
++	}()
++	return nil
++}
++
++func (f *httpStageAgentFixture) handleOrigin(w http.ResponseWriter, r *http.Request) {
++	f.originActive.Add(1)
++	defer f.originActive.Add(-1)
++	phaseIndex, err := strconv.Atoi(r.Header.Get("X-P2PStream-HTTP-Stage-Phase"))
++	phase, phaseErr := tunnel.TransportCeilingPhaseAt(phaseIndex)
++	if err != nil || phaseErr != nil || phaseIndex != int(f.originCompleted.Load()) {
++		http.Error(w, "invalid HTTP stage phase", http.StatusBadRequest)
++		return
++	}
++	connectionID := r.RemoteAddr
++	f.originSeenMu.Lock()
++	_, reused := f.originSeen[connectionID]
++	f.originSeen[connectionID] = struct{}{}
++	f.originSeenMu.Unlock()
++	result := tunnel.HTTPStagePhaseResult{
++		SchemaVersion: tunnel.HTTPStageSchemaVersion, PhaseIndex: phase.Index, PhaseName: phase.Name,
++		Lane: phase.Lane, Direction: phase.Direction, Stage: phase.Stage, PlannedReuseKind: phase.ReuseKind,
++		ConfiguredPayloadBytes: tunnel.TransportCeilingPayloadBytes, HTTPStatus: http.StatusOK, OriginHTTPMajor: r.ProtoMajor,
++		ResponsePumpBufferBytes: tunnel.HTTPStageResponsePumpBytes, FinalConsumerReadBytes: tunnel.HTTPStageConsumerReadBytes,
++		Connection: tunnel.HTTPStageConnectionTrace{ConnectionIdentity: connectionID, Reused: reused},
++	}
++	w.Header().Set("X-P2PStream-Origin-HTTP-Major", strconv.Itoa(r.ProtoMajor))
++	w.Header().Set("X-P2PStream-Origin-Connection", connectionID)
++	w.Header().Set("X-P2PStream-HTTP-Stage-Phase", strconv.Itoa(phase.Index))
++	if phase.Direction == "download" {
++		if r.Method != http.MethodGet || r.URL.Path != "/bulk" || r.URL.Query().Get("bytes") != strconv.FormatInt(tunnel.TransportCeilingPayloadBytes, 10) {
++			http.Error(w, "download must use GET", http.StatusBadRequest)
++			return
++		}
++		w.Header().Set("Content-Length", strconv.FormatInt(tunnel.TransportCeilingPayloadBytes, 10))
++		digest, writeErr := tunnel.WriteHTTPStagePayload(w, tunnel.TransportCeilingPayloadBytes)
++		if writeErr != nil {
++			f.endpoint.MarkInvalid(writeErr)
++			return
++		}
++		result.ReceivedPayloadBytes = tunnel.TransportCeilingPayloadBytes
++		result.ExpectedSHA256, result.ReceivedSHA256 = tunnel.HTTPStageDownloadSHA256, digest
++		result.ResponseContentLength = tunnel.TransportCeilingPayloadBytes
++	} else {
++		if r.Method != http.MethodPost || r.URL.Path != "/bulk-upload" || r.ContentLength != tunnel.TransportCeilingPayloadBytes {
++			http.Error(w, "upload must use exact Content-Length POST", http.StatusBadRequest)
++			return
++		}
++		h := sha256.New()
++		n, copyErr := io.Copy(h, r.Body)
++		if copyErr != nil || n != tunnel.TransportCeilingPayloadBytes {
++			http.Error(w, "upload body read failed", http.StatusBadRequest)
++			return
++		}
++		digest := hex.EncodeToString(h.Sum(nil))
++		if digest != tunnel.HTTPStageUploadSHA256 {
++			http.Error(w, "upload digest mismatch", http.StatusBadRequest)
++			return
++		}
++		result.ReceivedPayloadBytes = n
++		result.ExpectedSHA256, result.ReceivedSHA256 = tunnel.HTTPStageUploadSHA256, digest
++		if _, writeErr := w.Write(h.Sum(nil)); writeErr != nil {
++			f.endpoint.MarkInvalid(writeErr)
++			return
++		}
++		result.ResponseContentLength = sha256.Size
++	}
++	if err := f.endpoint.RecordResult(result); err != nil {
++		f.endpoint.MarkInvalid(err)
++		return
++	}
++	completed := f.originCompleted.Add(1)
++	if completed == tunnel.HTTPStageExpectedPhases {
++		rows, liveErr := f.liveSocketRows()
++		if liveErr == nil {
++			liveErr = f.endpoint.SetLive(rows)
++		}
++		if liveErr != nil {
++			f.endpoint.MarkInvalid(liveErr)
++			f.cancel()
++		}
++	}
++}
++
++func (f *httpStageAgentFixture) connectPhysical() error {
++	caPEM, err := os.ReadFile(*httpStageAgentCA)
++	if err != nil {
++		return err
++	}
++	roots := x509.NewCertPool()
++	if !roots.AppendCertsFromPEM(caPEM) {
++		return errors.New("HTTP stage CA contains no certificate")
++	}
++	authKey, err := tunnel.ReadTransportCeilingAuthKey(*httpStageAgentAuth)
++	if err != nil {
++		return err
++	}
++	tlsConfig := &tls.Config{RootCAs: roots, ServerName: *httpStageAgentServerName, MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}
++	for laneID := 0; laneID < tunnel.TransportCeilingPhysicalLanes; laneID++ {
++		raw, err := (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext(f.ctx, "tcp", *httpStageAgentServer)
++		if err != nil {
++			return err
++		}
++		tlsConn := tls.Client(raw, tlsConfig.Clone())
++		handshakeCtx, cancel := context.WithTimeout(f.ctx, 10*time.Second)
++		err = tlsConn.HandshakeContext(handshakeCtx)
++		cancel()
++		if err != nil {
++			_ = raw.Close()
++			return err
++		}
++		if err := tunnel.AuthenticateTransportCeilingClient(tlsConn, authKey, tunnel.TransportCeilingVariantYamux, laneID, 10*time.Second); err != nil {
++			_ = tlsConn.Close()
++			return err
++		}
++		tcpConn, ok := tlsConn.NetConn().(*net.TCPConn)
++		if !ok {
++			return fmt.Errorf("HTTP stage agent TLS underlying connection is %T", tlsConn.NetConn())
++		}
++		lane := &httpStageAgentLane{lane: laneID, tlsConn: tlsConn, tcpConn: tcpConn}
++		f.lanes[laneID] = lane
++		if err := f.initializeLane(lane); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++func (f *httpStageAgentFixture) initializeLane(lane *httpStageAgentLane) error {
++	var err error
++	var config *yamux.Config
++	if lane.lane == 0 {
++		config, err = tunnel.NewNegotiatedControlYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes, tunnel.NegotiatedControlStreamLimit)
++	} else {
++		wire := tunnel.DefaultAggregateFlowControlConfig()
++		initialBytes := int64(yamux.AggregateReceiveWindowMemory(wire.InitialSessionWindow))
++		lane.releasePool, _ = f.pool.Reserve("initial_pool", initialBytes)
++		lane.releaseCapacity, _ = f.capacity.tryReserveAggregateSessionResource(initialBytes, tunnel.AggregateSessionMetadataBytes)
++		if lane.releasePool == nil || lane.releaseCapacity == nil {
++			return fmt.Errorf("reserve HTTP stage agent lane %d initial pool", lane.lane)
++		}
++		config, err = tunnel.NewAggregateYamuxConfig(nil, tunnel.DefaultMaxStreamWindowSizeBytes, tunnel.HTTPStageFixedCapacity)
++	}
++	if err != nil {
++		return err
++	}
++	lane.session, err = yamux.Client(lane.tlsConn, config)
++	if err != nil {
++		return err
++	}
++	if lane.lane > 0 {
++		lane.growth = tunnel.NewAggregateReceiveWindowGrowth(lane.session, func(bytes int64) (func(), bool) {
++			releasePool, okPool := f.pool.Reserve("growth_pool", bytes)
++			releaseCapacity, okCapacity := f.capacity.tryReserveAggregateSessionGrowth(bytes)
++			if !okPool || !okCapacity {
++				if okPool {
++					releasePool()
++				}
++				if okCapacity {
++					releaseCapacity()
++				}
++				return nil, false
++			}
++			return func() { releaseCapacity(); releasePool() }, true
++		})
++		serveCtx := context.WithValue(f.ctx, receiveWindowContextKey{}, int64(tunnel.DefaultMaxStreamWindowSizeBytes))
++		serveCtx = context.WithValue(serveCtx, upstreamSocketBufferContextKey{}, int64(0))
++		f.serveWG.Add(1)
++		go func() {
++			defer f.serveWG.Done()
++			err := serveTunnelSessionWithPolicyCapacityAndResources(serveCtx, lane.session, f.policy, f.capacity, lane.growth, false, 0, nil)
++			expectedTerminal := f.endpoint.IsLive() && (errors.Is(err, io.EOF) || errors.Is(err, yamux.ErrSessionShutdown))
++			if err != nil && !expectedTerminal {
++				f.endpoint.MarkInvalid(err)
++				f.cancel()
++			}
++		}()
++	}
++	f.physicalWG.Add(1)
++	go func() { defer f.physicalWG.Done(); <-lane.session.CloseChan() }()
++	return nil
++}
++
++func (f *httpStageAgentFixture) ownership() tunnel.HTTPStageOwnershipSnapshot {
++	snapshot := f.capacity.snapshot()
++	result := tunnel.HTTPStageOwnershipSnapshot{
++		CapacityTotalInUse: snapshot.InUse, CapacityPooledInUse: snapshot.InUse,
++		CapacityLive: snapshot.InUse, OriginActiveRequests: int(f.originActive.Load()),
++	}
++	for laneID := 1; laneID < tunnel.TransportCeilingPhysicalLanes; laneID++ {
++		lane := f.lanes[laneID]
++		if lane == nil || lane.session == nil {
++			continue
++		}
++		result.LaneStreams[laneID-1] = lane.session.NumStreams()
++		result.LaneReceiveLimits[laneID-1] = lane.session.AggregateReceiveWindowStats().ReceiveLimit
++	}
++	return result
++}
++
++func (f *httpStageAgentFixture) closeSockets() {
++	for _, lane := range f.lanes {
++		if lane == nil {
++			continue
++		}
++		if lane.session != nil {
++			_ = lane.session.Close()
++		}
++		if lane.tlsConn != nil {
++			_ = lane.tlsConn.Close()
++		}
++	}
++}
++
++func (f *httpStageAgentFixture) releaseResources() {
++	for _, lane := range f.lanes {
++		if lane == nil {
++			continue
++		}
++		if lane.growth != nil {
++			lane.growth.Release()
++		}
++		if lane.releaseCapacity != nil {
++			lane.releaseCapacity()
++		}
++		if lane.releasePool != nil {
++			lane.releasePool()
++		}
++	}
++	f.mu.Lock()
++	releases := append([]func(){}, f.workingReleases...)
++	f.mu.Unlock()
++	for index := len(releases) - 1; index >= 0; index-- {
++		releases[index]()
++	}
++}
++
++func (f *httpStageAgentFixture) socketRows(connected bool) []tunnel.TransportCeilingSocket {
++	rows := make([]tunnel.TransportCeilingSocket, 0, tunnel.TransportCeilingPhysicalLanes)
++	for laneID, lane := range f.lanes {
++		if lane == nil || lane.tlsConn == nil {
++			continue
++		}
++		state := lane.tlsConn.ConnectionState()
++		tcpInfo := tunnel.CaptureTransportCeilingTCPInfo(lane.tcpConn)
++		identity := sha256.Sum256([]byte(fmt.Sprintf("http-agent|%d|%s|%s|%d|%d", laneID, lane.tlsConn.LocalAddr(), lane.tlsConn.RemoteAddr(), state.Version, state.CipherSuite)))
++		role := "data"
++		if laneID == 0 {
++			role = "control"
++		}
++		rows = append(rows, tunnel.TransportCeilingSocket{
++			Lane: laneID, LaneRole: role, LocalAddress: lane.tlsConn.LocalAddr().String(), RemoteAddress: lane.tlsConn.RemoteAddr().String(),
++			ConnectionIdentity: fmt.Sprintf("%x", identity[:16]), TLSVersion: state.Version, TLSCipherSuite: state.CipherSuite,
++			TCPInfoCaptured: tcpInfo.Captured, TCPInfoError: tcpInfo.Error, TCPState: tcpInfo.State,
++			Connected: connected && tcpInfo.Captured && tcpInfo.Error == "" && tcpInfo.State == tunnel.TransportCeilingTCPEstablished,
++		})
++	}
++	sort.Slice(rows, func(i, j int) bool { return rows[i].Lane < rows[j].Lane })
++	return rows
++}
++
++func (f *httpStageAgentFixture) liveSocketRows() ([]tunnel.TransportCeilingSocket, error) {
++	rows := f.socketRows(true)
++	if len(rows) != tunnel.TransportCeilingPhysicalLanes {
++		return nil, fmt.Errorf("HTTP stage agent live socket count=%d", len(rows))
++	}
++	for _, row := range rows {
++		if !row.Connected {
++			return nil, fmt.Errorf("HTTP stage agent lane %d is not established", row.Lane)
++		}
++	}
++	return rows, nil
++}
+diff --git a/internal/server/http_stage_qualification_linux_test.go b/internal/server/http_stage_qualification_linux_test.go
+new file mode 100644
+index 0000000..ac98a29
+--- /dev/null
++++ b/internal/server/http_stage_qualification_linux_test.go
+@@ -0,0 +1,548 @@
++//go:build linux && p2pstream_transport_ceiling && p2pstream_http_stage
++
++package server
++
++// Test-build-only HTTP/1 stage. Physical setup/reporting is fixture code. Each
++// request uses the production agent transport pool, dialViaAgentWithCapacity,
++// capacity-managed connection, OpenRequest and peer relay implementation.
++
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++	"crypto/tls"
++	"encoding/hex"
++	"errors"
++	"flag"
++	"fmt"
++	"io"
++	"net"
++	"net/http"
++	"net/http/httptrace"
++	"os"
++	"sort"
++	"strconv"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/hashicorp/yamux"
++	"p2pstream/internal/config"
++	"p2pstream/internal/tunnel"
++)
++
++var (
++	httpStageServerListen = flag.String("http-stage-listen", "", "test-only HTTP stage physical listen address")
++	httpStageServerAdmin  = flag.String("http-stage-admin", "", "test-only HTTP stage admin address")
++	httpStageServerOrigin = flag.String("http-stage-origin", "", "test-only agent-local HTTP origin address")
++	httpStageServerCert   = flag.String("http-stage-cert", "", "test-only TLS certificate")
++	httpStageServerKey    = flag.String("http-stage-key", "", "test-only TLS key")
++	httpStageServerAuth   = flag.String("http-stage-auth-key-file", "", "test-only tunnel auth key")
++	httpStageServerOutput = flag.String("http-stage-output", "", "test-only terminal report")
++)
++
++const httpStageServerTimeout = tunnel.HTTPStageResponseTimeout
++
++type httpStageServerLane struct {
++	lane            int
++	tlsConn         *tls.Conn
++	tcpConn         *net.TCPConn
++	session         *yamux.Session
++	growth          *tunnel.AggregateReceiveWindowGrowth
++	releasePool     func()
++	releaseMetadata func()
++}
++
++type httpStageServerFixture struct {
++	ctx      context.Context
++	cancel   context.CancelFunc
++	endpoint *tunnel.HTTPStageEndpoint
++	pool     *tunnel.TransportCeilingLedger
++	working  *tunnel.TransportCeilingLedger
++	app      *App
++	agent    *AgentConn
++
++	mu              sync.Mutex
++	lanes           [tunnel.TransportCeilingPhysicalLanes]*httpStageServerLane
++	workingReleases []func()
++	nextPhase       int
++	logicalOpens    atomic.Uint64
++	logicalCloses   atomic.Uint64
++	connectionReuse atomic.Uint64
++	listener        net.Listener
++	admin           *http.Server
++	shutdownOnce    sync.Once
++}
++
++func TestHTTPStageExternalServerRole(t *testing.T) {
++	if os.Getenv("P2PSTREAM_HTTP_STAGE_EXTERNAL") != "1" {
++		t.Skip("external HTTP stage role")
++	}
++	fixture, err := newHTTPStageServerFixture()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := fixture.run(); err != nil {
++		t.Fatal(err)
++	}
++}
++
++func newHTTPStageServerFixture() (*httpStageServerFixture, error) {
++	for _, value := range []string{*httpStageServerListen, *httpStageServerAdmin, *httpStageServerOrigin, *httpStageServerOutput} {
++		if value == "" {
++			return nil, errors.New("HTTP stage server listen/admin/origin/output are required")
++		}
++	}
++	for _, address := range []string{*httpStageServerListen, *httpStageServerAdmin, *httpStageServerOrigin} {
++		_, port, err := net.SplitHostPort(address)
++		if err != nil || port == "0" {
++			return nil, fmt.Errorf("HTTP stage server address %q must have a concrete nonzero port", address)
++		}
++	}
++	ctx, cancel := context.WithCancel(context.Background())
++	pool := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingPoolLimitBytes)
++	working := tunnel.NewTransportCeilingLedger(tunnel.TransportCeilingWorkingLimitBytes)
++	endpoint, err := tunnel.NewHTTPStageEndpoint("server", os.Getenv("P2PSTREAM_HTTP_STAGE_SOURCE_REF"), pool, working)
++	if err != nil {
++		cancel()
++		return nil, err
++	}
++	cfg := &config.Config{ServerTunnelMaxConcurrentStreams: tunnel.HTTPStageFixedCapacity, TunnelMaxStreamWindowBytes: tunnel.DefaultMaxStreamWindowSizeBytes}
++	app := NewApp(cfg, nil)
++	app.AgentTransports = newAgentTransportPool()
++	app.agentStreamCapacity = mustNewDefaultAgentStreamCapacityManager(tunnel.HTTPStageFixedCapacity)
++	if pooled := app.agentStreamCapacity.snapshot().Pooled.Capacity; pooled != tunnel.HTTPStagePooledCapacity {
++		cancel()
++		return nil, fmt.Errorf("HTTP stage pooled capacity=%d, want %d", pooled, tunnel.HTTPStagePooledCapacity)
++	}
++	agent := &AgentConn{
++		AgentID: 1, PublicID: "http-stage-agent", Name: "http-stage-agent", Done: make(chan struct{}),
++		AggregateFlowControl: true, AdvertisedMaxConcurrentStreams: tunnel.HTTPStageFixedCapacity, NegotiatedMaxConcurrentStreams: tunnel.HTTPStageFixedCapacity,
++	}
++	fixture := &httpStageServerFixture{
++		ctx: ctx, cancel: cancel, endpoint: endpoint, pool: pool, working: working, app: app, agent: agent,
++	}
++	endpoint.SetCallbacks(fixture.transfer, fixture.shutdown, fixture.ownership)
++	return fixture, nil
++}
++
++func (f *httpStageServerFixture) reserveWorking(category string, bytes int64) (func(), error) {
++	release, ok := f.working.Reserve(category, bytes)
++	if !ok {
++		return nil, fmt.Errorf("reserve HTTP stage server %s bytes=%d", category, bytes)
++	}
++	f.workingReleases = append(f.workingReleases, release)
++	return release, nil
++}
++
++func (f *httpStageServerFixture) run() error {
++	envelopeReleases, err := tunnel.ReserveHTTPStageWorkingEnvelope(f.working)
++	if err != nil {
++		return err
++	}
++	f.workingReleases = append(f.workingReleases, envelopeReleases...)
++	if err := f.acceptPhysical(); err != nil {
++		return err
++	}
++	rows, err := f.liveSocketRows()
++	if err != nil {
++		return err
++	}
++	f.endpoint.SetReady(rows)
++	adminListener, err := net.Listen("tcp", *httpStageServerAdmin)
++	if err != nil {
++		return err
++	}
++	f.admin = &http.Server{Handler: f.endpoint, ReadHeaderTimeout: 2 * time.Second}
++	adminDone := make(chan error, 1)
++	go func() { adminDone <- f.admin.Serve(adminListener) }()
++	<-f.ctx.Done()
++	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
++	adminShutdownErr := f.admin.Shutdown(shutdownCtx)
++	shutdownCancel()
++	if adminShutdownErr != nil && !errors.Is(adminShutdownErr, http.ErrServerClosed) {
++		return fmt.Errorf("shutdown HTTP stage server admin: %w", adminShutdownErr)
++	}
++	if err := f.closeTransportsAndWait(context.Background()); err != nil {
++		return err
++	}
++	if err := f.closePhysical(); err != nil {
++		return err
++	}
++	for index := len(f.workingReleases) - 1; index >= 0; index-- {
++		f.workingReleases[index]()
++	}
++	report := f.endpoint.Terminal(f.socketRows(false))
++	if err := tunnel.WriteHTTPStageReport(*httpStageServerOutput, report); err != nil {
++		return err
++	}
++	select {
++	case serveErr := <-adminDone:
++		if serveErr != nil && serveErr != http.ErrServerClosed {
++			return serveErr
++		}
++	case <-time.After(5 * time.Second):
++		return errors.New("HTTP stage server admin did not stop")
++	}
++	if report.InvalidReason != "" || report.PoolLedger.FinalBytes != 0 || report.WorkingLedger.FinalBytes != 0 {
++		return fmt.Errorf("invalid HTTP stage server terminal report: %s", report.InvalidReason)
++	}
++	return nil
++}
++
++func (f *httpStageServerFixture) acceptPhysical() error {
++	certificate, err := tls.LoadX509KeyPair(*httpStageServerCert, *httpStageServerKey)
++	if err != nil {
++		return err
++	}
++	authKey, err := tunnel.ReadTransportCeilingAuthKey(*httpStageServerAuth)
++	if err != nil {
++		return err
++	}
++	listener, err := net.Listen("tcp", *httpStageServerListen)
++	if err != nil {
++		return err
++	}
++	f.listener = listener
++	tlsConfig := &tls.Config{Certificates: []tls.Certificate{certificate}, MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}
++	for accepted := 0; accepted < tunnel.TransportCeilingPhysicalLanes; accepted++ {
++		raw, err := listener.Accept()
++		if err != nil {
++			return err
++		}
++		_ = raw.SetDeadline(time.Now().Add(10 * time.Second))
++		tlsConn := tls.Server(raw, tlsConfig.Clone())
++		if err := tlsConn.HandshakeContext(f.ctx); err != nil {
++			_ = raw.Close()
++			return err
++		}
++		_ = raw.SetDeadline(time.Time{})
++		laneID, err := tunnel.AuthenticateTransportCeilingServer(tlsConn, authKey, tunnel.TransportCeilingVariantYamux, 10*time.Second)
++		if err != nil {
++			_ = tlsConn.Close()
++			return err
++		}
++		if f.lanes[laneID] != nil {
++			_ = tlsConn.Close()
++			return fmt.Errorf("duplicate HTTP stage lane %d", laneID)
++		}
++		tcpConn, ok := tlsConn.NetConn().(*net.TCPConn)
++		if !ok {
++			return fmt.Errorf("HTTP stage server TLS underlying connection is %T", tlsConn.NetConn())
++		}
++		lane := &httpStageServerLane{lane: laneID, tlsConn: tlsConn, tcpConn: tcpConn}
++		f.lanes[laneID] = lane
++		if err := f.initializeLane(lane); err != nil {
++			return err
++		}
++	}
++	_ = listener.Close()
++	f.agent.Session = f.lanes[0].session
++	sessionKey := agentStreamCapacitySessionKey(f.agent, f.agent.Session)
++	f.app.agentStreamCapacity.registerSessionWithLimit(sessionKey, tunnel.HTTPStageFixedCapacity)
++	return nil
++}
++
++func (f *httpStageServerFixture) initializeLane(lane *httpStageServerLane) error {
++	var err error
++	var yamuxConfig *yamux.Config
++	if lane.lane == 0 {
++		yamuxConfig, err = tunnel.NewNegotiatedControlYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes, -1)
++	} else {
++		wire := tunnel.DefaultAggregateFlowControlConfig()
++		initialBytes := int64(yamux.AggregateReceiveWindowMemory(wire.InitialSessionWindow))
++		lane.releasePool, _ = f.pool.Reserve("initial_pool", initialBytes)
++		if lane.releasePool == nil {
++			return fmt.Errorf("reserve HTTP stage server lane %d initial pool", lane.lane)
++		}
++		yamuxConfig, err = tunnel.NewAggregateYamuxConfig(nil, tunnel.DefaultMaxStreamWindowSizeBytes, -1)
++	}
++	if err != nil {
++		return err
++	}
++	lane.session, err = yamux.Server(lane.tlsConn, yamuxConfig)
++	if err != nil {
++		return err
++	}
++	if err := lane.session.GoAway(); err != nil {
++		return err
++	}
++	resource := agentTunnelOwnedResource{SessionMetadataBytes: tunnel.AggregateSessionMetadataBytes}
++	if lane.lane > 0 {
++		wire := tunnel.DefaultAggregateFlowControlConfig()
++		resource.AggregateInitialPoolBytes = int64(yamux.AggregateReceiveWindowMemory(wire.InitialSessionWindow))
++		lane.growth = tunnel.NewAggregateReceiveWindowGrowth(lane.session, func(bytes int64) (func(), bool) {
++			return f.pool.Reserve("growth_pool", bytes)
++		})
++		resource.AggregateGrowth = lane.growth
++	}
++	f.agent.installTunnel(lane.lane, lane.session, resource)
++	return nil
++}
++
++func (f *httpStageServerFixture) transfer(ctx context.Context, index int) (tunnel.HTTPStagePhaseResult, error) {
++	f.mu.Lock()
++	defer f.mu.Unlock()
++	if index != f.nextPhase {
++		return tunnel.HTTPStagePhaseResult{}, fmt.Errorf("HTTP stage phase %d requested while waiting for %d", index, f.nextPhase)
++	}
++	phase, err := tunnel.TransportCeilingPhaseAt(index)
++	if err != nil {
++		return tunnel.HTTPStagePhaseResult{}, err
++	}
++	before := f.ownership()
++	result := tunnel.HTTPStagePhaseResult{
++		SchemaVersion: tunnel.HTTPStageSchemaVersion, PhaseIndex: phase.Index, PhaseName: phase.Name,
++		Lane: phase.Lane, Direction: phase.Direction, Stage: phase.Stage, PlannedReuseKind: phase.ReuseKind,
++		ConfiguredPayloadBytes: tunnel.TransportCeilingPayloadBytes, OwnershipBefore: before,
++		ResponsePumpBufferBytes: tunnel.HTTPStageResponsePumpBytes, FinalConsumerReadBytes: tunnel.HTTPStageConsumerReadBytes,
++	}
++	key := agentTransportKey{
++		Kind: agentTransportKindRouteTarget, AgentID: f.agent.AgentID, TunnelLane: phase.Lane,
++		RouteTargetID: int64(phase.Lane), TargetOrigin: "http://" + *httpStageServerOrigin,
++		ResponseHeaderTimeoutMillis: int64(httpStageServerTimeout / time.Millisecond),
++	}
++	roundTripper := f.app.AgentTransports.getOrCreate(f.app, f.agent, key, nil, httpStageServerTimeout)
++	requestURL := "http://" + *httpStageServerOrigin + "/bulk?bytes=" + strconv.FormatInt(tunnel.TransportCeilingPayloadBytes, 10)
++	method := http.MethodGet
++	var requestBody io.Reader
++	if phase.Direction == "upload" {
++		method = http.MethodPost
++		requestURL = "http://" + *httpStageServerOrigin + "/bulk-upload"
++		requestBody = tunnel.NewHTTPStageUploadReader(tunnel.TransportCeilingPayloadBytes, tunnel.HTTPStageUploadSourceBytes)
++	}
++	request, err := http.NewRequestWithContext(ctx, method, requestURL, requestBody)
++	if err != nil {
++		return result, err
++	}
++	request.Header.Set("X-P2PStream-HTTP-Stage-Phase", strconv.Itoa(phase.Index))
++	if phase.Direction == "upload" {
++		request.ContentLength = tunnel.TransportCeilingPayloadBytes
++	}
++	var traceMu sync.Mutex
++	trace := tunnel.HTTPStageConnectionTrace{}
++	request = request.WithContext(httptrace.WithClientTrace(request.Context(), &httptrace.ClientTrace{
++		GotConn: func(info httptrace.GotConnInfo) {
++			traceMu.Lock()
++			trace.ConnectionIdentity = fmt.Sprintf("%p", info.Conn)
++			trace.Reused, trace.WasIdle, trace.IdleNanoseconds = info.Reused, info.WasIdle, int64(info.IdleTime)
++			trace.DialOpened = !info.Reused
++			traceMu.Unlock()
++			if info.Reused {
++				f.connectionReuse.Add(1)
++			} else {
++				f.logicalOpens.Add(1)
++			}
++		},
++		PutIdleConn: func(err error) {
++			traceMu.Lock()
++			defer traceMu.Unlock()
++			trace.PutIdle = err == nil
++			if err != nil {
++				trace.PutIdleError = err.Error()
++			} else {
++				f.logicalCloses.Add(0)
++			}
++		},
++	}))
++	wallStart := time.Now()
++	response, err := roundTripper.RoundTrip(request)
++	if err != nil {
++		return result, err
++	}
++	releasePump, ok := f.working.Reserve("relay_buffers", tunnel.HTTPStageResponsePumpBytes)
++	if !ok {
++		_ = response.Body.Close()
++		return result, errors.New("HTTP stage response-pump reservation denied")
++	}
++	received, responseDigest, prefix, consumeErr := tunnel.ConsumeHTTPStageResponse(ctx, response.Body, releasePump)
++	wallElapsed := time.Since(wallStart)
++	if consumeErr != nil {
++		return result, consumeErr
++	}
++	result.PhaseWallNanoseconds = wallElapsed.Nanoseconds()
++	result.UsefulBytesPerSecond = float64(tunnel.TransportCeilingPayloadBytes) / wallElapsed.Seconds()
++	result.HTTPStatus = response.StatusCode
++	result.ResponseContentLength = response.ContentLength
++	result.OriginHTTPMajor, _ = strconv.Atoi(response.Header.Get("X-P2PStream-Origin-HTTP-Major"))
++	traceMu.Lock()
++	trace.OriginConnectionIdentity = response.Header.Get("X-P2PStream-Origin-Connection")
++	result.Connection = trace
++	traceMu.Unlock()
++	if response.StatusCode != http.StatusOK || result.OriginHTTPMajor != 1 || response.Header.Get("X-P2PStream-HTTP-Stage-Phase") != strconv.Itoa(phase.Index) {
++		return result, fmt.Errorf("HTTP stage response status/protocol/phase status=%d origin=%d phase=%q", response.StatusCode, result.OriginHTTPMajor, response.Header.Get("X-P2PStream-HTTP-Stage-Phase"))
++	}
++	if phase.Direction == "download" {
++		result.ReceivedPayloadBytes, result.ExpectedSHA256, result.ReceivedSHA256 = received, tunnel.HTTPStageDownloadSHA256, responseDigest
++		if received != tunnel.TransportCeilingPayloadBytes || response.ContentLength != tunnel.TransportCeilingPayloadBytes || responseDigest != tunnel.HTTPStageDownloadSHA256 {
++			return result, errors.New("HTTP stage download payload mismatch")
++		}
++	} else {
++		result.ReceivedPayloadBytes, result.ExpectedSHA256, result.ReceivedSHA256 = tunnel.TransportCeilingPayloadBytes, tunnel.HTTPStageUploadSHA256, hex.EncodeToString(prefix)
++		if received != sha256.Size || response.ContentLength != sha256.Size || len(prefix) != sha256.Size || !bytes.Equal(prefix, mustDecodeHTTPStageDigest(tunnel.HTTPStageUploadSHA256)) {
++			return result, errors.New("HTTP stage upload digest response mismatch")
++		}
++	}
++	if phase.Stage == "conditioning" {
++		f.app.AgentTransports.closeAll()
++		result.ConditioningPoolClosed = true
++		if err := f.waitLogicalQuiescent(ctx); err != nil {
++			return result, err
++		}
++		result.ConditioningQuiescent = true
++	}
++	result.OwnershipAfter = f.ownership()
++	f.nextPhase++
++	if err := f.endpoint.RecordResult(result); err != nil {
++		return result, err
++	}
++	if index == tunnel.HTTPStageExpectedPhases-1 {
++		rows, liveErr := f.liveSocketRows()
++		if liveErr != nil {
++			return result, liveErr
++		}
++		if liveErr := f.endpoint.SetLive(rows); liveErr != nil {
++			return result, liveErr
++		}
++	}
++	return result, nil
++}
++
++func mustDecodeHTTPStageDigest(value string) []byte {
++	decoded, _ := hex.DecodeString(value)
++	return decoded
++}
++
++func (f *httpStageServerFixture) waitLogicalQuiescent(ctx context.Context) error {
++	ticker := time.NewTicker(20 * time.Millisecond)
++	defer ticker.Stop()
++	deadline := time.NewTimer(35 * time.Second)
++	defer deadline.Stop()
++	for {
++		snapshot := f.app.agentStreamCapacity.snapshot()
++		f.app.AgentTransports.mu.Lock()
++		entries, draining := len(f.app.AgentTransports.entries), len(f.app.AgentTransports.draining)
++		f.app.AgentTransports.mu.Unlock()
++		laneStreams := 0
++		for laneID := 1; laneID < tunnel.TransportCeilingPhysicalLanes; laneID++ {
++			if lane := f.lanes[laneID]; lane != nil && lane.session != nil {
++				laneStreams += lane.session.NumStreams()
++			}
++		}
++		if snapshot.Total.InUse == 0 && snapshot.States.Opening == 0 && snapshot.States.Live == 0 && snapshot.States.Closing == 0 && entries == 0 && draining == 0 && laneStreams == 0 {
++			return nil
++		}
++		select {
++		case <-ctx.Done():
++			return ctx.Err()
++		case <-deadline.C:
++			return errors.New("HTTP stage logical ownership did not quiesce")
++		case <-ticker.C:
++		}
++	}
++}
++
++func (f *httpStageServerFixture) closeTransportsAndWait(ctx context.Context) error {
++	f.app.AgentTransports.closeAll()
++	return f.waitLogicalQuiescent(ctx)
++}
++
++func (f *httpStageServerFixture) shutdown() {
++	f.shutdownOnce.Do(func() { f.cancel() })
++}
++
++func (f *httpStageServerFixture) ownership() tunnel.HTTPStageOwnershipSnapshot {
++	snapshot := f.app.agentStreamCapacity.snapshot()
++	f.app.AgentTransports.mu.Lock()
++	entries, draining := len(f.app.AgentTransports.entries), len(f.app.AgentTransports.draining)
++	f.app.AgentTransports.mu.Unlock()
++	result := tunnel.HTTPStageOwnershipSnapshot{
++		CapacityTotalInUse: snapshot.Total.InUse, CapacityPooledInUse: snapshot.Pooled.InUse,
++		CapacityOpening: snapshot.States.Opening, CapacityLive: snapshot.States.Live, CapacityClosing: snapshot.States.Closing,
++		CapacityRegisteredSessions: snapshot.RegisteredSessions,
++		TransportEntries:           entries, TransportDraining: draining,
++		LogicalOpens: snapshot.Granted, LogicalCloses: snapshot.Released, ConnectionReuses: f.connectionReuse.Load(),
++	}
++	for laneID := 1; laneID < tunnel.TransportCeilingPhysicalLanes; laneID++ {
++		lane := f.lanes[laneID]
++		if lane == nil || lane.session == nil {
++			continue
++		}
++		result.LaneStreams[laneID-1] = lane.session.NumStreams()
++		result.LaneReceiveLimits[laneID-1] = lane.session.AggregateReceiveWindowStats().ReceiveLimit
++	}
++	return result
++}
++
++func (f *httpStageServerFixture) closePhysical() error {
++	if f.app != nil && f.app.agentStreamCapacity != nil && f.agent != nil && f.agent.Session != nil {
++		f.app.agentStreamCapacity.unregisterSession(agentStreamCapacitySessionKey(f.agent, f.agent.Session))
++	}
++	if f.agent != nil {
++		f.agent.signalDone()
++	}
++	var first error
++	for _, lane := range f.lanes {
++		if lane == nil {
++			continue
++		}
++		if lane.session != nil {
++			if err := lane.session.Close(); err != nil && first == nil {
++				first = err
++			}
++		}
++		if lane.tlsConn != nil {
++			_ = lane.tlsConn.Close()
++		}
++	}
++	for _, lane := range f.lanes {
++		if lane == nil {
++			continue
++		}
++		if lane.growth != nil {
++			lane.growth.Release()
++		}
++		if lane.releasePool != nil {
++			lane.releasePool()
++		}
++	}
++	return first
++}
++
++func (f *httpStageServerFixture) socketRows(connected bool) []tunnel.TransportCeilingSocket {
++	rows := make([]tunnel.TransportCeilingSocket, 0, tunnel.TransportCeilingPhysicalLanes)
++	for laneID, lane := range f.lanes {
++		if lane == nil || lane.tlsConn == nil {
++			continue
++		}
++		state := lane.tlsConn.ConnectionState()
++		tcpInfo := tunnel.CaptureTransportCeilingTCPInfo(lane.tcpConn)
++		identity := sha256.Sum256([]byte(fmt.Sprintf("http-server|%d|%s|%s|%d|%d", laneID, lane.tlsConn.LocalAddr(), lane.tlsConn.RemoteAddr(), state.Version, state.CipherSuite)))
++		role := "data"
++		if laneID == 0 {
++			role = "control"
++		}
++		rows = append(rows, tunnel.TransportCeilingSocket{
++			Lane: laneID, LaneRole: role, LocalAddress: lane.tlsConn.LocalAddr().String(), RemoteAddress: lane.tlsConn.RemoteAddr().String(),
++			ConnectionIdentity: fmt.Sprintf("%x", identity[:16]), TLSVersion: state.Version, TLSCipherSuite: state.CipherSuite,
++			TCPInfoCaptured: tcpInfo.Captured, TCPInfoError: tcpInfo.Error, TCPState: tcpInfo.State,
++			Connected: connected && tcpInfo.Captured && tcpInfo.Error == "" && tcpInfo.State == tunnel.TransportCeilingTCPEstablished,
++		})
++	}
++	sort.Slice(rows, func(i, j int) bool { return rows[i].Lane < rows[j].Lane })
++	return rows
++}
++
++func (f *httpStageServerFixture) liveSocketRows() ([]tunnel.TransportCeilingSocket, error) {
++	rows := f.socketRows(true)
++	if len(rows) != tunnel.TransportCeilingPhysicalLanes {
++		return nil, fmt.Errorf("HTTP stage server live socket count=%d", len(rows))
++	}
++	for _, row := range rows {
++		if !row.Connected {
++			return nil, fmt.Errorf("HTTP stage server lane %d is not established", row.Lane)
++		}
++	}
++	return rows, nil
++}
+diff --git a/internal/tunnel/http_stage_qualification_linux.go b/internal/tunnel/http_stage_qualification_linux.go
+new file mode 100644
+index 0000000..eece095
+--- /dev/null
++++ b/internal/tunnel/http_stage_qualification_linux.go
+@@ -0,0 +1,586 @@
++//go:build linux && p2pstream_transport_ceiling && p2pstream_http_stage
++
++package tunnel
++
++// Temporary, test-build-only HTTP/1 stage diagnostic. This file deliberately
++// builds on the immutable transport-ceiling helper while leaving production
++// and the accepted bare transport fixture unchanged.
++
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++	"encoding/hex"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"net"
++	"net/http"
++	"os"
++	"path/filepath"
++	"slices"
++	"sync"
++	"time"
++)
++
++const (
++	HTTPStageSchemaVersion     = 1
++	HTTPStageExpectedPhases    = TransportCeilingExpectedPhases
++	HTTPStageResponsePumpBytes = TransportCeilingRelayBufferBytes
++	HTTPStageConsumerReadBytes = TransportCeilingDownloadReadBytes
++	HTTPStageUploadReadBytes   = TransportCeilingDownloadReadBytes
++	HTTPStageOriginWriteBytes  = TransportCeilingDownloadWriteBytes
++	HTTPStageUploadSourceBytes = TransportCeilingUploadBufferBytes
++	HTTPStageFixedCapacity     = 16
++	// defaultAgentStreamCapacityConfig(16) reserves one control slot and one
++	// quarter of the remaining public slots for one-shot work: 15 - 4 = 11.
++	HTTPStagePooledCapacity  = 11
++	HTTPStageIdleTimeout     = 30 * time.Second
++	HTTPStageResponseTimeout = 90 * time.Second
++	HTTPStageVariant         = "aggregate-http1"
++	HTTPStageDownloadSHA256  = "e1a511c229b7fdd398a94b74c98b7f16411fa0ec93302744f7e5d959275a907a"
++	HTTPStageUploadSHA256    = "a6d72ac7690f53be6ae46ba88506bd97302a093f7108472bd9efc3cefda06484"
++)
++
++type HTTPStageConfiguration struct {
++	TLSYamux                         TransportCeilingConfiguration `json:"tls_yamux_configuration"`
++	FixedCapacityStreams             int                           `json:"fixed_capacity_streams"`
++	HTTPIdleTimeoutNanoseconds       int64                         `json:"http_idle_timeout_nanoseconds"`
++	ResponseHeaderTimeoutNanoseconds int64                         `json:"response_header_timeout_nanoseconds"`
++	MaxIdleConnections               int                           `json:"max_idle_connections"`
++	MaxIdleConnectionsPerHost        int                           `json:"max_idle_connections_per_host"`
++	MaxConnectionsPerHost            int                           `json:"max_connections_per_host"`
++	DisableKeepAlives                bool                          `json:"disable_keep_alives"`
++	ResponsePumpBufferBytes          int                           `json:"response_pump_buffer_bytes"`
++	FinalConsumerReadBytes           int                           `json:"final_consumer_read_bytes"`
++	OriginWriteBytes                 int                           `json:"origin_write_bytes"`
++	OriginFlush                      bool                          `json:"origin_flush"`
++	UploadOriginIOCopySHA256         bool                          `json:"upload_origin_io_copy_sha256"`
++	ConditioningClosesWholePool      bool                          `json:"conditioning_closes_whole_pool"`
++}
++
++func httpStageConfiguration(role string) HTTPStageConfiguration {
++	return HTTPStageConfiguration{
++		TLSYamux:                         transportCeilingConfiguration(role, TransportCeilingVariantYamux),
++		FixedCapacityStreams:             HTTPStageFixedCapacity,
++		HTTPIdleTimeoutNanoseconds:       int64(HTTPStageIdleTimeout),
++		ResponseHeaderTimeoutNanoseconds: int64(HTTPStageResponseTimeout),
++		MaxIdleConnections:               HTTPStagePooledCapacity,
++		MaxIdleConnectionsPerHost:        HTTPStagePooledCapacity,
++		MaxConnectionsPerHost:            0,
++		DisableKeepAlives:                false,
++		ResponsePumpBufferBytes:          HTTPStageResponsePumpBytes,
++		FinalConsumerReadBytes:           HTTPStageConsumerReadBytes,
++		OriginWriteBytes:                 HTTPStageOriginWriteBytes,
++		OriginFlush:                      false,
++		UploadOriginIOCopySHA256:         true,
++		ConditioningClosesWholePool:      true,
++	}
++}
++
++var httpStageDownloadBlock = bytes.Repeat([]byte("p2pstream-aggregate-growth-payload-"), 1024)
++
++type HTTPStageConnectionTrace struct {
++	ConnectionIdentity       string `json:"connection_identity"`
++	OriginConnectionIdentity string `json:"origin_connection_identity"`
++	Reused                   bool   `json:"reused"`
++	WasIdle                  bool   `json:"was_idle"`
++	IdleNanoseconds          int64  `json:"idle_nanoseconds"`
++	PutIdle                  bool   `json:"put_idle"`
++	PutIdleError             string `json:"put_idle_error"`
++	DialOpened               bool   `json:"dial_opened"`
++}
++
++type HTTPStageOwnershipSnapshot struct {
++	CapacityTotalInUse         int       `json:"capacity_total_in_use"`
++	CapacityPooledInUse        int       `json:"capacity_pooled_in_use"`
++	CapacityOpening            int       `json:"capacity_opening"`
++	CapacityLive               int       `json:"capacity_live"`
++	CapacityClosing            int       `json:"capacity_closing"`
++	CapacityRegisteredSessions int       `json:"capacity_registered_sessions"`
++	TransportEntries           int       `json:"transport_entries"`
++	TransportDraining          int       `json:"transport_draining"`
++	LogicalOpens               uint64    `json:"logical_opens"`
++	LogicalCloses              uint64    `json:"logical_closes"`
++	ConnectionReuses           uint64    `json:"connection_reuses"`
++	OriginActiveRequests       int       `json:"origin_active_requests"`
++	LaneStreams                [4]int    `json:"lane_streams"`
++	LaneReceiveLimits          [4]uint32 `json:"lane_receive_limits"`
++}
++
++type HTTPStagePhaseResult struct {
++	SchemaVersion           int                        `json:"schema_version"`
++	PhaseIndex              int                        `json:"phase_index"`
++	PhaseName               string                     `json:"phase_name"`
++	Lane                    int                        `json:"lane"`
++	Direction               string                     `json:"direction"`
++	Stage                   string                     `json:"stage"`
++	PlannedReuseKind        string                     `json:"planned_reuse_kind"`
++	ConfiguredPayloadBytes  int64                      `json:"configured_payload_bytes"`
++	ReceivedPayloadBytes    int64                      `json:"received_payload_bytes"`
++	ExpectedSHA256          string                     `json:"expected_sha256"`
++	ReceivedSHA256          string                     `json:"received_sha256"`
++	HTTPStatus              int                        `json:"http_status"`
++	OriginHTTPMajor         int                        `json:"origin_http_major"`
++	ResponseContentLength   int64                      `json:"response_content_length"`
++	PhaseWallNanoseconds    int64                      `json:"phase_wall_nanoseconds"`
++	UsefulBytesPerSecond    float64                    `json:"useful_bytes_per_second"`
++	Connection              HTTPStageConnectionTrace   `json:"connection"`
++	OwnershipBefore         HTTPStageOwnershipSnapshot `json:"ownership_before"`
++	OwnershipAfter          HTTPStageOwnershipSnapshot `json:"ownership_after"`
++	ConditioningPoolClosed  bool                       `json:"conditioning_pool_closed"`
++	ConditioningQuiescent   bool                       `json:"conditioning_quiescent"`
++	ResponsePumpBufferBytes int                        `json:"response_pump_buffer_bytes"`
++	FinalConsumerReadBytes  int                        `json:"final_consumer_read_bytes"`
++	Error                   string                     `json:"error"`
++}
++
++type HTTPStageReport struct {
++	SchemaVersion          int                            `json:"schema_version"`
++	ProcessRole            string                         `json:"process_role"`
++	Variant                string                         `json:"variant"`
++	SourceRef              string                         `json:"source_ref"`
++	Configuration          HTTPStageConfiguration         `json:"configuration"`
++	Ready                  bool                           `json:"ready"`
++	GracefulShutdown       bool                           `json:"graceful_shutdown"`
++	InvalidReason          string                         `json:"invalid_reason"`
++	ExpectedPhases         int                            `json:"expected_phases"`
++	CompletedPhases        int                            `json:"completed_phases"`
++	PhysicalSocketsInitial []TransportCeilingSocket       `json:"physical_sockets_initial"`
++	PhysicalSocketsCurrent []TransportCeilingSocket       `json:"physical_sockets_current"`
++	SameSocketIdentities   bool                           `json:"same_socket_identities"`
++	ReconnectCount         int                            `json:"reconnect_count"`
++	Results                []HTTPStagePhaseResult         `json:"results"`
++	Ownership              HTTPStageOwnershipSnapshot     `json:"ownership"`
++	PoolLedger             TransportCeilingLedgerSnapshot `json:"pool_ledger"`
++	WorkingLedger          TransportCeilingLedgerSnapshot `json:"working_ledger"`
++	Errors                 []string                       `json:"errors"`
++}
++
++type HTTPStageEndpoint struct {
++	mu       sync.Mutex
++	role     string
++	source   string
++	pool     *TransportCeilingLedger
++	working  *TransportCeilingLedger
++	initial  []TransportCeilingSocket
++	current  []TransportCeilingSocket
++	results  []HTTPStagePhaseResult
++	invalid  error
++	transfer func(context.Context, int) (HTTPStagePhaseResult, error)
++	shutdown func()
++	owner    func() HTTPStageOwnershipSnapshot
++	config   HTTPStageConfiguration
++	live     bool
++}
++
++func NewHTTPStageEndpoint(role, source string, pool, working *TransportCeilingLedger) (*HTTPStageEndpoint, error) {
++	if role != "server" && role != "agent" {
++		return nil, fmt.Errorf("invalid HTTP stage role %q", role)
++	}
++	if source == "" || pool == nil || working == nil {
++		return nil, errors.New("HTTP stage source and ledgers are required")
++	}
++	return &HTTPStageEndpoint{
++		role: role, source: source, pool: pool, working: working,
++		config: httpStageConfiguration(role),
++	}, nil
++}
++
++func (e *HTTPStageEndpoint) SetCallbacks(transfer func(context.Context, int) (HTTPStagePhaseResult, error), shutdown func(), owner func() HTTPStageOwnershipSnapshot) {
++	e.mu.Lock()
++	defer e.mu.Unlock()
++	e.transfer, e.shutdown, e.owner = transfer, shutdown, owner
++}
++
++func (e *HTTPStageEndpoint) SetReady(sockets []TransportCeilingSocket) {
++	e.mu.Lock()
++	defer e.mu.Unlock()
++	e.initial = append([]TransportCeilingSocket(nil), sockets...)
++	e.current = append([]TransportCeilingSocket(nil), sockets...)
++}
++
++func (e *HTTPStageEndpoint) SetLive(sockets []TransportCeilingSocket) error {
++	e.mu.Lock()
++	defer e.mu.Unlock()
++	if len(e.results) != HTTPStageExpectedPhases {
++		return fmt.Errorf("HTTP stage live result count %d", len(e.results))
++	}
++	if len(sockets) != TransportCeilingPhysicalLanes {
++		return fmt.Errorf("HTTP stage live physical socket count %d", len(sockets))
++	}
++	for _, socket := range sockets {
++		if !socket.Connected || !socket.TCPInfoCaptured || socket.TCPInfoError != "" || socket.TCPState != TransportCeilingTCPEstablished {
++			return fmt.Errorf("HTTP stage live lane %d is not established", socket.Lane)
++		}
++	}
++	if !sameHTTPStageSockets(e.initial, sockets) {
++		return errors.New("HTTP stage live physical socket identities changed")
++	}
++	e.current = append([]TransportCeilingSocket(nil), sockets...)
++	e.live = true
++	return nil
++}
++
++// Terminal is called only after the retained post16 snapshot has been
++// published, the whole HTTP transport pool has been closed and quiesced, and
++// every physical session has been closed and joined.
++func (e *HTTPStageEndpoint) Terminal(sockets []TransportCeilingSocket) HTTPStageReport {
++	e.mu.Lock()
++	e.current = append([]TransportCeilingSocket(nil), sockets...)
++	e.mu.Unlock()
++	return e.snapshot(true)
++}
++
++func (e *HTTPStageEndpoint) RecordResult(result HTTPStagePhaseResult) error {
++	e.mu.Lock()
++	defer e.mu.Unlock()
++	if result.PhaseIndex != len(e.results) {
++		return fmt.Errorf("HTTP stage result index %d, want %d", result.PhaseIndex, len(e.results))
++	}
++	e.results = append(e.results, result)
++	return nil
++}
++
++func (e *HTTPStageEndpoint) MarkInvalid(err error) {
++	if err == nil {
++		return
++	}
++	e.mu.Lock()
++	defer e.mu.Unlock()
++	if e.invalid == nil {
++		e.invalid = err
++	}
++}
++
++func (e *HTTPStageEndpoint) IsLive() bool {
++	e.mu.Lock()
++	defer e.mu.Unlock()
++	return e.live
++}
++
++func (e *HTTPStageEndpoint) snapshot(final bool) HTTPStageReport {
++	e.mu.Lock()
++	defer e.mu.Unlock()
++	report := HTTPStageReport{
++		SchemaVersion: HTTPStageSchemaVersion, ProcessRole: e.role, Variant: HTTPStageVariant,
++		SourceRef: e.source, Configuration: e.config,
++		Ready:            !final && len(e.initial) == TransportCeilingPhysicalLanes,
++		GracefulShutdown: final, ExpectedPhases: HTTPStageExpectedPhases,
++		CompletedPhases: len(e.results), PhysicalSocketsInitial: append([]TransportCeilingSocket(nil), e.initial...),
++		PhysicalSocketsCurrent: append([]TransportCeilingSocket(nil), e.current...),
++		Results:                append([]HTTPStagePhaseResult(nil), e.results...), PoolLedger: e.pool.Snapshot(final),
++		WorkingLedger: e.working.Snapshot(final), SameSocketIdentities: sameHTTPStageSockets(e.initial, e.current),
++		Errors: []string{},
++	}
++	if e.owner != nil {
++		report.Ownership = e.owner()
++	}
++	if e.invalid != nil {
++		report.InvalidReason = e.invalid.Error()
++		report.Errors = []string{e.invalid.Error()}
++	}
++	_ = CaptureTransportCeilingProcessResources(&report.WorkingLedger)
++	return report
++}
++
++func (e *HTTPStageEndpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
++	switch {
++	case r.Method == http.MethodGet && r.URL.Path == "/http-stage/readiness":
++		writeHTTPStageJSON(w, e.snapshot(false))
++	case r.Method == http.MethodGet && r.URL.Path == "/http-stage/live-post16":
++		e.mu.Lock()
++		live := e.live
++		e.mu.Unlock()
++		if !live {
++			http.Error(w, "HTTP stage live state unavailable", http.StatusConflict)
++			return
++		}
++		writeHTTPStageJSON(w, e.snapshot(false))
++	case e.role == "server" && r.Method == http.MethodPost && r.URL.Path == "/http-stage/transfer":
++		var request struct {
++			SchemaVersion int `json:"schema_version"`
++			PhaseIndex    int `json:"phase_index"`
++		}
++		decoder := json.NewDecoder(io.LimitReader(r.Body, 4096))
++		decoder.DisallowUnknownFields()
++		if err := decoder.Decode(&request); err != nil || request.SchemaVersion != HTTPStageSchemaVersion || !httpStageJSONEnds(decoder) {
++			http.Error(w, "invalid HTTP stage transfer", http.StatusBadRequest)
++			return
++		}
++		e.mu.Lock()
++		transfer := e.transfer
++		e.mu.Unlock()
++		if transfer == nil {
++			http.Error(w, "HTTP stage transfer unavailable", http.StatusServiceUnavailable)
++			return
++		}
++		result, err := transfer(r.Context(), request.PhaseIndex)
++		if err != nil {
++			e.MarkInvalid(err)
++			http.Error(w, err.Error(), http.StatusInternalServerError)
++			return
++		}
++		writeHTTPStageJSON(w, result)
++	case e.role == "server" && r.Method == http.MethodPost && r.URL.Path == "/http-stage/shutdown":
++		var request struct {
++			SchemaVersion int `json:"schema_version"`
++		}
++		decoder := json.NewDecoder(io.LimitReader(r.Body, 4096))
++		decoder.DisallowUnknownFields()
++		if err := decoder.Decode(&request); err != nil || request.SchemaVersion != HTTPStageSchemaVersion || !httpStageJSONEnds(decoder) {
++			http.Error(w, "invalid HTTP stage shutdown", http.StatusBadRequest)
++			return
++		}
++		e.mu.Lock()
++		shutdown := e.shutdown
++		live := e.live
++		e.mu.Unlock()
++		if shutdown == nil || !live {
++			http.Error(w, "HTTP stage shutdown unavailable", http.StatusServiceUnavailable)
++			return
++		}
++		w.WriteHeader(http.StatusNoContent)
++		go shutdown()
++	default:
++		http.NotFound(w, r)
++	}
++}
++
++func httpStageJSONEnds(decoder *json.Decoder) bool {
++	var extra any
++	return decoder.Decode(&extra) == io.EOF
++}
++
++func writeHTTPStageJSON(w http.ResponseWriter, value any) {
++	w.Header().Set("Content-Type", "application/json")
++	_ = json.NewEncoder(w).Encode(value)
++}
++
++func WriteHTTPStageReport(path string, report HTTPStageReport) error {
++	if path == "" {
++		return errors.New("HTTP stage report path is required")
++	}
++	encoded, err := json.Marshal(report)
++	if err != nil {
++		return err
++	}
++	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
++		return err
++	}
++	temporary := path + ".tmp"
++	if err := os.WriteFile(temporary, append(encoded, '\n'), 0600); err != nil {
++		return err
++	}
++	return os.Rename(temporary, path)
++}
++
++// ReserveHTTPStageWorkingEnvelope prepays a conservative fixed-capacity
++// fixture allowance/promise. It is not a hard bound on TLS buffers, the Go
++// heap, RSS, or kernel memory. It is independent of the production fixed-count
++// stream manager, whose non-adaptive resource controller deliberately has no
++// host sampler and therefore does not publish byte ownership.
++func ReserveHTTPStageWorkingEnvelope(ledger *TransportCeilingLedger) ([]func(), error) {
++	if ledger == nil {
++		return nil, errors.New("HTTP stage working ledger is required")
++	}
++	reservations := []struct {
++		category string
++		bytes    int64
++	}{
++		{"session_metadata", int64(TransportCeilingPhysicalLanes) * AggregateSessionMetadataBytes},
++		{"stream_metadata", 16 * AdaptiveServerStreamOverheadBytes},
++		{"relay_buffers", 16 * 2 * TransportCeilingRelayBufferBytes},
++		{"frame_buffers", 16 * int64(HTTPStageOriginWriteBytes+HTTPStageUploadSourceBytes)},
++		{"tls_app_buffers", int64(TransportCeilingPhysicalLanes) * 64 << 10},
++	}
++	releases := make([]func(), 0, len(reservations))
++	for _, reservation := range reservations {
++		release, ok := ledger.Reserve(reservation.category, reservation.bytes)
++		if !ok {
++			for index := len(releases) - 1; index >= 0; index-- {
++				releases[index]()
++			}
++			return nil, fmt.Errorf("reserve HTTP stage %s working envelope", reservation.category)
++		}
++		releases = append(releases, release)
++	}
++	return releases, nil
++}
++
++func sameHTTPStageSockets(left, right []TransportCeilingSocket) bool {
++	if len(left) != len(right) {
++		return false
++	}
++	a, b := append([]TransportCeilingSocket(nil), left...), append([]TransportCeilingSocket(nil), right...)
++	slices.SortFunc(a, func(x, y TransportCeilingSocket) int { return x.Lane - y.Lane })
++	slices.SortFunc(b, func(x, y TransportCeilingSocket) int { return x.Lane - y.Lane })
++	for index := range a {
++		if a[index].Lane != b[index].Lane || a[index].LaneRole != b[index].LaneRole || a[index].ConnectionIdentity != b[index].ConnectionIdentity || a[index].LocalAddress != b[index].LocalAddress || a[index].RemoteAddress != b[index].RemoteAddress || a[index].TLSVersion != b[index].TLSVersion || a[index].TLSCipherSuite != b[index].TLSCipherSuite {
++			return false
++		}
++	}
++	return true
++}
++
++type httpStageReaderOnly struct{ io.Reader }
++type httpStageWriterOnly struct{ io.Writer }
++
++// ConsumeHTTPStageResponse keeps the final 8 KiB consumer behind an explicit
++// 32 KiB pump. The interface wrappers prevent io.CopyBuffer from bypassing the
++// supplied buffer via WriterTo or ReaderFrom. Short reads are preserved.
++func ConsumeHTTPStageResponse(ctx context.Context, body io.ReadCloser, release func()) (int64, string, []byte, error) {
++	if body == nil {
++		return 0, "", nil, errors.New("HTTP stage response body is nil")
++	}
++	reader, writer := io.Pipe()
++	var closeOnce sync.Once
++	var closeErr error
++	closeBody := func() {
++		closeOnce.Do(func() { closeErr = body.Close() })
++	}
++	pumpDone := make(chan error, 1)
++	go func() {
++		buffer := make([]byte, HTTPStageResponsePumpBytes)
++		_, copyErr := io.CopyBuffer(httpStageWriterOnly{writer}, httpStageReaderOnly{body}, buffer)
++		closeBody()
++		_ = writer.CloseWithError(copyErr)
++		pumpDone <- copyErr
++	}()
++	consumerDone := make(chan struct{})
++	watchDone := make(chan struct{})
++	go func() {
++		defer close(watchDone)
++		select {
++		case <-ctx.Done():
++			closeBody()
++			_ = writer.CloseWithError(ctx.Err())
++			_ = reader.CloseWithError(ctx.Err())
++		case <-consumerDone:
++		}
++	}()
++	consumerBuffer := make([]byte, HTTPStageConsumerReadBytes)
++	digest := sha256.New()
++	var prefix httpStagePrefix
++	n, readErr := copyHTTPStageShortReads(io.MultiWriter(digest, &prefix), reader, consumerBuffer)
++	_ = reader.Close()
++	pumpErr := <-pumpDone
++	close(consumerDone)
++	<-watchDone
++	if release != nil {
++		release()
++	}
++	if readErr != nil {
++		return n, "", prefix.Bytes(), readErr
++	}
++	if pumpErr != nil {
++		return n, "", prefix.Bytes(), pumpErr
++	}
++	if closeErr != nil {
++		return n, "", prefix.Bytes(), fmt.Errorf("close HTTP stage response body: %w", closeErr)
++	}
++	return n, hex.EncodeToString(digest.Sum(nil)), prefix.Bytes(), nil
++}
++
++type httpStagePrefix struct {
++	bytes [sha256.Size]byte
++	n     int
++}
++
++func (p *httpStagePrefix) Write(data []byte) (int, error) {
++	if p.n < len(p.bytes) {
++		p.n += copy(p.bytes[p.n:], data)
++	}
++	return len(data), nil
++}
++
++func (p *httpStagePrefix) Bytes() []byte {
++	return append([]byte(nil), p.bytes[:p.n]...)
++}
++
++func copyHTTPStageShortReads(destination io.Writer, source io.Reader, buffer []byte) (int64, error) {
++	var total int64
++	for {
++		n, err := source.Read(buffer)
++		if n > 0 {
++			total += int64(n)
++			if _, writeErr := destination.Write(buffer[:n]); writeErr != nil {
++				return total, writeErr
++			}
++		}
++		if err == io.EOF {
++			return total, nil
++		}
++		if err != nil {
++			return total, err
++		}
++		if n == 0 {
++			return total, io.ErrNoProgress
++		}
++	}
++}
++
++type HTTPStagePayloadReader struct {
++	remaining int64
++	offset    int64
++	maxChunk  int
++	zero      bool
++}
++
++func NewHTTPStageDownloadReader(bytes int64, maxChunk int) *HTTPStagePayloadReader {
++	return &HTTPStagePayloadReader{remaining: bytes, maxChunk: maxChunk}
++}
++
++func NewHTTPStageUploadReader(bytes int64, maxChunk int) *HTTPStagePayloadReader {
++	return &HTTPStagePayloadReader{remaining: bytes, maxChunk: maxChunk, zero: true}
++}
++
++func (r *HTTPStagePayloadReader) Read(p []byte) (int, error) {
++	if r.remaining == 0 {
++		return 0, io.EOF
++	}
++	limit := len(p)
++	if r.maxChunk > 0 && limit > r.maxChunk {
++		limit = r.maxChunk
++	}
++	if int64(limit) > r.remaining {
++		limit = int(r.remaining)
++	}
++	if r.zero {
++		clear(p[:limit])
++	} else {
++		for index := 0; index < limit; index++ {
++			p[index] = httpStageDownloadBlock[(r.offset+int64(index))%int64(len(httpStageDownloadBlock))]
++		}
++	}
++	r.offset += int64(limit)
++	r.remaining -= int64(limit)
++	return limit, nil
++}
++
++func WriteHTTPStagePayload(w io.Writer, bytes int64) (string, error) {
++	remaining := bytes
++	for remaining > 0 {
++		n := min(remaining, int64(len(httpStageDownloadBlock)))
++		chunk := httpStageDownloadBlock[:n]
++		written, err := w.Write(chunk)
++		if written > 0 {
++			remaining -= int64(written)
++		}
++		if err != nil {
++			return "", err
++		}
++		if written != len(chunk) {
++			return "", io.ErrShortWrite
++		}
++	}
++	// The block algorithm and exact length have an independently pinned digest.
++	// Do not add origin-side hashing to the timed path; the receiver hashes the
++	// bytes that actually crossed the production transport.
++	return HTTPStageDownloadSHA256, nil
++}
++
++func HTTPStageSocketIdentity(conn net.Conn) string {
++	return fmt.Sprintf("%p", conn)
++}
+diff --git a/internal/tunnel/http_stage_qualification_linux_test.go b/internal/tunnel/http_stage_qualification_linux_test.go
+new file mode 100644
+index 0000000..8f002ce
+--- /dev/null
++++ b/internal/tunnel/http_stage_qualification_linux_test.go
+@@ -0,0 +1,170 @@
++//go:build linux && p2pstream_transport_ceiling && p2pstream_http_stage
++
++package tunnel
++
++import (
++	"bytes"
++	"context"
++	"errors"
++	"io"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++)
++
++type httpStageFastPathBody struct {
++	reader         *bytes.Reader
++	writerToCalled atomic.Bool
++	closed         atomic.Bool
++	closeErr       error
++}
++
++func (b *httpStageFastPathBody) Read(p []byte) (int, error) { return b.reader.Read(p) }
++func (b *httpStageFastPathBody) Close() error {
++	b.closed.Store(true)
++	return b.closeErr
++}
++
++func TestHTTPStageResponsePumpReportsCloseErrorAfterJoin(t *testing.T) {
++	want := errors.New("close failed")
++	body := &httpStageFastPathBody{reader: bytes.NewReader([]byte("payload")), closeErr: want}
++	var released atomic.Bool
++	_, _, _, err := ConsumeHTTPStageResponse(context.Background(), body, func() { released.Store(true) })
++	if !errors.Is(err, want) {
++		t.Fatalf("close error = %v, want %v", err, want)
++	}
++	if !body.closed.Load() || !released.Load() {
++		t.Fatalf("close-error lifecycle closed=%v released=%v", body.closed.Load(), released.Load())
++	}
++}
++func (b *httpStageFastPathBody) WriteTo(io.Writer) (int64, error) {
++	b.writerToCalled.Store(true)
++	return 0, errors.New("WriterTo fast path must not be used")
++}
++
++func TestHTTPStageResponsePumpKeepsBoundedRelay(t *testing.T) {
++	payload := bytes.Repeat([]byte("http-stage"), 8193)
++	body := &httpStageFastPathBody{reader: bytes.NewReader(payload)}
++	var releases atomic.Int32
++	n, digest, prefix, err := ConsumeHTTPStageResponse(context.Background(), body, func() { releases.Add(1) })
++	if err != nil {
++		t.Fatal(err)
++	}
++	if n != int64(len(payload)) || digest == "" || !bytes.Equal(prefix, payload[:len(prefix)]) {
++		t.Fatalf("unexpected response result n=%d digest=%q prefix=%d", n, digest, len(prefix))
++	}
++	if body.writerToCalled.Load() {
++		t.Fatal("response pump used body WriterTo")
++	}
++	if !body.closed.Load() || releases.Load() != 1 {
++		t.Fatalf("body/release lifecycle closed=%v releases=%d", body.closed.Load(), releases.Load())
++	}
++}
++
++type httpStageBlockingBody struct {
++	closeCalled   chan struct{}
++	allowReadExit chan struct{}
++	once          sync.Once
++	allowOnce     sync.Once
++}
++
++func (b *httpStageBlockingBody) allowReadToExit() {
++	b.allowOnce.Do(func() { close(b.allowReadExit) })
++}
++
++func (b *httpStageBlockingBody) Read([]byte) (int, error) {
++	<-b.allowReadExit
++	return 0, context.Canceled
++}
++func (b *httpStageBlockingBody) Close() error {
++	b.once.Do(func() { close(b.closeCalled) })
++	return nil
++}
++
++func TestHTTPStageResponseCancellationJoinsPumpBeforeRelease(t *testing.T) {
++	ctx, cancel := context.WithCancel(context.Background())
++	body := &httpStageBlockingBody{closeCalled: make(chan struct{}), allowReadExit: make(chan struct{})}
++	var released atomic.Bool
++	done := make(chan error, 1)
++	finished := make(chan struct{})
++	go func() {
++		defer close(finished)
++		_, _, _, err := ConsumeHTTPStageResponse(ctx, body, func() {
++			released.Store(true)
++		})
++		done <- err
++	}()
++	t.Cleanup(func() {
++		body.allowReadToExit()
++		select {
++		case <-finished:
++		case <-time.After(time.Second):
++			t.Error("cancelled response pump leaked after test cleanup")
++		}
++	})
++	cancel()
++	select {
++	case <-body.closeCalled:
++	case <-time.After(time.Second):
++		t.Fatal("cancellation did not close response body")
++	}
++	if released.Load() {
++		t.Fatal("working owner released before pump read exited")
++	}
++	body.allowReadToExit()
++	select {
++	case err := <-done:
++		if err == nil {
++			t.Fatal("cancelled response pump returned nil error")
++		}
++	case <-time.After(time.Second):
++		t.Fatal("cancelled response pump did not join")
++	}
++	if !released.Load() {
++		t.Fatal("working owner was not released after joined cancellation")
++	}
++	if err := body.Close(); err != nil {
++		t.Fatalf("idempotent body close: %v", err)
++	}
++}
++
++func TestHTTPStageEndpointRequiresOrderedResults(t *testing.T) {
++	endpoint, err := NewHTTPStageEndpoint(
++		"server",
++		"0123456789abcdef0123456789abcdef01234567",
++		NewTransportCeilingLedger(TransportCeilingPoolLimitBytes),
++		NewTransportCeilingLedger(TransportCeilingWorkingLimitBytes),
++	)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := endpoint.RecordResult(HTTPStagePhaseResult{PhaseIndex: 1}); err == nil {
++		t.Fatal("out-of-order HTTP stage result accepted")
++	}
++}
++
++func TestHTTPStageConfigurationPinsNativeTransportBoundaries(t *testing.T) {
++	server := httpStageConfiguration("server")
++	agent := httpStageConfiguration("agent")
++	for role, configuration := range map[string]HTTPStageConfiguration{"server": server, "agent": agent} {
++		if configuration.FixedCapacityStreams != HTTPStageFixedCapacity ||
++			configuration.HTTPIdleTimeoutNanoseconds != int64(HTTPStageIdleTimeout) ||
++			configuration.ResponseHeaderTimeoutNanoseconds != int64(HTTPStageResponseTimeout) ||
++			configuration.MaxIdleConnections != HTTPStagePooledCapacity ||
++			configuration.MaxIdleConnectionsPerHost != HTTPStagePooledCapacity ||
++			configuration.MaxConnectionsPerHost != 0 || configuration.DisableKeepAlives ||
++			configuration.ResponsePumpBufferBytes != HTTPStageResponsePumpBytes ||
++			configuration.FinalConsumerReadBytes != HTTPStageConsumerReadBytes ||
++			configuration.OriginWriteBytes != HTTPStageOriginWriteBytes || configuration.OriginFlush ||
++			!configuration.UploadOriginIOCopySHA256 || !configuration.ConditioningClosesWholePool {
++			t.Fatalf("%s HTTP stage configuration = %+v", role, configuration)
++		}
++		if !configuration.TLSYamux.YamuxEnabled || configuration.TLSYamux.DataIncomingHardBound != HTTPStageFixedCapacity && role == "agent" {
++			t.Fatalf("%s TLS/Yamux configuration = %+v", role, configuration.TLSYamux)
++		}
++	}
++	if server.TLSYamux.DataIncomingHardBound != -1 || agent.TLSYamux.DataIncomingHardBound != HTTPStageFixedCapacity {
++		t.Fatalf("role bounds server=%d agent=%d", server.TLSYamux.DataIncomingHardBound, agent.TLSYamux.DataIncomingHardBound)
++	}
++}

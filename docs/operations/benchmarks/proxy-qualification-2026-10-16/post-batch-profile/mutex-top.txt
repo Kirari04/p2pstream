@@ -1,0 +1,43 @@
+File: server.test
+Build ID: 487e91ba8f7bd6b5a86f29c5179dab1687f5d9a0
+Type: delay
+Time: 2026-10-16 02:44:22 CEST
+Showing nodes accounting for 11118.14ms, 99.80% of 11140.73ms total
+Dropped 103 nodes (cum <= 55.70ms)
+Showing top 35 nodes out of 55
+      flat  flat%   sum%        cum   cum%
+10953.90ms 98.32% 98.32% 10953.90ms 98.32%  sync.(*Mutex).Unlock (partial-inline)
+  164.24ms  1.47% 99.80%   164.24ms  1.47%  runtime.unlock (partial-inline)
+         0     0% 99.80%   111.89ms  1.00%  context.(*cancelCtx).cancel
+         0     0% 99.80%   111.89ms  1.00%  context.WithCancelCause.func1
+         0     0% 99.80%   111.89ms  1.00%  context.removeChild
+         0     0% 99.80%  6772.77ms 60.79%  net/http.(*ServeMux).ServeHTTP
+         0     0% 99.80%  6861.51ms 61.59%  net/http.(*Server).Serve.gowrap3
+         0     0% 99.80%  4359.82ms 39.13%  net/http.(*Transport).RoundTrip
+         0     0% 99.80%  2966.31ms 26.63%  net/http.(*Transport).dialConn.gowrap2
+         0     0% 99.80%  4202.78ms 37.72%  net/http.(*Transport).getConn
+         0     0% 99.80%   155.03ms  1.39%  net/http.(*Transport).prepareTransportCancel
+         0     0% 99.80%   720.45ms  6.47%  net/http.(*Transport).prepareTransportCancel.func1
+         0     0% 99.80%  4202.78ms 37.72%  net/http.(*Transport).queueForIdleConn
+         0     0% 99.80%  4359.82ms 39.13%  net/http.(*Transport).roundTrip
+         0     0% 99.80%  2245.86ms 20.16%  net/http.(*Transport).tryPutIdleConn
+         0     0% 99.80%  6916.96ms 62.09%  net/http.(*conn).serve
+         0     0% 99.80%   128.43ms  1.15%  net/http.(*connReader).abortPendingRead
+         0     0% 99.80%  3008.73ms 27.01%  net/http.(*persistConn).readLoop
+         0     0% 99.80%  2245.86ms 20.16%  net/http.(*persistConn).readLoop.func2
+         0     0% 99.80%   134.01ms  1.20%  net/http.(*response).finishRequest
+         0     0% 99.80%  6781.22ms 60.87%  net/http.HandlerFunc.ServeHTTP
+         0     0% 99.80%  6781.22ms 60.87%  net/http.serverHandler.ServeHTTP
+         0     0% 99.80%  4397.39ms 39.47%  net/http/httputil.(*ReverseProxy).ServeHTTP
+         0     0% 99.80%  1126.08ms 10.11%  p2pstream/internal/server.(*App).StartAdaptiveTunnelCapacity.func1
+         0     0% 99.80%  1340.85ms 12.04%  p2pstream/internal/server.(*App).directTargetTransport
+         0     0% 99.80%  5747.02ms 51.59%  p2pstream/internal/server.(*App).proxyDirectTargetRequestWithResolution (inline)
+         0     0% 99.80%  5747.02ms 51.59%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+         0     0% 99.80%   365.63ms  3.28%  p2pstream/internal/server.(*App).resolvePublicRouteFromMatch
+         0     0% 99.80%   365.63ms  3.28%  p2pstream/internal/server.(*App).selectRouteTarget
+         0     0% 99.80%  6772.77ms 60.79%  p2pstream/internal/server.(*App).startPublicListenerFromSnapshot.(*App).publicProxyHandler.func3
+         0     0% 99.80%   246.31ms  2.21%  p2pstream/internal/server.(*App).targetEligibleForRoute
+         0     0% 99.80%   276.43ms  2.48%  p2pstream/internal/server.(*App).tryReservePublicOwnedResource
+         0     0% 99.80%  1391.63ms 12.49%  p2pstream/internal/server.(*agentStreamCapacityManager).refreshAdaptiveCapacity
+         0     0% 99.80%   276.43ms  2.48%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResource
+         0     0% 99.80%   383.56ms  3.44%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResource.func3

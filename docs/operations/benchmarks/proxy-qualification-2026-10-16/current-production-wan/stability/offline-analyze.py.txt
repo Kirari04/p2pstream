@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+import collections
+import csv
+import datetime
+import hashlib
+import json
+import pathlib
+import statistics
+
+
+run = pathlib.Path(__file__).resolve().parent
+results_path = run / "results.jsonl"
+lifecycle_path = run / "results.lifecycle.jsonl"
+rows = [json.loads(line) for line in results_path.read_text().splitlines() if line.strip()]
+lifecycle = [json.loads(line) for line in lifecycle_path.read_text().splitlines() if line.strip()]
+attestation = json.loads((run / "h2-stability-attestation.json").read_text())
+
+
+def sha256(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def mtime_utc(path):
+    seconds, nanos = divmod(path.stat().st_mtime_ns, 1_000_000_000)
+    stamp = datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    return f"{stamp}.{nanos:09d}Z"
+
+
+orders = (("legacy", "aggregate-v1"), ("aggregate-v1", "legacy"), ("legacy", "aggregate-v1"))
+phases = []
+for pair in range(1, 4):
+    pair_rows = rows[(pair - 1) * 32:pair * 32]
+    for mode in orders[pair - 1]:
+        for stage in ("warmup", "retained-warmup", "steady"):
+            for direction in ("download", "upload"):
+                samples = [row["useful_transfer_bytes_per_second"] for row in pair_rows
+                           if row["transport_mode"] == mode and row["measurement_stage"] == stage
+                           and row["transfer_direction"] == direction]
+                phases.append({"pair": pair, "order": list(orders[pair - 1]), "mode": mode, "stage": stage,
+                               "direction": direction, "count": len(samples), "samples_bytes_per_second": samples,
+                               "min_bytes_per_second": min(samples), "median_bytes_per_second": statistics.median(samples),
+                               "max_bytes_per_second": max(samples)})
+
+pools = []
+required_pool_bytes = 8 << 20
+for pair in range(1, 4):
+    pair_rows = rows[(pair - 1) * 32:pair * 32]
+    for direction in ("download", "upload"):
+        samples = [row["receiving_pool_observed_bytes"] for row in pair_rows
+                   if row["transport_mode"] == "aggregate-v1" and row["measurement_stage"] == "steady"
+                   and row["transfer_direction"] == direction]
+        pools.append({"pair": pair, "direction": direction, "samples_bytes": samples, "min_bytes": min(samples),
+                      "max_bytes": max(samples), "required_pool_bytes": required_pool_bytes,
+                      "all_above_required": all(value > required_pool_bytes for value in samples)})
+
+pooled = {}
+for direction in ("download", "upload"):
+    medians = {mode: statistics.median(row["useful_transfer_bytes_per_second"] for row in rows
+                                       if row["transport_mode"] == mode and row["measurement_stage"] == "steady"
+                                       and row["transfer_direction"] == direction)
+               for mode in ("legacy", "aggregate-v1")}
+    pooled[direction] = {"legacy_median_bytes_per_second": medians["legacy"],
+                         "aggregate_median_bytes_per_second": medians["aggregate-v1"],
+                         "ratio": medians["aggregate-v1"] / medians["legacy"]}
+
+process_exits = [row for row in lifecycle if row.get("event") == "process-exit"]
+analysis = {
+    "schema_version": 1,
+    "analysis_scope": "offline only; immutable canonical rows preserved; prior single pair excluded",
+    "result": {
+        "path": str(results_path), "sha256": sha256(results_path), "last_write_utc": mtime_utc(results_path),
+        "lifecycle_sha256": sha256(lifecycle_path), "lifecycle_last_write_utc": mtime_utc(lifecycle_path),
+        "start_utc": pathlib.Path(str(run) + ".start.utc").read_text().strip(),
+        "end_utc": pathlib.Path(str(run) + ".end.utc").read_text().strip(),
+    },
+    "statuses": {
+        "canonical_runner": int((run / "runner.status").read_text()),
+        "offline_validator": int((run / "validation.status").read_text()),
+        "wrapper": int((run / "wrapper.status").read_text()),
+        "launch_shell": int(pathlib.Path(str(run) + ".shell.status").read_text()),
+        "tool_envelope": 1,
+        "forced_cleanup": json.loads((run / "supervisor-lifecycle.json").read_text())["forced"],
+    },
+    "acceptance": {"accepted": attestation["accepted"], "rule": "every pair and both directions must be >= 0.90",
+                   "pair_gates": attestation["pair_gates"], "canonical_pooled_gates": pooled,
+                   "canonical_summary_written": (run / "results.summary.json").exists(),
+                   "canonical_stderr": (run / "runner.stderr.log").read_text().strip(),
+                   "validator_stderr": (run / "validation.stderr.log").read_text().strip()},
+    "conservation": {
+        "rows": len(rows), "attempted": sum(row["attempted"] for row in rows),
+        "useful_completed": sum(row["useful_completed"] for row in rows), "errors": sum(row["errors"] for row in rows),
+        "protocols": dict(collections.Counter(row["protocol"] for row in rows)),
+        "observed_http_majors": {str(k): v for k, v in collections.Counter(row["observed_http_major"] for row in rows).items()},
+        "exact_http_200_rows": sum(row["status_codes"] == {"200": 1} for row in rows),
+        "exact_payload_rows": sum(row["configured_payload_bytes"] == 268435456 for row in rows),
+        "download_response_bytes_rows": sum(row["transfer_direction"] == "download" and row["response_bytes"] == 268435456 for row in rows),
+        "upload_response_bytes_rows": sum(row["transfer_direction"] == "upload" and row["response_bytes"] == 32 for row in rows),
+        "event_stats_captured_rows": sum(row["event_stats_captured"] is True for row in rows),
+        "persisted_event_delta": sum(row["persisted_event_delta"] for row in rows),
+        "dropped_event_delta": sum(row.get("dropped_event_delta") or 0 for row in rows),
+        "max_event_queue_after_drain": max(row.get("event_queue_after_drain") or 0 for row in rows),
+        "event_drain_error_rows": sum(bool(row.get("event_drain_error")) for row in rows),
+        "configured_rtt_ms": sorted(set(row["configured_rtt_ms"] for row in rows)),
+        "measured_rtt_ms": sorted(set(row["measured_rtt_ms"] for row in rows)),
+        "stage_counts": dict(collections.Counter(row["measurement_stage"] for row in rows)),
+    },
+    "lifecycle": {
+        "namespace_start_rows": sum(row.get("event") == "namespace-helpers-start" for row in lifecycle),
+        "process_exit_rows": len(process_exits), "natural_zero_exit_rows": sum(
+            row.get("status") == 0 and row.get("forced") is False and row.get("group_joined") is True
+            and row.get("invalidates_success") is False for row in process_exits),
+        "labels": [row["label"] for row in process_exits],
+        "outer": json.loads((run / "outer-namespaces.json").read_text()),
+        "supervisor": json.loads((run / "supervisor-lifecycle.json").read_text()),
+    },
+    "receiving_pools": pools,
+    "phase_distributions": phases,
+}
+(run / "offline-analysis.json").write_text(json.dumps(analysis, indent=2, sort_keys=True) + "\n")
+
+with (run / "phase-distributions.tsv").open("w", newline="") as output:
+    writer = csv.writer(output, delimiter="\t", lineterminator="\n")
+    writer.writerow(("pair", "order", "mode", "stage", "direction", "count", "min_Bps", "median_Bps", "max_Bps", "samples_Bps"))
+    for phase in phases:
+        writer.writerow((phase["pair"], ">".join(phase["order"]), phase["mode"], phase["stage"], phase["direction"],
+                         phase["count"], phase["min_bytes_per_second"], phase["median_bytes_per_second"],
+                         phase["max_bytes_per_second"], ",".join(map(str, phase["samples_bytes_per_second"]))))

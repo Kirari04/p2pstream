@@ -1,0 +1,684 @@
+{
+  "kind": "p2pstream-native-go-attribution-build-v1",
+  "source_ref": "248bad099682878fe398c0ebaad235787ef47858",
+  "created_utc": "2026-10-16T14:12:11.477645+00:00",
+  "complete": true,
+  "commands": [
+    {
+      "label": "findmnt",
+      "requested_command": [
+        "findmnt",
+        "-no",
+        "FSTYPE",
+        "--target",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B"
+      ],
+      "started_utc": "2026-10-16T14:12:11.480013+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/usr/bin/findmnt",
+        "-no",
+        "FSTYPE",
+        "--target",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B"
+      ],
+      "pid": 1154251,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "ext4\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:11.499392+00:00"
+    },
+    {
+      "label": "git-commit",
+      "requested_command": [
+        "git",
+        "-C",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+        "rev-parse",
+        "248bad099682878fe398c0ebaad235787ef47858^{commit}"
+      ],
+      "started_utc": "2026-10-16T14:12:11.499673+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/usr/bin/git",
+        "-C",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+        "rev-parse",
+        "248bad099682878fe398c0ebaad235787ef47858^{commit}"
+      ],
+      "pid": 1154252,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "248bad099682878fe398c0ebaad235787ef47858\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:11.521732+00:00"
+    },
+    {
+      "label": "git-tree",
+      "requested_command": [
+        "git",
+        "-C",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+        "rev-parse",
+        "248bad099682878fe398c0ebaad235787ef47858^{tree}"
+      ],
+      "started_utc": "2026-10-16T14:12:11.522009+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/usr/bin/git",
+        "-C",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+        "rev-parse",
+        "248bad099682878fe398c0ebaad235787ef47858^{tree}"
+      ],
+      "pid": 1154253,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "fd008f947f1ea43623bd03b7ca0f1a8f299b047b\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:11.544997+00:00"
+    },
+    {
+      "label": "git-archive",
+      "requested_command": [
+        "git",
+        "-C",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+        "archive",
+        "--format=tar",
+        "248bad099682878fe398c0ebaad235787ef47858"
+      ],
+      "started_utc": "2026-10-16T14:12:11.545486+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/usr/bin/git",
+        "-C",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+        "archive",
+        "--format=tar",
+        "248bad099682878fe398c0ebaad235787ef47858"
+      ],
+      "pid": 1154254,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:11.810609+00:00"
+    },
+    {
+      "label": "extract-archive",
+      "requested_command": [
+        "tar",
+        "-xf",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source.tar",
+        "-C",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source"
+      ],
+      "started_utc": "2026-10-16T14:12:11.848832+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/usr/bin/tar",
+        "-xf",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source.tar",
+        "-C",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source"
+      ],
+      "pid": 1154255,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:11.962339+00:00"
+    },
+    {
+      "label": "patch-forward",
+      "requested_command": [
+        "patch",
+        "-p1",
+        "--forward",
+        "--batch"
+      ],
+      "started_utc": "2026-10-16T14:12:11.962652+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/usr/bin/patch",
+        "-p1",
+        "--forward",
+        "--batch"
+      ],
+      "pid": 1154256,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:11.978854+00:00"
+    },
+    {
+      "label": "patch-reverse",
+      "requested_command": [
+        "patch",
+        "-p1",
+        "--reverse",
+        "--dry-run",
+        "--batch",
+        "-i",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/native-go-attribution.patch"
+      ],
+      "started_utc": "2026-10-16T14:12:11.979269+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/usr/bin/patch",
+        "-p1",
+        "--reverse",
+        "--dry-run",
+        "--batch",
+        "-i",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/native-go-attribution.patch"
+      ],
+      "pid": 1154257,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:11.995514+00:00"
+    },
+    {
+      "label": "go-env-goversion",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "GOVERSION"
+      ],
+      "started_utc": "2026-10-16T14:12:12.007160+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "GOVERSION"
+      ],
+      "pid": 1154258,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "go1.26.6\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:12.022625+00:00"
+    },
+    {
+      "label": "go-env-goversion",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "GOVERSION"
+      ],
+      "started_utc": "2026-10-16T14:12:12.022999+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "GOVERSION"
+      ],
+      "pid": 1154263,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "go1.26.6\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:12.038953+00:00"
+    },
+    {
+      "label": "go-env-gotoolchain",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "GOTOOLCHAIN"
+      ],
+      "started_utc": "2026-10-16T14:12:12.039354+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "GOTOOLCHAIN"
+      ],
+      "pid": 1154268,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "local\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:12.053242+00:00"
+    },
+    {
+      "label": "go-env-goflags",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "GOFLAGS"
+      ],
+      "started_utc": "2026-10-16T14:12:12.053563+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "GOFLAGS"
+      ],
+      "pid": 1154273,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:12.067700+00:00"
+    },
+    {
+      "label": "go-env-gowork",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "GOWORK"
+      ],
+      "started_utc": "2026-10-16T14:12:12.068156+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "env",
+        "GOWORK"
+      ],
+      "pid": 1154278,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "off\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:12.083225+00:00"
+    },
+    {
+      "label": "compile",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-c",
+        "-o",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test",
+        "./internal/server"
+      ],
+      "started_utc": "2026-10-16T14:12:12.083946+00:00",
+      "timeout_seconds": 600,
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-c",
+        "-o",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test",
+        "./internal/server"
+      ],
+      "pid": 1154284,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:23.436891+00:00"
+    },
+    {
+      "label": "go-list-selected",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "list",
+        "-f",
+        "{{join .GoFiles \"\\n\"}}\n{{join .TestGoFiles \"\\n\"}}",
+        "./internal/server"
+      ],
+      "started_utc": "2026-10-16T14:12:23.437508+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "list",
+        "-f",
+        "{{join .GoFiles \"\\n\"}}\n{{join .TestGoFiles \"\\n\"}}",
+        "./internal/server"
+      ],
+      "pid": 1154984,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "agent_hub.go\nagent_proxy_timing.go\nagent_registry.go\nagent_request_limiter.go\nagent_stream_capacity.go\nagent_stream_capacity_adaptive.go\nagent_stream_capacity_observability.go\nagent_stream_capacity_runtime.go\nagent_transport_pool.go\nagent_tunnels.go\nagent_update_authority.go\nagent_update_rate_limit.go\nagent_update_records.go\nagent_updates.go\napp_services.go\nauth.go\nauth_service.go\nclient_identity.go\nclient_identity_runtime.go\ncloudflare_dns.go\ndashboard.go\ndashboard_cache.go\ndirect_health_transport_pool.go\ndirect_transport_pool.go\ndirect_transport_resources.go\nenvironment_agent_transport.go\nenvironment_certificates.go\nenvironment_proxy.go\nenvironments.go\ngeoip_country.go\nhttp_defaults.go\nload_balancer.go\nlogin_throttle.go\nmanagement_client_identity.go\nmanagement_tls.go\nmanagement_tls_rotation.go\nmanagement_tls_rotation_handlers.go\nmanagement_tokens.go\nobservability_recorder.go\nobservability_rollup.go\nproto_removed_fields.go\nproxy_lifecycle.go\nproxy_runtime.go\npublic_access.go\npublic_access_config.go\npublic_access_handlers.go\npublic_access_local.go\npublic_acme.go\npublic_admission_resources.go\npublic_cache.go\npublic_config.go\npublic_config_handlers.go\npublic_config_loader.go\npublic_config_proto.go\npublic_config_seed.go\npublic_config_service.go\npublic_config_validation.go\npublic_geo_config.go\npublic_geo_http_client.go\npublic_geo_lifecycle.go\npublic_geo_runtime.go\npublic_policy_match.go\npublic_proxy_pipeline.go\npublic_request_limits.go\npublic_retry.go\npublic_retry_transport.go\npublic_routing.go\npublic_sites.go\npublic_sites_migration.go\npublic_target_health.go\npublic_tls.go\npublic_tls_config.go\npublic_traffic_shaper.go\npublic_waf.go\npublic_waf_captcha.go\npublic_waf_captcha_limiter.go\npublic_waf_geo.go\npublic_waf_geo_api.go\npublic_waf_pages.go\npublic_waf_waiting_room.go\nrate_limiter.go\nresponse_templates.go\nreverse_proxy_buffer_pool.go\nserver.go\nserver_updates.go\nsource_offer.go\nstrict_json_codec.go\ntraffic_trace_request.go\ntraffic_tracer.go\ntrusted_proxy_providers.go\ntrusted_proxy_snapshot.go\nagent_aggregate_lifecycle_test.go\nagent_capacity_load_test.go\nagent_deletion_test.go\nagent_real_transport_test.go\nagent_registry_test.go\nagent_request_limiter_test.go\nagent_stream_capacity_adaptive_test.go\nagent_stream_capacity_observability_test.go\nagent_stream_capacity_peer_fd_test.go\nagent_stream_capacity_runtime_test.go\nagent_stream_capacity_stress_test.go\nagent_stream_capacity_test.go\nagent_transport_pool_benchmark_test.go\nagent_transport_pool_test.go\nagent_tunnel_aggregate_test.go\nagent_tunnels_aggregate_test.go\nagent_update_authority_test.go\nagent_update_campaign_creation_test.go\nagent_update_cancel_recovery_test.go\nagent_update_deep_review_test.go\nagent_update_rate_limit_test.go\nagent_update_systemd_integration_test.go\nagent_updates_resilience_test.go\nagent_updates_test.go\nauth_service_test.go\nclient_identity_consumers_test.go\nclient_identity_test.go\ncloudflare_dns_test.go\ndashboard_test.go\ndirect_transport_pool_test.go\nenvironment_agent_transport_test.go\nenvironment_agent_updates_test.go\nenvironment_proxy_security_test.go\nenvironments_test.go\ngeoip_country_test.go\nhttp2_capacity_benchmark_test.go\nhttp_defaults_test.go\nload_balancer_test.go\nlogin_throttle_test.go\nmanagement_client_identity_test.go\nmanagement_tls_rotation_test.go\nmanagement_tls_test.go\nnative_go_attribution_qualification_linux_test.go\nobservability_prepared_insert_test.go\nperformance_network_test.go\nproxy_lifecycle_test.go\nproxy_qualification_credit_snapshot_disabled_test.go\nproxy_qualification_test.go\npublic_access_test.go\npublic_acme_test.go\npublic_admission_resources_test.go\npublic_cache_bypass_benchmark_test.go\npublic_cache_test.go\npublic_config_seed_sites_test.go\npublic_config_test.go\npublic_config_validation_security_test.go\npublic_connection_phase_limiter_test.go\npublic_geo_config_test.go\npublic_geo_http_client_test.go\npublic_geo_lifecycle_test.go\npublic_header_burst_qualification_test.go\npublic_listener_site_cutover_test.go\npublic_memory_stress_test.go\npublic_owned_resources_test.go\npublic_policy_match_fail_closed_test.go\npublic_policy_match_test.go\npublic_proxy_context_pool_test.go\npublic_proxy_trace_lazy_test.go\npublic_request_limits_test.go\npublic_retry_test.go\npublic_route_selection_alloc_test.go\npublic_routing_test.go\npublic_routing_timeout_test.go\npublic_rule_order_test.go\npublic_security_boundary_test.go\npublic_sites_acceptance_test.go\npublic_sites_migration_test.go\npublic_sites_test.go\npublic_snapshot_test.go\npublic_socket_resources_test.go\npublic_target_health_test.go\npublic_tls_test.go\npublic_traffic_shaper_test.go\npublic_waf_geo_test.go\npublic_waf_test.go\npublic_wan_test.go\nrate_limiter_test.go\nresponse_templates_test.go\nreview_server_updates_test.go\nserver_test.go\nserver_updates_test.go\ntraffic_trace_request_test.go\ntrusted_proxy_providers_test.go\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:23.511213+00:00"
+    },
+    {
+      "label": "go-version",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version"
+      ],
+      "started_utc": "2026-10-16T14:12:23.511901+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version"
+      ],
+      "pid": 1155002,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "go version go1.26.6 linux/amd64\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:23.529081+00:00"
+    },
+    {
+      "label": "go-version-m",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version",
+        "-m",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test"
+      ],
+      "started_utc": "2026-10-16T14:12:23.529458+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version",
+        "-m",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test"
+      ],
+      "pid": 1155007,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:23.545694+00:00"
+    },
+    {
+      "label": "go-buildid",
+      "requested_command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "tool",
+        "buildid",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test"
+      ],
+      "started_utc": "2026-10-16T14:12:23.546055+00:00",
+      "timeout_seconds": 120,
+      "command": [
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "tool",
+        "buildid",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test"
+      ],
+      "pid": 1155012,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout": "D6j00smoWNvWJl0FWvD2/QCmAew-6DNXjkFF4xzeu/KJrHABHBxaAi09ieKgRo/aMMSGbRHZP9piCLVBmr9\n",
+      "stderr": "",
+      "finished_utc": "2026-10-16T14:12:23.608197+00:00"
+    }
+  ],
+  "cleanup": [],
+  "errors": [],
+  "build_parent_filesystem": "ext4",
+  "source_tree": "fd008f947f1ea43623bd03b7ca0f1a8f299b047b",
+  "source_archive": {
+    "path": "source.tar",
+    "sha256": "6c157f23cf3787c2673ea093c1e233d50c038268f72c4169621f702ce3c6c1d7"
+  },
+  "applied_source_files": {
+    "internal/server/proxy_qualification_test.go": "07bf76b0491d2e95c659ca329dce740c9fb53121aab20664e5dad7d35d4476d4",
+    "internal/server/native_go_attribution_qualification_linux_test.go": "2693e413533aaeacdf196ffc25c957674be6f0b866991c66ba54600f000f9078"
+  },
+  "patch_replay": {
+    "forward_log": {
+      "path": "patch.log",
+      "sha256": "d642310a935c487bf7699970a17b7134e24e17ff686fb70d922a1a76199e99ea"
+    },
+    "reverse_log": {
+      "path": "patch-reverse-dry-run.log",
+      "sha256": "e9522c438cac940d905dfaa4c9cd128d333322056ba5cb61e1f5a081ec0ed0c3"
+    }
+  },
+  "temporary_environment": {
+    "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/gotmp",
+    "TEMP": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/gotmp",
+    "TMP": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/gotmp",
+    "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/gotmp"
+  },
+  "go": {
+    "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+    "env": {
+      "GOVERSION": "go1.26.6",
+      "GOTOOLCHAIN": "local",
+      "GOFLAGS": "",
+      "GOWORK": "off"
+    },
+    "version": "go version go1.26.6 linux/amd64"
+  },
+  "build": {
+    "command": [
+      "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "test",
+      "-c",
+      "-o",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test",
+      "./internal/server"
+    ],
+    "started_utc": "2026-10-16T14:12:12.083715+00:00",
+    "timeout_seconds": 600,
+    "state": "finished",
+    "finished_utc": "2026-10-16T14:12:23.437227+00:00",
+    "elapsed_seconds": 11.353520444012247,
+    "exit_code": 0,
+    "timed_out": false,
+    "forced_group_cleanup": false,
+    "group_alive_after_cleanup": false,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "selected_files": [
+    "agent_hub.go",
+    "agent_proxy_timing.go",
+    "agent_registry.go",
+    "agent_request_limiter.go",
+    "agent_stream_capacity.go",
+    "agent_stream_capacity_adaptive.go",
+    "agent_stream_capacity_observability.go",
+    "agent_stream_capacity_runtime.go",
+    "agent_transport_pool.go",
+    "agent_tunnels.go",
+    "agent_update_authority.go",
+    "agent_update_rate_limit.go",
+    "agent_update_records.go",
+    "agent_updates.go",
+    "app_services.go",
+    "auth.go",
+    "auth_service.go",
+    "client_identity.go",
+    "client_identity_runtime.go",
+    "cloudflare_dns.go",
+    "dashboard.go",
+    "dashboard_cache.go",
+    "direct_health_transport_pool.go",
+    "direct_transport_pool.go",
+    "direct_transport_resources.go",
+    "environment_agent_transport.go",
+    "environment_certificates.go",
+    "environment_proxy.go",
+    "environments.go",
+    "geoip_country.go",
+    "http_defaults.go",
+    "load_balancer.go",
+    "login_throttle.go",
+    "management_client_identity.go",
+    "management_tls.go",
+    "management_tls_rotation.go",
+    "management_tls_rotation_handlers.go",
+    "management_tokens.go",
+    "observability_recorder.go",
+    "observability_rollup.go",
+    "proto_removed_fields.go",
+    "proxy_lifecycle.go",
+    "proxy_runtime.go",
+    "public_access.go",
+    "public_access_config.go",
+    "public_access_handlers.go",
+    "public_access_local.go",
+    "public_acme.go",
+    "public_admission_resources.go",
+    "public_cache.go",
+    "public_config.go",
+    "public_config_handlers.go",
+    "public_config_loader.go",
+    "public_config_proto.go",
+    "public_config_seed.go",
+    "public_config_service.go",
+    "public_config_validation.go",
+    "public_geo_config.go",
+    "public_geo_http_client.go",
+    "public_geo_lifecycle.go",
+    "public_geo_runtime.go",
+    "public_policy_match.go",
+    "public_proxy_pipeline.go",
+    "public_request_limits.go",
+    "public_retry.go",
+    "public_retry_transport.go",
+    "public_routing.go",
+    "public_sites.go",
+    "public_sites_migration.go",
+    "public_target_health.go",
+    "public_tls.go",
+    "public_tls_config.go",
+    "public_traffic_shaper.go",
+    "public_waf.go",
+    "public_waf_captcha.go",
+    "public_waf_captcha_limiter.go",
+    "public_waf_geo.go",
+    "public_waf_geo_api.go",
+    "public_waf_pages.go",
+    "public_waf_waiting_room.go",
+    "rate_limiter.go",
+    "response_templates.go",
+    "reverse_proxy_buffer_pool.go",
+    "server.go",
+    "server_updates.go",
+    "source_offer.go",
+    "strict_json_codec.go",
+    "traffic_trace_request.go",
+    "traffic_tracer.go",
+    "trusted_proxy_providers.go",
+    "trusted_proxy_snapshot.go",
+    "agent_aggregate_lifecycle_test.go",
+    "agent_capacity_load_test.go",
+    "agent_deletion_test.go",
+    "agent_real_transport_test.go",
+    "agent_registry_test.go",
+    "agent_request_limiter_test.go",
+    "agent_stream_capacity_adaptive_test.go",
+    "agent_stream_capacity_observability_test.go",
+    "agent_stream_capacity_peer_fd_test.go",
+    "agent_stream_capacity_runtime_test.go",
+    "agent_stream_capacity_stress_test.go",
+    "agent_stream_capacity_test.go",
+    "agent_transport_pool_benchmark_test.go",
+    "agent_transport_pool_test.go",
+    "agent_tunnel_aggregate_test.go",
+    "agent_tunnels_aggregate_test.go",
+    "agent_update_authority_test.go",
+    "agent_update_campaign_creation_test.go",
+    "agent_update_cancel_recovery_test.go",
+    "agent_update_deep_review_test.go",
+    "agent_update_rate_limit_test.go",
+    "agent_update_systemd_integration_test.go",
+    "agent_updates_resilience_test.go",
+    "agent_updates_test.go",
+    "auth_service_test.go",
+    "client_identity_consumers_test.go",
+    "client_identity_test.go",
+    "cloudflare_dns_test.go",
+    "dashboard_test.go",
+    "direct_transport_pool_test.go",
+    "environment_agent_transport_test.go",
+    "environment_agent_updates_test.go",
+    "environment_proxy_security_test.go",
+    "environments_test.go",
+    "geoip_country_test.go",
+    "http2_capacity_benchmark_test.go",
+    "http_defaults_test.go",
+    "load_balancer_test.go",
+    "login_throttle_test.go",
+    "management_client_identity_test.go",
+    "management_tls_rotation_test.go",
+    "management_tls_test.go",
+    "native_go_attribution_qualification_linux_test.go",
+    "observability_prepared_insert_test.go",
+    "performance_network_test.go",
+    "proxy_lifecycle_test.go",
+    "proxy_qualification_credit_snapshot_disabled_test.go",
+    "proxy_qualification_test.go",
+    "public_access_test.go",
+    "public_acme_test.go",
+    "public_admission_resources_test.go",
+    "public_cache_bypass_benchmark_test.go",
+    "public_cache_test.go",
+    "public_config_seed_sites_test.go",
+    "public_config_test.go",
+    "public_config_validation_security_test.go",
+    "public_connection_phase_limiter_test.go",
+    "public_geo_config_test.go",
+    "public_geo_http_client_test.go",
+    "public_geo_lifecycle_test.go",
+    "public_header_burst_qualification_test.go",
+    "public_listener_site_cutover_test.go",
+    "public_memory_stress_test.go",
+    "public_owned_resources_test.go",
+    "public_policy_match_fail_closed_test.go",
+    "public_policy_match_test.go",
+    "public_proxy_context_pool_test.go",
+    "public_proxy_trace_lazy_test.go",
+    "public_request_limits_test.go",
+    "public_retry_test.go",
+    "public_route_selection_alloc_test.go",
+    "public_routing_test.go",
+    "public_routing_timeout_test.go",
+    "public_rule_order_test.go",
+    "public_security_boundary_test.go",
+    "public_sites_acceptance_test.go",
+    "public_sites_migration_test.go",
+    "public_sites_test.go",
+    "public_snapshot_test.go",
+    "public_socket_resources_test.go",
+    "public_target_health_test.go",
+    "public_tls_test.go",
+    "public_traffic_shaper_test.go",
+    "public_waf_geo_test.go",
+    "public_waf_test.go",
+    "public_wan_test.go",
+    "rate_limiter_test.go",
+    "response_templates_test.go",
+    "review_server_updates_test.go",
+    "server_test.go",
+    "server_updates_test.go",
+    "traffic_trace_request_test.go",
+    "trusted_proxy_providers_test.go"
+  ],
+  "binary": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test",
+    "sha256": "12ffaadfdb8191b3cb6bd00026a2a6830981f168ea51cba74f2cd40628e720d7",
+    "build_id": "D6j00smoWNvWJl0FWvD2/QCmAew-6DNXjkFF4xzeu/KJrHABHBxaAi09ieKgRo/aMMSGbRHZP9piCLVBmr9",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/proxy-native-go-attribution.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1"
+  },
+  "source_overlay": {
+    "path": "native-go-attribution.patch",
+    "sha256": "f5debf1ab13534c852fc30b41ed642076abcc1a5e6df10983cb38bd1e7dcef2b"
+  },
+  "runner": {
+    "path": "qualify-proxy-native-go-attribution.py",
+    "sha256": "ebda90041f65bcdd317b0cf9aae10c6b334190d35653ce64b2147697375f7a50"
+  },
+  "contracts": {
+    "path": "native-go-attribution-contracts.py",
+    "sha256": "551b865d3f925cf776b0faf3176fd02ed2efa44cb38a6666f3a08ecbe52b1613"
+  },
+  "builder_sha256": "533ca913fbf660e2fb1e08b57e380331c45d5a24e373427be4a9191e3a90ced0",
+  "readme_sha256": "87f7a188ad82dcbd3081a0fd5f1550bdb538cdbb603a93d088cec885f8ba07f0",
+  "source_checkpoint_sha256": "c0e8ab560d6e2a961ab91871fd459bfc2bf4b0e09e30fa7e094666e234f918fe",
+  "plan_sha256": "ed5aaf47ba950479b9d34a55920ba2b35526769d6df64ad36d05559d1a57de33",
+  "effective_settings_sha256": "2a99152f0666e67f6ec44b641f822ea5b77b96e23800857e08c3ea29c511df55",
+  "owned_exec_shim": {
+    "path": "owned-exec-shim.py",
+    "sha256": "4bd9012452d8e2310cf83e29f3741032fe957d56cc0c1ebf3eee188bf48beace",
+    "python": "/usr/bin/python3.14",
+    "python_sha256": "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+  },
+  "finished_utc": "2026-10-16T14:12:23.647608+00:00"
+}

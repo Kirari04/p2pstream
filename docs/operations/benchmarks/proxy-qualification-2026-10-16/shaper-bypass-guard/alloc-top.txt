@@ -1,0 +1,23 @@
+File: server.test
+Build ID: 10351c66ec1f5c9405259d4cba7cc2f8492680c6
+Type: alloc_space
+Time: 2026-10-16 03:50:59 CEST
+Showing nodes accounting for 2052.19MB, 65.33% of 3141.46MB total
+Dropped 344 nodes (cum <= 15.71MB)
+Showing top 15 nodes out of 109
+      flat  flat%   sum%        cum   cum%
+  313.32MB  9.97%  9.97%   316.82MB 10.09%  database/sql.driverArgsConnLocked
+  304.07MB  9.68% 19.65%   337.07MB 10.73%  net/textproto.readMIMEHeader
+  283.08MB  9.01% 28.66%   283.08MB  9.01%  net/http.Header.Clone (inline)
+  173.05MB  5.51% 34.17%   173.05MB  5.51%  net/http.(*Request).WithContext (inline)
+  134.04MB  4.27% 38.44%   134.04MB  4.27%  net/textproto.MIMEHeader.Add (inline)
+  109.51MB  3.49% 41.93%   185.02MB  5.89%  net/http.(*persistConn).roundTrip
+   97.03MB  3.09% 45.01%   275.57MB  8.77%  net/http.(*Request).Clone
+   95.01MB  3.02% 48.04%   132.01MB  4.20%  net/http.(*Transport).getConn
+   89.53MB  2.85% 50.89%   285.57MB  9.09%  net/http.readRequest
+   89.52MB  2.85% 53.74%   398.59MB 12.69%  net/http.(*conn).readRequest
+   89.01MB  2.83% 56.57%  1434.21MB 45.65%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+   76.51MB  2.44% 59.01%   355.55MB 11.32%  net/http.(*persistConn).readLoop
+   71.51MB  2.28% 61.28%    71.51MB  2.28%  context.(*cancelCtx).propagateCancel
+   66.51MB  2.12% 63.40%   138.02MB  4.39%  context.withCancel (inline)
+   60.50MB  1.93% 65.33%    60.50MB  1.93%  p2pstream/internal/db.appendProxyRequestEventArgs

@@ -1,0 +1,117 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-mod=readonly",
+    "-p=2",
+    "-parallel=1",
+    "-count=1",
+    "-timeout=180s",
+    "-json",
+    "-run",
+    "^(TestAgentConnSignalDoneIsConcurrentAndIdempotent|TestAgentDialRequestIDContextFallback|TestAgentProtoDoesNotReusePreConnectionCapacityHeartbeat|TestAgentProtoReportsLiveNegotiatedTunnelCapacity|TestAgentReplacementSerializesPriorDisconnectSideEffects|TestAgentRouteLocalityAllBusyUsesRoundRobinWithoutWaiting|TestAgentRouteLocalityBodyOwnership|TestAgentRouteLocalityBoundedWindowAndMaximumLane|TestAgentRouteLocalityConcurrentClaims|TestAgentRouteLocalityConcurrentColdLiveLanes|TestAgentRouteLocalityFactoryDoesNotClaimOrAllocatePoolEntry|TestAgentRouteLocalityRejectsIneligibleEntry|TestAgentRouteLocalityStaleIdleHintAndCancellation|TestAgentRouteLocalityWarmupCloseAllPreservesRoundRobin|TestAgentTransportPoolAgentDisconnectInvalidatesPool|TestAgentTransportPoolCloseRouteTargetForcesNewPublicStream|TestAgentTransportPoolConcurrentPublicRouteTargetRequestsOpenParallelStreams|TestAgentTransportPoolIdleStreamUsesPooledBudgetAndOneShotHeadroom|TestAgentTransportPoolPressureReclaimPrefersSessionAndScalesWithDemand|TestAgentTransportPoolPressureReclaimsIdleShardAndSafelyHandsOffBody|TestAgentTransportPoolReclaimsIdleSocketBesideActiveResponse|TestAgentTransportPoolReservedHeadroomKeepsColdTargetAvailableAcrossFourAgents|TestAgentTransportPoolRetainsMoreThan256WarmTargets|TestAgentTransportPoolReusesPublicRouteTargetConnection|TestAgentTransportPoolReusesWarmConnectionForBodyRequest|TestAgentTransportPoolSeparatesAgentsAndRouteTargets|TestAgentTunnelFinalAuthLockReleasedAfterHijackFailure|TestAgentTunnelNegotiatesAdaptiveCapacityAtProtocolGuard|TestAgentTunnelNegotiatesAdvertisedCapacity|TestAgentTunnelReadGateRejectsSYNQueuedBeforeGoAway|TestAgentTunnelRechecksTokenBeforeRegisteringAfterRotation|TestAgentTunnelRejectsAgentInitiatedStreams|TestAgentTunnelRejectsInvalidAdvertisedCapacity|TestAgentTunnelRejectsMissingCapacityHeaders|TestAgentTunnelRejectsMissingUpgrade|TestAgentTunnelRejectsWrongVersion|TestAgentTunnelReplacesDuplicateConnection|TestAggregateControlAdmissionCallerDeadlineRemainsHealthCapacity|TestAggregateControlAdmissionPreservesAgentDisconnect|TestAggregateControlAdmissionPreservesCallerCancellation|TestAggregateControlGateBoundsLifetimePromises|TestAggregateExplicitLaneCannotCrossTrafficClassBoundary|TestAggregatePrimaryReplacementKeepsGenerationRegistrationUntilLastBulkLane|TestAggregateTunnelSelectionExcludesControlAndSupportsMaximumBulkLane|TestAggregateTunnelSelectionNeverUsesCompatibilitySessionBeforeLaneInstall|TestCreateAgentRejectsDuplicateNormalizedLabelKeys|TestCreateAgentStoresSystemAndUserLabels|TestCreateAgentWithGeneratedPublicIDCollisionFailure|TestCreateAgentWithGeneratedPublicIDCollisionRetry|TestDirectResourcePressurePreservesOriginHealthAndRecovers|TestDirectTransportPoolAppliesConnectionBudget|TestDirectTransportPoolCloseRouteTargetForcesNewConnection|TestDirectTransportPoolNormalizesDefaultTimeout|TestDirectTransportPoolReusesPublicRouteTargetConnection|TestDirectTransportPoolSeparatesRouteTargetsTLSAndTimeouts|TestExplicitFixedServerCapacityUsesResourceCoveredYamuxWindow|TestLegacyTunnelSelectionStillFallsBackAcrossLegacyLanes|TestRandomAgentPublicIDFormatAndUniqueness|TestRealAgentParallelTunnelsSurvivePrimaryLoss|TestRealAgentProxyPhaseTimingAndReuse|TestReportStatsPublishesAdaptivePressureWithoutChangingNegotiatedGuard|TestReportStatsRecordsAgentBuildIdentity|TestRotateAgentTokenClosesTunnelConnection|TestRotateAgentTokenDisconnectsActiveAgent|TestRotateAgentTokenOnlyDisconnectsTargetAgent|TestRouteTargetTransportReconcileEvictsChangedAndRemovedTargets|TestStaleAgentCleanupCannotAffectReplacementSideEffects|TestUpdateAgentLifecycleChangePreservesLabelsUntilReplacementIsExplicit|TestUpdateAgentReplacesUserLabelsAndPreservesSystemLabel)$",
+    "./internal/server"
+  ],
+  "artifact_bytes": 840607841,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 19.493272683001123,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2741028,
+      "pid": 2741028,
+      "ppid": 2740964,
+      "sid": 2741028,
+      "start_ticks": 8781701,
+      "state": "S"
+    },
+    {
+      "pgid": 2741028,
+      "pid": 2741076,
+      "ppid": 2741028,
+      "sid": 2741028,
+      "start_ticks": 8781723,
+      "state": "S"
+    },
+    {
+      "pgid": 2741028,
+      "pid": 2741140,
+      "ppid": 2741028,
+      "sid": 2741028,
+      "start_ticks": 8781792,
+      "state": "R"
+    },
+    {
+      "pgid": 2741028,
+      "pid": 2741146,
+      "ppid": 2741028,
+      "sid": 2741028,
+      "start_ticks": 8781839,
+      "state": "S"
+    },
+    {
+      "pgid": 2741028,
+      "pid": 2741179,
+      "ppid": 2741028,
+      "sid": 2741028,
+      "start_ticks": 8781894,
+      "state": "S"
+    },
+    {
+      "pgid": 2741028,
+      "pid": 2741366,
+      "ppid": 2741028,
+      "sid": 2741028,
+      "start_ticks": 8782306,
+      "state": "R"
+    },
+    {
+      "pgid": 2741028,
+      "pid": 2741401,
+      "ppid": 2741028,
+      "sid": 2741028,
+      "start_ticks": 8782360,
+      "state": "R"
+    },
+    {
+      "pgid": 2741028,
+      "pid": 2741473,
+      "ppid": 2741028,
+      "sid": 2741028,
+      "start_ticks": 8782978,
+      "state": "R"
+    },
+    {
+      "pgid": 2741028,
+      "pid": 2741486,
+      "ppid": 2741028,
+      "sid": 2741028,
+      "start_ticks": 8782983,
+      "state": "S"
+    },
+    {
+      "pgid": 2741028,
+      "pid": 2741518,
+      "ppid": 2741028,
+      "sid": 2741028,
+      "start_ticks": 8783098,
+      "state": "S"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 8388608,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 122998,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

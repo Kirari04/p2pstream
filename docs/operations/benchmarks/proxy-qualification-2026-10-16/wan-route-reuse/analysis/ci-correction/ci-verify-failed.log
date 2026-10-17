@@ -1,0 +1,80 @@
+Verify	Run Go tests	﻿2026-10-17T15:16:36.4196316Z ##[group]Run go test ./...
+Verify	Run Go tests	2026-10-17T15:16:36.4196565Z ^[[36;1mgo test ./...^[[0m
+Verify	Run Go tests	2026-10-17T15:16:36.4251379Z shell: /usr/bin/bash -e {0}
+Verify	Run Go tests	2026-10-17T15:16:36.4251592Z env:
+Verify	Run Go tests	2026-10-17T15:16:36.4251781Z   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+Verify	Run Go tests	2026-10-17T15:16:36.4252225Z   GOTOOLCHAIN: local
+Verify	Run Go tests	2026-10-17T15:16:36.4252405Z ##[endgroup]
+Verify	Run Go tests	2026-10-17T15:16:36.7593525Z go: downloading github.com/maxmind/mmdbwriter v1.2.0
+Verify	Run Go tests	2026-10-17T15:16:36.8332133Z go: downloading go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
+Verify	Run Go tests	2026-10-17T15:16:41.2593795Z # p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent [p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent.test]
+Verify	Run Go tests	2026-10-17T15:16:41.2725893Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:176:68: undefined: tunnelSessionObservation
+Verify	Run Go tests	2026-10-17T15:16:41.2737926Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:221:19: undefined: tunnelSessionObservation
+Verify	Run Go tests	2026-10-17T15:16:41.2740777Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:222:19: undefined: tunnelSessionObservation
+Verify	Run Go tests	2026-10-17T15:16:41.2743640Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:223:19: undefined: tunnelSessionObservation
+Verify	Run Go tests	2026-10-17T15:16:41.2746471Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:227:19: undefined: tunnelSessionObservation
+Verify	Run Go tests	2026-10-17T15:16:41.2749858Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:241:44: undefined: tunnel.StartQualificationEarlyShareFixture
+Verify	Run Go tests	2026-10-17T15:16:41.2829463Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:272:30: undefined: agentTunnelCapacityRuntime
+Verify	Run Go tests	2026-10-17T15:16:41.2833113Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:274:22: undefined: newExternalQualificationRawWriteTerminalRecorder
+Verify	Run Go tests	2026-10-17T15:16:41.2836324Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:278:34: undefined: installExternalQualificationRawWriteObserver
+Verify	Run Go tests	2026-10-17T15:16:41.2838934Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:289:14: undefined: RunContext
+Verify	Run Go tests	2026-10-17T15:16:41.2841241Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent/proxy_qualification_external_test.go:289:14: too many errors
+Verify	Run Go tests	2026-10-17T15:16:41.2843847Z # p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel [p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel.test]
+Verify	Run Go tests	2026-10-17T15:16:41.2846322Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:24:22: undefined: receiveWindowGrowth
+Verify	Run Go tests	2026-10-17T15:16:41.2848850Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:32:17: undefined: NormalizeMaxStreamWindowSizeBytes
+Verify	Run Go tests	2026-10-17T15:16:41.2851538Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:52:17: undefined: NormalizeMaxStreamWindowSizeBytes
+Verify	Run Go tests	2026-10-17T15:16:41.2885385Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:127:6: undefined: qualificationGrowthTraceEnabled
+Verify	Run Go tests	2026-10-17T15:16:41.2888877Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:128:6: c.recordQualificationGrowthSample undefined (type *GrowingConn has no field or method recordQualificationGrowthSample)
+Verify	Run Go tests	2026-10-17T15:16:41.2892342Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:128:63: undefined: qualificationGrowthOutcomeNoProposal
+Verify	Run Go tests	2026-10-17T15:16:41.2895002Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:137:6: undefined: qualificationGrowthTraceEnabled
+Verify	Run Go tests	2026-10-17T15:16:41.2897608Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:138:15: undefined: qualificationGrowthOutcomeGrown
+Verify	Run Go tests	2026-10-17T15:16:41.2900400Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:140:15: undefined: qualificationGrowthOutcomePublicationError
+Verify	Run Go tests	2026-10-17T15:16:41.2903376Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:142:15: undefined: qualificationGrowthOutcomeReservationDenied
+Verify	Run Go tests	2026-10-17T15:16:41.2905850Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel/growing_conn.go:142:15: too many errors
+Verify	Run Go tests	2026-10-17T15:17:11.8227305Z # p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server [p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server.test]
+Verify	Run Go tests	2026-10-17T15:17:11.8234580Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:468:34: undefined: qualificationWANResponseTLS
+Verify	Run Go tests	2026-10-17T15:17:11.8237556Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:517:16: undefined: newReverseProxyBufferPool
+Verify	Run Go tests	2026-10-17T15:17:11.8240856Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:543:2: undefined: configurePublicHTTPServer
+Verify	Run Go tests	2026-10-17T15:17:11.8244177Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:559:39: undefined: App
+Verify	Run Go tests	2026-10-17T15:17:11.8247671Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:562:4: undefined: writeQualificationGrowthSnapshot
+Verify	Run Go tests	2026-10-17T15:17:11.8250956Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:566:4: undefined: writeQualificationCreditSnapshot
+Verify	Run Go tests	2026-10-17T15:17:11.8254368Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:640:41: undefined: AgentConn
+Verify	Run Go tests	2026-10-17T15:17:11.8257738Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:817:44: undefined: tunnel.StartQualificationEarlyShareFixture
+Verify	Run Go tests	2026-10-17T15:17:11.8260761Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:871:9: undefined: NewApp
+Verify	Run Go tests	2026-10-17T15:17:11.8264316Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:874:21: undefined: qualificationWANTraceStore
+Verify	Run Go tests	2026-10-17T15:17:11.8267729Z ##[error]docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server/proxy_qualification_test.go:874:21: too many errors
+Verify	Run Go tests	2026-10-17T15:17:17.9700524Z ok  	p2pstream	0.035s
+Verify	Run Go tests	2026-10-17T15:17:22.4902798Z ok  	p2pstream/cmd	3.814s
+Verify	Run Go tests	2026-10-17T15:17:22.4934470Z ok  	p2pstream/cmd/agentupdate-manifest	0.056s
+Verify	Run Go tests	2026-10-17T15:17:22.4944075Z ?   	p2pstream/cmd/installation-manifest	[no test files]
+Verify	Run Go tests	2026-10-17T15:17:22.4972291Z ?   	p2pstream/cmd/serverupdate-manifest	[no test files]
+Verify	Run Go tests	2026-10-17T15:17:22.5002741Z FAIL	p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/agent [build failed]
+Verify	Run Go tests	2026-10-17T15:17:22.5033252Z FAIL	p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/server [build failed]
+Verify	Run Go tests	2026-10-17T15:17:22.5062930Z FAIL	p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-early-backed-share/source/internal/tunnel [build failed]
+Verify	Run Go tests	2026-10-17T15:17:22.5086189Z ?   	p2pstream/gen/proto/p2pstream/v1	[no test files]
+Verify	Run Go tests	2026-10-17T15:17:22.5112433Z ?   	p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect	[no test files]
+Verify	Run Go tests	2026-10-17T15:17:28.9701377Z ok  	p2pstream/internal/agent	10.294s
+Verify	Run Go tests	2026-10-17T15:17:28.9702393Z ok  	p2pstream/internal/agentupdate	0.006s
+Verify	Run Go tests	2026-10-17T15:17:28.9703123Z ok  	p2pstream/internal/agentupdateauth	0.013s
+Verify	Run Go tests	2026-10-17T15:17:28.9703631Z ok  	p2pstream/internal/agentupdateauthority	0.009s
+Verify	Run Go tests	2026-10-17T15:17:28.9704111Z ok  	p2pstream/internal/agentupdatecatalog	0.021s
+Verify	Run Go tests	2026-10-17T15:17:28.9704565Z ?   	p2pstream/internal/authutil	[no test files]
+Verify	Run Go tests	2026-10-17T15:17:28.9704996Z ?   	p2pstream/internal/buildinfo	[no test files]
+Verify	Run Go tests	2026-10-17T15:17:28.9705418Z ok  	p2pstream/internal/config	0.031s
+Verify	Run Go tests	2026-10-17T15:17:28.9706102Z ok  	p2pstream/internal/db	5.438s
+Verify	Run Go tests	2026-10-17T15:17:28.9706504Z ?   	p2pstream/internal/db/migrations	[no test files]
+Verify	Run Go tests	2026-10-17T15:17:28.9706960Z ?   	p2pstream/internal/logger	[no test files]
+Verify	Run Go tests	2026-10-17T15:17:28.9707371Z ok  	p2pstream/internal/managementui	0.032s
+Verify	Run Go tests	2026-10-17T15:17:28.9707783Z ok  	p2pstream/internal/releaseversion	0.006s
+Verify	Run Go tests	2026-10-17T15:19:27.5487181Z ok  	p2pstream/internal/server	123.036s
+Verify	Run Go tests	2026-10-17T15:19:27.5487709Z ok  	p2pstream/internal/serverupdate	0.874s
+Verify	Run Go tests	2026-10-17T15:19:27.5488153Z ?   	p2pstream/internal/smoketest	[no test files]
+Verify	Run Go tests	2026-10-17T15:19:27.5488603Z ok  	p2pstream/internal/smoketest/upstream	0.004s
+Verify	Run Go tests	2026-10-17T15:19:27.5489039Z ok  	p2pstream/internal/sysmetrics	0.011s
+Verify	Run Go tests	2026-10-17T15:19:27.5489291Z ok  	p2pstream/internal/tcpsocket	0.020s
+Verify	Run Go tests	2026-10-17T15:19:27.5489532Z ok  	p2pstream/internal/tunnel	0.050s
+Verify	Run Go tests	2026-10-17T15:19:27.5489770Z ok  	p2pstream/internal/updater	1.110s
+Verify	Run Go tests	2026-10-17T15:19:27.5490116Z ?   	p2pstream/stats	[no test files]
+Verify	Run Go tests	2026-10-17T15:19:27.5490520Z ok  	p2pstream/tests/integration	38.222s
+Verify	Run Go tests	2026-10-17T15:19:27.5490835Z FAIL
+Verify	Run Go tests	2026-10-17T15:19:27.7143268Z ##[error]Process completed with exit code 1.

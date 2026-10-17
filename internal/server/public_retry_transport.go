@@ -72,7 +72,7 @@ func (a *App) tryAcquireRetryReplayBudget(size int64) (func(), bool) {
 		budgetRelease()
 		return nil, false
 	}
-	resourceRelease, resourceOK, constrained := a.agentStreamCapacity.tryReserveAdaptiveExternal(size*3, 0)
+	resourceRelease, resourceOK, constrained := a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReplayBuffer, size*3, 0)
 	if constrained && !resourceOK {
 		budgetRelease()
 		return nil, false

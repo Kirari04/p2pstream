@@ -1,0 +1,7 @@
+{
+  "chunk_id": "725272",
+  "outer_exit_code": 1,
+  "session_id": 59748,
+  "wrapper_status_file": 1,
+  "explanation": "The unified exec outer status exactly matches the preserved wrapper status. Both arms completed all 16 rows and returned nonzero diagnostic classifications; no tool-envelope discrepancy occurred."
+}

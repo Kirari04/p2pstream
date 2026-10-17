@@ -1,0 +1,890 @@
+{
+  "native-go-attribution/raw/001-smoke-production-http.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/001-smoke-production-http.json",
+    "sha256": "82d9f31c0394496366df438a6e8c6f531ba0839de02836495c51303690dda97e"
+  },
+  "native-go-attribution/raw/001-smoke-production-http.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/001-smoke-production-http.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/002-smoke-production-https.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/002-smoke-production-https.json",
+    "sha256": "3339a4f5140ac0feac7fdbc497a1e322aab22a4854aaa439b098df1f6260c061"
+  },
+  "native-go-attribution/raw/002-smoke-production-https.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/002-smoke-production-https.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/003-smoke-native-http.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/003-smoke-native-http.json",
+    "sha256": "3e7315364296b9e8adcc5923c83fd8c4b0be5aacb5b37e6858688d2d6b6efbf8"
+  },
+  "native-go-attribution/raw/003-smoke-native-http.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/003-smoke-native-http.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/004-smoke-native-https.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/004-smoke-native-https.json",
+    "sha256": "d8157884e5ca0f439e2afb66deb9270677ee310eeda50bad503a0d4cf3e313a9"
+  },
+  "native-go-attribution/raw/004-smoke-native-https.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/004-smoke-native-https.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/005-pair1-production-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/005-pair1-production-http-h1-c16.json",
+    "sha256": "65fee3b2f41bf0c34db48eb86bac63d6b011d78eeb8b0f04ba933b0c205b2ffa"
+  },
+  "native-go-attribution/raw/005-pair1-production-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/005-pair1-production-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/006-pair1-production-http-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/006-pair1-production-http-h1-c128.json",
+    "sha256": "f62a9c4397e2a59e605f9b5b0d8ec620ccb641899ad49fe3cb8f62b1fed7afb7"
+  },
+  "native-go-attribution/raw/006-pair1-production-http-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/006-pair1-production-http-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/007-pair1-production-https-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/007-pair1-production-https-h1-c16.json",
+    "sha256": "279bb7981dcecaa30e818650b00630d240526fa4e702698ff3b9c7b63e2e50a5"
+  },
+  "native-go-attribution/raw/007-pair1-production-https-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/007-pair1-production-https-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/008-pair1-production-https-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/008-pair1-production-https-h1-c128.json",
+    "sha256": "f8699f7b3ddd0fdc4be6167408ff4ccf78eebe3815b3144dfac48bc9ed120104"
+  },
+  "native-go-attribution/raw/008-pair1-production-https-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/008-pair1-production-https-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/009-pair1-native-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/009-pair1-native-http-h1-c16.json",
+    "sha256": "6c9960a74db371a87a9c43d74ee873fd1fa18eab672ed5ce32d865cc2260d823"
+  },
+  "native-go-attribution/raw/009-pair1-native-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/009-pair1-native-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/010-pair1-native-http-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/010-pair1-native-http-h1-c128.json",
+    "sha256": "a517afaf6e8ff980ec1939918f121a47efa6bd8c131d8877cdabffe48514d774"
+  },
+  "native-go-attribution/raw/010-pair1-native-http-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/010-pair1-native-http-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/011-pair1-native-https-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/011-pair1-native-https-h1-c16.json",
+    "sha256": "cb1fa1aaf8d525850da4ebcd5a9f4c537a7b4c2344eac7d44d54f1041b1838a7"
+  },
+  "native-go-attribution/raw/011-pair1-native-https-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/011-pair1-native-https-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/012-pair1-native-https-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/012-pair1-native-https-h1-c128.json",
+    "sha256": "f0975a10541b7b00c4aa228e4ae2d62fee1989f2ad7a450c2d5c2d96eb4c873f"
+  },
+  "native-go-attribution/raw/012-pair1-native-https-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/012-pair1-native-https-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/013-pair2-native-https-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/013-pair2-native-https-h1-c16.json",
+    "sha256": "0b9ff70e4f7688d353707eb352e99702466577b21e69919f6a4145c1a7dac136"
+  },
+  "native-go-attribution/raw/013-pair2-native-https-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/013-pair2-native-https-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/014-pair2-native-https-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/014-pair2-native-https-h1-c128.json",
+    "sha256": "29ef1354d8aa8b5436709c311165abae8da1151fa7d75bc18d515ebc09a06752"
+  },
+  "native-go-attribution/raw/014-pair2-native-https-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/014-pair2-native-https-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/015-pair2-native-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/015-pair2-native-http-h1-c16.json",
+    "sha256": "3d208e7214a925224ea25a85871d0b50effa69fd33fb03bd9b061c13926eef22"
+  },
+  "native-go-attribution/raw/015-pair2-native-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/015-pair2-native-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/016-pair2-native-http-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/016-pair2-native-http-h1-c128.json",
+    "sha256": "c4b6742a62ac44c128a9747c7161edae6f1dd66902dc48a58370f3442499bd02"
+  },
+  "native-go-attribution/raw/016-pair2-native-http-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/016-pair2-native-http-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/017-pair2-production-https-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/017-pair2-production-https-h1-c16.json",
+    "sha256": "1052d2e394a60d1992a592f36791205d538ccfdafa39b2ac5dd727183108a7e1"
+  },
+  "native-go-attribution/raw/017-pair2-production-https-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/017-pair2-production-https-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/018-pair2-production-https-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/018-pair2-production-https-h1-c128.json",
+    "sha256": "a4592bb536549d48453dd025c063c1251d737ae0d721f18e5e16412dea118116"
+  },
+  "native-go-attribution/raw/018-pair2-production-https-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/018-pair2-production-https-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/019-pair2-production-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/019-pair2-production-http-h1-c16.json",
+    "sha256": "670941a2771c0ac0cf1fc4c2eaa09c97b1c74e163ea6e9a16adae4ebb194cf0e"
+  },
+  "native-go-attribution/raw/019-pair2-production-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/019-pair2-production-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/020-pair2-production-http-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/020-pair2-production-http-h1-c128.json",
+    "sha256": "527d2f2d82c0121f6b95f84e2833ae084474637282918a8e6455f0ba5ab78548"
+  },
+  "native-go-attribution/raw/020-pair2-production-http-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/020-pair2-production-http-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/021-pair3-production-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/021-pair3-production-http-h1-c16.json",
+    "sha256": "6deac76de2049c108aaff158b4eaf575a0b2690630d17a0545152dad597e7bec"
+  },
+  "native-go-attribution/raw/021-pair3-production-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/021-pair3-production-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/022-pair3-production-http-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/022-pair3-production-http-h1-c128.json",
+    "sha256": "2cfa35faedec2b8f9c85e8a1749a34c4de42681ba87bfab2c1e2b105158d921c"
+  },
+  "native-go-attribution/raw/022-pair3-production-http-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/022-pair3-production-http-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/023-pair3-production-https-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/023-pair3-production-https-h1-c16.json",
+    "sha256": "e485236189e7a7d5fea91975f61c1ca346f7f59e4852a859618eeeed4a223e0b"
+  },
+  "native-go-attribution/raw/023-pair3-production-https-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/023-pair3-production-https-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/024-pair3-production-https-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/024-pair3-production-https-h1-c128.json",
+    "sha256": "368e41c3a044dbf9efa2789df57f40e22108ebca024eb1cdd0ee4494773886bb"
+  },
+  "native-go-attribution/raw/024-pair3-production-https-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/024-pair3-production-https-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/025-pair3-native-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/025-pair3-native-http-h1-c16.json",
+    "sha256": "8035fdecae3eaf8468736c5b6b495c17addf3a7f4edda33f1a9f3d0e2ccb9102"
+  },
+  "native-go-attribution/raw/025-pair3-native-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/025-pair3-native-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/026-pair3-native-http-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/026-pair3-native-http-h1-c128.json",
+    "sha256": "06e9ab0c8da31cbf434fbe7942730f98109ab9d54df5da37169f78866dbf029b"
+  },
+  "native-go-attribution/raw/026-pair3-native-http-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/026-pair3-native-http-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/027-pair3-native-https-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/027-pair3-native-https-h1-c16.json",
+    "sha256": "84023589c436e60246adb91272e5225f1aa3e1eb80dadeb23c76acda8685f4b0"
+  },
+  "native-go-attribution/raw/027-pair3-native-https-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/027-pair3-native-https-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/028-pair3-native-https-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/028-pair3-native-https-h1-c128.json",
+    "sha256": "f46a39eb5a256e477f163f9fc5eb35e78869647b983b102a343fc1028fbc6369"
+  },
+  "native-go-attribution/raw/028-pair3-native-https-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/028-pair3-native-https-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/attempted-results.jsonl": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/attempted-results.jsonl",
+    "sha256": "60d0d52c8c844b818aaf7aa55f8cc5fe1283383968c027631d72d56467b360ae"
+  },
+  "native-go-attribution/raw/origin.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/origin.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/origin.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/origin.ready.json",
+    "sha256": "75eda6361caab0d2de1cb482e3399a1af9bfb730bb3233cfecdb62d4dc29ae22"
+  },
+  "native-go-attribution/raw/outcome.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/outcome.json",
+    "sha256": "c768e122500af41ad15e7dcc9f24208edbe6acd7847f065745b9e6ee105a77bc"
+  },
+  "native-go-attribution/raw/pair1-native-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair1-native-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/pair1-native-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair1-native-http.ready.json",
+    "sha256": "bf376596a9628b62cd3a0bc0f62ae6c39ce799678d0ef15015b7b8f051445b06"
+  },
+  "native-go-attribution/raw/pair1-native-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair1-native-https.proxy.log",
+    "sha256": "bc2164528243524a0f123e58827fc0545d7d3ddd673e9dff64c717d260aa6645"
+  },
+  "native-go-attribution/raw/pair1-native-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair1-native-https.ready.json",
+    "sha256": "33927d50ca1a6eb5227cefb266ec326745518b285c3422b9397958841a1fb54e"
+  },
+  "native-go-attribution/raw/pair1-production-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair1-production-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/pair1-production-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair1-production-http.ready.json",
+    "sha256": "4086b14b82708a7523943cb34d4a7c85a3edc80fb84dedb94ac70d90bcee6b97"
+  },
+  "native-go-attribution/raw/pair1-production-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair1-production-https.proxy.log",
+    "sha256": "321897a4f48f520978851dc20ca0297a399fcfd8e7ade1e70215952d5d7b9063"
+  },
+  "native-go-attribution/raw/pair1-production-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair1-production-https.ready.json",
+    "sha256": "5c509467851ab22395e08dddb106fc560df8d37d1906c9e4c7dadda712628fc9"
+  },
+  "native-go-attribution/raw/pair2-native-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair2-native-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/pair2-native-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair2-native-http.ready.json",
+    "sha256": "f8c3903f12a707ddc3758931be5c517dfbc18d2aaf7dfca04e15849254abf065"
+  },
+  "native-go-attribution/raw/pair2-native-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair2-native-https.proxy.log",
+    "sha256": "a6da93dd40c88b71e15151c7f23a955eb88c929fd014277cda5b44901868104e"
+  },
+  "native-go-attribution/raw/pair2-native-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair2-native-https.ready.json",
+    "sha256": "f660f1be174674f998a4495708726c075c29efd44a90e7152eed2eeec7deb733"
+  },
+  "native-go-attribution/raw/pair2-production-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair2-production-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/pair2-production-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair2-production-http.ready.json",
+    "sha256": "6fd6b0d0aba476b3e344ab82550aa0e4ca0d39ade2ca7b7071c9826d8a0ec221"
+  },
+  "native-go-attribution/raw/pair2-production-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair2-production-https.proxy.log",
+    "sha256": "d7b323c79f661781aa9918d93523f92461aa2d1c116192f4a4228335fc387c09"
+  },
+  "native-go-attribution/raw/pair2-production-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair2-production-https.ready.json",
+    "sha256": "47b500982e6e6aa55659a1a129fb183e59a973b83f7eaab8d56b15c0b42680bc"
+  },
+  "native-go-attribution/raw/pair3-native-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair3-native-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/pair3-native-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair3-native-http.ready.json",
+    "sha256": "0d34a13b89c7b0d2c0cbc2f90492ac3d14b57e247b7316c210fd366c4b3f3c6b"
+  },
+  "native-go-attribution/raw/pair3-native-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair3-native-https.proxy.log",
+    "sha256": "6d4b11681db1fd2469533775a81cdab88c54fe3c6549f261e6c2418a323bf9b5"
+  },
+  "native-go-attribution/raw/pair3-native-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair3-native-https.ready.json",
+    "sha256": "e22714594055806107e656965586b2ec7cc6e104e760a76febdc76cf64f0abfd"
+  },
+  "native-go-attribution/raw/pair3-production-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair3-production-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/pair3-production-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair3-production-http.ready.json",
+    "sha256": "c72cfcd481e999078eaae5d15187f1f59b6ca393074a0780640cd2c79bb7cf3b"
+  },
+  "native-go-attribution/raw/pair3-production-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair3-production-https.proxy.log",
+    "sha256": "bceec97a51cdb3ef5bc2a5e91ce8201e9e483244dbe60063637091874d6bc39e"
+  },
+  "native-go-attribution/raw/pair3-production-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/pair3-production-https.ready.json",
+    "sha256": "5e4ad84b0ff8fd243b2f00040a0cba5633c200e024d9c409284936a48606e531"
+  },
+  "native-go-attribution/raw/provenance.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/provenance.json",
+    "sha256": "b063f037147ef23ed43796735b492c1f4c50c72e68bfb4716ce89f88c07803da"
+  },
+  "native-go-attribution/raw/public.crt.pem": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/public.crt.pem",
+    "sha256": "e0a62d2743f785a42f73f8a1486ca369855852aea51fc78fc1769702d10789a7"
+  },
+  "native-go-attribution/raw/results.jsonl": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/results.jsonl",
+    "sha256": "7c98b109ea23edd2de018b974a6d54c8f3ddecbc3334afef99b0546b4a9797ef"
+  },
+  "native-go-attribution/raw/smoke-native-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/smoke-native-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/smoke-native-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/smoke-native-http.ready.json",
+    "sha256": "da0e30912f56ab1cefc28e02ccd31ba8d1233a5e36e88ca3a877130532c650ee"
+  },
+  "native-go-attribution/raw/smoke-native-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/smoke-native-https.proxy.log",
+    "sha256": "2dfcd81c33ec1fa9b20a38f8d1bbb55287c88b59233937c56a0d97c03cbb1ad8"
+  },
+  "native-go-attribution/raw/smoke-native-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/smoke-native-https.ready.json",
+    "sha256": "32eacfcc8c2d212946e6d23cad14f1a942a5da1623ab65270422b78b9a44841c"
+  },
+  "native-go-attribution/raw/smoke-production-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/smoke-production-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/raw/smoke-production-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/smoke-production-http.ready.json",
+    "sha256": "5beb7ab5381e09f9b215688a3cff0846ccb903ea5c2438eb57da2fa3763cf67f"
+  },
+  "native-go-attribution/raw/smoke-production-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/smoke-production-https.proxy.log",
+    "sha256": "4236b84e5eb0800dee802286f11c835ede4c29ad7af6488edf260899eb2362f3"
+  },
+  "native-go-attribution/raw/smoke-production-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/smoke-production-https.ready.json",
+    "sha256": "753aa17d67ab16cb99b95b6d064c178a20162f84003bdd9f98bea5c365a5393c"
+  },
+  "native-go-attribution/raw/smoke.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/smoke.json",
+    "sha256": "a3f22ed0b6a7da45e1fc777f47bb4cb72f5c39c4e94bbb6199919f9d712a2923"
+  },
+  "native-go-attribution/raw/summary.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.lc0ui0o3/summary.json",
+    "sha256": "aed54238a9c2eb65647c4489353c452dd8f54b3a0cca7defa541c70651cf7607"
+  },
+  "native-go-attribution/source/manifest.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/manifest.json",
+    "sha256": "bc915ed4822c9bfca83b78083b071aa01e3dd9db851d214cbcdf11e32271bfdf"
+  },
+  "native-go-attribution/source/source-checkpoint.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/source-checkpoint.json",
+    "sha256": "c0e8ab560d6e2a961ab91871fd459bfc2bf4b0e09e30fa7e094666e234f918fe"
+  },
+  "native-go-attribution/source/native-go-attribution-plan.md": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/native-go-attribution-plan.md",
+    "sha256": "ed5aaf47ba950479b9d34a55920ba2b35526769d6df64ad36d05559d1a57de33"
+  },
+  "native-go-attribution/source/native-go-effective-settings.md": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/native-go-effective-settings.md",
+    "sha256": "2a99152f0666e67f6ec44b641f822ea5b77b96e23800857e08c3ea29c511df55"
+  },
+  "native-go-attribution/source/native-go-attribution.patch": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/native-go-attribution.patch",
+    "sha256": "f5debf1ab13534c852fc30b41ed642076abcc1a5e6df10983cb38bd1e7dcef2b"
+  },
+  "native-go-attribution/source/initial-test-overlay.patch": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/initial-test-overlay.patch",
+    "sha256": "01890e8cd391e830e0dd447fb7221c7949e8c6d13b3834e8adcc800041430a3c"
+  },
+  "native-go-attribution/source/qualify-proxy-native-go-attribution.py.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/qualify-proxy-native-go-attribution.py",
+    "sha256": "ebda90041f65bcdd317b0cf9aae10c6b334190d35653ce64b2147697375f7a50"
+  },
+  "native-go-attribution/source/native-go-attribution-contracts.py.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/native-go-attribution-contracts.py",
+    "sha256": "551b865d3f925cf776b0faf3176fd02ed2efa44cb38a6666f3a08ecbe52b1613"
+  },
+  "native-go-attribution/source/builder.py.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/builder.py.txt",
+    "sha256": "533ca913fbf660e2fb1e08b57e380331c45d5a24e373427be4a9191e3a90ced0"
+  },
+  "native-go-attribution/source/fixture-README.md": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/README.md",
+    "sha256": "87f7a188ad82dcbd3081a0fd5f1550bdb538cdbb603a93d088cec885f8ba07f0"
+  },
+  "native-go-attribution/history/interrupted/001-smoke-production-http.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/001-smoke-production-http.json",
+    "sha256": "daf836a66313603ee4eac191f1a1eea51260b92d408ac28cd0dec4703dfdfb22"
+  },
+  "native-go-attribution/history/interrupted/001-smoke-production-http.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/001-smoke-production-http.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/002-smoke-production-https.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/002-smoke-production-https.json",
+    "sha256": "5ea533a73a0e9223bf76fd6f0e07539cd90435ba5ed1d70af611a8ae159b26d3"
+  },
+  "native-go-attribution/history/interrupted/002-smoke-production-https.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/002-smoke-production-https.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/003-smoke-native-http.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/003-smoke-native-http.json",
+    "sha256": "69f92c17299e81876ebb30b3b9a10a37187e64cc63b70bcbdf790d1a98575e30"
+  },
+  "native-go-attribution/history/interrupted/003-smoke-native-http.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/003-smoke-native-http.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/004-smoke-native-https.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/004-smoke-native-https.json",
+    "sha256": "d4ccca6882e81f294fe6f84ebbd9c9c27b10616eb318e7692d1fa7fdb9e4b2f4"
+  },
+  "native-go-attribution/history/interrupted/004-smoke-native-https.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/004-smoke-native-https.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/005-pair1-production-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/005-pair1-production-http-h1-c16.json",
+    "sha256": "2837f24ff1463729d4d8944c93aee78b40e0c597d97b984655d4b7680b1378da"
+  },
+  "native-go-attribution/history/interrupted/005-pair1-production-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/005-pair1-production-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/006-pair1-production-http-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/006-pair1-production-http-h1-c128.json",
+    "sha256": "8476a366129070da46fbfae3e345ef538d28367bd2f40f1a61f1cb3e0c1162c5"
+  },
+  "native-go-attribution/history/interrupted/006-pair1-production-http-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/006-pair1-production-http-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/007-pair1-production-https-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/007-pair1-production-https-h1-c16.json",
+    "sha256": "8440a032f33a48835ed07858299ef40cc4ff29f16e7dedcfd0acd4564d3e9a01"
+  },
+  "native-go-attribution/history/interrupted/007-pair1-production-https-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/007-pair1-production-https-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/008-pair1-production-https-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/008-pair1-production-https-h1-c128.json",
+    "sha256": "03a69feddcc6184f022a09ab4f7a907bc067fbd805aefd558c04babda1a55265"
+  },
+  "native-go-attribution/history/interrupted/008-pair1-production-https-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/008-pair1-production-https-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/009-pair1-native-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/009-pair1-native-http-h1-c16.json",
+    "sha256": "fb11ab3bba5c9e03854453fe57c9a59875070f158db6d68d2b1d16c488a71b7f"
+  },
+  "native-go-attribution/history/interrupted/009-pair1-native-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/009-pair1-native-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/010-pair1-native-http-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/010-pair1-native-http-h1-c128.json",
+    "sha256": "83453e5b27a30b42623bd8c8075d5e081fe5d22ef41a7403f9aa1b5bdf0408b6"
+  },
+  "native-go-attribution/history/interrupted/010-pair1-native-http-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/010-pair1-native-http-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/011-pair1-native-https-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/011-pair1-native-https-h1-c16.json",
+    "sha256": "1d1cb67d121bfcd14265f1797035965b67326cb44450c5fe334212acc4a4e41d"
+  },
+  "native-go-attribution/history/interrupted/011-pair1-native-https-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/011-pair1-native-https-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/012-pair1-native-https-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/012-pair1-native-https-h1-c128.json",
+    "sha256": "ad3fa1f15e0fd8a2655edb794aba2f45981a54d74beae9285fa38acd13b10313"
+  },
+  "native-go-attribution/history/interrupted/012-pair1-native-https-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/012-pair1-native-https-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/013-pair2-native-https-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/013-pair2-native-https-h1-c16.json",
+    "sha256": "19510b09f9627cb01dde43513186e27f93f20c54bd84d4802fd833a023a835bb"
+  },
+  "native-go-attribution/history/interrupted/013-pair2-native-https-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/013-pair2-native-https-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/014-pair2-native-https-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/014-pair2-native-https-h1-c128.json",
+    "sha256": "d7a5947fcd8f966c166ed91e7609b89fa5ad0a3949714e9d60c3dd98e475c63d"
+  },
+  "native-go-attribution/history/interrupted/014-pair2-native-https-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/014-pair2-native-https-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/015-pair2-native-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/015-pair2-native-http-h1-c16.json",
+    "sha256": "8442960dde56a410139ccc1ae3c3cb80b73a7a40222c7bb16064352798d51b0e"
+  },
+  "native-go-attribution/history/interrupted/015-pair2-native-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/015-pair2-native-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/016-pair2-native-http-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/016-pair2-native-http-h1-c128.json",
+    "sha256": "ac99feea8e6dbcf95d7dfb079e0ce3cc18ea9ff98f07da6bc8b57dd2d8a7e0a1"
+  },
+  "native-go-attribution/history/interrupted/016-pair2-native-http-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/016-pair2-native-http-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/017-pair2-production-https-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/017-pair2-production-https-h1-c16.json",
+    "sha256": "385fdc1b93014cc605e0b4633ba0babca45947e5eeba4cd985fd81abf3d6ee4b"
+  },
+  "native-go-attribution/history/interrupted/017-pair2-production-https-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/017-pair2-production-https-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/018-pair2-production-https-h1-c128.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/018-pair2-production-https-h1-c128.json",
+    "sha256": "1e185b0e6a8739862f0775a8ad99867108bd672e52631d98f5c3bb12e790602a"
+  },
+  "native-go-attribution/history/interrupted/018-pair2-production-https-h1-c128.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/018-pair2-production-https-h1-c128.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/019-pair2-production-http-h1-c16.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/019-pair2-production-http-h1-c16.json",
+    "sha256": "aaf37e18cadad2239e2bf7aef2051231dc6ff85a2098dac7342c95ff7763db1e"
+  },
+  "native-go-attribution/history/interrupted/019-pair2-production-http-h1-c16.json.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/019-pair2-production-http-h1-c16.json.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/attempted-results.jsonl": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/attempted-results.jsonl",
+    "sha256": "406b729f11fe9729c7bed57b0cbf9cfea3fef06a78eed932181c4ad0af664a80"
+  },
+  "native-go-attribution/history/interrupted/origin.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/origin.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/history/interrupted/origin.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/origin.ready.json",
+    "sha256": "750deec2ddce488af1447ac160264bb5d943637c7b6df09a6ef2726e981cd058"
+  },
+  "native-go-attribution/history/interrupted/pair1-native-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair1-native-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/pair1-native-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair1-native-http.ready.json",
+    "sha256": "c7cb7ae12589d0f1bf530d32026acbd6192a93105aa21e919c9a3f3432c91a31"
+  },
+  "native-go-attribution/history/interrupted/pair1-native-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair1-native-https.proxy.log",
+    "sha256": "950e5cf2f76eae31669de4b30b0d30d546bb731ea4ba308758eb7dfff519dbc9"
+  },
+  "native-go-attribution/history/interrupted/pair1-native-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair1-native-https.ready.json",
+    "sha256": "30cc7c7b0fa465f593c63e58a2c08b5d79eab2167ac6274043f22d481e7eecdc"
+  },
+  "native-go-attribution/history/interrupted/pair1-production-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair1-production-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/pair1-production-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair1-production-http.ready.json",
+    "sha256": "f7c1d04f47d8d50cc8c1f0b807c7a4fa7a1e5763f3290efdb531d78abe8d8abd"
+  },
+  "native-go-attribution/history/interrupted/pair1-production-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair1-production-https.proxy.log",
+    "sha256": "eb5812c1b500bd83d7d722bfb84b4d08b8bcdb85d86d221192477800bf939ce4"
+  },
+  "native-go-attribution/history/interrupted/pair1-production-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair1-production-https.ready.json",
+    "sha256": "df817edfab7105f3a7f80493944728ef82d780c6d4238d0b9befcc25002dc1ba"
+  },
+  "native-go-attribution/history/interrupted/pair2-native-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair2-native-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/pair2-native-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair2-native-http.ready.json",
+    "sha256": "a893c15a8bc37ddf3e6d96d4c5719e27a17478dcb663f142142fa1b0edc421b2"
+  },
+  "native-go-attribution/history/interrupted/pair2-native-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair2-native-https.proxy.log",
+    "sha256": "eba28ffcc661695f2274c6750c2b6b16d5d240b7a09cfca12e51325a8e8440e9"
+  },
+  "native-go-attribution/history/interrupted/pair2-native-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair2-native-https.ready.json",
+    "sha256": "b4fdcc88833c05464654a46f26aa85c82e207c158c087eb82793b616ba1d2a29"
+  },
+  "native-go-attribution/history/interrupted/pair2-production-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair2-production-http.proxy.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/history/interrupted/pair2-production-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair2-production-http.ready.json",
+    "sha256": "3a56b11b4135cd03313b42c44e00526b1f566d0ae874bd4ae13a037432e102d0"
+  },
+  "native-go-attribution/history/interrupted/pair2-production-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair2-production-https.proxy.log",
+    "sha256": "bbc7ef8733559ddba5dab8ca88e41cedc6d494ba754e565804c0eafc2bc8a4f2"
+  },
+  "native-go-attribution/history/interrupted/pair2-production-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/pair2-production-https.ready.json",
+    "sha256": "6e14101443c85453e9cb366f00df88737c16ba8cc283679620d77375e4b2bf91"
+  },
+  "native-go-attribution/history/interrupted/provenance.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/provenance.json",
+    "sha256": "5f03b3007596905428cec686c707985ba453f9c1151db8f179b8f2d7c08b1185"
+  },
+  "native-go-attribution/history/interrupted/public.crt.pem": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/public.crt.pem",
+    "sha256": "450d5191287698d83cb081e2cd08ef26b22a26e2534971c5e9d665b158d9aa75"
+  },
+  "native-go-attribution/history/interrupted/results.jsonl": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/results.jsonl",
+    "sha256": "7839b84fcb6a3eef3a42fcb2ac9927503ae0a6ce74e2bf0643d7e42540dcffea"
+  },
+  "native-go-attribution/history/interrupted/smoke-native-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/smoke-native-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/smoke-native-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/smoke-native-http.ready.json",
+    "sha256": "31c7458769d86c4e3dfa730eb71980f6351e670133321a1364b387eb1af3ae3b"
+  },
+  "native-go-attribution/history/interrupted/smoke-native-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/smoke-native-https.proxy.log",
+    "sha256": "fec89637b7f9b6a6e7f096f8617227757cdf6b0364694047e97c488e860ad939"
+  },
+  "native-go-attribution/history/interrupted/smoke-native-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/smoke-native-https.ready.json",
+    "sha256": "3c8cc051deeee4ca9ade43397c3bdb091beb58b1039910a848ae74efb9e5dc7e"
+  },
+  "native-go-attribution/history/interrupted/smoke-production-http.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/smoke-production-http.proxy.log",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431"
+  },
+  "native-go-attribution/history/interrupted/smoke-production-http.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/smoke-production-http.ready.json",
+    "sha256": "133352865af17ad6b60b4adb8c1d79f98eacd7f8132bf4e1badc59ea2d245e28"
+  },
+  "native-go-attribution/history/interrupted/smoke-production-https.proxy.log": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/smoke-production-https.proxy.log",
+    "sha256": "edcd0d092594a5cea0a150590229f0606e576b23242c8daf464e77b6968c3dce"
+  },
+  "native-go-attribution/history/interrupted/smoke-production-https.ready.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/smoke-production-https.ready.json",
+    "sha256": "70101ff7401c3bce8e7535f4522a0864e3603b648eb0f241c15ad324c1e75fa4"
+  },
+  "native-go-attribution/history/interrupted/smoke.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2/run.9cj69oqt/smoke.json",
+    "sha256": "a125ce4b54f707a547157b5e654c9fc4ef141848fb25ae3829250fda131f31d1"
+  },
+  "native-go-attribution/history/interrupted/classification.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/prior-native-interruption.json",
+    "sha256": "507cc081f4d9f5f32c98691f80a3edef62e73ccbb4c1ae8023cbed9c60bcafa9"
+  },
+  "native-go-attribution/launch/native-full.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-full.stdout",
+    "sha256": "9a09c70cc94f56e22081290b426ea158f4f330b609ac6ff440cd3071a876a9a9"
+  },
+  "native-go-attribution/launch/native-full.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-full.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "native-go-attribution/launch/native-full.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-full.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/launch/native-full.command": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/native-full.command",
+    "sha256": "db28eeb77ed483a80fea7de427bffece2db24c54dc7dc3182333c862df15f85c"
+  },
+  "native-go-attribution/launch/docker-inventory.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/docker-inventory.stdout",
+    "sha256": "aa7157fb57876e509e5ee1e3e0e51635606e4f38f17c68dea494f957874e20b0"
+  },
+  "native-go-attribution/launch/docker-inventory.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/docker-inventory.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "native-go-attribution/launch/docker-inventory.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/docker-inventory.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/launch/cpu-topology.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/cpu-topology.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "native-go-attribution/launch/cpu-topology.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/cpu-topology.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/launch/cpu-topology.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/cpu-topology.stdout",
+    "sha256": "899cb2328cb6447fa93950181350098b2aecd1d6e2acafa2d297a57ee177ad0f"
+  },
+  "native-go-attribution/launch/current-date.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-date.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/launch/current-date.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-date.stdout",
+    "sha256": "a5523065f72392296737853a8f121c7e4a642192aeb69b260c392ee0ff86265f"
+  },
+  "native-go-attribution/launch/current-date.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/current-date.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "native-go-attribution/validation/sni-correction/affected-contracts-summary.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/affected-contracts-summary.json",
+    "sha256": "e2f190ef1d0ef945605474a477b498c78dee6ebfcdb2acf8c956ddaf40f367a1"
+  },
+  "native-go-attribution/validation/sni-correction/affected-contracts.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/affected-contracts.stdout",
+    "sha256": "e45fedf456149166b3d3139dd77b80fe08f737acd4f8e86ee107fe4600aab49f"
+  },
+  "native-go-attribution/validation/sni-correction/build.command": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/build.command",
+    "sha256": "a245086de42ce398ff3565f1f1900d69db1c6ea78b554fbafe0331a0d7614702"
+  },
+  "native-go-attribution/validation/sni-correction/build.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/build.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "native-go-attribution/validation/sni-correction/build.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/build.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/validation/sni-correction/build.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/build.stdout",
+    "sha256": "84eb748683dda865bc0932b4f640a469f7a8ff32a9d1fee6ee01be27be356fe4"
+  },
+  "native-go-attribution/validation/sni-correction/focused-first-invocation.invalid.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-first-invocation.invalid.txt",
+    "sha256": "ad1904e770b4ac786a101f3a97696ac7aa5d525086cd0335966764eba28f10eb"
+  },
+  "native-go-attribution/validation/sni-correction/focused-normal-source.command": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-normal-source.command",
+    "sha256": "0a3cfde9ce8cb44df1a921991c741f634e3f0d9de20bbee50a20a7bb04599d73"
+  },
+  "native-go-attribution/validation/sni-correction/focused-normal-source.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-normal-source.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "native-go-attribution/validation/sni-correction/focused-normal-source.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-normal-source.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/validation/sni-correction/focused-normal-source.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-normal-source.stdout",
+    "sha256": "2b708293603ebee1d64c3c9a697e709f10e443ed691b171ea6ec7866854dcaff"
+  },
+  "native-go-attribution/validation/sni-correction/focused-normal.command": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-normal.command",
+    "sha256": "b4d14c696ac2bc33f5a4157a7de94f09ed0e22616e00cda5e0a611e679ab364a"
+  },
+  "native-go-attribution/validation/sni-correction/focused-normal.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-normal.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "native-go-attribution/validation/sni-correction/focused-normal.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-normal.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/validation/sni-correction/focused-normal.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-normal.stdout",
+    "sha256": "f2ea9186f045047966bb84bcd968c62220ae60cb116b6c89abe2a7f91a6c6b1c"
+  },
+  "native-go-attribution/validation/sni-correction/focused-race-source.command": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-race-source.command",
+    "sha256": "fb0370af7e73c8d77b32225a38b8268372661fb07cd9b21ba6d7c31932529a82"
+  },
+  "native-go-attribution/validation/sni-correction/focused-race-source.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-race-source.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "native-go-attribution/validation/sni-correction/focused-race-source.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-race-source.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/validation/sni-correction/focused-race-source.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-race-source.stdout",
+    "sha256": "562d690f0c2345145f4cb72bcb4dbdb8994b380536d07440338c09e798c0bde7"
+  },
+  "native-go-attribution/validation/sni-correction/focused-race.command": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-race.command",
+    "sha256": "ca4c92ecf43efcffb241fdb7f49dfc724b2b93f41c0b8b1ef849364851dbada6"
+  },
+  "native-go-attribution/validation/sni-correction/focused-race.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-race.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "native-go-attribution/validation/sni-correction/focused-race.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-race.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/validation/sni-correction/focused-race.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/focused-race.stdout",
+    "sha256": "71f85de7e958df3ab4844352b28fdfbbf37e53dec5cdb4ae5ed0fce29dc8068a"
+  },
+  "native-go-attribution/validation/sni-correction/post-smoke-owned-containers.txt": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/post-smoke-owned-containers.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/validation/sni-correction/sni-smoke.command": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/sni-smoke.command",
+    "sha256": "a1952f411e808c889dc8d98f59b59e07f86087ccee8c11d17378394790041a82"
+  },
+  "native-go-attribution/validation/sni-correction/sni-smoke.exit": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/sni-smoke.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "native-go-attribution/validation/sni-correction/sni-smoke.stderr": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/sni-smoke.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/validation/sni-correction/sni-smoke.stdout": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/sni-smoke.stdout",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-go-attribution/validation/sni-correction/source-checkpoint.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/sni-source-correction.Zc8IcAZv/source-checkpoint.json",
+    "sha256": "c0e8ab560d6e2a961ab91871fd459bfc2bf4b0e09e30fa7e094666e234f918fe"
+  },
+  "native-go-attribution/validation/lifecycle-contracts/summary.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-contracts.1np5vzxn/summary.json",
+    "sha256": "e2f190ef1d0ef945605474a477b498c78dee6ebfcdb2acf8c956ddaf40f367a1"
+  },
+  "native-go-attribution/validation/lifecycle-contracts/role-resource-envelope-classifies-event-capture/result.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-contracts.1np5vzxn/role-resource-envelope-classifies-event-capture/result.json",
+    "sha256": "b7a64df260b3ced761c6de2858bfee239cdb5ac623e09715082090c73f3c7754"
+  },
+  "native-go-attribution/validation/lifecycle-contracts/inherited-smoke-sanitized/result.json": {
+    "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-contracts.1np5vzxn/inherited-smoke-sanitized/result.json",
+    "sha256": "32b49f91640ac5ff5b926a461c86c768d518a61d0fac8c209b4f4ceb7df1dfe2"
+  }
+}

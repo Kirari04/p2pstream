@@ -1,0 +1,29 @@
+{
+  "archive_planned": false,
+  "close_test_attempts": 1,
+  "frozen_evidence": {
+    "close_test_native_ledger": "e55b3eaab71f5e3a61f0b37b9396f0bcccaa433bb57e1bd6f3630934aea7312c",
+    "close_test_records_ledger": "3e54bedee7b93e71880495b2bd4f4c19b49ebcf4449666ddf6ec15ce4996fec6",
+    "close_test_result": "3d462373df9ad7ff1ecb10dd8580b72f975d417d8e615a7af5f9f4ebc3a8c300",
+    "coordinator_review": "55cdc5ff101558a54d61038ba832947711d0316d0d8c96725491cf954e441e7e",
+    "coordinator_review_ledger": "d785c0834cc3f8b1a7e16bd20fe81379d440134c532498dd00d96e17c6301448",
+    "final_astra_review": "f57848431cca1450e7938233287f87ef8c9fb20b6d338129b45ef2b02fce33d6",
+    "final_astra_review_ledger": "c8a22f9aeaa0b9395e3e11af18c70501459613d1c3d91193dcfb0482cf2cafc2",
+    "validator_contract_ledger": "8bc0352f71dc740df42a263ec1645646b9834a2550167e30f3781b591fadb307",
+    "validator_source_ledger": "10fb785112ba9a678e4592defe9251cab7b8077225150bb052140b999fb76b5e"
+  },
+  "history_package_root_sha256": "7454c54b7dd594b327a225325355d1a1c55a323574870010a28118aa54e9815f",
+  "mutable_main_review_log_bound": false,
+  "normal_named_test_count": 3,
+  "production_changed": false,
+  "qualification_accepted": false,
+  "race_named_test_count": 3,
+  "runtime_fix_claimed": false,
+  "schema_version": 1,
+  "scope": "Separate loose follow-up: standalone unavailable-capture validator correction and one bounded local normal/race cancellation attempt",
+  "source_phase": "frozen-source-proposal-before-temporary-candidate-copy",
+  "tiny1_accepted": false,
+  "tiny2_accepted": false,
+  "validator_case_count": 106,
+  "wan_resume_ready": false
+}

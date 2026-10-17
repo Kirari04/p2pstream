@@ -1,0 +1,37 @@
+{
+  "accepted": true,
+  "action": "local-artifact-publication",
+  "attempt_result_ledger_sha256": "daf117185bba11f27ff09e1ff796cf7f5e73729431d91d32422e89d628c5056b",
+  "build_manifest_sha256": "ba1a31b8f54e7cbb4df8dace0990a4aba87fd4462803a31a6e3082810e9e1b2b",
+  "endpoint_execution": false,
+  "finished_unix_ns": 1792193492110719249,
+  "integration_checkpoint_sha256": "fa0f2237aef78d5253882eef1fc45942446f0d96627efa8e0234161858eedb34",
+  "outer_ledger_sha256": "8b0ce21a9f23339f18b3f9265651ed68c386ccd61bd4b39904cd562e7df7bf9d",
+  "published": {
+    "agent": {
+      "executable": true,
+      "mode": "0755",
+      "path": "build/bin/current-agent-wan-sender-wait-audited.test",
+      "sha256": "43eadb7664d70f9585887ac824cc7e6dcb55d6fa40731e3888b6fa5a1cc8d74f"
+    },
+    "manifest": {
+      "executable": false,
+      "mode": "0600",
+      "path": "provenance/audited-server-build-manifest.json",
+      "sha256": "ba1a31b8f54e7cbb4df8dace0990a4aba87fd4462803a31a6e3082810e9e1b2b"
+    },
+    "server": {
+      "executable": true,
+      "mode": "0755",
+      "path": "build/bin/current-server-wan-sender-wait-audited.test",
+      "sha256": "f2e6cf390fdcd727b8c7120a6d877dc3a53afe9d8b970aa7b0d7f6cc892a7bdc"
+    }
+  },
+  "receipt_sha256": "3d51f22da466d04a93ce31cac2627ea4bd7213c9a6fb1ff91890a5519c2beb8b",
+  "reviewed_integration_manifest_sha256": "2eee698fdfa8322b42491f3b090ac7f3535c3046d3f3f827460cc142d8c4aca1",
+  "schema_version": 1,
+  "source_changed": false,
+  "supplement_ledger_sha256": "bd74f1e717079b9b9db59a1f0e7114cd13f32e2e6d1a1be1d3211091cf786225",
+  "supplement_sidecar_sha256": "5c6139cc725fa93ba2166d87c8ca070c0bcbc94cb76c790c8f68b77cc3b6a9ad",
+  "traffic_run": false
+}

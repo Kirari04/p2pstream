@@ -1,0 +1,31 @@
+2026-10-16T17:42:20,510298724+02:00
+ 17:42:20 up 48 min,  1 user,  load average: 2.17, 2.09, 1.71
+f6add305d3e52ba0314c8dfec0df47558f2a2cbad02773ed58cf22693a71ca7d  /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/artifacts/bin/baseline-server.test
+GOMAXPROCS=4 TMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/tmp GOTMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp GOCACHE=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gocache
+taskset -c 0-3 /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/artifacts/bin/baseline-server.test -test.run ^$ -test.bench ^BenchmarkPreparedProxyRequestEventBatchFlush$/^production_deadline$/^events_(63|127|512)$ -test.benchtime=1s -test.count=1 -test.benchmem -test.timeout=5m
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline340885286/001/observability-benchmark.db","time":"2026-10-16T17:42:20+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:42:20+02:00","message":"Database connected and configured successfully"}
+goos: linux
+goarch: amd64
+pkg: p2pstream/internal/server
+cpu: AMD Ryzen 9 6900HS with Radeon Graphics        
+BenchmarkPreparedProxyRequestEventBatchFlush/production_deadline/events_63-4         	{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline1496101411/002/observability-benchmark.db","time":"2026-10-16T17:42:20+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:42:20+02:00","message":"Database connected and configured successfully"}
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline421632047/003/observability-benchmark.db","time":"2026-10-16T17:42:20+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:42:20+02:00","message":"Database connected and configured successfully"}
+     750	   1414626 ns/op	        63.00 events/op	  126859 B/op	    1427 allocs/op
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline4216093647/001/observability-benchmark.db","time":"2026-10-16T17:42:22+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:42:22+02:00","message":"Database connected and configured successfully"}
+BenchmarkPreparedProxyRequestEventBatchFlush/production_deadline/events_127-4        	{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline1901235128/002/observability-benchmark.db","time":"2026-10-16T17:42:22+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:42:22+02:00","message":"Database connected and configured successfully"}
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline3336494448/003/observability-benchmark.db","time":"2026-10-16T17:42:22+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:42:22+02:00","message":"Database connected and configured successfully"}
+     481	   2212667 ns/op	       127.0 events/op	  211548 B/op	    2375 allocs/op
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline3940857623/001/observability-benchmark.db","time":"2026-10-16T17:42:24+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:42:24+02:00","message":"Database connected and configured successfully"}
+BenchmarkPreparedProxyRequestEventBatchFlush/production_deadline/events_512-4        	{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline3959969487/002/observability-benchmark.db","time":"2026-10-16T17:42:24+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:42:24+02:00","message":"Database connected and configured successfully"}
+{"level":"info","url":"/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/sql-hierarchical64/runtime/gotmp/BenchmarkPreparedProxyRequestEventBatchFlushproduction_deadline1705646972/003/observability-benchmark.db","time":"2026-10-16T17:42:24+02:00","message":"Connecting to SQLite database"}
+{"level":"info","time":"2026-10-16T17:42:24+02:00","message":"Database connected and configured successfully"}
+     231	   4878048 ns/op	       512.0 events/op	  716493 B/op	    7858 allocs/op
+PASS

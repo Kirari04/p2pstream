@@ -1,0 +1,5 @@
+# Immutable coordinator cutoff review
+
+Astra reviewed the source/build/runner and tiny1/tiny2 evidence. Tiny1 remains rejected for adapter defects, corrected runner passed 85 and final contracts, tiny2 remains rejected for H2 raw teardown error despite 32 exact transfers and natural joins. Unavailable captures do not prove CC change. Latest Astra source review finds intentional active-write cancellation compatible with observations, no established production lifecycle defect. No sustained run, runtime fix, WAN clearance or parity follows. Later failed-capture 106 contracts/local cancellation tests are outside this frozen-history cutoff and require a separate supplement.
+
+This is the coordinating Astra's supplied review snapshot for the history cutoff through tiny2. It is immutable package metadata, not a binding to the mutable main review log. Source/build/runner acceptance and the historical rejection states retain their original ledgers. This note does not report the excluded later stages as evidence in this package.

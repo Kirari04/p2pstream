@@ -1,0 +1,76 @@
+{
+  "status": "source-only proposal, not implemented or executed",
+  "runtime_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "profile_source_ref": "248bad099682878fe398c0ebaad235787ef47858",
+  "candidate_runtime_sha256": "8a267bc1ee80ac408d089fbde27db37af756ed6585a221016d1d2d22d3b3bcd2",
+  "changed_runtime_file": "internal/db/proxy_request_event_inserter.go",
+  "inputs": {
+    "runtime_inserter": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/db/proxy_request_event_inserter.go",
+      "sha256": "bdd9bd1b658e7d0f20e5a0965d1b710cb8f9e0d92b46fa7e2e2a2b06ed47921f"
+    },
+    "runtime_recorder": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/server/observability_recorder.go",
+      "sha256": "ed81dfe03ad01c23c97580e2aa16497f413db1750d1833b4e770a2d4e3337cfe"
+    },
+    "runtime_rollups": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/server/observability_rollup.go",
+      "sha256": "3c35bc755940b90d611e2789547363ca25214bdb49fc29ea6f27e592ada5da98"
+    },
+    "generated_query": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/db/query.sql.go",
+      "sha256": "a77c35c5293a7d04359d8b8629b89e602c7919464808e439fade52c98cbebbd4"
+    },
+    "db_open": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/db/open.go",
+      "sha256": "44374fb0238ca0bb1b1cdd3862bbf150ee3e6004e1fba491d3ff48ad2f74f8bc"
+    },
+    "existing_field_rollback_cancel_tests": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/server/observability_prepared_insert_test.go",
+      "sha256": "eca0105118edc418b44fbf52b6fed98b38c023905beb52fde3eb91ecfbb3a1b3"
+    },
+    "profile_alloc_listing": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/native-go-profile/analysis/production-alloc-list-sql-recorder.txt",
+      "sha256": "621c163535d979f38bdf3190d592bcf415007dd688406f6d96c3484142390687"
+    },
+    "profile_cpu_listing": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/native-go-profile/analysis/production-cpu-list-sql-recorder.txt",
+      "sha256": "5bbb6b3128a6af1eac4cfd783795ac131734a0bb14a9276a773a9f9625edcc98"
+    },
+    "normalization": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/benchmarks/proxy-qualification-2026-10-16/native-go-profile/analysis/normalization.json",
+      "sha256": "e8137edd1e9e72e92d92cb86b691f672ee53f8443724e893093fb1c3a5be9ea9"
+    },
+    "pinned_go_null_value": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/database/sql/sql.go",
+      "sha256": "683b3e35d41b37f4c80500467fb5a56fab7cc5de922b2c3818aae6bfea971fba"
+    },
+    "pinned_go_argument_conversion": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/database/sql/convert.go",
+      "sha256": "8182862d20f5d28fbfc5922c861a34cc0d5081f21db2646ea845ad914c842d1f"
+    },
+    "pinned_go_default_converter": {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/database/sql/driver/types.go",
+      "sha256": "e7dbe9c23d3b26ed0d167bdd9d6c46b0eb3c053c127baa3155793fd83b2c3ef4"
+    },
+    "pinned_sqlite_binding": {
+      "path": "/home/user/go/pkg/mod/github.com/mattn/go-sqlite3@v1.14.49/sqlite3.go",
+      "sha256": "3daa28bd82aacf52e0b9709c4fe326245a614aa60f2fb69ae6ad990bfd6d508b"
+    }
+  },
+  "profile_runtime_sources_identical": {
+    "internal/db/proxy_request_event_inserter.go": "bdd9bd1b658e7d0f20e5a0965d1b710cb8f9e0d92b46fa7e2e2a2b06ed47921f",
+    "internal/server/observability_recorder.go": "ed81dfe03ad01c23c97580e2aa16497f413db1750d1833b4e770a2d4e3337cfe",
+    "internal/server/observability_rollup.go": "3c35bc755940b90d611e2789547363ca25214bdb49fc29ea6f27e592ada5da98"
+  },
+  "proposal_artifacts_sha256": {
+    "SCREEN.md": "7fa737f174f5907b50d3f13cca780c3a9cdc93d4d2f73f51f59dead391122665",
+    "REPORT.md": "7fc52aef289a70939dc7c8ed9d393005534ab8c678748ee24bfe65650a6ce23c",
+    "evidence.json": "afbf5b2e546288e6fe4ae09c2b280339cf390f62ea3b21f96b24ee2f87393346",
+    "commands.json": "d2a19adf7975327a820f1f58c34058ccc31852d0477f69c94038af93ff1c4074",
+    "source-citations.txt": "81d75341ed58f4b01196dad38e7a6395759121580b81b7ba8e38e879d36724fc",
+    "parameter-map.json": "4b177afbac4895e5bc54053652a0f12ceffe2d0ad40e1c5e9afb706e1808d222",
+    "candidate.patch": "0c80d4082c44fbc6cedd85866c862d3a51efbe90d4de052c829f3360b914925b",
+    "PARAMETER-MAP.md": "c7583a0ca5edd235f4a4314672f173a5f5d26a195fef17090a53064da8572a46"
+  }
+}

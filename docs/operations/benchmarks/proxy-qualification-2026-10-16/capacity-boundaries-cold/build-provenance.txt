@@ -1,0 +1,14 @@
+Candidate source: fb1cad92c9a814f598171fa181d1a4f230dbd107
+A clean git archive was extracted into /tmp/p2pstream-boundary-fb1cad92.SU1QB1ZO.
+Only these archived-source builds were executed by the measurement runner:
+GOMAXPROCS=4 go -C <archive> test -c -o <archive>/bin/server.test ./internal/server
+GOMAXPROCS=4 go -C <archive> test -c -o <archive>/bin/agent.test ./internal/agent
+Driver: the same archived server.test binary.
+Server/driver SHA256: 4fca0ca1ed1ebffb9c249fe7b8bd903df2d5855fffad92be9d09679b0e662937
+Agent SHA256: f3e57bb2c5355971eb5b9580b117415d29bc1eb1ed1d8775ad8ce026fc6409cd
+The frozen manifest records all copied runner, fixture and binary hashes.
+An initial unused build ran from the working checkout rather than the archive.
+Its binaries were quarantined before any load; no measured row uses them.
+The boundary wrapper copied and hashed the corrected archived binaries before
+executing the committed frozen performance runner for every point.
+The process group and its own named containers were cleaned on normal exit.

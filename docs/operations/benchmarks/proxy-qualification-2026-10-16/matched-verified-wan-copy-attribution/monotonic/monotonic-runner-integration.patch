@@ -1,0 +1,417 @@
+--- a/run-wan-copy-attribution-diagnostic.sh
++++ b/run-wan-copy-attribution-diagnostic.sh
+@@ -2,19 +2,24 @@
+ set -Eeuo pipefail
+ 
+ script_dir=$(cd "$(dirname "$0")" && pwd)
+-supervisor="$script_dir/run-wan-copy-attribution-arm.sh"
+-validator="$script_dir/validate-wan-copy-attribution-arm.py"
++supervisor="$script_dir/run-wan-copy-monotonic-arm.sh"
++validator="$script_dir/validate-wan-copy-monotonic-arm.py"
+ copy_record_validator="$script_dir/validate-copy-record.py"
+-runner="$script_dir/generated/qualify-proxy-agent-growth-wan-copy-attribution.sh"
++runner="$script_dir/generated/qualify-proxy-agent-growth-wan-copy-monotonic.sh"
+ frozen_protocol_runner="$script_dir/../wan-protocol-source/generated/qualify-proxy-agent-growth-wan-protocol.sh"
++frozen_copy_runner="$script_dir/../wan-copy-attribution-source/generated/qualify-proxy-agent-growth-wan-copy-attribution.sh"
+ wan_protocol_runner_patch="$script_dir/../wan-protocol-source/wan-protocol-runner.patch"
+-copy_runner_patch="$script_dir/copy-attribution-runner.patch"
++copy_runner_patch="$script_dir/../wan-copy-attribution-source/copy-attribution-runner.patch"
++monotonic_runner_patch="$script_dir/monotonic-runner.patch"
+ approved_runner="$script_dir/../current-wan-prep/runner/qualify-proxy-agent-growth-owned.sh"
+ go_patch="$script_dir/../wan-protocol-source/proxy-qualification-base.patch"
+ go_helper="$script_dir/../wan-protocol-source/proxy_qualification_wan_protocol_test.go"
+-copy_overlay="$script_dir/copy-attribution-overlay.patch"
++copy_overlay="$script_dir/../wan-copy-attribution-source/copy-attribution-overlay.patch"
++monotonic_observer_patch="$script_dir/monotonic-observer.patch"
++monotonic_validator_patch="$script_dir/monotonic-validator-contract.patch"
++monotonic_arm_validator_patch="$script_dir/monotonic-arm-validator.patch"
+ copy_design="$script_dir/DESIGN.md"
+-build_manifest="$script_dir/provenance/copy-attribution-build-manifest.json"
++build_manifest="$script_dir/provenance/monotonic-build-manifest.json"
+ audited_build_manifest="$script_dir/provenance/audited-server-build-manifest.json"
+ final_source_attestation="$script_dir/provenance/final-source-binary-toolchain-attestation.json"
+ runner_reconstruction_attestation="$script_dir/provenance/runner-reconstruction-attestation.json"
+@@ -67,6 +72,8 @@
+ patch --quiet "$rebuilt" "$wan_protocol_runner_patch"
+ cmp "$rebuilt" "$frozen_protocol_runner"
+ patch --quiet "$rebuilt" "$copy_runner_patch"
++cmp "$rebuilt" "$frozen_copy_runner"
++patch --quiet "$rebuilt" "$monotonic_runner_patch"
+ cmp "$rebuilt" "$runner"
+ printf '%s\n' verified > "$output_dir/preflight/generated-runner-consistency.status"
+ 
+@@ -83,14 +90,16 @@
+ 
+ write_pair_hashes() {
+   local destination=$1
+-  python3 - "$destination" "$0" "$supervisor" "$validator" "$copy_record_validator" "$runner" "$frozen_protocol_runner" \
+-    "$wan_protocol_runner_patch" "$copy_runner_patch" "$approved_runner" "$go_patch" "$go_helper" "$copy_overlay" "$copy_design" \
++  python3 - "$destination" "$0" "$supervisor" "$validator" "$copy_record_validator" "$runner" "$frozen_protocol_runner" "$frozen_copy_runner" \
++    "$wan_protocol_runner_patch" "$copy_runner_patch" "$monotonic_runner_patch" "$approved_runner" "$go_patch" "$go_helper" "$copy_overlay" \
++    "$monotonic_observer_patch" "$monotonic_validator_patch" "$monotonic_arm_validator_patch" "$copy_design" \
+     "$build_manifest" "$audited_build_manifest" "$final_source_attestation" "$runner_reconstruction_attestation" "$integration_notes" "$decision_map" \
+     "$server_binary" "$aggregate_agent_binary" "$cert" "$key" \
+     "$server_source_ref" "$aggregate_agent_source_ref" "$expected_leaf_sha256" <<'PY'
+ import hashlib, json, pathlib, sys
+-(destination, wrapper, supervisor, validator, copy_record_validator, runner, frozen_protocol_runner,
+- wan_protocol_runner_patch, copy_runner_patch, approved, go_patch, go_helper, copy_overlay, copy_design, build_manifest, audited_build_manifest,
++(destination, wrapper, supervisor, validator, copy_record_validator, runner, frozen_protocol_runner, frozen_copy_runner,
++ wan_protocol_runner_patch, copy_runner_patch, monotonic_runner_patch, approved, go_patch, go_helper, copy_overlay,
++ monotonic_observer_patch, monotonic_validator_patch, monotonic_arm_validator_patch, copy_design, build_manifest, audited_build_manifest,
+  final_source_attestation, runner_reconstruction_attestation, integration_notes, decision_map,
+  server, agent, cert, key, server_ref, agent_ref, fingerprint) = sys.argv[1:]
+ def sha(path):
+@@ -107,9 +116,12 @@
+     "sha256": {
+         "wrapper": sha(wrapper), "supervisor": sha(supervisor), "validator": sha(validator),
+         "copy_record_validator": sha(copy_record_validator), "runner": sha(runner), "frozen_protocol_runner": sha(frozen_protocol_runner),
+-        "wan_protocol_runner_patch": sha(wan_protocol_runner_patch), "copy_runner_patch": sha(copy_runner_patch),
++        "frozen_copy_runner": sha(frozen_copy_runner), "wan_protocol_runner_patch": sha(wan_protocol_runner_patch),
++        "copy_runner_patch": sha(copy_runner_patch), "monotonic_runner_patch": sha(monotonic_runner_patch),
+         "approved_lifecycle_runner": sha(approved), "go_base_patch": sha(go_patch), "go_helper": sha(go_helper),
+         "copy_attribution_overlay_patch": sha(copy_overlay), "copy_attribution_design": sha(copy_design),
++        "monotonic_observer_patch": sha(monotonic_observer_patch), "monotonic_validator_patch": sha(monotonic_validator_patch),
++        "monotonic_arm_validator_patch": sha(monotonic_arm_validator_patch),
+         "diagnostic_build_manifest": sha(build_manifest), "audited_build_manifest": sha(audited_build_manifest),
+         "final_source_attestation": sha(final_source_attestation),
+         "runner_reconstruction_attestation": sha(runner_reconstruction_attestation),
+--- a/run-wan-copy-attribution-arm.sh
++++ b/run-wan-copy-attribution-arm.sh
+@@ -2,18 +2,23 @@
+ set -Eeuo pipefail
+ 
+ script_dir=$(cd "$(dirname "$0")" && pwd)
+-runner="$script_dir/generated/qualify-proxy-agent-growth-wan-copy-attribution.sh"
+-validator="$script_dir/validate-wan-copy-attribution-arm.py"
++runner="$script_dir/generated/qualify-proxy-agent-growth-wan-copy-monotonic.sh"
++validator="$script_dir/validate-wan-copy-monotonic-arm.py"
+ copy_record_validator="$script_dir/validate-copy-record.py"
+ approved_runner="$script_dir/../current-wan-prep/runner/qualify-proxy-agent-growth-owned.sh"
+ frozen_protocol_runner="$script_dir/../wan-protocol-source/generated/qualify-proxy-agent-growth-wan-protocol.sh"
++frozen_copy_runner="$script_dir/../wan-copy-attribution-source/generated/qualify-proxy-agent-growth-wan-copy-attribution.sh"
+ wan_protocol_runner_patch="$script_dir/../wan-protocol-source/wan-protocol-runner.patch"
+-copy_runner_patch="$script_dir/copy-attribution-runner.patch"
++copy_runner_patch="$script_dir/../wan-copy-attribution-source/copy-attribution-runner.patch"
++monotonic_runner_patch="$script_dir/monotonic-runner.patch"
+ go_patch="$script_dir/../wan-protocol-source/proxy-qualification-base.patch"
+ go_helper="$script_dir/../wan-protocol-source/proxy_qualification_wan_protocol_test.go"
+-copy_overlay="$script_dir/copy-attribution-overlay.patch"
++copy_overlay="$script_dir/../wan-copy-attribution-source/copy-attribution-overlay.patch"
++monotonic_observer_patch="$script_dir/monotonic-observer.patch"
++monotonic_validator_patch="$script_dir/monotonic-validator-contract.patch"
++monotonic_arm_validator_patch="$script_dir/monotonic-arm-validator.patch"
+ copy_design="$script_dir/DESIGN.md"
+-build_manifest="$script_dir/provenance/copy-attribution-build-manifest.json"
++build_manifest="$script_dir/provenance/monotonic-build-manifest.json"
+ audited_build_manifest="$script_dir/provenance/audited-server-build-manifest.json"
+ final_source_attestation="$script_dir/provenance/final-source-binary-toolchain-attestation.json"
+ runner_reconstruction_attestation="$script_dir/provenance/runner-reconstruction-attestation.json"
+@@ -61,7 +66,7 @@
+ }
+ server_binary=$(realpath "$server_binary")
+ aggregate_agent_binary=$(realpath "$aggregate_agent_binary")
+-approved_server_binary=$(realpath "$script_dir/build/bin/current-server-wan-copy-attribution-audited.test")
++approved_server_binary=$(realpath "$script_dir/build/bin/current-server-wan-copy-monotonic-audited.test")
+ cert=$(realpath "$cert")
+ key=$(realpath "$key")
+ for tool in cmp jq lscpu openssl patch python3 readlink setsid sha256sum taskset timeout unshare; do
+@@ -75,6 +80,10 @@
+   echo "frozen WAN protocol runner hash changed" >&2
+   exit 2
+ }
++[[ $(sha256sum "$frozen_copy_runner" | awk '{print $1}') == 4c76336266bceaab9d2639a5d81e3ce272b4dc924d15154bb6ccbdea4b58f852 ]] || {
++  echo "frozen copy-attribution runner hash changed" >&2
++  exit 2
++}
+ for name in P2PSTREAM_QUALIFICATION_PROFILE_DIR P2PSTREAM_QUALIFICATION_PROFILE_MODE; do
+   [[ -z ${!name+x} ]] || { echo "$name must be unset" >&2; exit 2; }
+ done
+@@ -84,45 +93,60 @@
+   echo "server binary path is not the fresh audited diagnostic build" >&2
+   exit 2
+ }
+-[[ $server_binary_sha256 == 59eb8af1e6c767776f639b014074d542abb23d4ad019c7558182670372ea92a7 && \
++[[ $server_binary_sha256 == 0530cdc308bf06964f61d55ca730309e125cabd3c296ed3c22f0cfe218552013 && \
+    $agent_binary_sha256 == 9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137 ]] || {
+   echo "server or aggregate-agent binary is not the approved diagnostic build" >&2
++  exit 2
++}
++[[ $(sha256sum "$build_manifest" | awk '{print $1}') == f505bcd62f1bd050f21f4ddc6d407b377ebb5039029ec66980439f050023ada3 ]] || {
++  echo "monotonic build manifest hash changed" >&2
++  exit 2
++}
++[[ $(sha256sum "$final_source_attestation" | awk '{print $1}') == 18a25434183eeecf08d3214eb6748c528a89fa2f74bc7c98854075eafb3ed37a ]] || {
++  echo "final monotonic source attestation hash changed" >&2
++  exit 2
++}
++[[ $(sha256sum "$monotonic_observer_patch" | awk '{print $1}') == a8cc867dc9e12681e74b6a51396941d0a03c5145450eabff2e0bae0d8e79965a &&
++   $(sha256sum "$monotonic_validator_patch" | awk '{print $1}') == f1dafaabc985842bc7cbc18a199e79abdc709e9021f4c5d7695ad17eb5e90f63 &&
++   $(sha256sum "$monotonic_runner_patch" | awk '{print $1}') == 23cb24cd59481005ae83e580a8d20dedc0c4e1167df01ffd3ec8c854a807263a &&
++   $(sha256sum "$monotonic_arm_validator_patch" | awk '{print $1}') == fcae97fd6653cb438e5b85295844b394aa1108e0f66d064cdee5942b412d04f3 ]] || {
++  echo "monotonic correction artifact hash changed" >&2
+   exit 2
+ }
+ jq -e --arg server "$server_binary_sha256" --arg agent "$agent_binary_sha256" \
+   --arg server_ref "$server_source_ref" --arg agent_ref "$aggregate_agent_source_ref" '
+     .base_source_ref == $server_ref and .aggregate_agent_source_ref == $agent_ref and
+     .sha256.server_test_binary == $server and .sha256.aggregate_agent_test_binary == $agent and
+-    .sha256.frozen_wan_base_patch == "b2c90d2ee6bf9ade304163795022071b4d368b61f0e9d5bc73d0e52d2569538b" and
+-    .sha256.frozen_wan_test_helper == "b0b6d037d51892e89d39e6f55107f73c30647ad9a20283a026007fd69b3be42d" and
+-    .sha256.copy_attribution_overlay_patch == "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f" and
+-    .sha256.design == "a52431ddf9439a7424a9da6e81e26b2121ba0590e32ae8603b4ad20478aa1baf" and
+-    .reconstruction_status == 0 and .build_status == 0 and
+-    .focused_tests.normal_status == 0 and .focused_tests.race_status == 0 and
++    .frozen_input.copy_attribution_overlay_sha256 == "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f" and
++    .sha256.monotonic_observer_patch == "a8cc867dc9e12681e74b6a51396941d0a03c5145450eabff2e0bae0d8e79965a" and
++    .sha256.monotonic_validator_contract_patch == "f1dafaabc985842bc7cbc18a199e79abdc709e9021f4c5d7695ad17eb5e90f63" and
++    .source_verification.reconstruction_status == 0 and .source_verification.source_pre_post_test_equal == true and
++    .focused_tests.normal.status == 0 and .focused_tests.race.status == 0 and
++    .focused_tests.copy_record_contracts.status == 0 and .build.status == 0 and .build.source_compare_status == 0 and
+     .traffic_run == false
+   ' "$build_manifest" >/dev/null || { echo "diagnostic build manifest does not bind the requested artifacts" >&2; exit 2; }
+ jq -e --arg server "$server_binary_sha256" --arg agent "$agent_binary_sha256" '
+-    .source_verification.build_source_equals_independent_reconstruction == true and
+-    .source_verification.final_normalized_overlay_sha256 == "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f" and
+-    .toolchain.go_version == "go version go1.26.6 linux/amd64" and
+-    .binaries.server.sha256 == $server and .binaries.agent.sha256 == $agent and .traffic_run == false
++    .source_verification.frozen_copy_attribution_overlay_sha256 == "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f" and
++    .source_verification.monotonic_observer_patch_sha256 == "a8cc867dc9e12681e74b6a51396941d0a03c5145450eabff2e0bae0d8e79965a" and
++    .source_verification.reconstruction_status == 0 and .toolchain.version == "go version go1.26.6 linux/amd64" and
++    .binaries.server.sha256 == $server and .binaries.agent.sha256 == $agent and .diagnostic_only == true and .traffic_run == false
+   ' "$final_source_attestation" >/dev/null || { echo "final source/binary/toolchain attestation does not bind the requested artifacts" >&2; exit 2; }
+-[[ $(sha256sum "$audited_build_manifest" | awk '{print $1}') == 70be2d865f415653f1344ec29d230bae39a0de9148afa37830c05da2dc8f81bb ]] || {
++[[ $(sha256sum "$audited_build_manifest" | awk '{print $1}') == 0ba246408bdabdb31bad837d0163b9957c93cbe8888eef2ed3fd4c29d2fed38b ]] || {
+   echo "audited server build manifest hash changed" >&2
+   exit 2
+ }
+-jq -e --arg server "$server_binary_sha256" --arg path "build/bin/current-server-wan-copy-attribution-audited.test" \
++jq -e --arg server "$server_binary_sha256" --arg path "build/bin/current-server-wan-copy-monotonic-audited.test" \
+   --arg gomod "$script_dir/build/source/go.mod" '
+     .base_source_ref == "8ac4c8df8237e37777ba2fac0da6f949da17bdea" and
+-    .copy_attribution_overlay_sha256 == "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f" and
++    .frozen_copy_attribution_overlay_sha256 == "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f" and
++    .monotonic_observer_patch_sha256 == "a8cc867dc9e12681e74b6a51396941d0a03c5145450eabff2e0bae0d8e79965a" and
+     .source_pre_post_equal == true and .build_status == 0 and .source_compare_status == 0 and
+     .toolchain.path == "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go" and
+     .toolchain.sha256 == "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45" and
+     .toolchain.version == "go version go1.26.6 linux/amd64" and .toolchain.pre_post_equal == true and
+     .output.path == $path and .output.sha256 == $server and
+-    .metadata_inspection.original_prebuild_go_env.captured_before_compile_cd == true and
+-    .metadata_inspection.postbuild_go_env_in_compile_working_directory.gomod == $gomod and
+-    .metadata_inspection.postbuild_go_env_in_compile_working_directory.inspection_only_no_compile_or_test == true and
++    .metadata_inspection.go_env_captured_from_compile_working_directory == true and
++    .metadata_inspection.gomod == $gomod and
+     .test_rerun == false and .traffic_run == false
+   ' "$audited_build_manifest" >/dev/null || { echo "audited server build manifest does not bind the requested artifact" >&2; exit 2; }
+ [[ $(sha256sum "$decision_map" | awk '{print $1}') == f6dc409926ca8178ba0da8ec262960a6b8e238d2a9d94dbe0afc9077f629c6f7 ]] || {
+@@ -149,14 +173,16 @@
+ 
+ write_hashes() {
+   local destination=$1
+-  python3 - "$destination" "$0" "$runner" "$validator" "$copy_record_validator" "$approved_runner" "$frozen_protocol_runner" \
+-    "$wan_protocol_runner_patch" "$copy_runner_patch" "$go_patch" "$go_helper" "$copy_overlay" "$copy_design" "$build_manifest" "$audited_build_manifest" \
++  python3 - "$destination" "$0" "$runner" "$validator" "$copy_record_validator" "$approved_runner" "$frozen_protocol_runner" "$frozen_copy_runner" \
++    "$wan_protocol_runner_patch" "$copy_runner_patch" "$monotonic_runner_patch" "$go_patch" "$go_helper" "$copy_overlay" \
++    "$monotonic_observer_patch" "$monotonic_validator_patch" "$monotonic_arm_validator_patch" "$copy_design" "$build_manifest" "$audited_build_manifest" \
+     "$final_source_attestation" "$runner_reconstruction_attestation" "$integration_notes" "$decision_map" \
+     "$server_binary" "$aggregate_agent_binary" "$cert" "$key" "$server_source_ref" \
+     "$aggregate_agent_source_ref" "$expected_leaf_sha256" <<'PY'
+ import hashlib, json, pathlib, sys
+-(destination, supervisor, runner, validator, copy_record_validator, approved, frozen_protocol_runner,
+- wan_protocol_runner_patch, copy_runner_patch, go_patch, go_helper, copy_overlay, copy_design, build_manifest, audited_build_manifest,
++(destination, supervisor, runner, validator, copy_record_validator, approved, frozen_protocol_runner, frozen_copy_runner,
++ wan_protocol_runner_patch, copy_runner_patch, monotonic_runner_patch, go_patch, go_helper, copy_overlay,
++ monotonic_observer_patch, monotonic_validator_patch, monotonic_arm_validator_patch, copy_design, build_manifest, audited_build_manifest,
+  final_source_attestation, runner_reconstruction_attestation, integration_notes, decision_map,
+  server, agent, cert, key, server_ref, agent_ref, fingerprint) = sys.argv[1:]
+ def sha(path):
+@@ -173,9 +199,12 @@
+     "sha256": {
+         "supervisor": sha(supervisor), "runner": sha(runner), "validator": sha(validator),
+         "copy_record_validator": sha(copy_record_validator), "approved_lifecycle_runner": sha(approved),
+-        "frozen_protocol_runner": sha(frozen_protocol_runner), "wan_protocol_runner_patch": sha(wan_protocol_runner_patch),
+-        "copy_runner_patch": sha(copy_runner_patch), "go_base_patch": sha(go_patch), "go_helper": sha(go_helper),
++        "frozen_protocol_runner": sha(frozen_protocol_runner), "frozen_copy_runner": sha(frozen_copy_runner),
++        "wan_protocol_runner_patch": sha(wan_protocol_runner_patch), "copy_runner_patch": sha(copy_runner_patch),
++        "monotonic_runner_patch": sha(monotonic_runner_patch), "go_base_patch": sha(go_patch), "go_helper": sha(go_helper),
+         "copy_attribution_overlay_patch": sha(copy_overlay), "copy_attribution_design": sha(copy_design),
++        "monotonic_observer_patch": sha(monotonic_observer_patch), "monotonic_validator_patch": sha(monotonic_validator_patch),
++        "monotonic_arm_validator_patch": sha(monotonic_arm_validator_patch),
+         "diagnostic_build_manifest": sha(build_manifest),
+         "audited_build_manifest": sha(audited_build_manifest),
+         "final_source_attestation": sha(final_source_attestation), "integration_notes": sha(integration_notes),
+--- a/validate-wan-copy-attribution-arm.py
++++ b/validate-wan-copy-attribution-arm.py
+@@ -47,9 +47,10 @@
+     issues.append("binary, source overlay, certificate, or harness hashes changed during the arm")
+ hashes = pre.get("sha256", {})
+ required_hashes = {
+-    "supervisor", "runner", "validator", "approved_lifecycle_runner", "frozen_protocol_runner",
+-    "wan_protocol_runner_patch", "copy_runner_patch", "go_base_patch", "go_helper", "diagnostic_build_manifest",
++    "supervisor", "runner", "validator", "approved_lifecycle_runner", "frozen_protocol_runner", "frozen_copy_runner",
++    "wan_protocol_runner_patch", "copy_runner_patch", "monotonic_runner_patch", "go_base_patch", "go_helper", "diagnostic_build_manifest",
+     "copy_record_validator", "copy_attribution_overlay_patch", "copy_attribution_design",
++    "monotonic_observer_patch", "monotonic_validator_patch", "monotonic_arm_validator_patch",
+     "final_source_attestation", "integration_notes", "copy_timing_decision_map",
+     "runner_reconstruction_attestation",
+     "audited_build_manifest",
+@@ -119,7 +120,7 @@
+         "sequence": index, "direction": direction, "scope": copy_record.get("scope"),
+         "method": copy_record.get("method"), "path": copy_record.get("path"),
+         "complete": copy_metrics.get("complete"),
+-        "handler_elapsed_ns": returned_ns - started_ns if isinstance(started_ns, int) and isinstance(returned_ns, int) else None,
++        "handler_elapsed_ns": copy_record.get("handler_elapsed_ns"),
+         "upstream_read": copy_metrics.get("upstream_read"),
+         "downstream_write": copy_metrics.get("downstream_write"),
+         "inter_read_gap": copy_metrics.get("inter_read_gap"),
+@@ -241,7 +242,7 @@
+     issues.append("summary protocol/scope changed")
+ if summary.get("copy_attribution_issues_by_sequence") != copy_issues_by_sequence:
+     issues.append("summary copy-attribution issue evidence differs from independently validated rows")
+-expected_copy_interpretation = ("Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with handler wall time. "
++expected_copy_interpretation = ("Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with monotonic handler elapsed time. Unix timestamps are retained only for coarse correlation. "
+                                 "Inter-read gaps include downstream Write time and bookkeeping and are never added as an independent component. "
+                                 "POST observations cover only the 32-byte response copy, not upload request-body handling.")
+ if summary.get("copy_attribution_interpretation") != expected_copy_interpretation:
+--- a/generated/qualify-proxy-agent-growth-wan-copy-attribution.sh
++++ b/generated/qualify-proxy-agent-growth-wan-copy-attribution.sh
+@@ -1451,7 +1451,7 @@
+                          "new": sum(trace["reused"] is False for trace in trace_rows),
+                          "put_idle_absent": sum(not trace["put_idle_conn"] for trace in trace_rows)},
+         "copy_attribution_issues_by_sequence": copy_issues_by_sequence,
+-        "copy_attribution_interpretation": "Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with handler wall time. Inter-read gaps include downstream Write time and bookkeeping and are never added as an independent component. POST observations cover only the 32-byte response copy, not upload request-body handling.",
++        "copy_attribution_interpretation": "Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with monotonic handler elapsed time. Unix timestamps are retained only for coarse correlation. Inter-read gaps include downstream Write time and bookkeeping and are never added as an independent component. POST observations cover only the 32-byte response copy, not upload request-body handling.",
+         "interpretation": "Observational diagnostic only; throughput is not qualification evidence and medians do not establish health or causality. Warmup rows explicitly close idle transports. Sequences 9-12 are the first post-close visits to four concrete lane keys; only later same-key visits classify reuse, bound to the prior successful PutIdleConn timestamp and exact origin connection identity.",
+     }
+     with open(destination, "w", encoding="utf-8") as output_file:
+--- a/INTEGRATION-NOTES.md
++++ b/INTEGRATION-NOTES.md
+@@ -1,9 +1,9 @@
+ # Copy-attribution diagnostic integration notes
+ 
+-This observer is diagnostic only. Its throughput values are not qualification evidence. Upstream Read and downstream Write durations are compared separately with the public handler interval. Inter-read gaps include downstream Write time and bookkeeping, so they are never added to Read and Write as a third independent component. POST records cover only the 32-byte response copy; they do not attribute upload request-body time.
++This observer is diagnostic only. Its throughput values are not qualification evidence. Upstream Read and downstream Write durations are compared separately with the monotonic public-handler elapsed time. Unix timestamps remain only for coarse ordering and correlation. Inter-read gaps include downstream Write time and bookkeeping, so they are never added to Read and Write as a third independent component. POST records cover only the 32-byte response copy; they do not attribute upload request-body time.
+ 
+ The inherited fixture's `agent_tunnels_initial` outer slice is a shallow copy. The peak tracker can later mutate nested lane values through shared backing storage. Nested initial lane fields therefore cannot establish starting lane credit and may reflect later maxima. High-water fields are sampled component by component at roughly 20 ms intervals and are not one coherent runtime state or a minimum-credit measurement. Final pools support conservation checks, not transient causal attribution. The detailed source map is `../current-wan-prep/COPY-TIMING-DECISION-MAP.md` and must travel with the evidence package.
+ 
+-The generated runner is reconstructed in two stages: the reviewed owned lifecycle runner plus the frozen WAN protocol patch must exactly equal the frozen WAN protocol runner, then the copy-attribution runner patch must exactly equal this derivative's generated runner. Each arm and the pair wrapper hash the helper module, both patches, both generated runners, the Go overlays, build manifest, binaries, and TLS material before and after execution.
++The generated runner is reconstructed in three stages: the reviewed owned lifecycle runner plus the frozen WAN protocol patch must exactly equal the frozen WAN protocol runner; the copy-attribution runner patch must then exactly equal the frozen copy-attribution runner; and the one-line monotonic interpretation patch must exactly equal this derivative's generated runner. Each arm and the pair wrapper hash the helper module, all three runner inputs and generated runners, the frozen copy overlay, monotonic correction patches, build manifests, binaries, and TLS material before and after execution.
+ 
+ The inner analyzer and outer arm validator call the same immutable copy-record validation module. This is repeated enforcement, not independent implementation diversity. Independent review must use the raw per-row copy envelopes.
+--- a/contracts/run-arm-validator-contracts.py
++++ b/contracts/run-arm-validator-contracts.py
+@@ -7,18 +7,19 @@
+ import sys
+ 
+ root = pathlib.Path(__file__).resolve().parents[1]
+-validator = root / "validate-wan-copy-attribution-arm.py"
++validator = root / "validate-wan-copy-monotonic-arm.py"
+ copy_contract_path = pathlib.Path(__file__).with_name("run-copy-record-contracts.py")
+ spec = importlib.util.spec_from_file_location("copy_contract", copy_contract_path)
+ copy_contract = importlib.util.module_from_spec(spec)
+ spec.loader.exec_module(copy_contract)
+-COPY_INTERPRETATION = ("Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with handler wall time. "
++COPY_INTERPRETATION = ("Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with monotonic handler elapsed time. Unix timestamps are retained only for coarse correlation. "
+                        "Inter-read gaps include downstream Write time and bookkeeping and are never added as an independent component. "
+                        "POST observations cover only the 32-byte response copy, not upload request-body handling.")
+ hash_names = {
+-    "supervisor", "runner", "validator", "approved_lifecycle_runner", "frozen_protocol_runner",
+-    "wan_protocol_runner_patch", "copy_runner_patch", "go_base_patch", "go_helper", "diagnostic_build_manifest",
++    "supervisor", "runner", "validator", "approved_lifecycle_runner", "frozen_protocol_runner", "frozen_copy_runner",
++    "wan_protocol_runner_patch", "copy_runner_patch", "monotonic_runner_patch", "go_base_patch", "go_helper", "diagnostic_build_manifest",
+     "copy_record_validator", "copy_attribution_overlay_patch", "copy_attribution_design",
++    "monotonic_observer_patch", "monotonic_validator_patch", "monotonic_arm_validator_patch",
+     "final_source_attestation", "integration_notes", "copy_timing_decision_map",
+     "runner_reconstruction_attestation",
+     "audited_build_manifest",
+@@ -135,7 +136,11 @@
+ base = pathlib.Path(sys.argv[1])
+ base.mkdir(parents=True, exist_ok=False)
+ valid = fixture(True)
+-run_case(base, "valid-smoke", valid, True, 0)
++valid_evidence = run_case(base, "valid-smoke", valid, True, 0)
++assert all(record["handler_elapsed_ns"] == 10_000_000 for record in valid_evidence["copy_attribution_records"])
++assert all(record["upstream_read"]["span_ns"] ==
++           record["upstream_read"]["total_ns"] + record["inter_read_gap"]["total_ns"]
++           for record in valid_evidence["copy_attribution_records"])
+ missing_copy = copy.deepcopy(valid)
+ missing_copy["rows"][0]["response_copy_attribution"]["matches"] = []
+ missing_copy["summary"]["classification"] = "invalid"
+--- /dev/null
++++ b/contracts/run-monotonic-static-integration-contracts.sh
+@@ -0,0 +1,75 @@
++#!/usr/bin/env bash
++set -Eeuo pipefail
++
++root=$(cd "$(dirname "$0")/.." && pwd)
++old="$root/../wan-copy-attribution-source"
++protocol="$root/../wan-protocol-source"
++owned="$root/../current-wan-prep/runner/qualify-proxy-agent-growth-owned.sh"
++output=$1
++[[ ! -e $output ]] || { echo "output already exists" >&2; exit 2; }
++mkdir -p "$output"
++
++bash -n "$root/run-wan-copy-monotonic-diagnostic.sh"
++bash -n "$root/run-wan-copy-monotonic-arm.sh"
++bash -n "$root/generated/qualify-proxy-agent-growth-wan-copy-monotonic.sh"
++python3 -m py_compile "$root/validate-copy-record.py" "$root/validate-wan-copy-monotonic-arm.py"
++
++cp "$owned" "$output/rebuilt.sh"
++patch --quiet "$output/rebuilt.sh" "$protocol/wan-protocol-runner.patch"
++cmp "$output/rebuilt.sh" "$protocol/generated/qualify-proxy-agent-growth-wan-protocol.sh"
++patch --quiet "$output/rebuilt.sh" "$old/copy-attribution-runner.patch"
++cmp "$output/rebuilt.sh" "$old/generated/qualify-proxy-agent-growth-wan-copy-attribution.sh"
++patch --quiet "$output/rebuilt.sh" "$root/monotonic-runner.patch"
++cmp "$output/rebuilt.sh" "$root/generated/qualify-proxy-agent-growth-wan-copy-monotonic.sh"
++
++server="$root/build/bin/current-server-wan-copy-monotonic-audited.test"
++agent="$root/../current-wan-prep/bin/current-agent.test"
++server_sha=$(sha256sum "$server" | awk '{print $1}')
++agent_sha=$(sha256sum "$agent" | awk '{print $1}')
++[[ $server_sha == 0530cdc308bf06964f61d55ca730309e125cabd3c296ed3c22f0cfe218552013 ]]
++[[ $agent_sha == 9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137 ]]
++[[ $(sha256sum "$root/provenance/monotonic-build-manifest.json" | awk '{print $1}') == f505bcd62f1bd050f21f4ddc6d407b377ebb5039029ec66980439f050023ada3 ]]
++[[ $(sha256sum "$root/provenance/audited-server-build-manifest.json" | awk '{print $1}') == 0ba246408bdabdb31bad837d0163b9957c93cbe8888eef2ed3fd4c29d2fed38b ]]
++[[ $(sha256sum "$root/provenance/final-source-binary-toolchain-attestation.json" | awk '{print $1}') == 18a25434183eeecf08d3214eb6748c528a89fa2f74bc7c98854075eafb3ed37a ]]
++
++jq -e --arg server "$server_sha" --arg agent "$agent_sha" '
++  .source_verification.reconstruction_status == 0 and
++  .source_verification.source_pre_post_test_equal == true and
++  .source_verification.changed_paths_contract.accepted == true and
++  .focused_tests.normal.status == 0 and .focused_tests.race.status == 0 and
++  .focused_tests.copy_record_contracts.status == 0 and
++  .build.status == 0 and .build.source_compare_status == 0 and
++  .sha256.server_test_binary == $server and .sha256.aggregate_agent_test_binary == $agent and
++  .traffic_run == false
++' "$root/provenance/monotonic-build-manifest.json" >/dev/null
++jq -e --arg server "$server_sha" --arg gomod "$root/build/source/go.mod" '
++  .source_pre_post_equal == true and .source_compare_status == 0 and .build_status == 0 and
++  .toolchain.sha256 == "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45" and
++  .metadata_inspection.go_env_captured_from_compile_working_directory == true and
++  .metadata_inspection.gomod == $gomod and .output.sha256 == $server and
++  .test_rerun == false and .traffic_run == false
++' "$root/provenance/audited-server-build-manifest.json" >/dev/null
++
++grep -F 'copy_record.get("handler_elapsed_ns")' "$root/validate-wan-copy-monotonic-arm.py" >/dev/null
++grep -F 'monotonic handler elapsed time' "$root/validate-wan-copy-monotonic-arm.py" >/dev/null
++grep -F 'monotonic handler elapsed time' "$root/generated/qualify-proxy-agent-growth-wan-copy-monotonic.sh" >/dev/null
++! grep -F 'returned_ns - started_ns' "$root/validate-wan-copy-monotonic-arm.py" >/dev/null
++! grep -F 'handler wall time' "$root/validate-wan-copy-monotonic-arm.py" >/dev/null
++
++python3 - "$output/result.json" "$root" "$server_sha" "$agent_sha" <<'PY'
++import hashlib, json, pathlib, sys
++destination, root, server, agent = sys.argv[1:]
++root = pathlib.Path(root)
++def sha(path): return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
++value = {
++    "accepted": True,
++    "agent_sha256": agent,
++    "generated_runner_sha256": sha(root / "generated/qualify-proxy-agent-growth-wan-copy-monotonic.sh"),
++    "runner_reconstruction_sha256": sha(pathlib.Path(destination).with_name("rebuilt.sh")),
++    "schema_version": 1,
++    "server_sha256": server,
++    "traffic_run": False,
++}
++pathlib.Path(destination).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
++PY
++printf '%s\n' complete > "$output/FINAL"

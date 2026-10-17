@@ -1,0 +1,70 @@
+{
+  "aggregate_agent_binary_sha256": "fccaf15fbbc27d10dae33a9a79c1f07e05528536e3ea6d4d43219e98c0af9baa",
+  "build_commands": [
+    "git archive 15b0354cdbc2c3862fadc68c938f3c3185320e5e | tar -x -C \"$BUILD_ROOT\"",
+    "(cd \"$BUILD_ROOT\" && go test -c -o bin/server.test ./internal/server)",
+    "(cd \"$BUILD_ROOT\" && go test -c -o bin/agent.test ./internal/agent)",
+    "git archive 3ec137c3ad3d07028e867042fb00d3933912d7ab | tar -x -C \"$LEGACY_BUILD_ROOT\"",
+    "cp proxy_qualification_external_legacy_agent_test.go.txt \"$LEGACY_BUILD_ROOT/internal/agent/proxy_qualification_external_legacy_test.go\"",
+    "(cd \"$LEGACY_BUILD_ROOT\" && go test -c -o bin/agent.test ./internal/agent)"
+  ],
+  "candidate_ref": "15b0354cdbc2c3862fadc68c938f3c3185320e5e",
+  "conservation": {
+    "attempted": 3510147,
+    "drain_errors": 0,
+    "dropped_events": 0,
+    "persisted_events": 3510147,
+    "useful_completed": 3510147
+  },
+  "cpu_sets": {
+    "agent_and_origin": "4,5,6,7",
+    "load": "8,9,10,11,12,13,14,15",
+    "server": "0,1,2,3",
+    "topology_note": "Each four-logical-CPU proxy or agent set spans two physical cores with two SMT siblings per core."
+  },
+  "gates": {
+    "maximum_median_p95_ratio": 1.1,
+    "maximum_median_p99_ratio": 1.1,
+    "minimum_median_throughput_ratio": 0.9
+  },
+  "go_version": "go version go1.26.6 linux/amd64",
+  "harness_sha256": "a493280e839efc1b38325481c94d7a453415a3f5dc68a9777d727703b6b2477a",
+  "kernel": "Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep 4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "legacy_agent_binary_sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec",
+  "legacy_agent_overlay_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+  "legacy_agent_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "network": {
+    "configured_one_way_delay_per_interface": "500us",
+    "configured_rtt_ms": 1,
+    "measured_rtt_ms": 1.316,
+    "shaped_rate_bits_per_second": 1000000000
+  },
+  "production_prepaid_control_ref": "fb1cad92c9a814f598171fa181d1a4f230dbd107",
+  "qualification_exit": 1,
+  "qualification_outcome": "failed: every workload exceeded at least one tail-latency gate; h2-c128 also failed throughput",
+  "results_sha256": "41cf3caacda295b7a5b422a29c0e8fe7d13994a780360a60efbea16589bc0458",
+  "run_command": "bash qualify-proxy-agent-growth.sh.txt --server-binary \"$BUILD_ROOT/bin/server.test\" --aggregate-agent-binary \"$BUILD_ROOT/bin/agent.test\" --legacy-agent-binary \"$LEGACY_BUILD_ROOT/bin/agent.test\" --output results.jsonl --server-source-ref 15b0354cdbc2c3862fadc68c938f3c3185320e5e --aggregate-agent-source-ref 15b0354cdbc2c3862fadc68c938f3c3185320e5e --legacy-agent-source-ref 3ec137c3ad3d07028e867042fb00d3933912d7ab --tiny-response --rtt-ms 1",
+  "run_finished_at": "2026-10-16T05:13:33+02:00",
+  "server_binary_sha256": "073f5087433354d05245e4883e5b352d5175e2629cd7dc60696f756689a15edf",
+  "summary_sha256": "0c041a9770fe9d2e7f4f7b7eb9fed922a484e6642fce18b9ff4e57b5445d4116",
+  "systemd": "systemd 259 (259.5-0ubuntu3.4)",
+  "workload": {
+    "closed_loop": true,
+    "concurrency": [
+      16,
+      128
+    ],
+    "mode_order": [
+      "legacy then aggregate-v1 on odd repetitions",
+      "aggregate-v1 then legacy on even repetitions"
+    ],
+    "payload_bytes": 256,
+    "protocols": [
+      "h1",
+      "h2"
+    ],
+    "runs_per_mode_and_workload": 3,
+    "timed_seconds": 10,
+    "warmup_seconds": 2
+  }
+}

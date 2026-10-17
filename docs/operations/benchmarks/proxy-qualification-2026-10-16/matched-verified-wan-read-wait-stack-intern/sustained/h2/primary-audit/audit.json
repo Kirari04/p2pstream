@@ -1,0 +1,278 @@
+{
+  "accepted": true,
+  "checks_all_true": true,
+  "fixed_floor_failed_sequences": [
+    9,
+    11,
+    14
+  ],
+  "lifecycle_rows": [
+    {
+      "agent": {
+        "namespace": "net:[4026533254]",
+        "pid": 23,
+        "start_ticks": 2449921
+      },
+      "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+      "event": "namespace-helpers-start",
+      "router": {
+        "namespace": "net:[4026533841]",
+        "pid": 27,
+        "start_ticks": 2449921
+      },
+      "runner_namespace": "net:[4026533520]"
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "current-server-aggregate-v1-h2-1-agent",
+      "pid": 190,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "current-server-aggregate-v1-h2-1-server",
+      "pid": 154,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "origin",
+      "pid": 140,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "agent-namespace",
+      "pid": 23,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "router-namespace",
+      "pid": 27,
+      "status": 0
+    }
+  ],
+  "original_analyzer_statuses": {
+    "11": "1",
+    "14": "1",
+    "15": "1",
+    "9": "1"
+  },
+  "original_arm_accepted": false,
+  "pre_post_hashes_equal": true,
+  "raw_and_canonical_export_policy": "omit by recorded hash; no H2 content safety scan",
+  "reporting_discrepancy": "attestation composite outer_runner_group_joined false versus raw supervisor group_joined true/forced false",
+  "reuse_expectations": [
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47104",
+      "kind": "first-post-close-visit",
+      "lane_position": 1,
+      "satisfied": true,
+      "sequence": 9
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47090",
+      "kind": "first-post-close-visit",
+      "lane_position": 2,
+      "satisfied": true,
+      "sequence": 10
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47088",
+      "kind": "first-post-close-visit",
+      "lane_position": 3,
+      "satisfied": true,
+      "sequence": 11
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47074",
+      "kind": "first-post-close-visit",
+      "lane_position": 4,
+      "satisfied": true,
+      "sequence": 12
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47104",
+      "elapsed_idle_ns": 26553195544,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47104",
+      "got_conn_unix_ns": 1792187050240258832,
+      "httptrace_idle_time_ns": 26553195965,
+      "kind": "same-key-revisit",
+      "lane_position": 1,
+      "observed_origin_connection_id": "10.212.0.2:40218",
+      "prior_origin_connection_id": "10.212.0.2:40218",
+      "prior_put_idle_unix_ns": 1792187023687063288,
+      "satisfied": true,
+      "sequence": 13
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47090",
+      "elapsed_idle_ns": 26411205832,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47090",
+      "got_conn_unix_ns": 1792187058214769152,
+      "httptrace_idle_time_ns": 26411206414,
+      "kind": "same-key-revisit",
+      "lane_position": 2,
+      "observed_origin_connection_id": "10.212.0.2:58062",
+      "prior_origin_connection_id": "10.212.0.2:58062",
+      "prior_put_idle_unix_ns": 1792187031803563320,
+      "satisfied": true,
+      "sequence": 14
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47088",
+      "elapsed_idle_ns": 26606808066,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47088",
+      "got_conn_unix_ns": 1792187068543004870,
+      "httptrace_idle_time_ns": 26606808307,
+      "kind": "same-key-revisit",
+      "lane_position": 3,
+      "observed_origin_connection_id": "10.212.0.2:40482",
+      "prior_origin_connection_id": "10.212.0.2:40482",
+      "prior_put_idle_unix_ns": 1792187041936196804,
+      "satisfied": true,
+      "sequence": 15
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47074",
+      "elapsed_idle_ns": 26972855416,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:43653|10.212.0.2:47074",
+      "got_conn_unix_ns": 1792187076827918476,
+      "httptrace_idle_time_ns": 26972855135,
+      "kind": "same-key-revisit",
+      "lane_position": 4,
+      "observed_origin_connection_id": "10.212.0.2:41326",
+      "prior_origin_connection_id": "10.212.0.2:41326",
+      "prior_put_idle_unix_ns": 1792187049855063060,
+      "satisfied": true,
+      "sequence": 16
+    }
+  ],
+  "row_count": 16,
+  "schema_version": 1,
+  "sequences": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+  ],
+  "server_resource": {
+    "accepted": true,
+    "checks": {
+      "expected_cgroup_paths": true,
+      "memory_high_unbounded": true,
+      "memory_max_4gib": true,
+      "memory_swap_max_zero": true,
+      "post_events_unchanged_zero": true,
+      "post_peak_within_limit": true,
+      "pre_events_zero": true
+    },
+    "post": {
+      "cgroup_path": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h2-641681-5d5be3e8.scope",
+      "memory_current_bytes": 240218112,
+      "memory_events": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_high_bytes": "max",
+      "memory_max_bytes": 4294967296,
+      "memory_peak_bytes": 243535872,
+      "memory_stat_sock_bytes": 0,
+      "memory_swap_max_bytes": 0,
+      "pid": 154,
+      "process_fd_count": 19,
+      "process_rss_bytes": 241098752
+    },
+    "pre": {
+      "members": [
+        642241
+      ],
+      "memory_current_bytes": 14659584,
+      "memory_events": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_high_bytes": "max",
+      "memory_max_bytes": 4294967296,
+      "memory_peak_bytes": 14659584,
+      "memory_swap_max_bytes": 0,
+      "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-readwait-h2-641681-5d5be3e8.scope"
+    },
+    "schema_version": 1
+  },
+  "summary_acceptance": {
+    "correctness": true,
+    "download_floor_every_phase": false,
+    "expected_upstream_reuse": true,
+    "response_copy_attribution_complete": true,
+    "transport_trace_complete": true,
+    "verified_tls_and_protocol_every_response": true
+  },
+  "supervisor_lifecycle": {
+    "forced": false,
+    "group_joined": true,
+    "invalidates_success": true,
+    "runner_status": 1,
+    "server_scope": {
+      "resource_status": 0,
+      "systemd_run_status": 0,
+      "unit_active_state": "inactive",
+      "unit_joined": true,
+      "unit_load_state": "not-found",
+      "unit_query_status": 0,
+      "unit_sub_state": "dead"
+    },
+    "trace_reduction": {
+      "adapter_status": 0,
+      "analyzer_status": 1,
+      "canonicalizer_status": 0,
+      "parser_status": 0
+    }
+  },
+  "trace_index_entry_count": 4,
+  "trace_sequences": [
+    9,
+    11,
+    14,
+    15
+  ],
+  "warmup_download_min_bytes_per_second": 33564958.89834251
+}

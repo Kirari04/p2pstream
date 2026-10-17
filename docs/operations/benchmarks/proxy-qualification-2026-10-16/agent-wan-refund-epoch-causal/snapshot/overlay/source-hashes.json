@@ -1,0 +1,18 @@
+{
+  "base": {
+    "third_party/yamux/aggregate_window.go": "0fb6b3e993a5b43a9a5d3e800822b0ac54d8373c160b96969ada2e6fcc0fd4b5"
+  },
+  "base_ref": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+  "refund-current-batch-control": {
+    "deferred_global_epoch": false,
+    "source_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/control",
+    "third_party/yamux/aggregate_window.go": "c9669f56119c1350b66d521abb5a740b71e0146a7346b797ffeb3f0ff079ddc9",
+    "third_party/yamux/deferred_global_diagnostic_test.go": "cd2d2f1d325c449d0f26792a09ec77608f9810fa1e5fdf021a554913c3800860"
+  },
+  "refund-streams-before-global-epoch": {
+    "deferred_global_epoch": true,
+    "source_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/candidate",
+    "third_party/yamux/aggregate_window.go": "b711098b735a09a90ffc6c3def31f1a3342a4e84853f46aff8f16405629a4523",
+    "third_party/yamux/deferred_global_diagnostic_test.go": "cd2d2f1d325c449d0f26792a09ec77608f9810fa1e5fdf021a554913c3800860"
+  }
+}

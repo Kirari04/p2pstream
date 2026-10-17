@@ -1,0 +1,26 @@
+{
+  "accepted": true,
+  "endpoint_binary_builds": false,
+  "expected_tests": [
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation",
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation/blocked_raw_write_interrupted_by_close",
+    "TestQualificationTCPThresholdHistorySessionCloseCancellation/completed_raw_write_before_after_capture"
+  ],
+  "issue": null,
+  "postchecks": {
+    "all_source_tools_and_overlay_unchanged": true
+  },
+  "runtime_fix_claimed": false,
+  "schema_version": 1,
+  "stages": {
+    "normal": {
+      "started": true,
+      "status": 0
+    },
+    "race": {
+      "started": true,
+      "status": 0
+    }
+  },
+  "wan_traffic": false
+}

@@ -1,0 +1,59 @@
+{
+  "runner": "tmp/proxy-cpu-followup-20261017/run-screen.py",
+  "runner_sha256": "849515955e7e221f22e248440794aaa5299628907ab29b158bb99bafb7b0e51b",
+  "proposal_sha256": "17ab4079529dcea8fc221e10146eca16fc87092a97ca57e60c7d5bb0d23a1d54",
+  "frozen_inputs_sha256": "e4d60fc7e90fab4c30c3d27d5ebc5d9adf93802e49df8ed3ac89a00e5655384f",
+  "launch_argv": [
+    "python3",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/run-screen.py",
+    "--execute-approved-once",
+    "<REVIEWED-INPUTS.json SHA256>"
+  ],
+  "execution_authorized": false,
+  "heavy_commands": {
+    "compile": 3,
+    "normal_correctness": 2,
+    "race_correctness": 1,
+    "benchmark_invocations": 20
+  },
+  "benchmark_cases_per_invocation": 28,
+  "pairs": 10,
+  "benchtime": "150ms",
+  "cpus": {
+    "compile_correctness": "8-11",
+    "benchmark": "8"
+  },
+  "baseline_head": "8fa16378af4ac0117276726fe6e51d8bc4c74c85",
+  "supervisor": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-policy.py",
+    "sha256": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767"
+  },
+  "artifact_roots": [
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-route-reuse-checks-20261017"
+  ],
+  "combined_artifact_limit_bytes": 4294967296,
+  "environment": {
+    "CGO_ENABLED": "1",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+    "GOENV": "off",
+    "GOFLAGS": "",
+    "GOMAXPROCS": "4",
+    "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+    "GONOPROXY": "",
+    "GONOSUMDB": "",
+    "GOOS": "linux",
+    "GOPRIVATE": "",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off",
+    "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  }
+}

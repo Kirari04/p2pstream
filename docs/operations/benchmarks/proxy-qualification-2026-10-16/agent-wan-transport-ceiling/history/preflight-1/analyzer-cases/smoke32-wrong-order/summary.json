@@ -1,0 +1,69 @@
+{
+  "aggregate_growth": {
+    "exercised": true,
+    "live_growth_reserved_bytes_by_pair_role": {
+      "1": {
+        "agent": 1,
+        "server": 1
+      }
+    },
+    "status": "exercised"
+  },
+  "classification": "inconclusive_non_timing_failure",
+  "diagnostic_reproduced": false,
+  "failures": [
+    "32-row chronological pair/arm/phase sequence mismatch"
+  ],
+  "fixed_workload": {
+    "configured_one_way_netem_ms": 5,
+    "configured_rtt_ms": 10,
+    "expected_payload_sha256": "ad818ce955253fd9030cbefa352527321b308cfc574cb4bbee9cbcd0d4930790",
+    "measured_rtt_envelope_ms": {
+      "maximum": 25,
+      "minimum": 5
+    },
+    "measured_rtt_ms_by_pair_arm": {
+      "1": {}
+    },
+    "order": [
+      "yamux-then-raw"
+    ],
+    "pairs": 1,
+    "payload_bytes": 268435456,
+    "raw_lifecycle_difference": "persistent TLS and origin TCP relay per data lane; no Yamux Open/OpenRequest setup",
+    "tcp_info_collection": "post-transfer-only",
+    "tcp_info_unavailable_fields": [
+      "app_limited"
+    ],
+    "total_phase_wall_used_for_both_arms": true,
+    "total_transfers": 32,
+    "transfers_per_variant": 16
+  },
+  "fixture_smoke_passed": false,
+  "fresh_namespace_identity_count": 6,
+  "gates": {
+    "not_a_1_10_retention_or_legacy_acceptance_gate": true,
+    "raw_each_postwarm_to_own_warm_median_minimum": null,
+    "timing_localization_evaluated": false,
+    "yamux_fresh_download_median_minimum": null,
+    "yamux_reused_lane3_minimum": null,
+    "yamux_transition_requires_at_least_one_subthreshold": null
+  },
+  "non_timing_failures": [
+    "32-row chronological pair/arm/phase sequence mismatch"
+  ],
+  "pairs": {},
+  "provenance": {
+    "agent_binary_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "build_tag": "p2pstream_transport_ceiling",
+    "runner_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "server_binary_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_ref": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "pure_validator_replay": true,
+  "row_count": 32,
+  "scope": "fixture_smoke_only",
+  "snapshot_count": 6,
+  "timing_failures": [],
+  "topology_count": 2
+}

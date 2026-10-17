@@ -1,0 +1,12 @@
+{
+  "status": "integrated into feature working tree",
+  "verified_at_utc": "2026-10-17T17:24:47.402447+00:00",
+  "base_ref": "8fa16378af4ac0117276726fe6e51d8bc4c74c85",
+  "compilation_inputs_verified": 431,
+  "matches_measured_candidate": true,
+  "production_file": "internal/server/client_identity.go",
+  "production_sha256": "a62ee2f50e0fb8aae3b842cf979441b804ce1f3f998164c46819cefbbd410ed3",
+  "test_file": "internal/server/client_identity_context_test.go",
+  "test_sha256": "f2bcebc1e54bf955851dff90d43a783f69b92bea0b1c8e1304d5d4065bf81f85",
+  "validation": "Measured candidate normal/race/benchmark source inputs exactly match integrated source. No HTTP/WAN throughput claim."
+}

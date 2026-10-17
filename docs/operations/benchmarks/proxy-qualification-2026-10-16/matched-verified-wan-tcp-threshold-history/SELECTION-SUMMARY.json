@@ -1,0 +1,20 @@
+{
+  "archive_built": false,
+  "archive_files": 1199,
+  "archive_source_bytes": 34431145,
+  "excluded_nonsource_files": 0,
+  "hash_only_binaries": 2,
+  "loose_bytes": 5865135,
+  "loose_files": 165,
+  "omitted_roots": 21,
+  "omitted_run_artifacts": 208,
+  "package_built": false,
+  "phase": "prospective-stat-only",
+  "qualification_accepted": false,
+  "schema_version": 1,
+  "secret_scan_accepted": true,
+  "secret_scan_executed": true,
+  "selected_bytes": 40296280,
+  "selected_files": 1364,
+  "source_bytes_copied": false
+}

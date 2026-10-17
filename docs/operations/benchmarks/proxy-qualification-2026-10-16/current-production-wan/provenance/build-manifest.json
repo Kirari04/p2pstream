@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "purpose": "one original H2 legacy-to-aggregate WAN pair; prepared only, traffic requires Astra review",
+  "source": {
+    "current_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+    "current_archive_sha256": "b625da9ccbe17c8b43ff1e5c1078bd8fb24aff4c995fcfd23302ac83c0c3d9f9",
+    "terminal_drain_ref": "4477c0b",
+    "terminal_drain_is_ancestor": true,
+    "legacy_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+    "legacy_archive_sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+    "legacy_overlay_sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb",
+    "verification": "current archive has 4866 byte-identical files and no extras; legacy archive has 782 byte-identical files plus exactly the canonical overlay"
+  },
+  "toolchain": {
+    "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "version": "go version go1.26.6 linux/amd64",
+    "binary_sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45"
+  },
+  "build": {
+    "gomaxprocs": 4,
+    "tags": [],
+    "commands": [
+      "GOMAXPROCS=4 <pinned-go> -C <current-archive> test -c -o <prep>/bin/current-server.test ./internal/server",
+      "GOMAXPROCS=4 <pinned-go> -C <current-archive> test -c -o <prep>/bin/current-agent.test ./internal/agent",
+      "GOMAXPROCS=4 <pinned-go> -C <legacy-archive-plus-canonical-overlay> test -c -o <prep>/bin/legacy-agent.test ./internal/agent"
+    ],
+    "duration_seconds": 20
+  },
+  "sha256": {
+    "current_server_binary": "4271d5c53e2289108ab5c7977a2a6073046baa5a1889249955dd0c340750e9ff",
+    "current_agent_binary": "9e635d6e1e8fbd8651260eb081fb5fc7847438bc51c653a5f7785cbecde4a137",
+    "legacy_agent_binary": "162f8f19361bb13cf2cbb998ed2886a57a63eb36dc6ef21a4cdae4c2865b3f45",
+    "owned_runner": "b29242b6891105fd6231fecd7739ae48e6909049d0583a184765839ad2827c5f",
+    "owned_runner_patch": "9cefd4218456e15b810288d3f478ffb5c03d834c0a994098ad4f9d66cb2c6d6d",
+    "supervisor": "eb6f56c31425b3a09b62ff1f27ffcba11c4a6d3858c9d32a7ead0e8c49005d46",
+    "h2_validator": "7d26a6a224bfc02674284ea28af5b5de7730b9aba92d2908454730dfa9e9ba11",
+    "lifecycle_contracts": "981643ad92b6e6e88c85d2555852e79944a3e6c45c335327e53589e49b036e74"
+  },
+  "historical_legacy_binary": {
+    "sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec",
+    "use": "canonical prior evidence only; unavailable after tmpfs loss and not claimed for this rebuild"
+  },
+  "fixed_workload": {
+    "order": ["legacy", "aggregate-v1"],
+    "flags": ["--runs", "1", "--warmup-mib", "256", "--steady-mib", "256", "--transfer-repetitions", "3", "--required-pool-mib", "8", "--rtt-ms", "80"],
+    "cpu_sets": {"server": "0-3", "agent_and_origin": "4-7", "load": "8-15"},
+    "cwd": "<prep directory>, inherited from the canonical runner's dirname/.. rule",
+    "tmpdir": "fresh run output/tmp on the worktree ext4 filesystem",
+    "derived_outer_timeout_seconds": 4800,
+    "canonical_runner_timeout_seconds": 4397
+  },
+  "historical_tls_reproduction": {
+    "label": "faithful reproduction",
+    "client_public_listener": "H2 over public HTTPS with the canonical load fixture's InsecureSkipVerify behavior",
+    "url_identity": "IP URL and no SNI retained",
+    "protocol_or_tls_changes": false
+  }
+}

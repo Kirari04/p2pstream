@@ -1,0 +1,84 @@
+{
+  "agent_origin": {
+    "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+    "controller_default": "cubic",
+    "monotonic_ns": 89545732253433,
+    "namespace": "net:[4026533858]",
+    "namespace_device": 5,
+    "namespace_inode": 4026533858,
+    "parent": {
+      "namespace": "net:[4026533919]",
+      "namespace_device": 5,
+      "namespace_inode": 4026533919,
+      "pid": 2522,
+      "pid_namespace": "pid:[4026533470]",
+      "start_ticks": 8954568
+    },
+    "pid": 2523,
+    "pid_namespace": "pid:[4026533470]",
+    "start_ticks": 8954571,
+    "subject": {
+      "namespace": "net:[4026533858]",
+      "namespace_device": 5,
+      "namespace_inode": 4026533858,
+      "pid": 19,
+      "pid_namespace": "pid:[4026533470]",
+      "start_ticks": 8877506
+    },
+    "tcp_slow_start_after_idle": 1
+  },
+  "phase": "post",
+  "point_in_time_only": true,
+  "read_only": true,
+  "router": {
+    "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+    "controller_default": "cubic",
+    "monotonic_ns": 89545756077487,
+    "namespace": "net:[4026534047]",
+    "namespace_device": 5,
+    "namespace_inode": 4026534047,
+    "parent": {
+      "namespace": "net:[4026533919]",
+      "namespace_device": 5,
+      "namespace_inode": 4026533919,
+      "pid": 2522,
+      "pid_namespace": "pid:[4026533470]",
+      "start_ticks": 8954568
+    },
+    "pid": 2524,
+    "pid_namespace": "pid:[4026533470]",
+    "start_ticks": 8954573,
+    "subject": {
+      "namespace": "net:[4026534047]",
+      "namespace_device": 5,
+      "namespace_inode": 4026534047,
+      "pid": 24,
+      "pid_namespace": "pid:[4026533470]",
+      "start_ticks": 8877507
+    },
+    "tcp_slow_start_after_idle": 1
+  },
+  "runner": {
+    "boot_id": "1811fe8e-5c3c-4428-ab82-9b38d6519500",
+    "controller_default": "cubic",
+    "monotonic_ns": 89545710811776,
+    "namespace": "net:[4026533919]",
+    "namespace_device": 5,
+    "namespace_inode": 4026533919,
+    "parent": {
+      "namespace": "net:[4026533919]",
+      "namespace_device": 5,
+      "namespace_inode": 4026533919,
+      "pid": 1,
+      "pid_namespace": "pid:[4026533470]",
+      "start_ticks": 8877498
+    },
+    "pid": 2522,
+    "pid_namespace": "pid:[4026533470]",
+    "start_ticks": 8954568,
+    "tcp_slow_start_after_idle": 1
+  },
+  "schema_version": 1,
+  "scope": "network-namespace defaults before first endpoint/after final workload; no per-socket TCP state claim",
+  "socket_controller_observed": false
+}

@@ -1,0 +1,25 @@
+{
+  "accepted": true,
+  "failures": [],
+  "natural_receipt_count": 22,
+  "receipt_counts": {
+    "combined-4g-server-plus-colocated-agent": 3,
+    "external-one-agent-separate-4g-cgroups": 4,
+    "external-four-agents-separate-4g-cgroups": 7,
+    "compat-current-agent-old-server-1-lane": 4,
+    "compat-current-agent-old-server-4-lane": 4
+  },
+  "original_evidence_preserved": {
+    "failed_capacity": {
+      "files_verified": 49,
+      "changed_files": []
+    },
+    "legacy_stack_diagnostic": {
+      "files_verified": 29,
+      "changed_files": []
+    }
+  },
+  "remaining_recorded_processes": [],
+  "remaining_archive_binary_processes": [],
+  "remaining_containers": []
+}

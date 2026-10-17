@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "openssl",
+    "verify",
+    "-CAfile",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+    "-verify_hostname",
+    "public.test",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem"
+  ],
+  "exit_status": 0,
+  "stdout": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem: OK\n",
+  "stderr": "",
+  "verified_at_utc": "2026-10-17T10:56:50.155506+00:00",
+  "manifest_sha256": "6d898da8254c2a7c2c38fc81fb152235294de7825725dd4322fa4a601fba1f8c",
+  "source_checkpoint_unchanged": true
+}

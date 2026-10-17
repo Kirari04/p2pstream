@@ -61,7 +61,43 @@ Set these on the server process via `.env` or environment. They control manageme
 | `SERVER_TUNNEL_MEMORY_HARD_PERCENT` | `90`                       | New streams are rejected at this measured utilization; this admission watermark is not an instantaneous kernel-memory cap. Maximum `99`. |
 | `SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT` | `75`                   | Pressure remains hysteretic until utilization falls below this value. |
 | `SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS` | `100`                     | Mandatory host memory plus supplementary finite cgroup/Go constraints and process file-descriptor sampling interval; range `10`–`10000`. |
-| `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` | `0` | Auto-derived initial lifetime stream reservation (`1280 KiB` with default windows). Explicit range `1048576`–`1073741824` can increase that reservation; it never lowers the derived charge. Window growth reserves additional bytes separately. |
+| `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` | `0` | `0` uses the owned server stream base (`256 KiB`) while aggregate session pools or exact legacy receive-window supplements are reserved separately. An explicit historical full-stream estimate (`1048576`–`1073741824`) remains a conservative base override, so the separate receive ownership is still added. Window growth reserves additional bytes separately. |
+
+Capacity diagnostics report `StreamChargeBytes` as the admitted stream base,
+not total worst-case stream memory. Aggregate session pools and legacy receive
+windows are reported under the fixed `receive_window` owner. A negotiated group
+uses one dedicated control lane (at most four control streams) plus four bulk
+lanes by default. A legacy physical lane preserves the bounded 256-stream accept
+backlog, one synchronously admitted transition, and 16 bounded graceful
+rejections. At the default 512 KiB initial window, that legacy session envelope
+reserves about 173.2 MiB per physical lane before admitted-stream supplements;
+the fixed envelope does not shrink for a lower negotiated stream limit. The
+legacy default remains four physical lanes (about 692.8 MiB of session
+envelopes), so a low-memory agent can refuse a legacy lane when it cannot make
+that full compatibility promise. New agents and servers use aggregate-v1 to
+avoid that legacy idle cost.
+
+The negotiated control lane prepays its complete bounded working promise
+before the HTTP upgrade: up to `min(4, TUNNEL_MAX_CONCURRENT_REQUESTS)` receive
+windows, agent stream bases, origin-socket allowances, and peak dial
+descriptors. At the default window and four control slots this is about
+5.79 MiB plus eight descriptor credits. Idle prepaid slots do not consume the
+operator's active-request limit, so ordinary work may use the full configured
+concurrency while control is idle. Once active work fills that limit, a cold
+control request receives `agent_capacity`; after a slot drains, the prepaid
+control request can proceed even under later agent memory pressure. Server-side
+resource admission still applies to the request. A server
+negotiating a smaller total releases the excess promise before Yamux starts.
+Legacy lanes retain their existing per-stream admission behavior.
+
+Tunnel mode is immutable within a group generation. If a previously negotiated
+aggregate primary receives a complete legacy acknowledgment during a server
+rollback, the agent closes and joins every control and bulk lane, releases the
+old generation's session resources, waits with bounded reconnect backoff, and
+offers a fresh group ID. An old server can then select legacy mode. Partial,
+duplicate, or mismatched acknowledgment headers fail closed and retry without
+triggering a downgrade. When a legacy primary later disconnects, its complete
+group is likewise replaced so an upgraded server can negotiate aggregate-v1.
 
 Compose overrides two binary defaults for stable-image compatibility:
 `PUBLIC_MAX_CONCURRENT_REQUESTS=2048` and `PUBLIC_MAX_CONNECTIONS_PER_TARGET=256`.

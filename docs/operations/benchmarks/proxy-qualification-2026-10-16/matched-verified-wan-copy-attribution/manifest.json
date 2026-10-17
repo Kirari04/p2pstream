@@ -1,0 +1,39 @@
+{
+  "classification": "matched_verified_wan_copy_attribution_diagnostic",
+  "copied_file_count": 741,
+  "corrected_monotonic_smoke_accepted": true,
+  "excluded": [
+    "binaries and complete source/build trees",
+    "compiler caches",
+    "private keys and non-public certificate material",
+    "databases, readiness files and credentials",
+    "per-request scratch files and raw endpoint logs/state"
+  ],
+  "original_wan_release_gate_cleared": false,
+  "predecessor_smoke_accepted": false,
+  "public_certificate_der_sha256": {
+    "corrected_smoke": "255c9b66ffb2fe1cb24860422c84b5aeb2fbafd6c7dc7a9c36d33503b6596efc",
+    "predecessor_smoke": "88e08b6b8743647fe55d7418ac8da78cb4713dd6085733fead5bac8b844b3fce",
+    "sustained": "7d3625723c898ac278292007eab9dc19ec5df4dcd5b544fe0528149eeb38f0c8"
+  },
+  "schema_version": 1,
+  "source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "sustained": {
+    "h1": {
+      "attestation_sha256": "9b8837268613da036d95209d00d0277c4c7d7c7e20a7d1ccaad50ba8c50ff291",
+      "classification": "observational-complete",
+      "lifecycle_sha256": "1d8e8bdb6b0d5eab7e54334935b15291ad30450adec389350f9426ec8db055aa",
+      "results_sha256": "a20bf6ef0ca185dacb7eb471a2ad5928277030c233592198635a42a846e85e07",
+      "row_count": 16
+    },
+    "h2": {
+      "attestation_sha256": "a2d1de65cb1acb42e983129084d73973cae4247e65059f677ab29ff76bc9ca9b",
+      "classification": "inconclusive-upstream-reuse",
+      "lifecycle_sha256": "761442c767af05dde4757dc19d023352ec95a4167afb8cb603ad12c4c3cc59f7",
+      "results_sha256": "38a35f13f0901056cd7261ca3c2023ffea3f7b656437caa0fa67cefe8824b792",
+      "row_count": 16
+    }
+  },
+  "sustained_accepted": false,
+  "sustained_wrapper_status": 1
+}

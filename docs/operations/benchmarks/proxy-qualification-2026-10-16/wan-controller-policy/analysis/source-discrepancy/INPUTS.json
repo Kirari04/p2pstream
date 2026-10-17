@@ -1,0 +1,236 @@
+{
+  "head": "0ed06e74129db4bf9e8b3d3394d3d986fe3cf22e",
+  "legacy_materialized_production_files_equal_git_ref": true,
+  "inputs": [
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-post-batch-profiles/README.md",
+      "bytes": 3878,
+      "sha256": "1a859dfcd166d3fe0595e704cba1f48c301df487eb8a344eb7ddf5b82007008d"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-allocation-counters/README.md",
+      "bytes": 8304,
+      "sha256": "a57bf5a75ff1da4581ee748e41f15f467643a5643bc099409b24eeab18b46714"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-data-emission-causal/README.md",
+      "bytes": 6029,
+      "sha256": "c9c8a389c681b9f4d6163e3c8ef412a4baf548aa451d1b5f2576850238e405f7"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-growth-trace/README.md",
+      "bytes": 7027,
+      "sha256": "b6520d61102fa4f7cc8121b3cf0f54d8f2d2f0ee19abab7659f2a884f899c281"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-refund-emission-causal/README.md",
+      "bytes": 5040,
+      "sha256": "12a47fe346581628710c92b9cee691b691fca348caadcbab59bcc3f5deb157ff"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-refund-epoch-causal/README.md",
+      "bytes": 5822,
+      "sha256": "be26d0ffbfc7b5d0a4a02354bed638d7c15e367e1874a0a235fb1e0ce98e3e9f"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-refund-queue-ack-causal/README.md",
+      "bytes": 5458,
+      "sha256": "c1f90f57d942e9dbb3e884962c6cd5c56b3d02fdf8cc9470180e10ea3df1cbe2"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-runtime-bisection/README.md",
+      "bytes": 6044,
+      "sha256": "08227615ed7d99566f8954e3b7c2f8c8002ebd5186b6fab770c96b4ab155c160"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/README.md",
+      "bytes": 9316,
+      "sha256": "1b0b0d6677cb116010fb735520bb7f8b2c38c924bbd4b10b56ba1418f60c8588"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-tunnel-lowat-causal/README.md",
+      "bytes": 6235,
+      "sha256": "a46d68fa468e037a1febe92709f1734e28aaab6af4427bca743756dacee6382c"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/current-production-wan/README.md",
+      "bytes": 4749,
+      "sha256": "670153599cc48705efc605933f52840ad574555623936d4c565f32b7315f666e"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/current-production-wan/provenance/build-manifest.json",
+      "bytes": 3335,
+      "sha256": "cf38838c0c6ac349ddaa292cde149aae93e82fd95713787e0f3221cfbaef587c"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/current-production-wan/provenance/source-archive-overlay.sha256",
+      "bytes": 478,
+      "sha256": "07f411e7a3d1aa67e200ceee403c38e691dcc45ec2dd63a77d1ca7574f0b38c5"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-byte-credit-recycle/README.md",
+      "bytes": 6612,
+      "sha256": "49468eef777603cad2509fa00807f663a03179a0d0056af5b0de447a03470be5"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-copy-attribution/review/STREAM-WARMTH-SCHEDULE-MAP.md",
+      "bytes": 10130,
+      "sha256": "646e93342b77e15339c42cff1310dfba227a552f921ee79e6097182962b91593"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-stack-intern/diagnosis/CREDIT-WINDOW-LIFECYCLE-INVESTIGATION.md",
+      "bytes": 9058,
+      "sha256": "c2237c9d6a3045ddd120a3695e23806a2b8e3ff55962bb05fc84129b6ebb770d"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-tcp-state/README.md",
+      "bytes": 6901,
+      "sha256": "d143ef229efc9e4882f351f62a3e05a6641b44930261d88b0a9d346968759e03"
+    },
+    {
+      "path": "docs/operations/benchmarks/proxy-qualification-2026-10-16/wan-controller-diagnostics/README.md",
+      "bytes": 7558,
+      "sha256": "8789ab68efb9e2dab9f933627eb824d2d1ec6a49e9d19849a6b91c5956e8e0ec"
+    },
+    {
+      "path": "internal/agent/agent.go",
+      "bytes": 68119,
+      "sha256": "db72d5947cae3f6c841a039947d288f72d6d64d04f97c7518b4107e0a31ad733"
+    },
+    {
+      "path": "internal/server/agent_transport_pool.go",
+      "bytes": 17909,
+      "sha256": "a92fd4c6a126a313b0df353553a16b4b7ea54729f4f97d3dc9d5446a5d5d0512"
+    },
+    {
+      "path": "internal/server/public_routing.go",
+      "bytes": 72030,
+      "sha256": "849ee5bf25480a890b314676d2e5fb380096f856f8c28a16d51c8ba4d6e4df86"
+    },
+    {
+      "path": "internal/server/reverse_proxy_buffer_pool.go",
+      "bytes": 1127,
+      "sha256": "56f347fb67cc31aa7b620e9a984a317109f3103705f9c1f336d276ab85c4e6a6"
+    },
+    {
+      "path": "internal/tunnel/growing_conn.go",
+      "bytes": 8232,
+      "sha256": "c4db48b961c8a893acd5865dd0866dbd3b003966681363d84a732fa985fa0baf"
+    },
+    {
+      "path": "internal/tunnel/protocol.go",
+      "bytes": 10563,
+      "sha256": "1e08892fa46ec0a6824e02fa1b33d92a01aa722bd4705adbdcf3d46127ee539b"
+    },
+    {
+      "path": "internal/tunnel/receive_window_growth.go",
+      "bytes": 3269,
+      "sha256": "5954cf0472d92031945c2f8f1417488437ac640103dd927e9fcc390b5ef8f49d"
+    },
+    {
+      "path": "internal/tunnel/yamux.go",
+      "bytes": 18834,
+      "sha256": "bd23c7c38c1bd11c4d20e6650ca328bcb364d8cb1994a33e30edbf5dc5df0fd0"
+    },
+    {
+      "path": "third_party/yamux/aggregate_window.go",
+      "bytes": 25380,
+      "sha256": "0fb6b3e993a5b43a9a5d3e800822b0ac54d8373c160b96969ada2e6fcc0fd4b5"
+    },
+    {
+      "path": "third_party/yamux/recv_buffer.go",
+      "bytes": 5682,
+      "sha256": "95fbc39e94972de2f9d45f72d2301b2044c0d76f2410d9634fbc5df1d5c08e2b"
+    },
+    {
+      "path": "third_party/yamux/session.go",
+      "bytes": 28093,
+      "sha256": "268e0a49a1b2f43c5dcaf2ebf3d3d1106faa71b6091931e4041adbc2d872bf41"
+    },
+    {
+      "path": "third_party/yamux/stream.go",
+      "bytes": 29068,
+      "sha256": "a5fc23ea8f1d1c033126b629db47af5ee49c3e9b3c6ddb714ea1ce2416923cd7"
+    },
+    {
+      "path": "tmp/continuation-20261016/current-wan-prep/legacy-source/internal/agent/agent.go",
+      "bytes": 50536,
+      "sha256": "7ce18e04eb82d7c3926ec0b948f112280ed5877dba7540960c28cd2b1c1e29e5"
+    },
+    {
+      "path": "tmp/continuation-20261016/current-wan-prep/legacy-source/internal/agent/proxy_qualification_external_legacy_test.go",
+      "bytes": 4097,
+      "sha256": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb"
+    },
+    {
+      "path": "tmp/continuation-20261016/current-wan-prep/legacy-source/internal/tunnel/growing_conn.go",
+      "bytes": 2761,
+      "sha256": "238b6ff528d055614000c99f5f07ca61e8847a285e43ce5f7ae0169edc0300b0"
+    },
+    {
+      "path": "tmp/continuation-20261016/current-wan-prep/legacy-source/internal/tunnel/yamux.go",
+      "bytes": 8731,
+      "sha256": "6b6431ecd96706e592d8f14c90b215e875f547f92fcf6b1d357302df824b847f"
+    },
+    {
+      "path": "tmp/source-h2-next-review-20261017/ASSESSMENT.md",
+      "bytes": 9655,
+      "sha256": "16f194427cdee4ccc2778ed8d9cf19a1af21e9dd514c0c0a49ff9651d014cd66"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/results.jsonl",
+      "bytes": 180012,
+      "sha256": "ec5486d8f07ecc862fe5d565e1efd70326d1948e61465d8d1dd2e6279070692a"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-11-post-capacity.json",
+      "bytes": 138750,
+      "sha256": "33099d2d4ca20a51441105c61ab4be6766c3801e4def579b36f8448ea6b8b46c"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-14-post-capacity.json",
+      "bytes": 154362,
+      "sha256": "d3b40633be8037f2e7891eed0ee2b5676c871891cea4213bb75a6ae58c1ec662"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-15-post-capacity.json",
+      "bytes": 115871,
+      "sha256": "a7e4d3f3253e62f79da118f5a3ca0a4abd6cebe363dd55e0873923d8ed8e3c7e"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/results.sender-wait-controls/sequence-9-post-capacity.json",
+      "bytes": 138782,
+      "sha256": "09d3c3c69e3cf6f7eed3d66c4c6863cee701c3201a4d8639ad6a1460b6762596"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/results.jsonl",
+      "bytes": 180101,
+      "sha256": "62a2e476593d698f4c765c5cf9205c1e6e83af90f11f03e948cf10946a268712"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-11-post-capacity.json",
+      "bytes": 170435,
+      "sha256": "a76d4f64bb47b2edde71ea8edceb66061f13668e311f3f8a0ab4b3104c4b403a"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-14-post-capacity.json",
+      "bytes": 164600,
+      "sha256": "73be01e471dc05bb2f9a303f780d85662b80f541c9e03b337e170e0b333fccfa"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-15-post-capacity.json",
+      "bytes": 119155,
+      "sha256": "c419626b37e4e29e0f3b34cb7a4517d2784d571c6ae36b7c9d4182e83cfd44f5"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/sequence-9-post-capacity.json",
+      "bytes": 138968,
+      "sha256": "364b43b72261119731e44aa8433a044b6fd026999e01e914c62ff52436450aae"
+    },
+    {
+      "path": "tmp/wan-terminal-attribution-20261017/sustained-execution/THRESHOLD-CHRONOLOGY.json",
+      "bytes": 52481,
+      "sha256": "10f3597ef549abd14194df2fb051f318894160f8d58ef26e6a3fe0d68291f090"
+    }
+  ]
+}

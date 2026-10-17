@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "worktree": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+  "current_head": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "patch_inputs": [
+    {
+      "target": "internal/agent/qualification_raw_write_qualification.go",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/implementation-source/review/source-checkpoint-8/internal/agent/qualification_raw_write_qualification.go",
+      "sha256": "98be9ca1dda13e6f609adf9d72bf42b207a67d5a4655a0c927f85dd65ef28a53"
+    },
+    {
+      "target": "internal/agent/qualification_tcp_state_qualification.go",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/implementation-source/review/source-checkpoint-8/internal/agent/qualification_tcp_state_qualification.go",
+      "sha256": "fee94f615cddb9499bc29df6da4691369495f5b59323730a40125a27cd46dbd6"
+    },
+    {
+      "target": "internal/agent/proxy_qualification_external_test.go",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-2/source/internal/agent/proxy_qualification_external_test.go",
+      "sha256": "01f09c1c3fb080d6b494c38ccdad84c52e474e6e6cfbf8ed28d664062f6d2573"
+    }
+  ],
+  "production_scope": "tagged observer only; current production source unmodified",
+  "runner_patch_inputs": [
+    {
+      "target": "integration/run-wan-below-tls-arm.sh",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-runner-source-2/integration/run-wan-below-tls-arm.sh",
+      "sha256": "d61eec449aa56d6861f3d340101be778a4778c2d8b1dee9ac559fdfd6fc6c401"
+    },
+    {
+      "target": "integration/validate-wan-below-tls-arm.py",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-runner-source-2/integration/validate-wan-below-tls-arm.py",
+      "sha256": "0a03f2cdcdabbe0522e9566c247777b6678d9def960e74f983e176d928733840"
+    }
+  ]
+}

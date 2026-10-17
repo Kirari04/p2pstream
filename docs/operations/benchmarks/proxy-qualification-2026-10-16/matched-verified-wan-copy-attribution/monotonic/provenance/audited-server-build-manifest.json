@@ -1,0 +1,55 @@
+{
+  "base_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea",
+  "build_status": 0,
+  "environment_sha256": "c7c5facd62a20c3009b2fa4b60a6939d39b6a0f677ea274dfe3b30e2429a3f1d",
+  "frozen_copy_attribution_overlay_sha256": "4da0889228f80407806ac111187366ab06abd0ffd5d130d08d41407a8a02ff5f",
+  "invocation": "env -i HOME=/home/user PATH=/usr/bin:/bin TMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-monotonic-source/build/audited-tmp GOCACHE=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-monotonic-source/build/audited-cache GOENV=off GOTOOLCHAIN=local GOWORK=off GOFLAGS= CGO_ENABLED=1 /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test -c -o /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-monotonic-source/build/bin/current-server-wan-copy-monotonic-audited.test ./internal/server",
+  "metadata_inspection": {
+    "go_env_captured_from_compile_working_directory": true,
+    "go_env_sha256": "0dcbb554747f89d93b53f835fcd0c56bf4d55b6fe7d011bd9ff638256920e2f9",
+    "gomod": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-monotonic-source/build/source/go.mod"
+  },
+  "monotonic_observer_patch_sha256": "a8cc867dc9e12681e74b6a51396941d0a03c5145450eabff2e0bae0d8e79965a",
+  "output": {
+    "go_version_m_sha256": "d19cf445e9e408bb13313058adee25d76463b38a905bd97ec0a62b4838aa4771",
+    "path": "build/bin/current-server-wan-copy-monotonic-audited.test",
+    "sha256": "0530cdc308bf06964f61d55ca730309e125cabd3c296ed3c22f0cfe218552013"
+  },
+  "record_files_sha256": {
+    "provenance/audited-server-build/FINAL": "37a40f08d8548dba289b9b0bb35bcf63b359f6d37ee86044ebc6b6da080b9ec1",
+    "provenance/audited-server-build/environment.txt": "c7c5facd62a20c3009b2fa4b60a6939d39b6a0f677ea274dfe3b30e2429a3f1d",
+    "provenance/audited-server-build/go-env-from-build-cwd.json": "0dcbb554747f89d93b53f835fcd0c56bf4d55b6fe7d011bd9ff638256920e2f9",
+    "provenance/audited-server-build/go-version.txt": "058fc41f36af1ff69115b2bd237ebf769e90628e64a58c9dc171751384ffef72",
+    "provenance/audited-server-build/invocation.txt": "d8924d134e1aa079fe615170ba034e062b01a71dfad5044674876ac6f0fee804",
+    "provenance/audited-server-build/output.go-version-m.txt": "d19cf445e9e408bb13313058adee25d76463b38a905bd97ec0a62b4838aa4771",
+    "provenance/audited-server-build/output.sha256": "8fe9e7fd81d24691281e1d5aa81414ad247819d1280331841f58ba4d8539f015",
+    "provenance/audited-server-build/source-post.json": "cbab4bdb7df42dcd3e39fcb8ce3b92cc1a0d9bf64666e0ab97af5377ce283200",
+    "provenance/audited-server-build/source-pre-post.status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "provenance/audited-server-build/source-pre-post.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provenance/audited-server-build/source-pre-post.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provenance/audited-server-build/source-pre.json": "cbab4bdb7df42dcd3e39fcb8ce3b92cc1a0d9bf64666e0ab97af5377ce283200",
+    "provenance/audited-server-build/status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "provenance/audited-server-build/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provenance/audited-server-build/stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provenance/audited-server-build/toolchain-post.sha256": "5281ad948e57317fd29886c30b3a4531727eb54b8f8a2505680fd7c1d5a8f74c",
+    "provenance/audited-server-build/toolchain-pre.sha256": "5281ad948e57317fd29886c30b3a4531727eb54b8f8a2505680fd7c1d5a8f74c",
+    "provenance/audited-server-build/working-directory.txt": "0a9abc3513d9902182310c4aab89d4731236e6ca31a5495017bc857dbeff353d"
+  },
+  "recorded_unix_nano": 1792173770401896262,
+  "schema_version": 1,
+  "scope": "fresh audited compile of monotonic copy-attribution diagnostic source",
+  "source_compare_status": 0,
+  "source_post_sha256": "cbab4bdb7df42dcd3e39fcb8ce3b92cc1a0d9bf64666e0ab97af5377ce283200",
+  "source_pre_post_equal": true,
+  "source_pre_sha256": "cbab4bdb7df42dcd3e39fcb8ce3b92cc1a0d9bf64666e0ab97af5377ce283200",
+  "test_rerun": false,
+  "toolchain": {
+    "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "pre_post_equal": true,
+    "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+    "version": "go version go1.26.6 linux/amd64"
+  },
+  "traffic_run": false,
+  "working_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-copy-monotonic-source/build/source",
+  "wrapper_status": 0
+}

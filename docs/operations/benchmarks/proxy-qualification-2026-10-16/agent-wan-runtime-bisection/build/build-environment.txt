@@ -1,0 +1,11 @@
+2026-10-16T08:46:08,863502246+02:00
+go version go1.26.6 linux/amd64
+linux
+amd64
+v1
+1
+auto
+go1.26.6
+Linux srv02 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux
+Filesystem                         Size  Used Avail Use% Mounted on
+/dev/mapper/ubuntu--vg-ubuntu--lv  466G  404G   39G  92% /

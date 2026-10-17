@@ -1,0 +1,410 @@
+{
+  "raw_copied_file_identities_verified": 1229,
+  "ordinary_git_diff_check_exit": 2,
+  "whitespace_findings_only_in_byte_identical_raw_evidence": [
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 6,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 7,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 8,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 10,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 11,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 12,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 14,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 15,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 16,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 22,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 23,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 24,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 26,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 28,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 48,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 49,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 51,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 52,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 53,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 58,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 59,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 60,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 62,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/eof-correction-review.patch",
+      "line": 63,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/logs/binary-build-info.log",
+      "line": 4,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/complete-64/run/snapshot/bundle/logs/binary-build-info.log",
+      "line": 20,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 6,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 7,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 8,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 10,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 11,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 12,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 14,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 15,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 16,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 22,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 23,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 24,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 26,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 28,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 48,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 49,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 51,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 52,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 53,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 58,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 59,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 60,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 62,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/eof-correction-review.patch",
+      "line": 63,
+      "reason": "space before tab in indent.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/logs/binary-build-info.log",
+      "line": 4,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/frozen-bundle/logs/binary-build-info.log",
+      "line": 20,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/history/eof-preflight/valid.command",
+      "line": 1,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/history/manifest-contracts/wrapper-preflight.command",
+      "line": 1,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/history/preflight-1/valid.command",
+      "line": 1,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/history/preflight-1/valid2.command",
+      "line": 1,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/history/smoke-1-eof-failure/command.txt",
+      "line": 1,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/history/smoke-1-eof-failure/run/results.topologies.jsonl",
+      "line": 419,
+      "reason": "new blank line at EOF.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/history/smoke-2-manifest-key-failure/command.txt",
+      "line": 1,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/history/smoke-2-manifest-key-failure/run/results.topologies.jsonl",
+      "line": 419,
+      "reason": "new blank line at EOF.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/history/smoke-3-formatter-failure/offline-topology-corrected-replay/wrapper-preflight.command",
+      "line": 1,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/agent-wan-transport-ceiling/history/smoke-3-formatter-failure/run/results.topologies.jsonl",
+      "line": 838,
+      "reason": "new blank line at EOF.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/final-runtime-moderate-latency/raw/caddy-build-info.txt",
+      "line": 3,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/final-runtime-reference/helper-history/p2pstream-final-reference-build-timeout-contract-namespace-fix.patch",
+      "line": 23,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/final-runtime-reference/helper-history/p2pstream-final-reference-build-timeout-contract-namespace-fix.patch",
+      "line": 40,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/final-runtime-reference/helper-history/p2pstream-final-reference-build-timeout-contract-namespace-fix.patch",
+      "line": 41,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    },
+    {
+      "file": "docs/operations/benchmarks/proxy-qualification-2026-10-16/final-runtime-reference/raw/caddy-build-info.txt",
+      "line": 3,
+      "reason": "trailing whitespace.",
+      "raw_identity_verified": true
+    }
+  ],
+  "authored_document_whitespace_findings": 0,
+  "raw_bytes_preserved": true
+}

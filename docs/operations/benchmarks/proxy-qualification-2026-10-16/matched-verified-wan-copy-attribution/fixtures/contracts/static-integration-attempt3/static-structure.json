@@ -1,0 +1,8 @@
+{
+  "accepted": true,
+  "completed_query_definition_and_call_occurrences": 2,
+  "copy_env_absent_from_load_process": true,
+  "row_envelope_occurrences": 1,
+  "server_copy_env_occurrences": 2,
+  "server_role_occurrences": 2
+}

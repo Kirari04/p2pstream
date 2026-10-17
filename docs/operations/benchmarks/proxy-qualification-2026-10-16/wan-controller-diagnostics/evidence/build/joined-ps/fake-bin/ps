@@ -1,0 +1,5 @@
+#!/usr/bin/python3
+import os,time
+os.write(1,(str(os.getpgrp())+"\n").encode())
+os.close(1)
+time.sleep(.2)

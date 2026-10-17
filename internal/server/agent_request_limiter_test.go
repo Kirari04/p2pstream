@@ -10,6 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/yamux"
+
+	"p2pstream/internal/sysmetrics"
 	"p2pstream/internal/tunnel"
 )
 
@@ -134,6 +137,139 @@ func TestAgentTunnelStreamConnDistinguishesAgentLossFromOriginEOF(t *testing.T) 
 		t.Fatalf("agent-loss read error = %v, want agent disconnected wrapping EOF", err)
 	}
 	_ = conn.Close()
+}
+
+func TestCapacityManagedStreamLeaseSurvivesUntilForcedYamuxCleanup(t *testing.T) {
+	left, right := net.Pipe()
+	config, err := tunnel.NewYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.StreamCloseTimeout = 25 * time.Millisecond
+	client, err := yamux.Client(left, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := yamux.Server(right, config)
+	if err != nil {
+		_ = client.Close()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = client.Close()
+		_ = server.Close()
+	})
+
+	local, err := client.OpenStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	peer, err := server.AcceptStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer peer.Close()
+
+	manager := mustNewDefaultAgentStreamCapacityManager(2)
+	lease, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "route", "session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !lease.markLive() {
+		t.Fatal("capacity lease did not become live")
+	}
+	managed := newCapacityManagedAgentTunnelStreamConn(local, nil, lease)
+	if err := managed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if state := lease.currentState(); state != agentStreamLeaseClosing {
+		t.Fatalf("lease state after local FIN = %s, want closing", state)
+	}
+	if got := manager.snapshot().Total.InUse; got != 1 {
+		t.Fatalf("capacity after local FIN = %d, want held until forced cleanup", got)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for manager.snapshot().Total.InUse != 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := manager.snapshot().Total.InUse; got != 0 {
+		t.Fatalf("capacity after Yamux close timeout = %d, want released", got)
+	}
+	if state := lease.currentState(); state != agentStreamLeaseReleased {
+		t.Fatalf("lease state after forced cleanup = %s, want released", state)
+	}
+}
+
+func TestLegacyReceiveSupplementSurvivesUntilPeerCleanup(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 2 << 30, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 8, &usage)
+	manager.registerSessionWithLimit("legacy", 8)
+	defer manager.unregisterSession("legacy")
+	lease, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "route", "legacy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !lease.markLive() {
+		t.Fatal("capacity lease did not become live")
+	}
+	supplement, err := tunnel.LegacyReceiveWindowSupplementBytes(tunnel.DefaultAdaptiveReceiveWindowBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	releaseSupplement, ok, constrained := manager.tryReserveLegacyStreamSupplement(supplement)
+	if !ok || !constrained {
+		t.Fatalf("legacy supplement reservation ok=%t constrained=%t", ok, constrained)
+	}
+	local, peer := net.Pipe()
+	defer local.Close()
+	defer peer.Close()
+	remoteClosed := make(chan struct{})
+	managed := newCapacityManagedAgentTunnelStreamConnWithRelease(&delayedRemoteCloseConn{
+		Conn:         local,
+		remoteClosed: remoteClosed,
+		readStarted:  make(chan struct{}),
+	}, nil, lease, releaseSupplement, nil)
+	if err := managed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot := manager.snapshot(); snapshot.LegacyStreamSupplementBytes != supplement || snapshot.Total.InUse != 1 {
+		t.Fatalf("legacy resources released at local FIN: %+v", snapshot)
+	}
+	close(remoteClosed)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		snapshot := manager.snapshot()
+		if snapshot.LegacyStreamSupplementBytes == 0 && snapshot.Total.InUse == 0 {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("legacy resources retained after peer cleanup: %+v", manager.snapshot())
+}
+
+func TestFailedOpeningFallbackRetainsResourcesUntilPeerCleanup(t *testing.T) {
+	local, peer := net.Pipe()
+	defer local.Close()
+	defer peer.Close()
+	remoteClosed := make(chan struct{})
+	released := make(chan struct{})
+	fenceFailedAgentStream(&delayedRemoteCloseConn{
+		Conn:         local,
+		remoteClosed: remoteClosed,
+		readStarted:  make(chan struct{}),
+	}, nil, func() { close(released) })
+	select {
+	case <-released:
+		t.Fatal("failed opening released resources after local FIN")
+	case <-time.After(25 * time.Millisecond):
+	}
+	close(remoteClosed)
+	select {
+	case <-released:
+	case <-time.After(time.Second):
+		t.Fatal("failed opening retained resources after peer cleanup")
+	}
 }
 
 type delayedRemoteCloseConn struct {

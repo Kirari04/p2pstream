@@ -1,0 +1,12 @@
+{
+  "accepted": true,
+  "all_observed_http_major": 2,
+  "lifecycle_sha256": "87b09fdb9322f51041361cbcf8f04bfeb9fd366a9df8b110691fe3a63bf2a02a",
+  "natural_endpoint_and_namespace_statuses": true,
+  "outer_private_user_pid_mount_net": true,
+  "outer_runner_group_joined": true,
+  "results_sha256": "13c330544d813f0d57fee6593898e2899fdb19958c31ed0fa72236e573d3b741",
+  "row_count": 32,
+  "schema_version": 1,
+  "validation": "fixed original H2 legacy-to-aggregate pair"
+}

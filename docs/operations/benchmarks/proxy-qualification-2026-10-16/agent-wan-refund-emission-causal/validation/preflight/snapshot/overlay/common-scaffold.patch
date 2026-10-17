@@ -1,0 +1,476 @@
+--- a/third_party/yamux/session.go
++++ b/third_party/yamux/session.go
+@@ -25,6 +25,10 @@
+ 	errPingReplyBacklog        = fmt.Errorf("ping reply backlog exceeded")
+ 	errAggregateControlBacklog = fmt.Errorf("aggregate control backlog exceeded")
+ )
++
++// diagnosticSplitAggregateRefundWrites is changed only in the causal
++// diagnostic arm. Both arms retain this scaffold and the same sendReady layout.
++var diagnosticSplitAggregateRefundWrites = false
+ 
+ // Session is used to wrap a reliable ordered connection and to
+ // multiplex it into multiple streams.
+@@ -475,10 +479,34 @@
+ }
+ 
+ // waitForAggregateControlBatchErrCommit writes a bounded sequence of ordinary
+-// allocation refunds followed by their summed session refund as one priority
+-// queue item and one physical write.
++// allocation refunds followed by their summed session refund as one bounded
++// priority queue item. The diagnostic arm may segment that item's ordinary
++// protocol headers into separate physical writes.
+ func (s *Session) waitForAggregateControlBatchErrCommit(batch header, errCh chan error, commit func()) error {
++	if !isAggregateRefundHeaderBatch(batch) {
++		return fmt.Errorf("yamux: invalid aggregate refund header batch")
++	}
+ 	return s.waitForSendErrCommitOn(s.controlCh, batch, nil, errCh, commit)
++}
++
++func isAggregateRefundHeaderBatch(batch header) bool {
++	if len(batch) < headerSize || len(batch)%headerSize != 0 || len(batch) > (aggregateRefundBatchStreams+1)*headerSize {
++		return false
++	}
++	headerCount := len(batch) / headerSize
++	lastID := uint32(0)
++	for i := 0; i < headerCount-1; i++ {
++		hdr := header(batch[i*headerSize : (i+1)*headerSize])
++		if hdr.MsgType() != typeAllocationWindowUpdate || hdr.Flags() != 0 || hdr.StreamID() == 0 || hdr.Length() == 0 || hdr.Length()%AggregateWindowUnitSize != 0 {
++			return false
++		}
++		if i > 0 && hdr.StreamID() <= lastID {
++			return false
++		}
++		lastID = hdr.StreamID()
++	}
++	global := header(batch[(headerCount-1)*headerSize:])
++	return global.MsgType() == typeWindowUpdate && global.Flags() == 0 && global.StreamID() == 0 && global.Length() != 0 && global.Length()%AggregateWindowUnitSize == 0
+ }
+ 
+ func (s *Session) waitForSendErrCommitOn(queue chan *sendReady, hdr header, body []byte, errCh chan error, commit func()) error {
+@@ -640,8 +668,10 @@
+ 		// reuse, so the queued backing remains stable. Header-only controls stay
+ 		// separate.
+ 		var frame []byte
++		hadBody := false
+ 		ready.mu.Lock()
+ 		if ready.Body != nil {
++			hadBody = true
+ 			bodyBuf.Grow(len(ready.Hdr) + len(ready.Body))
+ 			_, err := bodyBuf.Write(ready.Hdr)
+ 			if err == nil {
+@@ -666,10 +696,8 @@
+ 			if ready.Commit != nil {
+ 				ready.Commit()
+ 			}
+-			written, err := s.conn.Write(frame)
+-			if err == nil && written != len(frame) {
+-				err = io.ErrShortWrite
+-			}
++			splitRefundHeaders := !hadBody && len(frame) > headerSize && isAggregateRefundHeaderBatch(header(frame))
++			err := s.writeSendFrame(frame, diagnosticSplitAggregateRefundWrites && splitRefundHeaders)
+ 			if err != nil {
+ 				s.logger.Printf("[ERR] yamux: Failed to write frame: %v", err)
+ 				asyncSendErr(ready.Err, err)
+@@ -679,6 +707,26 @@
+ 
+ 		asyncSendErr(ready.Err, nil)
+ 	}
++}
++
++func (s *Session) writeSendFrame(frame []byte, splitRefundHeaders bool) error {
++	if !splitRefundHeaders {
++		written, err := s.conn.Write(frame)
++		if err == nil && written != len(frame) {
++			return io.ErrShortWrite
++		}
++		return err
++	}
++	for offset := 0; offset < len(frame); offset += headerSize {
++		written, err := s.conn.Write(frame[offset : offset+headerSize])
++		if err == nil && written != headerSize {
++			return io.ErrShortWrite
++		}
++		if err != nil {
++			return err
++		}
++	}
++	return nil
+ }
+ 
+ // recv is a long running goroutine that accepts new data
+--- a/third_party/yamux/aggregate_window_test.go
++++ b/third_party/yamux/aggregate_window_test.go
+@@ -1137,11 +1137,10 @@
+ 	conn.mu.Lock()
+ 	writes := append([][]byte(nil), conn.writes...)
+ 	conn.mu.Unlock()
+-	if len(writes) != 2 {
+-		t.Fatalf("physical writes=%d want=2", len(writes))
+-	}
++	offset := 0
+ 	for batchIndex, wantStreams := range []int{aggregateRefundBatchStreams, 2} {
+-		written := writes[batchIndex]
++		written, next := collectDiagnosticRefundWrites(t, writes, offset, wantStreams+1)
++		offset = next
+ 		if len(written) != (wantStreams+1)*headerSize {
+ 			t.Fatalf("batch %d bytes=%d want=%d", batchIndex, len(written), (wantStreams+1)*headerSize)
+ 		}
+@@ -1157,6 +1156,9 @@
+ 		if global.MsgType() != typeWindowUpdate || global.StreamID() != 0 {
+ 			t.Fatalf("batch %d global type=%d stream=%d", batchIndex, global.MsgType(), global.StreamID())
+ 		}
++	}
++	if offset != len(writes) {
++		t.Fatalf("consumed writes=%d total=%d", offset, len(writes))
+ 	}
+ }
+ 
+@@ -1204,8 +1206,12 @@
+ 	}
+ 
+ 	conn.mu.Lock()
+-	written := append([]byte(nil), conn.writes[0]...)
++	writes := append([][]byte(nil), conn.writes...)
+ 	conn.mu.Unlock()
++	written, consumed := collectDiagnosticRefundWrites(t, writes, 0, 3)
++	if consumed != len(writes) {
++		t.Fatalf("consumed writes=%d total=%d", consumed, len(writes))
++	}
+ 	if len(written) != 3*headerSize {
+ 		t.Fatalf("batch bytes=%d want=%d", len(written), 3*headerSize)
+ 	}
+@@ -1438,15 +1444,14 @@
+ 	if err := session.publishAggregateRefund(paired); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	<-conn.wrote
+ 
+ 	conn.mu.Lock()
+-	if len(conn.writes) != 1 {
+-		conn.mu.Unlock()
+-		t.Fatalf("physical writes=%d want 1", len(conn.writes))
+-	}
+-	written := append([]byte(nil), conn.writes[0]...)
++	writes := append([][]byte(nil), conn.writes...)
+ 	conn.mu.Unlock()
++	written, consumed := collectDiagnosticRefundWrites(t, writes, 0, 2)
++	if consumed != len(writes) {
++		t.Fatalf("consumed writes=%d total=%d", consumed, len(writes))
++	}
+ 	if len(written) != 2*headerSize {
+ 		t.Fatalf("paired write bytes=%d want %d", len(written), 2*headerSize)
+ 	}
+@@ -1483,7 +1488,6 @@
+ 	if err := session.publishAggregateRefund(work); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	<-conn.wrote
+ 
+ 	conn.mu.Lock()
+ 	if len(conn.writes) != 1 {
+--- a/third_party/yamux/refund_emission_diagnostic_test.go
++++ b/third_party/yamux/refund_emission_diagnostic_test.go
+@@ -0,0 +1,302 @@
++package yamux
++
++import (
++	"bytes"
++	"errors"
++	"fmt"
++	"io"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++)
++
++func diagnosticRefundBatch(streamHeaders int) header {
++	batch := header(make([]byte, (streamHeaders+1)*headerSize))
++	for i := 0; i < streamHeaders; i++ {
++		hdr := header(batch[i*headerSize : (i+1)*headerSize])
++		hdr.encode(typeAllocationWindowUpdate, 0, uint32(2*i+1), AggregateWindowUnitSize)
++	}
++	global := header(batch[streamHeaders*headerSize:])
++	global.encode(typeWindowUpdate, 0, 0, uint32(streamHeaders+1)*AggregateWindowUnitSize)
++	return batch
++}
++
++func diagnosticRefundWriteCount(headerCount int) int {
++	if diagnosticSplitAggregateRefundWrites && headerCount > 1 {
++		return headerCount
++	}
++	return 1
++}
++
++func collectDiagnosticRefundWrites(t *testing.T, writes [][]byte, offset, headerCount int) ([]byte, int) {
++	t.Helper()
++	count := diagnosticRefundWriteCount(headerCount)
++	if offset+count > len(writes) {
++		t.Fatalf("writes[%d:] count=%d, only %d total", offset, count, len(writes))
++	}
++	var joined []byte
++	for _, write := range writes[offset : offset+count] {
++		joined = append(joined, write...)
++	}
++	return joined, offset + count
++}
++
++func TestDiagnosticAggregateRefundClassifierAndEmission(t *testing.T) {
++	for _, streamHeaders := range []int{0, 1, aggregateRefundBatchStreams} {
++		t.Run(fmt.Sprintf("headers_%d", streamHeaders+1), func(t *testing.T) {
++			batch := diagnosticRefundBatch(streamHeaders)
++			if !isAggregateRefundHeaderBatch(batch) {
++				t.Fatal("valid aggregate refund batch was not classified")
++			}
++			conn := newGatherRecordingConn()
++			var committed atomic.Bool
++			conn.committed = &committed
++			session := newGatherSendSession(conn, time.Second)
++			wantWrites := diagnosticRefundWriteCount(streamHeaders + 1)
++			drained := make(chan struct{})
++			go func() {
++				for i := 0; i < wantWrites; i++ {
++					<-conn.wrote
++				}
++				close(drained)
++			}()
++			go func() { _ = session.sendLoop() }()
++			if err := session.waitForAggregateControlBatchErrCommit(batch, make(chan error, 1), func() { committed.Store(true) }); err != nil {
++				t.Fatal(err)
++			}
++			stopGatherSendLoop(t, session)
++			select {
++			case <-drained:
++			case <-time.After(time.Second):
++				t.Fatal("did not observe every physical write")
++			}
++
++			conn.mu.Lock()
++			writes := append([][]byte(nil), conn.writes...)
++			conn.mu.Unlock()
++			if got, want := len(writes), wantWrites; got != want {
++				t.Fatalf("physical writes=%d want=%d", got, want)
++			}
++			if got := bytes.Join(writes, nil); !bytes.Equal(got, batch) {
++				t.Fatalf("wire bytes=%x want=%x", got, batch)
++			}
++			for i, write := range writes {
++				want := len(batch)
++				if diagnosticSplitAggregateRefundWrites && len(batch) > headerSize {
++					want = headerSize
++				}
++				if len(write) != want {
++					t.Fatalf("write %d bytes=%d want=%d", i, len(write), want)
++				}
++			}
++		})
++	}
++}
++
++func TestDiagnosticAggregateRefundSplitDoesNotAffectOtherFrames(t *testing.T) {
++	conn := newGatherRecordingConn()
++	session := newGatherSendSession(conn, time.Second)
++	go func() { _ = session.sendLoop() }()
++
++	unmarked := header(make([]byte, 2*headerSize))
++	header(unmarked[:headerSize]).encode(typePing, flagACK, 0, 1)
++	header(unmarked[headerSize:]).encode(typePing, flagACK, 0, 2)
++	if isAggregateRefundHeaderBatch(unmarked) {
++		t.Fatal("unrelated concatenated controls were classified as aggregate refunds")
++	}
++	if err := session.waitForSendErrCommitOn(session.controlCh, unmarked, nil, make(chan error, 1), nil); err != nil {
++		t.Fatal(err)
++	}
++	body := bytes.Repeat([]byte{0x5a}, 64)
++	data := header(make([]byte, headerSize))
++	data.encode(typeData, 0, 1, uint32(len(body)))
++	if err := session.waitForSend(data, body); err != nil {
++		t.Fatal(err)
++	}
++	stopGatherSendLoop(t, session)
++
++	conn.mu.Lock()
++	writes := append([][]byte(nil), conn.writes...)
++	conn.mu.Unlock()
++	if len(writes) != 2 || !bytes.Equal(writes[0], unmarked) || !bytes.Equal(writes[1], append(append([]byte(nil), data...), body...)) {
++		t.Fatalf("unmarked/DATA physical writes=%x", writes)
++	}
++}
++
++type diagnosticRefundFailureConn struct {
++	mu       sync.Mutex
++	failCall int
++	short    bool
++	err      error
++	calls    int
++	frames   [][]byte
++	commit   *atomic.Int32
++}
++
++func (*diagnosticRefundFailureConn) Read([]byte) (int, error) { return 0, io.EOF }
++func (*diagnosticRefundFailureConn) Close() error             { return nil }
++func (c *diagnosticRefundFailureConn) Write(p []byte) (int, error) {
++	if c.commit != nil && c.commit.Load() != 1 {
++		return 0, errors.New("write did not observe exactly one joint commit")
++	}
++	c.mu.Lock()
++	call := c.calls
++	c.calls++
++	c.frames = append(c.frames, append([]byte(nil), p...))
++	c.mu.Unlock()
++	if call != c.failCall {
++		return len(p), nil
++	}
++	if c.short {
++		return len(p) - 1, nil
++	}
++	return 0, c.err
++}
++
++func TestDiagnosticAggregateRefundSplitFailsWithoutRetry(t *testing.T) {
++	failCalls := []int{0}
++	if diagnosticSplitAggregateRefundWrites {
++		failCalls = []int{0, 1, 8, 16}
++	}
++	for _, short := range []bool{false, true} {
++		for _, failCall := range failCalls {
++			t.Run(fmt.Sprintf("short_%t_call_%d", short, failCall), func(t *testing.T) {
++				writeErr := errors.New("injected aggregate refund write error")
++				var commits atomic.Int32
++				conn := &diagnosticRefundFailureConn{failCall: failCall, short: short, err: writeErr, commit: &commits}
++				session := newGatherSendSession(conn, time.Second)
++				loopDone := make(chan error, 1)
++				go func() { loopDone <- session.sendLoop() }()
++				err := session.waitForAggregateControlBatchErrCommit(diagnosticRefundBatch(aggregateRefundBatchStreams), make(chan error, 1), func() { commits.Add(1) })
++				wantErr := writeErr
++				if short {
++					wantErr = io.ErrShortWrite
++				}
++				if !errors.Is(err, wantErr) {
++					t.Fatalf("wait error=%v want=%v", err, wantErr)
++				}
++				if loopErr := <-loopDone; !errors.Is(loopErr, wantErr) {
++					t.Fatalf("loop error=%v want=%v", loopErr, wantErr)
++				}
++				if got := commits.Load(); got != 1 {
++					t.Fatalf("commits=%d want=1", got)
++				}
++				conn.mu.Lock()
++				calls := conn.calls
++				conn.mu.Unlock()
++				if calls != failCall+1 {
++					t.Fatalf("physical writes=%d want=%d (no retry)", calls, failCall+1)
++				}
++			})
++		}
++	}
++}
++
++type diagnosticRefundGateConn struct {
++	started     chan struct{}
++	release     chan struct{}
++	releaseOnce sync.Once
++	mu          sync.Mutex
++	writes      [][]byte
++}
++
++func newDiagnosticRefundGateConn() *diagnosticRefundGateConn {
++	return &diagnosticRefundGateConn{started: make(chan struct{}), release: make(chan struct{})}
++}
++func (*diagnosticRefundGateConn) Read([]byte) (int, error) { return 0, io.EOF }
++func (*diagnosticRefundGateConn) Close() error             { return nil }
++func (c *diagnosticRefundGateConn) unblock() {
++	c.releaseOnce.Do(func() { close(c.release) })
++}
++func (c *diagnosticRefundGateConn) Write(p []byte) (int, error) {
++	c.mu.Lock()
++	first := len(c.writes) == 0
++	c.mu.Unlock()
++	if first {
++		close(c.started)
++		<-c.release
++	}
++	c.mu.Lock()
++	c.writes = append(c.writes, append([]byte(nil), p...))
++	c.mu.Unlock()
++	return len(p), nil
++}
++
++func TestDiagnosticAggregateRefundSelectedTimeoutRetainsBatch(t *testing.T) {
++	conn := newDiagnosticRefundGateConn()
++	session := newGatherSendSession(conn, 20*time.Millisecond)
++	go func() { _ = session.sendLoop() }()
++	t.Cleanup(func() {
++		conn.unblock()
++		select {
++		case <-session.shutdownCh:
++		default:
++			close(session.shutdownCh)
++		}
++		select {
++		case <-session.sendDoneCh:
++		case <-time.After(time.Second):
++			t.Error("send loop did not stop during cleanup")
++		}
++	})
++	batch := diagnosticRefundBatch(2)
++	want := append([]byte(nil), batch...)
++	var commits atomic.Int32
++	done := make(chan error, 1)
++	go func() {
++		done <- session.waitForAggregateControlBatchErrCommit(batch, make(chan error, 1), func() { commits.Add(1) })
++	}()
++	select {
++	case <-conn.started:
++	case <-time.After(time.Second):
++		t.Fatal("selected refund did not enter physical write")
++	}
++	select {
++	case err := <-done:
++		if !errors.Is(err, ErrConnectionWriteTimeout) {
++			t.Fatalf("wait error=%v", err)
++		}
++	case <-time.After(time.Second):
++		t.Fatal("selected refund did not time out")
++	}
++	conn.unblock()
++	deadline := time.After(time.Second)
++	for {
++		conn.mu.Lock()
++		got := bytes.Join(conn.writes, nil)
++		conn.mu.Unlock()
++		if len(got) == len(want) {
++			if !bytes.Equal(got, want) {
++				t.Fatalf("wire bytes=%x want=%x", got, want)
++			}
++			break
++		}
++		select {
++		case <-deadline:
++			t.Fatalf("wire bytes=%d want=%d", len(got), len(want))
++		case <-time.After(time.Millisecond):
++		}
++	}
++	if got := commits.Load(); got != 1 {
++		t.Fatalf("commits=%d want=1", got)
++	}
++}
++
++func TestDiagnosticAggregateRefundQueuedTimeoutCloseDoesNotCommit(t *testing.T) {
++	session := newGatherSendSession(newGatherRecordingConn(), 20*time.Millisecond)
++	var commits atomic.Int32
++	if err := session.waitForAggregateControlBatchErrCommit(diagnosticRefundBatch(2), make(chan error, 1), func() { commits.Add(1) }); !errors.Is(err, ErrConnectionWriteTimeout) {
++		t.Fatalf("wait error=%v", err)
++	}
++	close(session.shutdownCh)
++	go func() { _ = session.sendLoop() }()
++	select {
++	case <-session.sendDoneCh:
++	case <-time.After(time.Second):
++		t.Fatal("send loop did not observe close")
++	}
++	if got := commits.Load(); got != 0 {
++		t.Fatalf("queued closed commit=%d want=0", got)
++	}
++}

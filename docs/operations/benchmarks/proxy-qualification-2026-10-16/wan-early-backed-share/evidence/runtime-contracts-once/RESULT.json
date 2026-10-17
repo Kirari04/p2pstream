@@ -1,0 +1,16 @@
+{
+  "accepted": false,
+  "inputs_unchanged": true,
+  "plan_sha256": "6c0a1591c821f29c63b4f7264baa8c468a061671db7687b87e881aa22769c7d9",
+  "root_grant_sha256": "6bc390cd510af9dbe69a6f443c8a38d7339f8323cf5646de98490fabaf008dde",
+  "proofs": {
+    "started.json": "63a4171af66a3c942cb54913283fe4dbcb3d42f003535f8718d93857c8d3c547",
+    "outer.json": "e9011c9c20df5094e5966eb864791f09cc67bf08d1b650001d1a2adca5a5af6c",
+    "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr.log": "8281fa3ead54501f6c31224fdf1e6328b078820a083c5b5cb9e24af639c88c6f"
+  },
+  "artifact_bytes": 17156987,
+  "endpoints": false,
+  "network": false,
+  "builds": false
+}

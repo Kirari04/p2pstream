@@ -1,0 +1,323 @@
+{
+  "acceptance": {
+    "h1-c128_p95": false,
+    "h1-c128_p99": true,
+    "h1-c128_throughput": true,
+    "h1-c16_p95": false,
+    "h1-c16_p99": false,
+    "h1-c16_throughput": true,
+    "h2-c128_p95": false,
+    "h2-c128_p99": false,
+    "h2-c128_throughput": false,
+    "h2-c16_p95": false,
+    "h2-c16_p99": true,
+    "h2-c16_throughput": true
+  },
+  "gates": {
+    "maximum_latency_ratio": 1.1,
+    "minimum_throughput_ratio": 0.9
+  },
+  "network": {
+    "configured_rtt_ms": 1,
+    "measured_rtt_ms": 1.316,
+    "shaped_rate_bits_per_second": 1000000000
+  },
+  "workloads": {
+    "h1-c128": {
+      "aggregate-v1": {
+        "median_p95_ms": 12.372104,
+        "median_p99_ms": 16.340874,
+        "median_useful_requests_per_second": 18952.717581682857,
+        "p95_ms": [
+          12.372104,
+          12.257092,
+          12.685457
+        ],
+        "p99_ms": [
+          16.340874,
+          15.935336,
+          16.507783
+        ],
+        "samples": 3,
+        "useful_requests_per_second": [
+          18952.717581682857,
+          19117.900105141412,
+          18576.39163343417
+        ]
+      },
+      "candidate_to_legacy": {
+        "median_p95_ratio": 1.1038821850330822,
+        "median_p99_ratio": 1.0879759981629236,
+        "median_throughput_ratio": 0.9011531965686771,
+        "paired_ratios": [
+          {
+            "p95_ratio": 1.1309707408116028,
+            "p99_ratio": 1.1496585401271282,
+            "repetition": 1,
+            "throughput_ratio": 0.8868778912113925
+          },
+          {
+            "p95_ratio": 1.071271769303439,
+            "p99_ratio": 1.042662616933112,
+            "repetition": 2,
+            "throughput_ratio": 0.9329330261428993
+          },
+          {
+            "p95_ratio": 1.131840630445978,
+            "p99_ratio": 1.099088805585426,
+            "repetition": 3,
+            "throughput_ratio": 0.8832598612327568
+          }
+        ],
+        "paired_throughput_ratio_population_stddev": 0.02261167079844639,
+        "paired_throughput_ratio_range": [
+          0.8832598612327568,
+          0.9329330261428993
+        ]
+      },
+      "legacy": {
+        "median_p95_ms": 11.207812,
+        "median_p99_ms": 15.019517,
+        "median_useful_requests_per_second": 21031.626646666915,
+        "p95_ms": [
+          10.939367,
+          11.441627,
+          11.207812
+        ],
+        "p99_ms": [
+          14.213676,
+          15.28331,
+          15.019517
+        ],
+        "samples": 3,
+        "useful_requests_per_second": [
+          21370.154526904727,
+          20492.25353740782,
+          21031.626646666915
+        ]
+      }
+    },
+    "h1-c16": {
+      "aggregate-v1": {
+        "median_p95_ms": 1.846071,
+        "median_p99_ms": 2.71439,
+        "median_useful_requests_per_second": 10788.611015288941,
+        "p95_ms": [
+          1.808928,
+          1.849698,
+          1.846071
+        ],
+        "p99_ms": [
+          2.505433,
+          2.71439,
+          2.72466
+        ],
+        "samples": 3,
+        "useful_requests_per_second": [
+          10912.039890195667,
+          10788.611015288941,
+          10785.368483336435
+        ]
+      },
+      "candidate_to_legacy": {
+        "median_p95_ratio": 1.1447962762685293,
+        "median_p99_ratio": 1.2027232405942743,
+        "median_throughput_ratio": 0.9397138032114385,
+        "paired_ratios": [
+          {
+            "p95_ratio": 1.1238711914067963,
+            "p99_ratio": 1.1101361620297137,
+            "repetition": 1,
+            "throughput_ratio": 0.940608265403653
+          },
+          {
+            "p95_ratio": 1.1340166746060796,
+            "p99_ratio": 1.1472325195802426,
+            "repetition": 2,
+            "throughput_ratio": 0.9478221605417246
+          },
+          {
+            "p95_ratio": 1.1447962762685293,
+            "p99_ratio": 1.218416710266833,
+            "repetition": 3,
+            "throughput_ratio": 0.9394313709290245
+          }
+        ],
+        "paired_throughput_ratio_population_stddev": 0.0037093083211489,
+        "paired_throughput_ratio_range": [
+          0.9394313709290245,
+          0.9478221605417246
+        ]
+      },
+      "legacy": {
+        "median_p95_ms": 1.612576,
+        "median_p99_ms": 2.25687,
+        "median_useful_requests_per_second": 11480.74124102386,
+        "p95_ms": [
+          1.609551,
+          1.631103,
+          1.612576
+        ],
+        "p99_ms": [
+          2.25687,
+          2.366033,
+          2.23623
+        ],
+        "samples": 3,
+        "useful_requests_per_second": [
+          11601.04614380873,
+          11382.526664203278,
+          11480.74124102386
+        ]
+      }
+    },
+    "h2-c128": {
+      "aggregate-v1": {
+        "median_p95_ms": 13.172151,
+        "median_p99_ms": 15.458338,
+        "median_useful_requests_per_second": 15436.296266972335,
+        "p95_ms": [
+          13.172151,
+          13.113236,
+          13.44265
+        ],
+        "p99_ms": [
+          15.458338,
+          15.280432,
+          15.7613
+        ],
+        "samples": 3,
+        "useful_requests_per_second": [
+          15436.296266972335,
+          15583.357634195843,
+          15244.517065112981
+        ]
+      },
+      "candidate_to_legacy": {
+        "median_p95_ratio": 1.1854848529766335,
+        "median_p99_ratio": 1.158004706679057,
+        "median_throughput_ratio": 0.847126712784659,
+        "paired_ratios": [
+          {
+            "p95_ratio": 1.1854870935307273,
+            "p99_ratio": 1.158004706679057,
+            "repetition": 1,
+            "throughput_ratio": 0.8369021527416526
+          },
+          {
+            "p95_ratio": 1.180182542054665,
+            "p99_ratio": 1.1453978495913264,
+            "repetition": 2,
+            "throughput_ratio": 0.855197276502733
+          },
+          {
+            "p95_ratio": 1.1875909898342285,
+            "p99_ratio": 1.1724741254964566,
+            "repetition": 3,
+            "throughput_ratio": 0.8443569790788094
+          }
+        ],
+        "paired_throughput_ratio_population_stddev": 0.0075114581909502525,
+        "paired_throughput_ratio_range": [
+          0.8369021527416526,
+          0.855197276502733
+        ]
+      },
+      "legacy": {
+        "median_p95_ms": 11.111193,
+        "median_p99_ms": 13.349115,
+        "median_useful_requests_per_second": 18221.94488027704,
+        "p95_ms": [
+          11.111172,
+          11.111193,
+          11.319259
+        ],
+        "p99_ms": [
+          13.349115,
+          13.34072,
+          13.44277
+        ],
+        "samples": 3,
+        "useful_requests_per_second": [
+          18444.565133933214,
+          18221.94488027704,
+          18054.587624472173
+        ]
+      }
+    },
+    "h2-c16": {
+      "aggregate-v1": {
+        "median_p95_ms": 1.95876,
+        "median_p99_ms": 2.717225,
+        "median_useful_requests_per_second": 10303.37811389318,
+        "p95_ms": [
+          1.958369,
+          1.95876,
+          1.984851
+        ],
+        "p99_ms": [
+          2.638863,
+          2.717225,
+          2.751092
+        ],
+        "samples": 3,
+        "useful_requests_per_second": [
+          10303.37811389318,
+          10306.57429357808,
+          10261.583938091324
+        ]
+      },
+      "candidate_to_legacy": {
+        "median_p95_ratio": 1.104061063917693,
+        "median_p99_ratio": 1.0870408812743209,
+        "median_throughput_ratio": 0.9479646782282621,
+        "paired_ratios": [
+          {
+            "p95_ratio": 1.1284463564619327,
+            "p99_ratio": 1.0848486991211819,
+            "repetition": 1,
+            "throughput_ratio": 0.9447152413246593
+          },
+          {
+            "p95_ratio": 1.104061063917693,
+            "p99_ratio": 1.0870408812743209,
+            "repetition": 2,
+            "throughput_ratio": 0.9482587434768692
+          },
+          {
+            "p95_ratio": 1.0930446304075352,
+            "p99_ratio": 1.0804005556159904,
+            "repetition": 3,
+            "throughput_ratio": 0.9567122746047098
+          }
+        ],
+        "paired_throughput_ratio_population_stddev": 0.005032642375915263,
+        "paired_throughput_ratio_range": [
+          0.9447152413246593,
+          0.9567122746047098
+        ]
+      },
+      "legacy": {
+        "median_p95_ms": 1.774141,
+        "median_p99_ms": 2.499653,
+        "median_useful_requests_per_second": 10868.94728308876,
+        "p95_ms": [
+          1.735456,
+          1.774141,
+          1.815892
+        ],
+        "p99_ms": [
+          2.432471,
+          2.499653,
+          2.546363
+        ],
+        "samples": 3,
+        "useful_requests_per_second": [
+          10906.332049270219,
+          10868.94728308876,
+          10725.883016742062
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "agent_natural_join_status": 0,
+  "diagnostic": "raw-write-final-closure",
+  "schema_version": 1,
+  "terminal_artifact": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on/results.sender-wait-controls/final-raw-write-terminal.json",
+    "sha256": "9c8d09371f40173e8dca9f30ee051c9f42abb2fe21c6c36b05751a2b3db2a704",
+    "size": 122163
+  },
+  "terminal_file_status": 0,
+  "valid": false,
+  "validation_artifact": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on/results.sender-wait-controls/final-raw-write-validation.json",
+    "sha256": "1801772768d48f390b84ef66f916eddb48e5d7ecc339458b3b08ec2bad4f5d80",
+    "size": 1204
+  },
+  "validation_status": 1
+}

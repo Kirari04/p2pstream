@@ -1,0 +1,15 @@
+test_acceptance_exact_booleans (__main__.PressureContracts.test_acceptance_exact_booleans) ... ok
+test_every_bound_actual_input_is_rehashed (__main__.PressureContracts.test_every_bound_actual_input_is_rehashed) ... ok
+test_lifecycle_missing_duplicate_forced (__main__.PressureContracts.test_lifecycle_missing_duplicate_forced) ... ok
+test_missing_duplicate_required_stage (__main__.PressureContracts.test_missing_duplicate_required_stage) ... ok
+test_outer_grace_exceeds_inner_cleanup_and_cache_is_shared (__main__.PressureContracts.test_outer_grace_exceeds_inner_cleanup_and_cache_is_shared) ... ok
+test_preserved_original_order_payloads_fields (__main__.PressureContracts.test_preserved_original_order_payloads_fields) ... ok
+test_scope_contract_extracted_function_module_parses (__main__.PressureContracts.test_scope_contract_extracted_function_module_parses) ... ok
+test_source_and_manifest_mismatch (__main__.PressureContracts.test_source_and_manifest_mismatch) ... ok
+test_strict_events_and_statuses (__main__.PressureContracts.test_strict_events_and_statuses) ... ok
+test_transfer_missing_duplicate_order_payload (__main__.PressureContracts.test_transfer_missing_duplicate_order_payload) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 1.956s
+
+OK

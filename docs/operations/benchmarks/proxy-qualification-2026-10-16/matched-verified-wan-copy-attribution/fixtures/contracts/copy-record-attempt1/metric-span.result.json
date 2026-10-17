@@ -1,0 +1,10 @@
+{
+  "actual_status": 1,
+  "expected_status": 1,
+  "issues": [
+    "upstream_read total exceeds observed metric span"
+  ],
+  "name": "metric-span",
+  "stderr": "copy attribution validation failed: upstream_read total exceeds observed metric span\n",
+  "stdout": ""
+}

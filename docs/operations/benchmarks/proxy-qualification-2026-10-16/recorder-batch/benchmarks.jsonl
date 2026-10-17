@@ -1,0 +1,12 @@
+{"variant":"baseline","mode":"background","iterations":152,"nanoseconds_per_flush":3949911,"events_per_flush":512,"bytes_per_flush":742057,"allocations_per_flush":10016}
+{"variant":"baseline","mode":"production_deadline","iterations":87,"nanoseconds_per_flush":6326307,"events_per_flush":512,"bytes_per_flush":854361,"allocations_per_flush":12171}
+{"variant":"baseline","mode":"background","iterations":158,"nanoseconds_per_flush":3874380,"events_per_flush":512,"bytes_per_flush":741954,"allocations_per_flush":10016}
+{"variant":"baseline","mode":"production_deadline","iterations":90,"nanoseconds_per_flush":6447781,"events_per_flush":512,"bytes_per_flush":854427,"allocations_per_flush":12171}
+{"variant":"baseline","mode":"background","iterations":153,"nanoseconds_per_flush":3922063,"events_per_flush":512,"bytes_per_flush":741993,"allocations_per_flush":10016}
+{"variant":"baseline","mode":"production_deadline","iterations":80,"nanoseconds_per_flush":6378739,"events_per_flush":512,"bytes_per_flush":854376,"allocations_per_flush":12171}
+{"variant":"candidate","mode":"background","iterations":157,"nanoseconds_per_flush":3666734,"events_per_flush":512,"bytes_per_flush":703999,"allocations_per_flush":7623}
+{"variant":"candidate","mode":"production_deadline","iterations":147,"nanoseconds_per_flush":4074663,"events_per_flush":512,"bytes_per_flush":716571,"allocations_per_flush":7858}
+{"variant":"candidate","mode":"background","iterations":158,"nanoseconds_per_flush":3685156,"events_per_flush":512,"bytes_per_flush":703922,"allocations_per_flush":7623}
+{"variant":"candidate","mode":"production_deadline","iterations":147,"nanoseconds_per_flush":3963283,"events_per_flush":512,"bytes_per_flush":716619,"allocations_per_flush":7858}
+{"variant":"candidate","mode":"background","iterations":157,"nanoseconds_per_flush":3726689,"events_per_flush":512,"bytes_per_flush":703966,"allocations_per_flush":7623}
+{"variant":"candidate","mode":"production_deadline","iterations":146,"nanoseconds_per_flush":4072291,"events_per_flush":512,"bytes_per_flush":716522,"allocations_per_flush":7858}

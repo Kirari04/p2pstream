@@ -1,0 +1,11 @@
+{
+  "approved": true,
+  "scope": "exact three focused normal/tagged/race commands once; no endpoint build or WAN traffic",
+  "pins": {
+    "FOCUSED-TEST-PLAN.json": "790a3677b2bd0cdedd78a928ba7baf7fcebb60e0ff05aea63287a73332dd4e01",
+    "run-focused-tests.py": "4731e69388ee64a1cb6d3bba7c79c90219230dd70c48c06f1b41d1ceb7d4602b"
+  },
+  "source_inventory_sha256": "b6c59c6631afe0e911f565ebb0d51ba9edc3183d4389b0be87f7b5656899a57d",
+  "independent_source_review": "Astra GO after final source inventory verification",
+  "cache_rejection_bytes": 4294967296
+}

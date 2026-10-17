@@ -1,0 +1,17 @@
+{
+  "direct_child_joined": true,
+  "direct_status": 0,
+  "forced_cleanup": false,
+  "group_exists_after_term": null,
+  "group_joined": true,
+  "kill_attempted": false,
+  "kill_send_status": null,
+  "owned_group_identity_valid": true,
+  "pgid": 2077135,
+  "pid": 2077135,
+  "schema_version": 1,
+  "term_attempted": false,
+  "term_send_status": null,
+  "timed_out": false,
+  "wait_returncode": 0
+}

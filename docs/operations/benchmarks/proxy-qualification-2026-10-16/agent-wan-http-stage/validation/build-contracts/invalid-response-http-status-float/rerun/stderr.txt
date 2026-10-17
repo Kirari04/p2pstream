@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 153, in <module>
+    response=phase(load(phases_dir/f"phase-{i:02d}.json"),i,"server"); server=phase(sr[i],i,"server"); agent=phase(ar[i],i,"agent")
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 126, in phase
+    if integer(v["configured_payload_bytes"],role)!=268435456 or integer(v["received_payload_bytes"],role)!=268435456 or v["expected_sha256"]!=digest or v["received_sha256"]!=digest or integer(v["http_status"],role)!=200 or integer(v["origin_http_major"],role)!=1 or v["error"]!="": raise ValueError(f"{role} phase correctness")
+                                                                                                                                                                                         ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/http-stage-build.jISvFyke/contracts/validator-after.py", line 10, in integer
+    if isinstance(v,bool) or not isinstance(v,int) or v<m: raise ValueError(f"{n} integer")
+                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: server integer

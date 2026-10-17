@@ -1,0 +1,94 @@
+{
+  "recorded_at": "2026-10-17T10:10:34.709061+00:00",
+  "source_binary_hashes_unchanged": true,
+  "original_capacity_evidence_hashes_unchanged": 49,
+  "runner_status": {
+    "exit_status": 0,
+    "emergency_cleanup": false
+  },
+  "diagnostic_status": {
+    "exit_status": 0,
+    "qualification_eligible": false
+  },
+  "qualification_eligible": false,
+  "forced_branch_reached": false,
+  "sigquit_marker_in_log": false,
+  "stack_owner_identified": false,
+  "diagnostic_outcome": "shutdown hang did not reproduce; natural baseline exit before deadline; no stack captured",
+  "baseline_stop_birth": "2026-10-17 12:09:39.961911945 +0200",
+  "baseline_log_sha256": "ca6f4b1d15bf865cdd8db802263eec6b45465e378f5eda0a39b8eacd495597e4",
+  "rows": [
+    {
+      "label": "baseline-3ec137c3ad3d07028e867042fb00d3933912d7ab",
+      "scenario": "capacity-1536-h1",
+      "attempted": 1536,
+      "useful_completed": 1211,
+      "errors": 325,
+      "status_classes": {
+        "2xx": 1211,
+        "5xx": 325
+      },
+      "origin_peak_inflight": 1211,
+      "persisted_event_delta": 1536,
+      "dropped_event_delta": 0,
+      "event_queue_after_drain": 0,
+      "event_drain_error": ""
+    },
+    {
+      "label": "baseline-3ec137c3ad3d07028e867042fb00d3933912d7ab",
+      "scenario": "recovery",
+      "attempted": 512,
+      "useful_completed": 512,
+      "errors": 0,
+      "status_classes": {
+        "2xx": 512
+      },
+      "origin_peak_inflight": null,
+      "persisted_event_delta": 512,
+      "dropped_event_delta": 0,
+      "event_queue_after_drain": 0,
+      "event_drain_error": ""
+    }
+  ],
+  "receipts": [
+    {
+      "path": "raw/baseline-3ec137c3ad3d07028e867042fb00d3933912d7ab-1.stop.exit.json",
+      "sha256": "ecfd511217ad8416da853463c2734f51a0f766dcb5910f90a6ce00afcc390d14",
+      "receipt": {
+        "pid": 2362781,
+        "container": "p2pstream-qualification-baseline-3ec137c3ad3d07028e867042fb00d3933912d7ab-1-2362725",
+        "forced_cleanup": false,
+        "shell_exit_status": 0,
+        "container_state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 0,
+          "Error": "",
+          "StartedAt": "2026-10-17T10:09:28.331854259Z",
+          "FinishedAt": "2026-10-17T10:09:40.715687969Z"
+        },
+        "natural_exit_verified": true
+      }
+    },
+    {
+      "path": "raw/origin.stop.exit.json",
+      "sha256": "3134f3e11ca0b232cb814513e22e4db24a986904f3844e3046d20e11dec302a2",
+      "receipt": {
+        "pid": 2362771,
+        "container": "",
+        "forced_cleanup": false,
+        "shell_exit_status": 0,
+        "container_state": null,
+        "natural_exit_verified": true
+      }
+    }
+  ],
+  "remaining_processes": [],
+  "remaining_containers": [],
+  "audit_failures": []
+}

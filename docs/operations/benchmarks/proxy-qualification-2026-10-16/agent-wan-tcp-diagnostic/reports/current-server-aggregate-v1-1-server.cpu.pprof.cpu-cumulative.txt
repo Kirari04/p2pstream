@@ -1,0 +1,64 @@
+File: server.test
+Build ID: 618a8cb6183a4ad09d1248ee0524066851af9611
+Type: cpu
+Time: 2026-10-16 06:46:45 CEST
+Duration: 130.53s, Total samples = 27.74s (21.25%)
+Showing nodes accounting for 16.92s, 60.99% of 27.74s total
+Dropped 637 nodes (cum <= 0.14s)
+Showing top 55 nodes out of 220
+      flat  flat%   sum%        cum   cum%
+    13.01s 46.90% 46.90%     13.01s 46.90%  internal/runtime/syscall/linux.Syscall6
+     0.03s  0.11% 47.01%     11.42s 41.17%  syscall.Syscall
+         0     0% 47.01%     11.39s 41.06%  internal/poll.ignoringEINTRIO (inline)
+     0.05s  0.18% 47.19%     11.31s 40.77%  syscall.RawSyscall6
+     0.06s  0.22% 47.40%      8.04s 28.98%  crypto/tls.(*Conn).Write
+     0.06s  0.22% 47.62%      7.87s 28.37%  crypto/tls.(*Conn).writeRecordLocked
+     0.04s  0.14% 47.76%      6.44s 23.22%  io.ReadAtLeast
+         0     0% 47.76%      6.44s 23.22%  io.ReadFull (inline)
+     0.03s  0.11% 47.87%      6.29s 22.67%  crypto/tls.(*Conn).Read
+     0.03s  0.11% 47.98%      6.27s 22.60%  net.(*conn).Write
+     0.01s 0.036% 48.02%      6.24s 22.49%  net.(*netFD).Write
+     0.01s 0.036% 48.05%      6.23s 22.46%  internal/poll.(*FD).Write
+     0.02s 0.072% 48.13%      6.17s 22.24%  crypto/tls.(*Conn).write
+         0     0% 48.13%      6.15s 22.17%  syscall.Write (inline)
+         0     0% 48.13%      6.15s 22.17%  syscall.write
+         0     0% 48.13%      6.10s 21.99%  crypto/tls.(*Conn).readRecord (inline)
+     0.04s  0.14% 48.27%      6.10s 21.99%  crypto/tls.(*Conn).readRecordOrCCS
+     0.03s  0.11% 48.38%      5.40s 19.47%  internal/poll.(*FD).Read
+     0.01s 0.036% 48.41%      5.19s 18.71%  syscall.Read (inline)
+     0.03s  0.11% 48.52%      5.18s 18.67%  syscall.read
+     0.03s  0.11% 48.63%      5.08s 18.31%  runtime.mcall
+     0.07s  0.25% 48.88%      4.86s 17.52%  runtime.schedule
+     0.04s  0.14% 49.03%      4.80s 17.30%  runtime.park_m
+     0.01s 0.036% 49.06%      4.55s 16.40%  crypto/tls.(*Conn).readFromUntil
+         0     0% 49.06%      4.52s 16.29%  net/http.(*http2serverConn).writeFrameAsync
+     0.22s  0.79% 49.86%      4.47s 16.11%  runtime.findRunnable
+     0.02s 0.072% 49.93%      4.41s 15.90%  bytes.(*Buffer).ReadFrom
+         0     0% 49.93%      4.40s 15.86%  net.(*conn).Read
+     0.02s 0.072% 50.00%      4.39s 15.83%  net.(*netFD).Read
+     0.03s  0.11% 50.11%      4.38s 15.79%  net/http.(*http2serverConn).readFrames
+     0.06s  0.22% 50.32%      4.37s 15.75%  crypto/tls.(*atLeastReader).Read
+     0.02s 0.072% 50.40%      4.32s 15.57%  net/http.(*http2bufferedWriterTimeoutWriter).Write
+         0     0% 50.40%      4.30s 15.50%  net/http.http2writeWithByteTimeout
+         0     0% 50.40%      4.12s 14.85%  github.com/hashicorp/yamux.(*Session).send
+     0.03s  0.11% 50.50%      4.12s 14.85%  github.com/hashicorp/yamux.(*Session).sendLoop
+         0     0% 50.50%      3.63s 13.09%  net/http.(*http2Framer).ReadFrame
+     0.03s  0.11% 50.61%      3.33s 12.00%  bufio.(*Writer).Write
+     0.03s  0.11% 50.72%      3.26s 11.75%  bufio.(*Reader).Read
+         0     0% 50.72%      3.17s 11.43%  github.com/hashicorp/yamux.(*Session).recv
+         0     0% 50.72%      3.17s 11.43%  github.com/hashicorp/yamux.(*Session).recvLoop
+     0.01s 0.036% 50.76%      3.17s 11.43%  net/http.(*http2Framer).endWrite
+         0     0% 50.76%      3.16s 11.39%  net/http.(*http2bufferedWriter).Write
+     0.01s 0.036% 50.79%      3.06s 11.03%  net/http.(*http2Framer).ReadFrameHeader
+         0     0% 50.79%      3.03s 10.92%  net/http.http2readFrameHeader
+     0.01s 0.036% 50.83%      2.85s 10.27%  p2pstream/internal/server.(*agentTunnelReadGateConn).Read
+     0.01s 0.036% 50.87%      2.76s  9.95%  net/http.(*conn).serve
+     2.22s  8.00% 58.87%      2.22s  8.00%  runtime.futex
+     0.45s  1.62% 60.49%      2.13s  7.68%  runtime.selectgo
+         0     0% 60.49%      2.08s  7.50%  p2pstream/internal/server.(*App).StartAdaptiveTunnelCapacity.func1
+         0     0% 60.49%      2.06s  7.43%  p2pstream/internal/server.(*agentStreamCapacityManager).refreshAdaptiveCapacity
+         0     0% 60.49%      2.06s  7.43%  p2pstream/internal/sysmetrics.(*AdaptiveMemoryController).ForceRefresh (inline)
+         0     0% 60.49%      2.06s  7.43%  p2pstream/internal/sysmetrics.(*AdaptiveMemoryController).snapshotAt
+         0     0% 60.49%      2.03s  7.32%  p2pstream/internal/sysmetrics.(*systemMemoryUsageSampler).SampleMemoryUsages
+         0     0% 60.49%      2.03s  7.32%  p2pstream/internal/sysmetrics.sampleMemoryUsages
+     0.14s   0.5% 60.99%      1.87s  6.74%  runtime.netpoll

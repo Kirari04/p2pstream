@@ -1,0 +1,121 @@
+{
+  "cases": 23,
+  "failed": [],
+  "results": [
+    {
+      "name": "server-initial",
+      "expected": "accept",
+      "passed": true
+    },
+    {
+      "name": "server-live",
+      "expected": "accept",
+      "passed": true
+    },
+    {
+      "name": "server-terminal",
+      "expected": "accept",
+      "passed": true
+    },
+    {
+      "name": "agent-initial",
+      "expected": "accept",
+      "passed": true
+    },
+    {
+      "name": "agent-live",
+      "expected": "accept",
+      "passed": true
+    },
+    {
+      "name": "agent-terminal",
+      "expected": "accept",
+      "passed": true
+    },
+    {
+      "name": "missing-categories",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "nonobject-categories",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "unknown-category",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "zero-growth-category-not-created",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "missing-initial-category",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "missing-positive-growth-category",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "bool-category",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "float-category",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "negative-category",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "category-sum-mismatch",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "swapped-categories-preserve-sum",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "terminal-nonzero-category",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "complete-saved-cohort-replay",
+      "expected": "accept",
+      "passed": true
+    },
+    {
+      "name": "server-cumulative-initial_reserved_bytes-changed",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "server-cumulative-growth_reserved_bytes-changed",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "agent-cumulative-initial_reserved_bytes-changed",
+      "expected": "reject",
+      "passed": true
+    },
+    {
+      "name": "agent-cumulative-growth_reserved_bytes-changed",
+      "expected": "reject",
+      "passed": true
+    }
+  ]
+}

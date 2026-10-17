@@ -1,0 +1,21 @@
+{
+  "scope": "Frozen LOCAL terminal-attribution correctness evidence only; no WAN performance or historical rejection clearance.",
+  "copies": 79,
+  "selection": "Explicit files selected by package construction, never recursive copying of future wiring or full source trees. Each exact selection and reason is listed in EXPORT-MAP.json.",
+  "omitted": [
+    "runner-source/**",
+    "build-runner-review/**",
+    "runner-wiring.diff",
+    "successor/FUTURE-SMOKE-COMMANDS.json",
+    "successor/RUNNER-*",
+    "successor/prepare-runner-source.py",
+    "successor/runner-location-and-build-block.diff",
+    "successor/MATERIALIZATION.json (hash/count summary replaces repetitive full map)",
+    "successor source preparation scripts (final source, focused diffs and hash inventory retained)",
+    "full test-source tree, inherited production source, compiler source, module caches, archives, binaries",
+    "all private keys, certificates, readiness files, runtime databases"
+  ],
+  "original_historical_manifests": "Copied byte-for-byte, retaining original path context and omitted-member references. They are provenance artifacts, not the curated package completeness manifest. Use root SHA256SUMS and EXPORT-MAP.json for package verification.",
+  "historical_status_labels": "Source-review and predeclaration status text is preserved verbatim. local-window-1 and local-window-2 records establish subsequent actual execution.",
+  "pending": "Integrated five-owner runner/build/smoke and any WAN traffic/performance work are outside this completed local result and not executed by this package task."
+}

@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# SOURCE PROPOSAL ONLY: clean-archive builds and one original pressure attempt.
+set -Eeuo pipefail
+candidate_ref="" output_root="" go_binary=""
+runner=$(realpath "$(dirname "$0")/qualify-proxy-agent-growth-pressure-owned.sh")
+validator=$(realpath "$(dirname "$0")/validate-owned-pressure.py")
+while (($#)); do
+  case "$1" in
+    --candidate-ref) candidate_ref=$2; shift 2 ;;
+    --output-root) output_root=$2; shift 2 ;;
+    --go-binary) go_binary=$2; shift 2 ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+[[ -n $candidate_ref && -n $output_root && -x $go_binary ]] || {
+  echo "--candidate-ref FULL_SHA --output-root FRESH_DIR --go-binary PINNED_GO are required" >&2; exit 2;
+}
+[[ $(git rev-parse --verify "$candidate_ref^{commit}") == "$candidate_ref" ]] || exit 2
+legacy_ref=3ec137c3ad3d07028e867042fb00d3933912d7ab
+[[ ! -e $output_root ]] || { echo "output root already exists" >&2; exit 2; }
+mkdir -p "$output_root"
+output_root=$(realpath "$output_root")
+go_binary=$(realpath "$go_binary")
+runner_pid="" stage=prepare forced=false
+finish() {
+  local status=$? attempt
+  trap - EXIT INT TERM
+  set +e
+  if [[ -n $runner_pid ]]; then
+    forced=true
+    ((status != 0)) || status=1
+    kill -TERM -- "-$runner_pid" 2>/dev/null
+    # Inner cleanup has shared 5s TERM + 5s KILL polls. Give it 15s
+    # before escalation; the outer timeout independently gives it 20s.
+    for ((attempt=0; attempt<300; attempt++)); do
+      kill -0 -- "-$runner_pid" 2>/dev/null || break
+      sleep .05
+    done
+    kill -KILL -- "-$runner_pid" 2>/dev/null
+    for ((attempt=0; attempt<100; attempt++)); do
+      kill -0 -- "-$runner_pid" 2>/dev/null || break
+      sleep .05
+    done
+    # Never enter an unbounded wait on an owner that is still running.
+    kill -0 "$runner_pid" 2>/dev/null || wait "$runner_pid" 2>/dev/null
+  fi
+  jq -nc --argjson status "$status" --arg stage "$stage" \
+    '{attempt:1,state:"wrapper-finished",exit_status:$status,stage:$stage}' >>"$output_root/attempts.jsonl"
+  if ! jq -n --argjson status "$status" --arg stage "$stage" --argjson forced "$forced" \
+      '{exit_status:$status,stage:$stage,forced_supervisor_cleanup:$forced}' >"$output_root/status.json.tmp" ||
+      ! mv "$output_root/status.json.tmp" "$output_root/status.json"; then
+    ((status != 0)) || status=1
+  fi
+  exit "$status"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+for tool in git tar jq python3 sha256sum timeout setsid; do command -v "$tool" >/dev/null; done
+for name in P2PSTREAM_QUALIFICATION_PROFILE_DIR P2PSTREAM_QUALIFICATION_PROFILE_MODE; do
+  [[ -z ${!name+x} ]] || { echo "$name must be unset" >&2; exit 2; }
+done
+mkdir -p "$output_root"/{archives,sources/current,sources/legacy,bin,build,provenance,attempt-1}
+cp "$runner" "$output_root/provenance/qualify-proxy-agent-growth-pressure-owned.sh"
+cp "$validator" "$output_root/provenance/validate-owned-pressure.py"
+cp "$0" "$output_root/provenance/qualify-proxy-pressure-checkpoint.sh"
+runner=$output_root/provenance/qualify-proxy-agent-growth-pressure-owned.sh
+validator=$output_root/provenance/validate-owned-pressure.py
+chmod 0755 "$runner"
+results=$output_root/attempt-1/results.jsonl
+jq -nc --arg results "$results" --arg raw_parent "$output_root/attempt-1" \
+  '{attempt:1,state:"started",results:$results,raw_parent:$raw_parent}' >"$output_root/attempts.jsonl"
+
+stage=archive
+# No working-tree files enter either build. Only the canonical qualification
+# fixture is overlaid into the historical legacy-agent archive.
+git archive "$candidate_ref" >"$output_root/archives/current.tar"
+git archive "$legacy_ref" >"$output_root/archives/legacy.tar"
+tar -xf "$output_root/archives/current.tar" -C "$output_root/sources/current"
+tar -xf "$output_root/archives/legacy.tar" -C "$output_root/sources/legacy"
+overlay=$output_root/sources/current/internal/agent/testdata/proxy_qualification_external_legacy_test.go
+install -m 0644 "$overlay" "$output_root/sources/legacy/internal/agent/proxy_qualification_external_legacy_test.go"
+
+stage=build
+# A clean build environment prevents inherited observer tags, GOFLAGS or work
+# files from silently changing the archived production build. No private env is logged.
+build_env=(env -i HOME="$HOME" PATH="$(dirname "$go_binary"):/usr/bin:/bin" \
+  GOENV=off GOTOOLCHAIN=local GOWORK=off GOMAXPROCS=4)
+sha256sum "$go_binary" >"$output_root/provenance/go-binary-before-build.sha256"
+"${build_env[@]}" "$go_binary" version >"$output_root/provenance/go-version.txt"
+"${build_env[@]}" "$go_binary" env -json GOOS GOARCH GOAMD64 CGO_ENABLED GOFLAGS GOWORK GOTOOLCHAIN \
+  >"$output_root/provenance/go-build-settings.json"
+timeout --signal=TERM --kill-after=10s 600s "${build_env[@]}" "$go_binary" -C "$output_root/sources/current" test -c -o "$output_root/bin/current-server.test" ./internal/server \
+  >"$output_root/build/current-server.log" 2>&1
+timeout --signal=TERM --kill-after=10s 600s "${build_env[@]}" "$go_binary" -C "$output_root/sources/current" test -c -o "$output_root/bin/current-agent.test" ./internal/agent \
+  >"$output_root/build/current-agent.log" 2>&1
+timeout --signal=TERM --kill-after=10s 600s "${build_env[@]}" "$go_binary" -C "$output_root/sources/legacy" test -c -o "$output_root/bin/legacy-agent.test" ./internal/agent \
+  >"$output_root/build/legacy-agent.log" 2>&1
+sha256sum -c "$output_root/provenance/go-binary-before-build.sha256" >"$output_root/provenance/go-binary-after-build-check.log"
+python3 - "$output_root" "$candidate_ref" "$legacy_ref" "$go_binary" <<'PY'
+import hashlib, json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+current, legacy, go = sys.argv[2:]
+def digest(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as source:
+        for data in iter(lambda: source.read(1 << 20), b""):
+            h.update(data)
+    return h.hexdigest()
+files = {name: digest(root / name) for name in (
+    "archives/current.tar", "archives/legacy.tar", "bin/current-server.test", "bin/current-agent.test", "bin/legacy-agent.test",
+    "sources/current/internal/agent/testdata/proxy_qualification_external_legacy_test.go",
+    "provenance/qualify-proxy-agent-growth-pressure-owned.sh", "provenance/validate-owned-pressure.py",
+    "provenance/qualify-proxy-pressure-checkpoint.sh", "provenance/go-build-settings.json")}
+manifest = {"schema_version": 1, "current_ref": current, "legacy_ref": legacy,
+    "go_binary": go, "go_binary_sha256": digest(go), "go_version": (root / "provenance/go-version.txt").read_text().strip(),
+    "build_settings": json.loads((root / "provenance/go-build-settings.json").read_text()),
+    "build": {"environment": "env -i; HOME and pinned-Go /usr/bin /bin PATH; GOENV=off GOTOOLCHAIN=local GOWORK=off GOMAXPROCS=4; ordinary Go content-addressed cache",
+              "commands": ["timeout --signal=TERM --kill-after=10s 600s go -C sources/current test -c -o bin/current-server.test ./internal/server",
+                           "timeout --signal=TERM --kill-after=10s 600s go -C sources/current test -c -o bin/current-agent.test ./internal/agent",
+                           "timeout --signal=TERM --kill-after=10s 600s go -C sources/legacy test -c -o bin/legacy-agent.test ./internal/agent"],
+              "legacy_overlay": "only canonical internal/agent/proxy_qualification_external_legacy_test.go"},
+    "sha256": files,
+    "topology": "original user/net namespace entry; host PID topology; separate 4GiB no-swap systemd user scopes",
+    "workload": {"warmup_mib": 256, "warmup_rounds_each_direction": 4, "retained_mib_each_direction": 256,
+                 "required_pool_mib_strictly_greater_than": 80, "canceled_upload_mib": 32,
+                 "recovery_mib_each_direction": 16, "rtt_ms": 80, "rate_bits_per_second": 1000000000}}
+(root / "provenance/build-manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+with (root / "provenance/launch-inputs.sha256").open("w") as output:
+    for name, value in files.items():
+        output.write(f"{value}  {root / name}\n")
+PY
+
+manifest_sha256=$(sha256sum "$output_root/provenance/build-manifest.json" | awk '{print $1}')
+printf '%s\n' "$manifest_sha256" >"$output_root/provenance/build-manifest.sha256"
+stage=launch
+command=(bash "$runner" --server-binary "$output_root/bin/current-server.test" \
+  --aggregate-agent-binary "$output_root/bin/current-agent.test" --legacy-agent-binary "$output_root/bin/legacy-agent.test" \
+  --output "$results" --server-source-ref "$candidate_ref" --aggregate-agent-source-ref "$candidate_ref" \
+  --legacy-agent-source-ref "$legacy_ref" --pressure --warmup-mib 256 --steady-mib 256 \
+  --transfer-repetitions 1 --required-pool-mib 80 --rtt-ms 80)
+printf '%q ' "${command[@]}" >"$output_root/attempt-1/invocation.txt"
+printf '\n' >>"$output_root/attempt-1/invocation.txt"
+sha256sum -c "$output_root/provenance/launch-inputs.sha256" >"$output_root/attempt-1/input-check-before.log"
+# Keep the original pressure namespace topology. Do not import the WAN-only
+# private PID/mount wrapper into systemd user-scope attachment semantics.
+setsid timeout --signal=TERM --kill-after=20s 4800s "${command[@]}" \
+  >"$output_root/attempt-1/stdout.log" 2>"$output_root/attempt-1/stderr.log" &
+runner_pid=$!
+if wait "$runner_pid"; then runner_status=0; else runner_status=$?; fi
+joined=false
+for ((attempt=0; attempt<100; attempt++)); do
+  kill -0 -- "-$runner_pid" 2>/dev/null || { joined=true; break; }
+  sleep .05
+done
+jq -n --argjson pid "$runner_pid" --argjson status "$runner_status" --argjson joined "$joined" \
+  '{pid:$pid,runner_status:$status,group_joined:$joined,forced:($joined|not),invalidates_success:($joined|not)}' >"$output_root/attempt-1/supervisor-lifecycle.json"
+[[ $joined == false ]] || runner_pid=""
+jq -nc --argjson status "$runner_status" --argjson joined "$joined" \
+  '{attempt:1,state:"finished",runner_status:$status,group_joined:$joined}' >>"$output_root/attempts.jsonl"
+[[ $joined == true ]] || exit 1
+((runner_status == 0)) || exit "$runner_status"
+sha256sum -c "$output_root/provenance/launch-inputs.sha256" >"$output_root/attempt-1/input-check-after.log"
+stage=validate
+python3 "$validator" "$output_root" "$manifest_sha256" >"$output_root/attempt-1/validation.stdout.log" 2>"$output_root/attempt-1/validation.stderr.log"
+stage=complete

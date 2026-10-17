@@ -1,0 +1,311 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-c",
+    "-mod=readonly",
+    "-p=2",
+    "-tags=p2pstream_qualification",
+    "-o",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-server-early-share.test",
+    "./internal/server"
+  ],
+  "artifact_bytes": 669987366,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 45.89737560600042,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2695816,
+      "pid": 2695816,
+      "ppid": 2695728,
+      "sid": 2695816,
+      "start_ticks": 8567492,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2695817,
+      "ppid": 2695816,
+      "sid": 2695816,
+      "start_ticks": 8567492,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696009,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8567588,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696010,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8567588,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696029,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8567622,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696101,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8567645,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696167,
+      "ppid": 2696101,
+      "sid": 2695816,
+      "start_ticks": 8567689,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696168,
+      "ppid": 2696167,
+      "sid": 2695816,
+      "start_ticks": 8567689,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696172,
+      "ppid": 2696101,
+      "sid": 2695816,
+      "start_ticks": 8567695,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696173,
+      "ppid": 2696172,
+      "sid": 2695816,
+      "start_ticks": 8567695,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696280,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8567771,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696281,
+      "ppid": 2696280,
+      "sid": 2695816,
+      "start_ticks": 8567771,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696289,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8567799,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696385,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8568003,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696426,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8568075,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696477,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8568216,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696481,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8568330,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696645,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8568992,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696877,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8569244,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2696927,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8569306,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2697042,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8569449,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2697046,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8569539,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2697069,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8569643,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2697086,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8569755,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2697124,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8569831,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2697302,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8569980,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2697950,
+      "ppid": 2696280,
+      "sid": 2695816,
+      "start_ticks": 8570705,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2698083,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8571007,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2698087,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8571008,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2698237,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8571782,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2698245,
+      "ppid": 2695817,
+      "sid": 2695816,
+      "start_ticks": 8571787,
+      "state": "R"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2698383,
+      "ppid": 2698245,
+      "sid": 2695816,
+      "start_ticks": 8571920,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2698384,
+      "ppid": 2698383,
+      "sid": 2695816,
+      "start_ticks": 8571920,
+      "state": "S"
+    },
+    {
+      "pgid": 2695816,
+      "pid": 2698385,
+      "ppid": 2698384,
+      "sid": 2695816,
+      "start_ticks": 8571920,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 1048576,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 0,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

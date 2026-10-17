@@ -1,0 +1,11 @@
+{
+  "approved_at": "2026-10-17T14:35:20.363059+00:00",
+  "reviewer": "root",
+  "scope": "one tagged corrected suite and first race execution; preserved prior normal proof reused by exact tag-only source equivalence; no builds or endpoint traffic",
+  "reviewed_inputs": {
+    "FOCUSED-TEST-CONTINUATION-1-PLAN.json": "053bbeb6887e8499f4a46a9fc9b9dcdcc9a0268e27411ba1a1d7b6ca4cf9e81d",
+    "run-focused-tests-continuation-1.py": "189abb9524f7e0621f33c92589e3c52707b17c200b4805fe34a95747fd8ccad6"
+  },
+  "source_inventory": "3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+  "independent_test_correction_review": "tmp/wan-early-share-review-20261017/FOCUSED-FAILURE-REVIEW.md"
+}

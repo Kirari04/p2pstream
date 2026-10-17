@@ -1,0 +1,120 @@
+{
+  "inputs": {
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/results.jsonl": {
+      "sha256": "b40508e50a8ec599ba6b5968302c07e38ebae3f9d40123fce6632b4cbaad2c6e",
+      "bytes": 581392
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/h2-stability-attestation.json": {
+      "sha256": "80d44b183addf743ba8e8a3788451f696d83b6fae1df2c6eb63db5f8fd3664ef",
+      "bytes": 2243
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/results.lifecycle.jsonl": {
+      "sha256": "9707c34d1e31bd057ed8a881ba817fafa22513e28d5afceb319d591b57389e45",
+      "bytes": 2577
+    },
+    "tmp/wan-route-reuse-outcome-20261017/OUTCOME.json": {
+      "sha256": "15cbf3c6164f962af1114df75c39d5b4d3a97310011a3a9f88b66c381a25442d",
+      "bytes": 23401
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/results.summary.json": {
+      "sha256": "7e4714dad22ba47feb7d9ce971335dbea70eaa7ff1b0d939d468dc99beb9440e",
+      "bytes": 1480
+    },
+    "tmp/wan-route-reuse-qualification-20261017/SOURCE.json": {
+      "sha256": "0d938ddd6834144b62b5fc8913b767be1671c9594c246cc9cd3252d6956deb92",
+      "bytes": 130377
+    },
+    "tmp/wan-route-reuse-qualification-20261017/provenance/stability-manifest.json": {
+      "sha256": "624b8979038417e25fd64bbdc3ea8d8d7db8c0de5f28ce349b28d5192d7b72b2",
+      "bytes": 4016
+    },
+    "tmp/wan-route-reuse-qualification-20261017/execution-once/RESULT.json": {
+      "sha256": "5bb876c4997d5ddbd46e074c93966235bf617d92dca23f9344db6978fe0728fe",
+      "bytes": 495
+    },
+    "tmp/wan-route-reuse-qualification-20261017/execution-once/wrapper.outer.json": {
+      "sha256": "83d92850c0934b575920101470537a34b2df985adf59ad1b85b1fad53148c120",
+      "bytes": 23467
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/outer-namespaces.json": {
+      "sha256": "c31c2d0758c57c26ee4dfa95309d8995fe28ccef1eb795a894575d6de81ab56b",
+      "bytes": 517
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-pre.json": {
+      "sha256": "5af38eb9366f113c29d0689622cfe65d6c36196d5b232f74bd7308145d7dc3e5",
+      "bytes": 2435
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-post.json": {
+      "sha256": "a792360ad1e84965d0ff6f19c42ae3746a4ed24388ac47eb55f6e3a3dc264c7a",
+      "bytes": 2441
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-host-pre.json": {
+      "sha256": "4cebcd5446099a02629330a18a4c037544965934a9d015f81d3f3b19ab7ca304",
+      "bytes": 854
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-host-post.json": {
+      "sha256": "69b1663709f5434281c9952faaad61f84aafeb98cfd6478af37a34ae1873cf80",
+      "bytes": 854
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-validation.json": {
+      "sha256": "cf5932e664cf912696267e0ae7629f39b4c3684b5646b9a663d972cf3dfd9c12",
+      "bytes": 269
+    },
+    "tmp/wan-route-reuse-qualification-20261017/RUNTIME-GRANT.json": {
+      "sha256": "3fcf7474a1aa937684f93bade75a1374184bc9e9c9069f8f6e36f5c53dfab8e3",
+      "bytes": 176
+    },
+    "tmp/wan-route-reuse-qualification-20261017/execution-once/wrapper.started.json": {
+      "sha256": "fa973ad2fc5988c964fc441bc746ed0a3fd8f7d3ad768372299b7babb6b86c69",
+      "bytes": 696
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/supervisor-lifecycle.json": {
+      "sha256": "2c28a9ea4012a6233d4b1817c5a555a722bf5a686a9331bd8599d7fec4c18183",
+      "bytes": 83
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/verified-binding.txt": {
+      "sha256": "83e451f27734392de351cb6e257730c43dd438bc1662b01ee4ffca32f5778830",
+      "bytes": 626
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/verified-binding-post.txt": {
+      "sha256": "83e451f27734392de351cb6e257730c43dd438bc1662b01ee4ffca32f5778830",
+      "bytes": 626
+    },
+    "tmp/wan-route-reuse-build-20261017/build-once/receipt.json": {
+      "sha256": "d428e45fd861c8ed7a4346920e53c2a56d1fe678660fd343707f9841f53af624",
+      "bytes": 9763
+    },
+    "tmp/wan-route-reuse-outcome-20261017/extract-saved.py": {
+      "sha256": "0925446995624d4379af7aae91c36c86d10f91365be3283fa6113f21880391d4",
+      "bytes": 16517
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/runner.status": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/validation.status": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/wrapper.status": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "tmp/wan-route-reuse-qualification-20261017/runs/original96-once/transport-defaults-validation.status": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "tmp/wan-route-reuse-outcome-20261017/extraction.status": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "tmp/wan-route-reuse-outcome-20261017/extraction.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "tmp/wan-route-reuse-outcome-20261017/extraction.stdout": {
+      "sha256": "f90134142597003f40ca4a4e7870a442238674b701e379575a15a9b3b296c903",
+      "bytes": 100
+    }
+  }
+}

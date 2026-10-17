@@ -1,0 +1,11 @@
+--- a/third_party/yamux/session.go
++++ b/third_party/yamux/session.go
+@@ -28,7 +28,7 @@
+ 
+ // diagnosticSplitAggregateRefundWrites is changed only in the causal
+ // diagnostic arm. Both arms retain this scaffold and the same sendReady layout.
+-var diagnosticSplitAggregateRefundWrites = false
++var diagnosticSplitAggregateRefundWrites = true
+ 
+ // Session is used to wrap a reliable ordered connection and to
+ // multiplex it into multiple streams.

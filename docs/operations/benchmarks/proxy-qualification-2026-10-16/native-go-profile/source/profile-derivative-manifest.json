@@ -1,0 +1,61 @@
+{
+  "kind": "p2pstream-native-go-profile-derivative-v1",
+  "classification": "diagnostic-only",
+  "created_utc": "2026-10-16T15:22:19Z",
+  "historical_manifest_modified": false,
+  "builder_produced_derivative": false,
+  "baseline": {
+    "bundle_path": "../../native-go-attribution-validation90c9.VgdXP30B/native-go-attribution-build-248bad09.esfg1qq2",
+    "source_ref": "248bad099682878fe398c0ebaad235787ef47858",
+    "manifest_path": "manifest.json",
+    "manifest_sha256": "bc915ed4822c9bfca83b78083b071aa01e3dd9db851d214cbcdf11e32271bfdf",
+    "source_checkpoint_path": "source-checkpoint.json",
+    "source_checkpoint_sha256": "c0e8ab560d6e2a961ab91871fd459bfc2bf4b0e09e30fa7e094666e234f918fe",
+    "runner_path": "qualify-proxy-native-go-attribution.py",
+    "runner_sha256": "ebda90041f65bcdd317b0cf9aae10c6b334190d35653ce64b2147697375f7a50",
+    "source_overlay_path": "native-go-attribution.patch",
+    "source_overlay_sha256": "f5debf1ab13534c852fc30b41ed642076abcc1a5e6df10983cb38bd1e7dcef2b",
+    "source_archive_path": "source.tar",
+    "source_archive_sha256": "6c157f23cf3787c2673ea093c1e233d50c038268f72c4169621f702ce3c6c1d7",
+    "binary_path": "proxy-native-go-attribution.test",
+    "binary_sha256": "12ffaadfdb8191b3cb6bd00026a2a6830981f168ea51cba74f2cd40628e720d7",
+    "binary_kind": "ordinary Go 1.26.6 test binary without profiling build tags"
+  },
+  "derivative": {
+    "runner_path": "qualify-proxy-native-go-profile.py",
+    "runner_sha256": "fafc9acff710a6bbe7638579e71b8b13e03c6b4c1d66e2e85f1202b249b3849a",
+    "patch_path": "baseline-to-profile-runner.patch",
+    "patch_sha256": "54d93c6a830b676435aedda08c2c3b7a4693d9069f40a711f049ddc8105273b5",
+    "contracts_path": "native-profile-contracts.py",
+    "contracts_sha256": "64854bf3a9bf37e7ea6914540f47c127e9731fb804c1c4a8f0b7f88a2deeac63"
+  },
+  "approved_shape": {
+    "smoke": "retained production/native HTTP/HTTPS matched-certificate correctness smoke",
+    "timed_rows": 2,
+    "role_order": ["production", "native"],
+    "scheme": "http",
+    "protocol": "h1",
+    "concurrency": 16,
+    "warmup_seconds": 2,
+    "duration_seconds": 10,
+    "proxy_cpus": "0,1,2,3",
+    "load_cpus": "4,5,6,7,8,9,10,11,12,13,14,15",
+    "memory_bytes": 4294967296,
+    "swap_disabled": true,
+    "profile_flags": ["-test.cpuprofile", "-test.memprofile"],
+    "profile_scope": "whole timed proxy process lifetime including server startup, readiness, warmup, timed load, and teardown",
+    "normalization_divisor": "warmup_requests + useful_completed"
+  },
+  "claims": {
+    "release_gate": false,
+    "twenty_four_row_attribution_matrix": false,
+    "statistical_significance": false,
+    "production_native_code_equivalence": false
+  },
+  "storage": {
+    "copied_source_archive": false,
+    "copied_binary": false,
+    "baseline_artifacts_are_read_only_references": true,
+    "new_results_parent": "../native-profile-results"
+  }
+}

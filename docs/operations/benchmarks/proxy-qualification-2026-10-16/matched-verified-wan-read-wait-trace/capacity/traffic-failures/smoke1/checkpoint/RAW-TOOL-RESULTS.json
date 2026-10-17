@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "attempt": "tiny-read-wait-capacity-smoke-1",
+  "initial_exec_result": {
+    "chunk_id": "2df829",
+    "wall_time_seconds": 1.000250108,
+    "session_id": 20629,
+    "original_token_count": 0,
+    "output": ""
+  },
+  "final_wait_result": {
+    "chunk_id": "19be80",
+    "wall_time_seconds": 13.988193927,
+    "exit_code": 1,
+    "original_token_count": 0,
+    "output": ""
+  }
+}

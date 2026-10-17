@@ -1,0 +1,13 @@
+diff --git a/internal/tunnel/physical_socket_diagnostic.go b/internal/tunnel/physical_socket_diagnostic.go
+index 42d17dc..6e977d0 100644
+--- a/internal/tunnel/physical_socket_diagnostic.go
++++ b/internal/tunnel/physical_socket_diagnostic.go
+@@ -11,7 +11,7 @@ const (
+ 	// diagnosticApplyTunnelNotSentLowat is the sole difference between the
+ 	// temporary control and candidate diagnostic builds. It is deliberately
+ 	// private and is not a production configuration surface.
+-	diagnosticApplyTunnelNotSentLowat = false
++	diagnosticApplyTunnelNotSentLowat = true
+ 
+ 	diagnosticTunnelNotSentLowat = uint32(32 * 1024)
+ )

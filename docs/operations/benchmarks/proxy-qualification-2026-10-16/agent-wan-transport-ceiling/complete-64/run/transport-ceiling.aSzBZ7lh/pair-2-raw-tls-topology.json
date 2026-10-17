@@ -1,0 +1,445 @@
+{
+  "schema_version": 1,
+  "pair": 2,
+  "order_position": 1,
+  "variant": "raw-tls",
+  "namespace_identities": {
+    "server": "net:[4026532951]",
+    "router": "net:[4026532928]",
+    "agent": "net:[4026533187]"
+  },
+  "runner_namespace_identity": "net:[4026532795]",
+  "namespace_instances": {
+    "agent": {
+      "arm_generation": 3,
+      "boot_id": "64278397-57d1-4859-8e55-140a1537797b",
+      "helper_pid": 528,
+      "helper_start_ticks": 40466176,
+      "netns_inode": 4026533187
+    },
+    "router": {
+      "arm_generation": 3,
+      "boot_id": "64278397-57d1-4859-8e55-140a1537797b",
+      "helper_pid": 527,
+      "helper_start_ticks": 40466176,
+      "netns_inode": 4026532928
+    },
+    "server": {
+      "arm_generation": 3,
+      "boot_id": "64278397-57d1-4859-8e55-140a1537797b",
+      "helper_pid": 526,
+      "helper_start_ticks": 40466176,
+      "netns_inode": 4026532951
+    }
+  },
+  "prior_joined_generation": 2,
+  "namespace_helpers_joined": true,
+  "configured": {
+    "rtt_ms": 80,
+    "one_way_netem_ms": 40,
+    "rate_bits_per_second": 1000000000,
+    "server_tunnel": "10.211.0.1:17443",
+    "server_admin": "127.0.0.1:18080",
+    "agent_admin": "127.0.0.1:18080"
+  },
+  "cpu_sets": {
+    "server": "0,1,2,3",
+    "agent": "4,5,6,7",
+    "load": "8,9,10,11,12,13,14,15"
+  },
+  "measured_rtt_ms": 96.538,
+  "network_state": {
+    "server": {
+      "addresses": [
+        {
+          "ifindex": 1,
+          "ifname": "lo",
+          "flags": [
+            "LOOPBACK",
+            "UP",
+            "LOWER_UP"
+          ],
+          "mtu": 65536,
+          "qdisc": "noqueue",
+          "operstate": "UNKNOWN",
+          "group": "default",
+          "txqlen": 1000,
+          "link_type": "loopback",
+          "address": "00:00:00:00:00:00",
+          "broadcast": "00:00:00:00:00:00",
+          "addr_info": [
+            {
+              "family": "inet",
+              "local": "127.0.0.1",
+              "prefixlen": 8,
+              "scope": "host",
+              "label": "lo",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            },
+            {
+              "family": "inet6",
+              "local": "::1",
+              "prefixlen": 128,
+              "scope": "host",
+              "protocol": "kernel_lo",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            }
+          ]
+        },
+        {
+          "ifindex": 11,
+          "link_index": 10,
+          "ifname": "ceil-server",
+          "flags": [
+            "BROADCAST",
+            "MULTICAST",
+            "UP",
+            "LOWER_UP"
+          ],
+          "mtu": 1500,
+          "qdisc": "noqueue",
+          "operstate": "UP",
+          "group": "default",
+          "txqlen": 1000,
+          "link_type": "ether",
+          "address": "06:24:ae:f1:aa:10",
+          "broadcast": "ff:ff:ff:ff:ff:ff",
+          "link_netnsid": 1,
+          "addr_info": [
+            {
+              "family": "inet",
+              "local": "10.211.0.1",
+              "prefixlen": 24,
+              "scope": "global",
+              "label": "ceil-server",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            },
+            {
+              "family": "inet6",
+              "local": "fe80::424:aeff:fef1:aa10",
+              "prefixlen": 64,
+              "scope": "link",
+              "protocol": "kernel_ll",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            }
+          ]
+        }
+      ],
+      "routes": [
+        {
+          "dst": "10.211.0.0/24",
+          "dev": "ceil-server",
+          "protocol": "kernel",
+          "scope": "link",
+          "prefsrc": "10.211.0.1",
+          "flags": []
+        },
+        {
+          "dst": "10.212.0.0/24",
+          "gateway": "10.211.0.2",
+          "dev": "ceil-server",
+          "flags": []
+        }
+      ]
+    },
+    "router": {
+      "addresses": [
+        {
+          "ifindex": 1,
+          "ifname": "lo",
+          "flags": [
+            "LOOPBACK",
+            "UP",
+            "LOWER_UP"
+          ],
+          "mtu": 65536,
+          "qdisc": "noqueue",
+          "operstate": "UNKNOWN",
+          "group": "default",
+          "txqlen": 1000,
+          "link_type": "loopback",
+          "address": "00:00:00:00:00:00",
+          "broadcast": "00:00:00:00:00:00",
+          "addr_info": [
+            {
+              "family": "inet",
+              "local": "127.0.0.1",
+              "prefixlen": 8,
+              "scope": "host",
+              "label": "lo",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            },
+            {
+              "family": "inet6",
+              "local": "::1",
+              "prefixlen": 128,
+              "scope": "host",
+              "protocol": "kernel_lo",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            }
+          ]
+        },
+        {
+          "ifindex": 10,
+          "link_index": 11,
+          "ifname": "ceil-rs",
+          "flags": [
+            "BROADCAST",
+            "MULTICAST",
+            "UP",
+            "LOWER_UP"
+          ],
+          "mtu": 1500,
+          "qdisc": "netem",
+          "operstate": "UP",
+          "group": "default",
+          "txqlen": 1000,
+          "link_type": "ether",
+          "address": "d2:2e:c6:32:af:bd",
+          "broadcast": "ff:ff:ff:ff:ff:ff",
+          "link_netnsid": 0,
+          "addr_info": [
+            {
+              "family": "inet",
+              "local": "10.211.0.2",
+              "prefixlen": 24,
+              "scope": "global",
+              "label": "ceil-rs",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            },
+            {
+              "family": "inet6",
+              "local": "fe80::d02e:c6ff:fe32:afbd",
+              "prefixlen": 64,
+              "scope": "link",
+              "protocol": "kernel_ll",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            }
+          ]
+        },
+        {
+          "ifindex": 12,
+          "link_index": 13,
+          "ifname": "ceil-ra",
+          "flags": [
+            "BROADCAST",
+            "MULTICAST",
+            "UP",
+            "LOWER_UP"
+          ],
+          "mtu": 1500,
+          "qdisc": "netem",
+          "operstate": "UP",
+          "group": "default",
+          "txqlen": 1000,
+          "link_type": "ether",
+          "address": "36:cd:14:8c:e3:e8",
+          "broadcast": "ff:ff:ff:ff:ff:ff",
+          "link_netnsid": 1,
+          "addr_info": [
+            {
+              "family": "inet",
+              "local": "10.212.0.1",
+              "prefixlen": 24,
+              "scope": "global",
+              "label": "ceil-ra",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            },
+            {
+              "family": "inet6",
+              "local": "fe80::34cd:14ff:fe8c:e3e8",
+              "prefixlen": 64,
+              "scope": "link",
+              "protocol": "kernel_ll",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            }
+          ]
+        }
+      ],
+      "routes": [
+        {
+          "dst": "10.211.0.0/24",
+          "dev": "ceil-rs",
+          "protocol": "kernel",
+          "scope": "link",
+          "prefsrc": "10.211.0.2",
+          "flags": []
+        },
+        {
+          "dst": "10.212.0.0/24",
+          "dev": "ceil-ra",
+          "protocol": "kernel",
+          "scope": "link",
+          "prefsrc": "10.212.0.1",
+          "flags": []
+        }
+      ],
+      "qdisc": [
+        {
+          "kind": "noqueue",
+          "handle": "0:",
+          "dev": "lo",
+          "root": true,
+          "refcnt": 2,
+          "options": {}
+        },
+        {
+          "kind": "netem",
+          "handle": "807d:",
+          "dev": "ceil-rs",
+          "root": true,
+          "refcnt": 17,
+          "options": {
+            "limit": 100000,
+            "delay": {
+              "delay": 0.04,
+              "jitter": 0,
+              "correlation": 0
+            },
+            "rate": {
+              "rate": 125000000,
+              "packetoverhead": 0,
+              "cellsize": 0,
+              "celloverhead": 0
+            },
+            "seed": 2740082255301389940,
+            "ecn": false,
+            "gap": 0
+          }
+        },
+        {
+          "kind": "netem",
+          "handle": "807e:",
+          "dev": "ceil-ra",
+          "root": true,
+          "refcnt": 17,
+          "options": {
+            "limit": 100000,
+            "delay": {
+              "delay": 0.04,
+              "jitter": 0,
+              "correlation": 0
+            },
+            "rate": {
+              "rate": 125000000,
+              "packetoverhead": 0,
+              "cellsize": 0,
+              "celloverhead": 0
+            },
+            "seed": 12776053707743638017,
+            "ecn": false,
+            "gap": 0
+          }
+        }
+      ]
+    },
+    "agent": {
+      "addresses": [
+        {
+          "ifindex": 1,
+          "ifname": "lo",
+          "flags": [
+            "LOOPBACK",
+            "UP",
+            "LOWER_UP"
+          ],
+          "mtu": 65536,
+          "qdisc": "noqueue",
+          "operstate": "UNKNOWN",
+          "group": "default",
+          "txqlen": 1000,
+          "link_type": "loopback",
+          "address": "00:00:00:00:00:00",
+          "broadcast": "00:00:00:00:00:00",
+          "addr_info": [
+            {
+              "family": "inet",
+              "local": "127.0.0.1",
+              "prefixlen": 8,
+              "scope": "host",
+              "label": "lo",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            },
+            {
+              "family": "inet6",
+              "local": "::1",
+              "prefixlen": 128,
+              "scope": "host",
+              "protocol": "kernel_lo",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            }
+          ]
+        },
+        {
+          "ifindex": 13,
+          "link_index": 12,
+          "ifname": "ceil-agent",
+          "flags": [
+            "BROADCAST",
+            "MULTICAST",
+            "UP",
+            "LOWER_UP"
+          ],
+          "mtu": 1500,
+          "qdisc": "noqueue",
+          "operstate": "UP",
+          "group": "default",
+          "txqlen": 1000,
+          "link_type": "ether",
+          "address": "52:5b:83:fb:9b:a3",
+          "broadcast": "ff:ff:ff:ff:ff:ff",
+          "link_netnsid": 1,
+          "addr_info": [
+            {
+              "family": "inet",
+              "local": "10.212.0.2",
+              "prefixlen": 24,
+              "scope": "global",
+              "label": "ceil-agent",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            },
+            {
+              "family": "inet6",
+              "local": "fe80::505b:83ff:fefb:9ba3",
+              "prefixlen": 64,
+              "scope": "link",
+              "protocol": "kernel_ll",
+              "valid_life_time": 4294967295,
+              "preferred_life_time": 4294967295
+            }
+          ]
+        }
+      ],
+      "routes": [
+        {
+          "dst": "10.211.0.0/24",
+          "gateway": "10.212.0.1",
+          "dev": "ceil-agent",
+          "flags": []
+        },
+        {
+          "dst": "10.212.0.0/24",
+          "dev": "ceil-agent",
+          "protocol": "kernel",
+          "scope": "link",
+          "prefsrc": "10.212.0.2",
+          "flags": []
+        }
+      ]
+    }
+  },
+  "joined_generation": 3
+}

@@ -1,0 +1,33 @@
+{
+  "acceptance_result": null,
+  "binary_build_id": {
+    "control_agent": "_5_3wnEQIV91bIwurS9Z/hbvwhIKopFLf8Yo3HIjP/5csZ2Ew2-DAD59F5XnNw/I_oZXDONDOTviDMzXDSg",
+    "control_server": "AoY8OBIxVeSpgtQOCr3w/OCEdbba-lwbN0a1BptkW/1rZMnNi3kIuMU7zefMTj/295gYmXem_xeuGWMoqX3",
+    "deferred_agent": "bvYuIBn2H6oEuTmrSGbb/9vYnx1FFx2a_w58hrELS/VnfkxNRxUuE9Y9rxyHp-/EtNMcU8wq-zawt4LEs09",
+    "deferred_server": "mXw7eDF7q6xva94H80W1/dpQUmCQMo6U3b7opND6M/oZrtqgDqJxd6qOlqiiCT/wueRvQRKhZjg17hvrwml",
+    "driver_and_origin": "AoY8OBIxVeSpgtQOCr3w/OCEdbba-lwbN0a1BptkW/1rZMnNi3kIuMU7zefMTj/295gYmXem_xeuGWMoqX3"
+  },
+  "binary_sha256": {
+    "control_agent": "bae850a2c81085148098d90f4d27dd88617a5023f3dd67665bda742806ae6dcf",
+    "control_server": "453924e217f211e575440613925c27651e7c14fa3a3316851469ebd70c4b79aa",
+    "deferred_agent": "3a7b45294921e633f9e13a825c8ec572c43e45076aa6e243b5f3baeeb6ddcbde",
+    "deferred_server": "ad7f3b2605f9375fa2f5015a73dd10e6f32946124fff21e7494f7185d5019699",
+    "driver_and_origin": "453924e217f211e575440613925c27651e7c14fa3a3316851469ebd70c4b79aa"
+  },
+  "build_manifest_sha256": "dd606c6e0478a6e6c46e4d765122803b7ab20b3dfc23fb4d14dd0ceb54da7f19",
+  "build_provenance_sha256": "bfa306ba5affaa265b4a87fc2b3faccddb454b5c1883194c7f343210ce5aea48",
+  "common_scaffold_sha256": "3fa10c967b69d4d371c64dd6bb2ca175ffbd9f98d80193d3d41b2722809bfe59",
+  "deferred_global_overlay_sha256": "d07cac9d6f5dac0311416282c0c0e19ece2d3369e1d372abc43b406b3e33b81d",
+  "overlay_readme_sha256": "56b792868181965c2e82b75f61380ba238f541401cf35be78e46fc38486c3e5f",
+  "runner_sha256": "a34a8c7c4c059b9f0cc7985e62edd9ae388b8ce189367747bd0ba3e0f148b9a1",
+  "schema_version": 1,
+  "scope": "fixture_preflight_only",
+  "source_hashes_sha256": "24d37dbe261ab15f7f949595879117bb7afac8cd1b40597a0062eb3fd4d6dfba",
+  "source_refs": {
+    "application_and_harness": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "current_batch_control_base": "5eeccaaa797254d7bde4db9854a337a02c3bc28e",
+    "deferred_global_epoch_base": "5eeccaaa797254d7bde4db9854a337a02c3bc28e"
+  },
+  "workload_started": false,
+  "wrapper_sha256": "4300d079c004bd00467b376460375d96c52eced6f6c9d6b06af266cec096688c"
+}

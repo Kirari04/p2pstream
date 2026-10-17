@@ -1,0 +1,12 @@
+{"iteration":1,"label":"baseline","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism1-4","operations":6788110,"ns_per_op":88.12,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":1,"label":"baseline","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism4-4","operations":5530009,"ns_per_op":109.1,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":1,"label":"candidate","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism1-4","operations":15364346,"ns_per_op":36.94,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":1,"label":"candidate","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism4-4","operations":16146588,"ns_per_op":47.28,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":2,"label":"candidate","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism1-4","operations":16400637,"ns_per_op":37.14,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":2,"label":"candidate","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism4-4","operations":12515626,"ns_per_op":46.08,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":2,"label":"baseline","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism1-4","operations":6777466,"ns_per_op":88.62,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":2,"label":"baseline","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism4-4","operations":5456859,"ns_per_op":107.4,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":3,"label":"baseline","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism1-4","operations":6700832,"ns_per_op":88.69,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":3,"label":"baseline","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism4-4","operations":5519274,"ns_per_op":108.5,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":3,"label":"candidate","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism1-4","operations":16216156,"ns_per_op":37.66,"bytes_per_op":0,"allocs_per_op":0}
+{"iteration":3,"label":"candidate","benchmark":"BenchmarkDirectTransportPoolCacheHit/parallelism4-4","operations":13156576,"ns_per_op":46.84,"bytes_per_op":0,"allocs_per_op":0}

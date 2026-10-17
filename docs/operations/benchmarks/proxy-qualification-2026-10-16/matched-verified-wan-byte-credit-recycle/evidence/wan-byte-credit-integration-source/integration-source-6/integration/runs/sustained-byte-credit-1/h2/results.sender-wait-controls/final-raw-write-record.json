@@ -1,0 +1,18 @@
+{
+  "agent_natural_join_status": 0,
+  "diagnostic": "raw-write-final-closure",
+  "schema_version": 1,
+  "terminal_artifact": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.sender-wait-controls/final-raw-write-terminal.json",
+    "sha256": "aa7a89ba4ff4a28cdbf1bd7152463c1b4b4c4f87167bc05ba61e5c4c3d0a3315",
+    "size": 12911
+  },
+  "terminal_file_status": 0,
+  "valid": true,
+  "validation_artifact": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.sender-wait-controls/final-raw-write-validation.json",
+    "sha256": "a04c0ef249f64a5cc75b3d9e041fe623533cd26e33c08051c0c90bd54d98a688",
+    "size": 89
+  },
+  "validation_status": 0
+}

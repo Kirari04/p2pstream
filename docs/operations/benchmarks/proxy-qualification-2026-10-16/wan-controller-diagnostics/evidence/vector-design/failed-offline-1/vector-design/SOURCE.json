@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "parent_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+  "build_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "source_inventory_sha256": "a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+  "joined_ps_wrapper_sha256": "7e3578c19ff0041118ddbbcf88bc03d43b3c6ebb0bf496cb3dba9fef60eda6b1",
+  "files": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-controller-vector.py",
+      "sha256": "55f638c226a4bbc5c71bba15fce16c629e31b5780cc1cc3f98d735847069198e"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-vector.py",
+      "sha256": "e621a7a51b428a21f17198a669776448db0e8d200e60644e0c1a113d347a93a8"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/COMMANDS-vector.json",
+      "sha256": "ba55561484f77d55962f649db164f79a16628a24d0d886a17bbcbd2ed3f380ff"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-vector.py",
+      "sha256": "4b8c39c889c54ec8184e995d6d9e6281df13b8d0cfe0de14e5f782c68b605c33"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/PLAN.json",
+      "sha256": "0c63879d7ec57810cba8d12059b710adc4d58da81580458f88f7f66413110a98"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/DERIVATIVE.diff",
+      "sha256": "9b7516b27baa2b77da88bf6c14be4b3fc38a361132f7482f6fa68620e0a9cf2f"
+    }
+  ],
+  "static_checks": {
+    "python_ast": 3,
+    "unchanged_mature_arm_validation_function": true,
+    "unchanged_controller_binding_helpers": true,
+    "parent_frozen_inputs_match": true,
+    "runtime_output_absent": true
+  },
+  "execution": {
+    "tests": 0,
+    "builds": 0,
+    "traffic": 0
+  }
+}

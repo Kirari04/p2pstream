@@ -1,0 +1,6 @@
+Focused next-slot plan:
+- gofmt only half_close_buffered_drain_test.go and confirm runtime files remain gofmt-clean
+- focused terminal/pre-FIN/live/local-half-close/aggregate tests, normal then race
+- original TestHalfCloseSessionShutdown repeated normal x100 then race x20
+- full vendored Yamux normal, then bounded race-short as root specifies
+- verify exact payload, EOF, credit ledgers, frame ownership, hashes, and no lingering task children

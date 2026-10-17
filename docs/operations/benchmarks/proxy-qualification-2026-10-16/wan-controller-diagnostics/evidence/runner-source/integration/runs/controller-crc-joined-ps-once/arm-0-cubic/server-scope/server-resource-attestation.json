@@ -1,0 +1,54 @@
+{
+  "accepted": true,
+  "checks": {
+    "expected_cgroup_paths": true,
+    "memory_high_unbounded": true,
+    "memory_max_4gib": true,
+    "memory_swap_max_zero": true,
+    "post_events_unchanged_zero": true,
+    "post_peak_within_limit": true,
+    "pre_events_zero": true
+  },
+  "post": {
+    "cgroup_path": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2541323-679a35e9.scope",
+    "memory_current_bytes": 280420352,
+    "memory_events": {
+      "high": 0,
+      "low": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_group_kill": 0,
+      "oom_kill": 0,
+      "sock_throttled": 0
+    },
+    "memory_high_bytes": "max",
+    "memory_max_bytes": 4294967296,
+    "memory_peak_bytes": 285835264,
+    "memory_stat_sock_bytes": 4096,
+    "memory_swap_max_bytes": 0,
+    "pid": 182,
+    "process_fd_count": 23,
+    "process_rss_bytes": 304930816
+  },
+  "pre": {
+    "members": [
+      2541974
+    ],
+    "memory_current_bytes": 14630912,
+    "memory_events": {
+      "high": 0,
+      "low": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_group_kill": 0,
+      "oom_kill": 0,
+      "sock_throttled": 0
+    },
+    "memory_high_bytes": "max",
+    "memory_max_bytes": 4294967296,
+    "memory_peak_bytes": 14630912,
+    "memory_swap_max_bytes": 0,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2541323-679a35e9.scope"
+  },
+  "schema_version": 1
+}

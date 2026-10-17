@@ -1,0 +1,53 @@
+File: server.test
+Build ID: 903e8d4b5177bc5db972379084f7436b6bc063ea
+Type: alloc_space
+Time: 2026-10-16 05:19:44 CEST
+Showing nodes accounting for 2.65GB, 86.49% of 3.07GB total
+Dropped 358 nodes (cum <= 0.02GB)
+Showing top 45 nodes out of 155
+      flat  flat%   sum%        cum   cum%
+    0.30GB  9.89%  9.89%     1.45GB 47.29%  p2pstream/internal/server.(*App).proxyRouteTargetRequest
+    0.23GB  7.37% 17.27%     0.23GB  7.37%  net/http.(*Request).WithContext (inline)
+    0.17GB  5.69% 22.96%     0.18GB  5.72%  database/sql.driverArgsConnLocked
+    0.17GB  5.56% 28.51%     0.17GB  5.56%  net/http.Header.Clone (inline)
+    0.14GB  4.67% 33.18%     0.14GB  4.67%  net/textproto.MIMEHeader.Add (inline)
+    0.11GB  3.61% 36.79%     0.11GB  3.61%  net/http.(*http2Framer).readMetaFrame.func1
+    0.10GB  3.33% 40.12%     0.32GB 10.49%  net/http.(*Request).Clone
+    0.10GB  3.12% 43.24%     0.12GB  3.77%  net/textproto.readMIMEHeader
+    0.08GB  2.71% 45.95%     0.08GB  2.71%  net/http.http2cloneHeader (inline)
+    0.07GB  2.31% 48.26%     0.12GB  3.82%  net/http.(*persistConn).roundTrip
+    0.06GB  2.10% 50.36%     0.08GB  2.74%  net/http.(*Transport).getConn
+    0.06GB  1.88% 52.24%     1.52GB 49.59%  p2pstream/internal/server.activeTargetAccountingAndForwardStage
+    0.05GB  1.69% 53.92%     0.05GB  1.69%  net/http.setupRewindBody (inline)
+    0.05GB  1.64% 55.56%     0.05GB  1.64%  context.WithValue
+    0.05GB  1.61% 57.17%     0.05GB  1.61%  context.(*cancelCtx).propagateCancel
+    0.05GB  1.61% 58.78%     0.05GB  1.61%  net/http.cloneURL (inline)
+    0.05GB  1.61% 60.39%     0.05GB  1.61%  context.(*cancelCtx).Done
+    0.05GB  1.56% 61.95%     0.21GB  6.89%  net/http.(*persistConn).readLoop
+    0.05GB  1.48% 63.43%     0.08GB  2.50%  time.NewTimer
+    0.04GB  1.42% 64.84%     0.04GB  1.42%  github.com/hashicorp/yamux.(*Session).waitForSendErrCommit
+    0.04GB  1.31% 66.15%     1.13GB 36.76%  net/http/httputil.(*ReverseProxy).ServeHTTP
+    0.04GB  1.27% 67.42%     0.09GB  2.88%  context.withCancel (inline)
+    0.04GB  1.24% 68.67%     0.04GB  1.24%  github.com/hashicorp/yamux.(*aggregateWindow).broadcastSendLocked
+    0.04GB  1.18% 69.84%     0.65GB 21.14%  p2pstream/internal/server.(*publicAgentAttemptRoundTripper).RoundTrip
+    0.04GB  1.15% 70.99%     0.07GB  2.36%  net/http.(*http2serverConn).newStream
+    0.03GB  1.05% 72.04%     0.09GB  3.01%  net/http.newTransferWriter
+    0.03GB  1.02% 73.06%     0.03GB  1.02%  time.newTimer
+    0.03GB  1.02% 74.08%     0.05GB  1.56%  github.com/hashicorp/yamux.(*Session).publishStreamAllocationRefund
+    0.03GB  1.00% 75.08%     0.03GB  1.00%  p2pstream/internal/db.appendProxyRequestEventArgs
+    0.03GB  0.97% 76.05%     0.06GB  1.96%  net/http.(*transferWriter).probeRequestBody
+    0.03GB  0.96% 77.01%     0.03GB  1.08%  net/http.(*http2responseWriterState).writeChunk
+    0.02GB   0.8% 77.80%     0.14GB  4.41%  net/http.(*http2Framer).readMetaFrame
+    0.02GB   0.8% 78.60%     0.02GB   0.8%  net/textproto.canonicalMIMEHeaderKey
+    0.02GB  0.76% 79.36%     0.02GB  0.76%  github.com/pressly/goose/v3/internal/sqlparser.init.func1
+    0.02GB  0.76% 80.13%     0.03GB  0.88%  p2pstream/internal/server.(*agentStreamCapacityManager).tryReserveAdaptiveResourceMode
+    0.02GB  0.76% 80.89%     0.02GB  0.76%  p2pstream/internal/server.publicRouteTargetHealthConfigFromRouteTarget
+    0.02GB  0.75% 81.64%     0.02GB  0.75%  net/url.parse
+    0.02GB  0.75% 82.39%     0.02GB  0.75%  net/http.(*http2closeWaiter).Init (inline)
+    0.02GB  0.67% 83.06%     0.15GB  5.05%  net/http.ReadResponse
+    0.02GB  0.65% 83.71%     0.03GB  0.94%  p2pstream/internal/server.WithClientIdentity
+    0.02GB  0.64% 84.35%     0.02GB  0.64%  internal/bytealg.MakeNoZero
+    0.02GB  0.56% 84.90%     0.02GB  0.56%  p2pstream/internal/server.(*publicProxyContext).deferCleanup
+    0.02GB  0.54% 85.44%     0.03GB  0.94%  github.com/hashicorp/yamux.(*Session).publishGlobalRefund
+    0.02GB  0.54% 85.99%     0.02GB  0.54%  net.SplitHostPort.func1 (inline)
+    0.02GB  0.51% 86.49%     0.02GB  0.65%  net/textproto.MIMEHeader.Set (inline)

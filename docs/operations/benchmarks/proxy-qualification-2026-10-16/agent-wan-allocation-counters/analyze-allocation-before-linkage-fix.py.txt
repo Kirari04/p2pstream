@@ -1,0 +1,363 @@
+#!/usr/bin/env python3
+"""Summarize destructive aggregate send counters after a finite WAN cohort."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import statistics
+from collections import Counter, defaultdict
+from pathlib import Path
+from typing import Any
+
+
+EXPECTED_ROWS = 32
+EXPECTED_REAL_DRAINS = 48
+EXPECTED_SKIPS = 16
+THRESHOLDS = (1 << 20, 4 << 20, 8 << 20, 16 << 20)
+COUNTER_FIELDS = (
+    "reserved_data_frames",
+    "reserved_payload_bytes",
+    "reserved_allocation_charged_bytes",
+    "byte_credit_zero_observations",
+    "stream_allocation_zero_observations",
+    "session_allocation_zero_observations",
+)
+
+
+def read_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    with path.open(encoding="utf-8") as source:
+        return [json.loads(line) for line in source if line.strip()]
+
+
+def ratio(numerator: int, denominator: int) -> float | None:
+    return None if denominator == 0 else numerator / denominator
+
+
+def resulting_limit(event: dict[str, Any]) -> int:
+    return int(event["proposed"] if event.get("outcome") == "grown" else event["current"])
+
+
+def growth_summary(events: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not events:
+        return None
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for index, event in enumerate(events):
+        event = {"event_index": index, **event}
+        groups[(event.get("lane"), event.get("session_identity"), event.get("stream_id"))].append(event)
+    # The payload stream owns the largest resulting window. Event count and
+    # insertion order break ties without using a transfer-start clock.
+    selected = max(
+        groups.values(),
+        key=lambda rows: (
+            max(resulting_limit(event) for event in rows),
+            len(rows),
+            -rows[0]["event_index"],
+        ),
+    )
+    first = int(selected[0]["sample_unix_nano"])
+    thresholds: dict[str, float | None] = {}
+    for threshold in THRESHOLDS:
+        crossing = next((event for event in selected if resulting_limit(event) >= threshold), None)
+        thresholds[str(threshold)] = (
+            None if crossing is None else (int(crossing["sample_unix_nano"]) - first) / 1_000_000
+        )
+    return {
+        "lane": selected[0].get("lane"),
+        "session_identity": selected[0].get("session_identity"),
+        "stream_id": selected[0].get("stream_id"),
+        "aggregate": selected[0].get("aggregate"),
+        "event_count": len(selected),
+        "outcome_counts": dict(sorted(Counter(event.get("outcome") for event in selected).items())),
+        "first_sample_unix_nano": first,
+        "last_sample_unix_nano": int(selected[-1]["sample_unix_nano"]),
+        "sample_span_ms": (int(selected[-1]["sample_unix_nano"]) - first) / 1_000_000,
+        "resulting_limit_max": max(resulting_limit(event) for event in selected),
+        "rate_bytes_per_second_median": statistics.median(
+            float(event["rate_bytes_per_second"]) for event in selected
+        ),
+        "rtt_nanoseconds_median": statistics.median(
+            int(event["rtt_nanoseconds"]) for event in selected
+        ),
+        "threshold_time_from_first_retained_sample_ms": thresholds,
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("root", type=Path)
+    parser.add_argument("--output-dir", type=Path)
+    args = parser.parse_args()
+    root = args.root.resolve()
+    output = (args.output_dir or (root / "allocation-analysis")).resolve()
+    exit_path = root / "exit.json"
+    if not exit_path.exists():
+        parser.error(f"{exit_path} is absent; the finite cohort has not completed")
+    exit_state = read_json(exit_path)
+    if exit_state.get("exit_code") not in (0, 1):
+        parser.error(f"cohort exit code is {exit_state.get('exit_code')!r}, want finite runner code 0 or 1")
+    output.mkdir(parents=True, exist_ok=True)
+
+    failures: list[str] = []
+    rows = read_jsonl(root / "results.jsonl")
+    if len(rows) != EXPECTED_ROWS:
+        failures.append(f"result rows {len(rows)}, want {EXPECTED_ROWS}")
+    for sequence, row in enumerate(rows, 1):
+        for key, expected in (("attempted", 1), ("useful_completed", 1), ("persisted_event_delta", 1), ("errors", 0)):
+            if row.get(key) != expected:
+                failures.append(f"row {sequence} {key}={row.get(key)!r}, want {expected}")
+        if row.get("status_codes") != {"200": 1}:
+            failures.append(f"row {sequence} status_codes={row.get('status_codes')!r}")
+        if row.get("event_stats_captured") is not True:
+            failures.append(f"row {sequence} event stats unavailable")
+        configured, response = row.get("configured_payload_bytes"), row.get("response_bytes")
+        if row.get("transfer_direction") == "download" and response != configured:
+            failures.append(f"row {sequence} download response length mismatch")
+        if row.get("transfer_direction") == "upload" and response != 32:
+            failures.append(f"row {sequence} upload digest length mismatch")
+
+    drain_paths = sorted(
+        (root / "growth").glob("*.json"),
+        key=lambda path: (int(path.name.split("-", 1)[0]), path.name),
+    )
+    drains = [read_json(path) for path in drain_paths]
+    real = [drain for drain in drains if not drain.get("skipped", False)]
+    skips = [drain for drain in drains if drain.get("skipped", False)]
+    if len(real) != EXPECTED_REAL_DRAINS:
+        failures.append(f"real drains {len(real)}, want {EXPECTED_REAL_DRAINS}")
+    if len(skips) != EXPECTED_SKIPS:
+        failures.append(f"legacy skips {len(skips)}, want {EXPECTED_SKIPS}")
+
+    drain_by_sequence_role = {(drain["sequence"], drain["role"]): drain for drain in drains}
+    all_counters: list[dict[str, Any]] = []
+    for drain in real:
+        snapshot = drain.get("snapshot", {})
+        counters = snapshot.get("send_counters")
+        if not isinstance(counters, list) or len(counters) > 5:
+            failures.append(f"sequence {drain.get('sequence')} {drain.get('role')} send counters invalid")
+            continue
+        lane_enabled = {int(counter.get("lane", -1)): counter.get("enabled") for counter in counters}
+        if drain.get("transport_mode") == "aggregate-v1":
+            if lane_enabled != {0: False, 1: True, 2: True, 3: True, 4: True}:
+                failures.append(
+                    f"sequence {drain.get('sequence')} {drain.get('role')} aggregate lane modes={lane_enabled!r}"
+                )
+        elif drain.get("role") == "server":
+            if lane_enabled != {0: False, 1: False, 2: False, 3: False}:
+                failures.append(
+                    f"sequence {drain.get('sequence')} server legacy lane modes={lane_enabled!r}"
+                )
+        identities: set[tuple[Any, ...]] = set()
+        for counter in counters:
+            missing = [field for field in COUNTER_FIELDS if field not in counter]
+            if missing:
+                failures.append(
+                    f"sequence {drain.get('sequence')} {drain.get('role')} counter missing {missing}"
+                )
+                continue
+            identity = (counter.get("lane"), counter.get("session_identity"))
+            if identity in identities:
+                failures.append(f"sequence {drain.get('sequence')} {drain.get('role')} duplicate counter {identity}")
+            identities.add(identity)
+            all_counters.append(
+                {
+                    "sequence": drain["sequence"],
+                    "label": drain["label"],
+                    "transport_mode": drain["transport_mode"],
+                    "measurement_stage": drain["measurement_stage"],
+                    "transfer_direction": drain["transfer_direction"],
+                    "repetition": drain["repetition"],
+                    "role": drain["role"],
+                    **counter,
+                }
+            )
+
+    counter_columns = (
+        "sequence",
+        "label",
+        "transport_mode",
+        "measurement_stage",
+        "transfer_direction",
+        "repetition",
+        "role",
+        "agent_id",
+        "agent_public_id",
+        "lane",
+        "session_identity",
+        "local_address",
+        "remote_address",
+        "enabled",
+        *COUNTER_FIELDS,
+    )
+    with (output / "aggregate-send-counters.csv").open("w", newline="", encoding="utf-8") as destination:
+        writer = csv.DictWriter(destination, fieldnames=counter_columns, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(all_counters)
+
+    transfers: list[dict[str, Any]] = []
+    for sequence, row in enumerate(rows, 1):
+        mode = row.get("transport_mode")
+        direction = row.get("transfer_direction")
+        sender_role = "agent" if direction == "download" else "server"
+        receiver_role = "server" if direction == "download" else "agent"
+        sender_drain = drain_by_sequence_role.get((sequence, sender_role))
+        receiver_drain = drain_by_sequence_role.get((sequence, receiver_role))
+        selected: dict[str, Any] | None = None
+        availability = "available"
+        if sender_drain is None:
+            availability = "missing_drain"
+            failures.append(f"sequence {sequence} missing {sender_role} drain")
+        elif sender_drain.get("skipped", False):
+            availability = "frozen_legacy_agent_skipped"
+        else:
+            counters = sender_drain.get("snapshot", {}).get("send_counters", [])
+            enabled_bulk = [
+                counter
+                for counter in counters
+                if counter.get("enabled") is True and int(counter.get("lane", -1)) > 0
+            ]
+            if enabled_bulk:
+                selected = max(enabled_bulk, key=lambda counter: int(counter["reserved_payload_bytes"]))
+            elif mode == "legacy":
+                availability = "legacy_sessions_disabled"
+            else:
+                availability = "aggregate_sender_missing"
+                failures.append(f"sequence {sequence} aggregate {sender_role} has no enabled bulk counter")
+
+        primary: dict[str, Any] | None = None
+        if selected is not None:
+            frames = int(selected["reserved_data_frames"])
+            payload = int(selected["reserved_payload_bytes"])
+            charged = int(selected["reserved_allocation_charged_bytes"])
+            configured = int(row.get("configured_payload_bytes", 0))
+            if frames <= 0 or payload <= 0 or charged <= 0:
+                failures.append(f"sequence {sequence} aggregate primary sender has nonpositive totals")
+            if payload < configured:
+                failures.append(
+                    f"sequence {sequence} reserved payload {payload} is below configured body {configured}"
+                )
+            primary = {
+                **selected,
+                "mean_frame_payload_bytes": ratio(payload, frames),
+                "mean_frame_allocation_charge_bytes": ratio(charged, frames),
+                "allocation_charge_to_payload_ratio": ratio(charged, payload),
+                "zero_observation_semantics": "overlapping send attempts; counts are not waits or durations",
+            }
+
+        receiving_growth = None
+        if selected is not None and receiver_drain is not None and not receiver_drain.get("skipped", False):
+            receiver_events = receiver_drain.get("snapshot", {}).get("events", [])
+            matched_events = [
+                event
+                for event in receiver_events
+                if event.get("lane") == selected.get("lane")
+                and event.get("local_address") == selected.get("remote_address")
+                and event.get("remote_address") == selected.get("local_address")
+            ]
+            if not matched_events:
+                failures.append(
+                    f"sequence {sequence} has no receiving growth events for sender lane/tuple"
+                )
+            receiving_growth = growth_summary(matched_events)
+        transfers.append(
+            {
+                "sequence": sequence,
+                "label": row.get("label"),
+                "transport_mode": mode,
+                "measurement_stage": row.get("measurement_stage"),
+                "transfer_direction": direction,
+                "repetition": row.get("repetition"),
+                "wall_seconds": row.get("wall_seconds"),
+                "useful_transfer_bytes_per_second": row.get("useful_transfer_bytes_per_second"),
+                "sender_role": sender_role,
+                "sender_counter_availability": availability,
+                "primary_sender": primary,
+                "receiver_role": receiver_role,
+                "receiving_growth": receiving_growth,
+            }
+        )
+
+    (output / "allocation-per-transfer.json").write_text(
+        json.dumps(transfers, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    aggregate_primary = [
+        transfer for transfer in transfers
+        if transfer["transport_mode"] == "aggregate-v1" and transfer["primary_sender"] is not None
+    ]
+    summary_groups: dict[str, Any] = {}
+    for direction in ("download", "upload"):
+        selected_transfers = [
+            transfer for transfer in aggregate_primary if transfer["transfer_direction"] == direction
+        ]
+        summary_groups[direction] = {
+            "transfers": len(selected_transfers),
+            "reserved_payload_bytes_total": sum(
+                transfer["primary_sender"]["reserved_payload_bytes"] for transfer in selected_transfers
+            ),
+            "reserved_allocation_charged_bytes_total": sum(
+                transfer["primary_sender"]["reserved_allocation_charged_bytes"] for transfer in selected_transfers
+            ),
+            "reserved_data_frames_total": sum(
+                transfer["primary_sender"]["reserved_data_frames"] for transfer in selected_transfers
+            ),
+            "byte_credit_zero_observations_total": sum(
+                transfer["primary_sender"]["byte_credit_zero_observations"] for transfer in selected_transfers
+            ),
+            "stream_allocation_zero_observations_total": sum(
+                transfer["primary_sender"]["stream_allocation_zero_observations"] for transfer in selected_transfers
+            ),
+            "session_allocation_zero_observations_total": sum(
+                transfer["primary_sender"]["session_allocation_zero_observations"] for transfer in selected_transfers
+            ),
+        }
+        payload = summary_groups[direction]["reserved_payload_bytes_total"]
+        charged = summary_groups[direction]["reserved_allocation_charged_bytes_total"]
+        frames = summary_groups[direction]["reserved_data_frames_total"]
+        summary_groups[direction].update(
+            mean_frame_payload_bytes=ratio(payload, frames),
+            mean_frame_allocation_charge_bytes=ratio(charged, frames),
+            allocation_charge_to_payload_ratio=ratio(charged, payload),
+        )
+
+    summary = {
+        "validation": {"passed": not failures, "failures": failures},
+        "scope": "diagnostic_only",
+        "cohort_exit": exit_state,
+        "timing_outcome": (
+            "runner_passed_timing_gate"
+            if exit_state["exit_code"] == 0
+            else "runner_failed_timing_gate_with_correctness_validated_separately"
+        ),
+        "result_rows": len(rows),
+        "real_drains": len(real),
+        "legacy_agent_skips": len(skips),
+        "all_session_counter_rows": len(all_counters),
+        "aggregate_primary_sender_transfers": len(aggregate_primary),
+        "legacy_counter_availability": {
+            "download": "frozen legacy agent skipped; unavailable",
+            "upload": "current server legacy Yamux sessions report enabled=false; unavailable",
+        },
+        "counter_semantics": {
+            "reserved_fields": "successful DATA reservations only",
+            "zero_observations": "overlapping send attempts; not wait counts, durations, or time fractions",
+            "selection": "maximum reserved_payload_bytes among enabled bulk lanes for the directional sender",
+        },
+        "receiving_growth_semantics": "largest resulting receive window per transfer; threshold time begins at first retained ring sample, not transfer start",
+        "aggregate_direction_totals": summary_groups,
+    }
+    (output / "allocation-summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return 0 if not failures else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

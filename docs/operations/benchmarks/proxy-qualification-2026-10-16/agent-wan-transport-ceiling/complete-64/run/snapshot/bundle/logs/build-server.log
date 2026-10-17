@@ -1,0 +1,4 @@
+/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test -c -tags=p2pstream_transport_ceiling -o /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/transport-ceiling-bundle.ccb9c9c.eof/bin/transport-ceiling-server.test ./internal/server
+real 7.20
+user 25.48
+sys 2.36

@@ -1,0 +1,201 @@
+{
+  "status": "source-only proposed sustained diagnostic; traffic not authorized",
+  "commands": [
+    {
+      "protocol": "h1",
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "900s",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+        "--server-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/current-server-terminal.test",
+        "--aggregate-agent-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/current-agent-terminal.test",
+        "--server-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+terminal-build-source-f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+        "--aggregate-agent-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+terminal-build-source-f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+        "--cert",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+        "--key",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.key.pem",
+        "--expected-leaf-sha256",
+        "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+        "--protocol",
+        "h1",
+        "--output-dir",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1"
+      ],
+      "only_if": "Explicit root approval of this manifest and exclusive runtime-window transfer",
+      "attempts": 1
+    },
+    {
+      "protocol": "h2",
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "900s",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+        "--server-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/current-server-terminal.test",
+        "--aggregate-agent-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/current-agent-terminal.test",
+        "--server-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+terminal-build-source-f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+        "--aggregate-agent-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+terminal-build-source-f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+        "--cert",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+        "--key",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.key.pem",
+        "--expected-leaf-sha256",
+        "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+        "--protocol",
+        "h2",
+        "--output-dir",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2"
+      ],
+      "only_if": "All exact H1 continuation preconditions below pass; report H1 outcome to root before H2",
+      "attempts": 1
+    }
+  ],
+  "retry": false,
+  "payload_bytes": 268435456,
+  "transfers_per_arm": 16,
+  "performance_gate_clearance": false,
+  "source_manifest_sha256": "fa9a76a9640ad5084daec1722da509f98dc9eca0c6541536b55d129e3e80fb8b",
+  "certificate_source_sha256": "ff371bbb028ee80cee245567d09261927fe57bcd43513f616514ba699d53c836",
+  "original_certificate_preflight_required": true,
+  "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+terminal-build-source-f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+  "build_inventory_sha256": "f6e6ba3506894c1129fb3dc58bc03607551a8a8d72031f7de1ad3514d48ebdfc",
+  "scope": "At most one matched H1/H2 sustained diagnostic, 16 transfers per arm; never final three-pair qualification",
+  "continuation_argv": [
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/supervisor-lifecycle.json",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/outer-namespaces.json",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/attestation.json",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1-continuation.json"
+  ],
+  "build_receipt_sha256": "ad0dbfb3adafab686a4fc84f75effaee57819f2694ae644ada901a192604ad62",
+  "runner_sha256": "7769587f80f70c441a4c25554b1647b78d41aea76eb6f2f6099104aa93443e9a",
+  "blocked_runner_sha256": "6597c4b73e715ab89d4a08ebdc90eae44af21a119dc9d8f2113543183080a353",
+  "continuation_validator_sha256": "f2ec2b1507291fe648d2293e9f345e664266d34a66abee3df5e85222c54fd913",
+  "root_verification": {
+    "reported_by": "root",
+    "result": "actual receipt verifier against actual binaries and matching source refs returned natural zero",
+    "executed_by_this_worker": false
+  },
+  "bounds": {
+    "each_arm_outer_seconds": 900,
+    "outer_term_grace_seconds": 10,
+    "continuation_outer_seconds": 20,
+    "continuation_max_output_bytes": 65536,
+    "attempts_per_arm": 1,
+    "stop_on_first_failure": true,
+    "retry": false,
+    "task_artifact_budget_bytes": 268435456,
+    "owned_process_groups_must_join": true,
+    "forced_exit_rejects": true,
+    "all_original_resource_transfer_and_natural_endpoint_checks_retained": true,
+    "existing_inner_runner_seconds": 4800,
+    "existing_derived_endpoint_seconds": 4397,
+    "existing_per_transfer_seconds": 188
+  },
+  "release_requirement": "Root reviews this exact manifest and separately transfers runtime before any sustained command.",
+  "source_only_change": "New command declaration only; no runner/source/binary changes.",
+  "total_transfers_if_both_arms_run": 32,
+  "workload": {
+    "size_mode": "sustained (existing default)",
+    "warmup_mib": 256,
+    "steady_mib": 256,
+    "steady_repetitions": 3,
+    "rtt_ms": 80,
+    "required_pool_mib": 8,
+    "runs": 1,
+    "warmup_lane_rounds": 4,
+    "retained_warmup_transfers": 2,
+    "existing_pool_requirement_restored": true
+  },
+  "storage_allowance": {
+    "bytes": 268435456,
+    "approved_by": "root for prospective sustained plan",
+    "scope": "storage only, all task artifacts including prior evidence",
+    "original100MiB_and_H2_128MiB_manifests_preserved": true,
+    "application_memory_changed": false,
+    "reason": "Preserve both sustained arms and prior immutable evidence without deletion or another source/binary copy."
+  },
+  "h1_continuation_preconditions": [
+    "No forced exit or deadline; outer status exact integer0 or1 only; no group remnants.",
+    "Complete independent attestation exists; integrity_issues==[] and conditioning_issues==[]; exact payload/protocol/events, resource, owner and natural-zero endpoint/helper gates pass.",
+    "If outer status0: runner_status0, invalidates_success=false, attestation.accepted=true, performance_issues==[], validation.status0.",
+    "If outer status1: only recognized original performance rejection; runner_status1, invalidates_success=true, attestation.accepted=false, performance_issues is nonempty, validation_issues==performance_issues and validation.status1. Preserve that failed performance verdict.",
+    "Prospective attribution independently equals saved result and is accepted; exact reviewed106 verdict and final record are preserved; raw finalizer exact diagnostic0/1 agrees with independent saved result. No arbitrary endpoint/sidecar failure accepted.",
+    "Existing unchanged 20-case-tested H1 continuation validator returns natural0 and accepted=true. This external plan additionally forbids any conditioning failure, even if that validator alone allows a conditioning-only continuation.",
+    "H1 pre/post source hashes agree and current pinned inputs remain unchanged; task remains below prospective storage cap.",
+    "Report H1 outcome before executing H2 exactly once. Any failed prerequisite withholds H2; never rerun H1."
+  ],
+  "question": "For healthy-conditioned matched H1/H2 arms, where is each owner first sampled to have a finite/changed snd_ssthresh relative to binding, warmup and the existing selected download boundaries?",
+  "analysis_contract": [
+    "Use only existing bounded threshold-history/TCP snapshots and exact owner lane/generation/session/address joins; report before/after retained samples and sampled sequence/phase.",
+    "Preserve missing/truncated/failed captures as inconclusive; first sampled change is not an exact kernel transition timestamp and cannot prove congestion-control cause.",
+    "Report floor outcomes and conditioning separately; do not localize an H1/H2 cause from an underconditioned arm.",
+    "No new observer, kernel knobs, source edits, recompilation, traffic retries or broader qualification.",
+    "This diagnostic cannot clear the original aggregate-vs-legacy three alternating pairs of32 transfers (96 total) with >=90% each direction/pair, nor revise old rejected runs. Final qualification must use final production source."
+  ],
+  "workload_delta_from_smoke": {
+    "argv_changes": [
+      "remove exactly --small-diagnostic",
+      "replace output path terminal-smoke-once with terminal-sustained-once"
+    ],
+    "original_sustained_mode_effects": [
+      "warmup/steady payload4MiB ->256MiB",
+      "required observed pool2MiB -> original8MiB",
+      "original sustained floor acceptance restored; no --sender-wait-small bypass"
+    ],
+    "unchanged": [
+      "same frozen agent/server binaries",
+      "same runner and validator sources",
+      "same source refs and certificate",
+      "16 transfers per arm and three steady repetitions",
+      "80ms RTT",
+      "900-second outer arm deadline and10-second grace",
+      "all existing endpoint/resource/owner/payload checks"
+    ]
+  },
+  "input_hashes": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/smoke-freeze/COMMANDS.json",
+      "sha256": "6d898da8254c2a7c2c38fc81fb152235294de7825725dd4322fa4a601fba1f8c"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/smoke-execution/FINAL-AUDIT.json",
+      "sha256": "603d657ce35e81ad934ca86715127feb49cae645c460082be174e9730d8e423f"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/smoke-execution/SHA256SUMS",
+      "sha256": "094afff9e304a5866538f33858795b356efc306d9698c6f5e9d051d815df8c03"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/receipt.json",
+      "sha256": "ad0dbfb3adafab686a4fc84f75effaee57819f2694ae644ada901a192604ad62"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+      "sha256": "7769587f80f70c441a4c25554b1647b78d41aea76eb6f2f6099104aa93443e9a"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+      "sha256": "f2ec2b1507291fe648d2293e9f345e664266d34a66abee3df5e85222c54fd913"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+      "sha256": "dd526df214e7adcbcfd4c790d2581348f8b1048d13fd5ca0d832306f57860235"
+    }
+  ]
+}

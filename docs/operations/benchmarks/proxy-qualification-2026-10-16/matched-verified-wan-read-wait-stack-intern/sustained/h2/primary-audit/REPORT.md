@@ -1,0 +1,7 @@
+# Sustained standalone H2 complement closure
+
+The frozen original arm is rejected (status 1). It has 16 exact rows. Correctness, verified H2/TLS/certificate, copy attribution, transport trace, and expected same-key reuse gates are true. Download sequences 9, 11, and 14 fail the independent 29.7 MB/s floor. The original analyzer rejects all four captures solely because positive waiting intervals have no `TransitionStack`; those original reductions and index remain unchanged.
+
+Raw lifecycle evidence records five endpoint/namespace process exits at status 0 with natural group joins, plus the namespace-start row. The outer supervisor group joined naturally without forced cleanup. The server scope resource attestation is accepted: 4 GiB `memory.max`, zero swap, 243,535,872-byte peak, unchanged zero pressure/OOM events, and natural unit disappearance (`not-found/inactive/dead`). The attestation's `outer_runner_group_joined=false` wording reflects the composite nonzero runner/analyzer gate and conflicts with the raw natural lifecycle; it is preserved as a reporting discrepancy.
+
+Corrected reductions are separate derived evidence and do not alter this arm, complete the original withheld pair, repair floor failures, prove qualification, or resolve unknown wait-stack attribution. Raw traces and canonical `.intern` files remain local and are omitted from export by hash; no H2 export-safety scan was run.

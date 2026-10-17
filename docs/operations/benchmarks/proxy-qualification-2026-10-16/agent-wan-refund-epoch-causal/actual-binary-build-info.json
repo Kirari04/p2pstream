@@ -1,0 +1,32 @@
+{
+  "driver_and_origin": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/bundle/driver-origin.test",
+    "sha256": "453924e217f211e575440613925c27651e7c14fa3a3316851469ebd70c4b79aa",
+    "build_id": "AoY8OBIxVeSpgtQOCr3w/OCEdbba-lwbN0a1BptkW/1rZMnNi3kIuMU7zefMTj/295gYmXem_xeuGWMoqX3",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/bundle/driver-origin.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "control_server": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/bundle/refund-current-batch-control.server.test",
+    "sha256": "453924e217f211e575440613925c27651e7c14fa3a3316851469ebd70c4b79aa",
+    "build_id": "AoY8OBIxVeSpgtQOCr3w/OCEdbba-lwbN0a1BptkW/1rZMnNi3kIuMU7zefMTj/295gYmXem_xeuGWMoqX3",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/bundle/refund-current-batch-control.server.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "control_agent": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/bundle/refund-current-batch-control.agent.test",
+    "sha256": "bae850a2c81085148098d90f4d27dd88617a5023f3dd67665bda742806ae6dcf",
+    "build_id": "_5_3wnEQIV91bIwurS9Z/hbvwhIKopFLf8Yo3HIjP/5csZ2Ew2-DAD59F5XnNw/I_oZXDONDOTviDMzXDSg",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/bundle/refund-current-batch-control.agent.test: go1.26.6\n\tpath\tp2pstream/internal/agent.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "deferred_server": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/bundle/refund-streams-before-global-epoch.server.test",
+    "sha256": "ad7f3b2605f9375fa2f5015a73dd10e6f32946124fff21e7494f7185d5019699",
+    "build_id": "mXw7eDF7q6xva94H80W1/dpQUmCQMo6U3b7opND6M/oZrtqgDqJxd6qOlqiiCT/wueRvQRKhZjg17hvrwml",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/bundle/refund-streams-before-global-epoch.server.test: go1.26.6\n\tpath\tp2pstream/internal/server.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  },
+  "deferred_agent": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/bundle/refund-streams-before-global-epoch.agent.test",
+    "sha256": "3a7b45294921e633f9e13a825c8ec572c43e45076aa6e243b5f3baeeb6ddcbde",
+    "build_id": "bvYuIBn2H6oEuTmrSGbb/9vYnx1FFx2a_w58hrELS/VnfkxNRxUuE9Y9rxyHp-/EtNMcU8wq-zawt4LEs09",
+    "build_info": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/refund-deferred-global-source.X7x9jl/bundle/refund-streams-before-global-epoch.agent.test: go1.26.6\n\tpath\tp2pstream/internal/agent.test\n\tmod\tp2pstream\t(devel)\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+  }
+}

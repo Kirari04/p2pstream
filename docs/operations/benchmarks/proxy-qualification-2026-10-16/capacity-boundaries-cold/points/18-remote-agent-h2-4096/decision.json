@@ -1,0 +1,26 @@
+{
+  "accepted": false,
+  "capacity_event_conservation": "exact",
+  "checks": {
+    "agent_no_admission_rejections": true,
+    "all_useful": false,
+    "ballast": true,
+    "capacity_row": true,
+    "connection_shape": true,
+    "constrained_no_oom": true,
+    "correct_protocol": true,
+    "events": true,
+    "origin_simultaneous": false,
+    "recovery": true,
+    "recovery_row": true,
+    "request_owner_simultaneous": false,
+    "runner_completed": true
+  },
+  "concurrency": 4096,
+  "confirmation": true,
+  "evidence": "18-remote-agent-h2-4096",
+  "exit_code": 0,
+  "path": "remote-agent",
+  "protocol": "h2",
+  "safe_to_continue": true
+}

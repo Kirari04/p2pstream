@@ -1,0 +1,167 @@
+{
+  "arms": [
+    {
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "900s",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/arm-wrapper.sh",
+        "--server-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-server-early-share.test",
+        "--aggregate-agent-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-agent-early-share.test",
+        "--server-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+        "--aggregate-agent-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+        "--cert",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+        "--key",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.key.pem",
+        "--expected-leaf-sha256",
+        "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+        "--protocol",
+        "h2",
+        "--output-dir",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-0-share-off"
+      ],
+      "attempts": 1,
+      "controller": "cubic",
+      "early_share_policy": 0,
+      "env": {
+        "P2PSTREAM_IDLE_ARM_INDEX": "0",
+        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic",
+        "P2PSTREAM_QUALIFICATION_EARLY_SHARE": "0",
+        "P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-0-share-off"
+      },
+      "idle_policy": 1,
+      "index": 0,
+      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-0-share-off"
+    },
+    {
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "900s",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/arm-wrapper.sh",
+        "--server-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-server-early-share.test",
+        "--aggregate-agent-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-agent-early-share.test",
+        "--server-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+        "--aggregate-agent-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+        "--cert",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+        "--key",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.key.pem",
+        "--expected-leaf-sha256",
+        "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+        "--protocol",
+        "h2",
+        "--output-dir",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on"
+      ],
+      "attempts": 1,
+      "controller": "cubic",
+      "early_share_policy": 1,
+      "env": {
+        "P2PSTREAM_IDLE_ARM_INDEX": "1",
+        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic",
+        "P2PSTREAM_QUALIFICATION_EARLY_SHARE": "1",
+        "P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on"
+      },
+      "idle_policy": 1,
+      "index": 1,
+      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-1-share-on"
+    },
+    {
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "900s",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/arm-wrapper.sh",
+        "--server-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-server-early-share.test",
+        "--aggregate-agent-binary",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-agent-early-share.test",
+        "--server-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+        "--aggregate-agent-source-ref",
+        "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+        "--cert",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+        "--key",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.key.pem",
+        "--expected-leaf-sha256",
+        "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+        "--protocol",
+        "h2",
+        "--output-dir",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-2-share-off"
+      ],
+      "attempts": 1,
+      "controller": "cubic",
+      "early_share_policy": 0,
+      "env": {
+        "P2PSTREAM_IDLE_ARM_INDEX": "2",
+        "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic",
+        "P2PSTREAM_QUALIFICATION_EARLY_SHARE": "0",
+        "P2PSTREAM_QUALIFICATION_EARLY_SHARE_PROOF_DIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-2-share-off"
+      },
+      "idle_policy": 1,
+      "index": 2,
+      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs/early-share-aba-once/arm-2-share-off"
+    }
+  ],
+  "controller_order": [
+    "cubic",
+    "cubic",
+    "cubic"
+  ],
+  "early_share_order": [
+    0,
+    1,
+    0
+  ],
+  "idle_policy_order": [
+    1,
+    1,
+    1
+  ],
+  "max_transfers": 48,
+  "original_96_transfer_and_HAProxy_gates": "failed; unchanged",
+  "outer_supervision": {
+    "KILL_reap_seconds": 5,
+    "TERM_grace_seconds": 10,
+    "arm_stream_bytes_each": 16777216,
+    "bounded_cleanup_poll_seconds": 0.05,
+    "direct_child_and_two_log_size_poll_seconds": 0.05,
+    "durable_audit_reserved_bytes": 1048576,
+    "full_process_and_artifact_inventory_seconds": 1.0,
+    "independent_validation_seconds": 60,
+    "launcher_seconds": 930,
+    "natural_join_required": true,
+    "remaining_groups_or_forced_cleanup": "reject and stop all remaining traffic",
+    "started_and_final_records_required": true,
+    "task_artifact_bytes": 268435456,
+    "validator_stream_bytes_each": 1048576
+  },
+  "performance_evaluation": "after all three fresh structurally eligible arms",
+  "retry": false,
+  "status": "source-only early backed share off/on/off; separate exact root runtime grant required",
+  "stop_on_first_invalid_arm": "strict structural or initial-conditioning invalidity only; reported postwarmup reuse/performance outcomes never stop remaining arms",
+  "transfers_per_arm": 16,
+  "workload": {
+    "protocol": "h2",
+    "required_pool_mib": 8,
+    "rtt_ms": 80,
+    "steady_mib": 256,
+    "steady_repetitions": 3,
+    "warmup_mib": 256
+  }
+}

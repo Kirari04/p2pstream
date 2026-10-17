@@ -1,0 +1,345 @@
+#!/usr/bin/env python3
+"""Validate and summarize the finite post-transfer growth-ring diagnostic."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import math
+import statistics
+from collections import Counter, defaultdict
+from pathlib import Path
+from typing import Any
+
+
+EXPECTED_ROWS = 32
+EXPECTED_REAL_DRAINS = 48
+EXPECTED_LEGACY_SKIPS = 16
+EXPECTED_CAPACITY = 4096
+THRESHOLDS = (1 << 20, 4 << 20, 8 << 20, 16 << 20)
+OUTCOMES = {"no_proposal", "grown", "reservation_denied", "publication_error"}
+EVENT_KEYS = (
+    "sample_unix_nano",
+    "lane",
+    "session_identity",
+    "local_address",
+    "remote_address",
+    "stream_id",
+    "aggregate",
+    "current",
+    "proposed",
+    "maximum",
+    "rtt_nanoseconds",
+    "rate_bytes_per_second",
+    "previous",
+    "denied_until_unix_nano",
+    "denial_active_after_outcome",
+    "outcome",
+)
+
+
+def read_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    with path.open(encoding="utf-8") as source:
+        return [json.loads(line) for line in source if line.strip()]
+
+
+def percentile(values: list[float], proportion: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    return ordered[max(0, math.ceil(proportion * len(ordered)) - 1)]
+
+
+def resulting_limit(event: dict[str, Any]) -> int:
+    if event["outcome"] == "grown":
+        return int(event["proposed"])
+    return int(event["current"])
+
+
+def stream_summary(events: list[dict[str, Any]]) -> dict[str, Any]:
+    ordered = sorted(events, key=lambda event: event["event_index"])
+    first = int(ordered[0]["sample_unix_nano"])
+    rtts = [int(event["rtt_nanoseconds"]) for event in ordered]
+    rates = [float(event["rate_bytes_per_second"]) for event in ordered]
+    threshold_times: dict[str, float | None] = {}
+    for threshold in THRESHOLDS:
+        crossing = next(
+            (event for event in ordered if resulting_limit(event) >= threshold),
+            None,
+        )
+        threshold_times[str(threshold)] = (
+            None
+            if crossing is None
+            else (int(crossing["sample_unix_nano"]) - first) / 1_000_000
+        )
+    base = {
+        key: ordered[0][key]
+        for key in (
+            "sequence",
+            "label",
+            "transport_mode",
+            "measurement_stage",
+            "transfer_direction",
+            "repetition",
+            "role",
+            "lane",
+            "session_identity",
+            "stream_id",
+            "aggregate",
+            "local_address",
+            "remote_address",
+        )
+    }
+    base.update(
+        event_count=len(ordered),
+        outcome_counts=dict(sorted(Counter(event["outcome"] for event in ordered).items())),
+        first_sample_unix_nano=first,
+        last_sample_unix_nano=int(ordered[-1]["sample_unix_nano"]),
+        retained_sample_span_ms=(int(ordered[-1]["sample_unix_nano"]) - first) / 1_000_000,
+        sample_time_inversions=sum(
+            int(right["sample_unix_nano"]) < int(left["sample_unix_nano"])
+            for left, right in zip(ordered, ordered[1:])
+        ),
+        current_min=min(int(event["current"]) for event in ordered),
+        current_max=max(int(event["current"]) for event in ordered),
+        proposed_max=max(int(event["proposed"]) for event in ordered),
+        resulting_limit_max=max(resulting_limit(event) for event in ordered),
+        maximum=max(int(event["maximum"]) for event in ordered),
+        rtt_nanoseconds_min=min(rtts),
+        rtt_nanoseconds_median=statistics.median(rtts),
+        rtt_nanoseconds_max=max(rtts),
+        rate_bytes_per_second_min=min(rates),
+        rate_bytes_per_second_median=statistics.median(rates),
+        rate_bytes_per_second_max=max(rates),
+        threshold_time_from_first_retained_sample_ms=threshold_times,
+    )
+    return base
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("root", type=Path)
+    parser.add_argument("--output-dir", type=Path)
+    args = parser.parse_args()
+    root = args.root.resolve()
+    if not (root / "exit.json").exists():
+        raise SystemExit("Analyze only after the finite diagnostic runner exits")
+    output = (args.output_dir or (root / "analysis")).resolve()
+    output.mkdir(parents=True, exist_ok=True)
+
+    failures: list[str] = []
+    rows = read_jsonl(root / "results.jsonl")
+    if len(rows) != EXPECTED_ROWS:
+        failures.append(f"result rows {len(rows)}, want {EXPECTED_ROWS}")
+    for sequence, row in enumerate(rows, 1):
+        expected = {
+            "attempted": 1,
+            "useful_completed": 1,
+            "persisted_event_delta": 1,
+            "errors": 0,
+        }
+        for key, want in expected.items():
+            if row.get(key) != want:
+                failures.append(f"row {sequence} {key}={row.get(key)!r}, want {want!r}")
+        if row.get("status_codes") != {"200": 1}:
+            failures.append(f"row {sequence} status_codes={row.get('status_codes')!r}")
+        if row.get("event_stats_captured") is not True:
+            failures.append(f"row {sequence} event stats unavailable")
+        if (row.get("event_queue_after_drain") or 0) != 0:
+            failures.append(f"row {sequence} event queue after drain is nonzero")
+        if (row.get("dropped_event_delta") or 0) != 0:
+            failures.append(f"row {sequence} dropped event delta is nonzero")
+        if row.get("event_drain_error") not in (None, ""):
+            failures.append(f"row {sequence} event drain error={row.get('event_drain_error')!r}")
+        configured = row.get("configured_payload_bytes")
+        response = row.get("response_bytes")
+        direction = row.get("transfer_direction")
+        if not isinstance(configured, int) or configured <= 0:
+            failures.append(f"row {sequence} configured payload invalid: {configured!r}")
+        if direction == "download" and response != configured:
+            failures.append(f"row {sequence} download response bytes={response!r}, want {configured!r}")
+        if direction == "upload" and response != 32:
+            failures.append(f"row {sequence} upload response bytes={response!r}, want 32-byte digest")
+        if direction not in ("download", "upload"):
+            failures.append(f"row {sequence} transfer direction={direction!r}")
+
+    drain_paths = sorted(
+        (root / "growth").glob("*.json"),
+        key=lambda path: (
+            int(path.name.split("-", 1)[0]),
+            0 if path.name.endswith("-server.json") else 1,
+        ),
+    )
+    drains = [read_json(path) for path in drain_paths]
+    real_drains = [drain for drain in drains if not drain.get("skipped", False)]
+    skipped_drains = [drain for drain in drains if drain.get("skipped", False)]
+    if len(drains) != EXPECTED_ROWS * 2:
+        failures.append(f"drain records {len(drains)}, want {EXPECTED_ROWS * 2}")
+    if len(real_drains) != EXPECTED_REAL_DRAINS:
+        failures.append(f"real drains {len(real_drains)}, want {EXPECTED_REAL_DRAINS}")
+    if len(skipped_drains) != EXPECTED_LEGACY_SKIPS:
+        failures.append(f"legacy skips {len(skipped_drains)}, want {EXPECTED_LEGACY_SKIPS}")
+    for sequence in range(1, EXPECTED_ROWS + 1):
+        selected = [drain for drain in drains if drain.get("sequence") == sequence]
+        if sorted(drain.get("role") for drain in selected) != ["agent", "server"]:
+            failures.append(f"sequence {sequence} drain roles invalid")
+    for drain in skipped_drains:
+        if drain.get("role") != "agent" or drain.get("transport_mode") != "legacy":
+            failures.append(f"unexpected skipped drain at sequence {drain.get('sequence')}")
+
+    complete_events: list[dict[str, Any]] = []
+    dropped_total = 0
+    unmapped_total = 0
+    global_sample_time_inversions = 0
+    for drain in real_drains:
+        if drain.get("error"):
+            failures.append(f"drain sequence {drain.get('sequence')} {drain.get('role')} error={drain['error']}")
+            continue
+        snapshot = drain.get("snapshot", {})
+        if snapshot.get("schema_version") != 1 or snapshot.get("capacity") != EXPECTED_CAPACITY:
+            failures.append(f"drain sequence {drain.get('sequence')} {drain.get('role')} schema/capacity invalid")
+        dropped = snapshot.get("dropped_events")
+        if not isinstance(dropped, int) or dropped < 0:
+            failures.append(f"drain sequence {drain.get('sequence')} {drain.get('role')} dropped invalid")
+            dropped = 0
+        dropped_total += dropped
+        events = snapshot.get("events")
+        if not isinstance(events, list) or len(events) > EXPECTED_CAPACITY:
+            failures.append(f"drain sequence {drain.get('sequence')} {drain.get('role')} events invalid")
+            continue
+        timestamps = [event.get("sample_unix_nano") for event in events]
+        global_sample_time_inversions += sum(
+            isinstance(left, int) and isinstance(right, int) and right < left
+            for left, right in zip(timestamps, timestamps[1:])
+        )
+        for event_index, event in enumerate(events):
+            missing = [key for key in EVENT_KEYS if key not in event]
+            if missing or event.get("outcome") not in OUTCOMES:
+                failures.append(
+                    f"drain sequence {drain.get('sequence')} {drain.get('role')} event {event_index} invalid"
+                )
+                continue
+            if event["lane"] == -1:
+                unmapped_total += 1
+            complete_events.append(
+                {
+                    "sequence": drain["sequence"],
+                    "label": drain["label"],
+                    "transport_mode": drain["transport_mode"],
+                    "measurement_stage": drain["measurement_stage"],
+                    "transfer_direction": drain["transfer_direction"],
+                    "repetition": drain["repetition"],
+                    "role": drain["role"],
+                    "event_index": event_index,
+                    **{key: event.get(key) for key in EVENT_KEYS},
+                }
+            )
+    if dropped_total:
+        failures.append(f"growth ring overwrote {dropped_total} events")
+    if unmapped_total:
+        failures.append(f"growth trace has {unmapped_total} unmapped events")
+
+    epoch_keys = {
+        (event["role"], event["session_identity"], event["stream_id"], event["sample_unix_nano"])
+        for event in complete_events
+    }
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    group_keys = (
+        "sequence",
+        "role",
+        "lane",
+        "session_identity",
+        "stream_id",
+    )
+    for event in complete_events:
+        groups[tuple(event[key] for key in group_keys)].append(event)
+    per_stream = [stream_summary(events) for _, events in sorted(groups.items())]
+
+    event_columns = (
+        "sequence",
+        "label",
+        "transport_mode",
+        "measurement_stage",
+        "transfer_direction",
+        "repetition",
+        "role",
+        "event_index",
+        *EVENT_KEYS,
+    )
+    with (output / "growth-events.csv").open("w", newline="", encoding="utf-8") as destination:
+        writer = csv.DictWriter(destination, fieldnames=event_columns, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(complete_events)
+    (output / "growth-per-stream.json").write_text(
+        json.dumps(per_stream, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    delay_values: list[float] = []
+    delay_path = root / "growth" / "post-drain-delays.tsv"
+    if delay_path.exists():
+        for line_number, line in enumerate(delay_path.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
+            fields = line.split("\t")
+            if len(fields) != 4:
+                failures.append(f"drain delay line {line_number} has {len(fields)} fields")
+                continue
+            _, _, before, after = fields
+            delay_values.append((float(after) - float(before)) * 1000)
+    if len(delay_values) != EXPECTED_ROWS:
+        failures.append(f"drain delays {len(delay_values)}, want {EXPECTED_ROWS}")
+
+    summary = {
+        "acceptance": {
+            "complete": not failures,
+            "failures": failures,
+            "scope": "diagnostic_only",
+        },
+        "result_rows": len(rows),
+        "attempted_total": sum(int(row.get("attempted", 0)) for row in rows),
+        "useful_total": sum(int(row.get("useful_completed", 0)) for row in rows),
+        "persisted_event_total": sum(int(row.get("persisted_event_delta", 0)) for row in rows),
+        "real_drains": len(real_drains),
+        "legacy_agent_skips": len(skipped_drains),
+        "growth_events": len(complete_events),
+        "unique_growth_epochs": len(epoch_keys),
+        "duplicate_epoch_events": len(complete_events) - len(epoch_keys),
+        "global_sample_time_inversions": global_sample_time_inversions,
+        "per_stream_sample_time_inversions": sum(
+            item["sample_time_inversions"] for item in per_stream
+        ),
+        "event_order_semantics": "ring insertion/completion order; sample time is pre-publication and may invert across concurrent streams",
+        "ring_capacity": EXPECTED_CAPACITY,
+        "dropped_events": dropped_total,
+        "unmapped_events": unmapped_total,
+        "outcome_counts": dict(sorted(Counter(event["outcome"] for event in complete_events).items())),
+        "events_by_role": dict(sorted(Counter(event["role"] for event in complete_events).items())),
+        "events_by_mode": dict(sorted(Counter(event["transport_mode"] for event in complete_events).items())),
+        "events_by_direction": dict(sorted(Counter(event["transfer_direction"] for event in complete_events).items())),
+        "per_stream_groups": len(per_stream),
+        "thresholds_bytes": list(THRESHOLDS),
+        "threshold_timing_origin": "first retained growth-ring sample for the same transfer/role/lane/session/stream; not transfer start",
+        "post_transfer_drain_delay_ms": {
+            "count": len(delay_values),
+            "min": min(delay_values) if delay_values else None,
+            "median": statistics.median(delay_values) if delay_values else None,
+            "p95": percentile(delay_values, 0.95),
+            "max": max(delay_values) if delay_values else None,
+            "sum": sum(delay_values),
+        },
+    }
+    (output / "growth-summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return 0 if not failures else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

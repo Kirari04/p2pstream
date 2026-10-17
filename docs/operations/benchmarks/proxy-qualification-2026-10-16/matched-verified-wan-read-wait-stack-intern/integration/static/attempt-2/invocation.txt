@@ -1,0 +1,1 @@
+bash tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/run-static-integration-checks.sh

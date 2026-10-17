@@ -1,0 +1,25 @@
+{
+  "accepted": false,
+  "capacity_event_conservation": "exact",
+  "checks": {
+    "all_useful": false,
+    "ballast": true,
+    "capacity_row": true,
+    "connection_shape": true,
+    "constrained_no_oom": true,
+    "correct_protocol": true,
+    "events": true,
+    "origin_simultaneous": false,
+    "recovery": true,
+    "recovery_row": true,
+    "request_owner_simultaneous": false,
+    "runner_completed": true
+  },
+  "concurrency": 2304,
+  "confirmation": false,
+  "evidence": "10-direct-h2-2304",
+  "exit_code": 0,
+  "path": "direct",
+  "protocol": "h2",
+  "safe_to_continue": true
+}

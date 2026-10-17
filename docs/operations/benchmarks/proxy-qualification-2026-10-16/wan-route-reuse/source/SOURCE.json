@@ -1,0 +1,108 @@
+{
+  "status": "source only; gofmt and diff-check completed; no tests or builds executed by worker",
+  "policy": "Public route-target same-key idle-entry preference, same aggregate/legacy policy, <=4 exact live-lane keys; cursor advances on reuse; existing round-robin get/create fallback and admission unchanged. In-flight means this pool entry, not whole physical lane.",
+  "ownership": "Preferred entry selection+claim atomic under tunnelMu then pool.mu; no I/O under locks; original body tracker releases once. Factory wrapper owns no lease. Fallback keeps baseline RR/get-create/claim phases; new shards have idleHint=false, and every invocation independently owns its claim.",
+  "cost": "One short-lived selector containing the full key per public factory invocation. No selector cache or new retained memory/reservation.",
+  "fixture_notes": [
+    "Registry and reconcile tests explicitly seed keyed pool entries without network so original retirement/generation assertions remain meaningful.",
+    "Real-agent topology test retires first four warmup entries to cover all four live bulk lanes before serial reuse; primary-loss and revocation assertions remain.",
+    "Existing benchmark serial setup loops do not guarantee four distinct warm pool entries under locality; benchmarks were not changed. Original qualification closeAll-after-each-warmup is preserved."
+  ],
+  "files": [
+    {
+      "path": "internal/server/agent_transport_pool.go",
+      "sha256": "329ffaf975191049b843301f04d83572c85b9eecb76a5896314073301057dd0f",
+      "tests": []
+    },
+    {
+      "path": "internal/server/agent_transport_locality_test.go",
+      "sha256": "f1e2b2489996b23a5106057c1147ab7c99487d5d0842072a898d0d5c55ec2925",
+      "tests": [
+        "TestAgentRouteLocalityConcurrentClaims",
+        "TestAgentRouteLocalityRejectsIneligibleEntry",
+        "TestAgentRouteLocalityBodyOwnership",
+        "TestAgentRouteLocalityFactoryDoesNotClaimOrAllocatePoolEntry",
+        "TestAgentRouteLocalityWarmupCloseAllPreservesRoundRobin",
+        "TestAgentRouteLocalityBoundedWindowAndMaximumLane",
+        "TestAgentRouteLocalityAllBusyUsesRoundRobinWithoutWaiting",
+        "TestAgentRouteLocalityConcurrentColdLiveLanes",
+        "TestAgentRouteLocalityStaleIdleHintAndCancellation"
+      ]
+    },
+    {
+      "path": "internal/server/agent_transport_pool_test.go",
+      "sha256": "5a8bae9607cc114351619b8d7c04ec21818e60eb80ca2af287578b7971038168",
+      "tests": [
+        "TestAgentTransportPoolReusesPublicRouteTargetConnection",
+        "TestAgentTransportPoolRetainsMoreThan256WarmTargets",
+        "TestAgentTransportPoolPressureReclaimPrefersSessionAndScalesWithDemand",
+        "TestAgentTransportPoolReclaimsIdleSocketBesideActiveResponse",
+        "TestAgentTransportPoolReusesWarmConnectionForBodyRequest",
+        "TestAgentTransportPoolPressureReclaimsIdleShardAndSafelyHandsOffBody",
+        "TestAgentTransportPoolIdleStreamUsesPooledBudgetAndOneShotHeadroom",
+        "TestAgentTransportPoolReservedHeadroomKeepsColdTargetAvailableAcrossFourAgents",
+        "TestAgentTransportPoolConcurrentPublicRouteTargetRequestsOpenParallelStreams",
+        "TestAgentTransportPoolSeparatesAgentsAndRouteTargets",
+        "TestAgentTransportPoolCloseRouteTargetForcesNewPublicStream",
+        "TestAgentTransportPoolAgentDisconnectInvalidatesPool",
+        "TestAgentDialRequestIDContextFallback"
+      ]
+    },
+    {
+      "path": "internal/server/agent_real_transport_test.go",
+      "sha256": "8d5602623ea8aaabbcc9c05374b4c6912fd8afaaeea3eae6383aba92fe1ccce5",
+      "tests": [
+        "TestRealAgentParallelTunnelsSurvivePrimaryLoss",
+        "TestRealAgentProxyPhaseTimingAndReuse"
+      ]
+    },
+    {
+      "path": "internal/server/agent_registry_test.go",
+      "sha256": "8d15a9fd6dd72dcb29911e27eb1e01c78c8315ef1e16a5ef0290c1ffc99f157e",
+      "tests": [
+        "TestRandomAgentPublicIDFormatAndUniqueness",
+        "TestCreateAgentWithGeneratedPublicIDCollisionRetry",
+        "TestCreateAgentWithGeneratedPublicIDCollisionFailure",
+        "TestCreateAgentStoresSystemAndUserLabels",
+        "TestAgentProtoReportsLiveNegotiatedTunnelCapacity",
+        "TestAgentProtoDoesNotReusePreConnectionCapacityHeartbeat",
+        "TestReportStatsPublishesAdaptivePressureWithoutChangingNegotiatedGuard",
+        "TestReportStatsRecordsAgentBuildIdentity",
+        "TestCreateAgentRejectsDuplicateNormalizedLabelKeys",
+        "TestUpdateAgentReplacesUserLabelsAndPreservesSystemLabel",
+        "TestUpdateAgentLifecycleChangePreservesLabelsUntilReplacementIsExplicit",
+        "TestRotateAgentTokenDisconnectsActiveAgent",
+        "TestRotateAgentTokenOnlyDisconnectsTargetAgent",
+        "TestRotateAgentTokenClosesTunnelConnection",
+        "TestAgentTunnelRejectsAgentInitiatedStreams",
+        "TestAgentTunnelReadGateRejectsSYNQueuedBeforeGoAway",
+        "TestAgentTunnelRechecksTokenBeforeRegisteringAfterRotation",
+        "TestAgentTunnelFinalAuthLockReleasedAfterHijackFailure",
+        "TestAgentTunnelRejectsMissingUpgrade",
+        "TestAgentTunnelRejectsWrongVersion",
+        "TestAgentTunnelRejectsInvalidAdvertisedCapacity",
+        "TestAgentTunnelNegotiatesAdvertisedCapacity",
+        "TestExplicitFixedServerCapacityUsesResourceCoveredYamuxWindow",
+        "TestAgentTunnelNegotiatesAdaptiveCapacityAtProtocolGuard",
+        "TestAgentTunnelRejectsMissingCapacityHeaders",
+        "TestAgentTunnelReplacesDuplicateConnection",
+        "TestAgentConnSignalDoneIsConcurrentAndIdempotent",
+        "TestAgentReplacementSerializesPriorDisconnectSideEffects",
+        "TestStaleAgentCleanupCannotAffectReplacementSideEffects"
+      ]
+    },
+    {
+      "path": "internal/server/direct_transport_pool_test.go",
+      "sha256": "10e93eec5968179e91eb8e13ea77a7290ff8a6cbcb135c196b4088bc1c35f71c",
+      "tests": [
+        "TestDirectTransportPoolReusesPublicRouteTargetConnection",
+        "TestDirectTransportPoolAppliesConnectionBudget",
+        "TestDirectResourcePressurePreservesOriginHealthAndRecovers",
+        "TestDirectTransportPoolSeparatesRouteTargetsTLSAndTimeouts",
+        "TestDirectTransportPoolNormalizesDefaultTimeout",
+        "TestDirectTransportPoolCloseRouteTargetForcesNewConnection",
+        "TestRouteTargetTransportReconcileEvictsChangedAndRemovedTargets"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "<stdin>", line 146, in <module>
+  File "<stdin>", line 95, in initial
+  File "<stdin>", line 92, in base
+  File "<stdin>", line 76, in ledger
+ValueError: server pool schema

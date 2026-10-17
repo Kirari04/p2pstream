@@ -1,0 +1,75 @@
+{
+  "differences": [
+    {
+      "differences": [
+        {
+          "baseline": {
+            "assembly": "MOVQ 0x30(DX), SI",
+            "bytes": "488b7230",
+            "offset": 1020
+          },
+          "candidate": {
+            "assembly": "MOVQ 0x28(DX), SI",
+            "bytes": "488b7228",
+            "offset": 1020
+          },
+          "index": 188
+        },
+        {
+          "baseline": {
+            "assembly": "MOVQ 0x28(DX), DX",
+            "bytes": "488b5228",
+            "offset": 1024
+          },
+          "candidate": {
+            "assembly": "MOVQ 0x30(DX), DX",
+            "bytes": "488b5230",
+            "offset": 1024
+          },
+          "index": 189
+        },
+        {
+          "baseline": {
+            "assembly": "MOVQ 0x28(DX), DX",
+            "bytes": "488b5228",
+            "offset": 1028
+          },
+          "candidate": {
+            "assembly": "MOVQ 0x28(SI), SI",
+            "bytes": "488b7628",
+            "offset": 1028
+          },
+          "index": 190
+        },
+        {
+          "baseline": {
+            "assembly": "MOVQ SI, AX",
+            "bytes": "4889f0",
+            "offset": 1041
+          },
+          "candidate": {
+            "assembly": "MOVQ DX, AX",
+            "bytes": "4889d0",
+            "offset": 1041
+          },
+          "index": 194
+        },
+        {
+          "baseline": {
+            "assembly": "CALL DX\t\t\t\t\t\t\t[0:0]R_CALLIND",
+            "bytes": "ffd2",
+            "offset": 1044
+          },
+          "candidate": {
+            "assembly": "CALL SI\t\t\t\t\t\t\t[0:0]R_CALLIND",
+            "bytes": "ffd6",
+            "offset": 1044
+          },
+          "index": 195
+        }
+      ],
+      "function": "github.com/hashicorp/yamux.(*Session).sendLoop"
+    }
+  ],
+  "differing_function_count": 1
+}

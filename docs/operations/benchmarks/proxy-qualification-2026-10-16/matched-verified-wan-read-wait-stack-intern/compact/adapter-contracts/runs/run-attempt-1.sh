@@ -1,0 +1,7 @@
+#!/bin/bash
+set +e
+/usr/bin/python3.14 /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/run_adapter_contracts.py --run-all --adapter /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/run_interned_trace_parser.py --checkpoint-manifest /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/review/source-checkpoint-7/SHA256SUMS.txt --output /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/adapter-contracts-1 > /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/attempt-1.stdout.log 2> /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/attempt-1.stderr.log
+status=$?
+printf '%s\n' "$status" > /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/adapter-contracts-source/runs/attempt-1.status
+printf 'ADAPTER_CONTRACT_ATTEMPT_1_STATUS=%s\n' "$status"
+exit "$status"

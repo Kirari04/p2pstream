@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-qualification/transport-ceiling-preflight.pcAojAfq/cohort-cases/cohort-validator.py", line 190, in <module>
+    if any(first[lane][k]!=initial[lane][k] or current[lane][k]!=initial[lane][k] for k in socket_identity_keys): raise ValueError(f"{role} live lane {lane} identity")
+                                                                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: agent live lane 1 identity

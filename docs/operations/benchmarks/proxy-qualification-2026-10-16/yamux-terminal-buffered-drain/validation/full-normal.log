@@ -1,0 +1,501 @@
+=== RUN   TestAggregateRandomizedLifecycleConservesSessionPool
+=== RUN   TestAggregateRandomizedLifecycleConservesSessionPool/seed_1
+2026/10/16 16:31:49 [WARN] yamux: Discarding data for stream: 5
+=== RUN   TestAggregateRandomizedLifecycleConservesSessionPool/seed_17
+=== RUN   TestAggregateRandomizedLifecycleConservesSessionPool/seed_99
+=== RUN   TestAggregateRandomizedLifecycleConservesSessionPool/seed_20261016
+2026/10/16 16:31:49 [WARN] yamux: Discarding data for stream: 5
+2026/10/16 16:31:49 [WARN] yamux: Discarding data for stream: 21
+2026/10/16 16:31:49 [WARN] yamux: Discarding data for stream: 13
+--- PASS: TestAggregateRandomizedLifecycleConservesSessionPool (0.01s)
+    --- PASS: TestAggregateRandomizedLifecycleConservesSessionPool/seed_1 (0.00s)
+    --- PASS: TestAggregateRandomizedLifecycleConservesSessionPool/seed_17 (0.00s)
+    --- PASS: TestAggregateRandomizedLifecycleConservesSessionPool/seed_99 (0.00s)
+    --- PASS: TestAggregateRandomizedLifecycleConservesSessionPool/seed_20261016 (0.00s)
+=== RUN   TestAggregateEarlySessionCloseClearsConcurrentTrafficCohort
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+--- PASS: TestAggregateEarlySessionCloseClearsConcurrentTrafficCohort (0.00s)
+=== RUN   TestAggregateConfigIsOptInAndValidated
+=== RUN   TestAggregateConfigIsOptInAndValidated/partial
+=== RUN   TestAggregateConfigIsOptInAndValidated/unaligned
+=== RUN   TestAggregateConfigIsOptInAndValidated/frame
+=== RUN   TestAggregateConfigIsOptInAndValidated/initial_share
+=== RUN   TestAggregateConfigIsOptInAndValidated/maximum_share
+=== RUN   TestAggregateConfigIsOptInAndValidated/protocol_ceiling
+=== RUN   TestAggregateConfigIsOptInAndValidated/invalid_incoming_limit
+--- PASS: TestAggregateConfigIsOptInAndValidated (0.00s)
+    --- PASS: TestAggregateConfigIsOptInAndValidated/partial (0.00s)
+    --- PASS: TestAggregateConfigIsOptInAndValidated/unaligned (0.00s)
+    --- PASS: TestAggregateConfigIsOptInAndValidated/frame (0.00s)
+    --- PASS: TestAggregateConfigIsOptInAndValidated/initial_share (0.00s)
+    --- PASS: TestAggregateConfigIsOptInAndValidated/maximum_share (0.00s)
+    --- PASS: TestAggregateConfigIsOptInAndValidated/protocol_ceiling (0.00s)
+    --- PASS: TestAggregateConfigIsOptInAndValidated/invalid_incoming_limit (0.00s)
+=== RUN   TestAggregateIncomingStreamLimitRejectsBeforeObjectAllocation
+=== RUN   TestAggregateIncomingStreamLimitRejectsBeforeObjectAllocation/limit_1
+=== RUN   TestAggregateIncomingStreamLimitRejectsBeforeObjectAllocation/limit_-1
+--- PASS: TestAggregateIncomingStreamLimitRejectsBeforeObjectAllocation (0.00s)
+    --- PASS: TestAggregateIncomingStreamLimitRejectsBeforeObjectAllocation/limit_1 (0.00s)
+    --- PASS: TestAggregateIncomingStreamLimitRejectsBeforeObjectAllocation/limit_-1 (0.00s)
+=== RUN   TestAggregateLocalResetReclaimsStream
+--- PASS: TestAggregateLocalResetReclaimsStream (0.00s)
+=== RUN   TestAggregateChargeAndPoolMemory
+--- PASS: TestAggregateChargeAndPoolMemory (0.00s)
+=== RUN   TestAggregateFinalDataBufferedBeforeFINIsPublished
+--- PASS: TestAggregateFinalDataBufferedBeforeFINIsPublished (0.03s)
+=== RUN   TestAggregatePartialFrameFreesChunksWithoutPublishingUnreceivedCredit
+--- PASS: TestAggregatePartialFrameFreesChunksWithoutPublishingUnreceivedCredit (0.00s)
+=== RUN   TestAggregateRSTAndLateDataConservePoolAndReceiverRefunds
+--- PASS: TestAggregateRSTAndLateDataConservePoolAndReceiverRefunds (0.00s)
+=== RUN   TestAggregateRejectsMalformedCreditBeforeAllocation
+--- PASS: TestAggregateRejectsMalformedCreditBeforeAllocation (0.00s)
+=== RUN   TestAggregateLateAllocationFramesForRemovedStreamAreIgnored
+--- PASS: TestAggregateLateAllocationFramesForRemovedStreamAreIgnored (0.00s)
+=== RUN   TestAggregateCreditWakeBroadcastDoesNotStrandUsableWriter
+--- PASS: TestAggregateCreditWakeBroadcastDoesNotStrandUsableWriter (0.00s)
+=== RUN   TestAggregateIdleCreditUpdatesDoNotRotateSendWakeGeneration
+--- PASS: TestAggregateIdleCreditUpdatesDoNotRotateSendWakeGeneration (0.00s)
+=== RUN   TestAggregateCreditBeforeReserveNeedsNoWakeRegistration
+--- PASS: TestAggregateCreditBeforeReserveNeedsNoWakeRegistration (0.00s)
+=== RUN   TestAggregateAbandonedSendWakeRegistrationRotatesOnlyOnce
+--- PASS: TestAggregateAbandonedSendWakeRegistrationRotatesOnlyOnce (0.02s)
+=== RUN   TestAggregateSessionShutdownWakesRegisteredCreditWriter
+--- PASS: TestAggregateSessionShutdownWakesRegisteredCreditWriter (0.00s)
+=== RUN   TestAggregateZeroDataUsesNoPoolUnit
+--- PASS: TestAggregateZeroDataUsesNoPoolUnit (0.00s)
+=== RUN   TestAggregateNewFrameTypesRejectedInLegacyMode
+--- PASS: TestAggregateNewFrameTypesRejectedInLegacyMode (0.00s)
+=== RUN   TestAggregateGracefulCloseTracksUnreadUntilReadOrSessionCleanup
+=== RUN   TestAggregateGracefulCloseTracksUnreadUntilReadOrSessionCleanup/read
+=== RUN   TestAggregateGracefulCloseTracksUnreadUntilReadOrSessionCleanup/session_cleanup
+--- PASS: TestAggregateGracefulCloseTracksUnreadUntilReadOrSessionCleanup (0.00s)
+    --- PASS: TestAggregateGracefulCloseTracksUnreadUntilReadOrSessionCleanup/read (0.00s)
+    --- PASS: TestAggregateGracefulCloseTracksUnreadUntilReadOrSessionCleanup/session_cleanup (0.00s)
+=== RUN   TestAggregateRefundBatchCapsDistinctStreamsAndLeavesFIFO
+--- PASS: TestAggregateRefundBatchCapsDistinctStreamsAndLeavesFIFO (0.00s)
+=== RUN   TestAggregateRefundBatchCapsUint32SumAndStopsOnPartialHead
+--- PASS: TestAggregateRefundBatchCapsUint32SumAndStopsOnPartialHead (0.00s)
+=== RUN   TestAggregateRefundBatchDropsTerminalStreamHalfAndKeepsGlobal
+--- PASS: TestAggregateRefundBatchDropsTerminalStreamHalfAndKeepsGlobal (0.00s)
+=== RUN   TestAggregateRefundBatchWaitsForControlWithoutBlockingReaderProgress
+--- PASS: TestAggregateRefundBatchWaitsForControlWithoutBlockingReaderProgress (0.02s)
+=== RUN   TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary
+=== RUN   TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary/headers_0
+=== RUN   TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary/headers_1
+=== RUN   TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary/headers_2
+=== RUN   TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary/headers_3
+=== RUN   TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary/headers_4
+--- PASS: TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary (0.00s)
+    --- PASS: TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary/headers_0 (0.00s)
+    --- PASS: TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary/headers_1 (0.00s)
+    --- PASS: TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary/headers_2 (0.00s)
+    --- PASS: TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary/headers_3 (0.00s)
+    --- PASS: TestAggregateRefundBatchAmbiguousWriteCommitsAtEveryHeaderBoundary/headers_4 (0.00s)
+=== RUN   TestAggregateRefundBatchCloseClearsQueuedPrecommitOwnership
+--- PASS: TestAggregateRefundBatchCloseClearsQueuedPrecommitOwnership (0.00s)
+=== RUN   TestAggregateRefundSelectionPairsStreamAndGlobalInOneWrite
+--- PASS: TestAggregateRefundSelectionPairsStreamAndGlobalInOneWrite (0.00s)
+=== RUN   TestAggregateTerminalSelectedRefundPublishesOnlyGlobalCredit
+--- PASS: TestAggregateTerminalSelectedRefundPublishesOnlyGlobalCredit (0.00s)
+=== RUN   TestAggregateRefundSelectionDoesNotConsumeConcurrentStreamMatch
+--- PASS: TestAggregateRefundSelectionDoesNotConsumeConcurrentStreamMatch (0.00s)
+=== RUN   TestAggregateRefundBatchRequeuesSelectedStreamForNextBatch
+--- PASS: TestAggregateRefundBatchRequeuesSelectedStreamForNextBatch (0.00s)
+=== RUN   TestAggregatePairedRefundAmbiguousWriteCommitsBothHalves
+--- PASS: TestAggregatePairedRefundAmbiguousWriteCommitsBothHalves (0.00s)
+=== RUN   TestAggregateControlQueuePrecedesBulkBacklog
+--- PASS: TestAggregateControlQueuePrecedesBulkBacklog (0.00s)
+=== RUN   TestAggregateReaderControlDoesNotWaitBehindBulkAndFailsClosedWhenFull
+--- PASS: TestAggregateReaderControlDoesNotWaitBehindBulkAndFailsClosedWhenFull (0.00s)
+=== RUN   TestAggregateTerminalFramesRemainOrderedAndCloseWakesCreditWriter
+=== RUN   TestAggregateTerminalFramesRemainOrderedAndCloseWakesCreditWriter/fin
+=== RUN   TestAggregateTerminalFramesRemainOrderedAndCloseWakesCreditWriter/rst
+--- PASS: TestAggregateTerminalFramesRemainOrderedAndCloseWakesCreditWriter (0.03s)
+    --- PASS: TestAggregateTerminalFramesRemainOrderedAndCloseWakesCreditWriter/fin (0.00s)
+    --- PASS: TestAggregateTerminalFramesRemainOrderedAndCloseWakesCreditWriter/rst (0.00s)
+=== RUN   TestAggregateWindowUpdateTakesStateBeforeReceiveLock
+--- PASS: TestAggregateWindowUpdateTakesStateBeforeReceiveLock (0.00s)
+=== RUN   TestAggregateTerminalBeforePayloadReadDiscardsWithoutRetainingChunks
+--- PASS: TestAggregateTerminalBeforePayloadReadDiscardsWithoutRetainingChunks (0.00s)
+=== RUN   TestAggregateDataAfterRemoteFINIsProtocolError
+--- PASS: TestAggregateDataAfterRemoteFINIsProtocolError (0.00s)
+=== RUN   TestAggregateFinalFINCrossingLocalTimeoutDoesNotKillSession
+--- PASS: TestAggregateFinalFINCrossingLocalTimeoutDoesNotKillSession (0.00s)
+=== RUN   TestAggregateByteWindowUpdateRejectsUnknownFlagsAndOverflow
+--- PASS: TestAggregateByteWindowUpdateRejectsUnknownFlagsAndOverflow (0.00s)
+=== RUN   TestAggregateCreditGrowthAndFrameQuantum
+--- PASS: TestAggregateCreditGrowthAndFrameQuantum (0.00s)
+=== RUN   TestAggregateStalledTinyFrameStreamLeavesCreditForAnother
+=== RUN   TestAggregateStalledTinyFrameStreamLeavesCreditForAnother/one_mib
+=== RUN   TestAggregateStalledTinyFrameStreamLeavesCreditForAnother/app_two_mib
+--- PASS: TestAggregateStalledTinyFrameStreamLeavesCreditForAnother (0.00s)
+    --- PASS: TestAggregateStalledTinyFrameStreamLeavesCreditForAnother/one_mib (0.00s)
+    --- PASS: TestAggregateStalledTinyFrameStreamLeavesCreditForAnother/app_two_mib (0.00s)
+=== RUN   TestAggregateCreditWaitHonorsWriteDeadline
+--- PASS: TestAggregateCreditWaitHonorsWriteDeadline (0.10s)
+=== RUN   TestAggregateGrowAfterAndConcurrentWithCloseRetainsNoSlabs
+=== RUN   TestAggregateGrowAfterAndConcurrentWithCloseRetainsNoSlabs/after
+=== RUN   TestAggregateGrowAfterAndConcurrentWithCloseRetainsNoSlabs/concurrent
+--- PASS: TestAggregateGrowAfterAndConcurrentWithCloseRetainsNoSlabs (0.00s)
+    --- PASS: TestAggregateGrowAfterAndConcurrentWithCloseRetainsNoSlabs/after (0.00s)
+    --- PASS: TestAggregateGrowAfterAndConcurrentWithCloseRetainsNoSlabs/concurrent (0.00s)
+=== RUN   TestConst
+--- PASS: TestConst (0.00s)
+=== RUN   TestEncodeDecode
+--- PASS: TestEncodeDecode (0.00s)
+=== RUN   TestGrowReceiveWindowPublishesSmallDelta
+--- PASS: TestGrowReceiveWindowPublishesSmallDelta (0.02s)
+=== RUN   TestReadPublishesQuarterWindowCredit
+--- PASS: TestReadPublishesQuarterWindowCredit (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate
+--- PASS: TestLegacyHalfCloseBufferedDrainAfterFINSkipsObsoleteWindowUpdate (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenFINObservedAtWindowUpdateError (0.00s)
+=== RUN   TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN
+--- PASS: TestLegacyHalfCloseBufferedDrainWhenWindowUpdateFailsBeforeFIN (0.00s)
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established
+=== RUN   TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close
+--- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/established (0.00s)
+    --- PASS: TestLegacyLiveStreamStillReturnsWindowUpdateFailure/local_half_close (0.00s)
+=== RUN   TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow
+--- PASS: TestAggregateRemoteFINBufferedDrainRefundsOnlySessionWindow (0.00s)
+=== RUN   TestLegacyFinalDataBufferedBeforeFINIsPublished
+--- PASS: TestLegacyFinalDataBufferedBeforeFINIsPublished (0.03s)
+=== RUN   TestLegacyTerminalBeforePayloadReadDiscardsWithoutRetainingBuffer
+--- PASS: TestLegacyTerminalBeforePayloadReadDiscardsWithoutRetainingBuffer (0.00s)
+=== RUN   TestLegacyResetCrossingPayloadReadDiscardsBeforeReturning
+--- PASS: TestLegacyResetCrossingPayloadReadDiscardsBeforeReturning (0.00s)
+=== RUN   TestLegacyDataAfterRemoteFINIsProtocolError
+--- PASS: TestLegacyDataAfterRemoteFINIsProtocolError (0.00s)
+=== RUN   TestLegacyFinalFINCrossingLocalTimeoutDoesNotKillSession
+--- PASS: TestLegacyFinalFINCrossingLocalTimeoutDoesNotKillSession (0.00s)
+=== RUN   TestLegacyTerminalDataStillEnforcesAdvertisedWindow
+=== RUN   TestLegacyTerminalDataStillEnforcesAdvertisedWindow/already_reset
+=== RUN   TestLegacyTerminalDataStillEnforcesAdvertisedWindow/RST_frame
+--- PASS: TestLegacyTerminalDataStillEnforcesAdvertisedWindow (0.00s)
+    --- PASS: TestLegacyTerminalDataStillEnforcesAdvertisedWindow/already_reset (0.00s)
+    --- PASS: TestLegacyTerminalDataStillEnforcesAdvertisedWindow/RST_frame (0.00s)
+=== RUN   TestFailedOpenTerminatesWireAndReleasesTracking
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+--- PASS: TestFailedOpenTerminatesWireAndReleasesTracking (0.03s)
+=== RUN   TestFailedOpenDiscardsPayloadAlreadyAcceptedByReader
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: synthetic open write failure
+--- PASS: TestFailedOpenDiscardsPayloadAlreadyAcceptedByReader (0.03s)
+=== RUN   TestResetWaitsForAcceptedPayloadAfterTerminalState
+--- PASS: TestResetWaitsForAcceptedPayloadAfterTerminalState (0.03s)
+=== RUN   TestReceiveWindowTimeoutTerminatesSession
+2026/10/16 16:31:49 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+--- PASS: TestReceiveWindowTimeoutTerminatesSession (0.03s)
+=== RUN   TestRepeatedResetBeforeACKReleasesInflight
+--- PASS: TestRepeatedResetBeforeACKReleasesInflight (0.01s)
+=== RUN   TestVerifyConfigRejectsNonPositiveKeepAlive
+--- PASS: TestVerifyConfigRejectsNonPositiveKeepAlive (0.00s)
+=== RUN   TestQualificationAggregateSendCountersDoNotChangeOrdinaryLayout
+    qualification_aggregate_send_counters_layout_test.go:12: ordinary aggregateWindow size=536 protocolMax=0 mu=4 sendWindow=12
+--- PASS: TestQualificationAggregateSendCountersDoNotChangeOrdinaryLayout (0.00s)
+=== RUN   TestRecvBufferReusesDrainedChunksWhileQueueRemainsBusy
+--- PASS: TestRecvBufferReusesDrainedChunksWhileQueueRemainsBusy (0.00s)
+=== RUN   TestRecvBufferBurstDrainRefillCache
+--- PASS: TestRecvBufferBurstDrainRefillCache (0.00s)
+=== RUN   TestRecvBufferLargeBurstCacheAndExcessBound
+--- PASS: TestRecvBufferLargeBurstCacheAndExcessBound (0.02s)
+=== RUN   TestRecvBufferFragmentedHeadTailAndCacheBound
+--- PASS: TestRecvBufferFragmentedHeadTailAndCacheBound (0.00s)
+=== RUN   TestRecvBufferFragmentedCrossChunkAndReclaim
+--- PASS: TestRecvBufferFragmentedCrossChunkAndReclaim (0.00s)
+=== RUN   TestRecvBufferTruncatedFrameRetainsPartialPayload
+--- PASS: TestRecvBufferTruncatedFrameRetainsPartialPayload (0.00s)
+=== RUN   TestRecvBufferEmptyTruncatedFrameReclaimsTail
+--- PASS: TestRecvBufferEmptyTruncatedFrameReclaimsTail (0.00s)
+=== RUN   TestStreamRejectsOverWindowFrameBeforeAllocation
+--- PASS: TestStreamRejectsOverWindowFrameBeforeAllocation (0.00s)
+=== RUN   TestStreamReceiveBufferStatsAndShrink
+--- PASS: TestStreamReceiveBufferStatsAndShrink (0.00s)
+=== RUN   TestRecvBufferSlowConsumerBoundAcrossFrames
+--- PASS: TestRecvBufferSlowConsumerBoundAcrossFrames (0.00s)
+=== RUN   TestRecvBufferConcurrentAccessWithStreamLocking
+--- PASS: TestRecvBufferConcurrentAccessWithStreamLocking (0.00s)
+=== RUN   TestRTTEstimatorBoundsOutliersAndAges
+--- PASS: TestRTTEstimatorBoundsOutliersAndAges (0.00s)
+=== RUN   TestRTTEstimatorUsesWindowedMinimumAgainstQueuedPings
+--- PASS: TestRTTEstimatorUsesWindowedMinimumAgainstQueuedPings (0.00s)
+=== RUN   TestRTTEstimatorRebasesAfterMinimumAges
+--- PASS: TestRTTEstimatorRebasesAfterMinimumAges (0.00s)
+=== RUN   TestRTTEstimatorDoesNotMoveTimestampBackwards
+--- PASS: TestRTTEstimatorDoesNotMoveTimestampBackwards (0.00s)
+=== RUN   TestRequestRTTSuccess
+--- PASS: TestRequestRTTSuccess (0.00s)
+=== RUN   TestRequestRTTIsSessionSingleFlight
+--- PASS: TestRequestRTTIsSessionSingleFlight (0.00s)
+=== RUN   TestRequestRTTFailureCleansProbeAndPendingPing
+--- PASS: TestRequestRTTFailureCleansProbeAndPendingPing (0.03s)
+=== RUN   TestKeepaliveAndRequestRTTShareProbeGate
+--- PASS: TestKeepaliveAndRequestRTTShareProbeGate (0.00s)
+=== RUN   TestSendLoopGathersDataAfterCopyAndCommit
+--- PASS: TestSendLoopGathersDataAfterCopyAndCommit (0.00s)
+=== RUN   TestSendLoopLeavesHeaderOnlyControlSeparate
+--- PASS: TestSendLoopLeavesHeaderOnlyControlSeparate (0.00s)
+=== RUN   TestSendLoopSelectedTimeoutOwnsGatheredFrame
+--- PASS: TestSendLoopSelectedTimeoutOwnsGatheredFrame (0.02s)
+=== RUN   TestSendLoopQueuedTimeoutClonesBodyBeforeCallerReuse
+--- PASS: TestSendLoopQueuedTimeoutClonesBodyBeforeCallerReuse (0.02s)
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/short_nil_at_0
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/short_nil_at_11
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/short_nil_at_12
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/short_nil_at_13
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/short_nil_at_75
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/write_error_at_0
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/write_error_at_11
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/write_error_at_12
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/write_error_at_13
+=== RUN   TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/write_error_at_75
+--- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry (0.00s)
+    --- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/short_nil_at_0 (0.00s)
+    --- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/short_nil_at_11 (0.00s)
+    --- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/short_nil_at_12 (0.00s)
+    --- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/short_nil_at_13 (0.00s)
+    --- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/short_nil_at_75 (0.00s)
+    --- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/write_error_at_0 (0.00s)
+    --- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/write_error_at_11 (0.00s)
+    --- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/write_error_at_12 (0.00s)
+    --- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/write_error_at_13 (0.00s)
+    --- PASS: TestSendLoopGatheredDataFailsPartialWriteWithoutRetry/write_error_at_75 (0.00s)
+=== RUN   TestSendLoopPreservesPriorityAndDataFINOrder
+--- PASS: TestSendLoopPreservesPriorityAndDataFINOrder (0.00s)
+=== RUN   TestSendLoopGatheredFrameCapacityIsBounded
+=== RUN   TestSendLoopGatheredFrameCapacityIsBounded/payload_32768
+    send_gather_test.go:319: payload=32768 gathered_len=32780 gathered_cap=40960
+=== RUN   TestSendLoopGatheredFrameCapacityIsBounded/payload_4194304
+    send_gather_test.go:319: payload=4194304 gathered_len=4194316 gathered_cap=4202496
+--- PASS: TestSendLoopGatheredFrameCapacityIsBounded (0.01s)
+    --- PASS: TestSendLoopGatheredFrameCapacityIsBounded/payload_32768 (0.00s)
+    --- PASS: TestSendLoopGatheredFrameCapacityIsBounded/payload_4194304 (0.01s)
+=== RUN   TestAggregateGatheredDataWriteErrorAbortsAndRetainsCredit
+--- PASS: TestAggregateGatheredDataWriteErrorAbortsAndRetainsCredit (0.00s)
+=== RUN   TestPing
+    session_test.go:143: Connecting to tcp: [::]:44445
+--- PASS: TestPing (0.00s)
+=== RUN   TestPing_Timeout
+--- PASS: TestPing_Timeout (0.25s)
+=== RUN   TestCloseBeforeAck
+=== RUN   TestCloseBeforeAck/Pipes
+    session_test.go:360: drain took 24.308µs (timeout was 5s)
+=== RUN   TestCloseBeforeAck/TCP
+    session_test.go:101: Connecting to tcp: [::]:45479
+    session_test.go:360: drain took 21.362µs (timeout was 5s)
+=== RUN   TestCloseBeforeAck/TCP_Reverse
+    session_test.go:101: Connecting to tcp: [::]:45173
+    session_test.go:360: drain took 17.875µs (timeout was 5s)
+=== RUN   TestCloseBeforeAck/TLS
+    session_test.go:143: Connecting to tcp: [::]:39231
+    session_test.go:360: drain took 49.597µs (timeout was 5s)
+=== RUN   TestCloseBeforeAck/TLS_Reverse
+    session_test.go:143: Connecting to tcp: [::]:46817
+    session_test.go:360: drain took 39.146µs (timeout was 5s)
+--- PASS: TestCloseBeforeAck (0.01s)
+    --- PASS: TestCloseBeforeAck/Pipes (0.00s)
+    --- PASS: TestCloseBeforeAck/TCP (0.00s)
+    --- PASS: TestCloseBeforeAck/TCP_Reverse (0.00s)
+    --- PASS: TestCloseBeforeAck/TLS (0.00s)
+    --- PASS: TestCloseBeforeAck/TLS_Reverse (0.00s)
+=== RUN   TestAccept
+    session_test.go:143: Connecting to tcp: [::]:42069
+    session_test.go:397: drain took 1.63373ms (timeout was 1s)
+--- PASS: TestAccept (0.00s)
+=== RUN   TestOpenStreamTimeout
+=== RUN   TestOpenStreamTimeout/Pipes
+=== RUN   TestOpenStreamTimeout/TCP
+    session_test.go:101: Connecting to tcp: [::]:42221
+=== RUN   TestOpenStreamTimeout/TCP_Reverse
+    session_test.go:101: Connecting to tcp: [::]:39015
+=== RUN   TestOpenStreamTimeout/TLS
+    session_test.go:143: Connecting to tcp: [::]:41775
+=== RUN   TestOpenStreamTimeout/TLS_Reverse
+    session_test.go:143: Connecting to tcp: [::]:33399
+--- PASS: TestOpenStreamTimeout (0.64s)
+    --- PASS: TestOpenStreamTimeout/Pipes (0.13s)
+    --- PASS: TestOpenStreamTimeout/TCP (0.13s)
+    --- PASS: TestOpenStreamTimeout/TCP_Reverse (0.13s)
+    --- PASS: TestOpenStreamTimeout/TLS (0.13s)
+    --- PASS: TestOpenStreamTimeout/TLS_Reverse (0.13s)
+=== RUN   TestClose_closeTimeout
+    session_test.go:143: Connecting to tcp: [::]:45439
+    session_test.go:489: drain took 2.346947ms (timeout was 1s)
+--- PASS: TestClose_closeTimeout (0.10s)
+=== RUN   TestNonNilInterface
+    session_test.go:143: Connecting to tcp: [::]:43491
+--- PASS: TestNonNilInterface (0.00s)
+=== RUN   TestSendData_Small
+    session_test.go:143: Connecting to tcp: [::]:46281
+    session_test.go:600: drain took 12.997995ms (timeout was 5s)
+--- PASS: TestSendData_Small (1.01s)
+=== RUN   TestSendData_Large
+    session_test.go:143: Connecting to tcp: [::]:38583
+    session_test.go:663: cap=262400, n=262144000
+    session_test.go:691: drain took 371.214565ms (timeout was 10s)
+--- PASS: TestSendData_Large (0.65s)
+=== RUN   TestGoAway
+    session_test.go:143: Connecting to tcp: [::]:44123
+--- PASS: TestGoAway (0.10s)
+=== RUN   TestManyStreams
+    session_test.go:143: Connecting to tcp: [::]:35861
+    session_test.go:770: drain took 301.602113ms (timeout was 0s)
+--- PASS: TestManyStreams (0.30s)
+=== RUN   TestManyStreams_PingPong
+    session_test.go:143: Connecting to tcp: [::]:34585
+    session_test.go:874: drain took 1.329253499s (timeout was 0s)
+--- PASS: TestManyStreams_PingPong (1.33s)
+=== RUN   TestHalfClose
+=== RUN   TestHalfClose/Pipes
+=== RUN   TestHalfClose/TCP
+    session_test.go:101: Connecting to tcp: [::]:40871
+=== RUN   TestHalfClose/TCP_Reverse
+    session_test.go:101: Connecting to tcp: [::]:35239
+=== RUN   TestHalfClose/TLS
+    session_test.go:143: Connecting to tcp: [::]:41883
+=== RUN   TestHalfClose/TLS_Reverse
+    session_test.go:143: Connecting to tcp: [::]:45631
+--- PASS: TestHalfClose (0.01s)
+    --- PASS: TestHalfClose/Pipes (0.00s)
+    --- PASS: TestHalfClose/TCP (0.00s)
+    --- PASS: TestHalfClose/TCP_Reverse (0.00s)
+    --- PASS: TestHalfClose/TLS (0.00s)
+    --- PASS: TestHalfClose/TLS_Reverse (0.00s)
+=== RUN   TestHalfCloseSessionShutdown
+    session_test.go:143: Connecting to tcp: [::]:45115
+--- PASS: TestHalfCloseSessionShutdown (0.00s)
+=== RUN   TestReadDeadline
+    session_test.go:143: Connecting to tcp: [::]:40031
+--- PASS: TestReadDeadline (0.01s)
+=== RUN   TestReadDeadline_BlockedRead
+    session_test.go:143: Connecting to tcp: [::]:44289
+--- PASS: TestReadDeadline_BlockedRead (0.01s)
+=== RUN   TestWriteDeadline
+    session_test.go:143: Connecting to tcp: [::]:37639
+--- PASS: TestWriteDeadline (0.05s)
+=== RUN   TestWriteDeadline_BlockedWrite
+    session_test.go:143: Connecting to tcp: [::]:42045
+--- PASS: TestWriteDeadline_BlockedWrite (0.01s)
+=== RUN   TestBacklogExceeded
+    session_test.go:143: Connecting to tcp: [::]:46053
+--- PASS: TestBacklogExceeded (0.02s)
+=== RUN   TestKeepAlive
+=== RUN   TestKeepAlive/Pipes
+=== RUN   TestKeepAlive/TCP
+    session_test.go:101: Connecting to tcp: [::]:40085
+=== RUN   TestKeepAlive/TCP_Reverse
+    session_test.go:101: Connecting to tcp: [::]:40197
+=== RUN   TestKeepAlive/TLS
+    session_test.go:143: Connecting to tcp: [::]:43321
+=== RUN   TestKeepAlive/TLS_Reverse
+    session_test.go:143: Connecting to tcp: [::]:44769
+--- PASS: TestKeepAlive (1.01s)
+    --- PASS: TestKeepAlive/Pipes (0.20s)
+    --- PASS: TestKeepAlive/TCP (0.20s)
+    --- PASS: TestKeepAlive/TCP_Reverse (0.20s)
+    --- PASS: TestKeepAlive/TLS (0.20s)
+    --- PASS: TestKeepAlive/TLS_Reverse (0.20s)
+=== RUN   TestKeepAlive_Timeout
+--- PASS: TestKeepAlive_Timeout (0.35s)
+=== RUN   TestLargeWindow
+    session_test.go:143: Connecting to tcp: [::]:43965
+2026/10/16 16:31:55 [ERR] yamux: Failed to read stream data: read tcp [::1]:43965->[::1]:42608: use of closed network connection
+--- PASS: TestLargeWindow (0.00s)
+=== RUN   TestSendData_VeryLarge
+    session_test.go:143: Connecting to tcp: [::]:44513
+    session_test.go:1392: drain took 15.713622428s (timeout was 2m0s)
+--- PASS: TestSendData_VeryLarge (15.71s)
+=== RUN   TestBacklogExceeded_Accept
+    session_test.go:143: Connecting to tcp: [::]:46747
+    session_test.go:1426: drain took 17.875µs (timeout was 0s)
+--- PASS: TestBacklogExceeded_Accept (0.02s)
+=== RUN   TestSession_WindowUpdateWriteDuringRead
+    session_test.go:1485: drain took 469.644µs (timeout was 0s)
+--- PASS: TestSession_WindowUpdateWriteDuringRead (0.00s)
+=== RUN   TestSession_PartialReadWindowUpdate
+=== RUN   TestSession_PartialReadWindowUpdate/Pipes
+    session_test.go:1541: drain took 413.775µs (timeout was 0s)
+    session_test.go:1557: sendWindow: exp=131073, got=0
+=== RUN   TestSession_PartialReadWindowUpdate/TCP
+    session_test.go:101: Connecting to tcp: [::]:36631
+    session_test.go:1541: drain took 814.695µs (timeout was 0s)
+    session_test.go:1557: sendWindow: exp=131073, got=0
+=== RUN   TestSession_PartialReadWindowUpdate/TCP_Reverse
+    session_test.go:101: Connecting to tcp: [::]:36547
+    session_test.go:1541: drain took 878.891µs (timeout was 0s)
+    session_test.go:1557: sendWindow: exp=131073, got=0
+=== RUN   TestSession_PartialReadWindowUpdate/TLS
+    session_test.go:143: Connecting to tcp: [::]:38603
+    session_test.go:1541: drain took 691.175µs (timeout was 0s)
+    session_test.go:1557: sendWindow: exp=131073, got=0
+=== RUN   TestSession_PartialReadWindowUpdate/TLS_Reverse
+    session_test.go:143: Connecting to tcp: [::]:40687
+    session_test.go:1541: drain took 991.549µs (timeout was 0s)
+    session_test.go:1557: sendWindow: exp=131073, got=0
+--- FAIL: TestSession_PartialReadWindowUpdate (10.02s)
+    --- FAIL: TestSession_PartialReadWindowUpdate/Pipes (2.00s)
+    --- FAIL: TestSession_PartialReadWindowUpdate/TCP (2.00s)
+    --- FAIL: TestSession_PartialReadWindowUpdate/TCP_Reverse (2.00s)
+    --- FAIL: TestSession_PartialReadWindowUpdate/TLS (2.01s)
+    --- FAIL: TestSession_PartialReadWindowUpdate/TLS_Reverse (2.01s)
+=== RUN   TestSession_sendNoWait_Timeout
+    session_test.go:1610: drain took 251.355701ms (timeout was 0s)
+2026/10/16 16:32:21 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+--- PASS: TestSession_sendNoWait_Timeout (0.25s)
+=== RUN   TestSession_PingOfDeath
+2026/10/16 16:32:22 [WARN] yamux: failed to send ping reply: connection write timeout
+    session_test.go:1684: drain took 751.284335ms (timeout was 0s)
+--- PASS: TestSession_PingOfDeath (0.75s)
+=== RUN   TestSession_PingFloodClosesBoundedReplyQueue
+2026/10/16 16:32:22 [ERR] yamux: Failed to write frame: io: read/write on closed pipe
+--- PASS: TestSession_PingFloodClosesBoundedReplyQueue (0.00s)
+=== RUN   TestSession_ConnectionWriteTimeout
+    session_test.go:1770: drain took 250.8978ms (timeout was 0s)
+--- PASS: TestSession_ConnectionWriteTimeout (0.25s)
+=== RUN   TestCancelAccept
+    session_test.go:143: Connecting to tcp: [::]:39599
+    session_test.go:1796: drain took 6.062µs (timeout was 0s)
+--- PASS: TestCancelAccept (0.00s)
+=== RUN   TestShutdownWakesEmptyReadAndWriteBeforeSessionCleanup
+=== RUN   TestShutdownWakesEmptyReadAndWriteBeforeSessionCleanup/legacy
+=== RUN   TestShutdownWakesEmptyReadAndWriteBeforeSessionCleanup/aggregate
+--- PASS: TestShutdownWakesEmptyReadAndWriteBeforeSessionCleanup (0.00s)
+    --- PASS: TestShutdownWakesEmptyReadAndWriteBeforeSessionCleanup/legacy (0.00s)
+    --- PASS: TestShutdownWakesEmptyReadAndWriteBeforeSessionCleanup/aggregate (0.00s)
+=== RUN   TestShutdownReadDrainsBufferedPayloadBeforeTerminalError
+=== RUN   TestShutdownReadDrainsBufferedPayloadBeforeTerminalError/legacy
+=== RUN   TestShutdownReadDrainsBufferedPayloadBeforeTerminalError/aggregate
+--- PASS: TestShutdownReadDrainsBufferedPayloadBeforeTerminalError (0.00s)
+    --- PASS: TestShutdownReadDrainsBufferedPayloadBeforeTerminalError/legacy (0.00s)
+    --- PASS: TestShutdownReadDrainsBufferedPayloadBeforeTerminalError/aggregate (0.00s)
+=== RUN   TestExpiredDeadlinePrecedesSessionShutdown
+=== RUN   TestExpiredDeadlinePrecedesSessionShutdown/legacy
+=== RUN   TestExpiredDeadlinePrecedesSessionShutdown/aggregate
+--- PASS: TestExpiredDeadlinePrecedesSessionShutdown (0.00s)
+    --- PASS: TestExpiredDeadlinePrecedesSessionShutdown/legacy (0.00s)
+    --- PASS: TestExpiredDeadlinePrecedesSessionShutdown/aggregate (0.00s)
+=== RUN   TestShutdownReadDeadlineChangesInterruptReaderJoin
+=== RUN   TestShutdownReadDeadlineChangesInterruptReaderJoin/none_to_expired
+=== RUN   TestShutdownReadDeadlineChangesInterruptReaderJoin/future_to_cleared
+--- PASS: TestShutdownReadDeadlineChangesInterruptReaderJoin (0.19s)
+    --- PASS: TestShutdownReadDeadlineChangesInterruptReaderJoin/none_to_expired (0.02s)
+    --- PASS: TestShutdownReadDeadlineChangesInterruptReaderJoin/future_to_cleared (0.17s)
+=== RUN   TestAsyncSendErr
+--- PASS: TestAsyncSendErr (0.00s)
+=== RUN   TestAsyncNotify
+--- PASS: TestAsyncNotify (0.00s)
+=== RUN   TestMin
+--- PASS: TestMin (0.00s)
+FAIL
+FAIL	github.com/hashicorp/yamux	33.573s
+FAIL

@@ -1,0 +1,11 @@
+{
+  "status": "provisional copy/source audit rejected and selection corrected before package freeze",
+  "runtime_or_workload_retry": false,
+  "source_modified": false,
+  "rule": "actual source/copy binding",
+  "path": "tmp/wan-terminal-attribution-20261017/sustained-execution/THRESHOLD-CHRONOLOGY.json",
+  "discarded_draft_copy_sha256": "d7a6d13451dd54f3d9f954bdafe21ccc45921f5ea21d45f0d2a3ba36bc7ec8d2",
+  "action": "Removed only provisional package copy and binding; completed execution records use explicit initial filenames. Await owner freeze before adding final chronology.",
+  "final_chronology_inclusion": "Owner explicitly froze final analysis/checkpoint hashes; exact final versions subsequently copied and rehashed.",
+  "frozen_final_chronology_sha256": "10f3597ef549abd14194df2fb051f318894160f8d58ef26e6a3fe0d68291f090"
+}

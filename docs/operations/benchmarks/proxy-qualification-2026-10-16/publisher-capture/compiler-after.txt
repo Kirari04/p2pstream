@@ -1,0 +1,10 @@
+./aggregate_window.go:658:2: (*Session).publishAggregateRefund capturing by value: a (addr=false assign=false width=8)
+./aggregate_window.go:701:2: (*Session).publishAggregateRefund capturing by value: global (addr=false assign=false width=8)
+./aggregate_window.go:719:63: func literal escapes to heap in (*Session).publishAggregateRefund:
+./aggregate_window.go:657:42: work does not escape
+./aggregate_window.go:680:8: func literal does not escape
+./aggregate_window.go:709:22: make([]byte, headerCount * 12) escapes to heap
+./aggregate_window.go:719:63: func literal escapes to heap
+
+No line matching `moved to heap: work` or `moved to heap: activeParts` was
+present in the candidate report.

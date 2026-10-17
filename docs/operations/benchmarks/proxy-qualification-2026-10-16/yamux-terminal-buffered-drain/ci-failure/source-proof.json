@@ -1,0 +1,22 @@
+{
+  "failed_ci_head": "01af4d63625f9e7324aeae84065edd8afcc7566e",
+  "previous_green_ci_head": "248bad099682878fe398c0ebaad235787ef47858",
+  "files": [
+    {
+      "path": "third_party/yamux/session_test.go",
+      "sha256": "7d086e334f31937cb463dc243885373288341d0aa4541962a7040cdd8866707c",
+      "byte_identical_to_green_248bad0": true
+    },
+    {
+      "path": "third_party/yamux/stream.go",
+      "sha256": "4d5503619981cf983b99d5b40c9ce46a304ed13d09ad0fbc01f16d80016f9012",
+      "byte_identical_to_green_248bad0": true
+    },
+    {
+      "path": "third_party/yamux/session.go",
+      "sha256": "268e0a49a1b2f43c5dcaf2ebf3d3d1106faa71b6091931e4041adbc2d872bf41",
+      "byte_identical_to_green_248bad0": true
+    }
+  ],
+  "failed_log_sha256": "cac773a2a1b5caee77db0a051cd28fb01a0fd843d6b75192d85fcfc8607c1895"
+}

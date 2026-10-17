@@ -1,0 +1,58 @@
+{
+  "accepted": true,
+  "artifact_bytes": 339392486,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "commands": [
+    {
+      "changed_only_excluded_test": "internal/tunnel/qualification_growth_trace_test.go",
+      "log_prefix": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-source-20261017/focused-tests-once/normal",
+      "name": "normal",
+      "new_source_identity": {
+        "inventory_sha256": "3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+        "source_file_count": 468
+      },
+      "original_source_identity": {
+        "inventory_sha256": "b6c59c6631afe0e911f565ebb0d51ba9edc3183d4389b0be87f7b5656899a57d",
+        "source_file_count": 468
+      },
+      "outer_sha256": "ea0a7bdb547841af46b513859f6e23a1ad0c9fdeac71b1771a370044f7170b3c",
+      "proof_origin": "reused-original-b6-normal-after-exact-nontagged-equivalence",
+      "source_unchanged": true,
+      "status": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "0fd0850ed2a35e85255c8021a67987953c05a48f69365d8fb606a8fb5079eb3b"
+    },
+    {
+      "name": "tagged",
+      "outer_sha256": "b62defeb0704de7fdc253d5a7fb677b96e815787cd76deafb4f6923a9d3f2497",
+      "proof_origin": "fresh-continuation-1",
+      "source_unchanged": true,
+      "status": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "6181d0a83c58f1f2700a655b4d9c2c4b8524b355d56a9b23b1e3c2bca030f8ad"
+    },
+    {
+      "name": "race",
+      "outer_sha256": "0828a2ac85a5abbf4e3ed5f0572593a55230df3512c0ede13c85f5ce113cd243",
+      "proof_origin": "fresh-continuation-1",
+      "source_unchanged": true,
+      "status": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "86d71f27f93af9a036a9f648cbd4b61a2c23b9c15e24f409fde98ea9266ba0f6"
+    }
+  ],
+  "complete_logs_retained": true,
+  "endpoint_builds": false,
+  "endpoint_tests": false,
+  "failure": null,
+  "fresh_command_count": 2,
+  "inputs_unchanged": true,
+  "network_dependency_lookup": false,
+  "normal_proof_reused": true,
+  "plan_sha256": "053bbeb6887e8499f4a46a9fc9b9dcdcc9a0268e27411ba1a1d7b6ca4cf9e81d",
+  "source_identity": {
+    "inventory_sha256": "3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+    "source_file_count": 468
+  },
+  "threshold_semantics": "polled rejection; overshoot possible; any observed overflow rejects"
+}

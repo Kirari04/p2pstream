@@ -41,6 +41,19 @@ func newTestAgentAdaptiveCapacity(t testing.TB, usage *sysmetrics.MemoryUsage) *
 	return newAgentTunnelCapacityRuntime(2048, true, controller)
 }
 
+type agentCapacityResourceSampler struct {
+	memory sysmetrics.MemoryUsage
+	fds    sysmetrics.FileDescriptorUsage
+}
+
+func (s *agentCapacityResourceSampler) SampleMemoryUsage() (sysmetrics.MemoryUsage, error) {
+	return s.memory, nil
+}
+
+func (s *agentCapacityResourceSampler) SampleFileDescriptorUsage() (sysmetrics.FileDescriptorUsage, error) {
+	return s.fds, nil
+}
+
 func TestAdaptiveAgentCapacityUsesHealthyResourceHeadroom(t *testing.T) {
 	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
 	capacity := newTestAgentAdaptiveCapacity(t, &usage)
@@ -111,6 +124,7 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 	const (
 		requestCount = 500
 		requestRate  = 100
+		tunnelGroup  = "production-load1"
 	)
 	previousLogLevel := zerolog.GlobalLevel()
 	zerolog.SetGlobalLevel(zerolog.WarnLevel)
@@ -158,6 +172,13 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 			http.Error(w, "adaptive capacity headers missing", http.StatusBadRequest)
 			return
 		}
+		flow, role, aggregate, parseErr := tunnel.ParseAggregateFlowControlHeaders(r.Header)
+		group, lane, laneErr := tunnel.ParseTunnelLaneHeaders(r.Header, aggregate)
+		if parseErr != nil || laneErr != nil || !aggregate || role != tunnel.TunnelLaneRoleBulk ||
+			!flow.Equal(tunnel.DefaultAggregateFlowControlConfig()) || group != tunnelGroup || lane != 1 {
+			http.Error(w, "aggregate bulk contract missing", http.StatusBadRequest)
+			return
+		}
 		hijacker, ok := w.(http.Hijacker)
 		if !ok {
 			http.Error(w, "hijack unavailable", http.StatusInternalServerError)
@@ -167,16 +188,31 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 		if hijackErr != nil {
 			return
 		}
-		_, _ = fmt.Fprintf(rw, "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: %s\r\n%s: %s\r\n%s: %d\r\n\r\n",
+		wire := tunnel.DefaultAggregateFlowControlConfig()
+		_, _ = fmt.Fprintf(rw, "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: %s\r\n%s: %s\r\n%s: %d\r\n%s: %s\r\n%s: %d\r\n%s: %s\r\n%s: %s\r\n%s: %d\r\n%s: %d\r\n%s: %d\r\n%s: %d\r\n%s: %d\r\n\r\n",
 			tunnel.UpgradeToken,
 			tunnel.TunnelCapacityModeHeader, tunnel.TunnelCapacityModeAdaptive,
 			tunnel.TunnelMaxConcurrentStreamsHeader, tunnel.MaxAdaptiveConcurrentStreamsLimit,
+			tunnel.TunnelGroupHeader, tunnelGroup,
+			tunnel.TunnelLaneHeader, 1,
+			tunnel.TunnelFlowControlHeader, tunnel.TunnelFlowControlAggregateV1,
+			tunnel.TunnelLaneRoleHeader, tunnel.TunnelLaneRoleBulk,
+			tunnel.TunnelSessionWindowHeader, wire.InitialSessionWindow,
+			tunnel.TunnelSessionWindowMaxHeader, wire.MaxSessionWindow,
+			tunnel.TunnelAllocationWindowHeader, wire.InitialStreamWindow,
+			tunnel.TunnelAllocationWindowMaxHeader, wire.MaxStreamWindow,
+			tunnel.TunnelDataFrameMaxHeader, wire.MaxDataFrame,
 		)
 		if flushErr := rw.Flush(); flushErr != nil {
 			_ = conn.Close()
 			return
 		}
-		serverSession, sessionErr := yamux.Server(conn, tunnel.DefaultYamuxConfig(nil))
+		serverConfig, configErr := tunnel.NewAggregateYamuxConfig(nil, tunnel.DefaultMaxStreamWindowSizeBytes, -1)
+		if configErr != nil {
+			_ = conn.Close()
+			return
+		}
+		serverSession, sessionErr := yamux.Server(conn, serverConfig)
 		if sessionErr != nil {
 			_ = conn.Close()
 			return
@@ -189,6 +225,13 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 
 	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
 	config := sysmetrics.DefaultAdaptiveMemoryConfig()
+	model, err := tunnel.AgentStreamBaseResourceModel(128 << 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.AdmissionRole = sysmetrics.AdaptiveAdmissionRoleAgentStream
+	config.EstimatedBytesPerAdmission = model.MemoryBytes
+	config.FileDescriptorsPerAdmission = model.FileDescriptors
 	controller, err := sysmetrics.NewAdaptiveMemoryController(config, sysmetrics.MemoryUsageSamplerFunc(func() (sysmetrics.MemoryUsage, error) {
 		return usage, nil
 	}))
@@ -202,9 +245,13 @@ func TestProductionAgentNegotiationSustains100RPSWithGeoLatency(t *testing.T) {
 	}
 	agentDone := make(chan error, 1)
 	go func() {
+		negotiation := &tunnelGroupNegotiation{}
+		negotiation.known.Store(true)
+		negotiation.aggregate.Store(true)
 		agentDone <- connectAndServe(
 			runCtx, http.DefaultClient, management.URL, "load-agent", "Load agent", "token",
 			policy, tunnel.DefaultMaxStreamWindowSizeBytes, tunnel.MaxConcurrentAgentRequestsLimit, true, capacity,
+			tunnelLaneRegistration{group: tunnelGroup, lane: 1, negotiation: negotiation},
 		)
 	}()
 
@@ -936,6 +983,532 @@ func TestFixedAgentCapacityDistinguishesResourceAndOperatorLimits(t *testing.T) 
 		t.Fatalf("fixed admission did not recover: %+v, admitted=%t", snapshot, ok)
 	}
 	release()
+}
+
+func TestAgentReceiveResourceSnapshotSeparatesSessionPoolsAndStreamGrowth(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 2 << 30, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.forceRefresh()
+	releaseSession, ok := capacity.tryReserveAggregateSessionResource(5<<20, 1<<20)
+	if !ok {
+		t.Fatal("session resource reservation denied")
+	}
+	releaseGrowth, ok := capacity.tryReserveAggregateSessionGrowth(3 << 20)
+	if !ok {
+		releaseSession()
+		t.Fatal("session growth reservation denied")
+	}
+	releaseControl, ok := capacity.tryReserveLegacyControlResource(2 << 20)
+	if !ok {
+		releaseGrowth()
+		releaseSession()
+		t.Fatal("control receive-window reservation denied")
+	}
+	releaseLegacySession, ok := capacity.tryReserveLegacySessionEnvelope(4 << 20)
+	if !ok {
+		releaseControl()
+		releaseGrowth()
+		releaseSession()
+		t.Fatal("legacy session envelope reservation denied")
+	}
+	releaseLegacyStream, ok := capacity.tryReserveLegacyStreamSupplement(1 << 20)
+	if !ok {
+		releaseLegacySession()
+		releaseControl()
+		releaseGrowth()
+		releaseSession()
+		t.Fatal("legacy stream supplement reservation denied")
+	}
+	releaseWindow, ok := capacity.tryReserveWindowGrowth(2 << 20)
+	if !ok {
+		releaseLegacyStream()
+		releaseLegacySession()
+		releaseControl()
+		releaseGrowth()
+		releaseSession()
+		t.Fatal("stream growth reservation denied")
+	}
+	snapshot := capacity.snapshot()
+	if snapshot.SessionResourceBytes != 15<<20 || snapshot.ReceiveWindowBytes != 3<<20 ||
+		snapshot.AggregateInitialPoolBytes != 5<<20 || snapshot.AggregateGrowthPoolBytes != 3<<20 ||
+		snapshot.AggregateCurrentPoolBytes != 8<<20 || snapshot.AggregateSessionMetadataBytes != 1<<20 ||
+		snapshot.LegacyControlSupplementBytes != 2<<20 || snapshot.LegacySessionEnvelopeBytes != 4<<20 ||
+		snapshot.LegacyStreamSupplementBytes != 1<<20 {
+		t.Fatalf("owned receive resource snapshot = %+v", snapshot)
+	}
+	releaseWindow()
+	releaseLegacyStream()
+	releaseLegacySession()
+	releaseControl()
+	releaseGrowth()
+	releaseSession()
+	clean := capacity.snapshot()
+	if clean.SessionResourceBytes != 0 || clean.ReceiveWindowBytes != 0 ||
+		clean.AggregateInitialPoolBytes != 0 || clean.AggregateGrowthPoolBytes != 0 ||
+		clean.AggregateCurrentPoolBytes != 0 || clean.AggregateSessionMetadataBytes != 0 ||
+		clean.LegacyControlSupplementBytes != 0 || clean.LegacySessionEnvelopeBytes != 0 ||
+		clean.LegacyStreamSupplementBytes != 0 {
+		t.Fatalf("released receive resources = %+v", clean)
+	}
+}
+
+func TestAgentSessionReservationRejectsGrossHeadroomAtZeroStreams(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.forceRefresh()
+	if release, ok := capacity.tryReserveSessionResource(1 << 30); ok {
+		release()
+		t.Fatal("oversized idle session promise exceeded real memory headroom")
+	}
+	if got := capacity.snapshot().SessionResourceBytes; got != 0 {
+		t.Fatalf("denied idle session retained %d bytes", got)
+	}
+
+	const perSession = int64(16 << 20)
+	var releases []func()
+	for len(releases) < 64 {
+		release, ok := capacity.tryReserveSessionResource(perSession)
+		if !ok {
+			break
+		}
+		releases = append(releases, release)
+	}
+	if len(releases) == 0 || len(releases) == 64 {
+		t.Fatalf("idle session reservations admitted %d; want bounded positive count", len(releases))
+	}
+	for _, release := range releases {
+		release()
+	}
+	if got := capacity.snapshot().SessionResourceBytes; got != 0 {
+		t.Fatalf("idle session cleanup retained %d bytes", got)
+	}
+}
+
+func TestAgentLegacySessionEnvelopeFailsClosedAndReleases(t *testing.T) {
+	envelope, err := tunnel.AgentLegacySessionResourceBytes(tunnel.DefaultAdaptiveReceiveWindowBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	usage := sysmetrics.MemoryUsage{UsedBytes: 350 << 20, LimitBytes: 512 << 20, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.forceRefresh()
+	if release, ok := capacity.tryReserveLegacySessionEnvelope(envelope); ok {
+		release()
+		t.Fatal("legacy session envelope exceeded memory headroom")
+	}
+	if got := capacity.snapshot().LegacySessionEnvelopeBytes; got != 0 {
+		t.Fatalf("denied legacy envelope retained %d bytes", got)
+	}
+
+	usage.UsedBytes = 64 << 20
+	capacity.forceRefresh()
+	release, ok := capacity.tryReserveLegacySessionEnvelope(envelope)
+	if !ok {
+		t.Fatal("legacy session envelope denied after memory recovery")
+	}
+	if got := capacity.snapshot().LegacySessionEnvelopeBytes; got != envelope {
+		t.Fatalf("legacy envelope ledger = %d, want %d", got, envelope)
+	}
+	release()
+	release()
+	if got := capacity.snapshot().LegacySessionEnvelopeBytes; got != 0 {
+		t.Fatalf("legacy envelope cleanup retained %d bytes", got)
+	}
+}
+
+func TestPrepaidControlReservationSeparatesResourcesFromActualConcurrency(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 2 << 30, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.setMaximum(1)
+	capacity.freeOSMemory = func() {}
+	capacity.forceRefresh()
+	bytes, err := tunnel.NegotiatedControlSessionResourceBytesForStreams(tunnel.DefaultAdaptiveReceiveWindowBytes, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reservation, ok := capacity.tryReserveControlSession(bytes, 1)
+	if !ok {
+		t.Fatal("prepaid control reservation denied")
+	}
+	t.Cleanup(reservation.release)
+
+	idle := capacity.snapshot()
+	if idle.InUse != 0 || idle.OrdinaryAdmissionLimit != 1 || idle.ControlReservedSlots != 1 ||
+		idle.ControlInUse != 0 || idle.ControlReservedBaseBytes != idle.StreamChargeBytes ||
+		idle.ControlReservedBaseFDs != idle.StreamChargeFDs || idle.LegacyControlSupplementBytes != bytes {
+		t.Fatalf("idle prepaid control snapshot = %+v", idle)
+	}
+	releaseOrdinary, _, ok := capacity.tryAcquire()
+	if !ok {
+		t.Fatal("idle control promise consumed operator concurrency")
+	}
+	if release, ok := reservation.tryAcquire(); ok {
+		release()
+		t.Fatal("control admitted above actual operator total")
+	}
+	releaseOrdinary()
+
+	usage.UsedBytes = 1900 << 20
+	if pressured := capacity.forceRefresh(); pressured.Pressure != sysmetrics.MemoryPressureCritical || pressured.OrdinaryAdmissionLimit != 0 {
+		t.Fatalf("critical prepaid snapshot = %+v", pressured)
+	}
+	releaseControl, ok := reservation.tryAcquire()
+	if !ok {
+		t.Fatal("prepaid cold control rejected by later critical pressure")
+	}
+	active := capacity.snapshot()
+	if active.InUse != 1 || active.ControlInUse != 1 || active.ControlReservedSlots != 1 {
+		t.Fatalf("active prepaid control snapshot = %+v", active)
+	}
+	if release, _, ok := capacity.tryAcquire(); ok {
+		release()
+		t.Fatal("ordinary stream admitted above actual maximum with control active")
+	}
+	releaseControl()
+	reservation.release()
+	clean := capacity.snapshot()
+	if clean.InUse != 0 || clean.ControlInUse != 0 || clean.ControlReservedSlots != 0 ||
+		clean.LegacyControlSupplementBytes != 0 {
+		t.Fatalf("released prepaid control snapshot = %+v", clean)
+	}
+}
+
+func TestPrepaidControlReservationShrinksAndOverlapsBySession(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 4 << 30, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.setMaximum(4)
+	capacity.forceRefresh()
+	bytes4, err := tunnel.NegotiatedControlSessionResourceBytesForStreams(tunnel.DefaultAdaptiveReceiveWindowBytes, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bytes2, err := tunnel.NegotiatedControlSessionResourceBytesForStreams(tunnel.DefaultAdaptiveReceiveWindowBytes, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldReservation, ok := capacity.tryReserveControlSession(bytes4, 4)
+	if !ok || !oldReservation.activate(4, bytes4, 4) {
+		t.Fatal("old control reservation failed")
+	}
+	releaseOrdinaryA, _, ok := capacity.tryAcquire()
+	if !ok {
+		t.Fatal("first ordinary admission failed")
+	}
+	releaseOrdinaryB, _, ok := capacity.tryAcquire()
+	if !ok {
+		t.Fatal("second ordinary admission failed")
+	}
+	newReservation, ok := capacity.tryReserveControlSession(bytes4, 4)
+	if !ok {
+		t.Fatal("overlapping control reservation failed")
+	}
+	if !newReservation.activate(2, bytes2, 2) {
+		t.Fatal("negotiated control shrink failed")
+	}
+	overlap := capacity.snapshot()
+	if overlap.Maximum != 2 || overlap.ControlReservedSlots != 6 || overlap.LegacyControlSupplementBytes != bytes4+bytes2 {
+		t.Fatalf("overlapping control snapshot = %+v", overlap)
+	}
+	if release, _, ok := capacity.tryAcquire(); ok {
+		release()
+		t.Fatal("live maximum shrink admitted new ordinary work above actual total")
+	}
+	if release, ok := oldReservation.tryAcquire(); ok {
+		release()
+		t.Fatal("live maximum shrink admitted control above actual total")
+	}
+	releaseOrdinaryA()
+	releaseOrdinaryB()
+	releaseA, ok := oldReservation.tryAcquire()
+	if !ok {
+		t.Fatal("first old-session control denied")
+	}
+	releaseB, ok := newReservation.tryAcquire()
+	if !ok {
+		t.Fatal("second new-session control denied")
+	}
+	if release, ok := oldReservation.tryAcquire(); ok {
+		release()
+		t.Fatal("live negotiated maximum shrink admitted a third control")
+	}
+	if got := capacity.snapshot(); got.InUse != 2 || got.ControlInUse != 2 {
+		t.Fatalf("active overlap snapshot = %+v", got)
+	}
+	releaseA()
+	releaseB()
+	oldReservation.release()
+	if got := capacity.snapshot(); got.ControlReservedSlots != 2 || got.LegacyControlSupplementBytes != bytes2 {
+		t.Fatalf("old-session cleanup disturbed new reservation: %+v", got)
+	}
+	// The runtime still remembers the prior negotiated total of two. A primary
+	// reconnect must nevertheless reserve the bounded local offer of four before
+	// the response, then a fresh generation may negotiate the total upward.
+	reconnectReservation, ok := capacity.tryReserveControlSession(bytes4, 4)
+	if !ok {
+		t.Fatal("local four-slot reconnect was constrained by stale negotiated total")
+	}
+	if !reconnectReservation.activate(4, bytes4, 4) {
+		t.Fatal("fresh generation failed to grow negotiated total")
+	}
+	if got := capacity.snapshot(); got.Maximum != 4 || got.ControlReservedSlots != 6 || got.LegacyControlSupplementBytes != bytes2+bytes4 {
+		t.Fatalf("fresh-generation growth snapshot = %+v", got)
+	}
+	newReservation.release()
+	reconnectReservation.release()
+	if got := capacity.snapshot(); got.ControlReservedSlots != 0 || got.LegacyControlSupplementBytes != 0 || got.InUse != 0 {
+		t.Fatalf("overlap cleanup leaked ownership: %+v", got)
+	}
+}
+
+func TestPrepaidControlReservationIsAtomicAndSupportsFixedNilController(t *testing.T) {
+	bytes, err := tunnel.NegotiatedControlSessionResourceBytesForStreams(tunnel.DefaultAdaptiveReceiveWindowBytes, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	usage := sysmetrics.MemoryUsage{UsedBytes: 1900 << 20, LimitBytes: 2 << 30, Source: "test"}
+	adaptive := newTestAgentAdaptiveCapacity(t, &usage)
+	adaptive.setMaximum(1)
+	adaptive.forceRefresh()
+	if reservation, ok := adaptive.tryReserveControlSession(bytes, 1); ok {
+		reservation.release()
+		t.Fatal("critical controller admitted a new control promise")
+	}
+	if got := adaptive.snapshot(); got.ControlReservedSlots != 0 || got.LegacyControlSupplementBytes != 0 {
+		t.Fatalf("denied control reservation partially committed: %+v", got)
+	}
+
+	fixed := newAgentTunnelCapacityRuntime(1, false, nil)
+	reservation, ok := fixed.tryReserveControlSession(bytes, 1)
+	if !ok {
+		t.Fatal("nil-controller fixed reservation denied")
+	}
+	releaseOrdinary, _, ok := fixed.tryAcquire()
+	if !ok {
+		t.Fatal("nil-controller idle promise consumed actual concurrency")
+	}
+	if release, ok := reservation.tryAcquire(); ok {
+		release()
+		t.Fatal("nil-controller control exceeded actual maximum")
+	}
+	releaseOrdinary()
+	releaseControl, ok := reservation.tryAcquire()
+	if !ok {
+		t.Fatal("nil-controller prepaid control denied after ordinary drain")
+	}
+	releaseControl()
+	reservation.release()
+}
+
+func TestPrepaidControlReservationRequiresRealFDHeadroom(t *testing.T) {
+	newCapacity := func(t *testing.T, usedFDs int64) *agentTunnelCapacityRuntime {
+		t.Helper()
+		config := sysmetrics.DefaultAdaptiveMemoryConfig()
+		config.SampleInterval = time.Hour
+		sampler := &agentCapacityResourceSampler{
+			memory: sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 4 << 30, Source: "test"},
+			fds:    sysmetrics.FileDescriptorUsage{Used: usedFDs, Limit: 100},
+		}
+		controller, err := sysmetrics.NewAdaptiveMemoryController(config, sampler)
+		if err != nil {
+			t.Fatal(err)
+		}
+		capacity := newAgentTunnelCapacityRuntime(64, true, controller)
+		capacity.forceRefresh()
+		return capacity
+	}
+	bytes, err := tunnel.NegotiatedControlSessionResourceBytesForStreams(tunnel.DefaultAdaptiveReceiveWindowBytes, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The 90% hard watermark leaves seven real descriptors, one short of
+	// four agent stream promises at two descriptors each. This is soft pressure,
+	// so rejection proves the proposal did not manufacture an in-use floor.
+	insufficient := newCapacity(t, 83)
+	if reservation, ok := insufficient.tryReserveControlSession(bytes, 4); ok {
+		reservation.release()
+		t.Fatal("control promise admitted with only seven descriptor slots")
+	}
+	if got := insufficient.snapshot(); got.ControlReservedSlots != 0 || got.LegacyControlSupplementBytes != 0 {
+		t.Fatalf("FD-denied control promise partially committed: %+v", got)
+	}
+
+	exact := newCapacity(t, 82)
+	reservation, ok := exact.tryReserveControlSession(bytes, 4)
+	if !ok {
+		t.Fatal("control promise denied at exact eight-descriptor boundary")
+	}
+	if got := exact.snapshot(); got.ControlReservedSlots != 4 || got.ControlReservedBaseFDs != 8 {
+		t.Fatalf("exact-boundary control ownership = %+v", got)
+	}
+	reservation.release()
+}
+
+func TestPrepaidControlLastReleaseRunsDeferredScavenge(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 2 << 30, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.setMaximum(2)
+	capacity.forceRefresh()
+	bytes, err := tunnel.NegotiatedControlSessionResourceBytesForStreams(tunnel.DefaultAdaptiveReceiveWindowBytes, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reservation, ok := capacity.tryReserveControlSession(bytes, 1)
+	if !ok {
+		t.Fatal("control reservation denied")
+	}
+	defer reservation.release()
+	releaseOrdinary, _, ok := capacity.tryAcquire()
+	if !ok {
+		t.Fatal("ordinary admission denied")
+	}
+	releaseControl, ok := reservation.tryAcquire()
+	if !ok {
+		t.Fatal("control admission denied")
+	}
+	scavenged := make(chan struct{}, 1)
+	capacity.freeOSMemory = func() { scavenged <- struct{}{} }
+	capacity.scavengeNeeded.Store(true)
+	releaseOrdinary()
+	select {
+	case <-scavenged:
+		t.Fatal("scavenge ran while prepaid control work was active")
+	default:
+	}
+	if !capacity.scavengeNeeded.Load() {
+		t.Fatal("ordinary release lost deferred scavenge signal")
+	}
+	releaseControl()
+	select {
+	case <-scavenged:
+	case <-time.After(time.Second):
+		t.Fatal("last prepaid control release did not run deferred scavenge")
+	}
+}
+
+func TestNegotiatedControlServesColdHealthUnderCriticalPressure(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	originAccepted := make(chan net.Conn, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr == nil {
+			originAccepted <- conn
+		}
+	}()
+
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 2 << 30, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	capacity.setMaximum(1)
+	capacity.freeOSMemory = func() {}
+	capacity.forceRefresh()
+	controlBytes, err := tunnel.NegotiatedControlSessionResourceBytesForStreams(tunnel.DefaultAdaptiveReceiveWindowBytes, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reservation, ok := capacity.tryReserveControlSession(controlBytes, 1)
+	if !ok || !reservation.activate(1, controlBytes, 1) {
+		t.Fatal("control reservation failed")
+	}
+	releaseOrdinary, _, ok := capacity.tryAcquire()
+	if !ok {
+		t.Fatal("ordinary admission failed before pressure")
+	}
+
+	clientConn, serverConn := net.Pipe()
+	agentConfig, err := tunnel.NewNegotiatedControlYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverConfig, err := tunnel.NewNegotiatedControlYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	agentSession, err := yamux.Client(clientConn, agentConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverSession, err := yamux.Server(serverConn, serverConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		done <- serveTunnelSessionWithPolicyCapacityAndResources(
+			ctx, agentSession, nil, capacity, nil, false, tunnel.DefaultAdaptiveReceiveWindowBytes, reservation,
+		)
+	}()
+	defer func() {
+		releaseOrdinary()
+		cancel()
+		_ = serverSession.Close()
+		_ = agentSession.Close()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Error("control session did not stop")
+		}
+		reservation.release()
+	}()
+
+	usage.UsedBytes = 1900 << 20
+	if pressured := capacity.forceRefresh(); pressured.Pressure != sysmetrics.MemoryPressureCritical {
+		t.Fatalf("critical snapshot = %+v", pressured)
+	}
+	blocked, err := serverSession.OpenStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tunnel.WriteOpenRequest(blocked, tunnel.NewOpenRequest("blocked", "tcp", listener.Addr().String())); err != nil {
+		t.Fatal(err)
+	}
+	blockedResponse, err := tunnel.ReadOpenResponse(blocked)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blockedResponse.OK || blockedResponse.ErrorKind != "agent_capacity" {
+		t.Fatalf("fixed actual-total response = %+v, want agent_capacity", blockedResponse)
+	}
+	_ = blocked.Close()
+	blockedDeadline := time.Now().Add(time.Second)
+	for serverSession.NumStreams() != 0 && time.Now().Before(blockedDeadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := serverSession.NumStreams(); got != 0 {
+		t.Fatalf("rejected control stream remained live: %d", got)
+	}
+	releaseOrdinary()
+	releaseOrdinary = func() {}
+
+	control, err := serverSession.OpenStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tunnel.WriteOpenRequest(control, tunnel.NewOpenRequest("cold-health", "tcp", listener.Addr().String())); err != nil {
+		t.Fatal(err)
+	}
+	response, err := tunnel.ReadOpenResponse(control)
+	if err != nil || !response.OK {
+		t.Fatalf("cold control response = %+v err=%v", response, err)
+	}
+	var origin net.Conn
+	select {
+	case origin = <-originAccepted:
+	case <-time.After(time.Second):
+		t.Fatal("cold control did not reach origin")
+	}
+	_ = origin.Close()
+	_ = control.Close()
+	deadline := time.Now().Add(time.Second)
+	for capacity.snapshot().ControlInUse != 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := capacity.snapshot(); got.ControlInUse != 0 || got.InUse != 0 || got.RejectedFixedLimit == 0 || got.RejectedPressure != 0 {
+		t.Fatalf("cold control cleanup snapshot = %+v", got)
+	}
 }
 
 func BenchmarkAdaptiveAgentCapacityAcquireRelease(b *testing.B) {

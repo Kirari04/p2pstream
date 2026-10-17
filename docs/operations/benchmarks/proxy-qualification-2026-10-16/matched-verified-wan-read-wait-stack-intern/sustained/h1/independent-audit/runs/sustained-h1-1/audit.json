@@ -1,0 +1,1542 @@
+{
+  "entries": [
+    {
+      "canonical_reader_summary": {
+        "canonical_prefooter_sha256": "cbf7490a3e39cad9630ff4c6610d7148678383d81d82facb4492ec22b8ce0a07",
+        "definition_bytes": 1156338,
+        "definition_count": 473,
+        "event_count": 417632,
+        "expanded_input_bytes": 906836962,
+        "expanded_input_sha256": "7de8b4e1047cbe04d6fe5ddbe5fa08d6a9fba3da1d66f43616df306c7198f8f4",
+        "record_count": 584717
+      },
+      "handler_region": {
+        "clipped_interval_count": 59532,
+        "duration_ns": 16834737728,
+        "end_ns": 22624872264768,
+        "partition_exact": true,
+        "partition_sum_ns": 16834737728,
+        "positive_interval_count": 59532,
+        "start_ns": 22608037527040,
+        "state_interval_counts_including_zero_duration": {
+          "Runnable": 8840,
+          "Running": 25341,
+          "Syscall": 16514,
+          "Waiting": 8837
+        },
+        "state_totals_ns": {
+          "Runnable": 105559432,
+          "Running": 208194728,
+          "Syscall": 238305189,
+          "Waiting": 16282678379
+        }
+      },
+      "marker_validation": {
+        "handler_gid": 3750,
+        "marker_gid_consistent": true,
+        "marker_order_valid": true,
+        "marker_task_id_consistent": true,
+        "region_begin": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 3750,
+          "kind": "RegionBegin",
+          "line": 5979,
+          "marker_id": 1,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 467,
+          "time_ns": 22608037527040
+        },
+        "region_end": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 3750,
+          "kind": "RegionEnd",
+          "line": 10759387,
+          "marker_id": 1,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 415075,
+          "time_ns": 22624872264768
+        },
+        "task_begin": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 3750,
+          "kind": "TaskBegin",
+          "line": 5958,
+          "marker_id": 1,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 466,
+          "time_ns": 22608037525824
+        },
+        "task_end": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 3750,
+          "kind": "TaskEnd",
+          "line": 10759408,
+          "marker_id": 1,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 415076,
+          "time_ns": 22624872265216
+        },
+        "task_id": 1
+      },
+      "parsed_main_event_count": 417632,
+      "public_protocol": "h1",
+      "sequence": 9,
+      "source_binding": {
+        "adapter_status": 0,
+        "adapter_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.adapter.status",
+        "adapter_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "canonical_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.intern",
+        "canonical_sha256": "19bdba704c7856e54d16cb554cae9e95fa7e4376963503cd704de63df3949c00",
+        "canonicalizer_status": 0,
+        "canonicalizer_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.canonicalizer.status",
+        "canonicalizer_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "parser_status": 0,
+        "parser_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-9.parser.status",
+        "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-9.out",
+        "raw_sha256": "2af2e15c73d88e6619f5833d26c276f0d290c4d4941bdf92f0e6364cadab1130",
+        "runner_sha256": "e9e453206cd479e1d29b78c05cf4d0eaf0cbaefe3c6ff13f0ba9594235c3bea0",
+        "server_binary_sha256": "57d77ddc5ee8ec6ab49cab0b7d0dd29641a70fa8598f0c7ba3eac73f46632ff5",
+        "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+      },
+      "transition_validation": {
+        "continuity_failures": [],
+        "global_event_order_nondecreasing": true,
+        "handler_old_state_continuity_valid": true,
+        "handler_transition_count": 59568,
+        "handler_transition_order_valid": true
+      },
+      "zero_pc_frames": [
+        {
+          "file": "",
+          "frame_line": 315992,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 315990,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 13930,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22609017825216
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 811056,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 811054,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 33628,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22610020184512
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 1339054,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 1339052,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 54616,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22611022496000
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 1869307,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 1869305,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 75573,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22612025104896
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 2363645,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 2363643,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 95325,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22613029504512
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 2889467,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 2889465,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 116225,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22614032812096
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 3243667,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 4133,
+            "kind": "StateTransition",
+            "line": 3243665,
+            "new_state": "Runnable",
+            "old_state": "Running",
+            "ordinal": 130217,
+            "reason": "preempted",
+            "resource_gid": 4133,
+            "time_ns": 22614717682880
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "TransitionStack"
+        },
+        {
+          "file": "",
+          "frame_line": 3243671,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 4133,
+            "kind": "StateTransition",
+            "line": 3243665,
+            "new_state": "Runnable",
+            "old_state": "Running",
+            "ordinal": 130217,
+            "reason": "preempted",
+            "resource_gid": 4133,
+            "time_ns": 22614717682880
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 3417234,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 3417232,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 137080,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22615035422400
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 3975667,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 3975665,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 158869,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22616039089856
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 4529765,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 4529763,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 180741,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22617042659712
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 5172694,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 5172692,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 205834,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22618047180288
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 5791248,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 5791246,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 229814,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22619049579136
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 6500214,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 6500212,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 256866,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22620051861312
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 7223606,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 7223604,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 284306,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22621055023360
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 8010392,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 4518,
+            "kind": "StateTransition",
+            "line": 8010390,
+            "new_state": "Runnable",
+            "old_state": "Running",
+            "ordinal": 313984,
+            "reason": "preempted",
+            "resource_gid": 4518,
+            "time_ns": 22622038046848
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "TransitionStack"
+        },
+        {
+          "file": "",
+          "frame_line": 8010396,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 4518,
+            "kind": "StateTransition",
+            "line": 8010390,
+            "new_state": "Runnable",
+            "old_state": "Running",
+            "ordinal": 313984,
+            "reason": "preempted",
+            "resource_gid": 4518,
+            "time_ns": 22622038046848
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 8037496,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 8037494,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 315062,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22622057338624
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 8952091,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 8952089,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 349061,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22623060310016
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 9894485,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 9894483,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 384039,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22624062827584
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 10787525,
+          "function": "",
+          "inside_handler_region_time": false,
+          "owner_event": {
+            "header_gid": 3774,
+            "kind": "StateTransition",
+            "line": 10787523,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 416775,
+            "reason": "",
+            "resource_gid": 3773,
+            "time_ns": 22625066024192
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        }
+      ],
+      "zero_pc_summary": {
+        "count": 21,
+        "relevant_handler_transition_path_count": 0
+      }
+    },
+    {
+      "canonical_reader_summary": {
+        "canonical_prefooter_sha256": "762ce91d4e4422f6cef4e813624f611ae7f7c15699741689e2379c52174b2412",
+        "definition_bytes": 1072927,
+        "definition_count": 428,
+        "event_count": 375078,
+        "expanded_input_bytes": 847095155,
+        "expanded_input_sha256": "4b4d768db2483a33e0b3dde79ab848eee58d580da3819355a49347bda1fe556d",
+        "record_count": 541975
+      },
+      "handler_region": {
+        "clipped_interval_count": 58195,
+        "duration_ns": 8806179136,
+        "end_ns": 22642365894528,
+        "partition_exact": true,
+        "partition_sum_ns": 8806179136,
+        "positive_interval_count": 58195,
+        "start_ns": 22633559715392,
+        "state_interval_counts_including_zero_duration": {
+          "Runnable": 8436,
+          "Running": 24879,
+          "Syscall": 16448,
+          "Waiting": 8432
+        },
+        "state_totals_ns": {
+          "Runnable": 60945528,
+          "Running": 171700684,
+          "Syscall": 206019593,
+          "Waiting": 8367513331
+        }
+      },
+      "marker_validation": {
+        "handler_gid": 5162,
+        "marker_gid_consistent": true,
+        "marker_order_valid": true,
+        "marker_task_id_consistent": true,
+        "region_begin": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 5162,
+          "kind": "RegionBegin",
+          "line": 6157,
+          "marker_id": 2,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 505,
+          "time_ns": 22633559715392
+        },
+        "region_end": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 5162,
+          "kind": "RegionEnd",
+          "line": 10050704,
+          "marker_id": 2,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 372212,
+          "time_ns": 22642365894528
+        },
+        "task_begin": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 5162,
+          "kind": "TaskBegin",
+          "line": 6136,
+          "marker_id": 2,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 504,
+          "time_ns": 22633559714368
+        },
+        "task_end": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 5162,
+          "kind": "TaskEnd",
+          "line": 10050725,
+          "marker_id": 2,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 372213,
+          "time_ns": 22642365894976
+        },
+        "task_id": 2
+      },
+      "parsed_main_event_count": 375078,
+      "public_protocol": "h1",
+      "sequence": 11,
+      "source_binding": {
+        "adapter_status": 0,
+        "adapter_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.adapter.status",
+        "adapter_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "canonical_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.intern",
+        "canonical_sha256": "4fbc7d50b1d2cd9f87ee399654f3e26f6820ca76e40c04e0cfa37219c62e0b95",
+        "canonicalizer_status": 0,
+        "canonicalizer_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.canonicalizer.status",
+        "canonicalizer_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "parser_status": 0,
+        "parser_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-11.parser.status",
+        "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-11.out",
+        "raw_sha256": "1289428cb6965ba3f0aa1cc3a0e4f763d874f19193b96eb29054922417cd4515",
+        "runner_sha256": "e9e453206cd479e1d29b78c05cf4d0eaf0cbaefe3c6ff13f0ba9594235c3bea0",
+        "server_binary_sha256": "57d77ddc5ee8ec6ab49cab0b7d0dd29641a70fa8598f0c7ba3eac73f46632ff5",
+        "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+      },
+      "transition_validation": {
+        "continuity_failures": [],
+        "global_event_order_nondecreasing": true,
+        "handler_old_state_continuity_valid": true,
+        "handler_transition_count": 58231,
+        "handler_transition_order_valid": true
+      },
+      "zero_pc_frames": [
+        {
+          "file": "",
+          "frame_line": 308621,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 5156,
+            "kind": "StateTransition",
+            "line": 308619,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 13579,
+            "reason": "",
+            "resource_gid": 5155,
+            "time_ns": 22634536829760
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 907060,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 5156,
+            "kind": "StateTransition",
+            "line": 907058,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 37070,
+            "reason": "",
+            "resource_gid": 5155,
+            "time_ns": 22635540748544
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 1736265,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 5156,
+            "kind": "StateTransition",
+            "line": 1736263,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 67897,
+            "reason": "",
+            "resource_gid": 5155,
+            "time_ns": 22636543079552
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 3026375,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 5156,
+            "kind": "StateTransition",
+            "line": 3026373,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 114467,
+            "reason": "",
+            "resource_gid": 5155,
+            "time_ns": 22637545938432
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 4534831,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 5156,
+            "kind": "StateTransition",
+            "line": 4534829,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 169749,
+            "reason": "",
+            "resource_gid": 5155,
+            "time_ns": 22638548788672
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 5920244,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 5156,
+            "kind": "StateTransition",
+            "line": 5920242,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 220748,
+            "reason": "",
+            "resource_gid": 5155,
+            "time_ns": 22639551517824
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 7428015,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 5156,
+            "kind": "StateTransition",
+            "line": 7428013,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 275995,
+            "reason": "",
+            "resource_gid": 5155,
+            "time_ns": 22640554610688
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 8809156,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 5156,
+            "kind": "StateTransition",
+            "line": 8809154,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 326882,
+            "reason": "",
+            "resource_gid": 5155,
+            "time_ns": 22641557640512
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 10078916,
+          "function": "",
+          "inside_handler_region_time": false,
+          "owner_event": {
+            "header_gid": 5156,
+            "kind": "StateTransition",
+            "line": 10078914,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 373932,
+            "reason": "",
+            "resource_gid": 5155,
+            "time_ns": 22642561453632
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        }
+      ],
+      "zero_pc_summary": {
+        "count": 9,
+        "relevant_handler_transition_path_count": 0
+      }
+    },
+    {
+      "canonical_reader_summary": {
+        "canonical_prefooter_sha256": "a7867c3f28bbb3d2583f5aa11883624524acfd25324eff60eca9694938c912d1",
+        "definition_bytes": 1000714,
+        "definition_count": 390,
+        "event_count": 377267,
+        "expanded_input_bytes": 851406311,
+        "expanded_input_sha256": "b2c2384dcf288d3619793a21e85616d688a71c07c354218e8c9ccd9859930d3f",
+        "record_count": 545391
+      },
+      "handler_region": {
+        "clipped_interval_count": 58404,
+        "duration_ns": 8775656576,
+        "end_ns": 22667603262208,
+        "partition_exact": true,
+        "partition_sum_ns": 8775656576,
+        "positive_interval_count": 58404,
+        "start_ns": 22658827605632,
+        "state_interval_counts_including_zero_duration": {
+          "Runnable": 8473,
+          "Running": 24963,
+          "Syscall": 16495,
+          "Waiting": 8473
+        },
+        "state_totals_ns": {
+          "Runnable": 61711107,
+          "Running": 177644021,
+          "Syscall": 214182552,
+          "Waiting": 8322118896
+        }
+      },
+      "marker_validation": {
+        "handler_gid": 6550,
+        "marker_gid_consistent": true,
+        "marker_order_valid": true,
+        "marker_task_id_consistent": true,
+        "region_begin": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 6550,
+          "kind": "RegionBegin",
+          "line": 6096,
+          "marker_id": 3,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 480,
+          "time_ns": 22658827605632
+        },
+        "region_end": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 6550,
+          "kind": "RegionEnd",
+          "line": 10104779,
+          "marker_id": 3,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 374415,
+          "time_ns": 22667603262208
+        },
+        "task_begin": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 6550,
+          "kind": "TaskBegin",
+          "line": 6075,
+          "marker_id": 3,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 479,
+          "time_ns": 22658827604544
+        },
+        "task_end": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 6550,
+          "kind": "TaskEnd",
+          "line": 10104800,
+          "marker_id": 3,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 374416,
+          "time_ns": 22667603262656
+        },
+        "task_id": 3
+      },
+      "parsed_main_event_count": 377267,
+      "public_protocol": "h1",
+      "sequence": 14,
+      "source_binding": {
+        "adapter_status": 0,
+        "adapter_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.adapter.status",
+        "adapter_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "canonical_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.intern",
+        "canonical_sha256": "fdc4167bdf25f27091358f7fc6899030101d539a765a7d475c91a46abf8a4be6",
+        "canonicalizer_status": 0,
+        "canonicalizer_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.canonicalizer.status",
+        "canonicalizer_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "parser_status": 0,
+        "parser_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-14.parser.status",
+        "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-14.out",
+        "raw_sha256": "52f2ff5676606f7f542e4f61afa7c24d32c8d2ae63817d037546adbf088ed4d7",
+        "runner_sha256": "e9e453206cd479e1d29b78c05cf4d0eaf0cbaefe3c6ff13f0ba9594235c3bea0",
+        "server_binary_sha256": "57d77ddc5ee8ec6ab49cab0b7d0dd29641a70fa8598f0c7ba3eac73f46632ff5",
+        "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+      },
+      "transition_validation": {
+        "continuity_failures": [],
+        "global_event_order_nondecreasing": true,
+        "handler_old_state_continuity_valid": true,
+        "handler_transition_count": 58440,
+        "handler_transition_order_valid": true
+      },
+      "zero_pc_frames": [
+        {
+          "file": "",
+          "frame_line": 357823,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 6534,
+            "kind": "StateTransition",
+            "line": 357821,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 15259,
+            "reason": "",
+            "resource_gid": 6533,
+            "time_ns": 22659804630848
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 990892,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 6534,
+            "kind": "StateTransition",
+            "line": 990890,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 39912,
+            "reason": "",
+            "resource_gid": 6533,
+            "time_ns": 22660807771008
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 1860889,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 6534,
+            "kind": "StateTransition",
+            "line": 1860887,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 72393,
+            "reason": "",
+            "resource_gid": 6533,
+            "time_ns": 22661810112512
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 3169308,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 6534,
+            "kind": "StateTransition",
+            "line": 3169306,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 120016,
+            "reason": "",
+            "resource_gid": 6533,
+            "time_ns": 22662814300096
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 4676892,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 6534,
+            "kind": "StateTransition",
+            "line": 4676890,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 175242,
+            "reason": "",
+            "resource_gid": 6533,
+            "time_ns": 22663817575296
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 6057694,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 6534,
+            "kind": "StateTransition",
+            "line": 6057692,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 225902,
+            "reason": "",
+            "resource_gid": 6533,
+            "time_ns": 22664819902592
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 7568656,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 6534,
+            "kind": "StateTransition",
+            "line": 7568654,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 281224,
+            "reason": "",
+            "resource_gid": 6533,
+            "time_ns": 22665823333440
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 8983738,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 6534,
+            "kind": "StateTransition",
+            "line": 8983736,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 333216,
+            "reason": "",
+            "resource_gid": 6533,
+            "time_ns": 22666824773888
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 10142712,
+          "function": "",
+          "inside_handler_region_time": false,
+          "owner_event": {
+            "header_gid": 6534,
+            "kind": "StateTransition",
+            "line": 10142710,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 376472,
+            "reason": "",
+            "resource_gid": 6533,
+            "time_ns": 22667828095552
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        }
+      ],
+      "zero_pc_summary": {
+        "count": 9,
+        "relevant_handler_transition_path_count": 0
+      }
+    },
+    {
+      "canonical_reader_summary": {
+        "canonical_prefooter_sha256": "6fc7d553b3e684d8bb008c3d90be8a6506d1950767b94923508bcc3a0989ec43",
+        "definition_bytes": 954009,
+        "definition_count": 384,
+        "event_count": 373134,
+        "expanded_input_bytes": 847056641,
+        "expanded_input_sha256": "a3ad526347537bfd2eda47251ee86590ecedd652409b77ab7e0655c0dfb4cf53",
+        "record_count": 543175
+      },
+      "handler_region": {
+        "clipped_interval_count": 57605,
+        "duration_ns": 7634729216,
+        "end_ns": 22675977380544,
+        "partition_exact": true,
+        "partition_sum_ns": 7634729216,
+        "positive_interval_count": 57605,
+        "start_ns": 22668342651328,
+        "state_interval_counts_including_zero_duration": {
+          "Runnable": 8272,
+          "Running": 24664,
+          "Syscall": 16395,
+          "Waiting": 8274
+        },
+        "state_totals_ns": {
+          "Runnable": 47243329,
+          "Running": 161622125,
+          "Syscall": 197924695,
+          "Waiting": 7227939067
+        }
+      },
+      "marker_validation": {
+        "handler_gid": 7064,
+        "marker_gid_consistent": true,
+        "marker_order_valid": true,
+        "marker_task_id_consistent": true,
+        "region_begin": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 7064,
+          "kind": "RegionBegin",
+          "line": 6175,
+          "marker_id": 4,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 499,
+          "time_ns": 22668342651328
+        },
+        "region_end": {
+          "expected_type": "public-proxy-handler",
+          "header_gid": 7064,
+          "kind": "RegionEnd",
+          "line": 10065199,
+          "marker_id": 4,
+          "marker_type": "public-proxy-handler",
+          "ordinal": 370285,
+          "time_ns": 22675977380544
+        },
+        "task_begin": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 7064,
+          "kind": "TaskBegin",
+          "line": 6154,
+          "marker_id": 4,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 498,
+          "time_ns": 22668342650624
+        },
+        "task_end": {
+          "expected_type": "wan-read-wait-request",
+          "header_gid": 7064,
+          "kind": "TaskEnd",
+          "line": 10065220,
+          "marker_id": 4,
+          "marker_type": "wan-read-wait-request",
+          "ordinal": 370286,
+          "time_ns": 22675977381120
+        },
+        "task_id": 4
+      },
+      "parsed_main_event_count": 373134,
+      "public_protocol": "h1",
+      "sequence": 15,
+      "source_binding": {
+        "adapter_status": 0,
+        "adapter_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.adapter.status",
+        "adapter_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "canonical_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.intern",
+        "canonical_sha256": "62d9901e3beaeec7f8a49cac4a7f4cc59809dfbbd15bee6038ca016282342508",
+        "canonicalizer_status": 0,
+        "canonicalizer_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.canonicalizer.status",
+        "canonicalizer_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "parser_status": 0,
+        "parser_status_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/sequence-15.parser.status",
+        "parser_status_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "raw_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/results.read-wait-traces/runtime-trace-sequence-15.out",
+        "raw_sha256": "93b9e7665c26e302a550e5d4b4476488f67f021a234b7b3ab3b0b6091e6822f5",
+        "runner_sha256": "e9e453206cd479e1d29b78c05cf4d0eaf0cbaefe3c6ff13f0ba9594235c3bea0",
+        "server_binary_sha256": "57d77ddc5ee8ec6ab49cab0b7d0dd29641a70fa8598f0c7ba3eac73f46632ff5",
+        "server_source_ref": "8ac4c8df8237e37777ba2fac0da6f949da17bdea"
+      },
+      "transition_validation": {
+        "continuity_failures": [],
+        "global_event_order_nondecreasing": true,
+        "handler_old_state_continuity_valid": true,
+        "handler_transition_count": 57646,
+        "handler_transition_order_valid": true
+      },
+      "zero_pc_frames": [
+        {
+          "file": "",
+          "frame_line": 535620,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 7058,
+            "kind": "StateTransition",
+            "line": 535618,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 21076,
+            "reason": "",
+            "resource_gid": 7041,
+            "time_ns": 22669322323072
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 1960572,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 7058,
+            "kind": "StateTransition",
+            "line": 1960570,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 73190,
+            "reason": "",
+            "resource_gid": 7041,
+            "time_ns": 22670325249344
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 3438993,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 7058,
+            "kind": "StateTransition",
+            "line": 3438991,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 127339,
+            "reason": "",
+            "resource_gid": 7041,
+            "time_ns": 22671327085376
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 4824540,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 7058,
+            "kind": "StateTransition",
+            "line": 4824538,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 178304,
+            "reason": "",
+            "resource_gid": 7041,
+            "time_ns": 22672330019328
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 6320575,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 7058,
+            "kind": "StateTransition",
+            "line": 6320573,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 232927,
+            "reason": "",
+            "resource_gid": 7041,
+            "time_ns": 22673334763264
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 7181330,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 7358,
+            "kind": "StateTransition",
+            "line": 7181328,
+            "new_state": "Runnable",
+            "old_state": "Running",
+            "ordinal": 264566,
+            "reason": "preempted",
+            "resource_gid": 7358,
+            "time_ns": 22673941760320
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "TransitionStack"
+        },
+        {
+          "file": "",
+          "frame_line": 7181334,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 7358,
+            "kind": "StateTransition",
+            "line": 7181328,
+            "new_state": "Runnable",
+            "old_state": "Running",
+            "ordinal": 264566,
+            "reason": "preempted",
+            "resource_gid": 7358,
+            "time_ns": 22673941760320
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 7716480,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 7058,
+            "kind": "StateTransition",
+            "line": 7716478,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 284106,
+            "reason": "",
+            "resource_gid": 7041,
+            "time_ns": 22674336036928
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 9162234,
+          "function": "",
+          "inside_handler_region_time": true,
+          "owner_event": {
+            "header_gid": 7058,
+            "kind": "StateTransition",
+            "line": 9162232,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 337130,
+            "reason": "",
+            "resource_gid": 7041,
+            "time_ns": 22675338499968
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        },
+        {
+          "file": "",
+          "frame_line": 10109018,
+          "function": "",
+          "inside_handler_region_time": false,
+          "owner_event": {
+            "header_gid": 7058,
+            "kind": "StateTransition",
+            "line": 10109016,
+            "new_state": "Runnable",
+            "old_state": "Waiting",
+            "ordinal": 372660,
+            "reason": "",
+            "resource_gid": 7041,
+            "time_ns": 22676341208640
+          },
+          "owner_resource_is_handler_gid": false,
+          "pc": "0x0",
+          "relevant_handler_transition_path": false,
+          "source_line": 0,
+          "stack_section": "Stack"
+        }
+      ],
+      "zero_pc_summary": {
+        "count": 10,
+        "relevant_handler_transition_path_count": 0
+      }
+    }
+  ],
+  "format_module_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/stack_intern_format.py",
+  "format_module_sha256": "f370243b753a94a122157e9b0b13eb535065fe88746269bd70de5475d82e4dbf",
+  "independence_limit": "Marker, GID, continuity, clipping, and partition logic are independent; canonical decoding is shared with the qualification analyzer and does not independently verify the compact format.",
+  "index_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-stack-intern-source/integration-source/runs/sustained-matched-protocol-1/h1/read-wait-reductions/index.json",
+  "index_sha256": "43e4f9dc7be2dda55b7e388c2dbc951a2ff8f87a4b0b7ac758f4dcb152863dc4",
+  "method": "independent state-transition partition over reviewed compact canonical decoding",
+  "public_protocol": "h1",
+  "schema_version": 1
+}

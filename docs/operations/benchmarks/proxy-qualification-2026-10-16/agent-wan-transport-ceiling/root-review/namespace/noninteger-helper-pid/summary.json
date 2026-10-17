@@ -1,0 +1,741 @@
+{
+  "aggregate_growth": {
+    "exercised": true,
+    "live_growth_reserved_bytes_by_pair_role": {
+      "1": {
+        "agent": 1,
+        "server": 1
+      },
+      "2": {
+        "agent": 1,
+        "server": 1
+      }
+    },
+    "status": "exercised"
+  },
+  "classification": "inconclusive_non_timing_failure",
+  "diagnostic_reproduced": false,
+  "failures": [
+    "invalid server namespace helper instance values",
+    "within-arm namespace/helper instances are aliased",
+    "fresh server/router/agent helper process instances were not unique for all 4 arms",
+    "topology helper instances do not share one captured kernel boot identity"
+  ],
+  "fixed_workload": {
+    "configured_one_way_netem_ms": 40,
+    "configured_rtt_ms": 80,
+    "expected_payload_sha256": "ad818ce955253fd9030cbefa352527321b308cfc574cb4bbee9cbcd0d4930790",
+    "measured_rtt_envelope_ms": {
+      "maximum": 120,
+      "minimum": 60
+    },
+    "measured_rtt_ms_by_pair_arm": {
+      "1": {
+        "aggregate-yamux": 96.388,
+        "raw-tls": 96.463
+      },
+      "2": {
+        "aggregate-yamux": 96.434,
+        "raw-tls": 96.714
+      }
+    },
+    "order": [
+      "yamux-then-raw",
+      "raw-then-yamux"
+    ],
+    "pairs": 2,
+    "payload_bytes": 268435456,
+    "raw_lifecycle_difference": "persistent TLS and origin TCP relay per data lane; no Yamux Open/OpenRequest setup",
+    "tcp_info_collection": "post-transfer-only",
+    "tcp_info_unavailable_fields": [
+      "app_limited"
+    ],
+    "total_phase_wall_used_for_both_arms": true,
+    "total_transfers": 64,
+    "transfers_per_variant": 16
+  },
+  "fixture_smoke_passed": false,
+  "fresh_namespace_instance_count": 11,
+  "gates": {
+    "not_a_1_10_retention_or_legacy_acceptance_gate": true,
+    "raw_each_postwarm_to_own_warm_median_minimum": 0.9,
+    "timing_localization_evaluated": true,
+    "yamux_fresh_download_median_minimum": 29700000,
+    "yamux_reused_lane3_minimum": 29700000,
+    "yamux_transition_requires_at_least_one_subthreshold": true
+  },
+  "non_timing_failures": [
+    "invalid server namespace helper instance values",
+    "within-arm namespace/helper instances are aliased",
+    "fresh server/router/agent helper process instances were not unique for all 4 arms",
+    "topology helper instances do not share one captured kernel boot identity"
+  ],
+  "pairs": {
+    "1": {
+      "all_phase_rates": {
+        "aggregate-yamux": [
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 0,
+            "phase_name": "p0",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 1,
+            "phase_name": "p1",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 2,
+            "phase_name": "p2",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 3,
+            "phase_name": "p3",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 4,
+            "phase_name": "p4",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 5,
+            "phase_name": "p5",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 6,
+            "phase_name": "p6",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 7,
+            "phase_name": "p7",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 8,
+            "phase_name": "p8",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 20000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 9,
+            "phase_name": "p9",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 10,
+            "phase_name": "p10",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 11,
+            "phase_name": "p11",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 12,
+            "phase_name": "p12",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 13,
+            "phase_name": "p13",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 14,
+            "phase_name": "p14",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 15,
+            "phase_name": "p15",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          }
+        ],
+        "raw-tls": [
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 0,
+            "phase_name": "p0",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 1,
+            "phase_name": "p1",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 2,
+            "phase_name": "p2",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 3,
+            "phase_name": "p3",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 4,
+            "phase_name": "p4",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 5,
+            "phase_name": "p5",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 6,
+            "phase_name": "p6",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 7,
+            "phase_name": "p7",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 8,
+            "phase_name": "p8",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 9,
+            "phase_name": "p9",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 10,
+            "phase_name": "p10",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 11,
+            "phase_name": "p11",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 12,
+            "phase_name": "p12",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 13,
+            "phase_name": "p13",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 14,
+            "phase_name": "p14",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 15,
+            "phase_name": "p15",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          }
+        ]
+      },
+      "order": [
+        "aggregate-yamux",
+        "raw-tls"
+      ],
+      "raw_no_analogous_stall": {
+        "fresh_download_median": 33000000.0,
+        "minimum": 0.9,
+        "passed": true,
+        "postwarm_to_fresh_median_ratios": {
+          "10": 1.0,
+          "13": 1.0,
+          "14": 1.0,
+          "8": 1.0
+        }
+      },
+      "yamux_stall_signature": {
+        "at_least_one_transition_below_floor": true,
+        "fresh_download_median": 33000000.0,
+        "fresh_download_minimum": 29700000,
+        "fresh_download_passed": true,
+        "passed": true,
+        "reused_lane3_download": 33000000,
+        "reused_lane3_minimum": 29700000,
+        "reused_lane3_passed": true,
+        "transition_samples": {
+          "10": 33000000,
+          "13": 33000000,
+          "8": 20000000
+        }
+      }
+    },
+    "2": {
+      "all_phase_rates": {
+        "aggregate-yamux": [
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 0,
+            "phase_name": "p0",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 1,
+            "phase_name": "p1",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 2,
+            "phase_name": "p2",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 3,
+            "phase_name": "p3",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 4,
+            "phase_name": "p4",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 5,
+            "phase_name": "p5",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 6,
+            "phase_name": "p6",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 7,
+            "phase_name": "p7",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 8,
+            "phase_name": "p8",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 20000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 9,
+            "phase_name": "p9",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 10,
+            "phase_name": "p10",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 11,
+            "phase_name": "p11",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 12,
+            "phase_name": "p12",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 13,
+            "phase_name": "p13",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 14,
+            "phase_name": "p14",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 15,
+            "phase_name": "p15",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          }
+        ],
+        "raw-tls": [
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 0,
+            "phase_name": "p0",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 1,
+            "phase_name": "p1",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 2,
+            "phase_name": "p2",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 3,
+            "phase_name": "p3",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 4,
+            "phase_name": "p4",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 5,
+            "phase_name": "p5",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 6,
+            "phase_name": "p6",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 7,
+            "phase_name": "p7",
+            "reuse_kind": "synthetic",
+            "stage": "conditioning",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 8,
+            "phase_name": "p8",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 9,
+            "phase_name": "p9",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 10,
+            "phase_name": "p10",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 11,
+            "phase_name": "p11",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 1,
+            "phase_index": 12,
+            "phase_name": "p12",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 2,
+            "phase_index": 13,
+            "phase_name": "p13",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "download",
+            "lane": 3,
+            "phase_index": 14,
+            "phase_name": "p14",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          },
+          {
+            "direction": "upload",
+            "lane": 4,
+            "phase_index": 15,
+            "phase_name": "p15",
+            "reuse_kind": "synthetic",
+            "stage": "timed",
+            "useful_bytes_per_second": 33000000
+          }
+        ]
+      },
+      "order": [
+        "raw-tls",
+        "aggregate-yamux"
+      ],
+      "raw_no_analogous_stall": {
+        "fresh_download_median": 33000000.0,
+        "minimum": 0.9,
+        "passed": true,
+        "postwarm_to_fresh_median_ratios": {
+          "10": 1.0,
+          "13": 1.0,
+          "14": 1.0,
+          "8": 1.0
+        }
+      },
+      "yamux_stall_signature": {
+        "at_least_one_transition_below_floor": true,
+        "fresh_download_median": 33000000.0,
+        "fresh_download_minimum": 29700000,
+        "fresh_download_passed": true,
+        "passed": true,
+        "reused_lane3_download": 33000000,
+        "reused_lane3_minimum": 29700000,
+        "reused_lane3_passed": true,
+        "transition_samples": {
+          "10": 33000000,
+          "13": 33000000,
+          "8": 20000000
+        }
+      }
+    }
+  },
+  "provenance": {
+    "agent_binary_sha256": "62a0ba54f0d62310e23607bf89a2738b951882529913c71be15a89d42849c9ac",
+    "build_tag": "p2pstream_transport_ceiling",
+    "runner_sha256": "87cf7c1b008c86e5a416713f34d5c45d59774efa6d6f038b895f6da681e1a70b",
+    "server_binary_sha256": "98d67ff45e6f4f0da317b7929c9cf7dce704f3946bcf710c9f4a5ae66f254c67",
+    "source_ref": "40e1046c2f68ee3d545dfd582cd424c2f3604b2a"
+  },
+  "pure_validator_replay": true,
+  "row_count": 64,
+  "scope": "diagnostic_only",
+  "snapshot_count": 12,
+  "timing_failures": [],
+  "topology_count": 4,
+  "unique_netns_inode_count": 8
+}

@@ -1,0 +1,217 @@
+{
+  "accepted": true,
+  "artifact_bytes": 706286802,
+  "baseline": {
+    "binaries": {
+      "agent": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+      "server": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test"
+    },
+    "receipt": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/receipt.json",
+    "receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+    "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+    "verifier": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/verify-terminal-build.py"
+  },
+  "binaries": {
+    "agent": {
+      "go_version_m_sha256": "b9e631212e36a24d2b2a867b4a2b74a48e4a8000d0957a28050d270ae25c5873",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-agent-early-share.test",
+      "sha256": "6e24fe74c58b2bfcefdf006cda216812b0a2126a3bbf2f771bc43ec7a1fb51bb",
+      "size": 22109576
+    },
+    "server": {
+      "go_version_m_sha256": "158c3b53486d8547c28b1315d4e33f5e78711e6d1e14a459db2dbf512a2dbcd7",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/early-share-build-output-continuation-1/current-server-early-share.test",
+      "sha256": "1184d0b78d2eade2e4f078d54279bfb08729bb408b1d338fd254cdd61a3f9fb9",
+      "size": 60350216
+    }
+  },
+  "byte_threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects",
+  "commands": [
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 1032,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/modules.outer.json",
+          "sha256": "ae46c295b44306e6ef2c68eb5a148cd579dc423d61ed21b7e8f5ab2605352760"
+        },
+        "started.json": {
+          "bytes": 601,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/modules.started.json",
+          "sha256": "4a33ad8b339bad943c6ea9fa1f3142655fd5d196446049034bb703f7d3f45c7d"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/modules.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 21,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/modules.stdout.log",
+          "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+        }
+      },
+      "name": "modules",
+      "source_unchanged": true,
+      "status": 0
+    },
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 6332,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/server-build.outer.json",
+          "sha256": "25adb60290273b4915b7083982a19c3c9e1abb4f13b1c909a4812ee1dfc18be6"
+        },
+        "started.json": {
+          "bytes": 887,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/server-build.started.json",
+          "sha256": "0195799c45ab53f92f69b1ce202cde334e80f6cc83838ca1a69debcef1663d93"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/server-build.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/server-build.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "name": "server-build",
+      "source_unchanged": true,
+      "status": 0
+    },
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 1770,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/agent-build.outer.json",
+          "sha256": "06745fd1ed46fc22c59eb11b280f9dbc18afa43e7948675723218c8428e6462f"
+        },
+        "started.json": {
+          "bytes": 885,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/agent-build.started.json",
+          "sha256": "7553be34294e302c245a29e3f0bee31c9b4f66000a9d238bd7283b8aaba7d061"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/agent-build.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/agent-build.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "name": "agent-build",
+      "source_unchanged": true,
+      "status": 0
+    },
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 1217,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/server-metadata.outer.json",
+          "sha256": "564676181ee022a9e16be8f376867ca8540f9d62ef1f0e3a9422a1e48b1e265b"
+        },
+        "started.json": {
+          "bytes": 783,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/server-metadata.started.json",
+          "sha256": "54b9a960c3b456113ee30e1476c98c17a2c0900354ff8259af3b3d8fdc5b27bb"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/server-metadata.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 484,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/server-metadata.stdout.log",
+          "sha256": "158c3b53486d8547c28b1315d4e33f5e78711e6d1e14a459db2dbf512a2dbcd7"
+        }
+      },
+      "name": "server-metadata",
+      "source_unchanged": true,
+      "status": 0
+    },
+    {
+      "files": {
+        "outer.json": {
+          "bytes": 1216,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/agent-metadata.outer.json",
+          "sha256": "8f87ab1a0e0123f3c114aeec2552a585bc3441bf9ac7fddbd5aab3c67d4ad849"
+        },
+        "started.json": {
+          "bytes": 782,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/agent-metadata.started.json",
+          "sha256": "78cc03168073020ba8a8e3a8b28b3b3117aff330d27178eda1792ceb63a3b9b0"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/agent-metadata.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 482,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/agent-metadata.stdout.log",
+          "sha256": "b9e631212e36a24d2b2a867b4a2b74a48e4a8000d0957a28050d270ae25c5873"
+        }
+      },
+      "name": "agent-metadata",
+      "source_unchanged": true,
+      "status": 0
+    }
+  ],
+  "diagnostic": "early-backed-share-build",
+  "endpoint_execution": false,
+  "failure": null,
+  "focused_result": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-source-20261017/focused-tests-continuation-1/RESULT.json",
+    "sha256": "940a3823bc2cb9a11d0259d6c18dec82ca7d3b1e5dd504bf56dd6507b467c7dd"
+  },
+  "plan_sha256": "de40327c7aa995eca5075c0ed7ecda720c8424d40866901b89840ee5229bc681",
+  "reused_settings": {
+    "command": {
+      "files": {
+        "outer.json": {
+          "bytes": 1184,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-once/settings.outer.json",
+          "sha256": "1d4777fab8237ac225f1dee3cd9788ac212a98bc61280319ee708b403b97b5d4"
+        },
+        "started.json": {
+          "bytes": 751,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-once/settings.started.json",
+          "sha256": "9cfcea1e71b6ecbf1f61f3d9f6e12ee9aad13fd7ef1889f49eaab3c5556f6b22"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-once/settings.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 264,
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-once/settings.stdout.log",
+          "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147"
+        }
+      },
+      "name": "settings",
+      "source_unchanged": true,
+      "status": 0
+    },
+    "original_receipt": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-once/receipt.json",
+      "sha256": "af0981d4460e0e449879e4f821c7f76d5035752eebadc3fe95310e6c34173254"
+    },
+    "proof_origin": "reused-original-early-share-settings-after-exact-source-environment-equivalence"
+  },
+  "schema_version": 1,
+  "source_artifact_bytes": 17120963,
+  "source_before_after_unchanged": true,
+  "source_identity": {
+    "inventory_sha256": "3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+    "source_file_count": 468
+  },
+  "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622+early-backed-share-source-3118de470fc074d7815921194214872b56dc352967fa2d6270574a97db9eff57",
+  "wan_traffic": false
+}

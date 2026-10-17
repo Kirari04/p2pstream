@@ -1,0 +1,25 @@
+{
+  "accepted": true,
+  "diagnostic_only": true,
+  "finished_unix_nano": 1792174188724054367,
+  "fresh_outer_topology_per_started_arm": true,
+  "h1": {
+    "accepted": true,
+    "safe_to_continue": true,
+    "status": 0
+  },
+  "h2": {
+    "accepted": true,
+    "started": true,
+    "status": 0
+  },
+  "order": [
+    "h1",
+    "h2"
+  ],
+  "pre_post_hashes_equal": true,
+  "same_binaries_both_arms": true,
+  "same_verified_certificate_both_arms": true,
+  "schema_version": 1,
+  "smoke": true
+}

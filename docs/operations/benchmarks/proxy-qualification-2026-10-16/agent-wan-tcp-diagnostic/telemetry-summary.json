@@ -1,0 +1,174 @@
+{
+  "diagnostic_only": true,
+  "phases": 32,
+  "unmatched_phase_begins": 0,
+  "records": 5691,
+  "capture_errors": [],
+  "capture_error_count": 0,
+  "collector_stop": [
+    {
+      "kind": "collector_stop",
+      "monotonic_ns": 376254092223652,
+      "wall_ns": 1792126135787499023,
+      "iterations": 2603,
+      "requested_stop": true,
+      "deadline_reached": false
+    }
+  ],
+  "cadence": {
+    "server": {
+      "samples": 2603,
+      "interval_ms_min": 100.05292,
+      "interval_ms_median": 100.137799,
+      "interval_ms_p95": 100.209564,
+      "interval_ms_max": 101.358989
+    },
+    "agent": {
+      "samples": 2603,
+      "interval_ms_min": 94.698471,
+      "interval_ms_median": 100.146075,
+      "interval_ms_p95": 101.422654,
+      "interval_ms_max": 102.70378
+    }
+  },
+  "qdiscs": {
+    "growth-rs": {
+      "first": {
+        "kind": "netem",
+        "handle": "8041:",
+        "root": true,
+        "refcnt": 17,
+        "options": {
+          "limit": 100000,
+          "delay": {
+            "delay": 0.04,
+            "jitter": 0,
+            "correlation": 0
+          },
+          "rate": {
+            "rate": 125000000,
+            "packetoverhead": 0,
+            "cellsize": 0,
+            "celloverhead": 0
+          },
+          "seed": 6307587995209959264,
+          "ecn": false,
+          "gap": 0
+        },
+        "bytes": 958,
+        "packets": 11,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0,
+        "backlog": 0,
+        "qlen": 0
+      },
+      "last": {
+        "kind": "netem",
+        "handle": "8041:",
+        "root": true,
+        "refcnt": 17,
+        "options": {
+          "limit": 100000,
+          "delay": {
+            "delay": 0.04,
+            "jitter": 0,
+            "correlation": 0
+          },
+          "rate": {
+            "rate": 125000000,
+            "packetoverhead": 0,
+            "cellsize": 0,
+            "celloverhead": 0
+          },
+          "seed": 6307587995209959264,
+          "ecn": false,
+          "gap": 0
+        },
+        "bytes": 4548521450,
+        "packets": 3637376,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0,
+        "backlog": 0,
+        "qlen": 0
+      },
+      "delta": {
+        "bytes": 4548520492,
+        "packets": 3637365,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0
+      }
+    },
+    "growth-rr": {
+      "first": {
+        "kind": "netem",
+        "handle": "8042:",
+        "root": true,
+        "refcnt": 17,
+        "options": {
+          "limit": 100000,
+          "delay": {
+            "delay": 0.04,
+            "jitter": 0,
+            "correlation": 0
+          },
+          "rate": {
+            "rate": 125000000,
+            "packetoverhead": 0,
+            "cellsize": 0,
+            "celloverhead": 0
+          },
+          "seed": 17151669560369871266,
+          "ecn": false,
+          "gap": 0
+        },
+        "bytes": 958,
+        "packets": 11,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0,
+        "backlog": 0,
+        "qlen": 0
+      },
+      "last": {
+        "kind": "netem",
+        "handle": "8042:",
+        "root": true,
+        "refcnt": 17,
+        "options": {
+          "limit": 100000,
+          "delay": {
+            "delay": 0.04,
+            "jitter": 0,
+            "correlation": 0
+          },
+          "rate": {
+            "rate": 125000000,
+            "packetoverhead": 0,
+            "cellsize": 0,
+            "celloverhead": 0
+          },
+          "seed": 17151669560369871266,
+          "ecn": false,
+          "gap": 0
+        },
+        "bytes": 4548714101,
+        "packets": 3640963,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0,
+        "backlog": 0,
+        "qlen": 0
+      },
+      "delta": {
+        "bytes": 4548713143,
+        "packets": 3640952,
+        "drops": 0,
+        "overlimits": 0,
+        "requeues": 0
+      }
+    }
+  }
+}

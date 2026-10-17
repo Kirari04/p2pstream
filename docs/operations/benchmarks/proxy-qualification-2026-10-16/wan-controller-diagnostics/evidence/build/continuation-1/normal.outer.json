@@ -1,0 +1,96 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "GOMAXPROCS=2",
+    "GOENV=off",
+    "GOWORK=off",
+    "GOFLAGS=",
+    "GOTOOLCHAIN=local",
+    "GOPROXY=off",
+    "GOSUMDB=off",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "240s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-p=2",
+    "-tags=p2pstream_qualification",
+    "-count=1",
+    "-timeout=60s",
+    "-run",
+    "^TestQualification(Terminal|RawWrite|TCP|Controller)",
+    "-v",
+    "./internal/agent"
+  ],
+  "artifact_bytes": 11010622,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 9.433294948001276,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2522957,
+      "pid": 2522957,
+      "ppid": 2522862,
+      "sid": 2522957,
+      "start_ticks": 7672802,
+      "state": "S"
+    },
+    {
+      "pgid": 2522957,
+      "pid": 2522958,
+      "ppid": 2522957,
+      "sid": 2522957,
+      "start_ticks": 7672803,
+      "state": "S"
+    },
+    {
+      "pgid": 2522957,
+      "pid": 2522998,
+      "ppid": 2522958,
+      "sid": 2522957,
+      "start_ticks": 7672815,
+      "state": "S"
+    },
+    {
+      "pgid": 2522957,
+      "pid": 2523046,
+      "ppid": 2522958,
+      "sid": 2522957,
+      "start_ticks": 7672929,
+      "state": "R"
+    },
+    {
+      "pgid": 2522957,
+      "pid": 2523119,
+      "ppid": 2522958,
+      "sid": 2522957,
+      "start_ticks": 7673489,
+      "state": "S"
+    },
+    {
+      "pgid": 2522957,
+      "pid": 2523167,
+      "ppid": 2522958,
+      "sid": 2522957,
+      "start_ticks": 7673703,
+      "state": "S"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 8388608,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 34999,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

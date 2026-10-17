@@ -1,0 +1,28 @@
+--- tmp/wan-idle-policy-screen-20261017/idle-policy-proof.py
++++ tmp/wan-early-share-screen-20261017/idle-policy-proof.py
+@@ -4,7 +4,7 @@
+ import argparse,json,os,stat,subprocess,sys,time
+ ROOT=Path(__file__).resolve().parent
+ SYSCTL='/proc/sys/net/ipv4/tcp_slow_start_after_idle'
+-ORDER=(1,0,1)
++ORDER=(1,1,1)
+ def require(ok,message):
+  if not ok:raise ValueError(message)
+ def expected(index):
+@@ -43,6 +43,7 @@
+  want=expected(index);host=read(host_file)['sample'];runner=parent_sample();agent=identity(agent_pid);router=identity(router_pid)
+  require(agent['start_ticks']==agent_ticks and agent['namespace']==agent_ns and router['start_ticks']==router_ticks and router['namespace']==router_ns,'owned helper binding differs')
+  checked_target(agent,runner,host,router);before=sample(agent_pid);router_before=sample(router_pid)
++ require(before['value']==runner['value']==host['value']==router_before['value']==1,'default idle baseline was not already one')
+  payload=json.dumps({'value':want,'target':agent,'runner':runner,'host':host})
+  result=subprocess.run(['nsenter','-t',str(agent_pid),'-n',sys.executable,'-I','-B',str(Path(__file__).resolve()),'write',payload],check=True,capture_output=True,text=True,timeout=5,env={'PATH':'/usr/bin:/bin','PYTHONDONTWRITEBYTECODE':'1'})
+  require(len(result.stdout)<=8192 and len(result.stderr)<=8192,'setter output exceeds bound');written=json.loads(result.stdout)
+@@ -63,7 +64,7 @@
+ def validate(config,pre,post,host_pre,host_post,index,terminal,envelopes,lifecycle):
+  want=expected(index);require(all(type(v['schema_version']) is int and v['schema_version']==1 for v in (config,pre,post,host_pre,host_post)),'schema differs')
+  def namespace_record(v):
+-  require(type(v['value']) is int and v['value'] in (0,1),'namespace policy outside exact integer domain')
++  require(type(v['value']) is int and v['value']==1,'namespace default idle policy is not exact one')
+   require(type(v['monotonic_ns']) is int and v['monotonic_ns']>0,'namespace monotonic timestamp malformed')
+   if 'subject' in v:require(type(v['subject']['pid']) is int and v['subject']['pid']>0 and type(v['subject']['start_ticks']) is int and v['subject']['start_ticks']>0 and same_namespace(v,v['subject']),'sample subject namespace/identity differs')
+   require(all(type(v[k]) is int and v[k]>0 for k in ('pid','start_ticks','namespace_inode')) and type(v['namespace_device']) is int,'namespace/process field types differ')

@@ -1,0 +1,9 @@
+{
+  "actual_rows_and_snapshots_equal_original_pure_validator_replay": true,
+  "derived_fixture_correctness_pass": true,
+  "final_analyzer_body_identical_to_current_runner": true,
+  "original_runner_exit_code_preserved": 1,
+  "performance_claim": false,
+  "scope": "independent_offline_formatter_fixture_review",
+  "topology_objects_and_order_semantically_identical": true
+}

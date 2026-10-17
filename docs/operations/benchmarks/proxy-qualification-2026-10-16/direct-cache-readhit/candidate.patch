@@ -1,0 +1,95 @@
+--- a/internal/server/direct_transport_pool.go
++++ b/internal/server/direct_transport_pool.go
+@@ -5,6 +5,7 @@
+ 	"net/http"
+ 	"net/url"
+ 	"sync"
++	"sync/atomic"
+ 	"time"
+ )
+ 
+@@ -19,13 +20,14 @@
+ 	key             directTransportKey
+ 	transport       *http.Transport
+ 	createdAt       time.Time
+-	lastUsed        time.Time
++	lastUsedNanos   atomic.Int64
+ 	lastReclaimedAt time.Time
+ }
+ 
+ type directTransportPool struct {
+-	mu              sync.Mutex
++	mu              sync.RWMutex
+ 	entries         map[directTransportKey]*pooledDirectTransport
++	startedAt       time.Time
+ 	maxConnsPerHost int
+ 	app             *App
+ }
+@@ -37,6 +39,7 @@
+ 	}
+ 	return &directTransportPool{
+ 		entries:         make(map[directTransportKey]*pooledDirectTransport),
++		startedAt:       time.Now(),
+ 		maxConnsPerHost: maxConns,
+ 	}
+ }
+@@ -56,10 +59,21 @@
+ 	if p == nil {
+ 		return newDirectPooledHTTPTransport(tlsSkipVerify, timeout, defaultPublicMaxConnectionsPerTarget)
+ 	}
++	// Hits share the map read lock. Keep their approximate LRU timestamp atomic
++	// so every request does not take the exclusive insertion/invalidation lock.
++	// Elapsed monotonic time preserves ordering across wall-clock adjustments.
++	p.mu.RLock()
++	if existing := p.entries[key]; existing != nil && existing.transport != nil {
++		existing.lastUsedNanos.Store(time.Since(p.startedAt).Nanoseconds())
++		transport := existing.transport
++		p.mu.RUnlock()
++		return transport
++	}
++	p.mu.RUnlock()
+ 	p.mu.Lock()
+ 	defer p.mu.Unlock()
+ 	if existing := p.entries[key]; existing != nil && existing.transport != nil {
+-		existing.lastUsed = time.Now()
++		existing.lastUsedNanos.Store(time.Since(p.startedAt).Nanoseconds())
+ 		return existing.transport
+ 	}
+ 	transport := newDirectPooledHTTPTransport(tlsSkipVerify, timeout, p.maxConnsPerHost)
+@@ -67,12 +81,13 @@
+ 		p.accountConnections(transport)
+ 	}
+ 	now := time.Now()
+-	p.entries[key] = &pooledDirectTransport{
++	entry := &pooledDirectTransport{
+ 		key:       key,
+ 		transport: transport,
+ 		createdAt: now,
+-		lastUsed:  now,
+-	}
++	}
++	entry.lastUsedNanos.Store(now.Sub(p.startedAt).Nanoseconds())
++	p.entries[key] = entry
+ 	return transport
+ }
+ 
+@@ -90,7 +105,7 @@
+ 			continue
+ 		}
+ 		if oldest == nil || entry.lastReclaimedAt.Before(oldest.lastReclaimedAt) ||
+-			(entry.lastReclaimedAt.Equal(oldest.lastReclaimedAt) && entry.lastUsed.Before(oldest.lastUsed)) {
++			(entry.lastReclaimedAt.Equal(oldest.lastReclaimedAt) && entry.lastUsedNanos.Load() < oldest.lastUsedNanos.Load()) {
+ 			oldest = entry
+ 		}
+ 	}
+@@ -153,8 +168,8 @@
+ 	if p == nil {
+ 		return 0
+ 	}
+-	p.mu.Lock()
+-	defer p.mu.Unlock()
++	p.mu.RLock()
++	defer p.mu.RUnlock()
+ 	return len(p.entries)
+ }
+ 

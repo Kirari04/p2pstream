@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+filter='((.wan_response_tls | length) == .attempted) and .attempted == 1 and
+  all(.wan_response_tls[]; .http_major == $major and .negotiated_alpn == $alpn and .peer_leaf_der_sha256 == $fingerprint and .origin_connection_id != "" and ((.validation_error // "") == ""))'
+fingerprint=2222222222222222222222222222222222222222222222222222222222222222
+positive='{"attempted":1,"wan_response_tls":[{"http_major":1,"negotiated_alpn":"http/1.1","peer_leaf_der_sha256":"2222222222222222222222222222222222222222222222222222222222222222","origin_connection_id":"127.0.0.1:1234","validation_error":""}]}'
+negative='{"attempted":1,"wan_response_tls":[]}'
+jq -e --argjson major 1 --arg alpn http/1.1 --arg fingerprint "$fingerprint" "$filter" <<<"$positive" >/dev/null
+if jq -e --argjson major 1 --arg alpn http/1.1 --arg fingerprint "$fingerprint" "$filter" <<<"$negative" >/dev/null; then
+  echo "TLS cardinality filter accepted a missing response observation" >&2
+  exit 1
+fi
+printf '%s\n' "runner jq TLS contract passed"

@@ -1,0 +1,2 @@
+net.ipv4.ip_forward = 1
+qdisc netem 8002: root refcnt 17 limit 1000 delay 40ms seed 18262625437361774621

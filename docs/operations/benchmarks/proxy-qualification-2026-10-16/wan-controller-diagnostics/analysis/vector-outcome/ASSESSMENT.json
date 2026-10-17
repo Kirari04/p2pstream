@@ -1,0 +1,403 @@
+{
+  "schema_version": 1,
+  "verdict": "Rejected fresh vector cohort; first CUBIC completed16rows, conditioning genuinely failed, Reno/finalCUBIC never ran. No controller effect or qualification clearance.",
+  "attestation": {
+    "accepted": false,
+    "integrity_issues": [],
+    "conditioning_issues": [
+      "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+      "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained"
+    ],
+    "performance_issues": [
+      "steady download phase failed independent 29700000 B/s floor"
+    ]
+  },
+  "all16_rates": [
+    {
+      "sequence": 1,
+      "stage": "warmup",
+      "direction": "download",
+      "bytes_per_second": 34057587.438612655
+    },
+    {
+      "sequence": 2,
+      "stage": "warmup",
+      "direction": "download",
+      "bytes_per_second": 34060260.51594159
+    },
+    {
+      "sequence": 3,
+      "stage": "warmup",
+      "direction": "download",
+      "bytes_per_second": 34296388.02916485
+    },
+    {
+      "sequence": 4,
+      "stage": "warmup",
+      "direction": "download",
+      "bytes_per_second": 34075509.144305035
+    },
+    {
+      "sequence": 5,
+      "stage": "warmup",
+      "direction": "upload",
+      "bytes_per_second": 28854863.84266
+    },
+    {
+      "sequence": 6,
+      "stage": "warmup",
+      "direction": "upload",
+      "bytes_per_second": 28940255.827763516
+    },
+    {
+      "sequence": 7,
+      "stage": "warmup",
+      "direction": "upload",
+      "bytes_per_second": 28318337.82495314
+    },
+    {
+      "sequence": 8,
+      "stage": "warmup",
+      "direction": "upload",
+      "bytes_per_second": 29317648.641011924
+    },
+    {
+      "sequence": 9,
+      "stage": "retained-warmup",
+      "direction": "download",
+      "bytes_per_second": 34132785.23449573
+    },
+    {
+      "sequence": 10,
+      "stage": "retained-warmup",
+      "direction": "upload",
+      "bytes_per_second": 35399705.991655886
+    },
+    {
+      "sequence": 11,
+      "stage": "steady",
+      "direction": "download",
+      "bytes_per_second": 27592816.975296006
+    },
+    {
+      "sequence": 12,
+      "stage": "steady",
+      "direction": "upload",
+      "bytes_per_second": 35958582.57053817
+    },
+    {
+      "sequence": 13,
+      "stage": "steady",
+      "direction": "upload",
+      "bytes_per_second": 36092350.79718251
+    },
+    {
+      "sequence": 14,
+      "stage": "steady",
+      "direction": "download",
+      "bytes_per_second": 15848814.945614165
+    },
+    {
+      "sequence": 15,
+      "stage": "steady",
+      "direction": "download",
+      "bytes_per_second": 34099497.411189765
+    },
+    {
+      "sequence": 16,
+      "stage": "steady",
+      "direction": "upload",
+      "bytes_per_second": 35457744.145589516
+    }
+  ],
+  "retained_attribution": [
+    {
+      "sequence": 9,
+      "lane": 1,
+      "stream_id": 6,
+      "bytes_per_second": 34132785.23449573,
+      "wall_seconds": 7.864446284,
+      "handler_ns": 7745241676,
+      "upstream_read_ns": 6989902668,
+      "downstream_write_ns": 587449250,
+      "maximum_write_ns": 583575,
+      "tcp_pre": {
+        "send_congestion_window": 10,
+        "send_slow_start_threshold": 2147483647,
+        "total_retrans": 0,
+        "bytes_retransmitted": 0,
+        "total_rto": 0
+      },
+      "tcp_post": {
+        "send_congestion_window": 5890,
+        "send_slow_start_threshold": 2147483647,
+        "total_retrans": 0,
+        "bytes_retransmitted": 0,
+        "total_rto": 0
+      },
+      "threshold_history": {
+        "explanation_status": "inconclusive",
+        "exhausted": true,
+        "monitored_raw_write_attempts": 4096,
+        "transition_observed": false
+      }
+    },
+    {
+      "sequence": 11,
+      "lane": 3,
+      "stream_id": 6,
+      "bytes_per_second": 27592816.975296006,
+      "wall_seconds": 9.728454193,
+      "handler_ns": 9611306240,
+      "upstream_read_ns": 8762200075,
+      "downstream_write_ns": 679380014,
+      "maximum_write_ns": 570370,
+      "tcp_pre": {
+        "send_congestion_window": 10,
+        "send_slow_start_threshold": 241,
+        "total_retrans": 0,
+        "bytes_retransmitted": 0,
+        "total_rto": 0
+      },
+      "tcp_post": {
+        "send_congestion_window": 3098,
+        "send_slow_start_threshold": 241,
+        "total_retrans": 0,
+        "bytes_retransmitted": 0,
+        "total_rto": 0
+      },
+      "threshold_history": {
+        "explanation_status": "inconclusive",
+        "exhausted": true,
+        "monitored_raw_write_attempts": 4096,
+        "transition_observed": false
+      }
+    },
+    {
+      "sequence": 14,
+      "lane": 2,
+      "stream_id": 6,
+      "bytes_per_second": 15848814.945614165,
+      "wall_seconds": 16.93725726,
+      "handler_ns": 16761348435,
+      "upstream_read_ns": 15809706860,
+      "downstream_write_ns": 781964782,
+      "maximum_write_ns": 682178,
+      "tcp_pre": {
+        "send_congestion_window": 10,
+        "send_slow_start_threshold": 236,
+        "total_retrans": 0,
+        "bytes_retransmitted": 0,
+        "total_rto": 0
+      },
+      "tcp_post": {
+        "send_congestion_window": 1907,
+        "send_slow_start_threshold": 504,
+        "total_retrans": 7,
+        "bytes_retransmitted": 10136,
+        "total_rto": 0
+      },
+      "threshold_history": {
+        "explanation_status": "inconclusive",
+        "exhausted": true,
+        "monitored_raw_write_attempts": 4096,
+        "transition_observed": false
+      }
+    },
+    {
+      "sequence": 15,
+      "lane": 3,
+      "stream_id": 8,
+      "bytes_per_second": 34099497.411189765,
+      "wall_seconds": 7.872123532,
+      "handler_ns": 7694510082,
+      "upstream_read_ns": 6748675368,
+      "downstream_write_ns": 616300300,
+      "maximum_write_ns": 466728,
+      "tcp_pre": {
+        "send_congestion_window": 10,
+        "send_slow_start_threshold": 2323,
+        "total_retrans": 0,
+        "bytes_retransmitted": 0,
+        "total_rto": 0
+      },
+      "tcp_post": {
+        "send_congestion_window": 3099,
+        "send_slow_start_threshold": 2323,
+        "total_retrans": 0,
+        "bytes_retransmitted": 0,
+        "total_rto": 0
+      },
+      "threshold_history": {
+        "explanation_status": "inconclusive",
+        "exhausted": true,
+        "monitored_raw_write_attempts": 4096,
+        "transition_observed": false
+      }
+    }
+  ],
+  "reuse_expectations": [
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33754",
+      "kind": "first-post-close-visit",
+      "lane_position": 1,
+      "satisfied": true,
+      "sequence": 9
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33780",
+      "kind": "first-post-close-visit",
+      "lane_position": 2,
+      "satisfied": true,
+      "sequence": 10
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33766",
+      "kind": "first-post-close-visit",
+      "lane_position": 3,
+      "satisfied": true,
+      "sequence": 11
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33748",
+      "kind": "first-post-close-visit",
+      "lane_position": 4,
+      "satisfied": true,
+      "sequence": 12
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33754",
+      "elapsed_idle_ns": 26578193728,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33754",
+      "got_conn_unix_ns": 1792241374173118046,
+      "httptrace_idle_time_ns": 26578193799,
+      "kind": "same-key-revisit",
+      "lane_position": 1,
+      "observed_origin_connection_id": "10.212.0.2:60574",
+      "prior_origin_connection_id": "10.212.0.2:60574",
+      "prior_put_idle_unix_ns": 1792241347594924318,
+      "satisfied": true,
+      "sequence": 13
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33780",
+      "elapsed_idle_ns": 26432754904,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33780",
+      "got_conn_unix_ns": 1792241382074505407,
+      "httptrace_idle_time_ns": 26432755505,
+      "kind": "same-key-revisit",
+      "lane_position": 2,
+      "observed_origin_connection_id": "10.212.0.2:53374",
+      "prior_origin_connection_id": "10.212.0.2:53374",
+      "prior_put_idle_unix_ns": 1792241355641750503,
+      "satisfied": true,
+      "sequence": 14
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33766",
+      "elapsed_idle_ns": 34042501953,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33766",
+      "got_conn_unix_ns": 1792241399914531060,
+      "httptrace_idle_time_ns": 0,
+      "kind": "same-key-revisit",
+      "lane_position": 3,
+      "observed_origin_connection_id": "10.212.0.2:54532",
+      "prior_origin_connection_id": "10.212.0.2:53380",
+      "prior_put_idle_unix_ns": 1792241365872029107,
+      "satisfied": false,
+      "sequence": 15
+    },
+    {
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33748",
+      "elapsed_idle_ns": 34508404577,
+      "expected_connection_key": "*server.agentTunnelStreamConn|10.211.0.1:41791|10.212.0.2:33748",
+      "got_conn_unix_ns": 1792241408280259458,
+      "httptrace_idle_time_ns": 0,
+      "kind": "same-key-revisit",
+      "lane_position": 4,
+      "observed_origin_connection_id": "10.212.0.2:58156",
+      "prior_origin_connection_id": "10.212.0.2:51448",
+      "prior_put_idle_unix_ns": 1792241373771854881,
+      "satisfied": false,
+      "sequence": 16
+    }
+  ],
+  "diagnosis": [
+    "Complete callbacks and both origin IDs exist. Sequences15/16 report reused=false,was_idle=false,idle_time0; origin ports change53380to54532 and51448to58156. This is observed connection replacement, not missing instrumentation.",
+    "The same tunnel connection key can carry a new stream: sequence15usesstream8 onlane3, versusstream6 atsequence11. Same TCP tuple therefore does not prove retained HTTP/origin connection.",
+    "Elapsed idle34.042501953s/34.508404577s exceeds source-configured30s IdleConnTimeout at agent_transport_pool.go:490. Go transport.go:1164 and2216\u20132226 close still-idle connections. Timer cause is strongly supported by source/timing; an exact close-reason event was not captured.",
+    "Sequence14retains origin/reuse but falls15.848815MB/s, with15.809707sRead versus0.781965sWrite(max0.682178ms), prethreshold236,7additionalretrans/10136bytes bypost, zeroRTO. Existing interval captures do not locate those retransmissions beforepost. Initialthresholdcreator remainsinconclusive4096cap.",
+    "Sequence14connection span16.761069342s is inside both failed revisit gaps. Remaining gaps17.281432611s/17.747335235s leave only12.718567389s/12.252664765s for that span under30s. Long sequence14 thus consumes the schedule idle budget; this arithmetic is not proof that retransmissions alone caused its duration.",
+    "Known recurrence: docs/operations/agent-proxy-performance.md:576\u2013587 records H2seq14=14.550MB/s,17.334sRead and seq15/16idle34.588/35.001s with new origins;636records another30s exposure;874preserves policy in healthy nativeHTTP1screen. This is not a newly discovered timeout defect."
+  ],
+  "next_action": "Archive this rejection; no same-plan retry, gate relaxation, idle-timeout tuning or production CC fix. Separately assess a genuinely new schedule on source before any proposal for traffic. Existing evidence does not justify a production code change.",
+  "reviewer_actions": {
+    "read_only_saved_evidence_and_source": true,
+    "validators_rerun": 0,
+    "tests": 0,
+    "builds": 0,
+    "traffic": 0
+  },
+  "inputs": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic/attestation.json",
+      "sha256": "4cec675f3e66eed12cd8c4d5099c753f7a47e8a638fd73ae12c72538f548b9d2"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic/results.jsonl",
+      "sha256": "be9ef65945055c3f2586d7923490c53753dcb985b9751fe98a4f6321195d57bc"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic/results.summary.json",
+      "sha256": "74b9990420cd0a70e01456fd5b57eab43ddf56b4555e20a9dc0cbd693aea6f1d"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/vector-design/FINAL-AUDIT.json",
+      "sha256": "130834ee8f166eccaf42a2952cb059ff115bab82602ef7717e3cb7e19beac2e5"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source/internal/server/agent_transport_pool.go",
+      "sha256": "a92fd4c6a126a313b0df353553a16b4b7ea54729f4f97d3dc9d5446a5d5d0512"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source/internal/server/agent_tunnels.go",
+      "sha256": "e5242e83869b683f106dcdc6f38e4ab190c10530c3eb9e83263b61e85085bf56"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source/internal/agent/qualification_tcp_state_qualification.go",
+      "sha256": "6f29e186fa3ac9f925baddec9159a3d5f97d5df9a25c61a6f6438b695c7d2656"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+      "sha256": "dd526df214e7adcbcfd4c790d2581348f8b1048d13fd5ca0d832306f57860235"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/generated/qualify-proxy-agent-growth-wan-below-tls.sh",
+      "sha256": "308ab9ef7e9cb2b3c03014707203824ed19bf74486a8404bc1f2a1c336286416"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/docs/operations/agent-proxy-performance.md",
+      "sha256": "523ee93dbf523290525286997f49eed2719e4e38f9ac9ebc504ac88a99871f33"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/transport.go",
+      "sha256": "1c170ec3581321bd19ccd1b15863f46b16dc749ac6d54d00f5e97f7ffa2ccb5f"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic/results.sender-wait-controls/sequence-9-post-sender.json",
+      "sha256": "1573f8a2b1d8e79f5b5a0d4db2b8a033ff163cf635cf43b0b9d9e53ee8e9e755"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic/results.sender-wait-controls/sequence-11-post-sender.json",
+      "sha256": "df5dc90b34f2aaeac16a28e13e2985d38b815e5c48736d1fbdcd07215a975179"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic/results.sender-wait-controls/sequence-14-post-sender.json",
+      "sha256": "e55bfe2f3e2203df3783a38c101dd21e2484dcc0bb0bac2a7454165860dd632c"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic/results.sender-wait-controls/sequence-15-post-sender.json",
+      "sha256": "0c5fbb31f949335453f51f2f70c81986dfdf523c67e0885fadb8bfed00f8f585"
+    }
+  ]
+}

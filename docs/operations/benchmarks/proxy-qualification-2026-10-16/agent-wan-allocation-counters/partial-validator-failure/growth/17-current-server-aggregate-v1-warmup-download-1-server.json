@@ -1,0 +1,1 @@
+{"role":"server","label":"current-server-aggregate-v1","transport_mode":"aggregate-v1","measurement_stage":"warmup","transfer_direction":"download","repetition":1,"sequence":17,"drain_after_transfer":true,"started_monotonic_ns":379849777893790,"started_unix_nano":1792129731473170192,"error":"send-counter wire mode mismatch","elapsed_ns":2388869}

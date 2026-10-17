@@ -1,0 +1,81 @@
+--- tmp/wan-idle-policy-screen-20261017/arm-wrapper.sh
++++ tmp/wan-early-share-screen-20261017/arm-wrapper.sh
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env bash
+ set -Eeuo pipefail
+ # SOURCE-ONLY: reviewed derivative binary/build tuple does not exist yet.
+-expected_terminal_build_receipt_sha256=$(cat "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/REVIEWED-RECEIPT-SHA256") # BLOCKED_PENDING_REVIEWED_CONTROLLER_BUILD_RECEIPT
++expected_terminal_build_receipt_sha256=$(cat "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/REVIEWED-RECEIPT-SHA256") # BLOCKED_PENDING_REVIEWED_EARLY_SHARE_BUILD_RECEIPT
+ [[ $expected_terminal_build_receipt_sha256 =~ ^[0-9a-f]{64}$ ]] || {
+   echo "prospective terminal build/source receipt is not reviewed; endpoint execution blocked" >&2
+   exit 125
+@@ -17,7 +17,7 @@
+ capacity_root=$(realpath "$continuation_root/wan-read-wait-capacity-source")
+ mature_sender_root=$(realpath "$continuation_root/wan-sender-wait-integration-source")
+ script_dir=$capacity_root
+-runner="/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runner.sh"
++runner="/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runner.sh"
+ validator="$integration_dir/validate-wan-below-tls-arm.py"
+ arm_outcome_validator="$integration_dir/validate-arm-outcome.py"
+ sender_snapshot_validator="$integration_dir/validate-sender-wait-snapshot.py"
+@@ -288,8 +288,8 @@
+ [[ $(sha256sum "$integration_dir/verify-terminal-build.py" | awk '{print $1}') == c68e207909897bb121aca99cb2ec1d6c14c8b0853eb8b239927b499a022ba793 ]] || { echo "prospective validator/verifier source changed" >&2; exit 2; }
+ [[ $(sha256sum "$integration_dir/validate-terminal-attribution.py" | awk '{print $1}') == 1be48e2f76dd566630c6427d9cf0a19dc6100fdf71532fb21616da209691d510 ]] || { echo "prospective validator/verifier source changed" >&2; exit 2; }
+ [[ $(sha256sum "$integration_dir/LEGACY-VALIDATOR.json" | awk '{print $1}') == b77ed3613b5d088efeacb1d6d4d763b3b255aa2fc35b5dc674771a39cdc73c38 ]] || { echo "prospective validator/verifier source changed" >&2; exit 2; }
+-PYTHONDONTWRITEBYTECODE=1 python3 -I -B "$integration_dir/verify-terminal-build.py" \
+-  --receipt "$integration_dir/../../build/receipt.json" \
++PYTHONDONTWRITEBYTECODE=1 python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/verify-early-share-build-continuation-1.py" \
++  --receipt "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/receipt.json" \
+   --expected-receipt-sha256 "$expected_terminal_build_receipt_sha256" \
+   --server "$server_binary" --agent "$aggregate_agent_binary" \
+   --server-ref "$server_source_ref" --agent-ref "$aggregate_agent_source_ref"
+@@ -397,7 +397,7 @@
+ }
+ [[ $(sha256sum "$sender_observer_checkpoint" | awk '{print $1}') == 9f96e06bfd571fdf3550d095e6818b949bff0e3cdd733394e7ce93299e965e30 &&
+    $(sha256sum "$sender_observer_patch" | awk '{print $1}') == 02f5ab266a7c6225dcf242dacb70edcf322cc790420f62e0d9ec8ae1ec11d130 &&
+-   $(sha256sum "$runner" | awk '{print $1}') == 5427df1219144226f7c0acace1674731af1afd96f5ce462dd96b1871e33c94aa &&
++   $(sha256sum "$runner" | awk '{print $1}') == 58cd84b4566129d966d97a60792d7941cb0bd95aea3776bf0ac959a8742149ce &&
+    $(sha256sum "$validator" | awk '{print $1}') == dd526df214e7adcbcfd4c790d2581348f8b1048d13fd5ca0d832306f57860235 &&
+    $(sha256sum "$arm_outcome_validator" | awk '{print $1}') == 4c4f1c8119aac278b732fadabb72fa08f9249ee9ed003d0b881c5220b74f1eb1 &&
+    $(sha256sum "$copy_record_validator" | awk '{print $1}') == f1c70a2f347a77975a00330d4d37929700b1a38bac5fa195c3dff02b3f773c26 &&
+@@ -494,12 +494,12 @@
+ [[ $actual_leaf_sha256 == "$expected_leaf_sha256" ]] || { echo "certificate DER fingerprint mismatch" >&2; exit 2; }
+ 
+ output_dir=$(realpath -m "$output_dir")
+-allowed_root="/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs"
++allowed_root="/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/runs"
+ [[ $output_dir == "$allowed_root"/* ]] || { echo "output must remain below $allowed_root" >&2; exit 2; }
+ [[ ! -e $output_dir ]] || { echo "output directory already exists: $output_dir" >&2; exit 2; }
+ mkdir -p "$output_dir/tmp"
+ export TMPDIR="$output_dir/tmp"
+-python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/idle-policy-proof.py" host host-pre "$output_dir/idle-host-pre.json"
++python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/idle-policy-proof.py" host host-pre "$output_dir/idle-host-pre.json"
+ results="$output_dir/results.jsonl"
+ lifecycle="$output_dir/results.lifecycle.jsonl"
+ summary="$output_dir/results.summary.json"
+@@ -523,10 +523,12 @@
+ 
+ terminal_attribution_validator="$integration_dir/validate-terminal-attribution.py"
+ terminal_legacy_references="$integration_dir/LEGACY-VALIDATOR.json"
+-terminal_build_receipt="$integration_dir/../../build/receipt.json"
+-terminal_build_plan="$integration_dir/../../BUILD-TEST-PLAN.json"
+-terminal_build_verifier="$integration_dir/verify-terminal-build.py"
+-terminal_build_source_inventory="$integration_dir/../../SOURCE-SHA256SUMS"
++terminal_build_receipt="/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-continuation-1/receipt.json"
++terminal_build_plan="/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/BUILD-CONTINUATION-1-PLAN.json"
++terminal_build_verifier="/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/verify-early-share-build-continuation-1.py"
++early_share_build_helper="/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/build-proof-continuation-1.py"
++[[ -f $early_share_build_helper ]] || { echo "early-share build helper unavailable" >&2; exit 125; }
++terminal_build_source_inventory="/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/SOURCE-CONTINUATION-1-SHA256SUMS"
+ 
+ write_hashes() {
+   local destination=$1
+@@ -1184,7 +1186,7 @@
+   "$sender_terminal_status" "$sender_terminal_validation_status" "$sender_terminal_valid" \
+   "$raw_finalization_status" "$raw_final_closure_valid" "$raw_attribution_status" "$raw_attribution_valid" > "$supervisor"
+ runner_pid=""
+-python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/idle-policy-proof.py" host host-post "$output_dir/idle-host-post.json"
++python3 -I -B "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-screen-20261017/idle-policy-proof.py" host host-post "$output_dir/idle-host-post.json"
+ write_hashes "$post_hashes"
+ 
+ set +e

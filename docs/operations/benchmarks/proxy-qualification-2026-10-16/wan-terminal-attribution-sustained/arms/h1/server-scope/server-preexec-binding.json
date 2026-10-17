@@ -1,0 +1,139 @@
+{
+  "accepted": true,
+  "checks": {
+    "cpu_affinity_match": true,
+    "exec_binary_match": true,
+    "exec_test_match": true,
+    "finite_memory_max": true,
+    "helper_cmdline_match": true,
+    "inner_net_is_nested": true,
+    "inner_user_is_nested": true,
+    "join_succeeded": true,
+    "joined_expected_cgroup": true,
+    "local_pid_match": true,
+    "memory_high_unbounded": true,
+    "mount_matches_outer": true,
+    "namespaces_match_owned_runner": true,
+    "namespaces_match_state": true,
+    "no_memory_events": true,
+    "nonce_match": true,
+    "outer_cgroup_matches_parent": true,
+    "outer_cgroup_namespace_unchanged": true,
+    "outer_private_user_pid_mount_net": true,
+    "outer_python_parent_is_one": true,
+    "outer_shell_pid_is_one": true,
+    "pid_matches_outer": true,
+    "role_match": true,
+    "runner_cgroup_matches_outer": true,
+    "start_ticks_match": true,
+    "state_nonce_match": true,
+    "state_role_match": true,
+    "swap_disabled": true
+  },
+  "host_process": {
+    "host_cmdline": [
+      "python3",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/server-cgroup-entrypoint.sh",
+      "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h1-2442861-99cdc52a.scope/cgroup.procs",
+      "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h1-2442861-99cdc52a.scope",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/server-scope/server-preexec.json",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h1/server-scope/server-preexec.release",
+      "99cdc52a-7aa5-47a8-9c9c-57edf87d256e",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/current-server-terminal.test",
+      "-test.run",
+      "^TestExternalProxyQualificationServerProcess$",
+      "-test.timeout",
+      "4397s"
+    ],
+    "host_cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "host_exe": "/usr/bin/python3.14",
+    "host_namespaces": {
+      "cgroup": "cgroup:[4026531835]",
+      "mnt": "mnt:[4026532935]",
+      "net": "net:[4026533521]",
+      "pid": "pid:[4026532936]",
+      "user": "user:[4026533520]"
+    },
+    "host_nspgid": [
+      2443498,
+      182
+    ],
+    "host_nspid": [
+      2443498,
+      182
+    ],
+    "host_pid": 2443498,
+    "host_start_ticks": 7267273,
+    "nonce": "99cdc52a-7aa5-47a8-9c9c-57edf87d256e",
+    "role": "server"
+  },
+  "phase": "preexec",
+  "schema_version": 1,
+  "scope": {
+    "members": [
+      2443498
+    ],
+    "memory_current_bytes": 630784,
+    "memory_events": {
+      "high": 0,
+      "low": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_group_kill": 0,
+      "oom_kill": 0,
+      "sock_throttled": 0
+    },
+    "memory_high_bytes": "max",
+    "memory_max_bytes": 4294967296,
+    "memory_peak_bytes": 6189056,
+    "memory_swap_max_bytes": 0,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h1-2442861-99cdc52a.scope"
+  },
+  "state": {
+    "after_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h1-2442861-99cdc52a.scope",
+    "before_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/app-t3code.slice/app-t3code-agents.slice/app-t3code-agents-a29d81d75689.slice/t3code-codex-f83127a3.scope",
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "exec_command": [
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build/current-server-terminal.test",
+      "-test.run",
+      "^TestExternalProxyQualificationServerProcess$",
+      "-test.timeout",
+      "4397s"
+    ],
+    "expected_cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h1-2442861-99cdc52a.scope",
+    "expected_nonce": "99cdc52a-7aa5-47a8-9c9c-57edf87d256e",
+    "gomaxprocs": "4",
+    "join_error": "",
+    "join_status": 0,
+    "namespaces": {
+      "cgroup": "cgroup:[4026531835]",
+      "mnt": "mnt:[4026532935]",
+      "net": "net:[4026533521]",
+      "pid": "pid:[4026532936]",
+      "user": "user:[4026533520]"
+    },
+    "nonce": "99cdc52a-7aa5-47a8-9c9c-57edf87d256e",
+    "nspgid": [
+      182
+    ],
+    "nspid": [
+      182
+    ],
+    "pgid": 182,
+    "pid": 182,
+    "role": "server",
+    "schema_version": 1,
+    "sid": 182,
+    "start_ticks": 7267273
+  }
+}

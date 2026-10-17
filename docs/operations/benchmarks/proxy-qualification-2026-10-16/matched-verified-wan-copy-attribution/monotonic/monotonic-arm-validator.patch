@@ -1,0 +1,33 @@
+--- a/validate-wan-copy-attribution-arm.py
++++ b/validate-wan-copy-attribution-arm.py
+@@ -47,9 +47,10 @@
+     issues.append("binary, source overlay, certificate, or harness hashes changed during the arm")
+ hashes = pre.get("sha256", {})
+ required_hashes = {
+-    "supervisor", "runner", "validator", "approved_lifecycle_runner", "frozen_protocol_runner",
+-    "wan_protocol_runner_patch", "copy_runner_patch", "go_base_patch", "go_helper", "diagnostic_build_manifest",
++    "supervisor", "runner", "validator", "approved_lifecycle_runner", "frozen_protocol_runner", "frozen_copy_runner",
++    "wan_protocol_runner_patch", "copy_runner_patch", "monotonic_runner_patch", "go_base_patch", "go_helper", "diagnostic_build_manifest",
+     "copy_record_validator", "copy_attribution_overlay_patch", "copy_attribution_design",
++    "monotonic_observer_patch", "monotonic_validator_patch", "monotonic_arm_validator_patch",
+     "final_source_attestation", "integration_notes", "copy_timing_decision_map",
+     "runner_reconstruction_attestation",
+     "audited_build_manifest",
+@@ -119,7 +120,7 @@
+         "sequence": index, "direction": direction, "scope": copy_record.get("scope"),
+         "method": copy_record.get("method"), "path": copy_record.get("path"),
+         "complete": copy_metrics.get("complete"),
+-        "handler_elapsed_ns": returned_ns - started_ns if isinstance(started_ns, int) and isinstance(returned_ns, int) else None,
++        "handler_elapsed_ns": copy_record.get("handler_elapsed_ns"),
+         "upstream_read": copy_metrics.get("upstream_read"),
+         "downstream_write": copy_metrics.get("downstream_write"),
+         "inter_read_gap": copy_metrics.get("inter_read_gap"),
+@@ -241,7 +242,7 @@
+     issues.append("summary protocol/scope changed")
+ if summary.get("copy_attribution_issues_by_sequence") != copy_issues_by_sequence:
+     issues.append("summary copy-attribution issue evidence differs from independently validated rows")
+-expected_copy_interpretation = ("Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with handler wall time. "
++expected_copy_interpretation = ("Diagnostic observer only. Upstream Read and downstream Write durations are compared separately with monotonic handler elapsed time. Unix timestamps are retained only for coarse correlation. "
+                                 "Inter-read gaps include downstream Write time and bookkeeping and are never added as an independent component. "
+                                 "POST observations cover only the 32-byte response copy, not upload request-body handling.")
+ if summary.get("copy_attribution_interpretation") != expected_copy_interpretation:

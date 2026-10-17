@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "scope": "prospective-terminal-attribution-only",
+  "legacy_final_verdict": {
+    "schema_version": 1,
+    "mode": "final-closure",
+    "issues": [],
+    "accepted": true
+  },
+  "classifications": [],
+  "attribution_accepted": true,
+  "issues": [],
+  "recognized_legacy_issues": [],
+  "performance_gate_cleared": false,
+  "tcp_unavailable_captures_remain_inconclusive": true,
+  "legacy_final_record": {
+    "agent_natural_join_status": 0,
+    "diagnostic": "raw-write-final-closure",
+    "schema_version": 1,
+    "terminal_artifact": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/final-raw-write-terminal.json",
+      "sha256": "41183eb79ed489f4ad1ce188512b84607dd402bd1af2d6364be9333642f37a98",
+      "size": 122167
+    },
+    "terminal_file_status": 0,
+    "valid": true,
+    "validation_artifact": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/runs/terminal-sustained-once/h2/results.sender-wait-controls/final-raw-write-validation.json",
+      "sha256": "a04c0ef249f64a5cc75b3d9e041fe623533cd26e33c08051c0c90bd54d98a688",
+      "size": 89
+    },
+    "validation_status": 0
+  }
+}

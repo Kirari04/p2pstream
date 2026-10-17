@@ -1,0 +1,859 @@
+diff --git a/internal/server/proxy_copy_attribution.go b/internal/server/proxy_copy_attribution.go
+new file mode 100644
+index 0000000..64744b9
+--- /dev/null
++++ b/internal/server/proxy_copy_attribution.go
+@@ -0,0 +1,198 @@
++package server
++
++import (
++	"context"
++	"io"
++	"sync/atomic"
++	"time"
++)
++
++// proxyCopyAttribution is installed only by the opt-in qualification overlay.
++// Its callbacks aggregate fixed-size counters; they never retain body buffers.
++type proxyCopyAttribution struct {
++	bodyWraps     uint64
++	read          proxyCopyAttributionMetric
++	write         proxyCopyAttributionMetric
++	interReadGap  proxyCopyAttributionMetric
++	readEOF       uint64
++	readErrors    uint64
++	writeErrors   uint64
++	shortWrites   uint64
++	readFromCalls uint64
++
++	previousReadEnd time.Time
++	haveReadEnd     bool
++	complete        atomic.Bool
++}
++
++type proxyCopyAttributionMetric struct {
++	calls       uint64
++	bytes       uint64
++	totalNanos  uint64
++	maxNanos    uint64
++	firstUnixNS int64
++	lastUnixNS  int64
++	buckets     [8]uint64
++	longest     [8]proxyCopyAttributionStall
++}
++
++type proxyCopyAttributionStall struct {
++	Call        uint64 `json:"call"`
++	Bytes       uint64 `json:"bytes"`
++	DurationNS  uint64 `json:"duration_ns"`
++	StartedUnix int64  `json:"started_unix_ns"`
++}
++
++type proxyCopyAttributionMetricSnapshot struct {
++	Calls      uint64                       `json:"calls"`
++	Bytes      uint64                       `json:"bytes"`
++	TotalNanos uint64                       `json:"total_ns"`
++	MaxNanos   uint64                       `json:"max_ns"`
++	FirstUnix  int64                        `json:"first_unix_ns,omitempty"`
++	LastUnix   int64                        `json:"last_unix_ns,omitempty"`
++	Buckets    [8]uint64                    `json:"duration_bucket_counts"`
++	Longest    [8]proxyCopyAttributionStall `json:"longest_stalls"`
++}
++
++type proxyCopyAttributionSnapshot struct {
++	Complete                    bool                               `json:"complete"`
++	BodyWraps                   uint64                             `json:"body_wraps"`
++	Read                        proxyCopyAttributionMetricSnapshot `json:"upstream_read"`
++	Write                       proxyCopyAttributionMetricSnapshot `json:"downstream_write"`
++	InterReadGap                proxyCopyAttributionMetricSnapshot `json:"inter_read_gap"`
++	DurationBucketUpperBoundsNS [8]int64                           `json:"duration_bucket_upper_bounds_ns"`
++	ReadEOF                     uint64                             `json:"read_eof"`
++	ReadErrors                  uint64                             `json:"read_errors"`
++	WriteErrors                 uint64                             `json:"write_errors"`
++	ShortWrites                 uint64                             `json:"short_writes"`
++	ReadFromCalls               uint64                             `json:"downstream_read_from_calls"`
++}
++
++type proxyCopyAttributionContextKey struct{}
++
++func withProxyCopyAttribution(ctx context.Context, attribution *proxyCopyAttribution) context.Context {
++	if attribution == nil {
++		return ctx
++	}
++	return context.WithValue(ctx, proxyCopyAttributionContextKey{}, attribution)
++}
++
++func proxyCopyAttributionFromContext(ctx context.Context) *proxyCopyAttribution {
++	attribution, _ := ctx.Value(proxyCopyAttributionContextKey{}).(*proxyCopyAttribution)
++	return attribution
++}
++
++func proxyCopyAttributionBucket(duration time.Duration) int {
++	nanos := duration.Nanoseconds()
++	for index, upper := range [...]int64{1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000} {
++		if nanos < upper {
++			return index
++		}
++	}
++	return 7
++}
++
++func (metric *proxyCopyAttributionMetric) observe(started, ended time.Time, bytes int64) {
++	if metric == nil {
++		return
++	}
++	duration := ended.Sub(started)
++	if duration < 0 {
++		duration = 0
++	}
++	nanos := uint64(duration.Nanoseconds())
++	metric.calls++
++	if bytes > 0 {
++		metric.bytes += uint64(bytes)
++	}
++	metric.totalNanos += nanos
++	if nanos > metric.maxNanos {
++		metric.maxNanos = nanos
++	}
++	if metric.firstUnixNS == 0 {
++		metric.firstUnixNS = started.UnixNano()
++	}
++	metric.lastUnixNS = ended.UnixNano()
++	metric.buckets[proxyCopyAttributionBucket(duration)]++
++	stall := proxyCopyAttributionStall{Call: metric.calls, Bytes: uint64(max(bytes, int64(0))), DurationNS: nanos, StartedUnix: started.UnixNano()}
++	for index := range metric.longest {
++		if stall.DurationNS > metric.longest[index].DurationNS {
++			copy(metric.longest[index+1:], metric.longest[index:len(metric.longest)-1])
++			metric.longest[index] = stall
++			break
++		}
++	}
++}
++
++func (metric proxyCopyAttributionMetric) snapshot() proxyCopyAttributionMetricSnapshot {
++	return proxyCopyAttributionMetricSnapshot{
++		Calls: metric.calls, Bytes: metric.bytes, TotalNanos: metric.totalNanos, MaxNanos: metric.maxNanos,
++		FirstUnix: metric.firstUnixNS, LastUnix: metric.lastUnixNS, Buckets: metric.buckets, Longest: metric.longest,
++	}
++}
++
++func (attribution *proxyCopyAttribution) wrapResponseBody(body io.ReadCloser) io.ReadCloser {
++	if attribution == nil || body == nil {
++		return body
++	}
++	attribution.bodyWraps++
++	return &proxyCopyAttributionReadCloser{ReadCloser: body, attribution: attribution}
++}
++
++func (attribution *proxyCopyAttribution) observeWrite(started, ended time.Time, written int64, err error, short, readFrom bool) {
++	if attribution == nil {
++		return
++	}
++	attribution.write.observe(started, ended, written)
++	if err != nil {
++		attribution.writeErrors++
++	}
++	if short {
++		attribution.shortWrites++
++	}
++	if readFrom {
++		attribution.readFromCalls++
++	}
++}
++
++func (attribution *proxyCopyAttribution) markComplete() {
++	if attribution != nil {
++		attribution.complete.Store(true)
++	}
++}
++
++func (attribution *proxyCopyAttribution) snapshot() proxyCopyAttributionSnapshot {
++	bounds := [8]int64{1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000, -1}
++	if attribution == nil || !attribution.complete.Load() {
++		return proxyCopyAttributionSnapshot{DurationBucketUpperBoundsNS: bounds}
++	}
++	return proxyCopyAttributionSnapshot{
++		Complete: true, BodyWraps: attribution.bodyWraps,
++		Read: attribution.read.snapshot(), Write: attribution.write.snapshot(), InterReadGap: attribution.interReadGap.snapshot(),
++		DurationBucketUpperBoundsNS: bounds, ReadEOF: attribution.readEOF, ReadErrors: attribution.readErrors,
++		WriteErrors: attribution.writeErrors, ShortWrites: attribution.shortWrites, ReadFromCalls: attribution.readFromCalls,
++	}
++}
++
++type proxyCopyAttributionReadCloser struct {
++	io.ReadCloser
++	attribution *proxyCopyAttribution
++}
++
++func (reader *proxyCopyAttributionReadCloser) Read(buffer []byte) (int, error) {
++	started := time.Now()
++	if reader.attribution.haveReadEnd {
++		reader.attribution.interReadGap.observe(reader.attribution.previousReadEnd, started, 0)
++	}
++	n, err := reader.ReadCloser.Read(buffer)
++	ended := time.Now()
++	reader.attribution.read.observe(started, ended, int64(n))
++	reader.attribution.previousReadEnd = ended
++	reader.attribution.haveReadEnd = true
++	if err == io.EOF {
++		reader.attribution.readEOF++
++	} else if err != nil {
++		reader.attribution.readErrors++
++	}
++	return n, err
++}
+diff --git a/internal/server/proxy_copy_attribution_test.go b/internal/server/proxy_copy_attribution_test.go
+new file mode 100644
+index 0000000..28b4827
+--- /dev/null
++++ b/internal/server/proxy_copy_attribution_test.go
+@@ -0,0 +1,412 @@
++package server
++
++import (
++	"crypto/tls"
++	"errors"
++	"io"
++	"net/http"
++	"net/http/httptest"
++	"net/http/httputil"
++	"net/url"
++	"strconv"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++)
++
++type proxyCopyScriptedReadCloser struct {
++	read       func([]byte) (int, error)
++	closeError error
++	closed     int
++}
++
++func (reader *proxyCopyScriptedReadCloser) Read(buffer []byte) (int, error) {
++	return reader.read(buffer)
++}
++
++func (reader *proxyCopyScriptedReadCloser) Close() error {
++	reader.closed++
++	return reader.closeError
++}
++
++type proxyCopyScriptedResponseWriter struct {
++	header       http.Header
++	write        func([]byte) (int, error)
++	writeHeaders []int
++	flushed      int
++}
++
++func (writer *proxyCopyScriptedResponseWriter) Header() http.Header {
++	if writer.header == nil {
++		writer.header = make(http.Header)
++	}
++	return writer.header
++}
++
++func (writer *proxyCopyScriptedResponseWriter) WriteHeader(status int) {
++	writer.writeHeaders = append(writer.writeHeaders, status)
++}
++
++func (writer *proxyCopyScriptedResponseWriter) Write(buffer []byte) (int, error) {
++	return writer.write(buffer)
++}
++
++func (writer *proxyCopyScriptedResponseWriter) Flush() { writer.flushed++ }
++
++type proxyCopyReaderFromResponseWriter struct {
++	*proxyCopyScriptedResponseWriter
++	readFromCalls int
++	readFromError error
++}
++
++func (writer *proxyCopyReaderFromResponseWriter) ReadFrom(source io.Reader) (int64, error) {
++	writer.readFromCalls++
++	data, err := io.ReadAll(source)
++	if err != nil {
++		return int64(len(data)), err
++	}
++	return int64(len(data)), writer.readFromError
++}
++
++func sumProxyCopyBuckets(values [8]uint64) uint64 {
++	var total uint64
++	for _, value := range values {
++		total += value
++	}
++	return total
++}
++
++func TestProxyCopyAttributionForwardsReadSliceReturnAndClose(t *testing.T) {
++	closeError := errors.New("close sentinel")
++	var observed []byte
++	underlying := &proxyCopyScriptedReadCloser{
++		closeError: closeError,
++		read: func(buffer []byte) (int, error) {
++			observed = buffer
++			copy(buffer, "abc")
++			return 3, io.EOF
++		},
++	}
++	attribution := &proxyCopyAttribution{}
++	wrapped := attribution.wrapResponseBody(underlying)
++	buffer := make([]byte, 31)
++	n, err := wrapped.Read(buffer[5:19])
++	if n != 3 || err != io.EOF || string(buffer[5:8]) != "abc" {
++		t.Fatalf("Read = %d, %v, %q", n, err, buffer[5:8])
++	}
++	if len(observed) != 14 || &observed[0] != &buffer[5] {
++		t.Fatal("underlying Read did not receive the exact caller slice")
++	}
++	if err := wrapped.Close(); !errors.Is(err, closeError) || underlying.closed != 1 {
++		t.Fatalf("Close = %v, calls=%d", err, underlying.closed)
++	}
++	attribution.markComplete()
++	snapshot := attribution.snapshot()
++	if !snapshot.Complete || snapshot.BodyWraps != 1 || snapshot.Read.Calls != 1 || snapshot.Read.Bytes != 3 || snapshot.ReadEOF != 1 || snapshot.ReadErrors != 0 {
++		t.Fatalf("snapshot = %+v", snapshot)
++	}
++	if sumProxyCopyBuckets(snapshot.Read.Buckets) != snapshot.Read.Calls {
++		t.Fatalf("read histogram = %v calls=%d", snapshot.Read.Buckets, snapshot.Read.Calls)
++	}
++}
++
++func TestProxyCopyAttributionPartialReadErrorAndPublication(t *testing.T) {
++	readError := errors.New("read sentinel")
++	attribution := &proxyCopyAttribution{}
++	wrapped := attribution.wrapResponseBody(&proxyCopyScriptedReadCloser{read: func(buffer []byte) (int, error) {
++		copy(buffer, "xy")
++		return 2, readError
++	}})
++	buffer := make([]byte, 8)
++	n, err := wrapped.Read(buffer)
++	if n != 2 || !errors.Is(err, readError) {
++		t.Fatalf("Read = %d, %v", n, err)
++	}
++	if snapshot := attribution.snapshot(); snapshot.Complete || snapshot.Read.Calls != 0 || snapshot.Read.Bytes != 0 {
++		t.Fatalf("incomplete snapshot exposed mutable data: %+v", snapshot)
++	}
++	attribution.markComplete()
++	snapshot := attribution.snapshot()
++	if !snapshot.Complete || snapshot.Read.Bytes != 2 || snapshot.ReadErrors != 1 || snapshot.ReadEOF != 0 {
++		t.Fatalf("complete snapshot = %+v", snapshot)
++	}
++}
++
++func TestProxyCopyAttributionFixedSummaryBoundedAndConserved(t *testing.T) {
++	metric := proxyCopyAttributionMetric{}
++	base := time.Now()
++	durations := []time.Duration{
++		500 * time.Nanosecond, 5 * time.Microsecond, 50 * time.Microsecond, 500 * time.Microsecond,
++		5 * time.Millisecond, 50 * time.Millisecond, 500 * time.Millisecond, 2 * time.Second,
++		3 * time.Millisecond, 300 * time.Millisecond, 3 * time.Second, 30 * time.Microsecond,
++	}
++	for index, duration := range durations {
++		started := base.Add(time.Duration(index) * 4 * time.Second)
++		metric.observe(started, started.Add(duration), int64(index+1))
++	}
++	snapshot := metric.snapshot()
++	if snapshot.Calls != uint64(len(durations)) || sumProxyCopyBuckets(snapshot.Buckets) != snapshot.Calls {
++		t.Fatalf("summary is not conserved: %+v", snapshot)
++	}
++	for index := 1; index < len(snapshot.Longest); index++ {
++		if snapshot.Longest[index-1].DurationNS < snapshot.Longest[index].DurationNS {
++			t.Fatalf("longest stalls are not descending: %+v", snapshot.Longest)
++		}
++	}
++	if snapshot.Longest[0].DurationNS != uint64((3*time.Second).Nanoseconds()) || snapshot.Longest[7].DurationNS == 0 {
++		t.Fatalf("bounded longest stalls = %+v", snapshot.Longest)
++	}
++}
++
++func TestProxyResponseRecorderCopyAttributionDisabledAndShortWrite(t *testing.T) {
++	writeError := errors.New("write sentinel")
++	payload := []byte("abcdef")
++	var disabledSlice []byte
++	disabledWriter := &proxyCopyScriptedResponseWriter{write: func(buffer []byte) (int, error) {
++		disabledSlice = buffer
++		return len(buffer), writeError
++	}}
++	disabled := &proxyResponseRecorder{ResponseWriter: disabledWriter}
++	n, err := disabled.Write(payload)
++	if n != len(payload) || !errors.Is(err, writeError) || &disabledSlice[0] != &payload[0] || disabled.bytes != uint64(len(payload)) {
++		t.Fatalf("disabled Write = %d, %v bytes=%d", n, err, disabled.bytes)
++	}
++
++	attribution := &proxyCopyAttribution{}
++	enabledWriter := &proxyCopyScriptedResponseWriter{write: func(buffer []byte) (int, error) {
++		if &buffer[0] != &payload[0] {
++			t.Fatal("enabled writer did not receive the exact slice")
++		}
++		return len(buffer) - 2, nil
++	}}
++	enabled := &proxyResponseRecorder{ResponseWriter: enabledWriter, copyAttribution: attribution}
++	n, err = enabled.Write(payload)
++	if n != 4 || err != nil || enabled.bytes != 4 {
++		t.Fatalf("enabled Write = %d, %v bytes=%d", n, err, enabled.bytes)
++	}
++	attribution.markComplete()
++	snapshot := attribution.snapshot()
++	if snapshot.Write.Calls != 1 || snapshot.Write.Bytes != 4 || snapshot.WriteErrors != 0 || snapshot.ShortWrites != 1 || snapshot.ReadFromCalls != 0 {
++		t.Fatalf("write snapshot = %+v", snapshot)
++	}
++}
++
++func TestProxyResponseRecorderCopyAttributionPreservesReadFrom(t *testing.T) {
++	readFromError := errors.New("read-from sentinel")
++	for _, enabled := range []bool{false, true} {
++		name := "disabled"
++		var attribution *proxyCopyAttribution
++		if enabled {
++			name = "enabled"
++			attribution = &proxyCopyAttribution{}
++		}
++		t.Run(name, func(t *testing.T) {
++			underlying := &proxyCopyReaderFromResponseWriter{
++				proxyCopyScriptedResponseWriter: &proxyCopyScriptedResponseWriter{write: func(buffer []byte) (int, error) {
++					return len(buffer), nil
++				}},
++				readFromError: readFromError,
++			}
++			recorder := &proxyResponseRecorder{ResponseWriter: underlying, copyAttribution: attribution}
++			n, err := recorder.ReadFrom(strings.NewReader("reader-from-body"))
++			if n != int64(len("reader-from-body")) || !errors.Is(err, readFromError) || underlying.readFromCalls != 1 || recorder.bytes != uint64(n) {
++				t.Fatalf("ReadFrom = %d, %v calls=%d bytes=%d", n, err, underlying.readFromCalls, recorder.bytes)
++			}
++			if attribution != nil {
++				attribution.markComplete()
++				snapshot := attribution.snapshot()
++				if snapshot.Write.Calls != 1 || snapshot.Write.Bytes != uint64(n) || snapshot.WriteErrors != 1 || snapshot.ReadFromCalls != 1 {
++					t.Fatalf("snapshot = %+v", snapshot)
++				}
++			}
++		})
++	}
++}
++
++func TestQualificationWANCopyAttributionStoreBoundedAndCompleted(t *testing.T) {
++	store := newQualificationWANCopyAttributionStore()
++	missingAttribution := 0
++	handler := store.wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		attribution := proxyCopyAttributionFromContext(r.Context())
++		if attribution == nil {
++			missingAttribution++
++			w.WriteHeader(http.StatusNoContent)
++			return
++		}
++		started := time.Now()
++		attribution.read.observe(started, started.Add(time.Microsecond), 1)
++		w.WriteHeader(http.StatusNoContent)
++	}))
++	for index := 0; index < 33; index++ {
++		request := httptest.NewRequest(http.MethodGet, "/agent/bulk", nil)
++		request.Header.Set("X-Qualification-Diagnostic-Sequence", "1")
++		handler.ServeHTTP(httptest.NewRecorder(), request)
++	}
++	store.mu.Lock()
++	entries := append([]*qualificationWANCopyAttributionEntry(nil), store.entries["1"]...)
++	count, overflow := store.count, store.overflow
++	store.mu.Unlock()
++	if count != 32 || !overflow || len(entries) != 32 || missingAttribution != 1 {
++		t.Fatalf("store count=%d overflow=%v entries=%d missing_attribution=%d", count, overflow, len(entries), missingAttribution)
++	}
++	for _, entry := range entries {
++		snapshot := entry.snapshot()
++		if !snapshot.Attribution.Complete || snapshot.Attribution.Read.Calls != 1 || snapshot.Scope != "response-body-copy" || snapshot.Method != http.MethodGet || snapshot.Path != "/agent/bulk" {
++			t.Fatalf("entry = %+v", snapshot)
++		}
++	}
++	var wait sync.WaitGroup
++	for range 8 {
++		wait.Add(1)
++		go func() {
++			defer wait.Done()
++			for range 100 {
++				if !entries[0].snapshot().Attribution.Complete {
++					t.Error("published entry became incomplete")
++				}
++			}
++		}()
++	}
++	wait.Wait()
++}
++
++func TestProxyCopyAttributionPreservesH1H2ResponseFraming(t *testing.T) {
++	for _, protocol := range []string{"h1", "h2"} {
++		for _, streaming := range []bool{false, true} {
++			name := protocol + "/content-length"
++			if streaming {
++				name = protocol + "/streaming"
++			}
++			t.Run(name, func(t *testing.T) {
++				body := []byte("copy-attribution-response-body")
++				origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++					if !streaming {
++						w.Header().Set("Content-Length", strconv.Itoa(len(body)))
++						_, _ = w.Write(body)
++						return
++					}
++					w.WriteHeader(http.StatusOK)
++					_, _ = w.Write(body[:9])
++					w.(http.Flusher).Flush()
++					_, _ = w.Write(body[9:])
++				}))
++				defer origin.Close()
++				originURL, err := url.Parse(origin.URL)
++				if err != nil {
++					t.Fatal(err)
++				}
++				proxy := httputil.NewSingleHostReverseProxy(originURL)
++				var snapshots = make(chan proxyCopyAttributionSnapshot, 1)
++				proxy.ModifyResponse = func(response *http.Response) error {
++					attribution := proxyCopyAttributionFromContext(response.Request.Context())
++					response.Body = attribution.wrapResponseBody(response.Body)
++					return nil
++				}
++				front := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++					attribution := &proxyCopyAttribution{}
++					r = r.WithContext(withProxyCopyAttribution(r.Context(), attribution))
++					recorder := &proxyResponseRecorder{ResponseWriter: w, request: r, copyAttribution: attribution}
++					proxy.ServeHTTP(recorder, r)
++					attribution.markComplete()
++					snapshots <- attribution.snapshot()
++				}))
++				front.EnableHTTP2 = true
++				front.StartTLS()
++				defer front.Close()
++
++				protocols := new(http.Protocols)
++				protocols.SetHTTP1(protocol == "h1")
++				protocols.SetHTTP2(protocol == "h2")
++				alpn := "http/1.1"
++				expectedMajor := 1
++				if protocol == "h2" {
++					alpn = "h2"
++					expectedMajor = 2
++				}
++				transport := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, NextProtos: []string{alpn}}, Protocols: protocols}
++				defer transport.CloseIdleConnections()
++				response, err := (&http.Client{Transport: transport}).Get(front.URL)
++				if err != nil {
++					t.Fatal(err)
++				}
++				got, readErr := io.ReadAll(response.Body)
++				closeErr := response.Body.Close()
++				if readErr != nil || closeErr != nil || string(got) != string(body) || response.ProtoMajor != expectedMajor {
++					t.Fatalf("response major=%d body=%q read=%v close=%v", response.ProtoMajor, got, readErr, closeErr)
++				}
++				if streaming {
++					if response.ContentLength != -1 || response.Header.Get("Content-Length") != "" {
++						t.Fatalf("streaming framing changed: length=%d header=%q", response.ContentLength, response.Header.Get("Content-Length"))
++					}
++				} else if response.ContentLength != int64(len(body)) || response.Header.Get("Content-Length") != strconv.Itoa(len(body)) {
++					t.Fatalf("content length changed: length=%d header=%q", response.ContentLength, response.Header.Get("Content-Length"))
++				}
++				snapshot := <-snapshots
++				if !snapshot.Complete || snapshot.BodyWraps != 1 || snapshot.Read.Bytes != uint64(len(body)) || snapshot.Write.Bytes != uint64(len(body)) || snapshot.ReadErrors != 0 || snapshot.WriteErrors != 0 || snapshot.ShortWrites != 0 || snapshot.ReadFromCalls != 0 {
++					t.Fatalf("snapshot = %+v", snapshot)
++				}
++				if sumProxyCopyBuckets(snapshot.Read.Buckets) != snapshot.Read.Calls || sumProxyCopyBuckets(snapshot.Write.Buckets) != snapshot.Write.Calls || sumProxyCopyBuckets(snapshot.InterReadGap.Buckets) != snapshot.InterReadGap.Calls {
++					t.Fatalf("histograms are not conserved: %+v", snapshot)
++				}
++			})
++		}
++	}
++}
++
++func TestProxyCopyAttributionObservationsAllocateNothingPerChunk(t *testing.T) {
++	attribution := &proxyCopyAttribution{}
++	reader := attribution.wrapResponseBody(&proxyCopyScriptedReadCloser{read: func(buffer []byte) (int, error) {
++		buffer[0] = 'x'
++		return 1, nil
++	}})
++	writer := &proxyCopyScriptedResponseWriter{write: func(buffer []byte) (int, error) { return len(buffer), nil }}
++	recorder := &proxyResponseRecorder{ResponseWriter: writer, copyAttribution: attribution}
++	buffer := make([]byte, 32*1024)
++	allocations := testing.AllocsPerRun(100, func() {
++		if n, err := reader.Read(buffer); n != 1 || err != nil {
++			panic("unexpected read result")
++		}
++		if n, err := recorder.Write(buffer[:1]); n != 1 || err != nil {
++			panic("unexpected write result")
++		}
++	})
++	if allocations != 0 {
++		t.Fatalf("per-chunk read/write observations allocated %.2f objects", allocations)
++	}
++}
++
++func TestQualificationWANCopyAttributionPublicationBarrier(t *testing.T) {
++	store := newQualificationWANCopyAttributionStore()
++	mutated := make(chan struct{})
++	release := make(chan struct{})
++	handler := store.wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		attribution := proxyCopyAttributionFromContext(r.Context())
++		started := time.Now()
++		attribution.read.observe(started, started.Add(time.Microsecond), 7)
++		close(mutated)
++		<-release
++		w.WriteHeader(http.StatusNoContent)
++	}))
++	request := httptest.NewRequest(http.MethodGet, "/agent/bulk", nil)
++	request.Header.Set("X-Qualification-Diagnostic-Sequence", "1")
++	done := make(chan struct{})
++	go func() {
++		handler.ServeHTTP(httptest.NewRecorder(), request)
++		close(done)
++	}()
++	<-mutated
++	store.mu.Lock()
++	entry := store.entries["1"][0]
++	store.mu.Unlock()
++	incomplete := entry.snapshot()
++	if incomplete.Attribution.Complete || incomplete.StartedUnixNano != 0 || incomplete.HandlerReturnNano != 0 || incomplete.Attribution.Read.Calls != 0 || incomplete.Attribution.Read.Bytes != 0 {
++		t.Fatalf("incomplete publication exposed mutable fields: %+v", incomplete)
++	}
++	close(release)
++	<-done
++	complete := entry.snapshot()
++	if !complete.Attribution.Complete || complete.StartedUnixNano == 0 || complete.HandlerReturnNano == 0 || complete.Attribution.Read.Calls != 1 || complete.Attribution.Read.Bytes != 7 {
++		t.Fatalf("completed publication = %+v", complete)
++	}
++}
+diff --git a/internal/server/proxy_qualification_test.go b/internal/server/proxy_qualification_test.go
+index 0c2f95a..282eb76 100644
+--- a/internal/server/proxy_qualification_test.go
++++ b/internal/server/proxy_qualification_test.go
+@@ -862,6 +862,13 @@ func runQualificationExternalAgentProxy(t *testing.T) {
+ 	if os.Getenv(qualificationWANDiagnosticEnv) == "1" {
+ 		wanTraceStore = newQualificationWANTraceStore()
+ 	}
++	var wanCopyAttributionStore *qualificationWANCopyAttributionStore
++	if os.Getenv(qualificationWANCopyAttributionEnv) == "1" {
++		if wanTraceStore == nil {
++			t.Fatal("WAN copy attribution requires the WAN protocol diagnostic")
++		}
++		wanCopyAttributionStore = newQualificationWANCopyAttributionStore()
++	}
+ 
+ 	credentials := make([]qualificationAgentCredential, 0, agentCount)
+ 	agentIDs := make([]int64, 0, agentCount)
+@@ -944,7 +951,11 @@ func runQualificationExternalAgentProxy(t *testing.T) {
+ 		}
+ 		// ServeMux supports concurrent registration. This test-only route keeps the
+ 		// production handler and every routing/admission policy unchanged.
+-		mux.Handle("/agent/", wanTraceStore.wrap(app.publicProxyHandler(1)))
++		var handler http.Handler = wanTraceStore.wrap(app.publicProxyHandler(1))
++		if wanCopyAttributionStore != nil {
++			handler = wanCopyAttributionStore.wrap(handler)
++		}
++		mux.Handle("/agent/", handler)
+ 	}
+ 	app.proxyMu.Lock()
+ 	address := app.publicListenerState[1].BoundAddress
+@@ -962,6 +973,14 @@ func runQualificationExternalAgentProxy(t *testing.T) {
+ 		ExpectedStatusMax: defaultTargetHealthCheckExpectedStatusMax,
+ 	}
+ 	admin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if sequence := r.URL.Query().Get("wan_copy_trace"); sequence != "" {
++			if wanCopyAttributionStore == nil || !qualificationWANSequenceValid(sequence) {
++				http.Error(w, "WAN copy attribution is unavailable", http.StatusBadRequest)
++				return
++			}
++			wanCopyAttributionStore.serveHTTP(w, sequence)
++			return
++		}
+ 		if sequence := r.URL.Query().Get("wan_trace"); sequence != "" {
+ 			if wanTraceStore == nil || !qualificationWANSequenceValid(sequence) {
+ 				http.Error(w, "WAN diagnostic trace is unavailable", http.StatusBadRequest)
+diff --git a/internal/server/proxy_qualification_wan_copy_attribution_test.go b/internal/server/proxy_qualification_wan_copy_attribution_test.go
+new file mode 100644
+index 0000000..58be701
+--- /dev/null
++++ b/internal/server/proxy_qualification_wan_copy_attribution_test.go
+@@ -0,0 +1,97 @@
++//go:build linux
++
++package server
++
++import (
++	"encoding/json"
++	"net/http"
++	"sync"
++	"time"
++)
++
++const qualificationWANCopyAttributionEnv = "P2PSTREAM_QUALIFICATION_WAN_COPY_ATTRIBUTION"
++
++type qualificationWANCopyAttributionEntry struct {
++	Sequence          string
++	Method            string
++	Path              string
++	StartedUnixNano   int64
++	HandlerReturnNano int64
++	Attribution       *proxyCopyAttribution
++}
++
++type qualificationWANCopyAttributionRecord struct {
++	Sequence          string                       `json:"sequence"`
++	Method            string                       `json:"method"`
++	Path              string                       `json:"path"`
++	Scope             string                       `json:"scope"`
++	StartedUnixNano   int64                        `json:"started_unix_ns"`
++	HandlerReturnNano int64                        `json:"handler_return_unix_ns,omitempty"`
++	Attribution       proxyCopyAttributionSnapshot `json:"copy"`
++}
++
++func (entry *qualificationWANCopyAttributionEntry) snapshot() qualificationWANCopyAttributionRecord {
++	attribution := entry.Attribution.snapshot()
++	record := qualificationWANCopyAttributionRecord{
++		Sequence: entry.Sequence, Method: entry.Method, Path: entry.Path, Scope: "response-body-copy", Attribution: attribution,
++	}
++	if attribution.Complete {
++		record.StartedUnixNano = entry.StartedUnixNano
++		record.HandlerReturnNano = entry.HandlerReturnNano
++	}
++	return record
++}
++
++type qualificationWANCopyAttributionStore struct {
++	mu       sync.Mutex
++	entries  map[string][]*qualificationWANCopyAttributionEntry
++	count    int
++	overflow bool
++}
++
++func newQualificationWANCopyAttributionStore() *qualificationWANCopyAttributionStore {
++	return &qualificationWANCopyAttributionStore{entries: make(map[string][]*qualificationWANCopyAttributionEntry)}
++}
++
++func (store *qualificationWANCopyAttributionStore) wrap(next http.Handler) http.Handler {
++	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		sequence := r.Header.Get("X-Qualification-Diagnostic-Sequence")
++		if !qualificationWANSequenceValid(sequence) {
++			next.ServeHTTP(w, r)
++			return
++		}
++		entry := &qualificationWANCopyAttributionEntry{
++			Sequence: sequence, Method: r.Method, Path: r.URL.EscapedPath(),
++			StartedUnixNano: time.Now().UnixNano(), Attribution: &proxyCopyAttribution{},
++		}
++		store.mu.Lock()
++		if store.count >= 32 {
++			store.overflow = true
++			store.mu.Unlock()
++			next.ServeHTTP(w, r)
++			return
++		}
++		store.entries[sequence] = append(store.entries[sequence], entry)
++		store.count++
++		store.mu.Unlock()
++
++		next.ServeHTTP(w, r.WithContext(withProxyCopyAttribution(r.Context(), entry.Attribution)))
++		entry.HandlerReturnNano = time.Now().UnixNano()
++		entry.Attribution.markComplete()
++	})
++}
++
++func (store *qualificationWANCopyAttributionStore) serveHTTP(w http.ResponseWriter, sequence string) {
++	w.Header().Set("Content-Type", "application/json")
++	store.mu.Lock()
++	entries := append([]*qualificationWANCopyAttributionEntry(nil), store.entries[sequence]...)
++	count, overflow := store.count, store.overflow
++	store.mu.Unlock()
++	snapshots := make([]qualificationWANCopyAttributionRecord, 0, len(entries))
++	for _, entry := range entries {
++		snapshots = append(snapshots, entry.snapshot())
++	}
++	_ = json.NewEncoder(w).Encode(map[string]any{
++		"sequence": sequence, "matches": snapshots, "store_count": count, "overflow": overflow,
++	})
++}
+diff --git a/internal/server/public_proxy_pipeline.go b/internal/server/public_proxy_pipeline.go
+index c689872..b22cc1d 100644
+--- a/internal/server/public_proxy_pipeline.go
++++ b/internal/server/public_proxy_pipeline.go
+@@ -199,7 +199,10 @@ func initializePublicProxyContext(ctx *publicProxyContext, app *App, listenerID
+ 		r.Body = &countingReadCloser{ReadCloser: r.Body, bytes: &requestBytes}
+ 	}
+ 	bodyState, _ := r.Context().Value(publicRequestBodyStateContextKey{}).(*publicRequestBodyState)
+-	recorder := &proxyResponseRecorder{ResponseWriter: w, request: r, requestBodyState: bodyState}
++	recorder := &proxyResponseRecorder{
++		ResponseWriter: w, request: r, requestBodyState: bodyState,
++		copyAttribution: proxyCopyAttributionFromContext(r.Context()),
++	}
+ 	responseWriter := http.ResponseWriter(recorder)
+ 	observability := proxyRequestObservability{requestBytes: &requestBytes, responseRecorder: recorder}
+ 	trace := newPublicProxyTrafficTrace(app, r, recorder, func() string {
+diff --git a/internal/server/public_routing.go b/internal/server/public_routing.go
+index 7e30f1d..465276d 100644
+--- a/internal/server/public_routing.go
++++ b/internal/server/public_routing.go
+@@ -646,6 +646,11 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
+ 					resp.Body = responseShaper.wrapDownloadBody(r.Context(), resp.Body)
+ 				}
+ 			}
++			// Install attribution last so it measures the exact reader presented to
++			// ReverseProxy's unchanged copy loop, including existing cache/shaper wrappers.
++			if attribution := proxyCopyAttributionFromContext(r.Context()); attribution != nil && resp.StatusCode != http.StatusSwitchingProtocols {
++				resp.Body = attribution.wrapResponseBody(resp.Body)
++			}
+ 			if trace != nil {
+ 				attributes := map[string]string{"handler": handler}
+ 				if finalAgent != nil {
+diff --git a/internal/server/traffic_trace_request.go b/internal/server/traffic_trace_request.go
+index e713cea..95dd46c 100644
+--- a/internal/server/traffic_trace_request.go
++++ b/internal/server/traffic_trace_request.go
+@@ -21,6 +21,7 @@ type proxyResponseRecorder struct {
+ 	bytes            uint64
+ 	request          *http.Request
+ 	requestBodyState *publicRequestBodyState
++	copyAttribution  *proxyCopyAttribution
+ }
+ 
+ func (r *proxyResponseRecorder) WriteHeader(statusCode int) {
+@@ -36,7 +37,15 @@ func (r *proxyResponseRecorder) Write(data []byte) (int, error) {
+ 		r.closeConnectionForUnreadRequestBody()
+ 		r.statusCode = http.StatusOK
+ 	}
++	if r.copyAttribution == nil {
++		n, err := r.ResponseWriter.Write(data)
++		r.bytes += uint64(n)
++		return n, err
++	}
++	started := time.Now()
+ 	n, err := r.ResponseWriter.Write(data)
++	ended := time.Now()
++	r.copyAttribution.observeWrite(started, ended, int64(n), err, n != len(data), false)
+ 	r.bytes += uint64(n)
+ 	return n, err
+ }
+@@ -46,12 +55,27 @@ func (r *proxyResponseRecorder) ReadFrom(src io.Reader) (int64, error) {
+ 		r.closeConnectionForUnreadRequestBody()
+ 		r.statusCode = http.StatusOK
+ 	}
++	if r.copyAttribution == nil {
++		if readerFrom, ok := r.ResponseWriter.(io.ReaderFrom); ok {
++			n, err := readerFrom.ReadFrom(src)
++			r.bytes += uint64(n)
++			return n, err
++		}
++		n, err := io.Copy(r.ResponseWriter, src)
++		r.bytes += uint64(n)
++		return n, err
++	}
++	started := time.Now()
+ 	if readerFrom, ok := r.ResponseWriter.(io.ReaderFrom); ok {
+ 		n, err := readerFrom.ReadFrom(src)
++		ended := time.Now()
++		r.copyAttribution.observeWrite(started, ended, n, err, false, true)
+ 		r.bytes += uint64(n)
+ 		return n, err
+ 	}
+ 	n, err := io.Copy(r.ResponseWriter, src)
++	ended := time.Now()
++	r.copyAttribution.observeWrite(started, ended, n, err, false, true)
+ 	r.bytes += uint64(n)
+ 	return n, err
+ }

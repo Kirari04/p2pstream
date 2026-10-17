@@ -1,0 +1,220 @@
+{
+  "artifact_bytes": 93558181,
+  "binary_issues": [],
+  "cause_of_disappearance": "undetermined; no attribution",
+  "commands_sha256": "e078180ed57f0404b034180756431bbaa85c898f15f7c1b1491da01621caf740",
+  "completed_arms": 0,
+  "exact_known_artifact_candidates": [
+    {
+      "equals_pinned_go": false,
+      "exists": true,
+      "path": "/usr/local/go/bin/go",
+      "resolved_path": "/usr/local/go/bin/go",
+      "sha256": "d68b7abbc40d0844f673f6cf06ae3cded225c50437c6454fa37ef178d079fe65",
+      "size": 15434598
+    },
+    {
+      "error": "[Errno 2] No such file or directory: '/usr/bin/go'",
+      "exists": false,
+      "path": "/usr/bin/go"
+    },
+    {
+      "error": "[Errno 2] No such file or directory: '/home/user/go/bin/go'",
+      "exists": false,
+      "path": "/home/user/go/bin/go"
+    },
+    {
+      "error": "[Errno 2] No such file or directory: '/home/user/go/pkg/mod/cache/download/golang.org/toolchain/@v/v0.0.1-go1.26.6.linux-amd64.zip'",
+      "exists": false,
+      "path": "/home/user/go/pkg/mod/cache/download/golang.org/toolchain/@v/v0.0.1-go1.26.6.linux-amd64.zip"
+    }
+  ],
+  "finished_unix": 1792239421.0591965,
+  "first_failure": "pinned Go input missing during build-receipt verification before namespace/endpoint launch",
+  "frozen_input_issues": [],
+  "interpretation": "inconclusive; no controller comparison, no HyStart attribution, no production or qualification clearance",
+  "launched_arm_indices": [
+    0
+  ],
+  "matching_endpoint_processes": [],
+  "namespace_after": [],
+  "namespace_before": [],
+  "namespaces_match_baseline": true,
+  "original_failed_build_attempt_unchanged": "6d84f0576677e3d8c2830e08817df604f8298823aee5107d2e6f30ac8cca203b",
+  "outer_statuses": [
+    {
+      "adopted_descendants": [],
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-0-validation.outer.json",
+      "remaining_owned": [],
+      "status": 1
+    },
+    {
+      "adopted_descendants": [],
+      "forced": false,
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-once/arm-0.outer.json",
+      "remaining_owned": [],
+      "status": 1
+    }
+  ],
+  "plan_input_issues": [
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "reason": "[Errno 2] No such file or directory: '/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go'"
+    },
+    {
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/gofmt",
+      "reason": "[Errno 2] No such file or directory: '/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/gofmt'"
+    }
+  ],
+  "preflight_record_sha256": "f72ff412614aa9378b9fe803a33be44f138901c3128e9ca1f184861f8d2ab00d",
+  "receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "remaining_recorded_pid_start_identities": [],
+  "reviewed_token": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "runner_network_namespace_unchanged": true,
+  "runtime_outcome": "invalid before first endpoint/namespace/transfer; stopped without retry",
+  "screen": {
+    "accepted": false,
+    "artifact_bytes": 93555995,
+    "artifact_rejection_threshold_bytes": 268435456,
+    "artifact_tree_check_seconds": 1.0,
+    "completed_arms": 0,
+    "failure": "RuntimeError: independent arm validation failed",
+    "schema_version": 1,
+    "stopped": true,
+    "stream_check_seconds": 0.05,
+    "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+  },
+  "screen_files": [
+    {
+      "path": "runner-source/integration/runs/controller-crc-once/arm-0-validation.outer.json",
+      "sha256": "351a4bdc42a833f9f731e975760010402859b3547ff2bcb7e3603e9d723a3199",
+      "size": 1391
+    },
+    {
+      "path": "runner-source/integration/runs/controller-crc-once/arm-0-validation.started.json",
+      "sha256": "ded442b42696a38625eb05df8a4ee94cdaf2363f3d4b4df0f984903fd667e564",
+      "size": 957
+    },
+    {
+      "path": "runner-source/integration/runs/controller-crc-once/arm-0-validation.stderr.log",
+      "sha256": "1370b27fa5bb06e4abbeb8eb3b1f2b2bf5f5085280efb4874f5af234f30b1bc5",
+      "size": 1701
+    },
+    {
+      "path": "runner-source/integration/runs/controller-crc-once/arm-0-validation.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "runner-source/integration/runs/controller-crc-once/arm-0.invocation.json",
+      "sha256": "0baaca3648f0d3d2f76d17db2539475e6efaa2552de94ebf42ad9801c7889d26",
+      "size": 2013
+    },
+    {
+      "path": "runner-source/integration/runs/controller-crc-once/arm-0.outer.json",
+      "sha256": "d9931dced3ad73f11120d7cf84957dfead1e52d25c0d54176da3a395ae892eb4",
+      "size": 2504
+    },
+    {
+      "path": "runner-source/integration/runs/controller-crc-once/arm-0.started.json",
+      "sha256": "1e5dc0e0f45c60facba9ebb16bfec90b8f51905eb796e6dceaf5d19930613d26",
+      "size": 2072
+    },
+    {
+      "path": "runner-source/integration/runs/controller-crc-once/arm-0.stderr.log",
+      "sha256": "699968f45d86f54417868fde1ab5dd149bcc14e8b47cf8dbd94bbfb7751fd161",
+      "size": 1446
+    },
+    {
+      "path": "runner-source/integration/runs/controller-crc-once/arm-0.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "runner-source/integration/runs/controller-crc-once/screen-final.json",
+      "sha256": "f3c29412afbe03a5692c14f4b10f3e55d22ba7d434be2e7ab4d227b6e9219ac9",
+      "size": 424
+    }
+  ],
+  "source_and_binaries_unchanged": true,
+  "source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+  "toolchain_parent_path_metadata": [
+    {
+      "ctime_ns": 1766091157834763304,
+      "exists": true,
+      "inode": 12189697,
+      "mode": "0o755",
+      "mtime_ns": 1766091157834763304,
+      "path": "/home",
+      "symlink_target": null,
+      "type": "directory"
+    },
+    {
+      "ctime_ns": 1792238837193961780,
+      "exists": true,
+      "inode": 12320769,
+      "mode": "0o750",
+      "mtime_ns": 1792238837193961780,
+      "path": "/home/user",
+      "symlink_target": null,
+      "type": "directory"
+    },
+    {
+      "ctime_ns": 1725112205672879836,
+      "exists": true,
+      "inode": 12325397,
+      "mode": "0o775",
+      "mtime_ns": 1725112205672879836,
+      "path": "/home/user/go",
+      "symlink_target": null,
+      "type": "directory"
+    },
+    {
+      "ctime_ns": 1792239324934187792,
+      "exists": true,
+      "inode": 12325438,
+      "mode": "0o775",
+      "mtime_ns": 1792239324934187792,
+      "path": "/home/user/go/pkg",
+      "symlink_target": null,
+      "type": "directory"
+    },
+    {
+      "error": "[Errno 2] No such file or directory: '/home/user/go/pkg/mod'",
+      "exists": false,
+      "path": "/home/user/go/pkg/mod"
+    },
+    {
+      "error": "[Errno 2] No such file or directory: '/home/user/go/pkg/mod/golang.org'",
+      "exists": false,
+      "path": "/home/user/go/pkg/mod/golang.org"
+    },
+    {
+      "error": "[Errno 2] No such file or directory: '/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64'",
+      "exists": false,
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64"
+    },
+    {
+      "error": "[Errno 2] No such file or directory: '/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin'",
+      "exists": false,
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin"
+    },
+    {
+      "error": "[Errno 2] No such file or directory: '/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go'",
+      "exists": false,
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go"
+    },
+    {
+      "error": "[Errno 2] No such file or directory: '/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/gofmt'",
+      "exists": false,
+      "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/gofmt"
+    }
+  ],
+  "tracked_status": "",
+  "transfers": 0,
+  "unlaunched_arm_indices": [
+    1,
+    2
+  ]
+}

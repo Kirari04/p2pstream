@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "scope": "prospective-terminal-attribution-only",
+  "legacy_final_verdict": {
+    "schema_version": 1,
+    "mode": "final-closure",
+    "issues": [],
+    "accepted": true
+  },
+  "classifications": [],
+  "attribution_accepted": true,
+  "issues": [],
+  "recognized_legacy_issues": [],
+  "performance_gate_cleared": false,
+  "tcp_unavailable_captures_remain_inconclusive": true,
+  "legacy_final_record": {
+    "agent_natural_join_status": 0,
+    "diagnostic": "raw-write-final-closure",
+    "schema_version": 1,
+    "terminal_artifact": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic/results.sender-wait-controls/final-raw-write-terminal.json",
+      "sha256": "5f8a1be87ce45566cdb1d10c9606c4c27afcc3f0e88a68be4978cc275d5cd109",
+      "size": 122158
+    },
+    "terminal_file_status": 0,
+    "valid": true,
+    "validation_artifact": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-vector-once/arm-0-cubic/results.sender-wait-controls/final-raw-write-validation.json",
+      "sha256": "a04c0ef249f64a5cc75b3d9e041fe623533cd26e33c08051c0c90bd54d98a688",
+      "size": 89
+    },
+    "validation_status": 0
+  }
+}

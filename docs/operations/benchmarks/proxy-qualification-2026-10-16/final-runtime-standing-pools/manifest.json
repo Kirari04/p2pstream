@@ -1,0 +1,29 @@
+{
+  "aggregate_agent_binary_sha256": "e99c619a4a1f07656b422f4c5965c874513d453afc7082939c2affbd59194793",
+  "artifacts": {
+    "README.md": "3c067ce837c27432a70c7abd154762ee30facc09dfbbefee6020c16e1305a556",
+    "qualify-proxy-agent-standing.sh.txt": "e9c6b138b90d24cad00d706313988a43e270566f41537b3ccfd1e1b3a7bbebf5",
+    "qualify-proxy-performance.sh.txt": "2660a7385d3d12f4f0029b2dcc7270195d6a3f8c5c6eacec20f47f768ea12dc8",
+    "standing-16.jsonl": "ef2b5bbc1edea5dfa3a7867e1dd5c99a42daff1d3315f98ece1a49741c5ab09a",
+    "standing-32.jsonl": "df905339af250aa680234d9d5d96f13df172efda99e9b36a0980e491d31c0015",
+    "summary.json": "ce0f4d62b23a90e7c87956774ab16756bab73658ecedbb0510a073de4d8caf92"
+  },
+  "cohorts": [
+    16,
+    32
+  ],
+  "cpu_sets": {
+    "agent_and_origin": "4,5,6,7",
+    "load": "8,9,10,11,12,13,14,15",
+    "server": "0,1,2,3",
+    "topology": "Each adjacent pair is two SMT siblings on one physical core."
+  },
+  "go_version": "go version go1.26.6 linux/amd64",
+  "kernel": "Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+  "per_process_memory_max_bytes": 4294967296,
+  "runner_sha256": "2660a7385d3d12f4f0029b2dcc7270195d6a3f8c5c6eacec20f47f768ea12dc8",
+  "runtime_source_ref": "dc738e9000e60cd7ce3a0279127486f3bc05067a",
+  "server_binary_sha256": "c7950a1bd250233b395eb8c19d913ffb48d511656d7c41a1ad446baefb6bbaf5",
+  "swap_max_bytes": 0,
+  "wrapper_sha256": "e9c6b138b90d24cad00d706313988a43e270566f41537b3ccfd1e1b3a7bbebf5"
+}

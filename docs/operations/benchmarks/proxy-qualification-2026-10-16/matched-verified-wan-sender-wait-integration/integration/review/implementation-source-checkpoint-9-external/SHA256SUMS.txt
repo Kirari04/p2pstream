@@ -1,0 +1,3 @@
+d3d5ac2a3a601a9488bfc0752fd8ae1909eb00135b652f9267e6a020d15883e9  ./CP8-TO-CP9.diff
+970c4e00f849b2e02ae9f1d326a054a84bab8a94eff264dc1a24c13249b3892a  ./HARNESS-RECEIPT-PROSPECTIVE.json
+fdf2e441f130aac840d2b08cd0b82a7196a71d4dd1519a1c49b6dfcdebfc3fab  ./reviewed-integration-source-manifest-cp9.candidate.json

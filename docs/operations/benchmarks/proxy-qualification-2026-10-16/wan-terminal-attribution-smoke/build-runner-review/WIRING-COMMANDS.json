@@ -1,0 +1,74 @@
+{
+  "status": "source-only proposal, not authorized or executed",
+  "output_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/wiring-window",
+  "fresh_output_required": true,
+  "stop_on_first_failure": true,
+  "attempts_each": 1,
+  "commands": [
+    {
+      "name": "h1-continuation",
+      "argv": [
+        "python3",
+        "-I",
+        "-B",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-h1-continuation.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/wiring-window/h1-continuation.json"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+      "outer_seconds": 20,
+      "max_output_bytes": 65536,
+      "expected_natural_exit": 0
+    },
+    {
+      "name": "arm-outcome",
+      "argv": [
+        "python3",
+        "-I",
+        "-B",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-arm-outcome.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-arm-outcome.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/wiring-window/arm-outcome.json"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+      "outer_seconds": 20,
+      "max_output_bytes": 65536,
+      "expected_natural_exit": 0
+    },
+    {
+      "name": "shell-syntax",
+      "argv": [
+        "bash",
+        "-n",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/run-wan-below-tls-arm.sh"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+      "outer_seconds": 20,
+      "max_output_bytes": 65536,
+      "expected_natural_exit": 0
+    },
+    {
+      "name": "python-syntax",
+      "argv": [
+        "python3",
+        "-I",
+        "-B",
+        "-c",
+        "import ast,pathlib,sys; [ast.parse(pathlib.Path(p).read_text(),filename=p) for p in sys.argv[1:]]",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-wan-below-tls-arm.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/validate-h1-continuation.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/verify-terminal-build.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-arm-outcome.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/runner-source/integration/contracts/test-h1-continuation.py",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017/build-runner-review/build-endpoints.py"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-terminal-attribution-20261017",
+      "outer_seconds": 20,
+      "max_output_bytes": 65536,
+      "expected_natural_exit": 0
+    }
+  ],
+  "not_in_scope": "historical coordinator and its full test-final-source-bindings suite; prospective smoke invokes each guarded arm directly"
+}

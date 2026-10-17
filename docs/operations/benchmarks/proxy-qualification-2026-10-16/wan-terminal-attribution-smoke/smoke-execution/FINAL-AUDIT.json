@@ -1,0 +1,70 @@
+{
+  "accepted": true,
+  "arms": [
+    {
+      "protocol": "h1",
+      "natural_zero": true,
+      "seconds": 28.98651957511902,
+      "attestation_accepted": true,
+      "validation_issues": [],
+      "old_verdict": {
+        "schema_version": 1,
+        "mode": "final-closure",
+        "issues": [],
+        "accepted": true
+      },
+      "prospective_accepted": true,
+      "classifications": [],
+      "saved_independent_equality": true,
+      "transfers": 16,
+      "attempted": 16,
+      "completed": 16,
+      "payload_bytes": [
+        4194304
+      ],
+      "all_endpoint_helper_natural_zero": true,
+      "owner_count": 5,
+      "intent_complete": true,
+      "raw_errors": 0,
+      "raw_shorts": 0,
+      "successful_protocol_terminal_writes": 5
+    },
+    {
+      "protocol": "h2",
+      "natural_zero": true,
+      "seconds": 29.08687686920166,
+      "attestation_accepted": true,
+      "validation_issues": [],
+      "old_verdict": {
+        "schema_version": 1,
+        "mode": "final-closure",
+        "issues": [],
+        "accepted": true
+      },
+      "prospective_accepted": true,
+      "classifications": [],
+      "saved_independent_equality": true,
+      "transfers": 16,
+      "attempted": 16,
+      "completed": 16,
+      "payload_bytes": [
+        4194304
+      ],
+      "all_endpoint_helper_natural_zero": true,
+      "owner_count": 5,
+      "intent_complete": true,
+      "raw_errors": 0,
+      "raw_shorts": 0,
+      "successful_protocol_terminal_writes": 4
+    }
+  ],
+  "source_hash_checks": 944,
+  "source_unchanged": true,
+  "remaining_owned_processes_or_namespaces": [],
+  "h1_continuation": true,
+  "task_artifact_bytes": 111253052,
+  "artifact_cap_bytes": 134217728,
+  "storage_amendment_sha256": "51bac01e8846524e89b29dea5a7759ac384a53795a009936741285ca377ea9de",
+  "performance_qualification_cleared": false,
+  "sustained_traffic_run": false
+}

@@ -1,0 +1,805 @@
+{
+  "omitted_categories": [
+    "accepted endpoint binaries (hash/size references in prior build receipt)",
+    "full compilation tree/module/build caches",
+    "credentials and private key/certificate contents",
+    "duplicate per-transfer workdir output and application logs/readiness contents",
+    "full Linux source tree; published kernel review/source binding referenced"
+  ],
+  "omitted_runtime_workdir_files": [
+    {
+      "bytes": 5010,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "dbce6f21139385edc1566fc1038fb7e2a0d1c30a58bb93fb76aa71657519bdfb",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/1-current-server-aggregate-v1-h2-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/1-current-server-aggregate-v1-h2-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 4929,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c1d84d8de759df47640dbce6d89098ebd31447da98ded21ac504b508a1f1c2af",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 5036,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "822d351177cb957afbe317b76866fd6bb13205d5089b539d523f892c926dff1e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/11-current-server-aggregate-v1-h2-steady-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/11-current-server-aggregate-v1-h2-steady-download-1.json.log"
+    },
+    {
+      "bytes": 4928,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "7ddf7d7f7b26705929cf5d6ca76b646e7c0b313bd59b661060ebd771477e7e96",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/12-current-server-aggregate-v1-h2-steady-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/12-current-server-aggregate-v1-h2-steady-upload-1.json.log"
+    },
+    {
+      "bytes": 4955,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "93bce0e00f42d7b8b3aeeb95955d8d3128ed30bbacdb591ed784c059eb672629",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/13-current-server-aggregate-v1-h2-steady-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/13-current-server-aggregate-v1-h2-steady-upload-2.json.log"
+    },
+    {
+      "bytes": 5036,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "1c899fa1f5afed79812934ca7932b8bcbb8ecadfc3e6e8c78297b3983b83173e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/14-current-server-aggregate-v1-h2-steady-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/14-current-server-aggregate-v1-h2-steady-download-2.json.log"
+    },
+    {
+      "bytes": 5108,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "9e9a9d84cb89fe20c09b8742ff398c51c002bf9351647f6f2d05aa091457fc10",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/15-current-server-aggregate-v1-h2-steady-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/15-current-server-aggregate-v1-h2-steady-download-3.json.log"
+    },
+    {
+      "bytes": 4929,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "1b56df3bf7db011c7922671a4975f2ff1ceb5387580304f5db4a9ef4a938a998",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/16-current-server-aggregate-v1-h2-steady-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/16-current-server-aggregate-v1-h2-steady-upload-3.json.log"
+    },
+    {
+      "bytes": 5029,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "cbe020b2918c8fb96187d0425a125ba861eca8d78cf017239ac2b76e26e11ec7",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/2-current-server-aggregate-v1-h2-warmup-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/2-current-server-aggregate-v1-h2-warmup-download-2.json.log"
+    },
+    {
+      "bytes": 5010,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "2be9280144b101bc8158d6b968d353317208d3d81951ddd56a11e758ad8a54cf",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/3-current-server-aggregate-v1-h2-warmup-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/3-current-server-aggregate-v1-h2-warmup-download-3.json.log"
+    },
+    {
+      "bytes": 5071,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "cdd5bc27f1da8a74ea31ef2edcb4277a7f63492a3fd14ccef120139d8d5d1262",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/4-current-server-aggregate-v1-h2-warmup-download-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/4-current-server-aggregate-v1-h2-warmup-download-4.json.log"
+    },
+    {
+      "bytes": 4931,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "20b0df7238124fd217a0172812061e1e622d35cfafef85c6210add6a79e0bab3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/5-current-server-aggregate-v1-h2-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/5-current-server-aggregate-v1-h2-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 4927,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "b1339b3da6f36f13424ae8f0475608e818118f74a4722bfb11d23d7d9f56ce03",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/6-current-server-aggregate-v1-h2-warmup-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/6-current-server-aggregate-v1-h2-warmup-upload-2.json.log"
+    },
+    {
+      "bytes": 4933,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "91c6535575cb84b9f6b9c6ec0c360ae6559d177a714d171ef4c10b2b5becba74",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/7-current-server-aggregate-v1-h2-warmup-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/7-current-server-aggregate-v1-h2-warmup-upload-3.json.log"
+    },
+    {
+      "bytes": 4952,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "ee8f7f59a677bb709de63645c0b4aa986567138729978c525e03a0ee01295e38",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/8-current-server-aggregate-v1-h2-warmup-upload-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/8-current-server-aggregate-v1-h2-warmup-upload-4.json.log"
+    },
+    {
+      "bytes": 5036,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "61c2553f1709130b5a47402cf4e662697e8d746b589219464136f5b29e86f8ba",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/agent-namespace.stop"
+    },
+    {
+      "bytes": 7974,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c156a23b4e9dea901dd153cbca568446ff98961c73ba6a14528c01d90e4343a0",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/current-server-aggregate-v1-h2-1-agent.log"
+    },
+    {
+      "bytes": 48,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "3690230d72b6fff69ab67f86a0de0c8bdba9351722f2249fa614046124e7b179",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/current-server-aggregate-v1-h2-1-agent.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/current-server-aggregate-v1-h2-1-agent.stop"
+    },
+    {
+      "bytes": 583,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e1822bd6f11df7be1f6c79c2f870c11df07fc9888e752fe8a001b7f3455a30a2",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/current-server-aggregate-v1-h2-1-management-ca.pem"
+    },
+    {
+      "bytes": 13178,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "8cfd006c7006cf8cccc37367e6fce14efc39549cec27cabf0f979c9fce0c50c6",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/current-server-aggregate-v1-h2-1-server.log"
+    },
+    {
+      "bytes": 462,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "348ac23c0d8c15cccce3331a5d5ef1fed5c498d09223087e08e7d2ba65ece071",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/current-server-aggregate-v1-h2-1-server.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/current-server-aggregate-v1-h2-1-server.stop"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/origin.log"
+    },
+    {
+      "bytes": 82,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "9d43c598b7b08d2fe8c45a428c330d2f08d6da2a48f2710532b9d7ce8bef8586",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/origin.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/origin.stop"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-0-idle-1/proxy-agent-growth.2GScFC/router-namespace.stop"
+    },
+    {
+      "bytes": 5040,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "481bc01c052137a34584fc1b8399534cd71893aec015c8a171eeb758f0183c65",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/1-current-server-aggregate-v1-h2-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/1-current-server-aggregate-v1-h2-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 4934,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "98f170435a6edfa4191c08871da16be00f9c1b02e34f7fa4022b3cc1e32961d5",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 5071,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "f3fc982b90134162fd7b516a314fd668989d21fc69072e52162b3274d3e78984",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/11-current-server-aggregate-v1-h2-steady-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/11-current-server-aggregate-v1-h2-steady-download-1.json.log"
+    },
+    {
+      "bytes": 4933,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "0b5330f4ed14805b4c34cef4cdbb0c426c3073b89256de92c06e8d75ade8be28",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/12-current-server-aggregate-v1-h2-steady-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/12-current-server-aggregate-v1-h2-steady-upload-1.json.log"
+    },
+    {
+      "bytes": 4933,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "6c86f5b74053931ebfbff0420415582e616ed78c6292a7385ed15332a3bb6c19",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/13-current-server-aggregate-v1-h2-steady-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/13-current-server-aggregate-v1-h2-steady-upload-2.json.log"
+    },
+    {
+      "bytes": 5042,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "081bfb296a1fe3fe2fccbf7b7358ff1ab2be2b9650ce80eeed9b5ce3a6f4507c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/14-current-server-aggregate-v1-h2-steady-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/14-current-server-aggregate-v1-h2-steady-download-2.json.log"
+    },
+    {
+      "bytes": 5038,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "856ad8104f9e60b0aeb57bb6d4ba1b2f4853cab2b5861649299b5166beb53903",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/15-current-server-aggregate-v1-h2-steady-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/15-current-server-aggregate-v1-h2-steady-download-3.json.log"
+    },
+    {
+      "bytes": 4935,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "f1b036111b6f8a72e22ad51a42475c83244bc045900cdea281fc62d7313057de",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/16-current-server-aggregate-v1-h2-steady-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/16-current-server-aggregate-v1-h2-steady-upload-3.json.log"
+    },
+    {
+      "bytes": 5059,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "0b33fc49452dc90cfb8df5748369336a491526b5e462824895d854f28e4b8caf",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/2-current-server-aggregate-v1-h2-warmup-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/2-current-server-aggregate-v1-h2-warmup-download-2.json.log"
+    },
+    {
+      "bytes": 5037,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "27a9c1f53da4bda5a995e546b78a9a8ad83b701368046de62dff8270f7e9c51a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/3-current-server-aggregate-v1-h2-warmup-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/3-current-server-aggregate-v1-h2-warmup-download-3.json.log"
+    },
+    {
+      "bytes": 5109,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "371f5d21a090e762da4bd81ce535a6fc4d98785e41ce7fd28d06cdc392e2a8f0",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/4-current-server-aggregate-v1-h2-warmup-download-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/4-current-server-aggregate-v1-h2-warmup-download-4.json.log"
+    },
+    {
+      "bytes": 4932,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "85cb7b45bea10c567364c4e2a38313753f28fa031987ad5625a7e8128227964c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/5-current-server-aggregate-v1-h2-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/5-current-server-aggregate-v1-h2-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 4938,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "ed30c4cd3df8f8189b7185756de43e99469464e3fe90ea385956702ea7882a20",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/6-current-server-aggregate-v1-h2-warmup-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/6-current-server-aggregate-v1-h2-warmup-upload-2.json.log"
+    },
+    {
+      "bytes": 4931,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "088e07db506d546116bc3e45f8b14bd46d3bf5162bf643db8c4bec7caa687b70",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/7-current-server-aggregate-v1-h2-warmup-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/7-current-server-aggregate-v1-h2-warmup-upload-3.json.log"
+    },
+    {
+      "bytes": 4939,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "855edb0162cc338951c84c56243f114e4f0f68eaf58f20cb99f24b22a0c43844",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/8-current-server-aggregate-v1-h2-warmup-upload-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/8-current-server-aggregate-v1-h2-warmup-upload-4.json.log"
+    },
+    {
+      "bytes": 5040,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "a00dd57b03c2b6ee47b1319f0f820f9fcc96f95a9c8dd37aa8413216b5a139e7",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/agent-namespace.stop"
+    },
+    {
+      "bytes": 7972,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c559a5bedff31b466a6bb8b11656121ecb0c83abcd03dd94fa45df474786c63c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/current-server-aggregate-v1-h2-1-agent.log"
+    },
+    {
+      "bytes": 48,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "19c6fba1809fae63e82a493dc37c8e305f474b4196e4cb307779aac399481ebc",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/current-server-aggregate-v1-h2-1-agent.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/current-server-aggregate-v1-h2-1-agent.stop"
+    },
+    {
+      "bytes": 583,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "6c481552655643739625c0dbf15d0d64db7b075e212df556c2f9284865af1eb6",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/current-server-aggregate-v1-h2-1-management-ca.pem"
+    },
+    {
+      "bytes": 12828,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "f1a56c82628599875e4f648cf93e2258280dc83b5da63ad87ab4e601350dd507",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/current-server-aggregate-v1-h2-1-server.log"
+    },
+    {
+      "bytes": 462,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "fdcd6093b2c7acf3909b6f43794203cb9500a44a1f7649dd56e2188172eb1a0c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/current-server-aggregate-v1-h2-1-server.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/current-server-aggregate-v1-h2-1-server.stop"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/origin.log"
+    },
+    {
+      "bytes": 82,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "48c03c87ae3227b6e0c896924688fb5a4310655f64dca25ed24970c645033019",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/origin.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/origin.stop"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-1-idle-0/proxy-agent-growth.q1ul8H/router-namespace.stop"
+    },
+    {
+      "bytes": 5031,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "8d7ed5058e17eef7c75f40dbc1ee5424dd2c971734c95d74dfa42f7cdde21b93",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/1-current-server-aggregate-v1-h2-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/1-current-server-aggregate-v1-h2-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 4953,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "b3d73824fd9222b9a454b5337432db3974548c5e568309f8e5878117592e55e0",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/10-current-server-aggregate-v1-h2-retained-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 5071,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "3c05bd62bb0b12ab80ec980343fcf7f6f80f0beaebb12127cab446f3271d4570",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/11-current-server-aggregate-v1-h2-steady-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/11-current-server-aggregate-v1-h2-steady-download-1.json.log"
+    },
+    {
+      "bytes": 4927,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "119e494d3fd150582acbd9d57ce5f43ecd5637daa726cecc5864a8ada2b7f390",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/12-current-server-aggregate-v1-h2-steady-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/12-current-server-aggregate-v1-h2-steady-upload-1.json.log"
+    },
+    {
+      "bytes": 4926,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "184fcee45d7ea22ad1caee7583247a555ecba71662b60a97b6d0dc2a3b965cb2",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/13-current-server-aggregate-v1-h2-steady-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/13-current-server-aggregate-v1-h2-steady-upload-2.json.log"
+    },
+    {
+      "bytes": 5038,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e48f76726445c3dbcf5edc106b14c3f6ffec33294c4ef7a1ff9c2488c3503fc2",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/14-current-server-aggregate-v1-h2-steady-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/14-current-server-aggregate-v1-h2-steady-download-2.json.log"
+    },
+    {
+      "bytes": 5040,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "edd6d97de77cbca0d7310a8c50a42093dfbf46226e290e6f674ea855066af88c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/15-current-server-aggregate-v1-h2-steady-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/15-current-server-aggregate-v1-h2-steady-download-3.json.log"
+    },
+    {
+      "bytes": 4926,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "2e9384a207e650f18f6176bfd82391f7f3d9ed03c89580d393996c0d1eaf1014",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/16-current-server-aggregate-v1-h2-steady-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/16-current-server-aggregate-v1-h2-steady-upload-3.json.log"
+    },
+    {
+      "bytes": 5062,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "64e2e317d0e7008a2585e93929f2796c089d4985eef26425f8d59a8f6bb3010a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/2-current-server-aggregate-v1-h2-warmup-download-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/2-current-server-aggregate-v1-h2-warmup-download-2.json.log"
+    },
+    {
+      "bytes": 5081,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "508ef3e6674c201ac2bd1f5836421d4fa7ec56299d7151175fab2d01dd5844a1",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/3-current-server-aggregate-v1-h2-warmup-download-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/3-current-server-aggregate-v1-h2-warmup-download-3.json.log"
+    },
+    {
+      "bytes": 5054,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "838429f660c513876839bacaaf404d59b9c243ce26bf66dd40fb3d4c0495d55d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/4-current-server-aggregate-v1-h2-warmup-download-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/4-current-server-aggregate-v1-h2-warmup-download-4.json.log"
+    },
+    {
+      "bytes": 4921,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "9efd410bbf7836e1b42137c8320e8c855d091bca5f0d7c57f9a5aff68adef132",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/5-current-server-aggregate-v1-h2-warmup-upload-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/5-current-server-aggregate-v1-h2-warmup-upload-1.json.log"
+    },
+    {
+      "bytes": 4927,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c4a4e65ababffe35a923fe1dbc9226e4696a137eecb0669fd035551d3b256d0e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/6-current-server-aggregate-v1-h2-warmup-upload-2.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/6-current-server-aggregate-v1-h2-warmup-upload-2.json.log"
+    },
+    {
+      "bytes": 4929,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "785b9eaf6e3129f37f2409baaadd3e97446d9e73ccd0324825460f702b20b5f3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/7-current-server-aggregate-v1-h2-warmup-upload-3.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/7-current-server-aggregate-v1-h2-warmup-upload-3.json.log"
+    },
+    {
+      "bytes": 4989,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "56b871c9ea58b1d2e8c3b3d61ec6f77dd30ed3d709c50a8456dd5f150f859614",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/8-current-server-aggregate-v1-h2-warmup-upload-4.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/8-current-server-aggregate-v1-h2-warmup-upload-4.json.log"
+    },
+    {
+      "bytes": 5031,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "b8284ee892e6db0d9fca3716d9b9c8b332da3e4eb93d89f8a4968ac73fc4f675",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/9-current-server-aggregate-v1-h2-retained-warmup-download-1.json.log"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/agent-namespace.stop"
+    },
+    {
+      "bytes": 8749,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c4710df417bed8fdfc85eb24d80cecb92cce992e670770362da494bc219dfb6a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/current-server-aggregate-v1-h2-1-agent.log"
+    },
+    {
+      "bytes": 48,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "d1220f74ba866f499f3cc46349c056f963eb2ae96286e52a06313e691fb3b6df",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/current-server-aggregate-v1-h2-1-agent.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/current-server-aggregate-v1-h2-1-agent.stop"
+    },
+    {
+      "bytes": 583,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "a458c01bd70f4df30e22a5adf4827af443ac275c2c1cbe3f6586693df2605506",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/current-server-aggregate-v1-h2-1-management-ca.pem"
+    },
+    {
+      "bytes": 13355,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "8443c2b1a86b2e9eae06a57f991718c8a7ad0e7db8dac1f7b2dfdb185b011bdb",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/current-server-aggregate-v1-h2-1-server.log"
+    },
+    {
+      "bytes": 462,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "595cbcb821162bdcc6ff7604a1878acc5a11cdb7a3c0fddc2c3f86aebdcb9a17",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/current-server-aggregate-v1-h2-1-server.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/current-server-aggregate-v1-h2-1-server.stop"
+    },
+    {
+      "bytes": 5,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/origin.log"
+    },
+    {
+      "bytes": 82,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "aed016b0841a713daa53cf437bd046ca509b86239b1dc4d807968ca39f0a0a0b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/origin.ready.json"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/origin.stop"
+    },
+    {
+      "bytes": 0,
+      "disposition": "omit disposable duplicate transfer JSON/logs, application logs/readiness, stop files and TLS key/certificate contents; canonical rows and scope/lifecycle evidence retained",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-idle-policy-screen-20261017/runs/idle-101-once/arm-2-idle-1/proxy-agent-growth.vKb4jE/router-namespace.stop"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "documentary evidence package, not standalone executable replay; prior controls are not reused"
+}

@@ -1,0 +1,74 @@
+{
+  "diagnostic_only": true,
+  "local_raw_root": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk",
+  "not_committed_raw_files": [
+    {
+      "path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/telemetry/tcp-qdisc.jsonl",
+      "bytes": 20658588,
+      "sha256": "f61602622840ba4ebb94e5e438833e84473cb4315e2a9e79b7514aec76c4d7b3"
+    },
+    {
+      "path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/telemetry/credit-server.jsonl",
+      "bytes": 33834127,
+      "sha256": "1e5a83727fb436f66ef8a1022f2a6429add02f7ccf8f7afa25876220e4a46b02"
+    },
+    {
+      "path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/telemetry/credit-agent.jsonl",
+      "bytes": 16918798,
+      "sha256": "691ecea961dcc75ee3265d79b04f67873193b0b4fd9ce0ed07c453e92230b1b1"
+    },
+    {
+      "path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/diagnostic-source.tar",
+      "bytes": 25036800,
+      "sha256": "57d8a05174f8f6d8a983f577851c7e882c1ae9e8c409eeae446ff10a6789f5f6"
+    },
+    {
+      "path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/bin/legacy-agent.test",
+      "bytes": 19589806,
+      "sha256": "e0e2f9e1db4b19d0032b5df06c6d311ccaf9500f4879f85f4ca8798bf94b44ec"
+    },
+    {
+      "path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/bin/aggregate-agent.test",
+      "bytes": 19963281,
+      "sha256": "7f26240350a512c40af025703e13ccb8a2dc4c90a87a4822077d71501baa4f30"
+    },
+    {
+      "path": "/tmp/p2pstream-wan-credit-diagnostic.x4j_xovk/bin/server.test",
+      "bytes": 58463912,
+      "sha256": "19d784cc9b27e3d603cf441fcec049a799de2aa616b958d738027f51343a4ecb"
+    }
+  ],
+  "capture_errors_inside_marked_transfer_phases": {
+    "server": 0,
+    "agent": 0
+  },
+  "fixture_processes_after_exit": [
+    {
+      "ready_file": "current-server-aggregate-v1-1-agent.ready.json",
+      "pid": 476929,
+      "alive_after_exit": false
+    },
+    {
+      "ready_file": "current-server-aggregate-v1-1-server.ready.json",
+      "pid": 476914,
+      "alive_after_exit": false
+    },
+    {
+      "ready_file": "current-server-legacy-agent-compat-1-agent.ready.json",
+      "pid": 471949,
+      "alive_after_exit": false
+    },
+    {
+      "ready_file": "current-server-legacy-agent-compat-1-server.ready.json",
+      "pid": 471930,
+      "alive_after_exit": false
+    },
+    {
+      "ready_file": "origin.ready.json",
+      "pid": 471917,
+      "alive_after_exit": false
+    }
+  ],
+  "all_three_collectors_requested_stop": true,
+  "interpretation": "Healthy replay does not explain or override the reproducible uninstrumented failure; no production patch or acceptance claim."
+}
