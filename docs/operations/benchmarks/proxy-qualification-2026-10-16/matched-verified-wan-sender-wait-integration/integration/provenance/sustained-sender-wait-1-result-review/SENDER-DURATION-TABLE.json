@@ -1,0 +1,1109 @@
+{
+  "diagnostic": "wan-sender-wait",
+  "diagnostic_only": true,
+  "interpretation": {
+    "causality": "Descriptive interval/exclusivity evidence only; there is no direct request-to-stream marker and no causal runtime-fix claim.",
+    "completion_select": "Caller completion-select interval; physical write occurs within the send-loop side of this interval but is not equated to it.",
+    "credit_wait": "Observed sender-side credit decision waits, partitioned independently by cause and wake outcome.",
+    "data_call": "Whole DATA call interval; it equals enqueue-select plus completion-select for every selected transfer.",
+    "http_body_vs_data": "DATA payload includes bytes beyond the 256 MiB HTTP response body; both exact counts are retained and are not described as identical.",
+    "physical_write": "Observed conn.Write duration for DATA frames."
+  },
+  "records": [
+    {
+      "allocation_charged_bytes": 268918784,
+      "allocation_minus_data_payload_bytes": 483098,
+      "conservation": {
+        "credit_cause_count_equals_total": true,
+        "credit_cause_ns_equals_total": true,
+        "credit_wake_count_equals_total": true,
+        "credit_wake_ns_equals_total": true,
+        "data_call_equals_enqueue_plus_completion_ns": true,
+        "duration_counts_equal_frames": true,
+        "frame_counts_equal": true,
+        "measurement_interval_valid": true,
+        "no_error_short_abandoned_ambiguity_or_overflow": true,
+        "payload_counts_equal": true,
+        "physical_wire_attempt_equals_written": true,
+        "selected_validation_accepted": true
+      },
+      "credit_observations": {
+        "byte_credit_zero": 19,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 3
+      },
+      "credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 19,
+          "max_nanoseconds": 241112381,
+          "total_nanoseconds": 1034472343
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 3,
+          "max_nanoseconds": 79567746,
+          "total_nanoseconds": 153256061
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "credit_wait_by_wake": {
+        "aggregate_notify": {
+          "count": 2,
+          "max_nanoseconds": 79567746,
+          "total_nanoseconds": 153255400
+        },
+        "byte_notify": {
+          "count": 20,
+          "max_nanoseconds": 241112381,
+          "total_nanoseconds": 1034473004
+        },
+        "shutdown": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "timeout": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "data_payload_bytes": 268435686,
+      "data_payload_minus_http_body_bytes": 230,
+      "durations": {
+        "credit_wait_total": {
+          "count": 22,
+          "max_nanoseconds": 241112381,
+          "total_nanoseconds": 1187728404
+        },
+        "data_call_total": {
+          "count": 8418,
+          "max_nanoseconds": 155282210,
+          "total_nanoseconds": 7427108339
+        },
+        "data_completion_select_total": {
+          "count": 8418,
+          "max_nanoseconds": 155281779,
+          "total_nanoseconds": 7408499667
+        },
+        "data_enqueue_select_total": {
+          "count": 8418,
+          "max_nanoseconds": 23025,
+          "total_nanoseconds": 18608672
+        },
+        "physical_write_total": {
+          "count": 8418,
+          "max_nanoseconds": 155264025,
+          "total_nanoseconds": 7358368521
+        }
+      },
+      "error_and_race_counts": {
+        "claimed_before_publication_frames": 0,
+        "data_abandoned_frames": 0,
+        "data_gather_error_frames": 0,
+        "enqueue_publication_races": 0,
+        "physical_error_frames": 0,
+        "physical_short_frames": 0
+      },
+      "frame_counts": {
+        "data_completed": 8418,
+        "data_enqueued": 8418,
+        "physical_attempt": 8418,
+        "physical_success": 8418,
+        "selected": 8418
+      },
+      "frames": 8418,
+      "http_body_bytes": 268435456,
+      "interval_boundary": "pre-complete-drain-to-immediate-post-drain",
+      "lane": 1,
+      "payload_counts": {
+        "data_completed": 268435686,
+        "data_enqueued": 268435686,
+        "physical_attempt": 268435686,
+        "physical_success": 268435686,
+        "selected": 268435686
+      },
+      "physical_wire": {
+        "attempt_bytes": 268536702,
+        "success_bytes": 268536702,
+        "written_bytes": 268536702
+      },
+      "protocol": "h1",
+      "repetition": 1,
+      "sequence": 9,
+      "stage": "retained-warmup",
+      "stream_id": 6,
+      "useful_transfer_bytes_per_second": 29835158.13544622,
+      "wall_seconds": 8.997286181,
+      "wire_bytes": 268536702,
+      "wire_minus_data_payload_bytes": 101016
+    },
+    {
+      "allocation_charged_bytes": 268509184,
+      "allocation_minus_data_payload_bytes": 73498,
+      "conservation": {
+        "credit_cause_count_equals_total": true,
+        "credit_cause_ns_equals_total": true,
+        "credit_wake_count_equals_total": true,
+        "credit_wake_ns_equals_total": true,
+        "data_call_equals_enqueue_plus_completion_ns": true,
+        "duration_counts_equal_frames": true,
+        "frame_counts_equal": true,
+        "measurement_interval_valid": true,
+        "no_error_short_abandoned_ambiguity_or_overflow": true,
+        "payload_counts_equal": true,
+        "physical_wire_attempt_equals_written": true,
+        "selected_validation_accepted": true
+      },
+      "credit_observations": {
+        "byte_credit_zero": 37,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 3
+      },
+      "credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 37,
+          "max_nanoseconds": 160392952,
+          "total_nanoseconds": 1686431878
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 3,
+          "max_nanoseconds": 80877440,
+          "total_nanoseconds": 159775944
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "credit_wait_by_wake": {
+        "aggregate_notify": {
+          "count": 2,
+          "max_nanoseconds": 80877440,
+          "total_nanoseconds": 159775112
+        },
+        "byte_notify": {
+          "count": 38,
+          "max_nanoseconds": 160392952,
+          "total_nanoseconds": 1686432710
+        },
+        "shutdown": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "timeout": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "data_payload_bytes": 268435686,
+      "data_payload_minus_http_body_bytes": 230,
+      "durations": {
+        "credit_wait_total": {
+          "count": 40,
+          "max_nanoseconds": 160392952,
+          "total_nanoseconds": 1846207822
+        },
+        "data_call_total": {
+          "count": 8230,
+          "max_nanoseconds": 236457255,
+          "total_nanoseconds": 14961423968
+        },
+        "data_completion_select_total": {
+          "count": 8230,
+          "max_nanoseconds": 236453738,
+          "total_nanoseconds": 14943418298
+        },
+        "data_enqueue_select_total": {
+          "count": 8230,
+          "max_nanoseconds": 30579,
+          "total_nanoseconds": 18005670
+        },
+        "physical_write_total": {
+          "count": 8230,
+          "max_nanoseconds": 236436825,
+          "total_nanoseconds": 14895418298
+        }
+      },
+      "error_and_race_counts": {
+        "claimed_before_publication_frames": 0,
+        "data_abandoned_frames": 0,
+        "data_gather_error_frames": 0,
+        "enqueue_publication_races": 0,
+        "physical_error_frames": 0,
+        "physical_short_frames": 0
+      },
+      "frame_counts": {
+        "data_completed": 8230,
+        "data_enqueued": 8230,
+        "physical_attempt": 8230,
+        "physical_success": 8230,
+        "selected": 8230
+      },
+      "frames": 8230,
+      "http_body_bytes": 268435456,
+      "interval_boundary": "pre-complete-drain-to-immediate-post-drain",
+      "lane": 3,
+      "payload_counts": {
+        "data_completed": 268435686,
+        "data_enqueued": 268435686,
+        "physical_attempt": 268435686,
+        "physical_success": 268435686,
+        "selected": 268435686
+      },
+      "physical_wire": {
+        "attempt_bytes": 268534446,
+        "success_bytes": 268534446,
+        "written_bytes": 268534446
+      },
+      "protocol": "h1",
+      "repetition": 1,
+      "sequence": 11,
+      "stage": "steady",
+      "stream_id": 6,
+      "useful_transfer_bytes_per_second": 15558585.76191718,
+      "wall_seconds": 17.253204122,
+      "wire_bytes": 268534446,
+      "wire_minus_data_payload_bytes": 98760
+    },
+    {
+      "allocation_charged_bytes": 268738560,
+      "allocation_minus_data_payload_bytes": 302874,
+      "conservation": {
+        "credit_cause_count_equals_total": true,
+        "credit_cause_ns_equals_total": true,
+        "credit_wake_count_equals_total": true,
+        "credit_wake_ns_equals_total": true,
+        "data_call_equals_enqueue_plus_completion_ns": true,
+        "duration_counts_equal_frames": true,
+        "frame_counts_equal": true,
+        "measurement_interval_valid": true,
+        "no_error_short_abandoned_ambiguity_or_overflow": true,
+        "payload_counts_equal": true,
+        "physical_wire_attempt_equals_written": true,
+        "selected_validation_accepted": true
+      },
+      "credit_observations": {
+        "byte_credit_zero": 18,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 2
+      },
+      "credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 18,
+          "max_nanoseconds": 240589668,
+          "total_nanoseconds": 946005912
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 2,
+          "max_nanoseconds": 79452907,
+          "total_nanoseconds": 79454210
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "credit_wait_by_wake": {
+        "aggregate_notify": {
+          "count": 1,
+          "max_nanoseconds": 79452907,
+          "total_nanoseconds": 79452907
+        },
+        "byte_notify": {
+          "count": 19,
+          "max_nanoseconds": 240589668,
+          "total_nanoseconds": 946007215
+        },
+        "shutdown": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "timeout": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "data_payload_bytes": 268435686,
+      "data_payload_minus_http_body_bytes": 230,
+      "durations": {
+        "credit_wait_total": {
+          "count": 20,
+          "max_nanoseconds": 240589668,
+          "total_nanoseconds": 1025460122
+        },
+        "data_call_total": {
+          "count": 8626,
+          "max_nanoseconds": 154562501,
+          "total_nanoseconds": 7338503383
+        },
+        "data_completion_select_total": {
+          "count": 8626,
+          "max_nanoseconds": 154561278,
+          "total_nanoseconds": 7318523471
+        },
+        "data_enqueue_select_total": {
+          "count": 8626,
+          "max_nanoseconds": 32733,
+          "total_nanoseconds": 19979912
+        },
+        "physical_write_total": {
+          "count": 8626,
+          "max_nanoseconds": 154541800,
+          "total_nanoseconds": 7266361046
+        }
+      },
+      "error_and_race_counts": {
+        "claimed_before_publication_frames": 0,
+        "data_abandoned_frames": 0,
+        "data_gather_error_frames": 0,
+        "enqueue_publication_races": 0,
+        "physical_error_frames": 0,
+        "physical_short_frames": 0
+      },
+      "frame_counts": {
+        "data_completed": 8626,
+        "data_enqueued": 8626,
+        "physical_attempt": 8626,
+        "physical_success": 8626,
+        "selected": 8626
+      },
+      "frames": 8626,
+      "http_body_bytes": 268435456,
+      "interval_boundary": "pre-complete-drain-to-immediate-post-drain",
+      "lane": 2,
+      "payload_counts": {
+        "data_completed": 268435686,
+        "data_enqueued": 268435686,
+        "physical_attempt": 268435686,
+        "physical_success": 268435686,
+        "selected": 268435686
+      },
+      "physical_wire": {
+        "attempt_bytes": 268539198,
+        "success_bytes": 268539198,
+        "written_bytes": 268539198
+      },
+      "protocol": "h1",
+      "repetition": 2,
+      "sequence": 14,
+      "stage": "steady",
+      "stream_id": 8,
+      "useful_transfer_bytes_per_second": 30642352.95511372,
+      "wall_seconds": 8.76027557,
+      "wire_bytes": 268539198,
+      "wire_minus_data_payload_bytes": 103512
+    },
+    {
+      "allocation_charged_bytes": 268439552,
+      "allocation_minus_data_payload_bytes": 3881,
+      "conservation": {
+        "credit_cause_count_equals_total": true,
+        "credit_cause_ns_equals_total": true,
+        "credit_wake_count_equals_total": true,
+        "credit_wake_ns_equals_total": true,
+        "data_call_equals_enqueue_plus_completion_ns": true,
+        "duration_counts_equal_frames": true,
+        "frame_counts_equal": true,
+        "measurement_interval_valid": true,
+        "no_error_short_abandoned_ambiguity_or_overflow": true,
+        "payload_counts_equal": true,
+        "physical_wire_attempt_equals_written": true,
+        "selected_validation_accepted": true
+      },
+      "credit_observations": {
+        "byte_credit_zero": 0,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 0
+      },
+      "credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "credit_wait_by_wake": {
+        "aggregate_notify": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "byte_notify": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "shutdown": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "timeout": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "data_payload_bytes": 268435671,
+      "data_payload_minus_http_body_bytes": 215,
+      "durations": {
+        "credit_wait_total": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "data_call_total": {
+          "count": 8193,
+          "max_nanoseconds": 562834548,
+          "total_nanoseconds": 7332668973
+        },
+        "data_completion_select_total": {
+          "count": 8193,
+          "max_nanoseconds": 562833335,
+          "total_nanoseconds": 7314929684
+        },
+        "data_enqueue_select_total": {
+          "count": 8193,
+          "max_nanoseconds": 22283,
+          "total_nanoseconds": 17739289
+        },
+        "physical_write_total": {
+          "count": 8193,
+          "max_nanoseconds": 562815861,
+          "total_nanoseconds": 7266310629
+        }
+      },
+      "error_and_race_counts": {
+        "claimed_before_publication_frames": 0,
+        "data_abandoned_frames": 0,
+        "data_gather_error_frames": 0,
+        "enqueue_publication_races": 0,
+        "physical_error_frames": 0,
+        "physical_short_frames": 0
+      },
+      "frame_counts": {
+        "data_completed": 8193,
+        "data_enqueued": 8193,
+        "physical_attempt": 8193,
+        "physical_success": 8193,
+        "selected": 8193
+      },
+      "frames": 8193,
+      "http_body_bytes": 268435456,
+      "interval_boundary": "pre-complete-drain-to-immediate-post-drain",
+      "lane": 3,
+      "payload_counts": {
+        "data_completed": 268435671,
+        "data_enqueued": 268435671,
+        "physical_attempt": 268435671,
+        "physical_success": 268435671,
+        "selected": 268435671
+      },
+      "physical_wire": {
+        "attempt_bytes": 268533987,
+        "success_bytes": 268533987,
+        "written_bytes": 268533987
+      },
+      "protocol": "h1",
+      "repetition": 3,
+      "sequence": 15,
+      "stage": "steady",
+      "stream_id": 6,
+      "useful_transfer_bytes_per_second": 34903041.15273943,
+      "wall_seconds": 7.690890167,
+      "wire_bytes": 268533987,
+      "wire_minus_data_payload_bytes": 98316
+    },
+    {
+      "allocation_charged_bytes": 268513280,
+      "allocation_minus_data_payload_bytes": 77594,
+      "conservation": {
+        "credit_cause_count_equals_total": true,
+        "credit_cause_ns_equals_total": true,
+        "credit_wake_count_equals_total": true,
+        "credit_wake_ns_equals_total": true,
+        "data_call_equals_enqueue_plus_completion_ns": true,
+        "duration_counts_equal_frames": true,
+        "frame_counts_equal": true,
+        "measurement_interval_valid": true,
+        "no_error_short_abandoned_ambiguity_or_overflow": true,
+        "payload_counts_equal": true,
+        "physical_wire_attempt_equals_written": true,
+        "selected_validation_accepted": true
+      },
+      "credit_observations": {
+        "byte_credit_zero": 24,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 3
+      },
+      "credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 24,
+          "max_nanoseconds": 241011027,
+          "total_nanoseconds": 1663008381
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 3,
+          "max_nanoseconds": 79033111,
+          "total_nanoseconds": 79041748
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "credit_wait_by_wake": {
+        "aggregate_notify": {
+          "count": 2,
+          "max_nanoseconds": 79033111,
+          "total_nanoseconds": 79040766
+        },
+        "byte_notify": {
+          "count": 25,
+          "max_nanoseconds": 241011027,
+          "total_nanoseconds": 1663009363
+        },
+        "shutdown": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "timeout": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "data_payload_bytes": 268435686,
+      "data_payload_minus_http_body_bytes": 230,
+      "durations": {
+        "credit_wait_total": {
+          "count": 27,
+          "max_nanoseconds": 241011027,
+          "total_nanoseconds": 1742050129
+        },
+        "data_call_total": {
+          "count": 8230,
+          "max_nanoseconds": 159669117,
+          "total_nanoseconds": 7582835423
+        },
+        "data_completion_select_total": {
+          "count": 8230,
+          "max_nanoseconds": 159668606,
+          "total_nanoseconds": 7564983431
+        },
+        "data_enqueue_select_total": {
+          "count": 8230,
+          "max_nanoseconds": 32193,
+          "total_nanoseconds": 17851992
+        },
+        "physical_write_total": {
+          "count": 8230,
+          "max_nanoseconds": 159659268,
+          "total_nanoseconds": 7516358513
+        }
+      },
+      "error_and_race_counts": {
+        "claimed_before_publication_frames": 0,
+        "data_abandoned_frames": 0,
+        "data_gather_error_frames": 0,
+        "enqueue_publication_races": 0,
+        "physical_error_frames": 0,
+        "physical_short_frames": 0
+      },
+      "frame_counts": {
+        "data_completed": 8230,
+        "data_enqueued": 8230,
+        "physical_attempt": 8230,
+        "physical_success": 8230,
+        "selected": 8230
+      },
+      "frames": 8230,
+      "http_body_bytes": 268435456,
+      "interval_boundary": "pre-complete-drain-to-immediate-post-drain",
+      "lane": 1,
+      "payload_counts": {
+        "data_completed": 268435686,
+        "data_enqueued": 268435686,
+        "physical_attempt": 268435686,
+        "physical_success": 268435686,
+        "selected": 268435686
+      },
+      "physical_wire": {
+        "attempt_bytes": 268534446,
+        "success_bytes": 268534446,
+        "written_bytes": 268534446
+      },
+      "protocol": "h2",
+      "repetition": 1,
+      "sequence": 9,
+      "stage": "retained-warmup",
+      "stream_id": 6,
+      "useful_transfer_bytes_per_second": 27496094.777577538,
+      "wall_seconds": 9.762675688,
+      "wire_bytes": 268534446,
+      "wire_minus_data_payload_bytes": 98760
+    },
+    {
+      "allocation_charged_bytes": 268619776,
+      "allocation_minus_data_payload_bytes": 184090,
+      "conservation": {
+        "credit_cause_count_equals_total": true,
+        "credit_cause_ns_equals_total": true,
+        "credit_wake_count_equals_total": true,
+        "credit_wake_ns_equals_total": true,
+        "data_call_equals_enqueue_plus_completion_ns": true,
+        "duration_counts_equal_frames": true,
+        "frame_counts_equal": true,
+        "measurement_interval_valid": true,
+        "no_error_short_abandoned_ambiguity_or_overflow": true,
+        "payload_counts_equal": true,
+        "physical_wire_attempt_equals_written": true,
+        "selected_validation_accepted": true
+      },
+      "credit_observations": {
+        "byte_credit_zero": 17,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 6
+      },
+      "credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 17,
+          "max_nanoseconds": 160485872,
+          "total_nanoseconds": 707907746
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 6,
+          "max_nanoseconds": 80394767,
+          "total_nanoseconds": 159358921
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "credit_wait_by_wake": {
+        "aggregate_notify": {
+          "count": 5,
+          "max_nanoseconds": 80394767,
+          "total_nanoseconds": 159357258
+        },
+        "byte_notify": {
+          "count": 18,
+          "max_nanoseconds": 160485872,
+          "total_nanoseconds": 707909409
+        },
+        "shutdown": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "timeout": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "data_payload_bytes": 268435686,
+      "data_payload_minus_http_body_bytes": 230,
+      "durations": {
+        "credit_wait_total": {
+          "count": 23,
+          "max_nanoseconds": 160485872,
+          "total_nanoseconds": 867266667
+        },
+        "data_call_total": {
+          "count": 8350,
+          "max_nanoseconds": 69671291,
+          "total_nanoseconds": 6688780105
+        },
+        "data_completion_select_total": {
+          "count": 8350,
+          "max_nanoseconds": 69668416,
+          "total_nanoseconds": 6671475923
+        },
+        "data_enqueue_select_total": {
+          "count": 8350,
+          "max_nanoseconds": 21973,
+          "total_nanoseconds": 17304182
+        },
+        "physical_write_total": {
+          "count": 8350,
+          "max_nanoseconds": 69659389,
+          "total_nanoseconds": 6622475667
+        }
+      },
+      "error_and_race_counts": {
+        "claimed_before_publication_frames": 0,
+        "data_abandoned_frames": 0,
+        "data_gather_error_frames": 0,
+        "enqueue_publication_races": 0,
+        "physical_error_frames": 0,
+        "physical_short_frames": 0
+      },
+      "frame_counts": {
+        "data_completed": 8350,
+        "data_enqueued": 8350,
+        "physical_attempt": 8350,
+        "physical_success": 8350,
+        "selected": 8350
+      },
+      "frames": 8350,
+      "http_body_bytes": 268435456,
+      "interval_boundary": "pre-complete-drain-to-immediate-post-drain",
+      "lane": 3,
+      "payload_counts": {
+        "data_completed": 268435686,
+        "data_enqueued": 268435686,
+        "physical_attempt": 268435686,
+        "physical_success": 268435686,
+        "selected": 268435686
+      },
+      "physical_wire": {
+        "attempt_bytes": 268535886,
+        "success_bytes": 268535886,
+        "written_bytes": 268535886
+      },
+      "protocol": "h2",
+      "repetition": 1,
+      "sequence": 11,
+      "stage": "steady",
+      "stream_id": 6,
+      "useful_transfer_bytes_per_second": 33577476.205130845,
+      "wall_seconds": 7.994509604,
+      "wire_bytes": 268535886,
+      "wire_minus_data_payload_bytes": 100200
+    },
+    {
+      "allocation_charged_bytes": 268484608,
+      "allocation_minus_data_payload_bytes": 48937,
+      "conservation": {
+        "credit_cause_count_equals_total": true,
+        "credit_cause_ns_equals_total": true,
+        "credit_wake_count_equals_total": true,
+        "credit_wake_ns_equals_total": true,
+        "data_call_equals_enqueue_plus_completion_ns": true,
+        "duration_counts_equal_frames": true,
+        "frame_counts_equal": true,
+        "measurement_interval_valid": true,
+        "no_error_short_abandoned_ambiguity_or_overflow": true,
+        "payload_counts_equal": true,
+        "physical_wire_attempt_equals_written": true,
+        "selected_validation_accepted": true
+      },
+      "credit_observations": {
+        "byte_credit_zero": 23,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 4
+      },
+      "credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 23,
+          "max_nanoseconds": 160932737,
+          "total_nanoseconds": 1587929620
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 4,
+          "max_nanoseconds": 159788493,
+          "total_nanoseconds": 159980045
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "credit_wait_by_wake": {
+        "aggregate_notify": {
+          "count": 3,
+          "max_nanoseconds": 159788493,
+          "total_nanoseconds": 159979534
+        },
+        "byte_notify": {
+          "count": 24,
+          "max_nanoseconds": 160932737,
+          "total_nanoseconds": 1587930131
+        },
+        "shutdown": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "timeout": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "data_payload_bytes": 268435671,
+      "data_payload_minus_http_body_bytes": 215,
+      "durations": {
+        "credit_wait_total": {
+          "count": 27,
+          "max_nanoseconds": 160932737,
+          "total_nanoseconds": 1747909665
+        },
+        "data_call_total": {
+          "count": 8209,
+          "max_nanoseconds": 159973834,
+          "total_nanoseconds": 7698847666
+        },
+        "data_completion_select_total": {
+          "count": 8209,
+          "max_nanoseconds": 159973423,
+          "total_nanoseconds": 7681545182
+        },
+        "data_enqueue_select_total": {
+          "count": 8209,
+          "max_nanoseconds": 24057,
+          "total_nanoseconds": 17302484
+        },
+        "physical_write_total": {
+          "count": 8209,
+          "max_nanoseconds": 159954717,
+          "total_nanoseconds": 7635943754
+        }
+      },
+      "error_and_race_counts": {
+        "claimed_before_publication_frames": 0,
+        "data_abandoned_frames": 0,
+        "data_gather_error_frames": 0,
+        "enqueue_publication_races": 0,
+        "physical_error_frames": 0,
+        "physical_short_frames": 0
+      },
+      "frame_counts": {
+        "data_completed": 8209,
+        "data_enqueued": 8209,
+        "physical_attempt": 8209,
+        "physical_success": 8209,
+        "selected": 8209
+      },
+      "frames": 8209,
+      "http_body_bytes": 268435456,
+      "interval_boundary": "pre-complete-drain-to-immediate-post-drain",
+      "lane": 2,
+      "payload_counts": {
+        "data_completed": 268435671,
+        "data_enqueued": 268435671,
+        "physical_attempt": 268435671,
+        "physical_success": 268435671,
+        "selected": 268435671
+      },
+      "physical_wire": {
+        "attempt_bytes": 268534179,
+        "success_bytes": 268534179,
+        "written_bytes": 268534179
+      },
+      "protocol": "h2",
+      "repetition": 2,
+      "sequence": 14,
+      "stage": "steady",
+      "stream_id": 6,
+      "useful_transfer_bytes_per_second": 27370166.524935883,
+      "wall_seconds": 9.807593087,
+      "wire_bytes": 268534179,
+      "wire_minus_data_payload_bytes": 98508
+    },
+    {
+      "allocation_charged_bytes": 268439552,
+      "allocation_minus_data_payload_bytes": 3881,
+      "conservation": {
+        "credit_cause_count_equals_total": true,
+        "credit_cause_ns_equals_total": true,
+        "credit_wake_count_equals_total": true,
+        "credit_wake_ns_equals_total": true,
+        "data_call_equals_enqueue_plus_completion_ns": true,
+        "duration_counts_equal_frames": true,
+        "frame_counts_equal": true,
+        "measurement_interval_valid": true,
+        "no_error_short_abandoned_ambiguity_or_overflow": true,
+        "payload_counts_equal": true,
+        "physical_wire_attempt_equals_written": true,
+        "selected_validation_accepted": true
+      },
+      "credit_observations": {
+        "byte_credit_zero": 0,
+        "session_allocation_zero": 0,
+        "stream_allocation_zero": 0
+      },
+      "credit_wait_by_cause": {
+        "byte_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "credit_wait_by_wake": {
+        "aggregate_notify": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "byte_notify": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "shutdown": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "timeout": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        }
+      },
+      "data_payload_bytes": 268435671,
+      "data_payload_minus_http_body_bytes": 215,
+      "durations": {
+        "credit_wait_total": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "data_call_total": {
+          "count": 8193,
+          "max_nanoseconds": 563370205,
+          "total_nanoseconds": 7408309053
+        },
+        "data_completion_select_total": {
+          "count": 8193,
+          "max_nanoseconds": 563368943,
+          "total_nanoseconds": 7391844418
+        },
+        "data_enqueue_select_total": {
+          "count": 8193,
+          "max_nanoseconds": 26051,
+          "total_nanoseconds": 16464635
+        },
+        "physical_write_total": {
+          "count": 8193,
+          "max_nanoseconds": 563343423,
+          "total_nanoseconds": 7344823842
+        }
+      },
+      "error_and_race_counts": {
+        "claimed_before_publication_frames": 0,
+        "data_abandoned_frames": 0,
+        "data_gather_error_frames": 0,
+        "enqueue_publication_races": 0,
+        "physical_error_frames": 0,
+        "physical_short_frames": 0
+      },
+      "frame_counts": {
+        "data_completed": 8193,
+        "data_enqueued": 8193,
+        "physical_attempt": 8193,
+        "physical_success": 8193,
+        "selected": 8193
+      },
+      "frames": 8193,
+      "http_body_bytes": 268435456,
+      "interval_boundary": "pre-complete-drain-to-immediate-post-drain",
+      "lane": 3,
+      "payload_counts": {
+        "data_completed": 268435671,
+        "data_enqueued": 268435671,
+        "physical_attempt": 268435671,
+        "physical_success": 268435671,
+        "selected": 268435671
+      },
+      "physical_wire": {
+        "attempt_bytes": 268533987,
+        "success_bytes": 268533987,
+        "written_bytes": 268533987
+      },
+      "protocol": "h2",
+      "repetition": 3,
+      "sequence": 15,
+      "stage": "steady",
+      "stream_id": 6,
+      "useful_transfer_bytes_per_second": 34682503.67807756,
+      "wall_seconds": 7.739794638,
+      "wire_bytes": 268533987,
+      "wire_minus_data_payload_bytes": 98316
+    }
+  ],
+  "schema_version": 1,
+  "selected_sequences": [
+    9,
+    11,
+    14,
+    15
+  ]
+}

@@ -627,14 +627,30 @@ and clears none of the original WAN, HAProxy, pressure, capacity, integration,
 release or merge gates. See the
 [compact read-wait evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-read-wait-stack-intern/README.md).
 
-A separate sender-duration observer now passes offline validation: 19 focused
-tests in each normal and race run, schema checks, and exact ordinary-build
-comparison across nine affected functions and four type layouts. The evidence
-preserves all five attempts, including the rejected ordinary-code differences
-and the later successful proof. This validates the bounded observer source;
-it establishes no runtime cause, performance fix or WAN gate clearance.
-Authenticated fixture integration and endpoint traffic are separate work. See
-the [sender observer evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-sender-wait-observer/README.md).
+The tagged sender-duration observer first passes its bounded offline source
+proof, including 19 focused tests in each normal and race run and exact
+ordinary-build comparison across nine affected functions and four type layouts.
+Its authenticated matched integration then completes 32 exact status-200
+transfers with the requested H1/H2 protocol on unchanged production source. H1
+fails the 29.7 MB/s download floor
+at a 15.5586 MB/s minimum, and sequences 13/14 cross the 30-second idle
+deadline, so retained reuse is inconclusive. H2 preserves valid retained reuse
+but fails at 27.4961 MB/s, with a 27.3702 MB/s steady minimum. All payload, TLS,
+protocol and sender-closure checks pass, and all owned endpoint, namespace and
+resource groups clean up naturally. The observer separates DATA payload,
+Yamux-framed plaintext submitted to `conn.Write`, and the elapsed call into the
+TLS-wrapped transport; ciphertext bytes, delivery, TCP completion and NIC
+completion are unmeasured. A mapped read-only stream-lifetime analysis finds
+zero sender credit wait on the same-direction retained H2 stream at sequence
+15 and positive waits on direction-cold sequences 9, 11 and 14. The available
+growth history covers the agent receive side in the opposite direction, while
+a time-aligned server receiver growth and credit record is absent. These
+results establish neither a cause nor a runtime fix. The original 90% WAN
+blocker and the HAProxy, pressure, capacity, integration, release and merge
+gates remain open. See the
+[sender observer evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-sender-wait-observer/README.md)
+and the
+[matched sender integration evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-sender-wait-integration/README.md).
 
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while

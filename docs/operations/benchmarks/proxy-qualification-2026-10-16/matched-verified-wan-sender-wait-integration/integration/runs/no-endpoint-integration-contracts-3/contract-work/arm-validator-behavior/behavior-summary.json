@@ -1,0 +1,92 @@
+{
+  "accepted": true,
+  "case_count": 14,
+  "cases": [
+    {
+      "accepted": true,
+      "actual": true,
+      "case": "wall-valid",
+      "expected": true
+    },
+    {
+      "accepted": true,
+      "actual": false,
+      "case": "wall-copy-before-pre",
+      "expected": false
+    },
+    {
+      "accepted": true,
+      "actual": false,
+      "case": "wall-copy-after-post",
+      "expected": false
+    },
+    {
+      "accepted": true,
+      "actual": false,
+      "case": "wall-bool-rejected",
+      "expected": false
+    },
+    {
+      "accepted": true,
+      "actual": false,
+      "case": "wall-uint64-overflow",
+      "expected": false
+    },
+    {
+      "accepted": true,
+      "actual": true,
+      "case": "order-valid",
+      "expected": true
+    },
+    {
+      "accepted": true,
+      "actual": false,
+      "case": "order-wrong",
+      "expected": false
+    },
+    {
+      "accepted": true,
+      "actual": false,
+      "case": "order-missing",
+      "expected": false
+    },
+    {
+      "accepted": true,
+      "actual": false,
+      "case": "order-repeated",
+      "expected": false
+    },
+    {
+      "accepted": true,
+      "actual": true,
+      "case": "terminal-cardinality-valid",
+      "expected": true
+    },
+    {
+      "accepted": true,
+      "actual": false,
+      "case": "terminal-missing",
+      "expected": false
+    },
+    {
+      "accepted": true,
+      "actual": false,
+      "case": "terminal-duplicate",
+      "expected": false
+    },
+    {
+      "accepted": true,
+      "actual": true,
+      "case": "terminal-valid",
+      "expected": true
+    },
+    {
+      "accepted": true,
+      "actual": false,
+      "case": "terminal-incomplete",
+      "expected": false
+    }
+  ],
+  "failed_cases": [],
+  "schema_version": 1
+}

@@ -1,0 +1,1 @@
+Partial cp11 source was prepared before architecture clarified that external launch approval must enforce the exact reviewed cp10 receipt hash. It is preserved as unused source history. It is not a review checkpoint, will not be published, and must not be executed. No cp11 test, build, endpoint, or traffic execution occurred.

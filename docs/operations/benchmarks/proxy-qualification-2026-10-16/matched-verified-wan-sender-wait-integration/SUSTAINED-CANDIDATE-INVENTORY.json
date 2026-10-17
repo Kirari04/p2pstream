@@ -1,0 +1,25 @@
+{
+  "candidate": {
+    "bytes": 3349314,
+    "files": 168
+  },
+  "excluded": {
+    "bytes": 206246,
+    "classes": [
+      "private TLS key",
+      "endpoint fixture trees",
+      "server readiness records"
+    ],
+    "files": 91
+  },
+  "full_run": {
+    "bytes": 3555560,
+    "files": 259,
+    "ledger_sha256": "6242e10c19454742ad728427cdcde8100b6fde5e54301ab01b7b55f2278b6625"
+  },
+  "mode": "metadata-only; candidate bytes have not been secret-scanned or exported",
+  "scan": {
+    "executed": false,
+    "source": "scan_sustained_candidates.py"
+  }
+}

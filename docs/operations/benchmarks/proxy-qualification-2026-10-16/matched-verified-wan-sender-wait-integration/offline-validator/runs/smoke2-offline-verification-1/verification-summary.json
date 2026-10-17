@@ -1,0 +1,30 @@
+{
+  "accepted": true,
+  "arms": {
+    "h1": {
+      "accepted": true,
+      "attestation_present": true,
+      "issues": [],
+      "natural_endpoint_and_namespace_statuses": true,
+      "protocol": "h1",
+      "row_count": 16,
+      "runner_status": 0,
+      "sender_terminal_closure_valid": true,
+      "status": 0
+    },
+    "h2": {
+      "accepted": true,
+      "attestation_present": true,
+      "issues": [],
+      "natural_endpoint_and_namespace_statuses": true,
+      "protocol": "h2",
+      "row_count": 16,
+      "runner_status": 0,
+      "sender_terminal_closure_valid": true,
+      "status": 0
+    }
+  },
+  "offline_only": true,
+  "original_artifacts_unchanged": true,
+  "schema_version": 1
+}

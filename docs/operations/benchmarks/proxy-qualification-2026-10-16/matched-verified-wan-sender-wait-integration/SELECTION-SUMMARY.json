@@ -1,0 +1,14 @@
+{
+  "evidence": {
+    "archive_bytes": 16977646,
+    "archive_files": 1232,
+    "bytes": 17227780,
+    "files": 1315,
+    "loose_bytes": 250134,
+    "loose_files": 83
+  },
+  "excluded_run_artifacts": 182,
+  "smoke2_scan_report_sha256": "5a66145cd2d86c6216b3e8b262b84931355b7fb595c4492c344583af33239ff7",
+  "stream_lifetime_analysis_ledger_sha256": "5c0b53c1333ccc26664bbab35fffbd5b58b14dade6e8069e945247915d7cd84d",
+  "sustained_scan_report_sha256": "b79735cdddc27b976ac3bdc7b3eb815e2eea4637487d2e89aa03223423ee696d"
+}

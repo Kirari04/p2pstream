@@ -47,6 +47,11 @@ comparison.
   ordinary-code differences and the final passing normal/race, schema and
   exact code/layout proof. It contains no endpoint traffic or runtime fix and
   clears no performance qualification gate.
+- [`matched-verified-wan-sender-wait-integration/README.md`](matched-verified-wan-sender-wait-integration/README.md)
+  preserves the authenticated smoke, sustained H1/H2 failure, sender closure
+  records and read-only stream-lifetime analysis. Production source remains
+  unchanged; the package establishes no cause or runtime fix and clears no
+  qualification gate.
 - [`sql-hierarchical64-rejected/README.md`](sql-hierarchical64-rejected/README.md)
   preserves the rejected 64→16→single event-insert screen. Large flushes improve,
   but a smaller-flush pair exceeds the fixed regression ceiling; no code is retained.
@@ -333,13 +338,26 @@ outside the package. Production source remains unchanged, and all WAN, HAProxy,
 pressure, capacity, integration, release and merge gates remain open. See the
 [compact read-wait evidence](matched-verified-wan-read-wait-stack-intern/README.md).
 
-A separate tagged sender-duration observer passes offline validation in its
-fifth preserved attempt. Nineteen focused tests pass in both normal and race
-runs; the ordinary-build proof matches nine affected functions, their compiler
-metadata and escape records, and four type layouts. Earlier failed attempts
-remain unchanged. This is source-validation evidence only, with no runtime
-cause, performance fix or WAN clearance. See the
-[sender observer evidence](matched-verified-wan-sender-wait-observer/README.md).
+The tagged sender-duration observer first passes its bounded offline source
+proof after five preserved attempts. Its authenticated matched integration then
+completes 32 exact status-200 transfers with the requested H1/H2 protocol on
+unchanged production source. H1
+fails the 29.7 MB/s download floor at a 15.5586 MB/s minimum, and sequences
+13/14 cross the 30-second idle deadline, leaving retained reuse inconclusive.
+H2 retains valid reuse but fails at 27.4961 MB/s, with a 27.3702 MB/s steady
+minimum. All payload, TLS, protocol and sender-closure checks pass, and cleanup
+is natural and joined. The observer distinguishes DATA payload, Yamux-framed
+plaintext submitted to `conn.Write`, and elapsed time in the call into the
+TLS-wrapped transport; ciphertext bytes, delivery, TCP completion and NIC
+completion are unmeasured. A mapped read-only stream-lifetime analysis finds
+zero sender credit wait on the same-direction retained H2 stream at sequence
+15 and positive waits on direction-cold sequences 9, 11 and 14. The available
+growth history is agent receive-side evidence in the opposite direction; no
+time-aligned server receiver growth or credit snapshot exists. These records
+establish no cause, runtime fix or original WAN clearance. The HAProxy,
+pressure, capacity, integration, release and merge gates remain open. See the
+[sender observer source evidence](matched-verified-wan-sender-wait-observer/README.md)
+and [matched sender integration evidence](matched-verified-wan-sender-wait-integration/README.md).
 
 The earlier final-runtime checkpoint
 `dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response

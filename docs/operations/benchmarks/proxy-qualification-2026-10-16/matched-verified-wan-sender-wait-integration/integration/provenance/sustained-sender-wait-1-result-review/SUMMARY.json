@@ -1,0 +1,88 @@
+{
+  "accepted": false,
+  "all_selected_sender_records_valid": true,
+  "arm_summaries": {
+    "h1": {
+      "attestation_accepted": false,
+      "attestation_sha256": "30cff023218fe580c9e1339301d8f4877349bacb620490b9d1f310e6a80f6fe2",
+      "classification": "inconclusive-upstream-reuse",
+      "download_phase_classification": {
+        "retained-warmup": {
+          "all_at_or_above_floor": true,
+          "gating": true,
+          "minimum_bytes_per_second": 29835158.13544622,
+          "samples": 1
+        },
+        "steady": {
+          "all_at_or_above_floor": false,
+          "gating": true,
+          "minimum_bytes_per_second": 15558585.76191718,
+          "samples": 3
+        },
+        "warmup": {
+          "all_at_or_above_floor": true,
+          "gating": true,
+          "minimum_bytes_per_second": 33820845.049080335,
+          "samples": 4
+        }
+      },
+      "lifecycle_sha256": "ddb258faa03b986855afede7c38544ccc559b56645dc9446d6328324253a1ae5",
+      "natural_endpoint_and_namespace_statuses": true,
+      "outer_runner_group_joined": true,
+      "results_sha256": "fc2b977e75508e2eed5163b5cf4bee54348ba335f5bc5ead083b8fb3ee8ecba7",
+      "runner_status": 1,
+      "sender_records_sha256": "8ae6d4b8a00f0d81c44a423aa2f5f0b487cc527df3c2a8302cdf0d5dd37f8222",
+      "sender_terminal_closure_valid": true,
+      "validation_issues": [
+        "steady download phase failed independent 29700000 B/s floor",
+        "sequence 13 did not reuse its bound post-close lane key",
+        "sequence 14 did not reuse its bound post-close lane key",
+        "diagnostic classification is not conclusive: 'inconclusive-upstream-reuse'",
+        "diagnostic acceptance failed or incomplete: {'correctness': True, 'download_floor_every_phase': False, 'expected_upstream_reuse': False, 'response_copy_attribution_complete': True, 'transport_trace_complete': True, 'verified_tls_and_protocol_every_response': True}",
+        "runner exited nonzero after preserving evidence: 1"
+      ]
+    },
+    "h2": {
+      "attestation_accepted": false,
+      "attestation_sha256": "832140b4a3e55b17562834f3a87d2850a7de90219a914cce12beb5b7dc9c52f5",
+      "classification": "observational-complete",
+      "download_phase_classification": {
+        "retained-warmup": {
+          "all_at_or_above_floor": false,
+          "gating": true,
+          "minimum_bytes_per_second": 27496094.777577538,
+          "samples": 1
+        },
+        "steady": {
+          "all_at_or_above_floor": false,
+          "gating": true,
+          "minimum_bytes_per_second": 27370166.524935883,
+          "samples": 3
+        },
+        "warmup": {
+          "all_at_or_above_floor": true,
+          "gating": true,
+          "minimum_bytes_per_second": 33799581.620301515,
+          "samples": 4
+        }
+      },
+      "lifecycle_sha256": "6e0c792c05c1e36527603c7e9b405d811bc2fd82f1cdb970f977598581065961",
+      "natural_endpoint_and_namespace_statuses": true,
+      "outer_runner_group_joined": true,
+      "results_sha256": "aaa9b1c538fde3f96a4b7b0d23574e979f29d4b1bf9ae436ac9d0f558a1f4dc5",
+      "runner_status": 1,
+      "sender_records_sha256": "7d5d80f30f74cb59aa6f51aaa320060d49efe4eb066756f240e6507513f6109d",
+      "sender_terminal_closure_valid": true,
+      "validation_issues": [
+        "retained-warmup download phase failed independent 29700000 B/s floor",
+        "steady download phase failed independent 29700000 B/s floor",
+        "diagnostic acceptance failed or incomplete: {'correctness': True, 'download_floor_every_phase': False, 'expected_upstream_reuse': True, 'response_copy_attribution_complete': True, 'transport_trace_complete': True, 'verified_tls_and_protocol_every_response': True}",
+        "runner exited nonzero after preserving evidence: 1"
+      ]
+    }
+  },
+  "diagnostic": "wan-sender-wait",
+  "run_final_status_sha256": "7338497a19cc01a099d7037db36f73750252dceeca84e604ee20753d516c06ef",
+  "schema_version": 1,
+  "selected_record_count": 8
+}

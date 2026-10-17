@@ -1,0 +1,676 @@
+{
+  "evidence": {
+    "duration_table_sha256": "d0c250c72c72ae3133fe59c6b82bda2fa67a1e9e0f6587309a100c989e14d410",
+    "run_attestations": {
+      "h1": "30cff023218fe580c9e1339301d8f4877349bacb620490b9d1f310e6a80f6fe2",
+      "h2": "832140b4a3e55b17562834f3a87d2850a7de90219a914cce12beb5b7dc9c52f5"
+    },
+    "run_manifest_sha256": "6242e10c19454742ad728427cdcde8100b6fde5e54301ab01b7b55f2278b6625",
+    "run_sender_records": {
+      "h1": "8ae6d4b8a00f0d81c44a423aa2f5f0b487cc527df3c2a8302cdf0d5dd37f8222",
+      "h2": "7d5d80f30f74cb59aa6f51aaa320060d49efe4eb066756f240e6507513f6109d"
+    }
+  },
+  "limits": [
+    "No server-side receiver growth-ring or per-stream credit snapshot was captured, so receiver target, advertised byte-credit evolution, and publication timestamps are unavailable.",
+    "Agent receive growth events describe the opposite direction for downloads and cannot substitute for server receiver evidence.",
+    "Wake outcome identifies the selected notification, not proof that the notification uniquely resolved the observed cause."
+  ],
+  "records": [
+    {
+      "agent_receive_growth_event": {
+        "current": 524288,
+        "direction_warning": "This event is the agent receive side for the small download request, not the server receive side for the 256 MiB response.",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 3248,
+        "proposed": 524288,
+        "rate_bytes_per_second": 5067.035328795029,
+        "sample_unix_nano": 1792195981670359963
+      },
+      "agent_receive_prior_bulk_growth_publications": [],
+      "bytes_per_second": 29835158.13544622,
+      "idle_age_ns": null,
+      "lane": 1,
+      "lifetime_class": "fresh-stream-first-server-bulk-download",
+      "origin_connection_id": "10.212.0.2:37982",
+      "origin_reuse_satisfied": false,
+      "prior_origin_connection_id": null,
+      "prior_sequence": null,
+      "protocol": "h1",
+      "query_boundary_unix_ns": {
+        "post_request_started": 1792195990757297130,
+        "pre_request_finished": 1792195981482790253
+      },
+      "sender_credit_wait": {
+        "aggregate_notify": {
+          "count": 2,
+          "max_nanoseconds": 79567746,
+          "total_nanoseconds": 153255400
+        },
+        "byte_notify": {
+          "count": 20,
+          "max_nanoseconds": 241112381,
+          "total_nanoseconds": 1034473004
+        },
+        "byte_zero": {
+          "count": 19,
+          "max_nanoseconds": 241112381,
+          "total_nanoseconds": 1034472343
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 3,
+          "max_nanoseconds": 79567746,
+          "total_nanoseconds": 153256061
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "total_ns": 1187728404
+      },
+      "sender_data_path": {
+        "data_call_ns": 7427108339,
+        "frames": 8418,
+        "physical_write_ns": 7358368521
+      },
+      "sequence": 9,
+      "stream_id": 6,
+      "wall_seconds": 8.997286181
+    },
+    {
+      "agent_receive_growth_event": {
+        "current": 524288,
+        "direction_warning": "This event is the agent receive side for the small download request, not the server receive side for the 256 MiB response.",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 3272,
+        "proposed": 524288,
+        "rate_bytes_per_second": 5101.473851879403,
+        "sample_unix_nano": 1792195999171949086
+      },
+      "agent_receive_prior_bulk_growth_publications": [],
+      "bytes_per_second": 15558585.76191718,
+      "idle_age_ns": null,
+      "lane": 3,
+      "lifetime_class": "fresh-stream-first-server-bulk-download",
+      "origin_connection_id": "10.212.0.2:36380",
+      "origin_reuse_satisfied": false,
+      "prior_origin_connection_id": null,
+      "prior_sequence": null,
+      "protocol": "h1",
+      "query_boundary_unix_ns": {
+        "post_request_started": 1792196016519723884,
+        "pre_request_finished": 1792195998987139466
+      },
+      "sender_credit_wait": {
+        "aggregate_notify": {
+          "count": 2,
+          "max_nanoseconds": 80877440,
+          "total_nanoseconds": 159775112
+        },
+        "byte_notify": {
+          "count": 38,
+          "max_nanoseconds": 160392952,
+          "total_nanoseconds": 1686432710
+        },
+        "byte_zero": {
+          "count": 37,
+          "max_nanoseconds": 160392952,
+          "total_nanoseconds": 1686431878
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 3,
+          "max_nanoseconds": 80877440,
+          "total_nanoseconds": 159775944
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "total_ns": 1846207822
+      },
+      "sender_data_path": {
+        "data_call_ns": 14961423968,
+        "frames": 8230,
+        "physical_write_ns": 14895418298
+      },
+      "sequence": 11,
+      "stream_id": 6,
+      "wall_seconds": 17.253204122
+    },
+    {
+      "agent_receive_growth_event": {
+        "current": 524288,
+        "direction_warning": "This event is the agent receive side for the small download request, not the server receive side for the 256 MiB response.",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 3265,
+        "proposed": 524288,
+        "rate_bytes_per_second": 5085.779107247296,
+        "sample_unix_nano": 1792196032763252950
+      },
+      "agent_receive_prior_bulk_growth_publications": [],
+      "bytes_per_second": 30642352.95511372,
+      "idle_age_ns": 34215061244,
+      "lane": 2,
+      "lifetime_class": "fresh-replacement-after-idle-expiry-first-server-bulk-download",
+      "origin_connection_id": "10.212.0.2:58080",
+      "origin_reuse_satisfied": false,
+      "prior_origin_connection_id": "10.212.0.2:45748",
+      "prior_sequence": 10,
+      "protocol": "h1",
+      "query_boundary_unix_ns": {
+        "post_request_started": 1792196041617040766,
+        "pre_request_finished": 1792196032577561585
+      },
+      "sender_credit_wait": {
+        "aggregate_notify": {
+          "count": 1,
+          "max_nanoseconds": 79452907,
+          "total_nanoseconds": 79452907
+        },
+        "byte_notify": {
+          "count": 19,
+          "max_nanoseconds": 240589668,
+          "total_nanoseconds": 946007215
+        },
+        "byte_zero": {
+          "count": 18,
+          "max_nanoseconds": 240589668,
+          "total_nanoseconds": 946005912
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 2,
+          "max_nanoseconds": 79452907,
+          "total_nanoseconds": 79454210
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "total_ns": 1025460122
+      },
+      "sender_data_path": {
+        "data_call_ns": 7338503383,
+        "frames": 8626,
+        "physical_write_ns": 7266361046
+      },
+      "sequence": 14,
+      "stream_id": 8,
+      "wall_seconds": 8.76027557
+    },
+    {
+      "agent_receive_growth_event": {
+        "current": 524288,
+        "direction_warning": "This event is the agent receive side for the small download request, not the server receive side for the 256 MiB response.",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 0,
+        "proposed": 524288,
+        "rate_bytes_per_second": 0,
+        "sample_unix_nano": 1792196042037952878
+      },
+      "agent_receive_prior_bulk_growth_publications": [],
+      "bytes_per_second": 34903041.15273943,
+      "idle_age_ns": 25865213003,
+      "lane": 3,
+      "lifetime_class": "same-stream-reused-after-prior-server-bulk-download",
+      "origin_connection_id": "10.212.0.2:36380",
+      "origin_reuse_satisfied": true,
+      "prior_origin_connection_id": "10.212.0.2:36380",
+      "prior_sequence": 11,
+      "protocol": "h1",
+      "query_boundary_unix_ns": {
+        "post_request_started": 1792196049917008607,
+        "pre_request_finished": 1792196041937501932
+      },
+      "sender_credit_wait": {
+        "aggregate_notify": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "byte_notify": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "byte_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "total_ns": 0
+      },
+      "sender_data_path": {
+        "data_call_ns": 7332668973,
+        "frames": 8193,
+        "physical_write_ns": 7266310629
+      },
+      "sequence": 15,
+      "stream_id": 6,
+      "wall_seconds": 7.690890167
+    },
+    {
+      "agent_receive_growth_event": {
+        "current": 524288,
+        "direction_warning": "This event is the agent receive side for the small download request, not the server receive side for the 256 MiB response.",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 3235,
+        "proposed": 524288,
+        "rate_bytes_per_second": 5038.604394789018,
+        "sample_unix_nano": 1792196141638791762
+      },
+      "agent_receive_prior_bulk_growth_publications": [],
+      "bytes_per_second": 27496094.777577538,
+      "idle_age_ns": null,
+      "lane": 1,
+      "lifetime_class": "fresh-stream-first-server-bulk-download",
+      "origin_connection_id": "10.212.0.2:51902",
+      "origin_reuse_satisfied": false,
+      "prior_origin_connection_id": null,
+      "prior_sequence": null,
+      "protocol": "h2",
+      "query_boundary_unix_ns": {
+        "post_request_started": 1792196151505340535,
+        "pre_request_finished": 1792196141445847451
+      },
+      "sender_credit_wait": {
+        "aggregate_notify": {
+          "count": 2,
+          "max_nanoseconds": 79033111,
+          "total_nanoseconds": 79040766
+        },
+        "byte_notify": {
+          "count": 25,
+          "max_nanoseconds": 241011027,
+          "total_nanoseconds": 1663009363
+        },
+        "byte_zero": {
+          "count": 24,
+          "max_nanoseconds": 241011027,
+          "total_nanoseconds": 1663008381
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 3,
+          "max_nanoseconds": 79033111,
+          "total_nanoseconds": 79041748
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "total_ns": 1742050129
+      },
+      "sender_data_path": {
+        "data_call_ns": 7582835423,
+        "frames": 8230,
+        "physical_write_ns": 7516358513
+      },
+      "sequence": 9,
+      "stream_id": 6,
+      "wall_seconds": 9.762675688
+    },
+    {
+      "agent_receive_growth_event": {
+        "current": 524288,
+        "direction_warning": "This event is the agent receive side for the small download request, not the server receive side for the 256 MiB response.",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 3275,
+        "proposed": 524288,
+        "rate_bytes_per_second": 5099.8656309793205,
+        "sample_unix_nano": 1792196159774477981
+      },
+      "agent_receive_prior_bulk_growth_publications": [],
+      "bytes_per_second": 33577476.205130845,
+      "idle_age_ns": null,
+      "lane": 3,
+      "lifetime_class": "fresh-stream-first-server-bulk-download",
+      "origin_connection_id": "10.212.0.2:34772",
+      "origin_reuse_satisfied": false,
+      "prior_origin_connection_id": null,
+      "prior_sequence": null,
+      "protocol": "h2",
+      "query_boundary_unix_ns": {
+        "post_request_started": 1792196167890187810,
+        "pre_request_finished": 1792196159589253751
+      },
+      "sender_credit_wait": {
+        "aggregate_notify": {
+          "count": 5,
+          "max_nanoseconds": 80394767,
+          "total_nanoseconds": 159357258
+        },
+        "byte_notify": {
+          "count": 18,
+          "max_nanoseconds": 160485872,
+          "total_nanoseconds": 707909409
+        },
+        "byte_zero": {
+          "count": 17,
+          "max_nanoseconds": 160485872,
+          "total_nanoseconds": 707907746
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 6,
+          "max_nanoseconds": 80394767,
+          "total_nanoseconds": 159358921
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "total_ns": 867266667
+      },
+      "sender_data_path": {
+        "data_call_ns": 6688780105,
+        "frames": 8350,
+        "physical_write_ns": 6622475667
+      },
+      "sequence": 11,
+      "stream_id": 6,
+      "wall_seconds": 7.994509604
+    },
+    {
+      "agent_receive_growth_event": {
+        "current": 24969216,
+        "direction_warning": "This event is the agent receive side for the small download request, not the server receive side for the 256 MiB response.",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 0,
+        "proposed": 24969216,
+        "rate_bytes_per_second": 0,
+        "sample_unix_nano": 1792196183710526255
+      },
+      "agent_receive_prior_bulk_growth_publications": [
+        {
+          "current": 524288,
+          "outcome": "grown",
+          "previous": 1512331,
+          "proposed": 851968,
+          "rate_bytes_per_second": 2355327.4794222456,
+          "sample_unix_nano": 1792196152304415906
+        },
+        {
+          "current": 851968,
+          "outcome": "grown",
+          "previous": 2050993,
+          "proposed": 1572864,
+          "rate_bytes_per_second": 3194247.057768735,
+          "sample_unix_nano": 1792196152384743642
+        },
+        {
+          "current": 1572864,
+          "outcome": "grown",
+          "previous": 2841254,
+          "proposed": 2097152,
+          "rate_bytes_per_second": 4425010.177415116,
+          "sample_unix_nano": 1792196152465479823
+        },
+        {
+          "current": 2097152,
+          "outcome": "grown",
+          "previous": 4802142,
+          "proposed": 2883584,
+          "rate_bytes_per_second": 7478925.740159209,
+          "sample_unix_nano": 1792196152546215022
+        },
+        {
+          "current": 2883584,
+          "outcome": "grown",
+          "previous": 7225698,
+          "proposed": 4849664,
+          "rate_bytes_per_second": 11253407.8856594,
+          "sample_unix_nano": 1792196152627493297
+        },
+        {
+          "current": 4849664,
+          "outcome": "grown",
+          "previous": 10434164,
+          "proposed": 7274496,
+          "rate_bytes_per_second": 16250319.348557238,
+          "sample_unix_nano": 1792196152708256780
+        },
+        {
+          "current": 7274496,
+          "outcome": "grown",
+          "previous": 14600662,
+          "proposed": 10485760,
+          "rate_bytes_per_second": 22739283.42760789,
+          "sample_unix_nano": 1792196152799093185
+        },
+        {
+          "current": 10485760,
+          "outcome": "grown",
+          "previous": 17601530,
+          "proposed": 14614528,
+          "rate_bytes_per_second": 27412878.57407531,
+          "sample_unix_nano": 1792196152889250559
+        },
+        {
+          "current": 14614528,
+          "outcome": "grown",
+          "previous": 21517771,
+          "proposed": 19791872,
+          "rate_bytes_per_second": 33512088.824014556,
+          "sample_unix_nano": 1792196153069309841
+        },
+        {
+          "current": 19791872,
+          "outcome": "grown",
+          "previous": 25288728,
+          "proposed": 24969216,
+          "rate_bytes_per_second": 39385032.60246092,
+          "sample_unix_nano": 1792196153518077488
+        }
+      ],
+      "bytes_per_second": 27370166.524935883,
+      "idle_age_ns": 24622228686,
+      "lane": 2,
+      "lifetime_class": "same-stream-reused-after-opposite-direction-upload-first-server-bulk-download",
+      "origin_connection_id": "10.212.0.2:36696",
+      "origin_reuse_satisfied": true,
+      "prior_origin_connection_id": "10.212.0.2:36696",
+      "prior_sequence": 10,
+      "protocol": "h2",
+      "query_boundary_unix_ns": {
+        "post_request_started": 1792196193732698969,
+        "pre_request_finished": 1792196183604086794
+      },
+      "sender_credit_wait": {
+        "aggregate_notify": {
+          "count": 3,
+          "max_nanoseconds": 159788493,
+          "total_nanoseconds": 159979534
+        },
+        "byte_notify": {
+          "count": 24,
+          "max_nanoseconds": 160932737,
+          "total_nanoseconds": 1587930131
+        },
+        "byte_zero": {
+          "count": 23,
+          "max_nanoseconds": 160932737,
+          "total_nanoseconds": 1587929620
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 4,
+          "max_nanoseconds": 159788493,
+          "total_nanoseconds": 159980045
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "total_ns": 1747909665
+      },
+      "sender_data_path": {
+        "data_call_ns": 7698847666,
+        "frames": 8209,
+        "physical_write_ns": 7635943754
+      },
+      "sequence": 14,
+      "stream_id": 6,
+      "wall_seconds": 9.807593087
+    },
+    {
+      "agent_receive_growth_event": {
+        "current": 524288,
+        "direction_warning": "This event is the agent receive side for the small download request, not the server receive side for the 256 MiB response.",
+        "maximum": 268435456,
+        "outcome": "no_proposal",
+        "previous": 0,
+        "proposed": 524288,
+        "rate_bytes_per_second": 0,
+        "sample_unix_nano": 1792196194179389370
+      },
+      "agent_receive_prior_bulk_growth_publications": [],
+      "bytes_per_second": 34682503.67807756,
+      "idle_age_ns": 26670673067,
+      "lane": 3,
+      "lifetime_class": "same-stream-reused-after-prior-server-bulk-download",
+      "origin_connection_id": "10.212.0.2:34772",
+      "origin_reuse_satisfied": true,
+      "prior_origin_connection_id": "10.212.0.2:34772",
+      "prior_sequence": 11,
+      "protocol": "h2",
+      "query_boundary_unix_ns": {
+        "post_request_started": 1792196202099288429,
+        "pre_request_finished": 1792196194068850982
+      },
+      "sender_credit_wait": {
+        "aggregate_notify": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "byte_notify": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "byte_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "stream_and_session_allocation_zero": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "total_ns": 0
+      },
+      "sender_data_path": {
+        "data_call_ns": 7408309053,
+        "frames": 8193,
+        "physical_write_ns": 7344823842
+      },
+      "sequence": 15,
+      "stream_id": 6,
+      "wall_seconds": 7.739794638
+    }
+  ],
+  "schema_version": 1,
+  "scope": "closed-evidence read-only selected-stream lifetime and credit-boundary analysis",
+  "server_capacity_snapshot": {
+    "contains_per_stream_credit_or_growth": false,
+    "keys": [
+      "adaptive",
+      "adaptive_admission_limit",
+      "adaptive_admission_role",
+      "adaptive_public_admission_limit",
+      "adaptive_raw_admission_limit",
+      "file_descriptors_limit",
+      "file_descriptors_used",
+      "generation",
+      "memory_headroom_to_hard_bytes",
+      "memory_limit_bytes",
+      "memory_pressure",
+      "memory_source",
+      "memory_used_bytes",
+      "observed_unix_ns",
+      "reject_new",
+      "resource_last_good_unix_ns",
+      "resource_next_sample_unix_ns",
+      "resource_pressure_reason",
+      "resource_sample_error",
+      "resource_sampled_unix_ns",
+      "schema_version",
+      "sequence"
+    ],
+    "raw_search_hits_for_credit_fields": 0
+  },
+  "source_comparison": {
+    "aggregate_policy": "same estimator; current aggregate accepted target publishes session pool if needed, then stream allocation, then byte window; frozen legacy accepted target reserves legacy receive memory then publishes byte window",
+    "current_growing_conn_sha256": "c4db48b961c8a893acd5865dd0866dbd3b003966681363d84a732fa985fa0baf",
+    "current_receive_window_growth_sha256": "5954cf0472d92031945c2f8f1417488437ac640103dd927e9fcc390b5ef8f49d",
+    "estimator_byte_identical": true,
+    "legacy_growing_conn_sha256": "238b6ff528d055614000c99f5f07ca61e8847a285e43ce5f7ae0169edc0300b0",
+    "legacy_receive_window_growth_sha256": "5954cf0472d92031945c2f8f1417488437ac640103dd927e9fcc390b5ef8f49d"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "accepted": true,
+  "action": "small-diagnostic-smoke-2-final-preflight",
+  "authorization_condition_fulfilled": true,
+  "build_supplement_kind": "audited-build-attempt-1 records supplement; not observer-validation supplement",
+  "diagnostic": "wan-sender-wait",
+  "endpoint_execution_run": false,
+  "fixed_mode": {
+    "agent_cpus": "4-7",
+    "idle_limit_ns": 30000000000,
+    "load_cpus": "8-15",
+    "protocol_order": [
+      "h1",
+      "h2"
+    ],
+    "required_pool_mib": 2,
+    "rtt_ms": 80,
+    "selected_sequences": [
+      9,
+      11,
+      14,
+      15
+    ],
+    "server_cpus": "0-3",
+    "server_memory_max_bytes": 4294967296,
+    "server_memory_swap_max_bytes": 0,
+    "steady_mib": 4,
+    "transfer_repetitions": 3,
+    "transfers_per_arm": 16,
+    "warmup_mib": 4
+  },
+  "hashes": {
+    "agent_binary": "43eadb7664d70f9585887ac824cc7e6dcb55d6fa40731e3888b6fa5a1cc8d74f",
+    "arm": "ac2b84506d53a7562dc33d74940362c513f7b71ae0b5a7cc9f22533493b8c77a",
+    "build_manifest": "ba1a31b8f54e7cbb4df8dace0990a4aba87fd4462803a31a6e3082810e9e1b2b",
+    "build_supplement_ledger": "bd74f1e717079b9b9db59a1f0e7114cd13f32e2e6d1a1be1d3211091cf786225",
+    "build_supplement_sidecar": "5c6139cc725fa93ba2166d87c8ca070c0bcbc94cb76c790c8f68b77cc3b6a9ad",
+    "coordinator": "51b77685314288da37568612fae50fd034962794925a815c56d4b1aa93394206",
+    "cp8_checkpoint": "8a79e841bfdea34957dcd2023d7bc002311c91e0ed2b46a30728ce0281df61c8",
+    "cp9_checkpoint": "601ffd71333a0476e9a6aef92eb3947604fd91a594d6d4c906d9f1e8a2de3fc0",
+    "cp9_compatibility_receipt": "11b3f6cfbd1de9a8ff612ef483b127b87e16d4099debc369d5f5db542fc9d53e",
+    "cp9_contract_attempt": "e339f8608083bc950185b2e32d09cf6cc49f076972e4c3f0aaa2ec91c138f1ad",
+    "cp9_reviewed_manifest": "fdf2e441f130aac840d2b08cd0b82a7196a71d4dd1519a1c49b6dfcdebfc3fab",
+    "invocation": "be5a2f9bb6850258fbe9c83ca1cf6b683607b23834c99f3a0dd2ebc714e0593a",
+    "invocation_bundle": "967c8a8ce653919ce022698e3e3375a8b8486e6e7ae8f9af11adf8f0e2fecc07",
+    "publication_disclosure": "a5bf1598dffce3a0c58d579ad210f9efe9e6ee638ab9b0e02ef218ea07937635",
+    "publication_original_ledger": "325284f62300a51b8c8a347f5a481052287f7553c59dd82c830ec26d435cfc06",
+    "publication_receipt": "3d51f22da466d04a93ce31cac2627ea4bd7213c9a6fb1ff91890a5519c2beb8b",
+    "publication_v2_ledger": "b76b1eeb1079c9868b27023105d0f5446248dde10c638124842c18301a24176c",
+    "runner": "02c1e76bee7fa6bf81f1242761ac7ae533f47b006cac86cda35523344cb05da4",
+    "server_binary": "f2e6cf390fdcd727b8c7120a6d877dc3a53afe9d8b970aa7b0d7f6cc892a7bdc",
+    "smoke1_failure_final_ledger": "856cd4e46fc5f45764a43cbbe69cff1f8ca4b937c88bb8d524331f9c38809aad",
+    "smoke1_failure_run_ledger": "00cb5c12531b937f422f4a69671192e203a949b0b8e82e59e65c60b14cb08a49"
+  },
+  "historical_disclosures": {
+    "cp8_preserved": true,
+    "publication_original_self_included_ledger_preserved": true,
+    "publication_v2_ledger_bound": true,
+    "receipt_review1_bad_relative_paths_preserved": true,
+    "smoke1_failure_preserved": true
+  },
+  "modes": {
+    "agent_binary": "0755",
+    "build_manifest": "0600",
+    "server_binary": "0755"
+  },
+  "output_absent": true,
+  "output_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/integration-source/runs/small-sender-wait-smoke-2",
+  "schema_version": 1,
+  "traffic_run": false
+}

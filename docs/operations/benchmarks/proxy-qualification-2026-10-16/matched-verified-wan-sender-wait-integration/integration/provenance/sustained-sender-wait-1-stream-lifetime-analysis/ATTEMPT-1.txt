@@ -1,0 +1,5 @@
+The first local extraction invocation exited nonzero before writing its result.
+It referenced a nonexistent sender_validation.interval field and raised KeyError.
+The corrected extractor records the raw pre-request-finished and
+post-request-started boundary fields instead. No workload, test, parser, or
+endpoint was run.
